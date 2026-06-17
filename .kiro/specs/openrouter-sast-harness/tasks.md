@@ -2,61 +2,61 @@
 
 ## Phase 0: Project Skeleton
 
-- [ ] Create Python package skeleton with CLI entry point `ousast`.
-- [ ] Add config loading for `openultrasast.toml` and environment variables.
-- [ ] Add resolved config artifact writer.
-- [ ] Add scan run directory creation under `.openultrasast/runs/<scan-id>/`.
-- [ ] Add basic tests for config loading and run directory creation.
+- [x] Create Python package skeleton with CLI entry point `ousast`.
+- [x] Add config loading for `openultrasast.toml` and environment variables.
+- [x] Add resolved config artifact writer.
+- [x] Add scan run directory creation under `.openultrasast/runs/<scan-id>/`.
+- [x] Add basic tests for config loading and run directory creation.
 
 ## Phase 1: Intake And Preprocess
 
-- [ ] Implement repository snapshot collection.
-- [ ] Implement source file enumeration with ignore handling.
-- [ ] Implement language detection from extension and shebang.
-- [ ] Implement LOC counting.
-- [ ] Implement initial tag heuristics for parser, memory unsafe, crypto, auth boundary, deserialization, syscall, network, filesystem, and fuzzable targets.
-- [ ] Emit `preprocess/file_targets.json`.
-- [ ] Add tests for tag heuristics on small fixture repositories.
+- [x] Implement repository snapshot collection.
+- [x] Implement source file enumeration with ignore handling.
+- [x] Implement language detection from extension and shebang.
+- [x] Implement LOC counting.
+- [x] Implement initial tag heuristics for parser, memory unsafe, crypto, auth boundary, deserialization, syscall, network, filesystem, and fuzzable targets.
+- [x] Emit `preprocess/file_targets.json`.
+- [x] Add tests for tag heuristics on small fixture repositories.
 
 ## Phase 2: Ranking
 
-- [ ] Define `FileTarget` and ranking schemas.
-- [ ] Implement heuristic score floors and boosts.
-- [ ] Implement OpenRouter chat client for ranker role.
-- [ ] Implement chunked ranker calls with JSON response validation.
-- [ ] Compute composite priority.
-- [ ] Emit ranking rationales and model metadata.
-- [ ] Add tests for composite priority and malformed model response handling.
+- [x] Define `FileTarget` and ranking schemas.
+- [x] Implement heuristic score floors and boosts.
+- [x] Implement OpenRouter chat client for ranker role.
+- [x] Implement chunked ranker calls with JSON response validation.
+- [x] Compute composite priority.
+- [x] Emit ranking rationales and model metadata.
+- [x] Add tests for composite priority and malformed model response handling.
 
 ## Phase 3: Quick Scan Reports
 
-- [ ] Implement static finding schema.
-- [ ] Implement quick-mode hunter prompt and bounded file context.
-- [ ] Implement structured finding extraction.
-- [ ] Enforce initial evidence level `suspicion` unless static corroboration exists.
-- [ ] Emit `findings.json`.
-- [ ] Emit Markdown report.
-- [ ] Add smoke test against a fixture repository with one known insecure pattern.
+- [x] Implement static finding schema.
+- [x] Implement quick-mode hunter prompt and bounded file context.
+- [x] Implement structured finding extraction.
+- [x] Enforce initial evidence level `suspicion` unless static corroboration exists.
+- [x] Emit `findings.json`.
+- [x] Emit Markdown report.
+- [x] Add smoke test against a fixture repository with one known insecure pattern.
 
 ## Phase 4: OpenRouter Embeddings
 
-- [ ] Implement OpenRouter embedding client.
-- [ ] Run a vector-store bakeoff for metadata filtering, local persistence, incremental indexing, export/import, and retrieval quality.
-- [ ] Select default local vector store based on bakeoff results.
-- [ ] Implement code chunking with path, symbol, and line metadata.
-- [ ] Implement namespaces for repo code, docs, static findings, mechanisms, skills, and traces.
-- [ ] Implement index reuse keyed by repository snapshot and embedding model.
-- [ ] Implement bounded retrieval package builder per role.
-- [ ] Add tests for chunk metadata and retrieval filters.
+- [x] Implement OpenRouter embedding client.
+- [x] Run a vector-store bakeoff for metadata filtering, local persistence, incremental indexing, export/import, and retrieval quality.
+- [x] Select default local vector store based on bakeoff results.
+- [x] Implement code chunking with path, symbol, and line metadata.
+- [x] Implement namespaces for repo code, docs, static findings, mechanisms, skills, and traces.
+- [x] Implement index reuse keyed by repository snapshot and embedding model.
+- [x] Implement bounded retrieval package builder per role.
+- [x] Add tests for chunk metadata and retrieval filters.
 
 ## Phase 4A: Ranking Quality And False-Positive Loop
 
-- [ ] Define false-positive reason taxonomy.
-- [ ] Add false-positive learning records for rejected, duplicate, unsupported, contradicted, and unverified findings.
-- [ ] Track ranking metrics by tier: verified findings, false positives, time to verification, and missed fixture vulnerabilities.
-- [ ] Feed verifier outcomes into ranking calibration.
-- [ ] Feed rejected findings into retrieval filter adjustment and prompt constraints.
-- [ ] Add tests proving scoped false-positive demotion does not globally suppress the vulnerability class.
+- [x] Define false-positive reason taxonomy.
+- [x] Add false-positive learning records for rejected, duplicate, unsupported, contradicted, and unverified findings.
+- [x] Track ranking metrics by tier: verified findings, false positives, time to verification, and missed fixture vulnerabilities.
+- [x] Feed verifier outcomes into ranking calibration.
+- [x] Feed rejected findings into retrieval filter adjustment and prompt constraints.
+- [x] Add tests proving scoped false-positive demotion does not globally suppress the vulnerability class.
 
 ## Phase 5: Harness Runtime
 
