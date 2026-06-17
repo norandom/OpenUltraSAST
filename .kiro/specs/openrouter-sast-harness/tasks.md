@@ -149,6 +149,7 @@
 
 ## Phase 12: MCP And OpenCode Commands
 
+- [x] Add project-local opencode skills for scan, triage, fix audit, and implementation steering.
 - [ ] Implement narrow MCP server.
 - [ ] Add `openultrasast.scan`, `status`, `findings`, `get_finding`, `evidence`, `artifacts`, `propose_patch`, and `export_report` tools.
 - [ ] Add opencode command docs for quick, standard, deep, verify, and patch workflows.
