@@ -9,7 +9,7 @@ Checklist completion is not product completion. Each phase now carries a functio
 - `integrated`: the feature participates in the harness runtime, traces, evidence, and reports.
 - `production`: the feature is robust for real repositories, CI budgets, and analyst audit.
 
-Current verified gate: `usable_harness_mvp` partial.
+Current verified gate: `usable_harness_mvp`.
 
 Do not report OpenUltraSAST as a working security harness until `usable_harness_mvp` is checked.
 
@@ -76,7 +76,7 @@ Do not report OpenUltraSAST as a working security harness until `usable_harness_
 - [x] Quick scan can enumerate files, rank targets, emit basic static findings, and write JSON/Markdown artifacts.
 - [x] Quick scan is uv-managed and covered by unit tests.
 - [ ] Quick scan includes real LLM hunter execution. This is intentionally deferred to standard mode.
-- [ ] Quick scan includes SARIF output. This is intentionally deferred to Phase 9.
+- [x] Quick scan includes SARIF output.
 - [x] Quick scan includes enforced verifier decisions.
 
 ## Gate: `usable_harness_mvp`
@@ -87,7 +87,7 @@ Do not report OpenUltraSAST as a working security harness until `usable_harness_
 - [x] Entry-point reachability feeds FileTarget reachability hints and ranking priority.
 - [x] Evidence ladder state machine prevents invalid verified statuses.
 - [x] Independent verifier runs on fixture findings without hunter reasoning.
-- [ ] JSON, Markdown, SARIF, and manifest artifacts share finding IDs and evidence references.
+- [x] JSON, Markdown, SARIF, and manifest artifacts share finding IDs and evidence references.
 - [x] A fixture scan demonstrates one accepted static-corroborated finding and one rejected false positive.
 
 ## Phase 5: Harness Runtime (`usable_harness_mvp` prerequisite)
@@ -163,11 +163,11 @@ Do not report OpenUltraSAST as a working security harness until `usable_harness_
 
 ## Phase 9: SARIF And CI Output (`usable_harness_mvp` prerequisite)
 
-- [ ] Implement SARIF report writer.
-- [ ] Implement machine-readable manifest.
-- [ ] Add severity, confidence, evidence level, model IDs, and artifact refs to reports.
-- [ ] Add CI-friendly exit code policy.
-- [ ] Add tests for SARIF schema validity.
+- [x] Implement SARIF report writer.
+- [x] Implement machine-readable manifest.
+- [x] Add severity, confidence, evidence level, model IDs, and artifact refs to reports.
+- [x] Add CI-friendly exit code policy.
+- [x] Add tests for SARIF schema validity.
 
 ## Gate: `sandboxed_dynamic_harness`
 

@@ -11,7 +11,7 @@ from .index import build_code_chunks
 from .mapping import analyze_entry_points, attach_reachability_hints, ingest_sarif, write_entry_points, write_static_hints
 from .preprocess import preprocess_repository, write_preprocess_artifact
 from .rank import rank_targets, write_rankings
-from .reports import write_markdown_report
+from .reports import scan_exit_code, write_manifest, write_markdown_report, write_sarif_report
 from .run import create_scan_run
 from .verification import verify_findings, write_verification_results
 
@@ -24,6 +24,7 @@ def main(argv: list[str] | None = None) -> int:
     scan.add_argument("path", type=Path)
     scan.add_argument("--mode", choices=("quick", "standard", "deep"), default="quick")
     scan.add_argument("--config", type=Path, default=Path("openultrasast.toml"))
+    scan.add_argument("--fail-on", choices=("never", "findings", "verified"), default="never")
 
     index = subparsers.add_parser("index", help="chunk a local repository for embedding index construction")
     index.add_argument("path", type=Path)
@@ -32,13 +33,13 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     if args.command == "scan":
-        return _scan(args.path, args.config, args.mode)
+        return _scan(args.path, args.config, args.mode, args.fail_on)
     if args.command == "index":
         return _index(args.path, args.config, args.chunk_lines)
     return 2
 
 
-def _scan(path: Path, config_path: Path, mode: str) -> int:
+def _scan(path: Path, config_path: Path, mode: str, fail_on: str) -> int:
     if mode != "quick":
         raise SystemExit(f"mode {mode!r} is specified but only quick preprocess artifacts are implemented")
     if not path.exists() or not path.is_dir():
@@ -66,17 +67,38 @@ def _scan(path: Path, config_path: Path, mode: str) -> int:
     rankings = runtime.run_stage("rank", lambda: rank_targets(targets))
     write_rankings(rankings, run.root / "rank" / "ranking.json")
     findings = runtime.run_stage("quick_findings", lambda: quick_scan_findings(run.target, targets, rankings))
-    write_findings(findings, run.root / "findings.json")
+    findings_path = run.root / "findings.json"
+    verification_path = run.root / "verification.json"
+    markdown_path = run.root / "report.md"
+    sarif_path = run.root / "report.sarif"
+    manifest_path = run.root / "manifest.json"
+    write_findings(findings, findings_path)
     verifications = runtime.run_stage("verify", lambda: verify_findings(findings))
-    write_verification_results(verifications, run.root / "verification.json")
-    runtime.run_stage("report", lambda: write_markdown_report(findings, run.root / "report.md"))
+    write_verification_results(verifications, verification_path)
+    runtime.run_stage("report", lambda: write_markdown_report(findings, markdown_path, verifications))
+    runtime.run_stage("sarif", lambda: write_sarif_report(findings, verifications, sarif_path))
+    runtime.run_stage(
+        "manifest",
+        lambda: write_manifest(
+            run=run,
+            findings=findings,
+            verifications=verifications,
+            artifact_paths={
+                "findings": findings_path,
+                "verification": verification_path,
+                "markdown": markdown_path,
+                "sarif": sarif_path,
+            },
+            path=manifest_path,
+        ),
+    )
     runtime.finish(status="succeeded")
     print(f"scan_id={run.scan_id}")
     print(f"run_dir={run.root}")
     print(f"file_targets={len(targets)}")
     print(f"ranked_targets={len(rankings)}")
     print(f"findings={len(findings)}")
-    return 0
+    return scan_exit_code(findings, verifications, fail_on)
 
 
 def _load_static_hints(sarif_paths: tuple[str, ...]) -> list[object]:
