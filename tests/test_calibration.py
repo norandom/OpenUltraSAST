@@ -25,6 +25,10 @@ def _finding(path: str = "auth/login.py") -> StaticFinding:
         evidence_level="static_corroboration",
         rationale="pattern matched",
         line=1,
+        function_name=None,
+        reachability_status="unknown",
+        reachability_evidence=[],
+        reachability_conditions=[],
         tags=["syscall_entry"],
         ranking_priority=4.0,
     )

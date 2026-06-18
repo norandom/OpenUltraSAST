@@ -47,12 +47,18 @@ class EvidenceConfig:
 
 
 @dataclass(frozen=True)
+class StaticAnalysisConfig:
+    sarif_paths: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class ResolvedConfig:
     models: ModelConfig = ModelConfig()
     embeddings: EmbeddingConfig = EmbeddingConfig()
     sandbox: SandboxConfig = SandboxConfig()
     dynamic: DynamicConfig = DynamicConfig()
     evidence: EvidenceConfig = EvidenceConfig()
+    static_analysis: StaticAnalysisConfig = StaticAnalysisConfig()
     runs_dir: str = ".openultrasast/runs"
 
 
@@ -68,6 +74,7 @@ def load_config(config_path: Path | None = None) -> ResolvedConfig:
         sandbox=_load_sandbox(data.get("sandbox", {})),
         dynamic=_load_dynamic(data.get("dynamic", {})),
         evidence=_load_evidence(data.get("evidence", {})),
+        static_analysis=_load_static_analysis(data.get("static_analysis", {})),
         runs_dir=os.environ.get("OPENULTRASAST_RUNS_DIR", ".openultrasast/runs"),
     )
 
@@ -126,3 +133,11 @@ def _load_evidence(value: object) -> EvidenceConfig:
         minimum_exploit=str(data.get("minimum_exploit", "crash_reproduced")),
         minimum_patch=str(data.get("minimum_patch", "root_cause_explained")),
     )
+
+
+def _load_static_analysis(value: object) -> StaticAnalysisConfig:
+    data = _section(value)
+    paths = data.get("sarif_paths", [])
+    if not isinstance(paths, list):
+        paths = []
+    return StaticAnalysisConfig(sarif_paths=tuple(str(item) for item in paths))

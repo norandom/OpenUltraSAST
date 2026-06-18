@@ -110,3 +110,26 @@ def test_write_rankings_emits_artifact(tmp_path: Path) -> None:
     payload = json.loads(output.read_text())
     assert payload["rankings"][0]["path"] == "auth.py"
     assert payload["rankings"][0]["priority"] >= 1
+
+
+def test_reachability_hints_raise_ranking_priority() -> None:
+    target = FileTarget(
+        path="routes.py",
+        absolute_path="/repo/routes.py",
+        language="python",
+        loc=5,
+        tags=[],
+        has_fuzz_entry_point=False,
+        reachability_hints=[
+            {
+                "kind": "route",
+                "access_level": "public",
+                "trust_boundary": "http_request",
+            }
+        ],
+    )
+
+    ranking = rank_targets([target])[0]
+
+    assert ranking.reachability == 5
+    assert "entry_point_reachable" in ranking.static_boosts

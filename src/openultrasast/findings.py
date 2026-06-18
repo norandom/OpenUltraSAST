@@ -19,6 +19,10 @@ class StaticFinding:
     evidence_level: str
     rationale: str
     line: int | None
+    function_name: str | None
+    reachability_status: str
+    reachability_evidence: list[dict[str, object]]
+    reachability_conditions: list[str]
     tags: list[str]
     ranking_priority: float
 
@@ -70,11 +74,9 @@ def quick_scan_findings(root: Path, targets: list[FileTarget], rankings: list[Ra
     for target in targets:
         text = _read_text(root / target.path)
         for rule in PATTERN_RULES:
-            match = rule.pattern.search(text)
-            if match is None:
-                continue
             ranking = ranking_by_path.get(target.path)
-            findings.append(_finding_from_match(target, rule, text, match.start(), ranking))
+            for match in rule.pattern.finditer(text):
+                findings.append(_finding_from_match(target, rule, text, match.start(), ranking))
     return sorted(findings, key=lambda item: (_severity_sort(item.severity), -item.ranking_priority, item.path))
 
 
@@ -103,6 +105,8 @@ def _finding_from_match(
     ranking: RankingScore | None,
 ) -> StaticFinding:
     line = text.count("\n", 0, offset) + 1
+    reachability_status, function_name, reachability_evidence = _reachability_for_line(target, line)
+    priority = ranking.priority if ranking is not None else 1.0
     return StaticFinding(
         finding_id=f"{rule.rule_id}:{target.path}:{line}",
         path=target.path,
@@ -112,9 +116,60 @@ def _finding_from_match(
         evidence_level="static_corroboration",
         rationale=f"Static pattern {rule.rule_id} matched line {line}; manual verification still required.",
         line=line,
+        function_name=function_name,
+        reachability_status=reachability_status,
+        reachability_evidence=reachability_evidence,
+        reachability_conditions=_reachability_conditions(reachability_evidence),
         tags=sorted(set(target.tags) | set(rule.tags)),
-        ranking_priority=ranking.priority if ranking is not None else 1.0,
+        ranking_priority=_finding_priority(priority, reachability_status),
     )
+
+
+def _reachability_for_line(target: FileTarget, line: int) -> tuple[str, str | None, list[dict[str, object]]]:
+    hints = target.reachability_hints
+    concrete = [hint for hint in hints if isinstance(hint.get("line"), int)]
+    matching = [hint for hint in concrete if _line_in_hint(line, hint)]
+    if matching:
+        return "reachable", _function_name(matching), matching
+    if concrete:
+        return "unknown", None, []
+    inferred = [hint for hint in hints if hint.get("line") is None]
+    if inferred:
+        return "inferred-file-surface", None, inferred
+    return "unknown", None, []
+
+
+def _line_in_hint(line: int, hint: dict[str, object]) -> bool:
+    start = hint.get("line")
+    end = hint.get("end_line")
+    if not isinstance(start, int):
+        return False
+    if not isinstance(end, int):
+        end = start
+    return start <= line <= end
+
+
+def _function_name(hints: list[dict[str, object]]) -> str | None:
+    for hint in hints:
+        function_name = hint.get("function_name")
+        if isinstance(function_name, str) and function_name:
+            return function_name
+    return None
+
+
+def _reachability_conditions(hints: list[dict[str, object]]) -> list[str]:
+    conditions: list[str] = []
+    for hint in hints:
+        value = hint.get("conditions")
+        if isinstance(value, list):
+            conditions.extend(str(item) for item in value if item)
+    return sorted(set(conditions))
+
+
+def _finding_priority(priority: float, reachability_status: str) -> float:
+    if reachability_status == "unknown":
+        return min(priority, 1.5)
+    return priority
 
 
 def _read_text(path: Path) -> str:

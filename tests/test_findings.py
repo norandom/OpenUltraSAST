@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from openultrasast.findings import build_quick_hunter_prompt, quick_scan_findings, write_findings
+from openultrasast.mapping import analyze_entry_points, attach_reachability_hints
 from openultrasast.preprocess import preprocess_repository
 from openultrasast.rank import rank_targets
 from openultrasast.reports import write_markdown_report
@@ -36,6 +37,37 @@ def test_findings_and_report_artifacts(tmp_path: Path) -> None:
 
     assert json.loads(findings_path.read_text())["findings"][0]["severity"] == "medium"
     assert "Subprocess shell execution" in report_path.read_text()
+
+
+def test_findings_inherit_only_matching_function_level_reachability(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "app.py").write_text(
+        "@app.route('/admin')\n"
+        "@login_required\n"
+        "def admin_upload():\n"
+        "    if feature_flags.enabled('dangerous_upload'):\n"
+        "        return eval(request.data)\n"
+        "    return 'disabled'\n"
+        "\n"
+        "def helper(user_input):\n"
+        "    return exec(user_input)\n"
+    )
+    _, targets = preprocess_repository(repo)
+    targets = attach_reachability_hints(targets, analyze_entry_points(repo, targets))
+
+    findings = quick_scan_findings(repo, targets, rank_targets(targets))
+
+    reachable = next(finding for finding in findings if finding.line == 5)
+    unreachable = next(finding for finding in findings if finding.line == 9)
+
+    assert reachable.function_name == "admin_upload"
+    assert reachable.reachability_status == "reachable"
+    assert reachable.reachability_evidence[0]["access_level"] == "authenticated"
+    assert reachable.reachability_conditions == ["feature_flags.enabled('dangerous_upload')"]
+    assert unreachable.function_name is None
+    assert unreachable.reachability_status == "unknown"
+    assert unreachable.ranking_priority <= 1.5
 
 
 def test_quick_hunter_prompt_is_bounded() -> None:

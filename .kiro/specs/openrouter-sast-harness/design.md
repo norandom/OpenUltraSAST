@@ -19,7 +19,7 @@ Conceptual lineage:
 repo path
   -> intake snapshot
   -> preprocess and static tags
-  -> graph and optional SARIF ingest
+  -> graph, SARIF ingest, and entry-point reachability mapping
   -> embeddings and retrieval index
   -> file/function ranking
   -> tiered hunter pool
@@ -212,6 +212,7 @@ Primary mapping sources:
 ```text
 Semgrep: syntactic and lightweight semantic patterns, custom rule iteration, variant seeds
 CodeQL: interprocedural dataflow, taint paths, structural vulnerability queries
+Entry-point analysis: routes, CLI/process boundaries, parser inputs, smart-contract state-changing entry points, callbacks, privileged surfaces
 Differential review: changed attack surfaces, regression-prone patches, new trust-boundary crossings
 Sharp-edge review: unsafe APIs, insecure defaults, confusing configuration, misuse-prone interfaces
 SARIF parsing: normalized evidence, rule metadata, locations, severity, fingerprints
@@ -226,10 +227,41 @@ taint_paths and source/sink pairs
 variant_search_seeds
 changed_surface records
 sharp_edge records
+entry_point records
+reachability_hints on FileTarget
 evidence candidates for verifier
 ```
 
-This layer should use Trail of Bits skills as task templates and checklists. For example, the CodeQL discipline supplies query/dataflow thinking, Semgrep supplies pattern and variant loops, differential review supplies changed-code blast-radius analysis, and sharp-edge review supplies API misuse mapping.
+This layer should use Trail of Bits skills as task templates and checklists. For example, the CodeQL discipline supplies query/dataflow thinking, Semgrep supplies pattern and variant loops, entry-point analysis supplies attacker-controlled surface and access classification, differential review supplies changed-code blast-radius analysis, and sharp-edge review supplies API misuse mapping.
+
+#### Entry-Point Reachability Mapping
+
+Entry-point mapping is a Phase 5A prerequisite for useful ranking and false-positive reduction. Pattern matches and static analyzer alerts are not enough; the harness must identify whether the affected function or symbol is plausibly reachable from attacker-controlled input.
+
+Initial entry-point kinds:
+
+```text
+route: HTTP/framework route handlers and request callbacks
+cli: process entry points, argparse/click handlers, argv consumers, main functions
+parser: parser or deserialization inputs that consume untrusted data
+fuzz: explicit fuzz entry points such as LLVMFuzzerTestOneInput
+smart_contract_state_change: externally callable non-view contract functions
+contract_callback: callbacks and hook implementations invoked by other contracts
+privileged_surface: auth boundaries, admin operations, filesystem/process/syscall boundaries
+```
+
+Initial access levels:
+
+```text
+public
+authenticated
+role-restricted
+contract-only/callback
+local-only
+review-required
+```
+
+Each entry-point record should include path, function name when known, start line, end line, name, kind, access level, trust boundary, access evidence, condition evidence, provenance, and rationale. Access level distinguishes unauthenticated/public from authenticated, role-restricted, local-only, callback-only, and review-required surfaces. Condition evidence captures feature flags, rollout toggles, pause guards, experiment gates, and runtime guard expressions. The preprocessor attaches matching records to `FileTarget.reachability_hints`. Findings use the source line to inherit only function-level entry points whose range contains the finding. The ranker uses these hints to raise file review priority for files containing public routes, parser/fuzz inputs, authenticated surfaces, contract callbacks, and role-restricted privileged surfaces. A finding outside a reachable function should remain eligible for review, but should not inherit the entry point's priority without call-graph evidence.
 
 ### Ranker
 

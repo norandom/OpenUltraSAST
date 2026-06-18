@@ -16,6 +16,30 @@ The project shall use Clearwing only as an implementation oracle. It shall not i
 6. Integrate Trail of Bits skills as scoped security expertise selected by language, framework, vulnerability class, mapping need, or verification need.
 7. Emit machine-readable artifacts suitable for CI, triage, and later training or harness evolution.
 
+## Completeness Model
+
+Implementation progress shall be reported against functional harness capability, not raw checklist percentage. A task may be complete as scaffold while the product capability remains incomplete.
+
+Completion levels:
+
+1. `scaffold`: schemas, CLI shape, local artifacts, tests, or isolated primitives exist.
+2. `usable`: the feature runs end-to-end for a narrow local fixture without manual wiring.
+3. `integrated`: the feature participates in the scan harness with traces, evidence, reports, and degradation handling.
+4. `production`: the feature is robust enough for real repositories, CI budgets, failure recovery, and analyst audit.
+
+Progress reports shall identify both checklist progress and functional completeness. The project shall not describe OpenUltraSAST as a working harness until the `usable_harness_mvp` gate is satisfied.
+
+Functional gates:
+
+1. `scaffold_quick_scan`: quick scan can enumerate files, rank targets, emit basic static findings, and write JSON/Markdown artifacts. This gate does not constitute a security harness.
+2. `usable_harness_mvp`: harness runtime, event tracing, static mapping ingestion, evidence ladder enforcement, independent verification, and JSON/Markdown/SARIF reporting work together on fixture repositories.
+3. `standard_security_harness`: standard mode runs ranked hunters with retrieval packages, selected security skills, independent verification, false-positive learning, and auditable traces.
+4. `sandboxed_dynamic_harness`: Docker sandbox, scoped dynamic probes, sanitizer/build artifacts, and evidence transitions work without hidden network or host mutation.
+5. `fix_validation_harness`: patch proposals, adversarial fix audit, differential/static delta checks, and sandbox validation are integrated and cannot mark patches validated without passing evidence.
+6. `opencode_product`: MCP tools, opencode commands/skills, fusion deepening, CI-ready reports, cost controls, and hardening are complete enough for routine opencode-driven use.
+
+The current implementation state shall be documented as `scaffold_quick_scan` until later gates are explicitly verified.
+
 ## Non-Goals
 
 1. Do not make network pentesting the core workflow.
@@ -46,9 +70,13 @@ The project shall use Clearwing only as an implementation oracle. It shall not i
 
 1. The system shall treat Semgrep, CodeQL, differential review, and sharp-edge/API review as mapping disciplines, not just optional external scanners.
 2. The system shall ingest Semgrep and CodeQL output as SARIF and normalize it into static hints, evidence candidates, and variant-search seeds.
-3. The system shall support differential analysis between a base and head revision to identify changed attack surfaces, newly reachable code, and regression-prone fixes.
-4. The system shall support sharp-edge mapping for APIs, configuration, defaults, cryptographic interfaces, and dangerous framework patterns that create predictable misuse.
-5. The system shall preserve analyzer provenance so each finding can cite which static tool, rule, diff, or skill-derived checklist contributed evidence.
+3. The system shall support function-level entry-point and reachability analysis to identify attacker-controlled inputs, externally callable functions, public routes, CLI/process boundaries, parser entry points, smart-contract state-changing entry points, callbacks, and privileged/admin-only surfaces.
+4. The system shall classify entry points by access level and trust boundary, including public/unrestricted, authenticated, role-restricted, contract-only/callback, local-only, and unknown/review-required.
+5. The system shall preserve condition evidence for entry points, including feature flags, rollout toggles, pause guards, experiment gates, and runtime guard expressions that affect whether a threat actor can reach the code.
+6. The system shall use function-level reachability modeling to prioritize candidate bugs inside reachable entry-point functions and to demote pattern-only findings that lack a plausible attacker-controlled path.
+6. The system shall support differential analysis between a base and head revision to identify changed attack surfaces, newly reachable code, and regression-prone fixes.
+7. The system shall support sharp-edge mapping for APIs, configuration, defaults, cryptographic interfaces, and dangerous framework patterns that create predictable misuse.
+8. The system shall preserve analyzer provenance so each finding can cite which static tool, rule, diff, entry-point analysis, or skill-derived checklist contributed evidence.
 
 ### OpenRouter Embeddings And Retrieval
 
@@ -65,7 +93,7 @@ The project shall use Clearwing only as an implementation oracle. It shall not i
 1. The system shall score candidate files on at least three axes: surface, influence, and reachability.
 2. The system shall compute a composite priority using an explicit formula, initially `surface * 0.5 + influence * 0.2 + reachability * 0.3`.
 3. The system shall keep low-surface high-influence files eligible for analysis.
-4. The system shall combine static heuristics, dependency graph data, embeddings, and OpenRouter LLM scoring.
+4. The system shall combine static heuristics, dependency graph data, entry-point reachability, embeddings, and OpenRouter LLM scoring.
 5. The system shall record score rationales and model identity.
 6. The system shall measure ranking quality with fixture repositories and prior scan outcomes, including false-positive rate by tier and missed-true-positive rate where ground truth exists.
 7. The system shall feed verifier outcomes back into ranking calibration so repeated false-positive patterns lose priority over time.
@@ -165,9 +193,11 @@ The project shall use Clearwing only as an implementation oracle. It shall not i
 
 ## Acceptance Criteria
 
-1. A user can run a local repository scan in quick mode and receive ranked static/LLM findings with JSON and Markdown reports.
-2. A user can run standard mode and receive adversarially verified findings with explicit evidence levels.
-3. A user can run deep mode on a small C/C++ parser target and receive sandboxed build/fuzz artifacts when the target is fuzzable.
-4. A finding cannot be marked verified unless it reaches at least `static_corroboration`.
-5. A patch cannot be marked validated unless a sandboxed validation command passes.
-6. A scan manifest records repository snapshot, harness config, OpenRouter model IDs, embedding model, prompt hashes, and artifact paths.
+1. `scaffold_quick_scan`: A user can run a local repository scan in quick mode and receive ranked static findings with JSON and Markdown reports. This may use heuristics and static patterns only.
+2. `usable_harness_mvp`: A user can run quick or standard fixture scans through the harness runtime and inspect event traces, normalized static mapping evidence, verifier decisions, and report artifacts.
+3. `standard_security_harness`: A user can run standard mode and receive adversarially verified findings with explicit evidence levels, selected retrieval context, skill routing, and false-positive learning records.
+4. `sandboxed_dynamic_harness`: A user can run deep mode on a small C/C++ parser target and receive sandboxed build/fuzz artifacts when the target is fuzzable.
+5. `fix_validation_harness`: A patch cannot be marked validated unless a sandboxed validation command passes and the fix audit has no accepted blocking findings.
+6. `opencode_product`: A user can drive scans, triage, evidence inspection, report export, fusion, and patch proposal through narrow MCP/OpenCode interfaces without exposing arbitrary shell execution.
+7. A finding cannot be marked verified unless it reaches at least `static_corroboration` through enforced evidence transitions.
+8. A scan manifest records repository snapshot, harness config, OpenRouter model IDs, embedding model, prompt hashes, processor versions, evidence transitions, and artifact paths.

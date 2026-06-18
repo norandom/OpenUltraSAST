@@ -6,8 +6,10 @@ from pathlib import Path
 
 from .config import load_config
 from .findings import quick_scan_findings, write_findings
+from .harness import HarnessRuntime, HarnessTraceWriter, write_harness_config
 from .index import build_code_chunks
-from .preprocess import preprocess_repository
+from .mapping import analyze_entry_points, attach_reachability_hints, ingest_sarif, write_entry_points, write_static_hints
+from .preprocess import preprocess_repository, write_preprocess_artifact
 from .rank import rank_targets, write_rankings
 from .reports import write_markdown_report
 from .run import create_scan_run
@@ -43,18 +45,44 @@ def _scan(path: Path, config_path: Path, mode: str) -> int:
 
     config = load_config(config_path if config_path.exists() else None)
     run = create_scan_run(path, config)
-    _, targets = preprocess_repository(run.target, run.root / "preprocess" / "file_targets.json")
-    rankings = rank_targets(targets)
+    runtime = HarnessRuntime(
+        scan_id=run.scan_id,
+        config=config,
+        trace_writer=HarnessTraceWriter(run.root / "trace" / "events.jsonl"),
+    )
+    write_harness_config(config=config, processors=[], contract_mode="strict", path=run.root / "harness.json")
+    runtime.start(mode=mode, target=run.target)
+    static_hints = runtime.run_stage("static_mapping", lambda: _load_static_hints(config.static_analysis.sarif_paths))
+    write_static_hints(static_hints, run.root / "mapping" / "static_hints.json")
+    snapshot, targets = runtime.run_stage(
+        "preprocess",
+        lambda: preprocess_repository(run.target, run.root / "preprocess" / "file_targets.json", static_hints),
+    )
+    entry_points = runtime.run_stage("entry_point_mapping", lambda: analyze_entry_points(run.target, targets))
+    write_entry_points(entry_points, run.root / "mapping" / "entry_points.json")
+    targets = attach_reachability_hints(targets, entry_points)
+    write_preprocess_artifact(snapshot, targets, run.root / "preprocess" / "file_targets.json")
+    rankings = runtime.run_stage("rank", lambda: rank_targets(targets))
     write_rankings(rankings, run.root / "rank" / "ranking.json")
-    findings = quick_scan_findings(run.target, targets, rankings)
+    findings = runtime.run_stage("quick_findings", lambda: quick_scan_findings(run.target, targets, rankings))
     write_findings(findings, run.root / "findings.json")
-    write_markdown_report(findings, run.root / "report.md")
+    runtime.run_stage("report", lambda: write_markdown_report(findings, run.root / "report.md"))
+    runtime.finish(status="succeeded")
     print(f"scan_id={run.scan_id}")
     print(f"run_dir={run.root}")
     print(f"file_targets={len(targets)}")
     print(f"ranked_targets={len(rankings)}")
     print(f"findings={len(findings)}")
     return 0
+
+
+def _load_static_hints(sarif_paths: tuple[str, ...]) -> list[object]:
+    hints: list[object] = []
+    for sarif_path in sarif_paths:
+        path = Path(sarif_path)
+        if path.exists():
+            hints.extend(ingest_sarif(path))
+    return hints
 
 
 def _index(path: Path, config_path: Path, chunk_lines: int) -> int:

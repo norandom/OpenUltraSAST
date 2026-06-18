@@ -3,7 +3,7 @@ from __future__ import annotations
 import fnmatch
 import json
 import subprocess
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 
@@ -29,6 +29,7 @@ LANGUAGE_BY_EXTENSION = {
     ".php": "php",
     ".cs": "csharp",
     ".swift": "swift",
+    ".sol": "solidity",
 }
 
 MEMORY_UNSAFE_LANGUAGES = {"c", "cpp"}
@@ -50,12 +51,22 @@ class FileTarget:
     loc: int
     tags: list[str]
     has_fuzz_entry_point: bool
+    static_hints: list[dict[str, object]] = field(default_factory=list)
+    reachability_hints: list[dict[str, object]] = field(default_factory=list)
 
 
-def preprocess_repository(root: Path, output_path: Path | None = None) -> tuple[RepoSnapshot, list[FileTarget]]:
+def preprocess_repository(
+    root: Path,
+    output_path: Path | None = None,
+    static_hints: list[object] | None = None,
+) -> tuple[RepoSnapshot, list[FileTarget]]:
     resolved = root.resolve()
     files = enumerate_source_files(resolved)
     targets = [build_file_target(resolved, path) for path in files]
+    if static_hints:
+        from .mapping import attach_static_hints
+
+        targets = attach_static_hints(targets, static_hints)  # type: ignore[arg-type]
     languages: dict[str, int] = {}
     for target in targets:
         languages[target.language] = languages.get(target.language, 0) + 1
@@ -68,11 +79,15 @@ def preprocess_repository(root: Path, output_path: Path | None = None) -> tuple[
     )
 
     if output_path is not None:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {"snapshot": asdict(snapshot), "file_targets": [asdict(target) for target in targets]}
-        output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+        write_preprocess_artifact(snapshot, targets, output_path)
 
     return snapshot, targets
+
+
+def write_preprocess_artifact(snapshot: RepoSnapshot, targets: list[FileTarget], output_path: Path) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"snapshot": asdict(snapshot), "file_targets": [asdict(target) for target in targets]}
+    output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
 def enumerate_source_files(root: Path) -> list[Path]:
@@ -97,6 +112,8 @@ def build_file_target(root: Path, path: Path) -> FileTarget:
         loc=count_loc(text),
         tags=tags,
         has_fuzz_entry_point="LLVMFuzzerTestOneInput" in text,
+        static_hints=[],
+        reachability_hints=[],
     )
 
 

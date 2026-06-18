@@ -105,6 +105,10 @@ def heuristic_rank(target: FileTarget) -> RankingScore:
     if target.loc >= 500:
         influence = max(influence, 3)
         boosts.append("large_file")
+    reachability_boost = _reachability_from_hints(target.reachability_hints)
+    if reachability_boost:
+        reachability = max(reachability, reachability_boost)
+        boosts.append("entry_point_reachable")
 
     return RankingScore(
         path=target.path,
@@ -212,4 +216,23 @@ def _target_prompt_payload(target: FileTarget) -> dict[str, object]:
         "loc": target.loc,
         "tags": target.tags,
         "has_fuzz_entry_point": target.has_fuzz_entry_point,
+        "reachability_hints": target.reachability_hints,
     }
+
+
+def _reachability_from_hints(hints: list[dict[str, object]]) -> int:
+    score = 0
+    for hint in hints:
+        access_level = hint.get("access_level")
+        kind = hint.get("kind")
+        if access_level == "public":
+            score = max(score, 5 if kind in {"route", "parser", "fuzz"} else 4)
+        elif access_level in {"authenticated", "contract-only/callback"}:
+            score = max(score, 4)
+        elif access_level == "role-restricted":
+            score = max(score, 3)
+        elif access_level == "review-required":
+            score = max(score, 2)
+        elif access_level == "local-only":
+            score = max(score, 2)
+    return score
