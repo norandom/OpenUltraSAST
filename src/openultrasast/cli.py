@@ -13,6 +13,7 @@ from .preprocess import preprocess_repository, write_preprocess_artifact
 from .rank import rank_targets, write_rankings
 from .reports import write_markdown_report
 from .run import create_scan_run
+from .verification import verify_findings, write_verification_results
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -66,6 +67,8 @@ def _scan(path: Path, config_path: Path, mode: str) -> int:
     write_rankings(rankings, run.root / "rank" / "ranking.json")
     findings = runtime.run_stage("quick_findings", lambda: quick_scan_findings(run.target, targets, rankings))
     write_findings(findings, run.root / "findings.json")
+    verifications = runtime.run_stage("verify", lambda: verify_findings(findings))
+    write_verification_results(verifications, run.root / "verification.json")
     runtime.run_stage("report", lambda: write_markdown_report(findings, run.root / "report.md"))
     runtime.finish(status="succeeded")
     print(f"scan_id={run.scan_id}")
