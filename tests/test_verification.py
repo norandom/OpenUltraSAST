@@ -93,12 +93,7 @@ def test_cli_scan_writes_accepted_and_rejected_verifications(tmp_path: Path, mon
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "app.py").write_text(
-        "@app.route('/admin')\n"
-        "def admin():\n"
-        "    return eval(request.data)\n"
-        "\n"
-        "def helper(value):\n"
-        "    return exec(value)\n"
+        "@app.route('/admin')\ndef admin():\n    return eval(request.data)\n\ndef helper(value):\n    return exec(value)\n"
     )
     monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
 
@@ -113,16 +108,20 @@ def test_cli_scan_writes_accepted_and_rejected_verifications(tmp_path: Path, mon
 
 
 def _finding(*, evidence_level: str, reachability_status: str) -> StaticFinding:
-    evidence = [
-        {
-            "kind": "route",
-            "access_level": "public",
-            "line": 1,
-            "end_line": 3,
-            "function_name": "admin",
-            "conditions": [],
-        }
-    ] if reachability_status == "reachable" else []
+    evidence = (
+        [
+            {
+                "kind": "route",
+                "access_level": "public",
+                "line": 1,
+                "end_line": 3,
+                "function_name": "admin",
+                "conditions": [],
+            }
+        ]
+        if reachability_status == "reachable"
+        else []
+    )
     return StaticFinding(
         finding_id="python-unsafe-eval:app.py:3",
         path="app.py",

@@ -6,7 +6,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from .findings import StaticFinding
-from .rank import RankingScore, composite_priority
+from .rank import RankingScore
 
 
 class FalsePositiveReason(StrEnum):
@@ -140,7 +140,9 @@ def calibrate_ranking(ranking: RankingScore, learnings: list[FalsePositiveLearni
     retrieval_adjustments: dict[str, str] = {}
     for learning in applicable:
         calibrated = max(1.0, calibrated - learning.demotion)
-        prompt_constraints.append(f"Do not repeat unsupported {learning.vulnerability_class} claim for scope {learning.scope} without new evidence.")
+        prompt_constraints.append(
+            f"Do not repeat unsupported {learning.vulnerability_class} claim for scope {learning.scope} without new evidence."
+        )
         retrieval_adjustments[learning.vulnerability_class] = learning.scope
     return RankingCalibration(
         path=ranking.path,

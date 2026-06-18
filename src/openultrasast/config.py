@@ -6,7 +6,6 @@ import tomllib
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-
 DEFAULT_VECTOR_STORE = "json-local"
 
 
@@ -112,9 +111,9 @@ def _load_sandbox(value: object) -> SandboxConfig:
     return SandboxConfig(
         network=bool(data.get("network", False)),
         workspace_readonly=bool(data.get("workspace_readonly", True)),
-        memory_mb=int(data.get("memory_mb", 2048)),
-        timeout_seconds=int(data.get("timeout_seconds", 300)),
-        pids_limit=int(data.get("pids_limit", 512)),
+        memory_mb=_int_value(data.get("memory_mb"), 2048),
+        timeout_seconds=_int_value(data.get("timeout_seconds"), 300),
+        pids_limit=_int_value(data.get("pids_limit"), 512),
     )
 
 
@@ -133,6 +132,14 @@ def _load_evidence(value: object) -> EvidenceConfig:
         minimum_exploit=str(data.get("minimum_exploit", "crash_reproduced")),
         minimum_patch=str(data.get("minimum_patch", "root_cause_explained")),
     )
+
+
+def _int_value(value: object, default: int) -> int:
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, int | str | bytes | bytearray):
+        return int(value)
+    return default
 
 
 def _load_static_analysis(value: object) -> StaticAnalysisConfig:

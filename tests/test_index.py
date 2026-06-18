@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from openultrasast.index import CodeChunk
 from openultrasast.index import (
+    CodeChunk,
     build_code_chunks,
     build_retrieval_package,
     build_vector_index,

@@ -49,7 +49,9 @@ def validate_evidence_transition(current: EvidenceLevel | str, target: EvidenceL
 def is_report_verified(evidence_level: EvidenceLevel | str, status: VerificationStatus | str) -> bool:
     level = EvidenceLevel(evidence_level)
     verification_status = VerificationStatus(status)
-    return verification_status == VerificationStatus.ACCEPTED and _EVIDENCE_ORDER[level] >= _EVIDENCE_ORDER[EvidenceLevel.STATIC_CORROBORATION]
+    return (
+        verification_status == VerificationStatus.ACCEPTED and _EVIDENCE_ORDER[level] >= _EVIDENCE_ORDER[EvidenceLevel.STATIC_CORROBORATION]
+    )
 
 
 def build_independent_verifier_context(finding: StaticFinding) -> dict[str, object]:

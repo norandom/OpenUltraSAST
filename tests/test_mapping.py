@@ -62,18 +62,24 @@ def test_mapping_task_records_cover_disciplines(tmp_path: Path) -> None:
 
     assert semgrep_mapping_tasks(semgrep_hints)[0].task == "pattern_variant_review"
     assert codeql_mapping_tasks(codeql_hints)[0].task == "source_sink_sanitizer_path_review"
-    assert differential_mapping_record(
-        "parser.c",
-        change_kind="modified_function",
-        trust_boundary="network_input",
-        rationale="Parser changed behind a socket boundary.",
-    ).trust_boundary == "network_input"
-    assert sharp_edge_record(
-        "config.py",
-        category="insecure_default",
-        surface="debug mode",
-        rationale="Debug default changes production risk.",
-    ).category == "insecure_default"
+    assert (
+        differential_mapping_record(
+            "parser.c",
+            change_kind="modified_function",
+            trust_boundary="network_input",
+            rationale="Parser changed behind a socket boundary.",
+        ).trust_boundary
+        == "network_input"
+    )
+    assert (
+        sharp_edge_record(
+            "config.py",
+            category="insecure_default",
+            surface="debug mode",
+            rationale="Debug default changes production risk.",
+        ).category
+        == "insecure_default"
+    )
 
 
 def test_write_static_hints_artifact(tmp_path: Path) -> None:
@@ -144,11 +150,7 @@ def test_entry_point_mapping_covers_solidity_state_changing_access(tmp_path: Pat
 def test_entry_point_mapping_records_solidity_feature_conditions(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
-    (repo / "Vault.sol").write_text(
-        "contract Vault {\n"
-        "  function withdraw(uint256 amount) external onlyOwner whenNotPaused { }\n"
-        "}\n"
-    )
+    (repo / "Vault.sol").write_text("contract Vault {\n  function withdraw(uint256 amount) external onlyOwner whenNotPaused { }\n}\n")
     _, targets = preprocess_repository(repo)
 
     entry_points = analyze_entry_points(repo, targets)

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from typing import Protocol
 from pathlib import Path
+from typing import Protocol
 
 from .preprocess import FileTarget
 
@@ -231,8 +231,6 @@ def _reachability_from_hints(hints: list[dict[str, object]]) -> int:
             score = max(score, 4)
         elif access_level == "role-restricted":
             score = max(score, 3)
-        elif access_level == "review-required":
-            score = max(score, 2)
-        elif access_level == "local-only":
+        elif access_level == "review-required" or access_level == "local-only":
             score = max(score, 2)
     return score

@@ -9,7 +9,6 @@ from typing import Protocol
 
 from .preprocess import FileTarget, RepoSnapshot
 
-
 VALID_NAMESPACES = {"repo_code", "docs", "static_findings", "mechanisms", "skills", "traces"}
 
 
@@ -122,9 +121,14 @@ def chunk_text_namespace(
         start_line = start + 1
         end_line = start + len(chunk_lines)
         chunk_text = "\n".join(chunk_lines)
-        chunk_metadata = {"path": path, "namespace": namespace, "start_line": start_line, "end_line": end_line}
+        chunk_metadata: dict[str, str | int | bool] = {
+            "path": path,
+            "namespace": namespace,
+            "start_line": start_line,
+            "end_line": end_line,
+        }
         if metadata:
-            chunk_metadata.update(metadata)
+            chunk_metadata.update({key: value for key, value in metadata.items() if isinstance(value, str | int | bool)})
         chunks.append(
             CodeChunk(
                 chunk_id=_chunk_id(f"{namespace}:{path}", start_line, end_line, chunk_text),

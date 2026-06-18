@@ -74,6 +74,7 @@ def test_quick_hunter_prompt_is_bounded() -> None:
     repo = Path("/repo/example.py")
     target = next(iter(preprocess_repository(repo.parent)[1]), None) if repo.parent.exists() else None
     assert target is None
+
     class Target:
         path = "example.py"
         language = "python"

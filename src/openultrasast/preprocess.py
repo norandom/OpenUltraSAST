@@ -6,7 +6,6 @@ import subprocess
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-
 IGNORED_DIRS = {".git", ".hg", ".svn", ".openultrasast", "__pycache__", "node_modules", ".venv", "venv"}
 
 LANGUAGE_BY_EXTENSION = {

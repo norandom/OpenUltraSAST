@@ -66,9 +66,19 @@ def test_ranking_metrics_track_false_positive_reasons_by_tier() -> None:
     metrics = compute_ranking_metrics(
         [
             {"tier": "A", "outcome": FindingOutcome.VERIFIED, "time_to_verification_seconds": 10},
-            {"tier": "A", "outcome": FindingOutcome.REJECTED, "reason": FalsePositiveReason.UNREACHABLE_PATH, "time_to_verification_seconds": 20},
+            {
+                "tier": "A",
+                "outcome": FindingOutcome.REJECTED,
+                "reason": FalsePositiveReason.UNREACHABLE_PATH,
+                "time_to_verification_seconds": 20,
+            },
             {"tier": "B", "outcome": FindingOutcome.REJECTED, "reason": FalsePositiveReason.DUPLICATE},
-            {"tier": "A", "outcome": FindingOutcome.UNVERIFIED, "reason": FalsePositiveReason.UNVERIFIED, "missed_fixture_vulnerabilities": 1},
+            {
+                "tier": "A",
+                "outcome": FindingOutcome.UNVERIFIED,
+                "reason": FalsePositiveReason.UNVERIFIED,
+                "missed_fixture_vulnerabilities": 1,
+            },
         ],
         tier="A",
     )

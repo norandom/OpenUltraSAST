@@ -6,7 +6,6 @@ from pathlib import Path
 from .index import VectorIndex, index_reuse_key, query_vector_index, read_vector_index, write_vector_index
 from .preprocess import RepoSnapshot
 
-
 SELECTED_LOCAL_VECTOR_STORE = "json-local"
 
 

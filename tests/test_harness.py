@@ -34,9 +34,7 @@ class BadWriteProcessor:
 
 def test_runtime_emits_stage_events_and_processor_state(tmp_path: Path) -> None:
     trace_path = tmp_path / "events.jsonl"
-    processor = RecordingProcessor(
-        ProcessorSpec(name="recorder", version="1", handles=("stage_start",), writes=("seen_stage",))
-    )
+    processor = RecordingProcessor(ProcessorSpec(name="recorder", version="1", handles=("stage_start",), writes=("seen_stage",)))
     runtime = HarnessRuntime(
         scan_id="scan-1",
         config=load_config(None),
@@ -84,10 +82,8 @@ def test_warn_contract_mode_records_degradation(tmp_path: Path) -> None:
 
 def test_harness_config_serializes_models_processors_and_prompt_hashes(tmp_path: Path) -> None:
     config_path = tmp_path / "openultrasast.toml"
-    config_path.write_text("[models]\nranker = \"openrouter/ranker\"\n")
-    processor = RecordingProcessor(
-        ProcessorSpec(name="recorder", version="2026-01-01", handles=("stage_start",), writes=("seen_stage",))
-    )
+    config_path.write_text('[models]\nranker = "openrouter/ranker"\n')
+    processor = RecordingProcessor(ProcessorSpec(name="recorder", version="2026-01-01", handles=("stage_start",), writes=("seen_stage",)))
     output = tmp_path / "harness.json"
 
     write_harness_config(

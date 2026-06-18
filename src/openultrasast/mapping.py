@@ -4,7 +4,7 @@ import ast
 import json
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from .preprocess import FileTarget
 
@@ -233,7 +233,9 @@ def _python_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord
     for number, line in enumerate(text.splitlines(), start=1):
         stripped = line.strip()
         if stripped.startswith("if __name__") and "__main__" in stripped:
-            records.append(_entry(target, number, number, "__main__", "__main__", "cli", "local-only", "process_invocation", [stripped], []))
+            records.append(
+                _entry(target, number, number, "__main__", "__main__", "cli", "local-only", "process_invocation", [stripped], [])
+            )
         if "argparse." in stripped or "click.command" in stripped:
             records.append(_entry(target, number, number, None, "cli_parser", "cli", "local-only", "process_invocation", [stripped], []))
     return records
@@ -245,9 +247,35 @@ def _js_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
     for number, line in enumerate(text.splitlines(), start=1):
         stripped = line.strip()
         if any(token in stripped for token in route_tokens) and any(prefix in stripped for prefix in ("app", "router", "server")):
-            records.append(_entry(target, number, number, _js_handler_name(stripped), "http_handler", "route", "public", "http_request", [stripped], _line_conditions(stripped)))
+            records.append(
+                _entry(
+                    target,
+                    number,
+                    number,
+                    _js_handler_name(stripped),
+                    "http_handler",
+                    "route",
+                    "public",
+                    "http_request",
+                    [stripped],
+                    _line_conditions(stripped),
+                )
+            )
         if "process.argv" in stripped:
-            records.append(_entry(target, number, number, None, "process.argv", "cli", "local-only", "process_invocation", [stripped], _line_conditions(stripped)))
+            records.append(
+                _entry(
+                    target,
+                    number,
+                    number,
+                    None,
+                    "process.argv",
+                    "cli",
+                    "local-only",
+                    "process_invocation",
+                    [stripped],
+                    _line_conditions(stripped),
+                )
+            )
     return records
 
 
@@ -256,9 +284,35 @@ def _c_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
     for number, line in enumerate(text.splitlines(), start=1):
         stripped = line.strip()
         if " main(" in f" {stripped}" or stripped.startswith("main("):
-            records.append(_entry(target, number, number, "main", "main", "cli", "local-only", "process_invocation", [stripped], _line_conditions(stripped)))
+            records.append(
+                _entry(
+                    target,
+                    number,
+                    number,
+                    "main",
+                    "main",
+                    "cli",
+                    "local-only",
+                    "process_invocation",
+                    [stripped],
+                    _line_conditions(stripped),
+                )
+            )
         if "LLVMFuzzerTestOneInput" in stripped:
-            records.append(_entry(target, number, number, "LLVMFuzzerTestOneInput", "LLVMFuzzerTestOneInput", "fuzz", "public", "fuzzer_input", [stripped], _line_conditions(stripped)))
+            records.append(
+                _entry(
+                    target,
+                    number,
+                    number,
+                    "LLVMFuzzerTestOneInput",
+                    "LLVMFuzzerTestOneInput",
+                    "fuzz",
+                    "public",
+                    "fuzzer_input",
+                    [stripped],
+                    _line_conditions(stripped),
+                )
+            )
     return records
 
 
@@ -272,12 +326,25 @@ def _solidity_entry_points(target: FileTarget, text: str) -> list[EntryPointReco
             continue
         evidence = [token for token in ("onlyOwner", "onlyRole", "requiresAuth") if token in stripped]
         conditions = [token for token in ("whenNotPaused", "whenPaused", "featureEnabled") if token in stripped]
-        access = "role-restricted" if evidence else "public"
+        access: AccessLevel = "role-restricted" if evidence else "public"
         name = stripped.removeprefix("function ").split("(", 1)[0]
         if "callback" in name.lower() or name.startswith("onERC"):
             access = "contract-only/callback"
             evidence.append("callback naming convention")
-        records.append(_entry(target, number, number, name, name, "smart_contract_state_change", access, "contract_call", evidence or ["external/public function"], conditions))
+        records.append(
+            _entry(
+                target,
+                number,
+                number,
+                name,
+                name,
+                "smart_contract_state_change",
+                access,
+                "contract_call",
+                evidence or ["external/public function"],
+                conditions,
+            )
+        )
     return records
 
 
@@ -285,13 +352,54 @@ def _tag_entry_points(target: FileTarget) -> list[EntryPointRecord]:
     records: list[EntryPointRecord] = []
     tags = set(target.tags)
     if "parser" in tags or "deserialization" in tags:
-        records.append(_entry(target, None, None, None, "parser_input", "parser", "public", "attacker_controlled_input", ["parser/deserialization file tag"], []))
+        records.append(
+            _entry(
+                target,
+                None,
+                None,
+                None,
+                "parser_input",
+                "parser",
+                "public",
+                "attacker_controlled_input",
+                ["parser/deserialization file tag"],
+                [],
+            )
+        )
     if "network_entry" in tags:
-        records.append(_entry(target, None, None, None, "network_surface", "route", "public", "network_request", ["network entry file tag"], []))
+        records.append(
+            _entry(target, None, None, None, "network_surface", "route", "public", "network_request", ["network entry file tag"], [])
+        )
     if "auth_boundary" in tags:
-        records.append(_entry(target, None, None, None, "auth_boundary", "privileged_surface", "authenticated", "identity_boundary", ["auth boundary file tag"], []))
+        records.append(
+            _entry(
+                target,
+                None,
+                None,
+                None,
+                "auth_boundary",
+                "privileged_surface",
+                "authenticated",
+                "identity_boundary",
+                ["auth boundary file tag"],
+                [],
+            )
+        )
     if "syscall_entry" in tags or "filesystem_entry" in tags:
-        records.append(_entry(target, None, None, None, "local_privileged_boundary", "privileged_surface", "local-only", "local_process", ["syscall/filesystem file tag"], []))
+        records.append(
+            _entry(
+                target,
+                None,
+                None,
+                None,
+                "local_privileged_boundary",
+                "privileged_surface",
+                "local-only",
+                "local_process",
+                ["syscall/filesystem file tag"],
+                [],
+            )
+        )
     return records
 
 
@@ -363,7 +471,9 @@ def _line_conditions(line: str) -> list[str]:
 
 def _looks_conditional(text: str) -> bool:
     lowered = text.lower()
-    return any(token in lowered for token in ("feature", "flag", "toggle", "enabled", "disabled", "experiment", "beta", "rollout", "paused"))
+    return any(
+        token in lowered for token in ("feature", "flag", "toggle", "enabled", "disabled", "experiment", "beta", "rollout", "paused")
+    )
 
 
 def _js_handler_name(line: str) -> str | None:
@@ -414,7 +524,7 @@ def _rules_by_id(rules: object) -> dict[str, dict[str, object]]:
     for rule in _items(rules):
         rule_id = rule.get("id") if isinstance(rule, dict) else None
         if isinstance(rule_id, str):
-            by_id[rule_id] = rule
+            by_id[rule_id] = cast("dict[str, object]", rule)
     return by_id
 
 

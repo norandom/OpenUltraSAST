@@ -18,7 +18,7 @@ class OpenRouterChatClient:
     base_url: str = "https://openrouter.ai/api/v1"
 
     @classmethod
-    def from_env(cls) -> "OpenRouterChatClient":
+    def from_env(cls) -> OpenRouterChatClient:
         api_key = os.environ.get("OPENROUTER_API_KEY")
         if not api_key:
             raise OpenRouterError("OPENROUTER_API_KEY is required for OpenRouter chat calls")
@@ -51,7 +51,7 @@ class OpenRouterEmbeddingClient:
     base_url: str = "https://openrouter.ai/api/v1"
 
     @classmethod
-    def from_env(cls) -> "OpenRouterEmbeddingClient":
+    def from_env(cls) -> OpenRouterEmbeddingClient:
         api_key = os.environ.get("OPENROUTER_API_KEY")
         if not api_key:
             raise OpenRouterError("OPENROUTER_API_KEY is required for OpenRouter embedding calls")
