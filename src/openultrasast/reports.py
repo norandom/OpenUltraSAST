@@ -88,12 +88,7 @@ def write_manifest(
                 "verification_status": verification_by_id[finding.finding_id].status
                 if finding.finding_id in verification_by_id
                 else "not_run",
-                "artifact_refs": {
-                    "findings_json": _relative_artifact(run.root, artifact_paths["findings"]),
-                    "verification_json": _relative_artifact(run.root, artifact_paths["verification"]),
-                    "markdown": _relative_artifact(run.root, artifact_paths["markdown"]),
-                    "sarif": _relative_artifact(run.root, artifact_paths["sarif"]),
-                },
+                "artifact_refs": _artifact_refs(run.root, artifact_paths),
             }
             for finding in findings
         ],
@@ -168,6 +163,18 @@ def _sarif_level(severity: str) -> str:
 
 def _verification_by_id(verifications: list[VerificationResult]) -> dict[str, VerificationResult]:
     return {result.finding_id: result for result in verifications}
+
+
+def _artifact_refs(root: Path, artifact_paths: dict[str, Path]) -> dict[str, str]:
+    refs = {
+        "findings_json": _relative_artifact(root, artifact_paths["findings"]),
+        "verification_json": _relative_artifact(root, artifact_paths["verification"]),
+        "markdown": _relative_artifact(root, artifact_paths["markdown"]),
+        "sarif": _relative_artifact(root, artifact_paths["sarif"]),
+    }
+    if "trajectories" in artifact_paths:
+        refs["trajectories_jsonl"] = _relative_artifact(root, artifact_paths["trajectories"])
+    return refs
 
 
 def _relative_artifact(root: Path, path: Path) -> str:

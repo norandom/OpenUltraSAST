@@ -7,6 +7,7 @@ from pathlib import Path
 from .config import load_config
 from .findings import quick_scan_findings, write_findings
 from .harness import HarnessRuntime, HarnessTraceWriter, write_harness_config
+from .hunter import run_hunter_pool, write_hunter_trajectories
 from .index import build_code_chunks
 from .mapping import analyze_entry_points, attach_reachability_hints, ingest_sarif, write_entry_points, write_static_hints
 from .preprocess import preprocess_repository, write_preprocess_artifact
@@ -40,8 +41,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _scan(path: Path, config_path: Path, mode: str, fail_on: str) -> int:
-    if mode != "quick":
-        raise SystemExit(f"mode {mode!r} is specified but only quick preprocess artifacts are implemented")
+    if mode == "deep":
+        raise SystemExit("mode 'deep' is specified but sandboxed dynamic analysis is not implemented")
     if not path.exists() or not path.is_dir():
         raise SystemExit(f"scan path is not a directory: {path}")
 
@@ -66,13 +67,22 @@ def _scan(path: Path, config_path: Path, mode: str, fail_on: str) -> int:
     write_preprocess_artifact(snapshot, targets, run.root / "preprocess" / "file_targets.json")
     rankings = runtime.run_stage("rank", lambda: rank_targets(targets))
     write_rankings(rankings, run.root / "rank" / "ranking.json")
-    findings = runtime.run_stage("quick_findings", lambda: quick_scan_findings(run.target, targets, rankings))
+    if mode == "standard":
+        hunter_result = runtime.run_stage("hunter_pool", lambda: run_hunter_pool(run.target, targets, rankings, scan_id=run.scan_id))
+        findings = hunter_result.findings
+        trajectories = hunter_result.trajectories
+    else:
+        findings = runtime.run_stage("quick_findings", lambda: quick_scan_findings(run.target, targets, rankings))
+        trajectories = []
     findings_path = run.root / "findings.json"
     verification_path = run.root / "verification.json"
     markdown_path = run.root / "report.md"
     sarif_path = run.root / "report.sarif"
     manifest_path = run.root / "manifest.json"
+    trajectories_path = run.root / "traces" / "hunter_trajectories.jsonl"
     write_findings(findings, findings_path)
+    if trajectories:
+        write_hunter_trajectories(trajectories, trajectories_path)
     verifications = runtime.run_stage("verify", lambda: verify_findings(findings))
     write_verification_results(verifications, verification_path)
     runtime.run_stage("report", lambda: write_markdown_report(findings, markdown_path, verifications))
@@ -83,12 +93,13 @@ def _scan(path: Path, config_path: Path, mode: str, fail_on: str) -> int:
             run=run,
             findings=findings,
             verifications=verifications,
-            artifact_paths={
-                "findings": findings_path,
-                "verification": verification_path,
-                "markdown": markdown_path,
-                "sarif": sarif_path,
-            },
+            artifact_paths=_artifact_paths(
+                findings=findings_path,
+                verification=verification_path,
+                markdown=markdown_path,
+                sarif=sarif_path,
+                trajectories=trajectories_path if trajectories else None,
+            ),
             path=manifest_path,
         ),
     )
@@ -108,6 +119,10 @@ def _load_static_hints(sarif_paths: tuple[str, ...]) -> list[object]:
         if path.exists():
             hints.extend(ingest_sarif(path))
     return hints
+
+
+def _artifact_paths(**paths: Path | None) -> dict[str, Path]:
+    return {name: path for name, path in paths.items() if path is not None}
 
 
 def _index(path: Path, config_path: Path, chunk_lines: int) -> int:

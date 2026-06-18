@@ -126,8 +126,8 @@ Do not report OpenUltraSAST as a working security harness until `usable_harness_
 
 ## Gate: `standard_security_harness`
 
-- [ ] Standard mode uses ranked hunter scheduling, retrieval packages, selected skill snippets, and independent verification.
-- [ ] Every hunter trajectory is persisted and linked to finding artifacts.
+- [x] Standard mode uses ranked hunter scheduling, retrieval packages, selected skill snippets, and independent verification.
+- [x] Every hunter trajectory is persisted and linked to finding artifacts.
 - [ ] False-positive learning updates ranking calibration from verifier outcomes.
 - [ ] Fusion can be triggered for high-impact, contradictory, or difficult findings.
 
@@ -153,13 +153,13 @@ Do not report OpenUltraSAST as a working security harness until `usable_harness_
 
 ## Phase 8: Standard Mode Hunter Pool (`standard_security_harness` prerequisite)
 
-- [ ] Implement tier assignment by priority.
-- [ ] Implement budget allocation and per-target limits.
-- [ ] Implement parallel hunter scheduling.
-- [ ] Persist hunter trajectories as JSONL.
-- [ ] Integrate retrieval packages and selected skill snippets.
-- [ ] Integrate verifier after hunter output.
-- [ ] Add fixture scan demonstrating at least one verified static-corroborated finding.
+- [x] Implement tier assignment by priority.
+- [x] Implement budget allocation and per-target limits.
+- [x] Implement parallel hunter scheduling.
+- [x] Persist hunter trajectories as JSONL.
+- [x] Integrate retrieval packages and selected skill snippets.
+- [x] Integrate verifier after hunter output.
+- [x] Add fixture scan demonstrating at least one verified static-corroborated finding.
 
 ## Phase 9: SARIF And CI Output (`usable_harness_mvp` prerequisite)
 

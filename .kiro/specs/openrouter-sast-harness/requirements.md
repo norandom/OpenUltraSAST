@@ -38,7 +38,7 @@ Functional gates:
 5. `fix_validation_harness`: patch proposals, adversarial fix audit, differential/static delta checks, and sandbox validation are integrated and cannot mark patches validated without passing evidence.
 6. `opencode_product`: MCP tools, opencode commands/skills, fusion deepening, CI-ready reports, cost controls, and hardening are complete enough for routine opencode-driven use.
 
-The current implementation state shall be documented as `scaffold_quick_scan` until later gates are explicitly verified.
+The current implementation state shall be documented as `usable_harness_mvp` until later gates are explicitly verified.
 
 ## Non-Goals
 
