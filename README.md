@@ -120,24 +120,30 @@ change that drops recall or raises false positives fails CI.
 
 ## OpenCode commands, fusion, and ultra workflows
 
-Project-local OpenCode skills (`.opencode/skills/`) steer the harness from
-OpenCode; the Kiro spec-driven skills (`.opencode/skills/kiro-*`) drive the
-agentic SDLC.
+OpenUltraSAST is driven from the command line. You can call the `ousast` CLI
+directly, or run [OpenCode](https://opencode.ai) in the repository and let the
+agent run the harness for you — OpenCode is invoked from the command line, loads
+the project skills below, and executes `ousast` plus the triage/fix workflow.
+
+```bash
+opencode run "scan this repo with ousast in quick mode and triage the findings"
+# or drive the CLI yourself:
+uv run ousast scan . --mode quick --fail-on verified
+```
+
+Project skills that steer the harness from OpenCode (`.opencode/skills/`):
 
 | Skill | Purpose |
 | --- | --- |
 | `openultrasast-scan` ✅ | run/plan `ousast scan`, indexing, evidence-gated analysis |
 | `openultrasast-triage` ✅ | false-positive elimination, ranking calibration, verifier adjudication |
 | `openultrasast-fix-audit` ✅ | OpenUltraCode fix lifecycle and adversarial fix review |
-| `openultrasast-kiro-impl` ✅ | keep implementation aligned with the spec/tasks |
 
 **Ultra workflows (OpenUltraCode discipline)** — fixes are never a one-shot
 patch prompt. `openultrasast-fix-audit` runs the bounded lifecycle
 `intake → plan → minimal patch → adversarial review → reconcile → fresh
 verification → ready`, and a patch can only reach `patch_validated` after
-sandboxed validation passes with no accepted blocking findings. The `kiro-impl`
-autonomous workflow applies the same shape to implementation: a subagent per
-task, an independent reviewer gate, and a final validation pass.
+sandboxed validation passes with no accepted blocking findings.
 
 **Fusion (deepening) 🧭** — when a finding needs more reasoning than the normal
 ranker → hunter → verifier → mapping loop provides (critical/high severity,
@@ -147,6 +153,10 @@ critique, revise, vote, and a decider issues the disposition (accepted /
 rejected / mitigated / deferred / blocked) with model IDs and degradations
 disclosed. The triage skill escalates to fusion *when available*; the panel
 implementation is on the roadmap (Phase 13).
+
+> The `kiro-*` skills and `AGENTS.md` in this repo are the maintainer's
+> spec-driven development tooling. They are not part of using OpenUltraSAST and
+> can be ignored by users.
 
 ## Evidence ladder: how a false positive is eliminated
 
@@ -210,27 +220,35 @@ vulnerability OpenUltraSAST missed (or vice-versa).
 Each scan is a composed harness of typed processors with read/write **state
 contracts** (strict mode fails the scan on a violation; warn mode records a
 degradation) and a full event trace. That trace plus the verifier and benchmark
-outputs are the feedback that tunes the *next* run:
+outputs are the feedback that tunes the *next* run — and **OpenCode is the agent
+that steers it**: running the triage and fix skills, it reads the harness's
+signals and applies the adjustments back into config.
 
 ```
-        ┌──────────────────────────────────────────────────────────────┐
-        ▼                                                                │
-  scan ──▶ traces (events.jsonl) + verifier decisions + benchmark misses │
-        │                                                                │
-        ├─ rejected findings  ─▶ scoped false-positive learnings ────────┤
-        ├─ verifier outcomes  ─▶ ranking calibration / demotion ─────────┤  feeds
-        ├─ benchmark misses   ─▶ calibration records (next candidate) ────┤  back
-        └─ ranking metrics    ─▶ retrieval filters · prompt constraints ──┘  into
-                                  · skill routing · variant seeds            config
+        ┌──────────────────── OpenCode steers (triage / fix skills) ─────┐
+        ▼                                                                 │
+  scan ──▶ traces (events.jsonl) + verifier decisions + benchmark misses  │
+        │                                                                 │
+        ├─ rejected findings  ─▶ scoped false-positive learnings ─────────┤
+        ├─ verifier outcomes  ─▶ ranking calibration / demotion ──────────┤  applied
+        ├─ benchmark misses   ─▶ calibration records (next candidate) ─────┤  back
+        └─ ranking metrics    ─▶ retrieval filters · prompt constraints ───┘  into
+                                  · skill routing · variant seeds             config
 ```
 
-What is realized today (✅): the event/trace model and processor contracts; the
-evidence-ladder verifier; the scoped false-positive learning taxonomy with
-ranking calibration and prompt/retrieval-filter adjustments (`calibration.py`);
-ranking metrics by tier; and benchmark miss records. The loop is currently
-driven by the triage skill and by re-running the benchmark gate. Closing the
-loop **automatically inside the scan pipeline** — verifier outcomes recalibrating
-ranking on the following run without human steering — is the next milestone
+What the harness exposes today (✅): the event/trace model and processor
+contracts; the evidence-ladder verifier; the scoped false-positive learning
+taxonomy with ranking calibration and prompt/retrieval-filter adjustments
+(`calibration.py`); ranking metrics by tier; and benchmark miss records.
+
+**How the loop is closed today** — OpenCode is the controller. Invoked from the
+command line on the repo, it runs a scan, reads the verifier decisions and
+benchmark `calibration_records.json`, and via `openultrasast-triage` records the
+scoped learnings and recalibrates ranking, then re-runs the benchmark gate to
+confirm the change helped without regressing other findings. So the
+self-improving cycle is real now with OpenCode as the steering agent; making the
+harness apply that feedback **autonomously inside the pipeline** — recalibrating
+on the following run without an agent in the loop — is the next milestone
 (`standard_security_harness`).
 
 ## Development
