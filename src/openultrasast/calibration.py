@@ -7,6 +7,11 @@ from pathlib import Path
 
 from .findings import StaticFinding
 from .rank import RankingScore
+from .verification import VerificationResult, VerificationStatus
+
+# Calibration may push a repeatedly-rejected scope below the natural ranking
+# minimum (1.0) so accumulated false positives keep losing priority over runs.
+MIN_CALIBRATED_PRIORITY = 0.1
 
 
 class FalsePositiveReason(StrEnum):
@@ -139,7 +144,7 @@ def calibrate_ranking(ranking: RankingScore, learnings: list[FalsePositiveLearni
     prompt_constraints: list[str] = []
     retrieval_adjustments: dict[str, str] = {}
     for learning in applicable:
-        calibrated = max(1.0, calibrated - learning.demotion)
+        calibrated = max(MIN_CALIBRATED_PRIORITY, calibrated - learning.demotion)
         prompt_constraints.append(
             f"Do not repeat unsupported {learning.vulnerability_class} claim for scope {learning.scope} without new evidence."
         )
@@ -171,7 +176,7 @@ def apply_ranking_calibration(ranking: RankingScore, calibration: RankingCalibra
         surface=ranking.surface,
         influence=ranking.influence,
         reachability=ranking.reachability,
-        priority=max(1.0, min(ranking.priority, calibration.calibrated_priority)),
+        priority=max(MIN_CALIBRATED_PRIORITY, min(ranking.priority, calibration.calibrated_priority)),
         rationale=f"{ranking.rationale}; calibrated by false-positive learning" if calibration.applied_learning_ids else ranking.rationale,
         model_id=ranking.model_id,
         static_boosts=ranking.static_boosts,
@@ -181,6 +186,76 @@ def apply_ranking_calibration(ranking: RankingScore, calibration: RankingCalibra
 def write_false_positive_learnings(learnings: list[FalsePositiveLearning], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"learnings": [asdict(learning) for learning in learnings]}, indent=2, sort_keys=True) + "\n")
+
+
+def write_ranking_calibrations(calibrations: list[RankingCalibration], path: Path) -> None:
+    applied = [calibration for calibration in calibrations if calibration.applied_learning_ids]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"calibrations": [asdict(calibration) for calibration in applied]}, indent=2, sort_keys=True) + "\n")
+
+
+def load_false_positive_learnings(path: Path) -> list[FalsePositiveLearning]:
+    if not path.exists():
+        return []
+    payload = json.loads(path.read_text())
+    learnings: list[FalsePositiveLearning] = []
+    for item in payload.get("learnings", []):
+        if not isinstance(item, dict):
+            continue
+        learnings.append(
+            FalsePositiveLearning(
+                finding_id=str(item["finding_id"]),
+                path=str(item["path"]),
+                vulnerability_class=str(item["vulnerability_class"]),
+                reason=FalsePositiveReason(item["reason"]),
+                evidence=str(item["evidence"]),
+                scope=str(item["scope"]),
+                demotion=float(item.get("demotion", 0.5)),
+            )
+        )
+    return learnings
+
+
+def merge_false_positive_learnings(
+    existing: list[FalsePositiveLearning],
+    new: list[FalsePositiveLearning],
+) -> list[FalsePositiveLearning]:
+    by_id: dict[str, FalsePositiveLearning] = {learning.finding_id: learning for learning in existing}
+    for learning in new:
+        by_id[learning.finding_id] = learning
+    return [by_id[finding_id] for finding_id in sorted(by_id)]
+
+
+def learnings_from_verifications(
+    findings: list[StaticFinding],
+    verifications: list[VerificationResult],
+) -> list[FalsePositiveLearning]:
+    finding_by_id = {finding.finding_id: finding for finding in findings}
+    learnings: list[FalsePositiveLearning] = []
+    for result in verifications:
+        if result.status == VerificationStatus.ACCEPTED:
+            continue
+        finding = finding_by_id.get(result.finding_id)
+        if finding is None:
+            continue
+        outcome = FindingOutcome.UNVERIFIED if result.status == VerificationStatus.NEEDS_EVIDENCE else FindingOutcome.REJECTED
+        learning = learning_from_finding_outcome(
+            finding,
+            outcome=outcome,
+            evidence=f"{result.counter_case} {result.required_next_step}".strip(),
+            reason=_reason_from_verification(finding, result.status),
+        )
+        if learning is not None:
+            learnings.append(learning)
+    return learnings
+
+
+def _reason_from_verification(finding: StaticFinding, status: VerificationStatus) -> FalsePositiveReason:
+    if finding.reachability_status == "unknown":
+        return FalsePositiveReason.UNREACHABLE_PATH
+    if status == VerificationStatus.NEEDS_EVIDENCE:
+        return FalsePositiveReason.UNVERIFIED
+    return FalsePositiveReason.CONTRADICTED
 
 
 def _vulnerability_class(finding: StaticFinding) -> str:

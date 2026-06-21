@@ -128,7 +128,7 @@ Do not report OpenUltraSAST as a working security harness until `usable_harness_
 
 - [x] Standard mode uses ranked hunter scheduling, retrieval packages, selected skill snippets, and independent verification.
 - [x] Every hunter trajectory is persisted and linked to finding artifacts.
-- [ ] False-positive learning updates ranking calibration from verifier outcomes.
+- [x] False-positive learning updates ranking calibration from verifier outcomes.
 - [ ] Fusion can be triggered for high-impact, contradictory, or difficult findings.
 - [ ] Standard mode uses real language-aware LLM hunters instead of reusing quick static findings.
 

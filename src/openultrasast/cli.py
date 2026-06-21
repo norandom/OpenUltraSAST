@@ -15,6 +15,15 @@ from .benchmark import (
     resolve_benchmark_source,
     write_benchmark_artifacts,
 )
+from .calibration import (
+    FalsePositiveLearning,
+    calibrate_rankings,
+    learnings_from_verifications,
+    load_false_positive_learnings,
+    merge_false_positive_learnings,
+    write_false_positive_learnings,
+    write_ranking_calibrations,
+)
 from .config import load_config
 from .findings import StaticFinding, quick_scan_findings, write_findings
 from .harness import HarnessRuntime, HarnessTraceWriter, write_harness_config
@@ -24,8 +33,10 @@ from .mapping import analyze_entry_points, attach_reachability_hints, ingest_sar
 from .preprocess import preprocess_repository, write_preprocess_artifact
 from .rank import rank_targets, write_rankings
 from .reports import scan_exit_code, write_manifest, write_markdown_report, write_sarif_report
-from .run import create_scan_run
-from .verification import verify_findings, write_verification_results
+from .run import ScanRun, create_scan_run
+from .verification import VerificationResult, verify_findings, write_verification_results
+
+CALIBRATION_DIR = ".openultrasast/calibration"
 
 
 @dataclass(frozen=True)
@@ -35,6 +46,7 @@ class ScanOutcome:
     file_target_count: int
     ranked_target_count: int
     finding_count: int
+    calibrations_applied: int
     exit_code: int
 
 
@@ -100,7 +112,12 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     targets = attach_reachability_hints(targets, entry_points)
     write_preprocess_artifact(snapshot, targets, run.root / "preprocess" / "file_targets.json")
     rankings = runtime.run_stage("rank", lambda: rank_targets(targets))
+    ledger_path = run.target / CALIBRATION_DIR / "false_positive_learnings.json"
+    prior_learnings = load_false_positive_learnings(ledger_path)
+    rankings, calibrations = runtime.run_stage("calibrate", lambda: calibrate_rankings(rankings, prior_learnings))
+    applied_calibrations = [calibration for calibration in calibrations if calibration.applied_learning_ids]
     write_rankings(rankings, run.root / "rank" / "ranking.json")
+    write_ranking_calibrations(calibrations, run.root / "calibration" / "applied_calibrations.json")
     if mode == "standard":
         hunter_result = runtime.run_stage("hunter_pool", lambda: run_hunter_pool(run.target, targets, rankings, scan_id=run.scan_id))
         findings = hunter_result.findings
@@ -119,6 +136,10 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         write_hunter_trajectories(trajectories, trajectories_path)
     verifications = runtime.run_stage("verify", lambda: verify_findings(findings))
     write_verification_results(verifications, verification_path)
+    runtime.run_stage(
+        "record_calibration",
+        lambda: _persist_calibration_feedback(run, ledger_path, prior_learnings, findings, verifications),
+    )
     runtime.run_stage("report", lambda: write_markdown_report(findings, markdown_path, verifications))
     runtime.run_stage("sarif", lambda: write_sarif_report(findings, verifications, sarif_path))
     runtime.run_stage(
@@ -144,8 +165,25 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         file_target_count=len(targets),
         ranked_target_count=len(rankings),
         finding_count=len(findings),
+        calibrations_applied=len(applied_calibrations),
         exit_code=scan_exit_code(findings, verifications, fail_on),
     )
+
+
+def _persist_calibration_feedback(
+    run: ScanRun,
+    ledger_path: Path,
+    prior_learnings: list[FalsePositiveLearning],
+    findings: list[StaticFinding],
+    verifications: list[VerificationResult],
+) -> list[FalsePositiveLearning]:
+    # Turn this run's non-accepted verifier outcomes into scoped learnings and
+    # merge them into the persistent ledger so the next scan demotes those scopes.
+    new_learnings = learnings_from_verifications(findings, verifications)
+    merged = merge_false_positive_learnings(prior_learnings, new_learnings)
+    write_false_positive_learnings(merged, ledger_path)
+    write_false_positive_learnings(new_learnings, run.root / "calibration" / "false_positive_learnings.json")
+    return merged
 
 
 def _print_scan_outcome(outcome: ScanOutcome) -> None:
@@ -154,6 +192,7 @@ def _print_scan_outcome(outcome: ScanOutcome) -> None:
     print(f"file_targets={outcome.file_target_count}")
     print(f"ranked_targets={outcome.ranked_target_count}")
     print(f"findings={outcome.finding_count}")
+    print(f"calibrations_applied={outcome.calibrations_applied}")
 
 
 def _load_static_hints(sarif_paths: tuple[str, ...]) -> list[object]:

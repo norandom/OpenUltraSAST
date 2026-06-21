@@ -219,37 +219,41 @@ vulnerability OpenUltraSAST missed (or vice-versa).
 
 Each scan is a composed harness of typed processors with read/write **state
 contracts** (strict mode fails the scan on a violation; warn mode records a
-degradation) and a full event trace. That trace plus the verifier and benchmark
-outputs are the feedback that tunes the *next* run — and **OpenCode is the agent
-that steers it**: running the triage and fix skills, it reads the harness's
-signals and applies the adjustments back into config.
+degradation) and a full event trace. The loop is now **closed automatically
+inside the pipeline** — no agent required: every scan persists its verifier
+rejections as scoped learnings and the next scan loads them and demotes those
+scopes before findings are produced.
 
 ```
-        ┌──────────────────── OpenCode steers (triage / fix skills) ─────┐
+        ┌──────────── automatic ledger (no agent in the loop) ───────────┐
         ▼                                                                 │
-  scan ──▶ traces (events.jsonl) + verifier decisions + benchmark misses  │
-        │                                                                 │
-        ├─ rejected findings  ─▶ scoped false-positive learnings ─────────┤
-        ├─ verifier outcomes  ─▶ ranking calibration / demotion ──────────┤  applied
-        ├─ benchmark misses   ─▶ calibration records (next candidate) ─────┤  back
-        └─ ranking metrics    ─▶ retrieval filters · prompt constraints ───┘  into
-                                  · skill routing · variant seeds             config
+  scan ──▶ verify ──▶ non-accepted findings ──▶ scoped learnings ─────────┤
+        │             (.openultrasast/calibration/                        │  loaded by
+        │              false_positive_learnings.json)                     │  the next
+  next scan ──▶ rank ──▶ calibrate (demote rejected scopes) ──▶ findings ──┘  scan
 ```
 
-What the harness exposes today (✅): the event/trace model and processor
-contracts; the evidence-ladder verifier; the scoped false-positive learning
-taxonomy with ranking calibration and prompt/retrieval-filter adjustments
-(`calibration.py`); ranking metrics by tier; and benchmark miss records.
+What runs automatically each scan (✅, `calibration.py` + `cli.py`):
 
-**How the loop is closed today** — OpenCode is the controller. Invoked from the
-command line on the repo, it runs a scan, reads the verifier decisions and
-benchmark `calibration_records.json`, and via `openultrasast-triage` records the
-scoped learnings and recalibrates ranking, then re-runs the benchmark gate to
-confirm the change helped without regressing other findings. So the
-self-improving cycle is real now with OpenCode as the steering agent; making the
-harness apply that feedback **autonomously inside the pipeline** — recalibrating
-on the following run without an agent in the loop — is the next milestone
-(`standard_security_harness`).
+1. **`calibrate` stage** (after `rank`, before findings) loads the persistent
+   ledger and demotes the priority of every scope that previously produced a
+   rejected finding (`calibrate_rankings`), writing `applied_calibrations.json`.
+2. **`record_calibration` stage** (after `verify`) turns this run's non-accepted
+   verifier outcomes into scoped `FalsePositiveLearning` records
+   (`learnings_from_verifications`) and merges them into the ledger, de-duplicated
+   by finding ID so a repeat rejection does not compound without bound.
+
+Demotion is **scoped and reversible**: a rejection in `lib.py` demotes only that
+scope; an accepted (reachable) finding in `app.py` is never touched; and because
+priority is demoted rather than the finding deleted, the audit trail
+(`applied_calibrations.json`, the ledger) shows exactly why a surface lost
+attention. Covered by `tests/test_pipeline_calibration.py`.
+
+Beyond the automatic ranking loop, **OpenCode still steers the richer
+adjustments** — prompt constraints, retrieval filters, skill routing, and
+benchmark-miss triage — via `openultrasast-triage`; those `RankingCalibration`
+fields are already produced and will be consumed directly once the language-aware
+LLM hunters land (`standard_security_harness`).
 
 ## Development
 
