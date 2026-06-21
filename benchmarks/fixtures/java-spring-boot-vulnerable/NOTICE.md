@@ -1,0 +1,1 @@
+Vendored verbatim from https://github.com/kiview/damn-vulnerable-spring-boot-app (MIT, (c) 2017 GDATA Advanced Analytics GmbH) as a benchmark corpus for OpenUltraSAST. Source files unmodified; line numbers match upstream.

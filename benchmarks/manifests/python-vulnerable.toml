@@ -1,0 +1,127 @@
+name = "python-vulnerable"
+language = "python_web"
+frameworks = ["flask"]
+setup = ["pip install flask pyyaml requests"]
+modes = ["quick", "standard"]
+known_noise = []
+baselines = []
+
+[source]
+type = "local"
+path = "../fixtures/python-vulnerable"
+
+[[expected]]
+cwe = "CWE-78"
+class = "command injection"
+path = "app.py"
+line = 17
+rule_id = "python-os-command"
+sink = "os.system"
+evidence = "os.system runs an attacker-controlled command"
+
+[[expected]]
+cwe = "CWE-78"
+class = "command injection"
+path = "app.py"
+line = 23
+rule_id = "python-shell-true"
+sink = "subprocess"
+evidence = "subprocess runs an attacker-controlled command with shell=True"
+
+[[expected]]
+cwe = "CWE-95"
+class = "code injection"
+path = "app.py"
+line = 28
+rule_id = "python-unsafe-eval"
+sink = "eval"
+evidence = "eval executes attacker-controlled input"
+
+[[expected]]
+cwe = "CWE-502"
+class = "insecure deserialization"
+path = "app.py"
+line = 33
+rule_id = "python-unsafe-deserialization"
+sink = "pickle.loads"
+evidence = "pickle.loads deserializes the request body"
+
+[[expected]]
+cwe = "CWE-502"
+class = "insecure deserialization"
+path = "app.py"
+line = 38
+rule_id = "python-unsafe-deserialization"
+sink = "yaml.load"
+evidence = "yaml.load deserializes untrusted input"
+
+[[expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "app.py"
+line = 44
+rule_id = "python-sql-injection"
+sink = "execute"
+evidence = "execute concatenates request input into the SQL query"
+
+[[expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "app.py"
+line = 50
+rule_id = "python-sql-injection"
+sink = "execute"
+evidence = "execute uses percent formatted request input in SQL"
+
+[[expected]]
+cwe = "CWE-22"
+class = "path traversal"
+path = "app.py"
+line = 55
+rule_id = "python-path-traversal"
+sink = "open"
+evidence = "open reads an attacker-controlled file path"
+
+[[expected]]
+cwe = "CWE-918"
+class = "server-side request forgery"
+path = "app.py"
+line = 60
+rule_id = "python-ssrf"
+sink = "requests.get"
+evidence = "requests.get fetches an attacker-controlled url"
+
+[[expected]]
+cwe = "CWE-327"
+class = "weak cryptography"
+path = "app.py"
+line = 65
+rule_id = "python-weak-hash"
+sink = "md5"
+evidence = "hashlib.md5 is a weak hash"
+
+[[expected]]
+cwe = "CWE-94"
+class = "server-side template injection"
+path = "app.py"
+line = 70
+rule_id = "python-ssti"
+sink = "render_template_string"
+evidence = "render_template_string evaluates attacker-controlled input"
+
+[[expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "app.py"
+line = 77
+sink = "execute"
+evidence = "execute runs a SQL query string built from request input on a prior line"
+
+[[expected]]
+cwe = "CWE-489"
+class = "insecure default"
+path = "app.py"
+line = 81
+rule_id = "python-flask-debug"
+sink = "debug"
+evidence = "flask debug mode is enabled in production"

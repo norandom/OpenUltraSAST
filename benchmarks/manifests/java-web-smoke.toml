@@ -1,0 +1,29 @@
+name = "java-web-smoke"
+language = "java_web"
+frameworks = ["servlet"]
+setup = ["mvn test"]
+modes = ["quick", "standard"]
+known_noise = []
+baselines = []
+
+[source]
+type = "local"
+path = "../fixtures/java-web-smoke"
+
+[[expected]]
+cwe = "CWE-78"
+class = "command injection"
+path = "src/main/java/example/VulnerableServlet.java"
+line = 8
+rule_id = "java-command-exec"
+sink = "exec"
+evidence = "exec runs the request parameter as a system command"
+
+[[expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "src/main/java/example/VulnerableServlet.java"
+line = 12
+rule_id = "java-sql-injection"
+sink = "select"
+evidence = "select query concatenates request parameter input into SQL"

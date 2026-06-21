@@ -1,0 +1,118 @@
+name = "cpp-damn-vulnerable"
+language = "c_cpp"
+frameworks = ["native"]
+setup = []
+modes = ["quick", "standard"]
+known_noise = []
+baselines = []
+
+[source]
+type = "local"
+path = "../fixtures/cpp-damn-vulnerable"
+
+[[expected]]
+cwe = "CWE-120"
+class = "buffer overflow"
+path = "src/buffer.cpp"
+line = 8
+rule_id = "c-unsafe-copy"
+sink = "strcpy"
+evidence = "strcpy copies attacker input into a fixed buffer"
+
+[[expected]]
+cwe = "CWE-120"
+class = "buffer overflow"
+path = "src/buffer.cpp"
+line = 13
+rule_id = "c-unsafe-copy"
+sink = "strcat"
+evidence = "strcat appends attacker input without bounds"
+
+[[expected]]
+cwe = "CWE-120"
+class = "buffer overflow"
+path = "src/buffer.cpp"
+line = 18
+rule_id = "c-unsafe-copy"
+sink = "gets"
+evidence = "gets reads input without any bounds checking"
+
+[[expected]]
+cwe = "CWE-120"
+class = "buffer overflow"
+path = "src/buffer.cpp"
+line = 23
+rule_id = "c-unsafe-copy"
+sink = "sprintf"
+evidence = "sprintf formats attacker input into a fixed buffer"
+
+[[expected]]
+cwe = "CWE-120"
+class = "buffer overflow"
+path = "src/buffer.cpp"
+line = 27
+rule_id = "c-unsafe-memory-copy"
+sink = "memcpy"
+evidence = "memcpy copies an attacker-controlled length"
+
+[[expected]]
+cwe = "CWE-120"
+class = "buffer overflow"
+path = "src/buffer.cpp"
+line = 32
+rule_id = "c-unsafe-scanf"
+sink = "scanf"
+evidence = "scanf reads unbounded input into a fixed buffer"
+
+[[expected]]
+cwe = "CWE-190"
+class = "integer overflow"
+path = "src/buffer.cpp"
+line = 37
+sink = "malloc"
+evidence = "malloc size len multiplied by count can overflow"
+
+[[expected]]
+cwe = "CWE-120"
+class = "buffer overflow"
+path = "src/command.cpp"
+line = 8
+rule_id = "c-unsafe-copy"
+sink = "strcpy"
+evidence = "strcpy copies the command argument into a fixed buffer"
+
+[[expected]]
+cwe = "CWE-78"
+class = "command injection"
+path = "src/command.cpp"
+line = 9
+rule_id = "c-shell-exec"
+sink = "system"
+evidence = "system executes an attacker-controlled command"
+
+[[expected]]
+cwe = "CWE-78"
+class = "command injection"
+path = "src/command.cpp"
+line = 13
+rule_id = "c-shell-exec"
+sink = "popen"
+evidence = "popen executes an attacker-controlled command"
+
+[[expected]]
+cwe = "CWE-78"
+class = "command injection"
+path = "src/command.cpp"
+line = 18
+rule_id = "c-exec-family"
+sink = "execlp"
+evidence = "execlp executes an attacker-controlled argument"
+
+[[expected]]
+cwe = "CWE-134"
+class = "format string"
+path = "src/command.cpp"
+line = 22
+rule_id = "c-unsafe-format"
+sink = "printf"
+evidence = "printf uses an attacker-controlled format string"

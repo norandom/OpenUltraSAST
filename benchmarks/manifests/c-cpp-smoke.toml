@@ -1,0 +1,38 @@
+name = "c-cpp-smoke"
+language = "c_cpp"
+frameworks = ["native"]
+setup = []
+modes = ["quick", "standard"]
+known_noise = []
+baselines = []
+
+[source]
+type = "local"
+path = "../fixtures/c-cpp-smoke"
+
+[[expected]]
+cwe = "CWE-120"
+class = "unsafe memory copy"
+path = "src/vuln.cpp"
+line = 4
+rule_id = "c-unsafe-memory-copy"
+sink = "memcpy"
+evidence = "memcpy copies attacker-controlled input into a fixed buffer"
+
+[[expected]]
+cwe = "CWE-120"
+class = "buffer overflow"
+path = "src/vuln.cpp"
+line = 8
+rule_id = "c-unsafe-copy"
+sink = "strcpy"
+evidence = "strcpy copies attacker-controlled input into a fixed buffer"
+
+[[expected]]
+cwe = "CWE-78"
+class = "command injection"
+path = "src/vuln.cpp"
+line = 9
+rule_id = "c-shell-exec"
+sink = "system"
+evidence = "system executes attacker-controlled shell command"

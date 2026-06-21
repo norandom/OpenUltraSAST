@@ -1,0 +1,109 @@
+name = "javascript-vulnerable"
+language = "javascript_node_web"
+frameworks = ["node", "express"]
+setup = ["npm install"]
+modes = ["quick", "standard"]
+known_noise = []
+baselines = []
+
+[source]
+type = "local"
+path = "../fixtures/javascript-vulnerable"
+
+[[expected]]
+cwe = "CWE-78"
+class = "command injection"
+path = "src/app.js"
+line = 10
+rule_id = "js-command-exec"
+sink = "exec"
+evidence = "child_process exec runs an attacker-controlled command"
+
+[[expected]]
+cwe = "CWE-78"
+class = "command injection"
+path = "src/app.js"
+line = 14
+rule_id = "js-command-exec"
+sink = "execSync"
+evidence = "execSync runs an attacker-controlled command"
+
+[[expected]]
+cwe = "CWE-95"
+class = "code injection"
+path = "src/app.js"
+line = 18
+rule_id = "js-eval"
+sink = "eval"
+evidence = "eval executes attacker-controlled input"
+
+[[expected]]
+cwe = "CWE-95"
+class = "code injection"
+path = "src/app.js"
+line = 23
+rule_id = "js-function-constructor"
+sink = "Function"
+evidence = "Function constructor builds code from attacker input"
+
+[[expected]]
+cwe = "CWE-79"
+class = "reflected cross-site scripting"
+path = "src/app.js"
+line = 28
+rule_id = "js-xss-response"
+sink = "send"
+evidence = "response send reflects request query input into HTML"
+
+[[expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "src/app.js"
+line = 32
+rule_id = "js-sql-injection"
+sink = "query"
+evidence = "db query concatenates request input into SQL"
+
+[[expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "src/app.js"
+line = 36
+rule_id = "js-sql-injection"
+sink = "query"
+evidence = "db query interpolates request input via a template literal"
+
+[[expected]]
+cwe = "CWE-22"
+class = "path traversal"
+path = "src/app.js"
+line = 40
+rule_id = "js-path-traversal"
+sink = "readFileSync"
+evidence = "fs readFileSync reads an attacker-controlled path"
+
+[[expected]]
+cwe = "CWE-918"
+class = "server-side request forgery"
+path = "src/app.js"
+line = 45
+rule_id = "js-ssrf"
+sink = "axios"
+evidence = "axios get fetches an attacker-controlled url"
+
+[[expected]]
+cwe = "CWE-327"
+class = "weak cryptography"
+path = "src/app.js"
+line = 49
+rule_id = "js-weak-hash"
+sink = "md5"
+evidence = "createHash md5 is a weak hash"
+
+[[expected]]
+cwe = "CWE-1321"
+class = "prototype pollution"
+path = "src/app.js"
+line = 55
+sink = "target"
+evidence = "user-controlled keys are copied into an object enabling prototype pollution"

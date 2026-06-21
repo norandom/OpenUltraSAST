@@ -23,6 +23,27 @@ def test_quick_scan_findings_emit_static_corroboration(tmp_path: Path) -> None:
     assert findings[0].line == 1
 
 
+def test_quick_scan_findings_emit_common_cpp_hazards(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "vuln.cpp").write_text(
+        "#include <cstring>\n"
+        "#include <cstdlib>\n"
+        "// system(cmd) in a comment is not executable evidence.\n"
+        "void copy(char *src) { char dst[4]; memcpy(dst, src, 16); }\n"
+        "void run(char *cmd) { system(cmd); }\n"
+        "void fmt(char *format, va_list args) { char dst[8]; vsprintf(dst, format, args); }\n"
+    )
+    _, targets = preprocess_repository(repo)
+
+    finding_ids = {finding.finding_id for finding in quick_scan_findings(repo, targets, rank_targets(targets))}
+
+    assert "c-shell-exec:vuln.cpp:3" not in finding_ids
+    assert "c-unsafe-memory-copy:vuln.cpp:4" in finding_ids
+    assert "c-shell-exec:vuln.cpp:5" in finding_ids
+    assert "c-unsafe-format:vuln.cpp:6" in finding_ids
+
+
 def test_findings_and_report_artifacts(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()

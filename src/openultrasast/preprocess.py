@@ -23,6 +23,8 @@ LANGUAGE_BY_EXTENSION = {
     ".go": "go",
     ".rs": "rust",
     ".java": "java",
+    ".groovy": "groovy",
+    ".tpl": "groovy",
     ".kt": "kotlin",
     ".rb": "ruby",
     ".php": "php",

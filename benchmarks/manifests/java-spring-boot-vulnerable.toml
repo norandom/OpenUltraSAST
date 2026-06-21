@@ -1,0 +1,32 @@
+name = "java-spring-boot-vulnerable"
+language = "java_web"
+frameworks = ["spring-boot", "groovy-templates"]
+setup = ["./gradlew bootRun"]
+modes = ["quick", "standard"]
+known_noise = []
+baselines = []
+
+# Source vendored verbatim from kiview/damn-vulnerable-spring-boot-app (MIT).
+# The app documents two vulnerabilities: SQL injection in the book detail view
+# and stored XSS in the comment view rendered by an unescaped Groovy template.
+[source]
+type = "local"
+path = "../fixtures/java-spring-boot-vulnerable"
+
+[[expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "src/main/java/com/groovycoder/dvsba/books/BookController.java"
+line = 35
+rule_id = "java-sql-injection"
+sink = "select"
+evidence = "select query concatenates the request id parameter into SQL"
+
+[[expected]]
+cwe = "CWE-79"
+class = "stored cross-site scripting"
+path = "src/main/resources/templates/views/comment/comment.tpl"
+line = 20
+rule_id = "groovy-xss-unescaped"
+sink = "yieldUnescaped"
+evidence = "yieldUnescaped renders the user comment without escaping"

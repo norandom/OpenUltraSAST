@@ -1,0 +1,27 @@
+name = "javascript-node-web-smoke"
+language = "javascript_node_web"
+frameworks = ["node", "express"]
+setup = ["npm install"]
+modes = ["quick", "standard"]
+known_noise = []
+baselines = []
+
+[source]
+type = "local"
+path = "../fixtures/javascript-node-web-smoke"
+
+[[expected]]
+cwe = "CWE-78"
+class = "command injection"
+path = "src/app.js"
+line = 6
+sink = "exec"
+evidence = "child_process.exec receives request query input"
+
+[[expected]]
+cwe = "CWE-79"
+class = "reflected cross-site scripting"
+path = "src/app.js"
+line = 10
+sink = "send"
+evidence = "response sends unsanitized request query input into HTML"

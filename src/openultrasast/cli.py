@@ -2,10 +2,21 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 
+from .benchmark import (
+    create_benchmark_run,
+    evaluate_benchmark,
+    load_baseline_findings,
+    load_benchmark_manifest,
+    load_findings,
+    resolve_benchmark_source,
+    write_benchmark_artifacts,
+)
 from .config import load_config
-from .findings import quick_scan_findings, write_findings
+from .findings import StaticFinding, quick_scan_findings, write_findings
 from .harness import HarnessRuntime, HarnessTraceWriter, write_harness_config
 from .hunter import run_hunter_pool, write_hunter_trajectories
 from .index import build_code_chunks
@@ -15,6 +26,16 @@ from .rank import rank_targets, write_rankings
 from .reports import scan_exit_code, write_manifest, write_markdown_report, write_sarif_report
 from .run import create_scan_run
 from .verification import verify_findings, write_verification_results
+
+
+@dataclass(frozen=True)
+class ScanOutcome:
+    scan_id: str
+    run_dir: Path
+    file_target_count: int
+    ranked_target_count: int
+    finding_count: int
+    exit_code: int
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -32,15 +53,28 @@ def main(argv: list[str] | None = None) -> int:
     index.add_argument("--config", type=Path, default=Path("openultrasast.toml"))
     index.add_argument("--chunk-lines", type=int, default=80)
 
+    benchmark = subparsers.add_parser("benchmark", help="run a benchmark manifest and write scoreboard artifacts")
+    benchmark.add_argument("manifest", type=Path)
+    benchmark.add_argument("--mode", choices=("quick", "standard", "deep"), default="quick")
+    benchmark.add_argument("--config", type=Path, default=Path("openultrasast.toml"))
+
     args = parser.parse_args(argv)
     if args.command == "scan":
         return _scan(args.path, args.config, args.mode, args.fail_on)
     if args.command == "index":
         return _index(args.path, args.config, args.chunk_lines)
+    if args.command == "benchmark":
+        return _benchmark(args.manifest, args.config, args.mode)
     return 2
 
 
 def _scan(path: Path, config_path: Path, mode: str, fail_on: str) -> int:
+    outcome = _run_scan(path, config_path, mode, fail_on)
+    _print_scan_outcome(outcome)
+    return outcome.exit_code
+
+
+def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOutcome:
     if mode == "deep":
         raise SystemExit("mode 'deep' is specified but sandboxed dynamic analysis is not implemented")
     if not path.exists() or not path.is_dir():
@@ -104,12 +138,22 @@ def _scan(path: Path, config_path: Path, mode: str, fail_on: str) -> int:
         ),
     )
     runtime.finish(status="succeeded")
-    print(f"scan_id={run.scan_id}")
-    print(f"run_dir={run.root}")
-    print(f"file_targets={len(targets)}")
-    print(f"ranked_targets={len(rankings)}")
-    print(f"findings={len(findings)}")
-    return scan_exit_code(findings, verifications, fail_on)
+    return ScanOutcome(
+        scan_id=run.scan_id,
+        run_dir=run.root,
+        file_target_count=len(targets),
+        ranked_target_count=len(rankings),
+        finding_count=len(findings),
+        exit_code=scan_exit_code(findings, verifications, fail_on),
+    )
+
+
+def _print_scan_outcome(outcome: ScanOutcome) -> None:
+    print(f"scan_id={outcome.scan_id}")
+    print(f"run_dir={outcome.run_dir}")
+    print(f"file_targets={outcome.file_target_count}")
+    print(f"ranked_targets={outcome.ranked_target_count}")
+    print(f"findings={outcome.finding_count}")
 
 
 def _load_static_hints(sarif_paths: tuple[str, ...]) -> list[object]:
@@ -123,6 +167,40 @@ def _load_static_hints(sarif_paths: tuple[str, ...]) -> list[object]:
 
 def _artifact_paths(**paths: Path | None) -> dict[str, Path]:
     return {name: path for name, path in paths.items() if path is not None}
+
+
+def _benchmark(manifest_path: Path, config_path: Path, mode: str) -> int:
+    if not manifest_path.exists() or not manifest_path.is_file():
+        raise SystemExit(f"benchmark manifest is not a file: {manifest_path}")
+    manifest = load_benchmark_manifest(manifest_path)
+    target = resolve_benchmark_source(manifest_path, manifest)
+    run = create_benchmark_run(target, manifest)
+    started_at = perf_counter()
+    outcome = _run_scan(target, config_path, mode, "never")
+    runtime_seconds = perf_counter() - started_at
+    findings = _load_scan_findings(outcome.run_dir)
+    baseline_findings = load_baseline_findings(manifest_path, manifest)
+    result = evaluate_benchmark(
+        run=run,
+        mode=mode,
+        findings=findings,
+        scan_id=outcome.scan_id,
+        scan_run_dir=outcome.run_dir,
+        runtime_seconds=runtime_seconds,
+        baseline_findings=baseline_findings,
+    )
+    write_benchmark_artifacts(run, manifest_path, result)
+    _print_scan_outcome(outcome)
+    print(f"benchmark_run_id={run.benchmark_run_id}")
+    print(f"benchmark_run_dir={run.root}")
+    print(f"benchmark_expected={result.metrics.expected_findings_total}")
+    print(f"benchmark_matched={result.metrics.matched_findings_total}")
+    print(f"benchmark_missed={result.metrics.missed_findings_total}")
+    return 0
+
+
+def _load_scan_findings(run_dir: Path) -> list[StaticFinding]:
+    return load_findings(run_dir / "findings.json")
 
 
 def _index(path: Path, config_path: Path, chunk_lines: int) -> int:

@@ -1,0 +1,29 @@
+name = "python-web-smoke"
+language = "python_web"
+frameworks = ["flask"]
+setup = ["pip install flask"]
+modes = ["quick", "standard"]
+known_noise = []
+baselines = []
+
+[source]
+type = "local"
+path = "../fixtures/python-web-smoke"
+
+[[expected]]
+cwe = "CWE-78"
+class = "command injection"
+path = "app.py"
+line = 9
+rule_id = "python-shell-true"
+sink = "subprocess"
+evidence = "subprocess executes request input with shell=True"
+
+[[expected]]
+cwe = "CWE-94"
+class = "code injection"
+path = "app.py"
+line = 13
+rule_id = "python-unsafe-eval"
+sink = "eval"
+evidence = "eval executes request input"
