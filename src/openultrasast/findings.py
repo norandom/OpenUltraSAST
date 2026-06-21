@@ -69,8 +69,8 @@ PATTERN_RULES = (
         title="Unsafe C format string needs review",
         severity="high",
         tags=("memory_unsafe",),
-        # Format function whose format argument is a bare identifier (not a string
-        # literal), i.e. the classic format-string sink. printf("...") is ignored.
+        # Flag format functions that receive a variable format string.
+        # Calls with string literals, such as printf("..."), are ignored.
         pattern=re.compile(r"\b(printf|vprintf|vsprintf|vsnprintf|vfprintf|syslog)\s*\(\s*[A-Za-z_]"),
         cwe="CWE-134",
         languages=C_LANGUAGES,
@@ -144,8 +144,8 @@ PATTERN_RULES = (
         title="Python SQL string composition needs review",
         severity="high",
         tags=("injection",),
-        # .execute(...) where the argument is built with %-formatting, .format(),
-        # string concatenation, or an f-string. Parameterised %s placeholders pass.
+        # Flag .execute(...) calls built with %-formatting, .format(), string
+        # concatenation, or an f-string. Parameterised %s placeholders pass.
         pattern=re.compile(r"(\.execute)\s*\(\s*[^\n]*(?:[\"']\s*%\s*[(A-Za-z_]|\.format\s*\(|[\"']\s*\+|\bf[\"'])"),
         cwe="CWE-89",
         languages=PYTHON_LANGUAGES,
@@ -203,8 +203,8 @@ PATTERN_RULES = (
         title="Node child_process command execution needs review",
         severity="high",
         tags=("syscall_entry",),
-        # exec/execSync invoke a shell; execFile/spawn with an argv array do not and
-        # are the safe alternatives, so they are intentionally excluded here.
+        # exec and execSync invoke a shell. execFile and spawn with an argv array
+        # do not, so this rule leaves them alone.
         pattern=re.compile(r"\b(exec|execSync)\s*\("),
         cwe="CWE-78",
         languages=JS_LANGUAGES,
@@ -316,8 +316,8 @@ PATTERN_RULES = (
         title="Java SQL string composition needs review",
         severity="high",
         tags=("injection",),
-        # A string literal that begins with a SQL keyword and is concatenated with
-        # untrusted data. Parameterised queries (placeholders, no '+') are ignored.
+        # Flag SQL strings that start with a statement keyword and then concatenate
+        # more data. Parameterised queries with placeholders are ignored.
         pattern=re.compile(r"(?i)\"\s*(select|insert|update|delete)\b[^\"]*\"\s*\+"),
         cwe="CWE-89",
         languages=JAVA_LANGUAGES,
@@ -346,7 +346,7 @@ PATTERN_RULES = (
         title="Groovy template unescaped output needs review",
         severity="high",
         tags=("injection",),
-        # Unescaped output of a bound variable; string literals are not flagged.
+        # Flag unescaped bound variables. String literals are ignored.
         pattern=re.compile(r"(yieldUnescaped)\s+[A-Za-z_]"),
         cwe="CWE-79",
         languages=GROOVY_LANGUAGES,

@@ -177,8 +177,7 @@ def _persist_calibration_feedback(
     findings: list[StaticFinding],
     verifications: list[VerificationResult],
 ) -> list[FalsePositiveLearning]:
-    # Turn this run's non-accepted verifier outcomes into scoped learnings and
-    # merge them into the persistent ledger so the next scan demotes those scopes.
+    # Store rejected or held findings as scoped learnings for the next scan.
     new_learnings = learnings_from_verifications(findings, verifications)
     merged = merge_false_positive_learnings(prior_learnings, new_learnings)
     write_false_positive_learnings(merged, ledger_path)

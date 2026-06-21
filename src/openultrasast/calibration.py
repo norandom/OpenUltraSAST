@@ -9,8 +9,7 @@ from .findings import StaticFinding
 from .rank import RankingScore
 from .verification import VerificationResult, VerificationStatus
 
-# Calibration may push a repeatedly-rejected scope below the natural ranking
-# minimum (1.0) so accumulated false positives keep losing priority over runs.
+# Repeated rejections can push a scope below the normal 1.0 ranking floor.
 MIN_CALIBRATED_PRIORITY = 0.1
 
 

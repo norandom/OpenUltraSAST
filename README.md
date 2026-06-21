@@ -3,8 +3,8 @@
 OpenUltraSAST is an independent OpenCode security harness. It combines
 HarnessX-style harness composition, OpenUltraCode verification discipline,
 OpenRouter-hosted models and embeddings, Docker-isolated code analysis, and
-Trail of Bits security skills into a SAST workflow whose primary product goal is
-**false-positive elimination** — turning suspicion into evidence-backed findings
+Trail of Bits security skills into a SAST workflow built around one goal:
+eliminating false positives by turning suspicion into evidence-backed findings
 and learning from rejected claims.
 
 The full specification lives in `.kiro/specs/openrouter-sast-harness/`
@@ -12,7 +12,7 @@ The full specification lives in `.kiro/specs/openrouter-sast-harness/`
 as an implementation oracle for proven source-hunting ideas, not as a dependency
 or fork target.
 
-> **Maturity legend** — ✅ implemented and tested · 🟡 primitive exists, not yet
+> **Maturity legend:** ✅ implemented and tested · 🟡 primitive exists, not yet
 > auto-wired into the scan loop · 🧭 designed, on the roadmap. The current
 > verified gate is `usable_harness_mvp`.
 
@@ -52,13 +52,13 @@ repo ──▶ preprocess (language, LOC, tags, fuzz entry points)
      ──▶ report.md + report.sarif + manifest.json (shared finding IDs)
 ```
 
-- **quick** ✅ — deterministic, language-scoped pattern rules + reachability +
+- **quick** ✅: deterministic, language-scoped pattern rules + reachability +
   verification. No model calls, fully reproducible.
-- **standard** ✅ scheduling / 🧭 LLM hunters — runs the tiered hunter pool
+- **standard** ✅ scheduling / 🧭 LLM hunters: runs the tiered hunter pool
   (A/B/C budgets, retrieval context, selected Trail of Bits skill snippets,
   JSONL trajectories) and verification; language-aware LLM hunters are the next
   upgrade (today standard reuses the deterministic findings per target).
-- **deep** 🧭 — sandboxed build/fuzz/dynamic reproduction (not yet implemented).
+- **deep** 🧭: sandboxed build/fuzz/dynamic reproduction (not yet implemented).
 
 ## Detection coverage
 
@@ -114,16 +114,16 @@ SQLi, prototype pollution) so recall is not self-fulfilling.
 | Java | 100% (4/4) | 0.0% |
 | **Overall** | **93.6% (44/47)** | **0.0%** |
 
-The project goal — **≥90% recall and <10% false positives** per language — is
-enforced as a regression gate in `tests/test_detection_benchmarks.py`, so a rule
-change that drops recall or raises false positives fails CI.
+The project goal is **≥90% recall and <10% false positives** per language. The
+gate lives in `tests/test_detection_benchmarks.py`, so a rule change that drops
+recall or raises false positives fails CI.
 
 ## OpenCode commands, fusion, and ultra workflows
 
-OpenUltraSAST is driven from the command line. You can call the `ousast` CLI
-directly, or run [OpenCode](https://opencode.ai) in the repository and let the
-agent run the harness for you — OpenCode is invoked from the command line, loads
-the project skills below, and executes `ousast` plus the triage/fix workflow.
+OpenUltraSAST runs from the command line. You can call the `ousast` CLI directly,
+or run [OpenCode](https://opencode.ai) in the repository and let the agent run
+the harness. OpenCode loads the project skills below, then executes `ousast` plus
+the triage/fix workflow.
 
 ```bash
 opencode run "scan this repo with ousast in quick mode and triage the findings"
@@ -139,13 +139,13 @@ Project skills that steer the harness from OpenCode (`.opencode/skills/`):
 | `openultrasast-triage` ✅ | false-positive elimination, ranking calibration, verifier adjudication |
 | `openultrasast-fix-audit` ✅ | OpenUltraCode fix lifecycle and adversarial fix review |
 
-**Ultra workflows (OpenUltraCode discipline)** — fixes are never a one-shot
-patch prompt. `openultrasast-fix-audit` runs the bounded lifecycle
+**Ultra workflows (OpenUltraCode discipline):** fixes are never a one-shot patch
+prompt. `openultrasast-fix-audit` runs the bounded lifecycle
 `intake → plan → minimal patch → adversarial review → reconcile → fresh
 verification → ready`, and a patch can only reach `patch_validated` after
 sandboxed validation passes with no accepted blocking findings.
 
-**Fusion (deepening) 🧭** — when a finding needs more reasoning than the normal
+**Fusion (deepening) 🧭:** when a finding needs more reasoning than the normal
 ranker → hunter → verifier → mapping loop provides (critical/high severity,
 verifier disagreement, conflicting static vs semantic evidence, risky fixes, or
 an explicit high-assurance request), fusion runs two independent panels that
@@ -184,9 +184,9 @@ When a finding is still rejected after review, `openultrasast-triage` records a
 taxonomy (`unreachable_path`, `missing_attacker_control`, `sanitizer_disproved`,
 `static_rule_mismatch`, `incorrect_model_assumption`, `duplicate`,
 `insufficient_impact`, `unsupported`, `contradicted`, `unverified`), evidence,
-and a **scope**. Scoping is the safety property: a rejected `syscall_entry` claim
-in `auth/` demotes only `auth/…`, never the whole vulnerability class — proven by
-`tests/test_calibration.py::test_scoped_false_positive_demotion_does_not_suppress_class_globally`.
+and a **scope**. Scoping keeps the learning narrow: a rejected `syscall_entry`
+claim in `auth/` demotes only `auth/…`, never the whole vulnerability class. This
+is covered by `tests/test_calibration.py::test_scoped_false_positive_demotion_does_not_suppress_class_globally`.
 Demotion (with an audit trail) is preferred over deletion, so an analyst can
 always see *why* something was downgraded.
 
@@ -209,7 +209,7 @@ overflow the regex engine cannot see:
 ```
 
 The `next_improvement_candidate` routes the gap to the stage that should close
-it — a static rule, SARIF source, entry-point mapping, retrieval package,
+it: a static rule, SARIF source, entry-point mapping, retrieval package,
 language-aware hunter prompt, dynamic reproducer, or skill route. Once a miss is
 addressed, it stays closed because the recall/precision gate runs in CI.
 `external_baseline_deltas.json` additionally shows where another tool found a
@@ -218,11 +218,10 @@ vulnerability OpenUltraSAST missed (or vice-versa).
 ## The HarnessX self-improving cycle
 
 Each scan is a composed harness of typed processors with read/write **state
-contracts** (strict mode fails the scan on a violation; warn mode records a
-degradation) and a full event trace. The loop is now **closed automatically
-inside the pipeline** — no agent required: every scan persists its verifier
-rejections as scoped learnings and the next scan loads them and demotes those
-scopes before findings are produced.
+contracts**. Strict mode fails the scan on a violation; warn mode records a
+degradation. The loop now runs inside the pipeline without an agent: every scan
+persists verifier rejections as scoped learnings, and the next scan loads them
+and demotes those scopes before findings are produced.
 
 ```
         ┌──────────── automatic ledger (no agent in the loop) ───────────┐
@@ -249,11 +248,11 @@ priority is demoted rather than the finding deleted, the audit trail
 (`applied_calibrations.json`, the ledger) shows exactly why a surface lost
 attention. Covered by `tests/test_pipeline_calibration.py`.
 
-Beyond the automatic ranking loop, **OpenCode still steers the richer
-adjustments** — prompt constraints, retrieval filters, skill routing, and
-benchmark-miss triage — via `openultrasast-triage`; those `RankingCalibration`
-fields are already produced and will be consumed directly once the language-aware
-LLM hunters land (`standard_security_harness`).
+Beyond the automatic ranking loop, `openultrasast-triage` still lets OpenCode
+adjust prompt constraints, retrieval filters, skill routing, and benchmark-miss
+triage. Those `RankingCalibration` fields are already produced and will be
+consumed directly once the language-aware LLM hunters land
+(`standard_security_harness`).
 
 ## Development
 
