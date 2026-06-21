@@ -15,6 +15,8 @@ The project shall use Clearwing only as an implementation oracle. It shall not i
 5. Preserve Docker isolation as a first-class security boundary for code execution, harness compilation, fuzzing, and patch validation.
 6. Integrate Trail of Bits skills as scoped security expertise selected by language, framework, vulnerability class, mapping need, or verification need.
 7. Emit machine-readable artifacts suitable for CI, triage, and later training or harness evolution.
+8. Build detector quality against grounded vulnerable-project benchmarks for JavaScript/Node/web, Python/web, Java, and C/C++ instead of relying on toy fixtures or pattern-only tests.
+9. Help coders and vibecoders understand and fix findings through an evidence-aware explain mode that teaches the secure pattern, not only flags the insecure one.
 
 ## Completeness Model
 
@@ -37,6 +39,8 @@ Functional gates:
 4. `sandboxed_dynamic_harness`: Docker sandbox, scoped dynamic probes, sanitizer/build artifacts, and evidence transitions work without hidden network or host mutation.
 5. `fix_validation_harness`: patch proposals, adversarial fix audit, differential/static delta checks, and sandbox validation are integrated and cannot mark patches validated without passing evidence.
 6. `opencode_product`: MCP tools, opencode commands/skills, fusion deepening, CI-ready reports, cost controls, and hardening are complete enough for routine opencode-driven use.
+7. `benchmark_grounded_finder`: benchmark manifests, expected vulnerabilities, tool comparison baselines, recall/precision metrics, and missed-finding regression tracking exist for JavaScript, Python, Java, and C/C++ vulnerable projects.
+8. `explain_and_fix_workflow`: users can ask for an evidence-grounded explanation of a finding, receive prevention guidance, and enter an interactive fixing workflow that routes to the appropriate security skills without silently applying patches.
 
 The current implementation state shall be documented as `usable_harness_mvp` until later gates are explicitly verified.
 
@@ -77,6 +81,19 @@ The current implementation state shall be documented as `usable_harness_mvp` unt
 6. The system shall support differential analysis between a base and head revision to identify changed attack surfaces, newly reachable code, and regression-prone fixes.
 7. The system shall support sharp-edge mapping for APIs, configuration, defaults, cryptographic interfaces, and dangerous framework patterns that create predictable misuse.
 8. The system shall preserve analyzer provenance so each finding can cite which static tool, rule, diff, entry-point analysis, or skill-derived checklist contributed evidence.
+
+### Benchmark-Grounded Detection
+
+1. The system shall maintain benchmark manifests for realistic vulnerable projects, not only synthetic single-file fixtures.
+2. The initial benchmark matrix shall cover JavaScript/Node/web, Python/web, Java, and C/C++.
+3. Benchmarks shall include vulnerable training projects and curated CWE samples such as NodeGoat, DVNA or similar Node/Express apps, OWASP Juice Shop slices, PyGoat or vulnerable Flask/Django samples, OWASP Benchmark/WebGoat/Juliet Java, Juliet C/C++, vulnerable parser fixtures, and small sanitizer-backed C/C++ crash targets.
+4. Each benchmark manifest shall record repository path or source, language, framework, setup commands, scan modes to run, expected vulnerability classes, expected locations when known, and known noisy/non-security patterns.
+5. The benchmark runner shall emit recall, precision where ground truth allows it, false-positive reason distribution, missed expected findings, unsupported vulnerability classes, runtime, model usage, and artifact paths.
+6. Benchmark results shall compare quick, standard, and deep modes separately so rule coverage, LLM hunting, and dynamic validation are not conflated.
+7. Benchmark runs shall support comparison against external baselines such as Clearwing, Semgrep, CodeQL, clang-tidy, npm audit, Bandit, or language-appropriate tools when their outputs are available as SARIF or normalized findings.
+8. Missed benchmark vulnerabilities shall become regression records that feed rule expansion, ranking calibration, retrieval packages, hunter prompts, and skill routing.
+9. A detector shall not be considered realistic for a language until it demonstrates useful recall on at least one realistic benchmark project and one curated CWE corpus for that language.
+10. Benchmark artifacts shall be preserved under `.openultrasast/benchmarks/<benchmark-run-id>/` with links to the scan artifacts that produced each metric.
 
 ### OpenRouter Embeddings And Retrieval
 
@@ -121,6 +138,8 @@ The current implementation state shall be documented as `usable_harness_mvp` unt
 4. Standard mode shall use sandboxed tool-calling hunters and adversarial verification.
 5. Deep mode shall add harness generation, sanitizer builds, fuzzing, dynamic reproduction, crash reproduction, and patch validation where applicable.
 6. The system shall record every hunter trajectory as structured JSONL.
+7. Standard-mode hunters shall be evaluated against benchmark misses before being treated as production-quality detectors.
+8. Hunter prompts shall be language- and framework-aware for JavaScript/Node/web, Python/web, Java, and C/C++ instead of using one generic vulnerability prompt for all targets.
 
 ### Evidence Ladder
 
@@ -169,6 +188,18 @@ The current implementation state shall be documented as `usable_harness_mvp` unt
 6. Patch artifacts shall be emitted as diffs, not silently applied to the user's repository by default.
 7. The system shall audit proposed fixes for regression risk using differential analysis and relevant Trail of Bits skills before marking them ready.
 
+### Explain Mode And Interactive Fixing
+
+1. The system shall expose an explain workflow for a finding, vulnerability class, or benchmark miss.
+2. Explain mode shall describe the vulnerable pattern, why it matters, what attacker-controlled path or evidence exists, what evidence is missing, and what secure coding habit would have prevented it.
+3. Explain mode shall distinguish education from verification; an explanation shall not upgrade evidence level unless the required evidence artifact already exists.
+4. Explain mode shall cite source lines, finding artifacts, verifier results, SARIF/static evidence, dynamic evidence, benchmark metadata, and relevant skill snippets where available.
+5. Explain mode shall support audience levels such as concise, learner, and reviewer so it can serve coders, vibecoders, and security reviewers without changing the underlying evidence.
+6. Interactive fixing shall guide the user through a bounded plan, relevant security skill selection, minimal patch proposal, adversarial review, and validation commands.
+7. Interactive fixing shall route by language and vulnerability class, for example C/C++ memory issues to `c-review`, `address-sanitizer`, `libfuzzer`, and `harness-writing`; JavaScript web issues to web/security mapping and dependency checks; Python web issues to injection/deserialization/auth/defaults checks; and Java issues to OWASP Benchmark/WebGoat-style dataflow and framework checks.
+8. Interactive fixing shall never silently apply patches to the user's repository by default. It shall produce a proposed diff and required validation plan first.
+9. Explain and fix outputs shall emphasize prevention patterns so users learn how not to recreate the same vulnerability class in future code.
+
 ### Reporting
 
 1. The system shall emit JSON, SARIF, Markdown, and a manifest per scan.
@@ -182,6 +213,7 @@ The current implementation state shall be documented as `usable_harness_mvp` unt
 2. MCP tools shall focus on project-level operations: scan, status, findings, evidence, artifacts, patch proposal, and report export.
 3. The MCP server shall not expose arbitrary internal tools as public MCP methods.
 4. OpenCode commands shall invoke the harness with explicit model role configuration and visible assumptions.
+5. MCP and OpenCode integration shall include narrow operations for benchmark status, finding explanation, and interactive patch proposal without exposing arbitrary shell execution.
 
 ## Non-Functional Requirements
 
@@ -201,3 +233,5 @@ The current implementation state shall be documented as `usable_harness_mvp` unt
 6. `opencode_product`: A user can drive scans, triage, evidence inspection, report export, fusion, and patch proposal through narrow MCP/OpenCode interfaces without exposing arbitrary shell execution.
 7. A finding cannot be marked verified unless it reaches at least `static_corroboration` through enforced evidence transitions.
 8. A scan manifest records repository snapshot, harness config, OpenRouter model IDs, embedding model, prompt hashes, processor versions, evidence transitions, and artifact paths.
+9. `benchmark_grounded_finder`: A user can run a benchmark manifest for JavaScript, Python, Java, or C/C++ and receive language-level recall, missed finding, false-positive, runtime, and artifact reports.
+10. `explain_and_fix_workflow`: A user can request an explanation for a finding or benchmark miss and receive evidence-cited prevention guidance plus an optional interactive fix plan without automatic repository mutation.

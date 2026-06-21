@@ -3,7 +3,9 @@ from pathlib import Path
 
 def test_project_opencode_skills_have_required_frontmatter() -> None:
     skills_root = Path(".opencode/skills")
-    skill_files = sorted(skills_root.glob("*/SKILL.md"))
+    # Scope to the project's own skills; third-party tooling (e.g. kiro-*) lives
+    # alongside them and uses a different frontmatter convention.
+    skill_files = sorted(skills_root.glob("openultrasast-*/SKILL.md"))
 
     assert {path.parent.name for path in skill_files} == {
         "openultrasast-fix-audit",

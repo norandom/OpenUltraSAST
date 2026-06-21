@@ -130,6 +130,42 @@ Do not report OpenUltraSAST as a working security harness until `usable_harness_
 - [x] Every hunter trajectory is persisted and linked to finding artifacts.
 - [ ] False-positive learning updates ranking calibration from verifier outcomes.
 - [ ] Fusion can be triggered for high-impact, contradictory, or difficult findings.
+- [ ] Standard mode uses real language-aware LLM hunters instead of reusing quick static findings.
+
+## Gate: `benchmark_grounded_finder`
+
+- [ ] Benchmark manifests exist for JavaScript/Node/web, Python/web, Java, and C/C++ vulnerable projects.
+- [ ] Benchmark runner executes quick, standard, and deep modes as supported and preserves benchmark artifacts.
+- [ ] Benchmark reports include recall, missed expected findings, false-positive reasons, runtime, and external baseline deltas.
+- [ ] Missed benchmark findings feed calibration records for rules, ranking, retrieval, hunters, SARIF ingestion, dynamic probes, or skill routing.
+- [ ] At least one realistic vulnerable project and one curated CWE corpus are tracked per supported language family.
+
+## Phase 6A: Benchmark Corpus And Scoreboard (`benchmark_grounded_finder` prerequisite)
+
+- [x] Define benchmark manifest schema with source, language, framework, setup, expected vulnerabilities, known noise, scan modes, and optional baselines.
+- [x] Implement benchmark run directory creation under `.openultrasast/benchmarks/<benchmark-run-id>/`.
+- [x] Implement finding-to-ground-truth matching by CWE, rule ID, file, function, sink, and evidence text.
+- [x] Implement benchmark metrics for recall, precision when possible, false-positive reasons, missed findings, runtime, model usage, and artifact links.
+- [x] Add benchmark fixtures or manifests for JavaScript/Node/web, Python/web, Java, and C/C++.
+- [x] Add external baseline ingestion for SARIF or normalized findings from Clearwing, Semgrep, CodeQL, clang-tidy, Bandit, npm audit, or language-appropriate tools.
+- [x] Add tests proving benchmark misses are recorded as calibration inputs without automatically suppressing unrelated findings.
+
+## Gate: `explain_and_fix_workflow`
+
+- [ ] Explain mode can explain a finding or benchmark miss with source evidence, reachability status, missing evidence, secure pattern, and prevention guidance.
+- [ ] Explain mode supports concise, learner, and reviewer audience levels without changing evidence levels.
+- [ ] Interactive fixing selects relevant security skills and proposes a minimal patch plan without silently mutating the target repository.
+- [ ] Fix guidance links to validation commands and required evidence transitions.
+
+## Phase 6B: Explain Mode And Interactive Fixing (`explain_and_fix_workflow` prerequisite)
+
+- [ ] Add explain artifact schema for finding ID, source refs, evidence refs, audience level, prevention guidance, selected skills, and validation advice.
+- [ ] Add `ousast explain <finding-id> --scan <scan-id>` CLI command.
+- [ ] Add explain support for benchmark misses and imported SARIF findings.
+- [ ] Implement language/vulnerability skill routing for JavaScript/Node/web, Python/web, Java, and C/C++.
+- [ ] Add interactive fixing plan schema with confirmation gates, selected skills, proposed patch scope, validation commands, and evidence requirements.
+- [ ] Ensure interactive fixing cannot mark patches validated unless the patch oracle and sandbox validation gates pass.
+- [ ] Add tests that explanation does not upgrade evidence level and patch guidance does not mutate repositories by default.
 
 ## Phase 7: Docker Sandbox (`sandboxed_dynamic_harness` prerequisite)
 
@@ -209,12 +245,13 @@ Do not report OpenUltraSAST as a working security harness until `usable_harness_
 - [ ] Narrow MCP tools cover scan, status, findings, evidence, artifacts, patch proposal, and report export.
 - [ ] OpenCode workflows can drive scan, triage, fusion, and patch audit without arbitrary shell exposure.
 - [ ] Cost controls, retries, redaction, docs, examples, and CI gates are in place.
+- [ ] OpenCode workflows can drive benchmark runs, finding explanations, and interactive fix proposals.
 
 ## Phase 12: MCP And OpenCode Commands (`opencode_product` prerequisite)
 
 - [x] Add project-local opencode skills for scan, triage, fix audit, and implementation steering.
 - [ ] Implement narrow MCP server.
-- [ ] Add `openultrasast.scan`, `status`, `findings`, `get_finding`, `evidence`, `artifacts`, `propose_patch`, and `export_report` tools.
+- [ ] Add `openultrasast.scan`, `status`, `findings`, `get_finding`, `evidence`, `artifacts`, `benchmark`, `explain`, `propose_patch`, and `export_report` tools.
 - [ ] Add opencode command docs for quick, standard, deep, verify, and patch workflows.
 - [ ] Ensure MCP tools never expose arbitrary shell execution.
 - [ ] Add integration test for MCP tool listing and scan status.

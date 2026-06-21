@@ -25,9 +25,22 @@ repo path
   -> tiered hunter pool
   -> independent verifier
   -> optional fusion adjudication
+  -> optional explain and guided fix workflow
   -> optional reproducer/exploit triage
   -> optional patch oracle
   -> reports and artifacts
+```
+
+Benchmark runs wrap the same scan pipeline instead of using a separate detector path:
+
+```text
+benchmark manifest
+  -> acquire or locate vulnerable project
+  -> run quick, standard, or deep scan
+  -> normalize OpenUltraSAST findings and optional external baselines
+  -> match expected vulnerabilities by CWE, file, function, sink, and evidence
+  -> record recall, precision where possible, misses, false-positive reasons, and runtime
+  -> feed misses and rejected findings into calibration artifacts
 ```
 
 ## Main Components
@@ -38,6 +51,8 @@ Initial command surface:
 
 ```text
 ousast scan <path> --mode quick|standard|deep --config openultrasast.toml
+ousast benchmark <manifest> --mode quick|standard|deep
+ousast explain <finding-id> --scan <scan-id> --audience concise|learner|reviewer
 ousast status <scan-id>
 ousast findings <scan-id>
 ousast report <scan-id> --format markdown|json|sarif
@@ -58,6 +73,8 @@ openultrasast.findings
 openultrasast.get_finding
 openultrasast.evidence
 openultrasast.artifacts
+openultrasast.benchmark
+openultrasast.explain
 openultrasast.propose_patch
 openultrasast.export_report
 ```
@@ -234,6 +251,63 @@ evidence candidates for verifier
 
 This layer should use Trail of Bits skills as task templates and checklists. For example, the CodeQL discipline supplies query/dataflow thinking, Semgrep supplies pattern and variant loops, entry-point analysis supplies attacker-controlled surface and access classification, differential review supplies changed-code blast-radius analysis, and sharp-edge review supplies API misuse mapping.
 
+### Benchmark Layer
+
+The benchmark layer is the quality control system for a realistic grounded finder. It prevents the scanner from passing narrow fixtures while missing obvious bugs in vulnerable projects.
+
+Benchmark manifest shape:
+
+```json
+{
+  "name": "nodegoat",
+  "language": "javascript",
+  "frameworks": ["node", "express"],
+  "source": {"type": "local", "path": "../benchmarks/nodegoat"},
+  "setup": {"commands": [], "requires_network": false},
+  "modes": ["quick", "standard"],
+  "expected": [
+    {
+      "cwe": "CWE-89",
+      "class": "sql_injection",
+      "path": "app/routes/*.js",
+      "evidence": "user input reaches database query"
+    }
+  ],
+  "known_noise": [
+    {"reason": "training-only route", "scope": "docs/**"}
+  ],
+  "baselines": ["semgrep", "codeql", "clearwing"]
+}
+```
+
+Initial benchmark families:
+
+```text
+javascript_node_web: NodeGoat, DVNA, OWASP Juice Shop slices, vulnerable Express fixtures
+python_web: PyGoat, vulnerable Flask/Django apps, pickle/deserialization and command-injection fixtures
+java_web: OWASP Benchmark, WebGoat, Juliet Java, Spring MVC injection/auth fixtures
+c_cpp: Juliet C/C++, Damn Vulnerable C/C++ Program, vulnerable parsers, ASan/UBSan crash fixtures
+```
+
+Benchmark metrics:
+
+```text
+expected_findings_total
+matched_findings_total
+missed_findings_total
+unsupported_classes
+false_positive_total
+false_positive_reasons
+recall_by_cwe
+recall_by_language
+precision_when_ground_truth_allows
+runtime_seconds
+model_calls_and_cost
+external_baseline_delta
+```
+
+Benchmark misses are first-class calibration inputs. A miss should record the source location, expected CWE, which stage failed to surface it, whether an external baseline found it, and the next candidate improvement: static rule, SARIF source, entry-point mapping, CodeQL/Semgrep discipline, LLM hunter prompt, retrieval package, dynamic reproducer, or skill routing.
+
 #### Entry-Point Reachability Mapping
 
 Entry-point mapping is a Phase 5A prerequisite for useful ranking and false-positive reduction. Pattern matches and static analyzer alerts are not enough; the harness must identify whether the affected function or symbol is plausibly reachable from attacker-controlled input.
@@ -362,6 +436,15 @@ evidence requirements
 
 Hunter outputs must be structured and evidence-oriented. They should not rely on hidden reasoning.
 
+Hunters must be language- and framework-aware. The default hunter prompts should not ask one generic model to find every vulnerability type. Initial hunter families should cover:
+
+```text
+javascript_node_web: injection, XSS, SSRF, prototype pollution, insecure deserialization, auth/session bugs, dependency misuse
+python_web: command injection, SQL/template injection, deserialization, path traversal, Flask/Django misconfiguration, auth/session bugs
+java_web: servlet/Spring injection, XXE, deserialization, path traversal, authorization bypass, crypto/API misuse
+c_cpp: memory corruption, integer overflow, format strings, command execution, parser bugs, lifetime and ownership mistakes
+```
+
 ### Verifier
 
 The verifier runs independently from the hunter. It receives only auditable facts:
@@ -467,6 +550,36 @@ never treated as an open-ended network pentest loop
 ```
 
 Dynamic evidence can support transitions such as `static_corroboration -> crash_reproduced`, `static_corroboration -> root_cause_explained`, or `root_cause_explained -> exploit_demonstrated` when the artifact actually demonstrates the claim.
+
+### Explain Mode And Interactive Fixing
+
+Explain mode turns a finding or benchmark miss into a prevention-oriented explanation. It should be useful to a coder who wants to understand the mistake, a vibecoder who needs safe guidance, and a reviewer who needs evidence boundaries.
+
+Explain input types:
+
+```text
+finding_id within a scan
+benchmark miss ID
+vulnerability class plus source location
+SARIF result ID imported into a scan
+```
+
+Explain output sections:
+
+```text
+what was found
+why this pattern is dangerous
+what attacker-controlled path or reachability evidence exists
+what evidence is missing
+how to fix it safely
+how to avoid recreating it
+which validation command or artifact would prove the fix
+which security skills were used for guidance
+```
+
+Explain mode must not inflate evidence. If a result is only a pattern match, it says so. If reachability is unknown, it names the missing call graph, route, CLI, parser, or dynamic artifact needed to prioritize the fix.
+
+Interactive fixing builds on explain mode and the patch oracle. It should ask for confirmation before patch proposal, select skills by language and vulnerability class, produce a minimal diff, run or list the required validation checks, and preserve all decisions as artifacts. It must not silently apply patches to the user's repository by default.
 
 ### Trail Of Bits Skill Integration
 

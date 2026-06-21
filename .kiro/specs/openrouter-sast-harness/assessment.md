@@ -34,6 +34,15 @@ The first release should support this workflow:
 ousast scan /path/to/repo --mode quick
 ```
 
+The first realistic quality milestone should add benchmark-grounded evaluation before claiming language coverage:
+
+```text
+ousast benchmark benchmarks/javascript-node.toml --mode standard
+ousast benchmark benchmarks/python-web.toml --mode standard
+ousast benchmark benchmarks/java-web.toml --mode standard
+ousast benchmark benchmarks/c-cpp.toml --mode quick
+```
+
 It should produce:
 
 ```text
@@ -48,6 +57,12 @@ The key product promise should be:
 
 ```text
 OpenUltraSAST tells you where security review should start, what it suspects, what evidence exists, what evidence is missing, and which findings have survived independent verification.
+```
+
+For coder education, the complementary promise should be:
+
+```text
+OpenUltraSAST explains why the pattern is dangerous, what evidence proves or weakens the finding, how to fix it safely, and how to avoid recreating the same bug class.
 ```
 
 ## Core Architecture Recommendation
@@ -148,6 +163,8 @@ Examples:
 - `root_cause_explained -> patch_validated`: requires patch diff and passing validation command.
 
 False-positive elimination should be handled the same way: a model can recommend demotion or suppression, but the harness should require a scoped reason and counter-evidence.
+
+Benchmark grounding should be handled with the same discipline. A scanner that passes tiny fixtures but misses NodeGoat, PyGoat, OWASP Benchmark/WebGoat, Juliet, or small sanitizer-backed parser targets is not a realistic finder. Language support should be claimed only after benchmark runs show useful recall and auditable false-positive behavior on realistic vulnerable projects.
 
 False-positive reasons should include:
 
