@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
@@ -27,10 +28,12 @@ from .calibration import (
 )
 from .config import load_config
 from .findings import StaticFinding, quick_scan_findings, write_findings
+from .gate import FALSE_POSITIVE_CEILING, RECALL_FLOOR
 from .harness import HarnessRuntime, HarnessTraceWriter, write_harness_config
 from .harness_ext import has_harnessx
 from .hunter import run_hunter_pool, write_hunter_trajectories
 from .hunter_harness import HxScanOrchestrator
+from .improve import RoundOutcome, run_improvement
 from .index import build_code_chunks
 from .mapping import analyze_entry_points, attach_reachability_hints, ingest_sarif, write_entry_points, write_static_hints
 from .policy import assert_rules_resolve, load_policy
@@ -77,6 +80,23 @@ def main(argv: list[str] | None = None) -> int:
     benchmark.add_argument("--mode", choices=("quick", "standard", "deep"), default="quick")
     benchmark.add_argument("--config", type=Path, default=Path("openultrasast.toml"))
 
+    improve = subparsers.add_parser(
+        "improve",
+        help="run the bounded self-improvement loop against a benchmark manifest and update the loop-owned ruleset ledger",
+    )
+    improve.add_argument("manifest", type=Path)
+    improve.add_argument("--max-rounds", type=int, default=5)
+    improve.add_argument("--recall-floor", type=float, default=RECALL_FLOOR)
+    improve.add_argument("--fp-ceiling", type=float, default=FALSE_POSITIVE_CEILING)
+    improve.add_argument(
+        "--ledger", type=Path, default=None, help="ruleset ledger path (default: <target>/.openultrasast/calibration/rule_policy.json)"
+    )
+    improve.add_argument("--journal", type=Path, default=None, help="improvement journal path (default: alongside the ledger)")
+    improve.add_argument(
+        "--ruleset-dir", type=Path, default=DEFAULT_RULESET_DIR, help="ruleset directory to improve (default: the bundled ruleset)"
+    )
+    improve.add_argument("--dry-run", action="store_true", help="run rounds against a throwaway ledger; never touch the target's ledger")
+
     args = parser.parse_args(argv)
     if args.command == "scan":
         return _scan(args.path, args.config, args.mode, args.fail_on)
@@ -84,6 +104,17 @@ def main(argv: list[str] | None = None) -> int:
         return _index(args.path, args.config, args.chunk_lines)
     if args.command == "benchmark":
         return _benchmark(args.manifest, args.config, args.mode)
+    if args.command == "improve":
+        return _improve(
+            args.manifest,
+            max_rounds=args.max_rounds,
+            recall_floor=args.recall_floor,
+            fp_ceiling=args.fp_ceiling,
+            ledger=args.ledger,
+            journal=args.journal,
+            ruleset_dir=args.ruleset_dir,
+            dry_run=args.dry_run,
+        )
     return 2
 
 
@@ -316,6 +347,70 @@ def _benchmark(manifest_path: Path, config_path: Path, mode: str) -> int:
     print(f"benchmark_matched={result.metrics.matched_findings_total}")
     print(f"benchmark_missed={result.metrics.missed_findings_total}")
     return 0
+
+
+def _improve(
+    manifest_path: Path,
+    *,
+    max_rounds: int,
+    recall_floor: float,
+    fp_ceiling: float,
+    ledger: Path | None,
+    journal: Path | None,
+    ruleset_dir: Path,
+    dry_run: bool,
+) -> int:
+    if not manifest_path.exists() or not manifest_path.is_file():
+        raise SystemExit(f"benchmark manifest is not a file: {manifest_path}")
+    manifest = load_benchmark_manifest(manifest_path)
+    target = resolve_benchmark_source(manifest_path, manifest)
+    policy = load_policy()
+
+    # The loop writes its accepted ledger where `scan`/`benchmark` read it, so a
+    # subsequent scan of this target automatically picks up the improved ruleset.
+    default_ledger = target / CALIBRATION_DIR / "rule_policy.json"
+    with tempfile.TemporaryDirectory(prefix="ousast-improve-") as scratch:
+        if dry_run:
+            ledger_path = Path(scratch) / "rule_policy.json"
+            journal_path = Path(scratch) / "improve_journal.json"
+        else:
+            ledger_path = ledger or default_ledger
+            journal_path = journal or ledger_path.with_name("improve_journal.json")
+
+        outcomes = run_improvement(
+            target,
+            manifest,
+            ledger_path=ledger_path,
+            journal_path=journal_path,
+            ruleset_dir=ruleset_dir,
+            policy=policy,
+            max_rounds=max_rounds,
+            recall_floor=recall_floor,
+            fp_ceiling=fp_ceiling,
+        )
+        _print_improve_outcomes(outcomes, manifest_path, target, ledger_path, dry_run=dry_run)
+    return 0
+
+
+def _print_improve_outcomes(outcomes: list[RoundOutcome], manifest_path: Path, target: Path, ledger_path: Path, *, dry_run: bool) -> None:
+    print(f"manifest={manifest_path}")
+    print(f"target={target}")
+    accepted = [o for o in outcomes if o.accepted]
+    for outcome in outcomes:
+        edits = ", ".join(f"{e.rule_id}:{e.from_status}->{e.to_status}" for e in outcome.edits) or "-"
+        print(
+            f"round {outcome.round}: {outcome.reason} | "
+            f"recall {outcome.recall_before:.2%}->{outcome.recall_after:.2%} "
+            f"fp {outcome.fp_before:.2%}->{outcome.fp_after:.2%} "
+            f"score {outcome.score_before}->{outcome.score_after} | edits: {edits}"
+        )
+    print(f"rounds={len(outcomes)} accepted={len(accepted)}")
+    if dry_run:
+        print("dry_run=true (no ledger written)")
+    elif accepted:
+        print(f"ledger={ledger_path}")
+    else:
+        print("ledger=unchanged (no round accepted)")
 
 
 def _load_scan_findings(run_dir: Path) -> list[StaticFinding]:

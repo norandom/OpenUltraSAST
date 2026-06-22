@@ -29,6 +29,9 @@ uv run ousast index /path/to/repo
 
 # Score the detector against a benchmark manifest
 uv run ousast benchmark benchmarks/manifests/python-vulnerable.toml --mode quick
+
+# Run the bounded self-improvement loop over the ruleset (benchmark-driven)
+uv run ousast improve benchmarks/manifests/python-vulnerable.toml --dry-run
 ```
 
 Every run writes auditable artifacts under `.openultrasast/runs/<scan-id>/`
@@ -273,11 +276,47 @@ priority is demoted rather than the finding deleted, the audit trail
 (`applied_calibrations.json`, the ledger) shows exactly why a surface lost
 attention. Covered by `tests/test_pipeline_calibration.py`.
 
-Beyond the automatic ranking loop, `openultrasast-triage` still lets OpenCode
-adjust prompt constraints, retrieval filters, skill routing, and benchmark-miss
-triage. Those `RankingCalibration` fields are already produced and will be
-consumed directly once the language-aware LLM hunters land
-(`standard_security_harness`).
+### Rule-level loop: `ousast improve`
+
+The ranking loop above adjusts *attention*. A second, bounded loop adjusts the
+**governed ruleset itself** from benchmark feedback — and writes its result to the
+same loop-owned ledger a scan reads, so the loop closes end-to-end:
+
+```bash
+# Preview what the loop would change (writes nothing)
+uv run ousast improve benchmarks/manifests/java-spring-boot-vulnerable.toml --dry-run
+
+# Apply: accepted rounds land in <target>/.openultrasast/calibration/rule_policy.json,
+# which the next `ousast scan`/`benchmark` of that target loads automatically.
+uv run ousast improve benchmarks/manifests/java-spring-boot-vulnerable.toml
+```
+
+Each round (`improve/evolve.py`): benchmark with the current ledger → per-rule
+signals (`rule_signals.json`) → propose **bounded** edits → validate → replay
+smoke → re-benchmark → a **hard acceptance gate** → accept or revert
+byte-for-byte. The loop may only pull two levers (rule status, score constants);
+it can never edit a rule's pattern text or the authoritative 0–5 CWE severity, and
+must stage `enabled → shadow` before `disabled`. A round is accepted only if
+**recall ≥ 90% AND FP < 10% AND the project score did not regress AND no matched
+finding was lost** — otherwise the ledger is never written. Auto-shadowing removes
+a precision-dragger's false-positive cost without deleting it (recall is
+preserved); persistent misses are *nominated* through the signal file, leaving
+pattern authoring to a human pull request. The project score is the optimization
+reward; the recall/FP gate is a separate hard constraint that is never folded into
+it — and the same gate runs in CI (`python -m openultrasast.gate`), so a loop
+result that breached it could never merge. Covered by `tests/test_improve.py` and
+`tests/test_cli_improve.py`.
+
+This is the deterministic substrate of the self-improvement loop. When the
+optional `openultrasast[harnessx]` extra is present, the HarnessX `MetaAgent`
+becomes the richer *proposer* that plugs into this same validated, gated
+machinery — the safety contract (bounded levers, replay/novelty/journal gates,
+hard acceptance gate, byte-for-byte revert) is identical either way.
+
+Beyond these loops, `openultrasast-triage` still lets OpenCode adjust prompt
+constraints, retrieval filters, skill routing, and benchmark-miss triage. Those
+`RankingCalibration` fields are already produced and will be consumed directly
+once the language-aware LLM hunters land (`standard_security_harness`).
 
 ## Development
 
