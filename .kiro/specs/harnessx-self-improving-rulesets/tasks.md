@@ -4,30 +4,30 @@ This plan splits the fused regex layer into three governed owners (rules detect,
 
 ## Phase 1 — Foundation: Governance & Scoring Planes (zero-dep)
 
-- [ ] 1. Stand up the central CWE policy authority
-- [ ] 1.1 Vendor the verycode CWE severity data and build the Policy Store loader
+- [x] 1. Stand up the central CWE policy authority
+- [x] 1.1 Vendor the verycode CWE severity data and build the Policy Store loader
   - Vendor the verycode CWE-to-severity dataset into the governance plane and parse it with the standard library only, tolerating the trailing-space severity column header.
   - Expose, per CWE, an authoritative 0-5 severity, a static scope flag, and a dynamic scope flag; mark dynamic-only CWEs as report-only.
   - Observable completion: loading the policy yields the full set of CWE policy entries with correct static/dynamic flags and zero third-party imports, verified by a unit test.
   - _Requirements: 2.6, 2.9_
   - _Boundary: PolicyStore_
 
-- [ ] 1.2 Expose policy-governed severity resolution
+- [x] 1.2 Expose policy-governed severity resolution
   - Resolve a finding's severity exclusively from the Policy Store keyed on the rule's CWE, discarding any severity string carried in legacy rule data.
   - Guarantee that two findings whose rules map to the same CWE receive identical severity.
   - Observable completion: a resolution call returns the policy severity (never a legacy string) and is identical for two rules sharing a CWE, proven by a unit test.
   - _Requirements: 2.2, 2.3_
   - _Boundary: PolicyStore_
 
-- [ ] 1.3 Enforce the fail-loud startup CWE-resolution invariant
+- [x] 1.3 Enforce the fail-loud startup CWE-resolution invariant
   - Assert at startup that every enabled rule's CWE resolves in the Policy Store; abort the scan loudly before any work when an enabled rule's CWE is unmapped.
   - Observable completion: an enabled rule with an unmapped CWE aborts the scan with a loud error and no findings are produced, proven by an integration test.
   - _Requirements: 2.7_
   - _Boundary: PolicyStore_
   - _Depends: 1.1_
 
-- [ ] 2. Build the project Score Model and CI gates (zero-dep)
-- [ ] 2.1 Compute the 0-100 policy-weighted, reachability-adjusted project score
+- [x] 2. Build the project Score Model and CI gates (zero-dep)
+- [x] 2.1 Compute the 0-100 policy-weighted, reachability-adjusted project score
   - Compute a single 0-100 project score from policy-governed severity weights multiplied by a reachability multiplier over reported findings, using the standard library only.
   - Key the reachability multipliers exactly on the three emitted reachability values (`reachable`, `inferred-file-surface`, `unknown`) without redefining the vocabulary.
   - Assign a zero score penalty to findings whose CWE is dynamic-only or unmapped, reporting them as out-of-scope or unmapped instead of scoring them.
@@ -36,14 +36,14 @@ This plan splits the fused regex layer into three governed owners (rules detect,
   - _Boundary: ScoreModel_
   - _Depends: 1.1_
 
-- [ ] 2.2 Emit the scan-level score artifact and manifest score block
+- [x] 2.2 Emit the scan-level score artifact and manifest score block
   - Emit a score artifact containing the project score, the maximum severity, the total penalty, a by-category breakdown, the out-of-scope dynamic-only count, the unmapped-CWE list, and the gate verdict; include the score block in the scan manifest.
   - Observable completion: a scan writes a score artifact with every required field and merges the score block into the manifest, verified against the documented artifact schema.
   - _Requirements: 5.5_
   - _Boundary: ScoreModel_
   - _Depends: 2.1_
 
-- [ ] 2.3 Implement the two-condition CI score gate (advisory-first)
+- [x] 2.3 Implement the two-condition CI score gate (advisory-first)
   - Fail the build when any reported finding maps to policy severity 5 and has reachability `reachable`.
   - When configured as blocking, fail the build when the project score is below the minimum; until the score constants are calibrated against the corpus, compute and report the score advisory-first without blocking.
   - Observable completion: the hard gate fails on a severity-5 reachable finding while the score gate reports advisory-only by default, proven by gate tests.
@@ -51,7 +51,7 @@ This plan splits the fused regex layer into three governed owners (rules detect,
   - _Boundary: CI Score Gate_
   - _Depends: 2.1_
 
-- [ ] 2.4 Centralize ruleset/policy/score configuration
+- [x] 2.4 Centralize ruleset/policy/score configuration
   - Add configuration entries for the ruleset, policy, and score data locations plus the gate thresholds and emission floors used by later phases.
   - Observable completion: the scan reads the score constants and emission thresholds from configuration rather than hardcoded literals, confirmed by a config-driven test.
   - _Requirements: 5.8_

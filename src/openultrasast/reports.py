@@ -71,10 +71,11 @@ def write_manifest(
     verifications: list[VerificationResult],
     artifact_paths: dict[str, Path],
     path: Path,
+    score: dict[str, object] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications)
-    payload = {
+    payload: dict[str, object] = {
         "scan_id": run.scan_id,
         "target": str(run.target),
         "artifacts": {name: _relative_artifact(run.root, artifact) for name, artifact in sorted(artifact_paths.items())},
@@ -93,6 +94,8 @@ def write_manifest(
             for finding in findings
         ],
     }
+    if score is not None:
+        payload["score"] = score
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 

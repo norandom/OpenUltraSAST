@@ -25,15 +25,17 @@ from .calibration import (
     write_ranking_calibrations,
 )
 from .config import load_config
-from .findings import StaticFinding, quick_scan_findings, write_findings
+from .findings import PATTERN_RULES, StaticFinding, quick_scan_findings, write_findings
 from .harness import HarnessRuntime, HarnessTraceWriter, write_harness_config
 from .hunter import run_hunter_pool, write_hunter_trajectories
 from .index import build_code_chunks
 from .mapping import analyze_entry_points, attach_reachability_hints, ingest_sarif, write_entry_points, write_static_hints
+from .policy import assert_rules_resolve, load_policy
 from .preprocess import preprocess_repository, write_preprocess_artifact
 from .rank import rank_targets, write_rankings
 from .reports import scan_exit_code, write_manifest, write_markdown_report, write_sarif_report
 from .run import ScanRun, create_scan_run
+from .scoring import build_score_artifact
 from .verification import VerificationResult, verify_findings, write_verification_results
 
 CALIBRATION_DIR = ".openultrasast/calibration"
@@ -101,6 +103,8 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     )
     write_harness_config(config=config, processors=[], contract_mode="strict", path=run.root / "harness.json")
     runtime.start(mode=mode, target=run.target)
+    policy = runtime.run_stage("policy_load", load_policy)
+    runtime.run_stage("policy_check", lambda: assert_rules_resolve(PATTERN_RULES, policy))
     static_hints = runtime.run_stage("static_mapping", lambda: _load_static_hints(config.static_analysis.sarif_paths))
     write_static_hints(static_hints, run.root / "mapping" / "static_hints.json")
     snapshot, targets = runtime.run_stage(
@@ -140,6 +144,22 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         "record_calibration",
         lambda: _persist_calibration_feedback(run, ledger_path, prior_learnings, findings, verifications),
     )
+    cwe_by_rule = {rule.rule_id: rule.cwe for rule in PATTERN_RULES}
+    rule_cwe_by_id = {finding.finding_id: cwe_by_rule.get(finding.finding_id.split(":", 1)[0], "") for finding in findings}
+    score_artifact = runtime.run_stage(
+        "score",
+        lambda: build_score_artifact(
+            findings,
+            rule_cwe_by_id,
+            policy,
+            k=config.score.k,
+            min_score=config.score.min_score,
+            block_severity_reachable=config.score.block_severity_reachable,
+            blocking=config.score.blocking,
+        ),
+    )
+    score_path = run.root / "score.json"
+    score_path.write_text(json.dumps(score_artifact.to_dict(), indent=2, sort_keys=True) + "\n")
     runtime.run_stage("report", lambda: write_markdown_report(findings, markdown_path, verifications))
     runtime.run_stage("sarif", lambda: write_sarif_report(findings, verifications, sarif_path))
     runtime.run_stage(
@@ -153,9 +173,11 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
                 verification=verification_path,
                 markdown=markdown_path,
                 sarif=sarif_path,
+                score=score_path,
                 trajectories=trajectories_path if trajectories else None,
             ),
             path=manifest_path,
+            score=score_artifact.to_dict(),
         ),
     )
     runtime.finish(status="succeeded")

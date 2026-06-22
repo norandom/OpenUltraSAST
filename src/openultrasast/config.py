@@ -51,6 +51,14 @@ class StaticAnalysisConfig:
 
 
 @dataclass(frozen=True)
+class ScoreConfig:
+    k: float = 60.0
+    min_score: int = 80
+    block_severity_reachable: int = 5
+    blocking: bool = False
+
+
+@dataclass(frozen=True)
 class ResolvedConfig:
     models: ModelConfig = ModelConfig()
     embeddings: EmbeddingConfig = EmbeddingConfig()
@@ -58,6 +66,7 @@ class ResolvedConfig:
     dynamic: DynamicConfig = DynamicConfig()
     evidence: EvidenceConfig = EvidenceConfig()
     static_analysis: StaticAnalysisConfig = StaticAnalysisConfig()
+    score: ScoreConfig = ScoreConfig()
     runs_dir: str = ".openultrasast/runs"
 
 
@@ -74,6 +83,7 @@ def load_config(config_path: Path | None = None) -> ResolvedConfig:
         dynamic=_load_dynamic(data.get("dynamic", {})),
         evidence=_load_evidence(data.get("evidence", {})),
         static_analysis=_load_static_analysis(data.get("static_analysis", {})),
+        score=_load_score(data.get("score", {})),
         runs_dir=os.environ.get("OPENULTRASAST_RUNS_DIR", ".openultrasast/runs"),
     )
 
@@ -148,3 +158,26 @@ def _load_static_analysis(value: object) -> StaticAnalysisConfig:
     if not isinstance(paths, list):
         paths = []
     return StaticAnalysisConfig(sarif_paths=tuple(str(item) for item in paths))
+
+
+def _load_score(value: object) -> ScoreConfig:
+    data = _section(value)
+    return ScoreConfig(
+        k=_float_value(data.get("k"), 60.0),
+        min_score=_int_value(data.get("min_score"), 80),
+        block_severity_reachable=_int_value(data.get("block_severity_reachable"), 5),
+        blocking=bool(data.get("blocking", False)),
+    )
+
+
+def _float_value(value: object, default: float) -> float:
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, int | float):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            return default
+    return default

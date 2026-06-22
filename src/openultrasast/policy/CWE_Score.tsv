@@ -1,0 +1,168 @@
+Flaw Category	CWE ID	CWE Name	Flaw Severity 	Static	Dynamic
+API Abuse	234	Failure to Handle Missing Parameter	3	X	
+API Abuse	243	Creation of Chroot Jail Without Changing Working Directory	4	X	
+API Abuse	245	J2EE Bad Practices: Direct Management of Connections	2	X	
+API Abuse	560	Use of Umask() with Chmod-Style Argument	3	X	
+API Abuse	628	Function Call with Incorrectly Specified Arguments	2	X	
+API Abuse	675	Duplicate Operations on Resource	2	X	
+Authentication Issues	287	Improper Authentication	4	X	X
+Authentication Issues	352	Cross-Site Request Forgery (CSRF)	3	X	X
+Authentication Issues	693	Protection Mechanism Failure	3	X	X
+Authorization Issues	99	Improper Control of Resource Identifiers	3	X	
+Authorization Issues	272	Least Privilege Violation	3	X	
+Authorization Issues	273	Improper Check for Dropped Privileges	3	X	
+Authorization Issues	274	Improper Handling of Insufficient Privileges	0	X	
+Authorization Issues	282	Improper Ownership Management	3	X	
+Authorization Issues	285	Improper Authorization	3	X	X
+Authorization Issues	346	Origin Validation Error	3	X	
+Authorization Issues	350	Reliance on Reverse DNS Resolution for a Security-Critical Action	3	X	
+Authorization Issues	639	Authorization Bypass Through User-Controlled Key	4	X	
+Authorization Issues	566	Authorization Bypass Through User-Controlled SQL Primary Key	3	X	
+Authorization Issues	708	Incorrect Ownership Assignment	4	X	
+Authorization Issues	732	Incorrect Permission Assignment for Critical Resource	3	X	
+Authorization Issues	942	Permissive Cross-domain Policy with Untrusted Domains	3	X	X
+Buffer Management Errors	118	Improper Access of Indexable Resource (Range Error)	3	X	
+Buffer Management Errors	125	Out-of-Bounds Read	3	X	
+Buffer Management Errors	129	Improper Validation of Array Index	3	X	
+Buffer Management Errors	135	Incorrect Calculation of Multi-Byte String Length	5	X	
+Buffer Management Errors	170	Improper Null Termination	3	X	
+Buffer Management Errors	193	Off-by-One Error	3	X	
+Buffer Management Errors	787	Out-of-Bounds Write	3	X	
+Buffer Management Errors	823	Use of Out-of-Range Pointer Offset	3	X	
+Buffer Management Errors	824	Access of Uninitialized Pointer	3	X	
+Buffer Overflow	121	Stack-Based Buffer Overflow	5	X	
+Code Injection	74	Improper Neutralization of Special Elements in Output Used by a Downstream Component (Injection)	4		X
+Code Injection	91	XML Injection (Blind XPath Injection)	3	X	X
+Code Injection	94	Improper Control of Generation of Code	3	X	
+Code Injection	95	Improper Neutralization of Directives in Dynamically Evaluated Code (‘Eval Injection’)	5	X	X
+Code Injection	98	Improper Control of Filename for Include/Require Statement in PHP Program (PHP File Inclusion)	4	X	X
+Code Injection	185	Incorrect Regular Expression	2	X	
+Code Injection	830	Inclusion of Web Functionality from an Untrusted Source	2		X
+Code Quality	111	Direct Use of Unsafe JNI	4	X	
+Code Quality	159	Failure to Sanitize Special Element	0	X	
+Code Quality	401	Improper Release of Memory Before Removing Last Reference (Memory Leak)	2	X	
+Code Quality	404	Improper Resource Shutdown or Release	0	X	
+Code Quality	415	Double Free	3	X	
+Code Quality	416	Use After Free	2	X	
+Code Quality	477	Use of Obsolete Functions	0	X	X
+Code Quality	479	Signal Handler Use of a Non-Reentrant Function	3	X	
+Code Quality	489	Leftover Debug Code	3	X	
+Code Quality	597	Use of Wrong Operator in String Comparison	2	X	
+Command or Argument Injection	77	Improper Neutralization of Special Elements used in a Command (Command Injection)	5	X	
+Command or Argument Injection	78	Improper Neutralization of Special Elements used in an OS Command (OS Command Injection)	5	X	X
+Command or Argument Injection	88	Argument Injection or Modification	3	X	
+Credentials Management	256	Plaintext Storage of a Password	3	X	
+Credentials Management	259	Use of Hard-coded Password	3	X	X
+Credentials Management	522	Insufficiently Protected Credentials	3	X	X
+Credentials Management	798	Use of Hard-code Credentials	3	X	
+CRLF Injection	93	Improper Neutralization of CRLF Sequences (CRLF Injection)	3	X	
+CRLF Injection	113	Improper Neutralization of CRLF Sequences in HTTP Headers (HTTP Response Splitting)	3	X	X
+CRLF Injection	117	Improper Output Neutralization for Logs	3	X	
+Cross-Site Scripting (XSS)	79	Improper Neutralization of Input During Web Page Generation (Cross-site Scripting)	3	X	X
+Cross-Site Scripting (XSS)	80	Improper Neutralization of Script-Related HTML Tags in a Web Page (Basic XSS)	3	X	X
+Cross-Site Scripting (XSS)	83	Improper Neutralization of Script in Attributes in a Web Page	3	X	X
+Cross-Site Scripting (XSS)	86	Improper Neutralization of Invalid Characters in Identifiers in Web Pages	3	X	
+Cryptographic Issues	261	Weak Cryptography for Passwords	3	X	
+Cryptographic Issues	295	Improper Certificate Validation	3	X	
+Cryptographic Issues	296	Improper Following of Chain of Trust for Certificate Validation	3		X
+Cryptographic Issues	297	Improper Validation of Host-specific Certificate Data	3	X	X
+Cryptographic Issues	298	Improper Validation of Certificate Expiration	3		X
+Cryptographic Issues	299	Improper Check for Certificate Revocation	3		X
+Cryptographic Issues	311	Missing Encryption of Sensitive Data	3	X	
+Cryptographic Issues	312	Cleartext Storage of Sensitive Information	3	X	
+Cryptographic Issues	313	Plaintext Storage in a File or on Disk	3	X	
+Cryptographic Issues	316	Plaintext Storage in Memory	3	X	
+Cryptographic Issues	319	Cleartext Transmission of Sensitive Information	3	X	
+Cryptographic Issues	321	Use of Hard-coded Cryptographic Key	3	X	X
+Cryptographic Issues	326	Inadequate Encryption Strength	3	X	X
+Cryptographic Issues	327	Use of a Broken or Risky Cryptographic Algorithm	3	X	X
+Cryptographic Issues	328	Reversible One-Way Hash	3	X	
+Cryptographic Issues	329	Not Using a Random IV with CBC Mode	2	X	
+Cryptographic Issues	330	Use of Insufficiently Random Values	3	X	
+Cryptographic Issues	331	Insufficient Entropy	3	X	
+Cryptographic Issues	338	Use of Cryptographically Weak Pseudo-Random Number Generator	3	X	
+Cryptographic Issues	347	Improper Verification of Cryptographic Signature	2	X	
+Cryptographic Issues	354	Improper Validation of Integrity Check Value	3	X	
+Cryptographic Issues	547	Use of Hard-coded, Security-relevant Constants	3	X	
+Cryptographic Issues	614	Sensitive Cookie in HTTPS Session Without Secure Attribute	2	X	X
+Cryptographic Issues	760	Use of a One-Way Hash with a Predictable Salt	3	X	
+Cryptographic Issues	780	Use of RSA with Optimal Asymmetric Encryption Padding	3	X	
+Cryptographic Issues	916	Use of Password Hash With Insufficient Computational Effort	3	X	
+Dangerous Functions	242	Use of Inherently Dangerous Function	5	X	
+Dangerous Functions	676	Use of Potentially Dangerous Function	3	X	
+Deployment Configuration	402	Transmission of Private Resources into a New Sphere (Resource Leak)	3		X
+Deployment Configuration	668	Exposure of Resource to Wrong Sphere	3	X	X
+Deployment Configuration	926	Improper Export of Android Application Components	3	X	
+Directory Traversal	22	Improper Limitation of a Pathname to a Restricted Directory (Path Traversal)	3	X	X
+Directory Traversal	35	Path Traversal	2	X	
+Directory Traversal	73	External Control of File Name or Path	3	X	
+Encapsulation	494	Download of Code Without Integrity Check	5	X	
+Encapsulation	501	Trust Boundary Violation	3	X	
+Encapsulation	502	Deserialization of Untrusted Data	3	X	
+Encapsulation	749	Exposed Dangerous Method or Function	4	X	
+Error Handling	248	Uncaught Exception	2	X	
+Error Handling	252	Unchecked Return Value	2	X	
+Format String	134	Use of Externally-Controlled Format String	5	X	
+Information Leakage	200	Information Exposure	2	X	
+Information Leakage	201	Insertion of Sensitive Information Into Sent Data	2	X	
+Information Leakage	209	Information Exposure Through an Error Message	2	X	X
+Information Leakage	215	Information Exposure Through Debug Information	2	X	X
+Information Leakage	359	Exposure of Private Information (Privacy Violation)	2	X	
+Information Leakage	497	Exposure of System Data to an Unauthorized Control Sphere	2	X	
+Information Leakage	526	Information Exposure Through Environmental Variables	2		X
+Information Leakage	530	Exposure of Backup File to an Unauthorized Control Sphere	2		X
+Information Leakage	532	Insertion of Sensitive Information into Log File	2	X	
+Information Leakage	538	File and Directory Information Exposure	0		X
+Information Leakage	548	Information Exposure Through Directory Listing	2		X
+Information Leakage	611	Information Exposure Through XML External Entity Reference	3	X	X
+Information Leakage	615	Information Exposure Through Comments	0	X	X
+Information Leakage	665	Improper Initialization	2	X	
+Information Leakage	918	Server-side Request Forgery	3	X	X
+Insecure Dependencies	829	Inclusion of Functionality from Untrusted Control Sphere	3	X	X
+Insufficient Input Validation	20	Improper Input Validation	0	X	
+Insufficient Input Validation	90	Improper Neutralization of Special Elements Used in an LDAP Query (LDAP Injection)	3	X	
+Insufficient Input Validation	103	Struts: Incomplete validate() Method Definition	3	X	
+Insufficient Input Validation	104	Struts: Form Bean Does Not Extend Validation Class	3	X	
+Insufficient Input Validation	112	Missing XML Validation	3	X	
+Insufficient Input Validation	183	Permissive List of Allowed Inputs	3	X	
+Insufficient Input Validation	345	Insufficient Verification of Data Authenticity	4	X	
+Insufficient Input Validation	434	Unrestricted Upload of File with Dangerous Type	4		X
+Insufficient Input Validation	470	Use of Externally-Controlled Input to Select Classes or Code (Unsafe Reflection)	3	X	
+Insufficient Input Validation	472	External Control of Assumed-Immutable Web Parameter	3	X	
+Insufficient Input Validation	601	URL Redirection to Untrusted Site (Open Redirect)	3	X	X
+Insufficient Input Validation	618	Exposed Unsafe ActiveX Method	5	X	
+Insufficient Input Validation	915	Improperly Controlled Modification of Dynamically-Determined Object Attributes	3	X	
+Insufficient Input Validation	1174	ASP.NET Misconfiguration: Improper Model Validation	2	X	
+Insufficient Input Validation	1236	Improper Neutralization of Formula Elements in a CSV File	3	X	
+Insufficient Logging & Monitoring	223	Omission of Security-relevant Information	2	X	
+Numeric Errors	190	Integer Overflow or Wraparound	5	X	
+Numeric Errors	191	Integer Underflow (Wrap or Wraparound)	3	X	
+Numeric Errors	192	Integer Coercion Error	3	X	
+Numeric Errors	195	Signed to Unsigned Conversion Error	3	X	
+Numeric Errors	196	Unsigned to Signed Conversion Error	3	X	
+Numeric Errors	197	Numeric Truncation Error	3	X	
+Potential Backdoor	398	Indicator of Poor Code Quality	0	X	
+Potential Backdoor	506	Embedded Malicious Code	4	X	
+Potential Backdoor	511	Logic/Time Bomb	5	X	
+Potential Backdoor	514	Covert Channel	2	X	
+Potential Backdoor	656	Reliance on Security Through Obscurity	0	X	
+Race Conditions	366	Race Condition within a Thread	3	X	
+Race Conditions	367	Time-of-check Time-of-use (TOCTOU) Race Condition	3	X	
+Race Conditions	421	Race Condition During Access to Alternate Channel	3	X	
+Server Configuration	16	Configuration	0		X
+Server Configuration	441	Unintended Proxy or Intermediary (Confused Deputy)	3	X	
+Server Configuration	642	External Control of Critical State Data	2		X
+Server Configuration	757	Selection of Less-Secure Algorithm During Negotiation (Algorithm Downgrade)	3	X	X
+Session Fixation	384	Session Fixation	3	X	X
+SQL Injection	89	Improper Neutralization of Special Elements used in an SQL Command (SQL Injection)	4	X	
+SQL Injection	564	SQL Injection: Hibernate	4	X	
+SQL Injection	943	Improper Neutralization of Special Elements in Data Query Logic	4	X	
+Time and State	377	Insecure Temporary File	3	X	
+Time and State	382	J2EE Bad Practices: Use of System.exit()	2	X	
+Time and State	557	Concurrency Issues	2	X	
+Time and State	691	Insufficient Control Flow Management	0	X	
+Untrusted Initialization	15	External Control of System or Configuration Setting	4	X	
+Untrusted Initialization	454	External Initialization of Trusted Variables or Data Stores	0	X	
+Untrusted Search Path	114	Process Control	5	X	
+Untrusted Search Path	426	Untrusted Search Path	3	X	
+Untrusted Search Path	427	Uncontrolled Search Path Element	3	X	

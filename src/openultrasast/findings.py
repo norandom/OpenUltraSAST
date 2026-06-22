@@ -52,7 +52,7 @@ PATTERN_RULES = (
         severity="high",
         tags=("memory_unsafe",),
         pattern=re.compile(r"\b(gets|strcpy|strcat|sprintf)\s*\("),
-        cwe="CWE-120",
+        cwe="CWE-121",
         languages=C_LANGUAGES,
     ),
     PatternRule(
@@ -61,7 +61,7 @@ PATTERN_RULES = (
         severity="high",
         tags=("memory_unsafe",),
         pattern=re.compile(r"\b(memcpy|memmove|bcopy)\s*\("),
-        cwe="CWE-120",
+        cwe="CWE-121",
         languages=C_LANGUAGES,
     ),
     PatternRule(
@@ -81,7 +81,7 @@ PATTERN_RULES = (
         severity="high",
         tags=("memory_unsafe",),
         pattern=re.compile(r"\b(scanf|fscanf|sscanf)\s*\([^\n]*%s"),
-        cwe="CWE-120",
+        cwe="CWE-121",
         languages=C_LANGUAGES,
     ),
     PatternRule(
