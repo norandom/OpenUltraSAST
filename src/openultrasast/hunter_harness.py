@@ -126,12 +126,16 @@ class HxScanOrchestrator:
         return HunterPoolResult(findings=sorted(findings, key=lambda item: item.finding_id), trajectories=trajectories)
 
     def _describe(self, task: HunterTask) -> str:
+        from .skills import select_skill_context
+
         context = task.retrieval_context or f"[repo_code] {task.target.path}"
+        skills = select_skill_context(task.target, stage="hunt", budget_chars=task.budget.skill_budget_chars)
+        skill_block = f"\n\nRelevant security skills:\n{skills}" if skills else ""
         return (
             f"Audit `{task.target.path}` ({task.target.language}) for security-relevant vulnerabilities. "
             f"Report ONLY evidence-backed findings as a JSON array, each object: "
             f'{{"line": <int>, "title": <str>, "cwe": "CWE-NN" (optional), "rationale": <str>}}. '
-            f"Emit `[]` if none.\n\nSource context:\n{context}"
+            f"Emit `[]` if none.{skill_block}\n\nSource context:\n{context}"
         )
 
     def _findings_from_result(self, task: HunterTask, result: object, policy: dict[str, CwePolicy]) -> list[StaticFinding]:

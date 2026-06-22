@@ -135,19 +135,10 @@ def build_retrieval_context_by_path(root: Path, targets: list[FileTarget], *, ma
 
 
 def select_skill_snippets(target: FileTarget, *, max_snippets: int = 4) -> list[str]:
-    tags = set(target.tags)
-    snippets: list[str] = []
-    if target.language in {"c", "cpp", "c++"} or "memory_unsafe" in tags:
-        snippets.extend(["address-sanitizer", "libfuzzer", "harness-writing"])
-    if "parser" in tags or "fuzzable" in tags:
-        snippets.extend(["fuzzing-dictionary", "fuzzing-obstacles"])
-    if "crypto" in tags:
-        snippets.extend(["constant-time-analysis", "wycheproof"])
-    if "auth_boundary" in tags or "network_entry" in tags:
-        snippets.extend(["sharp-edges", "insecure-defaults"])
-    if "deserialization" in tags:
-        snippets.append("semgrep-rule-creator")
-    return sorted(dict.fromkeys(snippets))[:max_snippets]
+    """Route the target to its most relevant Trail of Bits skills (ids), via the skill index."""
+    from .skills import route_skill_ids
+
+    return route_skill_ids(target, max_snippets=max_snippets)
 
 
 def _run_hunter_task(

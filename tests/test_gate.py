@@ -147,6 +147,7 @@ GOVERNANCE_SCORING_BENCHMARK_PLANES = (
     "openultrasast.slot_contract",
     "openultrasast.stage_processors",
     "openultrasast.fusion",
+    "openultrasast.skills",
 )
 
 

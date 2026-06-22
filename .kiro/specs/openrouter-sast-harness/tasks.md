@@ -276,11 +276,15 @@ Tests in `tests/test_fusion.py`.
 
 ## Phase 14: Skill Index (`standard_security_harness` prerequisite)
 
-- [ ] Build Trail of Bits skill descriptor inventory.
-- [ ] Chunk selected skill operating guidance into retrieval namespace.
-- [ ] Implement skill router by language, tags, vulnerability class, and stage.
-- [ ] Add prompt budget caps for skill snippets.
-- [ ] Add tests for routing C parser targets to memory/fuzzing skills and crypto targets to constant-time/vector skills.
+Implemented in `skills.py` (descriptor inventory + scoring router + retrieval-namespace
+chunking + budget-capped context); the HarnessX hunter prompt consumes the routed
+skill context; tests in `tests/test_skills.py`.
+
+- [x] Build Trail of Bits skill descriptor inventory.
+- [x] Chunk selected skill operating guidance into retrieval namespace.
+- [x] Implement skill router by language, tags, vulnerability class, and stage.
+- [x] Add prompt budget caps for skill snippets.
+- [x] Add tests for routing C parser targets to memory/fuzzing skills and crypto targets to constant-time/vector skills.
 
 ## Phase 15: Hardening And Release Readiness (`production` prerequisite)
 
