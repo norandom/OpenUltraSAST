@@ -169,7 +169,12 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     write_ranking_calibrations(calibrations, run.root / "calibration" / "applied_calibrations.json")
     if mode == "standard":
         if hx_hunter and hunter_model:
-            orchestrator = HxScanOrchestrator(provider_model=hunter_model)
+            orchestrator = HxScanOrchestrator(
+                provider_model=hunter_model,
+                provider=config.harnessx.provider,
+                max_cost_usd=config.harnessx.max_cost_usd,
+                token_threshold=config.harnessx.token_threshold,
+            )
             hunter_result = runtime.run_stage(
                 "hunter_pool",
                 lambda: orchestrator.run_pool(
@@ -222,7 +227,12 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         )
     verifications = runtime.run_stage(
         "verify",
-        lambda: verify_findings_dispatch(findings, verifier_model=verifier_model, use_harnessx=hx_verify),
+        lambda: verify_findings_dispatch(
+            findings,
+            verifier_model=verifier_model,
+            verifier_provider=config.harnessx.provider,
+            use_harnessx=hx_verify,
+        ),
     )
     write_verification_results(verifications, verification_path)
     runtime.run_stage(

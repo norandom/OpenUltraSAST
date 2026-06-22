@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from .findings import SEVERITY_LABEL, StaticFinding, _reachability_conditions, _reachability_for_line
-from .harness_ext import build_sast, require_harnessx
+from .harness_ext import build_provider, build_sast, require_harnessx
 from .hunter import (
     HunterPoolResult,
     HunterTask,
@@ -49,19 +49,26 @@ class ScanTask:
 class HxScanOrchestrator:
     """Runs the hunter pool on a real HarnessX agent loop, one bounded task per target."""
 
-    def __init__(self, *, provider_model: str, max_cost_usd: float = 2.0, token_threshold: int = 120_000) -> None:
+    def __init__(
+        self,
+        *,
+        provider_model: str,
+        provider: str = "anthropic",
+        max_cost_usd: float = 2.0,
+        token_threshold: int = 120_000,
+    ) -> None:
         require_harnessx()
         self._provider_model = provider_model
+        self._provider = provider
         self._max_cost_usd = max_cost_usd
         self._token_threshold = token_threshold
         self._agent: Any = None
 
     def _build_agent(self) -> Any:
         from harnessx.core.model_config import ModelConfig
-        from harnessx.providers.anthropic_provider import AnthropicProvider
 
         config = build_sast(max_cost_usd=self._max_cost_usd, token_threshold=self._token_threshold)
-        return ModelConfig(main=AnthropicProvider(model=self._provider_model)).agentic(config)
+        return ModelConfig(main=build_provider(self._provider_model, self._provider)).agentic(config)
 
     def run_pool(
         self,

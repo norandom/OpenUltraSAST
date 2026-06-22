@@ -8,7 +8,7 @@ so behaviour is byte-identical without HarnessX. The judge path is lazy/guarded.
 from __future__ import annotations
 
 from .findings import StaticFinding
-from .harness_ext import has_harnessx
+from .harness_ext import build_provider, has_harnessx
 from .verification import (
     EvidenceLevel,
     VerificationResult,
@@ -23,6 +23,7 @@ def verify_findings_dispatch(
     findings: list[StaticFinding],
     *,
     verifier_model: str | None = None,
+    verifier_provider: str = "anthropic",
     use_harnessx: bool = False,
 ) -> list[VerificationResult]:
     """Drop-in superset of :func:`verification.verify_findings`.
@@ -32,21 +33,20 @@ def verify_findings_dispatch(
     """
     if not (use_harnessx and verifier_model and has_harnessx()):
         return verify_findings(findings)
-    return _verify_with_judge(findings, verifier_model)
+    return _verify_with_judge(findings, verifier_model, verifier_provider)
 
 
-def _verify_with_judge(findings: list[StaticFinding], verifier_model: str) -> list[VerificationResult]:
+def _verify_with_judge(findings: list[StaticFinding], verifier_model: str, verifier_provider: str) -> list[VerificationResult]:
     import asyncio
 
-    return asyncio.run(_judge_all(findings, verifier_model))
+    return asyncio.run(_judge_all(findings, verifier_model, verifier_provider))
 
 
-async def _judge_all(findings: list[StaticFinding], verifier_model: str) -> list[VerificationResult]:
+async def _judge_all(findings: list[StaticFinding], verifier_model: str, verifier_provider: str) -> list[VerificationResult]:
     from harnessx.core.events import Message
     from harnessx.processors.evaluation.llm_judge import build_judge_prompt, parse_judge_response
-    from harnessx.providers.anthropic_provider import AnthropicProvider
 
-    provider = AnthropicProvider(model=verifier_model)
+    provider = build_provider(verifier_model, verifier_provider)
     results: list[VerificationResult] = []
     for finding in findings:
         prompt = build_judge_prompt(

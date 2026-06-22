@@ -1,7 +1,5 @@
 """Verifier dispatcher: structural fallback (default) + judge verdict mapping (Phase 3 task 6.4)."""
 
-import sys
-
 from openultrasast.findings import StaticFinding
 from openultrasast.verification import VerificationStatus, verify_findings
 from openultrasast.verify_judge import _verdict_to_verification, verify_findings_dispatch
@@ -40,9 +38,20 @@ def test_dispatch_stays_structural_when_model_unset_or_extra_absent() -> None:
     assert verify_findings_dispatch(findings, verifier_model="claude-x", use_harnessx=False) == verify_findings(findings)
 
 
-def test_dispatch_does_not_import_harnessx_on_fallback() -> None:
-    verify_findings_dispatch([_finding()], verifier_model="claude-x", use_harnessx=True)
-    assert "harnessx" not in sys.modules
+def test_dispatch_does_not_import_harnessx_on_fallback(assert_cold_of_harnessx) -> None:  # type: ignore[no-untyped-def]
+    # Even with a model and use_harnessx=True, when the capability is absent the
+    # dispatch must fall back without importing the extra. Simulate absence so the
+    # guarantee holds whether or not the extra is installed in this environment.
+    assert_cold_of_harnessx(
+        "import openultrasast.verify_judge as vj\n"
+        "vj.has_harnessx = lambda: False\n"
+        "from openultrasast.findings import StaticFinding\n"
+        "f = StaticFinding(finding_id='x:app.py:1', path='app.py', title='t', severity='low',\n"
+        "    confidence='low', evidence_level='static_corroboration', rationale='r', line=1,\n"
+        "    function_name=None, reachability_status='unknown', reachability_evidence=[],\n"
+        "    reachability_conditions=[], tags=[], ranking_priority=1.0)\n"
+        "vj.verify_findings_dispatch([f], verifier_model='claude-x', use_harnessx=True)\n"
+    )
 
 
 def test_verdict_mapping_is_evidence_gated() -> None:

@@ -13,12 +13,16 @@ from __future__ import annotations
 import importlib
 import importlib.util
 from types import ModuleType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from harnessx.core.harness import HarnessConfig
 
 HARNESSX_EXTRA = "openultrasast[harnessx]"
+
+# HarnessX providers OpenUltraSAST can drive for the hunter / llm-judge stages.
+# Each reads its own standard API-key env var (ANTHROPIC_API_KEY / OPENAI_API_KEY).
+SUPPORTED_PROVIDERS = ("anthropic", "openai", "litellm")
 
 
 class HarnessXUnavailableError(RuntimeError):
@@ -35,6 +39,32 @@ def require_harnessx() -> ModuleType:
     if not has_harnessx():
         raise HarnessXUnavailableError(f"HarnessX is not installed. Install the optional agentic extra: pip install '{HARNESSX_EXTRA}'")
     return importlib.import_module("harnessx")
+
+
+def build_provider(model: str, provider: str = "anthropic") -> Any:
+    """Build a HarnessX LLM provider for ``model`` (lazy, capability-guarded).
+
+    The single place that knows HarnessX provider class names. The provider name is
+    validated before any import so an unknown choice fails loudly even when the extra
+    is absent; each provider reads its own standard API-key env var. Raises
+    :class:`ValueError` on an unknown provider and :class:`HarnessXUnavailableError`
+    when the extra is not installed.
+    """
+    key = provider.lower()
+    if key not in SUPPORTED_PROVIDERS:
+        raise ValueError(f"unknown HarnessX provider {provider!r}; choose one of {SUPPORTED_PROVIDERS}")
+    require_harnessx()
+    if key == "anthropic":
+        from harnessx.providers.anthropic_provider import AnthropicProvider
+
+        return AnthropicProvider(model=model)
+    if key == "openai":
+        from harnessx.providers.openai_provider import OpenAIProvider
+
+        return OpenAIProvider(model=model)
+    from harnessx.providers.litellm_provider import LiteLLMProvider
+
+    return LiteLLMProvider(model=model)
 
 
 def build_sast(*, max_cost_usd: float = 2.0, token_threshold: int = 120_000) -> HarnessConfig:

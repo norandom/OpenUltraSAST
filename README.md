@@ -243,6 +243,43 @@ addressed, it stays closed because the recall/precision gate runs in CI.
 `external_baseline_deltas.json` additionally shows where another tool found a
 vulnerability OpenUltraSAST missed (or vice-versa).
 
+## Configuring the HarnessX agentic plane
+
+The LLM hunter pool and the llm-judge verifier are optional. The core install is
+zero-dependency and `--mode quick` never calls a model. To enable the agentic
+plane, install the extra, name the models, and pick a provider:
+
+```bash
+uv sync --extra harnessx          # SHA-pinned optional dependency
+export OPENAI_API_KEY=sk-...       # or ANTHROPIC_API_KEY, matching the provider
+uv run ousast scan /path/to/code --mode standard --config openultrasast.toml
+```
+
+```toml
+# openultrasast.toml
+[models]
+hunter   = "gpt-4o"   # LLM hunter pool (empty -> deterministic hunter)
+verifier = "gpt-4o"   # llm-judge verifier (empty -> structural verifier)
+
+[harnessx]
+provider        = "openai"   # "anthropic" (default) | "openai" | "litellm"
+max_cost_usd    = 2.0        # per-task spend cap
+token_threshold = 120000     # per-task token budget
+```
+
+The provider selects the HarnessX backend for **both** the hunter and the
+verifier; each reads its own standard key env var (`openai` → `OPENAI_API_KEY`,
+`anthropic` → `ANTHROPIC_API_KEY`). The HarnessX path activates only when the
+extra is installed, a model is configured, and the mode is `standard` — all three
+gated through one capability seam (`harness_ext.has_harnessx`). If any condition
+fails, the scan transparently falls back to the deterministic hunter / structural
+verifier and records a `degradations` entry in `manifest.json`, so a run is never
+silently downgraded:
+
+```bash
+jq '.degradations' "$run/manifest.json"   # null = HarnessX ran; entries = fell back
+```
+
 ## The HarnessX self-improving cycle
 
 Each scan is a composed harness of typed processors with read/write **state

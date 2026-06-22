@@ -1,8 +1,10 @@
 """CLI capability-gated dispatch + graceful degradation (Phase 3 task 6.5).
 
-These run in the default (extra-absent) environment: standard mode with models
-configured must fall back to the deterministic hunter/structural verifier and
-record a degradation; with no models configured the manifest stays byte-identical.
+Simulates the extra-absent environment (via a monkeypatched capability probe so the
+behaviour is deterministic whether or not the optional extra is installed): standard
+mode with models configured must fall back to the deterministic hunter/structural
+verifier and record a degradation; with no models configured the manifest stays
+byte-identical.
 """
 
 import json
@@ -20,6 +22,7 @@ def _run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, config_body: str | Non
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "app.py").write_text(_VULN)
+    monkeypatch.setattr(cli, "has_harnessx", lambda: False)  # simulate the extra being absent
     monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
     argv = ["scan", str(repo), "--mode", "standard"]
     if config_body is not None:
@@ -32,7 +35,6 @@ def _run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, config_body: str | Non
 
 
 def test_degradation_recorded_when_models_set_but_extra_absent(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    assert not cli.has_harnessx()  # this CI env has no harnessx extra
     manifest = _run(tmp_path, monkeypatch, '[models]\nhunter = "anthropic/claude"\nverifier = "anthropic/claude"\n')
 
     degradations = manifest.get("degradations", [])

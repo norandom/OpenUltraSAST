@@ -67,6 +67,17 @@ class RulesetConfig:
 
 
 @dataclass(frozen=True)
+class HarnessxConfig:
+    # Optional agentic plane (the openultrasast[harnessx] extra). `provider`
+    # selects the HarnessX LLM provider used by both the hunter pool and the
+    # llm-judge verifier; the budget caps bound per-task cost and token spend.
+    # Inert unless the extra is installed and a model is configured in [models].
+    provider: str = "anthropic"
+    max_cost_usd: float = 2.0
+    token_threshold: int = 120_000
+
+
+@dataclass(frozen=True)
 class ResolvedConfig:
     models: ModelConfig = ModelConfig()
     embeddings: EmbeddingConfig = EmbeddingConfig()
@@ -76,6 +87,7 @@ class ResolvedConfig:
     static_analysis: StaticAnalysisConfig = StaticAnalysisConfig()
     score: ScoreConfig = ScoreConfig()
     ruleset: RulesetConfig = RulesetConfig()
+    harnessx: HarnessxConfig = HarnessxConfig()
     runs_dir: str = ".openultrasast/runs"
 
 
@@ -94,6 +106,7 @@ def load_config(config_path: Path | None = None) -> ResolvedConfig:
         static_analysis=_load_static_analysis(data.get("static_analysis", {})),
         score=_load_score(data.get("score", {})),
         ruleset=_load_ruleset_config(data.get("ruleset", {})),
+        harnessx=_load_harnessx(data.get("harnessx", {})),
         runs_dir=os.environ.get("OPENULTRASAST_RUNS_DIR", ".openultrasast/runs"),
     )
 
@@ -185,6 +198,15 @@ def _load_ruleset_config(value: object) -> RulesetConfig:
     return RulesetConfig(
         min_emit_priority=_float_value(data.get("min_emit_priority"), 0.0),
         min_emit_precision=_float_value(data.get("min_emit_precision"), 0.0),
+    )
+
+
+def _load_harnessx(value: object) -> HarnessxConfig:
+    data = _section(value)
+    return HarnessxConfig(
+        provider=_string(data.get("provider")) or "anthropic",
+        max_cost_usd=_float_value(data.get("max_cost_usd"), 2.0),
+        token_threshold=_int_value(data.get("token_threshold"), 120_000),
     )
 
 

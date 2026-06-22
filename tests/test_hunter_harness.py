@@ -1,17 +1,13 @@
 """HarnessX hunter sub-harness: guarding, findings parsing, construction smoke (task 6.1)."""
 
-import sys
-
 import pytest
 
 from openultrasast.harness_ext import HarnessXUnavailableError, build_sast, has_harnessx
 from openultrasast.hunter_harness import HxScanOrchestrator, _extract_findings
 
 
-def test_module_import_does_not_pull_harnessx() -> None:
-    import openultrasast.hunter_harness  # noqa: F401
-
-    assert "harnessx" not in sys.modules
+def test_module_import_does_not_pull_harnessx(assert_cold_of_harnessx) -> None:  # type: ignore[no-untyped-def]
+    assert_cold_of_harnessx("import openultrasast.hunter_harness")
 
 
 def test_extract_findings_parses_json_array_and_tolerates_garbage() -> None:
