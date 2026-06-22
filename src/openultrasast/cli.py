@@ -28,7 +28,9 @@ from .calibration import (
 from .config import load_config
 from .findings import StaticFinding, quick_scan_findings, write_findings
 from .harness import HarnessRuntime, HarnessTraceWriter, write_harness_config
+from .harness_ext import has_harnessx
 from .hunter import run_hunter_pool, write_hunter_trajectories
+from .hunter_harness import HxScanOrchestrator
 from .index import build_code_chunks
 from .mapping import analyze_entry_points, attach_reachability_hints, ingest_sarif, write_entry_points, write_static_hints
 from .policy import assert_rules_resolve, load_policy
@@ -38,7 +40,8 @@ from .reports import scan_exit_code, write_manifest, write_markdown_report, writ
 from .ruleset import DEFAULT_RULESET_DIR, load_ruleset
 from .run import ScanRun, create_scan_run
 from .scoring import build_score_artifact
-from .verification import VerificationResult, verify_findings, write_verification_results
+from .verification import VerificationResult, write_verification_results
+from .verify_judge import verify_findings_dispatch
 
 CALIBRATION_DIR = ".openultrasast/calibration"
 
@@ -97,6 +100,13 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         raise SystemExit(f"scan path is not a directory: {path}")
 
     config = load_config(config_path if config_path.exists() else None)
+    # Capability gates for the optional HarnessX agentic plane. When the extra is
+    # absent (default/CI), both stay False and the deterministic path runs unchanged.
+    hunter_model = config.models.hunter
+    verifier_model = config.models.verifier
+    harnessx_present = has_harnessx()
+    hx_hunter = mode == "standard" and bool(hunter_model) and harnessx_present
+    hx_verify = mode == "standard" and bool(verifier_model) and harnessx_present
     run = create_scan_run(path, config)
     runtime = HarnessRuntime(
         scan_id=run.scan_id,
@@ -127,10 +137,23 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     write_rankings(rankings, run.root / "rank" / "ranking.json")
     write_ranking_calibrations(calibrations, run.root / "calibration" / "applied_calibrations.json")
     if mode == "standard":
-        hunter_result = runtime.run_stage(
-            "hunter_pool",
-            lambda: run_hunter_pool(run.target, targets, rankings, scan_id=run.scan_id, ruleset=ruleset, policy=policy),
-        )
+        if hx_hunter and hunter_model:
+            orchestrator = HxScanOrchestrator(provider_model=hunter_model)
+            hunter_result = runtime.run_stage(
+                "hunter_pool",
+                lambda: orchestrator.run_pool(
+                    run.target, targets, rankings, scan_id=run.scan_id, ruleset=ruleset, policy=policy, emit=runtime.emit
+                ),
+            )
+        else:
+            if bool(hunter_model) and not harnessx_present:
+                runtime.state["degradations"].append(
+                    {"stage": "hunter_pool", "requested": "harnessx", "reason": "harnessx_extra_unavailable", "fallback": "run_hunter_pool"}
+                )
+            hunter_result = runtime.run_stage(
+                "hunter_pool",
+                lambda: run_hunter_pool(run.target, targets, rankings, scan_id=run.scan_id, ruleset=ruleset, policy=policy),
+            )
         findings = hunter_result.findings
         trajectories = hunter_result.trajectories
     else:
@@ -162,7 +185,14 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     write_findings(findings, findings_path)
     if trajectories:
         write_hunter_trajectories(trajectories, trajectories_path)
-    verifications = runtime.run_stage("verify", lambda: verify_findings(findings))
+    if mode == "standard" and bool(verifier_model) and not harnessx_present:
+        runtime.state["degradations"].append(
+            {"stage": "verify", "requested": "harnessx", "reason": "harnessx_extra_unavailable", "fallback": "structural_verifier"}
+        )
+    verifications = runtime.run_stage(
+        "verify",
+        lambda: verify_findings_dispatch(findings, verifier_model=verifier_model, use_harnessx=hx_verify),
+    )
     write_verification_results(verifications, verification_path)
     runtime.run_stage(
         "record_calibration",
@@ -206,6 +236,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             ),
             path=manifest_path,
             score=score_artifact.to_dict(),
+            degradations=runtime.state["degradations"] or None,
         ),
     )
     runtime.finish(status="succeeded")

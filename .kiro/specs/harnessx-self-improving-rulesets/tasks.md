@@ -139,7 +139,7 @@ This plan splits the fused regex layer into three governed owners (rules detect,
   - _Depends: 5.1_
 
 - [ ] 6. Adopt HarnessX at the hunter loop and verifier
-- [ ] 6.1 Run the hunter pool stage on a real HarnessX agent loop
+- [x] 6.1 Run the hunter pool stage on a real HarnessX agent loop
   - Run the hunter pool stage on a real HarnessX run loop with the control, tool, and observability processors registered in the hunter sub-harness, invoked from the existing hunter-pool stage callback.
   - Confine all asynchronous execution to this single stage so the deterministic stages remain synchronous.
   - Observable completion: with the extra installed, the hunter pool produces per-target trajectories from a real agent loop while all other stages stay synchronous, verified by an integration test.
@@ -147,7 +147,7 @@ This plan splits the fused regex layer into three governed owners (rules detect,
   - _Boundary: HxScanOrchestrator_
   - _Depends: 5.2_
 
-- [ ] 6.2 Map stage events and identifiers onto HarnessX hooks
+- [x] 6.2 Map stage events and identifiers onto HarnessX hooks
   - Map the existing stage-start/stage-end events to the HarnessX step-level hooks and the scan identifier to the HarnessX run identifier without losing trace continuity.
   - Observable completion: a HarnessX-backed run preserves trace continuity with stage events mapped to step hooks and the scan id mapped to the run id, verified by inspecting the emitted trace.
   - _Requirements: 1.7_
@@ -162,7 +162,7 @@ This plan splits the fused regex layer into three governed owners (rules detect,
   - _Boundary: HxScanOrchestrator_
   - _Depends: 6.1_
 
-- [ ] 6.4 (P) Add the LLM-judge verifier with a structural fallback
+- [x] 6.4 (P) Add the LLM-judge verifier with a structural fallback
   - Produce verification verdicts using the HarnessX llm-judge helpers when the extra is present, mapping the strict-JSON verdict to a verification result.
   - Retain the existing structural verifier (which rejects on unknown reachability) verbatim as the zero-dependency fallback.
   - Observable completion: with the extra present the judge produces verdicts and with it absent the structural verifier produces equivalent verdicts, proven by a paired verifier test.
@@ -170,7 +170,7 @@ This plan splits the fused regex layer into three governed owners (rules detect,
   - _Boundary: VerifyProcessor_
   - _Depends: 5.2_
 
-- [ ] 6.5 Fall back gracefully when a HarnessX capability is unavailable
+- [x] 6.5 Fall back gracefully when a HarnessX capability is unavailable
   - When a HarnessX-backed stage is enabled but its capability is unavailable at runtime, fall back to the existing equivalent stage and record the degradation in the scan manifest.
   - Observable completion: requesting a HarnessX stage whose capability is missing runs the existing equivalent and records a degradation entry in the manifest, proven by a fallback test.
   - _Requirements: 1.8_

@@ -48,6 +48,12 @@ warn_redundant_casts = true
 warn_return_any = true
 warn_unused_configs = true
 
+# HarnessX is an optional extra, absent in the type-check environment; its lazy
+# imports inside guarded functions must not fail mypy.
+[[tool.mypy.overrides]]
+module = "harnessx.*"
+ignore_missing_imports = true
+
 [dependency-groups]
 dev = [
     "dagger-io>=0.21.7",

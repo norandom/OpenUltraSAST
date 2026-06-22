@@ -13,6 +13,10 @@ from __future__ import annotations
 import importlib
 import importlib.util
 from types import ModuleType
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from harnessx.core.harness import HarnessConfig
 
 HARNESSX_EXTRA = "openultrasast[harnessx]"
 
@@ -31,3 +35,33 @@ def require_harnessx() -> ModuleType:
     if not has_harnessx():
         raise HarnessXUnavailableError(f"HarnessX is not installed. Install the optional agentic extra: pip install '{HARNESSX_EXTRA}'")
     return importlib.import_module("harnessx")
+
+
+def build_sast(*, max_cost_usd: float = 2.0, token_threshold: int = 120_000) -> HarnessConfig:
+    """Compose the SAST hunter HarnessConfig (behaviour pipeline, model-free).
+
+    The single, strictly-localized HarnessX composition site (mirrors DocuHarnessX
+    ``make_docgen``): every ``harnessx`` import is inside this function so importing
+    this module never touches the optional extra. Raises :class:`HarnessXUnavailableError`
+    when the extra is absent. The per-task step budget is enforced on the task at run
+    time, not composed here.
+    """
+    require_harnessx()
+    from harnessx.bundles.context import make_context
+    from harnessx.bundles.control import make_control
+    from harnessx.bundles.tools import make_tools
+    from harnessx.core.builder import HarnessBuilder
+    from harnessx.processors.context.strategies.system_prompt.default import DefaultSystemPromptBuilder
+
+    builder = (
+        HarnessBuilder()
+        | make_context(system_builder=DefaultSystemPromptBuilder())
+        | make_tools(skill_loading=False)
+        | make_control(
+            include_reliability=True,
+            include_budget=True,
+            token_threshold=token_threshold,
+            max_cost_usd=max_cost_usd,
+        )
+    )
+    return builder.build()

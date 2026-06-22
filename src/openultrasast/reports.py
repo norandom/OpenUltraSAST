@@ -72,6 +72,7 @@ def write_manifest(
     artifact_paths: dict[str, Path],
     path: Path,
     score: dict[str, object] | None = None,
+    degradations: list[dict[str, object]] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications)
@@ -96,6 +97,8 @@ def write_manifest(
     }
     if score is not None:
         payload["score"] = score
+    if degradations is not None:
+        payload["degradations"] = degradations
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
