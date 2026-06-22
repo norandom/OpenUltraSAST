@@ -229,8 +229,8 @@ This plan splits the fused regex layer into three governed owners (rules detect,
 
 ## Phase 4 — Validation: Cross-Cutting Gates & Non-Regression
 
-- [ ] 8. Lock the detection-gate non-regression checks into CI
-- [ ] 8.1 Enforce the per-merge recall/FP detection gate
+- [x] 8. Lock the detection-gate non-regression checks into CI
+- [x] 8.1 Enforce the per-merge recall/FP detection gate
   - Evaluate aggregate recall and aggregate false-positive rate on the benchmark corpus on every merge and fail the merge if recall is below 90% or the false-positive rate is at or above 10%.
   - Treat the recall/FP gate as a hard constraint that is never folded into the project-score reward, blocking any change that breaches the gate regardless of score improvement.
   - Observable completion: a CI run fails the merge when recall drops below 90% or false-positive rate reaches 10%, and a score improvement cannot unblock a gate-breaching change, proven by pipeline tests.
@@ -238,21 +238,21 @@ This plan splits the fused regex layer into three governed owners (rules detect,
   - _Boundary: CI Pipeline_
   - _Depends: 4.1_
 
-- [ ] 8.2 (P) Assert byte-identical benchmark baseline for the zero-dep phases
+- [x] 8.2 (P) Assert byte-identical benchmark baseline for the zero-dep phases
   - With the default ruleset and an empty loop ledger, assert the benchmark output is byte-identical to the pre-feature baseline for the governance and rules-as-data phases.
   - Observable completion: a golden-diff test confirms byte-identical benchmark output with the default ruleset and empty ledger.
   - _Requirements: 6.2_
   - _Boundary: Benchmark Harness, CI Pipeline_
   - _Depends: 3.4, 4.3_
 
-- [ ] 8.3 (P) Confirm HarnessX-backed stages stay within detection tolerance
+- [x] 8.3 (P) Confirm HarnessX-backed stages stay within detection tolerance
   - When a HarnessX-backed stage is enabled, confirm recall and false-positive rate stay within the configured tolerance of the equivalent zero-dependency baseline.
   - Observable completion: a CI run with a HarnessX-backed stage enabled keeps recall/FP within the configured tolerance of the baseline, proven by a tolerance test.
   - _Requirements: 6.4_
   - _Boundary: CI Pipeline, HxScanOrchestrator_
   - _Depends: 6.1, 8.1_
 
-- [ ] 8.4 (P) Add the zero-dependency guard test
+- [x] 8.4 (P) Add the zero-dependency guard test
   - Run a guard test confirming that with HarnessX absent the governance, scoring, and benchmark planes operate and CI gating runs in the default install.
   - Observable completion: the guard test passes with HarnessX uninstalled and fails if any governance/scoring/benchmark path imports HarnessX.
   - _Requirements: 7.5_

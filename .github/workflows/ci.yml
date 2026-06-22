@@ -24,6 +24,8 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy src/openultrasast
       - run: uv run pytest
+      - name: Detection gate (>=90% recall, <10% FP — hard, score-independent)
+        run: uv run python -m openultrasast.gate
       - run: uv run python -m compileall src tests
 
   dagger:
