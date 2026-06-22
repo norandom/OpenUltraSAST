@@ -6,9 +6,7 @@
 8.4 — the governance/scoring/benchmark planes never import the HarnessX extra.
 """
 
-import importlib
 import json
-import sys
 from pathlib import Path
 
 import pytest
@@ -146,17 +144,20 @@ GOVERNANCE_SCORING_BENCHMARK_PLANES = (
     "openultrasast.ruleset.store",
     "openultrasast.improve",
     "openultrasast.improve.evolve",
+    "openultrasast.slot_contract",
+    "openultrasast.stage_processors",
 )
 
 
-def test_governance_scoring_benchmark_planes_never_import_harnessx() -> None:
-    for module in GOVERNANCE_SCORING_BENCHMARK_PLANES:
-        importlib.import_module(module)
-    leaked = sorted(name for name in sys.modules if name == "harnessx" or name.startswith("harnessx."))
-    assert leaked == [], f"governance/scoring/benchmark planes leaked HarnessX imports: {leaked}"
+def test_governance_scoring_benchmark_planes_never_import_harnessx(assert_cold_of_harnessx) -> None:  # type: ignore[no-untyped-def]
+    # Hermetic: a fresh interpreter imports every plane and must pull no harnessx.
+    imports = "\n".join(f"import {module}" for module in GOVERNANCE_SCORING_BENCHMARK_PLANES)
+    assert_cold_of_harnessx(imports)
 
 
 def test_planes_have_no_module_level_harnessx_import() -> None:
+    # Flags only column-0 (module-level) imports; an indented lazy import inside a
+    # capability-guarded function (e.g. stage_processors.host_under_harnessx) is fine.
     src = Path("src/openultrasast")
     offenders = []
     for module in GOVERNANCE_SCORING_BENCHMARK_PLANES:
@@ -166,7 +167,6 @@ def test_planes_have_no_module_level_harnessx_import() -> None:
         if path is None:
             continue
         for line in path.read_text().splitlines():
-            stripped = line.strip()
-            if stripped.startswith(("import harnessx", "from harnessx")):
-                offenders.append(f"{path}: {stripped}")
+            if line.startswith(("import harnessx", "from harnessx")):
+                offenders.append(f"{path}: {line}")
     assert offenders == [], f"plane modules import HarnessX at module scope: {offenders}"

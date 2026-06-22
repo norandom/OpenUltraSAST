@@ -138,7 +138,7 @@ This plan splits the fused regex layer into three governed owners (rules detect,
   - _Boundary: Packaging Configuration_
   - _Depends: 5.1_
 
-- [ ] 6. Adopt HarnessX at the hunter loop and verifier
+- [x] 6. Adopt HarnessX at the hunter loop and verifier
 - [x] 6.1 Run the hunter pool stage on a real HarnessX agent loop
   - Run the hunter pool stage on a real HarnessX run loop with the control, tool, and observability processors registered in the hunter sub-harness, invoked from the existing hunter-pool stage callback.
   - Confine all asynchronous execution to this single stage so the deterministic stages remain synchronous.
@@ -154,10 +154,11 @@ This plan splits the fused regex layer into three governed owners (rules detect,
   - _Boundary: HxScanOrchestrator_
   - _Depends: 6.1_
 
-- [ ] 6.3 (P) Run deterministic stages as model-disabled HarnessX processors with slot contracts
+- [x] 6.3 (P) Run deterministic stages as model-disabled HarnessX processors with slot contracts
   - Run each deterministic stage under HarnessX with model invocation disabled so no deterministic stage incurs a model call.
   - Preserve each stage's declared read/write slot allow-list and validate slot access on every lifecycle hook.
   - Observable completion: deterministic stages execute under HarnessX with no model calls and a slot-contract violation is raised on undeclared slot access, proven by a slot-contract test.
+  - Implemented zero-dep in `slot_contract.py` (`SlotContractMixin`/`SlotPipeline`, validates reads/writes per lifecycle hook, enforces `skip_model`) + `stage_processors.py` (the deterministic stages as `skip_model` slot processors; `run_quick_pipeline` is byte-identical to the quick path). Per "bridge, do not map", the sync `HarnessRuntime` stays the top-level driver and these slot processors are the model-disabled representation; `host_under_harnessx` is the lazy, capability-gated bridge that disables the model on HarnessX's `BeforeModelEvent.skip_model`. Module names differ from the design's `harness/{slot_contract,processors}.py` because `harness` is a module, not a package. Tests: `tests/test_slot_contract.py`.
   - _Requirements: 1.5, 1.6_
   - _Boundary: HxScanOrchestrator_
   - _Depends: 6.1_
