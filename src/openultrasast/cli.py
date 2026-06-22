@@ -18,6 +18,7 @@ from .benchmark import (
 from .calibration import (
     FalsePositiveLearning,
     calibrate_rankings,
+    fp_reachability_overrides,
     learnings_from_verifications,
     load_false_positive_learnings,
     merge_false_positive_learnings,
@@ -105,7 +106,9 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     write_harness_config(config=config, processors=[], contract_mode="strict", path=run.root / "harness.json")
     runtime.start(mode=mode, target=run.target)
     policy = runtime.run_stage("policy_load", load_policy)
-    ruleset = runtime.run_stage("ruleset_load", lambda: load_ruleset(DEFAULT_RULESET_DIR))
+    ledger_path = run.target / CALIBRATION_DIR / "false_positive_learnings.json"
+    rule_ledger_path = run.target / CALIBRATION_DIR / "rule_policy.json"
+    ruleset = runtime.run_stage("ruleset_load", lambda: load_ruleset(DEFAULT_RULESET_DIR, rule_ledger_path))
     runtime.run_stage("policy_check", lambda: assert_rules_resolve(ruleset, policy))
     static_hints = runtime.run_stage("static_mapping", lambda: _load_static_hints(config.static_analysis.sarif_paths))
     write_static_hints(static_hints, run.root / "mapping" / "static_hints.json")
@@ -118,7 +121,6 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     targets = attach_reachability_hints(targets, entry_points)
     write_preprocess_artifact(snapshot, targets, run.root / "preprocess" / "file_targets.json")
     rankings = runtime.run_stage("rank", lambda: rank_targets(targets))
-    ledger_path = run.target / CALIBRATION_DIR / "false_positive_learnings.json"
     prior_learnings = load_false_positive_learnings(ledger_path)
     rankings, calibrations = runtime.run_stage("calibrate", lambda: calibrate_rankings(rankings, prior_learnings))
     applied_calibrations = [calibration for calibration in calibrations if calibration.applied_learning_ids]
@@ -168,6 +170,9 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     )
     cwe_by_rule = {rule.rule_id: rule.cwe for rule in ruleset}
     rule_cwe_by_id = {finding.finding_id: cwe_by_rule.get(finding.finding_id.split(":", 1)[0], "") for finding in findings}
+    # A confirmed false positive (prior-scan learning) lowers a finding's effective
+    # reachability multiplier in the score instead of deleting the rule.
+    reachability_override = fp_reachability_overrides(findings, prior_learnings)
     score_artifact = runtime.run_stage(
         "score",
         lambda: build_score_artifact(
@@ -178,6 +183,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             min_score=config.score.min_score,
             block_severity_reachable=config.score.block_severity_reachable,
             blocking=config.score.blocking,
+            reachability_override=reachability_override,
         ),
     )
     score_path = run.root / "score.json"

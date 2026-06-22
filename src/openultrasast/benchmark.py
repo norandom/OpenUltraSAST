@@ -60,6 +60,7 @@ class BenchmarkMiss:
     path: str
     evidence: str
     reason: str
+    rule_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -79,6 +80,7 @@ class BenchmarkCalibrationRecord:
     failed_stage: str
     next_improvement_candidate: str
     reason: str
+    rule_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -87,6 +89,17 @@ class BenchmarkFalsePositive:
     path: str
     line: int | None
     reason: str
+    rule_id: str = ""
+
+
+@dataclass(frozen=True)
+class RuleRecommendation:
+    rule_id: str
+    action: str  # keep | shadow | loosen
+    matched: int
+    missed: int
+    false_positives: int
+    rationale: str
 
 
 @dataclass(frozen=True)
@@ -101,6 +114,7 @@ class BenchmarkMetrics:
     runtime_seconds: float | None
     model_usage: dict[str, object]
     artifact_links: dict[str, str]
+    per_rule: dict[str, dict[str, int]]
 
 
 @dataclass(frozen=True)
@@ -123,6 +137,7 @@ class BenchmarkResult:
     false_positives: list[BenchmarkFalsePositive]
     baseline_deltas: list[BenchmarkBaselineDelta]
     calibration_records: list[BenchmarkCalibrationRecord]
+    rule_recommendations: list[RuleRecommendation]
 
 
 def load_benchmark_manifest(path: Path) -> BenchmarkManifest:
@@ -224,6 +239,8 @@ def evaluate_benchmark(
     false_positives = [_false_positive(finding) for index, finding in enumerate(findings) if index not in matched_finding_indexes]
     baseline_deltas = _baseline_deltas(run.manifest.expected, baseline_findings or [])
     calibration_records = [_calibration_record(miss) for miss in misses]
+    per_rule = _per_rule_metrics(findings, matched_finding_indexes, misses)
+    rule_recommendations = _rule_recommendations(per_rule)
     expected_total = len(run.manifest.expected)
     actual_total = len(findings)
     missed_total = len(misses)
@@ -249,11 +266,13 @@ def evaluate_benchmark(
             runtime_seconds=runtime_seconds,
             model_usage={},
             artifact_links=_artifact_links(scan_run_dir),
+            per_rule=per_rule,
         ),
         misses=misses,
         false_positives=false_positives,
         baseline_deltas=baseline_deltas,
         calibration_records=calibration_records,
+        rule_recommendations=rule_recommendations,
     )
 
 
@@ -265,6 +284,9 @@ def write_benchmark_artifacts(run: BenchmarkRun, manifest_path: Path, result: Be
     )
     (run.root / "external_baseline_deltas.json").write_text(
         json.dumps(_jsonable([asdict(delta) for delta in result.baseline_deltas]), indent=2, sort_keys=True) + "\n"
+    )
+    (run.root / "rule_policy_delta.json").write_text(
+        json.dumps(_jsonable([asdict(rec) for rec in result.rule_recommendations]), indent=2, sort_keys=True) + "\n"
     )
 
 
@@ -301,6 +323,7 @@ def _miss(expected: ExpectedFinding) -> BenchmarkMiss:
         path=expected.path,
         evidence=expected.evidence,
         reason="no OpenUltraSAST finding matched the expected benchmark vulnerability",
+        rule_id=expected.rule_id,
     )
 
 
@@ -310,7 +333,55 @@ def _false_positive(finding: StaticFinding) -> BenchmarkFalsePositive:
         path=finding.path,
         line=finding.line,
         reason="finding did not match any expected benchmark vulnerability",
+        rule_id=_rule_id_of(finding.finding_id),
     )
+
+
+def _rule_id_of(finding_id: str) -> str:
+    return finding_id.split(":", 1)[0]
+
+
+def _per_rule_metrics(
+    findings: list[StaticFinding],
+    matched_finding_indexes: set[int],
+    misses: list[BenchmarkMiss],
+) -> dict[str, dict[str, int]]:
+    per_rule: dict[str, dict[str, int]] = {}
+
+    def bucket(rule_id: str) -> dict[str, int]:
+        return per_rule.setdefault(rule_id, {"matched": 0, "missed": 0, "false_positives": 0})
+
+    for index, finding in enumerate(findings):
+        rule_id = _rule_id_of(finding.finding_id)
+        key = "matched" if index in matched_finding_indexes else "false_positives"
+        bucket(rule_id)[key] += 1
+    for miss in misses:
+        if miss.rule_id:
+            bucket(miss.rule_id)["missed"] += 1
+    return dict(sorted(per_rule.items()))
+
+
+def _rule_recommendations(per_rule: dict[str, dict[str, int]]) -> list[RuleRecommendation]:
+    recommendations: list[RuleRecommendation] = []
+    for rule_id, counts in per_rule.items():
+        matched, missed, fps = counts["matched"], counts["missed"], counts["false_positives"]
+        if fps > 0:
+            action, rationale = "shadow", "rule produced false positives; stage it before it drags precision"
+        elif missed > 0:
+            action, rationale = "loosen", "rule missed expected findings; widen or lower its evidence floor"
+        else:
+            action, rationale = "keep", "rule matched expected findings with no false positives"
+        recommendations.append(
+            RuleRecommendation(
+                rule_id=rule_id,
+                action=action,
+                matched=matched,
+                missed=missed,
+                false_positives=fps,
+                rationale=rationale,
+            )
+        )
+    return recommendations
 
 
 def _baseline_deltas(expected_findings: list[ExpectedFinding], baseline_findings: list[BaselineFinding]) -> list[BenchmarkBaselineDelta]:
@@ -359,14 +430,18 @@ def _baseline_matches_expected(expected: ExpectedFinding, finding: BaselineFindi
 
 
 def _calibration_record(miss: BenchmarkMiss) -> BenchmarkCalibrationRecord:
+    # A miss tied to a known rule points the loop at that rule; an unattributed
+    # miss (no rule fired for the class) is a coverage gap for a language hunter.
+    candidate = f"rule:{miss.rule_id}" if miss.rule_id else "language_hunter"
     return BenchmarkCalibrationRecord(
         cwe=miss.cwe,
         vulnerability_class=miss.vulnerability_class,
         path=miss.path,
         evidence=miss.evidence,
         failed_stage="benchmark_ground_truth_matching",
-        next_improvement_candidate="rules_or_language_hunter",
+        next_improvement_candidate=candidate,
         reason=miss.reason,
+        rule_id=miss.rule_id,
     )
 
 

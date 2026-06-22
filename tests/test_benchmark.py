@@ -322,13 +322,80 @@ evidence = "memcpy copies attacker-controlled input"
             "cwe": "CWE-120",
             "evidence": "memcpy copies attacker-controlled input",
             "failed_stage": "benchmark_ground_truth_matching",
-            "next_improvement_candidate": "rules_or_language_hunter",
+            "next_improvement_candidate": "rule:c-unsafe-memory-copy",
             "path": "src/vuln.cpp",
             "reason": "no OpenUltraSAST finding matched the expected benchmark vulnerability",
+            "rule_id": "c-unsafe-memory-copy",
             "vulnerability_class": "unsafe memory copy",
         }
     ]
     assert deltas == [{"extra_findings_total": 1, "matched_expected_total": 1, "missed_expected_total": 0, "tool": "clearwing"}]
+
+
+def test_benchmark_attributes_per_rule_signals_and_recommendations(tmp_path: Path) -> None:
+    manifest_path = tmp_path / "benchmark.toml"
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    manifest_path.write_text(
+        """
+name = "cpp-smoke"
+language = "c_cpp"
+
+[source]
+path = "repo"
+
+[[expected]]
+cwe = "CWE-120"
+class = "buffer overflow"
+path = "src/vuln.cpp"
+line = 9
+rule_id = "c-unsafe-memory-copy"
+sink = "memcpy"
+evidence = "memcpy copies attacker-controlled input"
+
+[[expected]]
+cwe = "CWE-78"
+class = "command injection"
+path = "src/vuln.cpp"
+line = 20
+rule_id = "c-shell-exec"
+sink = "system"
+evidence = "system runs attacker input"
+""".strip()
+        + "\n"
+    )
+    manifest = load_benchmark_manifest(manifest_path)
+    run = create_benchmark_run(repo, manifest)
+    findings = [
+        _finding(
+            finding_id="c-unsafe-memory-copy:src/vuln.cpp:9",
+            path="src/vuln.cpp",
+            line=9,
+            rationale="Static pattern c-unsafe-memory-copy matched memcpy with attacker-controlled input.",
+        ),
+        _finding(
+            finding_id="js-eval:src/app.js:3",
+            path="src/app.js",
+            line=3,
+            rationale="Static pattern js-eval matched eval.",
+        ),
+    ]
+
+    result = evaluate_benchmark(run=run, mode="quick", findings=findings, scan_id="scan-1", scan_run_dir=repo / ".runs" / "scan-1")
+    write_benchmark_artifacts(run, manifest_path, result)
+
+    per_rule = result.metrics.per_rule
+    assert per_rule["c-unsafe-memory-copy"] == {"matched": 1, "missed": 0, "false_positives": 0}
+    assert per_rule["c-shell-exec"]["missed"] == 1
+    assert per_rule["js-eval"]["false_positives"] == 1
+
+    actions = {rec.rule_id: rec.action for rec in result.rule_recommendations}
+    assert actions["c-unsafe-memory-copy"] == "keep"
+    assert actions["c-shell-exec"] == "loosen"
+    assert actions["js-eval"] == "shadow"
+
+    delta = json.loads((run.root / "rule_policy_delta.json").read_text())
+    assert {item["rule_id"] for item in delta} == {"c-unsafe-memory-copy", "c-shell-exec", "js-eval"}
 
 
 def _finding(

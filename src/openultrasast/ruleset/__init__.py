@@ -5,6 +5,8 @@ from .store import (
     PatternRule,
     RulesetError,
     load_ruleset,
+    read_rule_ledger,
+    write_rule_ledger,
     write_ruleset,
 )
 
@@ -13,5 +15,7 @@ __all__ = [
     "PatternRule",
     "RulesetError",
     "load_ruleset",
+    "read_rule_ledger",
+    "write_rule_ledger",
     "write_ruleset",
 ]

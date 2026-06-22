@@ -81,6 +81,17 @@ def write_ruleset(path: Path, rules: Iterable[PatternRule]) -> None:
     path.write_text("\n\n".join(blocks) + "\n")
 
 
+def read_rule_ledger(path: Path) -> dict[str, dict[str, object]]:
+    """Read the loop-owned ``rule_policy.json`` overlay (status/floors per rule_id)."""
+    return _load_ledger(path)
+
+
+def write_rule_ledger(path: Path, entries: dict[str, dict[str, object]]) -> None:
+    """Write the loop-owned ``rule_policy.json`` overlay (used by the evolve loop)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(entries, indent=2, sort_keys=True) + "\n")
+
+
 def _rule_from_dict(item: dict[str, object], path: Path) -> PatternRule:
     try:
         rule_id = str(item["rule_id"])

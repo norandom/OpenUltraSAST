@@ -1,3 +1,4 @@
+from openultrasast.calibration import FalsePositiveReason, fp_reachability_overrides, record_false_positive_learning
 from openultrasast.findings import StaticFinding
 from openultrasast.policy import CwePolicy
 from openultrasast.scoring import build_score_artifact, gate, project_score
@@ -60,6 +61,38 @@ def test_hard_gate_fails_on_severity5_reachable_only() -> None:
 
     assert fail["passed"] is False  # severity-5 + reachable always fails
     assert ok["passed"] is True  # inferred reachability does not trip the hard gate
+
+
+def test_confirmed_false_positive_lowers_penalty_without_deleting_rule() -> None:
+    finding = StaticFinding(
+        finding_id="python-os-command:app.py:1",
+        path="app.py",
+        title="t",
+        severity="critical",
+        confidence="medium",
+        evidence_level="static_corroboration",
+        rationale="r",
+        line=1,
+        function_name=None,
+        reachability_status="reachable",
+        reachability_evidence=[],
+        reachability_conditions=[],
+        tags=["syscall_entry"],
+        ranking_priority=3.0,
+    )
+    learning = record_false_positive_learning(
+        finding,
+        reason=FalsePositiveReason.MISSING_ATTACKER_CONTROL,
+        evidence="input is a constant, not attacker-controlled",
+    )
+    overrides = fp_reachability_overrides([finding], [learning])
+    rule_cwe = {finding.finding_id: "CWE-78"}
+
+    assert overrides[finding.finding_id] < 1.0  # reachable multiplier lowered from 1.0
+    base = project_score([finding], rule_cwe, POLICY)
+    with_fp = project_score([finding], rule_cwe, POLICY, reachability_override=overrides)
+    assert with_fp > base  # confirmed FP reduces the penalty, raising the score
+    assert finding.finding_id in rule_cwe  # the rule still fires; it was not deleted
 
 
 def test_score_gate_blocks_only_when_blocking_enabled() -> None:

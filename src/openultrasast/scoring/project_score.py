@@ -29,15 +29,26 @@ class ScoreArtifact:
         return asdict(self)
 
 
-def finding_penalty(finding: StaticFinding, rule_cwe: str | None, policy: Mapping[str, CwePolicy]) -> float:
+def finding_penalty(
+    finding: StaticFinding,
+    rule_cwe: str | None,
+    policy: Mapping[str, CwePolicy],
+    reachability_override: Mapping[str, float] | None = None,
+) -> float:
     """Penalty contributed by one finding: severity weight × reachability multiplier.
 
-    Dynamic-only or unmapped CWEs contribute zero (report-only, never scored).
+    Dynamic-only or unmapped CWEs contribute zero (report-only, never scored). A
+    confirmed false positive can supply a lowered effective reachability multiplier
+    via ``reachability_override`` (keyed by ``finding_id``) instead of deleting the rule.
     """
     pol = policy.get(rule_cwe) if rule_cwe else None
     if pol is None or not pol.static:
         return 0.0
-    return SEV_WEIGHT[pol.severity] * REACH_MULT.get(finding.reachability_status, REACH_MULT["unknown"])
+    if reachability_override and finding.finding_id in reachability_override:
+        multiplier = reachability_override[finding.finding_id]
+    else:
+        multiplier = REACH_MULT.get(finding.reachability_status, REACH_MULT["unknown"])
+    return SEV_WEIGHT[pol.severity] * multiplier
 
 
 def project_score(
@@ -45,13 +56,14 @@ def project_score(
     rule_cwe_by_id: Mapping[str, str],
     policy: Mapping[str, CwePolicy],
     k: float = 60.0,
+    reachability_override: Mapping[str, float] | None = None,
 ) -> int:
     """Compute the 0-100 project score (shadow findings excluded by the caller).
 
     Exponential decay of total penalty: no penalty → 100; one severity-5 reachable
     finding → ~43.
     """
-    total = sum(finding_penalty(finding, rule_cwe_by_id.get(finding.finding_id), policy) for finding in findings)
+    total = sum(finding_penalty(finding, rule_cwe_by_id.get(finding.finding_id), policy, reachability_override) for finding in findings)
     return round(100 * math.exp(-total / k))
 
 
@@ -92,8 +104,9 @@ def build_score_artifact(
     min_score: int = 80,
     block_severity_reachable: int = 5,
     blocking: bool = False,
+    reachability_override: Mapping[str, float] | None = None,
 ) -> ScoreArtifact:
-    score = project_score(findings, rule_cwe_by_id, policy, k=k)
+    score = project_score(findings, rule_cwe_by_id, policy, k=k, reachability_override=reachability_override)
     penalty_total = 0.0
     max_severity = 0
     by_category: dict[str, int] = {}
@@ -109,7 +122,7 @@ def build_score_artifact(
             if pol.dynamic:
                 out_of_scope_dynamic_only += 1
             continue
-        penalty_total += finding_penalty(finding, cwe, policy)
+        penalty_total += finding_penalty(finding, cwe, policy, reachability_override)
         max_severity = max(max_severity, pol.severity)
         by_category[pol.flaw_category] = by_category.get(pol.flaw_category, 0) + 1
     return ScoreArtifact(

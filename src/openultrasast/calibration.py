@@ -249,6 +249,30 @@ def learnings_from_verifications(
     return learnings
 
 
+# A confirmed false positive lowers a finding's effective reachability multiplier
+# by this factor in the project score (it does not delete the rule).
+FP_REACHABILITY_FACTOR = 0.4
+_BASE_REACH_MULT = {"reachable": 1.0, "inferred-file-surface": 0.6, "unknown": 0.4}
+
+
+def fp_reachability_overrides(
+    findings: list[StaticFinding],
+    learnings: list[FalsePositiveLearning],
+) -> dict[str, float]:
+    """Lowered score multipliers for findings whose scope has a confirmed FP.
+
+    Keyed by ``finding_id``; consumed by the scoring model so a confirmed false
+    positive reduces the score penalty instead of the rule being deleted.
+    """
+    overrides: dict[str, float] = {}
+    for finding in findings:
+        vulnerability_class = _vulnerability_class(finding)
+        if any(_learning_applies(finding.path, learning) and learning.vulnerability_class == vulnerability_class for learning in learnings):
+            base = _BASE_REACH_MULT.get(finding.reachability_status, _BASE_REACH_MULT["unknown"])
+            overrides[finding.finding_id] = round(base * FP_REACHABILITY_FACTOR, 3)
+    return overrides
+
+
 def _reason_from_verification(finding: StaticFinding, status: VerificationStatus) -> FalsePositiveReason:
     if finding.reachability_status == "unknown":
         return FalsePositiveReason.UNREACHABLE_PATH

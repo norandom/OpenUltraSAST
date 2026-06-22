@@ -90,22 +90,22 @@ This plan splits the fused regex layer into three governed owners (rules detect,
   - _Boundary: PolicyScoringProcessor, RulesetStore, PolicyStore_
   - _Depends: 3.1, 3.2, 1.2_
 
-- [ ] 4. Make benchmark output an actionable per-rule signal
-- [ ] 4.1 Attribute misses and false positives to rules
+- [x] 4. Make benchmark output an actionable per-rule signal
+- [x] 4.1 Attribute misses and false positives to rules
   - Attribute every recorded miss and every recorded false positive to a rule identifier and aggregate per-rule precision and recall in the benchmark metrics.
   - Observable completion: a benchmark run reports per-rule precision/recall and every miss and false positive carries a rule identifier, verified by a metrics test.
   - _Requirements: 4.1_
   - _Boundary: Benchmark Harness_
   - _Depends: 3.1_
 
-- [ ] 4.2 Emit a per-rule recommendation delta artifact
+- [x] 4.2 Emit a per-rule recommendation delta artifact
   - Replace the inert improvement-candidate stub with a per-rule recommendation artifact recommending enable, disable, shadow, threshold, or evidence-floor changes per rule.
   - Observable completion: a benchmark run writes a recommendation artifact with per-rule suggested actions alongside its records, verified against the documented delta schema.
   - _Requirements: 4.2_
   - _Boundary: Benchmark Harness_
   - _Depends: 4.1_
 
-- [ ] 4.3 Introduce the loop-owned ledger and re-key calibration to rules
+- [x] 4.3 Introduce the loop-owned ledger and re-key calibration to rules
   - Add the loop-owned overlay ledger that records per-rule status, evidence floor, threshold, and precision, applied over the ruleset at load time.
   - Re-key calibration from the first-tag key to the rule identifier and write status flips into the ledger rather than only demoting ranking.
   - Observable completion: an empty ledger leaves behavior byte-identical to the prior phase while a ledger entry overlays a rule's status at load, proven by an integration test.
@@ -113,7 +113,7 @@ This plan splits the fused regex layer into three governed owners (rules detect,
   - _Boundary: RulesetStore, Calibration subsystem_
   - _Depends: 3.1, 3.2_
 
-- [ ] 4.4 Convert false-positive confirmation into a reachability knob
+- [x] 4.4 Convert false-positive confirmation into a reachability knob
   - When confirming a false positive, lower the finding's effective reachability multiplier rather than delete the rule, so recall stays high while the score stops over-penalizing.
   - Observable completion: confirming a false positive lowers the finding's effective reachability multiplier and the rule still fires, proven by a calibration test.
   - _Requirements: 5.6_
