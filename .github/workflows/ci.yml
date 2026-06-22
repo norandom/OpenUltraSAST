@@ -28,13 +28,44 @@ jobs:
 
   dagger:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Must match dagger-io (0.21.7) and dagger/_engine/_version.py CLI_VERSION
+      # so the engine image tag is deterministic. The dagger-for-github action
+      # runs `docker image inspect registry.dagger.io/engine:v${DAGGER_VERSION}`
+      # and skips its own (flaky) pull when the image is already in the local
+      # docker cache, so the pinned tag below MUST equal the action's version.
+      DAGGER_VERSION: 0.21.7
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+      - name: Pre-pull dagger engine image (retry transient registry timeouts)
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          image="registry.dagger.io/engine:v${DAGGER_VERSION}"
+          attempts=5
+          for i in $(seq 1 "${attempts}"); do
+            echo "::group::Pull attempt ${i}/${attempts}: ${image}"
+            if timeout 90 docker pull "${image}"; then
+              echo "Pulled ${image} on attempt ${i}"
+              docker image inspect "${image}" >/dev/null
+              echo "::endgroup::"
+              exit 0
+            fi
+            echo "Pull attempt ${i} failed."
+            echo "::endgroup::"
+            if [ "${i}" -lt "${attempts}" ]; then
+              echo "Retrying in 20s..."
+              sleep 20
+            fi
+          done
+          echo "All ${attempts} pull attempts failed for ${image}" >&2
+          exit 1
       - uses: dagger/dagger-for-github@v7
         with:
-          version: latest
+          version: 0.21.7
           verb: run
           args: uv run python dagger/ci.py

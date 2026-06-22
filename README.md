@@ -72,6 +72,31 @@ removes cross-language false positives):
 | JavaScript / TS | command injection (78), code injection (95), reflected/DOM XSS (79), SQLi (89), path traversal (22), SSRF (918), weak hash (327), deserialization (502) |
 | Java + Groovy templates | command injection (78), SQLi via concatenation (89), weak hash (327), deserialization (502), unescaped template XSS (79) |
 
+## Project scores and central CWE policy
+
+Severity used to be whatever string a rule set on itself. It is now governed centrally: one CWE, one severity, decided by policy — not by the rule that fired.
+
+**Central CWE policy** ✅ (`policy/verycode.py`): a vendored `CWE_Score.tsv` (verycode-policies, ~167 CWEs) is the single source of truth. Each CWE carries a flaw category, a `severity` (0-5), and `static` / `dynamic` scope flags. `load_policy()` reads it positionally (the upstream file ships CRLF and a trailing space in the `Flaw Severity ` header), and `resolve_severity()` resolves a finding's severity *exclusively* from policy, keyed on CWE — any legacy rule-local severity is discarded. CWEs that are not `static` resolve to `0` and are report-only, never scored.
+
+**Fail-loud startup** ✅: `assert_rules_resolve(PATTERN_RULES, policy)` runs as the `policy_check` stage right after `policy_load`. If any *enabled* rule names a CWE the policy does not govern, it raises `PolicyError` and the scan aborts before doing work — you cannot ship a rule whose severity nobody decided.
+
+**0-100 project score** ✅ (`scoring/project_score.py`): each finding's penalty is `severity weight × reachability multiplier`, and the score is an exponential decay of the total (`100 · e^(−total/k)`, `k=60`).
+
+| Severity | Weight (`SEV_WEIGHT`) | | Reachability | Multiplier (`REACH_MULT`) |
+| --- | --- | --- | --- | --- |
+| 5 | 50 | | `reachable` | 1.0 |
+| 4 | 25 | | `inferred-file-surface` | 0.6 |
+| 3 | 10 | | `unknown` | 0.4 |
+| 2 / 1 / 0 | 2 / 1 / 0 | | | |
+
+No penalty → 100; one reachable severity-5 finding → ~43. The **reachability multiplier is the false-positive calibration knob**: a confirmed FP lowers a finding's effective reachability instead of deleting the rule, so the score moves without losing the detection.
+
+**Two-condition gate** ✅: a finding that is both severity-5 *and* `reachable` **always** fails the gate. The `score < min_score` threshold (default `min_score=80`) only fails when `blocking` is enabled — so scoring is **advisory-first by default** and turns into a CI gate when you opt in.
+
+**Artifacts** ✅: the `score` stage writes `score.json` (project score, `max_severity`, `penalty_total`, `by_category`, `out_of_scope_dynamic_only`, `unmapped_cwe`, gate verdict) and merges the same block into `manifest.json`. Scoring is zero-dependency (stdlib only). One mapping detail: verycode has no CWE-120 (generic buffer copy), so the C/C++ memory-unsafe rules listed under [Detection coverage](#detection-coverage) carry **CWE-121** (Stack-Based Buffer Overflow, severity 5), which the policy does govern.
+
+🧭 This is the first implemented slice (**Phase 1**) of the `.kiro/specs/harnessx-self-improving-rulesets/` spec: a central, policy-governed severity model and a project score. Rules-as-data and the full HarnessX self-improvement loop over rulesets are later phases on that roadmap.
+
 ## Running the benchmarks
 
 Benchmarks wrap the same scan pipeline and score it against ground-truth
