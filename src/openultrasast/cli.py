@@ -149,7 +149,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     runtime = HarnessRuntime(
         scan_id=run.scan_id,
         config=config,
-        trace_writer=HarnessTraceWriter(run.root / "trace" / "events.jsonl"),
+        trace_writer=HarnessTraceWriter(run.root / "trace" / "events.jsonl", redact=config.hardening.redact_secrets),
     )
     write_harness_config(config=config, processors=[], contract_mode="strict", path=run.root / "harness.json")
     runtime.start(mode=mode, target=run.target)
@@ -219,6 +219,14 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     if shadow_findings:
         findings = [finding for finding in findings if finding.status != "shadow"]
         write_findings(shadow_findings, run.root / "shadow_findings.json")
+    # Bounded-CI budget: cap the reported finding count (0 = unlimited). Findings are
+    # severity/priority-sorted, so truncation keeps the most severe and is disclosed.
+    max_findings = config.hardening.max_findings
+    if max_findings and len(findings) > max_findings:
+        runtime.state["degradations"].append(
+            {"stage": "budget", "reason": "max_findings_exceeded", "requested": max_findings, "actual": len(findings)}
+        )
+        findings = findings[:max_findings]
     findings_path = run.root / "findings.json"
     verification_path = run.root / "verification.json"
     markdown_path = run.root / "report.md"
@@ -291,7 +299,9 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     )
     score_path = run.root / "score.json"
     score_path.write_text(json.dumps(score_artifact.to_dict(), indent=2, sort_keys=True) + "\n")
-    runtime.run_stage("report", lambda: write_markdown_report(findings, markdown_path, verifications))
+    runtime.run_stage(
+        "report", lambda: write_markdown_report(findings, markdown_path, verifications, redact=config.hardening.redact_secrets)
+    )
     runtime.run_stage("sarif", lambda: write_sarif_report(findings, verifications, sarif_path))
     runtime.run_stage(
         "manifest",

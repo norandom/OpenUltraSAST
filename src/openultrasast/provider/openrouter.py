@@ -3,19 +3,56 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import TypeVar, cast
 
 
 class OpenRouterError(RuntimeError):
     """Raised when an OpenRouter request or response is invalid."""
 
 
+_TRANSIENT_STATUS = {429, 500, 502, 503, 504}
+_T = TypeVar("_T")
+
+
+def _is_transient(exc: Exception) -> bool:
+    """A network failure worth retrying (rate-limit, 5xx, connection error, timeout)."""
+    if isinstance(exc, urllib.error.HTTPError):
+        return exc.code in _TRANSIENT_STATUS
+    return isinstance(exc, urllib.error.URLError | TimeoutError)
+
+
+def call_with_retry(
+    operation: Callable[[], _T],
+    *,
+    attempts: int = 3,
+    base_delay: float = 0.5,
+    sleep: Callable[[float], None] = time.sleep,
+) -> _T:
+    """Run ``operation`` with exponential backoff on transient network failures."""
+    last: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            return operation()
+        except Exception as exc:  # noqa: BLE001 — retry only transient failures; re-raise the rest
+            last = exc
+            if attempt + 1 < attempts and _is_transient(exc):
+                sleep(base_delay * (2**attempt))
+                continue
+            raise
+    raise last if last is not None else OpenRouterError("retry exhausted")
+
+
 @dataclass(frozen=True)
 class OpenRouterChatClient:
     api_key: str
     base_url: str = "https://openrouter.ai/api/v1"
+    max_attempts: int = 3
+    retry_base_delay: float = 0.5
 
     @classmethod
     def from_env(cls) -> OpenRouterChatClient:
@@ -35,9 +72,13 @@ class OpenRouterChatClient:
             },
             method="POST",
         )
-        try:
+
+        def _do() -> dict[str, object]:
             with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
-                response_payload = json.loads(response.read().decode())
+                return cast(dict[str, object], json.loads(response.read().decode()))
+
+        try:
+            response_payload = call_with_retry(_do, attempts=self.max_attempts, base_delay=self.retry_base_delay)
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
             raise OpenRouterError(f"OpenRouter chat request failed: {exc}") from exc
 
@@ -49,6 +90,8 @@ class OpenRouterChatClient:
 class OpenRouterEmbeddingClient:
     api_key: str
     base_url: str = "https://openrouter.ai/api/v1"
+    max_attempts: int = 3
+    retry_base_delay: float = 0.5
 
     @classmethod
     def from_env(cls) -> OpenRouterEmbeddingClient:
@@ -68,9 +111,13 @@ class OpenRouterEmbeddingClient:
             },
             method="POST",
         )
-        try:
+
+        def _do() -> dict[str, object]:
             with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
-                response_payload = json.loads(response.read().decode())
+                return cast(dict[str, object], json.loads(response.read().decode()))
+
+        try:
+            response_payload = call_with_retry(_do, attempts=self.max_attempts, base_delay=self.retry_base_delay)
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
             raise OpenRouterError(f"OpenRouter embedding request failed: {exc}") from exc
         return parse_embedding_response(response_payload)

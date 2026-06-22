@@ -288,9 +288,16 @@ skill context; tests in `tests/test_skills.py`.
 
 ## Phase 15: Hardening And Release Readiness (`production` prerequisite)
 
-- [ ] Add cost budget enforcement.
-- [ ] Add model call retry and backoff policies.
-- [ ] Add redaction for secrets in traces and reports.
-- [ ] Add docs for threat model and sandbox limits.
-- [ ] Add end-to-end examples.
-- [ ] Add lint, typecheck, test, and CI gates.
+Implemented: `redaction.py` (traces/reports), provider retry/backoff in
+`provider/openrouter.py`, `[hardening]` config (redact_secrets + max_findings budget;
+agentic spend bounded by `[harnessx]`), `docs/threat-model.md`, `docs/examples.md`.
+Tests in `tests/test_redaction.py`, `tests/test_provider_retry.py`,
+`tests/test_hardening_pipeline.py`. CI gates pre-existed (ruff/mypy/pytest/detection
+gate/dagger).
+
+- [x] Add cost budget enforcement.
+- [x] Add model call retry and backoff policies.
+- [x] Add redaction for secrets in traces and reports.
+- [x] Add docs for threat model and sandbox limits.
+- [x] Add end-to-end examples.
+- [x] Add lint, typecheck, test, and CI gates.

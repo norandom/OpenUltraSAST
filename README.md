@@ -383,6 +383,17 @@ constraints, retrieval filters, skill routing, and benchmark-miss triage. Those
 `RankingCalibration` fields are already produced and will be consumed directly
 once the language-aware LLM hunters land (`standard_security_harness`).
 
+## Security & hardening
+
+OpenUltraSAST treats scanned code as **untrusted input and never executes it** (quick
+and standard modes). Scan artifacts are scrubbed of credentials before they are written
+(`[hardening] redact_secrets`, on by default), agentic spend and output size are bounded
+(`[harnessx] max_cost_usd`/`token_threshold`, `[hardening] max_findings`), provider calls
+retry transient failures with backoff, and missing capabilities degrade visibly in the
+manifest rather than silently. See [docs/threat-model.md](docs/threat-model.md) for the
+full trust boundaries and sandbox limits, and [docs/examples.md](docs/examples.md) for
+end-to-end walkthroughs.
+
 ## Development
 
 ```bash
@@ -390,5 +401,6 @@ uv run pytest                 # tests, incl. the 90/10 detection gate
 uv run ruff check .           # lint
 uv run ruff format --check .  # format
 uv run mypy src/openultrasast # types
+uv run python -m openultrasast.gate  # standalone detection gate
 uv run python dagger/ci.py    # full containerized CI pipeline
 ```

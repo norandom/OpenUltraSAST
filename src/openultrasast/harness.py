@@ -62,13 +62,19 @@ class SerializedHarnessConfig:
 
 
 class HarnessTraceWriter:
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, *, redact: bool = True) -> None:
         self.path = path
+        self.redact = redact
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def append(self, event: HarnessEvent) -> None:
+        line = json.dumps(asdict(event), sort_keys=True)
+        if self.redact:
+            from .redaction import redact_secrets
+
+            line = redact_secrets(line)
         with self.path.open("a") as handle:
-            handle.write(json.dumps(asdict(event), sort_keys=True) + "\n")
+            handle.write(line + "\n")
 
 
 class HarnessRuntime:

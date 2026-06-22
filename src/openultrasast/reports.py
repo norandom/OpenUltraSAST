@@ -9,7 +9,9 @@ from .run import ScanRun
 from .verification import VerificationResult
 
 
-def write_markdown_report(findings: list[StaticFinding], path: Path, verifications: list[VerificationResult] | None = None) -> None:
+def write_markdown_report(
+    findings: list[StaticFinding], path: Path, verifications: list[VerificationResult] | None = None, *, redact: bool = True
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications or [])
     lines = ["# OpenUltraSAST Report", "", f"Findings: {len(findings)}", ""]
@@ -38,7 +40,12 @@ def write_markdown_report(findings: list[StaticFinding], path: Path, verificatio
                 "",
             ]
         )
-    path.write_text("\n".join(lines).rstrip() + "\n")
+    report = "\n".join(lines).rstrip() + "\n"
+    if redact:
+        from .redaction import redact_secrets
+
+        report = redact_secrets(report)
+    path.write_text(report)
 
 
 def write_sarif_report(findings: list[StaticFinding], verifications: list[VerificationResult], path: Path) -> None:

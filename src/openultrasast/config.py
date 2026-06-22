@@ -78,6 +78,14 @@ class HarnessxConfig:
 
 
 @dataclass(frozen=True)
+class HardeningConfig:
+    # Release-readiness controls. redact_secrets masks credentials in traces/reports;
+    # max_findings caps the reported finding count for bounded CI runs (0 = unlimited).
+    redact_secrets: bool = True
+    max_findings: int = 0
+
+
+@dataclass(frozen=True)
 class FusionConfig:
     # Two-panel fusion adjudication for triggered findings (standard mode). Runs
     # deterministically by default; setting panel_model routes the panels through
@@ -100,6 +108,7 @@ class ResolvedConfig:
     ruleset: RulesetConfig = RulesetConfig()
     harnessx: HarnessxConfig = HarnessxConfig()
     fusion: FusionConfig = FusionConfig()
+    hardening: HardeningConfig = HardeningConfig()
     runs_dir: str = ".openultrasast/runs"
 
 
@@ -120,6 +129,7 @@ def load_config(config_path: Path | None = None) -> ResolvedConfig:
         ruleset=_load_ruleset_config(data.get("ruleset", {})),
         harnessx=_load_harnessx(data.get("harnessx", {})),
         fusion=_load_fusion(data.get("fusion", {})),
+        hardening=_load_hardening(data.get("hardening", {})),
         runs_dir=os.environ.get("OPENULTRASAST_RUNS_DIR", ".openultrasast/runs"),
     )
 
@@ -220,6 +230,14 @@ def _load_harnessx(value: object) -> HarnessxConfig:
         provider=_string(data.get("provider")) or "anthropic",
         max_cost_usd=_float_value(data.get("max_cost_usd"), 2.0),
         token_threshold=_int_value(data.get("token_threshold"), 120_000),
+    )
+
+
+def _load_hardening(value: object) -> HardeningConfig:
+    data = _section(value)
+    return HardeningConfig(
+        redact_secrets=bool(data.get("redact_secrets", True)),
+        max_findings=_int_value(data.get("max_findings"), 0),
     )
 
 

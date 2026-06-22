@@ -73,6 +73,22 @@ def test_load_config_reads_fusion_section(tmp_path: Path) -> None:
     assert config.fusion.high_assurance is True
 
 
+def test_hardening_defaults_when_section_absent() -> None:
+    config = load_config(None)
+    assert config.hardening.redact_secrets is True
+    assert config.hardening.max_findings == 0
+
+
+def test_load_config_reads_hardening_section(tmp_path: Path) -> None:
+    config_path = tmp_path / "openultrasast.toml"
+    config_path.write_text("[hardening]\nredact_secrets = false\nmax_findings = 5\n")
+
+    config = load_config(config_path)
+
+    assert config.hardening.redact_secrets is False
+    assert config.hardening.max_findings == 5
+
+
 def test_write_resolved_config_creates_json(tmp_path: Path) -> None:
     output = tmp_path / "run" / "resolved_config.json"
 

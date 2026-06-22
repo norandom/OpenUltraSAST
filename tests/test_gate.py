@@ -148,6 +148,7 @@ GOVERNANCE_SCORING_BENCHMARK_PLANES = (
     "openultrasast.stage_processors",
     "openultrasast.fusion",
     "openultrasast.skills",
+    "openultrasast.redaction",
 )
 
 
