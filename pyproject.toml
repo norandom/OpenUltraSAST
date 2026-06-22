@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "openultrasast"
-version = "0.1.0"
+version = "1.0.0"
 description = "OpenCode-oriented SAST harness for evidence-gated security analysis"
 readme = "README.md"
 requires-python = ">=3.11"
