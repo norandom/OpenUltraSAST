@@ -123,7 +123,7 @@ This plan splits the fused regex layer into three governed owners (rules detect,
 ## Phase 3 — Integration: HarnessX Execution & Self-Improvement (optional extra)
 
 - [ ] 5. Gate and package the HarnessX dependency-weight decision
-- [ ] 5.1 Run the dependency dry-run audit and record the transitive graph
+- [x] 5.1 Run the dependency dry-run audit and record the transitive graph
   - Before adopting the HarnessX execution stages, run a dependency dry-run audit and record the realized transitive dependency graph.
   - If the audited graph pulls a browser-binary, container-SDK, or web-server stack as a mandatory dependency and it is judged unacceptable, select the pre-specified vendored lean subset under the same extra name with the heavy subtrees removed.
   - Observable completion: the audit produces a recorded transitive-dependency graph and a documented accept-extra-or-vendor-subset decision before any HarnessX execution code is wired in.
