@@ -259,17 +259,18 @@ This plan splits the fused regex layer into three governed owners (rules detect,
   - _Boundary: CI Pipeline_
   - _Depends: 8.1_
 
-- [ ] 9. Validate scan-pipeline integrity and serialization
-- [ ] 9.1 (P) Verify capability fallback and unchanged sync-driver behavior
+- [x] 9. Validate scan-pipeline integrity and serialization
+- [x] 9.1 (P) Verify capability fallback and unchanged sync-driver behavior
   - Confirm that with the extra absent, quick and standard scans execute through the existing sync driver with behavior unchanged from the pre-adoption baseline, and that a requested-but-unavailable HarnessX stage records a degradation.
   - Observable completion: an extra-absent scan matches the pre-adoption baseline and a missing-capability request records a manifest degradation, proven by an end-to-end fallback test.
   - _Requirements: 1.3, 1.8_
   - _Boundary: HxScanOrchestrator, CI Pipeline_
   - _Depends: 6.5_
 
-- [ ] 9.2 (P) Verify slot serialization round-trips on resume
+- [x] 9.2 (P) Verify slot serialization round-trips on resume
   - Confirm each scan slot type serializes and restores without loss after a resume, guarding against non-serializable slots restoring as empty.
   - Observable completion: a per-slot-type round-trip test passes for every scan slot after a resume cycle.
+  - Done for the current artifact-persistence model (findings/ranking/file-target/verification/score round-trip + the real findings.json reload path in `tests/test_scan_pipeline_integrity.py`). The HarnessX processor slot-contract serialization variant remains deferred with task 6.3.
   - _Requirements: 1.5_
   - _Boundary: HxScanOrchestrator_
   - _Depends: 6.3_
