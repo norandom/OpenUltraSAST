@@ -98,6 +98,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     improve.add_argument("--dry-run", action="store_true", help="run rounds against a throwaway ledger; never touch the target's ledger")
 
+    subparsers.add_parser("mcp", help="run the narrow MCP server over stdio for OpenCode integration")
+
     args = parser.parse_args(argv)
     if args.command == "scan":
         return _scan(args.path, args.config, args.mode, args.fail_on)
@@ -116,6 +118,10 @@ def main(argv: list[str] | None = None) -> int:
             ruleset_dir=args.ruleset_dir,
             dry_run=args.dry_run,
         )
+    if args.command == "mcp":
+        from .mcp import serve  # lazy: keeps the import cycle (mcp -> cli) one-directional
+
+        return serve()
     return 2
 
 

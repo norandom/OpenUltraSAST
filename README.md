@@ -167,6 +167,24 @@ Project skills that steer the harness from OpenCode (`.opencode/skills/`):
 | `openultrasast-triage` ✅ | false-positive elimination, ranking calibration, verifier adjudication |
 | `openultrasast-fix-audit` ✅ | OpenUltraCode fix lifecycle and adversarial fix review |
 
+### MCP server (narrow surface) ✅
+
+`ousast mcp` runs a zero-dependency MCP server over stdio (newline-delimited
+JSON-RPC) exposing only stable, project-level operations — **never** arbitrary
+shell, Docker, or internal hunter tools. Point an MCP client (OpenCode, Claude
+Desktop, an IDE) at it:
+
+```jsonc
+// e.g. an MCP client config entry
+{ "command": "uv", "args": ["run", "ousast", "mcp"] }
+```
+
+Tools: `openultrasast.scan`, `status`, `findings`, `get_finding`, `evidence`,
+`artifacts`, `benchmark`, `explain`, `propose_patch` (degrades visibly — the patch
+oracle is a later phase), and `export_report`. The `scan`/`benchmark` tools run the
+bounded analysis pipeline; no tool accepts a free-form command. A typical flow:
+`scan {path}` → returns a `run_dir` → `findings {run_dir}` → `explain {run_dir, finding_id}`.
+
 **Ultra workflows (OpenUltraCode discipline):** fixes are never a one-shot patch
 prompt. `openultrasast-fix-audit` runs the bounded lifecycle
 `intake → plan → minimal patch → adversarial review → reconcile → fresh

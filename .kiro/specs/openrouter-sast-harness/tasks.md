@@ -249,12 +249,15 @@ Do not report OpenUltraSAST as a working security harness until `usable_harness_
 
 ## Phase 12: MCP And OpenCode Commands (`opencode_product` prerequisite)
 
+Implemented in `mcp.py` (zero-dep stdio JSON-RPC server) + the `ousast mcp` CLI
+subcommand; tests in `tests/test_mcp.py`; README "MCP server" section documents it.
+
 - [x] Add project-local opencode skills for scan, triage, fix audit, and implementation steering.
-- [ ] Implement narrow MCP server.
-- [ ] Add `openultrasast.scan`, `status`, `findings`, `get_finding`, `evidence`, `artifacts`, `benchmark`, `explain`, `propose_patch`, and `export_report` tools.
-- [ ] Add opencode command docs for quick, standard, deep, verify, and patch workflows.
-- [ ] Ensure MCP tools never expose arbitrary shell execution.
-- [ ] Add integration test for MCP tool listing and scan status.
+- [x] Implement narrow MCP server.
+- [x] Add `openultrasast.scan`, `status`, `findings`, `get_finding`, `evidence`, `artifacts`, `benchmark`, `explain`, `propose_patch`, and `export_report` tools.
+- [x] Add opencode command docs for quick, standard, deep, verify, and patch workflows. (README; deep/patch noted as roadmap.)
+- [x] Ensure MCP tools never expose arbitrary shell execution. (Surface-safety test asserts no shell/exec/command tool.)
+- [x] Add integration test for MCP tool listing and scan status.
 
 ## Phase 13: Fusion (`standard_security_harness` and `opencode_product` prerequisite)
 
