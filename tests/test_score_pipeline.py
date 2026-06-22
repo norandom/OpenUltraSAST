@@ -35,7 +35,8 @@ def test_scan_fails_loud_when_an_enabled_rule_cwe_is_unmapped(tmp_path: Path, mo
     (repo / "app.py").write_text("x = 1\n")
     monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
     unmapped = SimpleNamespace(rule_id="bogus", cwe="CWE-99999", status="enabled")
-    monkeypatch.setattr(cli, "PATTERN_RULES", (*cli.PATTERN_RULES, unmapped))
+    real_loader = cli.load_ruleset
+    monkeypatch.setattr(cli, "load_ruleset", lambda *a, **k: (*real_loader(*a, **k), unmapped))
 
     with pytest.raises(PolicyError):
         main(["scan", str(repo), "--mode", "quick"])

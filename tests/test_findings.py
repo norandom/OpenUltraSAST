@@ -56,7 +56,8 @@ def test_findings_and_report_artifacts(tmp_path: Path) -> None:
     write_findings(findings, findings_path)
     write_markdown_report(findings, report_path)
 
-    assert json.loads(findings_path.read_text())["findings"][0]["severity"] == "medium"
+    # Severity is now policy-governed: CWE-78 (command injection) resolves to 5 -> "critical".
+    assert json.loads(findings_path.read_text())["findings"][0]["severity"] == "critical"
     assert "Subprocess shell execution" in report_path.read_text()
 
 

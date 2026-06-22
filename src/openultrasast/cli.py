@@ -25,7 +25,7 @@ from .calibration import (
     write_ranking_calibrations,
 )
 from .config import load_config
-from .findings import PATTERN_RULES, StaticFinding, quick_scan_findings, write_findings
+from .findings import StaticFinding, quick_scan_findings, write_findings
 from .harness import HarnessRuntime, HarnessTraceWriter, write_harness_config
 from .hunter import run_hunter_pool, write_hunter_trajectories
 from .index import build_code_chunks
@@ -34,6 +34,7 @@ from .policy import assert_rules_resolve, load_policy
 from .preprocess import preprocess_repository, write_preprocess_artifact
 from .rank import rank_targets, write_rankings
 from .reports import scan_exit_code, write_manifest, write_markdown_report, write_sarif_report
+from .ruleset import DEFAULT_RULESET_DIR, load_ruleset
 from .run import ScanRun, create_scan_run
 from .scoring import build_score_artifact
 from .verification import VerificationResult, verify_findings, write_verification_results
@@ -104,7 +105,8 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     write_harness_config(config=config, processors=[], contract_mode="strict", path=run.root / "harness.json")
     runtime.start(mode=mode, target=run.target)
     policy = runtime.run_stage("policy_load", load_policy)
-    runtime.run_stage("policy_check", lambda: assert_rules_resolve(PATTERN_RULES, policy))
+    ruleset = runtime.run_stage("ruleset_load", lambda: load_ruleset(DEFAULT_RULESET_DIR))
+    runtime.run_stage("policy_check", lambda: assert_rules_resolve(ruleset, policy))
     static_hints = runtime.run_stage("static_mapping", lambda: _load_static_hints(config.static_analysis.sarif_paths))
     write_static_hints(static_hints, run.root / "mapping" / "static_hints.json")
     snapshot, targets = runtime.run_stage(
@@ -123,12 +125,32 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     write_rankings(rankings, run.root / "rank" / "ranking.json")
     write_ranking_calibrations(calibrations, run.root / "calibration" / "applied_calibrations.json")
     if mode == "standard":
-        hunter_result = runtime.run_stage("hunter_pool", lambda: run_hunter_pool(run.target, targets, rankings, scan_id=run.scan_id))
+        hunter_result = runtime.run_stage(
+            "hunter_pool",
+            lambda: run_hunter_pool(run.target, targets, rankings, scan_id=run.scan_id, ruleset=ruleset, policy=policy),
+        )
         findings = hunter_result.findings
         trajectories = hunter_result.trajectories
     else:
-        findings = runtime.run_stage("quick_findings", lambda: quick_scan_findings(run.target, targets, rankings))
+        findings = runtime.run_stage(
+            "quick_findings",
+            lambda: quick_scan_findings(
+                run.target,
+                targets,
+                rankings,
+                ruleset,
+                policy,
+                min_emit_priority=config.ruleset.min_emit_priority,
+                min_emit_precision=config.ruleset.min_emit_precision,
+            ),
+        )
         trajectories = []
+    # Shadow-status rules fire but are excluded from the report and the score;
+    # their outcomes are preserved separately for precision tracking.
+    shadow_findings = [finding for finding in findings if finding.status == "shadow"]
+    if shadow_findings:
+        findings = [finding for finding in findings if finding.status != "shadow"]
+        write_findings(shadow_findings, run.root / "shadow_findings.json")
     findings_path = run.root / "findings.json"
     verification_path = run.root / "verification.json"
     markdown_path = run.root / "report.md"
@@ -144,7 +166,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         "record_calibration",
         lambda: _persist_calibration_feedback(run, ledger_path, prior_learnings, findings, verifications),
     )
-    cwe_by_rule = {rule.rule_id: rule.cwe for rule in PATTERN_RULES}
+    cwe_by_rule = {rule.rule_id: rule.cwe for rule in ruleset}
     rule_cwe_by_id = {finding.finding_id: cwe_by_rule.get(finding.finding_id.split(":", 1)[0], "") for finding in findings}
     score_artifact = runtime.run_stage(
         "score",

@@ -59,6 +59,14 @@ class ScoreConfig:
 
 
 @dataclass(frozen=True)
+class RulesetConfig:
+    # Emission floors that replace "every regex match becomes a finding". The
+    # defaults (0.0) emit everything, keeping output byte-identical by default.
+    min_emit_priority: float = 0.0
+    min_emit_precision: float = 0.0
+
+
+@dataclass(frozen=True)
 class ResolvedConfig:
     models: ModelConfig = ModelConfig()
     embeddings: EmbeddingConfig = EmbeddingConfig()
@@ -67,6 +75,7 @@ class ResolvedConfig:
     evidence: EvidenceConfig = EvidenceConfig()
     static_analysis: StaticAnalysisConfig = StaticAnalysisConfig()
     score: ScoreConfig = ScoreConfig()
+    ruleset: RulesetConfig = RulesetConfig()
     runs_dir: str = ".openultrasast/runs"
 
 
@@ -84,6 +93,7 @@ def load_config(config_path: Path | None = None) -> ResolvedConfig:
         evidence=_load_evidence(data.get("evidence", {})),
         static_analysis=_load_static_analysis(data.get("static_analysis", {})),
         score=_load_score(data.get("score", {})),
+        ruleset=_load_ruleset_config(data.get("ruleset", {})),
         runs_dir=os.environ.get("OPENULTRASAST_RUNS_DIR", ".openultrasast/runs"),
     )
 
@@ -167,6 +177,14 @@ def _load_score(value: object) -> ScoreConfig:
         min_score=_int_value(data.get("min_score"), 80),
         block_severity_reachable=_int_value(data.get("block_severity_reachable"), 5),
         blocking=bool(data.get("blocking", False)),
+    )
+
+
+def _load_ruleset_config(value: object) -> RulesetConfig:
+    data = _section(value)
+    return RulesetConfig(
+        min_emit_priority=_float_value(data.get("min_emit_priority"), 0.0),
+        min_emit_precision=_float_value(data.get("min_emit_precision"), 0.0),
     )
 
 

@@ -1,0 +1,71 @@
+[[rule]]
+rule_id = "c-exec-family"
+title = "C exec command execution needs review"
+languages = ["c", "cpp"]
+cwe = "CWE-78"
+tags = ["syscall_entry"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\b(execl|execlp|execle|execv|execvp|execvpe)\s*\('''
+
+[[rule]]
+rule_id = "c-shell-exec"
+title = "C shell execution needs review"
+languages = ["c", "cpp"]
+cwe = "CWE-78"
+tags = ["syscall_entry"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\b(system|popen)\s*\('''
+
+[[rule]]
+rule_id = "c-unsafe-copy"
+title = "Unsafe C string copy needs review"
+languages = ["c", "cpp"]
+cwe = "CWE-121"
+tags = ["memory_unsafe"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\b(gets|strcpy|strcat|sprintf)\s*\('''
+
+[[rule]]
+rule_id = "c-unsafe-format"
+title = "Unsafe C format string needs review"
+languages = ["c", "cpp"]
+cwe = "CWE-134"
+tags = ["memory_unsafe"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\b(printf|vprintf|vsprintf|vsnprintf|vfprintf|syslog)\s*\(\s*[A-Za-z_]'''
+
+[[rule]]
+rule_id = "c-unsafe-memory-copy"
+title = "Unsafe C memory copy needs review"
+languages = ["c", "cpp"]
+cwe = "CWE-121"
+tags = ["memory_unsafe"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\b(memcpy|memmove|bcopy)\s*\('''
+
+[[rule]]
+rule_id = "c-unsafe-scanf"
+title = "Unbounded C scanf needs review"
+languages = ["c", "cpp"]
+cwe = "CWE-121"
+tags = ["memory_unsafe"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\b(scanf|fscanf|sscanf)\s*\([^\n]*%s'''

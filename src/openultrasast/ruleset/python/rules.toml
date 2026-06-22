@@ -1,0 +1,119 @@
+[[rule]]
+rule_id = "python-flask-debug"
+title = "Flask debug mode enabled needs review"
+languages = ["python"]
+cwe = "CWE-489"
+tags = ["insecure_default"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\.run\s*\([^\n]*(debug)\s*=\s*True'''
+
+[[rule]]
+rule_id = "python-os-command"
+title = "Python OS command execution needs review"
+languages = ["python"]
+cwe = "CWE-78"
+tags = ["syscall_entry"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\b(os\.system|os\.popen|os\.execl|os\.execlp|os\.execv|os\.execvp)\s*\('''
+
+[[rule]]
+rule_id = "python-path-traversal"
+title = "Python file open with external input needs review"
+languages = ["python"]
+cwe = "CWE-22"
+tags = ["filesystem_entry"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\b(open)\s*\(\s*[^\n]*(?:request\.|req\.|argv|input\s*\(|params\[|GET\[|POST\[)'''
+
+[[rule]]
+rule_id = "python-shell-true"
+title = "Subprocess shell execution needs review"
+languages = ["python"]
+cwe = "CWE-78"
+tags = ["syscall_entry"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''subprocess\.[a-zA-Z_]+\s*\([^\n]*shell\s*=\s*True'''
+
+[[rule]]
+rule_id = "python-sql-injection"
+title = "Python SQL string composition needs review"
+languages = ["python"]
+cwe = "CWE-89"
+tags = ["injection"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''(\.execute)\s*\(\s*[^\n]*(?:[\"']\s*%\s*[(A-Za-z_]|\.format\s*\(|[\"']\s*\+|\bf[\"'])'''
+
+[[rule]]
+rule_id = "python-ssrf"
+title = "Python outbound request with external input needs review"
+languages = ["python"]
+cwe = "CWE-918"
+tags = ["network_entry"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\b(requests\.(?:get|post|put|delete|head|patch)|urllib\.request\.urlopen|urlopen)\s*\(\s*[^\n]*(?:request\.|req\.|argv|input\s*\()'''
+
+[[rule]]
+rule_id = "python-ssti"
+title = "Python server-side template injection needs review"
+languages = ["python"]
+cwe = "CWE-94"
+tags = ["injection"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\b(render_template_string)\s*\('''
+
+[[rule]]
+rule_id = "python-unsafe-deserialization"
+title = "Unsafe Python deserialization needs review"
+languages = ["python"]
+cwe = "CWE-502"
+tags = ["deserialization"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\b(pickle\.loads|pickle\.load|cPickle\.loads|yaml\.load|marshal\.loads)\s*\('''
+
+[[rule]]
+rule_id = "python-unsafe-eval"
+title = "Dynamic Python execution needs review"
+languages = ["python"]
+cwe = "CWE-95"
+tags = ["syscall_entry"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\b(eval|exec)\s*\('''
+
+[[rule]]
+rule_id = "python-weak-hash"
+title = "Python weak hash needs review"
+languages = ["python"]
+cwe = "CWE-327"
+tags = ["crypto"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\bhashlib\.(md5|sha1)\s*\('''

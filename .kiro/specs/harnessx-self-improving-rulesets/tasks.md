@@ -59,15 +59,15 @@ This plan splits the fused regex layer into three governed owners (rules detect,
 
 ## Phase 2 — Core: Rules-as-Data and Benchmark Signals (zero-dep, byte-identical)
 
-- [ ] 3. Convert detection rules into versioned, governed data
-- [ ] 3.1 Externalize detection patterns into a versioned Ruleset Store
+- [x] 3. Convert detection rules into versioned, governed data
+- [x] 3.1 Externalize detection patterns into a versioned Ruleset Store
   - Load detection rules from versioned data files in which each rule declares a pattern, a CWE, tags, and a loop-controlled status, carrying no rule-local severity field.
   - Remove the rule-local severity field from the in-memory rule model so severity can only come from policy.
   - Observable completion: the existing pattern rules load from versioned data files with no severity attribute present, proven by a unit test asserting the absence of the field.
   - _Requirements: 2.1, 2.9_
   - _Boundary: RulesetStore_
 
-- [ ] 3.2 Implement the three-status volume control
+- [x] 3.2 Implement the three-status volume control
   - Support exactly three rule statuses — `enabled`, `shadow`, `disabled` — where enabled fires/scores/reports, shadow fires and records outcomes but is excluded from report and score, and disabled does not fire.
   - Exclude shadow-status findings from the reported set and from the score input while still recording their outcome for precision tracking.
   - Observable completion: an enabled rule appears in report and score, a shadow rule is excluded from both yet records an outcome, and a disabled rule never fires, proven by a unit test across all three statuses.
@@ -75,14 +75,14 @@ This plan splits the fused regex layer into three governed owners (rules detect,
   - _Boundary: RulesetStore, ScoreModel_
   - _Depends: 3.1, 2.1_
 
-- [ ] 3.3 Remap the unmapped C/C++ buffer rules to a scored CWE
+- [x] 3.3 Remap the unmapped C/C++ buffer rules to a scored CWE
   - Remap the C/C++ buffer-handling rules that reference the unmapped CWE-120 to CWE-121 so they resolve in policy and contribute a nonzero penalty.
   - Observable completion: the remapped buffer rules resolve to a severity-5 policy entry and produce a nonzero score penalty, verified by a unit test.
   - _Requirements: 2.8_
   - _Boundary: RulesetStore_
   - _Depends: 3.1, 1.1_
 
-- [ ] 3.4 Wire findings and severity resolution through the governance plane
+- [x] 3.4 Wire findings and severity resolution through the governance plane
   - Pass the loaded ruleset into the finding-detection stage instead of reading an implicit module-level rule list, and resolve every finding's severity through the Policy Store.
   - Apply emission thresholds so not every regex match becomes a reported finding, replacing the old "rule is its own volume control" behavior.
   - Observable completion: a scan produces findings with policy-resolved severity and shadow findings filtered out, while the default ruleset keeps benchmark output byte-identical to the pre-feature baseline.

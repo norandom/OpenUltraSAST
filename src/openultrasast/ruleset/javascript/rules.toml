@@ -1,0 +1,131 @@
+[[rule]]
+rule_id = "js-command-exec"
+title = "Node child_process command execution needs review"
+languages = ["javascript", "typescript"]
+cwe = "CWE-78"
+tags = ["syscall_entry"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\b(exec|execSync)\s*\('''
+
+[[rule]]
+rule_id = "js-deserialize"
+title = "JavaScript unsafe deserialization needs review"
+languages = ["javascript", "typescript"]
+cwe = "CWE-502"
+tags = ["deserialization"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\b(unserialize)\s*\('''
+
+[[rule]]
+rule_id = "js-dom-xss"
+title = "DOM sink with untrusted input needs review"
+languages = ["javascript", "typescript"]
+cwe = "CWE-79"
+tags = ["injection"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\.(innerHTML|outerHTML)\s*=\s*[^\n]*\b(?:req|request|location|document\.location)'''
+
+[[rule]]
+rule_id = "js-eval"
+title = "Dynamic JavaScript evaluation needs review"
+languages = ["javascript", "typescript"]
+cwe = "CWE-95"
+tags = ["syscall_entry"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\b(eval)\s*\('''
+
+[[rule]]
+rule_id = "js-function-constructor"
+title = "JavaScript Function constructor needs review"
+languages = ["javascript", "typescript"]
+cwe = "CWE-95"
+tags = ["syscall_entry"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''new\s+(Function)\s*\('''
+
+[[rule]]
+rule_id = "js-path-traversal"
+title = "Node filesystem access with external input needs review"
+languages = ["javascript", "typescript"]
+cwe = "CWE-22"
+tags = ["filesystem_entry"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\bfs\.(readFile|readFileSync|writeFile|writeFileSync|createReadStream|unlink|unlinkSync)\s*\(\s*[^\n]*\b(?:req|request)\.'''
+
+[[rule]]
+rule_id = "js-spawn-shell"
+title = "Node spawn with shell needs review"
+languages = ["javascript", "typescript"]
+cwe = "CWE-78"
+tags = ["syscall_entry"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\b(spawn|spawnSync)\s*\([^\n]*shell\s*:\s*true'''
+
+[[rule]]
+rule_id = "js-sql-injection"
+title = "JavaScript SQL string composition needs review"
+languages = ["javascript", "typescript"]
+cwe = "CWE-89"
+tags = ["injection"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\.(query|execute)\s*\(\s*[^\n]*(?:\$\{|\+\s*[A-Za-z_$])'''
+
+[[rule]]
+rule_id = "js-ssrf"
+title = "JavaScript outbound request with external input needs review"
+languages = ["javascript", "typescript"]
+cwe = "CWE-918"
+tags = ["network_entry"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\b(axios|fetch|got)\s*[.(][^\n]*\b(?:req|request)\.'''
+
+[[rule]]
+rule_id = "js-weak-hash"
+title = "JavaScript weak hash needs review"
+languages = ["javascript", "typescript"]
+cwe = "CWE-327"
+tags = ["crypto"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''createHash\s*\(\s*[\"'](md5|sha1)[\"']'''
+
+[[rule]]
+rule_id = "js-xss-response"
+title = "Unsanitized HTTP response reflection needs review"
+languages = ["javascript", "typescript"]
+cwe = "CWE-79"
+tags = ["injection"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\.(send|write|end)\s*\(\s*[^\n]*\b(?:req|request)\.(?:query|params|body)'''

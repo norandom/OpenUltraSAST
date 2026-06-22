@@ -7,8 +7,10 @@ from pathlib import Path
 from typing import Literal
 
 from .findings import StaticFinding, quick_scan_findings
+from .policy import CwePolicy
 from .preprocess import FileTarget
 from .rank import RankingScore
+from .ruleset import PatternRule
 
 HunterTier = Literal["A", "B", "C"]
 
@@ -98,13 +100,21 @@ def schedule_hunter_tasks(
     return scheduled
 
 
-def run_hunter_pool(root: Path, targets: list[FileTarget], rankings: list[RankingScore], *, scan_id: str) -> HunterPoolResult:
+def run_hunter_pool(
+    root: Path,
+    targets: list[FileTarget],
+    rankings: list[RankingScore],
+    *,
+    scan_id: str,
+    ruleset: tuple[PatternRule, ...] | None = None,
+    policy: dict[str, CwePolicy] | None = None,
+) -> HunterPoolResult:
     tasks = schedule_hunter_tasks(targets, rankings, retrieval_context_by_path=build_retrieval_context_by_path(root, targets))
     findings: list[StaticFinding] = []
     trajectories: list[HunterTrajectory] = []
     max_workers = min(8, max(1, len(tasks)))
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        for task_findings, trajectory in executor.map(lambda task: _run_hunter_task(root, scan_id, task), tasks):
+        for task_findings, trajectory in executor.map(lambda task: _run_hunter_task(root, scan_id, task, ruleset, policy), tasks):
             findings.extend(task_findings)
             trajectories.append(trajectory)
     return HunterPoolResult(findings=sorted(findings, key=lambda item: item.finding_id), trajectories=trajectories)
@@ -140,8 +150,14 @@ def select_skill_snippets(target: FileTarget, *, max_snippets: int = 4) -> list[
     return sorted(dict.fromkeys(snippets))[:max_snippets]
 
 
-def _run_hunter_task(root: Path, scan_id: str, task: HunterTask) -> tuple[list[StaticFinding], HunterTrajectory]:
-    findings = quick_scan_findings(root, [task.target], [task.ranking])[: task.budget.max_findings_per_target]
+def _run_hunter_task(
+    root: Path,
+    scan_id: str,
+    task: HunterTask,
+    ruleset: tuple[PatternRule, ...] | None = None,
+    policy: dict[str, CwePolicy] | None = None,
+) -> tuple[list[StaticFinding], HunterTrajectory]:
+    findings = quick_scan_findings(root, [task.target], [task.ranking], ruleset, policy)[: task.budget.max_findings_per_target]
     return findings, HunterTrajectory(
         scan_id=scan_id,
         target_path=task.target.path,

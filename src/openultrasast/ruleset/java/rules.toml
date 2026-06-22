@@ -1,0 +1,47 @@
+[[rule]]
+rule_id = "java-command-exec"
+title = "Java runtime command execution needs review"
+languages = ["java"]
+cwe = "CWE-78"
+tags = ["syscall_entry"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\b(exec)\s*\('''
+
+[[rule]]
+rule_id = "java-deserialization"
+title = "Java unsafe deserialization needs review"
+languages = ["java"]
+cwe = "CWE-502"
+tags = ["deserialization"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''\.(readObject)\s*\('''
+
+[[rule]]
+rule_id = "java-sql-injection"
+title = "Java SQL string composition needs review"
+languages = ["java"]
+cwe = "CWE-89"
+tags = ["injection"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''(?i)\"\s*(select|insert|update|delete)\b[^\"]*\"\s*\+'''
+
+[[rule]]
+rule_id = "java-weak-hash"
+title = "Java weak hash needs review"
+languages = ["java"]
+cwe = "CWE-327"
+tags = ["crypto"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+pattern = '''MessageDigest\.getInstance\s*\(\s*\"(MD5|SHA-1)\"'''
