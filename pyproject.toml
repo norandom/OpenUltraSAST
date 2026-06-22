@@ -10,6 +10,17 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
 
+[project.optional-dependencies]
+# HarnessX is the optional agentic plane (LLM hunter/verifier + self-improvement).
+# SHA-pinned for reproducibility; the heavy transitive footprint (see
+# .kiro/specs/harnessx-self-improving-rulesets/dependency-audit.md) lands ONLY when
+# this extra is installed. The core install stays zero-dependency and every HarnessX
+# import is guarded by openultrasast.harness_ext (lazy). pip does not pull the
+# recipe/verl_harnessX submodule (it is outside the packaged harnessx* modules).
+harnessx = [
+    "harnessx @ git+https://github.com/Darwin-Agent/HarnessX.git@274c512eea67c64701f992d3b6fe06f0fd590ef0",
+]
+
 [project.scripts]
 ousast = "openultrasast.cli:main"
 

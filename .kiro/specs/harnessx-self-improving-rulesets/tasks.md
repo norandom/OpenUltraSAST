@@ -122,7 +122,7 @@ This plan splits the fused regex layer into three governed owners (rules detect,
 
 ## Phase 3 — Integration: HarnessX Execution & Self-Improvement (optional extra)
 
-- [ ] 5. Gate and package the HarnessX dependency-weight decision
+- [x] 5. Gate and package the HarnessX dependency-weight decision
 - [x] 5.1 Run the dependency dry-run audit and record the transitive graph
   - Before adopting the HarnessX execution stages, run a dependency dry-run audit and record the realized transitive dependency graph.
   - If the audited graph pulls a browser-binary, container-SDK, or web-server stack as a mandatory dependency and it is judged unacceptable, select the pre-specified vendored lean subset under the same extra name with the heavy subtrees removed.
@@ -130,7 +130,7 @@ This plan splits the fused regex layer into three governed owners (rules detect,
   - _Requirements: 7.3, 7.4, 7.7_
   - _Boundary: Packaging Configuration_
 
-- [ ] 5.2 Configure HarnessX as a SHA-pinned optional extra with a capability guard
+- [x] 5.2 Configure HarnessX as a SHA-pinned optional extra with a capability guard
   - Keep the core dependency list empty and expose HarnessX only as an optional extra pinned to a specific commit revision; initialize any submodule non-recursively so the large RL fork subtree is not pulled.
   - Guard every HarnessX import behind a capability check and import it lazily so heavy code paths stay cold in the default install.
   - Observable completion: the default install resolves with an empty core dependency list and HarnessX symbols are only imported after the capability check passes, verified by an import-cold test.
