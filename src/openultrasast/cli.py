@@ -28,6 +28,7 @@ from .calibration import (
 )
 from .config import load_config
 from .findings import StaticFinding, quick_scan_findings, write_findings
+from .fusion import FusionDecision, fuse_findings_dispatch
 from .gate import FALSE_POSITIVE_CEILING, RECALL_FLOOR
 from .harness import HarnessRuntime, HarnessTraceWriter, write_harness_config
 from .harness_ext import has_harnessx
@@ -239,6 +240,31 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         "record_calibration",
         lambda: _persist_calibration_feedback(run, ledger_path, prior_learnings, findings, verifications),
     )
+    # Fusion: two-panel adjudication for triggered findings (standard mode). Runs
+    # deterministically by default; routes panels through the configured provider when
+    # a panel model is set and the extra is present, else falls back + records a degradation.
+    fusion_decisions: list[FusionDecision] = []
+    fusion_path = run.root / "fusion.json"
+    if mode == "standard" and config.fusion.enabled:
+        hx_fusion = bool(config.fusion.panel_model) and harnessx_present
+        if bool(config.fusion.panel_model) and not harnessx_present:
+            runtime.state["degradations"].append(
+                {"stage": "fusion", "requested": "harnessx", "reason": "harnessx_extra_unavailable", "fallback": "deterministic_panels"}
+            )
+        fusion_decisions = runtime.run_stage(
+            "fusion",
+            lambda: fuse_findings_dispatch(
+                findings,
+                verifications,
+                panel_model=config.fusion.panel_model,
+                decider_model=config.fusion.decider_model,
+                provider=config.harnessx.provider,
+                use_harnessx=hx_fusion,
+                high_assurance=config.fusion.high_assurance,
+            ),
+        )
+        if fusion_decisions:
+            fusion_path.write_text(json.dumps([decision.to_dict() for decision in fusion_decisions], indent=2, sort_keys=True) + "\n")
     cwe_by_rule = {rule.rule_id: rule.cwe for rule in ruleset}
     rule_cwe_by_id = {finding.finding_id: cwe_by_rule.get(finding.finding_id.split(":", 1)[0], "") for finding in findings}
     # A confirmed false positive (prior-scan learning) lowers a finding's effective
@@ -274,10 +300,12 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
                 sarif=sarif_path,
                 score=score_path,
                 trajectories=trajectories_path if trajectories else None,
+                fusion=fusion_path if fusion_decisions else None,
             ),
             path=manifest_path,
             score=score_artifact.to_dict(),
             degradations=runtime.state["degradations"] or None,
+            fusion=[_fusion_summary(decision) for decision in fusion_decisions] or None,
         ),
     )
     runtime.finish(status="succeeded")
@@ -327,6 +355,15 @@ def _load_static_hints(sarif_paths: tuple[str, ...]) -> list[object]:
 
 def _artifact_paths(**paths: Path | None) -> dict[str, Path]:
     return {name: path for name, path in paths.items() if path is not None}
+
+
+def _fusion_summary(decision: FusionDecision) -> dict[str, object]:
+    return {
+        "finding_id": decision.finding_id,
+        "disposition": str(decision.disposition),
+        "decision_source": decision.decision_source,
+        "triggers": decision.triggers,
+    }
 
 
 def _benchmark(manifest_path: Path, config_path: Path, mode: str) -> int:

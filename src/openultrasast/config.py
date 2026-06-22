@@ -78,6 +78,17 @@ class HarnessxConfig:
 
 
 @dataclass(frozen=True)
+class FusionConfig:
+    # Two-panel fusion adjudication for triggered findings (standard mode). Runs
+    # deterministically by default; setting panel_model routes the panels through
+    # the configured HarnessX provider. high_assurance forces fusion on every finding.
+    enabled: bool = True
+    panel_model: str | None = None
+    decider_model: str | None = None
+    high_assurance: bool = False
+
+
+@dataclass(frozen=True)
 class ResolvedConfig:
     models: ModelConfig = ModelConfig()
     embeddings: EmbeddingConfig = EmbeddingConfig()
@@ -88,6 +99,7 @@ class ResolvedConfig:
     score: ScoreConfig = ScoreConfig()
     ruleset: RulesetConfig = RulesetConfig()
     harnessx: HarnessxConfig = HarnessxConfig()
+    fusion: FusionConfig = FusionConfig()
     runs_dir: str = ".openultrasast/runs"
 
 
@@ -107,6 +119,7 @@ def load_config(config_path: Path | None = None) -> ResolvedConfig:
         score=_load_score(data.get("score", {})),
         ruleset=_load_ruleset_config(data.get("ruleset", {})),
         harnessx=_load_harnessx(data.get("harnessx", {})),
+        fusion=_load_fusion(data.get("fusion", {})),
         runs_dir=os.environ.get("OPENULTRASAST_RUNS_DIR", ".openultrasast/runs"),
     )
 
@@ -207,6 +220,16 @@ def _load_harnessx(value: object) -> HarnessxConfig:
         provider=_string(data.get("provider")) or "anthropic",
         max_cost_usd=_float_value(data.get("max_cost_usd"), 2.0),
         token_threshold=_int_value(data.get("token_threshold"), 120_000),
+    )
+
+
+def _load_fusion(value: object) -> FusionConfig:
+    data = _section(value)
+    return FusionConfig(
+        enabled=bool(data.get("enabled", True)),
+        panel_model=_string(data.get("panel_model")),
+        decider_model=_string(data.get("decider_model")),
+        high_assurance=bool(data.get("high_assurance", False)),
     )
 
 

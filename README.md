@@ -173,14 +173,24 @@ prompt. `openultrasast-fix-audit` runs the bounded lifecycle
 verification → ready`, and a patch can only reach `patch_validated` after
 sandboxed validation passes with no accepted blocking findings.
 
-**Fusion (deepening) 🧭:** when a finding needs more reasoning than the normal
+**Fusion (deepening) ✅:** when a finding needs more reasoning than the normal
 ranker → hunter → verifier → mapping loop provides (critical/high severity,
 verifier disagreement, conflicting static vs semantic evidence, risky fixes, or
 an explicit high-assurance request), fusion runs two independent panels that
-critique, revise, vote, and a decider issues the disposition (accepted /
-rejected / mitigated / deferred / blocked) with model IDs and degradations
-disclosed. The triage skill escalates to fusion *when available*; the panel
-implementation is on the roadmap (Phase 13).
+steel-man the vulnerability and false-positive cases, vote, and a decider issues
+the disposition (accepted / rejected / mitigated / deferred / blocked) with votes,
+model IDs, and degradations disclosed. It runs automatically on triggered findings
+in `--mode standard`, writing `fusion.json` and a `fusion` block in the manifest.
+Deterministic by default (`fusion.py`); set `[fusion] panel_model` to route the
+panels through the configured provider:
+
+```toml
+[fusion]
+enabled        = true       # default; runs on triggered findings in standard mode
+panel_model    = "gpt-4o"   # optional: LLM panels via the [harnessx] provider
+decider_model  = "gpt-4o"   # optional: disclosed in the decision's model IDs
+high_assurance = false      # true forces fusion on every finding
+```
 
 > The `kiro-*` skills and `AGENTS.md` in this repo are the maintainer's
 > spec-driven development tooling. They are not part of using OpenUltraSAST and

@@ -258,14 +258,18 @@ Do not report OpenUltraSAST as a working security harness until `usable_harness_
 
 ## Phase 13: Fusion (`standard_security_harness` and `opencode_product` prerequisite)
 
-- [ ] Implement fusion trigger policy.
-- [ ] Trigger fusion whenever a task requires deeper reasoning, including difficult findings, contradictory evidence, high-impact decisions, and risky fixes.
-- [ ] Implement panel A, panel B, and decider role config.
-- [ ] Implement cross-critique and revised answer flow.
-- [ ] Implement vote/rank output schema.
-- [ ] Implement reconciliation dispositions.
-- [ ] Record model IDs, degradations, warnings, and final decision source.
-- [ ] Add tests for fusion output validation.
+Implemented in `fusion.py` (zero-dep deterministic engine + lazy LLM panels), wired
+into the standard-mode CLI (`fusion.json` + manifest `fusion` block), config `[fusion]`.
+Tests in `tests/test_fusion.py`.
+
+- [x] Implement fusion trigger policy.
+- [x] Trigger fusion whenever a task requires deeper reasoning, including difficult findings, contradictory evidence, high-impact decisions, and risky fixes.
+- [x] Implement panel A, panel B, and decider role config.
+- [x] Implement cross-critique and revised answer flow.
+- [x] Implement vote/rank output schema.
+- [x] Implement reconciliation dispositions.
+- [x] Record model IDs, degradations, warnings, and final decision source.
+- [x] Add tests for fusion output validation.
 
 ## Phase 14: Skill Index (`standard_security_harness` prerequisite)
 

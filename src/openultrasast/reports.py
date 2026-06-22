@@ -73,6 +73,7 @@ def write_manifest(
     path: Path,
     score: dict[str, object] | None = None,
     degradations: list[dict[str, object]] | None = None,
+    fusion: list[dict[str, object]] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications)
@@ -99,6 +100,8 @@ def write_manifest(
         payload["score"] = score
     if degradations is not None:
         payload["degradations"] = degradations
+    if fusion is not None:
+        payload["fusion"] = fusion
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
