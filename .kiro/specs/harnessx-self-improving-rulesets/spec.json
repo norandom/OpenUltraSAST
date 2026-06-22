@@ -1,0 +1,22 @@
+{
+  "feature_name": "harnessx-self-improving-rulesets",
+  "created_at": "2026-06-22T10:07:18Z",
+  "updated_at": "2026-06-22T10:07:18Z",
+  "language": "en",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": false
+    },
+    "design": {
+      "generated": true,
+      "approved": false
+    },
+    "tasks": {
+      "generated": true,
+      "approved": false
+    }
+  },
+  "ready_for_implementation": false
+}
