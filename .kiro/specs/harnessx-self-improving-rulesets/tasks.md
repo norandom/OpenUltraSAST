@@ -177,15 +177,15 @@ This plan splits the fused regex layer into three governed owners (rules detect,
   - _Boundary: HxScanOrchestrator_
   - _Depends: 6.1, 6.4_
 
-- [ ] 7. Stand up the bounded self-improvement loop
-- [ ] 7.1 Add the two bounded edit levers
+- [x] 7. Stand up the bounded self-improvement loop
+- [x] 7.1 Add the two bounded edit levers
   - Expose exactly two new edit levers: a rule lever covering rule status, evidence floor, and threshold, and a policy lever covering evidence floor, scope, and the score constants.
   - Observable completion: the loop's valid-lever set includes exactly the rule and policy levers and rejects any edit outside their declared fields, verified by a lever test.
   - _Requirements: 3.1_
   - _Boundary: EvolveValidator, improve/evolve.py_
   - _Depends: 5.2_
 
-- [ ] 7.2 Enforce the rule/policy edit safety bounds in the validator
+- [x] 7.2 Enforce the rule/policy edit safety bounds in the validator
   - Reject any loop edit that modifies detection pattern text and any edit that modifies the authoritative 0-5 CWE severity.
   - Reject moving a rule directly from enabled to disabled, requiring shadow as a mandatory intermediate staging state.
   - Assert that each edit parses, that status is one of the three literals, that threshold/evidence-floor changes stay within configured bounds, that an added rule does not duplicate an existing identifier, and that every referenced CWE resolves in policy; raise a rule-change validation error and reject the whole round on any failure.
@@ -194,7 +194,7 @@ This plan splits the fused regex layer into three governed owners (rules detect,
   - _Boundary: EvolveValidator_
   - _Depends: 7.1, 1.1_
 
-- [ ] 7.3 Add the novelty, replay, and journal gates
+- [x] 7.3 Add the novelty, replay, and journal gates
   - Block re-proposing a previously reverted edit that lacks a retry rationale via the novelty gate.
   - Run a replay smoke gate before any benchmark re-run proving the edited ruleset and policy still load and boot.
   - Record each rule and policy edit, its lever, and its outcome in the journal so every change is attributable and reversible.
@@ -203,14 +203,14 @@ This plan splits the fused regex layer into three governed owners (rules detect,
   - _Boundary: EvolveValidator, improve/evolve.py_
   - _Depends: 7.2_
 
-- [ ] 7.4 Convert benchmark deltas into loop signals
+- [x] 7.4 Convert benchmark deltas into loop signals
   - Convert the per-rule recommendation delta and false-positive learnings into a loop signal file, writing recall-side items as miss signals and precision-side items as verifier-reject or false-positive signals.
   - Observable completion: a benchmark run produces a signal file whose recall-side entries are miss signals and precision-side entries are verifier-reject/false-positive signals, verified against the documented signal schema.
   - _Requirements: 4.3_
   - _Boundary: improve/evolve.py_
   - _Depends: 4.2, 7.1_
 
-- [ ] 7.5 Implement the hard acceptance gate with byte-for-byte revert
+- [x] 7.5 Implement the hard acceptance gate with byte-for-byte revert
   - After the meta-agent edits rules or policy, re-run the benchmark and accept the round only if aggregate recall is at least 90% AND false-positive rate is under 10% AND the project score did not regress on the held set AND no unpredicted regression occurred.
   - On any failed acceptance condition, revert the round and restore the rule and policy configuration byte-for-byte.
   - Observable completion: a round that regresses recall is reverted and the configuration is restored byte-for-byte, while a compliant round is accepted and persisted, proven by a self-improvement integration test.
@@ -218,7 +218,7 @@ This plan splits the fused regex layer into three governed owners (rules detect,
   - _Boundary: improve/evolve.py_
   - _Depends: 7.3, 7.4, 4.1_
 
-- [ ] 7.6 Auto-shadow precision-draggers, nominate coverage gaps, and separate the objective
+- [x] 7.6 Auto-shadow precision-draggers, nominate coverage gaps, and separate the objective
   - Auto-shadow a rule that drags aggregate precision below the gate rather than delete it, preserving recall while removing the false-positive cost.
   - Nominate a new or loosened rule through the signal file when a coverage gap surfaces as a persistent miss, leaving pattern authoring to a human pull request.
   - Treat maximizing the project score as the optimization objective and the recall/FP gate as a separate hard feasibility constraint that is never folded into the score reward.
