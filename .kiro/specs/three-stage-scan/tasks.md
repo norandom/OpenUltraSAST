@@ -85,7 +85,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Requirements: 9.3_
   - _Boundary: SandboxProbe_
 
-- [ ] 4.2 (P) Run jobs through Docker CLI flags that match the threat model
+- [x] 4.2 (P) Run jobs through Docker CLI flags that match the threat model
   - Network is disabled, source is read-only, scratch is writable, memory/pids/timeout apply, capabilities are dropped, source tree is not writable, and the host Docker socket is never mounted.
   - A fake runner records the job and returns a programmed result so default tests do not need a daemon.
   - Observable completion: the constructed command line includes network-none and read-only and excludes docker.sock; the fake runner is used by unit tests.
