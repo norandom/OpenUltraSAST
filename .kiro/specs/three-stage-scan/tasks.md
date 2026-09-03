@@ -62,7 +62,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Boundary: ComplexityMapBuilder_
   - _Depends: 2.2_
 
-- [ ] 3. Add repo-bound hunter tools and a scripted tool loop
+- [x] 3. Add repo-bound hunter tools and a scripted tool loop
 - [x] 3.1 (P) Clamp tool paths and expose read, grep, and reference search
   - Read, grep, and reference listing resolve only under the scan root; `..` and absolute escapes raise a path-escape error.
   - Grep runs with the standard library over enumerated source files.
