@@ -32,7 +32,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
 ## Phase 2 — Core: Map, hunter tools, sandbox (parallel after foundation)
 
 - [ ] 2. Build the heuristic complexity map and test-tuning hints
-- [ ] 2.1 (P) Compute per-file and per-function complexity signals
+- [x] 2.1 (P) Compute per-file and per-function complexity signals
   - Signals include size, nesting, surface tags, reachability, inventory-hit density as a feature not the score, and whether an adjacent test appears to exist.
   - Function identity uses entry-point names when present and otherwise remains empty.
   - Observable completion: a parser file with no pattern hit scores higher than a one-line helper that matches a pattern, proven by a unit test on a constructed target list.
