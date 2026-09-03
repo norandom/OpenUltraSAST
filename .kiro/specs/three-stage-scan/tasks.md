@@ -39,7 +39,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Requirements: 3.1, 3.2_
   - _Boundary: ComplexityMapBuilder_
 
-- [ ] 2.2 (P) Emit the ordered hotspot map artifact
+- [x] 2.2 (P) Emit the ordered hotspot map artifact
   - Each hotspot carries score, band, rationale, signals, and linked inventory ids; the map records whether it is heuristic-only.
   - Observable completion: building a map writes a JSON artifact whose hotspot order is not identical to sorting by inventory-hit count on the same fixture.
   - _Requirements: 3.2, 3.3, 3.5, 8.6_
@@ -197,3 +197,4 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
 - `RegressConfig.images` is a sorted tuple of `(language, image)` pairs so frozen config stays hashable.
 - `scan_exit_code` duck-types `worth_fixing` on verdict objects; `_run_scan` still passes no verdicts until task 6.5. Dict-shaped verdicts would not fail the gate.
 - Map `top_k` default is 20 (not named in design.md); `max_hunter_hotspots=8` and `max_candidates=5` follow design.
+- `collect_signals` adjacent-test detection is false unless the caller also passes `repo_files`; task 2.2 must pass enumerated repo paths.
