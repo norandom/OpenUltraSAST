@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 from pathlib import Path
 
 from ..complexity.ledger import hotspot_key, select_forced_candidates
@@ -13,12 +12,26 @@ from ..findings import StaticFinding
 from ..sandbox import SandboxJob, SandboxResult, SandboxRunner
 from .recipes import recipe_for
 from .safety import UnsafeSnippetError, check_snippet_safety
+from .verdict import (
+    INCONCLUSIVE,
+    MISSING_RECIPE,
+    NOT_TRIGGERABLE,
+    SAFETY_REJECTED,
+    TRIGGERABLE,
+    RegressionVerdict,
+    verdict_from_result,
+)
 
-INCONCLUSIVE = "inconclusive"
-SAFETY_REJECTED = "safety_rejected"
-MISSING_RECIPE = "missing_recipe"
-TRIGGERABLE = "triggerable"
-NOT_TRIGGERABLE = "not_triggerable"
+__all__ = [
+    "INCONCLUSIVE",
+    "MISSING_RECIPE",
+    "NOT_TRIGGERABLE",
+    "SAFETY_REJECTED",
+    "TRIGGERABLE",
+    "RegressionRunner",
+    "RegressionVerdict",
+    "select_candidates",
+]
 
 
 def select_candidates(
@@ -73,12 +86,6 @@ def _hotspot_from_forced_finding(finding: StaticFinding) -> Hotspot:
     )
 
 
-@dataclass(frozen=True)
-class RegressionVerdict:
-    verdict: str
-    reason: str = ""
-
-
 class RegressionRunner:
     """Run a snippet in the sandbox only after the structural safety check passes."""
 
@@ -96,22 +103,18 @@ class RegressionRunner:
     ) -> RegressionVerdict:
         job = recipe_for(language, snippet, image, sandbox_limits, repo_root=repo_root)
         if job is None:
-            return RegressionVerdict(verdict=INCONCLUSIVE, reason=MISSING_RECIPE)
+            return verdict_from_result(recipe_missing=True)
         return self.run_snippet(snippet, job)
 
     def run_snippet(self, snippet: str, job: SandboxJob | None) -> RegressionVerdict:
         if job is None:
-            return RegressionVerdict(verdict=INCONCLUSIVE, reason=MISSING_RECIPE)
+            return verdict_from_result(recipe_missing=True)
         try:
             check_snippet_safety(snippet)
         except UnsafeSnippetError:
-            return RegressionVerdict(verdict=INCONCLUSIVE, reason=SAFETY_REJECTED)
+            return verdict_from_result(safety_rejected=True)
         return _verdict_from_result(self._sandbox.run(job))
 
 
 def _verdict_from_result(result: SandboxResult) -> RegressionVerdict:
-    if result.timed_out:
-        return RegressionVerdict(verdict=INCONCLUSIVE, reason="timeout")
-    if result.exit_code != 0:
-        return RegressionVerdict(verdict=TRIGGERABLE, reason="nonzero_exit")
-    return RegressionVerdict(verdict=NOT_TRIGGERABLE, reason="exit_zero")
+    return verdict_from_result(result)

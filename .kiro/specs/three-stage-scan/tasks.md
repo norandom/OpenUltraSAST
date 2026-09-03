@@ -102,7 +102,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
 
 ## Phase 3 — Core: Regression verdicts
 
-- [ ] 5. Produce worth-fixing verdicts from sandboxed candidates
+- [x] 5. Produce worth-fixing verdicts from sandboxed candidates
 - [x] 5.1 Select a bounded candidate set from hotspots and severe reachable inventory
   - Selection honors max-candidates and always includes reachable severity-5 inventory even when the ledger demoted the hotspot.
   - Observable completion: a unit test with six hotspots and max-candidates three returns three, plus the sev-5 reachable extra when present.
