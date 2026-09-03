@@ -78,7 +78,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Boundary: ToolHunter_
   - _Depends: 3.1, 2.2_
 
-- [ ] 4. Stand up the isolated sandbox runner
+- [x] 4. Stand up the isolated sandbox runner
 - [x] 4.1 (P) Probe whether the sandbox runtime is usable
   - A short `docker info` style probe returns available or unavailable without throwing into the scan.
   - Observable completion: the fake probe can be forced off; the real probe is skippable in unit tests.
