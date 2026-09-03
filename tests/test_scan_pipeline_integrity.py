@@ -65,7 +65,8 @@ def test_standard_scan_extra_absent_matches_deterministic_baseline(tmp_path: Pat
     stages = {entry["stage"] for entry in requested_manifest.get("degradations", [])}
     assert stages == {"hunter_pool", "verify"}
     assert all(entry["reason"] == "harnessx_extra_unavailable" for entry in requested_manifest["degradations"])
-    assert "degradations" not in baseline_manifest
+    assert all(entry["reason"] != "hunter_model_unavailable" for entry in requested_manifest["degradations"])
+    assert [entry["reason"] for entry in baseline_manifest.get("degradations", [])] == ["hunter_model_unavailable"]
 
 
 def test_quick_scan_is_unaffected_by_the_extra(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

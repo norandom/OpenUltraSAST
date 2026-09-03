@@ -83,6 +83,7 @@ def write_manifest(
     degradations: list[dict[str, object]] | None = None,
     fusion: list[dict[str, object]] | None = None,
     stages: dict[str, object] | None = None,
+    complexity: dict[str, object] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications)
@@ -113,6 +114,8 @@ def write_manifest(
         payload["fusion"] = fusion
     if stages is not None:
         payload["stages"] = stages
+    if complexity is not None:
+        payload["complexity"] = complexity
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 

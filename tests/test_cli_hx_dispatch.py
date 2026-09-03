@@ -45,9 +45,11 @@ def test_degradation_recorded_when_models_set_but_extra_absent(tmp_path: Path, m
     assert manifest["findings"]
 
 
-def test_manifest_has_no_degradations_without_models(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_manifest_has_no_harnessx_degradations_without_models(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     manifest = _run(tmp_path, monkeypatch, config_body=None)
-    assert "degradations" not in manifest
+    degradations = manifest.get("degradations", [])
+    assert all(entry.get("reason") != "harnessx_extra_unavailable" for entry in degradations)
+    assert any(entry.get("reason") == "hunter_model_unavailable" for entry in degradations)
 
 
 def test_standard_scan_falls_back_to_run_hunter_pool(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

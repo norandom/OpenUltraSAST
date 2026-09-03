@@ -225,6 +225,116 @@ def test_quick_scan_report_is_inventory_without_map_or_docker(tmp_path: Path, mo
     assert manifest["stages"]["requested"] == ["static"]
     assert manifest["stages"]["completed"] == ["static"]
     assert manifest["stages"]["skipped"] == []
+    assert "complexity" not in manifest
+    assert "complexity_map" not in manifest.get("artifacts", {})
+    assert not any(entry.get("reason") == "hunter_model_unavailable" for entry in manifest.get("degradations", []))
+
+
+def test_standard_scan_writes_complexity_map_without_docker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from openultrasast.sandbox import probe as sandbox_probe
+    from openultrasast.sandbox import runner as sandbox_runner
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "app.py").write_text("@app.route('/admin')\ndef admin():\n    return eval(request.data)\n")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+
+    docker_argv: list[list[str]] = []
+    original_run = subprocess.run
+
+    def guarded_run(command, *args, **kwargs):  # type: ignore[no-untyped-def]
+        argv = list(command) if isinstance(command, list | tuple) else [command]
+        if argv and Path(str(argv[0])).name == "docker":
+            docker_argv.append(argv)
+            raise AssertionError(f"standard scan must not start docker: {argv}")
+        return original_run(command, *args, **kwargs)
+
+    def fail(message: str):  # type: ignore[no-untyped-def]
+        def _fail(*args, **kwargs):  # type: ignore[no-untyped-def]
+            raise AssertionError(message)
+
+        return _fail
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    monkeypatch.setattr(sandbox_runner, "build_docker_argv", fail("standard scan must not build docker argv"))
+    monkeypatch.setattr(sandbox_probe.SandboxProbe, "available", fail("standard scan must not probe docker"))
+
+    assert main(["scan", str(repo), "--mode", "standard"]) == 0
+
+    run_dir = sorted((repo / ".runs").iterdir())[-1]
+    map_path = run_dir / "complexity_map.json"
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    complexity_map = json.loads(map_path.read_text())
+
+    assert map_path.is_file()
+    assert complexity_map["heuristic_only"] is True
+    assert isinstance(complexity_map["hotspots"], list)
+    assert complexity_map["hotspots"]
+    assert docker_argv == []
+    assert manifest["stages"]["requested"] == ["static", "map"]
+    assert manifest["stages"]["completed"] == ["static", "map"]
+    assert manifest["stages"]["skipped"] == []
+    assert manifest["complexity"]["hotspot_count"] == len(complexity_map["hotspots"])
+    assert manifest["complexity"]["heuristic_only"] is True
+    assert manifest["artifacts"]["complexity_map"] == "complexity_map.json"
+
+
+def test_standard_scan_records_hunter_model_unavailable_when_model_unset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from openultrasast.sandbox import probe as sandbox_probe
+    from openultrasast.sandbox import runner as sandbox_runner
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "app.py").write_text("@app.route('/admin')\ndef admin():\n    return eval(request.data)\n")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+
+    def fail(message: str):  # type: ignore[no-untyped-def]
+        def _fail(*args, **kwargs):  # type: ignore[no-untyped-def]
+            raise AssertionError(message)
+
+        return _fail
+
+    monkeypatch.setattr(sandbox_runner, "build_docker_argv", fail("standard scan must not build docker argv"))
+    monkeypatch.setattr(sandbox_probe.SandboxProbe, "available", fail("standard scan must not probe docker"))
+
+    assert main(["scan", str(repo), "--mode", "standard"]) == 0
+
+    run_dir = sorted((repo / ".runs").iterdir())[-1]
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    degradations = manifest.get("degradations", [])
+
+    assert any(entry.get("reason") == "hunter_model_unavailable" for entry in degradations)
+    hunter_skip = next(entry for entry in degradations if entry.get("reason") == "hunter_model_unavailable")
+    assert hunter_skip["stage"] in {"map", "hunter_pool"}
+    assert manifest["complexity"]["heuristic_only"] is True
+    assert (run_dir / "complexity_map.json").is_file()
+
+
+def test_manifest_includes_complexity_summary(tmp_path: Path) -> None:
+    run = ScanRun(scan_id="scan-1", root=tmp_path / "run", target=tmp_path / "repo")
+    run.root.mkdir()
+    finding = _finding()
+    artifacts = {
+        "findings": run.root / "findings.json",
+        "verification": run.root / "verification.json",
+        "markdown": run.root / "report.md",
+        "sarif": run.root / "report.sarif",
+        "complexity_map": run.root / "complexity_map.json",
+    }
+    output = run.root / "manifest.json"
+
+    write_manifest(
+        run=run,
+        findings=[finding],
+        verifications=[verify_finding(finding)],
+        artifact_paths=artifacts,
+        path=output,
+        complexity={"hotspot_count": 3, "heuristic_only": True},
+    )
+
+    payload = json.loads(output.read_text())
+    assert payload["complexity"] == {"hotspot_count": 3, "heuristic_only": True}
+    assert payload["artifacts"]["complexity_map"] == "complexity_map.json"
 
 
 def _finding() -> StaticFinding:

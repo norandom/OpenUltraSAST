@@ -137,7 +137,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Boundary: StagePlan_
   - _Depends: 1.1_
 
-- [ ] 6.2 Run the complexity map on standard and record heuristic-only when no model is set
+- [x] 6.2 Run the complexity map on standard and record heuristic-only when no model is set
   - Standard writes the map artifact, includes it in the manifest, and records `hunter_model_unavailable` when the hunter is skipped.
   - Observable completion: `ousast scan --mode standard` on a fixture produces `complexity_map.json` and a completed map stage without Docker.
   - _Requirements: 1.2, 1.4, 3.3, 3.4, 6.4, 9.4, 9.6_

@@ -26,6 +26,7 @@ from .calibration import (
     write_false_positive_learnings,
     write_ranking_calibrations,
 )
+from .complexity import map as complexity_map
 from .config import load_config
 from .findings import StaticFinding, quick_scan_findings, write_findings
 from .fusion import FusionDecision, fuse_findings_dispatch
@@ -44,7 +45,7 @@ from .reports import scan_exit_code, write_manifest, write_markdown_report, writ
 from .ruleset import DEFAULT_RULESET_DIR, load_ruleset
 from .run import ScanRun, create_scan_run
 from .scoring import build_score_artifact
-from .stages import Stage, plan_for_mode, record_completed, stages_payload
+from .stages import Stage, plan_for_mode, record_completed, skip_as_degradation, stages_payload
 from .verification import VerificationResult, write_verification_results
 from .verify_judge import verify_findings_dispatch
 
@@ -302,6 +303,26 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     score_path = run.root / "score.json"
     score_path.write_text(json.dumps(score_artifact.to_dict(), indent=2, sort_keys=True) + "\n")
     plan = record_completed(plan, Stage.STATIC)
+    complexity_payload: dict[str, object] | None = None
+    complexity_map_path = run.root / "complexity_map.json"
+    if Stage.MAP in plan.requested:
+        built_map = runtime.run_stage(
+            "map",
+            lambda: complexity_map.build_complexity_map(
+                targets,
+                findings,
+                complexity_map_path,
+                repo_files=[target.path for target in targets],
+                ledger_path=run.target / CALIBRATION_DIR / "complexity_ledger.json",
+            ),
+        )
+        plan = record_completed(plan, Stage.MAP)
+        if not hunter_model:
+            runtime.state["degradations"].append(skip_as_degradation(Stage.MAP, "hunter_model_unavailable"))
+        complexity_payload = {
+            "hotspot_count": len(built_map.hotspots),
+            "heuristic_only": built_map.heuristic_only,
+        }
     runtime.run_stage(
         "report", lambda: write_markdown_report(findings, markdown_path, verifications, redact=config.hardening.redact_secrets)
     )
@@ -320,12 +341,14 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
                 score=score_path,
                 trajectories=trajectories_path if trajectories else None,
                 fusion=fusion_path if fusion_decisions else None,
+                complexity_map=complexity_map_path if complexity_payload is not None else None,
             ),
             path=manifest_path,
             score=score_artifact.to_dict(),
             degradations=runtime.state["degradations"] or None,
             fusion=[_fusion_summary(decision) for decision in fusion_decisions] or None,
             stages=stages_payload(plan),
+            complexity=complexity_payload,
         ),
     )
     runtime.finish(status="succeeded")
