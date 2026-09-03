@@ -110,7 +110,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Boundary: RegressionRunner_
   - _Depends: 2.4_
 
-- [ ] 5.2 (P) Add language recipes with inconclusive fallback
+- [x] 5.2 (P) Add language recipes with inconclusive fallback
   - Python and JavaScript recipes run a scratch snippet with the repo on the language path; C compiles and runs when the image has a compiler; a missing recipe yields `inconclusive` rather than a crash.
   - Observable completion: Python and JavaScript recipes produce a job; an unknown language returns inconclusive without calling the runner.
   - _Requirements: 5.1, 5.6_

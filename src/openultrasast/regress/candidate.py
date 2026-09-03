@@ -4,15 +4,19 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 from ..complexity.ledger import hotspot_key, select_forced_candidates
 from ..complexity.map import Hotspot
+from ..config import SandboxConfig
 from ..findings import StaticFinding
 from ..sandbox import SandboxJob, SandboxResult, SandboxRunner
+from .recipes import recipe_for
 from .safety import UnsafeSnippetError, check_snippet_safety
 
 INCONCLUSIVE = "inconclusive"
 SAFETY_REJECTED = "safety_rejected"
+MISSING_RECIPE = "missing_recipe"
 TRIGGERABLE = "triggerable"
 NOT_TRIGGERABLE = "not_triggerable"
 
@@ -81,7 +85,23 @@ class RegressionRunner:
     def __init__(self, sandbox: SandboxRunner) -> None:
         self._sandbox = sandbox
 
-    def run_snippet(self, snippet: str, job: SandboxJob) -> RegressionVerdict:
+    def run_recipe(
+        self,
+        language: str,
+        snippet: str,
+        image: str,
+        sandbox_limits: SandboxConfig,
+        *,
+        repo_root: Path,
+    ) -> RegressionVerdict:
+        job = recipe_for(language, snippet, image, sandbox_limits, repo_root=repo_root)
+        if job is None:
+            return RegressionVerdict(verdict=INCONCLUSIVE, reason=MISSING_RECIPE)
+        return self.run_snippet(snippet, job)
+
+    def run_snippet(self, snippet: str, job: SandboxJob | None) -> RegressionVerdict:
+        if job is None:
+            return RegressionVerdict(verdict=INCONCLUSIVE, reason=MISSING_RECIPE)
         try:
             check_snippet_safety(snippet)
         except UnsafeSnippetError:
