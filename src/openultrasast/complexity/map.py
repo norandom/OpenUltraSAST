@@ -8,6 +8,7 @@ from pathlib import Path
 from ..findings import StaticFinding
 from ..preprocess import FileTarget
 from .hints import TestHint, attach_test_hints
+from .ledger import apply_overlay, load_ledger
 from .signals import ComplexitySignals, collect_signals
 
 # Score cutoffs for hotspot bands; inventory density is not the rank driver.
@@ -40,11 +41,14 @@ def build_complexity_map(
     *,
     repo_files: Iterable[str] = (),
     sources: Mapping[str, str] | None = None,
+    ledger_path: Path | None = None,
 ) -> ComplexityMap:
     collected = collect_signals(targets, findings, repo_files=repo_files, sources=sources)
     ids_by_path = _inventory_ids_by_path(findings)
     hotspots = tuple(_hotspot_from_signals(item, ids_by_path.get(item.path, ())) for item in collected)
     hotspots = attach_test_hints(hotspots, targets, repo_files=repo_files, sources=sources)
+    if ledger_path is not None:
+        hotspots = apply_overlay(hotspots, load_ledger(ledger_path))
     complexity_map = ComplexityMap(hotspots=hotspots, heuristic_only=True)
     write_complexity_map(complexity_map, output_path)
     return complexity_map
