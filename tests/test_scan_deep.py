@@ -99,3 +99,36 @@ def test_deep_scan_with_fake_runner_writes_verdicts(tmp_path: Path, monkeypatch:
         assert "path" in item
     assert manifest["artifacts"]["verdicts"] == "verdicts.json"
     assert manifest["artifacts"]["complexity_map"] == "complexity_map.json"
+
+
+def test_deep_scan_unsafe_hunter_snippet_is_safety_rejected_without_docker_job(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from openultrasast import cli
+    from openultrasast.sandbox import FakeSandboxRunner
+
+    repo = _repo(tmp_path)
+    config = tmp_path / "openultrasast.toml"
+    config.write_text('[models]\nhunter = "test-hunter"\n')
+    fake = FakeSandboxRunner()
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.setenv("OPENULTRASAST_SANDBOX_PROBE", "1")
+    monkeypatch.setenv("OPENULTRASAST_HUNTER_CLIENT", "unsafe-snippet")
+    monkeypatch.setattr(cli, "has_harnessx", lambda: False)
+    monkeypatch.setattr(cli, "resolve_sandbox_runner", lambda: fake)
+    docker_argv = _guard_docker(monkeypatch)
+
+    assert main(["scan", str(repo), "--mode", "deep", "--config", str(config)]) == 0
+
+    run_dir = _latest_run(repo)
+    payload = json.loads((run_dir / "verdicts.json").read_text())
+    findings = json.loads((run_dir / "findings.json").read_text())["findings"]
+    hunter_findings = [item for item in findings if str(item["finding_id"]).startswith("tool-hunter:")]
+
+    assert docker_argv == []
+    assert fake.jobs == []
+    assert hunter_findings
+    assert all(item["evidence_level"] == "suspicion" for item in hunter_findings)
+    assert payload["verdicts"]
+    assert any(item["reason"] == "safety_rejected" for item in payload["verdicts"])
+    for item in payload["verdicts"]:
+        if item["reason"] == "safety_rejected":
+            assert item["verdict"] == "inconclusive"

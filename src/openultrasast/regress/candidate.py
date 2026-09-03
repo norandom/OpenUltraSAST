@@ -196,7 +196,7 @@ def run_regression(
     records: list[CandidateVerdict] = []
     for hotspot in selected:
         language = _language_for(hotspot.path, languages_by_path)
-        snippet = snippet_for(language, hotspot.path, hotspot.function_name)
+        snippet = _proposed_snippet(hotspot, findings) or snippet_for(language, hotspot.path, hotspot.function_name)
         image = images.get(language) or DEFAULT_IMAGES.get(language, "ousast-missing-image")
         mapped = runner.run_recipe(language, snippet, image, sandbox_limits, repo_root=repo_root)
         reachability = _reachability_for(hotspot, findings_by_id)
@@ -218,6 +218,16 @@ def write_verdicts(verdicts: Sequence[CandidateVerdict], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {"verdicts": [asdict(item) for item in verdicts]}
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+
+def _proposed_snippet(hotspot: Hotspot, findings: Sequence[StaticFinding]) -> str | None:
+    for finding in findings:
+        snippet = finding.proposed_snippet
+        if not snippet:
+            continue
+        if finding.path == hotspot.path or finding.finding_id in hotspot.inventory_finding_ids:
+            return snippet
+    return None
 
 
 def _language_for(path: str, languages_by_path: Mapping[str, str]) -> str:

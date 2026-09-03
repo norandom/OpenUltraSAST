@@ -28,6 +28,7 @@ class StaticFinding:
     tags: list[str]
     ranking_priority: float
     status: str = "enabled"
+    proposed_snippet: str | None = None
 
 
 SEVERITY_LABEL = {5: "critical", 4: "high", 3: "medium", 2: "low", 1: "low", 0: "info"}

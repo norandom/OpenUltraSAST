@@ -36,6 +36,8 @@ def _scan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, mode: str, config_
     (repo / "app.py").write_text(_VULN)
     monkeypatch.setattr(cli, "has_harnessx", lambda: harnessx)
     monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("OPENULTRASAST_HUNTER_CLIENT", raising=False)
     argv = ["scan", str(repo), "--mode", mode]
     if config_body is not None:
         cfg = tmp_path / "openultrasast.toml"

@@ -3,10 +3,11 @@ from __future__ import annotations
 import argparse
 import json
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from time import perf_counter
 
+from . import tool_hunter
 from .benchmark import (
     create_benchmark_run,
     evaluate_benchmark,
@@ -48,7 +49,7 @@ from .run import ScanRun, create_scan_run
 from .sandbox import resolve_sandbox_probe, resolve_sandbox_runner
 from .scoring import build_score_artifact
 from .stages import Stage, plan_for_mode, record_completed, record_skip, skip_as_degradation, stages_payload
-from .verification import VerificationResult, write_verification_results
+from .verification import VerificationResult, verify_findings, write_verification_results
 from .verify_judge import verify_findings_dispatch
 
 CALIBRATION_DIR = ".openultrasast/calibration"
@@ -320,6 +321,20 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         plan = record_completed(plan, Stage.MAP)
         if not hunter_model:
             runtime.state["degradations"].append(skip_as_degradation(Stage.MAP, "hunter_model_unavailable"))
+        else:
+            built_map, findings, verifications = _attach_tool_hunter(
+                root=run.target,
+                built_map=built_map,
+                findings=findings,
+                verifications=verifications,
+                hunter_model=hunter_model,
+                max_hotspots=config.complexity.max_hunter_hotspots,
+                max_findings=max_findings,
+                findings_path=findings_path,
+                verification_path=verification_path,
+                complexity_map_path=complexity_map_path,
+                runtime=runtime,
+            )
         complexity_payload = {
             "hotspot_count": len(built_map.hotspots),
             "heuristic_only": built_map.heuristic_only,
@@ -394,6 +409,55 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         calibrations_applied=len(applied_calibrations),
         exit_code=scan_exit_code(findings, verifications, fail_on),
     )
+
+
+def _attach_tool_hunter(
+    *,
+    root: Path,
+    built_map: complexity_map.ComplexityMap,
+    findings: list[StaticFinding],
+    verifications: list[VerificationResult],
+    hunter_model: str,
+    max_hotspots: int,
+    max_findings: int,
+    findings_path: Path,
+    verification_path: Path,
+    complexity_map_path: Path,
+    runtime: HarnessRuntime,
+) -> tuple[complexity_map.ComplexityMap, list[StaticFinding], list[VerificationResult]]:
+    client = tool_hunter.resolve_hunter_client()
+    if client is None:
+        return built_map, findings, verifications
+    hunter_hotspots = list(built_map.hotspots[: max(max_hotspots, 0)])
+    hunter_findings = runtime.run_stage(
+        "tool_hunter",
+        lambda: tool_hunter.run_tool_hunter(
+            root,
+            hunter_hotspots,
+            client=client,
+            model=hunter_model,
+            max_steps=tool_hunter.DEFAULT_MAX_STEPS,
+        ),
+    )
+    seen = {finding.finding_id for finding in findings}
+    extra = [finding for finding in hunter_findings if finding.finding_id not in seen]
+    if extra:
+        findings = findings + extra
+        if max_findings and len(findings) > max_findings:
+            if not any(entry.get("reason") == "max_findings_exceeded" for entry in runtime.state["degradations"]):
+                runtime.state["degradations"].append(
+                    {"stage": "budget", "reason": "max_findings_exceeded", "requested": max_findings, "actual": len(findings)}
+                )
+            findings = findings[:max_findings]
+            kept = {finding.finding_id for finding in findings}
+            extra = [finding for finding in extra if finding.finding_id in kept]
+        if extra:
+            verifications = verifications + verify_findings(extra)
+            write_verification_results(verifications, verification_path)
+    write_findings(findings, findings_path)
+    built_map = replace(built_map, heuristic_only=False)
+    complexity_map.write_complexity_map(built_map, complexity_map_path)
+    return built_map, findings, verifications
 
 
 def _persist_calibration_feedback(

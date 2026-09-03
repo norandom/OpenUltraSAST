@@ -24,6 +24,8 @@ def _run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, config_body: str | Non
     (repo / "app.py").write_text(_VULN)
     monkeypatch.setattr(cli, "has_harnessx", lambda: False)  # simulate the extra being absent
     monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("OPENULTRASAST_HUNTER_CLIENT", raising=False)
     argv = ["scan", str(repo), "--mode", "standard"]
     if config_body is not None:
         cfg = tmp_path / "openultrasast.toml"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -12,12 +13,29 @@ from typing import Protocol
 from .complexity.map import Hotspot
 from .findings import StaticFinding
 from .hunter_tools import PathEscapesRepo, clamp_repo_path, find_refs, grep_repo, read_file
+from .provider.openrouter import OpenRouterChatClient, OpenRouterError
 
 _DEFAULT_MAX_CHARS = 4000
 _DEFAULT_MAX_MATCHES = 50
+DEFAULT_MAX_STEPS = 4
+CLIENT_ENV = "OPENULTRASAST_HUNTER_CLIENT"
 _FINDING_ID_PREFIX = "tool-hunter:"
 _HUNTER_TOOL_NAMES = frozenset({"read_file", "grep_repo", "find_refs"})
 _SEVERITIES = frozenset({"critical", "high", "medium", "low", "info"})
+_SCRIPTED_FLAGS = frozenset({"scripted", "script"})
+_DUMP_FLAGS = frozenset({"dump", "dump-only"})
+_UNSAFE_FLAGS = frozenset({"unsafe", "unsafe-snippet"})
+_OPENROUTER_FLAGS = frozenset({"openrouter", "live"})
+_UNSAFE_SNIPPET = 'client = docker.DockerClient(base_url="unix://var/run/docker.sock")\n'
+_SCRIPTED_FINDINGS = [
+    {
+        "path": "app.py",
+        "line": 3,
+        "title": "Dynamic execution of attacker-controlled data",
+        "rationale": "eval/execute follows request input across the hotspot.",
+        "evidence_level": "static_corroboration",
+    }
+]
 
 HUNTER_TOOLS: list[dict[str, object]] = [
     {
@@ -95,6 +113,117 @@ class ChatClient(Protocol):
         timeout_seconds: int = 60,
     ) -> ChatResponse:
         raise NotImplementedError
+
+
+class ScriptedChatClient:
+    """Deterministic ChatClient for tests and OPENULTRASAST_HUNTER_CLIENT injection."""
+
+    def __init__(self, turns: list[ChatResponse]) -> None:
+        self._turns = turns
+        self.calls: list[dict[str, object]] = []
+
+    def complete(
+        self,
+        *,
+        model: str,
+        messages: list[dict[str, object]],
+        tools: list[dict[str, object]],
+        timeout_seconds: int = 60,
+    ) -> ChatResponse:
+        self.calls.append({"model": model, "messages": list(messages), "tools": tools, "timeout_seconds": timeout_seconds})
+        index = len(self.calls) - 1
+        if index >= len(self._turns):
+            return ChatResponse(content="")
+        return self._turns[index]
+
+
+class OpenRouterHunterClient:
+    """Adapt OpenRouterChatClient to the tool-hunter ChatClient protocol."""
+
+    def __init__(self, client: OpenRouterChatClient) -> None:
+        self._client = client
+
+    @classmethod
+    def from_env(cls) -> OpenRouterHunterClient:
+        return cls(OpenRouterChatClient.from_env())
+
+    def complete(
+        self,
+        *,
+        model: str,
+        messages: list[dict[str, object]],
+        tools: list[dict[str, object]],
+        timeout_seconds: int = 60,
+    ) -> ChatResponse:
+        message = self._client.complete_chat(model=model, messages=messages, tools=tools, timeout_seconds=timeout_seconds)
+        return chat_response_from_message(message)
+
+
+def scripted_hunter_client(mode: str = "scripted") -> ScriptedChatClient:
+    grep_turn = ChatResponse(
+        tool_calls=(ToolCall(id="call_grep", name="grep_repo", arguments={"pattern": "eval|execute|query", "max_matches": 10}),)
+    )
+    if mode in _DUMP_FLAGS:
+        return ScriptedChatClient([ChatResponse(content=json.dumps(_SCRIPTED_FINDINGS))])
+    if mode in _UNSAFE_FLAGS:
+        payload = [{**_SCRIPTED_FINDINGS[0], "snippet": _UNSAFE_SNIPPET}]
+        return ScriptedChatClient([grep_turn, ChatResponse(content=json.dumps(payload))])
+    return ScriptedChatClient([grep_turn, ChatResponse(content=json.dumps(_SCRIPTED_FINDINGS))])
+
+
+def resolve_hunter_client() -> ChatClient | None:
+    """Return a hunter client from env, or OpenRouter when an API key is present."""
+    flag = os.environ.get(CLIENT_ENV, "").strip().lower()
+    if flag in _SCRIPTED_FLAGS:
+        return scripted_hunter_client("scripted")
+    if flag in _DUMP_FLAGS:
+        return scripted_hunter_client("dump-only")
+    if flag in _UNSAFE_FLAGS:
+        return scripted_hunter_client("unsafe-snippet")
+    if flag in _OPENROUTER_FLAGS or (not flag and os.environ.get("OPENROUTER_API_KEY")):
+        try:
+            return OpenRouterHunterClient.from_env()
+        except OpenRouterError:
+            return None
+    return None
+
+
+def chat_response_from_message(message: Mapping[str, object]) -> ChatResponse:
+    content = message.get("content")
+    text = content if isinstance(content, str) else None
+    raw_calls = message.get("tool_calls") or ()
+    calls: list[ToolCall] = []
+    if isinstance(raw_calls, Sequence) and not isinstance(raw_calls, str | bytes):
+        for index, item in enumerate(raw_calls):
+            parsed = _tool_call_from_openrouter(item, index)
+            if parsed is not None:
+                calls.append(parsed)
+    return ChatResponse(content=text, tool_calls=tuple(calls))
+
+
+def _tool_call_from_openrouter(item: object, index: int) -> ToolCall | None:
+    if not isinstance(item, Mapping):
+        return None
+    function = item.get("function")
+    if not isinstance(function, Mapping):
+        return None
+    name = function.get("name")
+    if not isinstance(name, str) or not name:
+        return None
+    call_id = item.get("id")
+    identifier = call_id if isinstance(call_id, str) and call_id else f"call_{index}"
+    arguments = function.get("arguments", {})
+    if isinstance(arguments, str):
+        try:
+            loaded = json.loads(arguments)
+        except json.JSONDecodeError:
+            loaded = {}
+        parsed_args = loaded if isinstance(loaded, dict) else {}
+    elif isinstance(arguments, Mapping):
+        parsed_args = dict(arguments)
+    else:
+        parsed_args = {}
+    return ToolCall(id=identifier, name=name, arguments=parsed_args)
 
 
 def run_tool_hunter(
@@ -268,6 +397,8 @@ def _finding_from_item(root: Path, item: Mapping[str, object], scores: Mapping[s
     rationale = item.get("rationale")
     function_name = item.get("function_name")
     severity = item.get("severity")
+    snippet = item.get("snippet")
+    proposed_snippet = snippet if isinstance(snippet, str) and snippet else None
     return StaticFinding(
         finding_id=f"{_FINDING_ID_PREFIX}{relative}:{line_no if line_no is not None else 0}",
         path=relative,
@@ -283,6 +414,7 @@ def _finding_from_item(root: Path, item: Mapping[str, object], scores: Mapping[s
         reachability_conditions=[],
         tags=["tool-hunter"],
         ranking_priority=float(scores.get(relative, 0.0)),
+        proposed_snippet=proposed_snippet,
     )
 
 

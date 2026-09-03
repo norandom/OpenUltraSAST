@@ -6,7 +6,7 @@ import re
 import time
 import urllib.error
 import urllib.request
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import TypeVar, cast
 
@@ -61,8 +61,18 @@ class OpenRouterChatClient:
             raise OpenRouterError("OPENROUTER_API_KEY is required for OpenRouter chat calls")
         return cls(api_key=api_key, base_url=os.environ.get("OPENROUTER_BASE_URL", cls.base_url))
 
-    def complete_json(self, *, model: str, messages: list[dict[str, str]], timeout_seconds: int = 60) -> object:
-        payload = json.dumps({"model": model, "messages": messages, "temperature": 0}).encode()
+    def complete_chat(
+        self,
+        *,
+        model: str,
+        messages: Sequence[Mapping[str, object]],
+        tools: Sequence[Mapping[str, object]] | None = None,
+        timeout_seconds: int = 60,
+    ) -> dict[str, object]:
+        body: dict[str, object] = {"model": model, "messages": list(messages), "temperature": 0}
+        if tools:
+            body["tools"] = list(tools)
+        payload = json.dumps(body).encode()
         request = urllib.request.Request(
             f"{self.base_url.rstrip('/')}/chat/completions",
             data=payload,
@@ -81,8 +91,13 @@ class OpenRouterChatClient:
             response_payload = call_with_retry(_do, attempts=self.max_attempts, base_delay=self.retry_base_delay)
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
             raise OpenRouterError(f"OpenRouter chat request failed: {exc}") from exc
+        return _extract_message(response_payload)
 
-        content = _extract_message_content(response_payload)
+    def complete_json(self, *, model: str, messages: list[dict[str, str]], timeout_seconds: int = 60) -> object:
+        message = self.complete_chat(model=model, messages=messages, timeout_seconds=timeout_seconds)
+        content = message.get("content")
+        if not isinstance(content, str) or not content.strip():
+            raise OpenRouterError("OpenRouter message content was empty")
         return parse_json_content(content)
 
 
@@ -156,7 +171,7 @@ def parse_json_content(content: str) -> object:
         raise OpenRouterError(f"model response was not valid JSON: {exc}") from exc
 
 
-def _extract_message_content(payload: object) -> str:
+def _extract_message(payload: object) -> dict[str, object]:
     if not isinstance(payload, dict):
         raise OpenRouterError("OpenRouter response must be a JSON object")
     choices = payload.get("choices")
@@ -168,7 +183,11 @@ def _extract_message_content(payload: object) -> str:
     message = first.get("message")
     if not isinstance(message, dict):
         raise OpenRouterError("OpenRouter choice did not include a message")
-    content = message.get("content")
+    return message
+
+
+def _extract_message_content(payload: object) -> str:
+    content = _extract_message(payload).get("content")
     if not isinstance(content, str) or not content.strip():
         raise OpenRouterError("OpenRouter message content was empty")
     return content

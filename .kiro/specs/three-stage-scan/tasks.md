@@ -150,7 +150,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Requirements: 1.3, 1.5, 5.1, 9.3, 9.6_
   - _Depends: 5.3, 6.2_
 
-- [ ] 6.4 Attach the tool hunter to map hotspots when a model is configured
+- [x] 6.4 Attach the tool hunter to map hotspots when a model is configured
   - Hunter findings are suspicion-only and may propose a snippet that still must pass the safety check and run only in the sandbox.
   - Observable completion: with a scripted client, standard+model produces tool-hunter suspicions; a proposed snippet is executed only on deep after the safety check.
   - _Requirements: 6.1, 6.3, 6.5, 6.6_
