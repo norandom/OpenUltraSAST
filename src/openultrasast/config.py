@@ -97,6 +97,20 @@ class FusionConfig:
 
 
 @dataclass(frozen=True)
+class ComplexityConfig:
+    # Stage-2 map size and hunter attention. Small defaults keep PR/nightly map work cheap.
+    top_k: int = 20
+    max_hunter_hotspots: int = 8
+
+
+@dataclass(frozen=True)
+class RegressConfig:
+    # Stage-3 candidate cap and optional per-language sandbox image pins. Isolation limits stay on SandboxConfig.
+    max_candidates: int = 5
+    images: tuple[tuple[str, str], ...] = ()
+
+
+@dataclass(frozen=True)
 class ResolvedConfig:
     models: ModelConfig = ModelConfig()
     embeddings: EmbeddingConfig = EmbeddingConfig()
@@ -109,6 +123,8 @@ class ResolvedConfig:
     harnessx: HarnessxConfig = HarnessxConfig()
     fusion: FusionConfig = FusionConfig()
     hardening: HardeningConfig = HardeningConfig()
+    complexity: ComplexityConfig = ComplexityConfig()
+    regress: RegressConfig = RegressConfig()
     runs_dir: str = ".openultrasast/runs"
 
 
@@ -130,6 +146,8 @@ def load_config(config_path: Path | None = None) -> ResolvedConfig:
         harnessx=_load_harnessx(data.get("harnessx", {})),
         fusion=_load_fusion(data.get("fusion", {})),
         hardening=_load_hardening(data.get("hardening", {})),
+        complexity=_load_complexity(data.get("complexity", {})),
+        regress=_load_regress(data.get("regress", {})),
         runs_dir=os.environ.get("OPENULTRASAST_RUNS_DIR", ".openultrasast/runs"),
     )
 
@@ -249,6 +267,32 @@ def _load_fusion(value: object) -> FusionConfig:
         decider_model=_string(data.get("decider_model")),
         high_assurance=bool(data.get("high_assurance", False)),
     )
+
+
+def _load_complexity(value: object) -> ComplexityConfig:
+    data = _section(value)
+    return ComplexityConfig(
+        top_k=_int_value(data.get("top_k"), 20),
+        max_hunter_hotspots=_int_value(data.get("max_hunter_hotspots"), 8),
+    )
+
+
+def _load_regress(value: object) -> RegressConfig:
+    data = _section(value)
+    return RegressConfig(
+        max_candidates=_int_value(data.get("max_candidates"), 5),
+        images=_string_map(data.get("images")),
+    )
+
+
+def _string_map(value: object) -> tuple[tuple[str, str], ...]:
+    data = _section(value)
+    images: list[tuple[str, str]] = []
+    for key, item in data.items():
+        pinned = _string(item)
+        if pinned is not None:
+            images.append((str(key), pinned))
+    return tuple(sorted(images))
 
 
 def _float_value(value: object, default: float) -> float:

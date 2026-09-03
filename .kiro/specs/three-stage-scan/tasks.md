@@ -12,7 +12,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Requirements: 1.1, 1.2, 1.3, 1.6_
   - _Boundary: StagePlan_
 
-- [ ] 1.2 Add complexity and regression configuration with candidate caps
+- [x] 1.2 Add complexity and regression configuration with candidate caps
   - Configuration exposes map top-k, max hunter hotspots, max regression candidates, and optional language image pins, with defaults that keep pull-request scans cheap.
   - Sandbox memory, pids, timeout, network-off, and read-only workspace remain the existing sandbox settings.
   - Observable completion: loading config without a file yields those defaults; an override file changes top-k and max candidates only.

@@ -96,3 +96,66 @@ def test_write_resolved_config_creates_json(tmp_path: Path) -> None:
 
     assert output.exists()
     assert '"minimum_report_verified": "static_corroboration"' in output.read_text()
+
+
+def test_complexity_and_regress_defaults_when_section_absent() -> None:
+    config = load_config(None)
+
+    assert config.complexity.top_k == 20
+    assert config.complexity.max_hunter_hotspots == 8
+    assert config.regress.max_candidates == 5
+    assert config.regress.images == ()
+    assert config.sandbox.network is False
+    assert config.sandbox.workspace_readonly is True
+    assert config.sandbox.memory_mb == 2048
+    assert config.sandbox.timeout_seconds == 300
+    assert config.sandbox.pids_limit == 512
+
+
+def test_override_changes_top_k_and_max_candidates_only(tmp_path: Path) -> None:
+    config_path = tmp_path / "openultrasast.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[complexity]",
+                "top_k = 3",
+                "[regress]",
+                "max_candidates = 2",
+            ]
+        )
+    )
+
+    config = load_config(config_path)
+
+    assert config.complexity.top_k == 3
+    assert config.regress.max_candidates == 2
+    assert config.complexity.max_hunter_hotspots == 8
+    assert config.regress.images == ()
+    assert config.sandbox.network is False
+    assert config.sandbox.workspace_readonly is True
+    assert config.sandbox.memory_mb == 2048
+    assert config.sandbox.timeout_seconds == 300
+    assert config.sandbox.pids_limit == 512
+
+
+def test_load_config_reads_regress_image_pins(tmp_path: Path) -> None:
+    config_path = tmp_path / "openultrasast.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[regress]",
+                "max_candidates = 4",
+                "[regress.images]",
+                'python = "python:3.12-slim"',
+                'javascript = "node:22-slim"',
+            ]
+        )
+    )
+
+    config = load_config(config_path)
+
+    assert config.regress.max_candidates == 4
+    assert dict(config.regress.images) == {"python": "python:3.12-slim", "javascript": "node:22-slim"}
+    assert config.complexity.top_k == 20
+    assert config.complexity.max_hunter_hotspots == 8
+    assert config.sandbox.memory_mb == 2048
