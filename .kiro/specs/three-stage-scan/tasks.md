@@ -70,7 +70,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Requirements: 6.1, 6.2_
   - _Boundary: HunterTools_
 
-- [ ] 3.2 Run a bounded tool-using hunter that records suspicion only
+- [x] 3.2 Run a bounded tool-using hunter that records suspicion only
   - When a hunter model is configured, the loop may call the three tools against map hotspots and must not stamp results as static corroboration.
   - When no model is configured, the loop does not run and a degradation is produced by the orchestrator later.
   - Observable completion: a scripted client that never calls a tool fails the test; a client that greps then returns a finding yields evidence level `suspicion` and id prefix `tool-hunter:`.
@@ -79,7 +79,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Depends: 3.1, 2.2_
 
 - [ ] 4. Stand up the isolated sandbox runner
-- [ ] 4.1 (P) Probe whether the sandbox runtime is usable
+- [x] 4.1 (P) Probe whether the sandbox runtime is usable
   - A short `docker info` style probe returns available or unavailable without throwing into the scan.
   - Observable completion: the fake probe can be forced off; the real probe is skippable in unit tests.
   - _Requirements: 9.3_
@@ -198,3 +198,4 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
 - `scan_exit_code` duck-types `worth_fixing` on verdict objects; `_run_scan` still passes no verdicts until task 6.5. Dict-shaped verdicts would not fail the gate.
 - Map `top_k` default is 20 (not named in design.md); `max_hunter_hotspots=8` and `max_candidates=5` follow design.
 - `collect_signals` adjacent-test detection is false unless the caller also passes `repo_files`; task 2.2 must pass enumerated repo paths.
+- ToolHunter rejects JSON dumps unless a repo tool was invoked; findings are always `suspicion` with prefix `tool-hunter:`.
