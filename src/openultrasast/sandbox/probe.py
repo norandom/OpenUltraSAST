@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from collections.abc import Callable
 from subprocess import CompletedProcess
 
 PROBE_TIMEOUT_SECONDS = 5
+PROBE_ENV = "OPENULTRASAST_SANDBOX_PROBE"
 
 _DOCKER_INFO = ("docker", "info")
+_PROBE_OFF = frozenset({"0", "off", "false", "unavailable", "no"})
+_PROBE_ON = frozenset({"1", "on", "true", "available", "yes"})
 
 
 class SandboxProbe:
@@ -40,3 +44,13 @@ class FakeSandboxProbe:
 
     def available(self) -> bool:
         return self._available
+
+
+def resolve_sandbox_probe() -> SandboxProbe | FakeSandboxProbe:
+    """Return a real probe, or a fake when OPENULTRASAST_SANDBOX_PROBE is set."""
+    flag = os.environ.get(PROBE_ENV, "").strip().lower()
+    if flag in _PROBE_OFF:
+        return FakeSandboxProbe(False)
+    if flag in _PROBE_ON:
+        return FakeSandboxProbe(True)
+    return SandboxProbe()

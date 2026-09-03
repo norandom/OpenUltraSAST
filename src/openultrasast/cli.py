@@ -41,11 +41,13 @@ from .mapping import analyze_entry_points, attach_reachability_hints, ingest_sar
 from .policy import assert_rules_resolve, load_policy
 from .preprocess import preprocess_repository, write_preprocess_artifact
 from .rank import rank_targets, write_rankings
+from .regress import run_regression, write_verdicts
 from .reports import scan_exit_code, write_manifest, write_markdown_report, write_sarif_report
 from .ruleset import DEFAULT_RULESET_DIR, load_ruleset
 from .run import ScanRun, create_scan_run
+from .sandbox import resolve_sandbox_probe, resolve_sandbox_runner
 from .scoring import build_score_artifact
-from .stages import Stage, plan_for_mode, record_completed, skip_as_degradation, stages_payload
+from .stages import Stage, plan_for_mode, record_completed, record_skip, skip_as_degradation, stages_payload
 from .verification import VerificationResult, write_verification_results
 from .verify_judge import verify_findings_dispatch
 
@@ -134,8 +136,6 @@ def _scan(path: Path, config_path: Path, mode: str, fail_on: str) -> int:
 
 
 def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOutcome:
-    if mode == "deep":
-        raise SystemExit("mode 'deep' is specified but sandboxed dynamic analysis is not implemented")
     if not path.exists() or not path.is_dir():
         raise SystemExit(f"scan path is not a directory: {path}")
 
@@ -305,6 +305,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     plan = record_completed(plan, Stage.STATIC)
     complexity_payload: dict[str, object] | None = None
     complexity_map_path = run.root / "complexity_map.json"
+    built_map = None
     if Stage.MAP in plan.requested:
         built_map = runtime.run_stage(
             "map",
@@ -323,6 +324,37 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             "hotspot_count": len(built_map.hotspots),
             "heuristic_only": built_map.heuristic_only,
         }
+    verdicts_path = run.root / "verdicts.json"
+    wrote_verdicts = False
+    if Stage.REGRESS in plan.requested:
+        probe = resolve_sandbox_probe()
+        if not probe.available():
+            plan = record_skip(plan, Stage.REGRESS, "sandbox_unavailable")
+            runtime.state["degradations"].append(skip_as_degradation(Stage.REGRESS, "sandbox_unavailable"))
+        else:
+            sandbox = resolve_sandbox_runner()
+            hotspots = built_map.hotspots if built_map is not None else ()
+            cwe_by_rule_id = {rule.rule_id: rule.cwe for rule in ruleset}
+            rule_cwe_by_finding = {finding.finding_id: cwe_by_rule_id.get(finding.finding_id.split(":", 1)[0], "") for finding in findings}
+            languages_by_path = {target.path: target.language for target in targets}
+            records = runtime.run_stage(
+                "regress",
+                lambda: run_regression(
+                    hotspots,
+                    findings,
+                    max_candidates=config.regress.max_candidates,
+                    policy=policy,
+                    rule_cwe=rule_cwe_by_finding,
+                    languages_by_path=languages_by_path,
+                    repo_root=run.target,
+                    sandbox=sandbox,
+                    sandbox_limits=config.sandbox,
+                    images=dict(config.regress.images),
+                ),
+            )
+            write_verdicts(records, verdicts_path)
+            wrote_verdicts = True
+            plan = record_completed(plan, Stage.REGRESS)
     runtime.run_stage(
         "report", lambda: write_markdown_report(findings, markdown_path, verifications, redact=config.hardening.redact_secrets)
     )
@@ -342,6 +374,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
                 trajectories=trajectories_path if trajectories else None,
                 fusion=fusion_path if fusion_decisions else None,
                 complexity_map=complexity_map_path if complexity_payload is not None else None,
+                verdicts=verdicts_path if wrote_verdicts else None,
             ),
             path=manifest_path,
             score=score_artifact.to_dict(),

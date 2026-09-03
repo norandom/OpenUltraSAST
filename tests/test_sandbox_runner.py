@@ -8,7 +8,15 @@ from typing import Any
 
 import pytest
 
-from openultrasast.sandbox import DockerCliRunner, FakeSandboxRunner, SandboxJob, SandboxResult, SandboxRunner, build_docker_argv
+from openultrasast.sandbox import (
+    DockerCliRunner,
+    FakeSandboxRunner,
+    SandboxJob,
+    SandboxResult,
+    SandboxRunner,
+    build_docker_argv,
+    resolve_sandbox_runner,
+)
 from openultrasast.sandbox import runner as runner_mod
 
 
@@ -185,6 +193,16 @@ def test_fake_sandbox_runner_records_jobs_and_returns_programmed_result(tmp_path
     assert result == programmed
     assert isinstance(runner, FakeSandboxRunner)
     assert runner.jobs == [job]
+
+
+def test_resolve_runner_fake_via_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(runner_mod.RUNNER_ENV, "fake")
+    assert isinstance(resolve_sandbox_runner(), FakeSandboxRunner)
+
+
+def test_resolve_runner_defaults_to_docker_cli(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(runner_mod.RUNNER_ENV, raising=False)
+    assert isinstance(resolve_sandbox_runner(), DockerCliRunner)
 
 
 def test_fake_sandbox_runner_can_be_reprogrammed(tmp_path: Path) -> None:

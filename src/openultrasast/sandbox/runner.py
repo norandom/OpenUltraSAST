@@ -15,8 +15,10 @@ NONROOT_USER = "65534:65534"
 WORKSPACE_MOUNT = "/workspace"
 SCRATCH_MOUNT = "/scratch"
 SCRATCH_SEED_MOUNT = "/scratch-in"
+RUNNER_ENV = "OPENULTRASAST_SANDBOX_RUNNER"
 _COPY_SEED_THEN_EXEC = 'cp -r /scratch-in/. /scratch/ && exec "$@"'
 _SEED_ARGV0 = "ousast-sandbox"
+_FAKE_RUNNER = frozenset({"fake"})
 
 
 class SandboxRunner(Protocol):
@@ -52,6 +54,14 @@ class FakeSandboxRunner:
     def run(self, spec: SandboxJob) -> SandboxResult:
         self.jobs.append(spec)
         return self.result
+
+
+def resolve_sandbox_runner() -> SandboxRunner:
+    """Return the Docker CLI runner, or a fake when OPENULTRASAST_SANDBOX_RUNNER=fake."""
+    flag = os.environ.get(RUNNER_ENV, "").strip().lower()
+    if flag in _FAKE_RUNNER:
+        return FakeSandboxRunner()
+    return DockerCliRunner()
 
 
 class DockerCliRunner:

@@ -143,7 +143,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Requirements: 1.2, 1.4, 3.3, 3.4, 6.4, 9.4, 9.6_
   - _Depends: 2.3, 6.1_
 
-- [ ] 6.3 Stop exiting on deep; run or skip regression with visible degradation
+- [x] 6.3 Stop exiting on deep; run or skip regression with visible degradation
   - Deep no longer hard-exits. If the sandbox is missing, stages 1–2 complete and regress is skipped with `sandbox_unavailable`.
   - If the sandbox is present, regression runs under the candidate cap and writes verdicts.
   - Observable completion: `ousast scan --mode deep` without Docker exits 0 after stages 1–2 and lists the skip in the manifest; with a fake runner it records verdicts.

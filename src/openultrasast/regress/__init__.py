@@ -1,6 +1,6 @@
 """Isolated regression snippets and verdicts."""
 
-from .candidate import RegressionRunner, select_candidates
+from .candidate import CandidateVerdict, RegressionRunner, run_regression, select_candidates, write_verdicts
 from .recipes import recipe_for
 from .safety import UnsafeSnippetError, check_snippet_safety
 from .verdict import (
@@ -22,12 +22,15 @@ __all__ = [
     "NOT_TRIGGERABLE",
     "SAFETY_REJECTED",
     "TRIGGERABLE",
+    "CandidateVerdict",
     "RegressionRunner",
     "RegressionVerdict",
     "UnsafeSnippetError",
     "check_snippet_safety",
     "is_worth_fixing",
     "recipe_for",
+    "run_regression",
     "select_candidates",
     "verdict_from_result",
+    "write_verdicts",
 ]

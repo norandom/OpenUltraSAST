@@ -1,6 +1,6 @@
 """Isolated Docker CLI sandbox."""
 
-from .probe import FakeSandboxProbe, SandboxProbe
+from .probe import FakeSandboxProbe, SandboxProbe, resolve_sandbox_probe
 from .runner import (
     DockerCliRunner,
     FakeSandboxRunner,
@@ -8,6 +8,7 @@ from .runner import (
     SandboxResult,
     SandboxRunner,
     build_docker_argv,
+    resolve_sandbox_runner,
 )
 
 __all__ = [
@@ -19,4 +20,6 @@ __all__ = [
     "SandboxResult",
     "SandboxRunner",
     "build_docker_argv",
+    "resolve_sandbox_probe",
+    "resolve_sandbox_runner",
 ]

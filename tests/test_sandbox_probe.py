@@ -3,7 +3,7 @@ from typing import Any
 
 import pytest
 
-from openultrasast.sandbox import FakeSandboxProbe, SandboxProbe
+from openultrasast.sandbox import FakeSandboxProbe, SandboxProbe, resolve_sandbox_probe
 from openultrasast.sandbox import probe as probe_mod
 
 
@@ -19,6 +19,25 @@ def test_fake_probe_can_be_forced_off() -> None:
 def test_fake_probe_can_be_forced_on() -> None:
     probe = FakeSandboxProbe(available=True)
     assert probe.available() is True
+
+
+def test_resolve_probe_forced_off_via_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(probe_mod.PROBE_ENV, "0")
+    probe = resolve_sandbox_probe()
+    assert isinstance(probe, FakeSandboxProbe)
+    assert probe.available() is False
+
+
+def test_resolve_probe_forced_on_via_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(probe_mod.PROBE_ENV, "1")
+    probe = resolve_sandbox_probe()
+    assert isinstance(probe, FakeSandboxProbe)
+    assert probe.available() is True
+
+
+def test_resolve_probe_defaults_to_real_probe(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(probe_mod.PROBE_ENV, raising=False)
+    assert isinstance(resolve_sandbox_probe(), SandboxProbe)
 
 
 def test_real_probe_is_available_when_docker_info_succeeds() -> None:
