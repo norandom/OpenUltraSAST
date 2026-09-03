@@ -46,7 +46,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Boundary: ComplexityMapBuilder_
   - _Depends: 2.1_
 
-- [ ] 2.3 Attach test-gap hints without writing into the scanned tree
+- [x] 2.3 Attach test-gap hints without writing into the scanned tree
   - Each hotspot gets a gap of no adjacent test, no function reference, no fuzz entry, or covered.
   - Recommended test kind is one of unit, property, sanitizer, http-contract, or fuzz-harness, and is omitted when the gap is covered.
   - Observable completion: a covered hotspot emits `covered` and no test kind; a fuzzable C parser without a harness emits `fuzz-harness`; the scanned tree is unchanged.

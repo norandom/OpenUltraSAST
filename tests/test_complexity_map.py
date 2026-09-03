@@ -12,6 +12,7 @@ _HOTSPOT_FIELDS = {
     "band",
     "signals",
     "rationale",
+    "test_hint",
     "inventory_finding_ids",
 }
 
@@ -96,7 +97,12 @@ def test_map_order_differs_from_inventory_hit_count(tmp_path: Path) -> None:
     assert parser.band == "high"
     assert helper.band == "low"
     assert complexity_map.heuristic_only is True
-    assert parser.test_hint is None
+    assert parser.test_hint is not None
+    assert parser.test_hint.gap == "no_fuzz_entry"
+    assert parser.test_hint.test_kind == "fuzz-harness"
+    assert helper.test_hint is not None
+    assert helper.test_hint.gap == "no_adjacent_test"
+    assert helper.test_hint.test_kind == "unit"
     assert "verified" not in parser.rationale.lower()
     assert "worth fixing" not in parser.rationale.lower()
     assert "worth_fixing" not in parser.rationale.lower()
@@ -121,12 +127,22 @@ def test_complexity_map_json_has_required_fields(tmp_path: Path) -> None:
         assert isinstance(hotspot["signals"], dict)
         assert set(hotspot["signals"]) >= {"loc", "nesting", "reachability", "inventory_hit_count", "has_adjacent_test"}
         assert isinstance(hotspot["inventory_finding_ids"], list)
-        assert hotspot["test_hint"] is None
+        hint = hotspot["test_hint"]
+        assert isinstance(hint, dict)
+        assert hint["gap"] in {"no_adjacent_test", "no_function_reference", "no_fuzz_entry", "covered"}
+        if hint["gap"] == "covered":
+            assert hint["test_kind"] is None
+        else:
+            assert hint["test_kind"] in {"unit", "property", "sanitizer", "http-contract", "fuzz-harness"}
         assert "6.0" in hotspot["rationale"]
         assert "3.0" in hotspot["rationale"]
     parser = next(item for item in payload["hotspots"] if item["path"] == "src/parser.c")
     helper = next(item for item in payload["hotspots"] if item["path"] == "src/helper.py")
     assert parser["signals"]["has_adjacent_test"] is True
     assert helper["signals"]["has_adjacent_test"] is False
+    assert parser["test_hint"]["gap"] == "no_fuzz_entry"
+    assert parser["test_hint"]["test_kind"] == "fuzz-harness"
+    assert helper["test_hint"]["gap"] == "no_adjacent_test"
+    assert helper["test_hint"]["test_kind"] == "unit"
     assert helper["inventory_finding_ids"] == [f"rule:helper:{index}" for index in range(8)]
     assert parser["inventory_finding_ids"] == []
