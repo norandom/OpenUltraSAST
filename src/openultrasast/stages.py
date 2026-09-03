@@ -35,3 +35,15 @@ def skip_as_degradation(stage: Stage, reason: str) -> dict[str, str]:
 
 def record_skip(plan: StagePlan, stage: Stage, reason: str) -> StagePlan:
     return replace(plan, skipped=plan.skipped + (skip_as_degradation(stage, reason),))
+
+
+def record_completed(plan: StagePlan, stage: Stage) -> StagePlan:
+    return replace(plan, completed=plan.completed + (stage,))
+
+
+def stages_payload(plan: StagePlan) -> dict[str, object]:
+    return {
+        "requested": [str(stage) for stage in plan.requested],
+        "completed": [str(stage) for stage in plan.completed],
+        "skipped": [dict(item) for item in plan.skipped],
+    }

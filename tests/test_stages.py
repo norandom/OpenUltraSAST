@@ -1,6 +1,6 @@
 import json
 
-from openultrasast.stages import MODE_STAGES, Stage, StagePlan, plan_for_mode, record_skip
+from openultrasast.stages import MODE_STAGES, Stage, StagePlan, plan_for_mode, record_completed, record_skip, stages_payload
 
 
 def test_mode_stages_maps_existing_depths() -> None:
@@ -45,3 +45,24 @@ def test_skipped_stage_is_structured_degradation_not_exception() -> None:
     assert degradations[0]["stage"] == "regress"
     assert degradations[0]["reason"] == "sandbox_unavailable"
     assert json.dumps(degradations) == json.dumps([{"stage": "regress", "reason": "sandbox_unavailable"}])
+
+
+def test_record_completed_static_for_quick() -> None:
+    plan = record_completed(plan_for_mode("quick"), Stage.STATIC)
+
+    assert plan.requested == (Stage.STATIC,)
+    assert plan.completed == (Stage.STATIC,)
+    assert plan.skipped == ()
+    assert Stage.MAP not in plan.completed
+    assert Stage.REGRESS not in plan.completed
+
+
+def test_stages_payload_is_manifest_shaped() -> None:
+    plan = record_completed(plan_for_mode("quick"), Stage.STATIC)
+    payload = stages_payload(plan)
+
+    assert payload == {
+        "requested": ["static"],
+        "completed": ["static"],
+        "skipped": [],
+    }

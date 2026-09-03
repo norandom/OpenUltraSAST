@@ -44,6 +44,7 @@ from .reports import scan_exit_code, write_manifest, write_markdown_report, writ
 from .ruleset import DEFAULT_RULESET_DIR, load_ruleset
 from .run import ScanRun, create_scan_run
 from .scoring import build_score_artifact
+from .stages import Stage, plan_for_mode, record_completed, stages_payload
 from .verification import VerificationResult, write_verification_results
 from .verify_judge import verify_findings_dispatch
 
@@ -137,6 +138,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     if not path.exists() or not path.is_dir():
         raise SystemExit(f"scan path is not a directory: {path}")
 
+    plan = plan_for_mode(mode)
     config = load_config(config_path if config_path.exists() else None)
     # Capability gates for the optional HarnessX agentic plane. When the extra is
     # absent (default/CI), both stay False and the deterministic path runs unchanged.
@@ -299,6 +301,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     )
     score_path = run.root / "score.json"
     score_path.write_text(json.dumps(score_artifact.to_dict(), indent=2, sort_keys=True) + "\n")
+    plan = record_completed(plan, Stage.STATIC)
     runtime.run_stage(
         "report", lambda: write_markdown_report(findings, markdown_path, verifications, redact=config.hardening.redact_secrets)
     )
@@ -322,6 +325,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             score=score_artifact.to_dict(),
             degradations=runtime.state["degradations"] or None,
             fusion=[_fusion_summary(decision) for decision in fusion_decisions] or None,
+            stages=stages_payload(plan),
         ),
     )
     runtime.finish(status="succeeded")

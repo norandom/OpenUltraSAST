@@ -15,7 +15,7 @@ def write_markdown_report(
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications or [])
-    lines = ["# OpenUltraSAST Report", "", f"Findings: {len(findings)}", ""]
+    lines = ["# OpenUltraSAST Report", "", f"Findings: {len(findings)}", "", "## Inventory", ""]
     if not findings:
         lines.append("No quick-mode findings were emitted.")
     for finding in findings:
@@ -82,6 +82,7 @@ def write_manifest(
     score: dict[str, object] | None = None,
     degradations: list[dict[str, object]] | None = None,
     fusion: list[dict[str, object]] | None = None,
+    stages: dict[str, object] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications)
@@ -110,6 +111,8 @@ def write_manifest(
         payload["degradations"] = degradations
     if fusion is not None:
         payload["fusion"] = fusion
+    if stages is not None:
+        payload["stages"] = stages
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 

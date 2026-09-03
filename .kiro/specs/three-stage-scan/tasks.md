@@ -117,7 +117,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Boundary: RegressionRunner_
   - _Depends: 5.1_
 
-- [ ] 5.3 Map sandbox outcomes to the four verdicts and the worth-fixing gate
+- [x] 5.3 Map sandbox outcomes to the four verdicts and the worth-fixing gate
   - Outcomes map to triggerable, not_triggerable, already_covered, or inconclusive; worth-fixing requires triggerable plus reachable or inferred-file-surface.
   - Not-triggerable and already-covered do not fail the build; inconclusive records a reason and does not fail the build.
   - Observable completion: a table-driven test covers the four verdicts and the worth-fixing boolean.
@@ -128,7 +128,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
 ## Phase 4 — Integration: Wire stages into the scan
 
 - [ ] 6. Run stages from the existing scan command
-- [ ] 6.1 Keep quick as stage-1 inventory with no model and no target execution
+- [x] 6.1 Keep quick as stage-1 inventory with no model and no target execution
   - Quick still loads policy, ruleset, preprocess, rank, pattern inventory, structural verify, and score.
   - The report labels those hits as inventory, not as worth-fixing.
   - Policy still fails loud on an unmapped enabled CWE.

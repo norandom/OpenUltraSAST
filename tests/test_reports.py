@@ -1,4 +1,5 @@
 import json
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -8,6 +9,7 @@ from openultrasast.cli import main
 from openultrasast.findings import StaticFinding
 from openultrasast.reports import scan_exit_code, write_manifest, write_markdown_report, write_sarif_report
 from openultrasast.run import ScanRun
+from openultrasast.stages import Stage, plan_for_mode, record_completed, stages_payload
 from openultrasast.verification import verify_finding
 
 
@@ -50,6 +52,34 @@ def test_manifest_links_shared_artifacts_by_finding_id(tmp_path: Path) -> None:
     assert manifest_finding["finding_id"] == finding.finding_id
     assert manifest_finding["verification_status"] == "accepted"
     assert manifest_finding["artifact_refs"]["sarif"] == "report.sarif"
+    assert "stages" not in payload
+
+
+def test_manifest_includes_requested_completed_skipped_stages(tmp_path: Path) -> None:
+    run = ScanRun(scan_id="scan-1", root=tmp_path / "run", target=tmp_path / "repo")
+    run.root.mkdir()
+    finding = _finding()
+    artifacts = {
+        "findings": run.root / "findings.json",
+        "verification": run.root / "verification.json",
+        "markdown": run.root / "report.md",
+        "sarif": run.root / "report.sarif",
+    }
+    output = run.root / "manifest.json"
+    plan = record_completed(plan_for_mode("quick"), Stage.STATIC)
+
+    write_manifest(
+        run=run,
+        findings=[finding],
+        verifications=[verify_finding(finding)],
+        artifact_paths=artifacts,
+        path=output,
+        stages=stages_payload(plan),
+    )
+
+    payload = json.loads(output.read_text())
+    assert payload["stages"] == {"requested": ["static"], "completed": ["static"], "skipped": []}
+    assert payload["findings"][0]["finding_id"] == finding.finding_id
 
 
 def test_markdown_report_includes_verification_status(tmp_path: Path) -> None:
@@ -59,8 +89,24 @@ def test_markdown_report_includes_verification_status(tmp_path: Path) -> None:
     write_markdown_report([finding], output, [verify_finding(finding)])
 
     text = output.read_text()
+    assert "## Inventory" in text
     assert "Verification: `accepted`" in text
     assert finding.finding_id in text
+    assert "worth-fixing" not in text.lower()
+    assert "worth_fixing" not in text.lower()
+
+
+def test_markdown_report_labels_hits_as_inventory_not_worth_fixing(tmp_path: Path) -> None:
+    finding = _finding()
+    output = tmp_path / "report.md"
+
+    write_markdown_report([finding], output, [verify_finding(finding)])
+
+    text = output.read_text()
+    inventory_at = text.index("## Inventory")
+    finding_at = text.index(f"## {finding.title}")
+    assert inventory_at < finding_at
+    assert "worth-fixing" not in text.lower()
 
 
 def test_scan_exit_code_policy() -> None:
@@ -131,6 +177,54 @@ def test_cli_scan_fail_on_worth_fixing_exits_zero_without_verdicts(tmp_path: Pat
     monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
 
     assert main(["scan", str(repo), "--mode", "quick", "--fail-on", "worth-fixing"]) == 0
+
+
+def test_quick_scan_report_is_inventory_without_map_or_docker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from openultrasast import tool_hunter
+    from openultrasast.complexity import map as complexity_map
+    from openultrasast.sandbox import probe as sandbox_probe
+    from openultrasast.sandbox import runner as sandbox_runner
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "app.py").write_text("@app.route('/admin')\ndef admin():\n    return eval(request.data)\n")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+
+    docker_argv: list[list[str]] = []
+    original_run = subprocess.run
+
+    def guarded_run(command, *args, **kwargs):  # type: ignore[no-untyped-def]
+        argv = list(command) if isinstance(command, list | tuple) else [command]
+        if argv and Path(str(argv[0])).name == "docker":
+            docker_argv.append(argv)
+            raise AssertionError(f"quick scan must not start docker: {argv}")
+        return original_run(command, *args, **kwargs)
+
+    def fail(message: str):  # type: ignore[no-untyped-def]
+        def _fail(*args, **kwargs):  # type: ignore[no-untyped-def]
+            raise AssertionError(message)
+
+        return _fail
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    monkeypatch.setattr(sandbox_runner, "build_docker_argv", fail("quick scan must not build docker argv"))
+    monkeypatch.setattr(sandbox_probe.SandboxProbe, "available", fail("quick scan must not probe docker"))
+    monkeypatch.setattr(complexity_map, "build_complexity_map", fail("quick scan must not build a complexity map"))
+    monkeypatch.setattr(tool_hunter, "run_tool_hunter", fail("quick scan must not start a hunter model"))
+
+    assert main(["scan", str(repo), "--mode", "quick"]) == 0
+
+    run_dir = sorted((repo / ".runs").iterdir())[-1]
+    report = (run_dir / "report.md").read_text()
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+
+    assert "## Inventory" in report
+    assert "worth-fixing" not in report.lower()
+    assert not (run_dir / "complexity_map.json").exists()
+    assert docker_argv == []
+    assert manifest["stages"]["requested"] == ["static"]
+    assert manifest["stages"]["completed"] == ["static"]
+    assert manifest["stages"]["skipped"] == []
 
 
 def _finding() -> StaticFinding:
