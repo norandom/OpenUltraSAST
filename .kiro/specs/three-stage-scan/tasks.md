@@ -93,7 +93,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Boundary: DockerCliRunner_
   - _Depends: 4.1_
 
-- [ ] 4.3 Reject unsafe regression snippets before execution
+- [x] 4.3 Reject unsafe regression snippets before execution
   - Snippets that refer to the Docker socket, host network, or writes under the source mount are not executed and become `inconclusive`.
   - Observable completion: each forbidden shape is rejected in a unit test and no runner job is created.
   - _Requirements: 5.8, 6.6_
@@ -103,7 +103,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
 ## Phase 3 — Core: Regression verdicts
 
 - [ ] 5. Produce worth-fixing verdicts from sandboxed candidates
-- [ ] 5.1 Select a bounded candidate set from hotspots and severe reachable inventory
+- [x] 5.1 Select a bounded candidate set from hotspots and severe reachable inventory
   - Selection honors max-candidates and always includes reachable severity-5 inventory even when the ledger demoted the hotspot.
   - Observable completion: a unit test with six hotspots and max-candidates three returns three, plus the sev-5 reachable extra when present.
   - _Requirements: 5.1, 7.4, 9.5_
