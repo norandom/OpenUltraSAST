@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import asdict
 from pathlib import Path
 
@@ -112,13 +113,20 @@ def write_manifest(
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
-def scan_exit_code(findings: list[StaticFinding], verifications: list[VerificationResult], policy: str) -> int:
+def scan_exit_code(
+    findings: list[StaticFinding],
+    verifications: list[VerificationResult],
+    policy: str,
+    worth_fixing_verdicts: Sequence[object] | None = None,
+) -> int:
     if policy == "never":
         return 0
     if policy == "findings":
         return 1 if findings else 0
     if policy == "verified":
         return 1 if any(result.verified for result in verifications) else 0
+    if policy == "worth-fixing":
+        return 1 if any(getattr(verdict, "worth_fixing", False) for verdict in worth_fixing_verdicts or ()) else 0
     raise ValueError(f"unknown fail policy: {policy}")
 
 

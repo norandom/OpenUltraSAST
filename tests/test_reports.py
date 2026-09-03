@@ -1,5 +1,8 @@
 import json
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 from openultrasast.cli import main
 from openultrasast.findings import StaticFinding
@@ -63,11 +66,45 @@ def test_markdown_report_includes_verification_status(tmp_path: Path) -> None:
 def test_scan_exit_code_policy() -> None:
     finding = _finding()
     verification = verify_finding(finding)
+    worth_fixing = SimpleNamespace(worth_fixing=True)
 
     assert scan_exit_code([finding], [verification], "never") == 0
     assert scan_exit_code([finding], [verification], "findings") == 1
+    assert scan_exit_code([], [], "findings") == 0
     assert scan_exit_code([finding], [verification], "verified") == 1
     assert scan_exit_code([], [], "verified") == 0
+    # findings/verified ignore worth-fixing verdicts
+    assert scan_exit_code([], [], "findings", worth_fixing_verdicts=[worth_fixing]) == 0
+    assert scan_exit_code([], [], "verified", worth_fixing_verdicts=[worth_fixing]) == 0
+    assert scan_exit_code([finding], [verification], "findings", worth_fixing_verdicts=[worth_fixing]) == 1
+    assert scan_exit_code([finding], [verification], "verified", worth_fixing_verdicts=[worth_fixing]) == 1
+
+
+def test_scan_exit_code_worth_fixing() -> None:
+    finding = _finding()
+    verification = verify_finding(finding)
+    worth_fixing = SimpleNamespace(worth_fixing=True)
+    not_worth_fixing = SimpleNamespace(worth_fixing=False)
+
+    assert scan_exit_code([finding], [verification], "worth-fixing") == 0
+    assert scan_exit_code([finding], [verification], "worth-fixing", worth_fixing_verdicts=[]) == 0
+    assert scan_exit_code([finding], [verification], "worth-fixing", worth_fixing_verdicts=[not_worth_fixing]) == 0
+    assert scan_exit_code([finding], [verification], "worth-fixing", worth_fixing_verdicts=[worth_fixing]) == 1
+
+
+def test_scan_exit_code_unknown_policy() -> None:
+    with pytest.raises(ValueError, match="unknown fail policy"):
+        scan_exit_code([], [], "maybe")
+
+
+def test_scan_help_lists_worth_fixing(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc:
+        main(["scan", "--help"])
+    assert exc.value.code == 0
+    help_text = capsys.readouterr().out
+    assert "worth-fixing" in help_text
+    assert "findings" in help_text
+    assert "verified" in help_text
 
 
 def test_cli_scan_writes_sarif_manifest_and_honors_fail_policy(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -85,6 +122,15 @@ def test_cli_scan_writes_sarif_manifest_and_honors_fail_policy(tmp_path: Path, m
     finding_id = manifest["findings"][0]["finding_id"]
     assert sarif["runs"][0]["results"][0]["properties"]["finding_id"] == finding_id
     assert manifest["findings"][0]["artifact_refs"]["verification_json"] == "verification.json"
+
+
+def test_cli_scan_fail_on_worth_fixing_exits_zero_without_verdicts(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "app.py").write_text("@app.route('/admin')\ndef admin():\n    return eval(request.data)\n")
+    monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
+
+    assert main(["scan", str(repo), "--mode", "quick", "--fail-on", "worth-fixing"]) == 0
 
 
 def _finding() -> StaticFinding:

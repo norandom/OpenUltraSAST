@@ -54,7 +54,24 @@ def test_surface_exposes_no_shell_or_exec_tool() -> None:
     for name in server.tool_names:
         assert not any(token in name.lower() for token in forbidden), name
     for tool in McpServer()._tools.values():  # no tool accepts a free-form command argument
-        assert "command" not in tool.input_schema.get("properties", {})
+        properties = tool.input_schema.get("properties", {})
+        assert "command" not in properties
+        assert "shell" not in properties
+        assert "docker" not in properties
+
+
+def test_scan_rejects_deep_and_keeps_cli_only_modes() -> None:
+    server = McpServer()
+    listed = server.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}})
+    assert listed is not None
+    scan_tool = next(tool for tool in listed["result"]["tools"] if tool["name"] == "openultrasast.scan")
+    mode_enum = scan_tool["inputSchema"]["properties"]["mode"]["enum"]
+    assert mode_enum == ["quick", "standard"]
+    assert "deep" not in mode_enum
+
+    result = _call(server, "openultrasast.scan", {"path": ".", "mode": "deep"})
+    assert result["isError"]
+    assert "deep" in result["error"]
 
 
 def test_notifications_get_no_response() -> None:

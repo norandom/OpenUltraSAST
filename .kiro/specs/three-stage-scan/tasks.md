@@ -4,7 +4,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
 
 ## Phase 1 — Foundation: Stage contract
 
-- [ ] 1. Introduce the stage plan and mode mapping
+- [x] 1. Introduce the stage plan and mode mapping
 - [x] 1.1 Encode the three stages and the mode-to-stage table
   - Depth `quick` requests only static, `standard` requests static then map, `deep` requests static then map then regress.
   - A skipped stage is a structured reason, not an exception, and can be serialized into the existing degradations list.
@@ -20,7 +20,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Boundary: Packaging Configuration_
   - _Depends: 1.1_
 
-- [ ] 1.3 Expand fail-on vocabulary with worth-fixing
+- [x] 1.3 Expand fail-on vocabulary with worth-fixing
   - The scan command accepts `worth-fixing` alongside the existing fail-on values and does not change the meaning of `findings` or `verified`.
   - The existing report exit helper must recognize the new value; unknown values still fail loud.
   - MCP continues to reject `deep` and must not gain docker or shell tools.
@@ -191,3 +191,9 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - Observable completion: fake-runner tests always run; docker tests skip-or-pass; the default CI workflow still invokes quick-only detection plus the new split-sink map gate.
   - _Requirements: 8.5, 9.1, 9.2_
   - _Depends: 6.3, 7.1_
+
+## Implementation Notes
+
+- `RegressConfig.images` is a sorted tuple of `(language, image)` pairs so frozen config stays hashable.
+- `scan_exit_code` duck-types `worth_fixing` on verdict objects; `_run_scan` still passes no verdicts until task 6.5. Dict-shaped verdicts would not fail the gate.
+- Map `top_k` default is 20 (not named in design.md); `max_hunter_hotspots=8` and `max_candidates=5` follow design.

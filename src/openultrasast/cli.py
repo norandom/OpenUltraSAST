@@ -69,7 +69,7 @@ def main(argv: list[str] | None = None) -> int:
     scan.add_argument("path", type=Path)
     scan.add_argument("--mode", choices=("quick", "standard", "deep"), default="quick")
     scan.add_argument("--config", type=Path, default=Path("openultrasast.toml"))
-    scan.add_argument("--fail-on", choices=("never", "findings", "verified"), default="never")
+    scan.add_argument("--fail-on", choices=("never", "findings", "verified", "worth-fixing"), default="never")
 
     index = subparsers.add_parser("index", help="chunk a local repository for embedding index construction")
     index.add_argument("path", type=Path)
