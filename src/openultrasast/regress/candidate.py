@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
 from ..complexity.ledger import hotspot_key, select_forced_candidates
@@ -200,6 +200,7 @@ def run_regression(
         image = images.get(language) or DEFAULT_IMAGES.get(language, "ousast-missing-image")
         mapped = runner.run_recipe(language, snippet, image, sandbox_limits, repo_root=repo_root)
         reachability = _reachability_for(hotspot, findings_by_id)
+        mapped = replace(mapped, worth_fixing=is_worth_fixing(mapped.verdict, reachability))
         records.append(
             CandidateVerdict(
                 path=hotspot.path,
@@ -208,7 +209,7 @@ def run_regression(
                 verdict=mapped.verdict,
                 reason=mapped.reason,
                 inventory_finding_ids=hotspot.inventory_finding_ids,
-                worth_fixing=is_worth_fixing(mapped.verdict, reachability),
+                worth_fixing=mapped.worth_fixing,
             )
         )
     return tuple(records)

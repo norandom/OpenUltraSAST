@@ -35,6 +35,7 @@ class TestHint:
     gap: str  # no_adjacent_test | no_function_reference | no_fuzz_entry | covered
     test_kind: str | None
     reason: str
+    __test__ = False
 
     def __post_init__(self) -> None:
         if self.gap not in GAPS:

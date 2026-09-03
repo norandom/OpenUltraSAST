@@ -50,6 +50,7 @@ _CRASH_MARKERS = (
 class RegressionVerdict:
     verdict: str
     reason: str = ""
+    worth_fixing: bool = False
 
 
 def is_worth_fixing(verdict: str, reachability: str) -> bool:

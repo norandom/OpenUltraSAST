@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 from openultrasast.complexity.ledger import (
     NOT_TRIGGERABLE_DELTA,
@@ -9,6 +10,7 @@ from openultrasast.complexity.ledger import (
     hotspot_key,
     load_ledger,
     must_keep_as_candidate,
+    persist_verdicts,
     record_verdict,
     select_forced_candidates,
     write_ledger,
@@ -246,6 +248,25 @@ def test_overlay_reorders_and_rebands_without_dropping_hits() -> None:
     assert demoted.band == "low"
     assert demoted.inventory_finding_ids == ("sev5:1",)
     assert overlaid[0].inventory_finding_ids == ("low:1",)
+
+
+def test_persist_verdicts_records_triggerable_and_skips_inconclusive(tmp_path: Path) -> None:
+    path = tmp_path / ".openultrasast" / "calibration" / "complexity_ledger.json"
+    persist_verdicts(
+        path,
+        [
+            SimpleNamespace(path="app.py", function_name="admin", verdict="triggerable"),
+            SimpleNamespace(path="safe.py", function_name=None, verdict="not_triggerable"),
+            SimpleNamespace(path="other.py", function_name="skip", verdict="inconclusive"),
+        ],
+    )
+    loaded = load_ledger(path)
+
+    assert loaded[hotspot_key("app.py", "admin")].last_verdict == "triggerable"
+    assert loaded[hotspot_key("app.py", "admin")].score_delta == TRIGGERABLE_DELTA
+    assert loaded[hotspot_key("safe.py", None)].last_verdict == "not_triggerable"
+    assert loaded[hotspot_key("safe.py", None)].score_delta == NOT_TRIGGERABLE_DELTA
+    assert hotspot_key("other.py", "skip") not in loaded
 
 
 def test_build_complexity_map_without_ledger_path_skips_overlay(tmp_path: Path) -> None:

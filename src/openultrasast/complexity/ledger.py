@@ -57,6 +57,27 @@ def write_ledger(path: Path, ledger: Mapping[str, LedgerEntry | Mapping[str, obj
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
+def persist_verdicts(path: Path, verdicts: Sequence[object]) -> dict[str, LedgerEntry]:
+    """Record triggerable / not_triggerable outcomes into the loop-owned complexity ledger."""
+    ledger = load_ledger(path)
+    changed = False
+    for item in verdicts:
+        verdict = str(getattr(item, "verdict", ""))
+        if verdict not in VERDICT_DELTAS:
+            continue
+        raw_function = getattr(item, "function_name", None)
+        ledger = record_verdict(
+            ledger,
+            path=str(getattr(item, "path", "")),
+            function_name=raw_function if isinstance(raw_function, str) else None,
+            verdict=verdict,
+        )
+        changed = True
+    if changed:
+        write_ledger(path, ledger)
+    return ledger
+
+
 def record_verdict(
     ledger: Mapping[str, LedgerEntry | Mapping[str, object]],
     *,

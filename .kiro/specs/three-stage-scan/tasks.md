@@ -127,7 +127,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
 
 ## Phase 4 — Integration: Wire stages into the scan
 
-- [ ] 6. Run stages from the existing scan command
+- [x] 6. Run stages from the existing scan command
 - [x] 6.1 Keep quick as stage-1 inventory with no model and no target execution
   - Quick still loads policy, ruleset, preprocess, rank, pattern inventory, structural verify, and score.
   - The report labels those hits as inventory, not as worth-fixing.

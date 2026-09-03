@@ -6,7 +6,10 @@ from types import SimpleNamespace
 import pytest
 
 from openultrasast.cli import main
+from openultrasast.complexity.hints import TestHint
+from openultrasast.complexity.map import ComplexityMap, Hotspot
 from openultrasast.findings import StaticFinding
+from openultrasast.regress import CandidateVerdict
 from openultrasast.reports import scan_exit_code, write_manifest, write_markdown_report, write_sarif_report
 from openultrasast.run import ScanRun
 from openultrasast.stages import Stage, plan_for_mode, record_completed, stages_payload
@@ -94,6 +97,69 @@ def test_markdown_report_includes_verification_status(tmp_path: Path) -> None:
     assert finding.finding_id in text
     assert "worth-fixing" not in text.lower()
     assert "worth_fixing" not in text.lower()
+
+
+def test_markdown_report_includes_complexity_map_and_worth_fixing_sections(tmp_path: Path) -> None:
+    finding = _finding()
+    output = tmp_path / "report.md"
+    hint = TestHint(
+        path="app.py",
+        function_name="admin",
+        gap="no_adjacent_test",
+        test_kind="http-contract",
+        reason="no adjacent test file for app.py::admin; recommend http-contract.",
+    )
+    hotspot = Hotspot(
+        path="app.py",
+        function_name="admin",
+        score=6.5,
+        band="high",
+        signals={"loc": 12, "has_adjacent_test": False},
+        rationale="high band: nested public route",
+        test_hint=hint,
+        inventory_finding_ids=(finding.finding_id,),
+    )
+    verdict = CandidateVerdict(
+        path="app.py",
+        function_name="admin",
+        language="python",
+        verdict="triggerable",
+        reason="crash",
+        inventory_finding_ids=(finding.finding_id,),
+        worth_fixing=True,
+    )
+    skipped = CandidateVerdict(
+        path="safe.py",
+        function_name=None,
+        language="python",
+        verdict="not_triggerable",
+        reason="exit_zero",
+        inventory_finding_ids=(),
+        worth_fixing=False,
+    )
+
+    write_markdown_report(
+        [finding],
+        output,
+        [verify_finding(finding)],
+        complexity_map=ComplexityMap(hotspots=(hotspot,), heuristic_only=True),
+        verdicts=(verdict, skipped),
+    )
+
+    text = output.read_text()
+    inventory_at = text.index("## Inventory")
+    map_at = text.index("## Complexity map")
+    worth_at = text.index("## Worth fixing")
+    assert inventory_at < map_at < worth_at
+    map_section = text[map_at:worth_at]
+    worth_section = text[worth_at:]
+    assert "app.py::admin" in map_section
+    assert "Gap: `no_adjacent_test`" in map_section
+    assert "Recommended test: `http-contract`" in map_section
+    assert "triggerable" in worth_section
+    assert "crash" in worth_section
+    assert "safe.py" not in worth_section
+    assert "## Inventory" in text
 
 
 def test_markdown_report_labels_hits_as_inventory_not_worth_fixing(tmp_path: Path) -> None:
@@ -277,6 +343,11 @@ def test_standard_scan_writes_complexity_map_without_docker(tmp_path: Path, monk
     assert manifest["complexity"]["hotspot_count"] == len(complexity_map["hotspots"])
     assert manifest["complexity"]["heuristic_only"] is True
     assert manifest["artifacts"]["complexity_map"] == "complexity_map.json"
+    report = (run_dir / "report.md").read_text()
+    assert "## Inventory" in report
+    assert "## Complexity map" in report
+    assert "Gap:" in report
+    assert "## Worth fixing" not in report
 
 
 def test_standard_scan_records_hunter_model_unavailable_when_model_unset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -335,6 +406,38 @@ def test_manifest_includes_complexity_summary(tmp_path: Path) -> None:
     payload = json.loads(output.read_text())
     assert payload["complexity"] == {"hotspot_count": 3, "heuristic_only": True}
     assert payload["artifacts"]["complexity_map"] == "complexity_map.json"
+
+
+def test_manifest_includes_worth_fixing_count(tmp_path: Path) -> None:
+    run = ScanRun(scan_id="scan-1", root=tmp_path / "run", target=tmp_path / "repo")
+    run.root.mkdir()
+    finding = _finding()
+    artifacts = {
+        "findings": run.root / "findings.json",
+        "verification": run.root / "verification.json",
+        "markdown": run.root / "report.md",
+        "sarif": run.root / "report.sarif",
+        "verdicts": run.root / "verdicts.json",
+    }
+    output = run.root / "manifest.json"
+
+    write_manifest(
+        run=run,
+        findings=[finding],
+        verifications=[verify_finding(finding)],
+        artifact_paths=artifacts,
+        path=output,
+        stages={"requested": ["static", "map", "regress"], "completed": ["static", "map", "regress"], "skipped": []},
+        worth_fixing={
+            "count": 1,
+            "verdicts": [{"path": "app.py", "function_name": "admin", "verdict": "triggerable", "reason": "crash"}],
+        },
+    )
+
+    payload = json.loads(output.read_text())
+    assert payload["stages"]["completed"] == ["static", "map", "regress"]
+    assert payload["worth_fixing"]["count"] == 1
+    assert payload["worth_fixing"]["verdicts"][0]["verdict"] == "triggerable"
 
 
 def _finding() -> StaticFinding:

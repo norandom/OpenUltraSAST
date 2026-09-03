@@ -28,6 +28,7 @@ from .calibration import (
     write_ranking_calibrations,
 )
 from .complexity import map as complexity_map
+from .complexity.ledger import persist_verdicts
 from .config import load_config
 from .findings import StaticFinding, quick_scan_findings, write_findings
 from .fusion import FusionDecision, fuse_findings_dispatch
@@ -42,7 +43,7 @@ from .mapping import analyze_entry_points, attach_reachability_hints, ingest_sar
 from .policy import assert_rules_resolve, load_policy
 from .preprocess import preprocess_repository, write_preprocess_artifact
 from .rank import rank_targets, write_rankings
-from .regress import run_regression, write_verdicts
+from .regress import CandidateVerdict, run_regression, write_verdicts
 from .reports import scan_exit_code, write_manifest, write_markdown_report, write_sarif_report
 from .ruleset import DEFAULT_RULESET_DIR, load_ruleset
 from .run import ScanRun, create_scan_run
@@ -341,6 +342,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         }
     verdicts_path = run.root / "verdicts.json"
     wrote_verdicts = False
+    verdict_records: tuple[CandidateVerdict, ...] = ()
     if Stage.REGRESS in plan.requested:
         probe = resolve_sandbox_probe()
         if not probe.available():
@@ -368,10 +370,21 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
                 ),
             )
             write_verdicts(records, verdicts_path)
+            persist_verdicts(run.target / CALIBRATION_DIR / "complexity_ledger.json", records)
+            verdict_records = records
             wrote_verdicts = True
             plan = record_completed(plan, Stage.REGRESS)
+    worth_fixing_payload = _worth_fixing_payload(verdict_records) if wrote_verdicts else None
     runtime.run_stage(
-        "report", lambda: write_markdown_report(findings, markdown_path, verifications, redact=config.hardening.redact_secrets)
+        "report",
+        lambda: write_markdown_report(
+            findings,
+            markdown_path,
+            verifications,
+            redact=config.hardening.redact_secrets,
+            complexity_map=built_map,
+            verdicts=verdict_records if wrote_verdicts else None,
+        ),
     )
     runtime.run_stage("sarif", lambda: write_sarif_report(findings, verifications, sarif_path))
     runtime.run_stage(
@@ -397,6 +410,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             fusion=[_fusion_summary(decision) for decision in fusion_decisions] or None,
             stages=stages_payload(plan),
             complexity=complexity_payload,
+            worth_fixing=worth_fixing_payload,
         ),
     )
     runtime.finish(status="succeeded")
@@ -407,7 +421,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         ranked_target_count=len(rankings),
         finding_count=len(findings),
         calibrations_applied=len(applied_calibrations),
-        exit_code=scan_exit_code(findings, verifications, fail_on),
+        exit_code=scan_exit_code(findings, verifications, fail_on, worth_fixing_verdicts=verdict_records),
     )
 
 
@@ -491,6 +505,23 @@ def _load_static_hints(sarif_paths: tuple[str, ...]) -> list[object]:
         if path.exists():
             hints.extend(ingest_sarif(path))
     return hints
+
+
+def _worth_fixing_payload(verdicts: tuple[CandidateVerdict, ...]) -> dict[str, object]:
+    worth = [record for record in verdicts if record.worth_fixing]
+    return {
+        "count": len(worth),
+        "verdicts": [
+            {
+                "path": record.path,
+                "function_name": record.function_name,
+                "verdict": record.verdict,
+                "reason": record.reason,
+                "worth_fixing": True,
+            }
+            for record in worth
+        ],
+    }
 
 
 def _artifact_paths(**paths: Path | None) -> dict[str, Path]:

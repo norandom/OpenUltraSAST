@@ -11,13 +11,20 @@ from .verification import VerificationResult
 
 
 def write_markdown_report(
-    findings: list[StaticFinding], path: Path, verifications: list[VerificationResult] | None = None, *, redact: bool = True
+    findings: list[StaticFinding],
+    path: Path,
+    verifications: list[VerificationResult] | None = None,
+    *,
+    redact: bool = True,
+    complexity_map: object | None = None,
+    verdicts: Sequence[object] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications or [])
     lines = ["# OpenUltraSAST Report", "", f"Findings: {len(findings)}", "", "## Inventory", ""]
     if not findings:
         lines.append("No quick-mode findings were emitted.")
+        lines.append("")
     for finding in findings:
         verification = verification_by_id.get(finding.finding_id)
         lines.extend(
@@ -41,12 +48,78 @@ def write_markdown_report(
                 "",
             ]
         )
+    if complexity_map is not None:
+        _append_complexity_map(lines, complexity_map)
+    if verdicts is not None:
+        _append_worth_fixing(lines, verdicts)
     report = "\n".join(lines).rstrip() + "\n"
     if redact:
         from .redaction import redact_secrets
 
         report = redact_secrets(report)
     path.write_text(report)
+
+
+def _append_complexity_map(lines: list[str], complexity_map: object) -> None:
+    hotspots = tuple(getattr(complexity_map, "hotspots", ()) or ())
+    heuristic_only = getattr(complexity_map, "heuristic_only", None)
+    summary = f"Hotspots: {len(hotspots)}"
+    if heuristic_only is not None:
+        summary += f" (heuristic_only={str(bool(heuristic_only)).lower()})"
+    lines.extend(["## Complexity map", "", summary, ""])
+    if not hotspots:
+        lines.extend(["No complexity hotspots were emitted.", ""])
+        return
+    for hotspot in hotspots:
+        identity = _report_identity(getattr(hotspot, "path", ""), getattr(hotspot, "function_name", None))
+        lines.extend(
+            [
+                f"### `{identity}`",
+                "",
+                f"- Score: `{getattr(hotspot, 'score', '')}`",
+                f"- Band: `{getattr(hotspot, 'band', '')}`",
+            ]
+        )
+        hint = getattr(hotspot, "test_hint", None)
+        if hint is not None:
+            lines.append(f"- Gap: `{getattr(hint, 'gap', '')}`")
+            kind = getattr(hint, "test_kind", None)
+            if kind:
+                lines.append(f"- Recommended test: `{kind}`")
+            reason = getattr(hint, "reason", "")
+            if reason:
+                lines.append(f"- Hint: {reason}")
+        inventory_ids = tuple(getattr(hotspot, "inventory_finding_ids", ()) or ())
+        if inventory_ids:
+            lines.append(f"- Inventory: `{', '.join(str(item) for item in inventory_ids)}`")
+        rationale = str(getattr(hotspot, "rationale", "") or "")
+        lines.extend(["", rationale, ""] if rationale else [""])
+
+
+def _append_worth_fixing(lines: list[str], verdicts: Sequence[object]) -> None:
+    worth = [item for item in verdicts if getattr(item, "worth_fixing", False)]
+    lines.extend(["## Worth fixing", "", f"Count: {len(worth)}", ""])
+    if not worth:
+        lines.extend(["No worth-fixing verdicts were produced.", ""])
+        return
+    for item in worth:
+        identity = _report_identity(getattr(item, "path", ""), getattr(item, "function_name", None))
+        lines.extend(
+            [
+                f"### `{identity}`",
+                "",
+                f"- Verdict: `{getattr(item, 'verdict', '')}`",
+                f"- Reason: `{getattr(item, 'reason', '')}`",
+                "",
+            ]
+        )
+
+
+def _report_identity(path: object, function_name: object) -> str:
+    path_text = str(path or "")
+    if function_name:
+        return f"{path_text}::{function_name}"
+    return path_text
 
 
 def write_sarif_report(findings: list[StaticFinding], verifications: list[VerificationResult], path: Path) -> None:
@@ -84,6 +157,7 @@ def write_manifest(
     fusion: list[dict[str, object]] | None = None,
     stages: dict[str, object] | None = None,
     complexity: dict[str, object] | None = None,
+    worth_fixing: dict[str, object] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications)
@@ -116,6 +190,8 @@ def write_manifest(
         payload["stages"] = stages
     if complexity is not None:
         payload["complexity"] = complexity
+    if worth_fixing is not None:
+        payload["worth_fixing"] = worth_fixing
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
