@@ -54,7 +54,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Boundary: TestTuningAdvisor_
   - _Depends: 2.2_
 
-- [ ] 2.4 Apply a complexity ledger overlay that cannot hide severity-5 reachable inventory
+- [x] 2.4 Apply a complexity ledger overlay that cannot hide severity-5 reachable inventory
   - Triggerable verdicts raise a hotspot's later score; not-triggerable verdicts lower it; the underlying inventory hit remains.
   - A reachable policy-severity-5 inventory finding stays in the regression candidate set regardless of a negative ledger delta.
   - Observable completion: after a not-triggerable overlay the hotspot score drops, and a sev-5 reachable finding is still selected as a candidate, proven by a unit test.
@@ -63,7 +63,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Depends: 2.2_
 
 - [ ] 3. Add repo-bound hunter tools and a scripted tool loop
-- [ ] 3.1 (P) Clamp tool paths and expose read, grep, and reference search
+- [x] 3.1 (P) Clamp tool paths and expose read, grep, and reference search
   - Read, grep, and reference listing resolve only under the scan root; `..` and absolute escapes raise a path-escape error.
   - Grep runs with the standard library over enumerated source files.
   - Observable completion: a unit test reads a repo file, greps a split-sink assignment, and rejects `../etc/passwd`.
