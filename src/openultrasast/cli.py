@@ -29,7 +29,7 @@ from .calibration import (
 )
 from .complexity import map as complexity_map
 from .complexity.ledger import persist_verdicts
-from .config import load_config
+from .config import load_config, load_dotenv
 from .findings import StaticFinding, quick_scan_findings, write_findings
 from .fusion import FusionDecision, fuse_findings_dispatch
 from .gate import FALSE_POSITIVE_CEILING, RECALL_FLOOR
@@ -83,6 +83,7 @@ class ScanOutcome:
 
 
 def main(argv: list[str] | None = None) -> int:
+    load_dotenv()
     parser = argparse.ArgumentParser(prog="ousast")
     subparsers = parser.add_subparsers(dest="command", required=True)
 

@@ -9,6 +9,24 @@ from pathlib import Path
 DEFAULT_VECTOR_STORE = "json-local"
 
 
+def load_dotenv(path: Path | None = None, *, force: bool = False) -> None:
+    """Load KEY=VALUE lines from .env into os.environ. Stdlib only; never overrides."""
+    if not force and (os.environ.get("PYTEST_CURRENT_TEST") or os.environ.get("OPENULTRASAST_SKIP_DOTENV")):
+        return
+    env_path = path if path is not None else Path(".env")
+    if not env_path.is_file():
+        return
+    for raw in env_path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip("'").strip('"')
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
 @dataclass(frozen=True)
 class ModelConfig:
     ranker: str | None = None
@@ -129,6 +147,7 @@ class ResolvedConfig:
 
 
 def load_config(config_path: Path | None = None) -> ResolvedConfig:
+    load_dotenv()
     data: dict[str, object] = {}
     if config_path is not None and config_path.exists():
         with config_path.open("rb") as handle:
@@ -177,7 +196,10 @@ def _load_models(value: object) -> ModelConfig:
 
 def _load_embeddings(value: object) -> EmbeddingConfig:
     data = _section(value)
-    return EmbeddingConfig(model=_string(data.get("model")), store=_string(data.get("store")) or DEFAULT_VECTOR_STORE)
+    return EmbeddingConfig(
+        model=_string(data.get("model")) or _string(os.environ.get("OPENROUTER_EMBEDDING_MODEL")),
+        store=_string(data.get("store")) or DEFAULT_VECTOR_STORE,
+    )
 
 
 def _load_sandbox(value: object) -> SandboxConfig:

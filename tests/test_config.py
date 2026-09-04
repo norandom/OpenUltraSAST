@@ -1,6 +1,7 @@
+import os
 from pathlib import Path
 
-from openultrasast.config import load_config, write_resolved_config
+from openultrasast.config import load_config, load_dotenv, write_resolved_config
 
 
 def test_load_config_reads_toml(tmp_path: Path) -> None:
@@ -159,3 +160,21 @@ def test_load_config_reads_regress_image_pins(tmp_path: Path) -> None:
     assert config.complexity.top_k == 20
     assert config.complexity.max_hunter_hotspots == 8
     assert config.sandbox.memory_mb == 2048
+
+
+def test_load_dotenv_sets_missing_keys_only(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    env_file = tmp_path / ".env"
+    env_file.write_text("OPENROUTER_API_KEY=from-file\nOPENROUTER_EMBEDDING_MODEL=openai/text-embedding-3-small\n")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "already-set")
+    monkeypatch.delenv("OPENROUTER_EMBEDDING_MODEL", raising=False)
+
+    load_dotenv(env_file, force=True)
+
+    assert os.environ["OPENROUTER_API_KEY"] == "already-set"
+    assert os.environ["OPENROUTER_EMBEDDING_MODEL"] == "openai/text-embedding-3-small"
+
+
+def test_embeddings_model_from_env(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setenv("OPENROUTER_EMBEDDING_MODEL", "openai/text-embedding-3-small")
+    config = load_config(None)
+    assert config.embeddings.model == "openai/text-embedding-3-small"
