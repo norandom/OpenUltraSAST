@@ -32,6 +32,19 @@ jobs:
         run: uv run python -m openultrasast.pair_gate
       - run: uv run python -m compileall src tests
 
+  semantic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v6
+        with:
+          python-version-file: .python-version
+      - run: uv sync --group dev --extra semantic
+      - run: uv run pytest -m semantic
+
   dagger:
     runs-on: ubuntu-latest
     timeout-minutes: 20

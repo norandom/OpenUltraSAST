@@ -3,22 +3,7 @@
 from __future__ import annotations
 
 import ast
-import shutil
-import subprocess
-import tempfile
 from dataclasses import dataclass
-from pathlib import Path
-
-from .engines import tree_sitter_available
-
-_EXTENSION = {
-    "python": ".py",
-    "javascript": ".js",
-    "typescript": ".ts",
-    "c": ".c",
-    "cpp": ".cpp",
-    "java": ".java",
-}
 
 
 @dataclass(frozen=True)
@@ -62,10 +47,11 @@ class FileIR:
 
 
 def parse_file(path: str, text: str, language: str) -> FileIR:
-    if tree_sitter_available():
-        parsed = parse_tree_sitter_cli(path, text, language)
-        if parsed is not None and parsed.parse_ok:
-            return parsed
+    from .cst import parse_with_cst
+
+    parsed = parse_with_cst(path, text, language)
+    if parsed is not None:
+        return parsed
     if language == "python":
         return parse_python_ast(path, text)
     return FileIR(path=path, language=language, engine="none", functions=(), parse_ok=False, reason="language_unsupported")
@@ -78,37 +64,6 @@ def parse_python_ast(path: str, text: str) -> FileIR:
         return FileIR(path=path, language="python", engine="python-ast", functions=(), parse_ok=False, reason="parse_failed")
     functions = _python_functions(tree)
     return FileIR(path=path, language="python", engine="python-ast", functions=tuple(functions), parse_ok=True)
-
-
-def parse_tree_sitter_cli(path: str, text: str, language: str) -> FileIR | None:
-    binary = shutil.which("tree-sitter")
-    if binary is None:
-        return None
-    suffix = _EXTENSION.get(language, ".txt")
-    tmp_path: str | None = None
-    try:
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as handle:
-            handle.write(text.encode())
-            tmp_path = handle.name
-        result = subprocess.run(
-            [binary, "parse", tmp_path],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-    except Exception:
-        return None
-    finally:
-        if tmp_path:
-            Path(tmp_path).unlink(missing_ok=True)
-    combined = f"{result.stdout or ''}{result.stderr or ''}"
-    if result.returncode != 0 or "No language found" in combined or "Failed to load language" in combined:
-        return None
-    # A successful parse without an extractor still cannot adjudicate JS/C/Java.
-    # Return a parse_ok IR only when we actually built functions; otherwise None
-    # so Python can fall back to ast and other languages stay unsupported.
-    return None
 
 
 def _python_functions(tree: ast.AST) -> list[FunctionIR]:

@@ -20,6 +20,16 @@ dependencies = []
 harnessx = [
     "harnessx @ git+https://github.com/Darwin-Agent/HarnessX.git@274c512eea67c64701f992d3b6fe06f0fd590ef0",
 ]
+# Structured parse for overlay (JS/C/C++/Java/Python). Core install stays empty.
+# Wheels are MIT; import is lazy via openultrasast.semantic.extra.
+semantic = [
+    "tree-sitter>=0.23,<0.27",
+    "tree-sitter-python>=0.23",
+    "tree-sitter-javascript>=0.23",
+    "tree-sitter-c>=0.23",
+    "tree-sitter-cpp>=0.23",
+    "tree-sitter-java>=0.23",
+]
 
 [project.scripts]
 ousast = "openultrasast.cli:main"
@@ -27,7 +37,10 @@ ousast = "openultrasast.cli:main"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-markers = ["docker: requires a docker daemon"]
+markers = [
+    "docker: requires a docker daemon",
+    "semantic: requires openultrasast[semantic] tree-sitter extra",
+]
 
 [tool.ruff]
 line-length = 140
@@ -53,6 +66,10 @@ warn_unused_configs = true
 # imports inside guarded functions must not fail mypy.
 [[tool.mypy.overrides]]
 module = "harnessx.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tree_sitter"
 ignore_missing_imports = true
 
 [dependency-groups]

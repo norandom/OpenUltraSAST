@@ -13,7 +13,7 @@ from openultrasast.rank import rank_targets
 from openultrasast.semantic import OverlayError, OverlayRecord, adjudicate, load_facts
 from openultrasast.semantic.engines import joern_available, tree_sitter_available
 from openultrasast.semantic.facts import FactLoadError
-from openultrasast.semantic.ir import FileIR, FunctionIR, parse_file
+from openultrasast.semantic.ir import parse_file
 from openultrasast.semantic.taint import TaintPath, analyze_file
 
 
@@ -186,27 +186,11 @@ def test_overlay_length_matches_proposals_plus_coverage_only(tmp_path: Path) -> 
     assert all(record.evidence_level == "static_corroboration" for record in records if record.disposition == "coverage")
 
 
-def test_js_language_unsupported_without_tree_sitter(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("openultrasast.semantic.ir.tree_sitter_available", lambda: False)
-    monkeypatch.setattr("openultrasast.semantic.engines.tree_sitter_available", lambda: False)
+def test_js_language_unsupported_without_semantic_extra(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENULTRASAST_TREE_SITTER_PROBE", "0")
     ir = parse_file("app.js", "eval(req.query.x)\n", "javascript")
     assert ir.parse_ok is False
     assert ir.reason == "language_unsupported"
-
-
-def test_js_yields_ir_when_tree_sitter_available(monkeypatch: pytest.MonkeyPatch) -> None:
-    fake = FileIR(
-        path="app.js",
-        language="javascript",
-        engine="tree-sitter",
-        functions=(FunctionIR(name="run", params=("x",), start_line=1, end_line=1, binds=(), calls=()),),
-        parse_ok=True,
-    )
-    monkeypatch.setattr("openultrasast.semantic.ir.tree_sitter_available", lambda: True)
-    monkeypatch.setattr("openultrasast.semantic.ir.parse_tree_sitter_cli", lambda *args, **kwargs: fake)
-    ir = parse_file("app.js", "eval(req.query.x)\n", "javascript")
-    assert ir.parse_ok is True
-    assert ir.engine == "tree-sitter"
 
 
 def test_joern_absence_does_not_block_overlay(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
