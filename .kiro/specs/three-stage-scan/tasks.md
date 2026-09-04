@@ -165,7 +165,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
 
 ## Phase 5 — Validation: Grounded corpora and CI
 
-- [ ] 7. Replace cheat-sheet success for stages 2 and 3
+- [x] 7. Replace cheat-sheet success for stages 2 and 3
 - [x] 7.1 Add split-sink fixtures for Python, JavaScript, Java, and C/C++
   - Each language family has at least one case where source and sink are on different lines or assigned before use.
   - Observable completion: stage-1 pattern scan misses at least one planted sink in each family, documented in the manifest expected set.
@@ -185,7 +185,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Requirements: 8.3, 8.4, 8.6_
   - _Depends: 7.1, 2.2_
 
-- [ ] 7.4 Prove stage 3 can trigger a planted miss when the sandbox is available
+- [x] 7.4 Prove stage 3 can trigger a planted miss when the sandbox is available
   - Docker-marked tests skip when the probe fails; when they run, at least one stage-1 miss is `triggerable`.
   - Default pytest does not require a daemon. The pull-request job stays stage 1; a nightly or labeled job may request deep under time and candidate caps.
   - Observable completion: fake-runner tests always run; docker tests skip-or-pass; the default CI workflow still invokes quick-only detection plus the new split-sink map gate.
@@ -199,3 +199,5 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
 - Map `top_k` default is 20 (not named in design.md); `max_hunter_hotspots=8` and `max_candidates=5` follow design.
 - `collect_signals` adjacent-test detection is false unless the caller also passes `repo_files`; task 2.2 must pass enumerated repo paths.
 - ToolHunter rejects JSON dumps unless a repo tool was invoked; findings are always `suspicion` with prefix `tool-hunter:`.
+- Split-sink map gate treats "high band" as the highest band the map emitted on that corpus (small fixtures often top out at medium).
+- `@pytest.mark.docker` tests skip when `SandboxProbe` is unavailable; default CI does not require a daemon.
