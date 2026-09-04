@@ -26,6 +26,8 @@ jobs:
       - run: uv run pytest
       - name: Detection gate (>=90% recall, <10% FP — hard, score-independent)
         run: uv run python -m openultrasast.gate
+      - name: Split-sink map gate (stage 2 beats pattern-hit ranking)
+        run: uv run python -m openultrasast.map_gate
       - run: uv run python -m compileall src tests
 
   dagger:

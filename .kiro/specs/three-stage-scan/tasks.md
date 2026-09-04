@@ -178,7 +178,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Requirements: 8.2_
   - _Boundary: Benchmark Harness_
 
-- [ ] 7.3 Gate stage 2 on ranking the true function in the high band and beating pattern-hit order
+- [x] 7.3 Gate stage 2 on ranking the true function in the high band and beating pattern-hit order
   - Stage 1 may still use existing smoke fixtures; that recall is not treated as stage-2 success.
   - The merge gate fails if map order equals pattern-hit-count order on the split-sink corpus.
   - Observable completion: a dedicated gate command or test fails a stub map that sorts by hit count and passes the heuristic map on the split-sink corpus.
