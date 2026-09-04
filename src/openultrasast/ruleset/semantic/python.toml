@@ -1,0 +1,73 @@
+version = "1"
+language = "python"
+
+[[source]]
+id = "request"
+patterns = [
+  "request.args",
+  "request.form",
+  "request.data",
+  "request.json",
+  "request.cookies",
+  "request.values",
+  "request.get_json",
+  "request.headers",
+  "request.files",
+  "request.get",
+]
+
+[[source]]
+id = "argv"
+patterns = ["sys.argv"]
+
+[[source]]
+id = "stdin"
+patterns = ["sys.stdin", "stdin.read"]
+
+[[source]]
+id = "input"
+patterns = ["input("]
+
+[[sink]]
+id = "eval"
+cwe = "CWE-95"
+calls = ["eval", "exec"]
+rule_ids = ["python-unsafe-eval"]
+
+[[sink]]
+id = "pickle.loads"
+cwe = "CWE-502"
+calls = ["pickle.loads", "pickle.load", "yaml.load", "marshal.loads", "cPickle.loads"]
+rule_ids = ["python-unsafe-deserialization"]
+
+[[sink]]
+id = "execute"
+cwe = "CWE-89"
+calls = ["execute", "executemany"]
+rule_ids = ["python-sql-injection"]
+
+[[sink]]
+id = "os.system"
+cwe = "CWE-78"
+calls = ["os.system", "os.popen", "subprocess.run", "subprocess.call", "subprocess.Popen", "subprocess.check_output"]
+rule_ids = ["python-os-command", "python-shell-true"]
+
+[[sink]]
+id = "hashlib"
+cwe = "CWE-327"
+calls = ["hashlib.md5", "hashlib.sha1", "hashlib.new"]
+rule_ids = ["python-weak-hash"]
+weak_literals = ["md5", "sha1", "MD5", "SHA1", "sha-1"]
+
+[[sanitizer]]
+id = "ast.literal_eval"
+calls = ["ast.literal_eval"]
+
+[[sanitizer]]
+id = "yaml.safe_load"
+calls = ["yaml.safe_load", "safe_load"]
+
+[[sanitizer]]
+id = "parameterized_execute"
+calls = ["execute", "executemany"]
+parameterized = true

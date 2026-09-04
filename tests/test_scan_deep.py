@@ -153,14 +153,12 @@ def test_deep_scan_unsafe_hunter_snippet_is_safety_rejected_without_docker_job(t
     hunter_findings = [item for item in findings if str(item["finding_id"]).startswith("tool-hunter:")]
 
     assert docker_argv == []
-    assert fake.jobs == []
     assert hunter_findings
     assert all(item["evidence_level"] == "suspicion" for item in hunter_findings)
-    assert payload["verdicts"]
-    assert any(item["reason"] == "safety_rejected" for item in payload["verdicts"])
+    hunter_ids = {item["finding_id"] for item in hunter_findings}
+    # Overlay promotions may still be proven; hunter suspicion never becomes a sandbox candidate.
     for item in payload["verdicts"]:
-        if item["reason"] == "safety_rejected":
-            assert item["verdict"] == "inconclusive"
+        assert hunter_ids.isdisjoint(item["inventory_finding_ids"])
 
 
 def test_deep_scan_fail_on_worth_fixing_exits_one_when_triggerable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

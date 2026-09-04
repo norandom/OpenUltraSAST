@@ -1,0 +1,34 @@
+version = "1"
+language = "c"
+
+[[source]]
+id = "argv"
+patterns = ["argv", "getenv"]
+
+[[source]]
+id = "stdin"
+patterns = ["fgets", "gets", "scanf", "fscanf"]
+
+[[sink]]
+id = "printf"
+cwe = "CWE-134"
+calls = ["printf", "sprintf", "fprintf", "vprintf", "vsprintf", "syslog"]
+rule_ids = ["c-unsafe-format"]
+format_arg = 0
+
+[[sink]]
+id = "system"
+cwe = "CWE-78"
+calls = ["system", "popen", "execl", "execv", "execvp"]
+rule_ids = ["c-shell-exec", "c-exec-family"]
+
+[[sink]]
+id = "strcpy"
+cwe = "CWE-121"
+calls = ["strcpy", "strcat", "sprintf", "gets"]
+rule_ids = ["c-unsafe-copy"]
+
+[[sanitizer]]
+id = "literal_format"
+calls = ["printf", "sprintf", "fprintf", "vprintf", "vsprintf", "syslog"]
+literal_format_arg = 0

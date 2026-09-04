@@ -52,6 +52,7 @@ async def _run_checks() -> None:
             .with_exec(["uv", "run", "pytest"])
             .with_exec(["uv", "run", "python", "-m", "openultrasast.gate"])
             .with_exec(["uv", "run", "python", "-m", "openultrasast.map_gate"])
+            .with_exec(["uv", "run", "python", "-m", "openultrasast.pair_gate"])
             .with_exec(["uv", "run", "python", "-m", "compileall", "src", "tests"])
             .with_exec(["uv", "build"])
         )

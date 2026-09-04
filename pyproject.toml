@@ -34,7 +34,7 @@ line-length = 140
 target-version = "py311"
 # Benchmark fixtures are intentionally vulnerable, unformatted sample corpora;
 # linting/formatting them would flag the planted bugs and shift ground-truth lines.
-extend-exclude = ["benchmarks/fixtures"]
+extend-exclude = ["benchmarks/fixtures", "benchmarks/pairs"]
 
 [tool.ruff.lint]
 select = ["B", "E", "F", "I", "SIM", "UP"]

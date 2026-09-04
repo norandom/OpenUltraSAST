@@ -28,6 +28,8 @@ jobs:
         run: uv run python -m openultrasast.gate
       - name: Split-sink map gate (stage 2 beats pattern-hit ranking)
         run: uv run python -m openultrasast.map_gate
+      - name: Pair-efficiency gate (local vuln vs fix; GitHub honesty dashboard)
+        run: uv run python -m openultrasast.pair_gate
       - run: uv run python -m compileall src tests
 
   dagger:

@@ -1,0 +1,31 @@
+version = "1"
+language = "java"
+
+[[source]]
+id = "servlet"
+patterns = ["getParameter", "getHeader", "getCookies", "readLine", "getQueryString"]
+
+[[sink]]
+id = "exec"
+cwe = "CWE-78"
+calls = ["exec"]
+rule_ids = ["java-command-exec"]
+
+[[sink]]
+id = "executeQuery"
+cwe = "CWE-89"
+calls = ["executeQuery", "execute", "prepareCall"]
+rule_ids = ["java-sql-injection"]
+
+[[sink]]
+id = "readObject"
+cwe = "CWE-502"
+calls = ["readObject"]
+rule_ids = ["java-deserialization"]
+
+[[sink]]
+id = "MessageDigest"
+cwe = "CWE-327"
+calls = ["getInstance"]
+rule_ids = ["java-weak-hash"]
+weak_literals = ["MD5", "SHA-1", "SHA1"]

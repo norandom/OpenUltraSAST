@@ -30,6 +30,11 @@ uv run ousast index /path/to/repo
 # Score the detector against a benchmark manifest
 uv run ousast benchmark benchmarks/manifests/python-vulnerable.toml --mode quick
 
+# Differential pair eval: fire on vuln, stay silent on the fix (local + real GitHub VFCs)
+uv run ousast pairs
+uv run ousast pairs --slice sast   # OWASP Benchmark Java/Python + Juliet
+uv run python -m openultrasast.pair_gate
+
 # Run the bounded self-improvement loop over the ruleset (benchmark-driven)
 uv run ousast improve benchmarks/manifests/python-vulnerable.toml --dry-run
 ```
@@ -74,6 +79,15 @@ removes cross-language false positives):
 | Python | command injection (78), code injection (95), deserialization (502), SQLi (89), path traversal (22), SSRF (918), weak hash (327), SSTI (94), insecure default (489) |
 | JavaScript / TS | command injection (78), code injection (95), reflected/DOM XSS (79), SQLi (89), path traversal (22), SSRF (918), weak hash (327), deserialization (502) |
 | Java + Groovy templates | command injection (78), SQLi via concatenation (89), weak hash (327), deserialization (502), unescaped template XSS (79) |
+
+Cheat-sheet fixtures live under `benchmarks/fixtures/` and feed the 90/10 smoke
+gate. **Efficiency** is measured separately on isolated vuln-vs-fixed pairs
+(`ousast pairs`, `python -m openultrasast.pair_gate`): the harness must fire on
+the vulnerable snapshot and stay silent after the patch. Local fixture
+counterparts are a CI gate; vendored GitHub VFCs (SVEN, CWE-Bench-Java, NVD
+patterns) are the honesty dashboard and the miss/fp signals for `ousast improve`.
+Dataset pointers (CVEfixes, DiverseVul, PrimeVul, MegaVul, MoreFixes, Vul4J,
+GitHub Advisory Database, OSV) are in `benchmarks/pairs/datasets.toml`.
 
 ## Project scores and central CWE policy
 
@@ -402,5 +416,6 @@ uv run ruff check .           # lint
 uv run ruff format --check .  # format
 uv run mypy src/openultrasast # types
 uv run python -m openultrasast.gate  # standalone detection gate
+uv run python -m openultrasast.pair_gate  # local vuln-vs-fix efficiency + GitHub honesty
 uv run python dagger/ci.py    # full containerized CI pipeline
 ```

@@ -1,0 +1,253 @@
+# Labeled SAST bake-off slice. OWASP true/false files and Juliet bad/good sinks.
+# slice = "sast" — honesty dashboard, not the local 100% CI gate.
+# Do not add these names to LANGUAGE_MANIFESTS.
+
+# --- OWASP Benchmark for Python v0.1 ---
+
+[[pair]]
+name = "owasp-python-codeinj"
+slice = "sast"
+language = "python"
+origin = "owasp-benchmark-python"
+license = "GPL-3.0"
+repo = "OWASP-Benchmark/BenchmarkPython"
+cwe = "CWE-94"
+vuln = "owasp-python/BenchmarkTest00074.py"
+fixed = "owasp-python/BenchmarkTest00073.py"
+relpath = "testcode/BenchmarkTest00074.py"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair.expected]]
+cwe = "CWE-94"
+class = "code injection"
+path = "testcode/BenchmarkTest00074.py"
+rule_id = "python-unsafe-eval"
+sink = "exec"
+evidence = "exec executes attacker-controlled input"
+
+[[pair]]
+name = "owasp-python-deser"
+slice = "sast"
+language = "python"
+origin = "owasp-benchmark-python"
+license = "GPL-3.0"
+repo = "OWASP-Benchmark/BenchmarkPython"
+cwe = "CWE-502"
+vuln = "owasp-python/BenchmarkTest00078.py"
+fixed = "owasp-python/BenchmarkTest00079.py"
+relpath = "testcode/BenchmarkTest00078.py"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair.expected]]
+cwe = "CWE-502"
+class = "insecure deserialization"
+path = "testcode/BenchmarkTest00078.py"
+rule_id = "python-unsafe-deserialization"
+sink = "pickle"
+evidence = "pickle.loads deserializes untrusted input"
+
+[[pair]]
+name = "owasp-python-cmdi"
+slice = "sast"
+language = "python"
+origin = "owasp-benchmark-python"
+license = "GPL-3.0"
+repo = "OWASP-Benchmark/BenchmarkPython"
+cwe = "CWE-78"
+vuln = "owasp-python/BenchmarkTest00165.py"
+fixed = "owasp-python/BenchmarkTest00350.py"
+relpath = "testcode/BenchmarkTest00165.py"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair.expected]]
+cwe = "CWE-78"
+class = "command injection"
+path = "testcode/BenchmarkTest00165.py"
+rule_id = "python-shell-true"
+sink = "subprocess"
+evidence = "subprocess runs an attacker-controlled command"
+
+[[pair]]
+name = "owasp-python-sqli"
+slice = "sast"
+language = "python"
+origin = "owasp-benchmark-python"
+license = "GPL-3.0"
+repo = "OWASP-Benchmark/BenchmarkPython"
+cwe = "CWE-89"
+vuln = "owasp-python/BenchmarkTest00099.py"
+fixed = "owasp-python/BenchmarkTest00011.py"
+relpath = "testcode/BenchmarkTest00099.py"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair.expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "testcode/BenchmarkTest00099.py"
+rule_id = "python-sql-injection"
+sink = "execute"
+evidence = "execute runs a SQL string built from request input"
+
+[[pair]]
+name = "owasp-python-hash"
+slice = "sast"
+language = "python"
+origin = "owasp-benchmark-python"
+license = "GPL-3.0"
+repo = "OWASP-Benchmark/BenchmarkPython"
+cwe = "CWE-327"
+vuln = "owasp-python/BenchmarkTest00054.py"
+fixed = "owasp-python/BenchmarkTest00055.py"
+relpath = "testcode/BenchmarkTest00054.py"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair.expected]]
+cwe = "CWE-327"
+class = "weak cryptography"
+path = "testcode/BenchmarkTest00054.py"
+rule_id = "python-weak-hash"
+sink = "md5"
+evidence = "md5 is a weak hash"
+
+# --- OWASP Benchmark Java v1.2 ---
+
+[[pair]]
+name = "owasp-java-cmdi"
+slice = "sast"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-78"
+vuln = "owasp-java/BenchmarkTest00007.java"
+fixed = "owasp-java/BenchmarkTest00090.java"
+relpath = "org/owasp/benchmark/testcode/BenchmarkTest00007.java"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair.expected]]
+cwe = "CWE-78"
+class = "command injection"
+path = "org/owasp/benchmark/testcode/BenchmarkTest00007.java"
+rule_id = "java-command-exec"
+sink = "exec"
+evidence = "Runtime.exec runs an attacker-controlled command"
+
+[[pair]]
+name = "owasp-java-sqli"
+slice = "sast"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-89"
+vuln = "owasp-java/BenchmarkTest00008.java"
+fixed = "owasp-java/BenchmarkTest00052.java"
+relpath = "org/owasp/benchmark/testcode/BenchmarkTest00008.java"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair.expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "org/owasp/benchmark/testcode/BenchmarkTest00008.java"
+rule_id = "java-sql-injection"
+sink = "prepareCall"
+evidence = "SQL is concatenated with request input"
+
+[[pair]]
+name = "owasp-java-hash"
+slice = "sast"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-327"
+vuln = "owasp-java/BenchmarkTest00003.java"
+fixed = "owasp-java/BenchmarkTest00009.java"
+relpath = "org/owasp/benchmark/testcode/BenchmarkTest00003.java"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair.expected]]
+cwe = "CWE-327"
+class = "weak cryptography"
+path = "org/owasp/benchmark/testcode/BenchmarkTest00003.java"
+rule_id = "java-weak-hash"
+sink = "MessageDigest"
+evidence = "MessageDigest uses a weak hash algorithm"
+
+# --- Juliet C/C++ 1.3 (CC0) ---
+
+[[pair]]
+name = "juliet-c-cwe134-printf"
+slice = "sast"
+language = "c_cpp"
+origin = "juliet-c"
+license = "CC0-1.0"
+repo = "arichardson/juliet-test-suite-c"
+cwe = "CWE-134"
+vuln = "juliet-c/cwe134-printf-vuln.c"
+fixed = "juliet-c/cwe134-printf-fixed.c"
+relpath = "CWE134_char_console_printf_01.c"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair.expected]]
+cwe = "CWE-134"
+class = "format string"
+path = "CWE134_char_console_printf_01.c"
+rule_id = "c-unsafe-format"
+sink = "printf"
+evidence = "printf uses attacker-controlled format string"
+
+[[pair]]
+name = "juliet-c-cwe121-strcpy"
+slice = "sast"
+language = "c_cpp"
+origin = "juliet-c"
+license = "CC0-1.0"
+repo = "arichardson/juliet-test-suite-c"
+cwe = "CWE-120"
+vuln = "juliet-c/cwe121-strcpy-vuln.c"
+fixed = "juliet-c/cwe121-strcpy-fixed.c"
+relpath = "CWE121_char_declare_cpy_01.c"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair.expected]]
+cwe = "CWE-120"
+class = "buffer overflow"
+path = "CWE121_char_declare_cpy_01.c"
+rule_id = "c-unsafe-copy"
+sink = "strcpy"
+evidence = "strcpy copies into a buffer without a null terminator"
+
+# --- Juliet Java 1.3 (CC0) ---
+
+[[pair]]
+name = "juliet-java-cwe78-exec"
+slice = "sast"
+language = "java"
+origin = "juliet-java"
+license = "CC0-1.0"
+repo = "UnitTestBot/juliet-java-test-suite"
+cwe = "CWE-78"
+vuln = "juliet-java/cwe78-exec-vuln.java"
+fixed = "juliet-java/cwe78-exec-fixed.java"
+relpath = "CWE78_OS_Command_Injection__console_readLine_01.java"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair.expected]]
+cwe = "CWE-78"
+class = "command injection"
+path = "CWE78_OS_Command_Injection__console_readLine_01.java"
+rule_id = "java-command-exec"
+sink = "exec"
+evidence = "Runtime.exec concatenates attacker-controlled input into a command"

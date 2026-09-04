@@ -1,0 +1,181 @@
+# Vuln-vs-fixed pair catalog. Isolated trees: the scanner sees only the vuln
+# file or only the fixed file, never both. Do not add these names to
+# LANGUAGE_MANIFESTS (stage-1 90% smoke gate stays on cheat-sheet fixtures).
+
+[[pair]]
+name = "local-python-vulnerable"
+slice = "local"
+language = "python"
+origin = "in-tree-fixture"
+license = "in-tree"
+vuln = "../fixtures/python-vulnerable/app.py"
+fixed = "../fixtures/python-vulnerable/safe.py"
+relpath = "app.py"
+expected_from = "../manifests/python-vulnerable.toml"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair]]
+name = "local-javascript-vulnerable"
+slice = "local"
+language = "javascript"
+origin = "in-tree-fixture"
+license = "in-tree"
+vuln = "../fixtures/javascript-vulnerable/src/app.js"
+fixed = "../fixtures/javascript-vulnerable/src/safe.js"
+relpath = "src/app.js"
+expected_from = "../manifests/javascript-vulnerable.toml"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair]]
+name = "local-cpp-buffer"
+slice = "local"
+language = "c_cpp"
+origin = "in-tree-fixture"
+license = "in-tree"
+vuln = "../fixtures/cpp-damn-vulnerable/src/buffer.cpp"
+fixed = "../fixtures/cpp-damn-vulnerable/src/safe.cpp"
+relpath = "src/buffer.cpp"
+expected_from = "../manifests/cpp-damn-vulnerable.toml"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair]]
+name = "sven-cwe-078-os-system"
+slice = "github"
+language = "python"
+origin = "sven"
+license = "original-project"
+repo = "Internet-of-People/titania-os"
+commit = "9b7805119938343fcac9dc929d8882f1d97cf14a"
+commit_url = "https://github.com/Internet-of-People/titania-os/commit/9b7805119938343fcac9dc929d8882f1d97cf14a"
+vuln = "github/sven-cwe-078-os-system/vuln.py"
+fixed = "github/sven-cwe-078-os-system/fixed.py"
+relpath = "vuedj/configtitania/views.py"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair.expected]]
+cwe = "CWE-78"
+class = "command injection"
+path = "vuedj/configtitania/views.py"
+rule_id = "python-os-command"
+sink = "os.system"
+evidence = "os.system concatenates attacker-controlled username into a shell command"
+
+[[pair]]
+name = "sven-cwe-078-shell-true"
+slice = "github"
+language = "python"
+origin = "sven"
+license = "Apache-2.0"
+repo = "google/mobly"
+commit = "3862e8ba359040fbdd6e1a6d36e51d07cda8e1ee"
+commit_url = "https://github.com/google/mobly/commit/3862e8ba359040fbdd6e1a6d36e51d07cda8e1ee"
+vuln = "github/sven-cwe-078-shell-true/vuln.py"
+fixed = "github/sven-cwe-078-shell-true/fixed.py"
+relpath = "mobly/controllers/android_device_lib/adb.py"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair.expected]]
+cwe = "CWE-78"
+class = "command injection"
+path = "mobly/controllers/android_device_lib/adb.py"
+rule_id = "python-shell-true"
+sink = "subprocess"
+evidence = "subprocess.Popen runs the command with shell=True"
+
+[[pair]]
+name = "sven-cwe-089-execute-percent"
+slice = "github"
+language = "python"
+origin = "sven"
+license = "original-project"
+repo = "russ-lewis/ttt_-_python_cgi"
+commit = "6096f43fd4b2d91211eec4614b7960c0816900da"
+commit_url = "https://github.com/russ-lewis/ttt_-_python_cgi/commit/6096f43fd4b2d91211eec4614b7960c0816900da"
+vuln = "github/sven-cwe-089-execute-percent/vuln.py"
+fixed = "github/sven-cwe-089-execute-percent/fixed.py"
+relpath = "cgi/common.py"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair.expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "cgi/common.py"
+rule_id = "python-sql-injection"
+sink = "execute"
+evidence = "execute percent-formats attacker-controlled input into SQL"
+
+[[pair]]
+name = "sven-cwe-089-query-concat"
+slice = "github"
+language = "python"
+origin = "sven"
+license = "original-project"
+repo = "pukkapies/urop2019"
+commit = "3ca2e2c291d2d5fe262d20a8e0520bdfb622432b"
+commit_url = "https://github.com/pukkapies/urop2019/commit/3ca2e2c291d2d5fe262d20a8e0520bdfb622432b"
+vuln = "github/sven-cwe-089-query-concat/vuln.py"
+fixed = "github/sven-cwe-089-query-concat/fixed.py"
+relpath = "modules/query_lastfm.py"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair.expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "modules/query_lastfm.py"
+sink = "SELECT"
+evidence = "SQL query concatenates attacker-controlled tag_num"
+
+[[pair]]
+name = "hutool-cve-2018-17297"
+slice = "github"
+language = "java"
+origin = "cwe-bench-java"
+license = "MulanPSL-2.0"
+repo = "dromara/hutool"
+cve = "CVE-2018-17297"
+cwe = "CWE-22"
+commit = "8d7d0b7fb5ea4f7447b40131bffc1ec506a6528e"
+parent = "fd77bb8718648f69a587046b735488a80123cc26"
+commit_url = "https://github.com/dromara/hutool/commit/8d7d0b7fb5ea4f7447b40131bffc1ec506a6528e"
+vuln = "github/hutool-cve-2018-17297/vuln/ZipUtil.java"
+fixed = "github/hutool-cve-2018-17297/fixed/ZipUtil.java"
+relpath = "cn/hutool/core/util/ZipUtil.java"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair.expected]]
+cwe = "CWE-22"
+class = "path traversal"
+path = "cn/hutool/core/util/ZipUtil.java"
+sink = "ZipEntry"
+evidence = "zip entry name is joined onto the extract directory without a zip-slip check"
+
+[[pair]]
+name = "node-serialize-cve-2017-5941"
+slice = "github"
+language = "javascript"
+origin = "nvd"
+license = "public-advisory-pattern"
+cve = "CVE-2017-5941"
+cwe = "CWE-95"
+commit_url = "https://nvd.nist.gov/vuln/detail/CVE-2017-5941"
+vuln = "github/node-serialize-cve-2017-5941/vuln.js"
+fixed = "github/node-serialize-cve-2017-5941/fixed.js"
+relpath = "index.js"
+min_recall = 1.0
+fix_policy = "silent"
+
+[[pair.expected]]
+cwe = "CWE-95"
+class = "code injection"
+path = "index.js"
+rule_id = "js-eval"
+sink = "eval"
+evidence = "eval executes attacker-controlled serialized input"

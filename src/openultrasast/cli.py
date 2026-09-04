@@ -40,15 +40,30 @@ from .hunter_harness import HxScanOrchestrator
 from .improve import RoundOutcome, run_improvement
 from .index import build_code_chunks
 from .mapping import analyze_entry_points, attach_reachability_hints, ingest_sarif, write_entry_points, write_static_hints
+from .pair_gate import print_pair_metrics
+from .pairs import DEFAULT_CATALOG, evaluate_catalog, load_pair_catalog, result_payload, select_slice
 from .policy import assert_rules_resolve, load_policy
 from .preprocess import preprocess_repository, write_preprocess_artifact
+from .provider.openrouter import OpenRouterEmbeddingClient, OpenRouterError
 from .rank import rank_targets, write_rankings
-from .regress import CandidateVerdict, run_regression, write_verdicts
+from .regress import TRIGGERABLE, CandidateVerdict, run_regression, write_verdicts
 from .reports import scan_exit_code, write_manifest, write_markdown_report, write_sarif_report
 from .ruleset import DEFAULT_RULESET_DIR, load_ruleset
 from .run import ScanRun, create_scan_run
 from .sandbox import resolve_sandbox_probe, resolve_sandbox_runner
 from .scoring import build_score_artifact
+from .semantic import (
+    MechanismStore,
+    OverlayRecord,
+    adjudicate,
+    append_mechanism,
+    filter_promoted_hotspots,
+    finding_from_coverage,
+    load_facts,
+    order_promotions,
+    write_overlay,
+)
+from .semantic.facts import FactLoadError, SemanticFacts
 from .stages import Stage, plan_for_mode, record_completed, record_skip, skip_as_degradation, stages_payload
 from .verification import VerificationResult, verify_findings, write_verification_results
 from .verify_judge import verify_findings_dispatch
@@ -104,6 +119,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     improve.add_argument("--dry-run", action="store_true", help="run rounds against a throwaway ledger; never touch the target's ledger")
 
+    pairs = subparsers.add_parser(
+        "pairs",
+        help="scan isolated vuln-vs-fixed pairs (TP on vuln, silent on fix) and emit improve-loop signals",
+    )
+    pairs.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
+    pairs.add_argument("--slice", choices=("all", "local", "github", "sast"), default="all")
+    pairs.add_argument("--json", action="store_true", help="print the pair scoreboard as JSON")
+
     subparsers.add_parser("mcp", help="run the narrow MCP server over stdio for OpenCode integration")
 
     args = parser.parse_args(argv)
@@ -124,6 +147,8 @@ def main(argv: list[str] | None = None) -> int:
             ruleset_dir=args.ruleset_dir,
             dry_run=args.dry_run,
         )
+    if args.command == "pairs":
+        return _pairs(args.catalog, args.slice, json_out=args.json)
     if args.command == "mcp":
         from .mcp import serve  # lazy: keeps the import cycle (mcp -> cli) one-directional
 
@@ -307,7 +332,10 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     plan = record_completed(plan, Stage.STATIC)
     complexity_payload: dict[str, object] | None = None
     complexity_map_path = run.root / "complexity_map.json"
+    overlay_path = run.root / "overlay.json"
     built_map = None
+    overlay_records: list[OverlayRecord] = []
+    wrote_overlay = False
     if Stage.MAP in plan.requested:
         built_map = runtime.run_stage(
             "map",
@@ -319,6 +347,27 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
                 ledger_path=run.target / CALIBRATION_DIR / "complexity_ledger.json",
             ),
         )
+        facts_or_error: SemanticFacts | FactLoadError
+        try:
+            facts_or_error = load_facts()
+        except FactLoadError as exc:
+            facts_or_error = exc
+            runtime.state["degradations"].append({"stage": "overlay", "reason": "facts_unavailable", "detail": str(exc)})
+        overlay_records = list(
+            runtime.run_stage(
+                "overlay",
+                lambda: adjudicate(root=run.target, targets=targets, findings=findings, facts=facts_or_error),
+            )
+        )
+        write_overlay(overlay_records, overlay_path)
+        wrote_overlay = True
+        coverage_findings = [finding_from_coverage(record) for record in overlay_records if record.disposition == "coverage"]
+        if coverage_findings:
+            seen = {finding.finding_id for finding in findings}
+            extra = [item for item in coverage_findings if item.finding_id not in seen]
+            if extra:
+                findings = findings + extra
+                write_findings(findings, findings_path)
         plan = record_completed(plan, Stage.MAP)
         if not hunter_model:
             runtime.state["degradations"].append(skip_as_degradation(Stage.MAP, "hunter_model_unavailable"))
@@ -351,14 +400,38 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         else:
             sandbox = resolve_sandbox_runner()
             hotspots = built_map.hotspots if built_map is not None else ()
+            hotspots = filter_promoted_hotspots(hotspots, overlay_records, findings)
+            store = MechanismStore(run.target / CALIBRATION_DIR / "mechanisms.jsonl")
+            embed_client = None
+            embed_model = config.embeddings.model
+            if embed_model:
+                try:
+                    embed_client = OpenRouterEmbeddingClient.from_env()
+                except OpenRouterError:
+                    embed_client = None
+            hotspots, budget_degradation = order_promotions(
+                hotspots,
+                overlay_records,
+                findings,
+                store=store,
+                client=embed_client,
+                model=embed_model,
+            )
+            if budget_degradation:
+                runtime.state["degradations"].append({"stage": "prove_budget", "reason": budget_degradation})
+            promoted = [
+                finding
+                for finding in findings
+                if finding.finding_id in {record.proposal_id for record in overlay_records if record.disposition == "promote"}
+            ]
             cwe_by_rule_id = {rule.rule_id: rule.cwe for rule in ruleset}
-            rule_cwe_by_finding = {finding.finding_id: cwe_by_rule_id.get(finding.finding_id.split(":", 1)[0], "") for finding in findings}
+            rule_cwe_by_finding = {finding.finding_id: cwe_by_rule_id.get(finding.finding_id.split(":", 1)[0], "") for finding in promoted}
             languages_by_path = {target.path: target.language for target in targets}
             records = runtime.run_stage(
                 "regress",
                 lambda: run_regression(
                     hotspots,
-                    findings,
+                    promoted,
                     max_candidates=config.regress.max_candidates,
                     policy=policy,
                     rule_cwe=rule_cwe_by_finding,
@@ -371,6 +444,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             )
             write_verdicts(records, verdicts_path)
             persist_verdicts(run.target / CALIBRATION_DIR / "complexity_ledger.json", records)
+            _append_proven_mechanisms(store, records, overlay_records, findings, run.target)
             verdict_records = records
             wrote_verdicts = True
             plan = record_completed(plan, Stage.REGRESS)
@@ -384,9 +458,18 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             redact=config.hardening.redact_secrets,
             complexity_map=built_map,
             verdicts=verdict_records if wrote_verdicts else None,
+            overlay=overlay_records if wrote_overlay else None,
         ),
     )
-    runtime.run_stage("sarif", lambda: write_sarif_report(findings, verifications, sarif_path))
+    runtime.run_stage(
+        "sarif",
+        lambda: write_sarif_report(
+            findings,
+            verifications,
+            sarif_path,
+            overlay=overlay_records if wrote_overlay else None,
+        ),
+    )
     runtime.run_stage(
         "manifest",
         lambda: write_manifest(
@@ -402,6 +485,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
                 trajectories=trajectories_path if trajectories else None,
                 fusion=fusion_path if fusion_decisions else None,
                 complexity_map=complexity_map_path if complexity_payload is not None else None,
+                overlay=overlay_path if wrote_overlay else None,
                 verdicts=verdicts_path if wrote_verdicts else None,
             ),
             path=manifest_path,
@@ -423,6 +507,35 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         calibrations_applied=len(applied_calibrations),
         exit_code=scan_exit_code(findings, verifications, fail_on, worth_fixing_verdicts=verdict_records),
     )
+
+
+def _append_proven_mechanisms(
+    store: MechanismStore,
+    verdicts: tuple[CandidateVerdict, ...],
+    overlay_records: list[OverlayRecord],
+    findings: list[StaticFinding],
+    target: Path,
+) -> None:
+    overlay_by_id = {record.proposal_id: record for record in overlay_records}
+    finding_by_id = {finding.finding_id: finding for finding in findings}
+    for verdict in verdicts:
+        if verdict.verdict != TRIGGERABLE:
+            continue
+        for finding_id in verdict.inventory_finding_ids:
+            record = overlay_by_id.get(finding_id)
+            if record is None or record.disposition != "promote":
+                continue
+            finding = finding_by_id.get(finding_id)
+            append_mechanism(
+                store,
+                summary=record.reason,
+                cwe=record.cwe,
+                language=record.language or verdict.language,
+                tags=finding.tags if finding is not None else (),
+                what_made_it_exploitable=record.reason,
+                source_finding_id=finding_id,
+                source_repo=str(target),
+            )
 
 
 def _attach_tool_hunter(
@@ -607,6 +720,19 @@ def _improve(
             fp_ceiling=fp_ceiling,
         )
         _print_improve_outcomes(outcomes, manifest_path, target, ledger_path, dry_run=dry_run)
+    return 0
+
+
+def _pairs(catalog: Path, slice_name: str, *, json_out: bool) -> int:
+    if not catalog.exists() or not catalog.is_file():
+        raise SystemExit(f"pair catalog is not a file: {catalog}")
+    cases = select_slice(load_pair_catalog(catalog), slice_name)
+    result = evaluate_catalog(cases)
+    if json_out:
+        print(json.dumps(result_payload(result), indent=2, sort_keys=True))
+        return 0
+    print_pair_metrics("pair eval", result)
+    print(f"signals={len(result.signals)}")
     return 0
 
 

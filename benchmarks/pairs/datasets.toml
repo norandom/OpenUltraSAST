@@ -1,0 +1,124 @@
+# External vulnerability-fixing-commit (VFC) datasets. Metadata only — these
+# dumps are too large / too noisy to vendor. Use them to grow the pair catalog.
+# Label accuracy on auto-mined function datasets is often well below 100%
+# (DiverseVul sampled ~60% correct "vulnerable" labels). Prefer manually
+# vetted sets (CWE-Bench-Java, Vul4J, SVEN) when evolving the harness.
+
+[[dataset]]
+name = "OWASP Benchmark Java"
+url = "https://github.com/OWASP-Benchmark/BenchmarkJava"
+data = "benchmarks/pairs/sast/owasp-java"
+level = "file"
+languages = ["Java"]
+notes = "Official SAST/DAST/IAST scorecard. 2740 labeled true/false cases, 11 CWEs. Score = TPR - FPR (Youden). Vendored slice under sast/owasp-java."
+
+[[dataset]]
+name = "OWASP Benchmark Python"
+url = "https://github.com/OWASP-Benchmark/BenchmarkPython"
+data = "benchmarks/pairs/sast/owasp-python"
+level = "file"
+languages = ["Python"]
+notes = "Python counterpart of OWASP Benchmark (expectedresults-0.1.csv, Flask testcode/). Same true/false scoring protocol. Vendored slice under sast/owasp-python."
+
+[[dataset]]
+name = "Juliet Test Suite C/C++"
+url = "https://github.com/arichardson/juliet-test-suite-c"
+data = "benchmarks/pairs/sast/juliet-c"
+level = "function"
+languages = ["C/C++"]
+notes = "NIST SARD Juliet 1.3. Each case has bad() and goodG2B/goodB2G. CC0. The arichardson mirror is a memory-safety subset; CWE-78 lives in the full NIST zip / Juliet Java."
+
+[[dataset]]
+name = "Juliet Test Suite Java"
+url = "https://github.com/UnitTestBot/juliet-java-test-suite"
+data = "benchmarks/pairs/sast/juliet-java"
+level = "function"
+languages = ["Java"]
+notes = "NIST Juliet Java 1.3, 112 CWEs including CWE-78 and CWE-89. CC0. Vendored slice extracts bad vs goodG2B sinks."
+
+[[dataset]]
+name = "CVEfixes"
+url = "https://github.com/secureIT-project/CVEfixes"
+data = "https://doi.org/10.5281/zenodo.4476563"
+level = "commit/file/function"
+languages = ["multi"]
+notes = "NVD-linked CVE fix commits. v1.0.8: 11873 CVEs, 12107 commits, 4249 projects. CC BY 4.0 data."
+
+[[dataset]]
+name = "MoreFixes"
+url = "https://github.com/secureIT-project/MoreFixes"
+level = "commit/file/method"
+languages = ["C/C++", "Java", "Python", "JavaScript"]
+notes = "Largest language-independent CVE-fix set (~26617 CVEs, ~31883 commits). Method-level CSVs also on Kaggle."
+
+[[dataset]]
+name = "DiverseVul"
+url = "https://github.com/wagner-group/diversevul"
+level = "function"
+languages = ["C/C++"]
+notes = "18945 vuln functions / 150 CWEs. Sampled label accuracy ~60%. Do not treat as ground truth without review."
+
+[[dataset]]
+name = "PrimeVul"
+url = "https://github.com/DLVulDet/PrimeVul"
+level = "function"
+languages = ["C/C++"]
+notes = "Relabeled DiverseVul/CVEFixes-style pairs with stricter commit-function alignment."
+
+[[dataset]]
+name = "MegaVul"
+url = "https://github.com/Icyrockton/MegaVul"
+level = "function"
+languages = ["C/C++"]
+notes = "Large C/C++ function pair set (vuln vs after-fix)."
+
+[[dataset]]
+name = "CWE-Bench-Java"
+url = "https://github.com/iris-sast/cwe-bench-java"
+data = "benchmarks/pairs/datasets/cwe-bench-java-project_info.csv"
+level = "project/commit"
+languages = ["Java"]
+notes = "120 manually vetted CVEs (CWE-22/78/79/94) with buggy_commit_id and fix_commit_ids. IRIS paper."
+
+[[dataset]]
+name = "Vul4J"
+url = "https://github.com/tuhh-softsec/vul4j"
+level = "project"
+languages = ["Java"]
+notes = "Reproducible Java vulns with human patches and PoV tests. CC-BY-4.0 dataset."
+
+[[dataset]]
+name = "SVEN"
+url = "https://github.com/eth-sri/sven"
+data = "https://github.com/eth-sri/sven/tree/master/data_train_val"
+level = "function"
+languages = ["Python", "C/C++"]
+notes = "Manually curated before/after functions (CWE-22/78/79/89/...). Train jsonl is the pair source for several vendored cases."
+
+[[dataset]]
+name = "vfc_datasets"
+url = "https://github.com/UzL-ITS/vfc_datasets"
+level = "toolkit"
+languages = ["multi"]
+notes = "Unified loader over 22 commit-level and 8 function-level VFC datasets (Devign, BigVul, CrossVul, PatchDB, CleanVul, SecVulEval, ...)."
+
+[[dataset]]
+name = "GitHub Advisory Database"
+url = "https://github.com/github/advisory-database"
+level = "advisory"
+languages = ["multi"]
+notes = "GHSA JSON with affected packages; pair with OSV/NVD for fix commits. Not code itself."
+
+[[dataset]]
+name = "OSV"
+url = "https://github.com/google/osv.dev"
+level = "advisory"
+languages = ["multi"]
+notes = "Cross-ecosystem advisories with introduced/fixed commit ranges when present."
+
+[[dataset]]
+name = "security-patches-dataset"
+url = "https://github.com/tqrg/security-patches-dataset"
+level = "commit"
+languages = ["multi"]
+notes = "Ground-truth security patches mined from NVD, CVE Details, OSV."

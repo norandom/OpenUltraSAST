@@ -1,5 +1,6 @@
 """Bounded, gated self-improvement loop over the ruleset/policy governance data."""
 
+from ..pairs import build_pair_signals
 from .evolve import RoundOutcome, build_rule_signals, propose_status_edits, run_improvement, run_round
 from .journal import load_journal, reverted_edit_keys
 from .validator import (
@@ -20,6 +21,7 @@ __all__ = [
     "RuleStatusEdit",
     "StrictValidationError",
     "VALID_LEVERS",
+    "build_pair_signals",
     "build_rule_signals",
     "edits_to_ledger",
     "load_journal",

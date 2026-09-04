@@ -18,15 +18,18 @@ def write_markdown_report(
     redact: bool = True,
     complexity_map: object | None = None,
     verdicts: Sequence[object] | None = None,
+    overlay: Sequence[object] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications or [])
+    overlay_by_id = _overlay_by_id(overlay or [])
     lines = ["# OpenUltraSAST Report", "", f"Findings: {len(findings)}", "", "## Inventory", ""]
     if not findings:
         lines.append("No quick-mode findings were emitted.")
         lines.append("")
     for finding in findings:
         verification = verification_by_id.get(finding.finding_id)
+        disposition = overlay_by_id.get(finding.finding_id)
         lines.extend(
             [
                 f"## {finding.title}",
@@ -43,11 +46,14 @@ def write_markdown_report(
                 f"- Conditions: `{', '.join(finding.reachability_conditions) or 'none'}`",
                 f"- Ranking priority: `{finding.ranking_priority}`",
                 f"- Tags: `{', '.join(finding.tags)}`",
-                "",
-                finding.rationale,
-                "",
             ]
         )
+        if disposition is not None:
+            lines.append(f"- Disposition: `{getattr(disposition, 'disposition', '')}`")
+            lines.append(f"- Overlay reason: `{getattr(disposition, 'reason', '')}`")
+        lines.extend(["", finding.rationale, ""])
+    if overlay:
+        _append_overlay(lines, overlay)
     if complexity_map is not None:
         _append_complexity_map(lines, complexity_map)
     if verdicts is not None:
@@ -122,9 +128,15 @@ def _report_identity(path: object, function_name: object) -> str:
     return path_text
 
 
-def write_sarif_report(findings: list[StaticFinding], verifications: list[VerificationResult], path: Path) -> None:
+def write_sarif_report(
+    findings: list[StaticFinding],
+    verifications: list[VerificationResult],
+    path: Path,
+    overlay: Sequence[object] | None = None,
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications)
+    overlay_by_id = _overlay_by_id(overlay or [])
     rules = _sarif_rules(findings)
     payload = {
         "version": "2.1.0",
@@ -138,7 +150,10 @@ def write_sarif_report(findings: list[StaticFinding], verifications: list[Verifi
                         "rules": list(rules.values()),
                     }
                 },
-                "results": [_sarif_result(finding, verification_by_id.get(finding.finding_id)) for finding in findings],
+                "results": [
+                    _sarif_result(finding, verification_by_id.get(finding.finding_id), overlay_by_id.get(finding.finding_id))
+                    for finding in findings
+                ],
             }
         ],
     }
@@ -228,7 +243,20 @@ def _sarif_rules(findings: list[StaticFinding]) -> dict[str, dict[str, object]]:
     return rules
 
 
-def _sarif_result(finding: StaticFinding, verification: VerificationResult | None) -> dict[str, object]:
+def _sarif_result(finding: StaticFinding, verification: VerificationResult | None, overlay: object | None = None) -> dict[str, object]:
+    properties: dict[str, object] = {
+        "finding_id": finding.finding_id,
+        "severity": finding.severity,
+        "confidence": finding.confidence,
+        "evidence_level": finding.evidence_level,
+        "verification": asdict(verification) if verification else None,
+        "reachability_status": finding.reachability_status,
+        "reachability_conditions": finding.reachability_conditions,
+        "ranking_priority": finding.ranking_priority,
+    }
+    if overlay is not None:
+        properties["disposition"] = getattr(overlay, "disposition", "")
+        properties["overlay_reason"] = getattr(overlay, "reason", "")
     return {
         "ruleId": _rule_id(finding),
         "level": _sarif_level(finding.severity),
@@ -242,16 +270,7 @@ def _sarif_result(finding: StaticFinding, verification: VerificationResult | Non
             }
         ],
         "partialFingerprints": {"openultrasastFindingId": finding.finding_id},
-        "properties": {
-            "finding_id": finding.finding_id,
-            "severity": finding.severity,
-            "confidence": finding.confidence,
-            "evidence_level": finding.evidence_level,
-            "verification": asdict(verification) if verification else None,
-            "reachability_status": finding.reachability_status,
-            "reachability_conditions": finding.reachability_conditions,
-            "ranking_priority": finding.ranking_priority,
-        },
+        "properties": properties,
     }
 
 
@@ -269,6 +288,47 @@ def _sarif_level(severity: str) -> str:
 
 def _verification_by_id(verifications: list[VerificationResult]) -> dict[str, VerificationResult]:
     return {result.finding_id: result for result in verifications}
+
+
+def _overlay_by_id(records: Sequence[object]) -> dict[str, object]:
+    mapped: dict[str, object] = {}
+    for record in records:
+        proposal_id = getattr(record, "proposal_id", None)
+        if isinstance(proposal_id, str) and proposal_id:
+            mapped[proposal_id] = record
+    return mapped
+
+
+def _append_overlay(lines: list[str], records: Sequence[object]) -> None:
+    lines.extend(["## Overlay", "", f"Records: {len(records)}", ""])
+    labels = ("promoted", "demoted", "unadjudicated", "coverage")
+    counts = {label: 0 for label in labels}
+    for record in records:
+        disposition = str(getattr(record, "disposition", ""))
+        if disposition == "promote":
+            counts["promoted"] += 1
+        elif disposition == "demote":
+            counts["demoted"] += 1
+        elif disposition == "unadjudicated":
+            counts["unadjudicated"] += 1
+        elif disposition == "coverage":
+            counts["coverage"] += 1
+    lines.append("- Labels: " + ", ".join(f"{label}={counts[label]}" for label in labels))
+    lines.append("")
+    for record in records:
+        disposition = str(getattr(record, "disposition", ""))
+        proposal_id = str(getattr(record, "proposal_id", ""))
+        reason = str(getattr(record, "reason", ""))
+        lines.extend(
+            [
+                f"### `{disposition}` `{proposal_id}`",
+                "",
+                f"- Path: `{getattr(record, 'path', '')}`",
+                f"- Line: `{getattr(record, 'line', None)}`",
+                f"- Reason: `{reason}`",
+                "",
+            ]
+        )
 
 
 def _artifact_refs(root: Path, artifact_paths: dict[str, Path]) -> dict[str, str]:

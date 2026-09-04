@@ -30,7 +30,21 @@ uv run ousast benchmark benchmarks/manifests/python-vulnerable.toml --mode quick
 # -> expected / matched / missed counts + a per-rule recommendation delta
 ```
 
-## 4. Self-improve the ruleset from benchmark feedback
+## 4. Vuln vs fixed pair eval (efficiency, not cheat-sheet recall)
+
+```bash
+uv run ousast pairs                              # local fixtures + vendored GitHub VFCs
+uv run ousast pairs --slice github --json        # honesty dashboard as JSON
+uv run ousast pairs --slice sast                 # OWASP Benchmark + Juliet Youden (TPR-FPR)
+uv run python -m openultrasast.pair_gate         # CI: local pairs must all pass
+```
+
+Each case is two isolated trees (vuln file vs patched file, same relative path).
+`pair_correct` means the harness fired on the vuln side and stayed silent on the
+fix. Misses and fix-side leaks become `miss`/`fp` signals for `ousast improve`.
+The catalog and public dataset pointers live in `benchmarks/pairs/`.
+
+## 5. Self-improve the ruleset from benchmark feedback
 
 ```bash
 uv run ousast improve benchmarks/manifests/java-spring-boot-vulnerable.toml --dry-run  # preview
@@ -39,7 +53,7 @@ uv run ousast improve benchmarks/manifests/java-spring-boot-vulnerable.toml     
 # which the next scan/benchmark of that target loads automatically.
 ```
 
-## 5. Standard mode with the HarnessX agentic plane (OpenAI)
+## 6. Standard mode with the HarnessX agentic plane (OpenAI)
 
 ```bash
 uv sync --extra harnessx
@@ -63,7 +77,7 @@ jq '.degradations' "$run/manifest.json"   # null = HarnessX ran; entries = it fe
 jq '.fusion'       "$run/manifest.json"   # per-finding dispositions
 ```
 
-## 6. Drive it from an MCP client (OpenCode / IDE)
+## 7. Drive it from an MCP client (OpenCode / IDE)
 
 ```jsonc
 { "command": "uv", "args": ["run", "ousast", "mcp"] }

@@ -1,0 +1,29 @@
+version = "1"
+language = "javascript"
+
+[[source]]
+id = "req"
+patterns = ["req.query", "req.body", "req.params", "req.cookies", "req.headers", "request.query"]
+
+[[sink]]
+id = "eval"
+cwe = "CWE-95"
+calls = ["eval"]
+rule_ids = ["js-eval"]
+
+[[sink]]
+id = "exec"
+cwe = "CWE-78"
+calls = ["exec", "execSync"]
+rule_ids = ["js-command-exec"]
+
+[[sink]]
+id = "query"
+cwe = "CWE-89"
+calls = ["query", "execute"]
+rule_ids = ["js-sql-injection"]
+
+[[sanitizer]]
+id = "parameterized_query"
+calls = ["query", "execute"]
+parameterized = true
