@@ -156,7 +156,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Requirements: 6.1, 6.3, 6.5, 6.6_
   - _Depends: 3.2, 6.2_
 
-- [ ] 6.5 Surface map, hints, and worth-fixing in the report and honor fail-on
+- [x] 6.5 Surface map, hints, and worth-fixing in the report and honor fail-on
   - Markdown, manifest, and SARIF remain; the report gains map and worth-fixing sections.
   - `--fail-on worth-fixing` fails only when a worth-fixing verdict exists.
   - Observable completion: a scan with one worth-fixing verdict fails under that flag and passes under `--fail-on never`.
@@ -166,7 +166,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
 ## Phase 5 — Validation: Grounded corpora and CI
 
 - [ ] 7. Replace cheat-sheet success for stages 2 and 3
-- [ ] 7.1 Add split-sink fixtures for Python, JavaScript, Java, and C/C++
+- [x] 7.1 Add split-sink fixtures for Python, JavaScript, Java, and C/C++
   - Each language family has at least one case where source and sink are on different lines or assigned before use.
   - Observable completion: stage-1 pattern scan misses at least one planted sink in each family, documented in the manifest expected set.
   - _Requirements: 8.1_

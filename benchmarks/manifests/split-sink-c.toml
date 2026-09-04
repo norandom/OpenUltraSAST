@@ -1,0 +1,20 @@
+name = "split-sink-c"
+language = "c_cpp"
+frameworks = ["native"]
+setup = []
+modes = ["quick", "standard"]
+known_noise = []
+baselines = []
+
+[source]
+type = "local"
+path = "../fixtures/split-sink-c"
+
+[[expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "src/vuln.c"
+line = 7
+function = "search"
+sink = "sqlite3_exec"
+evidence = "sqlite3_exec runs a SQL query string built from attacker input on a prior line"

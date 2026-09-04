@@ -1,0 +1,20 @@
+name = "split-sink-java"
+language = "java_web"
+frameworks = ["servlet"]
+setup = ["mvn test"]
+modes = ["quick", "standard"]
+known_noise = []
+baselines = []
+
+[source]
+type = "local"
+path = "../fixtures/split-sink-java"
+
+[[expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "src/main/java/example/SplitSinkServlet.java"
+line = 10
+function = "search"
+sink = "executeQuery"
+evidence = "executeQuery runs a SQL string built from request input on a prior line"

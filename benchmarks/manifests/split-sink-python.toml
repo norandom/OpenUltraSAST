@@ -1,0 +1,20 @@
+name = "split-sink-python"
+language = "python_web"
+frameworks = ["flask"]
+setup = ["pip install flask"]
+modes = ["quick", "standard"]
+known_noise = []
+baselines = []
+
+[source]
+type = "local"
+path = "../fixtures/split-sink-python"
+
+[[expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "app.py"
+line = 11
+function = "search"
+sink = "execute"
+evidence = "execute runs a SQL query string built from request input on a prior line"

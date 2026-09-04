@@ -65,6 +65,10 @@ def test_repository_benchmark_manifests_load_and_point_to_fixtures() -> None:
         "javascript-vulnerable.toml",
         "python-vulnerable.toml",
         "python-web-smoke.toml",
+        "split-sink-c.toml",
+        "split-sink-java.toml",
+        "split-sink-javascript.toml",
+        "split-sink-python.toml",
     }
     for manifest_path in manifest_paths:
         manifest = load_benchmark_manifest(manifest_path)

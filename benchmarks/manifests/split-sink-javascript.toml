@@ -1,0 +1,19 @@
+name = "split-sink-javascript"
+language = "javascript_node_web"
+frameworks = ["node", "express"]
+setup = ["npm install"]
+modes = ["quick", "standard"]
+known_noise = []
+baselines = []
+
+[source]
+type = "local"
+path = "../fixtures/split-sink-javascript"
+
+[[expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "src/app.js"
+line = 8
+sink = "query"
+evidence = "query runs a SQL string built from request input on a prior line"
