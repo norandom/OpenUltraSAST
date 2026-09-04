@@ -34,12 +34,19 @@ Pairs in this directory **must not** join `LANGUAGE_MANIFESTS`.
 - **sast** — OWASP Benchmark Java/Python true-vs-false files and Juliet
   bad-vs-good sinks (`benchmarks/pairs/sast/`). Score is Youden (TPR − FPR).
   Honesty dashboard, not a CI fail.
+- **vfc** — reviewed isolated functions from OpenSSL, Firefox, Chromium, and
+  curl (`benchmarks/pairs/vfc/`). Overlay vs inventory scoreboard. Honesty
+  dashboard, not a CI fail. Training labels (vuln vs fixed) are
+  `vfc/training/manifest.jsonl` (vuln vs fixed, one snapshot per line).
+  Grow with a blobless `git log --grep=CVE-202` mine plus `vfc/harvest.py`,
+  then `vfc/generate_catalog.py` (maintainer, not CI).
 
 ## Commands
 
 ```bash
 uv run ousast pairs
 uv run ousast pairs --slice github --json
+uv run ousast pairs --slice vfc --json
 uv run python -m openultrasast.pair_gate
 ```
 

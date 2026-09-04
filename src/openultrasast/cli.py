@@ -125,7 +125,7 @@ def main(argv: list[str] | None = None) -> int:
         help="scan isolated vuln-vs-fixed pairs (TP on vuln, silent on fix) and emit improve-loop signals",
     )
     pairs.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
-    pairs.add_argument("--slice", choices=("all", "local", "github", "sast"), default="all")
+    pairs.add_argument("--slice", choices=("all", "local", "github", "sast", "vfc"), default="all")
     pairs.add_argument("--json", action="store_true", help="print the pair scoreboard as JSON")
 
     subparsers.add_parser("mcp", help="run the narrow MCP server over stdio for OpenCode integration")

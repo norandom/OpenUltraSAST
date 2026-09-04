@@ -1,9 +1,9 @@
 """Pair-efficiency gate: local fixtures must fire on vuln and stay silent on fix.
 
 The stage-1 smoke gate stays on cheat-sheet trees. This module measures
-differential detection and only *fails CI* on the local slice. GitHub/SVEN
-pairs are printed as the honesty dashboard (real VFC misses become improve
-signals, they do not block merge).
+differential detection and only *fails CI* on the local slice. GitHub/SVEN,
+sast, and vfc pairs are honesty dashboards (`ousast pairs --slice ...`);
+they are not evaluated here so a large vfc catalog cannot slow the merge gate.
 
     python -m openultrasast.pair_gate
 """
@@ -36,7 +36,7 @@ def pair_gate(cases: Sequence[PairCase] | None = None) -> PairGateVerdict:
     local = select_slice(catalog, "local")
     if not local:
         return PairGateVerdict(passed=False, reasons=("no local pairs in catalog",), result=evaluate_catalog(()))
-    result = evaluate_catalog(catalog)
+    result = evaluate_catalog(local)
     local_metrics = result.per_slice.get("local")
     reasons: list[str] = []
     if local_metrics is None:
@@ -62,6 +62,12 @@ def print_pair_metrics(label: str, result: PairEvalResult) -> None:
             f"vuln {metrics.vuln_recall:>6.2%}  silent {metrics.specificity:>6.2%}  "
             f"Youden {metrics.youden:>+7.2%}  labeled {metrics.labeled_recall:>6.2%}"
         )
+    for slice_name, inner in result.scorers.items():
+        for scorer, metrics in inner.items():
+            print(
+                f"  {slice_name:<8} scorer={scorer:<10} pair_pass {metrics.pair_pass_rate:>6.2%} "
+                f"({metrics.pair_correct}/{metrics.pairs})  Youden {metrics.youden:>+7.2%}"
+            )
     for outcome in result.outcomes:
         mark = "PASS" if outcome.pair_correct else "MISS" if not outcome.detected_vuln else "LEAK"
         print(

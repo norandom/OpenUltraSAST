@@ -39,9 +39,9 @@ OpenUltraSAST can propose sinks with regex and prove a few of them in a sandbox,
 ## Direct Implementation Candidates
 
 - [ ] Record inventory vs overlay Youden side-by-side in `ousast pairs --slice sast` JSON (small report field, not a new spec).
-- [ ] Add Firefox/gecko-dev, Chromium, OpenSSL pointers to `benchmarks/pairs/datasets.toml`.
+- [x] Add Firefox/gecko-dev, Chromium, OpenSSL pointers to `benchmarks/pairs/datasets.toml`.
 
 ## Specs (dependency order)
 
-- [ ] tree-sitter-overlay-extra -- Optional extra: tree-sitter + grammars, one CST walker, `quick` stays zero-dep. Dependencies: none
-- [ ] real-world-vfc-slice -- Harvest reviewed function-level vuln/fix pairs from large projects (Firefox/gecko-dev, Chromium, OpenSSL, …) as an honesty slice. Dependencies: none
+- [x] tree-sitter-overlay-extra -- Optional extra: tree-sitter + grammars, one CST walker, `quick` stays zero-dep. Dependencies: none
+- [x] real-world-vfc-slice -- Harvest reviewed function-level vuln/fix pairs from large projects (Firefox/gecko-dev, Chromium, OpenSSL, …) as an honesty slice. Seed is testable (`ousast pairs --slice vfc`). Dependencies: none

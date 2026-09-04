@@ -11,7 +11,7 @@ import shutil
 import tempfile
 import tomllib
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from .benchmark import (
@@ -30,7 +30,9 @@ from .semantic import OverlayRecord, adjudicate
 
 DEFAULT_CATALOG = Path("benchmarks/pairs/catalog.toml")
 DEFAULT_SAST_CATALOG = Path("benchmarks/pairs/sast/catalog.toml")
+DEFAULT_VFC_CATALOG = Path("benchmarks/pairs/vfc/catalog.toml")
 DEFAULT_DATASETS = Path("benchmarks/pairs/datasets.toml")
+OVERLAY_SLICES = frozenset({"sast", "vfc"})
 
 
 @dataclass(frozen=True)
@@ -95,6 +97,7 @@ class PairEvalResult:
     overall: PairCorpusMetrics
     per_slice: dict[str, PairCorpusMetrics]
     signals: tuple[dict[str, object], ...]
+    scorers: dict[str, dict[str, PairCorpusMetrics]] = field(default_factory=dict)
 
 
 def load_datasets(path: Path = DEFAULT_DATASETS) -> tuple[dict[str, object], ...]:
@@ -104,8 +107,11 @@ def load_datasets(path: Path = DEFAULT_DATASETS) -> tuple[dict[str, object], ...
 
 def load_pair_catalog(path: Path = DEFAULT_CATALOG) -> tuple[PairCase, ...]:
     cases = _load_catalog_file(path)
-    if path.resolve() == DEFAULT_CATALOG.resolve() and DEFAULT_SAST_CATALOG.exists():
-        cases = cases + _load_catalog_file(DEFAULT_SAST_CATALOG)
+    if path.resolve() == DEFAULT_CATALOG.resolve():
+        if DEFAULT_SAST_CATALOG.exists():
+            cases = cases + _load_catalog_file(DEFAULT_SAST_CATALOG)
+        if DEFAULT_VFC_CATALOG.exists():
+            cases = cases + _load_catalog_file(DEFAULT_VFC_CATALOG)
     return cases
 
 
@@ -142,48 +148,21 @@ def evaluate_pair(case: PairCase) -> PairOutcome:
     with tempfile.TemporaryDirectory(prefix="ousast-pair-") as scratch:
         vuln_root = _materialize(Path(scratch) / "vuln", case.vuln_file, case.relpath)
         fix_root = _materialize(Path(scratch) / "fixed", case.fixed_file, case.relpath)
-        if case.slice == "sast":
+        if case.slice in OVERLAY_SLICES:
             return _evaluate_overlay_pair(case, vuln_root, fix_root)
-        vuln_findings = _quick_scan(vuln_root)
-        fix_findings = _quick_scan(fix_root)
-    vuln_result = evaluate_benchmark(
-        run=BenchmarkRun(benchmark_run_id="pair", root=Path("/tmp/pair"), manifest=_manifest(case)),
-        mode="quick",
-        findings=vuln_findings,
-        scan_id=None,
-        scan_run_dir=None,
-    )
-    expected_total = len(case.expected)
-    matched = vuln_result.metrics.matched_findings_total
-    recall = matched / expected_total if expected_total else 1.0
-    leaks = _fix_leaks(case, fix_findings)
-    detected = recall + 1e-12 >= case.min_recall
-    silent = not leaks
-    misses = tuple(f"{miss.rule_id or '-'}:{miss.path}:{miss.cwe}" for miss in vuln_result.misses)
-    leak_ids = tuple(finding.finding_id for finding in leaks)
-    return PairOutcome(
-        name=case.name,
-        slice=case.slice,
-        language=case.language,
-        origin=case.origin,
-        detected_vuln=detected,
-        silent_fix=silent,
-        pair_correct=detected and silent,
-        vuln_matched=matched,
-        vuln_expected=expected_total,
-        vuln_findings=len(vuln_findings),
-        fix_findings=len(fix_findings),
-        fix_leaks=len(leaks),
-        recall=recall,
-        misses=misses,
-        leaks=leak_ids,
-        commit_url=case.commit_url,
-        cve=case.cve,
-    )
+        return _evaluate_inventory_pair(case, vuln_root, fix_root)
 
 
 def evaluate_catalog(cases: Sequence[PairCase]) -> PairEvalResult:
     outcomes = tuple(evaluate_pair(case) for case in cases)
+    scorers: dict[str, dict[str, PairCorpusMetrics]] = {}
+    vfc_cases = tuple(case for case in cases if case.slice == "vfc")
+    if vfc_cases:
+        overlay_outcomes = tuple(item for item in outcomes if item.slice == "vfc")
+        scorers["vfc"] = {
+            "overlay": _metrics(overlay_outcomes),
+            "inventory": _metrics(tuple(_inventory_only(case) for case in vfc_cases)),
+        }
     return PairEvalResult(
         outcomes=outcomes,
         overall=_metrics(outcomes),
@@ -192,6 +171,7 @@ def evaluate_catalog(cases: Sequence[PairCase]) -> PairEvalResult:
             for slice_name in sorted({item.slice for item in outcomes})
         },
         signals=tuple(build_pair_signals(outcomes)),
+        scorers=scorers,
     )
 
 
@@ -220,6 +200,10 @@ def result_payload(result: PairEvalResult) -> dict[str, object]:
         "per_slice": {name: asdict(metrics) for name, metrics in result.per_slice.items()},
         "outcomes": [asdict(outcome) for outcome in result.outcomes],
         "signals": list(result.signals),
+        "scorers": {
+            slice_name: {scorer: asdict(metrics) for scorer, metrics in inner.items()}
+            for slice_name, inner in result.scorers.items()
+        },
     }
 
 
@@ -288,6 +272,52 @@ def _overlay_scan(target: Path) -> tuple[list[StaticFinding], list[OverlayRecord
     targets = attach_reachability_hints(targets, analyze_entry_points(target, targets))
     findings = quick_scan_findings(target, targets, rank_targets(targets))
     return findings, adjudicate(root=target, targets=targets, findings=findings)
+
+
+def _inventory_only(case: PairCase) -> PairOutcome:
+    with tempfile.TemporaryDirectory(prefix="ousast-pair-inv-") as scratch:
+        vuln_root = _materialize(Path(scratch) / "vuln", case.vuln_file, case.relpath)
+        fix_root = _materialize(Path(scratch) / "fixed", case.fixed_file, case.relpath)
+        return _evaluate_inventory_pair(case, vuln_root, fix_root)
+
+
+def _evaluate_inventory_pair(case: PairCase, vuln_root: Path, fix_root: Path) -> PairOutcome:
+    vuln_findings = _quick_scan(vuln_root)
+    fix_findings = _quick_scan(fix_root)
+    vuln_result = evaluate_benchmark(
+        run=BenchmarkRun(benchmark_run_id="pair", root=Path("/tmp/pair"), manifest=_manifest(case)),
+        mode="quick",
+        findings=vuln_findings,
+        scan_id=None,
+        scan_run_dir=None,
+    )
+    expected_total = len(case.expected)
+    matched = vuln_result.metrics.matched_findings_total
+    recall = matched / expected_total if expected_total else 1.0
+    leaks = _fix_leaks(case, fix_findings)
+    detected = recall + 1e-12 >= case.min_recall
+    silent = not leaks
+    misses = tuple(f"{miss.rule_id or '-'}:{miss.path}:{miss.cwe}" for miss in vuln_result.misses)
+    leak_ids = tuple(finding.finding_id for finding in leaks)
+    return PairOutcome(
+        name=case.name,
+        slice=case.slice,
+        language=case.language,
+        origin=case.origin,
+        detected_vuln=detected,
+        silent_fix=silent,
+        pair_correct=detected and silent,
+        vuln_matched=matched,
+        vuln_expected=expected_total,
+        vuln_findings=len(vuln_findings),
+        fix_findings=len(fix_findings),
+        fix_leaks=len(leaks),
+        recall=recall,
+        misses=misses,
+        leaks=leak_ids,
+        commit_url=case.commit_url,
+        cve=case.cve,
+    )
 
 
 def _evaluate_overlay_pair(case: PairCase, vuln_root: Path, fix_root: Path) -> PairOutcome:

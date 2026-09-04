@@ -122,3 +122,32 @@ url = "https://github.com/tqrg/security-patches-dataset"
 level = "commit"
 languages = ["multi"]
 notes = "Ground-truth security patches mined from NVD, CVE Details, OSV."
+
+[[dataset]]
+name = "OpenSSL"
+url = "https://github.com/openssl/openssl"
+level = "commit/function"
+languages = ["C"]
+notes = "Public git. Seed: CVE-2014-0160 tls1_process_heartbeat. Do not vendor the whole tree; harvest isolated functions."
+
+[[dataset]]
+name = "Firefox mozilla-central"
+url = "https://hg.mozilla.org/mozilla-central"
+data = "https://github.com/mozilla-firefox/firefox"
+level = "commit/function"
+languages = ["C/C++", "JavaScript"]
+notes = "Canonical VCS is hg.mozilla.org; git mirrors are gecko-dev (archived) and mozilla-firefox/firefox. Filter CVEfixes/MoreFixes for gecko-dev. Do not clone mozilla-central. FixFox is embargoed until 2030. Seed: CVE-2020-15667 mar_insert_item."
+
+[[dataset]]
+name = "Chromium"
+url = "https://github.com/chromium/chromium"
+level = "commit/function"
+languages = ["C/C++", "JavaScript"]
+notes = "Public git mirror of chromium/src. Seed: CVE-2019-5786 FileReaderLoader::ArrayBufferResult. Do not vendor the whole tree."
+
+[[dataset]]
+name = "curl"
+url = "https://github.com/curl/curl"
+level = "commit/function"
+languages = ["C"]
+notes = "Public git. Seed: CVE-2023-38545 do_SOCKS5. Isolated functions only; do not vendor the tree."

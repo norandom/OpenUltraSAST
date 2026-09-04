@@ -10,6 +10,7 @@ from openultrasast.pair_gate import pair_gate
 from openultrasast.pairs import (
     DEFAULT_CATALOG,
     DEFAULT_SAST_CATALOG,
+    DEFAULT_VFC_CATALOG,
     PairCase,
     build_pair_signals,
     evaluate_catalog,
@@ -24,12 +25,15 @@ def test_catalog_loads_local_and_github_slices() -> None:
     cases = load_pair_catalog(DEFAULT_CATALOG)
     slices = {case.slice for case in cases}
     names = {case.name for case in cases}
-    assert {"local", "github", "sast"} <= slices
+    assert {"local", "github", "sast", "vfc"} <= slices
     assert "local-python-vulnerable" in names
     assert "sven-cwe-078-os-system" in names
     assert "hutool-cve-2018-17297" in names
     assert "owasp-python-codeinj" in names
     assert "juliet-c-cwe134-printf" in names
+    assert "openssl-cve-2014-0160" in names
+    assert "firefox-cve-2020-15667" in names
+    assert "chromium-cve-2019-5786" in names
     assert all(case.vuln_file.is_file() and case.fixed_file.is_file() for case in cases)
 
 
@@ -52,8 +56,13 @@ def test_datasets_catalog_lists_public_vfc_repos() -> None:
         "OWASP Benchmark Python",
         "Juliet Test Suite C/C++",
         "Juliet Test Suite Java",
+        "OpenSSL",
+        "Firefox mozilla-central",
+        "Chromium",
+        "curl",
     } <= names
     assert DEFAULT_SAST_CATALOG.is_file()
+    assert DEFAULT_VFC_CATALOG.is_file()
     java = Path("benchmarks/pairs/datasets/cwe-bench-java-project_info.csv")
     assert java.is_file()
     assert "CVE-2018-17297" in java.read_text()
@@ -161,6 +170,55 @@ def test_sast_slice_scores_owasp_and_juliet() -> None:
     assert -1.0 <= result.overall.youden <= 1.0
 
 
+def test_vfc_slice_is_labeled_openssl_firefox_chromium() -> None:
+    cases = select_slice(load_pair_catalog(), "vfc")
+    by_name = {case.name: case for case in cases}
+    assert set(by_name) >= {
+        "openssl-cve-2014-0160",
+        "firefox-cve-2020-15667",
+        "chromium-cve-2019-5786",
+        "openssl-cve-2022-1292",
+        "chromium-cve-2022-2162",
+        "curl-cve-2023-38545",
+        "openssl-cve-2025-69421",
+    }
+    for case in cases:
+        header = case.vuln_file.read_text() + case.fixed_file.read_text()
+        assert case.commit_url
+        assert case.cve
+        assert case.license
+        assert case.cve in header
+        assert case.license.split()[0] in header
+        assert case.vuln_file != case.fixed_file
+    sample = tuple(case for case in cases if case.name in {"openssl-cve-2014-0160", "firefox-cve-2020-15667", "chromium-cve-2019-5786"})
+    result = evaluate_catalog(sample)
+    assert result.overall.pairs == len(sample)
+    assert "overlay" in result.scorers["vfc"]
+    assert "inventory" in result.scorers["vfc"]
+    # Honesty dashboard: memcpy-after-fix and UAF are labeled, not a 100% gate.
+    assert -1.0 <= result.overall.youden <= 1.0
+
+
+def test_vfc_training_manifest_has_vuln_and_fixed_labels() -> None:
+    import json
+
+    manifest = Path("benchmarks/pairs/vfc/training/manifest.jsonl")
+    rows = [json.loads(line) for line in manifest.read_text().splitlines() if line.strip()]
+    assert rows
+    assert {row["label"] for row in rows} == {"vuln", "fixed"}
+    by_pair: dict[str, set[str]] = {}
+    for row in rows:
+        by_pair.setdefault(str(row["pair"]), set()).add(str(row["label"]))
+        excerpt = Path("benchmarks/pairs/vfc") / str(row["file"])
+        assert excerpt.is_file(), row["id"]
+        assert 2014 <= int(row["year"]) <= 2026
+    assert all(labels == {"vuln", "fixed"} for labels in by_pair.values())
+    recent = {row["pair"] for row in rows if 2020 <= int(row["year"]) <= 2026}
+    assert len(recent) >= 80
+    assert len(by_pair) >= 100
+    assert len(rows) == 2 * len(by_pair)
+
+
 def test_cli_pairs_json_scoreboard() -> None:
     import io
     from contextlib import redirect_stdout
@@ -171,3 +229,19 @@ def test_cli_pairs_json_scoreboard() -> None:
     payload = json.loads(buf.getvalue())
     assert payload["overall"]["pairs"] >= 4
     assert "sven-cwe-078-os-system" in {item["name"] for item in payload["outcomes"]}
+
+
+def test_cli_vfc_json_includes_dual_scorers() -> None:
+    import io
+    from contextlib import redirect_stdout
+
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        assert main(["pairs", "--slice", "vfc", "--json"]) == 0
+    payload = json.loads(buf.getvalue())
+    names = {item["name"] for item in payload["outcomes"]}
+    assert {"openssl-cve-2014-0160", "firefox-cve-2020-15667", "chromium-cve-2019-5786"} <= names
+    assert payload["overall"]["pairs"] >= 3
+    assert "overlay" in payload["scorers"]["vfc"]
+    assert "inventory" in payload["scorers"]["vfc"]
+    assert payload["per_slice"]["vfc"]["pairs"] == payload["scorers"]["vfc"]["overlay"]["pairs"]
