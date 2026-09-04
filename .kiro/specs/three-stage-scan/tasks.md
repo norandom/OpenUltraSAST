@@ -172,7 +172,7 @@ This plan ships the three-stage scan without rebuilding CWE policy or the regex 
   - _Requirements: 8.1_
   - _Boundary: Benchmark Harness_
 
-- [ ] 7.2 (P) Add a mutation of a known sink that a same-line pattern does not match
+- [x] 7.2 (P) Add a mutation of a known sink that a same-line pattern does not match
   - At least one wrapper or intermediate-variable mutation exists per the evaluation plan.
   - Observable completion: stage 1 misses the mutation; the case is listed as expected in a split-sink or mutation manifest.
   - _Requirements: 8.2_

@@ -1,0 +1,20 @@
+name = "mutation-python"
+language = "python_web"
+frameworks = ["flask"]
+setup = ["pip install flask"]
+modes = ["quick", "standard"]
+known_noise = []
+baselines = []
+
+[source]
+type = "local"
+path = "../fixtures/mutation-python"
+
+[[expected]]
+cwe = "CWE-78"
+class = "command injection"
+path = "app.py"
+line = 13
+function = "ping"
+sink = "run_cmd"
+evidence = "aliased os.system runs an attacker-controlled command"

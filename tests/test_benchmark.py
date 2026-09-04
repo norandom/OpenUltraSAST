@@ -63,6 +63,7 @@ def test_repository_benchmark_manifests_load_and_point_to_fixtures() -> None:
         "java-web-smoke.toml",
         "javascript-node-web-smoke.toml",
         "javascript-vulnerable.toml",
+        "mutation-python.toml",
         "python-vulnerable.toml",
         "python-web-smoke.toml",
         "split-sink-c.toml",
