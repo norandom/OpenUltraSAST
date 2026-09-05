@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -14,6 +15,7 @@ from ..complexity.map import Hotspot
 from ..findings import StaticFinding
 from ..index import CodeChunk, EmbeddingClient, VectorIndex, VectorRecord, write_vector_index
 from .overlay import OverlayRecord
+from .variants import Shape
 
 DEFAULT_MECHANISM_LOG = Path(".openultrasast/mechanisms.jsonl")
 
@@ -29,6 +31,12 @@ class Mechanism:
     what_made_it_exploitable: str
     source_finding_id: str = ""
     source_repo: str = ""
+    # corpus-seeded-mechanisms (additive; old rows load with these defaults)
+    origin: str = "sandbox"  # "sandbox" (proven finding) | "corpus" (derived from a trusted pair)
+    review_tier: str = ""
+    pairs: tuple[str, ...] = ()
+    shape: dict[str, object] | None = None  # Shape.to_dict(); None on sandbox rows (not searchable)
+    guard: str = "none"
 
 
 class MechanismStore:
@@ -39,13 +47,14 @@ class MechanismStore:
     def load(self) -> tuple[Mechanism, ...]:
         if not self.log_path.is_file():
             return ()
-        records: list[Mechanism] = []
+        by_id: dict[str, Mechanism] = {}  # append-only log; the latest row for an id is its current state
         for line in self.log_path.read_text().splitlines():
             if not line.strip():
                 continue
             payload = json.loads(line)
-            records.append(_mechanism_from_payload(payload))
-        return tuple(records)
+            record = _mechanism_from_payload(payload)
+            by_id[record.id] = record
+        return tuple(by_id.values())
 
     def append(self, mechanism: Mechanism) -> None:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -78,6 +87,53 @@ def append_mechanism(
     )
     store.append(mechanism)
     return mechanism
+
+
+def corpus_mechanism_id(shape: Shape) -> str:
+    """Deterministic id from the shape key, so the same shape gets the same record on every machine (lever-addressable)."""
+    return "corpus:" + hashlib.sha1(shape.key().encode()).hexdigest()[:16]
+
+
+def append_from_pair(
+    store: MechanismStore,
+    shape: Shape,
+    *,
+    summary: str,
+    cwe: str,
+    pair: str,
+    provenance: str,
+    tier: str,
+) -> Mechanism:
+    """Second writer (Req 1.3, 1.4): one record per shape, ``origin = "corpus"``, provenance lists every pair that taught it."""
+    mechanism_id = corpus_mechanism_id(shape)
+    existing = next((item for item in store.load() if item.id == mechanism_id), None)
+    pairs = tuple(existing.pairs) if existing is not None else ()
+    if pair not in pairs:
+        pairs = (*pairs, pair)
+    positions = ", ".join(f"arg{p} ({k})" for p, k in zip(shape.source_positions, shape.source_kinds, strict=True))
+    record = Mechanism(
+        id=mechanism_id,
+        summary=summary,
+        cwe=cwe,
+        language=shape.language,
+        tags=(shape.mechanism, f"mechanism:{shape.mechanism}", f"guard:{shape.guard}", f"provenance:{provenance}", f"tier:{tier}"),
+        keywords=(shape.sink_name, shape.guard, *shape.source_kinds),
+        what_made_it_exploitable=f"{positions} reaches {shape.sink_name}/{shape.arity}; the fix added {shape.guard}",
+        source_finding_id="",
+        source_repo="",
+        origin="corpus",
+        review_tier=tier,
+        pairs=pairs,
+        shape=shape.to_dict(),
+        guard=shape.guard,
+    )
+    store.append(record)
+    return record
+
+
+def corpus_mechanisms(records: Sequence[Mechanism]) -> tuple[Mechanism, ...]:
+    """Records that variant search may use: corpus origin with a shape."""
+    return tuple(item for item in records if item.origin == "corpus" and item.shape is not None)
 
 
 def order_promotions(
@@ -256,8 +312,10 @@ def _cosine(left: list[float], right: list[float]) -> float:
 def _mechanism_from_payload(payload: dict[str, object]) -> Mechanism:
     tags = payload.get("tags") or []
     keywords = payload.get("keywords") or []
-    if not isinstance(tags, list) or not isinstance(keywords, list):
-        raise ValueError("mechanism tags and keywords must be lists")
+    pairs = payload.get("pairs") or []
+    shape = payload.get("shape")
+    if not isinstance(tags, list) or not isinstance(keywords, list) or not isinstance(pairs, list):
+        raise ValueError("mechanism tags, keywords and pairs must be lists")
     return Mechanism(
         id=str(payload["id"]),
         summary=str(payload.get("summary", "")),
@@ -268,6 +326,11 @@ def _mechanism_from_payload(payload: dict[str, object]) -> Mechanism:
         what_made_it_exploitable=str(payload.get("what_made_it_exploitable", "")),
         source_finding_id=str(payload.get("source_finding_id", "")),
         source_repo=str(payload.get("source_repo", "")),
+        origin=str(payload.get("origin", "sandbox")),
+        review_tier=str(payload.get("review_tier", "")),
+        pairs=tuple(str(item) for item in pairs),
+        shape=Shape.from_dict(shape).to_dict() if isinstance(shape, dict) else None,
+        guard=str(payload.get("guard", "none")),
     )
 
 
