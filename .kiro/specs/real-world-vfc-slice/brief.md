@@ -52,3 +52,7 @@ Do not clone Firefox. Filter public VFC databases for `gecko-dev` / `mozilla-fir
 ## Constraints
 
 Isolated functions, same `relpath` vuln/fixed. License in the header. No 16 GB dumps in git. Firefox pairs only when a public git commit pair exists — MFSA text without a commit is not a pair.
+
+## Closure (2026-09-04)
+
+Closed. All tasks done; `tests/test_pair_corpus.py` and `tests/test_vfc_harvest.py` pass (17). Seeds from OpenSSL, Firefox, Chromium, and curl landed (176 pairs). Residuals found in review are corpus quality and scorer fidelity, not seed coverage: 25 curl pairs start mid-comment because harvest anchors on a comment mention; 129 expected rows have `sink = "unknown"`; the overlay column equals inventory because C facts have no memory sink. These are owned by `pair-corpus-honesty`, which supersedes this spec on the corpus and scorer plane. Do not reopen.

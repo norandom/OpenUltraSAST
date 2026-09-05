@@ -1,9 +1,12 @@
 {
-  "feature_name": "real-world-vfc-slice",
-  "created_at": "2026-09-04T13:19:17Z",
-  "updated_at": "2026-09-04T16:12:17Z",
+  "feature_name": "pair-corpus-honesty",
+  "created_at": "2026-09-04T16:12:17Z",
+  "updated_at": "2026-09-05T09:00:00Z",
   "language": "en",
   "phase": "implementation",
+  "supersedes": [
+    "real-world-vfc-slice"
+  ],
   "approvals": {
     "requirements": {
       "generated": true,
@@ -19,7 +22,7 @@
     }
   },
   "ready_for_implementation": true,
-  "closed": true,
-  "closed_at": "2026-09-04T16:12:17Z",
-  "superseded_by": "pair-corpus-honesty"
+  "amendments": [
+    "2026-09-05 review tiers (Req 9) and pointer slices (Req 10), approved by the maintainer in session"
+  ]
 }
