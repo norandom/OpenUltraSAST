@@ -1,7 +1,7 @@
 {
   "feature_name": "pair-corpus-honesty",
   "created_at": "2026-09-04T16:12:17Z",
-  "updated_at": "2026-09-05T09:00:00Z",
+  "updated_at": "2026-09-05T12:00:00Z",
   "language": "en",
   "phase": "implementation",
   "supersedes": [
@@ -24,5 +24,8 @@
   "ready_for_implementation": true,
   "amendments": [
     "2026-09-05 review tiers (Req 9) and pointer slices (Req 10), approved by the maintainer in session"
-  ]
+  ],
+  "completed": true,
+  "completed_at": "2026-09-05T12:00:00Z",
+  "review_rounds": 11
 }
