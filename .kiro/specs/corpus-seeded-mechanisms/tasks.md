@@ -1,14 +1,14 @@
 # Implementation Plan
 
-- [ ] 1. Foundation: shapes and store fields
-- [ ] 1.1 Define structural shapes and derive them from a pair
+- [x] 1. Foundation: shapes and store fields
+- [x] 1.1 Define structural shapes and derive them from a pair
   - `Shape` with language, sink name, arity, source positions and kinds, closed guard kind, mechanism id; `derive_shape` finds the labeled sink call site in the vulnerable `FileIR`, traces source positions through binds to a fact source, parameter, or container read, and classifies the guard from statements present only on the fixed side.
   - Shapes contain no path, line, or literal beyond identifiers.
   - Observable: a Python pair (request input into `os.system`, fix adds an allowlist) yields sink `system`, arity 1, source position 0, guard `allowlist_test`; an unlabeled sink returns None; the shape key is stable across runs.
   - _Requirements: 2.1, 2.2, 2.3, 2.4_
   - _Boundary: Shape_
 
-- [ ] 1.2 Add additive mechanism fields and a corpus writer with dedupe
+- [x] 1.2 Add additive mechanism fields and a corpus writer with dedupe
   - `Mechanism` gains origin, review_tier, pairs, shape, guard with defaults; `append_from_pair` dedupes by shape key and extends provenance; old JSONL rows load unchanged.
   - Observable: appending the same shape from two pairs yields one row listing both pairs; a pre-existing sandbox row loads with `origin = "sandbox"`.
   - _Requirements: 1.3, 1.4_
@@ -80,5 +80,9 @@
 
 ## Implementation Notes
 
+- Spec approved by the maintainer in session 2026-09-05 ("continue with corpus-seeded-mechanisms"); approvals recorded in spec.json.
+- Task 1.1 (2026-09-05, RED first: 5 failing tests in `tests/test_variants.py`, `ModuleNotFoundError: openultrasast.semantic.variants`; then green): `semantic/variants.py` with `Shape` (language, sink_name, arity, source_positions, source_kinds, guard, mechanism; `key()`/`to_dict()`/`from_dict()` text-free), closed `GUARD_KINDS`/`SOURCE_KINDS`, `derive_shape(vuln_ir, fixed_ir, *, function, sink, line, mechanism, facts, vuln_text, fixed_text)`. Deviation from the design signature: the two excerpt texts are passed in because guard statements (`if x not in ALLOWED`, `if len(x) > n`) are not call sites or binds in `FileIR`; the guard kind is classified from the lines of the labeled function that exist only on the fixed side, closed set, `none` when unknown; nothing of that text enters the shape. Source kinds trace argument identifiers through binds (fact-source pattern -> `fact_source`; subscript/`.get(`/request container -> `container_read`; parameter -> `parameter`), preferring fact_source, then parameter, then container_read. A constant-only sink call or a missing function/call site yields None.
+- Task 1.2 (2026-09-05, RED first: 3 failing tests in `tests/test_mechanism_export.py` — `Mechanism` lacked `origin`, `append_from_pair` missing; then green): additive `Mechanism.origin/review_tier/pairs/shape/guard` with defaults so sandbox rows load unchanged; `MechanismStore.load()` folds the append-only log by id (latest row wins) so a re-seeded shape carries the extended `pairs`; `append_from_pair` uses a deterministic id `corpus:<sha1(shape.key())[:16]>` so the improve lever can name records across machines; `corpus_mechanisms()` selects searchable rows. Existing `order_promotions` tests unchanged and green.
+- Review round 1 (2026-09-05) APPROVED 1.1 and 1.2 (reviewer re-simulated RED, ran six mutations, verified the import boundary and that sandbox rows load unchanged; isolated suite 493 / 480 green, statics and gates clean). Suggestions carried into group 2: trim `_CONTAINER_READ` to the design's subscript/`.get(` definition so no source vocabulary lives outside facts; intersect line and sink in `_labeled_call`; `append_from_pair` keeps the highest tier and accumulates provenance tags when a shape is re-seeded; sync design §Shape to the implemented signature.
 - Seeding reads `PairCase.review_tier` from `pair-corpus-honesty` task 8.1; until it lands, sast and vibe-py rows default to `advisory`/`seeded` per that design and only vibe-py seeds.
 - Guard classification is heuristic and closed; `none` is allowed and reported, never used to demote.
