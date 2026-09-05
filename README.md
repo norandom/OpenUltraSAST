@@ -33,6 +33,7 @@ uv run ousast benchmark benchmarks/manifests/python-vulnerable.toml --mode quick
 # Differential pair eval: fire on vuln, stay silent on the fix (local + real GitHub VFCs)
 uv run ousast pairs
 uv run ousast pairs --slice sast   # OWASP Benchmark Java/Python + Juliet
+uv run ousast pairs --slice vibe-py --pointers   # nightly: also harvest non-vendored pointer pairs into ~/.cache
 uv run python -m openultrasast.pair_gate
 
 # Run the bounded self-improvement loop over the ruleset (benchmark-driven)

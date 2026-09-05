@@ -87,8 +87,10 @@ def _slug(text: str) -> str:
 
 
 def build(
-    ground_truth: Path, licenses: Path, *, per_repo: int, classes: set[str], allow_unlicensed: bool
+    ground_truth: Path, licenses: Path, *, per_repo: int, classes: set[str], allow_unlicensed: bool, pointers: bool = False
 ) -> tuple[list[dict[str, object]], dict[str, int]]:
+    """``pointers=True`` keeps the LLM-generated repositories without a license as ``vendored = false`` rows (Req 10.6):
+    scored through the cache with ``pairs --pointers``, never vendored. Unlicensed human repositories stay skipped."""
     manifest = json.loads((ground_truth / "manifest.json").read_text())
     license_by_repo = json.loads(licenses.read_text()) if licenses.is_file() else {}
     recipes: list[dict[str, object]] = []
@@ -100,7 +102,9 @@ def build(
         gt = json.loads(gt_path.read_text())
         info = license_by_repo.get(repo_id, {})
         license_id = info.get("license") or ""
-        if license_id not in ACCEPTED_LICENSES and not allow_unlicensed:
+        licensed = license_id in ACCEPTED_LICENSES
+        pointer = pointers and not licensed and meta["authorship"] == "llm_generated"
+        if not licensed and not allow_unlicensed and not pointer:
             skipped["unlicensed"] += 1
             continue
         full = info.get("full") or "/".join(meta["repo_url"].rstrip("/").split("/")[-2:])
@@ -171,6 +175,9 @@ def build(
                     "commit_url": f"https://github.com/{full}/blob/{commit}/{file}#L{int(location['start_line'])}",
                 }
             )
+            if pointer:
+                recipes[-1]["vendored"] = False
+                recipes[-1]["review_tier"] = "seeded"  # ground truth reviewed upstream; the code is never redistributed
             taken += 1
     # deterministic holdout: every other recipe by sorted name
     for index, recipe in enumerate(sorted(recipes, key=lambda r: str(r["name"]))):
@@ -208,6 +215,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--per-repo", type=int, default=2)
     parser.add_argument("--classes", default=",".join(DEFAULT_CLASSES))
     parser.add_argument("--allow-unlicensed", action="store_true", help="include repositories without a stated license (NOT for vendoring)")
+    parser.add_argument(
+        "--pointers", action="store_true", help="append the LLM-generated unlicensed repos as vendored = false rows to --out (Req 10.6)"
+    )
     parser.add_argument("--out", type=Path, default=ROOT / "recipes.toml")
     args = parser.parse_args(argv)
     recipes, skipped = build(
@@ -216,7 +226,19 @@ def main(argv: list[str] | None = None) -> int:
         per_repo=args.per_repo,
         classes=set(args.classes.split(",")),
         allow_unlicensed=args.allow_unlicensed,
+        pointers=args.pointers,
     )
+    if args.pointers and args.out.is_file():
+        import importlib.util
+        import tomllib
+
+        spec = importlib.util.spec_from_file_location("pair_harvest_lib", ROOT.parent / "harvest.py")
+        assert spec is not None and spec.loader is not None
+        harvest = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(harvest)
+        existing = [dict(r) for r in tomllib.loads(args.out.read_text()).get("recipe", [])]
+        recipes, added = harvest.merge_recipes(existing, [r for r in recipes if r.get("vendored") is False])
+        print(f"appended {len(added)} pointer recipes to {args.out}")
     args.out.write_text(to_toml(recipes), encoding="utf-8")
     print(f"wrote {args.out} ({len(recipes)} recipes); skipped {skipped}")
     return 0

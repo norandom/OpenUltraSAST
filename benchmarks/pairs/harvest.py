@@ -553,6 +553,13 @@ def fetch_url(url: str, timeout: int = 60) -> str:
         return response.read().decode("utf-8", "replace")
 
 
+def merge_recipes(existing: list[dict[str, Any]], new: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[str]]:
+    """Append ``new`` recipes whose name is not already present; existing rows are never rewritten (vendored labels stay put)."""
+    names = {str(r["name"]) for r in existing}
+    added = [r for r in new if str(r["name"]) not in names]
+    return [*existing, *added], [str(r["name"]) for r in added]
+
+
 def load_recipes(path: Path) -> tuple[dict[str, Any], ...]:
     payload = tomllib.loads(path.read_text())
     return tuple(dict(item) for item in payload.get("recipe", []))

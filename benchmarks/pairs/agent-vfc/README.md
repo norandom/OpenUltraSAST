@@ -2,7 +2,9 @@
 
 Security-fix commits carrying an AI coding agent co-author trailer or generation marker
 (Claude Code, Codex, Cursor, Copilot, Devin), in JavaScript, TypeScript, or Python.
-`provenance = "agent"`. Only repositories with a stated license are vendored.
+`provenance = "agent"`. Only repositories with a stated license are vendored; fixes in
+unlicensed repositories are `vendored = false` pointer rows (`build_recipes.py --from ... --pointers`,
+function label derived from the cached excerpt) scored by `ousast pairs --slice agent-vfc --pointers`.
 
 ## Review checklist (Req 5.3)
 

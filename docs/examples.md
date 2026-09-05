@@ -36,6 +36,7 @@ uv run ousast benchmark benchmarks/manifests/python-vulnerable.toml --mode quick
 uv run ousast pairs                              # local fixtures + vendored GitHub VFCs
 uv run ousast pairs --slice github --json        # honesty dashboard as JSON
 uv run ousast pairs --slice sast                 # OWASP Benchmark + Juliet Youden (TPR-FPR)
+uv run ousast pairs --slice vibe-py --pointers   # nightly: pointer pairs via the local cache (network)
 uv run python -m openultrasast.pair_gate         # CI: local pairs must all pass
 ```
 

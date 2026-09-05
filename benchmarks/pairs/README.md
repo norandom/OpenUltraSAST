@@ -69,6 +69,9 @@ and `reviewed` pairs, so `advisory` and `title` pairs never gate the improve loo
 
 ## Pointer pairs (not vendored)
 
+Current pointer rows: vibe-py 80 (the 40 LLM-generated Real-Vuln repositories, `agent`,
+`seeded`) and agent-vfc (unlicensed agent-authored fixes, `title`).
+
 A row with `vendored = false` carries its harvest recipe (`repo`, `parent`, `commit`,
 `path`, `mode`, `line`/`fix_path`/`fix_line`, ...) and no excerpt files (Req 10). The
 repository never redistributes that code: `pairs --pointers` (or

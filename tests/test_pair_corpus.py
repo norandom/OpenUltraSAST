@@ -464,9 +464,10 @@ def test_new_slices_load_offline_and_score_with_profiles() -> None:
         assert all(case.license for case in select_vendored(cases)), slice_name  # pointer rows may be unlicensed (Req 10)
         assert all(case.provenance == expected_provenance for case in select_vendored(cases)), slice_name
         assert {case.split for case in cases} <= {"train", "holdout"}
-        header = cases[0].vuln_file.read_text()[:600]
+        vendored = select_vendored(cases)  # pointer rows have no excerpt in the repository (Req 10)
+        header = vendored[0].vuln_file.read_text()[:600]
         assert "Provenance:" in header and "license:" in header
-        result = evaluate_catalog(cases[:2])
+        result = evaluate_catalog(vendored[:2])
         assert result.per_slice[slice_name].pairs == 2
         assert set(result.per_profile) <= PROVENANCES and expected_provenance in result.per_profile
         assert result.per_mechanism and slice_name in result.loss
@@ -963,3 +964,24 @@ def test_warm_cache_never_scores_pointer_pairs_when_network_is_off(tmp_path: Pat
     assert result.outcomes == ()
     assert {"stage": "pairs", "reason": "pointer_pair_skipped", "pair": "ptr"} in result.degradations
     assert evaluate_catalog([case], pointers=True).outcomes[0].pair_correct  # warm cache, network on: no fetch, scored
+
+
+def test_vibe_py_and_agent_vfc_carry_pointer_rows_and_the_default_run_skips_them() -> None:
+    """Req 10.6: LLM-generated Real-Vuln repos are agent/seeded pointer rows; unlicensed agent fixes are title pointer rows."""
+    import io
+    from contextlib import redirect_stdout
+
+    catalog = load_pair_catalog()
+    vibe = select_slice(catalog, "vibe-py")
+    pointers = [case for case in vibe if not case.vendored]
+    assert len(pointers) >= 40 and len({case.repo for case in pointers}) >= 40
+    assert all(case.provenance == "agent" and case.review_tier == "seeded" and not case.vuln_file.exists() for case in pointers)
+    assert len(select_vendored(vibe)) == 35 and all(case.provenance == "human" for case in select_vendored(vibe))
+    agent_pointers = [case for case in select_slice(catalog, "agent-vfc") if not case.vendored]
+    assert len(agent_pointers) >= 20 and all(case.review_tier == "title" and case.license == "unlicensed" for case in agent_pointers)
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        assert main(["pairs", "--slice", "vibe-py", "--json"]) == 0
+    payload = json.loads(buf.getvalue())
+    skipped = [item for item in payload["degradations"] if item["reason"] == "pointer_pair_skipped"]
+    assert len(skipped) == len(pointers) and payload["overall"]["pairs"] == 35

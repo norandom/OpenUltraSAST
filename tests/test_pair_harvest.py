@@ -424,3 +424,101 @@ def test_catalog_gen_emits_pointer_rows_without_excerpts(tmp_path: Path, monkeyp
     (case,) = _load_catalog_file(catalog)
     assert case.vendored is False and case.provenance == "agent"
     assert not (slice_root / "training" / "manifest.jsonl").read_text().strip()  # pointer rows have no vendored files to train on
+
+
+# --- task 8.4: pointer recipes from the builders (Req 10.6) ---------------------
+
+
+def _ground_truth(tmp_path: Path) -> Path:
+    import json
+
+    gt = tmp_path / "gt"
+    gt.mkdir()
+    repos = {
+        "realvuln-vc-llm-app": {
+            "repo_url": "https://github.com/k/vc-llm-app",
+            "commit_sha": "c1",
+            "authorship": "llm_generated",
+            "framework": "flask",
+        },
+        "realvuln-human-nolic": {
+            "repo_url": "https://github.com/h/nolic",
+            "commit_sha": "c2",
+            "authorship": "human_authored",
+            "framework": "flask",
+        },
+        "realvuln-human-mit": {
+            "repo_url": "https://github.com/h/mit",
+            "commit_sha": "c3",
+            "authorship": "human_authored",
+            "framework": "flask",
+        },
+    }
+    (gt / "manifest.json").write_text(json.dumps({"repos": repos}))
+    findings = [
+        {
+            "id": "v1",
+            "is_vulnerable": True,
+            "file": "app.py",
+            "location": {"function": "run", "start_line": 3},
+            "vulnerability_class": "command_injection",
+            "primary_cwe": "CWE-78",
+            "evidence": {"description": "x"},
+        },
+        {
+            "id": "t1",
+            "is_vulnerable": False,
+            "file": "app.py",
+            "location": {"function": "safe", "start_line": 9},
+            "vulnerability_class": "command_injection",
+            "primary_cwe": "CWE-78",
+        },
+    ]
+    for repo_id in repos:
+        (gt / f"{repo_id}.json").write_text(json.dumps({"findings": findings}))
+    (gt / "licenses.json").write_text(
+        json.dumps(
+            {
+                "realvuln-vc-llm-app": {"full": "k/vc-llm-app", "license": ""},
+                "realvuln-human-nolic": {"full": "h/nolic", "license": ""},
+                "realvuln-human-mit": {"full": "h/mit", "license": "MIT"},
+            }
+        )
+    )
+    return gt
+
+
+def test_vibe_py_builder_pointers_mode_emits_llm_repos_as_unvendored_agent_rows(tmp_path: Path) -> None:
+    b = runpy.run_path(str(Path("benchmarks/pairs/vibe-py/build_recipes.py")), run_name="vibe_builder")
+    gt = _ground_truth(tmp_path)
+    recipes, skipped = b["build"](
+        gt, gt / "licenses.json", per_repo=2, classes={"command_injection"}, allow_unlicensed=False, pointers=True
+    )
+    by_repo = {r["repo"]: r for r in recipes}
+    assert set(by_repo) == {"k/vc-llm-app", "h/mit"}  # unlicensed human repos are neither vendored nor pointed at
+    llm = by_repo["k/vc-llm-app"]
+    assert llm["vendored"] is False and llm["provenance"] == "agent" and llm["review_tier"] == "seeded" and llm["license"] == "unlicensed"
+    assert llm["function"] == "run" and llm["fix_path"] == "app.py" and llm["fix_line"] == 9
+    assert "vendored" not in by_repo["h/mit"] and by_repo["h/mit"]["provenance"] == "human"
+    assert skipped["unlicensed"] == 1
+    text = b["to_toml"](recipes)
+    import tomllib
+
+    rows = tomllib.loads(text)["recipe"]
+    assert any(row.get("vendored") is False for row in rows)
+
+
+def test_merge_recipes_keeps_existing_rows_and_appends_new_by_name() -> None:
+    lib = _lib()
+    existing = [{"name": "a", "repo": "x", "license": "MIT"}, {"name": "b", "repo": "y", "license": "MIT"}]
+    new = [{"name": "b", "repo": "changed"}, {"name": "c", "repo": "z", "vendored": False}]
+    merged, added = lib["merge_recipes"](existing, new)
+    assert [r["name"] for r in merged] == ["a", "b", "c"] and merged[1]["repo"] == "y" and added == ["c"]
+
+
+def test_agent_vfc_builder_writes_toml_booleans() -> None:
+    import tomllib
+
+    b = runpy.run_path(str(Path("benchmarks/pairs/agent-vfc/build_recipes.py")), run_name="agent_builder")
+    (row,) = tomllib.loads(b["to_toml"]([{"name": "p", "vendored": False, "line": 3, "reviewer": "pending"}]))["recipe"]
+    assert row["vendored"] is False and row["line"] == 3
