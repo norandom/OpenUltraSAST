@@ -16,6 +16,7 @@ from .facts import (
     OperationFact,
     load_obligation_facts,
 )
+from .shapes import ObligationShape, derive_obligation, explain_skip, obligation_mechanisms
 
 __all__ = [
     "DISCHARGER_KINDS",
@@ -24,6 +25,10 @@ __all__ = [
     "DischargerFact",
     "ObligationFacts",
     "ObligationFactsError",
+    "ObligationShape",
     "OperationFact",
+    "derive_obligation",
+    "explain_skip",
     "load_obligation_facts",
+    "obligation_mechanisms",
 ]
