@@ -1,0 +1,83 @@
+# Closed mechanism vocabulary for pair labels (pair-corpus-honesty, Req 2.1).
+# Every [[pair.expected]] row names one of these ids. Bump `version` when the set changes.
+version = "1"
+
+[[mechanism]]
+id = "source_reaches_sink"
+definition = "A fact-listed source flows by name into a fact-listed sink without a sanitizer."
+
+[[mechanism]]
+id = "container_taint"
+definition = "Taint travels through a mutable container or config object (list.append, dict[key], ConfigParser.set/get) before the sink."
+
+[[mechanism]]
+id = "config_sink_weak_literal"
+definition = "A configuration sink is dangerous because of a literal argument (hashlib.new('md5'), MessageDigest 'SHA-1', debug=True)."
+
+[[mechanism]]
+id = "unchecked_length_copy"
+definition = "A copy or read uses a length or index that is not bounded by a dominating check."
+
+[[mechanism]]
+id = "unchecked_alloc_size"
+definition = "An allocation size derives from untrusted or unbounded input."
+
+[[mechanism]]
+id = "null_deref_unguarded"
+definition = "A pointer that may be NULL is dereferenced without a dominating NULL test."
+
+[[mechanism]]
+id = "signed_size_operand"
+definition = "A signed or narrower type feeds a size or length operand and can wrap."
+
+[[mechanism]]
+id = "fixed_buffer_capacity"
+definition = "A fixed-size buffer receives data larger than its declared capacity."
+
+[[mechanism]]
+id = "identity_from_request_body"
+definition = "A user or owner identity is taken from the request body or query instead of the authenticated context."
+
+[[mechanism]]
+id = "missing_auth_guard"
+definition = "A route or handler performs a privileged action with no authentication or authorization guard on its path."
+
+[[mechanism]]
+id = "secret_in_client"
+definition = "A secret or privileged key is shipped to client-side code or committed configuration."
+
+[[mechanism]]
+id = "permissive_default"
+definition = "A security control is left at a permissive default (RLS off, CORS wildcard, debug mode, open bucket)."
+
+[[mechanism]]
+id = "path_join_user_input"
+definition = "A filesystem path is built from user input without normalization or containment."
+
+[[mechanism]]
+id = "prototype_pollution"
+definition = "Attacker-controlled keys reach a recursive merge or assignment that writes Object.prototype."
+
+[[mechanism]]
+id = "redos"
+definition = "A regular expression with catastrophic backtracking is applied to untrusted input."
+
+[[mechanism]]
+id = "uaf"
+definition = "Memory is used after it was released."
+
+[[mechanism]]
+id = "type_confusion"
+definition = "A value is interpreted as a type it is not."
+
+[[mechanism]]
+id = "validation_strength"
+definition = "A validator exists but accepts inputs it should reject; the fix strengthens the check."
+
+[[mechanism]]
+id = "cross_artifact"
+definition = "The bug is only decidable with an artifact outside the vendored files (a properties file, a schema, a build flag)."
+
+[[mechanism]]
+id = "other"
+definition = "Not yet classified. Present so bulk-mined pairs load; review should replace it."

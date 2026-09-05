@@ -40,6 +40,41 @@ Pairs in this directory **must not** join `LANGUAGE_MANIFESTS`.
   `vfc/training/manifest.jsonl` (vuln vs fixed, one snapshot per line).
   Grow with a blobless `git log --grep=CVE-202` mine plus `vfc/harvest.py`,
   then `vfc/generate_catalog.py` (maintainer, not CI).
+- **vibe-py** — Real-Vuln-Benchmark functions (`benchmarks/pairs/vibe-py/`):
+  Python web repos pinned by commit, one vulnerable function per pair with a
+  false-positive trap from the same repo as the fixed twin. Today only the 15
+  licensed human-authored repos are vendored (`provenance = "human"`); the 40
+  LLM-generated repos carry no license file and are excluded until one is
+  stated upstream. Educational/CTF apps, not production. Honesty dashboard.
+- **vfc-js** — server-side JavaScript function pairs harvested from the upstream
+  fix commits that SecBench.js records (`benchmarks/pairs/vfc-js/`). Command
+  injection, path traversal, and code injection first; prototype pollution and
+  ReDoS carry their mechanism and may be `known_limit`. No SecBench.js file is
+  vendored. Honesty dashboard.
+- **agent-vfc** — security-fix commits carrying an AI agent co-author trailer or
+  generation marker, in JavaScript, TypeScript, or Python
+  (`benchmarks/pairs/agent-vfc/`). `provenance = "agent"`. Rows enter
+  `catalog.toml` only after a human sets `reviewer` in `recipes.toml`; until
+  then they sit in `catalog-candidates.toml`, which is never loaded. Honesty dashboard.
+
+## Labels, profiles, and mechanisms
+
+Every `[[pair.expected]]` row names a `mechanism` from the closed vocabulary in
+`benchmarks/pairs/mechanisms.toml`; every pair carries `provenance`
+(`human|agent|mixed|synthetic`), a declared `split` (`train|holdout`), and an
+optional `known_limit` reason. The scorer counts overlay `coverage` records with
+a source as detections and as leaks, matches by function when a label names one,
+never matches a CWE-only row (`weak_label`), and reports `per_profile`,
+`per_mechanism`, `achievable` (known-limit pairs excluded), and `loss`
+(parse-failed files, unadjudicated proposals). `ousast pairs --profile agent
+--split holdout --json` filters; `--hunter` adds the LLM hunter as a third scorer
+when a hunter model is configured. The improve loop rejects a change that
+regresses any profile on the holdout split.
+
+Harvest for every slice goes through `benchmarks/pairs/harvest.py --slice <name>`
+(modes `name`, `line_range`, `hunk`, `enclosing`; comment and string mentions
+never anchor) and `benchmarks/pairs/catalog_gen.py --slice <name>` regenerates
+the catalog from `recipes.toml`. Maintainer only; CI never fetches.
 
 ## Commands
 

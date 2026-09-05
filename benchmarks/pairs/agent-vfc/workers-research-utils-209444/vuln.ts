@@ -1,0 +1,137 @@
+// Provenance: G4brym/workers-research  (vuln).
+// repo: G4brym/workers-research
+// commit: eab923ad3099c01b002fbd6be7cf994614bbdee4
+// parent: eab923ad3099c01b002fbd6be7cf994614bbdee4
+// commit_url: https://github.com/G4brym/workers-research/commit/209444eb61cc564c2d6b43267256f85fe3e5e30e
+// cve: 
+// license: MIT
+// function: formatDuration
+// relpath: src/utils.ts
+// provenance: agent
+// mechanism: source_reaches_sink
+
+import {
+	createGoogleGenerativeAI,
+	type GoogleGenerativeAIProvider,
+	type GoogleGenerativeAIProviderSettings,
+} from "@ai-sdk/google";
+import type { Env } from "./bindings";
+
+function getGoogleProvider(env: Env): GoogleGenerativeAIProvider {
+	const args: GoogleGenerativeAIProviderSettings = {
+		apiKey: env.GOOGLE_API_KEY,
+	};
+
+	if (env.AI_GATEWAY_ACCOUNT_ID && env.AI_GATEWAY_NAME) {
+		args.baseURL = `https://gateway.ai.cloudflare.com/v1/${env.AI_GATEWAY_ACCOUNT_ID}/${env.AI_GATEWAY_NAME}/google-ai-studio/v1beta`;
+
+		if (env.AI_GATEWAY_API_KEY) {
+			args.headers = {
+				"cf-aig-authorization": `Bearer ${env.AI_GATEWAY_API_KEY}`,
+			};
+		}
+	}
+
+	return createGoogleGenerativeAI(args);
+}
+
+export function getModel(env: Env) {
+	const google = getGoogleProvider(env);
+
+	return google("gemini-2.0-flash-exp");
+}
+
+export function getFallbackModel(env: Env) {
+	const google = getGoogleProvider(env);
+	return google("gemini-2.0-flash");
+}
+
+export function getModelThinking(env: Env) {
+	const google = getGoogleProvider(env);
+
+	return google("gemini-2.0-flash-exp");
+}
+
+export function timeAgo(date: Date): string {
+	const now = new Date();
+	const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+	const intervals: [number, string][] = [
+		[60, "minute"],
+		[60, "hour"],
+		[24, "day"],
+		[7, "week"],
+		[4.35, "month"],
+		[12, "year"],
+	];
+
+	let count = seconds;
+	let unit = "second";
+
+	for (const [interval, name] of intervals) {
+		if (count < interval) break;
+		count /= interval;
+		unit = name;
+	}
+
+	count = Math.floor(count);
+	return `${count} ${unit}${count !== 1 ? "s" : ""} ago`;
+}
+
+export async function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Normalize a domain input for excluded domain matching.
+ * Handles common user input formats:
+ * - Full URLs: "https://reddit.com/foo" → "reddit.com"
+ * - www prefix: "www.reddit.com" → "reddit.com"
+ * - Mixed: "https://www.reddit.com" → "reddit.com"
+ * - Plain domains are returned as-is (lowercased, trimmed)
+ */
+export function normalizeDomain(input: string): string {
+	let domain = input.trim().toLowerCase();
+	if (domain.length === 0) return "";
+
+	// If it looks like a URL (has ://), extract the hostname
+	if (domain.includes("://")) {
+		try {
+			domain = new URL(domain).hostname;
+		} catch {
+			// If URL parsing fails, strip the protocol manually
+			domain = domain.replace(/^[a-z]+:\/\//, "").split("/")[0];
+		}
+	} else {
+		// Strip any trailing path from plain domain input
+		domain = domain.split("/")[0];
+	}
+
+	// Strip www. prefix for consistent matching
+	domain = domain.replace(/^www\./, "");
+
+	return domain;
+}
+
+export function formatDuration(ms: number): string {
+	// Handle negative or zero values
+	if (ms <= 0) {
+		return "0.0 seconds";
+	}
+
+	const seconds = ms / 1000;
+	const minutes = seconds / 60;
+	const hours = minutes / 60;
+	const days = hours / 24;
+
+	// Determine the appropriate unit and format with one decimal place
+	if (days >= 1) {
+		return `${days.toFixed(1)} day${days !== 1 ? "s" : ""}`;
+	} else if (hours >= 1) {
+		return `${hours.toFixed(1)} hour${hours !== 1 ? "s" : ""}`;
+	} else if (minutes >= 1) {
+		return `${minutes.toFixed(1)} minute${minutes !== 1 ? "s" : ""}`;
+	} else {
+		return `${seconds.toFixed(1)} second${seconds !== 1 ? "s" : ""}`;
+	}
+}

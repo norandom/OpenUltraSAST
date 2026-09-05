@@ -151,3 +151,63 @@ url = "https://github.com/curl/curl"
 level = "commit/function"
 languages = ["C"]
 notes = "Public git. Seed: CVE-2023-38545 do_SOCKS5. Isolated functions only; do not vendor the tree."
+
+# --- pair-corpus-honesty: web, agent-authored, and LLM-generated corpora ---
+
+[[dataset]]
+name = "Real-Vuln-Benchmark"
+url = "https://github.com/kolega-ai/Real-Vuln-Benchmark"
+data = "benchmarks/pairs/vibe-py"
+level = "repo/function/line"
+languages = ["Python"]
+notes = "Apache-2.0 (v2). 66 pinned Python web repos: 26 human-authored, 40 LLM-generated (Claude, GPT, Kimi) seeded with reviewed vulns. 1896 vulnerable findings + 280 false-positive traps with file, line range, function, primary/acceptable CWEs, severity, authorship. Educational/CTF style, not production. Source of the `vibe-py` slice; traps are the fixed-side twins."
+
+[[dataset]]
+name = "SecBench.js"
+url = "https://github.com/cristianstaicu/SecBench.js"
+level = "package/sink-line"
+languages = ["JavaScript"]
+notes = "600 real npm vulnerabilities (prototype pollution, ReDoS, command injection, path traversal, code injection) with Jest exploit oracles, fixCommit, fixedVersion, and sinkLocation. No license file: never vendor its test files; harvest function pairs from the upstream package repositories named in fixCommit (`vfc-js` slice) and record each package's own license."
+
+[[dataset]]
+name = "AIDev"
+url = "https://huggingface.co/datasets/hao-li/AIDev"
+level = "pull request"
+languages = ["multi"]
+notes = "932k agent-authored PRs (Claude Code, Codex, Copilot, Cursor, Devin, Jules) with patches and language; CC-BY-4.0 index, source repos keep their licenses. No security labels. Candidate source for `agent-vfc` together with GitHub commit search on agent co-author trailers."
+
+[[dataset]]
+name = "BaxBench"
+url = "https://github.com/logic-star-ai/baxbench"
+data = "https://huggingface.co/datasets/LogicStar/BaxBench"
+level = "scenario/exploit"
+languages = ["Python", "JavaScript", "TypeScript", "Go", "Rust", "PHP"]
+notes = "MIT. 28 backend scenarios x 14 frameworks (Express, Flask, FastAPI, Django, Nest, ...) with functional tests and executable exploits per CWE. Generated code is not shipped; generate with any model, the exploit harness labels each sample. Deferred slice (`baxgen`) until deep mode can run its exploits."
+
+[[dataset]]
+name = "SecurityEval"
+url = "https://github.com/s2e-lab/SecurityEval"
+level = "prompt/sample"
+languages = ["Python"]
+notes = "121 prompts over 69 CWEs with Copilot and InCoder outputs. Vibe-textbook only; not web recall."
+
+[[dataset]]
+name = "CodeSecEval"
+url = "https://arxiv.org/abs/2407.02395"
+level = "sample"
+languages = ["Python"]
+notes = "180 samples, 44 vulnerability types, insecure and secure executable code with tests. Pointer only."
+
+[[dataset]]
+name = "CWEval"
+url = "https://github.com/Co1lin/CWEval"
+level = "task"
+languages = ["C", "Python", "JavaScript"]
+notes = "Functionality plus security evaluation of LLM-generated code on the same tasks. Pointer only."
+
+[[dataset]]
+name = "CyberSecEval insecure code"
+url = "https://github.com/meta-llama/PurpleLlama/tree/main/CybersecurityBenchmarks"
+level = "test case"
+languages = ["C", "C++", "C#", "Java", "JavaScript", "PHP", "Python", "Rust"]
+notes = "MIT. Labels are DEFINED by its Insecure Code Detector regex/semgrep/weggli rules. Circular for a rule-proposing tool: coverage pointer only, never recall ground truth."
