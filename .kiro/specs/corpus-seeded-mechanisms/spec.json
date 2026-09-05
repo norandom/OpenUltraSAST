@@ -1,0 +1,22 @@
+{
+  "feature_name": "corpus-seeded-mechanisms",
+  "created_at": "2026-09-05T06:18:31Z",
+  "updated_at": "2026-09-05T06:18:31Z",
+  "language": "en",
+  "phase": "tasks-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": false
+    },
+    "design": {
+      "generated": true,
+      "approved": false
+    },
+    "tasks": {
+      "generated": true,
+      "approved": false
+    }
+  },
+  "ready_for_implementation": false
+}
