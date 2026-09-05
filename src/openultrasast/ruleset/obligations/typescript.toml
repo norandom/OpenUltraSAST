@@ -1,0 +1,68 @@
+# Obligated operations and dischargers for TypeScript web code (same surface as JavaScript) (authorization-obligations, Req 1). Closed data.
+version = "1"
+language = "typescript"
+
+[[operation]]
+id = "orm-read"
+kind = "protected_read"
+calls = ["findOne", "findById", "findMany", "findFirst", "findUnique", "findAll", "findByPk", "where", "aggregate"]
+requires = ["identity_constraint", "ownership_check"]
+sensitivity = "high"
+
+[[operation]]
+id = "orm-write"
+kind = "protected_write"
+calls = ["update", "updateOne", "updateMany", "deleteOne", "deleteMany", "delete", "create", "insert", "upsert", "save", "remove", "findByIdAndUpdate", "findByIdAndDelete"]
+requires = ["identity_constraint", "ownership_check"]
+sensitivity = "high"
+
+[[operation]]
+id = "sql-access"
+kind = "protected_read"
+calls = ["query", "execute", "raw", "run"]
+requires = ["identity_constraint"]
+sensitivity = "high"
+
+[[operation]]
+id = "privileged-action"
+kind = "privileged_action"
+calls = ["setRole", "grant", "revoke", "promote", "transfer", "payout", "deleteUser", "resetPassword", "unlink", "rm"]
+requires = ["path_guard", "ownership_check"]
+sensitivity = "high"
+
+[[operation]]
+id = "security-setting"
+kind = "security_setting"
+calls = ["cors", "cookie", "session", "helmet", "listen", "use", "setHeader", "createClient", "from"]
+resource_arg = 0
+requires = ["non_permissive_value"]
+sensitivity = "medium"
+
+[[discharger]]
+id = "route-guard"
+kind = "path_guard"
+calls = ["authenticate", "requireAuth", "ensureAuthenticated", "isAuthenticated", "verifyToken", "checkAuth", "protect", "authorize", "requireUser", "getServerSession", "auth", "withAuth", "jwt.verify", "passport.authenticate"]
+decorators = ["UseGuards", "Authorized", "Roles"]
+
+[[discharger]]
+id = "identity-from-context"
+kind = "identity_constraint"
+identity_sources = ["req.user", "request.user", "ctx.user", "session.user", "locals.user", "auth.uid", "auth().userId", "currentUser", "user.id", "token.sub", "decoded.sub", "session.userId", "getServerSession("]
+constraint_params = ["userId", "user_id", "ownerId", "owner_id", "authorId", "author_id", "accountId", "tenantId", "createdBy", "user", "owner"]
+request_sources = ["req.body", "req.query", "req.params", "request.body", "request.query", "req.headers", "req.cookies", "searchParams", "formData("]
+
+[[discharger]]
+id = "ownership-check"
+kind = "ownership_check"
+calls = ["isOwner", "checkOwner", "assertOwner", "canAccess", "can", "hasPermission", "assertUser", "ownsResource"]
+
+[[discharger]]
+id = "safe-setting"
+kind = "non_permissive_value"
+calls = ["cors", "cookie", "session", "helmet", "setHeader"]
+permissive_values = ["'*'", "\"*\"", "true", "0.0.0.0", "null", "false", "origin: true", "secure: false", "httpOnly: false"]
+
+[[discharger]]
+id = "validated-input"
+kind = "validated_input"
+calls = ["parse", "safeParse", "validate", "validateSync", "sanitize", "escape", "validationResult", "z.object", "assert"]

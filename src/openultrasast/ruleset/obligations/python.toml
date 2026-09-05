@@ -1,0 +1,68 @@
+# Obligated operations and dischargers for Python web code (authorization-obligations, Req 1). Closed data.
+version = "1"
+language = "python"
+
+[[operation]]
+id = "orm-read"
+kind = "protected_read"
+calls = ["filter_by", "query.filter", "objects.filter", "query.get", "objects.get", "get_or_404", "first_or_404", "find_one", "objects.all", "query.all"]
+requires = ["identity_constraint", "ownership_check"]
+sensitivity = "high"
+
+[[operation]]
+id = "orm-write"
+kind = "protected_write"
+calls = ["add", "delete", "update", "save", "commit", "insert_one", "update_one", "delete_one", "bulk_update"]
+requires = ["identity_constraint", "ownership_check"]
+sensitivity = "high"
+
+[[operation]]
+id = "sql-access"
+kind = "protected_read"
+calls = ["execute", "executemany", "fetchone", "fetchall"]
+requires = ["identity_constraint"]
+sensitivity = "high"
+
+[[operation]]
+id = "privileged-action"
+kind = "privileged_action"
+calls = ["set_password", "promote", "grant", "revoke", "set_role", "transfer", "payout", "remove", "rmtree", "send_file", "make_admin"]
+requires = ["path_guard", "ownership_check"]
+sensitivity = "high"
+
+[[operation]]
+id = "security-setting"
+kind = "security_setting"
+calls = ["CORS", "cross_origin", "set_cookie", "Fernet", "run", "config.update", "TrustedHostMiddleware", "add_middleware", "set_debug"]
+resource_arg = 0
+requires = ["non_permissive_value"]
+sensitivity = "medium"
+
+[[discharger]]
+id = "route-guard"
+kind = "path_guard"
+decorators = ["login_required", "jwt_required", "auth_required", "roles_required", "permission_required", "admin_required", "requires_auth", "authenticated", "token_required"]
+calls = ["token_validator", "verify_jwt_in_request", "get_jwt_identity", "check_auth", "require_login", "authenticate", "abort", "login_required", "current_user_required"]
+
+[[discharger]]
+id = "identity-from-context"
+kind = "identity_constraint"
+identity_sources = ["request.user", "current_user", "g.user", "g.current_user", "get_jwt_identity(", "['sub']", "[\"sub\"]", "session['user_id']", "session[\"user_id\"]", "request.state.user", "token.user", "identity"]
+constraint_params = ["user", "user_id", "owner", "owner_id", "author", "author_id", "account", "account_id", "tenant", "tenant_id", "created_by", "username"]
+request_sources = ["request.get_json(", "request.json", "request.args", "request.form", "request.values", "request.data", "request.headers", "request.cookies", "request.view_args"]
+
+[[discharger]]
+id = "ownership-check"
+kind = "ownership_check"
+calls = ["check_owner", "is_owner", "assert_owner", "ensure_owner", "owns", "can_access", "has_permission", "authorize"]
+
+[[discharger]]
+id = "safe-setting"
+kind = "non_permissive_value"
+calls = ["CORS", "cross_origin", "set_cookie", "run", "config.update", "add_middleware"]
+permissive_values = ["'*'", "\"*\"", "True", "0.0.0.0", "None", "False", "allow_all", "disable"]
+
+[[discharger]]
+id = "validated-input"
+kind = "validated_input"
+calls = ["validate", "schema.load", "parse_obj", "model_validate", "clean", "is_valid", "secure_filename", "safe_join"]
