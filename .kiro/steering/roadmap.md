@@ -41,6 +41,16 @@ Overlay column equals inventory on vfc (no C memory sink fact). 25 curl pairs pa
 
 New slices (pair-corpus-honesty, 2026-09-05, after the debug round: shared declarator naming, containment matching, sink-location labels): vibe-py (35, human, Real-Vuln licensed repos) 13/35 pair-correct, Youden +37.1% overlay vs 7/35 inventory; vfc-js (17) 5/17, Youden +23.5%; agent-vfc (29, agent, tier `title`) 0/29, Youden 0.0: no excerpt carries a rule-known sink and the overlay has no TypeScript grammar (18 rows); the unreviewed-tier baseline, never a gate. vfc parse-failed files 50 → 36 after the harvest fix.
 
+Leave-one-out (corpus-seeded-mechanisms, 2026-09-05; the corpus as a teacher, never a gate). Each pair is held out once, a store is seeded from the other `seeded`/`reviewed` pairs, both excerpts are searched for structural variants:
+
+| slice | pairs | detected | silent | Youden | teaching pairs | note |
+|---|---|---|---|---|---|---|
+| vibe-py (vendored) | 35 | 11 | 21 | −0.086 | 16 | `execute/1 parameter` shape taught by 7 pairs; 14 leaks on trap twins |
+| local | 3 | 0 | 3 | 0.000 | 0 | reviewed, but labels name no sink call site |
+| sast | 10 | 0 | 10 | 0.000 | 0 | advisory tier never teaches (known_limit pair skipped) |
+| github | 6 | 0 | 6 | 0.000 | 0 | advisory tier |
+| vfc-js | 17 | 0 | 17 | 0.000 | 0 | advisory tier |
+
 Measured 2026-09-05 after review tiers (Req 9) and pointer slices (Req 10): vibe-py 115 = 35 vendored human (13/35, Youden +37.1%) + 80 `agent` pointer pairs over the 40 LLM-generated Real-Vuln repositories (0/80, Youden 0.0; the LLM-repo baseline, scored by the nightly `pairs --slice vibe-py --pointers` only, never in tests or gates); agent-vfc 59 = 29 vendored + 30 pointer, tier `title`, 1/59, Youden 0.0, 2 unresolved labels; sast, vfc-js, vfc unchanged; detection/map/local-pair gate outputs byte-identical to the pre-spec commit. Only `seeded`/`reviewed` pairs gate the improve loop. Carry-forwards: `language_unsupported` loss counter and multi-line C/C++ declarator rescue (overlay-ir-completeness), `profiles_ungated` reporting and an offline test for the agent-vfc pointer builder (corpus-seeded-mechanisms).
 
 sast: java-sqli moved MISS→LEAK (coverage counted on both sides; the fixed twin leaks via parameter-as-source). vfc: recall fell to zero because every label now names a function and no C detection lands inside it; that is the honest baseline the engine specs measure against.
