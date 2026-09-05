@@ -23,6 +23,9 @@ evidence = "memcpy copies heartbeat payload using an attacker-controlled length"
 commit_url = "https://github.com/openssl/openssl/commit/96db9023b881d7cd9f379b0c154650d6c108e9a3"
 origin = "openssl"
 project = "openssl"
+mechanism = "unchecked_length_copy"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "firefox-cve-2020-15667"
@@ -45,6 +48,9 @@ evidence = "memcpy copies a MAR index name using a signed namelen that can wrap"
 commit_url = "https://hg.mozilla.org/mozilla-central/rev/b79b6cc78248eea7fda10bfb76aa273c19c9fa65"
 origin = "mozilla-central"
 project = "firefox"
+mechanism = "unchecked_length_copy"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "chromium-cve-2019-5786"
@@ -67,6 +73,9 @@ evidence = "ArrayBufferResult can return two references to the same underlying A
 commit_url = "https://github.com/chromium/chromium/commit/ba9748e78ec7e9c0d594e7edf7b2c07ea2a90449"
 origin = "chromium"
 project = "chromium"
+mechanism = "uaf"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2020-1967"
@@ -88,6 +97,9 @@ evidence = "SSL_check_chain / tls1_check_sig_alg can dereference NULL in TLS 1.3
 commit_url = "https://github.com/openssl/openssl/commit/a87f3fe01a5a894aa27ccd6a239155fd129988e4"
 origin = "openssl"
 project = "openssl"
+mechanism = "null_deref_unguarded"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2020-1971"
@@ -109,6 +121,9 @@ evidence = "GENERAL_NAME_cmp mishandles EdiPartyName comparison"
 commit_url = "https://github.com/openssl/openssl/commit/b33c48b75aaf33c93aeda42d7138616b9e6a64cb"
 origin = "openssl"
 project = "openssl"
+mechanism = "null_deref_unguarded"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2021-23840"
@@ -130,6 +145,9 @@ evidence = "EVP_CipherUpdate output length can overflow"
 commit_url = "https://github.com/openssl/openssl/commit/c9fb704cf3af5524eb8e79961e31b60eee8c3c47"
 origin = "openssl"
 project = "openssl"
+mechanism = "signed_size_operand"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2021-3711"
@@ -151,6 +169,9 @@ evidence = "SM2 plaintext size is underestimated so the second EVP_PKEY_decrypt 
 commit_url = "https://github.com/openssl/openssl/commit/59f5e75f3bced8fc0e130d72a3f582cf7b480b46"
 origin = "openssl"
 project = "openssl"
+mechanism = "unchecked_length_copy"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2021-3712"
@@ -172,6 +193,9 @@ evidence = "append_ia5 assumes NUL-terminated ASN.1 strings"
 commit_url = "https://github.com/openssl/openssl/commit/98624776c4d501c8badd6f772ab7048ac9191cb9"
 origin = "openssl"
 project = "openssl"
+mechanism = "unchecked_length_copy"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2022-0778"
@@ -193,6 +217,9 @@ evidence = "BN_mod_sqrt can loop forever on crafted moduli"
 commit_url = "https://github.com/openssl/openssl/commit/9eafb53614bf65797db25f467946e735e1b43dc9"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2022-1292"
@@ -214,6 +241,9 @@ evidence = "c_rehash interpolates certificate filenames into a shell backtick co
 commit_url = "https://github.com/openssl/openssl/commit/1ad73b4d27bd8c1b369a3cd453681d3a4f1bb9b2"
 origin = "openssl"
 project = "openssl"
+mechanism = "source_reaches_sink"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2022-3602"
@@ -235,6 +265,9 @@ evidence = "punycode decoder can write past the output buffer"
 commit_url = "https://github.com/openssl/openssl/commit/3b421ebc64c7b52f1b9feb3812bdc7781c784332"
 origin = "openssl"
 project = "openssl"
+mechanism = "unchecked_length_copy"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2022-3786"
@@ -256,6 +289,9 @@ evidence = "punycode decoder can overflow a stack buffer via a crafted email nam
 commit_url = "https://github.com/openssl/openssl/commit/680e65b94c916af259bfdc2e25f1ab6e0c7a97d6"
 origin = "openssl"
 project = "openssl"
+mechanism = "unchecked_length_copy"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2023-0286"
@@ -277,6 +313,9 @@ evidence = "GENERAL_NAME_cmp type-confuses x400Address"
 commit_url = "https://github.com/openssl/openssl/commit/7880536fe17c2b5450e279155bedd51771d28c9f"
 origin = "openssl"
 project = "openssl"
+mechanism = "type_confusion"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2023-38545"
@@ -299,6 +338,9 @@ evidence = "SOCKS5 remote-resolve copies a hostname that can exceed the local bu
 commit_url = "https://github.com/curl/curl/commit/fb4415d8aee6c1045be932a34fe6107c2f5ed147"
 origin = "curl"
 project = "curl"
+mechanism = "unchecked_length_copy"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "chromium-cve-2022-2162"
@@ -320,6 +362,9 @@ evidence = "File System Access suggested names did not sanitize Windows .url she
 commit_url = "https://github.com/chromium/chromium/commit/22c61cfae5d1b37c773e638d342488ae11118b51"
 origin = "chromium"
 project = "chromium"
+mechanism = "validation_strength"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2025-69421"
@@ -341,6 +386,9 @@ evidence = "PKCS12_item_decrypt_d2i_ex did not check a NULL oct argument"
 commit_url = "https://github.com/openssl/openssl/commit/2c13bf15286328641a805eb3b7c97e27d42881fb"
 origin = "openssl"
 project = "openssl"
+mechanism = "null_deref_unguarded"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2025-66199"
@@ -362,6 +410,9 @@ evidence = "TLS 1.3 compressed certificate length was trusted before allocation"
 commit_url = "https://github.com/openssl/openssl/commit/84f73f79af9f69c1527a9a372b7a9e771a394c2a"
 origin = "openssl"
 project = "openssl"
+mechanism = "unchecked_alloc_size"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "firefox-bug-2058173"
@@ -383,6 +434,9 @@ evidence = "mar_read_index malloc'd an untrusted MAR index size with no upper bo
 commit_url = "https://github.com/mozilla-firefox/firefox/commit/e46f28da1cd3a5d46a2680b3d87361e9e8de4ae6"
 origin = "mozilla-firefox/firefox"
 project = "firefox"
+mechanism = "unchecked_alloc_size"
+provenance = "human"
+split = "train"
 
 # --- auto-harvested 2020-2026 (local git mine) ---
 
@@ -406,6 +460,9 @@ evidence = "Avoid double free of qrx in port_default_packet_handler()"
 commit_url = "https://github.com/openssl/openssl/commit/70cebd74d3592f5272945501b58a60374c4e13af"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2026-54874"
@@ -427,6 +484,9 @@ evidence = "Avoid full read buffer allocation when buffering DTLS records"
 commit_url = "https://github.com/openssl/openssl/commit/1ca5a124b48f1ffe6980ad33724b452fbd62da1e"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2026-54874-dtls1_process_record"
@@ -448,6 +508,9 @@ evidence = "Avoid full read buffer allocation when buffering DTLS records"
 commit_url = "https://github.com/openssl/openssl/commit/1ca5a124b48f1ffe6980ad33724b452fbd62da1e"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2026-54874-dtls_rlayer_buffer_recor"
@@ -469,6 +532,9 @@ evidence = "Avoid full read buffer allocation when buffering DTLS next-epoch rec
 commit_url = "https://github.com/openssl/openssl/commit/7110cb2f75806d0bf809eb2f90790d477900be40"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2026-63072"
@@ -490,6 +556,9 @@ evidence = "Fix heap buffer overflow (8-byte OOB write) in AES-WRAP-PAD unwrap"
 commit_url = "https://github.com/openssl/openssl/commit/a0c8ec557d9cac078f032d76cdf684fe743eb382"
 origin = "openssl"
 project = "openssl"
+mechanism = "unchecked_length_copy"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2026-63072-cms_kek_cipher"
@@ -511,6 +580,9 @@ evidence = "Fix heap buffer overflow (8-byte OOB write) in AES-WRAP-PAD unwrap"
 commit_url = "https://github.com/openssl/openssl/commit/2a3dac874c8057c1f0186849bf1ede1ae7b6b756"
 origin = "openssl"
 project = "openssl"
+mechanism = "unchecked_length_copy"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2026-63073"
@@ -532,6 +604,9 @@ evidence = "CMP unexpected sender DN used as format string in ERR_raise_data()"
 commit_url = "https://github.com/openssl/openssl/commit/a7e5a6eea8fd3ccca6b6fbba031a5fbf8a3d93b4"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2026-14457"
@@ -553,6 +628,9 @@ evidence = "Handle signature_algorithms_cert extension in key-only context"
 commit_url = "https://github.com/openssl/openssl/commit/1e8c398db67404babd3e5af999bb6bd86f720c76"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2026-63074"
@@ -574,6 +652,9 @@ evidence = "Fix unbounded cert cache growth in cmp"
 commit_url = "https://github.com/openssl/openssl/commit/21a5d9658b0c66daace60e10ea18ff32a448de9f"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2026-63075-txp_pkt_commit"
@@ -595,6 +676,9 @@ evidence = "Don't store ACK-only frames in TX history for QUIC."
 commit_url = "https://github.com/openssl/openssl/commit/c902e5f16d6a9e130e96d3ca6d8f64d71652e393"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2026-75803"
@@ -616,6 +700,9 @@ evidence = "Check the tag on EVP_Cipher() finalize: Poly1305 and OCB AEADs"
 commit_url = "https://github.com/openssl/openssl/commit/119ab9555dc62275bbd71f6f49529b1a44feba42"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2026-75803-chacha20_poly1305_cipher"
@@ -637,6 +724,9 @@ evidence = "Check the tag on EVP_Cipher() finalize: Poly1305 and OCB AEADs"
 commit_url = "https://github.com/openssl/openssl/commit/119ab9555dc62275bbd71f6f49529b1a44feba42"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2026-75803-aes_gcm_siv_finish"
@@ -658,6 +748,9 @@ evidence = "Check the tag on EVP_Cipher() finalize: Poly1305 and OCB AEADs"
 commit_url = "https://github.com/openssl/openssl/commit/bf95f5f772e9362f87b25cfa2f8cb15d984865b9"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2026-14456-port_default_packet_hand"
@@ -679,6 +772,9 @@ evidence = "QUIC server: limit number of pending QUIC channels/connections"
 commit_url = "https://github.com/openssl/openssl/commit/08e7756c3900bcfd77a720e7b74e27d6e4ed01a9"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2026-14456-expect_quic_for_value"
@@ -700,6 +796,9 @@ evidence = "QUIC server: limit number of pending QUIC channels/connections"
 commit_url = "https://github.com/openssl/openssl/commit/9416706d408bb84deb7cee4647bff3045d2dc7ba"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2026-45447"
@@ -721,6 +820,9 @@ evidence = "Fix possible use-after-free in OpenSSL PKCS7_verify()"
 commit_url = "https://github.com/openssl/openssl/commit/f4129fbe3cde786d363510069fe297234f99be8f"
 origin = "openssl"
 project = "openssl"
+mechanism = "uaf"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2026-45446"
@@ -742,6 +844,9 @@ evidence = "Fix handling of empty-ciphertext messages in AES-GCM-SIV and AES-SIV
 commit_url = "https://github.com/openssl/openssl/commit/609bcb24866d64f1fc49d38b852edbb39057d721"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2026-45446-aes_siv_set_ctx_params"
@@ -763,6 +868,9 @@ evidence = "Fix handling of empty-ciphertext messages in AES-GCM-SIV and AES-SIV
 commit_url = "https://github.com/openssl/openssl/commit/609bcb24866d64f1fc49d38b852edbb39057d721"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2026-45445"
@@ -784,6 +892,9 @@ evidence = "Apply the buffered IV on the AES-OCB EVP_Cipher() path"
 commit_url = "https://github.com/openssl/openssl/commit/f87f0b6a8e04bcdeb98afc82b0da06a2d537f399"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2026-42771"
@@ -805,6 +916,9 @@ evidence = "Fix length miscalculation in validate_email"
 commit_url = "https://github.com/openssl/openssl/commit/b3a555a0a7aa0028887149f6f973af89a4937bea"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2026-42769"
@@ -826,6 +940,9 @@ evidence = "Use the correct issuer when validating rootCAKeyUpdate"
 commit_url = "https://github.com/openssl/openssl/commit/c2765d53c2649b56bc1ca1bb799e42002953056a"
 origin = "openssl"
 project = "openssl"
+mechanism = "null_deref_unguarded"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2026-42768"
@@ -847,6 +964,9 @@ evidence = "Enforce implicit rejection for CMS/PKCS#7 decryption"
 commit_url = "https://github.com/openssl/openssl/commit/d5030cdf32d6cd27bd964a0cb7aed2b7cb713369"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2026-42768-pkcs7_decrypt_rinfo"
@@ -868,6 +988,9 @@ evidence = "Enforce implicit rejection for CMS/PKCS#7 decryption"
 commit_url = "https://github.com/openssl/openssl/commit/d5030cdf32d6cd27bd964a0cb7aed2b7cb713369"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2026-42766"
@@ -889,6 +1012,9 @@ evidence = "Fix potential NULL dereference processing CMS PasswordRecipientInfo"
 commit_url = "https://github.com/openssl/openssl/commit/74245170b5a64b234ac4af27c86a25ec251c8b2a"
 origin = "openssl"
 project = "openssl"
+mechanism = "null_deref_unguarded"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2026-42765"
@@ -910,6 +1036,9 @@ evidence = "Fix NULL Dereference in Certificate Verification with OCSP Checking"
 commit_url = "https://github.com/openssl/openssl/commit/a9af3442290e8a04706a3cd5f284ffd5b486e3f6"
 origin = "openssl"
 project = "openssl"
+mechanism = "null_deref_unguarded"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2026-42764"
@@ -931,6 +1060,9 @@ evidence = "Fix NULL dereference in QUIC address validation"
 commit_url = "https://github.com/openssl/openssl/commit/5097ec4dae239112498abb722e255ea60ef7ac48"
 origin = "openssl"
 project = "openssl"
+mechanism = "null_deref_unguarded"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2026-35188"
@@ -952,6 +1084,9 @@ evidence = "Fix Double-free When Checking OCSP Stapled Response"
 commit_url = "https://github.com/openssl/openssl/commit/58633b658fe74095c8cdde191e4ce1bf94f8c5f9"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2026-34181"
@@ -973,6 +1108,9 @@ evidence = "pkcs12: verify that the pbmac1 key length is safe"
 commit_url = "https://github.com/openssl/openssl/commit/5a0230b6cc95a576b0c2b7b5b2ba7c74232e7b7c"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2026-9076"
@@ -994,6 +1132,9 @@ evidence = "cms: kek_unwrap_key: Fix out-of-bounds read in check-byte validation
 commit_url = "https://github.com/openssl/openssl/commit/51d1800e95283a8beec85152e35e3634dab8dd82"
 origin = "openssl"
 project = "openssl"
+mechanism = "unchecked_length_copy"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2026-7383"
@@ -1015,6 +1156,9 @@ evidence = "Reject oversized inputs in ASN1_mbstring_ncopy()"
 commit_url = "https://github.com/openssl/openssl/commit/97f6b621f7af2c4c4e162c75045a6e12a8fdf8d9"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2026-31790"
@@ -1036,6 +1180,9 @@ evidence = "rsa_kem: validate RSA_public_encrypt() result in RSASVE"
 commit_url = "https://github.com/openssl/openssl/commit/eed200f58cd8645ed77e46b7e9f764e284df379e"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2026-31790-rsasve_generate"
@@ -1057,6 +1204,9 @@ evidence = "rsa_kem: validate RSA_public_encrypt() result in RSASVE"
 commit_url = "https://github.com/openssl/openssl/commit/abd8b2eec7e3f3fda60ecfb68498b246b52af482"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2026-31789"
@@ -1078,6 +1228,9 @@ evidence = "Avoid possible buffer overflow in buf2hex conversion"
 commit_url = "https://github.com/openssl/openssl/commit/a91e537d16d74050dbde50bb0dfb1fe9930f0521"
 origin = "openssl"
 project = "openssl"
+mechanism = "unchecked_length_copy"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2026-28388"
@@ -1099,6 +1252,9 @@ evidence = "Fix NULL Dereference When Delta CRL Lacks CRL Number Extension"
 commit_url = "https://github.com/openssl/openssl/commit/59c3b3158553ab53275bbbccca5cb305d591cf2e"
 origin = "openssl"
 project = "openssl"
+mechanism = "null_deref_unguarded"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2026-28389"
@@ -1120,6 +1276,9 @@ evidence = "Fix NULL deref in rsa_cms_decrypt"
 commit_url = "https://github.com/openssl/openssl/commit/af2a5fecd3e71a29e7568f9c1453dec5cebbaff4"
 origin = "openssl"
 project = "openssl"
+mechanism = "null_deref_unguarded"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2026-28389-dh_cms_set_shared_info"
@@ -1141,6 +1300,9 @@ evidence = "Fix NULL deref in [ec]dh_cms_set_shared_info"
 commit_url = "https://github.com/openssl/openssl/commit/7b5274e812400cacb6f3be4c2df5340923fa807f"
 origin = "openssl"
 project = "openssl"
+mechanism = "null_deref_unguarded"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2026-28389-ecdh_cms_set_shared_info"
@@ -1162,6 +1324,9 @@ evidence = "Fix NULL deref in [ec]dh_cms_set_shared_info"
 commit_url = "https://github.com/openssl/openssl/commit/7b5274e812400cacb6f3be4c2df5340923fa807f"
 origin = "openssl"
 project = "openssl"
+mechanism = "null_deref_unguarded"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2026-2673"
@@ -1183,6 +1348,9 @@ evidence = "Fix group tuple handling in DEFAULT expansion"
 commit_url = "https://github.com/openssl/openssl/commit/85977e013f32ceb96aa034c0e741adddc1a05e34"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2025-69419"
@@ -1204,6 +1372,9 @@ evidence = "Alternate fix for CVE-2025-69419"
 commit_url = "https://github.com/openssl/openssl/commit/4191043c36f1a50c717a2d0075fc6f3b9bc0afc5"
 origin = "openssl"
 project = "openssl"
+mechanism = "unchecked_length_copy"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2025-69418"
@@ -1225,6 +1396,9 @@ evidence = "Fix OCB AES-NI/HW stream path unauthenticated/unencrypted trailing b
 commit_url = "https://github.com/openssl/openssl/commit/52d23c86a54adab5ee9f80e48b242b52c4cc2347"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2025-66199-tls13_process_compressed"
@@ -1246,6 +1420,9 @@ evidence = "Check the received uncompressed certificate length to prevent excess
 commit_url = "https://github.com/openssl/openssl/commit/3ed1f75249932b155eef993a8e66a99cb98bfef4"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2025-68160"
@@ -1267,6 +1444,9 @@ evidence = "Fix heap buffer overflow in BIO_f_linebuffer"
 commit_url = "https://github.com/openssl/openssl/commit/475c466ef2fbd8fc1df6fae1c3eed9c813fc8ff6"
 origin = "openssl"
 project = "openssl"
+mechanism = "unchecked_length_copy"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2025-15469"
@@ -1288,6 +1468,9 @@ evidence = "Report truncation in oneshot `openssl dgst -sign`"
 commit_url = "https://github.com/openssl/openssl/commit/a7936fa4bd23c906e1955a16a0a0ab39a4953a61"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2025-15467"
@@ -1309,6 +1492,9 @@ evidence = "Correct handling of AEAD-encrypted CMS with inadmissibly long IV"
 commit_url = "https://github.com/openssl/openssl/commit/ce39170276daec87f55c39dad1f629b56344429e"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2025-11187"
@@ -1330,6 +1516,9 @@ evidence = "pkcs12: Validate salt and keylength in PBMAC1"
 commit_url = "https://github.com/openssl/openssl/commit/205e3a55e16e4bd08c12fdbd3416ab829c0f6206"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2025-9232"
@@ -1351,6 +1540,9 @@ evidence = "use_proxy(): Add missing terminating NUL byte"
 commit_url = "https://github.com/openssl/openssl/commit/654dc11d23468a74fc8ea4672b702dd3feb7be4b"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2025-9230"
@@ -1372,6 +1564,9 @@ evidence = "kek_unwrap_key(): Fix incorrect check of unwrapped key size"
 commit_url = "https://github.com/openssl/openssl/commit/a79c4ce559c6a3a8fd4109e9f33c1185d5bf2def"
 origin = "openssl"
 project = "openssl"
+mechanism = "unchecked_length_copy"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2024-12797"
@@ -1393,6 +1588,9 @@ evidence = "With SSL_VERIFY_PEER client RPK should abort on X509 error"
 commit_url = "https://github.com/openssl/openssl/commit/798779d43494549b611233f92652f0da5328fbe7"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2024-13176-ec_field_inverse_mod_ord"
@@ -1414,6 +1612,9 @@ evidence = "Fix timing side-channel in ECDSA signature computation"
 commit_url = "https://github.com/openssl/openssl/commit/07272b05b04836a762b4baa874958af51d513844"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2024-6119"
@@ -1435,6 +1636,9 @@ evidence = "Avoid type errors in EAI-related name check logic."
 commit_url = "https://github.com/openssl/openssl/commit/06d1dc3fa96a2ba5a3e22735a033012aadc9f0d6"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2024-5535"
@@ -1456,6 +1660,9 @@ evidence = "Add ALPN validation in the client"
 commit_url = "https://github.com/openssl/openssl/commit/4b375b998798dd516d367036773073e1b88e6433"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2024-5535-tls_construct_stoc_next_"
@@ -1477,6 +1684,9 @@ evidence = "Correct return values for tls_construct_stoc_next_proto_neg"
 commit_url = "https://github.com/openssl/openssl/commit/189a7ed3e380e34ea38fe4190a7c9396bace0fb7"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2024-5535-tls_parse_stoc_npn"
@@ -1498,6 +1708,9 @@ evidence = "More correctly handle a selected_len of 0 when processing NPN"
 commit_url = "https://github.com/openssl/openssl/commit/159921152fd4aa91e4c849fd281ad93ac0d0d0ba"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2024-5535-ssl_select_next_proto"
@@ -1519,6 +1732,9 @@ evidence = "Fix SSL_select_next_proto"
 commit_url = "https://github.com/openssl/openssl/commit/cf6f91f6121f4db167405db2f0de410a456f260c"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2024-5535-alpn_select_cb"
@@ -1540,6 +1756,9 @@ evidence = "Use correctly formatted ALPN data in tserver"
 commit_url = "https://github.com/openssl/openssl/commit/6cc511826f09e513b4ec066d9b95acaf4f86d991"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2024-4741"
@@ -1561,6 +1780,9 @@ evidence = "Set rlayer.packet to NULL after we've finished using it"
 commit_url = "https://github.com/openssl/openssl/commit/2d05959073c4bf8803401668b9df85931a08e020"
 origin = "openssl"
 project = "openssl"
+mechanism = "uaf"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2024-4741-ssl3_release_read_buffer"
@@ -1582,6 +1804,9 @@ evidence = "Set rlayer.packet to NULL after we've finished using it"
 commit_url = "https://github.com/openssl/openssl/commit/2d05959073c4bf8803401668b9df85931a08e020"
 origin = "openssl"
 project = "openssl"
+mechanism = "uaf"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2024-4741-ssl_free_buffers"
@@ -1603,6 +1828,9 @@ evidence = "Only free the read buffers if we're not using them"
 commit_url = "https://github.com/openssl/openssl/commit/b3f0eb0a295f58f16ba43ba99dad70d4ee5c437d"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2024-4741-tls_release_read_buffer"
@@ -1624,6 +1852,9 @@ evidence = "Set rl->packet to NULL after we've finished using it"
 commit_url = "https://github.com/openssl/openssl/commit/10171e5b511b700c5ecd4fd3e1086b19c34b1ae3"
 origin = "openssl"
 project = "openssl"
+mechanism = "uaf"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2024-4741-tls_free_buffers"
@@ -1645,6 +1876,9 @@ evidence = "Only free the read buffers if we're not using them"
 commit_url = "https://github.com/openssl/openssl/commit/c88c3de51020c37e8706bf7a682a162593053aac"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2024-4603"
@@ -1666,6 +1900,9 @@ evidence = "Check DSA parameters for excessive sizes before validating"
 commit_url = "https://github.com/openssl/openssl/commit/3559e868e58005d15c6013a0c1fd832e51c73397"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2024-2511"
@@ -1687,6 +1924,9 @@ evidence = "Fix unconstrained session cache growth in TLSv1.3"
 commit_url = "https://github.com/openssl/openssl/commit/b52867a9f618bb955bed2a3ce3db4d4f97ed8e5d"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2024-2511-tls_construct_server_hel"
@@ -1708,6 +1948,9 @@ evidence = "Fix unconstrained session cache growth in TLSv1.3"
 commit_url = "https://github.com/openssl/openssl/commit/b52867a9f618bb955bed2a3ce3db4d4f97ed8e5d"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2024-0727"
@@ -1729,6 +1972,9 @@ evidence = "Add NULL checks where ContentInfo data can be NULL"
 commit_url = "https://github.com/openssl/openssl/commit/09df4395b5071217b76dc7d3d2e630eb8c5a79c2"
 origin = "openssl"
 project = "openssl"
+mechanism = "null_deref_unguarded"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2024-0727-smime_write_pkcs7"
@@ -1750,6 +1996,9 @@ evidence = "Add NULL checks where ContentInfo data can be NULL"
 commit_url = "https://github.com/openssl/openssl/commit/09df4395b5071217b76dc7d3d2e630eb8c5a79c2"
 origin = "openssl"
 project = "openssl"
+mechanism = "null_deref_unguarded"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2023-5363"
@@ -1771,6 +2020,9 @@ evidence = "evp: process key length and iv length early if present"
 commit_url = "https://github.com/openssl/openssl/commit/0df40630850fb2740e6be6890bb905d3fc623b2d"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2023-3817-dh_check"
@@ -1792,6 +2044,9 @@ evidence = "DH_check(): Do not try checking q properties if it is obviously inva
 commit_url = "https://github.com/openssl/openssl/commit/9002fd07327a91f35ba6c1307e71fa6fd4409b7f"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2023-3446"
@@ -1813,6 +2068,9 @@ evidence = "Fix DH_check() excessive time with over sized modulus"
 commit_url = "https://github.com/openssl/openssl/commit/8780a896543a654e757db1b9396383f9d8095528"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2023-2975"
@@ -1834,6 +2092,9 @@ evidence = "Do not ignore empty associated data with AES-SIV mode"
 commit_url = "https://github.com/openssl/openssl/commit/00e2f5eea29994d19293ec4e8c8775ba73678598"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2023-2650"
@@ -1855,6 +2116,9 @@ evidence = "Restrict the size of OBJECT IDENTIFIERs that OBJ_obj2txt will transl
 commit_url = "https://github.com/openssl/openssl/commit/d63b3e7959e79f98d60760a739f7876dc5adc838"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2022-37454"
@@ -1876,6 +2140,9 @@ evidence = "Update hkdf.c to avoid potentially vulnerable code pattern"
 commit_url = "https://github.com/openssl/openssl/commit/d12cde7fc5561d463badcd8a73079cf92864c31e"
 origin = "openssl"
 project = "openssl"
+mechanism = "unchecked_length_copy"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2022-4304"
@@ -1897,6 +2164,9 @@ evidence = "Alternative fix for CVE-2022-4304"
 commit_url = "https://github.com/openssl/openssl/commit/a00d757d9ca212994625d1a02c81cc5edd27e13b"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2022-4304-bn_blinding_invert_ex"
@@ -1918,6 +2188,9 @@ evidence = "Alternative fix for CVE-2022-4304"
 commit_url = "https://github.com/openssl/openssl/commit/a00d757d9ca212994625d1a02c81cc5edd27e13b"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2022-4304-rsa_blinding_invert"
@@ -1939,6 +2212,9 @@ evidence = "Alternative fix for CVE-2022-4304"
 commit_url = "https://github.com/openssl/openssl/commit/a00d757d9ca212994625d1a02c81cc5edd27e13b"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2023-0465"
@@ -1960,6 +2236,9 @@ evidence = "Ensure that EXFLAG_INVALID_POLICY is checked even in leaf certs"
 commit_url = "https://github.com/openssl/openssl/commit/b013765abfa80036dc779dd0e50602c57bb3bf95"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2023-0464"
@@ -1981,6 +2260,9 @@ evidence = "x509: excessive resource use verifying policy constraints"
 commit_url = "https://github.com/openssl/openssl/commit/879f7080d7e141f415c79eaa3a8ac4a3dad0348b"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2023-0464-tree_init"
@@ -2002,6 +2284,9 @@ evidence = "x509: excessive resource use verifying policy constraints"
 commit_url = "https://github.com/openssl/openssl/commit/959c59c7a0164117e7f8366466a32bb1f8d77ff1"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2021-3449"
@@ -2023,6 +2308,9 @@ evidence = "fuzz: make post handshake reachable"
 commit_url = "https://github.com/openssl/openssl/commit/2b9e2afc382490592078cdb69d06f54f0fefd4c6"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2021-3449-def_generate_session_id"
@@ -2044,6 +2332,9 @@ evidence = "fuzz: make post handshake reachable"
 commit_url = "https://github.com/openssl/openssl/commit/2b9e2afc382490592078cdb69d06f54f0fefd4c6"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2021-3449-tls_parse_ctos_renegotia"
@@ -2065,6 +2356,9 @@ evidence = "fuzz: make post handshake reachable"
 commit_url = "https://github.com/openssl/openssl/commit/2b9e2afc382490592078cdb69d06f54f0fefd4c6"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2021-3449-tls_process_finished"
@@ -2086,6 +2380,9 @@ evidence = "fuzz: make post handshake reachable"
 commit_url = "https://github.com/openssl/openssl/commit/2b9e2afc382490592078cdb69d06f54f0fefd4c6"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2023-0401"
@@ -2107,6 +2404,9 @@ evidence = "pk7_doit.c: Check return of BIO_set_md() calls"
 commit_url = "https://github.com/openssl/openssl/commit/6eebe6c0238178356114a96a7858f36b24172847"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2023-0286-general_name_cmp"
@@ -2128,6 +2428,9 @@ evidence = "Fix GENERAL_NAME_cmp for x400Address (master)"
 commit_url = "https://github.com/openssl/openssl/commit/7880536fe17c2b5450e279155bedd51771d28c9f"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2023-0217"
@@ -2149,6 +2452,9 @@ evidence = "Fix NULL deference when validating FFC public key."
 commit_url = "https://github.com/openssl/openssl/commit/bcec03c33cc00a7b5eb89ebeeee59e604570a86a"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2023-0216"
@@ -2170,6 +2476,9 @@ evidence = "Do not dereference PKCS7 object data if not set"
 commit_url = "https://github.com/openssl/openssl/commit/80253dbdc92bec584f4a9866b43f8674156d838a"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2022-4304-rsa_ossl_private_decrypt"
@@ -2191,6 +2500,9 @@ evidence = "Fix Timing Oracle in RSA decryption"
 commit_url = "https://github.com/openssl/openssl/commit/8022a4799fe884b3bf8d538e2b4c4ec323663118"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2020-25659"
@@ -2212,6 +2524,9 @@ evidence = "rsa: add implicit rejection in PKCS#1 v1.5"
 commit_url = "https://github.com/openssl/openssl/commit/7fc67e0a33102aa47bbaa56533eeecb98c0450f7"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2022-3996"
@@ -2233,6 +2548,9 @@ evidence = "x509: fix double locking problem"
 commit_url = "https://github.com/openssl/openssl/commit/7725e7bfe6f2ce8146b6552b44e0d226be7638e7"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2022-3786-ossl_punycode_decode"
@@ -2254,6 +2572,9 @@ evidence = "Fix CVE-2022-3786 in punycode decoder."
 commit_url = "https://github.com/openssl/openssl/commit/680e65b94c916af259bfdc2e25f1ab6e0c7a97d6"
 origin = "openssl"
 project = "openssl"
+mechanism = "unchecked_length_copy"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2022-3602-ossl_punycode_decode"
@@ -2275,6 +2596,9 @@ evidence = "Fix CVE-2022-3602 in punycode decoder."
 commit_url = "https://github.com/openssl/openssl/commit/3b421ebc64c7b52f1b9feb3812bdc7781c784332"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2022-3358"
@@ -2296,6 +2620,9 @@ evidence = "Fix usage of custom EVP_CIPHER objects"
 commit_url = "https://github.com/openssl/openssl/commit/5485c56679d7c49b96e8fc8ca708b0b7e7c03c4b"
 origin = "openssl"
 project = "openssl"
+mechanism = "null_deref_unguarded"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2022-3358-evp_cipher_init_internal"
@@ -2317,6 +2644,9 @@ evidence = "Fix usage of custom EVP_CIPHER objects"
 commit_url = "https://github.com/openssl/openssl/commit/5485c56679d7c49b96e8fc8ca708b0b7e7c03c4b"
 origin = "openssl"
 project = "openssl"
+mechanism = "null_deref_unguarded"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2022-2068-hash_dir"
@@ -2338,6 +2668,9 @@ evidence = "Fix file operations in c_rehash."
 commit_url = "https://github.com/openssl/openssl/commit/2c9c35870601b4a44d86ddbf512b38df38285cfa"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2022-29242"
@@ -2359,6 +2692,9 @@ evidence = "Use safe pattern for buffer size determining in case of GOST key exc
 commit_url = "https://github.com/openssl/openssl/commit/373de40f3f76c63e4f2684abd86706f3863347ca"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2022-1434"
@@ -2380,6 +2716,9 @@ evidence = "Fix the RC4-MD5 cipher"
 commit_url = "https://github.com/openssl/openssl/commit/7d56a74a96828985db7354a55227a511615f732b"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2022-1343"
@@ -2401,6 +2740,9 @@ evidence = "Fix OCSP_basic_verify signer certificate validation"
 commit_url = "https://github.com/openssl/openssl/commit/2eda98790c5c2741d76d23cc1e74b0dc4f4b391a"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2021-4044"
@@ -2422,6 +2764,9 @@ evidence = "Fix infinite verification loops due to has_san_id"
 commit_url = "https://github.com/openssl/openssl/commit/d69ae8a93bfc0f2489c008fcf303a98d77a6df4d"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2021-4044-tls_post_process_server_"
@@ -2443,6 +2788,9 @@ evidence = "Fix invalid handling of verify errors in libssl"
 commit_url = "https://github.com/openssl/openssl/commit/758754966791c537ea95241438454aa86f91f256"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2021-3711-sm2_asym_decrypt"
@@ -2464,6 +2812,9 @@ evidence = "Correctly calculate the length of SM2 plaintext given the ciphertext
 commit_url = "https://github.com/openssl/openssl/commit/36cf45ef3ba71e44a8be06ee81cb31aa02cb0010"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2021-3712-netscape_spki_print"
@@ -2485,6 +2836,9 @@ evidence = "Fix NETSCAPE_SPKI_print function to not assume NUL terminated string
 commit_url = "https://github.com/openssl/openssl/commit/7c038a6bcd98d4bbfd2c2892a87a1138d2f7c5f3"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2021-3712-append_ia5"
@@ -2506,6 +2860,9 @@ evidence = "Fix append_ia5 function to not assume NUL terminated strings"
 commit_url = "https://github.com/openssl/openssl/commit/98624776c4d501c8badd6f772ab7048ac9191cb9"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2021-3712-ossl_cmp_hdr_push1_freet"
@@ -2527,6 +2884,9 @@ evidence = "Fix CMP code to not assume NUL terminated strings"
 commit_url = "https://github.com/openssl/openssl/commit/95f8c1e142df835d03b5b62521383a462fc5470d"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2021-3712-ia5ncasecmp"
@@ -2548,6 +2908,9 @@ evidence = "Fix the name constraints code to not assume NUL terminated strings"
 commit_url = "https://github.com/openssl/openssl/commit/d2015a783e64613d8e4a142fa05048d1863df944"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2021-3712-i2r_pci"
@@ -2569,6 +2932,9 @@ evidence = "Fix printing of PROXY_CERT_INFO_EXTENSION to not assume NUL terminat
 commit_url = "https://github.com/openssl/openssl/commit/918430ba80d94ec8f05383b43b1872b1ebb13e1a"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2021-3712-general_name_print"
@@ -2590,6 +2956,9 @@ evidence = "Fix GENERAL_NAME_print to not assume NUL terminated strings"
 commit_url = "https://github.com/openssl/openssl/commit/b2b3b9c9936b91315adc0f3254879cb2fd5ca2bd"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2021-3712-print_qualifiers"
@@ -2611,6 +2980,9 @@ evidence = "Fix POLICYINFO printing to not assume NUL terminated strings"
 commit_url = "https://github.com/openssl/openssl/commit/1747d4658b3830951068a6a6c1fa2b45c4731fb3"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2021-3711-pkey_sm2_decrypt"
@@ -2632,6 +3004,9 @@ evidence = "Correctly calculate the length of SM2 plaintext given the ciphertext
 commit_url = "https://github.com/openssl/openssl/commit/59f5e75f3bced8fc0e130d72a3f582cf7b480b46"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2021-3449-ssl_generate_master_secr"
@@ -2653,6 +3028,9 @@ evidence = "Ensure buffer/length pairs are always in sync"
 commit_url = "https://github.com/openssl/openssl/commit/39a140597d874e554b736885ac4dea16ac40a87a"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2021-3449-ssl_ctx_set_alpn_protos"
@@ -2674,6 +3052,9 @@ evidence = "Ensure buffer/length pairs are always in sync"
 commit_url = "https://github.com/openssl/openssl/commit/39a140597d874e554b736885ac4dea16ac40a87a"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2021-3449-init_sig_algs_cert"
@@ -2695,6 +3076,9 @@ evidence = "Ensure buffer/length pairs are always in sync"
 commit_url = "https://github.com/openssl/openssl/commit/39a140597d874e554b736885ac4dea16ac40a87a"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2021-3449-tls_construct_ctos_early"
@@ -2716,6 +3100,9 @@ evidence = "Ensure buffer/length pairs are always in sync"
 commit_url = "https://github.com/openssl/openssl/commit/39a140597d874e554b736885ac4dea16ac40a87a"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2021-3449-tls_process_certificate_"
@@ -2737,6 +3124,9 @@ evidence = "Ensure buffer/length pairs are always in sync"
 commit_url = "https://github.com/openssl/openssl/commit/39a140597d874e554b736885ac4dea16ac40a87a"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2021-3449-tls_handle_alpn"
@@ -2758,6 +3148,9 @@ evidence = "Ensure buffer/length pairs are always in sync"
 commit_url = "https://github.com/openssl/openssl/commit/39a140597d874e554b736885ac4dea16ac40a87a"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2021-3449-init_sig_algs"
@@ -2779,6 +3172,9 @@ evidence = "ssl sigalg extension: fix NULL pointer dereference"
 commit_url = "https://github.com/openssl/openssl/commit/02b1636fe3db274497304a3e95a4e32ced7e841b"
 origin = "openssl"
 project = "openssl"
+mechanism = "null_deref_unguarded"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2021-3450"
@@ -2800,6 +3196,9 @@ evidence = "check_chain_extensions: Do not override error return value by check_
 commit_url = "https://github.com/openssl/openssl/commit/2a40b7bc7b94dd7de897a74571e7024f0cf0d63b"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2021-23840-evp_encryptdecryptupdate"
@@ -2821,6 +3220,9 @@ evidence = "Don't overflow the output length in EVP_CipherUpdate calls"
 commit_url = "https://github.com/openssl/openssl/commit/6a51b9e1d0cf0bf8515f7201b68fb0a3482b3dc1"
 origin = "openssl"
 project = "openssl"
+mechanism = "unchecked_length_copy"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "openssl-cve-2021-23841"
@@ -2842,6 +3244,9 @@ evidence = "Fix Null pointer deref in X509_issuer_and_serial_hash()"
 commit_url = "https://github.com/openssl/openssl/commit/122a19ab48091c657f7cb1fb3af9fc07bd557bbf"
 origin = "openssl"
 project = "openssl"
+mechanism = "null_deref_unguarded"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2020-1971-general_name_cmp"
@@ -2863,6 +3268,9 @@ evidence = "Correctly compare EdiPartyName in GENERAL_NAME_cmp()"
 commit_url = "https://github.com/openssl/openssl/commit/f960d81215ebf3f65e03d4d5d857fb9b666d6920"
 origin = "openssl"
 project = "openssl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "openssl-cve-2020-1967-tls1_check_sig_alg"
@@ -2884,6 +3292,9 @@ evidence = "Fix NULL dereference in SSL_check_chain() for TLS 1.3"
 commit_url = "https://github.com/openssl/openssl/commit/a87f3fe01a5a894aa27ccd6a239155fd129988e4"
 origin = "openssl"
 project = "openssl"
+mechanism = "null_deref_unguarded"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2026-9080"
@@ -2905,6 +3316,9 @@ evidence = "multi_ev: refresh sock entry after remove callback"
 commit_url = "https://github.com/curl/curl/commit/e9a2b0dc72dd3a9aa3a5210e89079a3b719475dc"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "curl-cve-2023-38545-do_socks5"
@@ -2926,6 +3340,9 @@ evidence = "socks: return error if hostname too long for remote resolve"
 commit_url = "https://github.com/curl/curl/commit/fb4415d8aee6c1045be932a34fe6107c2f5ed147"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2022-32207"
@@ -2947,6 +3364,9 @@ evidence = "fopen: add Curl_fopen() for better overwriting of files"
 commit_url = "https://github.com/curl/curl/commit/20f9dd6bae50b7223171b17ba7798946e74f877f"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "curl-cve-2022-32206"
@@ -2968,6 +3388,9 @@ evidence = "content_encoding: return error on too many compression steps"
 commit_url = "https://github.com/curl/curl/commit/3a09fbb7f264c67c438d01a30669ce325aa508e2"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2022-32208"
@@ -2989,6 +3412,9 @@ evidence = "krb5: return error properly on decode errors"
 commit_url = "https://github.com/curl/curl/commit/6ecdf5136b52af747e7bda08db9a748256b1cd09"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2022-27782-curl_init_userdefined"
@@ -3010,6 +3436,9 @@ evidence = "tls: check more TLS details for connection reuse"
 commit_url = "https://github.com/curl/curl/commit/f18af4f874cecab82a9797e8c7541e0990c7a64c"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "curl-cve-2022-27782-gtls_shutdown"
@@ -3031,6 +3460,9 @@ evidence = "tls: check more TLS details for connection reuse"
 commit_url = "https://github.com/curl/curl/commit/f18af4f874cecab82a9797e8c7541e0990c7a64c"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2022-27782-nss_setup_connect"
@@ -3052,6 +3484,9 @@ evidence = "tls: check more TLS details for connection reuse"
 commit_url = "https://github.com/curl/curl/commit/f18af4f874cecab82a9797e8c7541e0990c7a64c"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "curl-cve-2022-27782-ossl_connect_step1"
@@ -3073,6 +3508,9 @@ evidence = "tls: check more TLS details for connection reuse"
 commit_url = "https://github.com/curl/curl/commit/f18af4f874cecab82a9797e8c7541e0990c7a64c"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2022-27782-curl_free_primary_ssl_co"
@@ -3094,6 +3532,9 @@ evidence = "tls: check more TLS details for connection reuse"
 commit_url = "https://github.com/curl/curl/commit/f18af4f874cecab82a9797e8c7541e0990c7a64c"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2022-27778"
@@ -3115,6 +3556,9 @@ evidence = "post_per_transfer: remove the updated file name"
 commit_url = "https://github.com/curl/curl/commit/8c7ee9083d0d719d0a77ab20d9cc2ae84eeea7f3"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2022-30115"
@@ -3136,6 +3580,9 @@ evidence = "hsts: ignore trailing dots when comparing hosts names"
 commit_url = "https://github.com/curl/curl/commit/fae6fea209a2d4db1582f608bd8cc8000721733a"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "curl-cve-2022-27780"
@@ -3157,6 +3604,9 @@ evidence = "urlapi: reject percent-decoding host name into separator bytes"
 commit_url = "https://github.com/curl/curl/commit/914aaab9153764ef8fa4178215b8ad89d3ac263a"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "curl-cve-2022-27774"
@@ -3178,6 +3628,9 @@ evidence = "transfer: redirects to other protocols or ports clear auth"
 commit_url = "https://github.com/curl/curl/commit/620ea21410030a9977396b4661806bc187231b79"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "curl-cve-2022-27776"
@@ -3199,6 +3652,9 @@ evidence = "http: avoid auth/cookie on redirects same host diff port"
 commit_url = "https://github.com/curl/curl/commit/6e659993952aa5f90f48864be84a1bbb047fc258"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "curl-cve-2022-27775"
@@ -3220,6 +3676,9 @@ evidence = "conncache: include the zone id in the \"bundle\" hashkey"
 commit_url = "https://github.com/curl/curl/commit/058f98dc3fe595f21dc26a5b9b1699e519ba5705"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2022-22576-conn_free"
@@ -3241,6 +3700,9 @@ evidence = "url: check sasl additional parameters for connection reuse."
 commit_url = "https://github.com/curl/curl/commit/852aa5ad351ea53e5f01d2f44b5b4370c2bf5425"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2021-22947"
@@ -3262,6 +3724,9 @@ evidence = "ftp,imap,pop3,smtp: reject STARTTLS server response pipelining"
 commit_url = "https://github.com/curl/curl/commit/8ef147c43646e91fdaad5d0e7b60351f842e5c68"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2021-22947-imap_state_starttls_resp"
@@ -3283,6 +3748,9 @@ evidence = "ftp,imap,pop3,smtp: reject STARTTLS server response pipelining"
 commit_url = "https://github.com/curl/curl/commit/8ef147c43646e91fdaad5d0e7b60351f842e5c68"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "curl-cve-2021-22947-pop3_state_starttls_resp"
@@ -3304,6 +3772,9 @@ evidence = "ftp,imap,pop3,smtp: reject STARTTLS server response pipelining"
 commit_url = "https://github.com/curl/curl/commit/8ef147c43646e91fdaad5d0e7b60351f842e5c68"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2021-22947-smtp_state_starttls_resp"
@@ -3325,6 +3796,9 @@ evidence = "ftp,imap,pop3,smtp: reject STARTTLS server response pipelining"
 commit_url = "https://github.com/curl/curl/commit/8ef147c43646e91fdaad5d0e7b60351f842e5c68"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "curl-cve-2021-22946"
@@ -3346,6 +3820,9 @@ evidence = "ftp,imap,pop3: do not ignore --ssl-reqd"
 commit_url = "https://github.com/curl/curl/commit/364f174724ef115c63d5e5dc1d3342c8a43b1cca"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "curl-cve-2021-22946-imap_state_capability_re"
@@ -3367,6 +3844,9 @@ evidence = "ftp,imap,pop3: do not ignore --ssl-reqd"
 commit_url = "https://github.com/curl/curl/commit/364f174724ef115c63d5e5dc1d3342c8a43b1cca"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2021-22946-pop3_state_capa_resp"
@@ -3388,6 +3868,9 @@ evidence = "ftp,imap,pop3: do not ignore --ssl-reqd"
 commit_url = "https://github.com/curl/curl/commit/364f174724ef115c63d5e5dc1d3342c8a43b1cca"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "curl-cve-2021-22945"
@@ -3409,6 +3892,9 @@ evidence = "mqtt: clear the leftovers pointer when sending succeeds"
 commit_url = "https://github.com/curl/curl/commit/43157490a5054bd24256fe12876931e8abc9df49"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2021-22924"
@@ -3430,6 +3916,9 @@ evidence = "vtls: fix connection reuse checks for issuer cert and case sensitivi
 commit_url = "https://github.com/curl/curl/commit/5ea3145850ebff1dc2b13d17440300a01ca38161"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2021-22924-nss_do_connect"
@@ -3451,6 +3940,9 @@ evidence = "vtls: fix connection reuse checks for issuer cert and case sensitivi
 commit_url = "https://github.com/curl/curl/commit/5ea3145850ebff1dc2b13d17440300a01ca38161"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "curl-cve-2021-22924-servercert"
@@ -3472,6 +3964,9 @@ evidence = "vtls: fix connection reuse checks for issuer cert and case sensitivi
 commit_url = "https://github.com/curl/curl/commit/5ea3145850ebff1dc2b13d17440300a01ca38161"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2021-22925"
@@ -3493,6 +3988,9 @@ evidence = "telnet: fix option parser to not send uninitialized contents"
 commit_url = "https://github.com/curl/curl/commit/894f6ec730597eb243618d33cc84d71add8d6a8a"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "curl-cve-2021-22901-ossl_connect_step1"
@@ -3514,6 +4012,9 @@ evidence = "openssl: associate/detach the transfer from connection"
 commit_url = "https://github.com/curl/curl/commit/7f4a9a9b2a49547eae24d2e19bc5c346e9026479"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "curl-cve-2021-22898"
@@ -3535,6 +4036,9 @@ evidence = "telnet: check sscanf() for correct number of matches"
 commit_url = "https://github.com/curl/curl/commit/39ce47f219b09c380b81f89fe54ac586c8db6bde"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2021-22890"
@@ -3556,6 +4060,9 @@ evidence = "vtls: add 'isproxy' argument to Curl_ssl_get/addsessionid()"
 commit_url = "https://github.com/curl/curl/commit/b09c8ee15771c614c4bf3ddac893cdb12187c844"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "curl-cve-2021-22876"
@@ -3577,6 +4084,9 @@ evidence = "transfer: strip credentials from the auto-referer header field"
 commit_url = "https://github.com/curl/curl/commit/7214288898f5625a6cc196e22a74232eada7861c"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2020-8286"
@@ -3598,6 +4108,9 @@ evidence = "openssl: make the OCSP verification verify the certificate id"
 commit_url = "https://github.com/curl/curl/commit/d9d01672785b8ac04aab1abb6de95fe3072ae199"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "curl-cve-2020-8284"
@@ -3619,6 +4132,9 @@ evidence = "ftp: CURLOPT_FTP_SKIP_PASV_IP by default"
 commit_url = "https://github.com/curl/curl/commit/ec9cc725d598ac77de7b6df8afeec292b3c8ad46"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "curl-cve-2020-8284-config_init"
@@ -3640,6 +4156,9 @@ evidence = "ftp: CURLOPT_FTP_SKIP_PASV_IP by default"
 commit_url = "https://github.com/curl/curl/commit/ec9cc725d598ac77de7b6df8afeec292b3c8ad46"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2020-8231-curl_multi_add_handle"
@@ -3661,6 +4180,9 @@ evidence = "Curl_easy: remember last connection by id, not by pointer"
 commit_url = "https://github.com/curl/curl/commit/3c9e021f86872baae412a427e807fbfa2f3e8a22"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "holdout"
 
 [[recipe]]
 name = "curl-cve-2020-8231-curl_open"
@@ -3682,6 +4204,9 @@ evidence = "Curl_easy: remember last connection by id, not by pointer"
 commit_url = "https://github.com/curl/curl/commit/3c9e021f86872baae412a427e807fbfa2f3e8a22"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
 
 [[recipe]]
 name = "curl-cve-2020-8177"
@@ -3703,3 +4228,6 @@ evidence = "tool_getparam: -i is not OK if -J is used"
 commit_url = "https://github.com/curl/curl/commit/8236aba58542c5f89f1d41ca09d84579efb05e22"
 origin = "curl"
 project = "curl"
+mechanism = "other"
+provenance = "human"
+split = "train"
