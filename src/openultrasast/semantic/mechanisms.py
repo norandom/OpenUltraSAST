@@ -14,6 +14,7 @@ from pathlib import Path
 from ..complexity.map import Hotspot
 from ..findings import StaticFinding
 from ..index import CodeChunk, EmbeddingClient, VectorIndex, VectorRecord, write_vector_index
+from .obligations.shapes import ObligationShape
 from .overlay import OverlayRecord
 from .variants import Shape
 
@@ -96,14 +97,14 @@ def append_mechanism(
 _TIER_RANK = {"seeded": 1, "reviewed": 2}
 
 
-def corpus_mechanism_id(shape: Shape) -> str:
+def corpus_mechanism_id(shape: Shape | ObligationShape) -> str:
     """Deterministic id from the shape key, so the same shape gets the same record on every machine (lever-addressable)."""
     return "corpus:" + hashlib.sha1(shape.key().encode()).hexdigest()[:16]
 
 
 def append_from_pair(
     store: MechanismStore,
-    shape: Shape,
+    shape: Shape | ObligationShape,
     *,
     summary: str,
     cwe: str,
@@ -120,7 +121,15 @@ def append_from_pair(
     if existing is not None and _TIER_RANK.get(existing.review_tier, 0) > _TIER_RANK.get(tier, 0):
         tier = existing.review_tier  # a shape keeps the strongest review it ever had
     inherited = tuple(tag for tag in (existing.tags if existing is not None else ()) if tag.startswith(("provenance:", "tier:")))
-    positions = ", ".join(f"arg{p} ({k})" for p, k in zip(shape.source_positions, shape.source_kinds, strict=True))
+    if isinstance(shape, Shape):
+        positions = ", ".join(f"arg{p} ({k})" for p, k in zip(shape.source_positions, shape.source_kinds, strict=True))
+        exploitable = f"{positions} reaches {shape.sink_name}/{shape.arity}; the fix added {shape.guard}"
+        keywords: tuple[str, ...] = (shape.sink_name, shape.guard, *shape.source_kinds)
+        guard = shape.guard
+    else:  # obligation shape: the discharger the fix carries is the 'guard' the reports show
+        exploitable = f"{shape.operation_kind} reached without {shape.discharger_kind}; the fix binds {shape.provenance}"
+        keywords = (shape.operation_kind, shape.discharger_kind, shape.provenance, shape.resource_class)
+        guard = shape.discharger_kind
     record = Mechanism(
         id=mechanism_id,
         summary=summary,
@@ -129,18 +138,18 @@ def append_from_pair(
         tags=(
             shape.mechanism,
             f"mechanism:{shape.mechanism}",
-            f"guard:{shape.guard}",
+            f"guard:{guard}",
             *sorted({*inherited, f"provenance:{provenance}", f"tier:{tier}"}),
         ),
-        keywords=(shape.sink_name, shape.guard, *shape.source_kinds),
-        what_made_it_exploitable=f"{positions} reaches {shape.sink_name}/{shape.arity}; the fix added {shape.guard}",
+        keywords=keywords,
+        what_made_it_exploitable=exploitable,
         source_finding_id="",
         source_repo="",
         origin="corpus",
         review_tier=tier,
         pairs=pairs,
         shape=shape.to_dict(),
-        guard=shape.guard,
+        guard=guard,
     )
     store.append(record)
     return record

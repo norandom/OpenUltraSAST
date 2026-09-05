@@ -38,7 +38,8 @@ def search_tree(
     max_mechanisms: int,
 ) -> SearchResult:
     """Variant search over the parsed files of a tree with the store's corpus shapes (bounded by ``max_mechanisms``)."""
-    records = corpus_mechanisms(store.load())[: max(max_mechanisms, 0)]
+    records = [record for record in corpus_mechanisms(store.load()) if (record.shape or {}).get("family", "sink") == "sink"]
+    records = records[: max(max_mechanisms, 0)]
     shapes: list[Shape] = []
     ids: dict[str, str] = {}
     degradations: list[dict[str, object]] = []

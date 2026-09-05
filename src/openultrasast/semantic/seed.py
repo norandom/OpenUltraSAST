@@ -16,6 +16,8 @@ from ..preprocess import LANGUAGE_BY_EXTENSION
 from .facts import FactLoadError, SemanticFacts, load_facts
 from .ir import FileIR, parse_file
 from .mechanisms import MechanismStore, append_from_pair
+from .obligations.facts import ObligationFacts, load_obligation_facts
+from .obligations.shapes import ABSENCE_MECHANISMS, ObligationShape, derive_obligation, explain_skip
 from .variants import Shape, derive_shape
 
 LANGUAGE_UNSUPPORTED = "variants_language_unsupported"
@@ -85,7 +87,7 @@ def export_mechanisms(cases: Sequence[PairCase], store: MechanismStore, *, facts
         if lessons:
             seeded.append(case.name)
         else:
-            skipped.append((case.name, "no_labeled_sink_call_site"))
+            skipped.append((case.name, _skip_detail(case, vuln_ir, fixed_ir, vuln_text, fixed_text, loaded)))
     return ExportReport(
         seeded=len(seeded),
         records=len(record_ids),
@@ -97,9 +99,9 @@ def export_mechanisms(cases: Sequence[PairCase], store: MechanismStore, *, facts
 
 @dataclass(frozen=True)
 class Lesson:
-    """One shape a trusted pair teaches, with the CWE and a text-free summary."""
+    """One shape a trusted pair teaches, with the CWE and a text-free summary (a sink shape or an obligation shape)."""
 
-    shape: Shape
+    shape: Shape | ObligationShape
     cwe: str
     summary: str
 
@@ -125,6 +127,27 @@ def pair_lessons(
     for row in case.expected:
         if not row.function or not row.mechanism:
             continue
+        obligation_kind = getattr(row, "obligation", None)
+        if obligation_kind or row.mechanism in ABSENCE_MECHANISMS:
+            obligation = derive_obligation(
+                vuln_ir,
+                fixed_ir,
+                function=row.function,
+                obligation=obligation_kind,
+                mechanism=row.mechanism,
+                facts=_obligation_facts(),
+                flow_facts=facts,
+                vuln_text=vuln_text,
+                fixed_text=fixed_text,
+            )
+            if obligation is not None:
+                summary = (
+                    f"{obligation.mechanism}: {obligation.operation_kind} without {obligation.discharger_kind} ({row.cwe}); "
+                    f"fix binds {obligation.provenance}"
+                )
+                lessons.append(Lesson(shape=obligation, cwe=row.cwe, summary=summary))
+                continue
+            # an absence row that teaches no obligation may still teach a sink shape (a weak literal at a sink, say)
         shape = derive_shape(
             vuln_ir,
             fixed_ir,
@@ -141,6 +164,32 @@ def pair_lessons(
             summary = f"{shape.mechanism}: {'/'.join(shape.source_kinds)} into {shape.sink_name} ({row.cwe}); fix adds {shape.guard}"
             lessons.append(Lesson(shape=shape, cwe=row.cwe, summary=summary))
     return lessons
+
+
+def _skip_detail(case: PairCase, vuln_ir: FileIR, fixed_ir: FileIR, vuln_text: str, fixed_text: str, flow_facts: SemanticFacts) -> str:
+    """Why a parsing, labeled pair taught nothing: the obligation derivation's reason for absence rows, else the sink reason."""
+    for row in case.expected:
+        if row.function and row.mechanism and (getattr(row, "obligation", None) or row.mechanism in ABSENCE_MECHANISMS):
+            return explain_skip(
+                vuln_ir,
+                fixed_ir,
+                function=row.function,
+                vuln_text=vuln_text,
+                fixed_text=fixed_text,
+                obligation=getattr(row, "obligation", None),
+                facts=_obligation_facts(),
+                flow_facts=flow_facts,
+            )
+    return "no_labeled_sink_call_site"
+
+
+_OBLIGATION_FACTS: list[ObligationFacts] = []
+
+
+def _obligation_facts() -> ObligationFacts:
+    if not _OBLIGATION_FACTS:
+        _OBLIGATION_FACTS.append(load_obligation_facts())
+    return _OBLIGATION_FACTS[0]
 
 
 def _skip_reason(case: PairCase) -> str | None:
