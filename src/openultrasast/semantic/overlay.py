@@ -45,6 +45,7 @@ class OverlayRecord:
     engine: str = "none"
     language: str = ""
     function: str | None = None  # enclosing function when the file parsed (additive; pair-corpus-honesty)
+    mechanism_id: str | None = None  # known mechanism whose shape matches this call site (additive; corpus-seeded-mechanisms)
 
     def __post_init__(self) -> None:
         if self.disposition not in DISPOSITIONS:
