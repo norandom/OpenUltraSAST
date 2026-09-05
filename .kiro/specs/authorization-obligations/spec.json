@@ -1,9 +1,9 @@
 {
   "feature_name": "authorization-obligations",
   "created_at": "2026-09-05T17:00:00Z",
-  "updated_at": "2026-09-05T18:30:00Z",
+  "updated_at": "2026-09-05T19:10:00Z",
   "language": "en",
-  "phase": "design-generated",
+  "phase": "tasks-generated",
   "approvals": {
     "requirements": {
       "generated": true,
@@ -14,15 +14,15 @@
       "approved": true
     },
     "tasks": {
-      "generated": false,
-      "approved": false
+      "generated": true,
+      "approved": true
     }
   },
-  "ready_for_implementation": false,
+  "ready_for_implementation": true,
   "depends_on": [
     "reachability-flow-model",
     "guard-dominance-regime",
     "corpus-seeded-mechanisms"
   ],
-  "approval_note": "2026-09-05 requirements and design approved by the maintainer in session"
+  "approval_note": "2026-09-05 requirements, design and tasks approved by the maintainer in session"
 }

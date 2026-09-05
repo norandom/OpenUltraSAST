@@ -97,7 +97,7 @@
 - [ ] 5.1 Validator dispatch on shape family and pending policy clauses
   - `validate_mechanism` dispatches on `shape["family"]`: obligation rows check operation kind, discharger kind, provenance and resource class against the closed sets; `PolicyClauseEdit(kind, fields, evidence, rationale)` validated against the policy schema and journaled under `pending_policy_clauses`, never applied.
   - Observable: an obligation row with `discharger_kind = "if user"` is rejected; a valid row admits; a clause edit lands in the journal as pending and a following scan reads no policy from it.
-  - _Requirements: 8.1, 8.2, 8.4, 8.5_
+  - _Requirements: 4.5, 8.1, 8.2, 8.4, 8.5_
   - _Boundary: Lever_
   - _Depends: 1.3_
 
