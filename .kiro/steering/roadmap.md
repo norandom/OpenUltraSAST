@@ -64,7 +64,7 @@ sast: java-sqli moved MISS→LEAK (coverage counted on both sides; the fixed twi
 
 ## Direct Implementation Candidates
 
-- [ ] Record inventory vs overlay Youden side-by-side in `ousast pairs --slice sast` JSON -- folded into pair-corpus-honesty task 2.3.
+- [x] Record inventory vs overlay Youden side-by-side in `ousast pairs --slice sast` JSON -- folded into pair-corpus-honesty task 2.3. Done (`scorers` block, 2026-09-05).
 - [x] Add Firefox/gecko-dev, Chromium, OpenSSL pointers to `benchmarks/pairs/datasets.toml`.
 
 ## Specs (dependency order)
