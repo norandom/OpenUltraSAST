@@ -405,6 +405,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     wrote_overlay = False
     variants_payload: dict[str, object] | None = None
     variant_findings: list[StaticFinding] = []
+    mechanisms_cited: dict[str, dict[str, object]] = {}
     if Stage.MAP in plan.requested:
         built_map = runtime.run_stage(
             "map",
@@ -438,7 +439,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
                 findings = findings + extra
                 write_findings(findings, findings_path)
         if config.variants.enabled:
-            variant_findings, overlay_records, variants_payload = _search_variants(
+            variant_findings, overlay_records, variants_payload, mechanisms_cited = _search_variants(
                 root=run.target,
                 targets=targets,
                 overlay_records=overlay_records,
@@ -545,6 +546,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             complexity_map=built_map,
             verdicts=verdict_records if wrote_verdicts else None,
             overlay=overlay_records if wrote_overlay else None,
+            mechanisms=mechanisms_cited or None,
         ),
     )
     runtime.run_stage(
@@ -554,6 +556,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             verifications,
             sarif_path,
             overlay=overlay_records if wrote_overlay else None,
+            mechanisms=mechanisms_cited or None,
         ),
     )
     runtime.run_stage(
@@ -865,19 +868,23 @@ def _search_variants(
     facts: SemanticFacts | FactLoadError,
     max_mechanisms: int,
     runtime: HarnessRuntime,
-) -> tuple[list[StaticFinding], list[OverlayRecord], dict[str, object]]:
-    """Third MAP proposer (corpus-seeded-mechanisms Req 3): shapes from the mechanism store, merged with overlay flows."""
+) -> tuple[list[StaticFinding], list[OverlayRecord], dict[str, object], dict[str, dict[str, object]]]:
+    """Third MAP proposer (corpus-seeded-mechanisms Req 3): shapes from the mechanism store, merged with overlay flows.
+
+    Also returns the mechanisms the findings cite (summary, guard, pairs, cwe) for the reports (Req 6.1).
+    """
     from .semantic.mechanisms import corpus_mechanisms
     from .semantic.variant_search import hits_to_findings, search_tree
 
     store = MechanismStore(root / CALIBRATION_DIR / "mechanisms.jsonl")
     empty: dict[str, object] = {"mechanisms_searched": 0, "files_searched": 0, "findings": 0, "merged_into_overlay": 0}
     if isinstance(facts, FactLoadError):
-        return [], overlay_records, empty
+        return [], overlay_records, empty, {}
     result = runtime.run_stage("variants", lambda: search_tree(root, targets, store, facts, max_mechanisms=max_mechanisms))
     for degradation in result.degradations:
         runtime.state["degradations"].append(degradation)
-    summaries = {record.id: (record.summary, record.pairs, record.cwe) for record in corpus_mechanisms(store.load())}
+    records_by_id = {record.id: record for record in corpus_mechanisms(store.load())}
+    summaries = {record.id: (record.summary, record.pairs, record.cwe) for record in records_by_id.values()}
     findings, records = hits_to_findings(result.hits, overlay_records, summaries)
     merged = sum(1 for before, after in zip(overlay_records, records, strict=True) if before.mechanism_id is None and after.mechanism_id)
     payload: dict[str, object] = {
@@ -886,7 +893,15 @@ def _search_variants(
         "findings": len(findings),
         "merged_into_overlay": merged,
     }
-    return findings, records, payload
+    cited_ids = {tag.split(":", 1)[1] for finding in findings for tag in finding.tags if tag.startswith("mechanism:")} | {
+        str(record.mechanism_id) for record in records if record.mechanism_id
+    }
+    cited: dict[str, dict[str, object]] = {
+        mechanism_id: {"summary": record.summary, "guard": record.guard, "pairs": list(record.pairs), "cwe": record.cwe}
+        for mechanism_id, record in records_by_id.items()
+        if mechanism_id in cited_ids
+    }
+    return findings, records, payload, cited
 
 
 def _hotspot_from_variant(finding: StaticFinding) -> Hotspot:

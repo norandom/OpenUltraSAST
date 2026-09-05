@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict
 from pathlib import Path
 
@@ -19,10 +19,12 @@ def write_markdown_report(
     complexity_map: object | None = None,
     verdicts: Sequence[object] | None = None,
     overlay: Sequence[object] | None = None,
+    mechanisms: Mapping[str, Mapping[str, object]] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications or [])
     overlay_by_id = _overlay_by_id(overlay or [])
+    cited: dict[str, Mapping[str, object]] = {}
     lines = ["# OpenUltraSAST Report", "", f"Findings: {len(findings)}", "", "## Inventory", ""]
     if not findings:
         lines.append("No quick-mode findings were emitted.")
@@ -51,7 +53,16 @@ def write_markdown_report(
         if disposition is not None:
             lines.append(f"- Disposition: `{getattr(disposition, 'disposition', '')}`")
             lines.append(f"- Overlay reason: `{getattr(disposition, 'reason', '')}`")
+        mechanism_id = _mechanism_id_for(finding, disposition)
+        if mechanism_id and mechanisms is not None and mechanism_id in mechanisms:
+            info = mechanisms[mechanism_id]
+            cited[mechanism_id] = info
+            lines.append(f"- Mechanism: `{mechanism_id}` — {info.get('summary', '')}")
+            lines.append(f"- Known fix guard: `{info.get('guard', 'none')}`")
+            lines.append(f"- Learned from pairs: `{', '.join(_pairs_of(info))}`")
         lines.extend(["", finding.rationale, ""])
+    if cited:
+        _append_mechanisms(lines, cited)
     if overlay:
         _append_overlay(lines, overlay)
     if complexity_map is not None:
@@ -133,6 +144,7 @@ def write_sarif_report(
     verifications: list[VerificationResult],
     path: Path,
     overlay: Sequence[object] | None = None,
+    mechanisms: Mapping[str, Mapping[str, object]] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications)
@@ -151,7 +163,9 @@ def write_sarif_report(
                     }
                 },
                 "results": [
-                    _sarif_result(finding, verification_by_id.get(finding.finding_id), overlay_by_id.get(finding.finding_id))
+                    _sarif_result(
+                        finding, verification_by_id.get(finding.finding_id), overlay_by_id.get(finding.finding_id), mechanisms=mechanisms
+                    )
                     for finding in findings
                 ],
             }
@@ -249,7 +263,13 @@ def _sarif_rules(findings: list[StaticFinding]) -> dict[str, dict[str, object]]:
     return rules
 
 
-def _sarif_result(finding: StaticFinding, verification: VerificationResult | None, overlay: object | None = None) -> dict[str, object]:
+def _sarif_result(
+    finding: StaticFinding,
+    verification: VerificationResult | None,
+    overlay: object | None = None,
+    *,
+    mechanisms: Mapping[str, Mapping[str, object]] | None = None,
+) -> dict[str, object]:
     properties: dict[str, object] = {
         "finding_id": finding.finding_id,
         "severity": finding.severity,
@@ -263,6 +283,14 @@ def _sarif_result(finding: StaticFinding, verification: VerificationResult | Non
     if overlay is not None:
         properties["disposition"] = getattr(overlay, "disposition", "")
         properties["overlay_reason"] = getattr(overlay, "reason", "")
+    mechanism_id = _mechanism_id_for(finding, overlay)
+    if mechanism_id:
+        properties["mechanism_id"] = mechanism_id
+        info = (mechanisms or {}).get(mechanism_id)
+        if info is not None:
+            properties["mechanism_summary"] = str(info.get("summary", ""))
+            properties["mechanism_guard"] = str(info.get("guard", "none"))
+            properties["mechanism_pairs"] = _pairs_of(info)
     return {
         "ruleId": _rule_id(finding),
         "level": _sarif_level(finding.severity),
@@ -354,3 +382,29 @@ def _relative_artifact(root: Path, path: Path) -> str:
         return path.relative_to(root).as_posix()
     except ValueError:
         return path.as_posix()
+
+
+def _mechanism_id_for(finding: StaticFinding, overlay: object | None) -> str | None:
+    """Mechanism cited by a finding: a `mechanism:<id>` tag on a variant finding, or the merged overlay record's id."""
+    for tag in finding.tags:
+        if tag.startswith("mechanism:"):
+            return tag.split(":", 1)[1]
+    merged = getattr(overlay, "mechanism_id", None)
+    return str(merged) if merged else None
+
+
+def _append_mechanisms(lines: list[str], cited: Mapping[str, Mapping[str, object]]) -> None:
+    lines.extend(
+        ["## Mechanisms", "", "Known mechanisms this report cites (corpus-seeded; variant findings stay suspicions until verified).", ""]
+    )
+    for mechanism_id, info in sorted(cited.items()):
+        pairs = ", ".join(_pairs_of(info)) or "unknown"
+        lines.append(
+            f"- `{mechanism_id}`: {info.get('summary', '')}; known fix guard `{info.get('guard', 'none')}`; learned from `{pairs}`"
+        )
+    lines.append("")
+
+
+def _pairs_of(info: Mapping[str, object]) -> list[str]:
+    pairs = info.get("pairs")
+    return [str(p) for p in pairs] if isinstance(pairs, list | tuple) else []

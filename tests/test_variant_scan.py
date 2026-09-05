@@ -90,6 +90,12 @@ def test_variant_hit_merges_into_an_overlay_flow_at_the_same_call_site(tmp_path:
     assert not any(f["finding_id"].startswith("variant:") for f in findings)  # merged, not duplicated
     manifest = json.loads((run_dir / "manifest.json").read_text())
     assert manifest["variants"]["merged_into_overlay"] == 1 and manifest["variants"]["findings"] == 0
+    # Req 6.1 end to end: the merged inventory finding names the mechanism in both reports and keeps its own evidence level
+    report = (run_dir / "report.md").read_text()
+    assert f"- Mechanism: `{record.id}`" in report and "- Learned from pairs: `p`" in report
+    sarif = json.loads((run_dir / "report.sarif").read_text())
+    props = [item["properties"] for item in sarif["runs"][0]["results"] if item["properties"].get("mechanism_id") == record.id]
+    assert props and props[0]["mechanism_guard"] == "none" and props[0]["evidence_level"] != "suspicion"
 
 
 def test_quick_scan_never_searches_variants(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
