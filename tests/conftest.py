@@ -12,6 +12,13 @@ _HARNESSX_GUARD = (
 )
 
 
+@pytest.fixture(autouse=True)
+def _pointer_pairs_offline(monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory) -> None:
+    """Req 10.4: the default test run never touches the network for pointer pairs, whatever the operator's shell exports."""
+    monkeypatch.delenv("OPENULTRASAST_PAIRS_NETWORK", raising=False)
+    monkeypatch.setenv("OPENULTRASAST_PAIR_CACHE", str(tmp_path_factory.mktemp("pair-cache")))
+
+
 @pytest.fixture
 def assert_cold_of_harnessx():  # type: ignore[no-untyped-def]
     """Run ``code`` in a fresh interpreter and assert it imported no ``harnessx`` module.

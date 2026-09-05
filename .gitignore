@@ -19,6 +19,8 @@ build/
 *.egg-info/
 
 **/.openultrasast/
+.cache/openultrasast/
+**/.cache/openultrasast/
 artifacts/
 reports/
 vector-store/

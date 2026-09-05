@@ -21,6 +21,7 @@ from .pairs import (
     evaluate_catalog,
     load_pair_catalog,
     select_slice,
+    select_vendored,
 )
 
 
@@ -33,7 +34,7 @@ class PairGateVerdict:
 
 def pair_gate(cases: Sequence[PairCase] | None = None) -> PairGateVerdict:
     catalog = tuple(cases) if cases is not None else load_pair_catalog(DEFAULT_CATALOG)
-    local = select_slice(catalog, "local")
+    local = select_vendored(select_slice(catalog, "local"))  # Req 10.4: gates score vendored pairs only
     if not local:
         return PairGateVerdict(passed=False, reasons=("no local pairs in catalog",), result=evaluate_catalog(()))
     result = evaluate_catalog(local)

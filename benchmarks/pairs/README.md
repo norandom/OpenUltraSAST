@@ -67,6 +67,18 @@ Defaults per slice: local `reviewed`, vibe-py `seeded`, sast/vfc/vfc-js/github
 `advisory`, agent-vfc `title`. `pairs --json` reports `per_tier`; `evolve.evaluate_profiles` scores only `seeded`
 and `reviewed` pairs, so `advisory` and `title` pairs never gate the improve loop (task 8.2).
 
+## Pointer pairs (not vendored)
+
+A row with `vendored = false` carries its harvest recipe (`repo`, `parent`, `commit`,
+`path`, `mode`, `line`/`fix_path`/`fix_line`, ...) and no excerpt files (Req 10). The
+repository never redistributes that code: `pairs --pointers` (or
+`OPENULTRASAST_PAIRS_NETWORK=1`) harvests both sides into
+`OPENULTRASAST_PAIR_CACHE` (default `~/.cache/openultrasast/pairs/<slice>/<name>/`,
+git-ignored) and scores them exactly like a vendored pair; without network the pair is
+skipped with a `pointer_pair_skipped` degradation and a failed fetch is
+`pointer_pair_fetch_failed`, never an error. The default `pytest` run and every gate
+score vendored pairs only (`select_vendored`); the pointer run is the nightly command.
+
 ## Labels, profiles, and mechanisms
 
 Every `[[pair.expected]]` row names a `mechanism` from the closed vocabulary in

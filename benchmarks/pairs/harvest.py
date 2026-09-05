@@ -373,7 +373,7 @@ def provenance_header(recipe: dict[str, Any], *, side: str, sha: str, upstream_s
     return "/* " + "\n * ".join(lines) + "\n */\n"
 
 
-def validate_recipe(recipe: dict[str, Any]) -> None:
+def validate_recipe(recipe: dict[str, Any], *, require_license: bool = True) -> None:
     name = str(recipe.get("name", ""))
     if any(token in str(recipe).lower() for token in BLOCKED_TOKENS):
         raise RecipeError(f"{name}: embargoed or blocked dataset")
@@ -390,7 +390,7 @@ def validate_recipe(recipe: dict[str, Any]) -> None:
         raise RecipeError(f"{name}: line_range mode needs integer line_start and line_end")
     if mode == "enclosing" and not isinstance(recipe.get("line"), int):
         raise RecipeError(f"{name}: enclosing mode needs an integer line")
-    if not recipe.get("license"):
+    if require_license and not recipe.get("license"):
         raise RecipeError(f"{name}: license required")
 
 
@@ -514,8 +514,8 @@ def extract_pair(recipe: dict[str, Any], parent_src: str, fix_src: str) -> tuple
     return extract_function(parent_src, function, language), extract_function(fix_src, function, language)
 
 
-def harvest_recipe(recipe: dict[str, Any], root: Path) -> tuple[Path, Path]:
-    validate_recipe(recipe)
+def harvest_recipe(recipe: dict[str, Any], root: Path, *, require_license: bool = True) -> tuple[Path, Path]:
+    validate_recipe(recipe, require_license=require_license)
     if str(recipe.get("host", "github")) != "github":
         raise RecipeError(f"{recipe.get('name')}: live fetch currently implemented for host=github only")
     parent_src = fetch_url(github_raw_url(str(recipe["repo"]), str(recipe["parent"]), str(recipe["path"])))
@@ -529,6 +529,19 @@ def harvest_recipe(recipe: dict[str, Any], root: Path) -> tuple[Path, Path]:
     write_excerpt(vuln_path, recipe, side="vuln", sha=str(recipe["parent"]), body=parent_fn, upstream_start=parent_start)
     write_excerpt(fixed_path, recipe, side="fixed", sha=str(recipe["commit"]), body=fix_fn, upstream_start=fix_start)
     return vuln_path, fixed_path
+
+
+def materialize_pointer(recipe: dict[str, Any], cache_root: Path, *, slice_name: str) -> tuple[Path, Path]:
+    """Harvest a non-vendored pair into ``cache_root/<slice>/<name>/`` (Req 10.2).
+
+    The cache lives outside the repository; a missing upstream license is allowed here because nothing is redistributed,
+    the excerpts stay on the operator's machine. Redaction applies as for vendored excerpts.
+    """
+    root = Path(cache_root) / slice_name
+    vuln_path, fixed_path = excerpt_paths(recipe, root)
+    if vuln_path.is_file() and fixed_path.is_file():
+        return vuln_path, fixed_path
+    return harvest_recipe(recipe, root, require_license=False)
 
 
 def fetch_url(url: str, timeout: int = 60) -> str:

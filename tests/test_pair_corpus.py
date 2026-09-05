@@ -20,6 +20,7 @@ from openultrasast.pairs import (
     load_datasets,
     load_pair_catalog,
     select_slice,
+    select_vendored,
 )
 
 
@@ -36,7 +37,7 @@ def test_catalog_loads_local_and_github_slices() -> None:
     assert "openssl-cve-2014-0160" in names
     assert "firefox-cve-2020-15667" in names
     assert "chromium-cve-2019-5786" in names
-    assert all(case.vuln_file.is_file() and case.fixed_file.is_file() for case in cases)
+    assert all(case.vuln_file.is_file() and case.fixed_file.is_file() for case in select_vendored(cases))
 
 
 def test_pair_catalog_is_outside_stage1_smoke_gate() -> None:
@@ -459,9 +460,9 @@ def test_new_slices_load_offline_and_score_with_profiles() -> None:
     for slice_name, expected_provenance in (("vibe-py", "human"), ("vfc-js", "human")):
         cases = select_slice(catalog, slice_name)
         assert cases, slice_name
-        assert all(case.vuln_file.is_file() and case.fixed_file.is_file() for case in cases)
-        assert all(case.license for case in cases), slice_name
-        assert all(case.provenance == expected_provenance for case in cases), slice_name
+        assert all(case.vuln_file.is_file() and case.fixed_file.is_file() for case in select_vendored(cases))
+        assert all(case.license for case in select_vendored(cases)), slice_name  # pointer rows may be unlicensed (Req 10)
+        assert all(case.provenance == expected_provenance for case in select_vendored(cases)), slice_name
         assert {case.split for case in cases} <= {"train", "holdout"}
         header = cases[0].vuln_file.read_text()[:600]
         assert "Provenance:" in header and "license:" in header
@@ -678,7 +679,7 @@ def test_payload_reports_metrics_per_review_tier(tmp_path: Path) -> None:
 def test_default_catalog_has_the_new_slices_on_disk_and_off_the_stage1_list() -> None:
     catalog = load_pair_catalog()
     assert {"vibe-py", "vfc-js", "agent-vfc"} <= {case.slice for case in catalog}  # Req 8.1
-    assert all(case.vuln_file.is_file() and case.fixed_file.is_file() for case in catalog)
+    assert all(case.vuln_file.is_file() and case.fixed_file.is_file() for case in select_vendored(catalog))
     stage1 = {name for names in LANGUAGE_MANIFESTS.values() for name in names}
     assert not ({case.name for case in catalog} & stage1)
 
@@ -859,3 +860,106 @@ def test_cpp_qualified_method_range_is_found_by_its_unqualified_label() -> None:
     assert ranges is not None
     assert spans_named(ranges, "m") == ((1, 3),)
     assert function_at(ranges, 2) == "m"
+
+
+# --- task 8.3: pointer pairs (Req 10) -----------------------------------------
+
+
+_POINTER_ROW = (
+    '[[pair]]\nname = "ptr"\nslice = "vibe-py"\nlanguage = "python"\nvendored = false\nrepo = "o/r"\nparent = "aaa"\ncommit = "bbb"\n'
+    'path = "app.py"\nmode = "enclosing"\nline = 3\nrelpath = "app.py"\nprovenance = "agent"\nreview_tier = "seeded"\nlicense = ""\n\n'
+    '[[pair.expected]]\ncwe = "CWE-95"\nclass = "code injection"\npath = "app.py"\nfunction = "f"\n'
+    'sink = "eval"\nmechanism = "source_reaches_sink"\n'
+)
+
+
+def test_pointer_rows_load_without_excerpts_and_point_into_the_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from openultrasast.pairs import CatalogError, _load_catalog_file, pointer_recipe, select_vendored
+
+    monkeypatch.setenv("OPENULTRASAST_PAIR_CACHE", str(tmp_path / "cache"))
+    (tmp_path / "c.toml").write_text(_POINTER_ROW)
+    (case,) = _load_catalog_file(tmp_path / "c.toml")
+    assert case.vendored is False
+    assert case.vuln_file == (tmp_path / "cache" / "vibe-py" / "ptr" / "vuln.py").resolve()
+    assert pointer_recipe(case)["parent"] == "aaa" and pointer_recipe(case)["mode"] == "enclosing"
+    assert select_vendored([case]) == ()
+    (tmp_path / "bad.toml").write_text(_POINTER_ROW.replace('parent = "aaa"\n', ""))
+    with pytest.raises(CatalogError, match="parent"):
+        _load_catalog_file(tmp_path / "bad.toml")
+
+
+def test_pointer_pairs_skip_with_a_degradation_when_network_is_off(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from openultrasast.pairs import _load_catalog_file, evaluate_catalog
+
+    monkeypatch.setenv("OPENULTRASAST_PAIR_CACHE", str(tmp_path / "cache"))
+    monkeypatch.delenv("OPENULTRASAST_PAIRS_NETWORK", raising=False)
+    (tmp_path / "c.toml").write_text(_POINTER_ROW)
+    result = evaluate_catalog(_load_catalog_file(tmp_path / "c.toml"))
+    assert result.outcomes == ()
+    assert {"stage": "pairs", "reason": "pointer_pair_skipped", "pair": "ptr"} in result.degradations
+    assert not (tmp_path / "cache").exists()
+
+
+def test_pointer_pairs_materialize_into_the_cache_and_score_like_vendored_pairs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from openultrasast import pairs as pairs_mod
+
+    monkeypatch.setenv("OPENULTRASAST_PAIR_CACHE", str(tmp_path / "cache"))
+    monkeypatch.setenv("OPENULTRASAST_PAIRS_NETWORK", "1")
+    (tmp_path / "c.toml").write_text(_POINTER_ROW)
+    (case,) = pairs_mod._load_catalog_file(tmp_path / "c.toml")
+
+    def fake_materialize(recipe: dict[str, object], cache_root: Path) -> tuple[Path, Path]:
+        folder = cache_root / "vibe-py" / str(recipe["name"])
+        folder.mkdir(parents=True)
+        (folder / "vuln.py").write_text("from flask import request\n\ndef f():\n    return eval(request.args.get('x'))\n")
+        (folder / "fixed.py").write_text("def f():\n    return 1\n")
+        return folder / "vuln.py", folder / "fixed.py"
+
+    monkeypatch.setattr(pairs_mod, "_materialize_pointer", fake_materialize)
+    result = pairs_mod.evaluate_catalog([case])
+    assert len(result.outcomes) == 1 and result.outcomes[0].name == "ptr" and result.outcomes[0].detected_vuln
+    assert not any(item.get("reason", "").startswith("pointer_pair") for item in result.degradations)
+    # a second evaluation reuses the cache: no fetch
+    monkeypatch.setattr(pairs_mod, "_materialize_pointer", lambda *_: pytest.fail("cache hit expected"))
+    assert pairs_mod.evaluate_catalog([case]).outcomes[0].pair_correct
+    # a failing fetch is a recorded loss, never an exception
+    (tmp_path / "c2.toml").write_text(_POINTER_ROW.replace('name = "ptr"', 'name = "ptr2"'))
+    (case2,) = pairs_mod._load_catalog_file(tmp_path / "c2.toml")
+
+    def boom(recipe: dict[str, object], cache_root: Path) -> tuple[Path, Path]:
+        raise OSError("offline")
+
+    monkeypatch.setattr(pairs_mod, "_materialize_pointer", boom)
+    failed = pairs_mod.evaluate_catalog([case2])
+    assert failed.outcomes == () and any(
+        item["reason"] == "pointer_pair_fetch_failed" and item["pair"] == "ptr2" for item in failed.degradations
+    )
+
+
+def test_cli_pairs_pointers_flag_turns_network_on_for_one_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    import io
+    from contextlib import redirect_stdout
+
+    monkeypatch.delenv("OPENULTRASAST_PAIRS_NETWORK", raising=False)
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        assert main(["pairs", "--slice", "local", "--pointers", "--json"]) == 0
+    assert json.loads(buf.getvalue())["overall"]["pairs"] == 3
+    assert "OPENULTRASAST_PAIRS_NETWORK" not in __import__("os").environ  # the flag is per run, not a persistent env change
+
+
+def test_warm_cache_never_scores_pointer_pairs_when_network_is_off(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Req 10.3: the cache only spares the fetch under --pointers; it never turns a default run into a pointer run."""
+    from openultrasast.pairs import _load_catalog_file, evaluate_catalog
+
+    monkeypatch.setenv("OPENULTRASAST_PAIR_CACHE", str(tmp_path / "cache"))
+    monkeypatch.delenv("OPENULTRASAST_PAIRS_NETWORK", raising=False)
+    (tmp_path / "c.toml").write_text(_POINTER_ROW)
+    (case,) = _load_catalog_file(tmp_path / "c.toml")
+    case.vuln_file.parent.mkdir(parents=True)
+    case.vuln_file.write_text("from flask import request\n\ndef f():\n    return eval(request.args.get('x'))\n")
+    case.fixed_file.write_text("def f():\n    return 1\n")
+    result = evaluate_catalog([case])
+    assert result.outcomes == ()
+    assert {"stage": "pairs", "reason": "pointer_pair_skipped", "pair": "ptr"} in result.degradations
+    assert evaluate_catalog([case], pointers=True).outcomes[0].pair_correct  # warm cache, network on: no fetch, scored

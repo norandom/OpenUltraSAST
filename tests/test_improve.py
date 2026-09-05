@@ -293,3 +293,32 @@ def test_profile_gate_ignores_title_and_advisory_tiers(tmp_path: Path) -> None:
     )
     assert not outcome.accepted and outcome.reason == "profile_regression:agent"
     assert outcome.per_profile_before["agent"]["pairs"] == 5.0  # the five title pairs are scored elsewhere, never here
+
+
+def test_profile_gate_scores_vendored_pairs_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Req 10.4 / design: gates call select_vendored; a pointer pair never reaches the improve gate, cached or not."""
+    from openultrasast.improve.evolve import evaluate_profiles
+    from openultrasast.pairs import PairCase
+    from openultrasast.ruleset import load_ruleset
+
+    monkeypatch.setenv("OPENULTRASAST_PAIRS_NETWORK", "1")
+    vendored = _pair(
+        tmp_path, "v", "def h(y):\n    return eval(y)\n", "def h(y):\n    return y\n", "python-unsafe-eval", "eval", provenance="human"
+    )
+    pointer_src = tmp_path / "cache" / "github" / "p"
+    pointer_src.mkdir(parents=True)
+    (pointer_src / "vuln.py").write_text("def h(y):\n    return eval(y)\n")
+    (pointer_src / "fixed.py").write_text("def h(y):\n    return y\n")
+    pointer = PairCase(
+        **{
+            **vendored.__dict__,
+            "name": "p",
+            "provenance": "agent",
+            "vendored": False,
+            "vuln_file": pointer_src / "vuln.py",
+            "fixed_file": pointer_src / "fixed.py",
+            "recipe": (("repo", "o/r"), ("parent", "a"), ("commit", "b"), ("path", "app.py"), ("mode", "name")),
+        }
+    )
+    profiles = evaluate_profiles([vendored, pointer], load_ruleset())
+    assert set(profiles) == {"human"}  # the agent pointer pair is scored by `pairs --pointers`, never by the gate

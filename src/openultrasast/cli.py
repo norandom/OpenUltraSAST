@@ -156,6 +156,7 @@ def main(argv: list[str] | None = None) -> int:
     pairs.add_argument("--split", choices=("all", "train", "holdout"), default="all", help="filter pairs by declared split")
     pairs.add_argument("--hunter", action="store_true", help="also score the LLM tool hunter on overlay slices (needs a hunter model)")
     pairs.add_argument("--hunter-model", default=None, help="model id for --hunter (default: [models].hunter from openultrasast.toml)")
+    pairs.add_argument("--pointers", action="store_true", help="allow network for non-vendored pointer pairs this run (nightly; CI never)")
     pairs.add_argument("--json", action="store_true", help="print the pair scoreboard as JSON")
 
     subparsers.add_parser("mcp", help="run the narrow MCP server over stdio for OpenCode integration")
@@ -190,6 +191,7 @@ def main(argv: list[str] | None = None) -> int:
             split=args.split,
             hunter=args.hunter,
             hunter_model=args.hunter_model,
+            pointers=args.pointers,
         )
     if args.command == "mcp":
         from .mcp import serve  # lazy: keeps the import cycle (mcp -> cli) one-directional
@@ -787,6 +789,7 @@ def _pairs(
     split: str = "all",
     hunter: bool = False,
     hunter_model: str | None = None,
+    pointers: bool = False,
 ) -> int:
     if not catalog.exists() or not catalog.is_file():
         raise SystemExit(f"pair catalog is not a file: {catalog}")
@@ -799,7 +802,7 @@ def _pairs(
         client = tool_hunter.resolve_hunter_client()
         if model and client is not None:
             scan = make_hunter_scan(client, model)
-    result = evaluate_catalog(cases, hunter=scan)
+    result = evaluate_catalog(cases, hunter=scan, pointers=True if pointers else None)
     if json_out:
         print(json.dumps(result_payload(result), indent=2, sort_keys=True))
         return 0

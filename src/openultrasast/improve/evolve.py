@@ -61,9 +61,10 @@ def evaluate_profiles(
 
     Only ``seeded`` and ``reviewed`` pairs gate (Req 9.3); ``advisory`` and ``title`` pairs are scored by ``pairs``, never here.
     """
-    from ..pairs import GATING_TIERS, PairCase, evaluate_catalog, select_tier
+    from ..pairs import GATING_TIERS, PairCase, evaluate_catalog, select_tier, select_vendored
 
-    cases = list(select_tier([case for case in pair_cases if isinstance(case, PairCase)], GATING_TIERS))
+    # Gates score vendored pairs only (Req 10.4); pointer pairs are for `pairs --pointers`, never for the improve gate.
+    cases = list(select_tier(select_vendored([case for case in pair_cases if isinstance(case, PairCase)]), GATING_TIERS))
     if not cases:
         return {}
     result = evaluate_catalog(cases, ruleset=rules, inventory_sidecar=False)

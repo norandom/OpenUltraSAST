@@ -363,3 +363,64 @@ def test_catalog_gen_fails_loud_without_the_package_and_refuses_to_prune_an_empt
     monkeypatch.setitem(sys.modules, "openultrasast.semantic.functions", None)
     with pytest.raises((SystemExit, ImportError)):
         runpy.run_path(str(Path("benchmarks/pairs/catalog_gen.py")), run_name="catalog_gen_lib_blocked")
+
+
+# --- task 8.3: pointer pairs (Req 10) -----------------------------------------
+
+
+def test_materialize_pointer_writes_only_into_the_cache_root_and_needs_no_license(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    lib = _lib()
+    recipe = {
+        "name": "ptr",
+        "repo": "o/r",
+        "parent": "aaa",
+        "commit": "bbb",
+        "path": "app.py",
+        "mode": "enclosing",
+        "line": 3,
+        "license": "",
+    }
+    with pytest.raises(lib["RecipeError"], match="license"):
+        lib["validate_recipe"](recipe)
+    lib["validate_recipe"](recipe, require_license=False)
+    sources = {"aaa": "import os\n\ndef f(x):\n    return eval(x)\n", "bbb": "import os\n\ndef f(x):\n    return int(x)\n"}
+    fetched: list[str] = []
+
+    def fake_fetch(url: str, timeout: int = 60) -> str:
+        fetched.append(url)
+        return sources[url.split("/")[5]]
+
+    lib["fetch_url"] = fake_fetch
+    lib["harvest_recipe"].__globals__["fetch_url"] = fake_fetch
+    vuln, fixed = lib["materialize_pointer"](recipe, tmp_path / "cache", slice_name="vibe-py")
+    assert vuln == tmp_path / "cache" / "vibe-py" / "ptr" / "vuln.py" and fixed.is_file()
+    assert "def f(x):" in vuln.read_text() and "upstream_start" in vuln.read_text()
+    assert len(fetched) == 2 and not list(Path("benchmarks/pairs/vibe-py").glob("ptr*"))
+
+
+def test_catalog_gen_emits_pointer_rows_without_excerpts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import tomllib
+
+    gen = runpy.run_path(str(Path("benchmarks/pairs/catalog_gen.py")), run_name="catalog_gen_lib")
+    slice_root = tmp_path / "vibe-py"
+    slice_root.mkdir()
+    (slice_root / "recipes.toml").write_text(
+        '[[recipe]]\nname = "ptr"\nrepo = "o/r"\nparent = "aaa"\ncommit = "bbb"\npath = "app.py"\nfix_path = "trap.py"\n'
+        'mode = "enclosing"\n'
+        'line = 3\nfix_line = 9\nfunction = "f"\nlanguage = "python"\nrelpath = "app.py"\nlicense = "unlicensed"\ncwe = "CWE-95"\n'
+        'class = "code injection"\nmechanism = "source_reaches_sink"\nprovenance = "agent"\nvendored = false\nsplit = "holdout"\n'
+    )
+    gen["ROOT"] = tmp_path
+    gen["generate"].__globals__["ROOT"] = tmp_path
+    catalog, count = gen["generate"]("vibe-py")
+    assert count == 1
+    (row,) = tomllib.loads(catalog.read_text())["pair"]
+    assert row["vendored"] is False and "vuln" not in row and "fixed" not in row
+    assert row["parent"] == "aaa" and row["fix_path"] == "trap.py" and row["fix_line"] == 9 and row["mode"] == "enclosing"
+    assert row["expected"][0]["function"] == "f"
+    from openultrasast.pairs import _load_catalog_file
+
+    monkeypatch.setenv("OPENULTRASAST_PAIR_CACHE", str(tmp_path / "cache"))
+    (case,) = _load_catalog_file(catalog)
+    assert case.vendored is False and case.provenance == "agent"
+    assert not (slice_root / "training" / "manifest.jsonl").read_text().strip()  # pointer rows have no vendored files to train on

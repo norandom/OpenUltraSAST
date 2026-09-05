@@ -52,6 +52,7 @@ def catalog_text(slice_name: str, recipes: list[dict[str, object]]) -> str:
     for recipe in recipes:
         vuln, fixed = excerpt_rel(recipe)
         lang = LANG_TO_PAIR.get(str(recipe.get("language", "c")), "c_cpp")
+        pointer = recipe.get("vendored") is False
         lines += [
             "[[pair]]",
             f'name = "{_q(recipe["name"])}"',
@@ -65,8 +66,13 @@ def catalog_text(slice_name: str, recipes: list[dict[str, object]]) -> str:
             f'commit = "{_q(recipe.get("commit", ""))}"',
             f'parent = "{_q(recipe.get("parent", ""))}"',
             f'commit_url = "{_q(recipe.get("commit_url", ""))}"',
-            f'vuln = "{vuln}"',
-            f'fixed = "{fixed}"',
+        ]
+        if pointer:
+            lines.append("vendored = false")  # Req 10.1: the recipe travels in the row, no excerpt in the repository
+            lines += _pointer_lines(recipe)
+        else:
+            lines += [f'vuln = "{vuln}"', f'fixed = "{fixed}"']
+        lines += [
             f'relpath = "{_q(recipe.get("relpath", recipe.get("path", "")))}"',
             "min_recall = 1.0",
             'fix_policy = "silent"',
@@ -114,9 +120,21 @@ def _review_tier(slice_name: str, recipe: dict[str, object]) -> str:
     return _DEFAULT_TIER.get(slice_name, "advisory")
 
 
+_POINTER_STR = ("host", "path", "fix_repo", "fix_path", "mode")
+_POINTER_INT = ("line", "fix_line", "line_start", "line_end")
+
+
+def _pointer_lines(recipe: dict[str, object]) -> list[str]:
+    out = [f'{key} = "{_q(recipe[key])}"' for key in _POINTER_STR if recipe.get(key)]
+    out += [f"{key} = {int(recipe[key])}" for key in _POINTER_INT if isinstance(recipe.get(key), int)]
+    return out
+
+
 def training_rows(slice_name: str, recipes: list[dict[str, object]]) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for recipe in recipes:
+        if recipe.get("vendored") is False:
+            continue  # nothing vendored to train on
         vuln, fixed = excerpt_rel(recipe)
         base = {
             "pair": recipe["name"],
@@ -353,7 +371,12 @@ def generate(slice_name: str, *, prune: bool = False) -> tuple[Path, int]:
     recipes: list[dict[str, object]] = []
     for recipe in loaded:
         vuln, fixed = excerpt_rel(recipe)
-        if (slice_root / vuln).is_file() and (slice_root / fixed).is_file():
+        if recipe.get("vendored") is False:
+            if not recipe.get("function"):
+                print(f"skip {recipe['name']}: pointer recipe without a function label (nothing to derive from)")
+                continue
+            recipes.append(recipe)
+        elif (slice_root / vuln).is_file() and (slice_root / fixed).is_file():
             if not recipe.get("function"):
                 derived = derive_function(slice_root, recipe)
                 if not derived:

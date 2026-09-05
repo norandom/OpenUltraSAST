@@ -13,6 +13,8 @@ evaluated but excluded from the achievable numbers.
 
 from __future__ import annotations
 
+import importlib.util
+import os
 import shutil
 import tempfile
 import tomllib
@@ -58,6 +60,29 @@ SPLITS = frozenset({"train", "holdout"})
 # Req 9: how a label was established. Only seeded and reviewed pairs steer the improve loop.
 REVIEW_TIERS = frozenset({"seeded", "advisory", "title", "reviewed"})
 GATING_TIERS = frozenset({"seeded", "reviewed"})
+# Req 10: pointer pairs are harvested into a cache outside the repository, never vendored.
+PAIR_CACHE_ENV = "OPENULTRASAST_PAIR_CACHE"
+PAIRS_NETWORK_ENV = "OPENULTRASAST_PAIRS_NETWORK"
+DEFAULT_PAIR_CACHE = Path.home() / ".cache" / "openultrasast" / "pairs"
+POINTER_REQUIRED = ("repo", "parent", "commit", "path", "mode")
+POINTER_FIELDS = POINTER_REQUIRED + (
+    "host",
+    "fix_repo",
+    "fix_path",
+    "line",
+    "fix_line",
+    "line_start",
+    "line_end",
+    "function",
+    "language",
+    "license",
+    "relpath",
+    "provenance",
+    "mechanism",
+    "cve",
+    "commit_url",
+)
+HARVEST_LIBRARY = Path("benchmarks/pairs/harvest.py")
 _DEFAULT_TIER = {
     "local": "reviewed",
     "github": "advisory",
@@ -99,6 +124,8 @@ class PairCase:
     known_limit: str | None = None
     review_tier: str = "advisory"
     reviewer: str = ""
+    vendored: bool = True
+    recipe: tuple[tuple[str, object], ...] = ()  # pointer pairs carry their harvest recipe instead of excerpts
 
 
 @dataclass(frozen=True)
@@ -222,14 +249,20 @@ def _load_catalog_file(path: Path) -> tuple[PairCase, ...]:
             raise CatalogError(f"pair {name}: unknown split {split!r}; expected train or holdout")
         known_limit = item.get("known_limit")
         review_tier, reviewer = _review_tier(item, slice_name, name)
+        vendored = item.get("vendored", True) is not False
+        recipe: tuple[tuple[str, object], ...] = ()
+        if vendored:
+            vuln_file, fixed_file = _resolve(root, str(item["vuln"])), _resolve(root, str(item["fixed"]))
+        else:
+            vuln_file, fixed_file, recipe = _pointer_files(item, slice_name, name)
         cases.append(
             PairCase(
                 name=name,
                 slice=slice_name,
                 language=str(item.get("language", "")),
                 origin=str(item.get("origin", "")),
-                vuln_file=_resolve(root, str(item["vuln"])),
-                fixed_file=_resolve(root, str(item["fixed"])),
+                vuln_file=vuln_file,
+                fixed_file=fixed_file,
                 relpath=str(item["relpath"]),
                 expected=expected,
                 min_recall=float(item.get("min_recall", 1.0)),
@@ -244,9 +277,88 @@ def _load_catalog_file(path: Path) -> tuple[PairCase, ...]:
                 known_limit=str(known_limit) if known_limit else None,
                 review_tier=review_tier,
                 reviewer=reviewer,
+                vendored=vendored,
+                recipe=recipe,
             )
         )
     return tuple(cases)
+
+
+def pair_cache_dir() -> Path:
+    """Cache root for pointer pairs (Req 10.2); outside the repository unless the operator points it elsewhere."""
+    return Path(os.environ.get(PAIR_CACHE_ENV) or DEFAULT_PAIR_CACHE).expanduser()
+
+
+def network_allowed(pointers: bool | None = None) -> bool:
+    """``pairs --pointers`` for one run, or OPENULTRASAST_PAIRS_NETWORK=1; CI never sets either (Req 10.3, 10.4)."""
+    if pointers is not None:
+        return pointers
+    return os.environ.get(PAIRS_NETWORK_ENV, "") == "1"
+
+
+def pointer_recipe(case: PairCase) -> dict[str, object]:
+    return dict(case.recipe)
+
+
+def select_vendored(cases: Sequence[PairCase]) -> tuple[PairCase, ...]:
+    """Tests and gates score vendored pairs only (Req 10.4)."""
+    return tuple(case for case in cases if case.vendored)
+
+
+def _pointer_files(item: dict[str, object], slice_name: str, name: str) -> tuple[Path, Path, tuple[tuple[str, object], ...]]:
+    missing = [key for key in POINTER_REQUIRED if not item.get(key)]
+    if missing:
+        raise CatalogError(f"pair {name}: vendored = false requires {', '.join(POINTER_REQUIRED)} (missing {', '.join(missing)})")
+    recipe = {key: item[key] for key in POINTER_FIELDS if key in item}
+    recipe["name"] = name
+    recipe["slice"] = slice_name
+    expected = item.get("expected")
+    if isinstance(expected, list) and expected and isinstance(expected[0], dict):  # header fields live on the expected row
+        for key in ("function", "mechanism"):
+            recipe.setdefault(key, expected[0].get(key, ""))
+    ext = Path(str(item["path"])).suffix or ".c"
+    folder = (pair_cache_dir() / slice_name / name).resolve()
+    return folder / f"vuln{ext}", folder / f"fixed{ext}", tuple(sorted(recipe.items()))
+
+
+@lru_cache(maxsize=1)
+def _harvest_library() -> object:
+    spec = importlib.util.spec_from_file_location("openultrasast_pair_harvest", HARVEST_LIBRARY.resolve())
+    if spec is None or spec.loader is None:
+        raise OSError(f"harvest library not found: {HARVEST_LIBRARY}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _materialize_pointer(recipe: dict[str, object], cache_root: Path) -> tuple[Path, Path]:
+    """Harvest both sides of a pointer pair into ``cache_root`` through the shared harvest library (network)."""
+    module = _harvest_library()
+    vuln, fixed = module.materialize_pointer(  # type: ignore[attr-defined]
+        recipe, cache_root, slice_name=str(recipe["slice"])
+    )
+    return Path(vuln), Path(fixed)
+
+
+def _pointer_ready(case: PairCase, *, pointers: bool | None) -> dict[str, object] | None:
+    """None when the pair can be scored; otherwise the degradation entry (skipped or fetch failed).
+
+    The network switch is consulted first: a warm cache only spares the fetch under ``--pointers``/env, it never turns a
+    default run into a pointer run (Req 10.3).
+    """
+    if case.vendored:
+        return None
+    if not network_allowed(pointers):
+        return {"stage": "pairs", "reason": "pointer_pair_skipped", "pair": case.name}
+    if case.vuln_file.is_file() and case.fixed_file.is_file():
+        return None
+    try:
+        _materialize_pointer(pointer_recipe(case), pair_cache_dir())
+    except Exception as exc:  # noqa: BLE001 - a failed fetch is a recorded loss, never a crash of the whole run
+        return {"stage": "pairs", "reason": "pointer_pair_fetch_failed", "pair": case.name, "detail": f"{type(exc).__name__}: {exc}"[:200]}
+    if case.vuln_file.is_file() and case.fixed_file.is_file():
+        return None
+    return {"stage": "pairs", "reason": "pointer_pair_fetch_failed", "pair": case.name, "detail": "harvest wrote no excerpts"}
 
 
 def _review_tier(item: dict[str, object], slice_name: str, name: str) -> tuple[str, str]:
@@ -286,11 +398,24 @@ def evaluate_catalog(
     hunter: HunterScan | None = None,
     ruleset: tuple[PatternRule, ...] | None = None,
     inventory_sidecar: bool = True,
+    pointers: bool | None = None,
 ) -> PairEvalResult:
-    """Score every case. ``ruleset`` lets the improve loop score a candidate ledger; ``inventory_sidecar=False`` skips the second scan."""
+    """Score every case. ``ruleset`` lets the improve loop score a candidate ledger; ``inventory_sidecar=False`` skips the second scan.
+
+    Pointer pairs (``vendored = false``) are harvested into the cache when ``pointers`` (or OPENULTRASAST_PAIRS_NETWORK=1) allows the
+    network, otherwise skipped with a ``pointer_pair_skipped`` degradation (Req 10.2, 10.3).
+    """
+    degradations: list[dict[str, object]] = []
+    ready: list[PairCase] = []
+    for case in cases:
+        degradation = _pointer_ready(case, pointers=pointers)
+        if degradation is None:
+            ready.append(case)
+        else:
+            degradations.append(degradation)
+    cases = tuple(ready)
     outcomes = tuple(evaluate_pair(case, ruleset=ruleset) for case in cases)
     scorers: dict[str, dict[str, PairCorpusMetrics]] = {}
-    degradations: list[dict[str, object]] = []
     for slice_name in sorted({case.slice for case in cases if case.slice in OVERLAY_SLICES}):
         slice_cases = tuple(case for case in cases if case.slice == slice_name)
         scorers[slice_name] = {"overlay": _metrics(tuple(item for item in outcomes if item.slice == slice_name))}
