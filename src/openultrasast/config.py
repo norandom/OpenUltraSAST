@@ -129,6 +129,13 @@ class RegressConfig:
 
 
 @dataclass(frozen=True)
+class VariantsConfig:
+    # corpus-seeded-mechanisms: structural variant search in MAP (standard/deep only).
+    enabled: bool = True
+    max_mechanisms: int = 500
+
+
+@dataclass(frozen=True)
 class ResolvedConfig:
     models: ModelConfig = ModelConfig()
     embeddings: EmbeddingConfig = EmbeddingConfig()
@@ -143,6 +150,7 @@ class ResolvedConfig:
     hardening: HardeningConfig = HardeningConfig()
     complexity: ComplexityConfig = ComplexityConfig()
     regress: RegressConfig = RegressConfig()
+    variants: VariantsConfig = VariantsConfig()
     runs_dir: str = ".openultrasast/runs"
 
 
@@ -167,6 +175,7 @@ def load_config(config_path: Path | None = None) -> ResolvedConfig:
         hardening=_load_hardening(data.get("hardening", {})),
         complexity=_load_complexity(data.get("complexity", {})),
         regress=_load_regress(data.get("regress", {})),
+        variants=_load_variants(data.get("variants", {})),
         runs_dir=os.environ.get("OPENULTRASAST_RUNS_DIR", ".openultrasast/runs"),
     )
 
@@ -328,3 +337,11 @@ def _float_value(value: object, default: float) -> float:
         except ValueError:
             return default
     return default
+
+
+def _load_variants(value: object) -> VariantsConfig:
+    data = _section(value)
+    return VariantsConfig(
+        enabled=bool(data.get("enabled", True)),
+        max_mechanisms=int(str(data.get("max_mechanisms", 500))),
+    )

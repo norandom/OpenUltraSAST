@@ -29,6 +29,7 @@ from .calibration import (
 )
 from .complexity import map as complexity_map
 from .complexity.ledger import persist_verdicts
+from .complexity.map import Hotspot
 from .config import load_config, load_dotenv
 from .findings import StaticFinding, quick_scan_findings, write_findings
 from .fusion import FusionDecision, fuse_findings_dispatch
@@ -51,9 +52,10 @@ from .pairs import (
     select_profile,
     select_slice,
     select_split,
+    select_vendored,
 )
 from .policy import assert_rules_resolve, load_policy
-from .preprocess import preprocess_repository, write_preprocess_artifact
+from .preprocess import FileTarget, preprocess_repository, write_preprocess_artifact
 from .provenance import fingerprint
 from .provider.openrouter import OpenRouterEmbeddingClient, OpenRouterError
 from .rank import rank_targets, write_rankings
@@ -160,6 +162,15 @@ def main(argv: list[str] | None = None) -> int:
     pairs.add_argument("--json", action="store_true", help="print the pair scoreboard as JSON")
 
     subparsers.add_parser("mcp", help="run the narrow MCP server over stdio for OpenCode integration")
+    mechanisms = subparsers.add_parser("mechanisms", help="maintainer: mechanism memory seeded from trusted pairs")
+    mechanisms_sub = mechanisms.add_subparsers(dest="mechanisms_command", required=True)
+    export = mechanisms_sub.add_parser("export", help="derive mechanism records from seeded/reviewed pairs (offline)")
+    export.add_argument("--slice", choices=SLICE_NAMES, default="all")
+    export.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
+    export.add_argument(
+        "--store", type=Path, default=Path(CALIBRATION_DIR) / "mechanisms.jsonl", help="append-only mechanisms.jsonl the scan reads"
+    )
+    export.add_argument("--json", action="store_true")
 
     args = parser.parse_args(argv)
     if args.command == "scan":
@@ -193,6 +204,8 @@ def main(argv: list[str] | None = None) -> int:
             hunter_model=args.hunter_model,
             pointers=args.pointers,
         )
+    if args.command == "mechanisms":
+        return _mechanisms_export(args.catalog, args.slice, args.store, json_out=args.json)
     if args.command == "mcp":
         from .mcp import serve  # lazy: keeps the import cycle (mcp -> cli) one-directional
 
@@ -381,6 +394,8 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     built_map = None
     overlay_records: list[OverlayRecord] = []
     wrote_overlay = False
+    variants_payload: dict[str, object] | None = None
+    variant_findings: list[StaticFinding] = []
     if Stage.MAP in plan.requested:
         built_map = runtime.run_stage(
             "map",
@@ -413,6 +428,19 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             if extra:
                 findings = findings + extra
                 write_findings(findings, findings_path)
+        if config.variants.enabled:
+            variant_findings, overlay_records, variants_payload = _search_variants(
+                root=run.target,
+                targets=targets,
+                overlay_records=overlay_records,
+                facts=facts_or_error,
+                max_mechanisms=config.variants.max_mechanisms,
+                runtime=runtime,
+            )
+            if variant_findings:
+                findings = findings + variant_findings
+                write_findings(findings, findings_path)
+            write_overlay(overlay_records, overlay_path)
         plan = record_completed(plan, Stage.MAP)
         if not hunter_model:
             runtime.state["degradations"].append(skip_as_degradation(Stage.MAP, "hunter_model_unavailable"))
@@ -469,6 +497,10 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
                 for finding in findings
                 if finding.finding_id in {record.proposal_id for record in overlay_records if record.disposition == "promote"}
             ]
+            # Variant findings are candidates after the promotions (Req 3.4): same safety check, same cap, lowest rank.
+            variant_ids = {finding.finding_id for finding in variant_findings}
+            promoted = promoted + [finding for finding in findings if finding.finding_id in variant_ids]
+            hotspots = hotspots + tuple(_hotspot_from_variant(finding) for finding in findings if finding.finding_id in variant_ids)
             cwe_by_rule_id = {rule.rule_id: rule.cwe for rule in ruleset}
             rule_cwe_by_finding = {finding.finding_id: cwe_by_rule_id.get(finding.finding_id.split(":", 1)[0], "") for finding in promoted}
             languages_by_path = {target.path: target.language for target in targets}
@@ -541,6 +573,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             complexity=complexity_payload,
             worth_fixing=worth_fixing_payload,
             provenance=provenance.to_dict(),
+            variants=variants_payload,
         ),
     )
     runtime.finish(status="succeeded")
@@ -808,6 +841,69 @@ def _pairs(
         return 0
     print_pair_metrics("pair eval", result)
     print(f"signals={len(result.signals)}")
+    return 0
+
+
+def _search_variants(
+    *,
+    root: Path,
+    targets: list[FileTarget],
+    overlay_records: list[OverlayRecord],
+    facts: SemanticFacts | FactLoadError,
+    max_mechanisms: int,
+    runtime: HarnessRuntime,
+) -> tuple[list[StaticFinding], list[OverlayRecord], dict[str, object]]:
+    """Third MAP proposer (corpus-seeded-mechanisms Req 3): shapes from the mechanism store, merged with overlay flows."""
+    from .semantic.mechanisms import corpus_mechanisms
+    from .semantic.variant_search import hits_to_findings, search_tree
+
+    store = MechanismStore(root / CALIBRATION_DIR / "mechanisms.jsonl")
+    empty: dict[str, object] = {"mechanisms_searched": 0, "files_searched": 0, "findings": 0, "merged_into_overlay": 0}
+    if isinstance(facts, FactLoadError):
+        return [], overlay_records, empty
+    result = runtime.run_stage("variants", lambda: search_tree(root, targets, store, facts, max_mechanisms=max_mechanisms))
+    for degradation in result.degradations:
+        runtime.state["degradations"].append(degradation)
+    summaries = {record.id: (record.summary, record.pairs, record.cwe) for record in corpus_mechanisms(store.load())}
+    findings, records = hits_to_findings(result.hits, overlay_records, summaries)
+    merged = sum(1 for before, after in zip(overlay_records, records, strict=True) if before.mechanism_id is None and after.mechanism_id)
+    payload: dict[str, object] = {
+        "mechanisms_searched": result.mechanisms_searched,
+        "files_searched": result.files_searched,
+        "findings": len(findings),
+        "merged_into_overlay": merged,
+    }
+    return findings, records, payload
+
+
+def _hotspot_from_variant(finding: StaticFinding) -> Hotspot:
+    return Hotspot(
+        path=finding.path,
+        function_name=finding.function_name,
+        score=0.0,
+        band="low",
+        signals={},
+        rationale="variant of a known mechanism (suspicion; sandbox may raise)",
+        test_hint=None,
+        inventory_finding_ids=(finding.finding_id,),
+    )
+
+
+def _mechanisms_export(catalog: Path, slice_name: str, store_path: Path, *, json_out: bool) -> int:
+    from .semantic.mechanisms import MechanismStore
+    from .semantic.seed import export_mechanisms
+
+    if not catalog.is_file():
+        raise SystemExit(f"pair catalog is not a file: {catalog}")
+    cases = select_vendored(select_slice(load_pair_catalog(catalog), slice_name))
+    report = export_mechanisms(cases, MechanismStore(store_path))
+    payload = {"slice": slice_name, "store": str(store_path), "pairs": len(cases), **report.to_dict()}
+    if json_out:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return 0
+    print(f"mechanisms export slice={slice_name} pairs={len(cases)} seeded={report.seeded} records={report.records} -> {store_path}")
+    for pair, reason in report.skipped:
+        print(f"  skip {pair}: {reason}")
     return 0
 
 

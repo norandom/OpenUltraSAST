@@ -93,6 +93,8 @@ src/openultrasast/
 ├── semantic/
 │   ├── mechanisms.py   # Mechanism += origin, review_tier, pairs, shape, guard; append_from_pair; dedupe_by_shape
 │   ├── variants.py     # Shape, GuardKind, derive_shape(vuln_ir, fixed_ir, label, facts) -> Shape|None; match_shapes(file_ir, shapes, facts) -> list[VariantHit]
+│   ├── variant_search.py # search_tree, hits_to_findings, SearchResult (needs store/overlay/findings; variants.py stays free of them)
+│   ├── seed.py         # export_mechanisms(cases, store) -> ExportReport (maintainer command `mechanisms export`)
 │   └── loo.py          # evaluate_loo(cases, *, store_factory) -> LooResult; payload
 ├── findings.py         # origin "variant" via tags/finding_id prefix "variant:" (no schema change)
 ├── cli.py              # MAP: variant search after overlay; manifest counters; `pairs --loo`; `mechanisms export --slice`
@@ -173,8 +175,11 @@ class Shape:
 
     def key(self) -> str: ...  # stable, text-free
 
-def derive_shape(vuln: FileIR, fixed: FileIR, *, function: str, sink: str | None, line: int | None, mechanism: str, facts: SemanticFacts) -> Shape | None: ...
-def match_shapes(ir: FileIR, shapes: Sequence[Shape], facts: SemanticFacts) -> list[VariantHit]: ...
+def derive_shape(vuln: FileIR, fixed: FileIR, *, function: str, sink: str | None, line: int | None, mechanism: str, facts: SemanticFacts, vuln_text: str = "", fixed_text: str = "", cwe: str | None = None) -> Shape | None: ...
+    # texts: guard statements are neither calls nor binds in FileIR, so the guard kind is classified from the labeled
+    # function's lines present only on the fixed side (closed set, none of the text enters the shape); cwe: when a label
+    # names no sink and no line, the fact-sink call in the function whose CWE matches is the labeled call.
+def match_shapes(ir: FileIR, shapes: Sequence[Shape], facts: SemanticFacts, *, mechanism_ids: Mapping[str, str]) -> list[VariantHit]: ...
 ```
 
 Invariants: shapes carry no path, line, or literal beyond identifiers; `derive_shape` returns None when the labeled sink call site is not found.

@@ -174,6 +174,7 @@ def write_manifest(
     complexity: dict[str, object] | None = None,
     worth_fixing: dict[str, object] | None = None,
     provenance: dict[str, object] | None = None,
+    variants: dict[str, object] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications)
@@ -210,6 +211,8 @@ def write_manifest(
         payload["worth_fixing"] = worth_fixing
     if provenance is not None:
         payload["provenance"] = provenance
+    if variants is not None:
+        payload["variants"] = variants
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
