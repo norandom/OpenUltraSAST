@@ -57,10 +57,13 @@ def evaluate_profiles(
     pair_cases: Sequence[object],
     rules: tuple[PatternRule, ...],
 ) -> dict[str, dict[str, float]]:
-    """Pair-corpus metrics per provenance profile under ``rules`` (holdout split, no inventory sidecar)."""
-    from ..pairs import PairCase, evaluate_catalog
+    """Pair-corpus metrics per provenance profile under ``rules`` (holdout split, no inventory sidecar).
 
-    cases = [case for case in pair_cases if isinstance(case, PairCase)]
+    Only ``seeded`` and ``reviewed`` pairs gate (Req 9.3); ``advisory`` and ``title`` pairs are scored by ``pairs``, never here.
+    """
+    from ..pairs import GATING_TIERS, PairCase, evaluate_catalog, select_tier
+
+    cases = list(select_tier([case for case in pair_cases if isinstance(case, PairCase)], GATING_TIERS))
     if not cases:
         return {}
     result = evaluate_catalog(cases, ruleset=rules, inventory_sidecar=False)

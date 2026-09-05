@@ -173,7 +173,9 @@ def test_build_rule_signals_separates_miss_and_fp() -> None:
 # ---- pair-corpus-honesty: per-profile holdout clause (Req 7.2-7.4) ----------
 
 
-def _pair(tmp_path: Path, name: str, vuln_src: str, fixed_src: str, rule_id: str, sink: str, *, provenance: str):
+def _pair(
+    tmp_path: Path, name: str, vuln_src: str, fixed_src: str, rule_id: str, sink: str, *, provenance: str, review_tier: str = "reviewed"
+):
     from openultrasast.benchmark import ExpectedFinding
     from openultrasast.pairs import PairCase
 
@@ -204,6 +206,8 @@ def _pair(tmp_path: Path, name: str, vuln_src: str, fixed_src: str, rule_id: str
         fix_policy="silent",
         provenance=provenance,
         split="holdout",
+        review_tier=review_tier,
+        reviewer="test" if review_tier == "reviewed" else "",
     )
 
 
@@ -251,3 +255,41 @@ def test_round_accepts_when_profiles_hold_and_reports_small_profiles(tmp_path: P
     assert outcome.profile_regressions == []
     assert outcome.profiles_under_minimum == ["agent"]  # one pair: reported, not gated
     assert ledger.exists()
+
+
+def test_profile_gate_ignores_title_and_advisory_tiers(tmp_path: Path) -> None:
+    """Req 9.3: only seeded and reviewed pairs gate; a regression confined to title pairs never rejects a round."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "app.py").write_text("def f(x):\n    return eval(x)\ndef g():\n    print('hello')\n")
+    ruleset_dir = _ruleset_dir(tmp_path, [_rule("good-eval", r"\beval\s*\("), _rule("noisy-print", r"\bprint\s*\(")])
+    _, manifest = _manifest(tmp_path, _expected("good-eval"))
+    ledger = tmp_path / "rule_policy.json"
+    journal = tmp_path / "journal.json"
+    title_pairs = [
+        _pair(
+            tmp_path,
+            f"t{i}",
+            "def h(y):\n    print(y)\n",
+            "def h(y):\n    return y\n",
+            "noisy-print",
+            "print",
+            provenance="agent",
+            review_tier="title",
+        )
+        for i in range(5)
+    ]
+    outcome = run_round(repo, manifest, ledger_path=ledger, journal_path=journal, ruleset_dir=ruleset_dir, pair_cases=title_pairs)
+    assert outcome.accepted and outcome.reason == "accepted"
+    assert outcome.profile_regressions == [] and "agent" not in outcome.per_profile_before
+    ledger.unlink()
+    journal.unlink()
+    reviewed_pairs = [
+        _pair(tmp_path, f"r{i}", "def h(y):\n    print(y)\n", "def h(y):\n    return y\n", "noisy-print", "print", provenance="agent")
+        for i in range(5)
+    ]
+    outcome = run_round(
+        repo, manifest, ledger_path=ledger, journal_path=journal, ruleset_dir=ruleset_dir, pair_cases=reviewed_pairs + title_pairs
+    )
+    assert not outcome.accepted and outcome.reason == "profile_regression:agent"
+    assert outcome.per_profile_before["agent"]["pairs"] == 5.0  # the five title pairs are scored elsewhere, never here
