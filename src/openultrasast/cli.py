@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import tempfile
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 from time import perf_counter
@@ -45,6 +46,7 @@ from .pair_gate import print_pair_metrics
 from .pairs import (
     DEFAULT_CATALOG,
     SLICE_NAMES,
+    PairCase,
     evaluate_catalog,
     load_pair_catalog,
     make_hunter_scan,
@@ -60,6 +62,7 @@ from .provenance import fingerprint
 from .provider.openrouter import OpenRouterEmbeddingClient, OpenRouterError
 from .rank import rank_targets, write_rankings
 from .regress import TRIGGERABLE, CandidateVerdict, run_regression, write_verdicts
+from .regress.candidate import hotspot_from_finding
 from .reports import scan_exit_code, write_manifest, write_markdown_report, write_sarif_report
 from .ruleset import DEFAULT_RULESET_DIR, load_ruleset
 from .run import ScanRun, create_scan_run
@@ -159,6 +162,10 @@ def main(argv: list[str] | None = None) -> int:
     pairs.add_argument("--hunter", action="store_true", help="also score the LLM tool hunter on overlay slices (needs a hunter model)")
     pairs.add_argument("--hunter-model", default=None, help="model id for --hunter (default: [models].hunter from openultrasast.toml)")
     pairs.add_argument("--pointers", action="store_true", help="allow network for non-vendored pointer pairs this run (nightly; CI never)")
+    pairs.add_argument(
+        "--loo", action="store_true", help="leave-one-out: score each pair against a store seeded from the other trusted pairs"
+    )
+    pairs.add_argument("--loo-out", type=Path, default=None, help="where to write loo.json (default: reports/loo.json)")
     pairs.add_argument("--json", action="store_true", help="print the pair scoreboard as JSON")
 
     subparsers.add_parser("mcp", help="run the narrow MCP server over stdio for OpenCode integration")
@@ -203,6 +210,8 @@ def main(argv: list[str] | None = None) -> int:
             hunter=args.hunter,
             hunter_model=args.hunter_model,
             pointers=args.pointers,
+            loo=args.loo,
+            loo_out=args.loo_out,
         )
     if args.command == "mechanisms":
         return _mechanisms_export(args.catalog, args.slice, args.store, json_out=args.json)
@@ -823,10 +832,14 @@ def _pairs(
     hunter: bool = False,
     hunter_model: str | None = None,
     pointers: bool = False,
+    loo: bool = False,
+    loo_out: Path | None = None,
 ) -> int:
     if not catalog.exists() or not catalog.is_file():
         raise SystemExit(f"pair catalog is not a file: {catalog}")
     cases = select_split(select_profile(select_slice(load_pair_catalog(catalog), slice_name), profile), split)
+    if loo:
+        return _pairs_loo(cases, loo_out or Path("reports") / "loo.json", json_out=json_out)
     scan = None
     if hunter:
         config_path = Path("openultrasast.toml")
@@ -877,16 +890,27 @@ def _search_variants(
 
 
 def _hotspot_from_variant(finding: StaticFinding) -> Hotspot:
-    return Hotspot(
-        path=finding.path,
-        function_name=finding.function_name,
-        score=0.0,
-        band="low",
-        signals={},
-        rationale="variant of a known mechanism (suspicion; sandbox may raise)",
-        test_hint=None,
-        inventory_finding_ids=(finding.finding_id,),
-    )
+    return hotspot_from_finding(finding, rationale="variant of a known mechanism (suspicion; sandbox may raise)")
+
+
+def _pairs_loo(cases: Sequence[PairCase], out: Path, *, json_out: bool) -> int:
+    """Req 4: the corpus's own detection rate; written as an artifact, never a gate."""
+    from .semantic.loo import evaluate_loo
+
+    result = evaluate_loo(select_vendored(cases))
+    payload = result.to_dict()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    if json_out:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return 0
+    for slice_name, metrics in result.per_slice.items():
+        print(
+            f"loo {slice_name}: pairs={metrics['pairs']} detected={metrics['detected']} silent={metrics['silent']} "
+            f"youden={metrics['youden']:+.3f} teaching={metrics['teaching']}"
+        )
+    print(f"artifact={out}")
+    return 0
 
 
 def _mechanisms_export(catalog: Path, slice_name: str, store_path: Path, *, json_out: bool) -> int:
