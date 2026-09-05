@@ -14,7 +14,7 @@ feasibility constraint that is never folded into the reward.
 from __future__ import annotations
 
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -44,6 +44,62 @@ class RoundOutcome:
     score_after: int = 0
     matched_before: int = 0
     matched_after: int = 0
+    profile_regressions: list[str] = field(default_factory=list)
+    profiles_under_minimum: list[str] = field(default_factory=list)
+    per_profile_before: dict[str, dict[str, float]] = field(default_factory=dict)
+    per_profile_after: dict[str, dict[str, float]] = field(default_factory=dict)
+
+
+MAX_PROFILES = 4
+
+
+def evaluate_profiles(
+    pair_cases: Sequence[object],
+    rules: tuple[PatternRule, ...],
+) -> dict[str, dict[str, float]]:
+    """Pair-corpus metrics per provenance profile under ``rules`` (holdout split, no inventory sidecar)."""
+    from ..pairs import PairCase, evaluate_catalog
+
+    cases = [case for case in pair_cases if isinstance(case, PairCase)]
+    if not cases:
+        return {}
+    result = evaluate_catalog(cases, ruleset=rules, inventory_sidecar=False)
+    return {
+        profile: {
+            "pairs": float(metrics.pairs),
+            "pair_correct": float(metrics.pair_correct),
+            "pair_pass_rate": metrics.pair_pass_rate,
+            "youden": metrics.youden,
+        }
+        for profile, metrics in result.per_profile.items()
+    }
+
+
+def profile_regressions(
+    before: dict[str, dict[str, float]],
+    after: dict[str, dict[str, float]],
+    *,
+    tolerance: float = 0.0,
+    min_pairs: int = 5,
+) -> tuple[list[str], list[str]]:
+    """(regressed profiles, profiles under the minimum).
+
+    A profile regresses when its pair pass rate or Youden drops by more than ``tolerance``
+    (both are rates in [-1, 1], so one tolerance applies to both).
+    """
+    regressed: list[str] = []
+    small: list[str] = []
+    for profile in sorted(set(before) | set(after)):
+        old = before.get(profile, {"pairs": 0.0, "pair_correct": 0.0, "pair_pass_rate": 0.0, "youden": 0.0})
+        new = after.get(profile, old)
+        if old["pairs"] < min_pairs:
+            small.append(profile)
+            continue
+        old_rate = old.get("pair_pass_rate", old["pair_correct"] / old["pairs"] if old["pairs"] else 0.0)
+        new_rate = new.get("pair_pass_rate", new["pair_correct"] / new["pairs"] if new["pairs"] else 0.0)
+        if new_rate < old_rate - tolerance or new["youden"] < old["youden"] - tolerance:
+            regressed.append(profile)
+    return regressed, small
 
 
 def build_rule_signals(result: BenchmarkResult) -> list[dict[str, object]]:
@@ -90,6 +146,9 @@ def run_round(
     policy: dict[str, CwePolicy] | None = None,
     recall_floor: float = 0.9,
     fp_ceiling: float = 0.1,
+    pair_cases: Sequence[object] | None = None,
+    profile_tolerance: float = 0.0,
+    min_holdout_pairs: int = 5,
 ) -> RoundOutcome:
     policy = policy if policy is not None else load_policy()
     rounds = load_journal(journal_path)
@@ -128,13 +187,37 @@ def run_round(
     accepted = (
         after.recall >= recall_floor and after.fp_rate < fp_ceiling and after.score >= before.score and after.matched >= before.matched
     )
+    profiles_before: dict[str, dict[str, float]] = {}
+    profiles_after: dict[str, dict[str, float]] = {}
+    regressed: list[str] = []
+    small: list[str] = []
+    if accepted and pair_cases:
+        # pair-corpus-honesty Req 7.2: a change may not help one provenance profile by hurting another.
+        profiles_before = evaluate_profiles(pair_cases, before_rules)
+        profiles_after = evaluate_profiles(pair_cases, after_rules)
+        if len(profiles_before) > MAX_PROFILES:
+            raise ValueError(f"at most {MAX_PROFILES} provenance profiles are supported; got {sorted(profiles_before)}")
+        regressed, small = profile_regressions(profiles_before, profiles_after, tolerance=profile_tolerance, min_pairs=min_holdout_pairs)
+        if regressed:
+            accepted = False
     if accepted:
         write_rule_ledger(ledger_path, candidate)
         reason = "accepted"
+    elif regressed:
+        reason = f"profile_regression:{regressed[0]}"  # every regressed profile is listed in profile_regressions
     else:
         reason = "reverted"  # ledger_path untouched -> byte-for-byte revert
-    _record(journal_path, round_index, edits, reason, before, after)
-    return _outcome(round_index, accepted=accepted, reason=reason, edits=edits, before=before, after=after)
+    _record(journal_path, round_index, edits, "accepted" if accepted else "reverted", before, after, reason, regressed, small)
+    outcome = _outcome(round_index, accepted=accepted, reason=reason, edits=edits, before=before, after=after)
+    return RoundOutcome(
+        **{
+            **outcome.__dict__,
+            "profile_regressions": regressed,
+            "profiles_under_minimum": small,
+            "per_profile_before": profiles_before,
+            "per_profile_after": profiles_after,
+        }
+    )
 
 
 def run_improvement(
@@ -148,6 +231,9 @@ def run_improvement(
     max_rounds: int = 5,
     recall_floor: float = 0.9,
     fp_ceiling: float = 0.1,
+    pair_cases: Sequence[object] | None = None,
+    profile_tolerance: float = 0.0,
+    min_holdout_pairs: int = 5,
 ) -> list[RoundOutcome]:
     """Run improvement rounds until convergence (no new proposals) or ``max_rounds``."""
     outcomes: list[RoundOutcome] = []
@@ -161,6 +247,9 @@ def run_improvement(
             policy=policy,
             recall_floor=recall_floor,
             fp_ceiling=fp_ceiling,
+            pair_cases=pair_cases,
+            profile_tolerance=profile_tolerance,
+            min_holdout_pairs=min_holdout_pairs,
         )
         outcomes.append(outcome)
         if outcome.reason == "no_proposals":
@@ -246,6 +335,8 @@ def _record(
     before: _Eval,
     after: _Eval,
     reason: str = "",
+    profile_regressions: list[str] | None = None,
+    profiles_under_minimum: list[str] | None = None,
 ) -> None:
     append_round(
         journal_path,
@@ -253,6 +344,8 @@ def _record(
             "round": round_index,
             "outcome": outcome,
             "reason": reason or outcome,
+            "profile_regressions": list(profile_regressions or []),
+            "profiles_under_minimum": list(profiles_under_minimum or []),
             "edits": [
                 {"key": e.key(), "lever": e.lever, "rule_id": e.rule_id, "from": e.from_status, "to": e.to_status, "rationale": e.rationale}
                 for e in edits

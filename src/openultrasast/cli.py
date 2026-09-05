@@ -130,6 +130,19 @@ def main(argv: list[str] | None = None) -> int:
         "--ruleset-dir", type=Path, default=DEFAULT_RULESET_DIR, help="ruleset directory to improve (default: the bundled ruleset)"
     )
     improve.add_argument("--dry-run", action="store_true", help="run rounds against a throwaway ledger; never touch the target's ledger")
+    improve.add_argument(
+        "--pair-catalog",
+        type=Path,
+        default=DEFAULT_CATALOG,
+        help="pair catalog whose holdout split gates every round per provenance profile",
+    )
+    improve.add_argument(
+        "--no-pair-gate", action="store_true", help="skip the per-profile holdout clause (faster; not for accepted ledgers)"
+    )
+    improve.add_argument(
+        "--profile-tolerance", type=float, default=0.0, help="allowed per-profile drop in pair_correct/Youden before rejecting"
+    )
+    improve.add_argument("--min-holdout-pairs", type=int, default=5, help="profiles with fewer holdout pairs are reported, not gated")
 
     pairs = subparsers.add_parser(
         "pairs",
@@ -164,6 +177,9 @@ def main(argv: list[str] | None = None) -> int:
             journal=args.journal,
             ruleset_dir=args.ruleset_dir,
             dry_run=args.dry_run,
+            pair_catalog=None if args.no_pair_gate else args.pair_catalog,
+            profile_tolerance=args.profile_tolerance,
+            min_holdout_pairs=args.min_holdout_pairs,
         )
     if args.command == "pairs":
         return _pairs(
@@ -718,9 +734,17 @@ def _improve(
     journal: Path | None,
     ruleset_dir: Path,
     dry_run: bool,
+    pair_catalog: Path | None = None,
+    profile_tolerance: float = 0.0,
+    min_holdout_pairs: int = 5,
 ) -> int:
     if not manifest_path.exists() or not manifest_path.is_file():
         raise SystemExit(f"benchmark manifest is not a file: {manifest_path}")
+    pair_cases: tuple[object, ...] = ()
+    if pair_catalog is not None:
+        if not pair_catalog.is_file():
+            raise SystemExit(f"pair catalog is not a file: {pair_catalog} (pass --no-pair-gate to skip the per-profile holdout clause)")
+        pair_cases = select_split(load_pair_catalog(pair_catalog), "holdout")
     manifest = load_benchmark_manifest(manifest_path)
     target = resolve_benchmark_source(manifest_path, manifest)
     policy = load_policy()
@@ -746,6 +770,9 @@ def _improve(
             max_rounds=max_rounds,
             recall_floor=recall_floor,
             fp_ceiling=fp_ceiling,
+            pair_cases=pair_cases,
+            profile_tolerance=profile_tolerance,
+            min_holdout_pairs=min_holdout_pairs,
         )
         _print_improve_outcomes(outcomes, manifest_path, target, ledger_path, dry_run=dry_run)
     return 0
@@ -793,6 +820,8 @@ def _print_improve_outcomes(outcomes: list[RoundOutcome], manifest_path: Path, t
             f"fp {outcome.fp_before:.2%}->{outcome.fp_after:.2%} "
             f"score {outcome.score_before}->{outcome.score_after} | edits: {edits}"
         )
+        if outcome.profile_regressions or outcome.profiles_under_minimum:
+            print(f"  profiles: regressed={outcome.profile_regressions or '-'} under_minimum={outcome.profiles_under_minimum or '-'}")
     print(f"rounds={len(outcomes)} accepted={len(accepted)}")
     if dry_run:
         print("dry_run=true (no ledger written)")

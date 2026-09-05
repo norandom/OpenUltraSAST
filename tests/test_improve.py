@@ -168,3 +168,86 @@ def test_build_rule_signals_separates_miss_and_fp() -> None:
     signals = build_rule_signals(result)
     assert {s["signal"] for s in signals} == {"miss", "fp"}
     assert {s["rule_id"] for s in signals} == {"sqli", "noisy"}
+
+
+# ---- pair-corpus-honesty: per-profile holdout clause (Req 7.2-7.4) ----------
+
+
+def _pair(tmp_path: Path, name: str, vuln_src: str, fixed_src: str, rule_id: str, sink: str, *, provenance: str):
+    from openultrasast.benchmark import ExpectedFinding
+    from openultrasast.pairs import PairCase
+
+    vuln = tmp_path / f"{name}-vuln.py"
+    fixed = tmp_path / f"{name}-fixed.py"
+    vuln.write_text(vuln_src)
+    fixed.write_text(fixed_src)
+    return PairCase(
+        name=name,
+        slice="github",
+        language="python",
+        origin="test",
+        vuln_file=vuln,
+        fixed_file=fixed,
+        relpath="app.py",
+        expected=(
+            ExpectedFinding(
+                cwe="CWE-95",
+                vulnerability_class="x",
+                path="app.py",
+                evidence="",
+                rule_id=rule_id,
+                sink=sink,
+                mechanism="source_reaches_sink",
+            ),
+        ),
+        min_recall=1.0,
+        fix_policy="silent",
+        provenance=provenance,
+        split="holdout",
+    )
+
+
+def test_round_rejects_when_a_profile_regresses_on_holdout(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "app.py").write_text("def f(x):\n    return eval(x)\ndef g():\n    print('hello')\n")
+    ruleset_dir = _ruleset_dir(tmp_path, [_rule("good-eval", r"\beval\s*\("), _rule("noisy-print", r"\bprint\s*\(")])
+    _, manifest = _manifest(tmp_path, _expected("good-eval"))
+    ledger = tmp_path / "rule_policy.json"
+    journal = tmp_path / "journal.json"
+    # The agent profile's holdout pair is only detected by the rule the round wants to shadow.
+    agent_pairs = [
+        _pair(tmp_path, f"agent{i}", "def h(y):\n    print(y)\n", "def h(y):\n    return y\n", "noisy-print", "print", provenance="agent")
+        for i in range(5)
+    ]
+    outcome = run_round(repo, manifest, ledger_path=ledger, journal_path=journal, ruleset_dir=ruleset_dir, pair_cases=agent_pairs)
+    assert not outcome.accepted
+    assert outcome.reason == "profile_regression:agent"
+    assert outcome.profile_regressions == ["agent"]
+    assert outcome.per_profile_before["agent"]["pair_correct"] == 5.0 and outcome.per_profile_after["agent"]["pair_correct"] == 0.0
+    assert not ledger.exists()
+    assert json.loads(journal.read_text())[0]["profile_regressions"] == ["agent"]
+
+
+def test_round_accepts_when_profiles_hold_and_reports_small_profiles(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "app.py").write_text("def f(x):\n    return eval(x)\ndef g():\n    print('hello')\n")
+    ruleset_dir = _ruleset_dir(tmp_path, [_rule("good-eval", r"\beval\s*\("), _rule("noisy-print", r"\bprint\s*\(")])
+    _, manifest = _manifest(tmp_path, _expected("good-eval"))
+    ledger = tmp_path / "rule_policy.json"
+    journal = tmp_path / "journal.json"
+    human_pairs = [
+        _pair(tmp_path, f"h{i}", "def h(y):\n    return eval(y)\n", "def h(y):\n    return y\n", "good-eval", "eval", provenance="human")
+        for i in range(5)
+    ]
+    tiny_agent = [
+        _pair(tmp_path, "a0", "def h(y):\n    print(y)\n", "def h(y):\n    return y\n", "noisy-print", "print", provenance="agent")
+    ]
+    outcome = run_round(
+        repo, manifest, ledger_path=ledger, journal_path=journal, ruleset_dir=ruleset_dir, pair_cases=human_pairs + tiny_agent
+    )
+    assert outcome.accepted and outcome.reason == "accepted"
+    assert outcome.profile_regressions == []
+    assert outcome.profiles_under_minimum == ["agent"]  # one pair: reported, not gated
+    assert ledger.exists()

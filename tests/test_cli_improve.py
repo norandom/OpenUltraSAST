@@ -58,3 +58,12 @@ def test_improve_rejects_missing_manifest(tmp_path: Path) -> None:
 
     with pytest.raises(SystemExit):
         main(["improve", str(tmp_path / "nope.toml")])
+
+
+def test_improve_fails_loud_when_pair_catalog_is_missing(tmp_path: Path) -> None:
+    import pytest
+
+    _, ruleset_dir = _scaffold(tmp_path)
+    manifest = tmp_path / "bench.toml"
+    with pytest.raises(SystemExit, match="pair catalog"):
+        main(["improve", str(manifest), "--ruleset-dir", str(ruleset_dir), "--dry-run", "--pair-catalog", str(tmp_path / "missing.toml")])
