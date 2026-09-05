@@ -31,7 +31,9 @@ def reverted_edit_keys(rounds: list[dict[str, object]]) -> set[str]:
             continue
         for edit in _edits(entry):
             key = edit.get("key")
-            if isinstance(key, str) and not edit.get("rationale"):
+            # Rule edits are blocked only without a new rationale; mechanism edits are blocked outright (the loop
+            # always writes a rationale for them, and a reverted store edit must not be re-proposed every round).
+            if isinstance(key, str) and (not edit.get("rationale") or edit.get("lever") == "mechanisms"):
                 keys.add(key)
     return keys
 

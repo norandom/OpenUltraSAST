@@ -292,10 +292,13 @@ def run_round(
     try:
         for edit in edits:
             validator.validate(edit, ruleset_by_id, policy)
-        if mechanism_edits and candidates_store is not None:
+        if mechanism_edits and candidates_store is not None and mechanism_store is not None:
+            from ..semantic.mechanisms import MechanismStore
+
             by_id = {record.id: record for record in candidates_store.load()}
+            admitted_by_id = {record.id: record for record in MechanismStore(mechanism_store).load()}
             for mechanism_edit in mechanism_edits:
-                validator.validate_mechanism(mechanism_edit, by_id)
+                validator.validate_mechanism(mechanism_edit, by_id, admitted=admitted_by_id)
     except StrictValidationError as exc:
         _record(journal_path, round_index, edits, "rejected", before, before, str(exc), mechanism_edits=mechanism_edits)
         return _outcome(
@@ -416,6 +419,8 @@ def run_improvement(
     pair_cases: Sequence[object] | None = None,
     profile_tolerance: float = 0.0,
     min_holdout_pairs: int = 5,
+    mechanism_candidates: Path | None = None,
+    mechanism_store: Path | None = None,
 ) -> list[RoundOutcome]:
     """Run improvement rounds until convergence (no new proposals) or ``max_rounds``."""
     outcomes: list[RoundOutcome] = []
@@ -432,6 +437,8 @@ def run_improvement(
             pair_cases=pair_cases,
             profile_tolerance=profile_tolerance,
             min_holdout_pairs=min_holdout_pairs,
+            mechanism_candidates=mechanism_candidates,
+            mechanism_store=mechanism_store,
         )
         outcomes.append(outcome)
         if outcome.reason == "no_proposals":
@@ -507,6 +514,7 @@ def _outcome(
         accepted=accepted,
         reason=reason,
         edits=edits,
+        mechanism_edits=list(mechanism_edits or []),
         recall_before=before.recall,
         recall_after=after.recall,
         fp_before=before.fp_rate,

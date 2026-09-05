@@ -105,3 +105,54 @@ def test_cli_pairs_loo_writes_the_artifact_offline(tmp_path: Path, monkeypatch: 
     payload = json.loads(buf.getvalue())
     assert payload["per_slice"]["vibe-py"]["pairs"] == 35 and "found_by" in payload["outcomes"][0]
     assert json.loads((tmp_path / "loo.json").read_text()) == payload
+
+
+HELPER_SINK = "import os\n\n\ndef run(cmd):\n    os.system(cmd)\n\n\ndef ping(host):\n    return run('ping ' + host)\n"
+HELPER_SINK_FIX = (
+    "import subprocess\n\n\ndef run(cmd):\n    subprocess.run(cmd.split())\n\n\ndef ping(host):\n    return run('ping ' + host)\n"
+)
+
+
+def test_hits_outside_the_labeled_function_or_off_label_never_count(tmp_path: Path) -> None:
+    """Round-3 mutants: a hit must sit inside the labeled function and name the labeled mechanism or sink."""
+    from openultrasast.semantic.loo import evaluate_loo
+
+    teacher = _case(tmp_path, "t", SYS_C, SYS_C_FIX, function="ping", cwe="CWE-78")
+    outside = _case(
+        tmp_path, "outside", HELPER_SINK, HELPER_SINK_FIX, function="ping", cwe="CWE-78"
+    )  # sink call lives in `run`, not `ping`
+    off_label = PairCase(
+        **{
+            **_case(tmp_path, "offlabel", SYS_C, SYS_C_FIX, function="ping", cwe="CWE-78").__dict__,
+            "expected": (
+                ExpectedFinding(
+                    cwe="CWE-78", vulnerability_class="x", path="app.py", evidence="", function="ping", mechanism="missing_auth_guard"
+                ),
+            ),
+        }
+    )
+    result = evaluate_loo([teacher, outside, off_label])
+    by_name = {outcome.pair: outcome for outcome in result.outcomes}
+    assert by_name["outside"].hits_vuln >= 1 and not by_name["outside"].detected
+    assert by_name["offlabel"].hits_vuln >= 1 and not by_name["offlabel"].detected
+
+
+def test_leave_one_out_forwards_search_degradations(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from openultrasast.semantic.loo import evaluate_loo
+
+    monkeypatch.setenv("OPENULTRASAST_TREE_SITTER_PROBE", "0")
+    js = "function run(req) {\n  const cmd = req.query.cmd;\n  exec(cmd);\n}\n"
+    (tmp_path / "j-v.js").write_text(js)
+    (tmp_path / "j-f.js").write_text(js)
+    case = PairCase(
+        **{
+            **_toy(tmp_path)[0].__dict__,
+            "name": "j",
+            "language": "javascript",
+            "vuln_file": tmp_path / "j-v.js",
+            "fixed_file": tmp_path / "j-f.js",
+            "relpath": "app.js",
+        }
+    )
+    result = evaluate_loo([*_toy(tmp_path), case])
+    assert any(item["reason"] == "variants_language_unsupported" for item in result.degradations)

@@ -157,5 +157,162 @@ def test_round_accepts_a_recovering_admission_and_rejects_a_leaking_one_byte_for
         mechanism_store=scan_store,
         scripted_mechanism_edits=[MechanismEdit(action="admit", mechanism_id=sys_record.id, source="export", rationale="scripted")],
     )
-    assert not forced.accepted and forced.reason.startswith("mechanism_leak") or forced.reason.startswith("profile_regression")
+    assert not forced.accepted and (forced.reason.startswith("mechanism_leak") or forced.reason.startswith("profile_regression"))
     assert scan_store.read_bytes() == before  # byte-for-byte revert
+
+
+def test_no_gain_admission_is_rejected_and_reverted_mechanism_edits_are_not_reproposed(tmp_path: Path) -> None:
+    from openultrasast.improve.evolve import run_round
+    from openultrasast.improve.journal import reverted_edit_keys
+    from openultrasast.improve.validator import MechanismEdit
+
+    env = _round_env(tmp_path)
+    candidates = MechanismStore(tmp_path / "candidates.jsonl")
+    unrelated = append_from_pair(
+        candidates, _shape("popen"), summary="s", cwe="CWE-78", pair="teacher-c", provenance="human", tier="seeded"
+    )
+    holdout = [_pair(tmp_path, "x", EXEC_VULN, EXEC_FIX, function="lookup", cwe="CWE-89")]
+    scan_store = tmp_path / "scan" / "mechanisms.jsonl"
+    ledger = tmp_path / "rule_policy.json"
+    journal = tmp_path / "journal.json"
+    kwargs: dict[str, object] = {
+        "ledger_path": ledger,
+        "journal_path": journal,
+        "ruleset_dir": env["ruleset_dir"],
+        "pair_cases": holdout,
+        "min_holdout_pairs": 1,
+        "mechanism_candidates": candidates.log_path,
+        "mechanism_store": scan_store,
+    }
+    edit = MechanismEdit(action="admit", mechanism_id=unrelated.id, source="export", rationale="scripted: recovers nothing")
+    outcome = run_round(env["target"], env["manifest"], scripted_mechanism_edits=[edit], **kwargs)  # type: ignore[arg-type]
+    assert not outcome.accepted and outcome.reason == "mechanism_no_gain"
+    assert not scan_store.exists() or scan_store.read_bytes() == b""
+    assert edit.key() in reverted_edit_keys(__import__("json").loads(journal.read_text()))
+    # the same reverted edit, offered again with a rationale, is filtered before validation (novelty gate)
+    again = run_round(env["target"], env["manifest"], scripted_mechanism_edits=[edit], **kwargs)  # type: ignore[arg-type]
+    assert again.reason == "no_proposals" and again.mechanism_edits == []
+
+
+def _holdout_catalog(tmp_path: Path) -> Path:
+    (tmp_path / "x-v.py").write_text(EXEC_VULN)
+    (tmp_path / "x-f.py").write_text(EXEC_FIX)
+    catalog = tmp_path / "pairs.toml"
+    catalog.write_text(
+        '[[pair]]\nname = "x"\nslice = "github"\nlanguage = "python"\nvuln = "x-v.py"\nfixed = "x-f.py"\nrelpath = "app.py"\n'
+        'split = "holdout"\nreview_tier = "reviewed"\nreviewer = "t"\n\n'
+        '[[pair.expected]]\ncwe = "CWE-89"\nclass = "sql injection"\npath = "app.py"\nfunction = "lookup"\n'
+        'sink = "execute"\nmechanism = "source_reaches_sink"\n'
+    )
+    return catalog
+
+
+def test_ousast_improve_admits_candidates_into_the_scan_store_by_default(tmp_path: Path) -> None:
+    """Req 5: the lever is reachable from the operator command; export -> candidates -> improve -> mechanisms.jsonl the scan reads."""
+    from openultrasast.cli import main
+
+    env = _round_env(tmp_path)
+    repo = Path(str(env["target"]))
+    calibration = repo / ".openultrasast" / "calibration"
+    candidates = MechanismStore(calibration / "mechanism-candidates.jsonl")
+    exec_record = append_from_pair(
+        candidates, _shape("execute"), summary="s", cwe="CWE-89", pair="teacher-a", provenance="human", tier="seeded"
+    )
+    catalog = _holdout_catalog(tmp_path)
+    manifest = tmp_path / "bench.toml"
+    assert (
+        main(
+            ["improve", str(manifest), "--ruleset-dir", str(env["ruleset_dir"]), "--pair-catalog", str(catalog), "--min-holdout-pairs", "1"]
+        )
+        == 0
+    )
+    admitted = MechanismStore(calibration / "mechanisms.jsonl").load()
+    assert [r.id for r in admitted] == [exec_record.id]
+    journal = json.loads((calibration / "improve_journal.json").read_text())
+    assert any(e["lever"] == "mechanisms" and e["mechanism_id"] == exec_record.id for entry in journal for e in entry["edits"])
+
+
+def test_run_improvement_threads_mechanism_paths(tmp_path: Path) -> None:
+    from openultrasast.improve.evolve import run_improvement
+    from openultrasast.pairs import load_pair_catalog
+
+    env = _round_env(tmp_path)
+    candidates = MechanismStore(tmp_path / "candidates.jsonl")
+    exec_record = append_from_pair(
+        candidates, _shape("execute"), summary="s", cwe="CWE-89", pair="teacher-a", provenance="human", tier="seeded"
+    )
+    cases = load_pair_catalog(_holdout_catalog(tmp_path))
+    scan_store = tmp_path / "scan" / "mechanisms.jsonl"
+    outcomes = run_improvement(
+        env["target"],
+        env["manifest"],
+        ledger_path=tmp_path / "ledger.json",
+        journal_path=tmp_path / "journal.json",  # type: ignore[arg-type]
+        ruleset_dir=env["ruleset_dir"],
+        pair_cases=cases,
+        min_holdout_pairs=1,  # type: ignore[arg-type]
+        mechanism_candidates=candidates.log_path,
+        mechanism_store=scan_store,
+        max_rounds=3,
+    )
+    assert any(o.accepted and o.mechanism_edits for o in outcomes)
+    assert [r.id for r in MechanismStore(scan_store).load()] == [exec_record.id]
+    assert outcomes[-1].reason == "no_proposals"  # converges once the candidate is admitted
+
+
+def _cli_env(tmp_path: Path) -> tuple[dict[str, object], Path, Path]:
+    env = _round_env(tmp_path)
+    calibration = Path(str(env["target"])) / ".openultrasast" / "calibration"
+    candidates = MechanismStore(calibration / "mechanism-candidates.jsonl")
+    append_from_pair(candidates, _shape("execute"), summary="s", cwe="CWE-89", pair="teacher-a", provenance="human", tier="seeded")
+    return env, calibration, _holdout_catalog(tmp_path)
+
+
+def test_dry_run_and_no_mechanisms_never_write_the_scan_store(tmp_path: Path, capsys) -> None:  # type: ignore[no-untyped-def]
+    from openultrasast.cli import main
+
+    env, calibration, catalog = _cli_env(tmp_path)
+    base = [
+        "improve",
+        str(tmp_path / "bench.toml"),
+        "--ruleset-dir",
+        str(env["ruleset_dir"]),
+        "--pair-catalog",
+        str(catalog),
+        "--min-holdout-pairs",
+        "1",
+    ]
+    assert main([*base, "--dry-run"]) == 0
+    assert not (calibration / "mechanisms.jsonl").exists()  # a dry run mutates nothing under the target
+    assert main([*base, "--no-mechanisms"]) == 0
+    assert not (calibration / "mechanisms.jsonl").exists()
+    (calibration / "mechanism-candidates.jsonl").unlink()
+    capsys.readouterr()  # the dry run legitimately reports its scratch admission; judge only the candidate-less round below
+    assert main(base) == 0
+    assert not (calibration / "mechanisms.jsonl").exists()  # no candidates file: the lever is inert, the round is a plain rule round
+    out = capsys.readouterr().out
+    assert "admit " not in out and "retract " not in out
+
+
+def test_documented_default_flow_connects_export_to_improve(tmp_path: Path, monkeypatch, capsys) -> None:  # type: ignore[no-untyped-def]
+    """README flow: `ousast mechanisms export` (cwd default) then `ousast improve --pair-catalog` admits into the target's store."""
+    from openultrasast.cli import main
+
+    env = _round_env(tmp_path)
+    catalog = _holdout_catalog(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    # export a candidates file exactly as documented (cwd default), seeded from a tiny trusted catalog of our own
+    assert main(["mechanisms", "export", "--catalog", str(catalog), "--slice", "all"]) == 0
+    exported = tmp_path / ".openultrasast" / "calibration" / "mechanism-candidates.jsonl"
+    assert exported.is_file() and not (tmp_path / ".openultrasast" / "calibration" / "mechanisms.jsonl").exists()
+    # the target is a different directory (the benchmark fixture); improve must still find the cwd candidates by default
+    assert (
+        main(
+            ["improve", "bench.toml", "--ruleset-dir", str(env["ruleset_dir"]), "--pair-catalog", str(catalog), "--min-holdout-pairs", "1"]
+        )
+        == 0
+    )
+    target_store = Path(str(env["target"])) / ".openultrasast" / "calibration" / "mechanisms.jsonl"
+    assert MechanismStore(target_store).load()  # admitted where the scan of that target reads
+    out = capsys.readouterr().out
+    assert "admit corpus:" in out  # the accepted round names its mechanism edits

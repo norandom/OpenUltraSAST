@@ -118,13 +118,20 @@ class EvolveValidator:
         else:
             raise StrictValidationError(f"unknown edit type {type(edit).__name__}", kind="rule_change")
 
-    def validate_mechanism(self, edit: MechanismEdit, candidates: Mapping[str, object]) -> None:
-        """Req 5.2: only records the exporter derived from trusted pairs, with a closed guard and identifier-only shape text."""
+    def validate_mechanism(
+        self, edit: MechanismEdit, candidates: Mapping[str, object], admitted: Mapping[str, object] | None = None
+    ) -> None:
+        """Req 5.2: only records the exporter derived from trusted pairs, with a closed guard and identifier-only shape text.
+
+        A retraction may also name a record that is admitted in the scan store but no longer in the candidate set.
+        """
         from ..semantic.variants import GUARD_KINDS, SOURCE_KINDS
 
         if edit.action not in MECHANISM_ACTIONS:
             raise StrictValidationError(f"mechanism edit action {edit.action!r} is not admit or retract", kind="mechanism_change")
         record = candidates.get(edit.mechanism_id)
+        if record is None and edit.action == "retract" and admitted is not None:
+            record = admitted.get(edit.mechanism_id)
         if record is None:
             raise StrictValidationError(
                 f"unknown mechanism {edit.mechanism_id!r}: not in the exporter candidate set", kind="mechanism_change"

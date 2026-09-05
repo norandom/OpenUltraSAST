@@ -83,3 +83,30 @@ def test_apply_mechanism_edits_admits_into_the_scan_store_and_reverts_byte_for_b
     snapshot.restore()
     assert scan_store.read_bytes() == before  # byte-for-byte revert of the whole round
     assert b.id != a.id
+
+
+def test_retract_is_allowed_for_an_admitted_record_that_left_the_candidate_set(tmp_path: Path) -> None:
+    from openultrasast.improve.validator import EvolveValidator, MechanismEdit, StrictValidationError
+
+    scan = MechanismStore(tmp_path / "scan.jsonl")
+    stale = _record(scan, sink_name="popen")
+    validator = EvolveValidator()
+    with pytest.raises(StrictValidationError, match="unknown mechanism"):
+        validator.validate_mechanism(MechanismEdit(action="admit", mechanism_id=stale.id), {}, admitted={stale.id: stale})
+    validator.validate_mechanism(MechanismEdit(action="retract", mechanism_id=stale.id), {}, admitted={stale.id: stale})
+
+
+def test_export_defaults_to_a_candidates_file_and_never_writes_the_scan_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import io
+    from contextlib import redirect_stdout
+
+    from openultrasast.cli import main
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "benchmarks").symlink_to(Path(__file__).resolve().parents[1] / "benchmarks")
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        assert main(["mechanisms", "export", "--slice", "vibe-py", "--json"]) == 0
+    payload = __import__("json").loads(buf.getvalue())
+    assert payload["store"].endswith("mechanism-candidates.jsonl")
+    assert not (tmp_path / ".openultrasast" / "calibration" / "mechanisms.jsonl").exists()

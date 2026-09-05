@@ -34,6 +34,8 @@ uv run ousast benchmark benchmarks/manifests/python-vulnerable.toml --mode quick
 uv run ousast pairs
 uv run ousast pairs --slice sast   # OWASP Benchmark Java/Python + Juliet
 uv run ousast pairs --slice vibe-py --pointers   # nightly: also harvest non-vendored pointer pairs into ~/.cache
+uv run ousast mechanisms export --slice vibe-py   # seed mechanism candidates from trusted pairs (offline); `ousast improve` admits them under the holdout gate
+uv run ousast pairs --slice vibe-py --loo        # leave-one-out recall of the corpus as a teacher
 uv run python -m openultrasast.pair_gate
 
 # Run the bounded self-improvement loop over the ruleset (benchmark-driven)

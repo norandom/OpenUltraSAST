@@ -37,6 +37,9 @@ uv run ousast pairs                              # local fixtures + vendored Git
 uv run ousast pairs --slice github --json        # honesty dashboard as JSON
 uv run ousast pairs --slice sast                 # OWASP Benchmark + Juliet Youden (TPR-FPR)
 uv run ousast pairs --slice vibe-py --pointers   # nightly: pointer pairs via the local cache (network)
+uv run ousast mechanisms export --slice vibe-py   # maintainer: seed mechanism candidates from trusted pairs (offline)
+uv run ousast improve bench.toml --pair-catalog benchmarks/pairs/catalog.toml   # the mechanisms lever admits candidates the holdout pairs prove; the scan then searches them
+uv run ousast pairs --slice vibe-py --loo        # leave-one-out: the corpus's own detection rate (reports/loo.json)
 uv run python -m openultrasast.pair_gate         # CI: local pairs must all pass
 ```
 

@@ -148,6 +148,19 @@ def main(argv: list[str] | None = None) -> int:
         "--profile-tolerance", type=float, default=0.0, help="allowed per-profile drop in pair_correct/Youden before rejecting"
     )
     improve.add_argument("--min-holdout-pairs", type=int, default=5, help="profiles with fewer holdout pairs are reported, not gated")
+    improve.add_argument(
+        "--mechanism-candidates",
+        type=Path,
+        default=None,
+        help="exporter candidates the mechanisms lever may admit (default: <target>/.openultrasast/calibration/mechanism-candidates.jsonl, then ./.openultrasast/calibration/mechanism-candidates.jsonl)",
+    )
+    improve.add_argument(
+        "--mechanism-store",
+        type=Path,
+        default=None,
+        help="scan-time mechanisms.jsonl the lever writes (default: <target>/.openultrasast/calibration/mechanisms.jsonl)",
+    )
+    improve.add_argument("--no-mechanisms", action="store_true", help="disable the mechanisms lever for this run")
 
     pairs = subparsers.add_parser(
         "pairs",
@@ -175,7 +188,10 @@ def main(argv: list[str] | None = None) -> int:
     export.add_argument("--slice", choices=SLICE_NAMES, default="all")
     export.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
     export.add_argument(
-        "--store", type=Path, default=Path(CALIBRATION_DIR) / "mechanisms.jsonl", help="append-only mechanisms.jsonl the scan reads"
+        "--store",
+        type=Path,
+        default=Path(CALIBRATION_DIR) / "mechanism-candidates.jsonl",
+        help="append-only candidates file the improve lever admits from (the scan reads mechanisms.jsonl next to it; never written here)",
     )
     export.add_argument("--json", action="store_true")
 
@@ -199,6 +215,9 @@ def main(argv: list[str] | None = None) -> int:
             pair_catalog=None if args.no_pair_gate else args.pair_catalog,
             profile_tolerance=args.profile_tolerance,
             min_holdout_pairs=args.min_holdout_pairs,
+            mechanism_candidates=args.mechanism_candidates,
+            mechanism_store=args.mechanism_store,
+            mechanisms_enabled=not args.no_mechanisms,
         )
     if args.command == "pairs":
         return _pairs(
@@ -784,6 +803,9 @@ def _improve(
     pair_catalog: Path | None = None,
     profile_tolerance: float = 0.0,
     min_holdout_pairs: int = 5,
+    mechanism_candidates: Path | None = None,
+    mechanism_store: Path | None = None,
+    mechanisms_enabled: bool = True,
 ) -> int:
     if not manifest_path.exists() or not manifest_path.is_file():
         raise SystemExit(f"benchmark manifest is not a file: {manifest_path}")
@@ -794,6 +816,19 @@ def _improve(
         pair_cases = select_split(load_pair_catalog(pair_catalog), "holdout")
     manifest = load_benchmark_manifest(manifest_path)
     target = resolve_benchmark_source(manifest_path, manifest)
+    # corpus-seeded-mechanisms Req 5: the lever runs when a candidates file exists (exporter output) and the pair gate is on.
+    # Candidates: an explicit path, else the target's calibration dir, else the working directory's (where `mechanisms export`
+    # writes by default). The store always lives where a scan of this target reads it unless overridden.
+    calibration = target / CALIBRATION_DIR
+    candidates_path: Path | None = mechanism_candidates
+    if candidates_path is None:
+        for candidate in (calibration / "mechanism-candidates.jsonl", Path(CALIBRATION_DIR) / "mechanism-candidates.jsonl"):
+            if candidate.is_file():
+                candidates_path = candidate
+                break
+    if not mechanisms_enabled or not pair_cases or candidates_path is None or not candidates_path.is_file():
+        candidates_path = None
+    store_path = mechanism_store if mechanism_store is not None else calibration / "mechanisms.jsonl"
     policy = load_policy()
 
     # The loop writes its accepted ledger where `scan`/`benchmark` read it, so a
@@ -803,6 +838,11 @@ def _improve(
         if dry_run:
             ledger_path = Path(scratch) / "rule_policy.json"
             journal_path = Path(scratch) / "improve_journal.json"
+            if candidates_path is not None:  # a dry run must not mutate the scan-time store either
+                scratch_store = Path(scratch) / "mechanisms.jsonl"
+                if store_path.is_file():
+                    scratch_store.write_bytes(store_path.read_bytes())
+                store_path = scratch_store
         else:
             ledger_path = ledger or default_ledger
             journal_path = journal or ledger_path.with_name("improve_journal.json")
@@ -820,6 +860,8 @@ def _improve(
             pair_cases=pair_cases,
             profile_tolerance=profile_tolerance,
             min_holdout_pairs=min_holdout_pairs,
+            mechanism_candidates=candidates_path,
+            mechanism_store=store_path if candidates_path is not None else None,
         )
         _print_improve_outcomes(outcomes, manifest_path, target, ledger_path, dry_run=dry_run)
     return 0
@@ -951,7 +993,13 @@ def _print_improve_outcomes(outcomes: list[RoundOutcome], manifest_path: Path, t
     print(f"target={target}")
     accepted = [o for o in outcomes if o.accepted]
     for outcome in outcomes:
-        edits = ", ".join(f"{e.rule_id}:{e.from_status}->{e.to_status}" for e in outcome.edits) or "-"
+        edits = (
+            ", ".join(
+                [f"{e.rule_id}:{e.from_status}->{e.to_status}" for e in outcome.edits]
+                + [f"{m.action} {m.mechanism_id}" for m in outcome.mechanism_edits]
+            )
+            or "-"
+        )
         print(
             f"round {outcome.round}: {outcome.reason} | "
             f"recall {outcome.recall_before:.2%}->{outcome.recall_after:.2%} "
@@ -962,7 +1010,7 @@ def _print_improve_outcomes(outcomes: list[RoundOutcome], manifest_path: Path, t
             print(f"  profiles: regressed={outcome.profile_regressions or '-'} under_minimum={outcome.profiles_under_minimum or '-'}")
     print(f"rounds={len(outcomes)} accepted={len(accepted)}")
     if dry_run:
-        print("dry_run=true (no ledger written)")
+        print("dry_run=true (no ledger or mechanism store written)")
     elif accepted:
         print(f"ledger={ledger_path}")
     else:

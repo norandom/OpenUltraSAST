@@ -36,6 +36,7 @@ class LooOutcome:
     hits_fixed: int
     teaches: bool  # the pair contributed at least one shape when others were held out
     leaked_by: tuple[str, ...] = ()  # mechanism record ids that hit the fixed side
+    degradations: tuple[dict[str, object], ...] = ()  # from variant search on either side
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -95,7 +96,20 @@ def evaluate_loo(cases: Sequence[PairCase], *, facts: SemanticFacts | None = Non
         per_mechanism=_group(outcomes, lambda item: item.mechanisms),
         skipped=tuple(skipped),
         teaching_pairs=sum(1 for shapes in lessons.values() if shapes),
+        degradations=_unique_degradations(outcomes),
     )
+
+
+def _unique_degradations(outcomes: Sequence[LooOutcome]) -> tuple[dict[str, object], ...]:
+    seen: set[str] = set()
+    unique: list[dict[str, object]] = []
+    for outcome in outcomes:
+        for item in outcome.degradations:
+            key = repr(sorted(item.items()))
+            if key not in seen:
+                seen.add(key)
+                unique.append(item)
+    return tuple(unique)
 
 
 def _hold_out(case: PairCase, targets: Sequence[PairCase], lessons: dict[str, list[Lesson]], facts: SemanticFacts) -> LooOutcome:
@@ -127,8 +141,9 @@ def score_pair_with_store(case: PairCase, store: MechanismStore, facts: Semantic
         base = root if root is not None else Path(scratch)
         vuln_root = _materialize(base / "vuln", case.vuln_file, case.relpath)
         fix_root = _materialize(base / "fixed", case.fixed_file, case.relpath)
-        vuln_hits = search_tree(vuln_root, _targets(vuln_root), store, facts, max_mechanisms=len(records) or 1).hits
-        fix_hits = search_tree(fix_root, _targets(fix_root), store, facts, max_mechanisms=len(records) or 1).hits
+        vuln_search = search_tree(vuln_root, _targets(vuln_root), store, facts, max_mechanisms=len(records) or 1)
+        fix_search = search_tree(fix_root, _targets(fix_root), store, facts, max_mechanisms=len(records) or 1)
+        vuln_hits, fix_hits = vuln_search.hits, fix_search.hits
     text = case.vuln_file.read_text(errors="ignore")
     ranges = named_function_ranges(case.relpath, text, _parse_language(case)) or ()
     found: list[tuple[str, tuple[str, ...]]] = []
@@ -150,6 +165,7 @@ def score_pair_with_store(case: PairCase, store: MechanismStore, facts: Semantic
         hits_fixed=len(fix_hits),
         teaches=False,
         leaked_by=tuple(sorted({hit.mechanism_id for hit in fix_hits})),
+        degradations=tuple(vuln_search.degradations) + tuple(fix_search.degradations),
     )
 
 

@@ -97,12 +97,12 @@ src/openultrasast/
 │   ├── seed.py         # export_mechanisms(cases, store) -> ExportReport (maintainer command `mechanisms export`)
 │   └── loo.py          # evaluate_loo(cases, *, store_factory) -> LooResult; payload
 ├── findings.py         # origin "variant" via tags/finding_id prefix "variant:" (no schema change)
-├── cli.py              # MAP: variant search after overlay; manifest counters; `pairs --loo`; `mechanisms export --slice`
+├── cli.py              # MAP: variant search after overlay; manifest counters; `pairs --loo`; `mechanisms export --slice`; `improve --mechanism-candidates/--mechanism-store/--no-mechanisms` (defaults: target calibration dir, then cwd)
 ├── improve/validator.py# MechanismEdit lever "mechanisms"
-├── improve/evolve.py   # proposer from loo misses/leaks; gate unchanged
+├── improve/evolve.py   # proposer from loo misses/leaks; mechanism edits decided by the per-profile clause over variant search (see §Lever)
 └── reports.py          # mechanism id, guard, provenance on findings
 tests/
-├── test_variants.py, test_loo.py, test_mechanism_export.py, test_improve.py (lever)
+├── test_variants.py, test_variant_search.py, test_variant_scan.py, test_mechanism_export.py, test_mechanism_seed.py, test_loo.py, test_mechanism_lever.py, test_mechanism_loop.py, test_mechanism_reports.py
 ```
 
 ### Modified Files
@@ -222,7 +222,9 @@ Only `seeded | reviewed` pairs seed; every trusted pair is held out once. `known
 
 ### Lever
 
-`MechanismEdit(lever="mechanisms", action="admit"|"retract", mechanism_id, source="loo"|"export", rationale)`. Validator: id must exist in the exporter's candidate set; shape guard in `GUARD_KINDS`; no free text fields beyond rationale. Proposer: admit candidates whose leave-one-out hit recovers a currently missed holdout pair in some profile; retract admitted records that leak on holdout fixed sides. Gate unchanged; revert restores `mechanisms.jsonl` byte for byte.
+`MechanismEdit(lever="mechanisms", action="admit"|"retract", mechanism_id, source="loo"|"export", rationale)`. Validator: id must exist in the exporter's candidate set; shape guard in `GUARD_KINDS`; no free text fields beyond rationale. Proposer: admit candidates whose leave-one-out hit recovers a currently missed holdout pair in some profile; retract admitted records that leak on holdout fixed sides. Application: admit appends the exporter record, retract appends a `retracted = true` tombstone (`MechanismStore.load` folds it away; the log stays append-only); `StoreSnapshot.restore` reverts byte for byte. A retraction may also name a record admitted in the scan store but no longer a candidate.
+
+Gate (implemented 2026-09-05, deviation from the first draft's "gate unchanged"): the rule gate and its per-profile clause are unchanged for rule edits; mechanism edits are decided by the *same* `profile_regressions` clause applied to `evaluate_mechanism_profiles` (holdout pairs scored per provenance profile by variant search with the store before and after, via `loo.score_pair_with_store`), because the overlay scorer cannot see what the store changes. Rejection reasons: `mechanism_leak:<id>` (an admission fires on a holdout fixed side, §Error Handling), `profile_regression:<profile>`, `mechanism_no_gain` (no profile gains a correct pair and nothing is retracted); every rejection restores the store byte for byte and the reverted key is blocked in later rounds regardless of rationale. The exporter writes `mechanism-candidates.jsonl`; only the lever writes the scan-time `mechanisms.jsonl`.
 
 ## Data Models
 
