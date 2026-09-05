@@ -37,6 +37,7 @@ class Mechanism:
     pairs: tuple[str, ...] = ()
     shape: dict[str, object] | None = None  # Shape.to_dict(); None on sandbox rows (not searchable)
     guard: str = "none"
+    retracted: bool = False  # tombstone row appended by the improve lever; load() folds the record away
 
 
 class MechanismStore:
@@ -53,7 +54,10 @@ class MechanismStore:
                 continue
             payload = json.loads(line)
             record = _mechanism_from_payload(payload)
-            by_id[record.id] = record
+            if record.retracted:
+                by_id.pop(record.id, None)
+            else:
+                by_id[record.id] = record
         return tuple(by_id.values())
 
     def append(self, mechanism: Mechanism) -> None:
@@ -340,8 +344,9 @@ def _mechanism_from_payload(payload: dict[str, object]) -> Mechanism:
         origin=str(payload.get("origin", "sandbox")),
         review_tier=str(payload.get("review_tier", "")),
         pairs=tuple(str(item) for item in pairs),
-        shape=Shape.from_dict(shape).to_dict() if isinstance(shape, dict) else None,
+        shape=dict(shape) if isinstance(shape, dict) else None,  # validated where it is used (search_tree, the lever)
         guard=str(payload.get("guard", "none")),
+        retracted=bool(payload.get("retracted", False)),
     )
 
 
