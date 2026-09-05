@@ -26,8 +26,9 @@ from ..preprocess import preprocess_repository
 from ..rank import rank_targets
 from ..ruleset import DEFAULT_RULESET_DIR, PatternRule, load_ruleset, read_rule_ledger, write_rule_ledger
 from ..scoring import build_score_artifact
+from ..semantic.facts import SemanticFacts
 from .journal import append_round, load_journal, next_round_index, reverted_edit_keys
-from .validator import EvolveValidator, RuleStatusEdit, StrictValidationError, edits_to_ledger
+from .validator import EvolveValidator, MechanismEdit, RuleStatusEdit, StrictValidationError, apply_mechanism_edits, edits_to_ledger
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,9 @@ class RoundOutcome:
     matched_before: int = 0
     matched_after: int = 0
     profile_regressions: list[str] = field(default_factory=list)
+    mechanism_edits: list[MechanismEdit] = field(default_factory=list)
+    mechanisms_before: dict[str, dict[str, float]] = field(default_factory=dict)
+    mechanisms_after: dict[str, dict[str, float]] = field(default_factory=dict)
     profiles_under_minimum: list[str] = field(default_factory=list)
     per_profile_before: dict[str, dict[str, float]] = field(default_factory=dict)
     per_profile_after: dict[str, dict[str, float]] = field(default_factory=dict)
@@ -77,6 +81,103 @@ def evaluate_profiles(
         }
         for profile, metrics in result.per_profile.items()
     }
+
+
+def evaluate_mechanism_profiles(pair_cases: Sequence[object], store_path: Path) -> dict[str, dict[str, float]]:
+    """Per-profile pair metrics of variant search with the given scan-time store over the holdout pairs (vendored, gating tiers)."""
+    from ..pairs import GATING_TIERS, PairCase, select_tier, select_vendored
+    from ..semantic.loo import score_pair_with_store
+    from ..semantic.mechanisms import MechanismStore
+
+    cases = list(select_tier(select_vendored([case for case in pair_cases if isinstance(case, PairCase)]), GATING_TIERS))
+    store = MechanismStore(store_path)
+    by_profile: dict[str, list[tuple[bool, bool]]] = {}
+    for case in cases:
+        outcome = score_pair_with_store(case, store, _facts())
+        by_profile.setdefault(case.provenance, []).append((outcome.detected, outcome.silent))
+    result: dict[str, dict[str, float]] = {}
+    for profile, items in sorted(by_profile.items()):
+        pairs = len(items)
+        correct = sum(1 for detected, silent in items if detected and silent)
+        recall = sum(1 for detected, _ in items if detected) / pairs
+        silence = sum(1 for _, silent in items if silent) / pairs
+        result[profile] = {
+            "pairs": float(pairs),
+            "pair_correct": float(correct),
+            "pair_pass_rate": correct / pairs,
+            "youden": recall + silence - 1.0,
+        }
+    return result
+
+
+def propose_mechanism_edits(pair_cases: Sequence[object], candidates: object, store_path: Path) -> list[MechanismEdit]:
+    """Req 5.3: admit a candidate that recovers a currently missed holdout pair without leaking; retract an admitted leaker."""
+    from ..pairs import GATING_TIERS, PairCase, select_tier, select_vendored
+    from ..semantic.loo import score_pair_with_store
+    from ..semantic.mechanisms import MechanismStore, corpus_mechanisms
+
+    cases = list(select_tier(select_vendored([case for case in pair_cases if isinstance(case, PairCase)]), GATING_TIERS))
+    if not cases:
+        return []
+    facts = _facts()
+    scan = MechanismStore(store_path)
+    admitted = {record.id: record for record in corpus_mechanisms(scan.load())}
+    current = {case.name: score_pair_with_store(case, scan, facts) for case in cases}
+    edits: list[MechanismEdit] = []
+    leakers = sorted({mechanism_id for outcome in current.values() for mechanism_id in outcome.leaked_by if mechanism_id in admitted})
+    for mechanism_id in leakers:
+        leaked = sorted(name for name, outcome in current.items() if mechanism_id in outcome.leaked_by)
+        edits.append(
+            MechanismEdit(
+                action="retract", mechanism_id=mechanism_id, source="loo", rationale=f"leaks on the fixed side of {', '.join(leaked)}"
+            )
+        )
+    missed = [case for case in cases if not current[case.name].detected]
+    for record in corpus_mechanisms(candidates.load()):  # type: ignore[attr-defined]
+        if record.id in admitted or not missed:
+            continue
+        with tempfile.TemporaryDirectory(prefix="ousast-lever-") as scratch:
+            trial = MechanismStore(Path(scratch) / "trial.jsonl")
+            trial.append(record)
+            recovered = [case.name for case in missed if score_pair_with_store(case, trial, facts).detected]
+            leaks = [case.name for case in cases if not score_pair_with_store(case, trial, facts).silent]
+        if recovered and not leaks:
+            edits.append(
+                MechanismEdit(
+                    action="admit",
+                    mechanism_id=record.id,
+                    source="loo",
+                    rationale=f"recovers holdout {', '.join(recovered)}; taught by {', '.join(record.pairs)}",
+                )
+            )
+    return edits
+
+
+def _facts() -> SemanticFacts:
+    from ..semantic.facts import FactLoadError, load_facts
+
+    try:
+        return load_facts()
+    except FactLoadError:
+        return SemanticFacts(version="", sources=(), sinks=(), sanitizers=())
+
+
+def _leaking_admissions(edits: Sequence[MechanismEdit], pair_cases: Sequence[object], store_path: Path) -> list[str]:
+    """Admitted record ids that hit the fixed side of any holdout pair with the store as it stands after the edits."""
+    from ..pairs import GATING_TIERS, PairCase, select_tier, select_vendored
+    from ..semantic.loo import score_pair_with_store
+    from ..semantic.mechanisms import MechanismStore
+
+    admitted = {edit.mechanism_id for edit in edits if edit.action == "admit"}
+    if not admitted:
+        return []
+    cases = select_tier(select_vendored([case for case in pair_cases if isinstance(case, PairCase)]), GATING_TIERS)
+    store = MechanismStore(store_path)
+    facts = _facts()
+    leaking: set[str] = set()
+    for case in cases:
+        leaking |= set(score_pair_with_store(case, store, facts).leaked_by) & admitted
+    return sorted(leaking)
 
 
 def profile_regressions(
@@ -153,6 +254,9 @@ def run_round(
     pair_cases: Sequence[object] | None = None,
     profile_tolerance: float = 0.0,
     min_holdout_pairs: int = 5,
+    mechanism_candidates: Path | None = None,
+    mechanism_store: Path | None = None,
+    scripted_mechanism_edits: Sequence[MechanismEdit] | None = None,
 ) -> RoundOutcome:
     policy = policy if policy is not None else load_policy()
     rounds = load_journal(journal_path)
@@ -167,16 +271,42 @@ def run_round(
 
     ruleset_by_id = {rule.rule_id: rule for rule in before_rules}
     edits = propose_status_edits(before.result.metrics.per_rule, ruleset_by_id, current_ledger, blocked)
-    if not edits:
+    # corpus-seeded-mechanisms Req 5: the `mechanisms` lever proposes from the holdout pairs, gated like every other edit.
+    mechanism_edits: list[MechanismEdit] = []
+    candidates_store = None
+    if mechanism_candidates is not None and mechanism_store is not None and pair_cases:
+        from ..semantic.mechanisms import MechanismStore
+
+        candidates_store = MechanismStore(mechanism_candidates)
+        mechanism_edits = (
+            list(scripted_mechanism_edits)
+            if scripted_mechanism_edits is not None
+            else propose_mechanism_edits(pair_cases, candidates_store, mechanism_store)
+        )
+        blocked_mechanisms = {edit.key() for edit in mechanism_edits} & blocked
+        mechanism_edits = [edit for edit in mechanism_edits if edit.key() not in blocked_mechanisms]
+    if not edits and not mechanism_edits:
         return _outcome(round_index, accepted=False, reason="no_proposals", edits=[], before=before, after=before)
 
     validator = EvolveValidator()
     try:
         for edit in edits:
             validator.validate(edit, ruleset_by_id, policy)
+        if mechanism_edits and candidates_store is not None:
+            by_id = {record.id: record for record in candidates_store.load()}
+            for mechanism_edit in mechanism_edits:
+                validator.validate_mechanism(mechanism_edit, by_id)
     except StrictValidationError as exc:
-        _record(journal_path, round_index, edits, "rejected", before, before, str(exc))
-        return _outcome(round_index, accepted=False, reason=f"validation_failed: {exc}", edits=edits, before=before, after=before)
+        _record(journal_path, round_index, edits, "rejected", before, before, str(exc), mechanism_edits=mechanism_edits)
+        return _outcome(
+            round_index,
+            accepted=False,
+            reason=f"validation_failed: {exc}",
+            edits=edits,
+            before=before,
+            after=before,
+            mechanism_edits=mechanism_edits,
+        )
 
     candidate = edits_to_ledger(edits, current_ledger)
     try:
@@ -204,15 +334,61 @@ def run_round(
         regressed, small = profile_regressions(profiles_before, profiles_after, tolerance=profile_tolerance, min_pairs=min_holdout_pairs)
         if regressed:
             accepted = False
+    mechanisms_before: dict[str, dict[str, float]] = {}
+    mechanisms_after: dict[str, dict[str, float]] = {}
+    mechanism_reason = ""
+    if accepted and mechanism_edits and candidates_store is not None and mechanism_store is not None and pair_cases:
+        # The lever changes what variant search finds, so its gate is the same per-profile clause over the holdout pairs
+        # scored with the store before and after; an admission that leaks or lowers any profile is reverted byte for byte.
+        mechanisms_before = evaluate_mechanism_profiles(pair_cases, mechanism_store)
+        snapshot = apply_mechanism_edits(mechanism_edits, candidates_store, mechanism_store)
+        mechanisms_after = evaluate_mechanism_profiles(pair_cases, mechanism_store)
+        mech_regressed, mech_small = profile_regressions(
+            mechanisms_before, mechanisms_after, tolerance=profile_tolerance, min_pairs=min_holdout_pairs
+        )
+        leaking = _leaking_admissions(mechanism_edits, pair_cases, mechanism_store)
+        improved = any(
+            mechanisms_after[p]["pair_correct"] > mechanisms_before.get(p, {}).get("pair_correct", 0.0) for p in mechanisms_after
+        ) or any(edit.action == "retract" for edit in mechanism_edits)
+        if mech_regressed or leaking or not improved:
+            snapshot.restore()
+            accepted = False
+            regressed = regressed + mech_regressed
+            if leaking:
+                mechanism_reason = f"mechanism_leak:{leaking[0]}"  # an admission that fires on a holdout fixed side (Req 5.3)
+            elif mech_regressed:
+                mechanism_reason = f"profile_regression:{mech_regressed[0]}"
+            else:
+                mechanism_reason = "mechanism_no_gain"
+        small = sorted(set(small) | set(mech_small))
     if accepted:
-        write_rule_ledger(ledger_path, candidate)
+        if edits:
+            write_rule_ledger(ledger_path, candidate)
         reason = "accepted"
+    elif mechanism_reason:
+        reason = mechanism_reason
     elif regressed:
         reason = f"profile_regression:{regressed[0]}"  # every regressed profile is listed in profile_regressions
     else:
         reason = "reverted"  # ledger_path untouched -> byte-for-byte revert
-    _record(journal_path, round_index, edits, "accepted" if accepted else "reverted", before, after, reason, regressed, small)
-    outcome = _outcome(round_index, accepted=accepted, reason=reason, edits=edits, before=before, after=after)
+    _record(
+        journal_path,
+        round_index,
+        edits,
+        "accepted" if accepted else "reverted",
+        before,
+        after,
+        reason,
+        regressed,
+        small,
+        mechanism_edits=mechanism_edits,
+        mechanisms_before=mechanisms_before,
+        mechanisms_after=mechanisms_after,
+        candidates=candidates_store,
+    )
+    outcome = _outcome(
+        round_index, accepted=accepted, reason=reason, edits=edits, before=before, after=after, mechanism_edits=mechanism_edits
+    )
     return RoundOutcome(
         **{
             **outcome.__dict__,
@@ -220,6 +396,8 @@ def run_round(
             "profiles_under_minimum": small,
             "per_profile_before": profiles_before,
             "per_profile_after": profiles_after,
+            "mechanisms_before": mechanisms_before,
+            "mechanisms_after": mechanisms_after,
         }
     )
 
@@ -314,7 +492,16 @@ def _write_signals(path: Path, signals: list[dict[str, object]]) -> None:
     path.write_text(json.dumps(signals, indent=2, sort_keys=True) + "\n")
 
 
-def _outcome(round_index: int, *, accepted: bool, reason: str, edits: list[RuleStatusEdit], before: _Eval, after: _Eval) -> RoundOutcome:
+def _outcome(
+    round_index: int,
+    *,
+    accepted: bool,
+    reason: str,
+    edits: list[RuleStatusEdit],
+    before: _Eval,
+    after: _Eval,
+    mechanism_edits: list[MechanismEdit] | None = None,
+) -> RoundOutcome:
     return RoundOutcome(
         round=round_index,
         accepted=accepted,
@@ -341,7 +528,14 @@ def _record(
     reason: str = "",
     profile_regressions: list[str] | None = None,
     profiles_under_minimum: list[str] | None = None,
+    mechanism_edits: Sequence[MechanismEdit] = (),
+    mechanisms_before: dict[str, dict[str, float]] | None = None,
+    mechanisms_after: dict[str, dict[str, float]] | None = None,
+    candidates: object | None = None,
 ) -> None:
+    pairs_by_id: dict[str, list[str]] = {}
+    if candidates is not None:
+        pairs_by_id = {record.id: list(record.pairs) for record in candidates.load()}  # type: ignore[attr-defined]
     append_round(
         journal_path,
         {
@@ -353,7 +547,21 @@ def _record(
             "edits": [
                 {"key": e.key(), "lever": e.lever, "rule_id": e.rule_id, "from": e.from_status, "to": e.to_status, "rationale": e.rationale}
                 for e in edits
+            ]
+            + [
+                {
+                    "key": m.key(),
+                    "lever": m.lever,
+                    "action": m.action,
+                    "mechanism_id": m.mechanism_id,
+                    "source": m.source,
+                    "pairs": pairs_by_id.get(m.mechanism_id, []),
+                    "rationale": m.rationale,
+                }
+                for m in mechanism_edits
             ],
+            "mechanisms_before": mechanisms_before or {},
+            "mechanisms_after": mechanisms_after or {},
             "recall_before": round(before.recall, 4),
             "recall_after": round(after.recall, 4),
             "fp_before": round(before.fp_rate, 4),
