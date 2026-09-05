@@ -11,10 +11,10 @@ project matches even when every identifier differs. Stdlib plus ``.ir``, ``.fact
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from .facts import SemanticFacts
+from .facts import SemanticFacts, SinkFact
 from .functions import named_ranges_from_ir
 from .ir import Bind, CallSite, FileIR, FunctionIR
 
@@ -54,9 +54,8 @@ _GUARD_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
         re.compile(r"\bint\(|\bparseInt\(|\bNumber\(|\(int\)|\(size_t\)|\(unsigned\b|\bstr\(|\.toString\(|\bstatic_cast<|\bBigInt\("),
     ),
 )
-_CONTAINER_READ = re.compile(
-    r"\[[^\]]+\]|\.get\(|\.getParameter\(|\.param\(|\.query\b|\.body\b|\.params\b|\.args\b|\.form\b|\.headers\b|\.cookies\b"
-)
+# Design §Shape: a container read is a subscript or a `.get(` read; source names themselves live in facts, never here.
+_CONTAINER_READ = re.compile(r"\[[^\]]+\]|\.get\(")
 
 
 @dataclass(frozen=True)
@@ -124,6 +123,7 @@ def derive_shape(
     facts: SemanticFacts,
     vuln_text: str = "",
     fixed_text: str = "",
+    cwe: str | None = None,
 ) -> Shape | None:
     """The shape of the labeled sink call in ``function`` on the vulnerable side, with the guard the fixed side added.
 
@@ -135,10 +135,11 @@ def derive_shape(
     target = _function_named(vuln, function, vuln_text)
     if target is None:
         return None
-    call = _labeled_call(target, sink, line)
+    scoped = facts.for_language(vuln.language)
+    call = _labeled_call(target, sink, line, scoped, cwe)
     if call is None:
         return None
-    kinds = [_source_kind_of_argument(target, call, index, facts) for index in range(len(call.arg_texts))]
+    kinds = [_source_kind_of_argument(target, call, index, scoped) for index in range(len(call.arg_texts))]
     positions = tuple(index for index, kind in enumerate(kinds) if kind is not None)
     if not positions:
         return None
@@ -214,17 +215,49 @@ def _last_bind(function: FunctionIR, name: str, before_line: int) -> Bind | None
     return max(candidates, key=lambda bind: bind.line) if candidates else None
 
 
-def _labeled_call(function: FunctionIR, sink: str | None, line: int | None) -> CallSite | None:
-    if line is not None:
-        by_line = [call for call in function.calls if call.line == line]
-        if by_line:
-            return by_line[0]
-    if sink:
-        wanted = trailing_name(sink)
+def _labeled_call(function: FunctionIR, sink: str | None, line: int | None, facts: SemanticFacts, cwe: str | None) -> CallSite | None:
+    """The call the label names: line and sink intersected when both exist, else either; else the fact sink in the function.
+
+    Labels that carry only a function and a mechanism (Real-Vuln rows) fall back to the fact-sink call inside the labeled
+    function, preferring the sink whose CWE matches the row and a call with a non-constant argument.
+    """
+    wanted = trailing_name(sink) if sink else None
+    on_line = [call for call in function.calls if line is not None and call.line == line]
+    if on_line and wanted:
+        exact = [call for call in on_line if trailing_name(call.name) == wanted]
+        if exact:
+            return exact[0]
+    if on_line:
+        return on_line[0]
+    if wanted:
         for call in function.calls:
             if trailing_name(call.name) == wanted:
                 return call
+        return None
+    ranked: list[tuple[int, int, CallSite]] = []
+    for order, call in enumerate(function.calls):
+        fact = _sink_fact_for(call.name, facts)
+        if fact is None:
+            continue
+        cwe_match = 0 if (cwe and fact.cwe == cwe) else 1
+        non_constant = 0 if any(not const or names for const, names in zip(call.arg_is_constant, call.arg_names, strict=True)) else 1
+        ranked.append((cwe_match + non_constant, order, call))
+    ranked.sort(key=lambda item: (item[0], item[1]))
+    return ranked[0][2] if ranked else None
+
+
+def _sink_fact_for(name: str, facts: SemanticFacts) -> SinkFact | None:
+    for fact in facts.sinks:
+        if any(_call_matches(name, call) for call in fact.calls):
+            return fact
     return None
+
+
+def _call_matches(name: str, fact_call: str) -> bool:
+    """Same rule as the taint walker: exact, dotted suffix, or a bare name equal to the fact's last segment."""
+    if name == fact_call or name.endswith("." + fact_call):
+        return True
+    return "." not in name and name == fact_call.split(".")[-1]
 
 
 def _function_named(ir: FileIR, function: str, text: str) -> FunctionIR | None:
@@ -255,3 +288,60 @@ def shapes_by_sink(shapes: Sequence[Shape]) -> dict[tuple[str, str], list[Shape]
     for shape in shapes:
         index.setdefault((shape.language, shape.sink_name), []).append(shape)
     return index
+
+
+@dataclass(frozen=True)
+class VariantHit:
+    path: str
+    line: int
+    mechanism_id: str
+    sink_name: str
+    source_kind: str
+
+
+def match_shapes(
+    ir: FileIR,
+    shapes: Sequence[Shape],
+    facts: SemanticFacts,
+    *,
+    mechanism_ids: Mapping[str, str],
+) -> list[VariantHit]:
+    """Call sites of ``ir`` whose trailing callee name, arity and source-carrying positions match a shape (Req 3.1).
+
+    Any source kind at the shape's positions matches: a variant learned from ``request.args`` still fires when the same
+    sink takes a parameter. Constant-only arguments never match. ``mechanism_ids`` maps ``Shape.key()`` to the store id.
+    """
+    if not ir.parse_ok:
+        return []
+    index = shapes_by_sink([shape for shape in shapes if shape.language == ir.language])
+    if not index:
+        return []
+    scoped = facts.for_language(ir.language) if hasattr(facts, "for_language") else facts
+    hits: list[VariantHit] = []
+    seen: set[tuple[int, str]] = set()
+    for function in ir.functions:
+        for call in function.calls:
+            candidates = index.get((ir.language, trailing_name(call.name)))
+            if not candidates:
+                continue
+            for shape in candidates:
+                if shape.arity != len(call.arg_texts) or (call.line, shape.key()) in seen:
+                    continue
+                kinds = [
+                    _source_kind_of_argument(function, call, position, scoped)
+                    for position in shape.source_positions
+                    if position < len(call.arg_texts)
+                ]
+                if len(kinds) != len(shape.source_positions) or any(kind is None for kind in kinds):
+                    continue
+                seen.add((call.line, shape.key()))
+                hits.append(
+                    VariantHit(
+                        path=ir.path,
+                        line=call.line,
+                        mechanism_id=mechanism_ids.get(shape.key(), shape.key()),
+                        sink_name=shape.sink_name,
+                        source_kind=str(kinds[0]),
+                    )
+                )
+    return hits

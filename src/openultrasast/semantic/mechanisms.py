@@ -89,6 +89,9 @@ def append_mechanism(
     return mechanism
 
 
+_TIER_RANK = {"seeded": 1, "reviewed": 2}
+
+
 def corpus_mechanism_id(shape: Shape) -> str:
     """Deterministic id from the shape key, so the same shape gets the same record on every machine (lever-addressable)."""
     return "corpus:" + hashlib.sha1(shape.key().encode()).hexdigest()[:16]
@@ -110,13 +113,21 @@ def append_from_pair(
     pairs = tuple(existing.pairs) if existing is not None else ()
     if pair not in pairs:
         pairs = (*pairs, pair)
+    if existing is not None and _TIER_RANK.get(existing.review_tier, 0) > _TIER_RANK.get(tier, 0):
+        tier = existing.review_tier  # a shape keeps the strongest review it ever had
+    inherited = tuple(tag for tag in (existing.tags if existing is not None else ()) if tag.startswith(("provenance:", "tier:")))
     positions = ", ".join(f"arg{p} ({k})" for p, k in zip(shape.source_positions, shape.source_kinds, strict=True))
     record = Mechanism(
         id=mechanism_id,
         summary=summary,
         cwe=cwe,
         language=shape.language,
-        tags=(shape.mechanism, f"mechanism:{shape.mechanism}", f"guard:{shape.guard}", f"provenance:{provenance}", f"tier:{tier}"),
+        tags=(
+            shape.mechanism,
+            f"mechanism:{shape.mechanism}",
+            f"guard:{shape.guard}",
+            *sorted({*inherited, f"provenance:{provenance}", f"tier:{tier}"}),
+        ),
         keywords=(shape.sink_name, shape.guard, *shape.source_kinds),
         what_made_it_exploitable=f"{positions} reaches {shape.sink_name}/{shape.arity}; the fix added {shape.guard}",
         source_finding_id="",
