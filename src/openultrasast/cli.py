@@ -41,7 +41,17 @@ from .improve import RoundOutcome, run_improvement
 from .index import build_code_chunks
 from .mapping import analyze_entry_points, attach_reachability_hints, ingest_sarif, write_entry_points, write_static_hints
 from .pair_gate import print_pair_metrics
-from .pairs import DEFAULT_CATALOG, evaluate_catalog, load_pair_catalog, result_payload, select_slice
+from .pairs import (
+    DEFAULT_CATALOG,
+    SLICE_NAMES,
+    evaluate_catalog,
+    load_pair_catalog,
+    make_hunter_scan,
+    result_payload,
+    select_profile,
+    select_slice,
+    select_split,
+)
 from .policy import assert_rules_resolve, load_policy
 from .preprocess import preprocess_repository, write_preprocess_artifact
 from .provider.openrouter import OpenRouterEmbeddingClient, OpenRouterError
@@ -125,7 +135,13 @@ def main(argv: list[str] | None = None) -> int:
         help="scan isolated vuln-vs-fixed pairs (TP on vuln, silent on fix) and emit improve-loop signals",
     )
     pairs.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
-    pairs.add_argument("--slice", choices=("all", "local", "github", "sast", "vfc"), default="all")
+    pairs.add_argument("--slice", choices=SLICE_NAMES, default="all")
+    pairs.add_argument(
+        "--profile", choices=("all", "human", "agent", "mixed", "synthetic"), default="all", help="filter pairs by provenance profile"
+    )
+    pairs.add_argument("--split", choices=("all", "train", "holdout"), default="all", help="filter pairs by declared split")
+    pairs.add_argument("--hunter", action="store_true", help="also score the LLM tool hunter on overlay slices (needs a hunter model)")
+    pairs.add_argument("--hunter-model", default=None, help="model id for --hunter (default: [models].hunter from openultrasast.toml)")
     pairs.add_argument("--json", action="store_true", help="print the pair scoreboard as JSON")
 
     subparsers.add_parser("mcp", help="run the narrow MCP server over stdio for OpenCode integration")
@@ -149,7 +165,15 @@ def main(argv: list[str] | None = None) -> int:
             dry_run=args.dry_run,
         )
     if args.command == "pairs":
-        return _pairs(args.catalog, args.slice, json_out=args.json)
+        return _pairs(
+            args.catalog,
+            args.slice,
+            json_out=args.json,
+            profile=args.profile,
+            split=args.split,
+            hunter=args.hunter,
+            hunter_model=args.hunter_model,
+        )
     if args.command == "mcp":
         from .mcp import serve  # lazy: keeps the import cycle (mcp -> cli) one-directional
 
@@ -724,11 +748,28 @@ def _improve(
     return 0
 
 
-def _pairs(catalog: Path, slice_name: str, *, json_out: bool) -> int:
+def _pairs(
+    catalog: Path,
+    slice_name: str,
+    *,
+    json_out: bool,
+    profile: str = "all",
+    split: str = "all",
+    hunter: bool = False,
+    hunter_model: str | None = None,
+) -> int:
     if not catalog.exists() or not catalog.is_file():
         raise SystemExit(f"pair catalog is not a file: {catalog}")
-    cases = select_slice(load_pair_catalog(catalog), slice_name)
-    result = evaluate_catalog(cases)
+    cases = select_split(select_profile(select_slice(load_pair_catalog(catalog), slice_name), profile), split)
+    scan = None
+    if hunter:
+        config_path = Path("openultrasast.toml")
+        config = load_config(config_path if config_path.exists() else None)
+        model = hunter_model or config.models.hunter or ""
+        client = tool_hunter.resolve_hunter_client()
+        if model and client is not None:
+            scan = make_hunter_scan(client, model)
+    result = evaluate_catalog(cases, hunter=scan)
     if json_out:
         print(json.dumps(result_payload(result), indent=2, sort_keys=True))
         return 0

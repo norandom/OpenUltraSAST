@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from openultrasast.benchmark import ExpectedFinding
 from openultrasast.cli import main
 from openultrasast.gate import LANGUAGE_MANIFESTS
@@ -245,3 +247,555 @@ def test_cli_vfc_json_includes_dual_scorers() -> None:
     assert "overlay" in payload["scorers"]["vfc"]
     assert "inventory" in payload["scorers"]["vfc"]
     assert payload["per_slice"]["vfc"]["pairs"] == payload["scorers"]["vfc"]["overlay"]["pairs"]
+
+
+# --- pair-corpus-honesty: honest scorer -------------------------------------
+
+
+def _case(
+    tmp_path: Path, name: str, vuln_src: str, fixed_src: str, expected: ExpectedFinding, *, slice_name: str = "sast", **extra: object
+) -> PairCase:
+    vuln = tmp_path / f"{name}-vuln.py"
+    fixed = tmp_path / f"{name}-fixed.py"
+    vuln.write_text(vuln_src)
+    fixed.write_text(fixed_src)
+    return PairCase(
+        name=name,
+        slice=slice_name,
+        language="python",
+        origin="test",
+        vuln_file=vuln,
+        fixed_file=fixed,
+        relpath="app.py",
+        expected=(expected,),
+        min_recall=1.0,
+        fix_policy="silent",
+        provenance=str(extra.get("provenance", "synthetic")),
+        split=str(extra.get("split", "train")),
+        known_limit=extra.get("known_limit"),  # type: ignore[arg-type]
+    )
+
+
+def test_coverage_with_source_counts_as_detection_and_as_leak(tmp_path: Path) -> None:
+    # hashlib.new is a fact sink the regex inventory does not spell -> overlay coverage, never promote.
+    src = "import hashlib\nfrom flask import request\n\ndef h():\n    data = request.args.get('x')\n    return hashlib.new(data)\n"
+    expected = ExpectedFinding(
+        cwe="CWE-327",
+        vulnerability_class="weak hash",
+        path="app.py",
+        evidence="",
+        rule_id="python-weak-hash",
+        sink="hashlib",
+        mechanism="config_sink_weak_literal",
+    )
+    both = evaluate_pair(_case(tmp_path, "cov", src, src, expected))
+    assert both.detected_vuln and "coverage" in both.detection_kinds
+    assert not both.silent_fix  # the same coverage record on the fixed side is a leak
+
+
+def test_function_scoped_match_rejects_detection_outside_the_named_function(tmp_path: Path) -> None:
+    src = "from flask import request\n\ndef other():\n    return eval(request.args.get('x'))\n\ndef target():\n    return 1\n"
+    row = ExpectedFinding(
+        cwe="CWE-95",
+        vulnerability_class="code injection",
+        path="app.py",
+        evidence="",
+        rule_id="python-unsafe-eval",
+        sink="eval",
+        function="target",
+        mechanism="source_reaches_sink",
+    )
+    outcome = evaluate_pair(_case(tmp_path, "fn", src, "def target():\n    return 1\n", row))
+    assert not outcome.detected_vuln and outcome.silent_fix
+    row_ok = ExpectedFinding(**{**row.__dict__, "function": "other"})
+    assert evaluate_pair(_case(tmp_path, "fn2", src, "def target():\n    return 1\n", row_ok)).detected_vuln
+
+
+def test_cwe_only_row_is_a_weak_label_and_never_matches(tmp_path: Path) -> None:
+    src = "from flask import request\n\ndef f():\n    return eval(request.args.get('x'))\n"
+    weak = ExpectedFinding(cwe="CWE-95", vulnerability_class="code injection", path="app.py", evidence="", mechanism="source_reaches_sink")
+    outcome = evaluate_pair(_case(tmp_path, "weak", src, "def f():\n    return 1\n", weak))
+    assert outcome.weak_labels == 1
+    assert not outcome.detected_vuln
+
+
+def test_catalog_rejects_unknown_mechanism_and_sink_unknown_without_anchor(tmp_path: Path) -> None:
+    from openultrasast.pairs import CatalogError, _load_catalog_file
+
+    (tmp_path / "v.py").write_text("x = 1\n")
+    (tmp_path / "f.py").write_text("x = 1\n")
+    head = (
+        '[[pair]]\nname = "t"\nslice = "sast"\nvuln = "v.py"\nfixed = "f.py"\nrelpath = "app.py"\n\n'
+        '[[pair.expected]]\ncwe = "CWE-95"\nclass = "x"\npath = "app.py"\n'
+    )
+    (tmp_path / "bad_mech.toml").write_text(head + 'sink = "eval"\nmechanism = "not_a_mechanism"\n')
+    with pytest.raises(CatalogError, match="unknown mechanism"):
+        _load_catalog_file(tmp_path / "bad_mech.toml")
+    (tmp_path / "bad_sink.toml").write_text(head + 'sink = "unknown"\nmechanism = "other"\n')
+    with pytest.raises(CatalogError, match="sink=unknown"):
+        _load_catalog_file(tmp_path / "bad_sink.toml")
+    (tmp_path / "bad_prov.toml").write_text(
+        head.replace('slice = "sast"\n', 'slice = "sast"\nprovenance = "robot"\n') + 'sink = "eval"\nmechanism = "other"\n'
+    )
+    with pytest.raises(CatalogError, match="unknown provenance"):
+        _load_catalog_file(tmp_path / "bad_prov.toml")
+
+
+def test_known_limit_pairs_are_evaluated_but_excluded_from_achievable(tmp_path: Path) -> None:
+    src = "from flask import request\n\ndef f():\n    return eval(request.args.get('x'))\n"
+    row = ExpectedFinding(
+        cwe="CWE-95",
+        vulnerability_class="code injection",
+        path="app.py",
+        evidence="",
+        rule_id="python-unsafe-eval",
+        sink="eval",
+        mechanism="cross_artifact",
+    )
+    limited = _case(tmp_path, "lim", src, "def f():\n    return 1\n", row, known_limit="cross_artifact: needs a properties file")
+    plain = _case(
+        tmp_path,
+        "plain",
+        src,
+        "def f():\n    return 1\n",
+        ExpectedFinding(**{**row.__dict__, "mechanism": "source_reaches_sink"}),
+        provenance="agent",
+        split="holdout",
+    )
+    result = evaluate_catalog([limited, plain])
+    assert result.known_limit == ("lim",)
+    assert result.per_slice["sast"].pairs == 2 and result.achievable["sast"].pairs == 1
+    assert set(result.per_profile) == {"synthetic", "agent"}
+    assert set(result.per_mechanism) == {"cross_artifact", "source_reaches_sink"}
+    assert result.loss["sast"]["known_limit"] == 1
+    assert "overlay" in result.scorers["sast"] and "inventory" in result.scorers["sast"]
+    assert result.degradations and result.degradations[0]["reason"] == "hunter_model_unavailable"
+
+
+def test_hunter_scorer_uses_same_rules_with_a_scripted_client(tmp_path: Path) -> None:
+    from openultrasast.findings import StaticFinding
+
+    src = "from flask import request\n\ndef f():\n    return eval(request.args.get('x'))\n"
+    row = ExpectedFinding(
+        cwe="CWE-95",
+        vulnerability_class="code injection",
+        path="app.py",
+        evidence="",
+        sink="eval",
+        function="f",
+        mechanism="source_reaches_sink",
+    )
+
+    def scripted(root: Path) -> list[StaticFinding]:
+        text = (root / "app.py").read_text()
+        if "eval(" not in text:
+            return []
+        return [
+            StaticFinding(
+                finding_id="tool-hunter:app.py:4",
+                path="app.py",
+                title="eval of request input",
+                severity="high",
+                confidence="medium",
+                evidence_level="suspicion",
+                rationale="CWE-95 eval executes attacker input",
+                line=4,
+                function_name=None,
+                reachability_status="unknown",
+                reachability_evidence=[],
+                reachability_conditions=[],
+                tags=[],
+                ranking_priority=1.0,
+            )
+        ]
+
+    case = _case(tmp_path, "hunt", src, "def f():\n    return 1\n", row)
+    result = evaluate_catalog([case], hunter=scripted)
+    hunter = result.scorers["sast"]["hunter"]
+    assert hunter.pair_correct == 1 and hunter.detected_vuln == 1 and hunter.silent_fix == 1
+    assert not result.degradations
+
+
+def test_juliet_strcpy_pair_bodies_differ_and_java_hash_is_known_limit() -> None:
+    cases = {case.name: case for case in select_slice(load_pair_catalog(), "sast")}
+    strcpy = cases["juliet-c-cwe121-strcpy"]
+    assert strcpy.vuln_file.read_text() != strcpy.fixed_file.read_text()
+    assert "dataBadBuffer[10]" in strcpy.vuln_file.read_text() and "data = dataGoodBuffer" in strcpy.fixed_file.read_text()
+    assert cases["owasp-java-hash"].known_limit and cases["owasp-java-hash"].known_limit.startswith("cross_artifact")
+    assert all(row.mechanism for case in cases.values() for row in case.expected)
+    assert all(case.provenance == "synthetic" for case in cases.values())
+
+
+def test_vfc_rows_name_functions_and_carry_no_weak_labels() -> None:
+    cases = select_slice(load_pair_catalog(), "vfc")
+    from openultrasast.pairs import is_weak_label
+
+    assert cases and all(row.function for case in cases for row in case.expected)
+    assert not any(is_weak_label(row) for case in cases for row in case.expected)
+    assert {case.split for case in cases} == {"train", "holdout"}
+
+
+def test_cli_pairs_profile_and_split_filters() -> None:
+    import io
+    from contextlib import redirect_stdout
+
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        assert main(["pairs", "--slice", "sast", "--profile", "synthetic", "--split", "holdout", "--json"]) == 0
+    payload = json.loads(buf.getvalue())
+    assert payload["overall"]["pairs"] >= 3
+    assert set(payload["per_profile"]) == {"synthetic"}
+    assert "per_mechanism" in payload and "loss" in payload and "achievable" in payload
+    assert all(item["split"] == "holdout" for item in payload["outcomes"])
+
+
+def test_new_slices_load_offline_and_score_with_profiles() -> None:
+    from openultrasast.pairs import PROVENANCES
+
+    catalog = load_pair_catalog()
+    # agent-vfc rows enter the loaded catalog only after human review (Req 5.3); candidates wait in a separate file.
+    candidates = Path("benchmarks/pairs/agent-vfc/catalog-candidates.toml")
+    assert candidates.is_file() and "reviewer" in candidates.read_text()
+    assert all(case.provenance == "agent" for case in select_slice(catalog, "agent-vfc"))
+    for slice_name, expected_provenance in (("vibe-py", "human"), ("vfc-js", "human")):
+        cases = select_slice(catalog, slice_name)
+        assert cases, slice_name
+        assert all(case.vuln_file.is_file() and case.fixed_file.is_file() for case in cases)
+        assert all(case.license for case in cases), slice_name
+        assert all(case.provenance == expected_provenance for case in cases), slice_name
+        assert {case.split for case in cases} <= {"train", "holdout"}
+        header = cases[0].vuln_file.read_text()[:600]
+        assert "Provenance:" in header and "license:" in header
+        result = evaluate_catalog(cases[:2])
+        assert result.per_slice[slice_name].pairs == 2
+        assert set(result.per_profile) <= PROVENANCES and expected_provenance in result.per_profile
+        assert result.per_mechanism and slice_name in result.loss
+
+
+# --- review round 1 remediation (RED first) -----------------------------------
+
+
+def test_weak_label_never_matches_on_inventory_fallback(tmp_path: Path) -> None:
+    # A syntax error forces parse_failed on both sides -> overlay falls back to inventory.
+    src = "from flask import request\n\ndef f(:\n    return eval(request.args.get('x'))\n"
+    weak = ExpectedFinding(cwe="CWE-95", vulnerability_class="code injection", path="app.py", evidence="", mechanism="source_reaches_sink")
+    outcome = evaluate_pair(_case(tmp_path, "weakfb", src, "def f():\n    return 1\n", weak))
+    assert outcome.parse_failed_vuln == 1
+    assert outcome.weak_labels == 1
+    assert not outcome.detected_vuln
+    assert outcome.misses == ("-:app.py:CWE-95",)
+
+
+def test_sink_match_is_exact_or_alias_not_substring() -> None:
+    from openultrasast.pairs import _overlay_matches_expected
+    from openultrasast.semantic import OverlayRecord
+
+    record = OverlayRecord(
+        proposal_id="overlay-coverage:app.py:3:execute",
+        path="app.py",
+        line=3,
+        disposition="coverage",
+        reason="x",
+        cwe="CWE-89",
+        sources=("request",),
+        sinks=("execute",),
+        sanitizers=(),
+        evidence_level="static_corroboration",
+    )
+    exec_row = ExpectedFinding(
+        cwe="CWE-78", vulnerability_class="x", path="app.py", evidence="", sink="exec", mechanism="source_reaches_sink"
+    )
+    assert not _overlay_matches_expected(exec_row, [record], "python")
+    exact = ExpectedFinding(
+        cwe="CWE-89", vulnerability_class="x", path="app.py", evidence="", sink="execute", mechanism="source_reaches_sink"
+    )
+    assert _overlay_matches_expected(exact, [record], "python")
+    alias = ExpectedFinding(
+        cwe="CWE-89", vulnerability_class="x", path="app.py", evidence="", rule_id="python-sql-injection", mechanism="source_reaches_sink"
+    )
+    assert _overlay_matches_expected(alias, [record], "python")
+
+
+def test_vfc_style_slice_rows_require_a_named_function(tmp_path: Path) -> None:
+    from openultrasast.pairs import CatalogError, _load_catalog_file
+
+    (tmp_path / "v.js").write_text("x = 1\n")
+    (tmp_path / "f.js").write_text("x = 1\n")
+    head = (
+        '[[pair]]\nname = "t"\nslice = "vfc-js"\nvuln = "v.js"\nfixed = "f.js"\nrelpath = "a.js"\n\n'
+        '[[pair.expected]]\ncwe = "CWE-78"\nclass = "x"\npath = "a.js"\nmechanism = "source_reaches_sink"\n'
+    )
+    (tmp_path / "nofn.toml").write_text(head + 'sink = "exec"\n')
+    with pytest.raises(CatalogError, match="function"):
+        _load_catalog_file(tmp_path / "nofn.toml")
+    (tmp_path / "anon.toml").write_text(head + 'function = "<anon>"\n')
+    with pytest.raises(CatalogError, match="function"):
+        _load_catalog_file(tmp_path / "anon.toml")
+    (tmp_path / "ok.toml").write_text(head + 'function = "run"\n')
+    assert _load_catalog_file(tmp_path / "ok.toml")[0].expected[0].function == "run"
+
+
+def test_known_limit_pairs_emit_no_improve_signals(tmp_path: Path) -> None:
+    src = "def f():\n    return 1\n"
+    row = ExpectedFinding(
+        cwe="CWE-95",
+        vulnerability_class="x",
+        path="app.py",
+        evidence="",
+        rule_id="python-unsafe-eval",
+        sink="eval",
+        mechanism="cross_artifact",
+    )
+    limited = _case(tmp_path, "lim2", src, src, row, known_limit="cross_artifact: needs a properties file")
+    result = evaluate_catalog([limited])
+    assert not result.outcomes[0].detected_vuln
+    assert all(signal["pair"] != "lim2" for signal in result.signals)
+
+
+# --- review round 2 remediation (RED first) -----------------------------------
+
+
+def test_function_at_skips_anonymous_and_module_ranges() -> None:
+    from openultrasast.semantic.overlay import function_at
+
+    ranges = (("<module>", 1, 40), ("handler", 3, 20), ("<anon>", 5, 12))
+    assert function_at(ranges, 7) == "handler"  # innermost *named* function, never "<anon>"
+    assert function_at(ranges, 25) is None
+    assert function_at((("<anon>", 1, 9),), 4) is None
+
+
+@pytest.mark.semantic
+def test_promotion_inside_a_callback_matches_the_enclosing_named_function(tmp_path: Path) -> None:
+    from openultrasast.semantic.extra import has_semantic_extra
+
+    if not has_semantic_extra():
+        pytest.skip("tree-sitter extra absent")
+    src = (
+        "const cp = require('child_process');\n"
+        "function handler(req, res) {\n"
+        "  [req.query.cmd].forEach(function (c) {\n"
+        "    cp.exec(c);\n"
+        "  });\n"
+        "}\n"
+    )
+    fixed = "function handler(req, res) {\n  res.end('ok');\n}\n"
+    vuln = tmp_path / "v.js"
+    fix = tmp_path / "f.js"
+    vuln.write_text(src)
+    fix.write_text(fixed)
+    row = ExpectedFinding(
+        cwe="CWE-78", vulnerability_class="x", path="app.js", evidence="", function="handler", sink="exec", mechanism="source_reaches_sink"
+    )
+    case = PairCase(
+        name="cb",
+        slice="vfc-js",
+        language="javascript",
+        origin="test",
+        vuln_file=vuln,
+        fixed_file=fix,
+        relpath="app.js",
+        expected=(row,),
+        min_recall=1.0,
+        fix_policy="silent",
+        provenance="human",
+    )
+    outcome = evaluate_pair(case)
+    assert outcome.detected_vuln, outcome
+    assert outcome.pair_correct
+
+
+def test_loader_rejects_reserved_words_as_function_labels(tmp_path: Path) -> None:
+    from openultrasast.pairs import CatalogError, _load_catalog_file
+
+    (tmp_path / "v.js").write_text("x = 1\n")
+    (tmp_path / "f.js").write_text("x = 1\n")
+    head = (
+        '[[pair]]\nname = "t"\nslice = "vfc-js"\nvuln = "v.js"\nfixed = "f.js"\nrelpath = "a.js"\n\n'
+        '[[pair.expected]]\ncwe = "CWE-78"\nclass = "x"\npath = "a.js"\nmechanism = "source_reaches_sink"\nsink = "exec"\n'
+    )
+    for bad in ("function", "def", "return"):
+        (tmp_path / "bad.toml").write_text(head + f'function = "{bad}"\n')
+        with pytest.raises(CatalogError, match="function"):
+            _load_catalog_file(tmp_path / "bad.toml")
+
+
+def test_agent_vfc_stays_empty_until_reviewed() -> None:
+    catalog = load_pair_catalog()
+    loaded = select_slice(catalog, "agent-vfc")
+    candidates = Path("benchmarks/pairs/agent-vfc/catalog-candidates.toml")
+    # Req 5.3: nothing loads until a human sets `reviewer`; the candidates file must not be empty meanwhile.
+    assert candidates.is_file() and candidates.read_text().count("[[pair]]") >= 1
+    assert loaded == () or all(case.provenance == "agent" for case in loaded)
+    reviewed_in_recipes = 'reviewer = "pending"' not in Path("benchmarks/pairs/agent-vfc/recipes.toml").read_text()
+    assert bool(loaded) == reviewed_in_recipes
+
+
+# --- debug round after review 3: shared named ranges, containment-only matching -----
+
+
+def _js_case(tmp_path: Path, name: str, src: str, function: str) -> PairCase:
+    vuln = tmp_path / f"{name}-v.js"
+    fix = tmp_path / f"{name}-f.js"
+    vuln.write_text(src)
+    fix.write_text("function untouched() {\n  return 1;\n}\n")
+    row = ExpectedFinding(
+        cwe="CWE-78", vulnerability_class="x", path="app.js", evidence="", function=function, sink="exec", mechanism="source_reaches_sink"
+    )
+    return PairCase(
+        name=name,
+        slice="vfc-js",
+        language="javascript",
+        origin="test",
+        vuln_file=vuln,
+        fixed_file=fix,
+        relpath="app.js",
+        expected=(row,),
+        min_recall=1.0,
+        fix_policy="silent",
+        provenance="human",
+    )
+
+
+_JS_FORMS = {
+    "arrow": "const cp = require('child_process');\nconst h = (req, res) => {\n  cp.exec(req.query.cmd);\n};\n",
+    "exports": "const cp = require('child_process');\nexports.h = function (req, res) {\n  cp.exec(req.query.cmd);\n};\n",
+    "method": "const cp = require('child_process');\nclass Ctl {\n  h(req, res) {\n    cp.exec(req.query.cmd);\n  }\n}\n",
+    "property": (
+        "const cp = require('child_process');\nmodule.exports = {\n  h: function (req, res) {\n    cp.exec(req.query.cmd);\n  },\n};\n"
+    ),
+}
+
+
+@pytest.mark.semantic
+@pytest.mark.parametrize("form", sorted(_JS_FORMS))
+def test_declarator_named_functions_match_their_labels(tmp_path: Path, form: str) -> None:
+    from openultrasast.semantic.extra import has_semantic_extra
+
+    if not has_semantic_extra():
+        pytest.skip("tree-sitter extra absent")
+    outcome = evaluate_pair(_js_case(tmp_path, form, _JS_FORMS[form], "h"))
+    assert outcome.detected_vuln, (form, outcome)
+
+
+@pytest.mark.semantic
+def test_containment_matches_outer_label_and_rejects_inner_label(tmp_path: Path) -> None:
+    from openultrasast.semantic.extra import has_semantic_extra
+
+    if not has_semantic_extra():
+        pytest.skip("tree-sitter extra absent")
+    src = (
+        "const cp = require('child_process');\n"
+        "function outer(req) {\n"
+        "  function inner(c) {\n"
+        "    cp.exec(c);\n"
+        "  }\n"
+        "  inner(req.query.cmd);\n"
+        "  cp.exec(req.query.top);\n"
+        "}\n"
+    )
+    # The sink inside `inner` also lies inside `outer`'s range: containment says yes, name equality would say no.
+    assert evaluate_pair(_js_case(tmp_path, "outer", src, "outer")).detected_vuln
+    # A label naming `inner` must not match the promote at line 7, which is outside `inner`.
+    only_top = src.replace("    cp.exec(c);\n", "    return c;\n")
+    assert not evaluate_pair(_js_case(tmp_path, "inner", only_top, "inner")).detected_vuln
+
+
+def test_unresolvable_function_label_is_a_visible_loss_not_a_silent_miss(tmp_path: Path) -> None:
+    src = "from flask import request\n\ndef f():\n    return eval(request.args.get('x'))\n"
+    row = ExpectedFinding(
+        cwe="CWE-95",
+        vulnerability_class="x",
+        path="app.py",
+        evidence="",
+        function="does_not_exist",
+        sink="eval",
+        mechanism="source_reaches_sink",
+    )
+    outcome = evaluate_pair(_case(tmp_path, "unres", src, "def f():\n    return 1\n", row))
+    assert not outcome.detected_vuln
+    assert outcome.unresolved_labels == 1
+    assert any(miss.endswith("!unresolved") for miss in outcome.misses)
+    result = evaluate_catalog([_case(tmp_path, "unres2", src, "def f():\n    return 1\n", row)])
+    assert result.loss["sast"]["unresolved_function_labels"] == 1
+
+
+def test_named_function_ranges_use_declarator_names() -> None:
+    from openultrasast.semantic.extra import has_semantic_extra
+    from openultrasast.semantic.functions import declarator_name, named_function_ranges
+
+    assert declarator_name("const listProcessesOnPort = module.exports.listProcessesOnPort = async port => {") == "listProcessesOnPort"
+    assert declarator_name("  exec('df -k ' + path, function(err, stdout) {") is None
+    assert declarator_name("    function (req, res) {") is None
+    if not has_semantic_extra():
+        pytest.skip("tree-sitter extra absent")
+    src = "\n".join(
+        [
+            "function a() { return 1; }",
+            "const b = (x) => { return x; };",
+            "exports.c = function (y) { return y; };",
+            "class K {",
+            "  d(z) {",
+            "    return z;",
+            "  }",
+            "}",
+            "const o = {",
+            "  e: function (w) {",
+            "    return w;",
+            "  },",
+            "};",
+            "",
+        ]
+    )
+    ranges = named_function_ranges("f.js", src, "javascript")
+    assert ranges is not None
+    assert {name for name, _, _ in ranges} >= {"a", "b", "c", "d", "e"}
+    assert "<anon>" not in {name for name, _, _ in ranges}
+
+
+# --- review round 4 remediation (RED first) -----------------------------------
+
+
+@pytest.mark.semantic
+def test_c_function_with_return_type_on_previous_line_keeps_its_parser_name() -> None:
+    from openultrasast.semantic.extra import has_semantic_extra
+    from openultrasast.semantic.functions import function_at, named_function_ranges
+
+    if not has_semantic_extra():
+        pytest.skip("tree-sitter extra absent")
+    ranges = named_function_ranges("a.c", "static int\nfoo(int x)\n{\n  return x;\n}\n", "c")
+    assert ranges is not None and any(name == "foo" and start <= 4 <= end for name, start, end in ranges)
+    assert function_at(ranges, 4) == "foo"
+
+
+def test_declarator_name_knows_perl_subs_and_never_names_calls() -> None:
+    from openultrasast.semantic.functions import declarator_name
+
+    assert declarator_name("sub link_hash_cert {") == "link_hash_cert"
+    assert declarator_name("    return foo(bar)") is None
+    assert declarator_name("    print(x)") is None
+    assert declarator_name("synchronized (lock) {") is None
+    assert declarator_name("int main(int argc, char **argv)") == "main"
+
+
+# --- review round 5 remediation (RED first) -----------------------------------
+
+
+def test_declarator_name_strips_cpp_qualification_to_match_unqualified_labels() -> None:
+    from openultrasast.semantic.functions import declarator_name
+
+    assert declarator_name("bool FileReaderLoader::ArrayBufferResult(int a) {") == "ArrayBufferResult"
+    assert declarator_name("void ns::Klass::run(const std::string& s) const {") == "run"
+    assert declarator_name("std::string Foo::bar() {") == "bar"
+
+
+@pytest.mark.semantic
+def test_cpp_qualified_method_range_is_found_by_its_unqualified_label() -> None:
+    from openultrasast.semantic.extra import has_semantic_extra
+    from openultrasast.semantic.functions import function_at, named_function_ranges, spans_named
+
+    if not has_semantic_extra():
+        pytest.skip("tree-sitter extra absent")
+    ranges = named_function_ranges("a.cc", "bool K::m(int a) {\n  return a;\n}\n", "cpp")
+    assert ranges is not None
+    assert spans_named(ranges, "m") == ((1, 3),)
+    assert function_at(ranges, 2) == "m"

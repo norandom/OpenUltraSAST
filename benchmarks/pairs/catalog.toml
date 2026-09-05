@@ -55,6 +55,8 @@ fixed = "github/sven-cwe-078-os-system/fixed.py"
 relpath = "vuedj/configtitania/views.py"
 min_recall = 1.0
 fix_policy = "silent"
+provenance = "human"
+split = "train"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -63,6 +65,7 @@ path = "vuedj/configtitania/views.py"
 rule_id = "python-os-command"
 sink = "os.system"
 evidence = "os.system concatenates attacker-controlled username into a shell command"
+mechanism = "source_reaches_sink"
 
 [[pair]]
 name = "sven-cwe-078-shell-true"
@@ -78,6 +81,8 @@ fixed = "github/sven-cwe-078-shell-true/fixed.py"
 relpath = "mobly/controllers/android_device_lib/adb.py"
 min_recall = 1.0
 fix_policy = "silent"
+provenance = "human"
+split = "holdout"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -86,6 +91,7 @@ path = "mobly/controllers/android_device_lib/adb.py"
 rule_id = "python-shell-true"
 sink = "subprocess"
 evidence = "subprocess.Popen runs the command with shell=True"
+mechanism = "source_reaches_sink"
 
 [[pair]]
 name = "sven-cwe-089-execute-percent"
@@ -101,6 +107,8 @@ fixed = "github/sven-cwe-089-execute-percent/fixed.py"
 relpath = "cgi/common.py"
 min_recall = 1.0
 fix_policy = "silent"
+provenance = "human"
+split = "train"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -109,6 +117,7 @@ path = "cgi/common.py"
 rule_id = "python-sql-injection"
 sink = "execute"
 evidence = "execute percent-formats attacker-controlled input into SQL"
+mechanism = "source_reaches_sink"
 
 [[pair]]
 name = "sven-cwe-089-query-concat"
@@ -124,6 +133,8 @@ fixed = "github/sven-cwe-089-query-concat/fixed.py"
 relpath = "modules/query_lastfm.py"
 min_recall = 1.0
 fix_policy = "silent"
+provenance = "human"
+split = "holdout"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -131,6 +142,7 @@ class = "sql injection"
 path = "modules/query_lastfm.py"
 sink = "SELECT"
 evidence = "SQL query concatenates attacker-controlled tag_num"
+mechanism = "source_reaches_sink"
 
 [[pair]]
 name = "hutool-cve-2018-17297"
@@ -149,6 +161,8 @@ fixed = "github/hutool-cve-2018-17297/fixed/ZipUtil.java"
 relpath = "cn/hutool/core/util/ZipUtil.java"
 min_recall = 1.0
 fix_policy = "silent"
+provenance = "human"
+split = "train"
 
 [[pair.expected]]
 cwe = "CWE-22"
@@ -156,6 +170,7 @@ class = "path traversal"
 path = "cn/hutool/core/util/ZipUtil.java"
 sink = "ZipEntry"
 evidence = "zip entry name is joined onto the extract directory without a zip-slip check"
+mechanism = "path_join_user_input"
 
 [[pair]]
 name = "node-serialize-cve-2017-5941"
@@ -171,6 +186,8 @@ fixed = "github/node-serialize-cve-2017-5941/fixed.js"
 relpath = "index.js"
 min_recall = 1.0
 fix_policy = "silent"
+provenance = "human"
+split = "holdout"
 
 [[pair.expected]]
 cwe = "CWE-95"
@@ -179,3 +196,4 @@ path = "index.js"
 rule_id = "js-eval"
 sink = "eval"
 evidence = "eval executes attacker-controlled serialized input"
+mechanism = "source_reaches_sink"

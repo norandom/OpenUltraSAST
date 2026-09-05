@@ -3,6 +3,12 @@
 Isolated trees keep the two sides from contaminating each other (a `safe.py`
 sitting next to `app.py` cannot measure false positives). Pair outcomes feed
 the improvement loop as miss (vuln) and fp (fix) signals.
+
+pair-corpus-honesty: the overlay scorer counts ``coverage`` records with a
+source as detections and as leaks, matches by function when a label names one,
+flags CWE-only rows as weak labels, reports parser/adjudication loss, and
+slices metrics by provenance profile and by mechanism. Known-limit pairs are
+evaluated but excluded from the achievable numbers.
 """
 
 from __future__ import annotations
@@ -10,8 +16,9 @@ from __future__ import annotations
 import shutil
 import tempfile
 import tomllib
-from collections.abc import Sequence
-from dataclasses import asdict, dataclass, field
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import asdict, dataclass, field, replace
+from functools import lru_cache
 from pathlib import Path
 
 from .benchmark import (
@@ -24,15 +31,38 @@ from .benchmark import (
 )
 from .findings import StaticFinding, quick_scan_findings
 from .mapping import analyze_entry_points, attach_reachability_hints
-from .preprocess import preprocess_repository
+from .preprocess import FileTarget, preprocess_repository
 from .rank import rank_targets
+from .ruleset import PatternRule
 from .semantic import OverlayRecord, adjudicate
+from .semantic.facts import FactLoadError, load_facts
+from .semantic.functions import RESERVED_FUNCTION_LABELS, function_at, named_function_ranges, spans_named
 
 DEFAULT_CATALOG = Path("benchmarks/pairs/catalog.toml")
 DEFAULT_SAST_CATALOG = Path("benchmarks/pairs/sast/catalog.toml")
 DEFAULT_VFC_CATALOG = Path("benchmarks/pairs/vfc/catalog.toml")
+DEFAULT_VIBE_PY_CATALOG = Path("benchmarks/pairs/vibe-py/catalog.toml")
+DEFAULT_VFC_JS_CATALOG = Path("benchmarks/pairs/vfc-js/catalog.toml")
+DEFAULT_AGENT_VFC_CATALOG = Path("benchmarks/pairs/agent-vfc/catalog.toml")
 DEFAULT_DATASETS = Path("benchmarks/pairs/datasets.toml")
-OVERLAY_SLICES = frozenset({"sast", "vfc"})
+DEFAULT_MECHANISMS = Path("benchmarks/pairs/mechanisms.toml")
+
+# Slices scored on overlay dispositions (inventory fallback when nothing adjudicates).
+OVERLAY_SLICES = frozenset({"sast", "vfc", "vibe-py", "vfc-js", "agent-vfc"})
+# Harvested function slices: every label must name the function (design §LabelSchema); "<anon>" does not scope.
+FUNCTION_REQUIRED_SLICES = OVERLAY_SLICES - {"sast"}
+FunctionRanges = dict[str, tuple[tuple[str, int, int], ...]]
+SLICE_NAMES = ("all", "local", "github", "sast", "vfc", "vibe-py", "vfc-js", "agent-vfc")
+PROVENANCES = frozenset({"human", "agent", "mixed", "synthetic"})
+SPLITS = frozenset({"train", "holdout"})
+_DEFAULT_PROVENANCE = {"sast": "synthetic", "local": "human", "github": "human", "vfc": "human"}
+_MANIFEST_MECHANISM = "source_reaches_sink"  # cheat-sheet fixtures referenced via expected_from
+
+HunterScan = Callable[[Path], list[StaticFinding]]
+
+
+class CatalogError(ValueError):
+    """Raised when a pair catalog violates the label schema."""
 
 
 @dataclass(frozen=True)
@@ -52,6 +82,9 @@ class PairCase:
     commit_url: str = ""
     cve: str = ""
     license: str = ""
+    provenance: str = "human"
+    split: str = "train"
+    known_limit: str | None = None
 
 
 @dataclass(frozen=True)
@@ -73,6 +106,17 @@ class PairOutcome:
     leaks: tuple[str, ...]
     commit_url: str = ""
     cve: str = ""
+    provenance: str = "human"
+    mechanisms: tuple[str, ...] = ()
+    known_limit: str | None = None
+    split: str = "train"
+    weak_labels: int = 0
+    parse_failed_vuln: int = 0
+    parse_failed_fixed: int = 0
+    unadjudicated_vuln: int = 0
+    unadjudicated_fixed: int = 0
+    detection_kinds: tuple[str, ...] = ()
+    unresolved_labels: int = 0  # expected rows whose function names no range on the vulnerable side
 
 
 @dataclass(frozen=True)
@@ -98,6 +142,12 @@ class PairEvalResult:
     per_slice: dict[str, PairCorpusMetrics]
     signals: tuple[dict[str, object], ...]
     scorers: dict[str, dict[str, PairCorpusMetrics]] = field(default_factory=dict)
+    per_profile: dict[str, PairCorpusMetrics] = field(default_factory=dict)
+    per_mechanism: dict[str, PairCorpusMetrics] = field(default_factory=dict)
+    achievable: dict[str, PairCorpusMetrics] = field(default_factory=dict)
+    known_limit: tuple[str, ...] = ()
+    loss: dict[str, dict[str, int]] = field(default_factory=dict)
+    degradations: tuple[dict[str, object], ...] = ()
 
 
 def load_datasets(path: Path = DEFAULT_DATASETS) -> tuple[dict[str, object], ...]:
@@ -105,13 +155,30 @@ def load_datasets(path: Path = DEFAULT_DATASETS) -> tuple[dict[str, object], ...
     return tuple(dict(item) for item in payload.get("dataset", []))
 
 
+@lru_cache(maxsize=4)
+def load_mechanisms(path: Path = DEFAULT_MECHANISMS) -> tuple[str, frozenset[str]]:
+    """Closed mechanism vocabulary: (version, ids). Missing file is a catalog error."""
+    if not path.is_file():
+        raise CatalogError(f"mechanism vocabulary missing: {path}")
+    payload = tomllib.loads(path.read_text())
+    ids = frozenset(str(item["id"]) for item in payload.get("mechanism", []) if isinstance(item, dict) and item.get("id"))
+    if not ids:
+        raise CatalogError(f"mechanism vocabulary is empty: {path}")
+    return str(payload.get("version", "1")), ids
+
+
 def load_pair_catalog(path: Path = DEFAULT_CATALOG) -> tuple[PairCase, ...]:
     cases = _load_catalog_file(path)
     if path.resolve() == DEFAULT_CATALOG.resolve():
-        if DEFAULT_SAST_CATALOG.exists():
-            cases = cases + _load_catalog_file(DEFAULT_SAST_CATALOG)
-        if DEFAULT_VFC_CATALOG.exists():
-            cases = cases + _load_catalog_file(DEFAULT_VFC_CATALOG)
+        for extra in (
+            DEFAULT_SAST_CATALOG,
+            DEFAULT_VFC_CATALOG,
+            DEFAULT_VIBE_PY_CATALOG,
+            DEFAULT_VFC_JS_CATALOG,
+            DEFAULT_AGENT_VFC_CATALOG,
+        ):
+            if extra.exists():
+                cases = cases + _load_catalog_file(extra)
     return cases
 
 
@@ -119,13 +186,29 @@ def _load_catalog_file(path: Path) -> tuple[PairCase, ...]:
     catalog_path = path.resolve()
     payload = tomllib.loads(catalog_path.read_text())
     root = catalog_path.parent
+    _, mechanisms = load_mechanisms()
     cases: list[PairCase] = []
     for item in payload.get("pair", []):
-        expected = _expected_for(item, root)
+        name = str(item["name"])
+        slice_name = str(item.get("slice", "github"))
+        expected = _expected_for(item, root, name, mechanisms)
+        if slice_name in FUNCTION_REQUIRED_SLICES:
+            for row in expected:
+                if not row.function or row.function in RESERVED_FUNCTION_LABELS:
+                    raise CatalogError(
+                        f"pair {name}: slice {slice_name} requires a named function on every expected row (got {row.function!r})"
+                    )
+        provenance = str(item.get("provenance") or _DEFAULT_PROVENANCE.get(slice_name, "human"))
+        if provenance not in PROVENANCES:
+            raise CatalogError(f"pair {name}: unknown provenance {provenance!r}; expected one of {sorted(PROVENANCES)}")
+        split = str(item.get("split", "train"))
+        if split not in SPLITS:
+            raise CatalogError(f"pair {name}: unknown split {split!r}; expected train or holdout")
+        known_limit = item.get("known_limit")
         cases.append(
             PairCase(
-                name=str(item["name"]),
-                slice=str(item.get("slice", "github")),
+                name=name,
+                slice=slice_name,
                 language=str(item.get("language", "")),
                 origin=str(item.get("origin", "")),
                 vuln_file=_resolve(root, str(item["vuln"])),
@@ -139,30 +222,50 @@ def _load_catalog_file(path: Path) -> tuple[PairCase, ...]:
                 commit_url=str(item.get("commit_url", "")),
                 cve=str(item.get("cve", "")),
                 license=str(item.get("license", "")),
+                provenance=provenance,
+                split=split,
+                known_limit=str(known_limit) if known_limit else None,
             )
         )
     return tuple(cases)
 
 
-def evaluate_pair(case: PairCase) -> PairOutcome:
+def evaluate_pair(case: PairCase, *, hunter: HunterScan | None = None, ruleset: tuple[PatternRule, ...] | None = None) -> PairOutcome:
     with tempfile.TemporaryDirectory(prefix="ousast-pair-") as scratch:
         vuln_root = _materialize(Path(scratch) / "vuln", case.vuln_file, case.relpath)
         fix_root = _materialize(Path(scratch) / "fixed", case.fixed_file, case.relpath)
+        if hunter is not None:
+            return _evaluate_hunter_pair(case, vuln_root, fix_root, hunter)
         if case.slice in OVERLAY_SLICES:
-            return _evaluate_overlay_pair(case, vuln_root, fix_root)
-        return _evaluate_inventory_pair(case, vuln_root, fix_root)
+            return _evaluate_overlay_pair(case, vuln_root, fix_root, ruleset)
+        return _evaluate_inventory_pair(case, vuln_root, fix_root, ruleset=ruleset)
 
 
-def evaluate_catalog(cases: Sequence[PairCase]) -> PairEvalResult:
-    outcomes = tuple(evaluate_pair(case) for case in cases)
+def evaluate_catalog(
+    cases: Sequence[PairCase],
+    *,
+    hunter: HunterScan | None = None,
+    ruleset: tuple[PatternRule, ...] | None = None,
+    inventory_sidecar: bool = True,
+) -> PairEvalResult:
+    """Score every case. ``ruleset`` lets the improve loop score a candidate ledger; ``inventory_sidecar=False`` skips the second scan."""
+    outcomes = tuple(evaluate_pair(case, ruleset=ruleset) for case in cases)
     scorers: dict[str, dict[str, PairCorpusMetrics]] = {}
-    vfc_cases = tuple(case for case in cases if case.slice == "vfc")
-    if vfc_cases:
-        overlay_outcomes = tuple(item for item in outcomes if item.slice == "vfc")
-        scorers["vfc"] = {
-            "overlay": _metrics(overlay_outcomes),
-            "inventory": _metrics(tuple(_inventory_only(case) for case in vfc_cases)),
-        }
+    degradations: list[dict[str, object]] = []
+    for slice_name in sorted({case.slice for case in cases if case.slice in OVERLAY_SLICES}):
+        slice_cases = tuple(case for case in cases if case.slice == slice_name)
+        scorers[slice_name] = {"overlay": _metrics(tuple(item for item in outcomes if item.slice == slice_name))}
+        if inventory_sidecar:
+            scorers[slice_name]["inventory"] = _metrics(tuple(_inventory_only(case, ruleset) for case in slice_cases))
+        if hunter is not None:
+            scorers[slice_name]["hunter"] = _metrics(tuple(evaluate_pair(case, hunter=hunter) for case in slice_cases))
+    if hunter is None and scorers:
+        degradations.append({"stage": "pairs", "reason": "hunter_model_unavailable"})
+    achievable_outcomes = tuple(item for item in outcomes if item.known_limit is None)
+    per_mechanism: dict[str, list[PairOutcome]] = {}
+    for item in outcomes:
+        for mechanism in item.mechanisms:
+            per_mechanism.setdefault(mechanism, []).append(item)
     return PairEvalResult(
         outcomes=outcomes,
         overall=_metrics(outcomes),
@@ -172,19 +275,39 @@ def evaluate_catalog(cases: Sequence[PairCase]) -> PairEvalResult:
         },
         signals=tuple(build_pair_signals(outcomes)),
         scorers=scorers,
+        per_profile={
+            profile: _metrics(tuple(item for item in outcomes if item.provenance == profile))
+            for profile in sorted({item.provenance for item in outcomes})
+        },
+        per_mechanism={mechanism: _metrics(tuple(items)) for mechanism, items in sorted(per_mechanism.items())},
+        achievable={
+            slice_name: _metrics(tuple(item for item in achievable_outcomes if item.slice == slice_name))
+            for slice_name in sorted({item.slice for item in achievable_outcomes})
+        },
+        known_limit=tuple(item.name for item in outcomes if item.known_limit is not None),
+        loss=_loss(outcomes),
+        degradations=tuple(degradations),
     )
 
 
 def build_pair_signals(outcomes: Sequence[PairOutcome]) -> list[dict[str, object]]:
-    """Same miss/fp vocabulary as ``build_rule_signals``, tagged with the pair name."""
+    """Same miss/fp vocabulary as ``build_rule_signals``, tagged with the pair name, profile, and mechanisms."""
     signals: list[dict[str, object]] = []
     for outcome in outcomes:
+        if outcome.known_limit is not None:
+            continue  # unachievable by construction; the loop must not chase it
+        common: dict[str, object] = {
+            "pair": outcome.name,
+            "profile": outcome.provenance,
+            "mechanisms": list(outcome.mechanisms),
+            "split": outcome.split,
+        }
         for miss in outcome.misses:
             rule_id, path, cwe = (miss.split(":", 2) + ["", ""])[:3]
-            signals.append({"rule_id": rule_id if rule_id != "-" else "", "signal": "miss", "cwe": cwe, "path": path, "pair": outcome.name})
+            signals.append({"rule_id": rule_id if rule_id != "-" else "", "signal": "miss", "cwe": cwe, "path": path, **common})
         for leak in outcome.leaks:
             rule_id = leak.split(":", 1)[0]
-            signals.append({"rule_id": rule_id, "signal": "fp", "path": leak, "pair": outcome.name, "side": "fixed"})
+            signals.append({"rule_id": rule_id, "signal": "fp", "path": leak, "side": "fixed", **common})
     return sorted(signals, key=lambda item: (str(item.get("signal")), str(item.get("rule_id")), str(item.get("pair"))))
 
 
@@ -194,6 +317,18 @@ def select_slice(cases: Sequence[PairCase], slice_name: str | None) -> tuple[Pai
     return tuple(case for case in cases if case.slice == slice_name)
 
 
+def select_profile(cases: Sequence[PairCase], profile: str | None) -> tuple[PairCase, ...]:
+    if not profile or profile == "all":
+        return tuple(cases)
+    return tuple(case for case in cases if case.provenance == profile)
+
+
+def select_split(cases: Sequence[PairCase], split: str | None) -> tuple[PairCase, ...]:
+    if not split or split == "all":
+        return tuple(cases)
+    return tuple(case for case in cases if case.split == split)
+
+
 def result_payload(result: PairEvalResult) -> dict[str, object]:
     return {
         "overall": asdict(result.overall),
@@ -201,16 +336,27 @@ def result_payload(result: PairEvalResult) -> dict[str, object]:
         "outcomes": [asdict(outcome) for outcome in result.outcomes],
         "signals": list(result.signals),
         "scorers": {
-            slice_name: {scorer: asdict(metrics) for scorer, metrics in inner.items()}
-            for slice_name, inner in result.scorers.items()
+            slice_name: {scorer: asdict(metrics) for scorer, metrics in inner.items()} for slice_name, inner in result.scorers.items()
         },
+        "per_profile": {name: asdict(metrics) for name, metrics in result.per_profile.items()},
+        "per_mechanism": {name: asdict(metrics) for name, metrics in result.per_mechanism.items()},
+        "achievable": {name: asdict(metrics) for name, metrics in result.achievable.items()},
+        "known_limit": list(result.known_limit),
+        "loss": {name: dict(counts) for name, counts in result.loss.items()},
+        "degradations": list(result.degradations),
     }
 
 
-def _expected_for(item: dict[str, object], root: Path) -> tuple[ExpectedFinding, ...]:
+# --- catalog helpers -------------------------------------------------------
+
+
+def _expected_for(item: dict[str, object], root: Path, name: str, mechanisms: frozenset[str]) -> tuple[ExpectedFinding, ...]:
     inline = item.get("expected")
     if isinstance(inline, list) and inline:
-        return tuple(_parse_expected(entry) for entry in inline if isinstance(entry, dict))
+        rows = tuple(_parse_expected(entry, name, mechanisms) for entry in inline if isinstance(entry, dict))
+        for row in rows:
+            _validate_expected(row, name)
+        return rows
     expected_from = item.get("expected_from")
     if not expected_from:
         return ()
@@ -218,11 +364,24 @@ def _expected_for(item: dict[str, object], root: Path) -> tuple[ExpectedFinding,
     relpath = str(item["relpath"])
     # Pair eval measures ruled sinks. Unruled planted misses (split-sink, CWE-190)
     # stay on the stage-1/2 fixtures and must not drag local pair_correct below 1.0.
-    return tuple(entry for entry in manifest.expected if entry.rule_id and (relpath in entry.path or entry.path in relpath))
+    derived: list[ExpectedFinding] = []
+    for entry in manifest.expected:
+        if not (entry.rule_id and (relpath in entry.path or entry.path in relpath)):
+            continue
+        mechanism = entry.mechanism or _MANIFEST_MECHANISM
+        if mechanism not in mechanisms:
+            raise CatalogError(f"pair {name}: unknown mechanism {mechanism!r} in {expected_from}")
+        derived.append(ExpectedFinding(**{**asdict(entry), "mechanism": mechanism}))
+    return tuple(derived)
 
 
-def _parse_expected(item: dict[str, object]) -> ExpectedFinding:
+def _parse_expected(item: dict[str, object], name: str, mechanisms: frozenset[str]) -> ExpectedFinding:
     line_value = item.get("line")
+    mechanism = item.get("mechanism")
+    if not isinstance(mechanism, str) or not mechanism:
+        raise CatalogError(f"pair {name}: expected row is missing mechanism")
+    if mechanism not in mechanisms:
+        raise CatalogError(f"pair {name}: unknown mechanism {mechanism!r}; see benchmarks/pairs/mechanisms.toml")
     return ExpectedFinding(
         cwe=str(item["cwe"]),
         vulnerability_class=str(item.get("class", item.get("vulnerability_class", "unknown"))),
@@ -232,10 +391,21 @@ def _parse_expected(item: dict[str, object]) -> ExpectedFinding:
         line=line_value if isinstance(line_value, int) else None,
         function=str(item["function"]) if "function" in item else None,
         sink=str(item["sink"]) if "sink" in item else None,
+        mechanism=mechanism,
     )
 
 
-def _manifest(case: PairCase) -> BenchmarkManifest:
+def _validate_expected(row: ExpectedFinding, name: str) -> None:
+    if (row.sink or "").lower() == "unknown" and not row.function and not row.rule_id:
+        raise CatalogError(f"pair {name}: expected row has sink=unknown and neither function nor rule_id; label it or drop it")
+
+
+def is_weak_label(row: ExpectedFinding) -> bool:
+    """A row that can only match by CWE string. Never counts as a detection."""
+    return not row.function and not row.rule_id and (not row.sink or row.sink.lower() == "unknown")
+
+
+def _manifest(case: PairCase, expected: Sequence[ExpectedFinding] | None = None) -> BenchmarkManifest:
     return BenchmarkManifest(
         name=case.name,
         language=case.language,
@@ -243,7 +413,7 @@ def _manifest(case: PairCase) -> BenchmarkManifest:
         setup=[],
         source=BenchmarkSource(type="local", path=str(case.vuln_file)),
         modes=["quick"],
-        expected=list(case.expected),
+        expected=list(case.expected if expected is None else expected),
         known_noise=[],
         baselines=[],
     )
@@ -261,31 +431,127 @@ def _materialize(dest: Path, source: Path, relpath: str) -> Path:
     return dest
 
 
-def _quick_scan(target: Path) -> list[StaticFinding]:
-    _, targets = preprocess_repository(target)
-    targets = attach_reachability_hints(targets, analyze_entry_points(target, targets))
-    return quick_scan_findings(target, targets, rank_targets(targets))
+# --- scans -----------------------------------------------------------------
 
 
-def _overlay_scan(target: Path) -> tuple[list[StaticFinding], list[OverlayRecord]]:
-    _, targets = preprocess_repository(target)
-    targets = attach_reachability_hints(targets, analyze_entry_points(target, targets))
-    findings = quick_scan_findings(target, targets, rank_targets(targets))
-    return findings, adjudicate(root=target, targets=targets, findings=findings)
+def _targets(root: Path) -> list[FileTarget]:
+    _, targets = preprocess_repository(root)
+    return attach_reachability_hints(targets, analyze_entry_points(root, targets))
 
 
-def _inventory_only(case: PairCase) -> PairOutcome:
+def _quick_scan(target: Path, ruleset: tuple[PatternRule, ...] | None = None) -> list[StaticFinding]:
+    targets = _targets(target)
+    findings = quick_scan_findings(target, targets, rank_targets(targets), ruleset)
+    return [finding for finding in findings if finding.status != "shadow"]
+
+
+@dataclass(frozen=True)
+class _Side:
+    findings: list[StaticFinding]
+    records: list[OverlayRecord]
+    parse_failed: int
+    ranges: dict[str, tuple[tuple[str, int, int], ...]]
+
+
+def _overlay_scan(target: Path, ruleset: tuple[PatternRule, ...] | None = None) -> _Side:
+    targets = _targets(target)
+    findings = [f for f in quick_scan_findings(target, targets, rank_targets(targets), ruleset) if f.status != "shadow"]
+    records = adjudicate(root=target, targets=targets, findings=findings)
+    parse_failed = 0
+    ranges: dict[str, tuple[tuple[str, int, int], ...]] = {}
+    for item in targets:
+        try:
+            text = (target / item.path).read_text(errors="ignore")
+        except OSError:
+            parse_failed += 1
+            continue
+        named = named_function_ranges(item.path, text, item.language)
+        if named is None:
+            parse_failed += 1
+        else:
+            ranges[item.path] = named
+    return _Side(findings=findings, records=records, parse_failed=parse_failed, ranges=ranges)
+
+
+def _inventory_only(case: PairCase, ruleset: tuple[PatternRule, ...] | None = None) -> PairOutcome:
     with tempfile.TemporaryDirectory(prefix="ousast-pair-inv-") as scratch:
         vuln_root = _materialize(Path(scratch) / "vuln", case.vuln_file, case.relpath)
         fix_root = _materialize(Path(scratch) / "fixed", case.fixed_file, case.relpath)
-        return _evaluate_inventory_pair(case, vuln_root, fix_root)
+        return _evaluate_inventory_pair(case, vuln_root, fix_root, ruleset=ruleset)
 
 
-def _evaluate_inventory_pair(case: PairCase, vuln_root: Path, fix_root: Path) -> PairOutcome:
-    vuln_findings = _quick_scan(vuln_root)
-    fix_findings = _quick_scan(fix_root)
+def _evaluate_inventory_pair(
+    case: PairCase,
+    vuln_root: Path,
+    fix_root: Path,
+    *,
+    extra: Mapping[str, int] | None = None,
+    ruleset: tuple[PatternRule, ...] | None = None,
+) -> PairOutcome:
+    vuln_findings = _with_functions(vuln_root, _quick_scan(vuln_root, ruleset))
+    fix_findings = _with_functions(fix_root, _quick_scan(fix_root, ruleset))
+    return _inventory_outcome(case, vuln_findings, fix_findings, extra=extra)
+
+
+def _with_functions(root: Path, findings: list[StaticFinding]) -> list[StaticFinding]:
+    """Give regex findings an enclosing function from a parse so function-labeled rows can match (Req 1.2)."""
+    if not any(finding.function_name is None for finding in findings):
+        return findings
+    ranges: dict[str, tuple[tuple[str, int, int], ...]] = {}
+    for target in _targets(root):
+        try:
+            named = named_function_ranges(target.path, (root / target.path).read_text(errors="ignore"), target.language)
+        except OSError:
+            continue
+        if named is not None:
+            ranges[target.path] = named
+    out: list[StaticFinding] = []
+    for finding in findings:
+        if finding.function_name is None:
+            function = function_at(ranges.get(finding.path, ()), finding.line)
+            if function is not None:
+                finding = replace(finding, function_name=function)
+        out.append(finding)
+    return out
+
+
+def make_hunter_scan(client: object, model: str, *, max_steps: int | None = None) -> HunterScan:
+    """Run the tool hunter over every file of an isolated pair tree (Req 1.7)."""
+    from .complexity.map import Hotspot
+    from .tool_hunter import DEFAULT_MAX_STEPS, run_tool_hunter
+
+    def scan(root: Path) -> list[StaticFinding]:
+        hotspots = [
+            Hotspot(
+                path=target.path,
+                function_name=None,
+                score=1.0,
+                band="high",
+                signals={},
+                rationale="pair corpus function",
+                test_hint=None,
+                inventory_finding_ids=(),
+            )
+            for target in _targets(root)
+        ]
+        return _with_functions(root, run_tool_hunter(root, hotspots, client=client, model=model, max_steps=max_steps or DEFAULT_MAX_STEPS))  # type: ignore[arg-type]
+
+    return scan
+
+
+def _inventory_outcome(
+    case: PairCase,
+    vuln_findings: list[StaticFinding],
+    fix_findings: list[StaticFinding],
+    *,
+    extra: Mapping[str, int] | None = None,
+) -> PairOutcome:
+    # Weak (CWE-only) rows never match, on this path either (Req 1.3): score the strong rows
+    # with the benchmark matcher and count the weak rows as misses.
+    strong = tuple(row for row in case.expected if not is_weak_label(row))
+    weak = tuple(row for row in case.expected if is_weak_label(row))
     vuln_result = evaluate_benchmark(
-        run=BenchmarkRun(benchmark_run_id="pair", root=Path("/tmp/pair"), manifest=_manifest(case)),
+        run=BenchmarkRun(benchmark_run_id="pair", root=Path("/tmp/pair"), manifest=_manifest(case, strong)),
         mode="quick",
         findings=vuln_findings,
         scan_id=None,
@@ -297,8 +563,11 @@ def _evaluate_inventory_pair(case: PairCase, vuln_root: Path, fix_root: Path) ->
     leaks = _fix_leaks(case, fix_findings)
     detected = recall + 1e-12 >= case.min_recall
     silent = not leaks
-    misses = tuple(f"{miss.rule_id or '-'}:{miss.path}:{miss.cwe}" for miss in vuln_result.misses)
+    misses = tuple(f"{miss.rule_id or '-'}:{miss.path}:{miss.cwe}" for miss in vuln_result.misses) + tuple(
+        f"{row.rule_id or '-'}:{row.path}:{row.cwe}" for row in weak
+    )
     leak_ids = tuple(finding.finding_id for finding in leaks)
+    counters = dict(extra or {})
     return PairOutcome(
         name=case.name,
         slice=case.slice,
@@ -317,61 +586,47 @@ def _evaluate_inventory_pair(case: PairCase, vuln_root: Path, fix_root: Path) ->
         leaks=leak_ids,
         commit_url=case.commit_url,
         cve=case.cve,
+        provenance=case.provenance,
+        mechanisms=_mechanisms(case),
+        known_limit=case.known_limit,
+        split=case.split,
+        weak_labels=len(weak),
+        parse_failed_vuln=int(counters.get("parse_failed_vuln", 0)),
+        parse_failed_fixed=int(counters.get("parse_failed_fixed", 0)),
+        unadjudicated_vuln=int(counters.get("unadjudicated_vuln", 0)),
+        unadjudicated_fixed=int(counters.get("unadjudicated_fixed", 0)),
+        unresolved_labels=int(counters.get("unresolved_labels", 0)),
+        detection_kinds=("inventory",) if vuln_findings else (),
     )
 
 
-def _evaluate_overlay_pair(case: PairCase, vuln_root: Path, fix_root: Path) -> PairOutcome:
-    vuln_findings, vuln_overlay = _overlay_scan(vuln_root)
-    fix_findings, fix_overlay = _overlay_scan(fix_root)
-    if not _adjudicated(vuln_overlay) and not _adjudicated(fix_overlay):
+def _evaluate_overlay_pair(case: PairCase, vuln_root: Path, fix_root: Path, ruleset: tuple[PatternRule, ...] | None = None) -> PairOutcome:
+    vuln = _overlay_scan(vuln_root, ruleset)
+    fixed = _overlay_scan(fix_root, ruleset)
+    loss: dict[str, int] = {
+        "parse_failed_vuln": vuln.parse_failed,
+        "parse_failed_fixed": fixed.parse_failed,
+        "unadjudicated_vuln": sum(1 for record in vuln.records if record.disposition == "unadjudicated"),
+        "unadjudicated_fixed": sum(1 for record in fixed.records if record.disposition == "unadjudicated"),
+    }
+    if not _adjudicated(vuln.records) and not _adjudicated(fixed.records):
         # Parser/facts could not adjudicate this language; score inventory so
         # labeled calibration does not collapse when tree-sitter grammars are absent.
-        vuln_result = evaluate_benchmark(
-            run=BenchmarkRun(benchmark_run_id="pair", root=Path("/tmp/pair"), manifest=_manifest(case)),
-            mode="quick",
-            findings=vuln_findings,
-            scan_id=None,
-            scan_run_dir=None,
-        )
-        expected_total = len(case.expected)
-        matched = vuln_result.metrics.matched_findings_total
-        recall = matched / expected_total if expected_total else 1.0
-        inventory_leaks = _fix_leaks(case, fix_findings)
-        detected = recall + 1e-12 >= case.min_recall
-        silent = not inventory_leaks
-        misses = tuple(f"{miss.rule_id or '-'}:{miss.path}:{miss.cwe}" for miss in vuln_result.misses)
-        leak_ids = tuple(finding.finding_id for finding in inventory_leaks)
-        return PairOutcome(
-            name=case.name,
-            slice=case.slice,
-            language=case.language,
-            origin=case.origin,
-            detected_vuln=detected,
-            silent_fix=silent,
-            pair_correct=detected and silent,
-            vuln_matched=matched,
-            vuln_expected=expected_total,
-            vuln_findings=len(vuln_findings),
-            fix_findings=len(fix_findings),
-            fix_leaks=len(inventory_leaks),
-            recall=recall,
-            misses=misses,
-            leaks=leak_ids,
-            commit_url=case.commit_url,
-            cve=case.cve,
-        )
-    promoted_vuln = [record for record in vuln_overlay if record.disposition == "promote"]
-    promoted_fix = [record for record in fix_overlay if record.disposition == "promote"]
+        loss["unresolved_labels"] = sum(1 for row in case.expected if _label_unresolved(row, vuln.ranges))
+        return _inventory_outcome(case, _with_functions(vuln_root, vuln.findings), _with_functions(fix_root, fixed.findings), extra=loss)
+    detected_vuln = _detections(vuln.records)
+    detected_fix = _detections(fixed.records)
     expected_total = len(case.expected)
-    matched = _overlay_matches(case, promoted_vuln)
+    matched = sum(1 for row in case.expected if _overlay_matches_expected(row, detected_vuln, case.language, vuln.ranges))
     recall = matched / expected_total if expected_total else 1.0
     detected = recall + 1e-12 >= case.min_recall
-    overlay_leaks = _overlay_leaks(case, promoted_fix)
+    overlay_leaks = _overlay_leaks(case, detected_fix, fixed.ranges)
     silent = not overlay_leaks
+    unresolved = sum(1 for row in case.expected if _label_unresolved(row, vuln.ranges))
     misses = tuple(
-        f"{expected.rule_id or '-'}:{expected.path}:{expected.cwe}"
-        for expected in case.expected
-        if not _overlay_matches_expected(expected, promoted_vuln)
+        f"{row.rule_id or '-'}:{row.path}:{row.cwe}" + ("!unresolved" if _label_unresolved(row, vuln.ranges) else "")
+        for row in case.expected
+        if not _overlay_matches_expected(row, detected_vuln, case.language, vuln.ranges)
     )
     return PairOutcome(
         name=case.name,
@@ -383,44 +638,174 @@ def _evaluate_overlay_pair(case: PairCase, vuln_root: Path, fix_root: Path) -> P
         pair_correct=detected and silent,
         vuln_matched=matched,
         vuln_expected=expected_total,
-        vuln_findings=len(promoted_vuln),
-        fix_findings=len(promoted_fix),
+        vuln_findings=len(detected_vuln),
+        fix_findings=len(detected_fix),
         fix_leaks=len(overlay_leaks),
         recall=recall,
         misses=misses,
         leaks=overlay_leaks,
         commit_url=case.commit_url,
         cve=case.cve,
+        provenance=case.provenance,
+        mechanisms=_mechanisms(case),
+        known_limit=case.known_limit,
+        split=case.split,
+        weak_labels=sum(1 for row in case.expected if is_weak_label(row)),
+        detection_kinds=tuple(sorted({record.disposition for record in detected_vuln})),
+        parse_failed_vuln=loss["parse_failed_vuln"],
+        parse_failed_fixed=loss["parse_failed_fixed"],
+        unadjudicated_vuln=loss["unadjudicated_vuln"],
+        unadjudicated_fixed=loss["unadjudicated_fixed"],
+        unresolved_labels=unresolved,
     )
+
+
+def _evaluate_hunter_pair(case: PairCase, vuln_root: Path, fix_root: Path, hunter: HunterScan) -> PairOutcome:
+    """Score the LLM hunter with the same detection and leak rules (Req 1.7)."""
+    vuln_findings = hunter(vuln_root)
+    fix_findings = hunter(fix_root)
+    vuln_ranges = _overlay_scan(vuln_root).ranges
+    fix_ranges = _overlay_scan(fix_root).ranges
+    expected_total = len(case.expected)
+    matched = sum(1 for row in case.expected if any(_hunter_matches_expected(row, finding, vuln_ranges) for finding in vuln_findings))
+    recall = matched / expected_total if expected_total else 1.0
+    detected = recall + 1e-12 >= case.min_recall
+    if case.fix_policy == "silent":
+        leaks = tuple(finding.finding_id for finding in fix_findings)
+    else:
+        leaks = tuple(
+            finding.finding_id
+            for finding in fix_findings
+            if any(_hunter_matches_expected(row, finding, fix_ranges) for row in case.expected)
+        )
+    misses = tuple(
+        f"{row.rule_id or '-'}:{row.path}:{row.cwe}"
+        for row in case.expected
+        if not any(_hunter_matches_expected(row, finding, vuln_ranges) for finding in vuln_findings)
+    )
+    return PairOutcome(
+        name=case.name,
+        slice=case.slice,
+        language=case.language,
+        origin=case.origin,
+        detected_vuln=detected,
+        silent_fix=not leaks,
+        pair_correct=detected and not leaks,
+        vuln_matched=matched,
+        vuln_expected=expected_total,
+        vuln_findings=len(vuln_findings),
+        fix_findings=len(fix_findings),
+        fix_leaks=len(leaks),
+        recall=recall,
+        misses=misses,
+        leaks=leaks,
+        commit_url=case.commit_url,
+        cve=case.cve,
+        provenance=case.provenance,
+        mechanisms=_mechanisms(case),
+        known_limit=case.known_limit,
+        split=case.split,
+        weak_labels=sum(1 for row in case.expected if is_weak_label(row)),
+        detection_kinds=("hunter",) if vuln_findings else (),
+    )
+
+
+# --- matching ---------------------------------------------------------------
 
 
 def _adjudicated(records: Sequence[OverlayRecord]) -> bool:
     return any(record.disposition in {"promote", "demote", "coverage"} for record in records)
 
 
-def _overlay_matches(case: PairCase, promoted: Sequence[OverlayRecord]) -> int:
-    return sum(1 for expected in case.expected if _overlay_matches_expected(expected, promoted))
+def _detections(records: Sequence[OverlayRecord]) -> list[OverlayRecord]:
+    """Promotions plus coverage records that carry a source-to-sink flow (Req 1.1)."""
+    return [
+        record
+        for record in records
+        if record.disposition == "promote" or (record.disposition == "coverage" and record.sources and record.sinks)
+    ]
 
 
-def _overlay_matches_expected(expected: ExpectedFinding, promoted: Sequence[OverlayRecord]) -> bool:
-    for record in promoted:
+@lru_cache(maxsize=1)
+def _sink_ids_by_rule() -> dict[tuple[str, str], frozenset[str]]:
+    """(language, rule_id) -> fact sink ids that declare that rule (facts are the alias table)."""
+    try:
+        facts = load_facts()
+    except FactLoadError:
+        return {}
+    table: dict[tuple[str, str], set[str]] = {}
+    for sink in facts.sinks:
+        for rule_id in sink.rule_ids:
+            table.setdefault((sink.language, rule_id), set()).add(sink.id)
+    return {key: frozenset(value) for key, value in table.items()}
+
+
+def _fact_language(language: str) -> str:
+    return {"c_cpp": "c", "cpp": "c", "typescript": "javascript"}.get(language, language)
+
+
+def _in_named_function(record: OverlayRecord, function: str, ranges: FunctionRanges | None) -> bool:
+    """Design §Scorer rule (1): the record lies inside the labeled function's line range. No range, no match (never name equality)."""
+    spans = spans_named((ranges or {}).get(record.path, ()), function)
+    return record.line is not None and any(start <= record.line <= end for start, end in spans)
+
+
+def _label_unresolved(expected: ExpectedFinding, ranges: FunctionRanges | None) -> bool:
+    """A labeled function that no parsed range of the vulnerable side names cannot be matched; count it as loss."""
+    if not expected.function:
+        return False
+    return not any(spans_named(spans, expected.function) for spans in (ranges or {}).values())
+
+
+def _overlay_matches_expected(
+    expected: ExpectedFinding, detected: Sequence[OverlayRecord], language: str, ranges: FunctionRanges | None = None
+) -> bool:
+    if is_weak_label(expected):
+        return False
+    alias_sinks = _sink_ids_by_rule().get((_fact_language(language), expected.rule_id or ""), frozenset())
+    for record in detected:
+        function_ok = True
+        if expected.function:
+            function_ok = _in_named_function(record, expected.function, ranges)
+            if not function_ok:
+                continue
         if expected.rule_id and expected.rule_id in record.proposal_id:
             return True
-        if expected.cwe and expected.cwe == record.cwe:
+        if alias_sinks and any(sink in alias_sinks for sink in record.sinks):
             return True
-        if expected.sink and expected.sink in record.sinks:
+        if expected.sink and expected.sink.lower() != "unknown" and expected.sink in record.sinks:
+            return True
+        # CWE equality only counts inside a named function (Req 1.2, 1.3).
+        if expected.function and function_ok and expected.cwe and expected.cwe == record.cwe:
             return True
     return False
 
 
-def _overlay_leaks(case: PairCase, promoted: Sequence[OverlayRecord]) -> tuple[str, ...]:
-    leaked: list[str] = []
-    for record in promoted:
-        if any(_overlay_matches_expected(expected, [record]) for expected in case.expected) or case.fix_policy == "silent":
-            leaked.append(record.proposal_id)
+def _hunter_matches_expected(
+    expected: ExpectedFinding, finding: StaticFinding, ranges: dict[str, tuple[tuple[str, int, int], ...]]
+) -> bool:
+    if is_weak_label(expected):
+        return False
+    text = f"{finding.title} {finding.rationale} {' '.join(finding.tags)}".lower()
+    if expected.function:
+        spans = spans_named(ranges.get(finding.path, ()), expected.function)
+        if finding.line is None or not any(start <= finding.line <= end for start, end in spans):
+            return False
+        if expected.cwe and expected.cwe.lower() in text:
+            return True
+    if expected.sink and expected.sink.lower() != "unknown" and expected.sink.lower() in text:
+        return True
+    return bool(expected.rule_id and expected.rule_id in finding.finding_id)
+
+
+def _overlay_leaks(case: PairCase, detected_fix: Sequence[OverlayRecord], ranges: FunctionRanges | None = None) -> tuple[str, ...]:
     if case.fix_policy == "silent":
-        return tuple(record.proposal_id for record in promoted)
-    return tuple(leaked)
+        return tuple(record.proposal_id for record in detected_fix)
+    return tuple(
+        record.proposal_id
+        for record in detected_fix
+        if any(_overlay_matches_expected(row, [record], case.language, ranges) for row in case.expected)
+    )
 
 
 def _fix_leaks(case: PairCase, findings: list[StaticFinding]) -> tuple[StaticFinding, ...]:
@@ -436,6 +821,13 @@ def _fix_leaks(case: PairCase, findings: list[StaticFinding]) -> tuple[StaticFin
                 leaked.append(finding)
                 break
     return tuple(leaked)
+
+
+def _mechanisms(case: PairCase) -> tuple[str, ...]:
+    return tuple(sorted({row.mechanism for row in case.expected if row.mechanism}))
+
+
+# --- metrics ---------------------------------------------------------------
 
 
 def _metrics(outcomes: Sequence[PairOutcome]) -> PairCorpusMetrics:
@@ -460,3 +852,18 @@ def _metrics(outcomes: Sequence[PairOutcome]) -> PairCorpusMetrics:
         labeled_recall=labeled_matched / labeled_expected if labeled_expected else 1.0,
         youden=(detected / pairs if pairs else 1.0) - (1.0 - (silent / pairs if pairs else 1.0)),
     )
+
+
+def _loss(outcomes: Sequence[PairOutcome]) -> dict[str, dict[str, int]]:
+    loss: dict[str, dict[str, int]] = {}
+    for item in outcomes:
+        bucket = loss.setdefault(
+            item.slice,
+            {"parse_failed_files": 0, "unadjudicated_proposals": 0, "weak_labels": 0, "known_limit": 0, "unresolved_function_labels": 0},
+        )
+        bucket["parse_failed_files"] += item.parse_failed_vuln + item.parse_failed_fixed
+        bucket["unadjudicated_proposals"] += item.unadjudicated_vuln + item.unadjudicated_fixed
+        bucket["weak_labels"] += item.weak_labels
+        bucket["unresolved_function_labels"] += item.unresolved_labels
+        bucket["known_limit"] += 1 if item.known_limit else 0
+    return loss

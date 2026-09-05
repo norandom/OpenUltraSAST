@@ -26,6 +26,7 @@ class ExpectedFinding:
     line: int | None = None
     function: str | None = None
     sink: str | None = None
+    mechanism: str | None = None
 
 
 @dataclass(frozen=True)
@@ -161,6 +162,7 @@ def load_benchmark_manifest(path: Path) -> BenchmarkManifest:
                 line=int(item["line"]) if "line" in item else None,
                 function=str(item["function"]) if "function" in item else None,
                 sink=str(item["sink"]) if "sink" in item else None,
+                mechanism=str(item["mechanism"]) if "mechanism" in item else None,
             )
             for item in expected
         ],

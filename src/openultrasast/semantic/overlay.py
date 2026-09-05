@@ -12,11 +12,15 @@ from ..policy import load_policy, resolve_severity
 from ..preprocess import FileTarget
 from .engines import joern_available, joern_flow
 from .facts import FactLoadError, SemanticFacts, load_facts
-from .taint import Demotion, FileFlow, TaintPath, UnadjudicatedFlow, analyze_file, merge_joern_paths
+from .functions import FunctionRange, function_at, named_ranges_from_ir
+from .ir import parse_file
+from .taint import Demotion, FileFlow, TaintPath, UnadjudicatedFlow, analyze_ir, merge_joern_paths
 
 DISPOSITIONS = frozenset({"promote", "demote", "unadjudicated", "coverage"})
 UNADJUDICATED_REASONS = frozenset({"parse_failed", "language_unsupported", "flow_incomplete", "facts_unavailable"})
 ALLOWED_EVIDENCE = frozenset({"static_corroboration", "suspicion"})
+__all__ = ["OverlayRecord", "adjudicate", "function_at", "FunctionRange", "write_overlay", "finding_from_coverage"]
+
 FORBIDDEN_EVIDENCE = frozenset({"crash_reproduced", "exploit_demonstrated", "patch_validated", "root_cause_explained"})
 
 
@@ -40,6 +44,7 @@ class OverlayRecord:
     origin: str = "inventory"
     engine: str = "none"
     language: str = ""
+    function: str | None = None  # enclosing function when the file parsed (additive; pair-corpus-honesty)
 
     def __post_init__(self) -> None:
         if self.disposition not in DISPOSITIONS:
@@ -76,13 +81,13 @@ def adjudicate(
             )
             for finding in findings
         ]
-    flows = _flows_for(root, targets, loaded, joern_extra)
+    flows, ranges = _flows_for(root, targets, loaded, joern_extra)
     records: list[OverlayRecord] = []
     claimed: set[tuple[str, int | None, str]] = set()
     for finding in findings:
         language = language_by_path.get(finding.path, "")
         flow = flows.get(finding.path)
-        record = _record_for_finding(finding, language, flow)
+        record = _record_for_finding(finding, language, flow, function_at(ranges.get(finding.path, ()), finding.line))
         records.append(record)
         claimed.add((finding.path, finding.line, _sink_hint(finding)))
     for path, flow in flows.items():
@@ -110,6 +115,7 @@ def adjudicate(
                     origin="overlay",
                     engine=flow.engine,
                     language=language,
+                    function=function_at(ranges.get(path, ()), taint.sink_line),
                 )
             )
             claimed.add(key)
@@ -156,11 +162,17 @@ def _flows_for(
     targets: Sequence[FileTarget],
     facts: SemanticFacts,
     joern_extra: Sequence[TaintPath] | None,
-) -> dict[str, FileFlow | UnadjudicatedFlow]:
+) -> tuple[dict[str, FileFlow | UnadjudicatedFlow], dict[str, tuple[FunctionRange, ...]]]:
     flows: dict[str, FileFlow | UnadjudicatedFlow] = {}
+    ranges: dict[str, tuple[FunctionRange, ...]] = {}
     for target in targets:
         text = _read_text(root / target.path)
-        analyzed = analyze_file(target.path, text, target.language, facts)
+        ir = parse_file(target.path, text, target.language)
+        if not ir.parse_ok:
+            flows[target.path] = UnadjudicatedFlow(path=target.path, reason=ir.reason or "parse_failed", engine=ir.engine)
+            continue
+        ranges[target.path] = named_ranges_from_ir(ir, text)
+        analyzed: FileFlow | UnadjudicatedFlow = analyze_ir(ir, facts.for_language(target.language))
         if isinstance(analyzed, FileFlow):
             extra = tuple(joern_extra) if joern_extra is not None else _joern_paths(target.path, text, target.language)
             if extra:
@@ -173,7 +185,7 @@ def _flows_for(
                     incomplete=analyzed.incomplete,
                 )
         flows[target.path] = analyzed
-    return flows
+    return flows, ranges
 
 
 def _joern_paths(path: str, text: str, language: str) -> tuple[TaintPath, ...]:
@@ -187,7 +199,12 @@ def _joern_paths(path: str, text: str, language: str) -> tuple[TaintPath, ...]:
     return tuple(paths)
 
 
-def _record_for_finding(finding: StaticFinding, language: str, flow: FileFlow | UnadjudicatedFlow | None) -> OverlayRecord:
+def _record_for_finding(
+    finding: StaticFinding,
+    language: str,
+    flow: FileFlow | UnadjudicatedFlow | None,
+    function: str | None = None,
+) -> OverlayRecord:
     if flow is None:
         return _unadjudicated(finding, language, "flow_incomplete", "none")
     if isinstance(flow, UnadjudicatedFlow):
@@ -210,6 +227,7 @@ def _record_for_finding(finding: StaticFinding, language: str, flow: FileFlow | 
             dominating_fact=demotion.dominating_fact,
             engine=flow.engine,
             language=language,
+            function=function,
         )
     if taint is not None and (demotion is None or not demotion.sanitizers):
         # Sanitizer on the same path would have produced a demotion with sanitizers.
@@ -226,6 +244,7 @@ def _record_for_finding(finding: StaticFinding, language: str, flow: FileFlow | 
             evidence_level="static_corroboration",
             engine=flow.engine,
             language=language,
+            function=function,
         )
     if demotion is not None:
         return OverlayRecord(
@@ -242,8 +261,9 @@ def _record_for_finding(finding: StaticFinding, language: str, flow: FileFlow | 
             dominating_fact=demotion.dominating_fact,
             engine=flow.engine,
             language=language,
+            function=function,
         )
-    return _unadjudicated(finding, language, "flow_incomplete", flow.engine)
+    return _unadjudicated(finding, language, "flow_incomplete", flow.engine, function)
 
 
 def _matching_taint(finding: StaticFinding, flow: FileFlow) -> TaintPath | None:
@@ -286,7 +306,7 @@ def _cwe_of(finding: StaticFinding) -> str:
     return ""
 
 
-def _unadjudicated(finding: StaticFinding, language: str, reason: str, engine: str) -> OverlayRecord:
+def _unadjudicated(finding: StaticFinding, language: str, reason: str, engine: str, function: str | None = None) -> OverlayRecord:
     return OverlayRecord(
         proposal_id=finding.finding_id,
         path=finding.path,
@@ -300,6 +320,7 @@ def _unadjudicated(finding: StaticFinding, language: str, reason: str, engine: s
         evidence_level="static_corroboration",
         engine=engine,
         language=language,
+        function=function,
     )
 
 

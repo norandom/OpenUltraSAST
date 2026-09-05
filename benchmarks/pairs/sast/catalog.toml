@@ -17,6 +17,8 @@ fixed = "owasp-python/BenchmarkTest00073.py"
 relpath = "testcode/BenchmarkTest00074.py"
 min_recall = 1.0
 fix_policy = "silent"
+provenance = "synthetic"
+split = "train"
 
 [[pair.expected]]
 cwe = "CWE-94"
@@ -25,6 +27,7 @@ path = "testcode/BenchmarkTest00074.py"
 rule_id = "python-unsafe-eval"
 sink = "exec"
 evidence = "exec executes attacker-controlled input"
+mechanism = "container_taint"
 
 [[pair]]
 name = "owasp-python-deser"
@@ -39,6 +42,8 @@ fixed = "owasp-python/BenchmarkTest00079.py"
 relpath = "testcode/BenchmarkTest00078.py"
 min_recall = 1.0
 fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -47,6 +52,7 @@ path = "testcode/BenchmarkTest00078.py"
 rule_id = "python-unsafe-deserialization"
 sink = "pickle"
 evidence = "pickle.loads deserializes untrusted input"
+mechanism = "source_reaches_sink"
 
 [[pair]]
 name = "owasp-python-cmdi"
@@ -61,6 +67,8 @@ fixed = "owasp-python/BenchmarkTest00350.py"
 relpath = "testcode/BenchmarkTest00165.py"
 min_recall = 1.0
 fix_policy = "silent"
+provenance = "synthetic"
+split = "train"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -69,6 +77,7 @@ path = "testcode/BenchmarkTest00165.py"
 rule_id = "python-shell-true"
 sink = "subprocess"
 evidence = "subprocess runs an attacker-controlled command"
+mechanism = "container_taint"
 
 [[pair]]
 name = "owasp-python-sqli"
@@ -83,6 +92,8 @@ fixed = "owasp-python/BenchmarkTest00011.py"
 relpath = "testcode/BenchmarkTest00099.py"
 min_recall = 1.0
 fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -91,6 +102,7 @@ path = "testcode/BenchmarkTest00099.py"
 rule_id = "python-sql-injection"
 sink = "execute"
 evidence = "execute runs a SQL string built from request input"
+mechanism = "container_taint"
 
 [[pair]]
 name = "owasp-python-hash"
@@ -105,6 +117,8 @@ fixed = "owasp-python/BenchmarkTest00055.py"
 relpath = "testcode/BenchmarkTest00054.py"
 min_recall = 1.0
 fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
 
 [[pair.expected]]
 cwe = "CWE-327"
@@ -113,6 +127,7 @@ path = "testcode/BenchmarkTest00054.py"
 rule_id = "python-weak-hash"
 sink = "md5"
 evidence = "md5 is a weak hash"
+mechanism = "config_sink_weak_literal"
 
 # --- OWASP Benchmark Java v1.2 ---
 
@@ -129,6 +144,8 @@ fixed = "owasp-java/BenchmarkTest00090.java"
 relpath = "org/owasp/benchmark/testcode/BenchmarkTest00007.java"
 min_recall = 1.0
 fix_policy = "silent"
+provenance = "synthetic"
+split = "train"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -137,6 +154,7 @@ path = "org/owasp/benchmark/testcode/BenchmarkTest00007.java"
 rule_id = "java-command-exec"
 sink = "exec"
 evidence = "Runtime.exec runs an attacker-controlled command"
+mechanism = "source_reaches_sink"
 
 [[pair]]
 name = "owasp-java-sqli"
@@ -151,6 +169,8 @@ fixed = "owasp-java/BenchmarkTest00052.java"
 relpath = "org/owasp/benchmark/testcode/BenchmarkTest00008.java"
 min_recall = 1.0
 fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -159,6 +179,7 @@ path = "org/owasp/benchmark/testcode/BenchmarkTest00008.java"
 rule_id = "java-sql-injection"
 sink = "prepareCall"
 evidence = "SQL is concatenated with request input"
+mechanism = "source_reaches_sink"
 
 [[pair]]
 name = "owasp-java-hash"
@@ -173,6 +194,9 @@ fixed = "owasp-java/BenchmarkTest00009.java"
 relpath = "org/owasp/benchmark/testcode/BenchmarkTest00003.java"
 min_recall = 1.0
 fix_policy = "silent"
+provenance = "synthetic"
+split = "train"
+known_limit = "cross_artifact: OWASP labels this true via hashAlg1=MD5 in benchmark.properties, which is not in the vendored file"
 
 [[pair.expected]]
 cwe = "CWE-327"
@@ -181,6 +205,7 @@ path = "org/owasp/benchmark/testcode/BenchmarkTest00003.java"
 rule_id = "java-weak-hash"
 sink = "MessageDigest"
 evidence = "MessageDigest uses a weak hash algorithm"
+mechanism = "cross_artifact"
 
 # --- Juliet C/C++ 1.3 (CC0) ---
 
@@ -197,6 +222,8 @@ fixed = "juliet-c/cwe134-printf-fixed.c"
 relpath = "CWE134_char_console_printf_01.c"
 min_recall = 1.0
 fix_policy = "silent"
+provenance = "synthetic"
+split = "train"
 
 [[pair.expected]]
 cwe = "CWE-134"
@@ -205,6 +232,7 @@ path = "CWE134_char_console_printf_01.c"
 rule_id = "c-unsafe-format"
 sink = "printf"
 evidence = "printf uses attacker-controlled format string"
+mechanism = "source_reaches_sink"
 
 [[pair]]
 name = "juliet-c-cwe121-strcpy"
@@ -219,6 +247,8 @@ fixed = "juliet-c/cwe121-strcpy-fixed.c"
 relpath = "CWE121_char_declare_cpy_01.c"
 min_recall = 1.0
 fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
 
 [[pair.expected]]
 cwe = "CWE-120"
@@ -227,6 +257,7 @@ path = "CWE121_char_declare_cpy_01.c"
 rule_id = "c-unsafe-copy"
 sink = "strcpy"
 evidence = "strcpy copies into a buffer without a null terminator"
+mechanism = "fixed_buffer_capacity"
 
 # --- Juliet Java 1.3 (CC0) ---
 
@@ -243,6 +274,8 @@ fixed = "juliet-java/cwe78-exec-fixed.java"
 relpath = "CWE78_OS_Command_Injection__console_readLine_01.java"
 min_recall = 1.0
 fix_policy = "silent"
+provenance = "synthetic"
+split = "train"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -251,3 +284,4 @@ path = "CWE78_OS_Command_Injection__console_readLine_01.java"
 rule_id = "java-command-exec"
 sink = "exec"
 evidence = "Runtime.exec concatenates attacker-controlled input into a command"
+mechanism = "source_reaches_sink"
