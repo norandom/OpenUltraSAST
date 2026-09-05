@@ -152,7 +152,10 @@ def main(argv: list[str] | None = None) -> int:
         "--mechanism-candidates",
         type=Path,
         default=None,
-        help="exporter candidates the mechanisms lever may admit (default: <target>/.openultrasast/calibration/mechanism-candidates.jsonl, then ./.openultrasast/calibration/mechanism-candidates.jsonl)",
+        help=(
+            "exporter candidates the mechanisms lever may admit (default: <target>/.openultrasast/calibration/"
+            "mechanism-candidates.jsonl, then ./.openultrasast/calibration/mechanism-candidates.jsonl)"
+        ),
     )
     improve.add_argument(
         "--mechanism-store",
