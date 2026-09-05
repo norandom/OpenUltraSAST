@@ -54,6 +54,7 @@ from .pairs import (
 )
 from .policy import assert_rules_resolve, load_policy
 from .preprocess import preprocess_repository, write_preprocess_artifact
+from .provenance import fingerprint
 from .provider.openrouter import OpenRouterEmbeddingClient, OpenRouterError
 from .rank import rank_targets, write_rankings
 from .regress import TRIGGERABLE, CandidateVerdict, run_regression, write_verdicts
@@ -223,6 +224,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     write_entry_points(entry_points, run.root / "mapping" / "entry_points.json")
     targets = attach_reachability_hints(targets, entry_points)
     write_preprocess_artifact(snapshot, targets, run.root / "preprocess" / "file_targets.json")
+    provenance = runtime.run_stage("provenance", lambda: fingerprint(run.target))
     rankings = runtime.run_stage("rank", lambda: rank_targets(targets))
     prior_learnings = load_false_positive_learnings(ledger_path)
     rankings, calibrations = runtime.run_stage("calibrate", lambda: calibrate_rankings(rankings, prior_learnings))
@@ -520,6 +522,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             stages=stages_payload(plan),
             complexity=complexity_payload,
             worth_fixing=worth_fixing_payload,
+            provenance=provenance.to_dict(),
         ),
     )
     runtime.finish(status="succeeded")
