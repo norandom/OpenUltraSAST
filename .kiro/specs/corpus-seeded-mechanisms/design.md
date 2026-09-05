@@ -108,7 +108,7 @@ tests/
 ### Modified Files
 
 - `semantic/overlay.py` — `OverlayRecord.mechanism_id: str | None = None` (additive).
-- `regress/candidate.py` — variant findings eligible after overlay promotions (reuses forced-hotspot path).
+- `regress/candidate.py` — exposes `hotspot_from_finding`; variant findings enter the ranked candidate slice as zero-score hotspots from `cli.py` (after every scored promotion, inside the cap, through the safety check).
 - `config.py` — `[variants] enabled=true, max_mechanisms=500`.
 
 ## System Flows
@@ -199,8 +199,8 @@ class VariantHit:
     sink_name: str
     source_kind: str
 
-def search_tree(root: Path, targets: Sequence[FileTarget], store: MechanismStore, facts: SemanticFacts, *, max_mechanisms: int) -> list[VariantHit]: ...
-def hits_to_findings(hits, records: Sequence[OverlayRecord]) -> tuple[list[StaticFinding], list[OverlayRecord]]: ...  # merge with overlay flows
+def search_tree(root: Path, targets: Sequence[FileTarget], store: MechanismStore, facts: SemanticFacts, *, max_mechanisms: int) -> SearchResult: ...  # hits, mechanisms_searched, files_searched, degradations
+def hits_to_findings(hits, records: Sequence[OverlayRecord], summaries: Mapping[str, tuple[str, tuple[str, ...], str]]) -> tuple[list[StaticFinding], list[OverlayRecord]]: ...  # merge with overlay flows
 ```
 
 Finding: id `variant:<mechanism_id>:<path>:<line>`, evidence `suspicion`, tags `["variant", "mechanism:<id>"]`, rationale names the mechanism summary and pair provenance.

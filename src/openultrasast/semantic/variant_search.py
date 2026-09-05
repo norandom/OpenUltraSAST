@@ -41,16 +41,22 @@ def search_tree(
     records = corpus_mechanisms(store.load())[: max(max_mechanisms, 0)]
     shapes: list[Shape] = []
     ids: dict[str, str] = {}
+    degradations: list[dict[str, object]] = []
     for record in records:
         assert record.shape is not None
-        shape = Shape.from_dict(record.shape)
+        try:
+            shape = Shape.from_dict(record.shape)
+        except (ValueError, TypeError) as exc:  # one malformed operator-visible row must not abort the scan
+            degradations.append(
+                {"stage": "variants", "reason": "variants_store_row_invalid", "mechanism_id": record.id, "detail": str(exc)[:120]}
+            )
+            continue
         shapes.append(shape)
         ids[shape.key()] = record.id
     if not shapes:
-        return SearchResult(hits=(), mechanisms_searched=0, files_searched=0)
+        return SearchResult(hits=(), mechanisms_searched=0, files_searched=0, degradations=tuple(degradations))
     hits: list[VariantHit] = []
     files = 0
-    degradations: list[dict[str, object]] = []
     unsupported: set[str] = set()
     for target in targets:
         try:

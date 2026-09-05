@@ -96,3 +96,29 @@ def test_search_tree_uses_the_store_and_respects_the_mechanism_cap(tmp_path: Pat
     assert result.mechanisms_searched == 1 and result.files_searched == 2
     capped = search_tree(root, targets, store, PY_FACTS, max_mechanisms=0)
     assert capped.hits == () and capped.mechanisms_searched == 0
+
+
+def test_hits_never_merge_into_demoted_or_flowless_records() -> None:
+    from openultrasast.semantic.variant_search import hits_to_findings
+    from openultrasast.semantic.variants import VariantHit
+
+    hit = VariantHit(path="a.py", line=7, mechanism_id="corpus:abc", sink_name="system", source_kind="parameter")
+    demoted = OverlayRecord(
+        proposal_id="python-os-command:a.py:7",
+        path="a.py",
+        line=7,
+        disposition="demote",
+        reason="constant argument",
+        cwe="CWE-78",
+        sources=(),
+        sinks=("os.system",),
+        sanitizers=(),
+        evidence_level="suspicion",
+        dominating_fact="constant",
+        origin="inventory",
+        engine="python-ast",
+        language="python",
+    )
+    findings, records = hits_to_findings([hit], [demoted], {})
+    assert records[0].mechanism_id is None and records[0].disposition == "demote"  # Req 3.6: never demote, never re-label a demotion
+    assert [f.finding_id for f in findings] == ["variant:corpus:abc:a.py:7"]

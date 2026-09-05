@@ -14,9 +14,9 @@ from pathlib import Path
 from ..pairs import GATING_TIERS, PairCase
 from ..preprocess import LANGUAGE_BY_EXTENSION
 from .facts import FactLoadError, SemanticFacts, load_facts
-from .ir import parse_file
+from .ir import FileIR, parse_file
 from .mechanisms import MechanismStore, append_from_pair
-from .variants import derive_shape
+from .variants import Shape, derive_shape
 
 LANGUAGE_UNSUPPORTED = "variants_language_unsupported"
 
@@ -67,36 +67,22 @@ def export_mechanisms(cases: Sequence[PairCase], store: MechanismStore, *, facts
             else:
                 skipped.append((case.name, "parse_failed"))
             continue
-        produced = 0
-        for row in case.expected:
-            if not row.function or not row.mechanism:
-                continue
-            shape = derive_shape(
-                vuln_ir,
-                fixed_ir,
-                function=row.function,
-                sink=row.sink,
-                line=None if row.sink else row.line,
-                mechanism=row.mechanism,
-                facts=loaded,
-                vuln_text=vuln_text,
-                fixed_text=fixed_text,
-                cwe=row.cwe or None,
-            )
-            if shape is None:
-                continue
+        if not any(row.function and row.mechanism for row in case.expected):
+            skipped.append((case.name, "no_labeled_function"))
+            continue
+        lessons = pair_lessons(case, loaded, vuln_ir=vuln_ir, fixed_ir=fixed_ir, vuln_text=vuln_text, fixed_text=fixed_text)
+        for lesson in lessons:
             record = append_from_pair(
                 store,
-                shape,
-                summary=f"{shape.mechanism}: {'/'.join(shape.source_kinds)} into {shape.sink_name} ({row.cwe}); fix adds {shape.guard}",
-                cwe=row.cwe,
+                lesson.shape,
+                summary=lesson.summary,
+                cwe=lesson.cwe,
                 pair=case.name,
                 provenance=case.provenance,
                 tier=case.review_tier,
             )
             record_ids.add(record.id)
-            produced += 1
-        if produced:
+        if lessons:
             seeded.append(case.name)
         else:
             skipped.append((case.name, "no_labeled_sink_call_site"))
@@ -107,6 +93,54 @@ def export_mechanisms(cases: Sequence[PairCase], store: MechanismStore, *, facts
         degradations=tuple(degradations),
         seeded_pairs=tuple(seeded),
     )
+
+
+@dataclass(frozen=True)
+class Lesson:
+    """One shape a trusted pair teaches, with the CWE and a text-free summary."""
+
+    shape: Shape
+    cwe: str
+    summary: str
+
+
+def pair_lessons(
+    case: PairCase,
+    facts: SemanticFacts,
+    *,
+    vuln_ir: FileIR | None = None,
+    fixed_ir: FileIR | None = None,
+    vuln_text: str | None = None,
+    fixed_text: str | None = None,
+) -> list[Lesson]:
+    """Shapes derived from every labeled row of a pair (shared by the exporter and leave-one-out). Empty when a side fails to parse."""
+    vuln_text = vuln_text if vuln_text is not None else _read(case.vuln_file)
+    fixed_text = fixed_text if fixed_text is not None else _read(case.fixed_file)
+    language = _parse_language(case)
+    vuln_ir = vuln_ir if vuln_ir is not None else parse_file(case.relpath, vuln_text, language)
+    fixed_ir = fixed_ir if fixed_ir is not None else parse_file(case.relpath, fixed_text, language)
+    if not vuln_ir.parse_ok or not fixed_ir.parse_ok:
+        return []
+    lessons: list[Lesson] = []
+    for row in case.expected:
+        if not row.function or not row.mechanism:
+            continue
+        shape = derive_shape(
+            vuln_ir,
+            fixed_ir,
+            function=row.function,
+            sink=row.sink,
+            line=row.line,
+            mechanism=row.mechanism,
+            facts=facts,
+            vuln_text=vuln_text,
+            fixed_text=fixed_text,
+            cwe=row.cwe or None,
+        )
+        if shape is not None:
+            summary = f"{shape.mechanism}: {'/'.join(shape.source_kinds)} into {shape.sink_name} ({row.cwe}); fix adds {shape.guard}"
+            lessons.append(Lesson(shape=shape, cwe=row.cwe, summary=summary))
+    return lessons
 
 
 def _skip_reason(case: PairCase) -> str | None:

@@ -99,17 +99,22 @@ def _hotspot_for_finding(finding: StaticFinding, hotspots: Sequence[Hotspot]) ->
     return None
 
 
-def _hotspot_from_forced_finding(finding: StaticFinding) -> Hotspot:
+def hotspot_from_finding(finding: StaticFinding, *, rationale: str) -> Hotspot:
+    """A zero-score hotspot wrapping one finding: forced sev-5 inventory or a variant of a known mechanism."""
     return Hotspot(
         path=finding.path,
         function_name=finding.function_name,
         score=0.0,
         band="low",
         signals={},
-        rationale="forced reachable severity-5 inventory",
+        rationale=rationale,
         test_hint=None,
         inventory_finding_ids=(finding.finding_id,),
     )
+
+
+def _hotspot_from_forced_finding(finding: StaticFinding) -> Hotspot:
+    return hotspot_from_finding(finding, rationale="forced reachable severity-5 inventory")
 
 
 class RegressionRunner:

@@ -343,5 +343,5 @@ def _load_variants(value: object) -> VariantsConfig:
     data = _section(value)
     return VariantsConfig(
         enabled=bool(data.get("enabled", True)),
-        max_mechanisms=int(str(data.get("max_mechanisms", 500))),
+        max_mechanisms=_int_value(data.get("max_mechanisms"), 500),
     )
