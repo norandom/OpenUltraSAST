@@ -6,7 +6,8 @@ Security-fix commits carrying an AI coding agent co-author trailer or generation
 
 ## Review checklist (Req 5.3)
 
-A recipe with `reviewer = "pending"` is a candidate, not a label. Before setting `reviewer`:
+A recipe with `reviewer = "pending"` loads at `review_tier = "title"`: scored and reported by `pairs`; the improve loop's
+profile gate uses only `seeded` and `reviewed` pairs (Req 9.3, task 8.2). Setting `reviewer` to your name promotes it to `reviewed`. Before doing so:
 
 1. The parent excerpt really contains the vulnerability the title claims (not a refactor).
 2. One mechanism from `benchmarks/pairs/mechanisms.toml` explains it; adjust `mechanism` and `cwe`.

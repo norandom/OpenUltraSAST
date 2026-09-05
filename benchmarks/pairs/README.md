@@ -53,9 +53,19 @@ Pairs in this directory **must not** join `LANGUAGE_MANIFESTS`.
   vendored. Honesty dashboard.
 - **agent-vfc** — security-fix commits carrying an AI agent co-author trailer or
   generation marker, in JavaScript, TypeScript, or Python
-  (`benchmarks/pairs/agent-vfc/`). `provenance = "agent"`. Rows enter
-  `catalog.toml` only after a human sets `reviewer` in `recipes.toml`; until
-  then they sit in `catalog-candidates.toml`, which is never loaded. Honesty dashboard.
+  (`benchmarks/pairs/agent-vfc/`). `provenance = "agent"`. Rows with
+  `reviewer = "pending"` load at `review_tier = "title"` (the review queue) and
+  never gate the improve loop (task 8.2); a human sets `reviewer` to promote a row to `reviewed`. Honesty dashboard.
+
+## Review tiers
+
+Every pair carries `review_tier` (Req 9): `seeded` (ground truth reviewed by the
+upstream benchmark), `advisory` (public CVE or GHSA with a fix commit), `title`
+(mechanism inferred from a commit message, unreviewed), `reviewed` (a named
+`reviewer` in this repository; the loader rejects `reviewed` without one).
+Defaults per slice: local `reviewed`, vibe-py `seeded`, sast/vfc/vfc-js/github
+`advisory`, agent-vfc `title`. `pairs --json` reports `per_tier`; `evolve.evaluate_profiles` scores only `seeded`
+and `reviewed` pairs, so `advisory` and `title` pairs never gate the improve loop (task 8.2).
 
 ## Labels, profiles, and mechanisms
 

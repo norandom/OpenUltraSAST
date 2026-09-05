@@ -72,7 +72,11 @@ def catalog_text(slice_name: str, recipes: list[dict[str, object]]) -> str:
             'fix_policy = "silent"',
             f'provenance = "{_q(recipe.get("provenance", "human"))}"',
             f'split = "{_q(recipe.get("split", "train"))}"',
+            f'review_tier = "{_review_tier(slice_name, recipe)}"',
         ]
+        reviewer = str(recipe.get("reviewer", "") or "")
+        if reviewer and reviewer.lower() != "pending":
+            lines.append(f'reviewer = "{_q(reviewer)}"')
         if recipe.get("known_limit"):
             lines.append(f'known_limit = "{_q(recipe["known_limit"])}"')
         lines += [
@@ -95,7 +99,22 @@ def catalog_text(slice_name: str, recipes: list[dict[str, object]]) -> str:
     return "\n".join(lines)
 
 
-def training_rows(recipes: list[dict[str, object]]) -> list[dict[str, object]]:
+_DEFAULT_TIER = {"vibe-py": "seeded", "vfc-js": "advisory", "agent-vfc": "title", "vfc": "advisory", "sast": "advisory"}
+
+
+def _review_tier(slice_name: str, recipe: dict[str, object]) -> str:
+    """Req 9, same precedence as the loader: explicit `review_tier`, else `reviewer` (pending -> title, a name -> reviewed), else the slice default."""
+    if recipe.get("review_tier"):
+        return str(recipe["review_tier"])
+    reviewer = str(recipe.get("reviewer", "") or "")
+    if reviewer.lower() == "pending":
+        return "title"
+    if reviewer:
+        return "reviewed"
+    return _DEFAULT_TIER.get(slice_name, "advisory")
+
+
+def training_rows(slice_name: str, recipes: list[dict[str, object]]) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for recipe in recipes:
         vuln, fixed = excerpt_rel(recipe)
@@ -112,6 +131,7 @@ def training_rows(recipes: list[dict[str, object]]) -> list[dict[str, object]]:
             "mechanism": recipe.get("mechanism", "other"),
             "provenance": recipe.get("provenance", "human"),
             "split": recipe.get("split", "train"),
+            "review_tier": _review_tier(slice_name, recipe),
             "relpath": recipe.get("relpath", recipe.get("path", "")),
             "commit_url": recipe.get("commit_url", ""),
         }
@@ -331,7 +351,6 @@ def generate(slice_name: str, *, prune: bool = False) -> tuple[Path, int]:
     slice_root = ROOT / slice_name
     loaded = [dict(item) for item in tomllib.loads((slice_root / "recipes.toml").read_text()).get("recipe", [])]
     recipes: list[dict[str, object]] = []
-    pending: list[dict[str, object]] = []
     for recipe in loaded:
         vuln, fixed = excerpt_rel(recipe)
         if (slice_root / vuln).is_file() and (slice_root / fixed).is_file():
@@ -343,38 +362,26 @@ def generate(slice_name: str, *, prune: bool = False) -> tuple[Path, int]:
                 recipe["function"] = derived
                 _stamp_function(slice_root / vuln, derived)
                 _stamp_function(slice_root / fixed, derived)
-            if str(recipe.get("reviewer", "")).lower() == "pending":
-                pending.append(recipe)
-                continue
-            recipes.append(recipe)
+            recipes.append(recipe)  # `reviewer = "pending"` rows load at tier `title` (Req 9.4); no separate queue file
         else:
             print(f"skip {recipe['name']}: excerpt missing (harvest failed or not fetched)")
     catalog = slice_root / "catalog.toml"
     catalog.write_text(catalog_text(slice_name, recipes), encoding="utf-8")
     candidates = slice_root / "catalog-candidates.toml"
     if prune:
-        if not recipes and not pending:
+        if not recipes:
             raise SystemExit(f"refusing --prune for {slice_name}: no recipe derived a label, nothing would survive")
-        keep = {str(r["name"]) for r in recipes} | {str(r["name"]) for r in pending}
+        keep = {str(r["name"]) for r in recipes}
         for entry in sorted(slice_root.iterdir()):
             if entry.is_dir() and entry.name not in keep and entry.name not in {"training", "__pycache__"}:
                 shutil.rmtree(entry)
-                print(f"pruned {entry.name}: excerpt not in the catalog or the candidates")
-    if pending:
-        # Unreviewed rows never enter the loaded catalog (Req 5.3); they wait here for a reviewer.
-        candidates.write_text(
-            '# CANDIDATES awaiting human review (reviewer = "pending"). Not loaded by load_pair_catalog.\n'
-            "# Set `reviewer` in recipes.toml after confirming vulnerability, mechanism, and license; then regenerate.\n\n"
-            + catalog_text(slice_name, pending),
-            encoding="utf-8",
-        )
-        print(f"{len(pending)} rows await review -> {candidates}")
-    elif candidates.exists():
-        candidates.unlink()
+                print(f"pruned {entry.name}: excerpt not in the catalog")
+    if candidates.exists():
+        candidates.unlink()  # retired by Req 9: the `title` tier is the review queue
     training = slice_root / "training" / "manifest.jsonl"
     training.parent.mkdir(parents=True, exist_ok=True)
     with training.open("w", encoding="utf-8") as handle:
-        for row in training_rows(recipes):
+        for row in training_rows(slice_name, recipes):
             handle.write(json.dumps(row, sort_keys=True) + "\n")
     return catalog, len(recipes)
 
@@ -382,9 +389,7 @@ def generate(slice_name: str, *, prune: bool = False) -> tuple[Path, int]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--slice", default="vfc")
-    parser.add_argument(
-        "--prune", action="store_true", help="delete excerpt directories that ended up neither in the catalog nor among the candidates"
-    )
+    parser.add_argument("--prune", action="store_true", help="delete excerpt directories that ended up outside the catalog")
     args = parser.parse_args(argv)
     catalog, count = generate(args.slice, prune=args.prune)
     print(f"wrote {catalog} ({count} pairs)")

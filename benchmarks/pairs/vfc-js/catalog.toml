@@ -22,6 +22,7 @@ min_recall = 1.0
 fix_policy = "silent"
 provenance = "human"
 split = "train"
+review_tier = "advisory"
 
 [[pair.expected]]
 cwe = "CWE-22"
@@ -51,6 +52,7 @@ min_recall = 1.0
 fix_policy = "silent"
 provenance = "human"
 split = "holdout"
+review_tier = "advisory"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -80,6 +82,7 @@ min_recall = 1.0
 fix_policy = "silent"
 provenance = "human"
 split = "holdout"
+review_tier = "advisory"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -109,6 +112,7 @@ min_recall = 1.0
 fix_policy = "silent"
 provenance = "human"
 split = "train"
+review_tier = "advisory"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -138,6 +142,7 @@ min_recall = 1.0
 fix_policy = "silent"
 provenance = "human"
 split = "holdout"
+review_tier = "advisory"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -167,6 +172,7 @@ min_recall = 1.0
 fix_policy = "silent"
 provenance = "human"
 split = "train"
+review_tier = "advisory"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -196,6 +202,7 @@ min_recall = 1.0
 fix_policy = "silent"
 provenance = "human"
 split = "train"
+review_tier = "advisory"
 
 [[pair.expected]]
 cwe = "CWE-22"
@@ -224,6 +231,7 @@ min_recall = 1.0
 fix_policy = "silent"
 provenance = "human"
 split = "train"
+review_tier = "advisory"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -252,6 +260,7 @@ min_recall = 1.0
 fix_policy = "silent"
 provenance = "human"
 split = "train"
+review_tier = "advisory"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -280,6 +289,7 @@ min_recall = 1.0
 fix_policy = "silent"
 provenance = "human"
 split = "train"
+review_tier = "advisory"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -309,6 +319,7 @@ min_recall = 1.0
 fix_policy = "silent"
 provenance = "human"
 split = "holdout"
+review_tier = "advisory"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -338,6 +349,7 @@ min_recall = 1.0
 fix_policy = "silent"
 provenance = "human"
 split = "train"
+review_tier = "advisory"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -367,6 +379,7 @@ min_recall = 1.0
 fix_policy = "silent"
 provenance = "human"
 split = "holdout"
+review_tier = "advisory"
 
 [[pair.expected]]
 cwe = "CWE-22"
@@ -395,6 +408,7 @@ min_recall = 1.0
 fix_policy = "silent"
 provenance = "human"
 split = "train"
+review_tier = "advisory"
 
 [[pair.expected]]
 cwe = "CWE-94"
@@ -424,6 +438,7 @@ min_recall = 1.0
 fix_policy = "silent"
 provenance = "human"
 split = "holdout"
+review_tier = "advisory"
 
 [[pair.expected]]
 cwe = "CWE-94"
@@ -453,6 +468,7 @@ min_recall = 1.0
 fix_policy = "silent"
 provenance = "human"
 split = "train"
+review_tier = "advisory"
 
 [[pair.expected]]
 cwe = "CWE-94"
@@ -482,6 +498,7 @@ min_recall = 1.0
 fix_policy = "silent"
 provenance = "human"
 split = "holdout"
+review_tier = "advisory"
 
 [[pair.expected]]
 cwe = "CWE-78"

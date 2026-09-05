@@ -1,6 +1,6 @@
 # agent-vfc candidate review sheet
 
-Set `reviewer = "<name>"` in `recipes.toml` for each row you confirm (and fix `mechanism`/`cwe` if the title-based guess is wrong), then run `python benchmarks/pairs/catalog_gen.py --slice agent-vfc`. Rows without a reviewer stay in `catalog-candidates.toml` and are never scored.
+Set `reviewer = "<name>"` in `recipes.toml` for each row you confirm (and fix `mechanism`/`cwe` if the title-based guess is wrong), then run `python benchmarks/pairs/catalog_gen.py --slice agent-vfc`. Rows with `reviewer = "pending"` load at `review_tier = "title"`: they are scored and reported by `pairs --slice agent-vfc`, and never gate the improve loop (Req 9.3/9.4); a named reviewer promotes a row to `reviewed`.
 
 | # | name | mechanism (guess) | cwe | language | commit | title |
 |---|------|-------------------|-----|----------|--------|-------|

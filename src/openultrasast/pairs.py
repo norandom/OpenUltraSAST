@@ -16,7 +16,7 @@ from __future__ import annotations
 import shutil
 import tempfile
 import tomllib
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from functools import lru_cache
 from pathlib import Path
@@ -55,6 +55,18 @@ FunctionRanges = dict[str, tuple[tuple[str, int, int], ...]]
 SLICE_NAMES = ("all", "local", "github", "sast", "vfc", "vibe-py", "vfc-js", "agent-vfc")
 PROVENANCES = frozenset({"human", "agent", "mixed", "synthetic"})
 SPLITS = frozenset({"train", "holdout"})
+# Req 9: how a label was established. Only seeded and reviewed pairs steer the improve loop.
+REVIEW_TIERS = frozenset({"seeded", "advisory", "title", "reviewed"})
+GATING_TIERS = frozenset({"seeded", "reviewed"})
+_DEFAULT_TIER = {
+    "local": "reviewed",
+    "github": "advisory",
+    "sast": "advisory",
+    "vfc": "advisory",
+    "vibe-py": "seeded",
+    "vfc-js": "advisory",
+    "agent-vfc": "title",
+}
 _DEFAULT_PROVENANCE = {"sast": "synthetic", "local": "human", "github": "human", "vfc": "human"}
 _MANIFEST_MECHANISM = "source_reaches_sink"  # cheat-sheet fixtures referenced via expected_from
 
@@ -85,6 +97,8 @@ class PairCase:
     provenance: str = "human"
     split: str = "train"
     known_limit: str | None = None
+    review_tier: str = "advisory"
+    reviewer: str = ""
 
 
 @dataclass(frozen=True)
@@ -117,6 +131,7 @@ class PairOutcome:
     unadjudicated_fixed: int = 0
     detection_kinds: tuple[str, ...] = ()
     unresolved_labels: int = 0  # expected rows whose function names no range on the vulnerable side
+    review_tier: str = "advisory"
 
 
 @dataclass(frozen=True)
@@ -143,6 +158,7 @@ class PairEvalResult:
     signals: tuple[dict[str, object], ...]
     scorers: dict[str, dict[str, PairCorpusMetrics]] = field(default_factory=dict)
     per_profile: dict[str, PairCorpusMetrics] = field(default_factory=dict)
+    per_tier: dict[str, PairCorpusMetrics] = field(default_factory=dict)
     per_mechanism: dict[str, PairCorpusMetrics] = field(default_factory=dict)
     achievable: dict[str, PairCorpusMetrics] = field(default_factory=dict)
     known_limit: tuple[str, ...] = ()
@@ -205,6 +221,7 @@ def _load_catalog_file(path: Path) -> tuple[PairCase, ...]:
         if split not in SPLITS:
             raise CatalogError(f"pair {name}: unknown split {split!r}; expected train or holdout")
         known_limit = item.get("known_limit")
+        review_tier, reviewer = _review_tier(item, slice_name, name)
         cases.append(
             PairCase(
                 name=name,
@@ -225,9 +242,31 @@ def _load_catalog_file(path: Path) -> tuple[PairCase, ...]:
                 provenance=provenance,
                 split=split,
                 known_limit=str(known_limit) if known_limit else None,
+                review_tier=review_tier,
+                reviewer=reviewer,
             )
         )
     return tuple(cases)
+
+
+def _review_tier(item: dict[str, object], slice_name: str, name: str) -> tuple[str, str]:
+    """Tier from the row, else from ``reviewer`` (pending -> title, a name -> reviewed), else the slice default."""
+    reviewer = str(item.get("reviewer", "") or "")
+    pending = reviewer.lower() == "pending"
+    explicit = item.get("review_tier")
+    if explicit is not None:
+        tier = str(explicit)
+    elif pending:
+        tier = "title"
+    elif reviewer:
+        tier = "reviewed"
+    else:
+        tier = _DEFAULT_TIER.get(slice_name, "advisory")
+    if tier not in REVIEW_TIERS:
+        raise CatalogError(f"pair {name}: unknown review_tier {tier!r}; expected one of {sorted(REVIEW_TIERS)}")
+    if tier == "reviewed" and (not reviewer or pending):
+        raise CatalogError(f"pair {name}: review_tier reviewed requires a named reviewer")
+    return tier, "" if pending else reviewer
 
 
 def evaluate_pair(case: PairCase, *, hunter: HunterScan | None = None, ruleset: tuple[PatternRule, ...] | None = None) -> PairOutcome:
@@ -279,6 +318,10 @@ def evaluate_catalog(
             profile: _metrics(tuple(item for item in outcomes if item.provenance == profile))
             for profile in sorted({item.provenance for item in outcomes})
         },
+        per_tier={
+            tier: _metrics(tuple(item for item in outcomes if item.review_tier == tier))
+            for tier in sorted({item.review_tier for item in outcomes})
+        },
         per_mechanism={mechanism: _metrics(tuple(items)) for mechanism, items in sorted(per_mechanism.items())},
         achievable={
             slice_name: _metrics(tuple(item for item in achievable_outcomes if item.slice == slice_name))
@@ -317,6 +360,12 @@ def select_slice(cases: Sequence[PairCase], slice_name: str | None) -> tuple[Pai
     return tuple(case for case in cases if case.slice == slice_name)
 
 
+def select_tier(cases: Sequence[PairCase], tiers: Iterable[str]) -> tuple[PairCase, ...]:
+    """Pairs whose review tier is in ``tiers`` (the improve loop passes GATING_TIERS)."""
+    wanted = frozenset(tiers)
+    return tuple(case for case in cases if case.review_tier in wanted)
+
+
 def select_profile(cases: Sequence[PairCase], profile: str | None) -> tuple[PairCase, ...]:
     if not profile or profile == "all":
         return tuple(cases)
@@ -339,6 +388,7 @@ def result_payload(result: PairEvalResult) -> dict[str, object]:
             slice_name: {scorer: asdict(metrics) for scorer, metrics in inner.items()} for slice_name, inner in result.scorers.items()
         },
         "per_profile": {name: asdict(metrics) for name, metrics in result.per_profile.items()},
+        "per_tier": {name: asdict(metrics) for name, metrics in result.per_tier.items()},
         "per_mechanism": {name: asdict(metrics) for name, metrics in result.per_mechanism.items()},
         "achievable": {name: asdict(metrics) for name, metrics in result.achievable.items()},
         "known_limit": list(result.known_limit),
@@ -587,6 +637,7 @@ def _inventory_outcome(
         commit_url=case.commit_url,
         cve=case.cve,
         provenance=case.provenance,
+        review_tier=case.review_tier,
         mechanisms=_mechanisms(case),
         known_limit=case.known_limit,
         split=case.split,
@@ -647,6 +698,7 @@ def _evaluate_overlay_pair(case: PairCase, vuln_root: Path, fix_root: Path, rule
         commit_url=case.commit_url,
         cve=case.cve,
         provenance=case.provenance,
+        review_tier=case.review_tier,
         mechanisms=_mechanisms(case),
         known_limit=case.known_limit,
         split=case.split,
@@ -702,6 +754,7 @@ def _evaluate_hunter_pair(case: PairCase, vuln_root: Path, fix_root: Path, hunte
         commit_url=case.commit_url,
         cve=case.cve,
         provenance=case.provenance,
+        review_tier=case.review_tier,
         mechanisms=_mechanisms(case),
         known_limit=case.known_limit,
         split=case.split,

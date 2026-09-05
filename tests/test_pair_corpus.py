@@ -453,9 +453,8 @@ def test_new_slices_load_offline_and_score_with_profiles() -> None:
     from openultrasast.pairs import PROVENANCES
 
     catalog = load_pair_catalog()
-    # agent-vfc rows enter the loaded catalog only after human review (Req 5.3); candidates wait in a separate file.
-    candidates = Path("benchmarks/pairs/agent-vfc/catalog-candidates.toml")
-    assert candidates.is_file() and "reviewer" in candidates.read_text()
+    # agent-vfc rows load at tier `title` (Req 9.4); the candidates file is retired.
+    assert not Path("benchmarks/pairs/agent-vfc/catalog-candidates.toml").exists()
     assert all(case.provenance == "agent" for case in select_slice(catalog, "agent-vfc"))
     for slice_name, expected_provenance in (("vibe-py", "human"), ("vfc-js", "human")):
         cases = select_slice(catalog, slice_name)
@@ -619,15 +618,76 @@ def test_loader_rejects_reserved_words_as_function_labels(tmp_path: Path) -> Non
             _load_catalog_file(tmp_path / "bad.toml")
 
 
-def test_agent_vfc_stays_empty_until_reviewed() -> None:
+def test_agent_vfc_loads_at_title_tier_and_tiers_default_per_slice() -> None:
+    from openultrasast.pairs import REVIEW_TIERS
+
     catalog = load_pair_catalog()
     loaded = select_slice(catalog, "agent-vfc")
-    candidates = Path("benchmarks/pairs/agent-vfc/catalog-candidates.toml")
-    # Req 5.3: nothing loads until a human sets `reviewer`; the candidates file must not be empty meanwhile.
-    assert candidates.is_file() and candidates.read_text().count("[[pair]]") >= 1
-    assert loaded == () or all(case.provenance == "agent" for case in loaded)
-    reviewed_in_recipes = 'reviewer = "pending"' not in Path("benchmarks/pairs/agent-vfc/recipes.toml").read_text()
-    assert bool(loaded) == reviewed_in_recipes
+    # Req 9.4: `reviewer = "pending"` rows are the review queue; they load at tier `title` and never gate.
+    assert len(loaded) >= 1
+    assert all(case.review_tier in {"title", "reviewed"} and case.provenance == "agent" for case in loaded)
+    assert all(case.review_tier == "title" for case in loaded if not case.reviewer)  # pending rows are the review queue
+    assert all(case.review_tier in REVIEW_TIERS for case in catalog)
+    by_slice = {
+        slice_name: {case.review_tier for case in select_slice(catalog, slice_name)}
+        for slice_name in ("local", "sast", "vfc", "vibe-py", "vfc-js")
+    }
+    assert by_slice == {"local": {"reviewed"}, "sast": {"advisory"}, "vfc": {"advisory"}, "vibe-py": {"seeded"}, "vfc-js": {"advisory"}}
+
+
+def test_reviewed_tier_requires_a_reviewer_and_unknown_tiers_are_rejected(tmp_path: Path) -> None:
+    from openultrasast.pairs import CatalogError, _load_catalog_file
+
+    (tmp_path / "v.py").write_text("x = 1\n")
+    (tmp_path / "f.py").write_text("x = 1\n")
+    head = '[[pair]]\nname = "t"\nslice = "sast"\nvuln = "v.py"\nfixed = "f.py"\nrelpath = "app.py"\n'
+    tail = '\n[[pair.expected]]\ncwe = "CWE-95"\nclass = "x"\npath = "app.py"\nsink = "eval"\nmechanism = "other"\n'
+    (tmp_path / "no_reviewer.toml").write_text(head + 'review_tier = "reviewed"\n' + tail)
+    with pytest.raises(CatalogError, match="reviewer"):
+        _load_catalog_file(tmp_path / "no_reviewer.toml")
+    (tmp_path / "bad_tier.toml").write_text(head + 'review_tier = "guessed"\n' + tail)
+    with pytest.raises(CatalogError, match="unknown review_tier"):
+        _load_catalog_file(tmp_path / "bad_tier.toml")
+    (tmp_path / "ok.toml").write_text(head + 'review_tier = "reviewed"\nreviewer = "mc"\n' + tail)
+    (case,) = _load_catalog_file(tmp_path / "ok.toml")
+    assert case.review_tier == "reviewed" and case.reviewer == "mc"
+    (tmp_path / "pending.toml").write_text(head + 'reviewer = "pending"\n' + tail)
+    (pending,) = _load_catalog_file(tmp_path / "pending.toml")
+    assert pending.review_tier == "title"
+
+
+def test_payload_reports_metrics_per_review_tier(tmp_path: Path) -> None:
+    from openultrasast.pairs import evaluate_catalog, result_payload, select_tier
+
+    src = "from flask import request\n\ndef f():\n    return eval(request.args.get('x'))\n"
+    row = ExpectedFinding(
+        cwe="CWE-95", vulnerability_class="code injection", path="app.py", evidence="", sink="eval", mechanism="source_reaches_sink"
+    )
+    seeded = _case(tmp_path, "seeded", src, "def f():\n    return 1\n", row)
+    title = _case(tmp_path, "title", src, "def f():\n    return 1\n", row)
+    seeded = PairCase(**{**seeded.__dict__, "review_tier": "seeded"})
+    title = PairCase(**{**title.__dict__, "review_tier": "title"})
+    result = evaluate_catalog([seeded, title])
+    payload = result_payload(result)
+    assert set(payload["per_tier"]) == {"seeded", "title"}
+    assert payload["per_tier"]["seeded"]["pairs"] == 1
+    assert all(outcome["review_tier"] in {"seeded", "title"} for outcome in payload["outcomes"])
+    assert select_tier([seeded, title], ("seeded", "reviewed")) == (seeded,)
+
+
+def test_default_catalog_has_the_new_slices_on_disk_and_off_the_stage1_list() -> None:
+    catalog = load_pair_catalog()
+    assert {"vibe-py", "vfc-js", "agent-vfc"} <= {case.slice for case in catalog}  # Req 8.1
+    assert all(case.vuln_file.is_file() and case.fixed_file.is_file() for case in catalog)
+    stage1 = {name for names in LANGUAGE_MANIFESTS.values() for name in names}
+    assert not ({case.name for case in catalog} & stage1)
+
+
+def test_cli_new_slices_exit_zero_with_tier_profile_and_mechanism_metrics(capsys: pytest.CaptureFixture[str]) -> None:
+    for slice_name in ("vibe-py", "vfc-js", "agent-vfc"):
+        assert main(["pairs", "--slice", slice_name, "--json"]) == 0
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["per_tier"] and payload["per_profile"] and "per_mechanism" in payload, slice_name
 
 
 # --- debug round after review 3: shared named ranges, containment-only matching -----

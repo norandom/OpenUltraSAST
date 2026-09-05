@@ -5,7 +5,7 @@
 // commit_url: https://github.com/Cap-go/capgo.app/commit/4dadd2580d02213d227a331eee0232aa59859b59
 // cve: 
 // license: AGPL-3.0
-// function: next
+// function: createHono
 // relpath: supabase/functions/_backend/utils/hono.ts
 // provenance: agent
 // mechanism: permissive_default
