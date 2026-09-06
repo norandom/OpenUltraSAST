@@ -502,6 +502,40 @@ class SplitReport:
     undated: int = 0  # assigned rows with no fix date, ordered by name instead
 
 
+# The keys the harvester writes into an excerpt's provenance header (benchmarks/pairs/harvest.py).
+# Only a leading comment line carrying one of these keys is metadata; anything else is code. A C
+# preprocessor directive and an ordinary leading comment are code, and stripping them would let two
+# different files hash equal and vanish from every denominator.
+_PROVENANCE_KEYS = frozenset(
+    {"provenance", "repo", "commit", "parent", "commit_url", "cve", "license", "function", "relpath", "mechanism", "upstream_start"}
+)
+_COMMENT_MARKERS = ("#", "//", "*/", "/*", "*")
+
+
+def _is_header_line(line: str) -> bool:
+    body = line.strip()
+    if not body:
+        return True
+    for marker in _COMMENT_MARKERS:
+        if body.startswith(marker):
+            body = body[len(marker) :].strip()
+            break
+    else:
+        return False
+    if not body:
+        return True  # the framing line of a block comment
+    key, separator, _rest = body.partition(":")
+    return bool(separator) and key.strip().lower() in _PROVENANCE_KEYS
+
+
+def _header_lines(lines: Sequence[str]) -> int:
+    """How many leading lines are the provenance header. Stops at the first line that is code."""
+    index = 0
+    while index < len(lines) and _is_header_line(lines[index]):
+        index += 1
+    return index
+
+
 @lru_cache(maxsize=4096)
 def _body_digest(path: Path) -> str | None:
     """Hash of an excerpt with its provenance header and trailing whitespace removed; None when unreadable or empty."""
@@ -510,10 +544,7 @@ def _body_digest(path: Path) -> str | None:
     except OSError:
         return None
     lines = text.splitlines()
-    index = 0
-    while index < len(lines) and (not lines[index].strip() or lines[index].lstrip().startswith(("#", "//", "/*", "*"))):
-        index += 1
-    body = "\n".join(line.rstrip() for line in lines[index:]).strip()
+    body = "\n".join(line.rstrip() for line in lines[_header_lines(lines) :]).strip()
     return hashlib.sha256(body.encode()).hexdigest() if body else None
 
 

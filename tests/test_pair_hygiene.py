@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from openultrasast.pairs import DEFAULT_CATALOG, PairCase, load_pair_catalog, select_vendored
@@ -147,3 +148,68 @@ def test_pair_signals_can_be_filtered_to_one_split() -> None:
     outcomes = [outcome("train-one", "train"), outcome("holdout-one", "holdout")]
     assert {signal["pair"] for signal in build_pair_signals(outcomes)} == {"train-one", "holdout-one"}
     assert {signal["pair"] for signal in build_pair_signals(outcomes, split="train")} == {"train-one"}
+
+
+HEADER_C = "/* Provenance: acme/lib bad ({side}).\n * repo: acme/lib\n * commit: abc\n * license: MIT\n */\n"
+HEADER_PY = "# Provenance: acme/lib f ({side}).\n# repo: acme/lib\n# license: MIT\n"
+
+
+def _twin(tmp_path: Path, suffix: str, vuln: str, fixed: str) -> object:
+    from openultrasast.pairs import _load_catalog_file
+
+    (tmp_path / f"v{suffix}").write_text(vuln)
+    (tmp_path / f"f{suffix}").write_text(fixed)
+    (tmp_path / "c.toml").write_text(
+        f'[[pair]]\nname = "t"\nslice = "sast"\nvuln = "v{suffix}"\nfixed = "f{suffix}"\nrelpath = "app{suffix}"\n\n'
+        '[[pair.expected]]\ncwe = "CWE-121"\nclass = "x"\npath = "app.c"\nsink = "strcpy"\nmechanism = "other"\n'
+    )
+    (case,) = _load_catalog_file(tmp_path / "c.toml")
+    return case
+
+
+def test_a_preprocessor_directive_is_code_not_a_provenance_header(tmp_path: Path) -> None:
+    """The whole point of the CWE-121 pairs is the buffer size, and it lives on a `#define`."""
+    body = "#include <string.h>\n#define BUFSIZE {size}\n\nvoid bad(void) {{\n    char buf[BUFSIZE];\n    strcpy(buf, src);\n}}\n"
+    case = _twin(
+        tmp_path,
+        ".c",
+        HEADER_C.format(side="vuln") + body.format(size="10"),
+        HEADER_C.format(side="fixed") + body.format(size="4096"),
+    )
+    assert case.unscorable is None  # type: ignore[attr-defined]
+
+
+def test_a_leading_code_comment_is_not_a_provenance_header(tmp_path: Path) -> None:
+    same = "def f(value):\n    return value\n"
+    case = _twin(
+        tmp_path,
+        ".py",
+        HEADER_PY.format(side="vuln") + "# this function is fine\n" + same,
+        HEADER_PY.format(side="fixed") + "# this function is not fine\n" + same,
+    )
+    assert case.unscorable is None  # a comment that is not provenance metadata is part of the file
+
+
+def test_the_provenance_header_itself_is_still_stripped(tmp_path: Path) -> None:
+    same = "def f(value):\n    return value\n"
+    case = _twin(tmp_path, ".py", HEADER_PY.format(side="vuln") + same, HEADER_PY.format(side="fixed") + same)
+    assert case.unscorable == "identical_twin"  # only the header differs, so the code is the same code
+    block = _twin(
+        tmp_path, ".c", HEADER_C.format(side="vuln") + "void bad(void) {}\n", HEADER_C.format(side="fixed") + "void bad(void) {}\n"
+    )
+    assert block.unscorable == "identical_twin"  # the C block comment form too
+
+
+def test_no_vendored_excerpt_loses_a_preprocessor_directive_to_the_header_strip() -> None:
+    from openultrasast.pairs import _header_lines
+
+    eaten: list[str] = []
+    for case in select_vendored(load_pair_catalog(DEFAULT_CATALOG)):
+        for path in (case.vuln_file, case.fixed_file):
+            if not path.is_file():
+                continue
+            lines = path.read_text(errors="ignore").splitlines()
+            stripped = lines[: _header_lines(lines)]
+            if any(re.match(r"\s*#\s*(include|define|if|ifdef|ifndef|elif|else|endif|pragma|undef|import)\b", line) for line in stripped):
+                eaten.append(f"{case.name}:{path.name}")
+    assert eaten == []
