@@ -163,6 +163,8 @@ class PairOutcome:
     unadjudicated_vuln: int = 0
     unadjudicated_fixed: int = 0
     detection_kinds: tuple[str, ...] = ()
+    family: str = ""  # the family this pair was scored under (hunter path only)
+    unscorable: str | None = None  # why it could not be scored; it then leaves every denominator
     unresolved_labels: int = 0  # expected rows whose function names no range on the vulnerable side
     review_tier: str = "advisory"
 
@@ -193,6 +195,7 @@ class PairEvalResult:
     per_profile: dict[str, PairCorpusMetrics] = field(default_factory=dict)
     per_tier: dict[str, PairCorpusMetrics] = field(default_factory=dict)
     per_mechanism: dict[str, PairCorpusMetrics] = field(default_factory=dict)
+    per_family: dict[str, dict[str, object]] = field(default_factory=dict)  # learning-harness Req 3.3: family metrics beside the rest
     achievable: dict[str, PairCorpusMetrics] = field(default_factory=dict)
     known_limit: tuple[str, ...] = ()
     loss: dict[str, dict[str, int]] = field(default_factory=dict)
@@ -425,13 +428,16 @@ def evaluate_catalog(
     cases = tuple(ready)
     outcomes = tuple(evaluate_pair(case, ruleset=ruleset) for case in cases)
     scorers: dict[str, dict[str, PairCorpusMetrics]] = {}
+    hunter_outcomes: list[PairOutcome] = []  # the family scorer runs on the hunter path only
     for slice_name in sorted({case.slice for case in cases if case.slice in OVERLAY_SLICES}):
         slice_cases = tuple(case for case in cases if case.slice == slice_name)
         scorers[slice_name] = {"overlay": _metrics(tuple(item for item in outcomes if item.slice == slice_name))}
         if inventory_sidecar:
             scorers[slice_name]["inventory"] = _metrics(tuple(_inventory_only(case, ruleset) for case in slice_cases))
         if hunter is not None:
-            scorers[slice_name]["hunter"] = _metrics(tuple(evaluate_pair(case, hunter=hunter) for case in slice_cases))
+            hunted = tuple(evaluate_pair(case, hunter=hunter) for case in slice_cases)
+            hunter_outcomes.extend(hunted)
+            scorers[slice_name]["hunter"] = _metrics(hunted)
     if hunter is None and scorers:
         degradations.append({"stage": "pairs", "reason": "hunter_model_unavailable"})
     achievable_outcomes = tuple(item for item in outcomes if item.known_limit is None)
@@ -457,6 +463,7 @@ def evaluate_catalog(
             for tier in sorted({item.review_tier for item in outcomes})
         },
         per_mechanism={mechanism: _metrics(tuple(items)) for mechanism, items in sorted(per_mechanism.items())},
+        per_family=_family_metrics(hunter_outcomes),
         achievable={
             slice_name: _metrics(tuple(item for item in achievable_outcomes if item.slice == slice_name))
             for slice_name in sorted({item.slice for item in achievable_outcomes})
@@ -465,6 +472,43 @@ def evaluate_catalog(
         loss=_loss(outcomes),
         degradations=tuple(degradations),
     )
+
+
+def _family_metrics(outcomes: Sequence[PairOutcome]) -> dict[str, dict[str, object]]:
+    """Per-family numbers for the pairs the family scorer ran, with unscorable rows out of the denominator."""
+    from .learning.families import load_families
+    from .learning.scoring import PairFamilyScore, aggregate
+
+    scored = [item for item in outcomes if item.family]
+    if not scored:
+        return {}
+    taxonomy = load_families()
+    scores = [
+        PairFamilyScore(
+            pair=item.name,
+            family=item.family,
+            runs=()
+            if item.unscorable
+            else (
+                (
+                    ("pair_correct" if item.pair_correct else "both_flagged")
+                    if item.detected_vuln
+                    else ("reversed" if not item.silent_fix else "both_silent")
+                ),
+            ),
+            outcome="unscorable"
+            if item.unscorable
+            else (
+                ("pair_correct" if item.pair_correct else "both_flagged")
+                if item.detected_vuln
+                else ("reversed" if not item.silent_fix else "both_silent")
+            ),
+            slice=item.slice,
+            unscorable_reason=item.unscorable,
+        )
+        for item in scored
+    ]
+    return {name: metrics.to_dict() for name, metrics in aggregate(scores, taxonomy=taxonomy).items()}
 
 
 def build_pair_signals(outcomes: Sequence[PairOutcome], *, split: str | None = None) -> list[dict[str, object]]:
@@ -641,6 +685,7 @@ def result_payload(result: PairEvalResult) -> dict[str, object]:
         "per_profile": {name: asdict(metrics) for name, metrics in result.per_profile.items()},
         "per_tier": {name: asdict(metrics) for name, metrics in result.per_tier.items()},
         "per_mechanism": {name: asdict(metrics) for name, metrics in result.per_mechanism.items()},
+        "per_family": dict(result.per_family),
         "achievable": {name: asdict(metrics) for name, metrics in result.achievable.items()},
         "known_limit": list(result.known_limit),
         "loss": {name: dict(counts) for name, counts in result.loss.items()},
@@ -1018,43 +1063,71 @@ def _evaluate_overlay_pair(case: PairCase, vuln_root: Path, fix_root: Path, rule
     )
 
 
-def _evaluate_hunter_pair(case: PairCase, vuln_root: Path, fix_root: Path, hunter: HunterScan) -> PairOutcome:
-    """Score the LLM hunter with the same detection and leak rules (Req 1.7)."""
-    vuln_findings = hunter(vuln_root)
-    fix_findings = hunter(fix_root)
+def _evaluate_hunter_pair(case: PairCase, vuln_root: Path, fix_root: Path, hunter: HunterScan, runs: int = 1) -> PairOutcome:
+    """Score the model-driven hunter by family and function (learning-harness Req 3.1-3.3, 3.5).
+
+    Detection is a finding of the labeled family inside the labeled function; a finding of another family
+    or outside it is counted and never called a leak; the words in a finding are never read. A pair that
+    cannot be scored is reported with its reason and the detector is never run on it.
+    """
+    from .learning.classify import classify_pair
+    from .learning.families import load_families
+    from .learning.scoring import score_pair_family, unscorable_reason
+
+    taxonomy = load_families()
     vuln_ranges = _overlay_scan(vuln_root).ranges
+    reason = unscorable_reason(case, parse_ok=bool(vuln_ranges), ranges=vuln_ranges)
+    family = _family_of(case, taxonomy)
+    if reason is not None:
+        return _hunter_outcome(case, family=family, unscorable=reason)
     fix_ranges = _overlay_scan(fix_root).ranges
-    expected_total = len(case.expected)
-    matched = sum(1 for row in case.expected if any(_hunter_matches_expected(row, finding, vuln_ranges) for finding in vuln_findings))
-    recall = matched / expected_total if expected_total else 1.0
-    detected = recall + 1e-12 >= case.min_recall
-    if case.fix_policy == "silent":
-        leaks = tuple(finding.finding_id for finding in fix_findings)
-    else:
-        leaks = tuple(
-            finding.finding_id
-            for finding in fix_findings
-            if any(_hunter_matches_expected(row, finding, fix_ranges) for row in case.expected)
-        )
-    misses = tuple(
-        f"{row.rule_id or '-'}:{row.path}:{row.cwe}"
-        for row in case.expected
-        if not any(_hunter_matches_expected(row, finding, vuln_ranges) for finding in vuln_findings)
-    )
+    vuln_runs = [hunter(vuln_root) for _ in range(max(runs, 1))]
+    fix_runs = [hunter(fix_root) for _ in range(max(runs, 1))]
+    score = score_pair_family(case, family, vuln_runs, fix_runs, ranges=vuln_ranges, taxonomy=taxonomy)
+    del classify_pair, fix_ranges
+    return _hunter_outcome(case, family=family, score=score, vuln=vuln_runs[0], fixed=fix_runs[0])
+
+
+def _family_of(case: PairCase, taxonomy: object) -> str:
+    """The family this pair is scored under: its label when it has one, else what the classifier says."""
+    from .learning.classify import classify_pair
+
+    for row in case.expected:
+        label = getattr(row, "family", None)
+        if label:
+            return str(label)
+    answer = classify_pair(case, taxonomy, client=None)  # type: ignore[arg-type]
+    return answer.families[0] if answer.families else "unknown"
+
+
+def _hunter_outcome(
+    case: PairCase,
+    *,
+    family: str,
+    score: object | None = None,
+    vuln: Sequence[StaticFinding] = (),
+    fixed: Sequence[StaticFinding] = (),
+    unscorable: str | None = None,
+) -> PairOutcome:
+    outcome = getattr(score, "outcome", "unscorable")
+    detected = outcome in {"pair_correct", "both_flagged"}
+    silent = outcome in {"pair_correct", "both_silent"}
+    leaks = tuple(finding.finding_id for finding in fixed) if outcome in {"both_flagged", "reversed"} else ()
+    misses = () if detected else tuple(f"{row.rule_id or '-'}:{row.path}:{row.cwe}" for row in case.expected)
     return PairOutcome(
         name=case.name,
         slice=case.slice,
         language=case.language,
         origin=case.origin,
         detected_vuln=detected,
-        silent_fix=not leaks,
-        pair_correct=detected and not leaks,
-        vuln_matched=matched,
-        vuln_expected=expected_total,
-        vuln_findings=len(vuln_findings),
-        fix_findings=len(fix_findings),
+        silent_fix=silent,
+        pair_correct=outcome == "pair_correct",
+        vuln_matched=1 if detected else 0,
+        vuln_expected=len(case.expected),
+        vuln_findings=len(vuln),
+        fix_findings=len(fixed),
         fix_leaks=len(leaks),
-        recall=recall,
+        recall=1.0 if detected else 0.0,
         misses=misses,
         leaks=leaks,
         commit_url=case.commit_url,
@@ -1064,8 +1137,10 @@ def _evaluate_hunter_pair(case: PairCase, vuln_root: Path, fix_root: Path, hunte
         mechanisms=_mechanisms(case),
         known_limit=case.known_limit,
         split=case.split,
-        weak_labels=sum(1 for row in case.expected if is_weak_label(row)),
-        detection_kinds=("hunter",) if vuln_findings else (),
+        weak_labels=0,
+        detection_kinds=("hunter",) if detected else (),
+        family=family,
+        unscorable=unscorable or (str(getattr(score, "unscorable_reason", "") or "") or None),
     )
 
 
@@ -1140,23 +1215,6 @@ def _overlay_matches_expected(
     return False
 
 
-def _hunter_matches_expected(
-    expected: ExpectedFinding, finding: StaticFinding, ranges: dict[str, tuple[tuple[str, int, int], ...]]
-) -> bool:
-    if is_weak_label(expected):
-        return False
-    text = f"{finding.title} {finding.rationale} {' '.join(finding.tags)}".lower()
-    if expected.function:
-        spans = spans_named(ranges.get(finding.path, ()), expected.function)
-        if finding.line is None or not any(start <= finding.line <= end for start, end in spans):
-            return False
-        if expected.cwe and expected.cwe.lower() in text:
-            return True
-    if expected.sink and expected.sink.lower() != "unknown" and expected.sink.lower() in text:
-        return True
-    return bool(expected.rule_id and expected.rule_id in finding.finding_id)
-
-
 def _obligation_matches_expected(expected: ExpectedFinding, statics: Sequence[StaticFinding], ranges: FunctionRanges | None) -> bool:
     """The one additive rule (Req 7.2): a row with `obligation` is detected by a finding tagged `obligation:<kind>` whose line
     lies inside the labeled function. Nothing else about the scorer changes; rows without the label never reach here."""
@@ -1212,6 +1270,11 @@ def _mechanisms(case: PairCase) -> tuple[str, ...]:
 
 
 # --- metrics ---------------------------------------------------------------
+
+
+def _scorable(outcomes: Sequence[PairOutcome]) -> tuple[PairOutcome, ...]:
+    """Rows that could be scored. An unscorable row leaves every rate rather than counting as a miss (Req 4.1)."""
+    return tuple(item for item in outcomes if item.unscorable is None)
 
 
 def _metrics(outcomes: Sequence[PairOutcome]) -> PairCorpusMetrics:
