@@ -68,6 +68,9 @@ class BaselineReport:
     slices: tuple[str, ...]
     floors: dict[str, NoiseFloor] = field(default_factory=dict)
     metrics: dict[str, dict[str, object]] = field(default_factory=dict)
+    # `<slice>/<family>`: the budgets stay per family, but vibe-py and agent-vfc are different worlds and one
+    # pooled number hides which of them moved (Req 8.4).
+    per_slice: dict[str, dict[str, object]] = field(default_factory=dict)
     scores: tuple[PairFamilyScore, ...] = ()
     cost_usd: float = 0.0
 
@@ -80,6 +83,7 @@ class BaselineReport:
             "cost_usd": self.cost_usd,
             "floors": {name: floor.to_dict() for name, floor in sorted(self.floors.items())},
             "metrics": {name: dict(block) for name, block in sorted(self.metrics.items())},
+            "per_slice": {name: dict(block) for name, block in sorted(self.per_slice.items())},
         }
 
 
@@ -88,7 +92,7 @@ def run_baseline(
     *,
     taxonomy: FamilyTaxonomy,
     configs_dir: Path,
-    scan: Scan,
+    scan_factory: Callable[[FamilyConfig], Scan],
     model: str,
     out_dir: Path,
     slices: Sequence[str] = DEFAULT_SLICES,
@@ -96,13 +100,29 @@ def run_baseline(
     prompt: str | None = None,
     spent_usd: Callable[[], float] | None = None,
 ) -> BaselineReport:
-    """Clone one detector into every family, measure each family against itself, and write the artifacts."""
-    from ..tool_hunter import _SYSTEM_PROMPT
+    """Clone one detector into every family, measure each family **with its own configuration**, write the artifacts.
 
+    The factory is the point. One shared `scan` would score every family with one detector, and since the generalist
+    tags its findings `family:unknown` — which earns no credit against any real family, by the taxonomy's own
+    decision that abstention is not a partial answer — every family but `unknown` would baseline at a structural
+    zero and the noise floors would all be nil (Req 8.2).
+    """
+    from ..tool_hunter import _SYSTEM_PROMPT
+    from .detectors import load_family_configs
+
+    if k_runs < MIN_K_RUNS:
+        raise ValueError(f"round zero scores at least three runs per pair; {k_runs} was asked for")
     if not configs_dir.exists():
         write_default_configs(configs_dir, taxonomy, prompt=prompt or _SYSTEM_PROMPT, version="0")
+    configs = load_family_configs(configs_dir, taxonomy)
     selected = [case for case in cases if case.slice in set(slices)]
-    scores = [score_case(case, scan, taxonomy=taxonomy, runs=k_runs) for case in selected]
+    scores = []
+    for case in selected:
+        name = _family_of(case, taxonomy)
+        config = configs.get(name)
+        if config is None:
+            continue  # a family with no configuration is not measured rather than measured with someone else's
+        scores.append(score_case(case, scan_factory(config), taxonomy=taxonomy, runs=k_runs, family=name))
     metrics = aggregate(scores, taxonomy=taxonomy)
     floors = {name: _floor(name, block, [item for item in scores if item.family == name], k_runs) for name, block in metrics.items()}
     report = BaselineReport(
@@ -112,6 +132,7 @@ def run_baseline(
         slices=tuple(slices),
         floors=floors,
         metrics={name: block.to_dict() for name, block in metrics.items()},
+        per_slice={name: block.to_dict() for name, block in aggregate(scores, taxonomy=taxonomy, per_slice=True).items()},
         scores=tuple(scores),
         cost_usd=spent_usd() if spent_usd is not None else 0.0,
     )
@@ -141,9 +162,12 @@ def score_case(case: PairCase, scan: Scan, *, taxonomy: FamilyTaxonomy, runs: in
         vuln_root = _materialize_side(Path(scratch) / "vuln", case, side="vuln")
         fix_root = _materialize_side(Path(scratch) / "fixed", case, side="fixed")
         ranges = _overlay_scan(vuln_root).ranges
+        fixed_ranges = _overlay_scan(fix_root).ranges
         vuln_runs = [scan(vuln_root) for _ in range(max(runs, 1))]
         fix_runs = [scan(fix_root) for _ in range(max(runs, 1))]
-    return score_pair_family(case, name, vuln_runs, fix_runs, ranges=ranges, taxonomy=taxonomy, parse_ok=bool(ranges))
+    return score_pair_family(
+        case, name, vuln_runs, fix_runs, ranges=ranges, taxonomy=taxonomy, parse_ok=bool(ranges), fixed_ranges=fixed_ranges
+    )
 
 
 def compare_baselines(out_dir: Path) -> dict[str, dict[str, dict[str, object]]]:
@@ -249,11 +273,10 @@ def run_learning_round(
     real changes. The proposer never sees a held-out pair, and the family directory is snapshotted before
     the change so any outcome other than acceptance leaves the tree exactly as it was found.
     """
-    from ..redaction import redact_secrets
     from .acceptance import DirectorySnapshot, bump_version, decide, within_budget
     from .detectors import load_family_configs
     from .proposer import apply_proposal, build_failure_facts, refuse_proposal
-    from .split import is_teacher
+    from .split import is_teacher, refuse_if_holdout
 
     if k_runs < MIN_K_RUNS:
         raise ValueError(f"a stage scores at least three runs per pair; {k_runs} was asked for")
@@ -268,33 +291,73 @@ def run_learning_round(
     train = [case for case in cases if is_teacher(case) and _family_of(case, taxonomy) == family]
     holdout = [case for case in cases if case.split == "holdout" and _family_of(case, taxonomy) == family]
     batch = train[:minibatch]
+    spent = 0.0
 
     def _score(rows: Sequence[PairCase], scan: Scan, name: str) -> list[PairFamilyScore]:
         return [score_case(case, scan, taxonomy=taxonomy, runs=k_runs, family=name) for case in rows]
 
+    def _over_cap() -> bool:
+        """Req 9.8: cost is read after every stage, so a round stops rather than finishing and then complaining."""
+        nonlocal spent
+        spent = spent_usd() if spent_usd is not None else 0.0
+        return not within_budget(spent, cost_cap_usd)
+
     before_scan = scan_factory(config)
     before_train = _score(batch, before_scan, family)
     before_hold = _score(holdout, before_scan, family)
+    record = _round_record(round_number, family, None, taxonomy, config)
+    if _over_cap():
+        return _finish(
+            journal, directory, record, outcome="reverted_cost", reason="cost_cap_exceeded", cost=spent, trajectories=trajectories
+        )
     facts = build_failure_facts(before_train, family=family, config=config, journal=journal, train_pairs={case.name for case in train})
     proposal = proposer.propose(facts)  # type: ignore[attr-defined]
     record = _round_record(round_number, family, proposal, taxonomy, config)
     if proposal is None:
-        return _finish(journal, directory, record, outcome="rejected", reason="no_proposal", trajectories=trajectories)
+        return _finish(journal, directory, record, outcome="rejected", reason="no_proposal", cost=spent, trajectories=trajectories)
     refusal = refuse_proposal(proposal, config)
     if refusal is not None:
-        return _finish(journal, directory, record, outcome="rejected", reason=refusal, proposal=proposal, trajectories=trajectories)
+        return _finish(
+            journal, directory, record, outcome="rejected", reason=refusal, proposal=proposal, cost=spent, trajectories=trajectories
+        )
+    leak = refuse_if_holdout(_pairs_named_by(proposal, cases), cases)
+    if leak is not None:
+        # Req 5.2: a change a holdout pair taught, or that names one, is refused by name rather than measured.
+        return _finish(
+            journal,
+            directory,
+            record,
+            outcome="refused_holdout",
+            reason=leak.degradation()["detail"],  # type: ignore[arg-type]
+            proposal=proposal,
+            cost=spent,
+            trajectories=trajectories,
+        )
+    # The sweep's "before" is measured with the unchanged configurations, so what it later reports is what this
+    # round flipped and not what was already failing (Req 9.5).
+    before_sweep = _sweep_scores(cases, taxonomy, configs, scan_factory, sweep_families, family, k_runs)
+    if _over_cap():
+        return _finish(
+            journal,
+            directory,
+            record,
+            outcome="reverted_cost",
+            reason="cost_cap_exceeded",
+            proposal=proposal,
+            cost=spent,
+            trajectories=trajectories,
+        )
     snapshot = DirectorySnapshot.of(configs_dir / family)
     apply_proposal(proposal, configs_dir / family)
+    version = str(int(config.version) + 1) if config.version.isdigit() else f"{config.version}+1"
     try:
         after_config = load_family_configs(configs_dir, taxonomy)[family]
         after_scan = scan_factory(after_config)
         after_train = _score(batch, after_scan, family)
         after_hold = _score(holdout, after_scan, family)
-        sweep, flipped_unpredicted = _sweep(cases, taxonomy, configs, scan_factory, sweep_families, family, k_runs)
-        cost = spent_usd() if spent_usd is not None else 0.0
-        train_delta = _delta(before_train, after_train)
-        holdout_delta = _delta(before_hold, after_hold)
-        if not within_budget(cost, cost_cap_usd):
+        for score in after_train + after_hold:
+            archive.record(family, version, score)  # type: ignore[attr-defined]
+        if _over_cap():
             snapshot.restore()
             return _finish(
                 journal,
@@ -303,17 +366,34 @@ def run_learning_round(
                 outcome="reverted_cost",
                 reason="cost_cap_exceeded",
                 proposal=proposal,
-                cost=cost,
+                cost=spent,
                 scores=after_train + after_hold,
                 trajectories=trajectories,
             )
-        verdict = decide(target=family, train_delta=train_delta, holdout_delta=holdout_delta, sweep=sweep, floors=floors)  # type: ignore[arg-type]
+        after_sweep = _sweep_scores(cases, taxonomy, configs, scan_factory, sweep_families, family, k_runs)
+        sweep, flipped_unpredicted = _negative_flips(before_sweep, after_sweep)
+        train_delta = _delta(before_train, after_train)
+        holdout_delta = _delta(before_hold, after_hold)
         flipped = _flipped(before_train + before_hold, after_train + after_hold)
         attribution = Attribution(
             flipped_predicted=len(flipped),
             flipped_unpredicted=len(flipped_unpredicted),
             precision=len(flipped) / (len(flipped) + len(flipped_unpredicted)) if flipped or flipped_unpredicted else 0.0,
         )
+        if _over_cap():
+            snapshot.restore()
+            return _finish(
+                journal,
+                directory,
+                record,
+                outcome="reverted_cost",
+                reason="cost_cap_exceeded",
+                proposal=proposal,
+                cost=spent,
+                scores=after_train + after_hold,
+                trajectories=trajectories,
+            )
+        verdict = decide(target=family, train_delta=train_delta, holdout_delta=holdout_delta, sweep=sweep, floors=floors)  # type: ignore[arg-type]
         if not verdict.accepted:
             snapshot.restore()
             return _finish(
@@ -323,7 +403,7 @@ def run_learning_round(
                 outcome="rejected",
                 reason=verdict.reason,
                 proposal=proposal,
-                cost=cost,
+                cost=spent,
                 train_delta=train_delta,
                 holdout_delta=holdout_delta,
                 sweep=sweep,
@@ -333,10 +413,7 @@ def run_learning_round(
                 scores=after_train + after_hold,
                 trajectories=trajectories,
             )
-        version = str(int(config.version) + 1) if config.version.isdigit() else f"{config.version}+1"
         bump_version(configs_dir / family, version)
-        for score in after_train + after_hold:
-            archive.record(family, version, score)  # type: ignore[attr-defined]
         return _finish(
             journal,
             directory,
@@ -344,7 +421,7 @@ def run_learning_round(
             outcome="accepted",
             reason=verdict.reason,
             proposal=proposal,
-            cost=cost,
+            cost=spent,
             train_delta=train_delta,
             holdout_delta=holdout_delta,
             sweep=sweep,
@@ -356,13 +433,37 @@ def run_learning_round(
             trajectories=trajectories,
         )
     except Exception:
+        # A stage that raises has already spent money and already changed the tree. Both facts belong in the
+        # journal before the exception leaves, or the next round starts from a state nothing describes.
         snapshot.restore()
+        _finish(
+            journal,
+            directory,
+            record,
+            outcome="reverted",
+            reason="stage_failed",
+            proposal=proposal,
+            cost=spent,
+            trajectories=trajectories,
+        )
         raise
-    finally:
-        del redact_secrets
 
 
-def _sweep(
+def _pairs_named_by(proposal: Proposal, cases: Sequence[PairCase]) -> tuple[str, ...]:
+    """Every corpus pair this proposal names, in its predictions or in the file it writes.
+
+    A memory entry that quotes a held-out pair is the loop learning the answer instead of the shape, and it looks
+    exactly like a legitimate hard negative until the holdout number is read as if it meant something."""
+    haystack = "\n".join([*proposal.predicted_affected, *proposal.predicted_at_risk, *proposal.change.values()])
+    named = []
+    for case in cases:
+        name = str(getattr(case, "name", ""))
+        if name and re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", haystack):
+            named.append(name)
+    return tuple(sorted(set(named)))
+
+
+def _sweep_scores(
     cases: Sequence[PairCase],
     taxonomy: FamilyTaxonomy,
     configs: Mapping[str, FamilyConfig],
@@ -370,23 +471,34 @@ def _sweep(
     families: Sequence[str],
     target: str,
     k_runs: int,
-) -> tuple[dict[str, int], list[str]]:
-    """Every other family's held-out pairs, so a change cannot help one family by quietly breaking another."""
-    flips: dict[str, int] = {}
-    unpredicted: list[str] = []
+) -> dict[str, dict[str, str]]:
+    """Every other family's held-out pairs, family by family, as `{family: {pair: outcome}}`.
+
+    Called once before the change and once after it. Scoring both sides is the only way to say which pairs *this*
+    round broke: on a real corpus most pairs are failing already, and counting failures would reject every round
+    for damage it did not do (Req 9.5). Unscorable rows are dropped here rather than counted as failures (Req 4.1).
+    """
+    outcomes: dict[str, dict[str, str]] = {}
     for name in families:
         if name == target or name not in configs:
             continue
         rows = [case for case in cases if case.split == "holdout" and _family_of(case, taxonomy) == name]
         scan = scan_factory(configs[name])
-        broken = [
-            item
-            for item in (score_case(case, scan, taxonomy=taxonomy, runs=k_runs, family=name) for case in rows)
-            if item.outcome != "pair_correct"
-        ]
-        flips[name] = len(broken)
-        unpredicted.extend(item.pair for item in broken)
-    return flips, unpredicted
+        scored = [score_case(case, scan, taxonomy=taxonomy, runs=k_runs, family=name) for case in rows]
+        outcomes[name] = {item.pair: item.outcome for item in scored if item.outcome != "unscorable"}
+    return outcomes
+
+
+def _negative_flips(before: Mapping[str, Mapping[str, str]], after: Mapping[str, Mapping[str, str]]) -> tuple[dict[str, int], list[str]]:
+    """Pairs that were right before this round and are not right after it, per family and by name."""
+    flips: dict[str, int] = {}
+    broken: list[str] = []
+    for name, was in before.items():
+        now = after.get(name, {})
+        lost = sorted(pair for pair, outcome in was.items() if outcome == "pair_correct" and now.get(pair) != "pair_correct")
+        flips[name] = len(lost)
+        broken.extend(lost)
+    return flips, broken
 
 
 def _delta(before: Sequence[PairFamilyScore], after: Sequence[PairFamilyScore]) -> float:
@@ -400,8 +512,9 @@ def _delta(before: Sequence[PairFamilyScore], after: Sequence[PairFamilyScore]) 
 
 
 def _flipped(before: Sequence[PairFamilyScore], after: Sequence[PairFamilyScore]) -> list[str]:
+    """Pairs this round turned right, by name and in a stable order."""
     was = {item.pair: item.outcome for item in before}
-    return [item.pair for item in after if item.outcome == "pair_correct" and was.get(item.pair) not in {"pair_correct", None}]
+    return sorted(item.pair for item in after if item.outcome == "pair_correct" and was.get(item.pair) not in {"pair_correct", None})
 
 
 def _round_record(

@@ -8,6 +8,33 @@ from pathlib import Path
 from openultrasast.benchmark import ExpectedFinding
 from openultrasast.pairs import DEFAULT_CATALOG, PairCase, load_pair_catalog, select_slice, select_vendored
 
+VULN = "import os\nfrom flask import request\n\n\ndef run():\n    os.system(request.args.get('cmd'))\n"
+FIXED = "import subprocess\nfrom flask import request\n\n\ndef run():\n    subprocess.run(['echo'], check=False)\n"
+
+
+def _teaching_case(tmp_path: Path, name: str, *, split: str = "train") -> PairCase:
+    """A pair that really carries a mechanism shape.
+
+    The trivial `x = 1` fixture below teaches nothing whatever the split says, so a teacher-rule assertion made
+    against it passes with the rule deleted. This one is the difference between measuring the rule and measuring
+    an empty corpus."""
+    (tmp_path / f"{name}-v.py").write_text(VULN)
+    (tmp_path / f"{name}-f.py").write_text(FIXED)
+    return PairCase(
+        name=name,
+        slice="vibe-py",
+        language="python",
+        origin="test",
+        vuln_file=tmp_path / f"{name}-v.py",
+        fixed_file=tmp_path / f"{name}-f.py",
+        relpath="app.py",
+        expected=(ExpectedFinding(cwe="CWE-78", vulnerability_class="x", path="app.py", evidence="", function="run", mechanism="other"),),
+        min_recall=1.0,
+        fix_policy="silent",
+        split=split,
+        review_tier="seeded",
+    )
+
 
 def _case(tmp_path: Path, name: str, *, split: str = "train", tier: str = "seeded", unscorable: str | None = None) -> PairCase:
     (tmp_path / f"{name}.py").write_text(f"# {name}\nx = 1\n")
@@ -69,33 +96,45 @@ def test_the_exporter_seeds_from_train_pairs_only(tmp_path: Path) -> None:
 
 
 def test_leave_one_out_teaches_from_train_pairs_only(tmp_path: Path) -> None:
+    """Both arms, because `teaching_pairs <= 1` on a two-pair corpus is satisfied by a rule that does nothing.
+
+    The same two excerpts teach twice when both are on the train split and once when one is held out, and the run
+    names the pair it refused (Req 5.1, 5.2)."""
     from openultrasast.semantic.loo import evaluate_loo
 
-    cases = [_case(tmp_path, "train-one"), _case(tmp_path, "holdout-one", split="holdout")]
-    result = evaluate_loo(cases)
+    both_train = evaluate_loo([_teaching_case(tmp_path, "train-one"), _teaching_case(tmp_path, "train-two")])
+    assert both_train.teaching_pairs == 2 and both_train.degradations == ()
+    result = evaluate_loo([_teaching_case(tmp_path, "train-one"), _teaching_case(tmp_path, "holdout-one", split="holdout")])
     assert {outcome.pair for outcome in result.outcomes} == {"train-one", "holdout-one"}  # every pair is still scored
-    assert result.teaching_pairs <= 1  # only the train pair could ever have taught
+    assert result.teaching_pairs == 1
+    refusals = [item for item in result.degradations if item.get("reason") == "holdout_pair_refused"]
+    assert [item["pairs"] for item in refusals] == [["holdout-one"]]
 
 
 def test_the_mechanism_lever_refuses_a_candidate_a_holdout_pair_taught(tmp_path: Path) -> None:
-    from openultrasast.improve.evolve import propose_mechanism_edits
-    from openultrasast.semantic.mechanisms import MechanismStore, append_from_pair
-    from openultrasast.semantic.variants import Shape
+    """Both arms. The shape is the one the corpus really teaches, taken from the pair itself.
 
-    shape = Shape(
-        language="python",
-        sink_name="system",
-        arity=1,
-        source_positions=(0,),
-        source_kinds=("request",),
-        guard="none",
-        mechanism="source_reaches_sink",
-    )
-    candidates = MechanismStore(tmp_path / "candidates.jsonl")
-    append_from_pair(candidates, shape, summary="s", cwe="CWE-78", pair="holdout-one", provenance="human", tier="seeded")
-    cases = [_case(tmp_path, "train-one"), _case(tmp_path, "holdout-one", split="holdout")]
-    edits = propose_mechanism_edits(cases, candidates, tmp_path / "scan.jsonl")
-    assert [edit.mechanism_id for edit in edits if edit.action == "admit"] == []
+    Asserting only the refusal would pass against a lever that admits nothing at all, and a hand-written shape that
+    matches no excerpt can never be admitted either, so neither would measure the split rule (Req 5.2)."""
+    from openultrasast.improve.evolve import propose_mechanism_edits
+    from openultrasast.semantic.loo import _facts
+    from openultrasast.semantic.mechanisms import MechanismStore, append_from_pair
+    from openultrasast.semantic.seed import pair_lessons
+
+    cases = [_teaching_case(tmp_path, "train-one"), _teaching_case(tmp_path, "holdout-one", split="holdout")]
+    (lesson,) = pair_lessons(cases[0], _facts())
+
+    def store(name: str, pair: str) -> MechanismStore:
+        path = MechanismStore(tmp_path / name)
+        append_from_pair(path, lesson.shape, summary=lesson.summary, cwe=lesson.cwe, pair=pair, provenance="human", tier="seeded")
+        return path
+
+    reasons: list[dict[str, object]] = []
+    refused = propose_mechanism_edits(cases, store("refused.jsonl", "holdout-one"), tmp_path / "scan.jsonl", degradations=reasons)
+    assert [edit.mechanism_id for edit in refused if edit.action == "admit"] == []
+    assert [item["pairs"] for item in reasons] == [["holdout-one"]]
+    admitted = propose_mechanism_edits(cases, store("allowed.jsonl", "train-one"), tmp_path / "scan2.jsonl")
+    assert [edit.mechanism_id for edit in admitted if edit.action == "admit"], "a train-taught shape is still admissible"
 
 
 def test_the_corrected_lever_number_is_measured_and_committed() -> None:

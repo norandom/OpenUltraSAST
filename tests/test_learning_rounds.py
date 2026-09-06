@@ -70,6 +70,16 @@ def _steady(root: Path) -> list[StaticFinding]:
     return [_finding("injection")] if _is_vulnerable_side(root) else []
 
 
+def _always(scan):  # type: ignore[no-untyped-def]
+    """Round zero asks for a detector per family; these tests deliberately give every family the same one so the
+    noise-floor arithmetic is the only thing under test."""
+
+    def build(_config):  # type: ignore[no-untyped-def]
+        return scan
+
+    return build
+
+
 def _flaky(counter: list[int]):  # type: ignore[no-untyped-def]
     def scan(root: Path) -> list[StaticFinding]:
         if not _is_vulnerable_side(root):
@@ -86,7 +96,12 @@ def test_round_zero_writes_a_configuration_for_every_family(tmp_path: Path) -> N
 
     taxonomy = load_families()
     report = run_baseline(
-        [_case(tmp_path, "a")], taxonomy=taxonomy, configs_dir=tmp_path / "configs", scan=_steady, model="m", out_dir=tmp_path / "out"
+        [_case(tmp_path, "a")],
+        taxonomy=taxonomy,
+        configs_dir=tmp_path / "configs",
+        scan_factory=_always(_steady),
+        model="m",
+        out_dir=tmp_path / "out",
     )
     configs = load_family_configs(tmp_path / "configs", taxonomy)
     assert set(configs) == {family.id for family in taxonomy.families}
@@ -102,7 +117,7 @@ def test_a_steady_detector_has_a_zero_noise_floor_and_a_flaky_one_does_not(tmp_p
         [_case(tmp_path, "a"), _case(tmp_path, "b")],
         taxonomy=taxonomy,
         configs_dir=tmp_path / "c1",
-        scan=_steady,
+        scan_factory=_always(_steady),
         model="m",
         out_dir=tmp_path / "o1",
     )
@@ -112,7 +127,7 @@ def test_a_steady_detector_has_a_zero_noise_floor_and_a_flaky_one_does_not(tmp_p
         [_case(tmp_path, "a"), _case(tmp_path, "b")],
         taxonomy=taxonomy,
         configs_dir=tmp_path / "c2",
-        scan=_flaky([]),
+        scan_factory=_always(_flaky([])),
         model="m",
         out_dir=tmp_path / "o2",
     )
@@ -127,7 +142,7 @@ def test_the_memory_family_is_measured_but_never_gates(tmp_path: Path) -> None:
         [_case(tmp_path, "m", family="memory", slice_name="vfc")],
         taxonomy=taxonomy,
         configs_dir=tmp_path / "configs",
-        scan=_steady,
+        scan_factory=_always(_steady),
         model="m",
         out_dir=tmp_path / "out",
         slices=("vfc",),
@@ -141,7 +156,9 @@ def test_the_default_selection_is_the_web_slices(tmp_path: Path) -> None:
 
     taxonomy = load_families()
     cases = [_case(tmp_path, "web", slice_name="vibe-py"), _case(tmp_path, "c", family="memory", slice_name="vfc")]
-    report = run_baseline(cases, taxonomy=taxonomy, configs_dir=tmp_path / "configs", scan=_steady, model="m", out_dir=tmp_path / "out")
+    report = run_baseline(
+        cases, taxonomy=taxonomy, configs_dir=tmp_path / "configs", scan_factory=_always(_steady), model="m", out_dir=tmp_path / "out"
+    )
     assert set(report.metrics) == {"injection"} and "memory" not in report.floors
 
 
@@ -155,7 +172,7 @@ def test_artifacts_are_keyed_by_model_so_another_model_can_be_compared(tmp_path:
             [_case(tmp_path, f"a{index}")],
             taxonomy=taxonomy,
             configs_dir=tmp_path / "configs",
-            scan=_steady,
+            scan_factory=_always(_steady),
             model=model,
             out_dir=out,
         )
@@ -184,7 +201,9 @@ def test_an_unscorable_pair_is_listed_and_never_run(tmp_path: Path) -> None:
     taxonomy = load_families()
     case = _case(tmp_path, "twin")
     twin = PairCase(**{**case.__dict__, "unscorable": "identical_twin"})
-    report = run_baseline([twin], taxonomy=taxonomy, configs_dir=tmp_path / "configs", scan=counting, model="m", out_dir=tmp_path / "out")
+    report = run_baseline(
+        [twin], taxonomy=taxonomy, configs_dir=tmp_path / "configs", scan_factory=_always(counting), model="m", out_dir=tmp_path / "out"
+    )
     assert report.metrics["injection"]["scorable"] == 0
     assert report.metrics["injection"]["unscorable"] == {"identical_twin": 1}
     assert calls == []
@@ -198,7 +217,7 @@ def test_round_zero_records_what_it_spent(tmp_path: Path) -> None:
         [_case(tmp_path, "a")],
         taxonomy=load_families(),
         configs_dir=tmp_path / "configs",
-        scan=_steady,
+        scan_factory=_always(_steady),
         model="m",
         out_dir=tmp_path / "out",
         spent_usd=lambda: 1.25,

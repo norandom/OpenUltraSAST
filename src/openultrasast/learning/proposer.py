@@ -12,7 +12,9 @@ construction rather than by promise, and the verifier code and the corpus stay o
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+import shutil
+import tempfile
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Protocol
@@ -25,7 +27,7 @@ from .scoring import PairFamilyScore
 Lever = Literal["tool", "checklist", "counterexample", "memory", "prompt"]
 LEVERS: tuple[Lever, ...] = ("tool", "checklist", "counterexample", "memory", "prompt")
 # The only files a round may write, one per lever. Anything else is a proposal reaching beyond its family.
-EDITABLE_FILES = {
+EDITABLE_FILES: dict[Lever, str] = {
     "tool": "family.toml",
     "checklist": "checklist.md",
     "counterexample": "counterexamples.jsonl",
@@ -159,31 +161,109 @@ class ScriptedProposer:
         return self.proposals[self.used - 1]
 
 
+MetaAgentCall = Callable[..., str]
+
+
 @dataclass
 class HarnessXProposer:
-    """The meta-agent, with write access limited to the family directory it is targeting."""
+    """The meta-agent, with write access limited to a copy of the family directory it is targeting.
+
+    It never edits the live tree. The round snapshots the family directory *after* a proposal exists, so a proposer
+    that wrote in place would have changed the configuration before there was anything to restore, and a rejection
+    could not put it back. The agent works in a scratch copy and the proposal is the diff of that copy, which also
+    means the one-file rule and the lever whitelist are enforced on what the agent actually did rather than on what
+    it claimed (Req 9.1, 9.2, 5.4).
+    """
 
     configs_dir: Path
     model: str
     reason: str = ""
+    agent: MetaAgentCall | None = None  # injected in tests; None composes MetaAgent behind harness_ext
 
     def write_roots(self, family: str) -> tuple[Path, ...]:
         return write_roots(self.configs_dir, family)
 
     def propose(self, facts: FailureFacts) -> Proposal | None:
-        if not has_harnessx():
-            self.reason = "harnessx_unavailable"
+        call = self.agent
+        if call is None:
+            if not has_harnessx():
+                self.reason = "harnessx_unavailable"
+                return None
+            try:
+                call = _meta_agent_call()
+            except Exception:  # noqa: BLE001 — a proposer that cannot start proposes nothing and says so
+                self.reason = "harnessx_unavailable"
+                return None
+        family_dir = self.configs_dir / facts.family
+        with tempfile.TemporaryDirectory(prefix="ousast-propose-") as scratch:
+            workspace = Path(scratch) / facts.family
+            shutil.copytree(family_dir, workspace)
+            before = _directory_text(workspace)
+            try:
+                hypothesis = call(workspace=workspace, facts=facts, model=self.model)
+            except Exception as exc:  # noqa: BLE001 — an agent that failed proposed nothing, and the round says why
+                self.reason = f"meta_agent_failed: {type(exc).__name__}"
+                return None
+            after = _directory_text(workspace)
+        changed = sorted(name for name in set(before) | set(after) if before.get(name) != after.get(name))
+        if not changed:
+            self.reason = "no_change_proposed"
             return None
-        try:
-            from ..harness_ext import require_harnessx
+        if len(changed) > 1:
+            self.reason = f"a round changes one file, not {len(changed)}: {', '.join(changed)}"
+            return None
+        name = changed[0]
+        lever: Lever | None = next((key for key, filename in EDITABLE_FILES.items() if filename == name), None)
+        if lever is None or name not in after:
+            self.reason = f"{name!r} is not a file any lever writes"
+            return None
+        self.reason = ""
+        return Proposal(
+            hypothesis=str(hypothesis or "").strip() or f"meta-agent edit to {name}",
+            lever=lever,
+            change={name: after[name]},
+            predicted_affected=tuple(item.pair for item in facts.misses),
+            predicted_at_risk=tuple(item.pair for item in facts.leaks),
+        )
 
-            require_harnessx()
-        except Exception:  # noqa: BLE001 — a proposer that cannot start proposes nothing and says so
-            self.reason = "harnessx_unavailable"
-            return None
-        self.reason = "harnessx_proposer_not_wired"  # the evolve call lands with the live rounds (task 5.3)
-        del facts
-        return None
+
+def _directory_text(directory: Path) -> dict[str, str]:
+    """Every readable file directly inside ``directory``, by name. Nested paths are not a lever's business."""
+    out: dict[str, str] = {}
+    for path in sorted(directory.iterdir()) if directory.is_dir() else []:
+        if path.is_file():
+            try:
+                out[path.name] = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+    return out
+
+
+def _meta_agent_call() -> MetaAgentCall:
+    """Compose `MetaAgent.evolve` behind `harness_ext`, writing only inside the scratch copy.
+
+    `evolve` is a coroutine and returns a HarnessX config path; what this proposer takes from it is the state of the
+    workspace afterwards, so the return value is only used for the hypothesis line.
+    """
+    from ..harness_ext import require_harnessx
+
+    require_harnessx()
+
+    def call(*, workspace: Path, facts: FailureFacts, model: str) -> str:
+        import asyncio
+
+        from harnessx.meta_harness.agent import MetaAgent  # type: ignore[import-not-found]
+
+        trajectories = workspace.parent / "trajectories"
+        trajectories.mkdir(parents=True, exist_ok=True)
+        (trajectories / "facts.json").write_text(facts_prompt(facts), encoding="utf-8")
+        agent = MetaAgent(inner_model=model, allowed_write_roots=(workspace,))  # type: ignore[arg-type]
+        output = workspace.parent / "meta-out"
+        output.mkdir(parents=True, exist_ok=True)
+        asyncio.run(agent.evolve(current_config=workspace, trajectories_dir=trajectories, output_dir=output))
+        return f"meta-agent round for {facts.family}"
+
+    return call
 
 
 def _fact(score: PairFamilyScore, other: int) -> PairFact:

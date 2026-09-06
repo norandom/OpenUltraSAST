@@ -134,21 +134,29 @@ def test_a_change_that_helps_nothing_is_rejected_and_reverted(world) -> None:  #
 
 
 def test_a_round_is_rejected_when_the_sweep_finds_another_family_below_its_floor(world) -> None:  # type: ignore[no-untyped-def]
-    """The sweep is a floor check over every other family, not a causal claim about this change.
+    """The sweep counts pairs this change turned from right to wrong in another family (Req 9.5).
 
-    Per-family directories make a change that reaches another family structurally impossible, so what the
-    sweep really guards is a family that is failing for any reason at the moment this round would land.
+    It used to count every failing pair, which rejected a round for damage it did not do; the pair below is right
+    before the change and wrong after it, which is the only thing that may reject a round on another family's
+    behalf. The other arm — a family that was already failing must not reject — lives in
+    `tests/test_learning_round_evidence.py`.
     """
     world["cases"].append(_case(world["configs"].parent, "other-hold", split="holdout", family="access_control"))
     world["floors"]["access_control"] = NoiseFloor(
         family="access_control", k_runs=5, pairs=1, flaky_pairs=0, negative_flip_rate=0.0, budget_flips=0
     )
+    landed = {"yes": False}
 
     def build(config: FamilyConfig):  # type: ignore[no-untyped-def]
         def scan(root: Path) -> list[StaticFinding]:
-            if root.name != "vuln" or config.family == "access_control":
-                return []  # access control finds nothing, so its holdout pair is below its floor
-            return [_finding("injection")] if config.checklist.strip() == "- ask about quoting" else []
+            if root.name != "vuln":
+                return []
+            if config.family == "access_control":
+                return [] if landed["yes"] else [_finding("access_control")]
+            if config.checklist.strip() == "- ask about quoting":
+                landed["yes"] = True  # the injection change lands, and access control stops finding its pair
+                return [_finding("injection")]
+            return []
 
         return scan
 
@@ -181,8 +189,7 @@ def test_a_round_over_its_cost_cap_is_reverted_and_says_so(world) -> None:  # ty
 
 def test_a_proposal_that_reaches_beyond_its_family_never_runs(world) -> None:  # type: ignore[no-untyped-def]
     record = _run(world, Proposal(hypothesis="h", lever="checklist", change={"../escape.md": "x"}), {})
-    assert record.outcome == "refused_holdout" or record.outcome == "rejected"
-    assert "outside" in record.reason
+    assert record.outcome == "rejected" and "outside" in record.reason  # the holdout refusal has its own test
     assert not (world["configs"].parent / "escape.md").exists()
 
 
@@ -202,7 +209,7 @@ def test_the_round_directory_holds_what_a_replay_needs(world) -> None:  # type: 
     directory = world["out"] / "rounds" / "1"
     assert (directory / "proposal.json").is_file() and (directory / "scores.json").is_file()
     attribution = json.loads((directory / "attribution.json").read_text())
-    assert attribution["flipped_predicted"] == ["hold-a"] or attribution["flipped_predicted"] == ["train-a", "hold-a"]
+    assert attribution["flipped_predicted"] == ["hold-a", "train-a"]  # the round is deterministic; one exact answer
     assert attribution["flipped_unpredicted"] == []
     trajectories = (directory / "trajectories.jsonl").read_text()
     assert "REDACTED" in trajectories and "B" * 24 not in trajectories

@@ -99,11 +99,14 @@ def evaluate_loo(cases: Sequence[PairCase], *, facts: SemanticFacts | None = Non
             skipped.append((case.name, "pointer_pair_not_cached" if not case.vendored else "excerpt_missing"))
         else:
             targets.append(case)
-    from ..learning.split import is_teacher
+    from ..learning.split import is_teacher, refuse_if_holdout
 
     # learning-harness Req 5.1: every pair is still scored, but only a train-split teacher may seed a store.
     lessons = {case.name: pair_lessons(case, loaded) for case in targets if is_teacher(case)}
     outcomes = [_hold_out(case, targets, lessons, loaded) for case in targets]
+    # Req 5.2: the pairs that were kept out of the teaching set are named, not silently dropped.
+    refusal = refuse_if_holdout([case.name for case in targets if case.name not in lessons], targets)
+    refusals = (refusal.degradation(),) if refusal is not None else ()
     return LooResult(
         outcomes=tuple(outcomes),
         per_slice=_group(outcomes, lambda item: (item.slice,)),
@@ -112,7 +115,7 @@ def evaluate_loo(cases: Sequence[PairCase], *, facts: SemanticFacts | None = Non
         per_obligation_kind=_group(outcomes, lambda item: item.obligations),
         skipped=tuple(skipped),
         teaching_pairs=sum(1 for shapes in lessons.values() if shapes),
-        degradations=_unique_degradations(outcomes),
+        degradations=(*refusals, *_unique_degradations(outcomes)),
     )
 
 

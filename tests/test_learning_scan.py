@@ -91,9 +91,13 @@ def test_family_findings_never_become_sandbox_candidates(tmp_path: Path, monkeyp
     assert main(["scan", str(repo), "--mode", "deep", "--config", str(repo / "openultrasast.toml")]) == 0
     run_dir = _run_dir(repo)
     verdicts = json.loads((run_dir / "verdicts.json").read_text())["verdicts"]
-    findings = {item["finding_id"] for item in json.loads((run_dir / "findings.json").read_text())["findings"]}
-    del findings
-    assert all(not str(item.get("path", "")).startswith("family:") for item in verdicts)
+    payload = json.loads((run_dir / "findings.json").read_text())["findings"]
+    family_findings = {item["finding_id"] for item in payload if any(str(tag).startswith("family:") for tag in item["tags"])}
+    assert family_findings, "the fixture must actually produce family findings, or this proves nothing"
+    # A family detector's claim is a suspicion until a verifier speaks; handing it to the sandbox would let an
+    # unverified model claim drive execution (Req 7.1).
+    candidates = {str(item.get("finding_id") or item.get("id") or "") for item in verdicts}
+    assert candidates.isdisjoint(family_findings)
 
 
 def test_the_sarif_report_carries_the_family_properties(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

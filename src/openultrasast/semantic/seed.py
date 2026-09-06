@@ -196,7 +196,9 @@ def _skip_reason(case: PairCase) -> str | None:
     from ..learning.split import is_teacher
 
     if not is_teacher(case) and case.review_tier in GATING_TIERS and case.vendored and not case.known_limit:
-        return f"split:{case.split}"  # learning-harness Req 5.1: only train-split, scorable pairs teach
+        # learning-harness Req 5.1: only train-split, scorable pairs teach. Say which of the two it was: two
+        # vibe-py rows are train-split identical twins, and calling them `split:train` is simply untrue.
+        return f"unscorable:{case.unscorable}" if case.unscorable else f"split:{case.split}"
     if case.review_tier not in GATING_TIERS:
         return f"tier:{case.review_tier}"
     if case.known_limit:

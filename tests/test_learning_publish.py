@@ -107,13 +107,22 @@ def test_the_corrected_lever_number_replaces_the_earlier_one(tmp_path: Path) -> 
         )
     )
     roadmap = tmp_path / "roadmap.md"
-    roadmap.write_text(ROADMAP + "\nThe lever recovered 7 of 17 holdout pairs at Youden +0.059.\n")
+    stale = "human holdout profile pair_correct 0 -> 6 of 17, Youden 0 -> +0.353, round 2 `no_proposals`."
+    roadmap.write_text(f"{ROADMAP}\nMeasured 2026-09-05 with the vibe-py candidates: {stale}\n")
     report = publish(learning_dir=out, measurements_dir=measurements, roadmap=roadmap)
     text = roadmap.read_text()
     assert "-0.0588" in report.table or "-0.059" in report.table
     assert "5 of 17" in report.table or "detected 5" in report.table
     assert "holdout pairs stopped teaching" in report.table.lower() or "train split only" in report.table.lower()
     assert text.count("learning-harness:begin") == 1
+    # Req 5.3 says *in place of* the earlier one. Leaving the old claim above the new section is how a document
+    # ends up asserting two different numbers for the same measurement.
+    assert stale not in text
+    assert "superseded" in text and "learning-harness" in text
+    assert "Measured 2026-09-05 with the vibe-py candidates:" in text, "the sentence is corrected, not deleted"
+    before = roadmap.read_text()
+    publish(learning_dir=out, measurements_dir=measurements, roadmap=roadmap)
+    assert roadmap.read_text() == before, "a second publish must be a no-op once the claim is corrected"
 
 
 def test_the_roadmap_section_is_replaced_not_appended_again(tmp_path: Path) -> None:

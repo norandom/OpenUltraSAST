@@ -58,14 +58,21 @@ def score_pair_family(
     taxonomy: FamilyTaxonomy,
     parse_ok: bool = True,
     entry_points: Sequence[str] | None = None,
+    fixed_ranges: FunctionRanges | None = None,
 ) -> PairFamilyScore:
-    """Score one pair for one family over K runs of the detector on each side."""
+    """Score one pair for one family over K runs of the detector on each side.
+
+    ``fixed_ranges`` is the *fixed* side's parse. A fix that adds a guard above the handler moves its first line,
+    so judging the fixed side against the vulnerable side's span reads a finding inside the fixed handler as
+    outside it: a leak recorded as silence, and always in the direction that flatters the number.
+    """
     name = str(getattr(case, "name", "?"))
     slice_name = str(getattr(case, "slice", "") or "")
     reason = unscorable_reason(case, parse_ok=parse_ok, ranges=ranges, entry_points=entry_points, family=family)
     if reason is not None:
         return PairFamilyScore(pair=name, family=family, slice=slice_name, runs=(), outcome="unscorable", unscorable_reason=reason)
     spans = _spans(case, ranges)
+    fixed_spans = _spans(case, fixed_ranges) if fixed_ranges is not None else spans
     outcomes: list[FamilyOutcome] = []
     other_vuln = other_fixed = fabricated_vuln = fabricated_fixed = 0
     rung: Rung = "suspicion"
@@ -73,9 +80,9 @@ def score_pair_family(
         vuln = list(vuln_runs[index]) if index < len(vuln_runs) else []
         fixed = list(fixed_runs[index]) if index < len(fixed_runs) else []
         hits_vuln = _hits(vuln, family, spans, taxonomy)
-        hits_fixed = _hits(fixed, family, spans, taxonomy)
+        hits_fixed = _hits(fixed, family, fixed_spans, taxonomy)
         other_vuln += _others(vuln, family, spans, taxonomy)
-        other_fixed += _others(fixed, family, spans, taxonomy)
+        other_fixed += _others(fixed, family, fixed_spans, taxonomy)
         fabricated_vuln += _fabricated(vuln, taxonomy)
         fabricated_fixed += _fabricated(fixed, taxonomy)
         rung = _best_rung(rung, hits_vuln)

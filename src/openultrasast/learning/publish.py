@@ -12,6 +12,7 @@ rather than appended, so the file cannot accumulate stale numbers beside fresh o
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -69,6 +70,7 @@ def publish(*, learning_dir: Path, measurements_dir: Path, roadmap: Path, date: 
         )
         artifacts.append(artifact)
     _replace_section(roadmap, table)
+    _supersede(roadmap)
     return PublishReport(command=COMMAND, table=table, families=families, models=tuple(sorted(models)), artifacts=tuple(artifacts))
 
 
@@ -167,6 +169,32 @@ def _num(value: object) -> str:
 
 def _cost(cost: float, correct: int) -> str:
     return f"{cost / correct:.2f}" if cost and correct else "-"
+
+
+# Claims the split correction supersedes, as they were written before holdout pairs stopped teaching. Req 5.3 says
+# the corrected number is published *in place of* the earlier one; a document that carries both asserts two numbers
+# for one measurement and the reader has no way to tell which run is current.
+_SUPERSEDED = (
+    re.compile(r"human holdout profile pair_correct \d+ -> \d+ of \d+, Youden [-+]?\d+ -> [-+]?[\d.]+(?:, round \d+ `[^`]+`)?\."),
+    re.compile(r"The lever recovered \d+ of \d+ holdout pairs at Youden [-+][\d.]+\."),
+)
+_SUPERSEDED_NOTE = (
+    "superseded by the learning-harness section below: that number was measured with holdout pairs teaching "
+    "(see `benchmarks/measurements/2026-09-06-mechanism-lever-split.json`)."
+)
+
+
+def _supersede(roadmap: Path) -> None:
+    """Rewrite every superseded lever claim to point at the regenerated section. Idempotent: the pattern is gone
+    afterwards, so a second run changes nothing."""
+    if not roadmap.is_file():
+        return
+    text = roadmap.read_text(encoding="utf-8")
+    updated = text
+    for pattern in _SUPERSEDED:
+        updated = pattern.sub(_SUPERSEDED_NOTE, updated)
+    if updated != text:
+        roadmap.write_text(updated, encoding="utf-8")
 
 
 def _replace_section(roadmap: Path, table: str) -> None:

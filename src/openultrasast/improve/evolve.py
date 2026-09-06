@@ -52,6 +52,8 @@ class RoundOutcome:
     profiles_under_minimum: list[str] = field(default_factory=list)
     per_profile_before: dict[str, dict[str, float]] = field(default_factory=dict)
     per_profile_after: dict[str, dict[str, float]] = field(default_factory=dict)
+    # learning-harness Req 5.2: the candidates this round declined to learn from, by pair name.
+    degradations: list[dict[str, object]] = field(default_factory=list)
 
 
 MAX_PROFILES = 4
@@ -64,6 +66,10 @@ def evaluate_profiles(
     """Pair-corpus metrics per provenance profile under ``rules`` (holdout split, no inventory sidecar).
 
     Only ``seeded`` and ``reviewed`` pairs gate (Req 9.3); ``advisory`` and ``title`` pairs are scored by ``pairs``, never here.
+
+    Deliberately split-blind: this *measures* a ruleset, it never learns from a pair, so every pair is scored and the
+    teacher rule has nothing to say here. What the rule governs is the store these rules were built from
+    (`semantic.seed`, `semantic.loo`), and a filter here would only shrink the evidence (learning-harness Req 5.1).
     """
     from ..pairs import GATING_TIERS, PairCase, evaluate_catalog, select_tier, select_vendored
 
@@ -84,7 +90,10 @@ def evaluate_profiles(
 
 
 def evaluate_mechanism_profiles(pair_cases: Sequence[object], store_path: Path) -> dict[str, dict[str, float]]:
-    """Per-profile pair metrics of variant search with the given scan-time store over the holdout pairs (vendored, gating tiers)."""
+    """Per-profile pair metrics of variant search with the given scan-time store over the holdout pairs (vendored, gating tiers).
+
+    Split-blind for the same reason as `evaluate_profiles`: the store is the thing the teacher rule governs, and this
+    function only reads it (learning-harness Req 5.1)."""
     from ..pairs import GATING_TIERS, PairCase, select_tier, select_vendored
     from ..semantic.loo import score_pair_with_store
     from ..semantic.mechanisms import MechanismStore
@@ -110,7 +119,12 @@ def evaluate_mechanism_profiles(pair_cases: Sequence[object], store_path: Path) 
     return result
 
 
-def propose_mechanism_edits(pair_cases: Sequence[object], candidates: object, store_path: Path) -> list[MechanismEdit]:
+def propose_mechanism_edits(
+    pair_cases: Sequence[object],
+    candidates: object,
+    store_path: Path,
+    degradations: list[dict[str, object]] | None = None,
+) -> list[MechanismEdit]:
     """Req 5.3: admit a candidate that recovers a currently missed holdout pair without leaking; retract an admitted leaker."""
     from ..pairs import GATING_TIERS, PairCase, select_tier, select_vendored
     from ..semantic.loo import score_pair_with_store
@@ -139,8 +153,13 @@ def propose_mechanism_edits(pair_cases: Sequence[object], candidates: object, st
     for record in corpus_mechanisms(candidates.load()):  # type: ignore[attr-defined]
         if record.id in admitted or not missed:
             continue
-        if refuse_if_holdout(record.pairs, cases_all) is not None:
-            continue  # learning-harness Req 5.2: a shape a holdout pair taught can never recover that pair
+        refusal = refuse_if_holdout(record.pairs, cases_all)
+        if refusal is not None:
+            # learning-harness Req 5.2: a shape a holdout pair taught can never recover that pair, and the run
+            # says which pairs it was rather than showing a shorter list with no reason.
+            if degradations is not None:
+                degradations.append(refusal.degradation())
+            continue
         with tempfile.TemporaryDirectory(prefix="ousast-lever-") as scratch:
             trial = MechanismStore(Path(scratch) / "trial.jsonl")
             trial.append(record)
@@ -278,6 +297,7 @@ def run_round(
     edits = propose_status_edits(before.result.metrics.per_rule, ruleset_by_id, current_ledger, blocked)
     # corpus-seeded-mechanisms Req 5: the `mechanisms` lever proposes from the holdout pairs, gated like every other edit.
     mechanism_edits: list[MechanismEdit] = []
+    refusals: list[dict[str, object]] = []
     candidates_store = None
     if mechanism_candidates is not None and mechanism_store is not None and pair_cases:
         from ..semantic.mechanisms import MechanismStore
@@ -286,12 +306,12 @@ def run_round(
         mechanism_edits = (
             list(scripted_mechanism_edits)
             if scripted_mechanism_edits is not None
-            else propose_mechanism_edits(pair_cases, candidates_store, mechanism_store)
+            else propose_mechanism_edits(pair_cases, candidates_store, mechanism_store, degradations=refusals)
         )
         blocked_mechanisms = {edit.key() for edit in mechanism_edits} & blocked
         mechanism_edits = [edit for edit in mechanism_edits if edit.key() not in blocked_mechanisms]
     if not edits and not mechanism_edits:
-        return _outcome(round_index, accepted=False, reason="no_proposals", edits=[], before=before, after=before)
+        return _outcome(round_index, accepted=False, reason="no_proposals", edits=[], before=before, after=before, degradations=refusals)
 
     validator = EvolveValidator()
     try:
@@ -314,6 +334,7 @@ def run_round(
             before=before,
             after=before,
             mechanism_edits=mechanism_edits,
+            degradations=refusals,
         )
 
     candidate = edits_to_ledger(edits, current_ledger)
@@ -321,7 +342,9 @@ def run_round(
         _load_with(ruleset_dir, candidate)  # replay smoke gate: candidate ruleset must boot
     except Exception as exc:  # noqa: BLE001 — any boot failure rejects the round
         _record(journal_path, round_index, edits, "rejected", before, before, f"replay_failed: {exc}")
-        return _outcome(round_index, accepted=False, reason="replay_failed", edits=edits, before=before, after=before)
+        return _outcome(
+            round_index, accepted=False, reason="replay_failed", edits=edits, before=before, after=before, degradations=refusals
+        )
 
     after_findings, after_rules = _scan(target, ruleset_dir, candidate, policy)
     after = _evaluate(target, manifest, after_findings, after_rules, policy)
@@ -395,7 +418,14 @@ def run_round(
         candidates=candidates_store,
     )
     outcome = _outcome(
-        round_index, accepted=accepted, reason=reason, edits=edits, before=before, after=after, mechanism_edits=mechanism_edits
+        round_index,
+        accepted=accepted,
+        reason=reason,
+        edits=edits,
+        before=before,
+        after=after,
+        mechanism_edits=mechanism_edits,
+        degradations=refusals,
     )
     return RoundOutcome(
         **{
@@ -513,6 +543,7 @@ def _outcome(
     before: _Eval,
     after: _Eval,
     mechanism_edits: list[MechanismEdit] | None = None,
+    degradations: list[dict[str, object]] | None = None,
 ) -> RoundOutcome:
     return RoundOutcome(
         round=round_index,
@@ -520,6 +551,7 @@ def _outcome(
         reason=reason,
         edits=edits,
         mechanism_edits=list(mechanism_edits or []),
+        degradations=list(degradations or []),
         recall_before=before.recall,
         recall_after=after.recall,
         fp_before=before.fp_rate,

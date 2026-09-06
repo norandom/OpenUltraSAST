@@ -417,12 +417,18 @@ def _review_tier(item: dict[str, object], slice_name: str, name: str) -> tuple[s
     return tier, "" if pending else reviewer
 
 
-def evaluate_pair(case: PairCase, *, hunter: HunterScan | None = None, ruleset: tuple[PatternRule, ...] | None = None) -> PairOutcome:
+def evaluate_pair(
+    case: PairCase,
+    *,
+    hunter: HunterScan | None = None,
+    ruleset: tuple[PatternRule, ...] | None = None,
+    k_runs: int | None = None,
+) -> PairOutcome:
     with tempfile.TemporaryDirectory(prefix="ousast-pair-") as scratch:
         vuln_root = _materialize_side(Path(scratch) / "vuln", case, side="vuln")
         fix_root = _materialize_side(Path(scratch) / "fixed", case, side="fixed")
         if hunter is not None:
-            return _evaluate_hunter_pair(case, vuln_root, fix_root, hunter)
+            return _evaluate_hunter_pair(case, vuln_root, fix_root, hunter, _k_runs(k_runs))
         if case.slice in OVERLAY_SLICES:
             return _evaluate_overlay_pair(case, vuln_root, fix_root, ruleset)
         return _evaluate_inventory_pair(case, vuln_root, fix_root, ruleset=ruleset)
@@ -435,12 +441,15 @@ def evaluate_catalog(
     ruleset: tuple[PatternRule, ...] | None = None,
     inventory_sidecar: bool = True,
     pointers: bool | None = None,
+    k_runs: int | None = None,
 ) -> PairEvalResult:
     """Score every case. ``ruleset`` lets the improve loop score a candidate ledger; ``inventory_sidecar=False`` skips the second scan.
 
     Pointer pairs (``vendored = false``) are harvested into the cache when ``pointers`` (or OPENULTRASAST_PAIRS_NETWORK=1) allows the
     network, otherwise skipped with a ``pointer_pair_skipped`` degradation (Req 10.2, 10.3).
     """
+    if hunter is not None:
+        _k_runs(k_runs)  # refuse an impossible K before spending a single call
     degradations: list[dict[str, object]] = []
     ready: list[PairCase] = []
     for case in cases:
@@ -459,7 +468,7 @@ def evaluate_catalog(
         if inventory_sidecar:
             scorers[slice_name]["inventory"] = _metrics(tuple(_inventory_only(case, ruleset) for case in slice_cases))
         if hunter is not None:
-            hunted = tuple(evaluate_pair(case, hunter=hunter) for case in slice_cases)
+            hunted = tuple(evaluate_pair(case, hunter=hunter, k_runs=k_runs) for case in slice_cases)
             hunter_outcomes.extend(hunted)
             scorers[slice_name]["hunter"] = _metrics(hunted)
     if hunter is None and scorers:
@@ -938,10 +947,23 @@ def _with_functions(root: Path, findings: list[StaticFinding]) -> list[StaticFin
     return out
 
 
-def make_hunter_scan(client: object, model: str, *, max_steps: int | None = None) -> HunterScan:
-    """Run the tool hunter over every file of an isolated pair tree (Req 1.7)."""
+def make_hunter_scan(client: object, model: str, *, max_steps: int | None = None, taxonomy: object | None = None) -> HunterScan:
+    """Run the tool hunter over every file of an isolated pair tree (Req 1.7).
+
+    With a ``taxonomy`` the hunter is asked to name the family of every finding, from the closed list, and the answer
+    becomes the finding's `family:` tag. The class-aware scorer credits a detection only to a family, so a generalist
+    that names none can never be scored — it would report recall zero by construction rather than by measurement.
+    """
     from .complexity.map import Hotspot
-    from .tool_hunter import DEFAULT_MAX_STEPS, run_tool_hunter
+    from .tool_hunter import _SYSTEM_PROMPT, DEFAULT_MAX_STEPS, run_tool_hunter
+
+    prompt = _SYSTEM_PROMPT
+    if taxonomy is not None:
+        ids = ", ".join(family.id for family in taxonomy.families)  # type: ignore[attr-defined]
+        prompt = (
+            f'{_SYSTEM_PROMPT}\n\nGive every finding a "family" field, chosen from exactly this list: {ids}. '
+            'Use "unknown" when none of them fits; do not invent a name.'
+        )
 
     def scan(root: Path) -> list[StaticFinding]:
         hotspots = [
@@ -957,7 +979,17 @@ def make_hunter_scan(client: object, model: str, *, max_steps: int | None = None
             )
             for target in _targets(root)
         ]
-        return _with_functions(root, run_tool_hunter(root, hotspots, client=client, model=model, max_steps=max_steps or DEFAULT_MAX_STEPS))  # type: ignore[arg-type]
+        return _with_functions(
+            root,
+            run_tool_hunter(
+                root,
+                hotspots,
+                client=client,  # type: ignore[arg-type]
+                model=model,
+                max_steps=max_steps or DEFAULT_MAX_STEPS,
+                system_prompt=prompt,
+            ),
+        )
 
     return scan
 
@@ -1097,14 +1129,23 @@ def _evaluate_overlay_pair(case: PairCase, vuln_root: Path, fix_root: Path, rule
     )
 
 
-def _evaluate_hunter_pair(case: PairCase, vuln_root: Path, fix_root: Path, hunter: HunterScan, runs: int = 1) -> PairOutcome:
+def _k_runs(value: int | None) -> int:
+    """Req 3.5: three runs per pair per side is the floor, and the default, because one run misses most changes."""
+    from .learning.rounds import MIN_K_RUNS
+
+    runs = MIN_K_RUNS if value is None else int(value)
+    if runs < MIN_K_RUNS:
+        raise ValueError(f"the hunter path scores at least three runs per pair; {runs} was asked for")
+    return runs
+
+
+def _evaluate_hunter_pair(case: PairCase, vuln_root: Path, fix_root: Path, hunter: HunterScan, runs: int) -> PairOutcome:
     """Score the model-driven hunter by family and function (learning-harness Req 3.1-3.3, 3.5).
 
     Detection is a finding of the labeled family inside the labeled function; a finding of another family
     or outside it is counted and never called a leak; the words in a finding are never read. A pair that
     cannot be scored is reported with its reason and the detector is never run on it.
     """
-    from .learning.classify import classify_pair
     from .learning.families import load_families
     from .learning.scoring import score_pair_family, unscorable_reason
 
@@ -1115,10 +1156,9 @@ def _evaluate_hunter_pair(case: PairCase, vuln_root: Path, fix_root: Path, hunte
     if reason is not None:
         return _hunter_outcome(case, family=family, unscorable=reason)
     fix_ranges = _overlay_scan(fix_root).ranges
-    vuln_runs = [hunter(vuln_root) for _ in range(max(runs, 1))]
-    fix_runs = [hunter(fix_root) for _ in range(max(runs, 1))]
-    score = score_pair_family(case, family, vuln_runs, fix_runs, ranges=vuln_ranges, taxonomy=taxonomy)
-    del classify_pair, fix_ranges
+    vuln_runs = [hunter(vuln_root) for _ in range(runs)]
+    fix_runs = [hunter(fix_root) for _ in range(runs)]
+    score = score_pair_family(case, family, vuln_runs, fix_runs, ranges=vuln_ranges, taxonomy=taxonomy, fixed_ranges=fix_ranges)
     return _hunter_outcome(case, family=family, score=score, vuln=vuln_runs[0], fixed=fix_runs[0])
 
 

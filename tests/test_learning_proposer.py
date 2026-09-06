@@ -137,3 +137,86 @@ def test_the_harnessx_proposer_degrades_with_a_reason_when_the_extra_is_absent(t
     assert agent.propose(facts) is None
     assert agent.reason == "harnessx_unavailable"
     assert agent.write_roots("access_control") == (tmp_path / "configs" / "access_control",)
+
+
+# --- the meta-agent proposer (review round 3, task 3.5 finding 1) ------------
+
+
+def test_the_meta_agent_proposer_reads_its_change_out_of_a_scratch_copy(tmp_path: Path) -> None:
+    """The meta-agent never writes into the live family directory.
+
+    A proposer that edited the tree directly would have changed the configuration before the round snapshotted
+    it, so a rejection could not put it back. It gets a copy, and the proposal is the diff of that copy."""
+    from openultrasast.learning.proposer import HarnessXProposer
+
+    configs = tmp_path / "configs"
+    (configs / "injection").mkdir(parents=True)
+    (configs / "injection" / "checklist.md").write_text("- old\n")
+    (configs / "injection" / "family.toml").write_text('family = "injection"\nversion = "0"\n')
+    seen: dict[str, object] = {}
+
+    def agent(*, workspace: Path, facts, model: str):  # type: ignore[no-untyped-def]
+        seen["workspace"] = workspace
+        seen["family"] = facts.family
+        (workspace / "checklist.md").write_text("- ask about quoting\n")
+        return "ask about quoting"
+
+    proposer = HarnessXProposer(configs_dir=configs, model="m", agent=agent)
+    proposal = proposer.propose(_facts(tmp_path, "injection"))
+    assert proposal is not None
+    assert proposal.lever == "checklist" and proposal.change == {"checklist.md": "- ask about quoting\n"}
+    assert proposal.hypothesis == "ask about quoting"
+    assert seen["workspace"] != configs / "injection"
+    assert (configs / "injection" / "checklist.md").read_text() == "- old\n", "the live tree was edited"
+
+
+def test_the_meta_agent_proposer_refuses_more_than_one_changed_file(tmp_path: Path) -> None:
+    from openultrasast.learning.proposer import HarnessXProposer
+
+    configs = tmp_path / "configs"
+    (configs / "injection").mkdir(parents=True)
+    (configs / "injection" / "checklist.md").write_text("- old\n")
+    (configs / "injection" / "prompt.md").write_text("p\n")
+
+    def agent(*, workspace: Path, facts, model: str):  # type: ignore[no-untyped-def]
+        (workspace / "checklist.md").write_text("- a\n")
+        (workspace / "prompt.md").write_text("- b\n")
+        return "two at once"
+
+    proposer = HarnessXProposer(configs_dir=configs, model="m", agent=agent)
+    assert proposer.propose(_facts(tmp_path, "injection")) is None
+    assert "one file" in proposer.reason
+
+
+def test_the_meta_agent_proposer_refuses_a_file_no_lever_owns(tmp_path: Path) -> None:
+    from openultrasast.learning.proposer import HarnessXProposer
+
+    configs = tmp_path / "configs"
+    (configs / "injection").mkdir(parents=True)
+    (configs / "injection" / "checklist.md").write_text("- old\n")
+
+    def agent(*, workspace: Path, facts, model: str):  # type: ignore[no-untyped-def]
+        (workspace / "notes.txt").write_text("x\n")
+        return "sideways"
+
+    proposer = HarnessXProposer(configs_dir=configs, model="m", agent=agent)
+    assert proposer.propose(_facts(tmp_path, "injection")) is None
+    assert "notes.txt" in proposer.reason
+
+
+def test_the_meta_agent_proposer_says_so_when_it_changed_nothing(tmp_path: Path) -> None:
+    from openultrasast.learning.proposer import HarnessXProposer
+
+    configs = tmp_path / "configs"
+    (configs / "injection").mkdir(parents=True)
+    (configs / "injection" / "checklist.md").write_text("- old\n")
+    proposer = HarnessXProposer(configs_dir=configs, model="m", agent=lambda **_kwargs: "nothing to do")
+    assert proposer.propose(_facts(tmp_path, "injection")) is None
+    assert proposer.reason == "no_change_proposed"
+
+
+def _facts(tmp_path: Path, family: str):  # type: ignore[no-untyped-def]
+    from openultrasast.learning.proposer import FailureFacts
+
+    del tmp_path
+    return FailureFacts(family=family, config=_config(family))

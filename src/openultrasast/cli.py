@@ -7,7 +7,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 from time import perf_counter
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from . import tool_hunter
 from .benchmark import (
@@ -98,6 +98,10 @@ class ScanOutcome:
     finding_count: int
     calibrations_applied: int
     exit_code: int
+
+
+if TYPE_CHECKING:
+    from .learning.proposer import Proposer
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -223,6 +227,12 @@ def main(argv: list[str] | None = None) -> int:
         if name == "round":
             command.add_argument("--family", required=True)
             command.add_argument("--cost-cap-usd", type=float, default=None)
+            command.add_argument(
+                "--proposals",
+                type=Path,
+                default=None,
+                help="a JSON list of proposals to try in order; without it the round asks the meta-agent",
+            )
         if name == "publish":
             command.add_argument("--measurements", type=Path, default=Path("benchmarks/measurements"))
             command.add_argument("--roadmap", type=Path, default=Path(".kiro/steering/roadmap.md"))
@@ -263,6 +273,7 @@ def main(argv: list[str] | None = None) -> int:
             pointers=args.pointers,
             loo=args.loo,
             loo_out=args.loo_out,
+            k_runs=args.k_runs,
         )
     if args.command == "mechanisms":
         return _mechanisms_export(args.catalog, args.slice, args.store, json_out=args.json)
@@ -954,6 +965,7 @@ def _pairs(
     pointers: bool = False,
     loo: bool = False,
     loo_out: Path | None = None,
+    k_runs: int | None = None,
 ) -> int:
     if not catalog.exists() or not catalog.is_file():
         raise SystemExit(f"pair catalog is not a file: {catalog}")
@@ -967,8 +979,10 @@ def _pairs(
         model = hunter_model or config.models.hunter or ""
         client = tool_hunter.resolve_hunter_client()
         if model and client is not None:
-            scan = make_hunter_scan(client, model)
-    result = evaluate_catalog(cases, hunter=scan, pointers=True if pointers else None)
+            from .learning.families import load_families
+
+            scan = make_hunter_scan(client, model, taxonomy=load_families())
+    result = evaluate_catalog(cases, hunter=scan, pointers=True if pointers else None, k_runs=k_runs)
     if json_out:
         print(json.dumps(result_payload(result), indent=2, sort_keys=True))
         return 0
@@ -1125,7 +1139,7 @@ def _run_family_detectors(
     suspicion here: the verifier writes a tag, and the evidence ladder is another boundary's to move.
     """
     del cases
-    from .learning.classify import classify_region, measure_classifier
+    from .learning.classify import classify_region
     from .learning.detectors import DetectorConfigError, Region, load_family_configs, run_region_detectors
     from .learning.endpoint import resolve_chat_endpoint, resolve_models
     from .learning.families import FamiliesError, load_families
@@ -1152,6 +1166,8 @@ def _run_family_detectors(
     model = resolve_models(config)[0]  # type: ignore[arg-type]
     findings: list[StaticFinding] = []
     per_family: dict[str, int] = {}
+    per_tier: dict[str, int] = {}
+    abstained = 0
     seen: set[str] = set()
     for hotspot in hotspots:
         path = str(getattr(hotspot, "path", ""))
@@ -1161,6 +1177,8 @@ def _run_family_detectors(
             continue
         seen.add(key)
         answer = classify_region(root, path, function=function, taxonomy=taxonomy, client=None)
+        per_tier[answer.tier] = per_tier.get(answer.tier, 0) + 1
+        abstained += 0 if answer.families else 1
         region = Region(path=path, function=str(function) if function else None, families=answer.families)
 
         def _run(region: Region = region) -> list[StaticFinding]:
@@ -1172,11 +1190,19 @@ def _run_family_detectors(
             verification = verifier_for(taxonomy.by_id(family_id)).verify(finding, root=root, language="python")
             findings.append(apply_verification(finding, verification))
             per_family[family_id] = per_family.get(family_id, 0) + 1
-    report = measure_classifier([], taxonomy, client=None)
     payload: dict[str, object] = {
         "taxonomy_version": taxonomy.version,
         "families": per_family,
-        "classifier": report.to_dict(),
+        # What the classifier did on *this* scan. Scoring it needs labels a maintainer stands behind, which a scan
+        # of someone else's repository does not have, so the block reports the routing rather than an accuracy.
+        "classifier": {
+            "regions": len(seen),
+            "per_tier": dict(sorted(per_tier.items())),
+            "abstained": abstained,
+            # Req 2.6/3.7: say out loud that no family declares a parent at this taxonomy version, so the
+            # partial credit for a parent-child relation never applied to any number here.
+            "hierarchical_credit": taxonomy.hierarchical,
+        },
         "round": None,
         "endpoint": endpoint.provider,
         "regions": len(seen),
@@ -1226,7 +1252,6 @@ def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy:
     from .learning.detectors import load_family_configs, write_default_configs
     from .learning.endpoint import resolve_chat_endpoint, resolve_models
     from .learning.journal import Archive, LearningJournal
-    from .learning.proposer import HarnessXProposer
     from .learning.rounds import MIN_K_RUNS, load_noise_floors, run_baseline, run_learning_round
     from .learning.scoring import aggregate
     from .tool_hunter import _SYSTEM_PROMPT
@@ -1259,7 +1284,9 @@ def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy:
         from .learning.rounds import score_case
 
         scores = [
-            score_case(case, factory(configs[_label(case)]), taxonomy=taxonomy, runs=k_runs) for case in cases if _label(case) in configs
+            score_case(case, factory(configs[_label(case, taxonomy)]), taxonomy=taxonomy, runs=k_runs, family=_label(case, taxonomy))
+            for case in cases
+            if _label(case, taxonomy) in configs
         ]
         families = {name: block.to_dict() for name, block in aggregate(scores, taxonomy=taxonomy).items()}
         if args.json:
@@ -1273,7 +1300,7 @@ def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy:
             cases,
             taxonomy=taxonomy,
             configs_dir=configs_dir,
-            scan=factory(configs.get("unknown") or next(iter(configs.values()))),
+            scan_factory=factory,
             model=model,
             out_dir=out,
             k_runs=k_runs,
@@ -1286,7 +1313,7 @@ def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy:
         family=args.family,
         taxonomy=taxonomy,
         configs_dir=configs_dir,
-        proposer=HarnessXProposer(configs_dir=configs_dir, model=model),
+        proposer=_proposer(args, configs_dir, model),
         scan_factory=factory,
         model=model,
         journal=journal,
@@ -1296,16 +1323,44 @@ def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy:
         cost_cap_usd=args.cost_cap_usd or config.learning.round_cost_cap_usd,
         minibatch=config.learning.minibatch,
         k_runs=k_runs,
+        # Every other family the corpus actually carries, so a change that reaches beyond its own directory is
+        # measured rather than assumed impossible (Req 9.5).
+        sweep_families=tuple(sorted({_label(case, taxonomy) for case in cases} & set(configs) - {args.family})),
     )
     print(f"learning round {record.round} {record.family}: {record.outcome} ({record.reason})")
     return 0
 
 
-def _label(case: PairCase) -> str:
-    for row in case.expected:
-        if row.family:
-            return str(row.family)
-    return "unknown"
+def _label(case: PairCase, taxonomy: object) -> str:
+    """The family that routes this pair: the maintainer's label when there is one, else the classifier's answer.
+
+    Reading only the declared label would send every unlabeled row to the generalist, whose findings earn no credit
+    against any real family, so a scoreboard built that way reports structural zeros (Req 2.1, 8.2)."""
+    from .learning.rounds import _family_of
+
+    return _family_of(case, taxonomy)  # type: ignore[arg-type]
+
+
+def _proposer(args: argparse.Namespace, configs_dir: Path, model: str) -> Proposer:
+    """`--proposals FILE` runs a recorded sequence offline; without it the round asks the meta-agent."""
+    from .learning.proposer import HarnessXProposer, Proposal, ScriptedProposer
+
+    path = getattr(args, "proposals", None)
+    if path is None:
+        return HarnessXProposer(configs_dir=configs_dir, model=model)
+    rows = json.loads(Path(path).read_text(encoding="utf-8"))
+    return ScriptedProposer(
+        [
+            Proposal(
+                hypothesis=str(row["hypothesis"]),
+                lever=row["lever"],
+                change=dict(row["change"]),
+                predicted_affected=tuple(row.get("predicted_affected", ())),
+                predicted_at_risk=tuple(row.get("predicted_at_risk", ())),
+            )
+            for row in rows
+        ]
+    )
 
 
 def _first_source(root: Path) -> str:

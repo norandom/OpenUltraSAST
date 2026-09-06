@@ -128,8 +128,12 @@ def test_the_train_split_of_vibe_py_teaches_no_obligation_shape_today(tmp_path: 
     cases = select_vendored(select_slice(load_pair_catalog(), "vibe-py"))
     report = export_mechanisms(cases, store)
     assert obligation_mechanisms(store.load()) == ()
-    refused = {pair for pair, reason in report.skipped if reason.startswith("split:")}
-    assert {"vampi-books-get-by-title", "vampi-users-update-password", "threatbyte-api-v1-get"} <= refused
+    refused = {pair: reason for pair, reason in report.skipped}
+    assert refused["vampi-users-update-password"] == "split:holdout"
+    assert refused["threatbyte-api-v1-get"] == "split:holdout"
+    # Its own reason, not its split: this row is a byte-identical twin that happens to sit on the holdout side,
+    # and reporting `split:holdout` would hide a corpus fact behind a split fact (Req 5.2).
+    assert refused["vampi-books-get-by-title"] == "unscorable:identical_twin"
     flow_rows = [row for row in store.load() if row.shape is not None and row.shape.get("family", "sink") == "sink"]
     assert report.records == len(flow_rows) and len(flow_rows) >= 1  # the flow family still teaches from the train split
 

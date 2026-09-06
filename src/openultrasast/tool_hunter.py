@@ -175,8 +175,9 @@ class ChatClient(Protocol):
 class ScriptedChatClient:
     """Deterministic ChatClient for tests and OPENULTRASAST_HUNTER_CLIENT injection."""
 
-    def __init__(self, turns: list[ChatResponse]) -> None:
+    def __init__(self, turns: list[ChatResponse], *, cycle: bool = False) -> None:
         self._turns = turns
+        self._cycle = cycle  # a stub that runs out of answers turns every multi-run test into a silent zero
         self.calls: list[dict[str, object]] = []
 
     def complete(
@@ -192,7 +193,9 @@ class ScriptedChatClient:
         self.calls.append({"model": model, "messages": list(messages), "tools": tools, "timeout_seconds": timeout_seconds, **options})
         index = len(self.calls) - 1
         if index >= len(self._turns):
-            return ChatResponse(content="")
+            if not self._cycle or not self._turns:
+                return ChatResponse(content="")
+            index %= len(self._turns)
         return self._turns[index]
 
 
@@ -527,6 +530,10 @@ def _finding_from_item(
     severity = item.get("severity")
     snippet = item.get("snippet")
     proposed_snippet = snippet if isinstance(snippet, str) and snippet else None
+    family = item.get("family")
+    # The family is the only key the class-aware scorer credits, and it is the model's own answer: a fabricated
+    # name is counted as noise there rather than silently dropped here.
+    family_tags = [f"family:{family}"] if isinstance(family, str) and family.strip() else []
     return StaticFinding(
         finding_id=f"{_FINDING_ID_PREFIX}{relative}:{line_no if line_no is not None else 0}",
         path=relative,
@@ -540,7 +547,7 @@ def _finding_from_item(
         reachability_status="unknown",
         reachability_evidence=[],
         reachability_conditions=[],
-        tags=list(tags),
+        tags=[*tags, *family_tags],
         ranking_priority=float(scores.get(relative, 0.0)),
         proposed_snippet=proposed_snippet,
     )
