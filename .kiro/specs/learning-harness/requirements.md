@@ -79,7 +79,7 @@ OpenUltraSAST's detection numbers cannot be trusted and cannot be improved. The 
 
 #### Acceptance Criteria
 
-1. The Learning Harness shall hold one detector configuration per family consisting of a prompt under a stated length cap, a skills set, a curated tool set, a step budget, a cost budget, an evidence checklist and a set of hard negatives and counterexamples.
+1. The Learning Harness shall hold one detector configuration per family consisting of a prompt under a stated length cap, a curated tool set, a step budget, a cost budget, an evidence checklist and a set of hard negatives and counterexamples.
 2. While a round evolves one family, the Learning Harness shall keep every other family's configuration unchanged.
 3. When a code region is classified, the Learning Harness shall run the detector of every admitted family plus a generalist detector, and shall record on each finding the family, the detector configuration version and the verifier outcome.
 4. The Learning Harness shall give a detector the whole file of a region and the files its curated tools resolve, not only an excerpt around a hotspot.

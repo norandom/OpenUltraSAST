@@ -1,16 +1,15 @@
 # OpenUltraSAST
 
-OpenUltraSAST is an independent OpenCode security harness. It combines
-HarnessX-style harness composition, OpenUltraCode verification discipline,
-OpenRouter-hosted models and embeddings, Docker-isolated code analysis, and
-Trail of Bits security skills into a SAST workflow built around one goal:
-eliminating false positives by turning suspicion into evidence-backed findings
-and learning from rejected claims.
+OpenUltraSAST is a command-line security analysis harness built around one
+goal: eliminating false positives by turning a suspicion into an
+evidence-backed finding, and learning from the claims that were rejected. A
+scan combines static rules, a semantic overlay, optional model-driven hunting
+and Docker-isolated proof, and every claim carries the evidence that earned its
+place.
 
-The full specification lives in `.kiro/specs/openrouter-sast-harness/`
-(`requirements.md`, `design.md`, `tasks.md`, `assessment.md`). Clearwing is used
-as an implementation oracle for proven source-hunting ideas, not as a dependency
-or fork target.
+The project began as an editor-agent skill and is now a CLI first. Agent
+integrations remain, but nothing requires one: `ousast` is the interface, and
+the model-driven parts are optional extras that degrade visibly when absent.
 
 > **Maturity legend:** ✅ implemented and tested · 🟡 primitive exists, not yet
 > auto-wired into the scan loop · 🧭 designed, on the roadmap. The current
@@ -115,7 +114,7 @@ No penalty → 100; one reachable severity-5 finding → ~43. The **reachability
 
 **Artifacts** ✅: the `score` stage writes `score.json` (project score, `max_severity`, `penalty_total`, `by_category`, `out_of_scope_dynamic_only`, `unmapped_cwe`, gate verdict) and merges the same block into `manifest.json`. Scoring is zero-dependency (stdlib only). One mapping detail: verycode has no CWE-120 (generic buffer copy), so the C/C++ memory-unsafe rules listed under [Detection coverage](#detection-coverage) carry **CWE-121** (Stack-Based Buffer Overflow, severity 5), which the policy does govern.
 
-🧭 This is the first implemented slice (**Phase 1**) of the `.kiro/specs/harnessx-self-improving-rulesets/` spec: a central, policy-governed severity model and a project score. Rules-as-data and the full HarnessX self-improvement loop over rulesets are later phases on that roadmap.
+🧭 This is the first implemented slice of the self-improving ruleset work: a central, policy-governed severity model and a project score. Rules-as-data and the full self-improvement loop over rulesets are later phases.
 
 ## Running the benchmarks
 
@@ -163,20 +162,18 @@ The project goal is **≥90% recall and <10% false positives** per language. The
 gate lives in `tests/test_detection_benchmarks.py`, so a rule change that drops
 recall or raises false positives fails CI.
 
-## OpenCode commands, fusion, and ultra workflows
+## Agent integrations, fusion, and ultra workflows
 
-OpenUltraSAST runs from the command line. You can call the `ousast` CLI directly,
-or run [OpenCode](https://opencode.ai) in the repository and let the agent run
-the harness. OpenCode loads the project skills below, then executes `ousast` plus
-the triage/fix workflow.
+The `ousast` CLI is the interface. An agent that can run shell commands needs
+nothing else:
 
 ```bash
-opencode run "scan this repo with ousast in quick mode and triage the findings"
-# or drive the CLI yourself:
 uv run ousast scan . --mode quick --fail-on verified
 ```
 
-Project skills that steer the harness from OpenCode (`.opencode/skills/`):
+For [OpenCode](https://opencode.ai) there are optional project skills that
+describe the workflows above, so the agent drives the same CLI
+(`.opencode/skills/`):
 
 | Skill | Purpose |
 | --- | --- |
@@ -227,9 +224,9 @@ decider_model  = "gpt-4o"   # optional: disclosed in the decision's model IDs
 high_assurance = false      # true forces fusion on every finding
 ```
 
-> The `kiro-*` skills and `AGENTS.md` in this repo are the maintainer's
-> spec-driven development tooling. They are not part of using OpenUltraSAST and
-> can be ignored by users.
+> The `kiro-*` skills, `AGENTS.md` and the `.kiro/` directory are the
+> maintainer's spec-driven development tooling. They are not part of using
+> OpenUltraSAST and can be ignored by users.
 
 ## Evidence ladder: how a false positive is eliminated
 
@@ -282,8 +279,8 @@ overflow the regex engine cannot see:
 ```
 
 The `next_improvement_candidate` routes the gap to the stage that should close
-it: a static rule, SARIF source, entry-point mapping, retrieval package,
-language-aware hunter prompt, dynamic reproducer, or skill route. Once a miss is
+it: a static rule, SARIF source, entry-point mapping, retrieval package, hunter
+prompt, dynamic reproducer, or skill route. Once a miss is
 addressed, it stays closed because the recall/precision gate runs in CI.
 `external_baseline_deltas.json` additionally shows where another tool found a
 vulnerability OpenUltraSAST missed (or vice-versa).
@@ -395,10 +392,10 @@ becomes the richer *proposer* that plugs into this same validated, gated
 machinery — the safety contract (bounded levers, replay/novelty/journal gates,
 hard acceptance gate, byte-for-byte revert) is identical either way.
 
-Beyond these loops, `openultrasast-triage` still lets OpenCode adjust prompt
-constraints, retrieval filters, skill routing, and benchmark-miss triage. Those
-`RankingCalibration` fields are already produced and will be consumed directly
-once the language-aware LLM hunters land (`standard_security_harness`).
+Beyond these loops, the `openultrasast-triage` skill lets an agent adjust
+prompt constraints, retrieval filters, skill routing and benchmark-miss triage.
+Those `RankingCalibration` fields are already produced and will be consumed
+directly once the per-family detectors land.
 
 ## Security & hardening
 
