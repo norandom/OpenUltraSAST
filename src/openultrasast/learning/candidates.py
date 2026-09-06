@@ -33,7 +33,10 @@ FAMILY_SHAPE: dict[str, tuple[CandidateKind, ...]] = {
     "memory": ("call",),
     "prototype": ("call", "bind"),
     "access_control": ("operation",),
-    "config_secrets": ("bind", "config"),
+    # A permissive default is as often an argument to a call — `cors({origin: "*"})`, `app.use(session({secure:
+    # false}))` — as it is a binding. Measured: with bindings alone the shape missed `createApplication` and
+    # `getAllowedHosts`, whose whole bug is inside a call argument.
+    "config_secrets": ("call", "bind", "config"),
     "unknown": ("call", "bind"),
 }
 
@@ -232,22 +235,113 @@ def _language_of(path: str) -> str:
 
 @dataclass(frozen=True)
 class CandidateReport:
-    """The ceiling: what a candidate-driven detector could find before any model is asked anything."""
+    """The ceiling: what a candidate-driven detector could find before any model is asked anything.
 
+    This is the number that decides whether the design continues. A generator that cannot put a candidate inside
+    the labeled function can never find that pair's bug however good the judgement is, so the ceiling is published
+    as the limit on recall rather than discovered later as a disappointment (Req 1.3)."""
+
+    generator: str = "ir"
     per_family: dict[str, dict[str, object]] = field(default_factory=dict)
     per_slice: dict[str, dict[str, object]] = field(default_factory=dict)
     gaps: tuple[tuple[str, str, str], ...] = ()  # (slice, pair, reason)
 
     def to_dict(self) -> dict[str, object]:
         return {
+            "generator": self.generator,
             "per_family": {name: dict(block) for name, block in sorted(self.per_family.items())},
             "per_slice": {name: dict(block) for name, block in sorted(self.per_slice.items())},
             "gaps": [list(row) for row in self.gaps],
         }
 
 
+def ceiling(cases: Sequence[object], *, taxonomy: object, generator: str = "ir") -> CandidateReport:
+    """Per family and per slice, the fraction of labeled functions a generator can put a candidate inside.
+
+    ``generator`` is ``ir`` or ``ruleset``. The ruleset arm exists so the comparison that rejected it — 12.1%
+    against 96.6% on the web slices — stays a measurement rather than a remembered number."""
+    import tempfile
+
+    from ..pairs import _materialize_side, _overlay_scan, _quick_scan
+    from .rounds import _family_of
+    from .scoring import _spans
+
+    families: dict[str, dict[str, int]] = {}
+    slices: dict[str, dict[str, int]] = {}
+    gaps: list[tuple[str, str, str]] = []
+    sites: dict[str, list[int]] = {}
+    for case in cases:
+        family = _family_of(case, taxonomy)  # type: ignore[arg-type]
+        slice_name = str(getattr(case, "slice", "") or "")
+        region_path = str(getattr(case, "relpath", "") or "")
+        with tempfile.TemporaryDirectory(prefix="ousast-ceiling-") as scratch:
+            root = _materialize_side(Path(scratch) / "vuln", case, side="vuln")  # type: ignore[arg-type]
+            if generator == "ruleset":
+                ranges = _overlay_scan(root).ranges
+                spans = _spans(case, ranges)
+                found = [
+                    finding
+                    for finding in _quick_scan(root)
+                    if finding.line is not None and any(path == finding.path and start <= finding.line <= end for path, start, end in spans)
+                ]
+                count, reason = len(found), ("" if found else "no_candidate")
+            else:
+                labeled = [str(getattr(row, "function", "") or "") for row in getattr(case, "expected", ()) or ()]
+                result = enumerate_candidates(
+                    root,
+                    _Region(region_path, next((name for name in labeled if name), None)),
+                    family,
+                    taxonomy=taxonomy,
+                    limit=10**6,  # the ceiling is about coverage, never about the batch bound
+                )
+                count, reason = len(result.candidates), result.reason
+        for bucket, key in ((families, family), (slices, slice_name)):
+            block = bucket.setdefault(key, {"pairs": 0, "with_candidate": 0})
+            block["pairs"] += 1
+            block["with_candidate"] += 1 if count else 0
+        if count:
+            sites.setdefault(family, []).append(count)
+        else:
+            gaps.append((slice_name, str(getattr(case, "name", "")), reason or "no_candidate"))
+    per_family: dict[str, dict[str, object]] = {}
+    per_slice: dict[str, dict[str, object]] = {}
+    for bucket, out in ((families, per_family), (slices, per_slice)):
+        for key, block in bucket.items():
+            pairs = block["pairs"]
+            row: dict[str, object] = {
+                "pairs": pairs,
+                "with_candidate": block["with_candidate"],
+                "ceiling": (block["with_candidate"] / pairs) if pairs else 0.0,
+            }
+            if bucket is families:
+                row["sites"] = _distribution(sites.get(key, []))
+            out[key] = row
+    return CandidateReport(generator=generator, per_family=per_family, per_slice=per_slice, gaps=tuple(sorted(gaps)))
+
+
+def _distribution(counts: list[int]) -> dict[str, int]:
+    if not counts:
+        return {"min": 0, "median": 0, "p90": 0, "max": 0}
+    counts = sorted(counts)
+    return {
+        "min": counts[0],
+        "median": counts[len(counts) // 2],
+        "p90": counts[min(int(len(counts) * 0.9), len(counts) - 1)],
+        "max": counts[-1],
+    }
+
+
+@dataclass(frozen=True)
+class _Region:
+    """The two fields `enumerate_candidates` reads, so the ceiling does not import the detector module."""
+
+    path: str
+    function: str | None
+
+
 __all__ = [
     "FAMILY_SHAPE",
+    "ceiling",
     "MAX_CANDIDATES_PER_CALL",
     "Candidate",
     "CandidateKind",

@@ -213,6 +213,7 @@ def main(argv: list[str] | None = None) -> int:
         ("classify", "classify every labeled pair and report the classifier against itself"),
         ("score", "score a catalog by family, with the denominator every number was computed over"),
         ("baseline", "round zero: clone one detector into every family and measure each against itself"),
+        ("candidates", "offline: what a candidate-driven detector could find, per family and per slice"),
         ("round", "one evolve round: propose one change for one family and let the evidence decide"),
         ("publish", "regenerate every published number from the artifacts that produced it"),
     ):
@@ -222,6 +223,8 @@ def main(argv: list[str] | None = None) -> int:
             command.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
             command.add_argument("--slice", choices=SLICE_NAMES, default="all")
             command.add_argument("--json", action="store_true")
+        if name == "candidates":
+            command.add_argument("--generator", choices=("ir", "ruleset"), default="ir", help="which pass enumerates the candidate sites")
         if name in {"baseline", "round", "score"}:
             command.add_argument("--k-runs", type=int, default=None, help="runs per pair; never fewer than three")
             command.add_argument("--model", default=None, help="detector model; artifacts are keyed by it")
@@ -1238,6 +1241,26 @@ def _learning(args: argparse.Namespace) -> int:
             print(f"  artifact {artifact}")
         return 0
     cases = select_vendored(select_slice(load_pair_catalog(args.catalog), args.slice))
+    if args.learning_command == "candidates":
+        # No model is called anywhere in this command. The ceiling is a property of the corpus and the enumerator,
+        # so it can end this feature before a cent is spent on it (constrained-detector task 1.3).
+        from .learning.candidates import ceiling
+
+        coverage = ceiling(cases, taxonomy=taxonomy, generator=args.generator)
+        out.mkdir(parents=True, exist_ok=True)
+        payload = coverage.to_dict()
+        (out / "candidate-ceiling.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+        if args.json:
+            print(json.dumps(payload, indent=2, sort_keys=True))
+        else:
+            for family, block in sorted(coverage.per_family.items()):
+                print(
+                    f"learning candidates {family}: {block['with_candidate']}/{block['pairs']} "
+                    f"= {_as_float(block['ceiling']):.1%} ceiling, sites {block['sites']}"
+                )
+            for slice_name, block in sorted(coverage.per_slice.items()):
+                print(f"  slice {slice_name}: {_as_float(block['ceiling']):.1%} over {block['pairs']} pairs")
+        return 0
     if args.learning_command == "classify":
         measured = measure_classifier(cases, taxonomy, client=None)
         out.mkdir(parents=True, exist_ok=True)
@@ -1356,6 +1379,10 @@ def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy:
     )
     print(f"learning round {record.round} {record.family}: {record.outcome} ({record.reason}) cost ${record.cost_usd:.4f}")
     return 0
+
+
+def _as_float(value: object) -> float:
+    return float(value) if isinstance(value, int | float) else 0.0
 
 
 def _label(case: PairCase, taxonomy: object) -> str:

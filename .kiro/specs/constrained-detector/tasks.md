@@ -1,20 +1,20 @@
 # Implementation Plan
 
-- [ ] 1. The ceiling, offline: what a candidate detector could possibly find
-- [ ] 1.1 Candidate enumeration from the semantic IR, shaped by family
+- [x] 1. The ceiling, offline: what a candidate detector could possibly find
+- [x] 1.1 Candidate enumeration from the semantic IR, shaped by family
   - `learning/candidates.py`: `Candidate` (path, line, kind, name, text, argument texts and names, the binding chain the IR resolved, the guards in scope, the enclosing function, and an `id` of `path:line:name`); `CandidateKind` of call, bind, operation, config; `FAMILY_SHAPE` mapping each family to the kinds that can carry its bug; `enumerate_candidates` returning a `CandidateSet` with the candidates, the count discarded past the bound, and a reason of empty, `unsupported_language` or `no_candidate`.
   - Call and bind candidates come from `FunctionIR.calls` and `.binds`; operation candidates for access control come from the obligations facts with the decorators and in-body guards in scope; config candidates are bindings whose value is a literal in a configuration position. The pattern ruleset is never the generator.
   - Ordering is `(path, line, name)` and the bound is a constant, so the batches a later task forms are determined by the input alone.
   - Observable: on the shared obligations fixture every family shape yields the sites its docstring names; a file the IR cannot parse yields `unsupported_language` and no candidates; a labeled function with no calls or binds yields `no_candidate`; enumerating twice returns an identical sequence.
   - _Requirements: 1.1, 1.2, 1.4, 1.5, 1.6_
 
-- [ ] 1.2 The ceiling report and the `learning candidates` command
+- [x] 1.2 The ceiling report and the `learning candidates` command
   - `candidates.ceiling(cases, taxonomy)` returns, per family and per slice, the number of labeled functions for which at least one candidate was enumerated, the sites-per-function distribution, and the rows that yielded nothing with their reason; `ousast learning candidates --catalog --slice --json` prints it and writes the artifact. No model is called at any point.
   - Observable: the command runs offline with no endpoint configured; the artifact reproduces the recorded web-slice figures (ruleset 12.1%, IR 96.6%, median 10 sites) and adds the deciding slices; running it twice produces a byte-identical artifact.
   - _Requirements: 1.3, 3.5_
   - _Depends: 1.1_
 
-- [ ] 1.3 The stop-or-go reading of the ceiling
+- [x] 1.3 The stop-or-go reading of the ceiling
   - The artifact states, per deciding slice, the ceiling against that slice's recorded detection rate from round zero, and names the comparison as the condition on which this design continues. The reading is written into the spec's Implementation Notes with the numbers, whichever way it goes.
   - Observable: the artifact carries agent-vfc, vfc-js, vfc and github ceilings beside 44.4% and the other recorded rates, and the notes state whether any deciding slice fails the condition.
   - _Requirements: 1.3, 3.5, 3.7_
@@ -100,3 +100,23 @@
 - Task 2.1 is the only task that touches `scoring.py`, and its observable is that nothing changes. The recorded round-zero artifacts are the pin; if they cannot be reproduced exactly, the refactor is wrong and not the numbers.
 - `(P)` marks the two tasks with no dependency on a model call: 2.1 and 4.1 can be built and reviewed while phase 1 runs.
 - Task 3.3 is the one that would have caught the defect this whole spec exists for. It belongs in the suite, run repeatedly, not in a one-off measurement.
+
+## Implementation Notes
+
+- Task 1.1 (2026-09-06, RED first: 13 failing tests in `tests/test_candidate_enumeration.py`; then green). `learning/candidates.py`. Two things the fixtures taught: the IR emits a chained call twice at one line, once bare and once carrying the keyword arguments, so deduplication keeps the richest — a bare `filter_by` and `filter_by(user_id=owner)` are the same site and only one of them says what the constraint was. And `leaky` and `constrained` in the shared obligations fixture **both** discharge through `filter_by`; what separates them is that one binding chain ends at `request.args.get('owner')` and the other at `request.user.id`. The test asserts that contrast, which is the judgement the model is being narrowed to.
+- Task 1.2 (2026-09-06, RED first: 3 failing tests; then green). `candidates.ceiling(cases, taxonomy, generator="ir"|"ruleset")` and `ousast learning candidates`. The `ruleset` arm exists so the comparison that rejected it stays a measurement rather than a remembered number. The command calls no model and its artifact is byte-identical on a second run.
+- Task 1.3 (2026-09-06). **Verdict: go.** Measured offline across every slice, `benchmarks/measurements/2026-09-06-candidate-ceiling-all-slices.json`:
+
+  | slice | ceiling | round-zero detection | headroom |
+  |---|---|---|---|
+  | agent-vfc (deciding) | **89.7%** | 44.4% | +45.3 |
+  | vfc (deciding, non-gating) | 84.7% | pending | — |
+  | vfc-js (deciding) | 52.9% | none recorded | see below |
+  | github (deciding) | 100.0% | none recorded | — |
+  | vibe-py (development) | 100.0% | 83.3% | +16.7 |
+
+  The margin is largest on agent-vfc, which is the slice that matters most and the one the tool is actually for. Per family: config_secrets, deserialization, output_encoding and untrusted_destination 100%; access_control 90%; path 87.5%; memory 86.4%; injection 84.6%; prototype 71.4%; `unknown` 0% of two rows, which is what abstention looks like.
+
+  - **A shape correction the measurement forced, before the detector existed.** `config_secrets` first read 63.6% with a bind-and-literal shape. A permissive default is as often an argument to a call — `cors({origin: '*'})`, `app.use(session({secure: false}))` — as it is a binding; adding call sites to that family's shape took it to 100% and recovered `new-erp-final-app-6e9644`, `zoonk-origin-bfbf67`, `melodix-playerprovider-089931` and `registry-proxy-worker-426847`.
+  - **Carry-forward, and it is not this feature's to fix.** vfc-js sits at 52.9% because eight of seventeen rows label a function the JavaScript CST names `<anon>`: `module.exports.publish = function () {}` and its relatives. The gap is in function *naming*, not in candidate generation, and it caps the existing hunter on that slice exactly as much. Same class as the `_declarator_start` defects found during learning-harness task 4.1.
+  - vfc's 21 `unsupported_language` rows are C and C++ files the IR declines; they are the non-gating memory slice and are already excluded from every web number.

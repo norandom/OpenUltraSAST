@@ -21,6 +21,7 @@ from openultrasast.learning.families import load_families
 from openultrasast.mapping import analyze_entry_points
 from openultrasast.pairs import DEFAULT_CATALOG, load_pair_catalog, select_vendored
 from openultrasast.preprocess import preprocess_repository
+from openultrasast.semantic.extra import has_semantic_extra
 
 LIB = Path("benchmarks/pairs/harvest.py")
 FAMILIES = Path("src/openultrasast/ruleset/families.toml")
@@ -444,6 +445,8 @@ def test_a_javascript_excerpt_never_starts_in_the_middle_of_an_import() -> None:
     assert "from '@overleaf" not in excerpt
 
 
+@pytest.mark.semantic
+@pytest.mark.skipif(not has_semantic_extra(), reason="parsing JavaScript needs the tree-sitter grammar")
 def test_the_overleaf_excerpt_parses_on_both_sides() -> None:
     from openultrasast.semantic.ir import parse_file
 

@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from test_obligation_operations import APP  # noqa: E402
 
 from openultrasast.learning.families import load_families  # noqa: E402
+from openultrasast.semantic.extra import has_semantic_extra  # noqa: E402
 
 INJECTION = (
     "from flask import request\n"
@@ -71,6 +72,8 @@ def test_the_family_decides_which_kinds_are_candidates() -> None:
     assert "call" in FAMILY_SHAPE["prototype"]
 
 
+@pytest.mark.semantic
+@pytest.mark.skipif(not has_semantic_extra(), reason="the guards come from the parsed IR")
 def test_access_control_candidates_are_operations_with_the_guards_in_scope(tmp_path: Path) -> None:
     """An absence bug has no sink. Its candidate is the operation, and what the model needs is what guards it."""
     from openultrasast.learning.candidates import enumerate_candidates
@@ -154,3 +157,82 @@ def test_every_family_shape_enumerates_something_on_a_file_that_has_it(tmp_path:
     assert result.reason in {"", "no_candidate"}
     if family in {"injection", "path", "deserialization", "untrusted_destination"}:
         assert result.candidates, f"{family} takes call sites and this file has three"
+
+
+# --- the ceiling (task 1.2) ---------------------------------------------------
+
+
+def test_the_ceiling_counts_labeled_functions_with_at_least_one_candidate(tmp_path: Path) -> None:
+    from openultrasast.benchmark import ExpectedFinding
+    from openultrasast.learning.candidates import ceiling
+    from openultrasast.pairs import PairCase
+
+    def case(name: str, body: str, *, slice_name: str, family: str) -> PairCase:
+        (tmp_path / f"{name}.py").write_text(body)
+        return PairCase(
+            name=name,
+            slice=slice_name,
+            language="python",
+            origin="test",
+            vuln_file=tmp_path / f"{name}.py",
+            fixed_file=tmp_path / f"{name}.py",
+            relpath="app.py",
+            expected=(
+                ExpectedFinding(
+                    cwe="CWE-78",
+                    vulnerability_class="x",
+                    path="app.py",
+                    evidence="",
+                    function="run",
+                    mechanism="other",
+                    family=family,
+                ),
+            ),
+            min_recall=1.0,
+            fix_policy="silent",
+            review_tier="seeded",
+        )
+
+    cases = [
+        case("has", "import os\n\n\ndef run(cmd):\n    os.system(cmd)\n", slice_name="vibe-py", family="injection"),
+        case("empty", "def run():\n    return 1\n", slice_name="vibe-py", family="injection"),
+        case("real", "import os\n\n\ndef run(cmd):\n    os.system(cmd)\n", slice_name="agent-vfc", family="injection"),
+    ]
+    report = ceiling(cases, taxonomy=load_families())
+    assert report.per_family["injection"]["pairs"] == 3
+    assert report.per_family["injection"]["with_candidate"] == 2
+    assert report.per_family["injection"]["ceiling"] == pytest.approx(2 / 3)
+    assert report.per_slice["vibe-py"]["ceiling"] == pytest.approx(0.5)
+    assert report.per_slice["agent-vfc"]["ceiling"] == 1.0
+    assert ("vibe-py", "empty", "no_candidate") in report.gaps
+    assert report.per_family["injection"]["sites"]["median"] >= 1
+
+
+def test_the_ruleset_generator_is_measured_too_so_the_comparison_is_reproducible(tmp_path: Path) -> None:
+    """12.1% against 96.6% is why the ruleset is not the generator. A remembered number is not a measurement."""
+    from openultrasast.learning.candidates import ceiling
+    from openultrasast.pairs import DEFAULT_CATALOG, load_pair_catalog, select_slice, select_vendored
+
+    cases = [c for c in select_vendored(select_slice(load_pair_catalog(DEFAULT_CATALOG), "vibe-py")) if not c.unscorable][:6]
+    ir = ceiling(cases, taxonomy=load_families(), generator="ir")
+    ruleset = ceiling(cases, taxonomy=load_families(), generator="ruleset")
+    assert ir.generator == "ir" and ruleset.generator == "ruleset"
+    assert sum(b["with_candidate"] for b in ir.per_family.values()) >= sum(b["with_candidate"] for b in ruleset.per_family.values())
+
+
+def test_the_command_runs_offline_and_writes_a_stable_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from openultrasast.cli import main
+
+    for name in ("OPENULTRASAST_HUNTER_CLIENT", "DEEPSEEK_API_KEY", "OPENROUTER_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    out = tmp_path / "learning"
+    assert main(["learning", "candidates", "--slice", "vibe-py", "--out", str(out)]) == 0
+    artifact = out / "candidate-ceiling.json"
+    assert artifact.is_file()
+    first = artifact.read_bytes()
+    assert main(["learning", "candidates", "--slice", "vibe-py", "--out", str(out)]) == 0
+    assert artifact.read_bytes() == first, "the ceiling is a property of the corpus, not of when it was measured"
+    import json
+
+    payload = json.loads(first)
+    assert payload["generator"] == "ir" and payload["per_family"] and payload["per_slice"]
