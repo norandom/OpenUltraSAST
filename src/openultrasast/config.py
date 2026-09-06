@@ -136,6 +136,14 @@ class VariantsConfig:
 
 
 @dataclass(frozen=True)
+class ObligationsConfig:
+    # authorization-obligations: the obligation checker in MAP (standard/deep only).
+    enabled: bool = True
+    min_siblings: int = 3
+    policy_path: str = ".openultrasast/obligations.toml"
+
+
+@dataclass(frozen=True)
 class ResolvedConfig:
     models: ModelConfig = ModelConfig()
     embeddings: EmbeddingConfig = EmbeddingConfig()
@@ -151,6 +159,7 @@ class ResolvedConfig:
     complexity: ComplexityConfig = ComplexityConfig()
     regress: RegressConfig = RegressConfig()
     variants: VariantsConfig = VariantsConfig()
+    obligations: ObligationsConfig = ObligationsConfig()
     runs_dir: str = ".openultrasast/runs"
 
 
@@ -176,6 +185,7 @@ def load_config(config_path: Path | None = None) -> ResolvedConfig:
         complexity=_load_complexity(data.get("complexity", {})),
         regress=_load_regress(data.get("regress", {})),
         variants=_load_variants(data.get("variants", {})),
+        obligations=_load_obligations(data.get("obligations", {})),
         runs_dir=os.environ.get("OPENULTRASAST_RUNS_DIR", ".openultrasast/runs"),
     )
 
@@ -344,4 +354,13 @@ def _load_variants(value: object) -> VariantsConfig:
     return VariantsConfig(
         enabled=bool(data.get("enabled", True)),
         max_mechanisms=_int_value(data.get("max_mechanisms"), 500),
+    )
+
+
+def _load_obligations(value: object) -> ObligationsConfig:
+    data = _section(value)
+    return ObligationsConfig(
+        enabled=bool(data.get("enabled", True)),
+        min_siblings=_int_value(data.get("min_siblings"), 3),
+        policy_path=str(data.get("policy_path", ".openultrasast/obligations.toml")),
     )

@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 from time import perf_counter
+from typing import Any
 
 from . import tool_hunter
 from .benchmark import (
@@ -31,7 +32,7 @@ from .calibration import (
 from .complexity import map as complexity_map
 from .complexity.ledger import persist_verdicts
 from .complexity.map import Hotspot
-from .config import load_config, load_dotenv
+from .config import ObligationsConfig, load_config, load_dotenv
 from .findings import StaticFinding, quick_scan_findings, write_findings
 from .fusion import FusionDecision, fuse_findings_dispatch
 from .gate import FALSE_POSITIVE_CEILING, RECALL_FLOOR
@@ -60,7 +61,7 @@ from .policy import assert_rules_resolve, load_policy
 from .preprocess import FileTarget, preprocess_repository, write_preprocess_artifact
 from .provenance import fingerprint
 from .provider.openrouter import OpenRouterEmbeddingClient, OpenRouterError
-from .rank import rank_targets, write_rankings
+from .rank import rank_obligations, rank_targets, write_rankings
 from .regress import TRIGGERABLE, CandidateVerdict, run_regression, write_verdicts
 from .regress.candidate import hotspot_from_finding
 from .reports import scan_exit_code, write_manifest, write_markdown_report, write_sarif_report
@@ -428,6 +429,8 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     variants_payload: dict[str, object] | None = None
     variant_findings: list[StaticFinding] = []
     mechanisms_cited: dict[str, dict[str, object]] = {}
+    obligations_payload: dict[str, object] | None = None
+    obligations_cited: dict[str, dict[str, object]] = {}
     if Stage.MAP in plan.requested:
         built_map = runtime.run_stage(
             "map",
@@ -473,6 +476,19 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
                 findings = findings + variant_findings
                 write_findings(findings, findings_path)
             write_overlay(overlay_records, overlay_path)
+        if config.obligations.enabled:
+            obligation_findings, obligations_payload, obligations_cited = _check_obligations(
+                root=run.target,
+                targets=targets,
+                entries=entry_points,
+                facts=facts_or_error,
+                settings=config.obligations,
+                runtime=runtime,
+                hunter_model=hunter_model,
+            )
+            if obligation_findings:
+                findings = rank_obligations(findings + obligation_findings)
+                write_findings(findings, findings_path)
         plan = record_completed(plan, Stage.MAP)
         if not hunter_model:
             runtime.state["degradations"].append(skip_as_degradation(Stage.MAP, "hunter_model_unavailable"))
@@ -553,6 +569,11 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             )
             write_verdicts(records, verdicts_path)
             persist_verdicts(run.target / CALIBRATION_DIR / "complexity_ledger.json", records)
+            # Req 6.4: proof rungs live on verdicts, not on StaticFinding, so obligations re-rank once the sandbox has spoken.
+            proven_ids = {fid for record in records if record.verdict == TRIGGERABLE for fid in record.inventory_finding_ids}
+            if proven_ids and any(finding.finding_id.startswith("obligation:") for finding in findings):
+                findings = rank_obligations(findings, proven_ids=proven_ids)
+                write_findings(findings, findings_path)
             _append_proven_mechanisms(store, records, overlay_records, findings, run.target)
             verdict_records = records
             wrote_verdicts = True
@@ -569,6 +590,8 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             verdicts=verdict_records if wrote_verdicts else None,
             overlay=overlay_records if wrote_overlay else None,
             mechanisms=mechanisms_cited or None,
+            obligations=obligations_cited or None,
+            obligations_summary=obligations_payload or None,
         ),
     )
     runtime.run_stage(
@@ -579,6 +602,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             sarif_path,
             overlay=overlay_records if wrote_overlay else None,
             mechanisms=mechanisms_cited or None,
+            obligations=obligations_cited or None,
         ),
     )
     runtime.run_stage(
@@ -608,6 +632,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             worth_fixing=worth_fixing_payload,
             provenance=provenance.to_dict(),
             variants=variants_payload,
+            obligations=obligations_payload,
         ),
     )
     runtime.finish(status="succeeded")
@@ -947,6 +972,95 @@ def _search_variants(
         if mechanism_id in cited_ids
     }
     return findings, records, payload, cited
+
+
+def _check_obligations(
+    *,
+    root: Path,
+    targets: list[FileTarget],
+    entries: Sequence[object],
+    facts: SemanticFacts | FactLoadError,
+    settings: ObligationsConfig,
+    runtime: HarnessRuntime,
+    hunter_model: str | None = None,
+) -> tuple[list[StaticFinding], dict[str, object], dict[str, dict[str, object]]]:
+    """Fourth MAP proposer (authorization-obligations Req 3-6): obligations without a dominating discharger, at suspicion.
+
+    Function-local until path records exist; the declared policy is read from the target; obligation findings never
+    enter the sandbox candidate set.
+    """
+    from .semantic.ir import parse_file
+    from .semantic.obligations import load_obligation_facts, obligation_mechanisms
+    from .semantic.obligations.check import check_obligations, findings_to_static
+    from .semantic.obligations.dominance import OrderDominance
+    from .semantic.obligations.policy import PolicyError, load_declared_policy
+
+    payload: dict[str, object] = {"sibling_sets": 0, "under_populated": 0, "operations": 0, "findings_by_label": {}, "policy_version": None}
+    if isinstance(facts, FactLoadError):
+        runtime.state["degradations"].append({"stage": "obligations", "reason": "facts_unavailable"})
+        return [], payload, {}
+    irs: dict[str, tuple[Any, str]] = {}
+    texts: dict[str, str] = {}
+    for target in targets:
+        try:
+            text = (root / target.path).read_text(errors="ignore")
+        except OSError:
+            continue
+        texts[target.path] = text
+        irs[target.path] = (parse_file(target.path, text, target.language), text)
+    policy = None
+    policy_path = root / settings.policy_path
+    try:
+        policy = load_declared_policy(policy_path)
+    except PolicyError as exc:
+        runtime.state["degradations"].append({"stage": "obligations", "reason": "policy_invalid", "detail": str(exc)[:200]})
+    store = MechanismStore(root / CALIBRATION_DIR / "mechanisms.jsonl")
+    result = runtime.run_stage(
+        "obligations",
+        lambda: check_obligations(
+            irs=irs,
+            entries=entries,
+            facts=load_obligation_facts(),
+            flow_facts=facts,
+            policy=policy,
+            paths=(),
+            dominance=OrderDominance(texts=texts),
+            store_shapes=obligation_mechanisms(store.load()),
+            min_siblings=settings.min_siblings,
+        ),
+    )
+    from .semantic.obligations.intent import adjudicate_intent
+
+    result = adjudicate_intent(result, client=tool_hunter.resolve_hunter_client(), model=hunter_model or "", texts=texts)
+    for degradation in result.degradations:
+        runtime.state["degradations"].append(degradation)
+    by_label: dict[str, int] = {}
+    for finding in result.findings:
+        by_label[finding.label] = by_label.get(finding.label, 0) + 1
+    payload = {
+        "sibling_sets": len(result.sibling_sets),
+        "under_populated": len(result.under_populated),
+        "operations": result.operations,
+        "findings_by_label": by_label,
+        "policy_version": result.policy_version,
+        "degradations": [dict(item) for item in result.degradations],
+        "sets": [{"module": group.key[0], "resource": group.key[1], "handlers": len(group.handlers)} for group in result.sibling_sets],
+    }
+    statics = findings_to_static(result)
+    cited: dict[str, dict[str, object]] = {}
+    for finding, static in zip(result.findings, statics, strict=True):
+        cited[static.finding_id] = {
+            "obligation": finding.operation.kind,
+            "resource": finding.operation.resource,
+            "missing": finding.missing,
+            "provenance": finding.provenance,
+            "label": finding.label,
+            "evidence": list(finding.evidence),
+            "known_fix": finding.known_fix,
+            "intent": finding.intent,
+            "intent_rationale": finding.intent_rationale,
+        }
+    return statics, payload, cited
 
 
 def _hotspot_from_variant(finding: StaticFinding) -> Hotspot:
