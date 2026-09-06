@@ -132,6 +132,10 @@ class PairCase:
     split_declared: bool = True  # False when the catalog row named no split, so the split helper may assign one
     fix_date: str = ""  # ISO date of the fixing commit; the catalog generator fills it, the split helper orders by it
     recipe: tuple[tuple[str, object], ...] = ()  # pointer pairs carry their harvest recipe instead of excerpts
+    # (relpath, vuln document, fixed document): files that register the handler from outside its own module — an
+    # OpenAPI operation, a router table. Materialized beside the excerpt so the mapper can name the handler at all
+    # (learning-harness Req 10.2).
+    context_files: tuple[tuple[str, Path, Path], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -264,6 +268,7 @@ def _load_catalog_file(path: Path) -> tuple[PairCase, ...]:
             vuln_file, fixed_file = _resolve(root, str(item["vuln"])), _resolve(root, str(item["fixed"]))
         else:
             vuln_file, fixed_file, recipe = _pointer_files(item, slice_name, name)
+        context_files = _context_files(item, root, name)
         cases.append(
             PairCase(
                 name=name,
@@ -291,9 +296,28 @@ def _load_catalog_file(path: Path) -> tuple[PairCase, ...]:
                 reviewer=reviewer,
                 vendored=vendored,
                 recipe=recipe,
+                context_files=context_files,
             )
         )
     return tuple(cases)
+
+
+def _context_files(item: dict[str, object], root: Path, name: str) -> tuple[tuple[str, Path, Path], ...]:
+    rows = item.get("context")
+    if not rows:
+        return ()
+    if not isinstance(rows, list):
+        raise CatalogError(f"pair {name}: context must be a list of tables")
+    out: list[tuple[str, Path, Path]] = []
+    for row in rows:
+        if not isinstance(row, dict) or not {"relpath", "vuln", "fixed"} <= set(row):
+            raise CatalogError(f"pair {name}: each context row needs relpath, vuln and fixed")
+        vuln, fixed = _resolve(root, str(row["vuln"])), _resolve(root, str(row["fixed"]))
+        for path in (vuln, fixed):
+            if not path.is_file():
+                raise CatalogError(f"pair {name}: context document {path} is missing; re-harvest the row")
+        out.append((str(row["relpath"]), vuln, fixed))
+    return tuple(out)
 
 
 def pair_cache_dir() -> Path:
@@ -395,8 +419,8 @@ def _review_tier(item: dict[str, object], slice_name: str, name: str) -> tuple[s
 
 def evaluate_pair(case: PairCase, *, hunter: HunterScan | None = None, ruleset: tuple[PatternRule, ...] | None = None) -> PairOutcome:
     with tempfile.TemporaryDirectory(prefix="ousast-pair-") as scratch:
-        vuln_root = _materialize(Path(scratch) / "vuln", case.vuln_file, case.relpath)
-        fix_root = _materialize(Path(scratch) / "fixed", case.fixed_file, case.relpath)
+        vuln_root = _materialize_side(Path(scratch) / "vuln", case, side="vuln")
+        fix_root = _materialize_side(Path(scratch) / "fixed", case, side="fixed")
         if hunter is not None:
             return _evaluate_hunter_pair(case, vuln_root, fix_root, hunter)
         if case.slice in OVERLAY_SLICES:
@@ -609,7 +633,9 @@ def duplicate_groups(cases: Sequence[PairCase]) -> tuple[tuple[str, ...], ...]:
         digest = _body_digest(case.vuln_file) if case.vendored else None
         if digest is not None:
             by_digest.setdefault(digest, []).append(case.name)
-    return tuple(tuple(sorted(names)) for _, names in sorted(by_digest.items()) if len(names) > 1)
+    # Ordered by name, not by digest: the report is a committed artifact and a re-harvest that changes one excerpt
+    # must not reshuffle rows it did not touch.
+    return tuple(sorted(tuple(sorted(names)) for names in by_digest.values() if len(names) > 1))
 
 
 def split_by_repository(cases: Sequence[PairCase], *, holdout_fraction: float = 0.5) -> tuple[tuple[PairCase, ...], SplitReport]:
@@ -783,6 +809,14 @@ def _materialize(dest: Path, source: Path, relpath: str) -> Path:
     return dest
 
 
+def _materialize_side(dest: Path, case: PairCase, *, side: str) -> Path:
+    """The excerpt plus the documents that register it, at their own repository-relative paths."""
+    root = _materialize(dest, case.vuln_file if side == "vuln" else case.fixed_file, case.relpath)
+    for relpath, vuln_doc, fixed_doc in case.context_files:
+        _materialize(root, vuln_doc if side == "vuln" else fixed_doc, relpath)
+    return root
+
+
 # --- scans -----------------------------------------------------------------
 
 
@@ -864,8 +898,8 @@ def _obligation_scan(root: Path, targets: Sequence[FileTarget]) -> list[StaticFi
 
 def _inventory_only(case: PairCase, ruleset: tuple[PatternRule, ...] | None = None) -> PairOutcome:
     with tempfile.TemporaryDirectory(prefix="ousast-pair-inv-") as scratch:
-        vuln_root = _materialize(Path(scratch) / "vuln", case.vuln_file, case.relpath)
-        fix_root = _materialize(Path(scratch) / "fixed", case.fixed_file, case.relpath)
+        vuln_root = _materialize_side(Path(scratch) / "vuln", case, side="vuln")
+        fix_root = _materialize_side(Path(scratch) / "fixed", case, side="fixed")
         return _evaluate_inventory_pair(case, vuln_root, fix_root, ruleset=ruleset)
 
 

@@ -3272,6 +3272,7 @@ class = "broken_access_control"
 path = "server/api/v1/api_v1.py"
 function = "delete"
 mechanism = "missing_auth_guard"
+family = "access_control"
 evidence = "BFLA (Broken Function Level Authorization) on the delete-user API endpoint. The @token_required decorator is commented out (lines 221-222), so DELETE /api/v1/delete-user/<user_id> can be called by anyone without authentication to delete any"
 
 [[pair]]
@@ -3301,6 +3302,7 @@ class = "broken_access_control"
 path = "server/api/v1/api_v1.py"
 function = "get"
 mechanism = "missing_auth_guard"
+family = "access_control"
 evidence = "BOLA (Broken Object Level Authorization) on the API profile endpoint. The @token_required decorator is commented out (line 152-153), so /api/v1/profile?user_id=X returns any user's profile (username, email, country, role, permissions, team)"
 
 [[pair]]
@@ -3353,12 +3355,18 @@ provenance = "human"
 split = "holdout"
 review_tier = "seeded"
 
+[[pair.context]]
+relpath = "openapi_specs/openapi3.yml"
+vuln = "vampi-books-get-by-title/context/vuln/openapi_specs/openapi3.yml"
+fixed = "vampi-books-get-by-title/context/fixed/openapi_specs/openapi3.yml"
+
 [[pair.expected]]
 cwe = "CWE-639"
 class = "broken_access_control"
 path = "api_views/books.py"
 function = "get_by_title"
 mechanism = "missing_auth_guard"
+family = "access_control"
 evidence = "Broken Object Level Authorization (BOLA). When vuln=1, get_by_title queries the book by title only (Book.query.filter_by(book_title=str(book_title)).first()) without verifying the authenticated user is the owner. Any authenticated user can "
 
 [[pair]]
@@ -3411,12 +3419,18 @@ provenance = "human"
 split = "holdout"
 review_tier = "seeded"
 
+[[pair.context]]
+relpath = "openapi_specs/openapi3.yml"
+vuln = "vampi-users-update-password/context/vuln/openapi_specs/openapi3.yml"
+fixed = "vampi-users-update-password/context/fixed/openapi_specs/openapi3.yml"
+
 [[pair.expected]]
 cwe = "CWE-639"
 class = "broken_access_control"
 path = "api_views/users.py"
 function = "update_password"
 mechanism = "missing_auth_guard"
+family = "access_control"
 evidence = "Unauthorized password change (IDOR). When vuln=1, the update_password function uses the username from the URL path parameter to look up the user whose password to change, instead of using the authenticated user from the JWT token (resp['sub"
 
 [[pair]]

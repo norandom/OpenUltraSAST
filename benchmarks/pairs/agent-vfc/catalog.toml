@@ -881,13 +881,15 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "title"
+known_limit = "client_side_caller"
 
 [[pair.expected]]
 cwe = "CWE-862"
 class = "missing authorization"
 path = "components/KubernetesManagement.tsx"
-function = "setErrorMessage"
+function = "loadNamespaces"
 mechanism = "missing_auth_guard"
+family = "access_control"
 evidence = "Fix missing auth header on namespaces API call"
 
 [[pair]]
@@ -1091,7 +1093,7 @@ review_tier = "title"
 cwe = "CWE-16"
 class = "permissive default"
 path = "src/presentation/http/app.ts"
-function = "origin"
+function = "createApplication"
 mechanism = "permissive_default"
 evidence = "fix: allow patch requests through cors"
 
@@ -1214,6 +1216,7 @@ class = "insecure direct object reference"
 path = "backend/app/routers/jobs.py"
 function = "get_job"
 mechanism = "identity_from_request_body"
+family = "access_control"
 evidence = "Fix IDOR on job endpoint: case-bound jobs require case ownership"
 
 [[pair]]
@@ -1243,6 +1246,7 @@ class = "insecure direct object reference"
 path = "backend/app/routers/jobs.py"
 function = "get_job"
 mechanism = "identity_from_request_body"
+family = "access_control"
 evidence = "Fix IDOR on job endpoint: case-bound jobs require case ownership"
 
 [[pair]]
@@ -1266,12 +1270,18 @@ provenance = "agent"
 split = "train"
 review_tier = "title"
 
+[[pair.context]]
+relpath = "services/web/app/src/router.mjs"
+vuln = "overleaf-with-claude-exportscontroller-3980b9/context/vuln/services/web/app/src/router.mjs"
+fixed = "overleaf-with-claude-exportscontroller-3980b9/context/fixed/services/web/app/src/router.mjs"
+
 [[pair.expected]]
 cwe = "CWE-639"
 class = "insecure direct object reference"
 path = "services/web/app/src/Features/Exports/ExportsController.mjs"
 function = "exportProject"
 mechanism = "identity_from_request_body"
+family = "access_control"
 evidence = "Fix IDOR in exports by adding token verification (Issue #31637) (#32883)"
 
 [[pair]]
@@ -1483,6 +1493,7 @@ class = "insecure direct object reference"
 path = "app/api/customers/claims/route.ts"
 function = "PATCH"
 mechanism = "identity_from_request_body"
+family = "access_control"
 evidence = "Brief 62: Fix IDOR on customer_claims PATCH/DELETE (#156)"
 
 [[pair]]
@@ -1512,7 +1523,7 @@ class = "insecure direct object reference"
 path = "app/api/customers/opportunities/route.ts"
 function = "GET"
 mechanism = "identity_from_request_body"
-sink = "path"
+family = "access_control"
 evidence = "Brief 60: Fix IDOR on opportunities GET/PATCH/DELETE (missing company membership checks) (#148)"
 
 [[pair]]
@@ -1749,7 +1760,7 @@ review_tier = "title"
 cwe = "CWE-89"
 class = "sql injection"
 path = "src/utils.ts"
-function = "normalizeDomain"
+function = "getGoogleProvider"
 mechanism = "source_reaches_sink"
 evidence = "Fix SQL injection in search by using parameterized queries (#41)"
 

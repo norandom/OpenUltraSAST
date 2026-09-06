@@ -5,7 +5,7 @@
 // commit_url: https://github.com/Sachin-Salgar/NEW_ERP_FINAL/commit/6e9644c81ce3fb356669157182a5ef09a70c4b59
 // cve: 
 // license: Apache-2.0
-// function: origin
+// function: createApplication
 // relpath: src/presentation/http/app.ts
 // provenance: agent
 // mechanism: permissive_default

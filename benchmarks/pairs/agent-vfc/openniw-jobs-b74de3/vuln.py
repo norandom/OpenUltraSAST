@@ -1,4 +1,4 @@
-# Provenance: ziyuzuo/openniw  (vuln).
+# Provenance: ziyuzuo/openniw get_job (vuln).
 # repo: ziyuzuo/openniw
 # commit: 98a0c392ba96cd2c4aa746dd6fc2b183f385225e
 # parent: 98a0c392ba96cd2c4aa746dd6fc2b183f385225e
@@ -9,7 +9,9 @@
 # relpath: backend/app/routers/jobs.py
 # provenance: agent
 # mechanism: identity_from_request_body
+# upstream_start: 9
 
+@router.get("/{job_id}")
 async def get_job(job_id: str, user: dict = Depends(auth.current_user)) -> dict:
     job = await jobs_service.get(job_id)
     if job is None:

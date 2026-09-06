@@ -125,7 +125,7 @@ def score_case(case: PairCase, scan: Scan, *, taxonomy: FamilyTaxonomy, runs: in
     A pair the corpus already marked unscorable is never run: spending model calls on a row that cannot
     be scored buys nothing and would put its noise into a floor it does not belong in.
     """
-    from ..pairs import _materialize, _overlay_scan
+    from ..pairs import _materialize_side, _overlay_scan
 
     name = family or _family_of(case, taxonomy)
     if case.unscorable:
@@ -138,8 +138,8 @@ def score_case(case: PairCase, scan: Scan, *, taxonomy: FamilyTaxonomy, runs: in
             unscorable_reason=case.unscorable,
         )
     with tempfile.TemporaryDirectory(prefix="ousast-round-") as scratch:
-        vuln_root = _materialize(Path(scratch) / "vuln", case.vuln_file, case.relpath)
-        fix_root = _materialize(Path(scratch) / "fixed", case.fixed_file, case.relpath)
+        vuln_root = _materialize_side(Path(scratch) / "vuln", case, side="vuln")
+        fix_root = _materialize_side(Path(scratch) / "fixed", case, side="fixed")
         ranges = _overlay_scan(vuln_root).ranges
         vuln_runs = [scan(vuln_root) for _ in range(max(runs, 1))]
         fix_runs = [scan(fix_root) for _ in range(max(runs, 1))]

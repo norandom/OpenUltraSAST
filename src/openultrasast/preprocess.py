@@ -18,6 +18,8 @@ LANGUAGE_BY_EXTENSION = {
     ".py": "python",
     ".js": "javascript",
     ".jsx": "javascript",
+    ".mjs": "javascript",  # ES modules and CommonJS modules are JavaScript; without them the file has no target at all
+    ".cjs": "javascript",
     ".ts": "typescript",
     ".tsx": "typescript",
     ".go": "go",

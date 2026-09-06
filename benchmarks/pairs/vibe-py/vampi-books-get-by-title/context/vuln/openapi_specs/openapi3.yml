@@ -1,0 +1,79 @@
+# Provenance: erev0s/VAmPI get_by_title (vuln).
+# repo: erev0s/VAmPI
+# commit: 1713b54b601ad29582581eeda4b31fceb1319874
+# parent: 1713b54b601ad29582581eeda4b31fceb1319874
+# commit_url: https://github.com/erev0s/VAmPI/blob/1713b54b601ad29582581eeda4b31fceb1319874/api_views/books.py#L51
+# cve: 
+# license: MIT
+# function: get_by_title
+# relpath: openapi_specs/openapi3.yml
+# provenance: human
+# mechanism: missing_auth_guard
+
+paths:
+  /books/v1/{book_title}:
+    get:
+      security:
+        - bearerAuth: [ ]
+      tags:
+        - books
+      summary: Retrieves book by title along with secret
+      description: >-
+        Retrieves book by title along with secret. Only the owner may retrieve
+        it
+      operationId: api_views.books.get_by_title
+      parameters:
+        - name: book_title
+          in: path
+          description: retrieve book data
+          required: true
+          schema:
+            type: string
+            example: 'bookTitle77'
+      responses:
+        '200':
+          description: Successfully retrieve book info
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    book_title:
+                      type: string
+                      example: 'bookTitle77'
+                    owner:
+                      type: string
+                      example: 'name1'
+                    secret:
+                      type: string
+                      example: 'secret for bookTitle77'
+        '401':
+          description: User not authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: ['fail']
+                    example: 'fail'
+                  message:
+                    type: string
+                    example: 'Invalid token. Please log in again.'
+        '404':
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: ['fail']
+                    example: 'fail'
+                  message:
+                    type: string
+                    example: 'Book not found!'

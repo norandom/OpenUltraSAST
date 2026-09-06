@@ -105,6 +105,7 @@ def analyze_entry_points(root: Path, targets: list[FileTarget]) -> list[EntryPoi
         text = path.read_text(errors="ignore")
         records.extend(_language_entry_points(target, text))
         records.extend(_tag_entry_points(target))
+    records.extend(_route_manifest_entry_points(root, targets))
     return sorted(records, key=lambda item: (item.path, item.line is None, item.line or 0, item.name))
 
 
@@ -249,9 +250,8 @@ def _js_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
     route_tokens = (".get(", ".post(", ".put(", ".delete(", ".patch(", ".use(")
     lines = text.splitlines()
     bounds = _js_function_bounds(lines)
-    for number, line in enumerate(lines, start=1):
-        stripped = line.strip()
-        if any(token in stripped for token in route_tokens) and any(prefix in stripped for prefix in ("app", "router", "server")):
+    for number, stripped in _js_statements(lines):
+        if any(token in stripped for token in route_tokens) and any(prefix in stripped.lower() for prefix in ("app", "router", "server")):
             handler, middleware = _js_registration(stripped, bounds)
             access, evidence = _js_route_access(middleware, stripped)
             start, end = bounds.get(handler or "", (number, number))
@@ -286,6 +286,89 @@ def _js_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
             )
     records.extend(_js_route_module(target, lines, bounds))
     return records
+
+
+_OPERATION_ID = re.compile(r"""^\s*(?:-\s*)?["']?operationId["']?\s*:\s*["']?([\w.]+)["']?,?\s*$""")
+_MANIFEST_SUFFIXES = (".yml", ".yaml", ".json")
+_MANIFEST_MAX_BYTES = 2_000_000
+
+
+def _route_manifest_entry_points(root: Path, targets: Sequence[FileTarget]) -> list[EntryPointRecord]:
+    """Handlers a *document* registers: an OpenAPI `operationId` names the function connexion, FastAPI-from-spec or an
+    API gateway will call, and the `security` block beside it is the guard.
+
+    Frameworks that keep the route table out of the handler file leave every handler looking like a plain function, so
+    an absence bug on one is unreachable and unjudgeable. The document itself is not a source file — it never becomes a
+    file target — so the record is attributed to the module the operation id points at when that module is present
+    (learning-harness Req 10.2)."""
+    modules = {target.path for target in targets}
+    records: list[EntryPointRecord] = []
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or path.suffix.lower() not in _MANIFEST_SUFFIXES:
+            continue
+        try:
+            if path.stat().st_size > _MANIFEST_MAX_BYTES:
+                continue
+            lines = path.read_text(errors="ignore").splitlines()
+        except OSError:
+            continue
+        relative = path.relative_to(root).as_posix()
+        for index, line in enumerate(lines):
+            match = _OPERATION_ID.match(line)
+            if match is None:
+                continue
+            operation = match.group(1)
+            handler = operation.rsplit(".", 1)[-1]
+            owner = _operation_module(operation, modules)
+            access, evidence = _manifest_access(lines, index)
+            records.append(
+                EntryPointRecord(
+                    path=owner or relative,
+                    line=None if owner else index + 1,
+                    end_line=None if owner else index + 1,
+                    function_name=handler,
+                    name=operation,
+                    kind="route",
+                    access_level=access,
+                    trust_boundary="http_request",
+                    access_evidence=evidence,
+                    conditions=[],
+                    provenance=f"entrypoint:route:{access}",
+                    rationale=f"registered by operationId {operation} in {relative}",
+                )
+            )
+    return records
+
+
+def _operation_module(operation: str, modules: set[str]) -> str | None:
+    """`api_views.books.get_by_title` -> `api_views/books.py` when that file is in the snapshot."""
+    parts = operation.split(".")
+    if len(parts) < 2:
+        return None
+    for depth in range(len(parts) - 1, 0, -1):
+        candidate = "/".join(parts[:depth]) + ".py"
+        if candidate in modules:
+            return candidate
+    return None
+
+
+def _manifest_access(lines: Sequence[str], hit: int) -> tuple[AccessLevel, list[str]]:
+    """The operation's own `security` block decides. `security: []` is an explicit opt-out and stays public."""
+    indent = len(lines[hit]) - len(lines[hit].lstrip())
+    start = hit
+    while start > 0 and (not lines[start - 1].strip() or len(lines[start - 1]) - len(lines[start - 1].lstrip()) >= indent):
+        start -= 1
+    end = hit + 1
+    while end < len(lines) and (not lines[end].strip() or len(lines[end]) - len(lines[end].lstrip()) >= indent):
+        end += 1
+    for index in range(start, end):
+        stripped = lines[index].strip()
+        if not stripped.startswith("security"):
+            continue
+        if stripped.replace(" ", "") in {"security:[]", '"security":[]', "security:[],", '"security":[],'}:
+            return "public", [f"{stripped} declares the operation public"]
+        return "authenticated", [f"security block at {lines[index].strip()}"]
+    return "public", ["operation declares no security requirement"]
 
 
 _RESOURCE_BASES = ("resource", "methodview", "apiview", "viewset", "modelviewset", "httpendpoint")
@@ -534,12 +617,21 @@ def _safe_unparse(node: ast.AST) -> str:
         return ""
 
 
+_STRING_LITERAL = re.compile(r"""(['"]).*?\1""", re.DOTALL)
+
+
 def _python_route_access(decorators: list[str]) -> tuple[AccessLevel, list[str]]:
+    """The guard is the decorator's *name*, never its prose.
+
+    `@ns.doc(description='... without proper authorization checks')` documents the bug; matching "authorization"
+    inside it reads an unguarded endpoint as guarded and silences every obligation on it, which is exactly the
+    absence the corpus exists to catch (learning-harness Req 10.2)."""
     role_tokens = ("role", "permission", "admin", "owner")
-    auth_tokens = ("login_required", "authenticated", "auth", "jwt_required")
+    auth_tokens = ("login_required", "authenticated", "auth", "jwt_required", "token_required", "require_token")
     access_decorators = [decorator for decorator in decorators if not _looks_like_route_decorator(decorator)]
-    evidence = [decorator for decorator in access_decorators if any(token in decorator.lower() for token in role_tokens + auth_tokens)]
-    lowered = "\n".join(evidence).lower()
+    named = {decorator: _STRING_LITERAL.sub("", decorator).lower() for decorator in access_decorators}
+    evidence = [decorator for decorator in access_decorators if any(token in named[decorator] for token in role_tokens + auth_tokens)]
+    lowered = "\n".join(named[decorator] for decorator in evidence)
     if any(token in lowered for token in role_tokens):
         return "role-restricted", evidence
     if any(token in lowered for token in auth_tokens):
@@ -593,6 +685,32 @@ def _js_function_bounds(lines: Sequence[str]) -> dict[str, tuple[int, int]]:
     return bounds
 
 
+def _js_statements(lines: Sequence[str]) -> list[tuple[int, str]]:
+    """One entry per statement, with the line its first token sits on.
+
+    An express route is often written over several lines, one middleware per line, and the guard is exactly what
+    those middle lines say. Read line by line, `webRouter.post(` carries no handler and no middleware at all, so the
+    route reads as public and the handler is never named (learning-harness Req 10.2)."""
+    statements: list[tuple[int, str]] = []
+    index = 0
+    while index < len(lines):
+        stripped = lines[index].strip()
+        joined, span = stripped, 1
+        while joined.count("(") > joined.count(")") and span < _MAX_STATEMENT_LINES and index + span < len(lines):
+            joined = f"{joined} {lines[index + span].strip()}"
+            span += 1
+        if span > 1 and joined.count("(") <= joined.count(")"):
+            statements.append((index + 1, joined))
+            index += span
+            continue
+        statements.append((index + 1, stripped))
+        index += 1
+    return statements
+
+
+_MAX_STATEMENT_LINES = 12
+
+
 def _js_registration(line: str, bounds: Mapping[str, tuple[int, int]]) -> tuple[str | None, list[str]]:
     """`router.get('/books', requireAuth, listBooks)` -> the handler identifier and the middleware identifiers before it."""
     body = line[line.find("(") + 1 : line.rfind(")")] if "(" in line and line.rfind(")") > line.find("(") else ""
@@ -600,9 +718,9 @@ def _js_registration(line: str, bounds: Mapping[str, tuple[int, int]]) -> tuple[
     identifiers = [part for part in parts[1:] if _JS_IDENTIFIER.match(part)]
     if not identifiers:
         return None, [line]
-    handler = next((name for name in reversed(identifiers) if name in bounds), identifiers[-1])
+    handler = next((name for name in reversed(identifiers) if name in bounds or name.rsplit(".", 1)[-1] in bounds), identifiers[-1])
     middleware = [name for name in identifiers if name != handler]
-    return handler, middleware
+    return handler.rsplit(".", 1)[-1], middleware  # `ExportsController.exportProject` is registered; `exportProject` is defined
 
 
 def _js_route_access(middleware: Sequence[str], line: str) -> tuple[AccessLevel, list[str]]:

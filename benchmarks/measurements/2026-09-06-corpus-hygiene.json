@@ -1,45 +1,83 @@
 {
   "command": "python -c 'from openultrasast.pairs import ...; duplicate_groups / split_by_repository over the vendored catalog'",
-  "duplicate_groups": [
-    [
-      "openssl-cve-2023-0286",
-      "openssl-cve-2023-0286-general_name_cmp"
-    ],
-    [
-      "openniw-jobs-0fc947",
-      "openniw-jobs-b74de3"
-    ],
+  "cross_split_duplicates": [
     [
       "curl-cve-2023-38545",
       "curl-cve-2023-38545-do_socks5"
-    ],
-    [
-      "openssl-cve-2021-3712",
-      "openssl-cve-2021-3712-append_ia5"
-    ],
-    [
-      "openssl-cve-2020-1967",
-      "openssl-cve-2020-1967-tls1_check_sig_alg"
-    ],
-    [
-      "openssl-cve-2022-3786",
-      "openssl-cve-2022-3786-ossl_punycode_decode"
-    ],
-    [
-      "openssl-cve-2020-1971",
-      "openssl-cve-2020-1971-general_name_cmp"
     ],
     [
       "etude-lexical-markdown-editorconfig-c61a8b",
       "popmark-editorconfig-e5ac40"
     ],
     [
-      "anastasios-pw-session-14ec1a",
-      "astroclaw-pw-session-1553a8"
+      "openniw-jobs-0fc947",
+      "openniw-jobs-b74de3"
+    ],
+    [
+      "openssl-cve-2020-1967",
+      "openssl-cve-2020-1967-tls1_check_sig_alg"
+    ],
+    [
+      "openssl-cve-2020-1971",
+      "openssl-cve-2020-1971-general_name_cmp"
+    ],
+    [
+      "openssl-cve-2021-3712",
+      "openssl-cve-2021-3712-append_ia5"
     ],
     [
       "openssl-cve-2022-3602",
       "openssl-cve-2022-3602-ossl_punycode_decode"
+    ],
+    [
+      "openssl-cve-2022-3786",
+      "openssl-cve-2022-3786-ossl_punycode_decode"
+    ],
+    [
+      "openssl-cve-2023-0286",
+      "openssl-cve-2023-0286-general_name_cmp"
+    ]
+  ],
+  "duplicate_groups": [
+    [
+      "anastasios-pw-session-14ec1a",
+      "astroclaw-pw-session-1553a8"
+    ],
+    [
+      "curl-cve-2023-38545",
+      "curl-cve-2023-38545-do_socks5"
+    ],
+    [
+      "etude-lexical-markdown-editorconfig-c61a8b",
+      "popmark-editorconfig-e5ac40"
+    ],
+    [
+      "openniw-jobs-0fc947",
+      "openniw-jobs-b74de3"
+    ],
+    [
+      "openssl-cve-2020-1967",
+      "openssl-cve-2020-1967-tls1_check_sig_alg"
+    ],
+    [
+      "openssl-cve-2020-1971",
+      "openssl-cve-2020-1971-general_name_cmp"
+    ],
+    [
+      "openssl-cve-2021-3712",
+      "openssl-cve-2021-3712-append_ia5"
+    ],
+    [
+      "openssl-cve-2022-3602",
+      "openssl-cve-2022-3602-ossl_punycode_decode"
+    ],
+    [
+      "openssl-cve-2022-3786",
+      "openssl-cve-2022-3786-ossl_punycode_decode"
+    ],
+    [
+      "openssl-cve-2023-0286",
+      "openssl-cve-2023-0286-general_name_cmp"
     ]
   ],
   "generated": "2026-09-06",
@@ -53,7 +91,7 @@
   "known_limit": [
     "owasp-java-hash"
   ],
-  "note": "Repositories in `straddling` have pairs on both sides of the train/holdout split, so a learning path can be taught by one file of a repository and evaluated on another. Pairs in `duplicate_groups` share a vulnerable excerpt byte for byte after the provenance header is stripped. Both cap what any detector number can mean.",
+  "note": "Repositories in `straddling` have pairs on both sides of the train/holdout split, so a learning path can be taught by one file of a repository and evaluated on another. Pairs in `duplicate_groups` share a vulnerable excerpt byte for byte after the provenance header is stripped. Both cap what any detector number can mean. Groups in `cross_split_duplicates` sit on both sides of the split while being the same code, so the train row teaches the holdout row exactly; forks of one project defeat the repository-level split.",
   "straddling": [
     [
       "Contrast-Security-OSS/DjanGoat",

@@ -9,6 +9,7 @@
 # relpath: api_views/books.py
 # provenance: human
 # mechanism: missing_auth_guard
+# upstream_start: 45
 
 def get_by_title(book_title):
     resp = token_validator(request.headers.get('Authorization'))

@@ -3208,7 +3208,7 @@ parent = "c4db46f72586c4ecb65859051ea037018dbf0e5e"
 commit = "c4db46f72586c4ecb65859051ea037018dbf0e5e"
 path = "server/api/v1/api_v1.py"
 fix_path = "server/api/v1/api_v1.py"
-mode = "enclosing"
+mode = "handler_context"
 line = 223
 fix_line = 123
 function = "delete"
@@ -3229,6 +3229,8 @@ trap_id = "threatbyte-fp-004"
 acceptable_cwes = ["CWE-862", "CWE-306", "CWE-284", "CWE-287"]
 evidence = "BFLA (Broken Function Level Authorization) on the delete-user API endpoint. The @token_required decorator is commented out (lines 221-222), so DELETE /api/v1/delete-user/<user_id> can be called by anyone without authentication to delete any"
 commit_url = "https://github.com/anotherik/ThreatByte/blob/c4db46f72586c4ecb65859051ea037018dbf0e5e/server/api/v1/api_v1.py#L223"
+family = "access_control"
+fix_function = "post"
 split = "train"
 
 [[recipe]]
@@ -3239,7 +3241,7 @@ parent = "c4db46f72586c4ecb65859051ea037018dbf0e5e"
 commit = "c4db46f72586c4ecb65859051ea037018dbf0e5e"
 path = "server/api/v1/api_v1.py"
 fix_path = "server/api/v1/api_v1.py"
-mode = "enclosing"
+mode = "handler_context"
 line = 154
 fix_line = 123
 function = "get"
@@ -3260,6 +3262,8 @@ trap_id = "threatbyte-fp-004"
 acceptable_cwes = ["CWE-639", "CWE-284", "CWE-862", "CWE-863"]
 evidence = "BOLA (Broken Object Level Authorization) on the API profile endpoint. The @token_required decorator is commented out (line 152-153), so /api/v1/profile?user_id=X returns any user's profile (username, email, country, role, permissions, team)"
 commit_url = "https://github.com/anotherik/ThreatByte/blob/c4db46f72586c4ecb65859051ea037018dbf0e5e/server/api/v1/api_v1.py#L154"
+family = "access_control"
+fix_function = "post"
 split = "holdout"
 
 [[recipe]]
@@ -3301,7 +3305,7 @@ parent = "1713b54b601ad29582581eeda4b31fceb1319874"
 commit = "1713b54b601ad29582581eeda4b31fceb1319874"
 path = "api_views/books.py"
 fix_path = "api_views/books.py"
-mode = "enclosing"
+mode = "handler_context"
 line = 51
 fix_line = 62
 function = "get_by_title"
@@ -3322,6 +3326,8 @@ trap_id = "vampi-fp-003"
 acceptable_cwes = ["CWE-639", "CWE-284", "CWE-285", "CWE-862"]
 evidence = "Broken Object Level Authorization (BOLA). When vuln=1, get_by_title queries the book by title only (Book.query.filter_by(book_title=str(book_title)).first()) without verifying the authenticated user is the owner. Any authenticated user can "
 commit_url = "https://github.com/erev0s/VAmPI/blob/1713b54b601ad29582581eeda4b31fceb1319874/api_views/books.py#L51"
+family = "access_control"
+context = ["openapi_specs/openapi3.yml"]
 split = "holdout"
 
 [[recipe]]
@@ -3363,7 +3369,7 @@ parent = "1713b54b601ad29582581eeda4b31fceb1319874"
 commit = "1713b54b601ad29582581eeda4b31fceb1319874"
 path = "api_views/users.py"
 fix_path = "api_views/users.py"
-mode = "enclosing"
+mode = "handler_context"
 line = 187
 fix_line = 55
 function = "update_password"
@@ -3384,6 +3390,9 @@ trap_id = "vampi-fp-001"
 acceptable_cwes = ["CWE-639", "CWE-284", "CWE-285", "CWE-862"]
 evidence = "Unauthorized password change (IDOR). When vuln=1, the update_password function uses the username from the URL path parameter to look up the user whose password to change, instead of using the authenticated user from the JWT token (resp['sub"
 commit_url = "https://github.com/erev0s/VAmPI/blob/1713b54b601ad29582581eeda4b31fceb1319874/api_views/users.py#L187"
+family = "access_control"
+fix_function = "register_user"
+context = ["openapi_specs/openapi3.yml"]
 split = "holdout"
 
 [[recipe]]

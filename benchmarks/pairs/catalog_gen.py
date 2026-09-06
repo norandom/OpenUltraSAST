@@ -37,6 +37,14 @@ def excerpt_rel(recipe: dict[str, object]) -> tuple[str, str]:
     return f"{name}/vuln{ext}", f"{name}/fixed{ext}"
 
 
+def context_rel(recipe: dict[str, object]) -> list[tuple[str, str, str]]:
+    """`(relpath, vuln document, fixed document)` for every document that registers the handler from outside its module."""
+    name = str(recipe["name"])
+    value = recipe.get("context") or ()
+    relpaths = (value,) if isinstance(value, str) else tuple(str(item) for item in value)
+    return [(relpath, f"{name}/context/vuln/{relpath}", f"{name}/context/fixed/{relpath}") for relpath in relpaths]
+
+
 def _q(value: object) -> str:
     return str(value).replace("\\", "\\\\").replace('"', '\\"')
 
@@ -85,6 +93,14 @@ def catalog_text(slice_name: str, recipes: list[dict[str, object]]) -> str:
             lines.append(f'reviewer = "{_q(reviewer)}"')
         if recipe.get("known_limit"):
             lines.append(f'known_limit = "{_q(recipe["known_limit"])}"')
+        for relpath, context_vuln, context_fixed in context_rel(recipe):
+            lines += [
+                "",
+                "[[pair.context]]",
+                f'relpath = "{_q(relpath)}"',
+                f'vuln = "{_q(context_vuln)}"',
+                f'fixed = "{_q(context_fixed)}"',
+            ]
         lines += [
             "",
             "[[pair.expected]]",
@@ -95,6 +111,8 @@ def catalog_text(slice_name: str, recipes: list[dict[str, object]]) -> str:
         if recipe.get("function"):
             lines.append(f'function = "{_q(recipe["function"])}"')
         lines.append(f'mechanism = "{_q(recipe.get("mechanism", "other"))}"')
+        if recipe.get("family"):
+            lines.append(f'family = "{_q(recipe["family"])}"')  # Req 1: the family routes the work, never a CWE lookup
         if recipe.get("rule_id"):
             lines.append(f'rule_id = "{_q(recipe["rule_id"])}"')
         if recipe.get("sink"):

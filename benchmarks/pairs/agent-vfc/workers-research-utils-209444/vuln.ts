@@ -5,7 +5,7 @@
 // commit_url: https://github.com/G4brym/workers-research/commit/209444eb61cc564c2d6b43267256f85fe3e5e30e
 // cve: 
 // license: MIT
-// function: normalizeDomain
+// function: getGoogleProvider
 // relpath: src/utils.ts
 // provenance: agent
 // mechanism: source_reaches_sink

@@ -44,7 +44,11 @@ def test_the_report_covers_the_whole_corpus_and_names_the_unknowns(tmp_path: Pat
     assert report.unknown == 2 and report.per_tier["static"] == len(cases) - 2  # tier one places all but two rows
     payload = report.to_dict()
     json.dumps(payload)
-    assert payload["labeled"] == 0  # no maintainer family labels in the corpus yet, and the report says so
+    # Task 4.1 declared `family` on the ten absence rows; only the four at a reference tier (`seeded`) count as labels
+    # a maintainer stands behind, and the six `title`-tier agent rows do not. Agreement over four rows of one family is
+    # not yet a measurement of the classifier, so the number is recorded, not celebrated.
+    assert payload["labeled"] == 4 and payload["agreement"] == 1.0
+    assert set(report.confusion) == {"access_control"}
 
 
 def test_agreement_uses_the_first_answer_and_the_oracle_uses_any_of_them(tmp_path: Path) -> None:

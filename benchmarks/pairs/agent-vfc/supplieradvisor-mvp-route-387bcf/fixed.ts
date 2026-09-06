@@ -1,4 +1,4 @@
-// Provenance: bigfivefoods/supplieradvisor-mvp  (fixed).
+// Provenance: bigfivefoods/supplieradvisor-mvp PATCH (fixed).
 // repo: bigfivefoods/supplieradvisor-mvp
 // commit: 387bcf40e984a2ee1832ab7beabf0284c5b627d8
 // parent: a7a9bc260d649ea2e582c07435bfd7d93100647b
@@ -9,6 +9,7 @@
 // relpath: app/api/customers/claims/route.ts
 // provenance: agent
 // mechanism: identity_from_request_body
+// upstream_start: 90
 
 export async function PATCH(request: NextRequest) {
   try {

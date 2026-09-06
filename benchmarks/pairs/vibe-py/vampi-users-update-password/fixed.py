@@ -9,6 +9,7 @@
 # relpath: api_views/users.py
 # provenance: human
 # mechanism: missing_auth_guard
+# upstream_start: 52
 
 def register_user():
     request_data = request.get_json()

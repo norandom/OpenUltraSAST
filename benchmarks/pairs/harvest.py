@@ -20,9 +20,11 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import json
 import re
 import sys
 import tomllib
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -53,9 +55,16 @@ _SUFFIX_LANGUAGE = {
     ".py": "python",
     ".pl": "perl",
     ".pm": "perl",
+    ".yml": "yaml",
+    ".yaml": "yaml",
 }
-_HASH_COMMENT = {"python", "perl"}
+_HASH_COMMENT = {"python", "perl", "yaml"}
+_CONTEXT_LANGUAGES = {"yaml", "javascript", "typescript", "python"}
 _DEF_RE = re.compile(r"^(\s*)(?:async\s+)?def\s+([A-Za-z_]\w*)\s*\(")
+_CLASS_RE = re.compile(r"^(\s*)class\s+([A-Za-z_]\w*)\s*[(:]")
+_COMMENTED_CODE = re.compile(r"^#\s*(?:@|(?:async\s+)?def\s|class\s|function\s)")
+_CONTROL_HEAD = re.compile(r"^(?:else\s+)?(?:if|for|while|switch|catch|do|try|finally)\b")
+_INDENTED = {"python", "yaml"}
 
 
 class RecipeError(ValueError):
@@ -184,36 +193,228 @@ def extract_python_block(source: str, function_name: str) -> str:
         if match is None or match.group(2) != function_name:
             continue
         indent = len(match.group(1))
-        start = index
-        while (
-            start > 0 and lines[start - 1].lstrip().startswith("@") and (len(lines[start - 1]) - len(lines[start - 1].lstrip())) == indent
-        ):
-            start -= 1  # decorators belong to the function
+        start = _decorator_start(lines, index, indent)
         end = _python_block_end(masked, index, indent)
         return "".join(lines[start:end]).rstrip("\n") + "\n"
     raise RecipeError(f"function not found: {function_name}")
 
 
-def extract_handler_context(source: str, function_name: str, language: str = "c") -> str:
-    """The named function (with its decorators) followed by every statement outside it that names the function as an
-    identifier: `app.add_url_rule(..., view_func=fn)`, `router.get('/x', fn)`, `path('x', fn)`, `app.use(fn)`. Comment and
-    string mentions never count (the masked text is searched). One excerpt per side, so guards living in decorators,
-    routers and middleware are visible to the teacher and the scorer (authorization-obligations, Req 7.1)."""
-    body = extract_function(source, function_name, language)
+def _decorator_start(lines: Sequence[str], index: int, indent: int) -> int:
+    """First line of the decorator run above ``index``: multi-line decorators and comments included.
+
+    A commented-out decorator is not noise: `#@token_required` above a handler is the whole bug in an absence row, and
+    an excerpt that starts below it hides the only trace the guard ever existed. `@ns.doc(...)` routinely wraps over
+    four lines, and stopping at its continuation drops the `@ns.route(...)` above it — the registration itself
+    (learning-harness Req 10.2)."""
+    first = index
+    cursor = index - 1
+    while cursor >= 0:
+        stripped = lines[cursor].strip()
+        if not stripped:
+            break
+        if _indent(lines[cursor]) == indent and stripped.startswith("@"):
+            first = cursor
+            cursor -= 1
+            continue
+        if _indent(lines[cursor]) == indent and stripped.startswith("#"):
+            if _COMMENTED_CODE.match(stripped):
+                first = cursor  # `#@token_required` above the handler is the removed guard, not prose
+            cursor -= 1
+            continue
+        anchor = _decorator_anchor(lines, cursor, indent)
+        if anchor is None:
+            break
+        first = anchor
+        cursor = anchor - 1
+    return first
+
+
+def _decorator_anchor(lines: Sequence[str], cursor: int, indent: int) -> int | None:
+    """The `@` line of the multi-line decorator whose last line is ``cursor``, or None when ``cursor`` is not one."""
+    for start in range(cursor, -1, -1):
+        stripped = lines[start].strip()
+        if _indent(lines[start]) == indent and stripped.startswith("@"):
+            whole = " ".join(lines[position].strip() for position in range(start, cursor + 1))
+            opened = " ".join(lines[position].strip() for position in range(start, cursor))
+            balanced = whole.count("(") == whole.count(")") and opened.count("(") > opened.count(")")
+            return start if balanced else None
+        if stripped and _indent(lines[start]) <= indent:
+            return None
+    return None
+
+
+def extract_handler_context(source: str, function_name: str, language: str = "c", *, line: int | None = None) -> str:
+    """The named handler with everything that says it is reachable: its own decorators, the class its framework
+    registers (a `Resource`/`MethodView` method carries its route on the class, not on the function), and every
+    statement outside it that names the function as an identifier — `app.add_url_rule(..., view_func=fn)`,
+    `router.get('/x', fn)`, `path('x', fn)`, `app.use(fn)`. Comment and string mentions never count (the masked text
+    is searched). Pass ``line`` when the name repeats in the file: `def get` appears once per resource class, so the
+    name alone cannot say which handler a row labels. One excerpt per side, so guards living in decorators, routers
+    and middleware are visible to the teacher and the scorer (authorization-obligations Req 7.1, learning-harness
+    Req 10.2)."""
     lines = source.splitlines()
-    start = _start_line_of(source, body) - 1
-    end = start + len(body.splitlines())
+    if line is not None:
+        bounds = innermost_function_bounds(source, int(line), language)
+        if bounds is None:
+            raise RecipeError(f"line {line} is not inside a function")
+        start, end = bounds[0] - 1, bounds[1]
+        # function_bounds_at anchors on the declarator; the decorators above it are part of the handler
+        start = _decorator_start(lines, start, _indent(lines[start]))
+        body = "\n".join(lines[start:end]) + "\n"
+    else:
+        body = extract_function(source, function_name, language)
+        start = _start_line_of(source, body) - 1
+        end = start + len(body.splitlines())
+    header = _python_class_header(lines, start) if language == "python" else ()
     masked_lines = mask_comments_and_strings(source, language).splitlines()
     mention = re.compile(rf"(?<![\w.]){re.escape(function_name)}(?!\w)")
     declaration = re.compile(rf"^\s*(?:async\s+)?(?:def|function|sub)\s+{re.escape(function_name)}\b")
+    covered = set(range(start, end)) | set(header)
     registrations = [
         lines[index]
         for index, masked in enumerate(masked_lines)
-        if not (start <= index < end) and index < len(lines) and mention.search(masked) and not declaration.match(masked)
+        if index not in covered and index < len(lines) and mention.search(masked) and not declaration.match(masked)
     ]
+    if header:
+        body = "\n".join(lines[index] for index in header) + "\n" + body
     if not registrations:
         return body
     return body.rstrip("\n") + "\n\n" + "\n".join(line.strip() for line in registrations) + "\n"
+
+
+def _indent(line: str) -> int:
+    return len(line) - len(line.lstrip())
+
+
+def _python_class_header(lines: list[str], start: int) -> tuple[int, ...]:
+    """Line indexes of the class declaration enclosing the handler at ``start``, with its decorators.
+
+    Flask-RESTX, Django REST framework and Flask's `MethodView` register the *class*: `@ns.route('/profile')` sits
+    above `class UserProfile(Resource)`, and the method below it is the handler. An excerpt that starts at `def get`
+    is both unreachable and unparsable (a bare indented block), so the class header travels with it."""
+    if start >= len(lines) or _indent(lines[start]) == 0:
+        return ()
+    indent = _indent(lines[start])
+    for index in range(start - 1, -1, -1):
+        match = _CLASS_RE.match(lines[index])
+        if match is None or len(match.group(1)) >= indent:
+            continue
+        return tuple(range(_decorator_start(lines, index, len(match.group(1))), index + 1))
+    return ()
+
+
+def innermost_function_bounds(source: str, line: int, language: str = "c") -> tuple[int, int] | None:
+    """1-based inclusive bounds of the *innermost* function containing ``line``.
+
+    `function_bounds_at` returns the outermost top-level brace group, which is right for C and wrong for the JavaScript
+    and TypeScript the absence corpus is made of: a handler declared inside a React component or a route module comes
+    back as the whole 6000-line component, and the excerpt starts mid-parameter-list. Only the handler-context mode
+    uses this, so hunk and enclosing rows keep the bounds they were harvested with."""
+    if language == "python":
+        return function_bounds_at(source, line, language)
+    masked = mask_comments_and_strings(source, language)
+    offsets = _line_offsets(source)
+    if line < 1 or line > len(offsets):
+        return None
+    target = offsets[line - 1]
+    stack: list[int] = []
+    best: tuple[int, int] | None = None
+    for pos, ch in enumerate(masked):
+        if ch == "{":
+            stack.append(pos)
+        elif ch == "}" and stack:
+            open_at = stack.pop()
+            if pos < target:
+                continue
+            start = _declarator_start(source, masked, open_at)
+            if not (start <= target <= pos):
+                continue  # the declarator line counts: `const f = async () => {` opens its brace after the anchor
+            head = masked[start:open_at]
+            if "(" not in head or ")" not in head or _CONTROL_HEAD.match(head.strip()):
+                continue  # an object literal, a bare block, or `if (...) {` — not a callable
+            if head.count("{") != head.count("}"):
+                continue  # the declarator walk crossed an opening brace: this is a block inside the function, not the function
+            span = (_line_of(offsets, start), _line_of(offsets, pos))
+            if best is None or span[0] > best[0]:
+                best = span
+    return best
+
+
+def extract_registration_context(source: str, function_name: str, language: str = "c") -> str:
+    """The part of a *separate* document that registers ``function_name``, or "" when it names it nowhere.
+
+    Some frameworks keep the route table out of the handler file: connexion registers by `operationId` in an OpenAPI
+    document, an Express application registers in a router module. That statement carries the guard — the `security`
+    block, the authorization middleware — so an absence row harvested without it cannot be judged at all. Comment and
+    string mentions never count. Indented documents return the enclosing block with its ancestor headings; brace
+    documents return the whole enclosing call, which is where the middleware list lives."""
+    masked_lines = mask_comments_and_strings(source, language).splitlines()
+    lines = source.splitlines()
+    mention = re.compile(rf"(?<![\w.])(?:\w+\.)*{re.escape(function_name)}(?!\w)")
+    hits = [index for index, masked in enumerate(masked_lines) if mention.search(masked)]
+    if not hits:
+        return ""
+    if language in _INDENTED:
+        return _indented_block(lines, hits[0])
+    return _enclosing_call(source, masked_lines, lines, hits[0], function_name)
+
+
+def _indented_block(lines: list[str], hit: int) -> str:
+    """The innermost block containing ``hit``, prefixed by the heading line of every ancestor above it."""
+    indent = _indent(lines[hit])
+    ancestors: list[int] = []
+    current = indent
+    for index in range(hit - 1, -1, -1):
+        if not lines[index].strip():
+            continue
+        if _indent(lines[index]) < current:
+            ancestors.append(index)
+            current = _indent(lines[index])
+            if current == 0:
+                break
+    if not ancestors:
+        return lines[hit] + "\n"
+    inner = ancestors[0]
+    end = inner + 1
+    while end < len(lines) and (not lines[end].strip() or _indent(lines[end]) > _indent(lines[inner])):
+        end += 1
+    body = [*reversed(ancestors[1:]), *range(inner, end)]
+    return "\n".join(lines[index] for index in body).rstrip("\n") + "\n"
+
+
+def _enclosing_call(source: str, masked_lines: list[str], lines: list[str], hit: int, function_name: str) -> str:
+    """The whole call statement around the mention: `webRouter.post(` … `)` spans four lines and three of them are the guard."""
+    masked = "\n".join(masked_lines)
+    offsets = _line_offsets(masked + "\n")
+    at = masked.find(function_name, offsets[hit])
+    if at < 0:
+        return lines[hit] + "\n"
+    depth = 0
+    open_at = -1
+    for pos in range(at - 1, -1, -1):
+        ch = masked[pos]
+        if ch == ")":
+            depth += 1
+        elif ch == "(":
+            if depth == 0:
+                open_at = pos
+                break
+            depth -= 1
+    if open_at < 0:
+        return lines[hit] + "\n"
+    depth = 0
+    close_at = len(masked) - 1
+    for pos in range(open_at, len(masked)):
+        if masked[pos] == "(":
+            depth += 1
+        elif masked[pos] == ")":
+            depth -= 1
+            if depth == 0:
+                close_at = pos
+                break
+    start = _line_of(offsets, open_at) - 1
+    end = _line_of(offsets, close_at)
+    return "\n".join(lines[start:end]).rstrip("\n") + "\n"
 
 
 def extract_line_range(source: str, start: int, end: int) -> str:
@@ -371,7 +572,7 @@ def _python_bounds_at(lines: list[str], line: int) -> tuple[int, int] | None:
 # --- recipes and IO ----------------------------------------------------------
 
 
-def provenance_header(recipe: dict[str, Any], *, side: str, sha: str, upstream_start: int | None = None) -> str:
+def provenance_header(recipe: dict[str, Any], *, side: str, sha: str, upstream_start: int | None = None, relpath: str | None = None) -> str:
     lines = [
         f"Provenance: {recipe.get('repo', '')} {recipe.get('function', '')} ({side}).",
         f"repo: {recipe.get('repo', '')}",
@@ -387,7 +588,9 @@ def provenance_header(recipe: dict[str, Any], *, side: str, sha: str, upstream_s
     ]
     if upstream_start is not None:
         lines.append(f"upstream_start: {upstream_start}")  # 1-based line of the excerpt body in the upstream file
-    language = language_for(recipe)
+    if relpath is not None:
+        lines[8] = f"relpath: {relpath}"  # a context document names itself, not the handler file
+    language = language_for(recipe) if relpath is None else _SUFFIX_LANGUAGE.get(Path(relpath).suffix.lower(), "c")
     if language in _HASH_COMMENT:
         return "\n".join(f"# {line}" for line in lines) + "\n"
     if language in {"cpp", "java", "javascript", "typescript"}:
@@ -414,6 +617,10 @@ def validate_recipe(recipe: dict[str, Any], *, require_license: bool = True) -> 
         raise RecipeError(f"{name}: enclosing mode needs an integer line")
     if require_license and not recipe.get("license"):
         raise RecipeError(f"{name}: license required")
+    for relpath in context_relpaths(recipe):
+        suffix = Path(relpath).suffix.lower()
+        if _SUFFIX_LANGUAGE.get(suffix) not in _CONTEXT_LANGUAGES:
+            raise RecipeError(f"{name}: context document {relpath} has no supported registration reader")
 
 
 def github_raw_url(repo: str, sha: str, path: str) -> str:
@@ -425,6 +632,22 @@ def excerpt_paths(recipe: dict[str, Any], root: Path) -> tuple[Path, Path]:
     ext = Path(str(recipe.get("path", "a.c"))).suffix or ".c"
     folder = root / name
     return folder / f"vuln{ext}", folder / f"fixed{ext}"
+
+
+def context_relpaths(recipe: dict[str, Any]) -> tuple[str, ...]:
+    """Repo-relative documents that register the handler, fetched at the same two commits as the excerpt."""
+    value = recipe.get("context") or ()
+    if isinstance(value, str):
+        return (value,)
+    return tuple(str(item) for item in value)
+
+
+def context_paths(recipe: dict[str, Any], root: Path) -> tuple[tuple[str, Path, Path], ...]:
+    """`(relpath, vuln document, fixed document)` per context document. Each side keeps its own copy: the route table
+    is part of the change often enough (a guard added to the router, not to the handler) that sharing one would hide
+    the fix."""
+    folder = root / str(recipe["name"]) / "context"
+    return tuple((relpath, folder / "vuln" / relpath, folder / "fixed" / relpath) for relpath in context_relpaths(recipe))
 
 
 _TOKEN_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
@@ -452,9 +675,18 @@ def redact(body: str) -> str:
     return body
 
 
-def write_excerpt(path: Path, recipe: dict[str, Any], *, side: str, sha: str, body: str, upstream_start: int | None = None) -> None:
+def write_excerpt(
+    path: Path,
+    recipe: dict[str, Any],
+    *,
+    side: str,
+    sha: str,
+    body: str,
+    upstream_start: int | None = None,
+    relpath: str | None = None,
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    header = provenance_header(recipe, side=side, sha=sha, upstream_start=upstream_start)
+    header = provenance_header(recipe, side=side, sha=sha, upstream_start=upstream_start, relpath=relpath)
     path.write_text(header + "\n" + redact(body), encoding="utf-8")
 
 
@@ -478,10 +710,28 @@ def extract_pair_with_lines(recipe: dict[str, Any], parent_src: str, fix_src: st
             raise RecipeError(f"{recipe.get('name')}: line {line}/{fix_line} is not inside a function")
         return (extract_line_range(parent_src, *parent_bounds), parent_bounds[0]), (extract_line_range(fix_src, *fix_bounds), fix_bounds[0])
     function = str(recipe["function"])
-    extract = extract_handler_context if mode == "handler_context" else extract_function
-    parent_text = extract(parent_src, function, language)
-    fix_text = extract(fix_src, function, language)
+    if mode == "handler_context":
+        parent_text, fix_text = _handler_context_pair(recipe, parent_src, fix_src, language)
+    else:
+        parent_text, fix_text = extract_function(parent_src, function, language), extract_function(fix_src, function, language)
     return (parent_text, _start_line_of(parent_src, parent_text)), (fix_text, _start_line_of(fix_src, fix_text))
+
+
+def _handler_context_pair(recipe: dict[str, Any], parent_src: str, fix_src: str, language: str) -> tuple[str, str]:
+    """Both sides with their registration. ``line``/``fix_line`` anchor when the name repeats or when the fixed twin is
+    a different, correctly guarded handler from the same snapshot (a Real-Vuln-Benchmark trap): then ``fix_function``
+    names what the fixed side actually contains."""
+    line = recipe.get("line")
+    fix_line = recipe.get("fix_line", line)
+    return (
+        extract_handler_context(parent_src, str(recipe["function"]), language, line=int(line) if isinstance(line, int) else None),
+        extract_handler_context(
+            fix_src,
+            str(recipe.get("fix_function") or recipe["function"]),
+            language,
+            line=int(fix_line) if isinstance(fix_line, int) else None,
+        ),
+    )
 
 
 def _start_line_of(source: str, excerpt: str) -> int:
@@ -534,24 +784,45 @@ def extract_pair(recipe: dict[str, Any], parent_src: str, fix_src: str) -> tuple
             raise RecipeError(f"{recipe.get('name')}: line {line}/{fix_line} is not inside a function")
         return extract_line_range(parent_src, *parent_bounds), extract_line_range(fix_src, *fix_bounds)
     function = str(recipe["function"])
-    extract = extract_handler_context if mode == "handler_context" else extract_function
-    return extract(parent_src, function, language), extract(fix_src, function, language)
+    if mode == "handler_context":
+        return _handler_context_pair(recipe, parent_src, fix_src, language)
+    return extract_function(parent_src, function, language), extract_function(fix_src, function, language)
 
 
 def harvest_recipe(recipe: dict[str, Any], root: Path, *, require_license: bool = True) -> tuple[Path, Path]:
+    """Fetch every blob the recipe names, extract, and only then write.
+
+    Every fetch happens before the first write on purpose: a re-harvest that half succeeds would leave a reviewed
+    excerpt truncated and its context document stale, and nothing downstream could tell that apart from a real
+    upstream change (learning-harness Req 10.2)."""
     validate_recipe(recipe, require_license=require_license)
     if str(recipe.get("host", "github")) != "github":
         raise RecipeError(f"{recipe.get('name')}: live fetch currently implemented for host=github only")
-    parent_src = fetch_url(github_raw_url(str(recipe["repo"]), str(recipe["parent"]), str(recipe["path"])))
+    repo, parent, commit = str(recipe["repo"]), str(recipe["parent"]), str(recipe["commit"])
+    fix_repo = str(recipe.get("fix_repo", repo))
+    parent_src = fetch_url(github_raw_url(repo, parent, str(recipe["path"])))
     # fix_path lets a pair take its fixed side from another file of the same snapshot
     # (Real-Vuln-Benchmark false-positive traps are the fixed twins of vulnerable findings).
-    fix_src = fetch_url(
-        github_raw_url(str(recipe.get("fix_repo", recipe["repo"])), str(recipe["commit"]), str(recipe.get("fix_path", recipe["path"])))
-    )
+    fix_src = fetch_url(github_raw_url(fix_repo, commit, str(recipe.get("fix_path", recipe["path"]))))
+    function = str(recipe.get("function", ""))
+    fix_function = str(recipe.get("fix_function") or function)
+    documents: list[tuple[Path, str, str, str, str]] = []
+    for relpath, vuln_doc, fixed_doc in context_paths(recipe, root):
+        language = _SUFFIX_LANGUAGE.get(Path(relpath).suffix.lower(), "c")
+        for path, side, sha, wanted, source in (
+            (vuln_doc, "vuln", parent, function, fetch_url(github_raw_url(repo, parent, relpath))),
+            (fixed_doc, "fixed", commit, fix_function, fetch_url(github_raw_url(fix_repo, commit, relpath))),
+        ):
+            stanza = extract_registration_context(source, wanted, language)
+            if not stanza.strip():
+                raise RecipeError(f"{recipe.get('name')}: context document {relpath} never names {wanted}")
+            documents.append((path, side, sha, stanza, relpath))
     (parent_fn, parent_start), (fix_fn, fix_start) = extract_pair_with_lines(recipe, parent_src, fix_src)
     vuln_path, fixed_path = excerpt_paths(recipe, root)
-    write_excerpt(vuln_path, recipe, side="vuln", sha=str(recipe["parent"]), body=parent_fn, upstream_start=parent_start)
-    write_excerpt(fixed_path, recipe, side="fixed", sha=str(recipe["commit"]), body=fix_fn, upstream_start=fix_start)
+    write_excerpt(vuln_path, recipe, side="vuln", sha=parent, body=parent_fn, upstream_start=parent_start)
+    write_excerpt(fixed_path, recipe, side="fixed", sha=commit, body=fix_fn, upstream_start=fix_start)
+    for path, side, sha, stanza, relpath in documents:
+        write_excerpt(path, recipe, side=side, sha=sha, body=stanza, relpath=relpath)
     return vuln_path, fixed_path
 
 
@@ -599,6 +870,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--fetch", action="store_true", help="HTTP-fetch and write excerpts; default is dry-run validate")
     parser.add_argument("--force", action="store_true", help="overwrite existing excerpts")
     parser.add_argument("--out", type=Path, default=None, help="excerpt root (default: <slice>/)")
+    parser.add_argument("--report", type=Path, default=None, help="write a JSON row per recipe with its status and reason")
     args = parser.parse_args(argv)
     slice_root = ROOT / args.slice
     recipes_path = args.recipes or slice_root / "recipes.toml"
@@ -619,28 +891,38 @@ def main(argv: list[str] | None = None) -> int:
         print("pass --name RECIPE, --prefix PREFIX, or --all", file=sys.stderr)
         return 2
     failures = 0
+    report: list[dict[str, str]] = []
     for recipe in selected:
         name = str(recipe["name"])
         try:
             validate_recipe(recipe)
         except RecipeError as exc:
             print(str(exc), file=sys.stderr)
+            report.append({"name": name, "status": "failed", "reason": str(exc)})
             failures += 1
             continue
         if not args.fetch:
             print(f"ok {name} parent={recipe['parent']} commit={recipe['commit']} mode={recipe.get('mode', 'name')}")
+            report.append({"name": name, "status": "validated", "reason": ""})
             continue
         vuln_path, fixed_path = excerpt_paths(recipe, out)
         if vuln_path.is_file() and fixed_path.is_file() and not args.force:
             print(f"skip {name} (exists)")
+            report.append({"name": name, "status": "skipped", "reason": "excerpt already present"})
             continue
         try:
             harvest_recipe(recipe, out)
         except (RecipeError, OSError) as exc:
+            # The excerpt on disk is the reviewed one; a fetch that failed leaves it exactly as it was and says why.
             print(f"{name}: {exc}", file=sys.stderr)
+            report.append({"name": name, "status": "failed", "reason": str(exc)})
             failures += 1
             continue
         print(f"wrote {name} -> {vuln_path.parent}")
+        report.append({"name": name, "status": "written", "reason": ""})
+    if args.report is not None:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return 1 if failures else 0
 
 

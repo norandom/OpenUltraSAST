@@ -9,7 +9,16 @@
 # relpath: server/api/v1/api_v1.py
 # provenance: human
 # mechanism: missing_auth_guard
+# upstream_start: 146
 
+@ns.route('/profile')
+class UserProfile(Resource):
+    @ns.expect(profile_query)
+    @ns.response(200, 'Success', user_profile_model)
+    @ns.response(400, 'User ID is required')
+    @ns.response(404, 'User profile not found')
+    #@token_required
+    #def get(self, current_user):
     def get(self):
         """
         Retrieves the profile information of a user based on the provided user ID.

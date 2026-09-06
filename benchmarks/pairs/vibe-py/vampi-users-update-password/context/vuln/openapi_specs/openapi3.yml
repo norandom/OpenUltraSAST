@@ -1,0 +1,73 @@
+# Provenance: erev0s/VAmPI update_password (vuln).
+# repo: erev0s/VAmPI
+# commit: 1713b54b601ad29582581eeda4b31fceb1319874
+# parent: 1713b54b601ad29582581eeda4b31fceb1319874
+# commit_url: https://github.com/erev0s/VAmPI/blob/1713b54b601ad29582581eeda4b31fceb1319874/api_views/users.py#L187
+# cve: 
+# license: MIT
+# function: update_password
+# relpath: openapi_specs/openapi3.yml
+# provenance: human
+# mechanism: missing_auth_guard
+
+paths:
+  /users/v1/{username}/password:
+    put:
+      security:
+        - bearerAuth: [ ]
+      tags:
+        - users
+      summary: Update users password
+      description: Update users password
+      operationId: api_views.users.update_password
+      parameters:
+        - name: username
+          in: path
+          description: username to update password
+          required: true
+          schema:
+            type: string
+            example: 'name1'
+      requestBody:
+        description: field to update
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+                  example: 'pass4'
+        required: true
+      responses:
+        '204':
+          description: Successfully updated users password
+          content: {}
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: ['fail']
+                    example: 'fail'
+                  message:
+                    type: string
+                    example: 'Malformed Data'
+        '401':
+          description: User not authorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: ['fail']
+                    example: 'fail'
+                  message:
+                    type: string
+                    example: 'Invalid token. Please log in again.'

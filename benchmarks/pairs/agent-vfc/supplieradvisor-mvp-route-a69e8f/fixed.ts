@@ -1,4 +1,4 @@
-// Provenance: bigfivefoods/supplieradvisor-mvp  (fixed).
+// Provenance: bigfivefoods/supplieradvisor-mvp GET (fixed).
 // repo: bigfivefoods/supplieradvisor-mvp
 // commit: a69e8f27c0f4d402573d16f0612b51155bbc46e1
 // parent: 8558538471e4fb10856f8d9a17d2be5ab5c4fb9c
@@ -9,6 +9,7 @@
 // relpath: app/api/customers/opportunities/route.ts
 // provenance: agent
 // mechanism: identity_from_request_body
+// upstream_start: 89
 
 export async function GET(request: NextRequest) {
   try {

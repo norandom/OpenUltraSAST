@@ -75,6 +75,23 @@ def test_duplicate_bodies_across_pairs_are_reported_before_any_split() -> None:
     payload = json.loads(report.read_text())
     assert payload["duplicate_groups"] == [list(names) for names in groups]
     assert set(payload["identical_twins"]) == IDENTICAL_TWINS
+    assert groups == tuple(sorted(groups)), "the committed report must not reshuffle when one excerpt is re-harvested"
+
+
+def test_duplicate_groups_that_cross_the_split_are_named_as_the_leak_they_are() -> None:
+    """Two byte-identical excerpts on opposite sides of the split teach the holdout row exactly.
+
+    `split_by_repository` cannot see this: the duplicates are different repositories (a fork of a project, or one CVE
+    harvested under two names), so the repository-level split reports no straddle and the leak stays invisible."""
+    from openultrasast.pairs import duplicate_groups
+
+    cases = select_vendored(load_pair_catalog(DEFAULT_CATALOG))
+    splits = {case.name: case.split for case in cases}
+    crossing = [list(names) for names in duplicate_groups(cases) if len({splits[name] for name in names}) > 1]
+    payload = json.loads(Path("benchmarks/measurements/2026-09-06-corpus-hygiene.json").read_text())
+    assert payload["cross_split_duplicates"] == crossing
+    assert len(crossing) == 9, "nine of the ten duplicate groups cross the split; the number is the finding"
+    assert ["openniw-jobs-0fc947", "openniw-jobs-b74de3"] in crossing  # two forks of one project, train and holdout
 
 
 def test_split_by_repository_keeps_declared_splits_and_reports_straddles() -> None:

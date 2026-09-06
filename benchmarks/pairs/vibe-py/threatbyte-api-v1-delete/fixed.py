@@ -9,7 +9,15 @@
 # relpath: server/api/v1/api_v1.py
 # provenance: human
 # mechanism: missing_auth_guard
+# upstream_start: 103
 
+@ns.route('/login')
+class UserLogin(Resource):
+    @ns.expect(login_model)
+    @ns.response(200, 'Login successful', login_response_model)
+    @ns.response(400, 'Please provide username and password')
+    @ns.response(401, 'Invalid username or password')
+    @ns.response(405, 'Method not allowed')
     def post(self):
         """
         Handles user login.

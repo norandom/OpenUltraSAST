@@ -1,4 +1,4 @@
-// Provenance: ZUENS2020/overleaf-with-claude  (vuln).
+// Provenance: ZUENS2020/overleaf-with-claude exportProject (vuln).
 // repo: ZUENS2020/overleaf-with-claude
 // commit: 5a886aa9fb9fe4e2203f3cb1d62c91f4be0525ed
 // parent: 5a886aa9fb9fe4e2203f3cb1d62c91f4be0525ed
@@ -9,8 +9,9 @@
 // relpath: services/web/app/src/Features/Exports/ExportsController.mjs
 // provenance: agent
 // mechanism: identity_from_request_body
+// upstream_start: 1
 
-import { expressify } from '@overleaf/promise-utils'
+from '@overleaf/promise-utils'
 import SessionManager from '../Authentication/SessionManager.mjs'
 import logger from '@overleaf/logger'
 import OError from '@overleaf/o-error'
@@ -78,3 +79,5 @@ async function exportProject(req, res, next) {
     throw err
   }
 }
+
+exportProject: expressify(exportProject),

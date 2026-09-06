@@ -1,0 +1,55 @@
+# Provenance: erev0s/VAmPI update_password (fixed).
+# repo: erev0s/VAmPI
+# commit: 1713b54b601ad29582581eeda4b31fceb1319874
+# parent: 1713b54b601ad29582581eeda4b31fceb1319874
+# commit_url: https://github.com/erev0s/VAmPI/blob/1713b54b601ad29582581eeda4b31fceb1319874/api_views/users.py#L187
+# cve: 
+# license: MIT
+# function: update_password
+# relpath: openapi_specs/openapi3.yml
+# provenance: human
+# mechanism: missing_auth_guard
+
+paths:
+  /users/v1/register:
+    post:
+      tags:
+        - users
+      summary: Register new user
+      description: Register new user
+      operationId: api_views.users.register_user
+      requestBody:
+        description: Username of the user
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: 'name1'
+                password:
+                  type: string
+                  example: 'pass1'
+                email:
+                  type: string
+                  example: 'user@tempmail.com'
+        required: true
+      responses:
+        '200':
+          description: Successfully created user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 'Successfully registered. Login to receive an auth token.'
+                  status:
+                    type: string
+                    enum: ['success', 'fail']
+                    example: 'success'
+        '400':
+          description: Invalid request
+          content: {}
