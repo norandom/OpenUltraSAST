@@ -42,6 +42,7 @@ _KIND = {
 }
 _KIND["cpp"] = _KIND["c"]
 _KIND["typescript"] = _KIND["javascript"]
+_KIND["tsx"] = _KIND["javascript"]
 
 _CONST = frozenset(
     {
@@ -64,7 +65,7 @@ _SEQUENCE = frozenset({"list", "tuple", "array", "array_creation_expression", "i
 def parse_with_cst(path: str, text: str, language: str) -> FileIR | None:
     from .extra import grammar_for
 
-    grammar = grammar_for(language)
+    grammar = grammar_for(_grammar_language(language, path))
     if grammar is None:
         return None
     try:
@@ -75,6 +76,11 @@ def parse_with_cst(path: str, text: str, language: str) -> FileIR | None:
     except Exception:
         return FileIR(path=path, language=language, engine="tree-sitter", functions=(), parse_ok=False, reason="parse_failed")
     return file_ir_from_tree(path=path, text=text, language=language, tree=tree)
+
+
+def _grammar_language(language: str, path: str) -> str:
+    """TypeScript ships two grammars; a `.tsx` file needs the JSX-aware one. The FileIR keeps the language it was given."""
+    return "tsx" if language == "typescript" and path.endswith(".tsx") else language
 
 
 def file_ir_from_tree(*, path: str, text: str, language: str, tree: Any) -> FileIR:
