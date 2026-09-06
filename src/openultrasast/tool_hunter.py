@@ -12,7 +12,17 @@ from typing import Protocol
 
 from .complexity.map import Hotspot
 from .findings import StaticFinding
-from .hunter_tools import PathEscapesRepo, clamp_repo_path, find_refs, grep_repo, read_file
+from .hunter_tools import (
+    PathEscapesRepo,
+    clamp_repo_path,
+    entry_points,
+    find_refs,
+    flows,
+    grep_repo,
+    obligations,
+    read_definition,
+    read_file,
+)
 from .provider.openrouter import OpenRouterChatClient, OpenRouterError
 
 _DEFAULT_MAX_CHARS = 4000
@@ -20,7 +30,8 @@ _DEFAULT_MAX_MATCHES = 50
 DEFAULT_MAX_STEPS = 4
 CLIENT_ENV = "OPENULTRASAST_HUNTER_CLIENT"
 _FINDING_ID_PREFIX = "tool-hunter:"
-_HUNTER_TOOL_NAMES = frozenset({"read_file", "grep_repo", "find_refs"})
+DEFAULT_TOOL_NAMES = ("read_file", "grep_repo", "find_refs")
+_HUNTER_TOOL_NAMES = frozenset(DEFAULT_TOOL_NAMES) | {"read_definition", "entry_points", "flows", "obligations"}
 _SEVERITIES = frozenset({"critical", "high", "medium", "low", "info"})
 _SCRIPTED_FLAGS = frozenset({"scripted", "script"})
 _DUMP_FLAGS = frozenset({"dump", "dump-only"})
@@ -77,6 +88,50 @@ HUNTER_TOOLS: list[dict[str, object]] = [
                 "type": "object",
                 "properties": {"symbol": {"type": "string"}},
                 "required": ["symbol"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_definition",
+            "description": "Resolve one named function to its file, line span and body. Use it instead of guessing what a callee does.",
+            "parameters": {
+                "type": "object",
+                "properties": {"symbol": {"type": "string"}, "path": {"type": "string"}, "max_chars": {"type": "integer"}},
+                "required": ["symbol"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "entry_points",
+            "description": "List the handlers this repository exposes, with their access classification. Identifiers and line spans only.",
+            "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "flows",
+            "description": "List adjudicated source-to-sink records inside one function. Identifiers and line numbers only.",
+            "parameters": {
+                "type": "object",
+                "properties": {"path": {"type": "string"}, "function": {"type": "string"}},
+                "required": ["path", "function"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "obligations",
+            "description": "List what one function owes and has not discharged: the operation, the missing discharger and why it is owed.",
+            "parameters": {
+                "type": "object",
+                "properties": {"path": {"type": "string"}, "function": {"type": "string"}},
+                "required": ["path", "function"],
             },
         },
     },
@@ -252,30 +307,57 @@ def run_tool_hunter(
     client: ChatClient,
     model: str,
     max_steps: int,
+    system_prompt: str = _SYSTEM_PROMPT,
+    user_prompt: str | None = None,
+    context_files: Sequence[str] = (),
+    tools: Sequence[str] | None = None,
+    max_chars: int = _DEFAULT_MAX_CHARS,
+    tags: Sequence[str] = ("tool-hunter",),
 ) -> list[StaticFinding]:
+    """One bounded hunt. Every keyword defaults to today's behaviour; a per-family detector overrides the
+    prompt, the context it starts from, the tools it may call and the tags its findings carry."""
     if max_steps <= 0:
         return []
+    schemas = _tool_schemas(tools)
     messages: list[dict[str, object]] = [
-        {"role": "system", "content": _SYSTEM_PROMPT},
-        {"role": "user", "content": _hotspot_prompt(hotspots)},
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": _user_message(root, hotspots, user_prompt, context_files, max_chars)},
     ]
     used_tools = False
     for _step in range(max_steps):
-        response = client.complete(model=model, messages=messages, tools=HUNTER_TOOLS)
+        response = client.complete(model=model, messages=messages, tools=schemas)
         tool_calls = tuple(response.tool_calls or ())
         if tool_calls:
-            messages.append(_assistant_tool_message(response.content, tool_calls))
+            messages.append(_assistant_tool_message(response.content, tool_calls, response.reasoning))
             for call in tool_calls:
                 if call.name in _HUNTER_TOOL_NAMES:
                     used_tools = True
-                messages.append(_tool_result_message(root, call))
+                messages.append(_tool_result_message(root, call, max_chars))
             continue
         content = response.content or ""
         if not content.strip() or not used_tools:
             # A findings dump is not evidence unless the loop invoked a repo tool.
             return []
-        return _findings_from_content(root, hotspots, content)
+        return _findings_from_content(root, hotspots, content, tags)
     return []
+
+
+def _tool_schemas(names: Sequence[str] | None) -> list[dict[str, object]]:
+    wanted = tuple(names) if names is not None else DEFAULT_TOOL_NAMES
+    by_name = {str(schema["function"]["name"]): schema for schema in HUNTER_TOOLS}  # type: ignore[index]
+    return [by_name[name] for name in wanted if name in by_name]
+
+
+def _user_message(root: Path, hotspots: Sequence[Hotspot], user_prompt: str | None, context_files: Sequence[str], max_chars: int) -> str:
+    body = user_prompt if user_prompt is not None else _hotspot_prompt(hotspots)
+    parts = [body]
+    for relative in context_files:
+        try:
+            text = read_file(root, relative, max_chars=max_chars)
+        except (PathEscapesRepo, OSError):
+            continue
+        parts.append(f"--- {relative}\n{text}")
+    return "\n\n".join(parts)
 
 
 def _hotspot_prompt(hotspots: Sequence[Hotspot]) -> str:
@@ -296,8 +378,8 @@ def _hotspot_prompt(hotspots: Sequence[Hotspot]) -> str:
     )
 
 
-def _assistant_tool_message(content: str | None, tool_calls: Sequence[ToolCall]) -> dict[str, object]:
-    return {
+def _assistant_tool_message(content: str | None, tool_calls: Sequence[ToolCall], reasoning: str | None = None) -> dict[str, object]:
+    message: dict[str, object] = {
         "role": "assistant",
         "content": content,
         "tool_calls": [
@@ -312,30 +394,51 @@ def _assistant_tool_message(content: str | None, tool_calls: Sequence[ToolCall])
             for call in tool_calls
         ],
     }
+    if reasoning:
+        # The provider drops its own chain of thought unless it comes back on the next turn (DeepSeek tool calls).
+        message["reasoning_content"] = reasoning
+    return message
 
 
-def _tool_result_message(root: Path, call: ToolCall) -> dict[str, object]:
+def _tool_result_message(root: Path, call: ToolCall, max_chars: int = _DEFAULT_MAX_CHARS) -> dict[str, object]:
     return {
         "role": "tool",
         "tool_call_id": call.id,
         "name": call.name,
-        "content": _run_tool(root, call),
+        "content": _run_tool(root, call, max_chars),
     }
 
 
-def _run_tool(root: Path, call: ToolCall) -> str:
+def _run_tool(root: Path, call: ToolCall, max_chars: int = _DEFAULT_MAX_CHARS) -> str:
     try:
-        payload = _dispatch_tool(root, call.name, _arguments(call.arguments))
+        payload = _dispatch_tool(root, call.name, _arguments(call.arguments), max_chars)
     except Exception as exc:  # noqa: BLE001 — tool failures stay in-band so the scan continues
         payload = {"error": f"{type(exc).__name__}: {exc}"}
     return json.dumps(payload, sort_keys=True)
 
 
-def _dispatch_tool(root: Path, name: str, arguments: Mapping[str, object]) -> object:
+def _dispatch_tool(root: Path, name: str, arguments: Mapping[str, object], default_max_chars: int = _DEFAULT_MAX_CHARS) -> object:
     if name == "read_file":
         path = _require_str(arguments, "path")
-        max_chars = _optional_int(arguments, "max_chars", _DEFAULT_MAX_CHARS)
+        max_chars = _optional_int(arguments, "max_chars", default_max_chars)
         return {"path": path, "content": read_file(root, path, max_chars=max_chars)}
+    if name == "read_definition":
+        symbol = _require_str(arguments, "symbol")
+        scope = arguments.get("path")
+        found = read_definition(
+            root,
+            symbol,
+            max_chars=_optional_int(arguments, "max_chars", default_max_chars),
+            path=str(scope) if isinstance(scope, str) and scope else None,
+        )
+        return found if found is not None else {"symbol": symbol, "found": False}
+    if name == "entry_points":
+        scope = arguments.get("path")
+        return entry_points(root, path=str(scope) if isinstance(scope, str) and scope else None)
+    if name == "flows":
+        return flows(root, path=_require_str(arguments, "path"), function=_require_str(arguments, "function"))
+    if name == "obligations":
+        return obligations(root, path=_require_str(arguments, "path"), function=_require_str(arguments, "function"))
     if name == "grep_repo":
         pattern = _require_str(arguments, "pattern")
         max_matches = _optional_int(arguments, "max_matches", _DEFAULT_MAX_MATCHES)
@@ -371,7 +474,9 @@ def _optional_int(arguments: Mapping[str, object], key: str, default: int) -> in
     return value
 
 
-def _findings_from_content(root: Path, hotspots: Sequence[Hotspot], content: str) -> list[StaticFinding]:
+def _findings_from_content(
+    root: Path, hotspots: Sequence[Hotspot], content: str, tags: Sequence[str] = ("tool-hunter",)
+) -> list[StaticFinding]:
     payload = _load_json(content)
     if isinstance(payload, list):
         items = payload
@@ -384,7 +489,7 @@ def _findings_from_content(root: Path, hotspots: Sequence[Hotspot], content: str
     for item in items:
         if not isinstance(item, dict):
             continue
-        finding = _finding_from_item(root, item, scores)
+        finding = _finding_from_item(root, item, scores, tags)
         if finding is not None:
             findings.append(finding)
     return sorted(findings, key=lambda item: item.finding_id)
@@ -402,7 +507,9 @@ def _load_json(content: str) -> object | None:
     return parsed
 
 
-def _finding_from_item(root: Path, item: Mapping[str, object], scores: Mapping[str, float]) -> StaticFinding | None:
+def _finding_from_item(
+    root: Path, item: Mapping[str, object], scores: Mapping[str, float], tags: Sequence[str] = ("tool-hunter",)
+) -> StaticFinding | None:
     raw_path = item.get("path")
     if not isinstance(raw_path, str) or not raw_path:
         return None
@@ -431,7 +538,7 @@ def _finding_from_item(root: Path, item: Mapping[str, object], scores: Mapping[s
         reachability_status="unknown",
         reachability_evidence=[],
         reachability_conditions=[],
-        tags=["tool-hunter"],
+        tags=list(tags),
         ranking_priority=float(scores.get(relative, 0.0)),
         proposed_snippet=proposed_snippet,
     )
