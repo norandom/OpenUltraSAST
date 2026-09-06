@@ -24,8 +24,10 @@ from pathlib import Path
 from ..findings import StaticFinding
 from ..pairs import PairCase
 from .classify import classify_pair
-from .detectors import write_default_configs
+from .detectors import FamilyConfig, write_default_configs
 from .families import FamilyTaxonomy
+from .journal import Archive, Attribution, LearningJournal, RoundRecord
+from .proposer import Proposal, Proposer
 from .scoring import FamilyMetrics, PairFamilyScore, aggregate, score_pair_family
 
 DEFAULT_SLICES = ("vibe-py", "agent-vfc")  # the web families, where real-world code and dangerous fruit coincide
@@ -213,8 +215,267 @@ def load_noise_floors(out_dir: Path, model: str) -> dict[str, NoiseFloor]:
     return floors
 
 
+MIN_K_RUNS = 3  # Req 3.5: a single run misses most real changes, so no stage may score with fewer
+
+
+def run_learning_round(
+    cases: Sequence[PairCase],
+    *,
+    family: str,
+    taxonomy: FamilyTaxonomy,
+    configs_dir: Path,
+    proposer: Proposer,
+    scan_factory: Callable[[FamilyConfig], Scan],
+    model: str,
+    journal: LearningJournal,
+    archive: Archive,
+    floors: Mapping[str, NoiseFloor],
+    out_dir: Path,
+    cost_cap_usd: float = 10.0,
+    minibatch: int = 8,
+    k_runs: int = MIN_K_RUNS,
+    sweep_families: Sequence[str] = (),
+    spent_usd: Callable[[], float] | None = None,
+    trajectories: Callable[[], Sequence[Mapping[str, object]]] | None = None,
+) -> object:
+    """One round: propose one change for one family, then let the evidence decide whether it stays.
+
+    Staged so that the cheap answer comes first: a train minibatch, then the family's held-out pairs,
+    then every other family. Each stage scores several runs per pair, because a single run misses most
+    real changes. The proposer never sees a held-out pair, and the family directory is snapshotted before
+    the change so any outcome other than acceptance leaves the tree exactly as it was found.
+    """
+    from ..redaction import redact_secrets
+    from .acceptance import DirectorySnapshot, bump_version, decide, within_budget
+    from .detectors import load_family_configs
+    from .proposer import apply_proposal, build_failure_facts, refuse_proposal
+    from .split import is_teacher
+
+    if k_runs < MIN_K_RUNS:
+        raise ValueError(f"a stage scores at least three runs per pair; {k_runs} was asked for")
+    round_number = journal.next_round()  # type: ignore[attr-defined]
+    directory = out_dir / "rounds" / str(round_number)
+    if directory.exists():
+        from .journal import JournalError
+
+        raise JournalError(f"round {round_number} already has a directory; history is append-only")
+    configs = load_family_configs(configs_dir, taxonomy)
+    config = configs[family]
+    train = [case for case in cases if is_teacher(case) and _family_of(case, taxonomy) == family]
+    holdout = [case for case in cases if case.split == "holdout" and _family_of(case, taxonomy) == family]
+    batch = train[:minibatch]
+
+    def _score(rows: Sequence[PairCase], scan: Scan, name: str) -> list[PairFamilyScore]:
+        return [score_case(case, scan, taxonomy=taxonomy, runs=k_runs, family=name) for case in rows]
+
+    before_scan = scan_factory(config)
+    before_train = _score(batch, before_scan, family)
+    before_hold = _score(holdout, before_scan, family)
+    facts = build_failure_facts(before_train, family=family, config=config, journal=journal, train_pairs={case.name for case in train})
+    proposal = proposer.propose(facts)  # type: ignore[attr-defined]
+    record = _round_record(round_number, family, proposal, taxonomy, config)
+    if proposal is None:
+        return _finish(journal, directory, record, outcome="rejected", reason="no_proposal", trajectories=trajectories)
+    refusal = refuse_proposal(proposal, config)
+    if refusal is not None:
+        return _finish(journal, directory, record, outcome="rejected", reason=refusal, proposal=proposal, trajectories=trajectories)
+    snapshot = DirectorySnapshot.of(configs_dir / family)
+    apply_proposal(proposal, configs_dir / family)
+    try:
+        after_config = load_family_configs(configs_dir, taxonomy)[family]
+        after_scan = scan_factory(after_config)
+        after_train = _score(batch, after_scan, family)
+        after_hold = _score(holdout, after_scan, family)
+        sweep, flipped_unpredicted = _sweep(cases, taxonomy, configs, scan_factory, sweep_families, family, k_runs)
+        cost = spent_usd() if spent_usd is not None else 0.0
+        train_delta = _delta(before_train, after_train)
+        holdout_delta = _delta(before_hold, after_hold)
+        if not within_budget(cost, cost_cap_usd):
+            snapshot.restore()
+            return _finish(
+                journal,
+                directory,
+                record,
+                outcome="reverted_cost",
+                reason="cost_cap_exceeded",
+                proposal=proposal,
+                cost=cost,
+                scores=after_train + after_hold,
+                trajectories=trajectories,
+            )
+        verdict = decide(target=family, train_delta=train_delta, holdout_delta=holdout_delta, sweep=sweep, floors=floors)  # type: ignore[arg-type]
+        flipped = _flipped(before_train + before_hold, after_train + after_hold)
+        attribution = Attribution(
+            flipped_predicted=len(flipped),
+            flipped_unpredicted=len(flipped_unpredicted),
+            precision=len(flipped) / (len(flipped) + len(flipped_unpredicted)) if flipped or flipped_unpredicted else 0.0,
+        )
+        if not verdict.accepted:
+            snapshot.restore()
+            return _finish(
+                journal,
+                directory,
+                record,
+                outcome="rejected",
+                reason=verdict.reason,
+                proposal=proposal,
+                cost=cost,
+                train_delta=train_delta,
+                holdout_delta=holdout_delta,
+                sweep=sweep,
+                attribution=attribution,
+                flipped=flipped,
+                unpredicted=flipped_unpredicted,
+                scores=after_train + after_hold,
+                trajectories=trajectories,
+            )
+        version = str(int(config.version) + 1) if config.version.isdigit() else f"{config.version}+1"
+        bump_version(configs_dir / family, version)
+        for score in after_train + after_hold:
+            archive.record(family, version, score)  # type: ignore[attr-defined]
+        return _finish(
+            journal,
+            directory,
+            record,
+            outcome="accepted",
+            reason=verdict.reason,
+            proposal=proposal,
+            cost=cost,
+            train_delta=train_delta,
+            holdout_delta=holdout_delta,
+            sweep=sweep,
+            attribution=attribution,
+            flipped=flipped,
+            unpredicted=flipped_unpredicted,
+            scores=after_train + after_hold,
+            version=version,
+            trajectories=trajectories,
+        )
+    except Exception:
+        snapshot.restore()
+        raise
+    finally:
+        del redact_secrets
+
+
+def _sweep(
+    cases: Sequence[PairCase],
+    taxonomy: FamilyTaxonomy,
+    configs: Mapping[str, FamilyConfig],
+    scan_factory: Callable[[FamilyConfig], Scan],
+    families: Sequence[str],
+    target: str,
+    k_runs: int,
+) -> tuple[dict[str, int], list[str]]:
+    """Every other family's held-out pairs, so a change cannot help one family by quietly breaking another."""
+    flips: dict[str, int] = {}
+    unpredicted: list[str] = []
+    for name in families:
+        if name == target or name not in configs:
+            continue
+        rows = [case for case in cases if case.split == "holdout" and _family_of(case, taxonomy) == name]
+        scan = scan_factory(configs[name])
+        broken = [
+            item
+            for item in (score_case(case, scan, taxonomy=taxonomy, runs=k_runs, family=name) for case in rows)
+            if item.outcome != "pair_correct"
+        ]
+        flips[name] = len(broken)
+        unpredicted.extend(item.pair for item in broken)
+    return flips, unpredicted
+
+
+def _delta(before: Sequence[PairFamilyScore], after: Sequence[PairFamilyScore]) -> float:
+    """The change in how many pairs came out right, as a fraction of the pairs that could be scored."""
+    scorable = [item for item in before if item.outcome != "unscorable"]
+    if not scorable:
+        return 0.0
+    was = sum(1 for item in before if item.outcome == "pair_correct")
+    now = sum(1 for item in after if item.outcome == "pair_correct")
+    return (now - was) / len(scorable)
+
+
+def _flipped(before: Sequence[PairFamilyScore], after: Sequence[PairFamilyScore]) -> list[str]:
+    was = {item.pair: item.outcome for item in before}
+    return [item.pair for item in after if item.outcome == "pair_correct" and was.get(item.pair) not in {"pair_correct", None}]
+
+
+def _round_record(
+    round_number: int, family: str, proposal: Proposal | None, taxonomy: FamilyTaxonomy, config: FamilyConfig
+) -> dict[str, object]:
+    return {
+        "round": round_number,
+        "family": family,
+        "hypothesis": proposal.hypothesis if proposal is not None else "",
+        "levers": (proposal.lever,) if proposal is not None else (),
+        "predicted_affected": tuple(proposal.predicted_affected) if proposal is not None else (),
+        "predicted_at_risk": tuple(proposal.predicted_at_risk) if proposal is not None else (),
+        "taxonomy_version": taxonomy.version,
+        "config_version": config.version,
+    }
+
+
+def _finish(
+    journal: LearningJournal,
+    directory: Path,
+    base: dict[str, object],
+    *,
+    outcome: str,
+    reason: str,
+    proposal: Proposal | None = None,
+    cost: float = 0.0,
+    train_delta: float = 0.0,
+    holdout_delta: float = 0.0,
+    sweep: Mapping[str, int] | None = None,
+    attribution: Attribution | None = None,
+    flipped: Sequence[str] = (),
+    unpredicted: Sequence[str] = (),
+    scores: Sequence[PairFamilyScore] = (),
+    version: str | None = None,
+    trajectories: Callable[[], Sequence[Mapping[str, object]]] | None = None,
+) -> object:
+    """Write the round directory and journal the outcome. Every outcome is journalled, not just the good ones."""
+    from ..redaction import redact_secrets
+
+    record = RoundRecord(
+        **base,  # type: ignore[arg-type]
+        outcome=outcome,
+        reason=reason,
+        target_train_delta=train_delta,
+        target_holdout_delta=holdout_delta,
+        sweep=dict(sweep or {}),
+        attribution=attribution or Attribution(),
+        cost_usd=cost,
+    )
+    if version is not None:
+        record = RoundRecord(**{**record.__dict__, "config_version": version})
+    directory.mkdir(parents=True, exist_ok=True)
+    if proposal is not None:
+        (directory / "proposal.json").write_text(
+            redact_secrets(json.dumps(proposal.to_dict(), indent=2, sort_keys=True)) + "\n",
+            encoding="utf-8",
+        )
+    (directory / "scores.json").write_text(
+        json.dumps([{"pair": item.pair, "family": item.family, "outcome": item.outcome} for item in scores], indent=2, sort_keys=True)
+        + "\n",
+        encoding="utf-8",
+    )
+    (directory / "attribution.json").write_text(
+        json.dumps({"flipped_predicted": list(flipped), "flipped_unpredicted": list(unpredicted)}, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    rows = list(trajectories() if trajectories is not None else ())
+    (directory / "trajectories.jsonl").write_text(
+        "".join(redact_secrets(json.dumps(row, sort_keys=True)) + "\n" for row in rows), encoding="utf-8"
+    )
+    journal.append(record)  # type: ignore[attr-defined]
+    return record
+
+
 __all__ = [
     "DEFAULT_K_RUNS",
+    "MIN_K_RUNS",
+    "run_learning_round",
     "DEFAULT_SLICES",
     "NON_GATING_FAMILIES",
     "BaselineReport",
