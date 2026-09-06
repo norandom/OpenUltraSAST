@@ -12,9 +12,10 @@ outcome is the majority of the runs, and the runs that disagree with it are the 
 
 from __future__ import annotations
 
+import math
 from collections import Counter
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 from ..findings import StaticFinding
@@ -34,6 +35,7 @@ class PairFamilyScore:
     family: str
     runs: tuple[FamilyOutcome, ...]
     outcome: FamilyOutcome
+    slice: str = ""
     other_findings_vuln: int = 0  # right place, another family: not a detection, never a leak
     other_findings_fixed: int = 0
     fabricated_vuln: int = 0  # a family id outside the taxonomy: noise, and worth naming
@@ -54,9 +56,10 @@ def score_pair_family(
 ) -> PairFamilyScore:
     """Score one pair for one family over K runs of the detector on each side."""
     name = str(getattr(case, "name", "?"))
+    slice_name = str(getattr(case, "slice", "") or "")
     reason = _unscorable(case, ranges)
     if reason is not None:
-        return PairFamilyScore(pair=name, family=family, runs=(), outcome="unscorable", unscorable_reason=reason)
+        return PairFamilyScore(pair=name, family=family, slice=slice_name, runs=(), outcome="unscorable", unscorable_reason=reason)
     spans = _spans(case, ranges)
     outcomes: list[FamilyOutcome] = []
     other_vuln = other_fixed = fabricated_vuln = fabricated_fixed = 0
@@ -73,11 +76,12 @@ def score_pair_family(
         rung = _best_rung(rung, hits_vuln)
         outcomes.append(_outcome(bool(hits_vuln), bool(hits_fixed)))
     if not outcomes:
-        return PairFamilyScore(pair=name, family=family, runs=(), outcome="unscorable", unscorable_reason="no_runs")
+        return PairFamilyScore(pair=name, family=family, slice=slice_name, runs=(), outcome="unscorable", unscorable_reason="no_runs")
     majority = Counter(outcomes).most_common(1)[0][0]
     return PairFamilyScore(
         pair=name,
         family=family,
+        slice=slice_name,
         runs=tuple(outcomes),
         outcome=majority,
         other_findings_vuln=other_vuln,
@@ -158,4 +162,123 @@ def _best_rung(current: Rung, hits: Sequence[StaticFinding]) -> Rung:
     return best
 
 
-__all__ = ["FamilyOutcome", "FunctionRanges", "PairFamilyScore", "Rung", "score_pair_family"]
+@dataclass(frozen=True)
+class FamilyMetrics:
+    """One family's numbers, with the denominator they were computed over and why rows fell out of it."""
+
+    family: str
+    taxonomy_version: str
+    scorable: int
+    unscorable: dict[str, int] = field(default_factory=dict)
+    outcomes: dict[str, int] = field(default_factory=dict)
+    recall: float = 0.0  # flagged the vulnerable side
+    silence: float = 0.0  # said nothing on the fixed side
+    youden: float = 0.0
+    directional_bias: float = 0.0  # positive: flags both sides; negative: silent on both. Youden cannot tell them apart.
+    leak_rate: float = 0.0
+    fixed_fpr_recall: float = 0.0  # recall, forfeited entirely when the leak rate exceeds the ceiling
+    negative_flips: int = 0  # pairs that were correct in the baseline and are not now
+    positive_flips: int = 0
+    p_value: float | None = None  # two-sided sign test over the discordant pairs
+    reliable_change: bool = False
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "family": self.family,
+            "taxonomy_version": self.taxonomy_version,
+            "scorable": self.scorable,
+            "unscorable": dict(sorted(self.unscorable.items())),
+            "outcomes": dict(sorted(self.outcomes.items())),
+            "recall": self.recall,
+            "silence": self.silence,
+            "youden": self.youden,
+            "directional_bias": self.directional_bias,
+            "leak_rate": self.leak_rate,
+            "fixed_fpr_recall": self.fixed_fpr_recall,
+            "negative_flips": self.negative_flips,
+            "positive_flips": self.positive_flips,
+            "p_value": self.p_value,
+            "reliable_change": self.reliable_change,
+        }
+
+
+def aggregate(
+    scores: Sequence[PairFamilyScore],
+    *,
+    taxonomy: FamilyTaxonomy,
+    baseline: Sequence[PairFamilyScore] | None = None,
+    fpr_ceiling: float = 0.1,
+    per_slice: bool = False,
+    alpha: float = 0.05,
+) -> dict[str, FamilyMetrics]:
+    """Group scores into per-family numbers. Unscorable rows are listed by reason and leave every denominator."""
+    grouped: dict[str, list[PairFamilyScore]] = {}
+    for score in scores:
+        grouped.setdefault(f"{score.slice}/{score.family}" if per_slice else score.family, []).append(score)
+    was_correct = {(item.slice if per_slice else "", item.family, item.pair): item.outcome for item in baseline or ()}
+    out: dict[str, FamilyMetrics] = {}
+    for key, group in sorted(grouped.items()):
+        scorable = [item for item in group if item.outcome != "unscorable"]
+        reasons: dict[str, int] = {}
+        for item in group:
+            if item.outcome == "unscorable":
+                reason = item.unscorable_reason or "unknown"
+                reasons[reason] = reasons.get(reason, 0) + 1
+        counts = Counter(item.outcome for item in scorable)
+        total = len(scorable)
+        detected = counts["pair_correct"] + counts["both_flagged"]
+        silent = counts["pair_correct"] + counts["both_silent"]
+        leaks = counts["both_flagged"] + counts["reversed"]
+        recall = detected / total if total else 0.0
+        silence = silent / total if total else 0.0
+        leak_rate = leaks / total if total else 0.0
+        negative = positive = 0
+        for item in scorable:
+            before = was_correct.get((item.slice if per_slice else "", item.family, item.pair))
+            if before is None or before == "unscorable":
+                continue
+            if before == "pair_correct" and item.outcome != "pair_correct":
+                negative += 1
+            elif before != "pair_correct" and item.outcome == "pair_correct":
+                positive += 1
+        p_value = sign_test(positive, negative) if baseline is not None else None
+        out[key] = FamilyMetrics(
+            family=group[0].family,
+            taxonomy_version=taxonomy.version,
+            scorable=total,
+            unscorable=reasons,
+            outcomes={name: count for name, count in sorted(counts.items())},
+            recall=recall,
+            silence=silence,
+            youden=(recall + silence - 1.0) if total else 0.0,
+            directional_bias=((counts["both_flagged"] - counts["both_silent"]) / total) if total else 0.0,
+            leak_rate=leak_rate,
+            fixed_fpr_recall=recall if leak_rate <= fpr_ceiling else 0.0,
+            negative_flips=negative,
+            positive_flips=positive,
+            p_value=p_value,
+            reliable_change=bool(p_value is not None and p_value < alpha and positive != negative),
+        )
+    return out
+
+
+def sign_test(better: int, worse: int) -> float:
+    """Two-sided exact sign test over the pairs that changed. 1.0 when nothing changed, so noise never reads as progress."""
+    total = better + worse
+    if total == 0:
+        return 1.0
+    smaller = min(better, worse)
+    tail = sum(math.comb(total, index) for index in range(smaller + 1)) / float(2**total)
+    return float(min(1.0, 2.0 * tail))
+
+
+__all__ = [
+    "FamilyMetrics",
+    "FamilyOutcome",
+    "FunctionRanges",
+    "PairFamilyScore",
+    "Rung",
+    "aggregate",
+    "score_pair_family",
+    "sign_test",
+]
