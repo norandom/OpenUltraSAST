@@ -1,0 +1,45 @@
+{
+  "baseline_for_comparison": {
+    "detection_rate": 0.649,
+    "leak_rate": 0.123,
+    "note": "deepseek-v4-flash, K=5, unconstrained tool loop, 57 scorable pairs across vibe-py and agent-vfc",
+    "pair_correct": 0.526
+  },
+  "candidate_sources": {
+    "pattern_ruleset (quick_scan_findings)": {
+      "by_family": {
+        "access_control": 0.0,
+        "config_secrets": 0.0,
+        "deserialization": 0.5,
+        "injection": 0.27,
+        "output_encoding": 0.0,
+        "path": 0.0,
+        "prototype": 0.0,
+        "untrusted_destination": 0.0
+      },
+      "ceiling": 0.121,
+      "note": "the ruleset finds nothing at all in most of these files, not merely nothing inside the labeled function",
+      "pairs": 58,
+      "pairs_with_a_candidate": 7
+    },
+    "semantic_ir (call sites + bindings)": {
+      "ceiling": 0.966,
+      "gaps": [
+        "edutrace-page-ee7ba2 (labeled function absent from the IR)",
+        "money-track-category-icons-4d4a5b (no calls or bindings in the labeled function)"
+      ],
+      "pairs": 58,
+      "pairs_with_a_candidate": 56,
+      "sites_per_labeled_function": {
+        "max": 33,
+        "median": 10,
+        "min": 1,
+        "p90": 22
+      }
+    }
+  },
+  "command": "offline: parse each vulnerable side, count call sites and bindings inside the labeled function",
+  "conclusion": "The candidate generator must be the semantic IR, not the pattern ruleset. The ruleset would cap recall at 12.1%, well below the 64.9% the unconstrained loop already reaches; the IR caps it at 96.6% and hands the model a median of ten sites to judge instead of a repository to search.",
+  "generated": "2026-09-06",
+  "note": "A candidate-driven detector can only judge sites something else enumerates, so the enumerator sets a hard ceiling on recall. Measured over the 58 scorable vendored web pairs, before building anything."
+}

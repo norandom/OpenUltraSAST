@@ -9,13 +9,7 @@
 // relpath: services/web/app/src/Features/Exports/ExportsController.mjs
 // provenance: agent
 // mechanism: identity_from_request_body
-// upstream_start: 1
-
-from '@overleaf/promise-utils'
-import SessionManager from '../Authentication/SessionManager.mjs'
-import logger from '@overleaf/logger'
-import OError from '@overleaf/o-error'
-import settings from '@overleaf/settings'
+// upstream_start: 8
 
 async function exportProject(req, res, next) {
   const { project_id: projectId, brand_variation_id: brandVariationId } =
@@ -82,4 +76,8 @@ async function exportProject(req, res, next) {
   }
 }
 
-exportProject: expressify(exportProject),
+export default {
+  exportDownload: expressify(exportDownload),
+  exportProject: expressify(exportProject),
+  exportStatus: expressify(exportStatus),
+}

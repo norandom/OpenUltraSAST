@@ -62,8 +62,27 @@
     }
   }
 
-await loadNamespaces(true)
-await loadNamespaces(true)
-loadNamespaces(true)
-loadNamespaces(true) // Skip connection check since we're auto-connecting
-loadNamespaces(true);
+        try {
+          await loadNamespaces(true)
+          await loadData()
+        } catch (err) {
+          console.error('Error loading namespaces:', err)
+        }
+        try {
+          await loadNamespaces(true)
+          // Always load data after namespaces are loaded (defaults to 'all' to show all resources)
+          await loadData()
+        } catch (err) {
+          console.error('Error loading namespaces after connection:', err)
+          setErrorMessage('✅ Connected, but failed to load namespaces. Click "Load Namespaces" to retry.')
+        }
+      if (apiUrl && !deployedNamespace) {
+        loadNamespaces(true)
+      }
+    if (apiUrl && !isConnected && !isConnecting) {
+      console.log('🚀 Auto-connecting to Kubernetes cluster via ServiceAccount...')
+      loadNamespaces(true) // Skip connection check since we're auto-connecting
+    }
+    if (apiUrl && !isConnected) {
+      loadNamespaces(true);
+    }

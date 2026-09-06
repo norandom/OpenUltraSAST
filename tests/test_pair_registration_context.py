@@ -425,3 +425,32 @@ def test_prose_inside_a_decorator_never_grants_a_guard(tmp_path: Path) -> None:
     _, targets = preprocess_repository(tmp_path)
     access = {record.function_name: record.access_level for record in analyze_entry_points(tmp_path, targets) if record.function_name}
     assert access == {"delete": "public", "get": "authenticated"}
+
+
+def test_a_javascript_excerpt_never_starts_in_the_middle_of_an_import() -> None:
+    """`_declarator_start` walks back to the previous `;` or `}`. In JavaScript written without semicolons the
+    nearest `}` is the one in `import { expressify } from ...`, so the excerpt began mid-statement and the file
+    did not parse at all — a pair that cannot be parsed cannot be scored."""
+    lib = _lib()
+    source = (
+        "import { expressify } from '@overleaf/promise-utils'\n"
+        "import SessionManager from '../Authentication/SessionManager.mjs'\n\n"
+        "async function exportProject(req, res, next) {\n"
+        "  return res.send(req.params.project_id)\n"
+        "}\n"
+    )
+    excerpt = lib["extract_function"](source, "exportProject", "javascript")
+    assert excerpt.startswith("async function exportProject("), excerpt.splitlines()[0]
+    assert "from '@overleaf" not in excerpt
+
+
+def test_the_overleaf_excerpt_parses_on_both_sides() -> None:
+    from openultrasast.semantic.ir import parse_file
+
+    case = next(
+        item for item in select_vendored(load_pair_catalog(DEFAULT_CATALOG)) if item.name == "overleaf-with-claude-exportscontroller-3980b9"
+    )
+    for path in (case.vuln_file, case.fixed_file):
+        ir = parse_file(case.relpath, path.read_text(), "javascript")
+        assert ir.parse_ok, f"{path.name}: {ir.reason}"
+        assert any(function.name == "exportProject" for function in ir.functions)

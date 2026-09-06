@@ -64,6 +64,8 @@ _DEF_RE = re.compile(r"^(\s*)(?:async\s+)?def\s+([A-Za-z_]\w*)\s*\(")
 _CLASS_RE = re.compile(r"^(\s*)class\s+([A-Za-z_]\w*)\s*[(:]")
 _COMMENTED_CODE = re.compile(r"^#\s*(?:@|(?:async\s+)?def\s|class\s|function\s)")
 _CONTROL_HEAD = re.compile(r"^(?:else\s+)?(?:if|for|while|switch|catch|do|try|finally)\b")
+# A module-level import or its continuation: `import ... from 'x'`, `from 'x'`, `export ... from 'x'`.
+_IMPORT_LINE = re.compile(r"^(?:import\b|export\b.*\bfrom\b|from\s+[\'\"])")
 _INDENTED = {"python", "yaml"}
 
 
@@ -270,16 +272,78 @@ def extract_handler_context(source: str, function_name: str, language: str = "c"
     mention = re.compile(rf"(?<![\w.]){re.escape(function_name)}(?!\w)")
     declaration = re.compile(rf"^\s*(?:async\s+)?(?:def|function|sub)\s+{re.escape(function_name)}\b")
     covered = set(range(start, end)) | set(header)
-    registrations = [
-        lines[index]
+    hits = [
+        index
         for index, masked in enumerate(masked_lines)
         if index not in covered and index < len(lines) and mention.search(masked) and not declaration.match(masked)
     ]
+    registrations = _registration_statements(source, lines, hits, language, covered)
     if header:
         body = "\n".join(lines[index] for index in header) + "\n" + body
     if not registrations:
         return body
-    return body.rstrip("\n") + "\n\n" + "\n".join(line.strip() for line in registrations) + "\n"
+    return body.rstrip("\n") + "\n\n" + "\n".join(registrations) + "\n"
+
+
+def _registration_statements(source: str, lines: Sequence[str], hits: Sequence[int], language: str, covered: set[int]) -> list[str]:
+    """Each registration mention expanded to the statement that contains it, deduplicated and in order.
+
+    A bare line is not always a statement: `export default { exportProject: expressify(exportProject) }` mentions
+    the handler inside an object literal, and appending that one line leaves the excerpt unparsable — which costs
+    the pair its function ranges and drops it out of every denominator."""
+    if language in _INDENTED:
+        return [lines[index].strip() for index in hits]
+    out: list[str] = []
+    taken: set[int] = set(covered)
+    for index in hits:
+        if index in taken:
+            continue
+        span = _statement_span(source, lines, index)
+        if span is None:
+            taken.add(index)
+            out.append(lines[index].strip())
+            continue
+        first, last = span
+        if any(position in taken for position in range(first, last + 1)):
+            continue
+        taken.update(range(first, last + 1))
+        out.append("\n".join(lines[first : last + 1]).rstrip())
+    return out
+
+
+def _statement_span(source: str, lines: Sequence[str], index: int) -> tuple[int, int] | None:
+    """The line range of the smallest balanced `(...)`/`{...}`/`[...]` construct enclosing ``index``, with the
+    line that opens it; None when the line already stands on its own."""
+    masked_lines = mask_comments_and_strings(source, "javascript").splitlines()
+    depth = 0
+    first = index
+    for position in range(index, -1, -1):
+        for char in reversed(masked_lines[position] if position < len(masked_lines) else ""):
+            if char in ")}]":
+                depth += 1
+            elif char in "({[":
+                if depth == 0:
+                    first = position
+                    break
+                depth -= 1
+        else:
+            continue
+        break
+    else:
+        return None
+    if first == index and _balanced(masked_lines[index] if index < len(masked_lines) else ""):
+        return None
+    depth = 0
+    for last in range(first, len(lines)):
+        line = masked_lines[last] if last < len(masked_lines) else ""
+        depth += sum(line.count(char) for char in "({[") - sum(line.count(char) for char in ")}]")
+        if last >= index and depth <= 0:
+            return first, last
+    return first, len(lines) - 1
+
+
+def _balanced(line: str) -> bool:
+    return sum(line.count(char) for char in "({[") == sum(line.count(char) for char in ")}]")
 
 
 def _indent(line: str) -> int:
@@ -496,12 +560,15 @@ def _declarator_start(source: str, masked: str, anchor: int) -> int:
                 break
         pos -= 1
     start = pos + 1
-    # Skip blank and comment-only lines between the boundary and the declarator.
+    # Skip blank and comment-only lines between the boundary and the declarator, and any import or export
+    # statement the boundary landed inside. JavaScript written without semicolons puts the nearest `}` in
+    # `import { x } from '...'`, so the walk-back stops mid-statement and the excerpt does not parse at all.
     while True:
         line_end = source.find("\n", start)
         if line_end < 0:
             break
-        if masked[start:line_end].strip():
+        line = masked[start:line_end].strip()
+        if line and not _IMPORT_LINE.match(line):
             break
         start = line_end + 1
     return start
