@@ -81,6 +81,29 @@ on the incumbent every `minibatch_full_eval_steps` — an explicit two-fidelity 
 `reflection_minibatch_size`, `candidate_selection_strategy` (`pareto` | `current_best`) and
 `track_stats`, and its metric returns `Prediction(score, feedback)` rather than a float.
 
+**SIMBA — Stochastic Introspective Mini-Batch Ascent (`dspy.SIMBA`).** Two of its ideas fit our corpus
+better than GEPA's do. It runs `num_candidates` (6 by default) program variants per example, buckets the
+trajectories, and ranks examples by **max-to-min score gap** — deliberately spending the budget on the
+instances where variants disagree most. On our corpus that is not a nuisance, it is the training signal:
+the 11 injection pairs that disagree with themselves are precisely the pairs where a rule change can flip
+an outcome, and uniform minibatch sampling would spend most of its budget on the 9 that never move. It
+also alternates two strategies rather than round-robining blindly — `append_a_demo` (a successful
+trajectory becomes a demonstration) and `append_a_rule` (the model introspects on the bucket and writes a
+rule) — which is exactly the split our levers already have between `counterexamples`/`hard_negatives` and
+`checklist`/`prompt`. Candidates are sampled by softmax over historical scores at temperature 0.2, a
+cheaper third option beside GEPA's `pareto` and `current_best`.
+
+**The reflection meta-prompt** (GEPA Appendix C) is short and tells us what the feedback function must
+produce. It shows the reflector the current instruction, then "inputs, outputs and feedback" for the
+minibatch, and asks it to infer the task, extract "all niche and domain specific factual information ...
+as a lot of it may not be available to the assistant in the future", and name any generalizable strategy.
+That is a specification for `μ_f`, not just a prompt: feedback has to carry the domain facts a detector
+cannot re-derive — which sink, which span, which side leaked — rather than a verdict.
+
+**GEPA's merge** is gated strictly: two candidates are crossed only when they share a common ancestor,
+optimised *disjoint* sets of prompts, are both Pareto-optimal, and both beat the ancestor's aggregate.
+Worth having once we have per-lever candidates, and worth not having before then.
+
 **The standalone `gepa` library** (MIT) exposes `gepa.optimize(seed_candidate, trainset, valset,
 task_lm, reflection_lm, max_metric_calls)` over a `GEPAAdapter` protocol of three methods —
 `evaluate`, `make_reflective_dataset`, `propose_new_texts` — with a seed candidate that is just a dict
@@ -106,6 +129,19 @@ Restate the detector as an optimisable program and put a published optimiser beh
 - **The Pareto pool replaces the accept/revert tree.** `Archive` already records per-pair winners; it
   becomes the frontier, and the journal's parent records become the ancestry GEPA needs.
 
+## The constraint that outranks the algorithm
+
+Both algorithms assume a dataset. GEPA splits `D_train` into `D_feedback` and `D_pareto`; SIMBA's default
+batch size is 32. **Our injection family has 12 train teachers** — fewer than one SIMBA batch, and after a
+GEPA split roughly six instances on each side. Every other family has one to three.
+
+So the honest statement of what this spec can and cannot buy: GEPA and SIMBA are sample-efficient in
+*rollouts*, not in *instances*. They will not shortcut a corpus of twelve. The optimiser is worth building
+because the current loop is the wrong shape and will stay wrong at any corpus size, but the binding
+constraint on results is the train split, and it will remain so after this spec ships. Two things move it,
+neither of which is an algorithm: reviewing agent-vfc rows above tier `title` (29 rows, currently unable to
+teach anything), and harvesting more pairs per family.
+
 ## Scope
 
 In: the search over a family's text components, the feedback function, the candidate pool and its
@@ -119,16 +155,29 @@ no pattern or policy is written by a model.
 
 ## Decisions for the maintainer
 
+0. **Adopt DSPy itself?** Proposed no. Our detector is not a DSPy program — it is an agentic tool loop over
+   a repository with curated tools, redaction on every prompt, path clamping, a "no findings unless a tool
+   was called" rule and a final-answer turn, several of which are security properties rather than
+   conveniences. Handing that loop to `dspy.ReAct` and the calls to litellm would put them behind someone
+   else's abstraction, and DSPy could only ever be an optional extra under `dependencies = []`, which means
+   two code paths for the thing that *is* the product. What DSPy would genuinely buy — signatures, adapters,
+   multi-module composition — we barely need at one module per family. The optimisers are available without
+   the framework: `gepa` ships standalone under MIT, and SIMBA's two ideas are a hundred lines of logic.
+   Proposed instead: take the interface shape and the algorithms, not the framework.
+
 1. **Reimplement Algorithms 1 and 2, take `gepa` as an extra, or both?** Both is proposed: ours by
    default (zero-dependency, and the security properties are ours to own), `gepa` behind an extra for
    comparison. The cost is one adapter and one conformance test that both backends must pass.
 2. **Drop the holdout from the acceptance rule?** Proposed yes, and it amends approved Req 9.5. The
    holdout becomes what its name says.
-3. **K = 1 inside the search, K ≥ 3 only for published numbers?** Proposed yes. That is roughly a 5×
+3. **Sample instances by disagreement (SIMBA) or uniformly (GEPA)?** Proposed SIMBA's ranking. Our measured
+   floor makes it the better fit, and it turns the noise floor from an obstacle into an instance sampler.
+
+4. **K = 1 inside the search, K ≥ 3 only for published numbers?** Proposed yes. That is roughly a 5×
    budget reclaim spent on more candidates, which is where the sample efficiency comes from.
-4. **Does the reflection model differ from the detector model?** The published work uses a stronger
+5. **Does the reflection model differ from the detector model?** The published work uses a stronger
    reflector than the task model. We have `deepseek-v4-pro` configured as the judge; proposed to reuse it.
-5. **Is `access_control` still the family we care most about?** It has one train teacher. Until agent-vfc
+6. **Is `access_control` still the family we care most about?** It has one train teacher. Until agent-vfc
    rows are reviewed above tier `title`, the optimiser cannot work on it, whatever its algorithm.
 
 ## Open questions
@@ -146,4 +195,6 @@ no pattern or policy is written by a model.
 Sources: [GEPA (arXiv:2507.19457)](https://arxiv.org/abs/2507.19457) ·
 [DSPy GEPA overview](https://dspy.ai/api/optimizers/GEPA/overview/) ·
 [DSPy MIPROv2](https://dspy.ai/api/optimizers/MIPROv2/) ·
-[gepa-ai/gepa](https://github.com/gepa-ai/gepa)
+[gepa-ai/gepa](https://github.com/gepa-ai/gepa) ·
+[DSPy SIMBA](https://dspy.ai/api/optimizers/SIMBA/) ·
+[dspy/teleprompt/simba.py](https://github.com/stanfordnlp/dspy/blob/main/dspy/teleprompt/simba.py)
