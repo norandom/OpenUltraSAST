@@ -197,12 +197,12 @@ def _skip_reason(case: PairCase) -> str | None:
 
     if case.review_tier not in GATING_TIERS:
         return f"tier:{case.review_tier}"
-    if case.unscorable:
-        # One spelling per corpus fact. `identical_twin` declared in the catalog and `identical_twin` computed from
-        # the bytes are the same reason, and calling one of them `split:train` is simply untrue (Req 5.1, 10.3).
-        return f"unscorable:{case.unscorable}"
-    if case.known_limit:
-        return f"known_limit:{case.known_limit}"
+    if case.unscorable or case.known_limit:
+        # `PairCase.unscorable` verbatim when the loader computed one, the same string every other path reports:
+        # `identical_twin` declared in the catalog and `identical_twin` computed from the bytes are one fact, and
+        # calling either of them `split:train` is simply untrue. A case built by hand may carry only the
+        # declaration (Req 5.1, 10.3).
+        return case.unscorable or f"known_limit:{case.known_limit}"
     if not is_teacher(case) and case.vendored:
         return f"split:{case.split}"
     if not case.vuln_file.is_file() or not case.fixed_file.is_file():

@@ -45,7 +45,7 @@ def test_a_train_split_twin_is_refused_for_being_a_twin_not_for_its_split(tmp_pa
     `vulnpy-deserialization-do-pickle-load` are train-split identical twins."""
     from openultrasast.semantic.seed import _skip_reason
 
-    assert _skip_reason(_case(tmp_path, "twin", split="train", unscorable="identical_twin")) == "unscorable:identical_twin"
+    assert _skip_reason(_case(tmp_path, "twin", split="train", unscorable="identical_twin")) == "identical_twin"
     assert _skip_reason(_case(tmp_path, "held", split="holdout")) == "split:holdout"
     assert _skip_reason(_case(tmp_path, "good", split="train")) is None
 

@@ -131,6 +131,12 @@ class PairCase:
     unscorable: str | None = None  # computed: identical_twin, known_limit:<reason> (learning-harness Req 4.1)
     split_declared: bool = True  # False when the catalog row named no split, so the split helper may assign one
     fix_date: str = ""  # ISO date of the fixing commit; the catalog generator fills it, the split helper orders by it
+    # The function the *fixed* side actually holds, when it is not the labeled one. Real-Vuln-Benchmark traps take
+    # their fixed side from a different, correctly guarded handler of the same snapshot, and without this the fixed
+    # side resolves no span at all: every finding there reads as outside the labeled function, so the pair scores as
+    # silence rather than as a leak (learning-harness Req 3.2, 4.1).
+    fix_function: str = ""
+
     recipe: tuple[tuple[str, object], ...] = ()  # pointer pairs carry their harvest recipe instead of excerpts
     # (relpath, vuln document, fixed document): files that register the handler from outside its own module — an
     # OpenAPI operation, a router table. Materialized beside the excerpt so the mapper can name the handler at all
@@ -292,6 +298,7 @@ def _load_catalog_file(path: Path) -> tuple[PairCase, ...]:
                 unscorable=_unscorable_reason(known_limit, vuln_file, fixed_file, vendored=vendored),
                 split_declared="split" in item,
                 fix_date=str(item.get("fix_date", "")),
+                fix_function=str(item.get("fix_function", "")),
                 review_tier=review_tier,
                 reviewer=reviewer,
                 vendored=vendored,
@@ -625,8 +632,10 @@ def _body_digest(path: Path) -> str | None:
     return hashlib.sha256(body.encode()).hexdigest() if body else None
 
 
-# The reasons a row may carry verbatim from the catalog, because the loader computes them under the same names.
-UNSCORABLE_REASONS = frozenset({"identical_twin"})
+# The reasons a row may carry verbatim from the catalog, because something else computes them under the same
+# names. A maintainer declaring one of these is stating the fact the computation would have found, so the two must
+# not end up as two buckets in the same report (learning-harness Req 4.1, 10.3).
+UNSCORABLE_REASONS = frozenset({"identical_twin", "unsupported_language", "unresolved_label", "missing_context"})
 
 
 def _unscorable_reason(known_limit: object, vuln_file: Path, fixed_file: Path, *, vendored: bool) -> str | None:

@@ -26,6 +26,13 @@ def test_identical_twins_are_unscorable_and_no_row_is_dropped() -> None:
     assert per_slice == VENDORED_PER_SLICE  # nothing dropped by the new accounting
     twins = {case.name for case in cases if case.unscorable == "identical_twin"}
     assert twins == IDENTICAL_TWINS
+    # The declaration and the bytes must still agree. A declared limit that stopped being true after a re-harvest
+    # would otherwise be invisible: the mirror image of the risk declaring it was meant to close.
+    from openultrasast.pairs import _body_digest
+
+    declared = [case for case in cases if case.known_limit == "identical_twin"]
+    assert {case.name for case in declared} == IDENTICAL_TWINS
+    assert all(_body_digest(case.vuln_file) == _body_digest(case.fixed_file) for case in declared)
     assert all(case.unscorable is None for case in cases if case.name not in IDENTICAL_TWINS and not case.known_limit)
 
 

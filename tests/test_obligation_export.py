@@ -133,7 +133,7 @@ def test_the_train_split_of_vibe_py_teaches_no_obligation_shape_today(tmp_path: 
     assert refused["threatbyte-api-v1-get"] == "split:holdout"
     # Its own reason, not its split: this row is a byte-identical twin that happens to sit on the holdout side,
     # and reporting `split:holdout` would hide a corpus fact behind a split fact (Req 5.2).
-    assert refused["vampi-books-get-by-title"] == "unscorable:identical_twin"
+    assert refused["vampi-books-get-by-title"] == "identical_twin"
     flow_rows = [row for row in store.load() if row.shape is not None and row.shape.get("family", "sink") == "sink"]
     assert report.records == len(flow_rows) and len(flow_rows) >= 1  # the flow family still teaches from the train split
 

@@ -34,9 +34,9 @@ def is_post_cutoff(fix_date: str, cutoff: str) -> bool:
     A year-precision row counts only when the whole year is after the cutoff, so a coarse date can under-claim the
     clean slice but never over-claim it — and over-claiming is the one that would turn contamination into a result.
     """
-    if not fix_date or not cutoff:
-        return False
-    earliest = fix_date if len(fix_date) == 10 else f"{fix_date[:4]}-01-01"
+    if not fix_date or len(cutoff) != 10:
+        return False  # a cutoff coarser than a day is the one over-claim path there is, so it is refused outright
+    earliest = fix_date if len(fix_date) == 10 else f"{fix_date}-01-01"[:10]
     return earliest > cutoff
 
 
@@ -96,7 +96,22 @@ def score_pair_family(
             unscorable_reason=reason,
         )
     spans = _spans(case, ranges)
-    fixed_spans = _spans(case, fixed_ranges) if fixed_ranges is not None else spans
+    if fixed_ranges is None:
+        fixed_spans = spans
+    else:
+        # A trap pair's fixed side holds a different, correctly guarded handler; `fix_function` names it. Without a
+        # span there, every fixed-side finding reads as outside the labeled function and the pair scores as silence.
+        fixed_spans = _spans(case, fixed_ranges, function=str(getattr(case, "fix_function", "") or ""))
+        if not fixed_spans:
+            return PairFamilyScore(
+                pair=name,
+                family=family,
+                slice=slice_name,
+                fix_date=str(getattr(case, "fix_date", "") or ""),
+                runs=(),
+                outcome="unscorable",
+                unscorable_reason="unresolved_label:fixed",
+            )
     outcomes: list[FamilyOutcome] = []
     other_vuln = other_fixed = fabricated_vuln = fabricated_fixed = 0
     rung: Rung = "suspicion"
@@ -112,7 +127,15 @@ def score_pair_family(
         rung = _best_rung(rung, hits_vuln)
         outcomes.append(_outcome(bool(hits_vuln), bool(hits_fixed)))
     if not outcomes:
-        return PairFamilyScore(pair=name, family=family, slice=slice_name, runs=(), outcome="unscorable", unscorable_reason="no_runs")
+        return PairFamilyScore(
+            pair=name,
+            family=family,
+            slice=slice_name,
+            fix_date=str(getattr(case, "fix_date", "") or ""),
+            runs=(),
+            outcome="unscorable",
+            unscorable_reason="no_runs",
+        )
     majority = Counter(outcomes).most_common(1)[0][0]
     return PairFamilyScore(
         pair=name,
@@ -170,9 +193,9 @@ def unscorable_reason(
     return None
 
 
-def _spans(case: object, ranges: FunctionRanges) -> tuple[tuple[str, int, int], ...]:
-    """The (path, start, end) spans of the labeled functions, from the parsed vulnerable side."""
-    wanted = {str(getattr(row, "function", "") or "") for row in getattr(case, "expected", ()) or ()}
+def _spans(case: object, ranges: FunctionRanges, *, function: str = "") -> tuple[tuple[str, int, int], ...]:
+    """The (path, start, end) spans of the labeled functions. ``function`` overrides the label for the fixed side."""
+    wanted = {function} if function else {str(getattr(row, "function", "") or "") for row in getattr(case, "expected", ()) or ()}
     wanted.discard("")
     found: list[tuple[str, int, int]] = []
     for path, entries in ranges.items():

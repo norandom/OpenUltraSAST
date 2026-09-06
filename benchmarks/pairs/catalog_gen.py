@@ -93,6 +93,9 @@ def catalog_text(slice_name: str, recipes: list[dict[str, object]]) -> str:
             lines.append(f'reviewer = "{_q(reviewer)}"')
         if recipe.get("known_limit"):
             lines.append(f'known_limit = "{_q(recipe["known_limit"])}"')
+        if recipe.get("fix_function"):
+            # Req 3.2: the fixed side of a trap pair is a different handler, and the scorer has to know which one
+            lines.append(f'fix_function = "{_q(recipe["fix_function"])}"')
         fix_date = _fix_date(recipe)
         if fix_date:
             lines.append(f'fix_date = "{_q(fix_date)}"')  # Req 10.5: the post-cutoff slice needs a date to sort by
@@ -399,6 +402,27 @@ def _stamp_function(path: Path, function: str) -> None:
         path.write_text(updated)
 
 
+def derive_fix_function(slice_root: Path, recipe: dict[str, object]) -> str:
+    """The function the fixed excerpt actually holds, when it is not the labeled one.
+
+    Real-Vuln-Benchmark traps take their fixed side from a different, correctly guarded handler of the same
+    snapshot. Without this the fixed side resolves no span, every finding there counts as outside the labeled
+    function, and the pair scores as silence instead of as a leak — always in the direction that flatters the
+    number (learning-harness Req 3.2)."""
+    _vuln, fixed = excerpt_rel(recipe)
+    path = slice_root / fixed
+    if not path.is_file():
+        return ""
+    ranges = _ranges(path, _language(recipe))
+    if not ranges:
+        return ""
+    labeled = str(recipe.get("function", "") or "")
+    names = [name for name, _start, _end in ranges]
+    if labeled in names or len(set(names)) != 1:
+        return ""  # the fixed side holds the labeled function, or holds several and the recipe must say which
+    return names[0]
+
+
 def generate(slice_name: str, *, prune: bool = False) -> tuple[Path, int]:
     slice_root = ROOT / slice_name
     loaded = [dict(item) for item in tomllib.loads((slice_root / "recipes.toml").read_text()).get("recipe", [])]
@@ -419,6 +443,10 @@ def generate(slice_name: str, *, prune: bool = False) -> tuple[Path, int]:
                 recipe["function"] = derived
                 _stamp_function(slice_root / vuln, derived)
                 _stamp_function(slice_root / fixed, derived)
+            if not recipe.get("fix_function"):
+                derived = derive_fix_function(slice_root, recipe)
+                if derived:
+                    recipe["fix_function"] = derived
             recipes.append(recipe)  # `reviewer = "pending"` rows load at tier `title` (Req 9.4); no separate queue file
         else:
             print(f"skip {recipe['name']}: excerpt missing (harvest failed or not fetched)")

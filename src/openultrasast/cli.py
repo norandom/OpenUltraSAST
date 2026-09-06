@@ -189,7 +189,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     pairs.add_argument("--loo-out", type=Path, default=None, help="where to write loo.json (default: reports/loo.json)")
     pairs.add_argument("--json", action="store_true", help="print the pair scoreboard as JSON")
-    pairs.add_argument("--k-runs", type=int, default=1, help="runs per pair on the hunter path; the family scorer needs at least three")
+    pairs.add_argument(
+        "--k-runs", type=int, default=None, help="runs per pair on the hunter path; never fewer than three, and three by default"
+    )
 
     subparsers.add_parser("mcp", help="run the narrow MCP server over stdio for OpenCode integration")
     mechanisms = subparsers.add_parser("mechanisms", help="maintainer: mechanism memory seeded from trusted pairs")
@@ -982,7 +984,10 @@ def _pairs(
             from .learning.families import load_families
 
             scan = make_hunter_scan(client, model, taxonomy=load_families())
-    result = evaluate_catalog(cases, hunter=scan, pointers=True if pointers else None, k_runs=k_runs)
+    try:
+        result = evaluate_catalog(cases, hunter=scan, pointers=True if pointers else None, k_runs=k_runs)
+    except ValueError as exc:
+        raise SystemExit(f"--k-runs: {exc}") from exc
     if json_out:
         print(json.dumps(result_payload(result), indent=2, sort_keys=True))
         return 0

@@ -44,6 +44,9 @@ def test_every_vendored_row_carries_the_date_its_recipe_recorded() -> None:
         ("2026", "2026-03-01", False),  # a year-precision row that might be before it is not claimed
         ("2026-04-02", "2026-03-01", True),
         ("2024", "2025-07-01", False),
+        ("2026-05", "2026-03-01", True),  # month precision: the earliest day of May is after 1 March
+        ("2026-05", "2026-06-01", False),  # and before 1 June, so the row is not claimed
+        ("2025", "2025", False),  # a cutoff coarser than a day is refused rather than compared
         ("", "2025-07-01", False),
     ],
 )

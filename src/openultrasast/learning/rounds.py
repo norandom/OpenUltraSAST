@@ -457,11 +457,13 @@ def _pairs_named_by(proposal: Proposal, cases: Sequence[PairCase]) -> tuple[str,
     A memory entry that quotes a held-out pair is the loop learning the answer instead of the shape, and it looks
     exactly like a legitimate hard negative until the holdout number is read as if it meant something."""
     haystack = "\n".join([*proposal.predicted_affected, *proposal.predicted_at_risk, *proposal.change.values()])
-    named = []
-    for case in cases:
-        name = str(getattr(case, "name", ""))
-        if name and re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", haystack):
-            named.append(name)
+    # Substring first, regex only for the handful that survive it: the corpus is a few hundred rows and a round
+    # runs this once, but a per-round sweep of one regex per row is the kind of thing that stops being free.
+    named = [
+        name
+        for case in cases
+        if (name := str(getattr(case, "name", ""))) and name in haystack and re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", haystack)
+    ]
     return tuple(sorted(set(named)))
 
 

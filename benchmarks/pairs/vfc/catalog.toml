@@ -492,6 +492,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "advisory"
+fix_function = "OSSL_TRACE_BEGIN"
 fix_date = "2025"
 
 [[pair.expected]]

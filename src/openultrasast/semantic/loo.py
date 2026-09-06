@@ -93,20 +93,31 @@ def evaluate_loo(cases: Sequence[PairCase], *, facts: SemanticFacts | None = Non
     targets: list[PairCase] = []
     skipped: list[tuple[str, str]] = []
     for case in cases:
-        if case.known_limit:
-            skipped.append((case.name, f"known_limit:{case.known_limit}"))
+        if case.unscorable or case.known_limit:
+            # `PairCase.unscorable` verbatim when the loader computed one: one spelling per corpus fact, and it
+            # already carries the `known_limit:` prefix when the limit is a maintainer's own word rather than one
+            # of the vocabulary's. A case built by hand may carry only the declaration.
+            skipped.append((case.name, case.unscorable or f"known_limit:{case.known_limit}"))
         elif not case.vuln_file.is_file() or not case.fixed_file.is_file():
             skipped.append((case.name, "pointer_pair_not_cached" if not case.vendored else "excerpt_missing"))
         else:
             targets.append(case)
-    from ..learning.split import is_teacher, refuse_if_holdout
+    from ..learning.split import GATING_TIERS, holdout_names, is_teacher, refuse_if_holdout
 
     # learning-harness Req 5.1: every pair is still scored, but only a train-split teacher may seed a store.
     lessons = {case.name: pair_lessons(case, loaded) for case in targets if is_teacher(case)}
     outcomes = [_hold_out(case, targets, lessons, loaded) for case in targets]
-    # Req 5.2: the pairs that were kept out of the teaching set are named, not silently dropped.
-    refusal = refuse_if_holdout([case.name for case in targets if case.name not in lessons], targets)
+    # Req 5.2: the holdout pairs kept out of the teaching set are named, not silently dropped. Non-teachers held
+    # back for their tier or their unscorable reason are already in `skipped` with that reason.
+    excluded = [case.name for case in targets if case.name not in lessons]
+    refusal = refuse_if_holdout(excluded, targets)
     refusals = (refusal.degradation(),) if refusal is not None else ()
+    withheld = tuple(
+        (case.name, "tier" if case.review_tier not in GATING_TIERS else "unscorable")
+        for case in targets
+        if case.name in set(excluded) - set(holdout_names(targets))
+    )
+    skipped.extend((name, f"not_a_teacher:{why}") for name, why in withheld)
     return LooResult(
         outcomes=tuple(outcomes),
         per_slice=_group(outcomes, lambda item: (item.slice,)),

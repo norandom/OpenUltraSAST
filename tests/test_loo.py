@@ -89,7 +89,9 @@ def test_leave_one_out_seeds_only_trusted_pairs_and_skips_known_limit(tmp_path: 
     assert set(by_name) == {"a", "b"}  # known_limit excluded entirely
     assert not by_name["a"].detected  # b is advisory: it cannot teach a
     assert by_name["b"].detected  # a (seeded) teaches b, which is scored as a held-out target
-    assert result.skipped == (("c", "known_limit:engine"),)
+    # `b` is excluded from teaching for its tier and says so; without that line a pair that silently stopped
+    # teaching would look identical to one that never could (Req 5.2).
+    assert result.skipped == (("c", "known_limit:engine"), ("b", "not_a_teacher:tier"))
 
 
 def test_cli_pairs_loo_writes_the_artifact_offline(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -201,6 +201,10 @@ class HarnessXProposer:
             before = _directory_text(workspace)
             try:
                 hypothesis = call(workspace=workspace, facts=facts, model=self.model)
+            except (TypeError, AttributeError, ImportError):
+                # "we called the agent wrong" is not "the agent declined", and folding one into the other is how a
+                # broken composition reads as a quiet round for as long as nobody looks.
+                raise
             except Exception as exc:  # noqa: BLE001 — an agent that failed proposed nothing, and the round says why
                 self.reason = f"meta_agent_failed: {type(exc).__name__}"
                 return None
@@ -239,6 +243,26 @@ def _directory_text(directory: Path) -> dict[str, str]:
     return out
 
 
+def _meta_agent_class() -> type:
+    """`MetaAgent` behind `harness_ext`. A seam, so the argument contract can be pinned without the extra."""
+    from ..harness_ext import require_harnessx
+
+    require_harnessx()
+    from harnessx.meta_harness.agent import MetaAgent  # type: ignore[import-not-found]
+
+    return MetaAgent  # type: ignore[no-any-return]
+
+
+def _model_config(model: str, provider: str = "anthropic") -> object:
+    """`MetaAgent(inner_model=...)` takes a `ModelConfig`, never a model name; the name goes to the provider."""
+    from ..harness_ext import build_provider, require_harnessx
+
+    require_harnessx()
+    from harnessx.core.model_config import ModelConfig  # type: ignore[import-not-found]
+
+    return ModelConfig(main=build_provider(model, provider))
+
+
 def _meta_agent_call() -> MetaAgentCall:
     """Compose `MetaAgent.evolve` behind `harness_ext`, writing only inside the scratch copy.
 
@@ -252,12 +276,10 @@ def _meta_agent_call() -> MetaAgentCall:
     def call(*, workspace: Path, facts: FailureFacts, model: str) -> str:
         import asyncio
 
-        from harnessx.meta_harness.agent import MetaAgent  # type: ignore[import-not-found]
-
         trajectories = workspace.parent / "trajectories"
         trajectories.mkdir(parents=True, exist_ok=True)
         (trajectories / "facts.json").write_text(facts_prompt(facts), encoding="utf-8")
-        agent = MetaAgent(inner_model=model, allowed_write_roots=(workspace,))  # type: ignore[arg-type]
+        agent = _meta_agent_class()(inner_model=_model_config(model), allowed_write_roots=(workspace,))
         output = workspace.parent / "meta-out"
         output.mkdir(parents=True, exist_ok=True)
         asyncio.run(agent.evolve(current_config=workspace, trajectories_dir=trajectories, output_dir=output))
