@@ -13,7 +13,9 @@ evaluated but excluded from the achievable numbers.
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
+import math
 import os
 import shutil
 import tempfile
@@ -126,6 +128,9 @@ class PairCase:
     review_tier: str = "advisory"
     reviewer: str = ""
     vendored: bool = True
+    unscorable: str | None = None  # computed: identical_twin, known_limit:<reason> (learning-harness Req 4.1)
+    split_declared: bool = True  # False when the catalog row named no split, so the split helper may assign one
+    fix_date: str = ""  # ISO date of the fixing commit; the catalog generator fills it, the split helper orders by it
     recipe: tuple[tuple[str, object], ...] = ()  # pointer pairs carry their harvest recipe instead of excerpts
 
 
@@ -276,6 +281,9 @@ def _load_catalog_file(path: Path) -> tuple[PairCase, ...]:
                 provenance=provenance,
                 split=split,
                 known_limit=str(known_limit) if known_limit else None,
+                unscorable=_unscorable_reason(known_limit, vuln_file, fixed_file, vendored=vendored),
+                split_declared="split" in item,
+                fix_date=str(item.get("fix_date", "")),
                 review_tier=review_tier,
                 reviewer=reviewer,
                 vendored=vendored,
@@ -459,12 +467,17 @@ def evaluate_catalog(
     )
 
 
-def build_pair_signals(outcomes: Sequence[PairOutcome]) -> list[dict[str, object]]:
-    """Same miss/fp vocabulary as ``build_rule_signals``, tagged with the pair name, profile, and mechanisms."""
+def build_pair_signals(outcomes: Sequence[PairOutcome], *, split: str | None = None) -> list[dict[str, object]]:
+    """Same miss/fp vocabulary as ``build_rule_signals``, tagged with the pair name, profile, and mechanisms.
+
+    ``split`` restricts the signals to one split, so a learning path teaches from the train rows only (Req 5.1).
+    """
     signals: list[dict[str, object]] = []
     for outcome in outcomes:
         if outcome.known_limit is not None:
             continue  # unachievable by construction; the loop must not chase it
+        if split is not None and outcome.split != split:
+            continue
         common: dict[str, object] = {
             "pair": outcome.name,
             "profile": outcome.provenance,
@@ -478,6 +491,87 @@ def build_pair_signals(outcomes: Sequence[PairOutcome]) -> list[dict[str, object
             rule_id = leak.split(":", 1)[0]
             signals.append({"rule_id": rule_id, "signal": "fp", "path": leak, "side": "fixed", **common})
     return sorted(signals, key=lambda item: (str(item.get("signal")), str(item.get("rule_id")), str(item.get("pair"))))
+
+
+@dataclass(frozen=True)
+class SplitReport:
+    """What ``split_by_repository`` had to do and what it found (learning-harness Req 4.4)."""
+
+    assigned: tuple[tuple[str, str], ...] = ()  # (pair, split) for rows whose catalog row named none
+    straddling: tuple[tuple[str, tuple[str, ...]], ...] = ()  # repository -> pairs, when one repository sits in both splits
+    undated: int = 0  # assigned rows with no fix date, ordered by name instead
+
+
+@lru_cache(maxsize=4096)
+def _body_digest(path: Path) -> str | None:
+    """Hash of an excerpt with its provenance header and trailing whitespace removed; None when unreadable or empty."""
+    try:
+        text = path.read_text(errors="ignore")
+    except OSError:
+        return None
+    lines = text.splitlines()
+    index = 0
+    while index < len(lines) and (not lines[index].strip() or lines[index].lstrip().startswith(("#", "//", "/*", "*"))):
+        index += 1
+    body = "\n".join(line.rstrip() for line in lines[index:]).strip()
+    return hashlib.sha256(body.encode()).hexdigest() if body else None
+
+
+def _unscorable_reason(known_limit: object, vuln_file: Path, fixed_file: Path, *, vendored: bool) -> str | None:
+    """Why this pair cannot be scored, or None. A declared known limit wins over anything computed."""
+    if known_limit:
+        return f"known_limit:{known_limit}"
+    if not vendored:
+        return None
+    digest = _body_digest(vuln_file)
+    return "identical_twin" if digest is not None and digest == _body_digest(fixed_file) else None
+
+
+def duplicate_groups(cases: Sequence[PairCase]) -> tuple[tuple[str, ...], ...]:
+    """Pairs whose vulnerable excerpts are the same code, reported before any split is applied (Req 4.3)."""
+    by_digest: dict[str, list[str]] = {}
+    for case in cases:
+        digest = _body_digest(case.vuln_file) if case.vendored else None
+        if digest is not None:
+            by_digest.setdefault(digest, []).append(case.name)
+    return tuple(tuple(sorted(names)) for _, names in sorted(by_digest.items()) if len(names) > 1)
+
+
+def split_by_repository(cases: Sequence[PairCase], *, holdout_fraction: float = 0.5) -> tuple[tuple[PairCase, ...], SplitReport]:
+    """Keep every declared split, assign the rest by repository in date order, and report repositories that straddle.
+
+    A repository never straddles by our doing: rows that named no split inherit their repository's declared split when
+    there is one, and otherwise the whole repository lands on one side, oldest first (Req 4.4).
+    """
+    groups: dict[str, list[PairCase]] = {}
+    for case in cases:
+        groups.setdefault(case.repo or f"{case.slice}:{case.name}", []).append(case)
+    straddling = tuple(
+        (repo, tuple(sorted(case.name for case in members)))
+        for repo, members in sorted(groups.items())
+        if len({case.split for case in members if case.split_declared}) > 1
+    )
+    open_repos = [repo for repo, members in groups.items() if any(not case.split_declared for case in members)]
+    inherited = {repo: next((case.split for case in groups[repo] if case.split_declared), None) for repo in open_repos}
+    orderable = sorted(
+        (repo for repo in open_repos if inherited[repo] is None),
+        key=lambda repo: (min((case.fix_date for case in groups[repo] if case.fix_date), default="9999-99-99"), repo),
+    )
+    holdout_count = math.ceil(len(orderable) * holdout_fraction) if orderable else 0
+    holdout = set(orderable[len(orderable) - holdout_count :]) if holdout_count else set()
+    assigned: list[tuple[str, str]] = []
+    undated = 0
+    out: list[PairCase] = []
+    for case in cases:
+        repo = case.repo or f"{case.slice}:{case.name}"
+        if case.split_declared:
+            out.append(case)
+            continue
+        split = inherited.get(repo) or ("holdout" if repo in holdout else "train")
+        undated += 0 if case.fix_date else 1
+        assigned.append((case.name, split))
+        out.append(replace(case, split=split, split_declared=True))
+    return tuple(out), SplitReport(assigned=tuple(assigned), straddling=straddling, undated=undated)
 
 
 def select_slice(cases: Sequence[PairCase], slice_name: str | None) -> tuple[PairCase, ...]:
@@ -558,6 +652,7 @@ def _parse_expected(item: dict[str, object], name: str, mechanisms: frozenset[st
         raise CatalogError(f"pair {name}: expected row is missing mechanism")
     if mechanism not in mechanisms:
         raise CatalogError(f"pair {name}: unknown mechanism {mechanism!r}; see benchmarks/pairs/mechanisms.toml")
+    family = item.get("family")
     obligation = item.get("obligation")
     if obligation is not None and obligation not in OPERATION_KINDS:
         raise CatalogError(f"pair {name}: unknown obligation {obligation!r}; expected one of {sorted(OPERATION_KINDS)}")
@@ -572,6 +667,7 @@ def _parse_expected(item: dict[str, object], name: str, mechanisms: frozenset[st
         sink=str(item["sink"]) if "sink" in item else None,
         mechanism=mechanism,
         obligation=str(obligation) if obligation is not None else None,
+        family=str(family) if family is not None else None,
     )
 
 

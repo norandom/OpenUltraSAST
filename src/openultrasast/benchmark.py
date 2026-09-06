@@ -28,6 +28,7 @@ class ExpectedFinding:
     sink: str | None = None
     mechanism: str | None = None
     obligation: str | None = None  # additive (authorization-obligations, Req 7.2): an OPERATION_KIND the labeled function owes
+    family: str | None = None  # additive (learning-harness, Req 4): an opaque family id; the classifier owns the taxonomy
 
 
 @dataclass(frozen=True)
