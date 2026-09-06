@@ -1,0 +1,841 @@
+[
+ {
+  "pair": "damn-vulnerable-graphql-application-views-resolve-pastes",
+  "expected": [
+   {
+    "cwe": "CWE-89",
+    "vulnerability_class": "sql_injection",
+    "path": "core/views.py",
+    "evidence": "SQL injection via unsanitized 'filter' GraphQL argument directly interpolated into raw SQL using Python string formatting: result.filter(text(\"title = '%s' or content = '%s'\" % (filter, filter))). An attacker can inject arbitrary SQL via th",
+    "rule_id": null,
+    "line": null,
+    "function": "resolve_pastes",
+    "sink": null,
+    "mechanism": "source_reaches_sink",
+    "obligation": null
+   }
+  ],
+  "sides": {
+   "vuln": [
+    {
+     "path": "core/views.py",
+     "line": 20,
+     "title": "SQL Injection via unsanitized 'filter' parameter in resolve_pastes",
+     "rationale": "The GraphQL resolver builds a raw SQL WHERE clause using Python string interpolation with the user-supplied 'filter' argument: `text(\"title = '%s' or content = '%s'\" % (filter, filter))`. Since 'filter' is passed directly from the GraphQL query without escaping or parameterization, an attacker can i",
+     "in_labeled_function": true,
+     "matches": false
+    }
+   ],
+   "fixed": [
+    {
+     "path": "core/views.py",
+     "line": 14,
+     "title": "Plaintext password comparison enables credential stuffing/timing attacks",
+     "rationale": "User.query.filter_by(username=username, password=password) compares raw password directly against a stored value with no hashing (e.g., bcrypt) and no constant-time comparison, suggesting passwords are stored in plaintext in the database. This exposes credentials to trivial theft on any DB read acce",
+     "in_labeled_function": false,
+     "matches": false
+    },
+    {
+     "path": "core/views.py",
+     "line": 14,
+     "title": "No account lockout / rate limiting on login mutation",
+     "rationale": "The mutate() resolver performs an unrestricted DB lookup with username+password on every call, with no rate limiting or lockout logic visible, making brute-force credential guessing against this GraphQL mutation straightforward given GraphQL's higher-density request surface.",
+     "in_labeled_function": false,
+     "matches": false
+    },
+    {
+     "path": "core/views.py",
+     "line": 16,
+     "title": "Generic exception message but no differentiation prevents user enumeration only weakly",
+     "rationale": "While raising 'Authentication Failure' avoids leaking whether the username or password was wrong, the surrounding logic still allows unlimited attempts, and any variance in Audit.create_audit_entry timing/behavior before the check could still leak information about valid usernames.",
+     "in_labeled_function": false,
+     "matches": false
+    },
+    {
+     "path": "core/views.py",
+     "line": 19,
+     "title": "Tokens minted from username only, without verifying additional session/secret binding",
+     "rationale": "create_access_token(username) and create_refresh_token(username) are generated using just the username string; if the underlying JWT implementation lacks proper signing/expiry configuration (not shown here), tokens could be forged or reused improperly, and there's no per-session revocation reference",
+     "in_labeled_function": false,
+     "matches": false
+    }
+   ]
+  }
+ },
+ {
+  "pair": "djangoat-analytics-hits-by-ip",
+  "expected": [
+   {
+    "cwe": "CWE-89",
+    "vulnerability_class": "sql_injection",
+    "path": "app/models/Analytics/analytics.py",
+    "evidence": "SQL injection via string formatting in raw query. Both ip and col parameters are interpolated directly into SQL: 'SELECT %s FROM %s WHERE ip_address=\\'%s\\' ORDER BY id DESC' % (col, table_name, ip). The ip parameter comes from request.GET['",
+    "rule_id": null,
+    "line": null,
+    "function": "hits_by_ip",
+    "sink": null,
+    "mechanism": "source_reaches_sink",
+    "obligation": null
+   }
+  ],
+  "sides": {
+   "vuln": [
+    {
+     "path": "app/models/Analytics/analytics.py",
+     "line": 13,
+     "title": "SQL Injection via unparameterized string interpolation in hits_by_ip",
+     "rationale": "The 'ip' and 'col' parameters are directly interpolated into a raw SQL string using Python %-formatting instead of using parameterized queries (e.g., cursor.execute(cmd, [ip])). If 'ip' or 'col' originates from user-controllable input (such as an HTTP request parameter), an attacker could inject arb",
+     "in_labeled_function": true,
+     "matches": false
+    }
+   ],
+   "fixed": [
+    {
+     "path": "app/models/Analytics/analytics.py",
+     "line": 13,
+     "title": "Orphaned/incomplete analytics function with no visible callers or surrounding query logic",
+     "rationale": "The file only contains a nested parse_field() helper that whitelists field names ('ip_address','referrer','user_agent') defaulting to '1' for anything else, evidently used to sanitize a column name for dynamic SQL (as suggested by the header comment referencing hits_by_ip and 'source_reaches_sink').",
+     "in_labeled_function": false,
+     "matches": false
+    }
+   ]
+  }
+ },
+ {
+  "pair": "djangoat-views-user-view",
+  "expected": [
+   {
+    "cwe": "CWE-89",
+    "vulnerability_class": "sql_injection",
+    "path": "app/views/users/views.py",
+    "evidence": "SQL injection via string formatting in raw query. user_id_form from POST data is interpolated directly into SQL: User.objects.raw('SELECT * FROM %s WHERE user_id=\\'%s\\' ORDER BY is_admin=\\'0\\'' % (table_name, user_id_form)). An attacker can",
+    "rule_id": null,
+    "line": null,
+    "function": "user_view",
+    "sink": null,
+    "mechanism": "source_reaches_sink",
+    "obligation": null
+   }
+  ],
+  "sides": {
+   "vuln": [
+    {
+     "path": "app/views/users/views.py",
+     "line": 18,
+     "title": "Broad exception swallowing hides injected/malformed query errors",
+     "rationale": "The `try/except` around `users[0]` catches all exceptions silently and just returns a generic 'NOT FOUND' message. This makes it harder to detect exploitation attempts (e.g., malformed SQL injection payloads causing query errors) and could mask underlying security-relevant failures, aiding attackers",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "app/views/users/views.py",
+     "line": 21,
+     "title": "SQL Injection via raw() query using unsanitized user_id from POST data",
+     "rationale": "The function takes `user_id` directly from `request.POST['user_id']` (form['user_id']) and interpolates it unsanitized into a raw SQL string via Python string formatting (`% (table_name, user_id_form)`), then executes it with `User.objects.raw(...)`. An attacker controlling the POST body can inject ",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "app/views/users/views.py",
+     "line": 36,
+     "title": "Mass-assignment / unchecked mutable update dict onto arbitrary model instance",
+     "rationale": "The `update` dict is built from `User.validate_update_form(form, user, update)` and then applied directly via `User.objects.filter(pk=user.pk).update(**update)` or `user.__dict__.update(update)` + `user.save()`. If the validation function does not strictly whitelist fields (e.g., it could allow `is_",
+     "in_labeled_function": true,
+     "matches": false
+    }
+   ],
+   "fixed": [
+    {
+     "path": "app/views/users/views.py",
+     "line": 13,
+     "title": "Whitelist-based field validator with no visible call site or sink usage",
+     "rationale": "The file only contains a nested `parse_field` helper that whitelists `ip_address`, `referrer`, `user_agent` and falls back to the literal `'1'` for anything else. This pattern is typical of sanitizing a column/field name before interpolating it into a raw SQL query (e.g., ORDER BY or WHERE clause bu",
+     "in_labeled_function": false,
+     "matches": false
+    }
+   ]
+  }
+ },
+ {
+  "pair": "dsvpwa-dsvpwa-main",
+  "expected": [
+   {
+    "cwe": "CWE-326",
+    "vulnerability_class": "security_misconfiguration",
+    "path": "dsvpwa.py",
+    "evidence": "Insecure SSL/TLS configuration in main(). Three dangerous SSL options are explicitly enabled: (1) SSLv3 re-enabled via ctx.options &= ~ssl.OP_NO_SSLv3 (vulnerable to POODLE), (2) TLS compression re-enabled via &= ~ssl.OP_NO_COMPRESSION (vul",
+    "rule_id": null,
+    "line": null,
+    "function": "main",
+    "sink": null,
+    "mechanism": "permissive_default",
+    "obligation": null
+   }
+  ],
+  "sides": {
+   "vuln": [
+    {
+     "path": "dsvpwa.py",
+     "line": 22,
+     "title": "SSL enablement defaults from an environment variable with weak type handling",
+     "rationale": "The --ssl flag defaults to os.getenv('DSVPWA_SSL', 0) but is defined as store_true with a non-boolean default; combined with the insecure SSL context modifications above, any deployment relying on environment-based configuration is likely to end up with a downgraded/misconfigured TLS setup by defaul",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "dsvpwa.py",
+     "line": 33,
+     "title": "SSL context re-enables SSLv3 support",
+     "rationale": "The code explicitly clears ssl.OP_NO_SSLv3 from ctx.options, re-enabling the obsolete and insecure SSLv3 protocol which is vulnerable to POODLE and other downgrade attacks. This is a permissive default that weakens transport security for any client that can negotiate SSLv3.",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "dsvpwa.py",
+     "line": 34,
+     "title": "SSL context disables compression protection",
+     "rationale": "Clearing ssl.OP_NO_COMPRESSION re-enables TLS compression, which exposes the connection to CRIME-style compression side-channel attacks that can leak sensitive session data (e.g., cookies).",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "dsvpwa.py",
+     "line": 35,
+     "title": "Server cipher preference explicitly disabled",
+     "rationale": "Clearing ssl.OP_CIPHER_SERVER_PREFERENCE allows the client to dictate the negotiated cipher suite instead of the server, letting a malicious or misconfigured client force use of a weak cipher, undermining the server's ability to enforce strong cryptography.",
+     "in_labeled_function": true,
+     "matches": false
+    }
+   ],
+   "fixed": [
+    {
+     "path": "dsvpwa.py",
+     "line": 17,
+     "title": "Unvalidated/unsanitized comment input accepted without length or content checks",
+     "rationale": "The 'comment' parameter is taken directly from request params with only a default empty-string fallback and no validation, sanitization, or length limiting before being persisted to the comments table, allowing arbitrary and potentially malicious content (e.g., script payloads, oversized data) to be",
+     "in_labeled_function": false,
+     "matches": false
+    },
+    {
+     "path": "dsvpwa.py",
+     "line": 20,
+     "title": "Stored XSS via unescaped comment output in guestbook",
+     "rationale": "User-supplied 'comment' parameter is inserted into the database via a parameterized query (safe from SQLi) but later rendered directly into HTML via string formatting ('<td>{}</td>'.format(column)) without any HTML encoding. Any comment containing HTML/JS (e.g., <script>) is stored and then rendered",
+     "in_labeled_function": false,
+     "matches": false
+    }
+   ]
+  }
+ },
+ {
+  "pair": "dsvw-dsvw-do-get",
+  "expected": [
+   {
+    "cwe": "CWE-89",
+    "vulnerability_class": "sql_injection",
+    "path": "dsvw.py",
+    "evidence": "SQL injection via id parameter directly concatenated into SELECT query without sanitization",
+    "rule_id": null,
+    "line": null,
+    "function": "do_GET",
+    "sink": null,
+    "mechanism": "source_reaches_sink",
+    "obligation": null
+   }
+  ],
+  "sides": {
+   "vuln": [],
+   "fixed": [
+    {
+     "path": "dsvw.py",
+     "line": 19,
+     "title": "SQL Injection via 'id' parameter",
+     "rationale": "params[\"id\"] is concatenated directly into a SQL SELECT statement without parameterization or sanitization, allowing arbitrary SQL injection through the GET query string.",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "dsvw.py",
+     "line": 21,
+     "title": "Insecure deserialization via pickle.loads on untrusted input",
+     "rationale": "The 'object' GET parameter is base64/urlencoded attacker-controlled data fed directly into pickle.loads(), enabling arbitrary code execution during unpickling.",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "dsvw.py",
+     "line": 21,
+     "title": "Reflected XSS via 'v' parameter",
+     "rationale": "params[\"v\"] is substituted directly into HTML content via re.sub without HTML-escaping, allowing reflected cross-site scripting through crafted query values.",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "dsvw.py",
+     "line": 22,
+     "title": "Path traversal / SSRF via 'path' parameter",
+     "rationale": "params[\"path\"] is used directly in os.path.abspath()/open() or urllib.request.urlopen() with no validation, allowing local file disclosure or server-side request forgery to arbitrary URLs/schemes.",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "dsvw.py",
+     "line": 23,
+     "title": "OS command injection via 'domain' parameter",
+     "rationale": "params[\"domain\"] is concatenated into a shell command string passed to subprocess.run with shell=True, allowing arbitrary command execution via shell metacharacters.",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "dsvw.py",
+     "line": 24,
+     "title": "XXE (XML External Entity) injection via 'xml' parameter",
+     "rationale": "User-supplied XML is parsed with lxml.etree.XMLParser(load_dtd=True, resolve_entities=True, no_network=False), enabling external entity expansion, SSRF, and local file disclosure through crafted DTDs/entities.",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "dsvw.py",
+     "line": 26,
+     "title": "XPath injection via 'name' parameter",
+     "rationale": "params[\"name\"] is interpolated directly into an XPath expression string (.//user[name/text()='%s']) without escaping, allowing XPath injection to bypass filters or extract arbitrary XML data.",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "dsvw.py",
+     "line": 29,
+     "title": "Uncontrolled resource consumption (DoS) via 'size' parameter",
+     "rationale": "params[\"size\"] is used unchecked as both string repeat count and loop range for int(), allowing extremely large values to cause massive memory/CPU consumption (denial of service).",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "dsvw.py",
+     "line": 33,
+     "title": "SQL Injection via 'comment' parameter (stored)",
+     "rationale": "params[\"comment\"] is directly formatted into an INSERT SQL statement without parameter binding, enabling stored SQL injection.",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "dsvw.py",
+     "line": 39,
+     "title": "Reflected/stored XSS in rendered comments and results output",
+     "rationale": "Database query results (comments, user rows) are directly interpolated into HTML output without escaping, enabling stored cross-site scripting if malicious HTML/JS is inserted via the comment or id-injected data.",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "dsvw.py",
+     "line": 42,
+     "title": "Remote code execution via 'include' parameter and exec()",
+     "rationale": "Content fetched from a user-controlled local path or arbitrary remote URL (params[\"include\"]) is passed directly to exec(), allowing full arbitrary Python code execution on the server (RCE), plus SSRF/LFI via the URL/path fetch itself.",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "dsvw.py",
+     "line": 47,
+     "title": "Open redirect via 'redir' parameter",
+     "rationale": "params[\"redir\"] is inserted unescaped into a meta-refresh HTML tag controlling redirection target, allowing open redirect and potential HTML/attribute injection since it is not sanitized.",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "dsvw.py",
+     "line": 55,
+     "title": "SQL Injection in login (username/password) leading to authentication bypass",
+     "rationale": "params.get(\"password\", \"\") is concatenated unsanitized into the SQL WHERE clause of the login query (only username is filtered via regex), enabling SQL injection-based authentication bypass.",
+     "in_labeled_function": true,
+     "matches": false
+    }
+   ]
+  }
+ },
+ {
+  "pair": "dvpwa-middlewares-session-middleware",
+  "expected": [
+   {
+    "cwe": "CWE-1004",
+    "vulnerability_class": "security_misconfiguration",
+    "path": "sqli/middlewares.py",
+    "evidence": "Session cookie created with httponly=False. The RedisStorage is configured with httponly=False, meaning the AIOHTTP_SESSION cookie is accessible to JavaScript via document.cookie. Combined with the stored XSS vulnerabilities, this enables s",
+    "rule_id": null,
+    "line": null,
+    "function": "session_middleware",
+    "sink": null,
+    "mechanism": "permissive_default",
+    "obligation": null
+   }
+  ],
+  "sides": {
+   "vuln": [
+    {
+     "path": "sqli/middlewares.py",
+     "line": 21,
+     "title": "Session cookie created with httponly=False",
+     "rationale": "The RedisStorage session cookie is explicitly configured with httponly=False, which disables the HttpOnly flag and allows client-side JavaScript to read the session cookie via document.cookie. This is a permissive-default misconfiguration that significantly increases the impact of any XSS vulnerabil",
+     "in_labeled_function": true,
+     "matches": false
+    }
+   ],
+   "fixed": []
+  }
+ },
+ {
+  "pair": "extremely-vulnerable-flask-app-account-before-request",
+  "expected": [
+   {
+    "cwe": "CWE-502",
+    "vulnerability_class": "insecure_deserialization",
+    "path": "routes/account.py",
+    "evidence": "Remote code execution via insecure deserialization. The 'preferences' cookie is base64-decoded and passed directly to pickle.loads() (imported as 'loads' from pickle). An attacker can craft a malicious pickle payload, base64-encode it, and ",
+    "rule_id": null,
+    "line": null,
+    "function": "before_request",
+    "sink": null,
+    "mechanism": "source_reaches_sink",
+    "obligation": null
+   }
+  ],
+  "sides": {
+   "vuln": [],
+   "fixed": []
+  }
+ },
+ {
+  "pair": "extremely-vulnerable-flask-app-signup-validate-token",
+  "expected": [
+   {
+    "cwe": "CWE-89",
+    "vulnerability_class": "sql_injection",
+    "path": "routes/signup.py",
+    "evidence": "SQL injection via f-string interpolation of user-supplied registration code directly into a raw SQL query: text(f\"SELECT id, code FROM ... WHERE code = '{code}'\"). An attacker can inject arbitrary SQL through the registration_code form fiel",
+    "rule_id": null,
+    "line": null,
+    "function": "validate_token",
+    "sink": null,
+    "mechanism": "source_reaches_sink",
+    "obligation": null
+   }
+  ],
+  "sides": {
+   "vuln": [
+    {
+     "path": "routes/signup.py",
+     "line": 16,
+     "title": "SQL Injection via unsanitized `code` parameter in validate_token",
+     "rationale": "The `code` parameter is directly interpolated into a raw SQL query string using an f-string (`WHERE code = '{code}'`) and executed via `session.execute(text(...))`. Since `code` is user-controlled (e.g., from a registration/signup token field) and not parameterized or escaped, an attacker can inject",
+     "in_labeled_function": true,
+     "matches": false
+    }
+   ],
+   "fixed": []
+  }
+ },
+ {
+  "pair": "pythonssti-main-read-root",
+  "expected": [
+   {
+    "cwe": "CWE-79",
+    "vulnerability_class": "reflected_xss",
+    "path": "main.py",
+    "evidence": "The Jinja2 Environment is created with default settings (autoescape=False). User input from the 'username' query parameter is concatenated into the template string and the rendered output is returned as HTMLResponse. An attacker can inject ",
+    "rule_id": null,
+    "line": null,
+    "function": "read_root",
+    "sink": null,
+    "mechanism": "source_reaches_sink",
+    "obligation": null
+   }
+  ],
+  "sides": {
+   "vuln": [
+    {
+     "path": "main.py",
+     "line": 19,
+     "title": "Server-Side Template Injection (SSTI) via unsanitized username parameter",
+     "rationale": "The `username` parameter, which originates from user-controlled input (e.g., a query/path parameter in a FastAPI/Starlette route), is directly concatenated into a Jinja2 template string via `Jinja2.from_string(\"Welcome \" + username + \"!\")` and then rendered. Because the user input becomes part of th",
+     "in_labeled_function": true,
+     "matches": false
+    }
+   ],
+   "fixed": [
+    {
+     "path": "main.py",
+     "line": 18,
+     "title": "Server-Side Template Injection (SSTI) via unsanitized 'username' concatenated into Jinja2 template string",
+     "rationale": "The `username` parameter (attacker-controlled input) is directly concatenated into a string that is passed to `Jinja2.from_string()` and then rendered. Since the value becomes part of the template source rather than being passed as render context, an attacker can inject Jinja2 template syntax (e.g. ",
+     "in_labeled_function": true,
+     "matches": false
+    }
+   ]
+  }
+ },
+ {
+  "pair": "threatbyte-api-v1-get",
+  "expected": [
+   {
+    "cwe": "CWE-639",
+    "vulnerability_class": "broken_access_control",
+    "path": "server/api/v1/api_v1.py",
+    "evidence": "BOLA (Broken Object Level Authorization) on the API profile endpoint. The @token_required decorator is commented out (line 152-153), so /api/v1/profile?user_id=X returns any user's profile (username, email, country, role, permissions, team)",
+    "rule_id": null,
+    "line": null,
+    "function": "get",
+    "sink": null,
+    "mechanism": "missing_auth_guard",
+    "obligation": null
+   }
+  ],
+  "sides": {
+   "vuln": [
+    {
+     "path": "server/api/v1/api_v1.py",
+     "line": 14,
+     "title": "Missing authentication/authorization on profile lookup endpoint",
+     "rationale": "The get() handler retrieves a user's username, email, country, role, permissions, and team directly from the `user_id` query argument with no visible authentication decorator, session check, or verification that the requester is authorized to view that profile (e.g., no comparison to the current log",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "server/api/v1/api_v1.py",
+     "line": 17,
+     "title": "Unvalidated user_id parameter enabling enumeration",
+     "rationale": "`user_id = args.get('user_id')` is taken directly from request arguments without validating that it belongs to the requesting session/user. Combined with the missing auth guard, this enables attackers to iterate over IDs to harvest all user profiles including role/permissions/team fields, which is s",
+     "in_labeled_function": true,
+     "matches": false
+    }
+   ],
+   "fixed": []
+  }
+ },
+ {
+  "pair": "vampi-books-get-by-title",
+  "expected": [
+   {
+    "cwe": "CWE-639",
+    "vulnerability_class": "broken_access_control",
+    "path": "api_views/books.py",
+    "evidence": "Broken Object Level Authorization (BOLA). When vuln=1, get_by_title queries the book by title only (Book.query.filter_by(book_title=str(book_title)).first()) without verifying the authenticated user is the owner. Any authenticated user can ",
+    "rule_id": null,
+    "line": null,
+    "function": "get_by_title",
+    "sink": null,
+    "mechanism": "missing_auth_guard",
+    "obligation": null
+   }
+  ],
+  "sides": {
+   "vuln": [
+    {
+     "path": "api_views/books.py",
+     "line": 17,
+     "title": "Broken Object Level Authorization (BOLA) in get_by_title",
+     "rationale": "When the `vuln` flag is enabled, the function queries the Book table by book_title alone, without filtering by the authenticated user. This returns the 'secret_content' and owner information for any book title regardless of ownership, allowing any authenticated user to read another user's private bo",
+     "in_labeled_function": true,
+     "matches": false
+    }
+   ],
+   "fixed": [
+    {
+     "path": "api_views/books.py",
+     "line": 17,
+     "title": "Broken Object Level Authorization (BOLA) in get_by_title when 'vuln' flag is enabled",
+     "rationale": "When the global 'vuln' flag is truthy, the function looks up a Book solely by book_title without verifying that the authenticated user (resp['sub']) is the owner. This allows any authenticated user to retrieve another user's secret_content by supplying a known/guessable book_title, exposing sensitiv",
+     "in_labeled_function": true,
+     "matches": false
+    }
+   ]
+  }
+ },
+ {
+  "pair": "vampi-users-update-password",
+  "expected": [
+   {
+    "cwe": "CWE-639",
+    "vulnerability_class": "broken_access_control",
+    "path": "api_views/users.py",
+    "evidence": "Unauthorized password change (IDOR). When vuln=1, the update_password function uses the username from the URL path parameter to look up the user whose password to change, instead of using the authenticated user from the JWT token (resp['sub",
+    "rule_id": null,
+    "line": null,
+    "function": "update_password",
+    "sink": null,
+    "mechanism": "missing_auth_guard",
+    "obligation": null
+   }
+  ],
+  "sides": {
+   "vuln": [
+    {
+     "path": "api_views/users.py",
+     "line": 20,
+     "title": "Broken Object Level Authorization (BOLA) in update_password",
+     "rationale": "When the `vuln` flag is enabled, the function updates the password for the `username` supplied in the URL path without verifying that it matches the authenticated user (`resp['sub']`) from the JWT token. Any authenticated user can therefore change any other user's password by simply calling the endp",
+     "in_labeled_function": true,
+     "matches": false
+    }
+   ],
+   "fixed": []
+  }
+ },
+ {
+  "pair": "vfapi-main-put-user",
+  "expected": [
+   {
+    "cwe": "CWE-89",
+    "vulnerability_class": "sql_injection",
+    "path": "main.py",
+    "evidence": "SQL injection via f-string interpolation of all user-supplied fields (name, username, password, address, email, contact) into an INSERT SQL query. All fields from the User model body are directly embedded in the query string without paramet",
+    "rule_id": null,
+    "line": null,
+    "function": "put_user",
+    "sink": null,
+    "mechanism": "source_reaches_sink",
+    "obligation": null
+   }
+  ],
+  "sides": {
+   "vuln": [
+    {
+     "path": "main.py",
+     "line": 16,
+     "title": "Use of weak/broken MD5 hash for password storage",
+     "rationale": "Passwords are hashed with unsalted MD5 (`md5(user.password.encode()).hexdigest()`) before being stored in both the SQL database and MongoDB. MD5 is cryptographically broken and fast to brute-force/rainbow-table, and the lack of a per-user salt makes stored password hashes trivially crackable if the ",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "main.py",
+     "line": 17,
+     "title": "SQL Injection in put_user via unsanitized user fields in f-string SQL query",
+     "rationale": "The function builds an INSERT statement by directly interpolating user-controlled fields (user.name, user.username, user.password, user.address, user.email, user.contact) into an f-string without parameterization or escaping, then executes it via run_sql_query. An attacker supplying a payload like a",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "main.py",
+     "line": 27,
+     "title": "Duplicate user data write to MongoDB without validation, enabling data inconsistency/injection surface",
+     "rationale": "After the raw SQL insert, the same unsanitized user-controlled fields are inserted into a MongoDB collection with an `_id` derived from a raw SQL SELECT result. This mirrors the injectable input into a second datastore, increasing the impact of any injected payload and introducing potential NoSQL da",
+     "in_labeled_function": true,
+     "matches": false
+    }
+   ],
+   "fixed": [
+    {
+     "path": "main.py",
+     "line": 15,
+     "title": "Potential NoSQL injection via unsanitized username in query construction",
+     "rationale": "The function builds a MongoDB-style query dict directly from the `username` parameter (`{'username': username}`) and passes it to `get_nosql_users`. If `username` originates from untrusted user input (e.g., a JSON request body) rather than being strictly validated as a string, an attacker could supp",
+     "in_labeled_function": false,
+     "matches": false
+    }
+   ]
+  }
+ },
+ {
+  "pair": "vulnerable-python-apps-bad-mvc-do-get",
+  "expected": [
+   {
+    "cwe": "CWE-79",
+    "vulnerability_class": "reflected_xss",
+    "path": "Insecure_Frameworks/bad_mvc.py",
+    "evidence": "XSS via unescaped output. The username variable (derived from decrypting a user-supplied cookie at line 26) is rendered into HTML without any escaping: bytes('Hello %s' % username, 'utf-8'). An attacker who controls the encrypted cookie val",
+    "rule_id": null,
+    "line": null,
+    "function": "do_GET",
+    "sink": null,
+    "mechanism": "source_reaches_sink",
+    "obligation": null
+   }
+  ],
+  "sides": {
+   "vuln": [
+    {
+     "path": "Insecure_Frameworks/bad_mvc.py",
+     "line": 14,
+     "title": "Cookie parsing without validation of session_id format prior to cryptographic operation",
+     "rationale": "SimpleCookie(self.headers.get('Cookie')) parses attacker-controlled HTTP headers directly, and the raw 'session_id' value is passed straight into decrypt() with no length, charset, or format validation. This lack of input validation on attacker-supplied data flowing into a decryption/identity-resolu",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "Insecure_Frameworks/bad_mvc.py",
+     "line": 17,
+     "title": "Sensitive session cookie value passed to an unverified 'decrypt' routine with broad exception swallowing",
+     "rationale": "The session_id cookie is passed to self.decrypt(), but the decrypt method is not defined anywhere in the visible file or elsewhere in the scanned repository (per find_refs), making it unclear what cryptographic scheme (if any) is used, whether it validates integrity (e.g., HMAC/AEAD) or is a weak/re",
+     "in_labeled_function": true,
+     "matches": false
+    },
+    {
+     "path": "Insecure_Frameworks/bad_mvc.py",
+     "line": 30,
+     "title": "Reflected/Stored XSS via unescaped 'username' written into HTTP response",
+     "rationale": "The value derived from the 'session_id' cookie (via self.decrypt) is embedded directly into the HTML response body using string formatting ('Hello %s' % username) without any HTML-encoding or escaping. If an attacker can control or influence the decrypted cookie value (e.g., by supplying a crafted s",
+     "in_labeled_function": false,
+     "matches": false
+    }
+   ],
+   "fixed": [
+    {
+     "path": "Insecure_Frameworks/bad_mvc.py",
+     "line": 14,
+     "title": "Undefined function get_db_connection() with no import or definition",
+     "rationale": "get_db_connection is called but never defined or imported in this file, meaning the snippet cannot execute as-is; this indicates the file is an isolated fragment extracted from a larger MVC app, and any real analysis of injection risk must be done in the context of the full application (e.g., where ",
+     "in_labeled_function": false,
+     "matches": false
+    },
+    {
+     "path": "Insecure_Frameworks/bad_mvc.py",
+     "line": 14,
+     "title": "No exception handling around database connection/close",
+     "rationale": "If conn.execute() raises an exception (e.g., malformed post_id causing a type error, or database lock), conn.close() on line 17 will never execute, potentially leaking the database connection under error conditions - a resource-management issue that could be leveraged for a denial-of-service resourc",
+     "in_labeled_function": false,
+     "matches": false
+    },
+    {
+     "path": "Insecure_Frameworks/bad_mvc.py",
+     "line": 15,
+     "title": "SQL query uses parameterized placeholder but truncated/partial statement",
+     "rationale": "The query 'SELECT * FROM posts WHERE id = ?' with (post_id,) does use a parameter binding, which is the safe pattern; however since this is presented as the 'bad_mvc.py' (vulnerable) sample paired with a 'fixed' commit per the provenance header, the file may not represent the actual vulnerable varia",
+     "in_labeled_function": false,
+     "matches": false
+    },
+    {
+     "path": "Insecure_Frameworks/bad_mvc.py",
+     "line": 19,
+     "title": "abort() called without importing flask.abort",
+     "rationale": "abort(404) is used but there's no import statement (e.g., from flask import abort) in this fragment, again reinforcing that this is a partial extraction; missing error-handling context could hide whether user input (post_id) is validated/sanitized before reaching the abort/404 path or whether except",
+     "in_labeled_function": false,
+     "matches": false
+    }
+   ]
+  }
+ },
+ {
+  "pair": "vulnpy-cmdi-do-subprocess-popen",
+  "expected": [
+   {
+    "cwe": "CWE-78",
+    "vulnerability_class": "command_injection",
+    "path": "src/vulnpy/trigger/cmdi.py",
+    "evidence": "User-controlled command passed to subprocess.Popen with shell=True, enabling arbitrary OS command execution",
+    "rule_id": null,
+    "line": null,
+    "function": "do_subprocess_popen",
+    "sink": null,
+    "mechanism": "source_reaches_sink",
+    "obligation": null
+   }
+  ],
+  "sides": {
+   "vuln": [
+    {
+     "path": "src/vulnpy/trigger/cmdi.py",
+     "line": 13,
+     "title": "OS Command Injection via subprocess.Popen with shell=True",
+     "rationale": "do_subprocess_popen passes an unvalidated 'command' argument directly into subprocess.Popen with shell=True, allowing arbitrary shell command execution if the argument is influenced by user input. No sanitization, allow-listing, or use of shell=False with argument lists is performed, making this a c",
+     "in_labeled_function": true,
+     "matches": false
+    }
+   ],
+   "fixed": [
+    {
+     "path": "src/vulnpy/trigger/cmdi.py",
+     "line": 13,
+     "title": "Mislabeled/incomplete command-injection trigger function",
+     "rationale": "The file's provenance header states this is the (fixed) `do_subprocess_popen` command-injection PoC from vulnpy, but the actual code defines an unrelated `_execute(db_func)` helper that calls an undefined `_db_reset()` and references an undefined `SELECT_ALL` constant. No subprocess/os.system call o",
+     "in_labeled_function": false,
+     "matches": false
+    }
+   ]
+  }
+ },
+ {
+  "pair": "vulpy-libuser-create",
+  "expected": [
+   {
+    "cwe": "CWE-89",
+    "vulnerability_class": "sql_injection",
+    "path": "bad/libuser.py",
+    "evidence": "SQL injection via %-formatting in INSERT statement: c.execute(\"INSERT INTO users ... VALUES ('%s', '%s', ...\" %(username, password, ...)). User-supplied username and password are interpolated via % string formatting into the SQL query.",
+    "rule_id": null,
+    "line": null,
+    "function": "create",
+    "sink": null,
+    "mechanism": "source_reaches_sink",
+    "obligation": null
+   }
+  ],
+  "sides": {
+   "vuln": [
+    {
+     "path": "bad/libuser.py",
+     "line": 19,
+     "title": "SQL Injection via string formatting in user creation",
+     "rationale": "The create() function builds a SQL INSERT statement using Python's % string formatting to directly interpolate the 'username' and 'password' parameters into the query without any parameterization, escaping, or input validation. An attacker-controlled username or password value (e.g., containing a si",
+     "in_labeled_function": true,
+     "matches": false
+    }
+   ],
+   "fixed": []
+  }
+ },
+ {
+  "pair": "vulpy-libuser-password-change",
+  "expected": [
+   {
+    "cwe": "CWE-89",
+    "vulnerability_class": "sql_injection",
+    "path": "bad/libuser.py",
+    "evidence": "SQL injection via string format in UPDATE statement: c.execute(\"UPDATE users SET password = '{}' WHERE username = '{}'\".format(password, username)). The password parameter from user input is directly interpolated into the SQL query.",
+    "rule_id": null,
+    "line": null,
+    "function": "password_change",
+    "sink": null,
+    "mechanism": "source_reaches_sink",
+    "obligation": null
+   }
+  ],
+  "sides": {
+   "vuln": [
+    {
+     "path": "bad/libuser.py",
+     "line": 19,
+     "title": "SQL Injection via unparameterized query in password_change",
+     "rationale": "The function builds a raw SQL UPDATE statement using Python str.format() to directly embed the user-controlled 'username' and 'password' parameters into the query string, then executes it via c.execute(). Neither value is sanitized or passed as a bound parameter, allowing an attacker to inject arbit",
+     "in_labeled_function": true,
+     "matches": false
+    }
+   ],
+   "fixed": [
+    {
+     "path": "bad/libuser.py",
+     "line": 13,
+     "title": "Metadata/function mismatch suggests incomplete or misattributed sample",
+     "rationale": "The file's provenance header claims this is the 'password_change' function from vulpy, but the actual code defines get_posts with no password-changing logic. This inconsistency suggests the corpus entry may not reflect the intended vulnerable code path (e.g., a missing password_change function elsew",
+     "in_labeled_function": false,
+     "matches": false
+    },
+    {
+     "path": "bad/libuser.py",
+     "line": 15,
+     "title": "SQL trace callback leaks query data via print/stdout",
+     "rationale": "conn.set_trace_callback(print) causes every SQL statement (including bound parameter values such as usernames) to be printed to stdout/logs. In production this can leak sensitive data (usernames, potentially other PII) into logs, and is a debugging leftover that should not ship in a security-sensiti",
+     "in_labeled_function": false,
+     "matches": false
+    },
+    {
+     "path": "bad/libuser.py",
+     "line": 15,
+     "title": "New DB connection per call without proper resource closing",
+     "rationale": "get_posts opens a new sqlite3 connection on every call and never closes the connection or cursor (no try/finally or context manager). Under concurrent or repeated invocation this can exhaust file descriptors/connections, a resource-exhaustion/DoS-adjacent issue, and is a common source of subtle bugs",
+     "in_labeled_function": false,
+     "matches": false
+    }
+   ]
+  }
+ }
+]

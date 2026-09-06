@@ -1,0 +1,1220 @@
+{
+  "achievable": {
+    "vibe-py": {
+      "detected_vuln": 6,
+      "labeled_expected": 17,
+      "labeled_fix_leaks": 8,
+      "labeled_matched": 6,
+      "labeled_recall": 0.35294117647058826,
+      "pair_correct": 5,
+      "pair_pass_rate": 0.29411764705882354,
+      "pairs": 17,
+      "silent_fix": 16,
+      "specificity": 0.9411764705882353,
+      "vuln_recall": 0.35294117647058826,
+      "youden": 0.29411764705882354
+    }
+  },
+  "degradations": [
+    {
+      "pair": "claude-code-seeded-v2-crm-saas-django-partner-console-acct-r",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "claude-code-seeded-v2-education-lms-django-course-operations",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "claude-code-seeded-v2-fintech-lending-fastapi-loan-operation",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "claude-code-seeded-v2-healthcare-clinic-django-patient-opera",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "claude-code-seeded-v2-hr-payroll-django-payroll-operations-p",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "claude-code-seeded-v2-legal-case-django-case-operations-case",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "claude-code-seeded-v2-logistics-dispatch-fastapi-dispatch-op",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "claude-code-seeded-v2-marketplace-commerce-fastapi-seller-op",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "claude-code-seeded-v2-property-management-fastapi-tenant-ope",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "claude-code-seeded-v2-support-desk-fastapi-support-operation",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-high-seeded-v2-crm-saas-django-partner-console-acct-va",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-high-seeded-v2-education-lms-django-course-operations-",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-high-seeded-v2-fintech-lending-fastapi-loan-operations",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-high-seeded-v2-healthcare-clinic-django-patient-operat",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-high-seeded-v2-hr-payroll-django-payroll-operations-pa",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-high-seeded-v2-legal-case-django-case-operations-case-",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-high-seeded-v2-logistics-dispatch-fastapi-dispatch-ope",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-high-seeded-v2-marketplace-commerce-fastapi-seller-ope",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-high-seeded-v2-property-management-fastapi-tenant-oper",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-high-seeded-v2-support-desk-fastapi-support-operations",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-seeded-v2-crm-saas-django-partner-console-acct-bundle-",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-seeded-v2-education-lms-django-course-operations-cours",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-seeded-v2-fintech-lending-fastapi-loan-operations-loan",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-seeded-v2-healthcare-clinic-django-patient-operations-",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-seeded-v2-hr-payroll-django-payroll-operations-payroll",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-seeded-v2-legal-case-django-case-operations-case-retur",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-seeded-v2-logistics-dispatch-fastapi-dispatch-operatio",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-seeded-v2-marketplace-commerce-fastapi-seller-operatio",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-seeded-v2-property-management-fastapi-tenant-operation",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "codex-seeded-v2-support-desk-fastapi-support-operations-tick",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "kimi-code-seeded-v2-crm-saas-django-partner-console-account-",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "kimi-code-seeded-v2-education-lms-django-course-operation-2",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "kimi-code-seeded-v2-fintech-lending-fastapi-loan-operatio-2",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "kimi-code-seeded-v2-healthcare-clinic-django-patient-oper-2",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "kimi-code-seeded-v2-hr-payroll-django-payroll-operations--2",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "kimi-code-seeded-v2-legal-case-django-case-operations-case-b",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "kimi-code-seeded-v2-logistics-dispatch-fastapi-dispatch-o-2",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "kimi-code-seeded-v2-marketplace-commerce-fastapi-seller-o-2",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "kimi-code-seeded-v2-property-management-fastapi-tenant-op-2",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    },
+    {
+      "pair": "kimi-code-seeded-v2-support-desk-fastapi-support-operatio-2",
+      "reason": "pointer_pair_skipped",
+      "stage": "pairs"
+    }
+  ],
+  "known_limit": [],
+  "loss": {
+    "vibe-py": {
+      "known_limit": 0,
+      "parse_failed_files": 0,
+      "unadjudicated_proposals": 16,
+      "unresolved_function_labels": 0,
+      "weak_labels": 0
+    }
+  },
+  "outcomes": [
+    {
+      "commit_url": "https://github.com/dolevf/Damn-Vulnerable-GraphQL-Application/blob/a961308c02d1fb462b192681c336b0739e432da7/core/views.py#L320",
+      "cve": "",
+      "detected_vuln": false,
+      "detection_kinds": [],
+      "fix_findings": 0,
+      "fix_leaks": 0,
+      "known_limit": null,
+      "language": "python",
+      "leaks": [],
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "misses": [
+        "-:core/views.py:CWE-89"
+      ],
+      "name": "damn-vulnerable-graphql-application-views-resolve-pastes",
+      "origin": "real-vuln-benchmark",
+      "pair_correct": false,
+      "parse_failed_fixed": 0,
+      "parse_failed_vuln": 0,
+      "provenance": "human",
+      "recall": 0.0,
+      "review_tier": "seeded",
+      "silent_fix": true,
+      "slice": "vibe-py",
+      "split": "holdout",
+      "unadjudicated_fixed": 0,
+      "unadjudicated_vuln": 0,
+      "unresolved_labels": 0,
+      "vuln_expected": 1,
+      "vuln_findings": 0,
+      "vuln_matched": 0,
+      "weak_labels": 0
+    },
+    {
+      "commit_url": "https://github.com/Contrast-Security-OSS/DjanGoat/blob/082c88bfefced508ae083b92b459c808f95e905e/app/models/Analytics/analytics.py#L57",
+      "cve": "",
+      "detected_vuln": true,
+      "detection_kinds": [
+        "coverage"
+      ],
+      "fix_findings": 0,
+      "fix_leaks": 0,
+      "known_limit": null,
+      "language": "python",
+      "leaks": [],
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "misses": [],
+      "name": "djangoat-analytics-hits-by-ip",
+      "origin": "real-vuln-benchmark",
+      "pair_correct": true,
+      "parse_failed_fixed": 0,
+      "parse_failed_vuln": 0,
+      "provenance": "human",
+      "recall": 1.0,
+      "review_tier": "seeded",
+      "silent_fix": true,
+      "slice": "vibe-py",
+      "split": "holdout",
+      "unadjudicated_fixed": 0,
+      "unadjudicated_vuln": 0,
+      "unresolved_labels": 0,
+      "vuln_expected": 1,
+      "vuln_findings": 1,
+      "vuln_matched": 1,
+      "weak_labels": 0
+    },
+    {
+      "commit_url": "https://github.com/Contrast-Security-OSS/DjanGoat/blob/082c88bfefced508ae083b92b459c808f95e905e/app/views/users/views.py#L74",
+      "cve": "",
+      "detected_vuln": false,
+      "detection_kinds": [],
+      "fix_findings": 0,
+      "fix_leaks": 0,
+      "known_limit": null,
+      "language": "python",
+      "leaks": [],
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "misses": [
+        "-:app/views/users/views.py:CWE-89"
+      ],
+      "name": "djangoat-views-user-view",
+      "origin": "real-vuln-benchmark",
+      "pair_correct": false,
+      "parse_failed_fixed": 0,
+      "parse_failed_vuln": 0,
+      "provenance": "human",
+      "recall": 0.0,
+      "review_tier": "seeded",
+      "silent_fix": true,
+      "slice": "vibe-py",
+      "split": "holdout",
+      "unadjudicated_fixed": 0,
+      "unadjudicated_vuln": 0,
+      "unresolved_labels": 0,
+      "vuln_expected": 1,
+      "vuln_findings": 0,
+      "vuln_matched": 0,
+      "weak_labels": 0
+    },
+    {
+      "commit_url": "https://github.com/sgabe/DSVPWA/blob/a06abb306ed3699bb2f073e3f41d3d9c57012819/dsvpwa.py#L37",
+      "cve": "",
+      "detected_vuln": false,
+      "detection_kinds": [],
+      "fix_findings": 0,
+      "fix_leaks": 0,
+      "known_limit": null,
+      "language": "python",
+      "leaks": [],
+      "mechanisms": [
+        "permissive_default"
+      ],
+      "misses": [
+        "-:dsvpwa.py:CWE-326"
+      ],
+      "name": "dsvpwa-dsvpwa-main",
+      "origin": "real-vuln-benchmark",
+      "pair_correct": false,
+      "parse_failed_fixed": 0,
+      "parse_failed_vuln": 0,
+      "provenance": "human",
+      "recall": 0.0,
+      "review_tier": "seeded",
+      "silent_fix": true,
+      "slice": "vibe-py",
+      "split": "holdout",
+      "unadjudicated_fixed": 0,
+      "unadjudicated_vuln": 0,
+      "unresolved_labels": 0,
+      "vuln_expected": 1,
+      "vuln_findings": 0,
+      "vuln_matched": 0,
+      "weak_labels": 0
+    },
+    {
+      "commit_url": "https://github.com/stamparm/DSVW/blob/7d40f4b7939c901610ed9b85724552d60e7d63fa/dsvw.py#L30",
+      "cve": "",
+      "detected_vuln": true,
+      "detection_kinds": [
+        "inventory"
+      ],
+      "fix_findings": 8,
+      "fix_leaks": 8,
+      "known_limit": null,
+      "language": "python",
+      "leaks": [
+        "python-shell-true:dsvw.py:28",
+        "python-unsafe-eval:dsvw.py:46",
+        "python-sql-injection:dsvw.py:19",
+        "python-sql-injection:dsvw.py:39",
+        "python-sql-injection:dsvw.py:56",
+        "python-path-traversal:dsvw.py:26",
+        "python-path-traversal:dsvw.py:45",
+        "python-unsafe-deserialization:dsvw.py:24"
+      ],
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "misses": [],
+      "name": "dsvw-dsvw-do-get",
+      "origin": "real-vuln-benchmark",
+      "pair_correct": false,
+      "parse_failed_fixed": 0,
+      "parse_failed_vuln": 0,
+      "provenance": "human",
+      "recall": 1.0,
+      "review_tier": "seeded",
+      "silent_fix": false,
+      "slice": "vibe-py",
+      "split": "holdout",
+      "unadjudicated_fixed": 8,
+      "unadjudicated_vuln": 8,
+      "unresolved_labels": 0,
+      "vuln_expected": 1,
+      "vuln_findings": 8,
+      "vuln_matched": 1,
+      "weak_labels": 0
+    },
+    {
+      "commit_url": "https://github.com/anxolerd/dvpwa/blob/a1d8f89fac2e57093189853c6527c2b01fc1d9c1/sqli/middlewares.py#L20",
+      "cve": "",
+      "detected_vuln": false,
+      "detection_kinds": [],
+      "fix_findings": 0,
+      "fix_leaks": 0,
+      "known_limit": null,
+      "language": "python",
+      "leaks": [],
+      "mechanisms": [
+        "permissive_default"
+      ],
+      "misses": [
+        "-:sqli/middlewares.py:CWE-1004"
+      ],
+      "name": "dvpwa-middlewares-session-middleware",
+      "origin": "real-vuln-benchmark",
+      "pair_correct": false,
+      "parse_failed_fixed": 0,
+      "parse_failed_vuln": 0,
+      "provenance": "human",
+      "recall": 0.0,
+      "review_tier": "seeded",
+      "silent_fix": true,
+      "slice": "vibe-py",
+      "split": "holdout",
+      "unadjudicated_fixed": 0,
+      "unadjudicated_vuln": 0,
+      "unresolved_labels": 0,
+      "vuln_expected": 1,
+      "vuln_findings": 0,
+      "vuln_matched": 0,
+      "weak_labels": 0
+    },
+    {
+      "commit_url": "https://github.com/manuelz120/extremely-vulnerable-flask-app/blob/d5d8875559e21222bbbaadb7b9f0af592c6eb7fa/routes/account.py#L118",
+      "cve": "",
+      "detected_vuln": false,
+      "detection_kinds": [],
+      "fix_findings": 0,
+      "fix_leaks": 0,
+      "known_limit": null,
+      "language": "python",
+      "leaks": [],
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "misses": [
+        "-:routes/account.py:CWE-502"
+      ],
+      "name": "extremely-vulnerable-flask-app-account-before-request",
+      "origin": "real-vuln-benchmark",
+      "pair_correct": false,
+      "parse_failed_fixed": 0,
+      "parse_failed_vuln": 0,
+      "provenance": "human",
+      "recall": 0.0,
+      "review_tier": "seeded",
+      "silent_fix": true,
+      "slice": "vibe-py",
+      "split": "holdout",
+      "unadjudicated_fixed": 0,
+      "unadjudicated_vuln": 0,
+      "unresolved_labels": 0,
+      "vuln_expected": 1,
+      "vuln_findings": 0,
+      "vuln_matched": 0,
+      "weak_labels": 0
+    },
+    {
+      "commit_url": "https://github.com/manuelz120/extremely-vulnerable-flask-app/blob/d5d8875559e21222bbbaadb7b9f0af592c6eb7fa/routes/signup.py#L15",
+      "cve": "",
+      "detected_vuln": true,
+      "detection_kinds": [
+        "promote"
+      ],
+      "fix_findings": 0,
+      "fix_leaks": 0,
+      "known_limit": null,
+      "language": "python",
+      "leaks": [],
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "misses": [],
+      "name": "extremely-vulnerable-flask-app-signup-validate-token",
+      "origin": "real-vuln-benchmark",
+      "pair_correct": true,
+      "parse_failed_fixed": 0,
+      "parse_failed_vuln": 0,
+      "provenance": "human",
+      "recall": 1.0,
+      "review_tier": "seeded",
+      "silent_fix": true,
+      "slice": "vibe-py",
+      "split": "holdout",
+      "unadjudicated_fixed": 0,
+      "unadjudicated_vuln": 0,
+      "unresolved_labels": 0,
+      "vuln_expected": 1,
+      "vuln_findings": 1,
+      "vuln_matched": 1,
+      "weak_labels": 0
+    },
+    {
+      "commit_url": "https://github.com/TheWation/PythonSSTI/blob/76339c27d5a870c0a81bad6aee5f9bd516592145/main.py#L14",
+      "cve": "",
+      "detected_vuln": false,
+      "detection_kinds": [],
+      "fix_findings": 0,
+      "fix_leaks": 0,
+      "known_limit": null,
+      "language": "python",
+      "leaks": [],
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "misses": [
+        "-:main.py:CWE-79"
+      ],
+      "name": "pythonssti-main-read-root",
+      "origin": "real-vuln-benchmark",
+      "pair_correct": false,
+      "parse_failed_fixed": 0,
+      "parse_failed_vuln": 0,
+      "provenance": "human",
+      "recall": 0.0,
+      "review_tier": "seeded",
+      "silent_fix": true,
+      "slice": "vibe-py",
+      "split": "holdout",
+      "unadjudicated_fixed": 0,
+      "unadjudicated_vuln": 0,
+      "unresolved_labels": 0,
+      "vuln_expected": 1,
+      "vuln_findings": 0,
+      "vuln_matched": 0,
+      "weak_labels": 0
+    },
+    {
+      "commit_url": "https://github.com/anotherik/ThreatByte/blob/c4db46f72586c4ecb65859051ea037018dbf0e5e/server/api/v1/api_v1.py#L154",
+      "cve": "",
+      "detected_vuln": false,
+      "detection_kinds": [],
+      "fix_findings": 0,
+      "fix_leaks": 0,
+      "known_limit": null,
+      "language": "python",
+      "leaks": [],
+      "mechanisms": [
+        "missing_auth_guard"
+      ],
+      "misses": [
+        "-:server/api/v1/api_v1.py:CWE-639"
+      ],
+      "name": "threatbyte-api-v1-get",
+      "origin": "real-vuln-benchmark",
+      "pair_correct": false,
+      "parse_failed_fixed": 0,
+      "parse_failed_vuln": 0,
+      "provenance": "human",
+      "recall": 0.0,
+      "review_tier": "seeded",
+      "silent_fix": true,
+      "slice": "vibe-py",
+      "split": "holdout",
+      "unadjudicated_fixed": 0,
+      "unadjudicated_vuln": 0,
+      "unresolved_labels": 0,
+      "vuln_expected": 1,
+      "vuln_findings": 0,
+      "vuln_matched": 0,
+      "weak_labels": 0
+    },
+    {
+      "commit_url": "https://github.com/erev0s/VAmPI/blob/1713b54b601ad29582581eeda4b31fceb1319874/api_views/books.py#L51",
+      "cve": "",
+      "detected_vuln": false,
+      "detection_kinds": [],
+      "fix_findings": 0,
+      "fix_leaks": 0,
+      "known_limit": null,
+      "language": "python",
+      "leaks": [],
+      "mechanisms": [
+        "missing_auth_guard"
+      ],
+      "misses": [
+        "-:api_views/books.py:CWE-639"
+      ],
+      "name": "vampi-books-get-by-title",
+      "origin": "real-vuln-benchmark",
+      "pair_correct": false,
+      "parse_failed_fixed": 0,
+      "parse_failed_vuln": 0,
+      "provenance": "human",
+      "recall": 0.0,
+      "review_tier": "seeded",
+      "silent_fix": true,
+      "slice": "vibe-py",
+      "split": "holdout",
+      "unadjudicated_fixed": 0,
+      "unadjudicated_vuln": 0,
+      "unresolved_labels": 0,
+      "vuln_expected": 1,
+      "vuln_findings": 0,
+      "vuln_matched": 0,
+      "weak_labels": 0
+    },
+    {
+      "commit_url": "https://github.com/erev0s/VAmPI/blob/1713b54b601ad29582581eeda4b31fceb1319874/api_views/users.py#L187",
+      "cve": "",
+      "detected_vuln": false,
+      "detection_kinds": [],
+      "fix_findings": 0,
+      "fix_leaks": 0,
+      "known_limit": null,
+      "language": "python",
+      "leaks": [],
+      "mechanisms": [
+        "missing_auth_guard"
+      ],
+      "misses": [
+        "-:api_views/users.py:CWE-639"
+      ],
+      "name": "vampi-users-update-password",
+      "origin": "real-vuln-benchmark",
+      "pair_correct": false,
+      "parse_failed_fixed": 0,
+      "parse_failed_vuln": 0,
+      "provenance": "human",
+      "recall": 0.0,
+      "review_tier": "seeded",
+      "silent_fix": true,
+      "slice": "vibe-py",
+      "split": "holdout",
+      "unadjudicated_fixed": 0,
+      "unadjudicated_vuln": 0,
+      "unresolved_labels": 0,
+      "vuln_expected": 1,
+      "vuln_findings": 0,
+      "vuln_matched": 0,
+      "weak_labels": 0
+    },
+    {
+      "commit_url": "https://github.com/naryal2580/vfapi/blob/f36f177e1a32aa49272f4eb52f8be0af3e8f6bc3/main.py#L188",
+      "cve": "",
+      "detected_vuln": false,
+      "detection_kinds": [
+        "coverage"
+      ],
+      "fix_findings": 0,
+      "fix_leaks": 0,
+      "known_limit": null,
+      "language": "python",
+      "leaks": [],
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "misses": [
+        "-:main.py:CWE-89"
+      ],
+      "name": "vfapi-main-put-user",
+      "origin": "real-vuln-benchmark",
+      "pair_correct": false,
+      "parse_failed_fixed": 0,
+      "parse_failed_vuln": 0,
+      "provenance": "human",
+      "recall": 0.0,
+      "review_tier": "seeded",
+      "silent_fix": true,
+      "slice": "vibe-py",
+      "split": "holdout",
+      "unadjudicated_fixed": 0,
+      "unadjudicated_vuln": 0,
+      "unresolved_labels": 0,
+      "vuln_expected": 1,
+      "vuln_findings": 1,
+      "vuln_matched": 0,
+      "weak_labels": 0
+    },
+    {
+      "commit_url": "https://github.com/LinuxUser255/Vulnerable_Python_Apps/blob/6336c77e6db523a5df34c4b628dff4159110797a/Insecure_Frameworks/bad_mvc.py#L37",
+      "cve": "",
+      "detected_vuln": false,
+      "detection_kinds": [],
+      "fix_findings": 0,
+      "fix_leaks": 0,
+      "known_limit": null,
+      "language": "python",
+      "leaks": [],
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "misses": [
+        "-:Insecure_Frameworks/bad_mvc.py:CWE-79"
+      ],
+      "name": "vulnerable-python-apps-bad-mvc-do-get",
+      "origin": "real-vuln-benchmark",
+      "pair_correct": false,
+      "parse_failed_fixed": 0,
+      "parse_failed_vuln": 0,
+      "provenance": "human",
+      "recall": 0.0,
+      "review_tier": "seeded",
+      "silent_fix": true,
+      "slice": "vibe-py",
+      "split": "holdout",
+      "unadjudicated_fixed": 0,
+      "unadjudicated_vuln": 0,
+      "unresolved_labels": 0,
+      "vuln_expected": 1,
+      "vuln_findings": 0,
+      "vuln_matched": 0,
+      "weak_labels": 0
+    },
+    {
+      "commit_url": "https://github.com/Contrast-Security-OSS/vulnpy/blob/d1d0f64c06f038fe59a049e0e6001bfaf9839697/src/vulnpy/trigger/cmdi.py#L10",
+      "cve": "",
+      "detected_vuln": true,
+      "detection_kinds": [
+        "coverage"
+      ],
+      "fix_findings": 0,
+      "fix_leaks": 0,
+      "known_limit": null,
+      "language": "python",
+      "leaks": [],
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "misses": [],
+      "name": "vulnpy-cmdi-do-subprocess-popen",
+      "origin": "real-vuln-benchmark",
+      "pair_correct": true,
+      "parse_failed_fixed": 0,
+      "parse_failed_vuln": 0,
+      "provenance": "human",
+      "recall": 1.0,
+      "review_tier": "seeded",
+      "silent_fix": true,
+      "slice": "vibe-py",
+      "split": "holdout",
+      "unadjudicated_fixed": 0,
+      "unadjudicated_vuln": 0,
+      "unresolved_labels": 0,
+      "vuln_expected": 1,
+      "vuln_findings": 1,
+      "vuln_matched": 1,
+      "weak_labels": 0
+    },
+    {
+      "commit_url": "https://github.com/fportantier/vulpy/blob/5249cc8b05a1c37f6b2f757b1cf16a509c327122/bad/libuser.py#L25",
+      "cve": "",
+      "detected_vuln": true,
+      "detection_kinds": [
+        "promote"
+      ],
+      "fix_findings": 0,
+      "fix_leaks": 0,
+      "known_limit": null,
+      "language": "python",
+      "leaks": [],
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "misses": [],
+      "name": "vulpy-libuser-create",
+      "origin": "real-vuln-benchmark",
+      "pair_correct": true,
+      "parse_failed_fixed": 0,
+      "parse_failed_vuln": 0,
+      "provenance": "human",
+      "recall": 1.0,
+      "review_tier": "seeded",
+      "silent_fix": true,
+      "slice": "vibe-py",
+      "split": "holdout",
+      "unadjudicated_fixed": 0,
+      "unadjudicated_vuln": 0,
+      "unresolved_labels": 0,
+      "vuln_expected": 1,
+      "vuln_findings": 1,
+      "vuln_matched": 1,
+      "weak_labels": 0
+    },
+    {
+      "commit_url": "https://github.com/fportantier/vulpy/blob/5249cc8b05a1c37f6b2f757b1cf16a509c327122/bad/libuser.py#L53",
+      "cve": "",
+      "detected_vuln": true,
+      "detection_kinds": [
+        "promote"
+      ],
+      "fix_findings": 0,
+      "fix_leaks": 0,
+      "known_limit": null,
+      "language": "python",
+      "leaks": [],
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "misses": [],
+      "name": "vulpy-libuser-password-change",
+      "origin": "real-vuln-benchmark",
+      "pair_correct": true,
+      "parse_failed_fixed": 0,
+      "parse_failed_vuln": 0,
+      "provenance": "human",
+      "recall": 1.0,
+      "review_tier": "seeded",
+      "silent_fix": true,
+      "slice": "vibe-py",
+      "split": "holdout",
+      "unadjudicated_fixed": 0,
+      "unadjudicated_vuln": 0,
+      "unresolved_labels": 0,
+      "vuln_expected": 1,
+      "vuln_findings": 1,
+      "vuln_matched": 1,
+      "weak_labels": 0
+    }
+  ],
+  "overall": {
+    "detected_vuln": 6,
+    "labeled_expected": 17,
+    "labeled_fix_leaks": 8,
+    "labeled_matched": 6,
+    "labeled_recall": 0.35294117647058826,
+    "pair_correct": 5,
+    "pair_pass_rate": 0.29411764705882354,
+    "pairs": 17,
+    "silent_fix": 16,
+    "specificity": 0.9411764705882353,
+    "vuln_recall": 0.35294117647058826,
+    "youden": 0.29411764705882354
+  },
+  "per_mechanism": {
+    "missing_auth_guard": {
+      "detected_vuln": 0,
+      "labeled_expected": 3,
+      "labeled_fix_leaks": 0,
+      "labeled_matched": 0,
+      "labeled_recall": 0.0,
+      "pair_correct": 0,
+      "pair_pass_rate": 0.0,
+      "pairs": 3,
+      "silent_fix": 3,
+      "specificity": 1.0,
+      "vuln_recall": 0.0,
+      "youden": 0.0
+    },
+    "permissive_default": {
+      "detected_vuln": 0,
+      "labeled_expected": 2,
+      "labeled_fix_leaks": 0,
+      "labeled_matched": 0,
+      "labeled_recall": 0.0,
+      "pair_correct": 0,
+      "pair_pass_rate": 0.0,
+      "pairs": 2,
+      "silent_fix": 2,
+      "specificity": 1.0,
+      "vuln_recall": 0.0,
+      "youden": 0.0
+    },
+    "source_reaches_sink": {
+      "detected_vuln": 6,
+      "labeled_expected": 12,
+      "labeled_fix_leaks": 8,
+      "labeled_matched": 6,
+      "labeled_recall": 0.5,
+      "pair_correct": 5,
+      "pair_pass_rate": 0.4166666666666667,
+      "pairs": 12,
+      "silent_fix": 11,
+      "specificity": 0.9166666666666666,
+      "vuln_recall": 0.5,
+      "youden": 0.41666666666666663
+    }
+  },
+  "per_profile": {
+    "human": {
+      "detected_vuln": 6,
+      "labeled_expected": 17,
+      "labeled_fix_leaks": 8,
+      "labeled_matched": 6,
+      "labeled_recall": 0.35294117647058826,
+      "pair_correct": 5,
+      "pair_pass_rate": 0.29411764705882354,
+      "pairs": 17,
+      "silent_fix": 16,
+      "specificity": 0.9411764705882353,
+      "vuln_recall": 0.35294117647058826,
+      "youden": 0.29411764705882354
+    }
+  },
+  "per_slice": {
+    "vibe-py": {
+      "detected_vuln": 6,
+      "labeled_expected": 17,
+      "labeled_fix_leaks": 8,
+      "labeled_matched": 6,
+      "labeled_recall": 0.35294117647058826,
+      "pair_correct": 5,
+      "pair_pass_rate": 0.29411764705882354,
+      "pairs": 17,
+      "silent_fix": 16,
+      "specificity": 0.9411764705882353,
+      "vuln_recall": 0.35294117647058826,
+      "youden": 0.29411764705882354
+    }
+  },
+  "per_tier": {
+    "seeded": {
+      "detected_vuln": 6,
+      "labeled_expected": 17,
+      "labeled_fix_leaks": 8,
+      "labeled_matched": 6,
+      "labeled_recall": 0.35294117647058826,
+      "pair_correct": 5,
+      "pair_pass_rate": 0.29411764705882354,
+      "pairs": 17,
+      "silent_fix": 16,
+      "specificity": 0.9411764705882353,
+      "vuln_recall": 0.35294117647058826,
+      "youden": 0.29411764705882354
+    }
+  },
+  "scorers": {
+    "vibe-py": {
+      "hunter": {
+        "detected_vuln": 1,
+        "labeled_expected": 17,
+        "labeled_fix_leaks": 24,
+        "labeled_matched": 1,
+        "labeled_recall": 0.058823529411764705,
+        "pair_correct": 0,
+        "pair_pass_rate": 0.0,
+        "pairs": 17,
+        "silent_fix": 6,
+        "specificity": 0.35294117647058826,
+        "vuln_recall": 0.058823529411764705,
+        "youden": -0.588235294117647
+      },
+      "inventory": {
+        "detected_vuln": 4,
+        "labeled_expected": 17,
+        "labeled_fix_leaks": 8,
+        "labeled_matched": 4,
+        "labeled_recall": 0.23529411764705882,
+        "pair_correct": 3,
+        "pair_pass_rate": 0.17647058823529413,
+        "pairs": 17,
+        "silent_fix": 16,
+        "specificity": 0.9411764705882353,
+        "vuln_recall": 0.23529411764705882,
+        "youden": 0.1764705882352941
+      },
+      "overlay": {
+        "detected_vuln": 6,
+        "labeled_expected": 17,
+        "labeled_fix_leaks": 8,
+        "labeled_matched": 6,
+        "labeled_recall": 0.35294117647058826,
+        "pair_correct": 5,
+        "pair_pass_rate": 0.29411764705882354,
+        "pairs": 17,
+        "silent_fix": 16,
+        "specificity": 0.9411764705882353,
+        "vuln_recall": 0.35294117647058826,
+        "youden": 0.29411764705882354
+      }
+    }
+  },
+  "signals": [
+    {
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "pair": "dsvw-dsvw-do-get",
+      "path": "python-path-traversal:dsvw.py:26",
+      "profile": "human",
+      "rule_id": "python-path-traversal",
+      "side": "fixed",
+      "signal": "fp",
+      "split": "holdout"
+    },
+    {
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "pair": "dsvw-dsvw-do-get",
+      "path": "python-path-traversal:dsvw.py:45",
+      "profile": "human",
+      "rule_id": "python-path-traversal",
+      "side": "fixed",
+      "signal": "fp",
+      "split": "holdout"
+    },
+    {
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "pair": "dsvw-dsvw-do-get",
+      "path": "python-shell-true:dsvw.py:28",
+      "profile": "human",
+      "rule_id": "python-shell-true",
+      "side": "fixed",
+      "signal": "fp",
+      "split": "holdout"
+    },
+    {
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "pair": "dsvw-dsvw-do-get",
+      "path": "python-sql-injection:dsvw.py:19",
+      "profile": "human",
+      "rule_id": "python-sql-injection",
+      "side": "fixed",
+      "signal": "fp",
+      "split": "holdout"
+    },
+    {
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "pair": "dsvw-dsvw-do-get",
+      "path": "python-sql-injection:dsvw.py:39",
+      "profile": "human",
+      "rule_id": "python-sql-injection",
+      "side": "fixed",
+      "signal": "fp",
+      "split": "holdout"
+    },
+    {
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "pair": "dsvw-dsvw-do-get",
+      "path": "python-sql-injection:dsvw.py:56",
+      "profile": "human",
+      "rule_id": "python-sql-injection",
+      "side": "fixed",
+      "signal": "fp",
+      "split": "holdout"
+    },
+    {
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "pair": "dsvw-dsvw-do-get",
+      "path": "python-unsafe-deserialization:dsvw.py:24",
+      "profile": "human",
+      "rule_id": "python-unsafe-deserialization",
+      "side": "fixed",
+      "signal": "fp",
+      "split": "holdout"
+    },
+    {
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "pair": "dsvw-dsvw-do-get",
+      "path": "python-unsafe-eval:dsvw.py:46",
+      "profile": "human",
+      "rule_id": "python-unsafe-eval",
+      "side": "fixed",
+      "signal": "fp",
+      "split": "holdout"
+    },
+    {
+      "cwe": "CWE-89",
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "pair": "damn-vulnerable-graphql-application-views-resolve-pastes",
+      "path": "core/views.py",
+      "profile": "human",
+      "rule_id": "",
+      "signal": "miss",
+      "split": "holdout"
+    },
+    {
+      "cwe": "CWE-89",
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "pair": "djangoat-views-user-view",
+      "path": "app/views/users/views.py",
+      "profile": "human",
+      "rule_id": "",
+      "signal": "miss",
+      "split": "holdout"
+    },
+    {
+      "cwe": "CWE-326",
+      "mechanisms": [
+        "permissive_default"
+      ],
+      "pair": "dsvpwa-dsvpwa-main",
+      "path": "dsvpwa.py",
+      "profile": "human",
+      "rule_id": "",
+      "signal": "miss",
+      "split": "holdout"
+    },
+    {
+      "cwe": "CWE-1004",
+      "mechanisms": [
+        "permissive_default"
+      ],
+      "pair": "dvpwa-middlewares-session-middleware",
+      "path": "sqli/middlewares.py",
+      "profile": "human",
+      "rule_id": "",
+      "signal": "miss",
+      "split": "holdout"
+    },
+    {
+      "cwe": "CWE-502",
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "pair": "extremely-vulnerable-flask-app-account-before-request",
+      "path": "routes/account.py",
+      "profile": "human",
+      "rule_id": "",
+      "signal": "miss",
+      "split": "holdout"
+    },
+    {
+      "cwe": "CWE-79",
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "pair": "pythonssti-main-read-root",
+      "path": "main.py",
+      "profile": "human",
+      "rule_id": "",
+      "signal": "miss",
+      "split": "holdout"
+    },
+    {
+      "cwe": "CWE-639",
+      "mechanisms": [
+        "missing_auth_guard"
+      ],
+      "pair": "threatbyte-api-v1-get",
+      "path": "server/api/v1/api_v1.py",
+      "profile": "human",
+      "rule_id": "",
+      "signal": "miss",
+      "split": "holdout"
+    },
+    {
+      "cwe": "CWE-639",
+      "mechanisms": [
+        "missing_auth_guard"
+      ],
+      "pair": "vampi-books-get-by-title",
+      "path": "api_views/books.py",
+      "profile": "human",
+      "rule_id": "",
+      "signal": "miss",
+      "split": "holdout"
+    },
+    {
+      "cwe": "CWE-639",
+      "mechanisms": [
+        "missing_auth_guard"
+      ],
+      "pair": "vampi-users-update-password",
+      "path": "api_views/users.py",
+      "profile": "human",
+      "rule_id": "",
+      "signal": "miss",
+      "split": "holdout"
+    },
+    {
+      "cwe": "CWE-89",
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "pair": "vfapi-main-put-user",
+      "path": "main.py",
+      "profile": "human",
+      "rule_id": "",
+      "signal": "miss",
+      "split": "holdout"
+    },
+    {
+      "cwe": "CWE-79",
+      "mechanisms": [
+        "source_reaches_sink"
+      ],
+      "pair": "vulnerable-python-apps-bad-mvc-do-get",
+      "path": "Insecure_Frameworks/bad_mvc.py",
+      "profile": "human",
+      "rule_id": "",
+      "signal": "miss",
+      "split": "holdout"
+    }
+  ]
+}
