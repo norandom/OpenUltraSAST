@@ -1,0 +1,88 @@
+{
+  "axes": [
+    "binding_hops",
+    "registration_distance",
+    "guard_distance"
+  ],
+  "command": "uv run pytest tests/test_fixture_difficulty.py",
+  "corpus": [
+    {
+      "binding_hops": 5,
+      "function": "get_by_title",
+      "guard_distance": 1,
+      "registration_distance": 2
+    },
+    {
+      "binding_hops": 2,
+      "function": "update_password",
+      "guard_distance": 1,
+      "registration_distance": 2
+    },
+    {
+      "binding_hops": 0,
+      "function": "get",
+      "guard_distance": 2,
+      "registration_distance": 0
+    },
+    {
+      "binding_hops": 0,
+      "function": "delete",
+      "guard_distance": 2,
+      "registration_distance": 0
+    }
+  ],
+  "corpus_reach": [
+    5,
+    2,
+    2
+  ],
+  "corpus_rows": [
+    "vampi-books-get-by-title",
+    "vampi-users-update-password",
+    "threatbyte-api-v1-get",
+    "threatbyte-api-v1-delete"
+  ],
+  "fixture": [
+    {
+      "binding_hops": 0,
+      "function": "guarded",
+      "guard_distance": 0,
+      "registration_distance": 0
+    },
+    {
+      "binding_hops": 1,
+      "function": "constrained",
+      "guard_distance": 0,
+      "registration_distance": 0
+    },
+    {
+      "binding_hops": 1,
+      "function": "constrained_too",
+      "guard_distance": 1,
+      "registration_distance": 0
+    },
+    {
+      "binding_hops": 0,
+      "function": "leaky",
+      "guard_distance": 2,
+      "registration_distance": 0
+    },
+    {
+      "binding_hops": 5,
+      "function": "from_spec",
+      "guard_distance": 1,
+      "registration_distance": 2
+    }
+  ],
+  "fixture_reach": [
+    5,
+    2,
+    2
+  ],
+  "fixture_source": "tests/test_obligation_operations.py::APP",
+  "generated": "2026-09-06",
+  "history": "First measured with the fixture reaching (1, 0, 2) against a corpus reaching (5, 2, 2): every shared obligations handler carried its route decorator, so nothing in the suite exercised a handler registered from another document, and no chain was longer than one binding. `from_spec` was added to the fixture to close that, and it is the connexion shape the vibe-py rows really have.",
+  "note": "learning-harness Req 10.4. Higher is harder on every axis. `binding_hops` counts the assignments between the identity source and the constrained use; `registration_distance` is 0 for a route decorator on the handler, 1 for a statement elsewhere in the same file, 2 for another document entirely; `guard_distance` is 0 for a decorator guard, 1 for a call in the body, 2 for no visible guard. The comparison is per axis over the whole set: a suite covers a bug shape with several handlers between them, but its hardest case on an axis must not fall short of the corpus rows its tests claim to cover.",
+  "strictly_easier": false,
+  "verdict": "fixture_matches_corpus"
+}

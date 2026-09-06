@@ -2290,6 +2290,7 @@ trap_id = "dsvw-fp-001"
 acceptable_cwes = ["CWE-89", "CWE-564", "CWE-943"]
 evidence = "SQL injection via id parameter directly concatenated into SELECT query without sanitization"
 commit_url = "https://github.com/stamparm/DSVW/blob/7d40f4b7939c901610ed9b85724552d60e7d63fa/dsvw.py#L30"
+known_limit = "identical_twin"
 split = "holdout"
 
 [[recipe]]
@@ -3167,6 +3168,7 @@ trap_id = "python-insecure-app-fp-001"
 acceptable_cwes = ["CWE-1336", "CWE-94", "CWE-95"]
 evidence = "Server-Side Template Injection via Jinja2. User-controlled 'name' query parameter is interpolated into an f-string on line 38 to build 'content', which is then passed to Template(content).render() on line 41. An attacker can inject Jinja2 t"
 commit_url = "https://github.com/kolega-ai/realvuln-python-insecure-app/blob/80b894a2f754590747a31c92b2088be086421953/app/main.py#L41"
+known_limit = "identical_twin"
 split = "train"
 
 [[recipe]]
@@ -3198,6 +3200,7 @@ trap_id = "python-ssti-fp-001"
 acceptable_cwes = ["CWE-79", "CWE-80"]
 evidence = "The Jinja2 Environment is created with default settings (autoescape=False). User input from the 'username' query parameter is concatenated into the template string and the rendered output is returned as HTMLResponse. An attacker can inject "
 commit_url = "https://github.com/TheWation/PythonSSTI/blob/76339c27d5a870c0a81bad6aee5f9bd516592145/main.py#L14"
+known_limit = "identical_twin"
 split = "holdout"
 
 [[recipe]]
@@ -3328,6 +3331,7 @@ evidence = "Broken Object Level Authorization (BOLA). When vuln=1, get_by_title 
 commit_url = "https://github.com/erev0s/VAmPI/blob/1713b54b601ad29582581eeda4b31fceb1319874/api_views/books.py#L51"
 family = "access_control"
 context = ["openapi_specs/openapi3.yml"]
+known_limit = "identical_twin"
 split = "holdout"
 
 [[recipe]]
@@ -3672,6 +3676,7 @@ trap_id = "vulnpy-fp-011"
 acceptable_cwes = ["CWE-502", "CWE-94"]
 evidence = "User input encoded to bytes and passed to pickle.load(), which can execute arbitrary code via crafted pickle payloads"
 commit_url = "https://github.com/Contrast-Security-OSS/vulnpy/blob/d1d0f64c06f038fe59a049e0e6001bfaf9839697/src/vulnpy/trigger/deserialization.py#L8"
+known_limit = "identical_twin"
 split = "train"
 
 [[recipe]]

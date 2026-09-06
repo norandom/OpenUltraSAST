@@ -103,7 +103,9 @@ def test_cli_pairs_loo_writes_the_artifact_offline(tmp_path: Path, monkeypatch: 
     with redirect_stdout(buf):
         assert main(["pairs", "--slice", "vibe-py", "--loo", "--json", "--loo-out", str(tmp_path / "loo.json")]) == 0
     payload = json.loads(buf.getvalue())
-    assert payload["per_slice"]["vibe-py"]["pairs"] == 35 and "found_by" in payload["outcomes"][0]
+    # 35 vendored rows less the five byte-identical twins, which task 4.2 declared unscorable in the catalog: a
+    # pair whose two sides are the same code cannot be held out against itself.
+    assert payload["per_slice"]["vibe-py"]["pairs"] == 30 and "found_by" in payload["outcomes"][0]
     assert json.loads((tmp_path / "loo.json").read_text()) == payload
 
 

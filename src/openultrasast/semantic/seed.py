@@ -195,14 +195,16 @@ def _obligation_facts() -> ObligationFacts:
 def _skip_reason(case: PairCase) -> str | None:
     from ..learning.split import is_teacher
 
-    if not is_teacher(case) and case.review_tier in GATING_TIERS and case.vendored and not case.known_limit:
-        # learning-harness Req 5.1: only train-split, scorable pairs teach. Say which of the two it was: two
-        # vibe-py rows are train-split identical twins, and calling them `split:train` is simply untrue.
-        return f"unscorable:{case.unscorable}" if case.unscorable else f"split:{case.split}"
     if case.review_tier not in GATING_TIERS:
         return f"tier:{case.review_tier}"
+    if case.unscorable:
+        # One spelling per corpus fact. `identical_twin` declared in the catalog and `identical_twin` computed from
+        # the bytes are the same reason, and calling one of them `split:train` is simply untrue (Req 5.1, 10.3).
+        return f"unscorable:{case.unscorable}"
     if case.known_limit:
         return f"known_limit:{case.known_limit}"
+    if not is_teacher(case) and case.vendored:
+        return f"split:{case.split}"
     if not case.vuln_file.is_file() or not case.fixed_file.is_file():
         return "pointer_pair_not_cached" if not case.vendored else "excerpt_missing"
     return None

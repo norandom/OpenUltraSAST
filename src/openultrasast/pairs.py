@@ -625,10 +625,18 @@ def _body_digest(path: Path) -> str | None:
     return hashlib.sha256(body.encode()).hexdigest() if body else None
 
 
+# The reasons a row may carry verbatim from the catalog, because the loader computes them under the same names.
+UNSCORABLE_REASONS = frozenset({"identical_twin"})
+
+
 def _unscorable_reason(known_limit: object, vuln_file: Path, fixed_file: Path, *, vendored: bool) -> str | None:
-    """Why this pair cannot be scored, or None. A declared known limit wins over anything computed."""
+    """Why this pair cannot be scored, or None. A declared known limit wins over anything computed.
+
+    A limit that names one of the vocabulary's own reasons keeps that spelling: `identical_twin` declared and
+    `identical_twin` computed are one corpus fact, and two spellings would split it across two buckets in every
+    aggregation (Req 4.1, 10.3)."""
     if known_limit:
-        return f"known_limit:{known_limit}"
+        return str(known_limit) if str(known_limit) in UNSCORABLE_REASONS else f"known_limit:{known_limit}"
     if not vendored:
         return None
     digest = _body_digest(vuln_file)

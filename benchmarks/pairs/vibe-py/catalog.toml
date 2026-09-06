@@ -2324,6 +2324,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "seeded"
+known_limit = "identical_twin"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -3207,6 +3208,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "seeded"
+known_limit = "identical_twin"
 
 [[pair.expected]]
 cwe = "CWE-1336"
@@ -3236,6 +3238,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "seeded"
+known_limit = "identical_twin"
 
 [[pair.expected]]
 cwe = "CWE-79"
@@ -3354,6 +3357,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "seeded"
+known_limit = "identical_twin"
 
 [[pair.context]]
 relpath = "openapi_specs/openapi3.yml"
@@ -3656,6 +3660,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "seeded"
+known_limit = "identical_twin"
 
 [[pair.expected]]
 cwe = "CWE-502"

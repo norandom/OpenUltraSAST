@@ -19,7 +19,19 @@ APP = (
     "@app.route('/books/any/<title>')\ndef leaky(title):\n"
     "    owner = request.args.get('owner')\n"
     "    return Book.query.filter_by(user_id=owner, book_title=title).first()\n\n\n"
-    "@app.route('/health')\ndef health():\n    return 'ok'\n"
+    "@app.route('/health')\ndef health():\n    return 'ok'\n\n\n"
+    # Registered from a separate OpenAPI document, guarded by a call rather than a decorator, and five bindings
+    # between the token and the constraint: the shape the vibe-py absence rows really have. Without it this fixture
+    # is strictly easier than the corpus it claims to cover (learning-harness Req 10.4).
+    "def from_spec(book_title):\n"
+    "    resp = token_validator(request.headers.get('Authorization'))\n"
+    "    if 'error' in resp:\n"
+    "        return None\n"
+    "    claims = resp\n"
+    "    subject = claims['sub']\n"
+    "    user = User.query.filter_by(username=subject).first()\n"
+    "    owner = user.id\n"
+    "    return Book.query.filter_by(user_id=owner, book_title=book_title).first()\n"
 )
 
 
@@ -60,6 +72,9 @@ def test_find_operations_names_kind_fact_function_and_resource() -> None:
         ("constrained", "protected_read", "book"),
         ("constrained_too", "protected_read", "book"),
         ("leaky", "protected_read", "book"),
+        # `from_spec` reads the user row to resolve the token subject and then the book: two operations, both real
+        ("from_spec", "protected_read", "user"),
+        ("from_spec", "protected_read", "book"),
     ]
     assert all(op.path == "app.py" and op.fact_id == "orm-read" and op.line > 0 for op in ops)
     assert not [op for op in ops if op.function == "health"]  # a constant return is no operation
