@@ -5,6 +5,11 @@ materialized and searched for variants, and the pair is scored with the pair rul
 labeled function and names the labeled mechanism (or sink), silent when the fixed side yields no hit. Only ``seeded`` and
 ``reviewed`` pairs teach; ``advisory`` and ``title`` pairs are scored as held-out targets but never seed. Reported, never
 gated.
+
+Obligation-labeled rows (authorization-obligations, Req 7.4) run the obligation checker on both sides with the held-out
+store's obligation shapes: detected when a finding tagged with the labeled obligation lies inside the labeled function *and*
+carries a ``known_fix`` supplied by the store (the checker's own facts-only finding is not the corpus teaching), silent when
+the fixed side carries no such finding; ``found_by`` names the shape record and the pairs that taught it.
 """
 
 from __future__ import annotations
@@ -14,10 +19,13 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ..findings import StaticFinding
 from ..pairs import GATING_TIERS, PairCase, _materialize, _targets
 from .facts import FactLoadError, SemanticFacts, load_facts
 from .functions import named_function_ranges, spans_named
 from .mechanisms import Mechanism, MechanismStore, append_from_pair, corpus_mechanisms
+from .obligations import check_obligations, findings_to_static, load_obligation_facts, obligation_mechanisms
+from .obligations.dominance import OrderDominance
 from .seed import Lesson, _parse_language, pair_lessons
 from .variant_search import search_tree
 from .variants import Shape, trailing_name
@@ -37,6 +45,7 @@ class LooOutcome:
     teaches: bool  # the pair contributed at least one shape when others were held out
     leaked_by: tuple[str, ...] = ()  # mechanism record ids that hit the fixed side
     degradations: tuple[dict[str, object], ...] = ()  # from variant search on either side
+    obligations: tuple[str, ...] = ()  # labeled obligation kinds of the held-out pair (Req 7.4)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -51,6 +60,7 @@ class LooOutcome:
             "hits_fixed": self.hits_fixed,
             "teaches": self.teaches,
             "leaked_by": list(self.leaked_by),
+            "obligations": list(self.obligations),
         }
 
 
@@ -61,6 +71,7 @@ class LooResult:
     per_profile: dict[str, dict[str, float]]
     per_mechanism: dict[str, dict[str, float]]
     skipped: tuple[tuple[str, str], ...] = ()
+    per_obligation_kind: dict[str, dict[str, float]] = field(default_factory=dict)
     teaching_pairs: int = 0
     degradations: tuple[dict[str, object], ...] = field(default=())
 
@@ -69,6 +80,7 @@ class LooResult:
             "per_slice": self.per_slice,
             "per_profile": self.per_profile,
             "per_mechanism": self.per_mechanism,
+            "per_obligation_kind": self.per_obligation_kind,
             "outcomes": [outcome.to_dict() for outcome in self.outcomes],
             "skipped": [{"pair": pair, "reason": reason} for pair, reason in self.skipped],
             "teaching_pairs": self.teaching_pairs,
@@ -94,6 +106,7 @@ def evaluate_loo(cases: Sequence[PairCase], *, facts: SemanticFacts | None = Non
         per_slice=_group(outcomes, lambda item: (item.slice,)),
         per_profile=_group(outcomes, lambda item: (item.provenance,)),
         per_mechanism=_group(outcomes, lambda item: item.mechanisms),
+        per_obligation_kind=_group(outcomes, lambda item: item.obligations),
         skipped=tuple(skipped),
         teaching_pairs=sum(1 for shapes in lessons.values() if shapes),
         degradations=_unique_degradations(outcomes),
@@ -136,7 +149,11 @@ def _hold_out(case: PairCase, targets: Sequence[PairCase], lessons: dict[str, li
 def score_pair_with_store(case: PairCase, store: MechanismStore, facts: SemanticFacts, *, root: Path | None = None) -> LooOutcome:
     """Search both sides of one pair with a fixed store and score it with the pair rules (shared by LOO and the lever)."""
     labeled_mechanisms = tuple(sorted({row.mechanism for row in case.expected if row.mechanism}))
-    records = {record.id: record for record in corpus_mechanisms(store.load())}
+    labeled_obligations = tuple(sorted({str(row.obligation) for row in case.expected if getattr(row, "obligation", None)}))
+    loaded = store.load()
+    records = {record.id: record for record in corpus_mechanisms(loaded)}
+    obligation_vuln: list[StaticFinding] = []
+    obligation_fix: list[StaticFinding] = []
     with tempfile.TemporaryDirectory(prefix="ousast-loo-pair-") as scratch:
         base = root if root is not None else Path(scratch)
         vuln_root = _materialize(base / "vuln", case.vuln_file, case.relpath)
@@ -144,9 +161,22 @@ def score_pair_with_store(case: PairCase, store: MechanismStore, facts: Semantic
         vuln_search = search_tree(vuln_root, _targets(vuln_root), store, facts, max_mechanisms=len(records) or 1)
         fix_search = search_tree(fix_root, _targets(fix_root), store, facts, max_mechanisms=len(records) or 1)
         vuln_hits, fix_hits = vuln_search.hits, fix_search.hits
+        if labeled_obligations:
+            shapes = obligation_mechanisms(loaded)
+            obligation_vuln = _obligation_findings(vuln_root, shapes)
+            obligation_fix = _obligation_findings(fix_root, shapes)
     text = case.vuln_file.read_text(errors="ignore")
     ranges = named_function_ranges(case.relpath, text, _parse_language(case)) or ()
     found: list[tuple[str, tuple[str, ...]]] = []
+    for finding in obligation_vuln:
+        record = _known_fix_record(finding, records)
+        if record is None or finding.line is None or not _inside_label(case, finding.line, ranges):
+            continue
+        if any(f"obligation:{kind}" in finding.tags for kind in labeled_obligations):
+            found.append((record.id, tuple(record.pairs)))
+    obligation_leaks = tuple(
+        sorted({record.id for finding in obligation_fix if (record := _known_fix_record(finding, records)) is not None})
+    )
     for hit in vuln_hits:
         record = records.get(hit.mechanism_id)
         if record is None or not _inside_label(case, hit.line, ranges):
@@ -159,14 +189,52 @@ def score_pair_with_store(case: PairCase, store: MechanismStore, facts: Semantic
         provenance=case.provenance,
         mechanisms=labeled_mechanisms,
         detected=bool(found),
-        silent=not fix_hits,
+        silent=not fix_hits and not obligation_leaks,
         found_by=tuple(found),
-        hits_vuln=len(vuln_hits),
-        hits_fixed=len(fix_hits),
+        hits_vuln=len(vuln_hits) + len(obligation_vuln),
+        hits_fixed=len(fix_hits) + len(obligation_fix),
         teaches=False,
-        leaked_by=tuple(sorted({hit.mechanism_id for hit in fix_hits})),
+        leaked_by=tuple(sorted({hit.mechanism_id for hit in fix_hits})) + obligation_leaks,
         degradations=tuple(vuln_search.degradations) + tuple(fix_search.degradations),
+        obligations=labeled_obligations,
     )
+
+
+def _obligation_findings(root: Path, shapes: Sequence[object]) -> list[StaticFinding]:
+    """Function-local obligation findings for one materialized side, with the held-out store's obligation shapes as known fixes."""
+    from ..config import ObligationsConfig
+    from ..mapping import analyze_entry_points
+    from .ir import parse_file
+
+    targets = _targets(root)
+    irs: dict[str, tuple[object, str]] = {}
+    texts: dict[str, str] = {}
+    for target in targets:
+        try:
+            text = (root / target.path).read_text(errors="ignore")
+        except OSError:
+            continue
+        texts[target.path] = text
+        irs[target.path] = (parse_file(target.path, text, target.language), text)
+    result = check_obligations(
+        irs=irs,  # type: ignore[arg-type]
+        entries=analyze_entry_points(root, targets),
+        facts=load_obligation_facts(),
+        flow_facts=_facts(),
+        policy=None,
+        paths=(),
+        dominance=OrderDominance(texts=texts),
+        store_shapes=shapes,
+        min_siblings=ObligationsConfig().min_siblings,
+    )
+    return findings_to_static(result)
+
+
+def _known_fix_record(finding: StaticFinding, records: dict[str, Mechanism]) -> Mechanism | None:
+    for tag in finding.tags:
+        if tag.startswith("mechanism:"):
+            return records.get(tag.split(":", 1)[1])
+    return None
 
 
 def _inside_label(case: PairCase, line: int, ranges: Sequence[tuple[str, int, int]]) -> bool:
