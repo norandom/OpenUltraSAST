@@ -215,3 +215,49 @@ def _sarif_payload(analyzer: str, rule_id: str, result_path: str) -> dict[str, o
             }
         ],
     }
+
+
+def test_entry_points_name_handlers_registered_by_call_or_convention(tmp_path: Path) -> None:
+    """authorization-obligations 2.6: a handler registered by a call or by convention is still a named route entry."""
+    from openultrasast.mapping import analyze_entry_points
+    from openultrasast.preprocess import preprocess_repository
+
+    (tmp_path / "api_views").mkdir()
+    (tmp_path / "api_views" / "books.py").write_text(
+        "from flask_restx import Resource\n\n\n"
+        "def get_by_title(book_title):\n    return Book.query.filter_by(book_title=book_title).first()\n\n\n"
+        "class UserProfile(Resource):\n"
+        "    @login_required\n"
+        "    def get(self):\n        return db.users.find_one({'id': request.args.get('user_id')})\n\n"
+        "    def delete(self, user_id):\n        return db.users.delete_one({'id': user_id})\n\n\n"
+        "app.add_url_rule('/books/<book_title>', view_func=get_by_title)\n"
+        "api.add_resource(UserProfile, '/users/profile')\n"
+    )
+    (tmp_path / "routes.js").write_text(
+        "function listBooks(req, res) { return res.json(Book.find({})); }\n"
+        "function stats(req, res) { return res.json({}); }\n"
+        "router.get('/books', requireAuth, listBooks);\n"
+        "router.get('/stats', stats);\n"
+    )
+    (tmp_path / "app").mkdir()
+    (tmp_path / "app" / "api").mkdir()
+    (tmp_path / "app" / "api" / "route.ts").write_text(
+        "export async function GET(request: NextRequest) {\n  return NextResponse.json(await db.from('opportunities').select());\n}\n"
+        "export async function PATCH(request: NextRequest) {\n  return NextResponse.json(await db.from('claims').update({}));\n}\n"
+        "function helper() { return 1; }\n"
+    )
+    _, targets = preprocess_repository(tmp_path)
+    routes = {(e.path, e.function_name): e for e in analyze_entry_points(tmp_path, targets) if e.kind == "route" and e.function_name}
+    named = {(path.replace("\\", "/"), function) for path, function in routes}
+    assert ("api_views/books.py", "get_by_title") in named  # registered by add_url_rule, no decorator on the function
+    assert ("api_views/books.py", "get") in named and ("api_views/books.py", "delete") in named  # Resource verb methods
+    assert ("routes.js", "listBooks") in named and ("routes.js", "stats") in named
+    assert ("app/api/route.ts", "GET") in named and ("app/api/route.ts", "PATCH") in named
+    assert ("app/api/route.ts", "helper") not in named  # only the HTTP-verb exports are handlers
+    assert routes[("routes.js", "listBooks")].access_level == "authenticated"  # requireAuth middleware on the registration
+    assert any("requireAuth" in item for item in routes[("routes.js", "listBooks")].access_evidence)
+    assert routes[("routes.js", "stats")].access_level == "public"
+    assert routes[("api_views/books.py", "get")].access_level == "authenticated"  # @login_required on the verb method
+    assert routes[("api_views/books.py", "delete")].access_level == "public"
+    body = routes[("api_views/books.py", "get_by_title")]
+    assert body.line == 4 and body.end_line == 5  # the record spans the handler, not the registration line

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import ast
 import json
+import re
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -194,6 +196,7 @@ def _python_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord
     except SyntaxError:
         tree = None
     if tree is not None:
+        records.extend(_python_registered_routes(target, tree))
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 decorators = [_safe_unparse(decorator) for decorator in node.decorator_list]
@@ -244,20 +247,25 @@ def _python_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord
 def _js_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
     records: list[EntryPointRecord] = []
     route_tokens = (".get(", ".post(", ".put(", ".delete(", ".patch(", ".use(")
-    for number, line in enumerate(text.splitlines(), start=1):
+    lines = text.splitlines()
+    bounds = _js_function_bounds(lines)
+    for number, line in enumerate(lines, start=1):
         stripped = line.strip()
         if any(token in stripped for token in route_tokens) and any(prefix in stripped for prefix in ("app", "router", "server")):
+            handler, middleware = _js_registration(stripped, bounds)
+            access, evidence = _js_route_access(middleware, stripped)
+            start, end = bounds.get(handler or "", (number, number))
             records.append(
                 _entry(
                     target,
-                    number,
-                    number,
-                    _js_handler_name(stripped),
+                    start,
+                    end,
+                    handler or _js_handler_name(stripped),
                     "http_handler",
                     "route",
-                    "public",
+                    access,
                     "http_request",
-                    [stripped],
+                    evidence,
                     _line_conditions(stripped),
                 )
             )
@@ -276,7 +284,91 @@ def _js_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
                     _line_conditions(stripped),
                 )
             )
+    records.extend(_js_route_module(target, lines, bounds))
     return records
+
+
+_RESOURCE_BASES = ("resource", "methodview", "apiview", "viewset", "modelviewset", "httpendpoint")
+_HTTP_VERBS = ("get", "post", "put", "patch", "delete", "head", "options")
+
+
+def _python_registered_routes(target: FileTarget, tree: ast.AST) -> list[EntryPointRecord]:
+    """Handlers whose route is registered by a call or by convention, not by a decorator on the function itself
+    (authorization-obligations 2.6): `add_url_rule(path, view_func=fn)`, `api.add_resource(Cls, path)`, and the HTTP-verb
+    methods of a `Resource`/`MethodView`/`APIView`/`ViewSet` subclass. Without these, projects that register their routes
+    elsewhere have no named entry point and every obligation on them is unreachable."""
+    functions: dict[str, ast.FunctionDef | ast.AsyncFunctionDef] = {}
+    classes: dict[str, ast.ClassDef] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            functions.setdefault(node.name, node)
+        elif isinstance(node, ast.ClassDef):
+            classes.setdefault(node.name, node)
+    registered_functions: set[str] = set()
+    registered_classes: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        callee = _safe_unparse(node.func)
+        trailing = callee.rsplit(".", 1)[-1]
+        if trailing == "add_url_rule":
+            for keyword in node.keywords:
+                if keyword.arg == "view_func":
+                    registered_functions.add(_safe_unparse(keyword.value).split(".")[0])
+            registered_functions.update(_safe_unparse(arg) for arg in node.args[1:2] if isinstance(arg, ast.Name))
+        elif trailing in {"add_resource", "register_blueprint", "include_router"} or trailing == "add_view":
+            registered_classes.update(_safe_unparse(arg) for arg in node.args if isinstance(arg, ast.Name))
+            registered_functions.update(_safe_unparse(arg) for arg in node.args if isinstance(arg, ast.Name))
+    records: list[EntryPointRecord] = []
+    for name in sorted(registered_functions):
+        handler = functions.get(name)
+        if handler is None or _has_route_decorator(handler):
+            continue
+        decorators = [_safe_unparse(decorator) for decorator in handler.decorator_list]
+        access, evidence = _python_route_access(decorators)
+        records.append(
+            _entry(
+                target,
+                handler.lineno,
+                getattr(handler, "end_lineno", handler.lineno),
+                handler.name,
+                handler.name,
+                "route",
+                access,
+                "http_request",
+                evidence or [f"registered handler {handler.name}"],
+                _python_conditions(handler, decorators),
+            )
+        )
+    for name, klass in sorted(classes.items()):
+        bases = [_safe_unparse(base).rsplit(".", 1)[-1].lower() for base in klass.bases]
+        if name not in registered_classes and not any(base in _RESOURCE_BASES for base in bases):
+            continue
+        class_decorators = [_safe_unparse(decorator) for decorator in klass.decorator_list]
+        for child in klass.body:
+            if not isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)) or child.name.lower() not in _HTTP_VERBS:
+                continue
+            decorators = class_decorators + [_safe_unparse(decorator) for decorator in child.decorator_list]
+            access, evidence = _python_route_access(decorators)
+            records.append(
+                _entry(
+                    target,
+                    child.lineno,
+                    getattr(child, "end_lineno", child.lineno),
+                    child.name,
+                    f"{name}.{child.name}",
+                    "route",
+                    access,
+                    "http_request",
+                    evidence or [f"{name} handler method {child.name}"],
+                    _python_conditions(child, decorators),
+                )
+            )
+    return records
+
+
+def _has_route_decorator(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    return any(_looks_like_route_decorator(_safe_unparse(decorator)) for decorator in node.decorator_list)
 
 
 def _c_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
@@ -474,6 +566,71 @@ def _looks_conditional(text: str) -> bool:
     return any(
         token in lowered for token in ("feature", "flag", "toggle", "enabled", "disabled", "experiment", "beta", "rollout", "paused")
     )
+
+
+_JS_FUNCTION = re.compile(r"^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)")
+_JS_EXPORTED_VERB = re.compile(r"^\s*export\s+(?:async\s+)?(?:function\s+([A-Z]+)|const\s+([A-Z]+)\s*=)")
+_JS_IDENTIFIER = re.compile(r"^[A-Za-z_$][\w$.]*$")
+_JS_AUTH_TOKENS = ("auth", "login", "session", "jwt", "token", "protect", "guard", "require")
+_JS_ROLE_TOKENS = ("role", "permission", "admin", "owner")
+
+
+def _js_function_bounds(lines: Sequence[str]) -> dict[str, tuple[int, int]]:
+    """Declared function names to their 1-based line span, by brace balance from the declaration."""
+    bounds: dict[str, tuple[int, int]] = {}
+    for index, line in enumerate(lines):
+        match = _JS_FUNCTION.match(line)
+        if match is None:
+            continue
+        depth = 0
+        end = index
+        for cursor in range(index, len(lines)):
+            depth += lines[cursor].count("{") - lines[cursor].count("}")
+            end = cursor
+            if depth <= 0 and "{" in "".join(lines[index : cursor + 1]):
+                break
+        bounds.setdefault(match.group(1), (index + 1, end + 1))
+    return bounds
+
+
+def _js_registration(line: str, bounds: Mapping[str, tuple[int, int]]) -> tuple[str | None, list[str]]:
+    """`router.get('/books', requireAuth, listBooks)` -> the handler identifier and the middleware identifiers before it."""
+    body = line[line.find("(") + 1 : line.rfind(")")] if "(" in line and line.rfind(")") > line.find("(") else ""
+    parts = [part.strip() for part in body.split(",") if part.strip()]
+    identifiers = [part for part in parts[1:] if _JS_IDENTIFIER.match(part)]
+    if not identifiers:
+        return None, [line]
+    handler = next((name for name in reversed(identifiers) if name in bounds), identifiers[-1])
+    middleware = [name for name in identifiers if name != handler]
+    return handler, middleware
+
+
+def _js_route_access(middleware: Sequence[str], line: str) -> tuple[AccessLevel, list[str]]:
+    lowered = " ".join(middleware).lower()
+    evidence = [f"middleware {name}" for name in middleware] or [line]
+    if any(token in lowered for token in _JS_ROLE_TOKENS):
+        return "role-restricted", evidence
+    if any(token in lowered for token in _JS_AUTH_TOKENS):
+        return "authenticated", evidence
+    return "public", evidence
+
+
+def _js_route_module(target: FileTarget, lines: Sequence[str], bounds: Mapping[str, tuple[int, int]]) -> list[EntryPointRecord]:
+    """Next.js App Router convention: exported HTTP-verb functions in a `route.<ext>` module are the handlers."""
+    if Path(target.path).stem != "route":
+        return []
+    verbs = {verb.upper() for verb in _HTTP_VERBS}
+    records: list[EntryPointRecord] = []
+    for index, line in enumerate(lines, start=1):
+        match = _JS_EXPORTED_VERB.match(line)
+        name = (match.group(1) or match.group(2)) if match else None
+        if name is None or name not in verbs:
+            continue
+        start, end = bounds.get(name, (index, index))
+        records.append(
+            _entry(target, start, end, name, f"route.{name}", "route", "public", "http_request", [f"route module export {name}"], [])
+        )
+    return records
 
 
 def _js_handler_name(line: str) -> str | None:
