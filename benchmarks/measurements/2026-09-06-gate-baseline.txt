@@ -1,0 +1,22 @@
+# Gate baseline for the learning-harness spec (task 5.1, Req 11.5).
+# Captured at 71efc9c, the commit before the first line of this feature, by running in order:
+#   python -m openultrasast.gate
+#   python -m openultrasast.map_gate
+#   python -m openultrasast.pair_gate
+# Every commit of this spec must reproduce this file byte for byte. The three gates are the only place
+# where a detector change is allowed to be invisible: if any of them moves, something that was never
+# supposed to change did.
+# --- output begins ---
+detection gate: recall 93.62% (44/47), FP 0.00% (0/44)
+  c_cpp       recall 93.33% (14/15)  FP  0.00% (0/14)
+  java        recall 100.00% (4/4)  FP  0.00% (0/4)
+  javascript  recall 92.31% (12/13)  FP  0.00% (0/12)
+  python      recall 93.33% (14/15)  FP  0.00% (0/14)
+detection gate: PASS
+split-sink map gate: PASS
+pair gate: pair_pass 100.00% (3/3), vuln_recall 100.00%, silent_fix 100.00%, Youden +100.00%, labeled_recall 100.00% (28/28), fix_leaks 0
+  local    pair_pass 100.00% (3/3)  vuln 100.00%  silent 100.00%  Youden +100.00%  labeled 100.00%
+    PASS local-python-vulnerable          vuln 12/12 fix_findings=0 leaks=0
+    PASS local-javascript-vulnerable      vuln 10/10 fix_findings=0 leaks=0
+    PASS local-cpp-buffer                 vuln 6/6 fix_findings=0 leaks=0
+pair gate: PASS (local slice)
