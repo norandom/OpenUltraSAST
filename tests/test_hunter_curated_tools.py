@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -151,3 +152,45 @@ def test_the_loop_takes_a_prompt_context_tools_and_tags_and_replays_reasoning(re
     tool_reply = json.loads(str(client.calls[1]["messages"][-1]["content"]))
     assert tool_reply and tool_reply[0]["missing"] == "identity_constraint"
     assert findings[0].tags == ["family:access_control", "detector:access_control@1"]
+
+
+def test_the_loop_asks_once_more_for_the_answer_instead_of_dropping_prose() -> None:
+    """Measured live: the model spends its step budget on tools and then answers in prose, and the whole hunt is
+    discarded (learning-harness Req 6.3).
+
+    Four steps, three of them tool calls, and the fourth a paragraph that names the sink, the argument and the
+    line — parsed as nothing. A detector that found the bug and reported zero is indistinguishable from one that
+    found nothing, and every family in round zero would have baselined at zero for this reason alone."""
+    from openultrasast.tool_hunter import ChatResponse, ScriptedChatClient, ToolCall, run_tool_hunter
+
+    prose = "The function passes `command` straight to os.system at line 2, an OS command sink."
+    answer = json.dumps([{"path": "app.py", "line": 2, "title": "command injection", "rationale": "os.system(command)"}])
+    client = ScriptedChatClient(
+        [
+            ChatResponse(tool_calls=(ToolCall(id="c1", name="grep_repo", arguments={"pattern": "system"}),)),
+            ChatResponse(tool_calls=(ToolCall(id="c2", name="read_file", arguments={"path": "app.py"}),)),
+            ChatResponse(content=prose),
+            ChatResponse(content=answer),  # the one extra turn, asked for explicitly
+        ]
+    )
+    with tempfile.TemporaryDirectory() as scratch:
+        root = Path(scratch)
+        (root / "app.py").write_text("import os\ndef run(command):\n    return os.system(command)\n")
+        findings = run_tool_hunter(root, [], client=client, model="m", max_steps=3)
+    assert [item.line for item in findings] == [2]
+    final = client.calls[-1]
+    assert final.get("json_object") is True, "the last turn asks the provider for JSON, it does not hope for it"
+    text = "\n".join(str(message.get("content") or "") for message in final["messages"])
+    assert "JSON" in text and prose in text, "the prose it already wrote is what the final turn is asked to format"
+
+
+def test_a_hunt_that_never_called_a_tool_still_reports_nothing() -> None:
+    """The extra turn is for formatting an answer, never for inventing one."""
+    from openultrasast.tool_hunter import ChatResponse, ScriptedChatClient, run_tool_hunter
+
+    client = ScriptedChatClient([ChatResponse(content="I think there is an injection here."), ChatResponse(content="[]")])
+    with tempfile.TemporaryDirectory() as scratch:
+        root = Path(scratch)
+        (root / "app.py").write_text("x = 1\n")
+        assert run_tool_hunter(root, [], client=client, model="m", max_steps=3) == []
+    assert len(client.calls) == 1, "no tool was called, so there is nothing to format"

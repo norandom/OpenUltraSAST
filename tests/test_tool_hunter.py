@@ -133,7 +133,13 @@ def test_path_escape_stays_in_band_and_still_counts_as_tool_use(tmp_path: Path) 
     assert "error" in json.dumps(client.calls[1]["messages"]).lower()
 
 
-def test_max_steps_stops_before_ungrounded_json(tmp_path: Path) -> None:
+def test_a_budget_that_runs_out_mid_hunt_still_asks_for_the_answer(tmp_path: Path) -> None:
+    """The step budget bounds the *investigation*, not the report.
+
+    This used to discard everything when the last step was a tool call: the loop had a tool result in hand and
+    threw it away because it had no turn left to ask about it. What the budget must still refuse is a findings
+    dump from a hunt that called no tool at all, which `test_hunter_dump_only_findings_are_rejected` pins.
+    """
     root = _repo_with_split_sink(tmp_path)
     client = ScriptedChatClient(
         [
@@ -144,8 +150,8 @@ def test_max_steps_stops_before_ungrounded_json(tmp_path: Path) -> None:
 
     findings = run_tool_hunter(root, [_hotspot()], client=client, model="test-hunter", max_steps=1)
 
-    assert findings == []
-    assert len(client.calls) == 1
+    assert [item.line for item in findings] == [item["line"] for item in _DUMP_FINDINGS]
+    assert len(client.calls) == 2 and client.calls[-1].get("json_object") is True
 
 
 _UNSAFE_SNIPPET = 'client = docker.DockerClient(base_url="unix://var/run/docker.sock")\n'

@@ -168,6 +168,7 @@ class ChatClient(Protocol):
         messages: list[dict[str, object]],
         tools: list[dict[str, object]],
         timeout_seconds: int = 60,
+        json_object: bool = False,  # the final answer turn asks for JSON; adapters without it ignore the flag
     ) -> ChatResponse:
         raise NotImplementedError
 
@@ -216,7 +217,9 @@ class OpenRouterHunterClient:
         messages: list[dict[str, object]],
         tools: list[dict[str, object]],
         timeout_seconds: int = 60,
+        json_object: bool = False,
     ) -> ChatResponse:
+        del json_object  # OpenRouter routes to many providers; the prompt asks for JSON and the parser tolerates prose
         message = self._client.complete_chat(model=model, messages=messages, tools=tools, timeout_seconds=timeout_seconds)
         return chat_response_from_message(message)
 
@@ -343,8 +346,54 @@ def run_tool_hunter(
         if not content.strip() or not used_tools:
             # A findings dump is not evidence unless the loop invoked a repo tool.
             return []
-        return _findings_from_content(root, hotspots, content, tags)
-    return []
+        findings = _findings_from_content(root, hotspots, content, tags)
+        if findings or _looks_like_json(content):
+            return findings
+        return _final_answer(client, model, messages, schemas, content, root, hotspots, tags)
+    return _final_answer(client, model, messages, schemas, "", root, hotspots, tags) if used_tools else []
+
+
+def _final_answer(
+    client: ChatClient,
+    model: str,
+    messages: list[dict[str, object]],
+    schemas: list[dict[str, object]],
+    prose: str,
+    root: Path,
+    hotspots: Sequence[Hotspot],
+    tags: Sequence[str],
+) -> list[StaticFinding]:
+    """One more turn, asking the provider for JSON, when the hunt ended in prose or ran out of steps.
+
+    Measured live against DeepSeek: the model spends its step budget on tools and then answers in a paragraph that
+    names the sink, the argument and the line — which parses as nothing at all. A detector that found the bug and
+    reported zero is indistinguishable from one that found nothing, and every family would baseline at zero for
+    that reason alone. This turn formats an answer the model has already reached; it never asks for a new one, and
+    a hunt that called no tool never gets here.
+    """
+    body = prose.strip()
+    tail: list[dict[str, object]] = [{"role": "assistant", "content": body}] if body else []
+    messages = [
+        *messages,
+        *tail,
+        {
+            "role": "user",
+            "content": (
+                "Answer now, as JSON only: an array of objects with path, line, title, rationale and family. "
+                "Report only what you established with the tools; return [] if that is nothing."
+            ),
+        },
+    ]
+    response = client.complete(model=model, messages=messages, tools=schemas, json_object=True)
+    return _findings_from_content(root, hotspots, response.content or "", tags)
+
+
+def _looks_like_json(content: str) -> bool:
+    stripped = content.strip()
+    fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", stripped, flags=re.DOTALL)
+    if fenced is not None:
+        stripped = fenced.group(1).strip()
+    return stripped.startswith(("[", "{"))
 
 
 def _tool_schemas(names: Sequence[str] | None) -> list[dict[str, object]]:
