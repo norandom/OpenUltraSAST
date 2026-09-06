@@ -111,29 +111,27 @@ def test_sink_search_ignores_obligation_rows(tmp_path: Path) -> None:
     assert result.mechanisms_searched == 0 and result.hits == () and result.degradations == ()
 
 
-def test_real_vibe_py_absence_pairs_seed_at_least_one_obligation_shape(tmp_path: Path) -> None:
+def test_the_train_split_of_vibe_py_teaches_no_obligation_shape_today(tmp_path: Path) -> None:
+    """learning-harness Req 5.1 turned this number honest, and the honest number is zero.
+
+    Every vibe-py absence pair that yields an obligation lesson sits on the holdout side, so once only
+    train-split pairs may teach, the corpus teaches no obligation shape at all. The earlier result
+    ("at least one obligation shape from vibe-py") was true only because holdout pairs were teaching.
+    The derivation itself stays covered by the fixture tests above; this pins the corpus gap, which the
+    absence re-harvest and a maintainer pass over the splits are what close.
+    """
     from openultrasast.pairs import load_pair_catalog, select_slice, select_vendored
     from openultrasast.semantic.obligations.shapes import obligation_mechanisms
     from openultrasast.semantic.seed import export_mechanisms
 
     store = MechanismStore(tmp_path / "m.jsonl")
-    report = export_mechanisms(select_vendored(select_slice(load_pair_catalog(), "vibe-py")), store)
-    rows = obligation_mechanisms(store.load())
-    assert rows and any("vampi-books-get-by-title" in r.pairs and "vampi-users-update-password" in r.pairs for r in rows)
-    vampi = next(r for r in rows if "vampi-books-get-by-title" in r.pairs)
-    assert vampi.shape is not None
-    assert (vampi.shape["operation_kind"], vampi.shape["discharger_kind"], vampi.shape["provenance"], vampi.shape["resource_class"]) == (
-        "protected_read",
-        "identity_constraint",
-        "authenticated_context",
-        "owned",
-    )
-    assert all(
-        r.shape is not None and r.shape["operation_kind"] in {"protected_read", "protected_write", "privileged_action", "security_setting"}
-        for r in rows
-    )
-    flow_rows = [r for r in store.load() if r.shape is not None and r.shape.get("family", "sink") == "sink"]
-    assert report.records == len(flow_rows) + len(rows) and len(flow_rows) >= 1  # both families, nothing lost to the other
+    cases = select_vendored(select_slice(load_pair_catalog(), "vibe-py"))
+    report = export_mechanisms(cases, store)
+    assert obligation_mechanisms(store.load()) == ()
+    refused = {pair for pair, reason in report.skipped if reason.startswith("split:")}
+    assert {"vampi-books-get-by-title", "vampi-users-update-password", "threatbyte-api-v1-get"} <= refused
+    flow_rows = [row for row in store.load() if row.shape is not None and row.shape.get("family", "sink") == "sink"]
+    assert report.records == len(flow_rows) and len(flow_rows) >= 1  # the flow family still teaches from the train split
 
 
 def test_absence_row_without_an_obligation_lesson_still_teaches_its_sink_shape(tmp_path: Path) -> None:

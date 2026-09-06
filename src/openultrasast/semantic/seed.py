@@ -193,6 +193,10 @@ def _obligation_facts() -> ObligationFacts:
 
 
 def _skip_reason(case: PairCase) -> str | None:
+    from ..learning.split import is_teacher
+
+    if not is_teacher(case) and case.review_tier in GATING_TIERS and case.vendored and not case.known_limit:
+        return f"split:{case.split}"  # learning-harness Req 5.1: only train-split, scorable pairs teach
     if case.review_tier not in GATING_TIERS:
         return f"tier:{case.review_tier}"
     if case.known_limit:

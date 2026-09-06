@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..findings import StaticFinding
-from ..pairs import GATING_TIERS, PairCase, _materialize, _targets
+from ..pairs import PairCase, _materialize, _targets
 from .facts import FactLoadError, SemanticFacts, load_facts
 from .functions import named_function_ranges, spans_named
 from .mechanisms import Mechanism, MechanismStore, append_from_pair, corpus_mechanisms
@@ -99,7 +99,10 @@ def evaluate_loo(cases: Sequence[PairCase], *, facts: SemanticFacts | None = Non
             skipped.append((case.name, "pointer_pair_not_cached" if not case.vendored else "excerpt_missing"))
         else:
             targets.append(case)
-    lessons = {case.name: pair_lessons(case, loaded) for case in targets if case.review_tier in GATING_TIERS}
+    from ..learning.split import is_teacher
+
+    # learning-harness Req 5.1: every pair is still scored, but only a train-split teacher may seed a store.
+    lessons = {case.name: pair_lessons(case, loaded) for case in targets if is_teacher(case)}
     outcomes = [_hold_out(case, targets, lessons, loaded) for case in targets]
     return LooResult(
         outcomes=tuple(outcomes),

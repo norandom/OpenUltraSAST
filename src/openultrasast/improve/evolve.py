@@ -116,7 +116,8 @@ def propose_mechanism_edits(pair_cases: Sequence[object], candidates: object, st
     from ..semantic.loo import score_pair_with_store
     from ..semantic.mechanisms import MechanismStore, corpus_mechanisms
 
-    cases = list(select_tier(select_vendored([case for case in pair_cases if isinstance(case, PairCase)]), GATING_TIERS))
+    cases_all = [case for case in pair_cases if isinstance(case, PairCase)]
+    cases = list(select_tier(select_vendored(cases_all), GATING_TIERS))
     if not cases:
         return []
     facts = _facts()
@@ -133,9 +134,13 @@ def propose_mechanism_edits(pair_cases: Sequence[object], candidates: object, st
             )
         )
     missed = [case for case in cases if not current[case.name].detected]
+    from ..learning.split import refuse_if_holdout
+
     for record in corpus_mechanisms(candidates.load()):  # type: ignore[attr-defined]
         if record.id in admitted or not missed:
             continue
+        if refuse_if_holdout(record.pairs, cases_all) is not None:
+            continue  # learning-harness Req 5.2: a shape a holdout pair taught can never recover that pair
         with tempfile.TemporaryDirectory(prefix="ousast-lever-") as scratch:
             trial = MechanismStore(Path(scratch) / "trial.jsonl")
             trial.append(record)

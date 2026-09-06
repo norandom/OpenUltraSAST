@@ -1,0 +1,19 @@
+{
+  "after": {
+    "detected": 5,
+    "shapes": 6,
+    "silent": 11,
+    "youden": -0.0588
+  },
+  "before": {
+    "detected": 7,
+    "shapes": 10,
+    "silent": 11,
+    "youden": 0.0588
+  },
+  "command": "ousast mechanisms export --slice vibe-py, then score every holdout pair with semantic.loo.score_pair_with_store",
+  "generated": "2026-09-06",
+  "holdout_pairs": 17,
+  "note": "`before` is the behaviour this spec found: the exporter seeded candidate shapes from every vendored pair, so a shape a holdout pair taught could recover that same pair. `after` is the same measurement with the teacher rule enforced: only train-split, scorable, trusted pairs seed. The difference is the inflation.",
+  "slice": "vibe-py"
+}

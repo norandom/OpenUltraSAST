@@ -195,14 +195,26 @@ def test_no_gain_admission_is_rejected_and_reverted_mechanism_edits_are_not_repr
 
 
 def _holdout_catalog(tmp_path: Path) -> Path:
+    """A train pair to teach and a holdout pair to recover.
+
+    The catalog used to hold the holdout pair alone, so the only shape available was the one that pair
+    taught about itself; learning-harness Req 5.1 refuses that, and rightly.
+    """
     (tmp_path / "x-v.py").write_text(EXEC_VULN)
     (tmp_path / "x-f.py").write_text(EXEC_FIX)
+    (tmp_path / "t-v.py").write_text(EXEC_VULN.replace("lookup", "search").replace("u = ", "name = "))
+    (tmp_path / "t-f.py").write_text(EXEC_FIX.replace("lookup", "search").replace("u = ", "name = "))
+    row = (
+        '[[pair]]\nname = "{name}"\nslice = "github"\nlanguage = "python"\nvuln = "{name[0]}-v.py"\nfixed = "{name[0]}-f.py"\n'
+        'relpath = "app.py"\nsplit = "{split}"\nreview_tier = "reviewed"\nreviewer = "t"\n\n'
+        '[[pair.expected]]\ncwe = "CWE-89"\nclass = "sql injection"\npath = "app.py"\nfunction = "{function}"\n'
+        'sink = "execute"\nmechanism = "source_reaches_sink"\n'
+    )
     catalog = tmp_path / "pairs.toml"
     catalog.write_text(
-        '[[pair]]\nname = "x"\nslice = "github"\nlanguage = "python"\nvuln = "x-v.py"\nfixed = "x-f.py"\nrelpath = "app.py"\n'
-        'split = "holdout"\nreview_tier = "reviewed"\nreviewer = "t"\n\n'
-        '[[pair.expected]]\ncwe = "CWE-89"\nclass = "sql injection"\npath = "app.py"\nfunction = "lookup"\n'
-        'sink = "execute"\nmechanism = "source_reaches_sink"\n'
+        row.replace("{name}", "x").replace("{name[0]}", "x").replace("{split}", "holdout").replace("{function}", "lookup")
+        + "\n"
+        + row.replace("{name}", "t").replace("{name[0]}", "t").replace("{split}", "train").replace("{function}", "search")
     )
     return catalog
 
