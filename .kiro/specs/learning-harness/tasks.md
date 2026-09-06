@@ -28,30 +28,32 @@
   - Observable: the existing hunter tests pass unchanged with default parameters; each new tool answers on the shared handler fixture and refuses a path outside the repository; a recorded tool-turn conversation shows the reasoning field replayed.
   - _Requirements: 6.4, 6.5_
 
-- [ ] 2. Core: classifier, scorer, detectors, verifiers, journal
-- [ ] 2.1 (P) Classifier tiers
+- [x] 2. Core: classifier, scorer, detectors, verifiers, journal
+- [x] 2.1 (P) Classifier tiers
   - Tier one decides from rule id, sink family, obligation kind, mechanism id or labeled CWE without a model; tier two asks the chat endpoint in JSON-object mode with thinking disabled and averages log-probabilities, falling to unknown under a threshold; tier three is unknown; every answer records its tier; results are multi-label; loaded catalog family labels are validated against the taxonomy here and a fabricated family is rejected by name.
   - Observable: on the shared handler fixture tier one classifies the leaky handler as access control without any client; with a scripted client an off-vocabulary answer becomes unknown; a catalog with a fabricated family is rejected by name.
   - _Requirements: 2.1, 2.2_
   - _Boundary: Classifier_
 
-- [ ] 2.2 Classifier measurement and review queue
+- [x] 2.2 Classifier measurement and review queue
   - Report: agreement with maintainer labels on reviewed pairs with parent–child partial credit and no credit for lateral or fabricated ids, confusion matrix per family, accuracy against a random router and an oracle router, counts per tier and unknown; disagreements append to a review queue and never change a label; the whole corpus, including free-text and `other` rows, is classified with per-family counts.
   - Observable: the report on the vendored corpus lists the vfc `other` rows by resulting family and the queue holds every disagreement once with both answers and the tier.
-  - _Requirements: 2.3, 2.4, 2.5_
+  - Observable: the report also states whether hierarchical partial credit could apply.
+  - _Requirements: 2.3, 2.4, 2.5, 2.6_
 
-- [ ] 2.3 (P) Per-pair family scoring
+- [x] 2.3 (P) Per-pair family scoring
   - Detection only for a finding whose family tag relates same or parent–child to the labeled family and whose line lies in the labeled function, with the maximum penalty for a fabricated family; silence only when no such finding lies in the labeled function on the fixed side; other findings counted separately, never as leaks; text is never inspected; outcomes pair-correct, both-flagged, both-silent, reversed and unscorable; the unscorable reason also covers unsupported language, unresolved label and missing context.
   - Observable: a synthetic run set where every fixed side carries an other-family finding scores full silence; a finding with a fabricated family never counts; a pair in an unsupported language scores unscorable with that reason.
   - _Requirements: 3.1, 3.2, 3.6, 4.1_
   - _Boundary: Scorer_
 
-- [ ] 2.4 Aggregation, noise handling and denominators
+- [x] 2.4 Aggregation, noise handling and denominators
   - Per family and slice: outcome counts, recall, silence, Youden, directional-bias index, a fixed-false-positive-rate view; K runs per pair with the majority outcome, negative flips per family against a baseline set, and a paired reliable-change test; unscorable rows listed by reason and excluded from every denominator; every metrics block carries the taxonomy version and the scorable and unscorable counts.
   - Observable: a single-run difference below the reliable-change threshold reports no change while a consistent flip across runs does; the unscorable count and taxonomy version appear in every metrics block.
-  - _Requirements: 3.3, 3.4, 3.5, 4.5_
+  - Observable: every metrics block states whether hierarchical partial credit could apply.
+  - _Requirements: 3.3, 3.4, 3.5, 3.7, 4.5_
 
-- [ ] 2.5 (P) Per-family detector configurations and the family detector runner
+- [x] 2.5 (P) Per-family detector configurations and the family detector runner
   - A configuration directory per family: prompt under a stated length cap, checklist, tool list from the curated set only, step and cost budget, maximum characters, hard negatives and counterexamples, version; the loader rejects an over-cap prompt, an unknown tool or a missing family; this task ships the loader and a test fixture configuration, the shipped per-family directories are written by round zero.
   - The runner takes the families admitted by the classifier as input, builds the detector's user message from the whole file plus definitions its tools resolve, runs the hunter loop with the family's prompt, tools and budgets, and tags each finding with exactly one family tag and one detector-version tag; the generalist is the unknown family's configuration.
   - Observable: a family run on the shared fixture with a scripted client yields findings tagged with that family and version and uses only the family's tool list; a configuration whose prompt exceeds the cap fails to load by name.
@@ -59,25 +61,25 @@
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
   - _Boundary: Detectors_
 
-- [ ] 2.6 (P) Verifier registry and the oracle callback
+- [x] 2.6 (P) Verifier registry and the oracle callback
   - The regress verdict accepts an optional oracle callback and keeps exit-code behavior otherwise; a registry keyed by the taxonomy's verifier kind returns a canary, static or no-op verifier; the static verifier raises access-control claims to static corroboration when the obligations checker reports the same function; the no-op verifier leaves suspicion.
   - Observable: with the fake sandbox runner a result whose output carries the token yields triggerable while a nonzero exit without the token does not; a family with no verifier keeps suspicion on the shared fixture; the access-control claim on the leaky handler reaches static corroboration.
   - _Requirements: 7.1, 7.3, 7.4_
   - _Boundary: Verifiers, Regress_
 
-- [ ] 2.7 Canary templates and the second judge
+- [x] 2.7 Canary templates and the second judge
   - Family snippet templates for injection, file path and deserialization plant a canary (row in an in-memory database, file under the scratch mount, marked object) and print the token only when the vulnerability fires; the second judge asks the judge model with the snippet, oracle output and claim and answers confirm or not in JSON-object mode; a claim is published as proven only when it confirms; templates, oracle code and gold labels live outside every proposer write root.
   - Observable: every canary template passes the existing snippet safety check; a scripted judge that declines keeps the claim below proven; templates and oracle code live under the verifier directory and gold labels under the corpus directory.
   - _Requirements: 7.2, 7.5_
 
-- [ ] 2.8 (P) Round journal, archive and rejected buffer
+- [x] 2.8 (P) Round journal, archive and rejected buffer
   - Append-only round records with hypothesis, levers, predicted affected and at-risk families, outcome, reason, target deltas, per-family sweep flips, attribution (flipped predicted, flipped unpredicted, precision), cost, taxonomy and configuration versions; a per-family archive of which configuration version wins which pair; a rejected-hypothesis buffer per family; every persisted text passes redaction.
   - Observable: a record round-trips through the file; the buffer returns only the target family's rejected hypotheses; the archive names one winner per pair per family; a secret literal written into a record is stored redacted.
   - _Requirements: 9.3, 9.6, 9.7, 11.3_
   - _Boundary: Journal_
 
 - [ ] 3. Integration: split, scoring paths, rounds, proposer, publish, CLI
-- [ ] 3.1 One teacher rule across every learning path
+- [x] 3.1 One teacher rule across every learning path
   - Teachers are vendored, gating-tier, train-split, scorable pairs; a refusal names any candidate taught by or touching a holdout pair; the exporter, leave-one-out, per-profile evaluation, mechanism-profile evaluation, mechanism admission and pair signals all obtain teachers through the rule and record refusals as degradations; the mechanism lever's holdout number is re-measured under the rule and its raw artifact committed for the publish task.
   - Observable: leave-one-out on the toy slice seeds from train pairs only; a candidate shape taught by a holdout pair is refused by name; the re-measured artifact is in the measurements directory.
   - _Depends: 1.3_
@@ -111,14 +113,16 @@
 - [ ] 3.6 Acceptance rule and directory revert
   - Acceptance requires train and holdout non-negative with one strictly positive and every other family within its budget; ties reject; a family directory snapshot restores byte for byte on rejection or overrun; refusals for holdout contact, length cap and lever set are outcomes with reasons.
   - Observable: a helpful change is accepted, a tie is rejected, a change that breaches another family's budget is rejected with the family named, and a revert restores the directory byte for byte.
+  - Observable: every family other than the target has a byte-identical directory before and after the round, whatever the outcome.
   - _Depends: 3.3_
-  - _Requirements: 9.5_
+  - _Requirements: 6.2, 9.5_
 
 - [ ] 3.7 Evolve round orchestration, cost and journal
   - One round: facts, proposal, refusals, train minibatch, target-family holdout, sweep over every other family's holdout, K-run scoring at every stage as the scorer requires, accept (freeze, bump version, archive) or revert; cost metered per stage with revert and a recorded reason on overrun; a journal record and the rejected buffer written for every outcome; a round directory holds the snapshot, proposal, scores and trajectories and a repeated round number is refused.
   - Observable: with the scripted proposer each of accepted, rejected, budget-breach and cost-overrun leaves one journal record with attribution and a round directory; a repeated round number is refused.
+  - The round directory holds the pair identities behind the attribution counts and every detector trajectory, redacted, so a round can be replayed and its attribution audited; every stage scores at least three runs per pair.
   - _Depends: 3.5, 3.6_
-  - _Requirements: 9.4, 9.6, 9.7, 9.8, 9.9_
+  - _Requirements: 3.5, 9.4, 9.6, 9.7, 9.8, 9.9, 11.3_
 
 - [ ] 3.8 Publish from artifacts
   - One entry point regenerates every family and slice number from committed artifacts, writes a markdown table with scorable and unscorable counts, taxonomy version, noise floor and cost per point beside every number, replaces the roadmap's measured section between markers, and writes the raw artifacts under the measurements directory.
@@ -191,3 +195,15 @@
 - Task 2.2 (2026-09-06, RED first: 5 failing tests in `tests/test_learning_classifier_report.py`; then green): `measure_classifier` and `write_review_queue`. Bug caught by the RED test: the classifier read the declared label it was being scored against, making agreement trivially 1.0; `classify_pair(..., use_declared=False)` is what the measurement uses. Measured on the 277 vendored pairs: tier one places 275 without a model call, 2 land in `unknown`, and the 176 memory-safety rows resolve to one family. `labeled` is 0 because no row carries a maintainer family label yet, and the report says so instead of inventing a score.
 - Task 2.3 (2026-09-06, RED first: 8 failing tests in `tests/test_learning_scoring.py`; then green): `learning/scoring.py` `score_pair_family`. Detection is a family-tagged finding inside the labeled function; text is never read. Findings of other families or outside the function are counted separately and never called leaks; a fabricated family id is counted as noise. K runs, majority outcome, disagreeing runs recorded as flips.
 - Task 2.4 (2026-09-06, RED first: 7 failing tests in `tests/test_learning_aggregation.py`; then green): `aggregate` and `sign_test`. Recall at a fixed false-positive ceiling is forfeited entirely when the leak rate exceeds it; the directional-bias index separates "flags everything" from "silent on everything", which Youden cannot; change against a baseline is a two-sided exact sign test over per-pair flips, not a difference of means. `PairFamilyScore` gained a `slice` field (additive, filled from the case) so metrics can be reported per slice.
+- Task 2.5 (2026-09-06, RED first: 9 failing tests in `tests/test_learning_detectors.py`; then green): `learning/detectors.py` with `FamilyConfig`, `Region`, `load_family_configs`, `run_family_detector`, `run_region_detectors`, `write_default_configs`. Deviations: the parts live in one `family.toml` plus the markdown and JSON-lines files, because two TOML files with three keys between them was more surface than value and `version` had no home in the design's list; configurations live under the project's learning directory, not inside the package, because a round writes them. `CURATED_TOOLS` is derived from `HUNTER_TOOLS` so the closed set cannot drift.
+- Task 2.6 (2026-09-06, RED first: 6 failing tests in `tests/test_learning_verifiers.py`; then green): the optional oracle callback on `verdict_from_result`, inserted after the inconclusive guards and before the exit-code branch so a call without an oracle is the old decision tree, plus `verifier_for`, `StaticVerifier`, `NoVerifier` and `apply_verification`.
+- Task 2.7 (2026-09-06, RED first: 8 failing tests in `tests/test_learning_canaries.py`; then green): `learning/canaries.py` with per-family templates, `CanaryVerifier` and `confirm_proven`. Deviation: templates live in `learning/canaries.py` rather than the design's `learning/verifiers/` directory; the property that matters, being outside every proposer write root, holds and is tested.
+- Task 2.8 (2026-09-06, RED first: 6 failing tests in `tests/test_learning_journal.py`; then green): `learning/journal.py` with `RoundRecord`, `Attribution`, `LearningJournal`, `Archive` and `summarize`.
+- Review round 2 (2026-09-06) APPROVED 2.1, 2.2, 2.4, 2.5, 2.8; REJECTED 2.3, 2.6, 2.7. The reviewer ran every check in a detached worktree at the group tip, re-derived the RED phase per task against each task's parent commit (8/5/8/7/9/6/8/6 failures, the four recorded claims exact), killed 15 mutants against the new tests, and hand-verified `sign_test` against the closed form for every (better, worse) with n <= 20.
+  - **2.3 rejection, remediated RED-first**: two of Req 4.1's five unscorable reasons had no code path, so a row whose language could not be parsed was reported as `unresolved_label`, a corpus labelling defect, when the cause was a tooling gap. The design's `unscorable_reason(case, *, parse_ok, ranges)` is reinstated as a public function, `score_pair_family` takes `parse_ok` and `entry_points`, and `missing_context` names a handler that arrived without the registration that makes it reachable, for the families whose bug shape is a missing check.
+  - **2.6 rejection, remediated RED-first**: `apply_verification` wrote `evidence_level="proven"`, which is not a member of the project's `EvidenceLevel`, so `verify_finding`, `is_report_verified` and `verify_judge` all raise `ValueError` on it. Requirements put the evidence ladder out of scope and the design's data contract specifies only the `verifier:<rung>` tag. Nothing in production called it yet, so the suite stayed green while task 3.4's wiring would have broken a scan. `apply_verification` now writes only the tag; `evidence_level_for` and `raise_to` are the single explicit bridge onto the ladder, and a test round-trips a proven claim through the project's own helpers.
+  - **2.7 rejection, remediated RED-first**: the injection canary opened its own in-memory database, inserted the token there and called the handler without ever giving it that connection, so the oracle could never fire; the fake sandbox runner returned the token regardless of the snippet, which is why no test noticed. It is now an execution canary whose marker only an interpreter could write, and each template is exercised end to end by running the rendered snippet against a vulnerable fixture and its fixed twin. That test immediately caught a second flaw: a fixed twin that echoes its input printed the oracle token and satisfied the oracle with no vulnerability at all, so an injected payload now carries a value unrelated to the token the oracle looks for. Recorded scope: the injection canary confirms command, code and template execution; a query-language injection whose payload never reaches an interpreter stays a suspicion.
+  - Suggestions applied: a configuration with an empty tool list is refused by name instead of producing a detector that silently reports nothing; the classifier abstains when its no-adapter fallback call also fails; the archive docstring states that the earliest winning version keeps its claim to a pair.
+  - Task-plan updates from the review: 2.2 and 2.4 claim the two criteria the maintainer added (2.6 and 3.7); 3.6 claims Req 6.2 with an observable that every non-target family directory is byte-identical across a round; 3.7 claims Req 3.5's K floor, 9.6's pair identities and 11.3's trajectories.
+  - **Escalated to the maintainer**: Req 6.1 lists "a skills set" among a detector configuration's parts, and neither the approved design nor the code has one, although the repository ships a skill router. Either Req 6.1 drops the skills set or a task wires it; the implementation followed the approved design, so this is a spec-internal conflict rather than a deviation.
+  - Carry-forward: the nineteen straddling repositories still cross the split by declaration and cap every holdout number these tasks produce; `unknown` serves as both the classifier's abstention and the generalist detector, which deserves a sentence in the design before a round ever targets it.
