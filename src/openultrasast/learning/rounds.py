@@ -196,7 +196,10 @@ def compare_baselines(out_dir: Path) -> dict[str, dict[str, dict[str, object]]]:
         if not report.is_file():
             continue
         payload = json.loads(report.read_text(encoding="utf-8"))
-        table[str(payload.get("model", directory.name))] = {family: dict(block) for family, block in (payload.get("metrics") or {}).items()}
+        model = str(payload.get("model", directory.name))
+        slices = tuple(str(item) for item in (payload.get("slices") or ()))
+        label = model if not slices or slices == DEFAULT_SLICES else f"{model} ({', '.join(slices)})"
+        table[label] = {family: dict(block) for family, block in (payload.get("metrics") or {}).items()}
     return table
 
 
@@ -224,8 +227,18 @@ def _family_of(case: PairCase, taxonomy: FamilyTaxonomy) -> str:
     return answer.families[0] if answer.families else "unknown"
 
 
+def _artifact_key(model: str, slices: Sequence[str]) -> str:
+    """What identifies a baseline run: the detector model, and the slice selection when it is not the default.
+
+    Keyed by model alone, a run over the memory-safety slice silently replaces the run over the web families and
+    the published table shows one of them as if it were everything (Req 8.4)."""
+    if tuple(slices) == DEFAULT_SLICES:
+        return _slug(model)
+    return f"{_slug(model)}-{_slug('-'.join(sorted(slices)))}"
+
+
 def _write(out_dir: Path, report: BaselineReport) -> None:
-    directory = out_dir / "baseline" / _slug(report.model)
+    directory = out_dir / "baseline" / _artifact_key(report.model, report.slices)
     directory.mkdir(parents=True, exist_ok=True)
     payload = report.to_dict()
     (directory / "noise-floors.json").write_text(
@@ -239,9 +252,9 @@ def _slug(model: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", model).strip("-") or "unnamed"
 
 
-def load_noise_floors(out_dir: Path, model: str) -> dict[str, NoiseFloor]:
+def load_noise_floors(out_dir: Path, model: str, slices: Sequence[str] = ()) -> dict[str, NoiseFloor]:
     """The budgets a later round must stay inside, as round zero measured them for this model."""
-    path = out_dir / "baseline" / _slug(model) / "noise-floors.json"
+    path = out_dir / "baseline" / _artifact_key(model, slices or DEFAULT_SLICES) / "noise-floors.json"
     if not path.is_file():
         return {}
     payload = json.loads(path.read_text(encoding="utf-8"))

@@ -258,3 +258,40 @@ def test_round_zero_records_the_pairs_it_could_not_reach_instead_of_losing_the_r
     assert report.metrics["injection"]["scorable"] == 1, "the pair that was reached is still measured"
     assert report.metrics["injection"]["unscorable"] == {"detector_unreachable": 1}
     assert (tmp_path / "out" / "baseline" / "m" / "report.json").is_file()
+
+
+def test_two_slices_on_one_model_are_two_baselines_not_one_overwriting_the_other(tmp_path: Path) -> None:
+    """Artifacts are keyed by what identifies the run, and the slice selection is part of that.
+
+    Req 8.4 asks for the web families and, separately, the memory-safety family over the vfc slice. Keyed by model
+    alone, the second run silently replaces the first and the published table shows one of them as if it were
+    everything."""
+    from openultrasast.learning.rounds import compare_baselines, run_baseline
+
+    taxonomy = load_families()
+    out = tmp_path / "out"
+    web = run_baseline(
+        [_case(tmp_path, "w", slice_name="vibe-py")],
+        taxonomy=taxonomy,
+        configs_dir=tmp_path / "configs",
+        scan_factory=_always(_steady),
+        model="deepseek-v4-flash",
+        out_dir=out,
+        k_runs=3,
+    )
+    memory = run_baseline(
+        [_case(tmp_path, "m", family="memory", slice_name="vfc")],
+        taxonomy=taxonomy,
+        configs_dir=tmp_path / "configs",
+        scan_factory=_always(_steady),
+        model="deepseek-v4-flash",
+        out_dir=out,
+        k_runs=3,
+        slices=("vfc",),
+    )
+    assert set(web.metrics) == {"injection"} and set(memory.metrics) == {"memory"}
+    written = sorted(path.name for path in (out / "baseline").iterdir())
+    assert written == ["deepseek-v4-flash", "deepseek-v4-flash-vfc"], written
+    table = compare_baselines(out)
+    assert set(table) == {"deepseek-v4-flash", "deepseek-v4-flash (vfc)"}
+    assert "memory" in table["deepseek-v4-flash (vfc)"] and "injection" in table["deepseek-v4-flash"]

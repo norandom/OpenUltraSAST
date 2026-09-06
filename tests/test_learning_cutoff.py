@@ -208,6 +208,8 @@ def test_a_baseline_over_a_named_slice_measures_that_slice(tmp_path: Path, monke
         )
         == 0
     )
-    report = json.loads((tmp_path / "l" / "baseline" / "m" / "report.json").read_text())
+    # A run over a named slice is its own baseline: keyed by model *and* slice, so it cannot overwrite the run
+    # over the web families.
+    report = json.loads((tmp_path / "l" / "baseline" / "m-vfc" / "report.json").read_text())
     assert report["slices"] == ["vfc"]
     assert report["metrics"]["injection"]["scorable"] == 1

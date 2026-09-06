@@ -1343,7 +1343,7 @@ def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy:
         model=model,
         journal=journal,
         archive=Archive(out / "archive.jsonl"),
-        floors=load_noise_floors(out, model),
+        floors=load_noise_floors(out, model, (args.slice,) if args.slice != "all" else DEFAULT_SLICES),
         out_dir=out,
         cost_cap_usd=args.cost_cap_usd or config.learning.round_cost_cap_usd,
         minibatch=config.learning.minibatch,
