@@ -103,6 +103,7 @@ def run_baseline(
     spent_usd: Callable[[], float] | None = None,
     cutoff: str = "",
     thinking: bool = False,
+    resume: bool = False,
 ) -> BaselineReport:
     """Clone one detector into every family, measure each family **with its own configuration**, write the artifacts.
 
@@ -120,28 +121,40 @@ def run_baseline(
         write_default_configs(configs_dir, taxonomy, prompt=prompt or _SYSTEM_PROMPT, version="0")
     configs = load_family_configs(configs_dir, taxonomy)
     selected = [case for case in cases if case.slice in set(slices)]
+    # Every pair is written down as it is measured. Round zero over the vfc slice is 1760 detector runs and hours of
+    # paid calls; accumulating in memory and persisting once at the end means a timeout, a kill or a machine going
+    # away costs all of it. An exception already cost only one pair; nothing else did.
+    checkpoint = out_dir / "baseline" / _artifact_key(model, slices, thinking) / "scores.jsonl"
+    done = _checkpointed(checkpoint) if resume else {}
+    if not resume and checkpoint.exists():
+        checkpoint.unlink()
     scores = []
     for case in selected:
         name = _family_of(case, taxonomy)
         config = configs.get(name)
         if config is None:
             continue  # a family with no configuration is not measured rather than measured with someone else's
+        if case.name in done:
+            scores.append(done[case.name])
+            continue
         try:
-            scores.append(score_case(case, scan_factory(config), taxonomy=taxonomy, runs=k_runs, family=name))
+            score = score_case(case, scan_factory(config), taxonomy=taxonomy, runs=k_runs, family=name)
+            scores.append(score)
+            _append_score(checkpoint, score)
         except Exception:  # noqa: BLE001 — a provider hiccup costs one pair, not the whole run
             # Round zero is the most expensive thing this harness does. Raising here threw away everything already
             # measured and paid for, so the only honest response to a flaky endpoint was to run it all again.
-            scores.append(
-                PairFamilyScore(
-                    pair=case.name,
-                    family=name,
-                    slice=case.slice,
-                    fix_date=case.fix_date,
-                    runs=(),
-                    outcome="unscorable",
-                    unscorable_reason="detector_unreachable",
-                )
+            unreachable = PairFamilyScore(
+                pair=case.name,
+                family=name,
+                slice=case.slice,
+                fix_date=case.fix_date,
+                runs=(),
+                outcome="unscorable",
+                unscorable_reason="detector_unreachable",
             )
+            scores.append(unreachable)
+            _append_score(checkpoint, unreachable)
     metrics = aggregate(scores, taxonomy=taxonomy, cutoff=cutoff)
     floors = {name: _floor(name, block, [item for item in scores if item.family == name], k_runs) for name, block in metrics.items()}
     report = BaselineReport(
@@ -158,6 +171,59 @@ def run_baseline(
     )
     _write(out_dir, report)
     return report
+
+
+def _append_score(path: Path, score: PairFamilyScore) -> None:
+    """One line per pair, flushed, so an interrupted run keeps what it measured."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "pair": score.pair,
+        "family": score.family,
+        "slice": score.slice,
+        "fix_date": score.fix_date,
+        "outcome": score.outcome,
+        "runs": list(score.runs),
+        "flips": score.flips,
+        "other_findings_vuln": score.other_findings_vuln,
+        "other_findings_fixed": score.other_findings_fixed,
+        "fabricated_vuln": score.fabricated_vuln,
+        "fabricated_fixed": score.fabricated_fixed,
+        "rung": score.rung,
+        "unscorable_reason": score.unscorable_reason,
+    }
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, sort_keys=True) + "\n")
+        handle.flush()
+
+
+def _checkpointed(path: Path) -> dict[str, PairFamilyScore]:
+    """What a previous run of this exact baseline already measured and paid for."""
+    if not path.is_file():
+        return {}
+    out: dict[str, PairFamilyScore] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue  # a line half-written when the run died is not a measurement
+        out[str(row["pair"])] = PairFamilyScore(
+            pair=str(row["pair"]),
+            family=str(row["family"]),
+            slice=str(row.get("slice", "")),
+            fix_date=str(row.get("fix_date", "")),
+            runs=tuple(row.get("runs", ())),
+            outcome=row["outcome"],
+            flips=int(row.get("flips", 0)),
+            other_findings_vuln=int(row.get("other_findings_vuln", 0)),
+            other_findings_fixed=int(row.get("other_findings_fixed", 0)),
+            fabricated_vuln=int(row.get("fabricated_vuln", 0)),
+            fabricated_fixed=int(row.get("fabricated_fixed", 0)),
+            rung=row.get("rung", "suspicion"),
+            unscorable_reason=row.get("unscorable_reason"),
+        )
+    return out
 
 
 def score_case(case: PairCase, scan: Scan, *, taxonomy: FamilyTaxonomy, runs: int, family: str | None = None) -> PairFamilyScore:

@@ -223,6 +223,12 @@ def main(argv: list[str] | None = None) -> int:
             command.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
             command.add_argument("--slice", choices=SLICE_NAMES, default="all")
             command.add_argument("--json", action="store_true")
+        if name == "baseline":
+            command.add_argument(
+                "--resume",
+                action="store_true",
+                help="keep the pairs a previous run of this baseline already measured and paid for",
+            )
         if name == "candidates":
             command.add_argument("--generator", choices=("ir", "ruleset"), default="ir", help="which pass enumerates the candidate sites")
         if name in {"baseline", "round", "score"}:
@@ -1352,6 +1358,7 @@ def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy:
             slices=(args.slice,) if args.slice != "all" else DEFAULT_SLICES,
             spent_usd=spent,
             thinking=config.learning.thinking,
+            resume=args.resume,
         )
         print(f"learning baseline cost: ${report.cost_usd:.4f}")
         print(f"learning baseline {model}: {len(report.floors)} families, k={report.k_runs} -> {out / 'baseline'}")

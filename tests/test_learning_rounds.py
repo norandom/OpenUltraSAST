@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from openultrasast.benchmark import ExpectedFinding
 from openultrasast.findings import StaticFinding
 from openultrasast.learning.families import load_families
@@ -295,3 +297,81 @@ def test_two_slices_on_one_model_are_two_baselines_not_one_overwriting_the_other
     table = compare_baselines(out)
     assert set(table) == {"deepseek-v4-flash", "deepseek-v4-flash (vfc)"}
     assert "memory" in table["deepseek-v4-flash (vfc)"] and "injection" in table["deepseek-v4-flash"]
+
+
+def test_round_zero_keeps_every_pair_it_has_already_paid_for(tmp_path: Path) -> None:
+    """A four-hour run that is interrupted must not lose four hours of paid calls.
+
+    Measured the hard way: the 176-pair vfc baseline hit its timeout and wrote nothing, because scores were
+    accumulated in memory and persisted once at the end. An exception was already handled; a timeout, a kill and a
+    machine going away were not, and they cost the same money."""
+    from openultrasast.learning.rounds import run_baseline
+
+    taxonomy = load_families()
+    out = tmp_path / "out"
+    scored: list[str] = []
+
+    def build(_config):  # type: ignore[no-untyped-def]
+        def scan(root: Path) -> list[StaticFinding]:
+            scored.append(root.name)
+            # K=3 means three vulnerable-side scans per pair, so this gives up part way through the third pair
+            if len([item for item in scored if item == "vuln"]) > 6:
+                raise KeyboardInterrupt("the operator gave up")
+            return _steady(root)
+
+        return scan
+
+    cases = [_case(tmp_path, name) for name in ("a", "b", "c", "d")]
+    with pytest.raises(KeyboardInterrupt):
+        run_baseline(
+            cases,
+            taxonomy=taxonomy,
+            configs_dir=tmp_path / "configs",
+            scan_factory=build,
+            model="m",
+            out_dir=out,
+            k_runs=3,
+        )
+    checkpoint = out / "baseline" / "m" / "scores.jsonl"
+    assert checkpoint.is_file(), "the pairs already measured were not written down"
+    rows = [json.loads(line) for line in checkpoint.read_text().splitlines() if line.strip()]
+    assert [row["pair"] for row in rows] == ["a", "b"]
+    assert all(row["outcome"] == "pair_correct" for row in rows)
+
+
+def test_a_resumed_baseline_does_not_pay_twice(tmp_path: Path) -> None:
+    from openultrasast.learning.rounds import run_baseline
+
+    taxonomy = load_families()
+    out = tmp_path / "out"
+    cases = [_case(tmp_path, name) for name in ("a", "b")]
+    run_baseline(
+        cases,
+        taxonomy=taxonomy,
+        configs_dir=tmp_path / "configs",
+        scan_factory=_always(_steady),
+        model="m",
+        out_dir=out,
+        k_runs=3,
+    )
+    calls: list[str] = []
+
+    def counting(_config):  # type: ignore[no-untyped-def]
+        def scan(root: Path) -> list[StaticFinding]:
+            calls.append(root.name)
+            return _steady(root)
+
+        return scan
+
+    report = run_baseline(
+        cases,
+        taxonomy=taxonomy,
+        configs_dir=tmp_path / "configs",
+        scan_factory=counting,
+        model="m",
+        out_dir=out,
+        k_runs=3,
+        resume=True,
+    )
+    assert calls == [], "every pair was already measured and paid for"
+    assert report.metrics["injection"]["scorable"] == 2
