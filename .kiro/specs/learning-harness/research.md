@@ -1,6 +1,92 @@
-# Research: learning-harness
+# Research & Design Decisions: learning-harness
 
-Web research conducted 2026-09-06 in four threads by research subagents; summaries are theirs, condensed, with primary sources. Speculation is marked. This file backs the "What others learned" section of `brief.md`.
+## Summary
+
+- **Feature**: `learning-harness`
+- **Discovery Scope**: Complex Integration (extension of pairs, tool hunter, provider, regress, improve; adoption of HarnessX meta-harness; corpus repairs)
+- **Key Findings**:
+  - The tool hunter already beats the overlay 12/14 vs 5/14 on the class-aware, scorable vibe-py holdout; the published 0/17 was the text-token scorer.
+  - Every learning path ignores the split (`evaluate_profiles`, `evaluate_mechanism_profiles`, `propose_mechanism_edits`, `evaluate_loo`, `build_pair_signals`, `export_mechanisms`); one teacher rule fixes all of them.
+  - The sandbox verdict is exit-code only and snippets are compile-only templates; a canary oracle is an additive callback that respects the existing safety bans.
+  - The chat and embedding clients share one base-URL variable; DeepSeek needs thinking disabled, `reasoning_content` replay, no `/v1`, `json_object` only, and offers no seed and no embeddings.
+  - HarnessX 0.1.0 already provides the round primitive (`MetaAgent.evolve`, journal with `predicted_affected` and precision discounted by unpredicted regressions); the tool supplies tasks, trajectories, the evaluator and routing.
+  - The field routes on coarse verifier-aligned families, gates reports on proof, and reports regression blindness in meta-agents; per-instance archives and no-regression acceptance rules are the published remedies.
+
+## Research Log
+
+### Codebase seams (2026-09-06, Explore subagent over `src/openultrasast`)
+- **Context**: design an extension without re-reading every module.
+- **Findings**: `run_tool_hunter(root, hotspots, *, client, model, max_steps)` with three curated tools and `suspicion` findings tagged `tool-hunter`; `ChatClient.complete(*, model, messages, tools, timeout_seconds)`; `OpenRouterChatClient.complete_chat` always sends `temperature: 0` and drops `reasoning_content`; `_hunter_matches_expected` is text-token based and every fixed-side finding leaks under `fix_policy = silent`; `run_regression(..., sandbox, sandbox_limits, images)` with `verdict_from_result` on exit code; `check_snippet_safety` bans sockets, curl and workspace writes; `MechanismStore` append-only JSONL with tombstones; `improve.run_round` journal has no hypothesis, attribution or cost fields and its regression check is per provenance profile; `load_dotenv` no-ops under pytest; `pyproject` semantic extra lacks TypeScript; `pair_gate` scores only vendored `local` pairs.
+- **Implications**: the design adds parameters and additive fields instead of replacing modules; the family scorer is injected into the hunter path so `pairs` never imports `learning`; the oracle is an optional callback on `run_regression`; endpoint resolution takes an explicit override for tests.
+
+### DeepSeek platform API (2026-09-06, api-docs.deepseek.com)
+- **Findings**: base `https://api.deepseek.com` (no `/v1` in current docs), Anthropic-shape endpoint at `/anthropic`; models `deepseek-v4-flash`, `deepseek-v4-pro`, `deepseek-v4-flash-vision-exp`; 1M context, 384K output; thinking on by default (`thinking: {"type": "disabled"}` to turn off; `temperature` ignored while thinking); tools with `tool_choice`, `reasoning_content` must be replayed on tool turns; `response_format json_object` only, occasional empty content; `logprobs`/`top_logprobs` documented, unverified in thinking mode; no `seed`, `n`, `logit_bias`; flash 0.44/1.32 USD per M in/out peak, cache hit 0.014, pro 1.32/3.96, off-peak half; concurrency 2500 flash / 500 pro; no embeddings endpoint.
+- **Implications**: detectors and classifier run with thinking disabled and temperature 0; determinism is best-effort and the K-run noise floor absorbs it; the classifier's model tier uses `logprobs` averaged and falls to `unknown`; embeddings stay on OpenRouter; cost accounting reads DeepSeek's cache-hit usage fields.
+
+### Measurement that triggered the spec (2026-09-06)
+- See `brief.md` Problem section and `benchmarks/measurements/2026-09-06-*`.
+
+## Architecture Pattern Evaluation
+
+| Option | Description | Strengths | Risks / Limitations | Notes |
+|--------|-------------|-----------|---------------------|-------|
+| Keep static machinery as the detector, add a class field | Minimal change | Cheap | Ceiling by construction; measured 5/14 vs 12/14 | Rejected |
+| One generalist hunter, evolved as a whole | Single config | Simple loop | Aggregate fitness hides per-class regressions; the maintainer's oscillation observation; regression blindness in the literature | Rejected |
+| Per-family detector set with auto-classifier, per-family attribution, verifier-gated reporting | This design | Matches AIxCC routing practice, GEPA per-instance archives, slice-based gating | Router error (63.8% in MoEVD); mitigated by multi-label routing plus a generalist and by measuring the router separately | **Selected** |
+| Fine-tune a model per class | Weights | Potentially strong | Out of scope; label noise 25–60% in public sets; not reproducible offline | Rejected |
+
+## Design Decisions
+
+### Decision: families are the only routing and scoring key
+- **Context**: 1.4, 3.6; text tokens and CWE ids were the proxy.
+- **Alternatives**: fine CWE routing; mechanism ids as key.
+- **Selected**: ten coarse families with CWE and mechanism as attributes; hierarchical relation for partial credit.
+- **Rationale**: fine CWE from code is unsolved (≤14.7% top-1) and coarse families are what worked in AIxCC and MoEVD.
+- **Trade-offs**: less granular reporting; compensated by attributes on findings.
+
+### Decision: the scorer is injected into the hunter path, not imported by `pairs`
+- **Context**: dependency direction; `pairs` is owned by `pair-corpus-honesty`.
+- **Selected**: `_evaluate_hunter_pair` accepts a matcher/leak callable; the CLI wires `learning.scoring`.
+- **Trade-offs**: one more parameter; keeps `pairs` free of `learning` and the overlay path unchanged.
+
+### Decision: canary oracle as an optional callback on `run_regression`
+- **Context**: 7.2; exit code cannot express "the vulnerability fired".
+- **Alternatives**: a parallel verifier runner; parsing stderr.
+- **Selected**: `oracle: Callable[[SandboxResult], bool] | None`; token in stdout.
+- **Trade-offs**: minimal change to regress; templates per family live in `learning/verifiers/`.
+
+### Decision: HarnessX proposer behind the seam, scripted proposer first
+- **Context**: 9.x with core `dependencies = []`.
+- **Selected**: `Proposer` protocol; `HarnessXProposer` composes `MetaAgent.evolve` with `allowed_write_roots` = the family directory; `ScriptedProposer` for tests and phase 4 start.
+- **Trade-offs**: two proposers; the loop is testable offline and the extra stays optional.
+
+### Decision: noise floor from K = 5 baseline runs is the regression budget
+- **Context**: 8.2, 9.5; no public numeric negative-flip budget exists.
+- **Selected**: per-family negative-flip rate between seed runs; `budget_flips = ceil(rate × scorable)`.
+- **Trade-offs**: a noisy family gets a loose budget; reported beside the number so it is visible.
+
+### Decision: DeepSeek adapter wraps the existing OpenRouter client
+- **Context**: 6.6; both clients share one base URL today.
+- **Selected**: `ChatEndpoint` resolution order DeepSeek → OpenRouter → scripted; adapter adds `extra_body` and `reasoning_content` replay; embeddings untouched.
+- **Trade-offs**: one adapter class; no new dependency.
+
+## Risks & Mitigations
+- Router error routes a region to the wrong family → multi-label routing plus the generalist; router measured separately against random and oracle.
+- No seed on DeepSeek → K runs and the reliable-change test; determinism recorded as best-effort.
+- Canary templates cannot express some families (XSS, SSRF) → those report at `suspicion` only, stated in the taxonomy.
+- Proposer confabulation → structured failure facts only; rejected buffer; length cap; structural levers preferred.
+- Cost drift → per-stage metering, per-round cap with revert, cost per point published.
+- Re-harvest needs network and licenses → maintainer step; excerpts re-redacted; failures leave the old excerpt and a recorded reason.
+
+## References
+- Codebase seams and DeepSeek facts: this file, sections above.
+- External literature: the four threads below.
+
+---
+
+## External research (2026-09-06)
+
+Web research conducted 2026-09-06 in four threads by research subagents; summaries are theirs, condensed, with primary sources. Speculation is marked. This section backs the "What others learned" section of `brief.md`.
 
 ## 1. Cyber reasoning systems (AIxCC finals 2025, Big Sleep, XBOW, Glasswing)
 

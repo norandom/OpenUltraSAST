@@ -1,16 +1,16 @@
 {
   "feature_name": "learning-harness",
   "created_at": "2026-09-06T06:32:41Z",
-  "updated_at": "2026-09-06T06:34:14Z",
+  "updated_at": "2026-09-06T06:43:38Z",
   "language": "en",
-  "phase": "requirements-generated",
+  "phase": "design-generated",
   "approvals": {
     "requirements": {
       "generated": true,
-      "approved": false
+      "approved": true
     },
     "design": {
-      "generated": false,
+      "generated": true,
       "approved": false
     },
     "tasks": {
@@ -25,5 +25,6 @@
     "authorization-obligations",
     "tree-sitter-overlay-extra",
     "harnessx-self-improving-rulesets"
-  ]
+  ],
+  "approval_note": "2026-09-06 requirements approved by the maintainer in session ('approve the requirements and run the design phase')"
 }
