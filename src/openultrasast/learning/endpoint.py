@@ -154,10 +154,16 @@ def resolve_chat_endpoint(config: ResolvedConfig, *, override: ChatClient | None
     if configured or key_env:
         key = os.environ.get(key_env or DEEPSEEK_KEY_ENV, "")
         base_url = configured or DEEPSEEK_BASE_URL
-        return _deepseek_client(key, base_url, model, provider=_provider_of(base_url))
+        return _deepseek_client(key, base_url, model, provider=_provider_of(base_url), thinking=config.learning.thinking)
     deepseek_key = os.environ.get(DEEPSEEK_KEY_ENV)
     if deepseek_key:
-        return _deepseek_client(deepseek_key, os.environ.get(DEEPSEEK_BASE_ENV, DEEPSEEK_BASE_URL), model, provider="deepseek")
+        return _deepseek_client(
+            deepseek_key,
+            os.environ.get(DEEPSEEK_BASE_ENV, DEEPSEEK_BASE_URL),
+            model,
+            provider="deepseek",
+            thinking=config.learning.thinking,
+        )
     if os.environ.get("OPENROUTER_API_KEY"):
         try:
             client = OpenRouterChatClient.from_env()
@@ -175,10 +181,10 @@ def resolve_models(config: ResolvedConfig) -> tuple[str, str]:
     return detector, judge
 
 
-def _deepseek_client(key: str, base_url: str, model: str, *, provider: Provider) -> tuple[ChatClient, ChatEndpoint]:
-    endpoint = ChatEndpoint(provider=provider, base_url=base_url.rstrip("/"), thinking=True, prices=price_of(model))
+def _deepseek_client(key: str, base_url: str, model: str, *, provider: Provider, thinking: bool = False) -> tuple[ChatClient, ChatEndpoint]:
+    endpoint = ChatEndpoint(provider=provider, base_url=base_url.rstrip("/"), thinking=thinking, prices=price_of(model))
     client = OpenRouterChatClient(api_key=key, base_url=endpoint.base_url)
-    return DeepSeekChatClient(client, endpoint=endpoint), endpoint
+    return DeepSeekChatClient(client, disable_thinking=not thinking, endpoint=endpoint), endpoint
 
 
 def _provider_of(base_url: str) -> Provider:

@@ -55,6 +55,35 @@ def decide(
     return Verdict(accepted=True, reason="improved")
 
 
+@dataclass(frozen=True)
+class Reliability:
+    """Whether a stage's movement could be told from a coin flip."""
+
+    better: int
+    worse: int
+    p_value: float
+    reliable: bool
+
+    def to_dict(self) -> dict[str, object]:
+        return {"better": self.better, "worse": self.worse, "p_value": self.p_value, "reliable": self.reliable}
+
+
+def reliability(*, better: int, worse: int, alpha: float = 0.05) -> Reliability:
+    """The two-sided sign test over the pairs that changed, for the record rather than for the decision.
+
+    `decide` compares raw deltas, as Req 9.5 specifies. On a detector whose measured floor says half its pairs
+    disagree with themselves between runs, a raw delta is mostly noise — which is what makes a deterministic
+    decoder look necessary. It is not: the alternative is an acceptance rule that models the score as noisy, the
+    way reflective-evolution and Bayesian prompt optimizers do, and keeps per-instance winners on a frontier
+    instead of demanding a single global improvement. Changing the rule is a maintainer's call, so every round
+    records this beside its decision and the journal can be read to answer the question with data.
+    """
+    from .scoring import sign_test
+
+    p_value = sign_test(better, worse)
+    return Reliability(better=better, worse=worse, p_value=p_value, reliable=bool(p_value < alpha and better != worse))
+
+
 def _gates(family: str, floors: Mapping[str, NoiseFloor]) -> bool:
     floor = floors.get(family)
     return floor.gates if floor is not None else True
@@ -114,4 +143,4 @@ def bump_version(directory: Path, version: str) -> None:
     settings.write_text("\n".join(rewritten) + "\n", encoding="utf-8")
 
 
-__all__ = ["DirectorySnapshot", "Verdict", "bump_version", "decide", "digest_configs", "within_budget"]
+__all__ = ["DirectorySnapshot", "Reliability", "Verdict", "bump_version", "decide", "digest_configs", "reliability", "within_budget"]

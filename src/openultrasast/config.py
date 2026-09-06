@@ -150,6 +150,12 @@ class LearningConfig:
     detector_model: str | None = None
     judge_model: str | None = None
     cutoff_date: str | None = None  # rows fixed after this date are reported as a separate slice
+    # Whether the detector model reasons before answering. Off by default because that is what round zero was
+    # measured under, not because it is known to be better: the provider silently ignores `temperature` while
+    # thinking, and thinking was disabled to make `temperature: 0` mean something. It did not — the measured
+    # disagreement between runs comes from the agentic path, not the decoder — so which mode wins is a question
+    # for a second baseline rather than for a default (Req 8.3).
+    thinking: bool = False
 
 
 @dataclass(frozen=True)
@@ -391,6 +397,7 @@ def _load_learning(value: object) -> LearningConfig:
         detector_model=_string(data.get("detector_model")),
         judge_model=_string(data.get("judge_model")),
         cutoff_date=_string(data.get("cutoff_date")),
+        thinking=bool(data.get("thinking", False)),
     )
 
 

@@ -1328,6 +1328,7 @@ def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy:
             # a run over the memory-safety slice reports nothing at all (Req 8.4).
             slices=(args.slice,) if args.slice != "all" else DEFAULT_SLICES,
             spent_usd=spent,
+            thinking=config.learning.thinking,
         )
         print(f"learning baseline cost: ${report.cost_usd:.4f}")
         print(f"learning baseline {model}: {len(report.floors)} families, k={report.k_runs} -> {out / 'baseline'}")
@@ -1343,7 +1344,7 @@ def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy:
         model=model,
         journal=journal,
         archive=Archive(out / "archive.jsonl"),
-        floors=load_noise_floors(out, model, (args.slice,) if args.slice != "all" else DEFAULT_SLICES),
+        floors=load_noise_floors(out, model, (args.slice,) if args.slice != "all" else DEFAULT_SLICES, config.learning.thinking),
         out_dir=out,
         cost_cap_usd=args.cost_cap_usd or config.learning.round_cost_cap_usd,
         minibatch=config.learning.minibatch,

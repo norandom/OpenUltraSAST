@@ -87,6 +87,12 @@ class RoundRecord:
     cost_usd: float = 0.0
     taxonomy_version: str = ""
     config_version: str = ""
+    # Pairs that moved each way in each stage, so the record can say whether the decision was distinguishable
+    # from noise. The decision itself is Req 9.5's raw-delta rule; this is the evidence beside it.
+    train_better: int = 0
+    train_worse: int = 0
+    holdout_better: int = 0
+    holdout_worse: int = 0
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -105,7 +111,16 @@ class RoundRecord:
             "cost_usd": self.cost_usd,
             "taxonomy_version": self.taxonomy_version,
             "config_version": self.config_version,
+            **{f"train_{key}": value for key, value in self._reliability(self.train_better, self.train_worse).items()},
+            **{f"holdout_{key}": value for key, value in self._reliability(self.holdout_better, self.holdout_worse).items()},
         }
+
+    @staticmethod
+    def _reliability(better: int, worse: int) -> dict[str, object]:
+        from .acceptance import reliability
+
+        result = reliability(better=better, worse=worse)
+        return {"better": result.better, "worse": result.worse, "p_value": result.p_value, "reliable": result.reliable}
 
     @staticmethod
     def from_dict(payload: Mapping[str, object]) -> RoundRecord:

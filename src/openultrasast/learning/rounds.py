@@ -66,6 +66,7 @@ class BaselineReport:
     k_runs: int
     taxonomy_version: str
     slices: tuple[str, ...]
+    thinking: bool = False  # the condition that produced these numbers, so two modes cannot be read as one
     floors: dict[str, NoiseFloor] = field(default_factory=dict)
     metrics: dict[str, dict[str, object]] = field(default_factory=dict)
     # `<slice>/<family>`: the budgets stay per family, but vibe-py and agent-vfc are different worlds and one
@@ -80,6 +81,7 @@ class BaselineReport:
             "k_runs": self.k_runs,
             "taxonomy_version": self.taxonomy_version,
             "slices": list(self.slices),
+            "thinking": self.thinking,
             "cost_usd": self.cost_usd,
             "floors": {name: floor.to_dict() for name, floor in sorted(self.floors.items())},
             "metrics": {name: dict(block) for name, block in sorted(self.metrics.items())},
@@ -100,6 +102,7 @@ def run_baseline(
     prompt: str | None = None,
     spent_usd: Callable[[], float] | None = None,
     cutoff: str = "",
+    thinking: bool = False,
 ) -> BaselineReport:
     """Clone one detector into every family, measure each family **with its own configuration**, write the artifacts.
 
@@ -146,6 +149,7 @@ def run_baseline(
         k_runs=k_runs,
         taxonomy_version=taxonomy.version,
         slices=tuple(slices),
+        thinking=thinking,
         floors=floors,
         metrics={name: block.to_dict() for name, block in metrics.items()},
         per_slice={name: block.to_dict() for name, block in aggregate(scores, taxonomy=taxonomy, per_slice=True, cutoff=cutoff).items()},
@@ -198,7 +202,8 @@ def compare_baselines(out_dir: Path) -> dict[str, dict[str, dict[str, object]]]:
         payload = json.loads(report.read_text(encoding="utf-8"))
         model = str(payload.get("model", directory.name))
         slices = tuple(str(item) for item in (payload.get("slices") or ()))
-        label = model if not slices or slices == DEFAULT_SLICES else f"{model} ({', '.join(slices)})"
+        conditions = [*(() if not payload.get("thinking") else ("thinking",)), *(() if slices == DEFAULT_SLICES else slices)]
+        label = f"{model} ({', '.join(conditions)})" if conditions else model
         table[label] = {family: dict(block) for family, block in (payload.get("metrics") or {}).items()}
     return table
 
@@ -227,18 +232,21 @@ def _family_of(case: PairCase, taxonomy: FamilyTaxonomy) -> str:
     return answer.families[0] if answer.families else "unknown"
 
 
-def _artifact_key(model: str, slices: Sequence[str]) -> str:
+def _artifact_key(model: str, slices: Sequence[str], thinking: bool = False) -> str:
     """What identifies a baseline run: the detector model, and the slice selection when it is not the default.
 
     Keyed by model alone, a run over the memory-safety slice silently replaces the run over the web families and
     the published table shows one of them as if it were everything (Req 8.4)."""
-    if tuple(slices) == DEFAULT_SLICES:
-        return _slug(model)
-    return f"{_slug(model)}-{_slug('-'.join(sorted(slices)))}"
+    parts = [_slug(model)]
+    if thinking:
+        parts.append("thinking")
+    if tuple(slices) != DEFAULT_SLICES:
+        parts.append(_slug("-".join(sorted(slices))))
+    return "-".join(parts)
 
 
 def _write(out_dir: Path, report: BaselineReport) -> None:
-    directory = out_dir / "baseline" / _artifact_key(report.model, report.slices)
+    directory = out_dir / "baseline" / _artifact_key(report.model, report.slices, report.thinking)
     directory.mkdir(parents=True, exist_ok=True)
     payload = report.to_dict()
     (directory / "noise-floors.json").write_text(
@@ -252,9 +260,9 @@ def _slug(model: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", model).strip("-") or "unnamed"
 
 
-def load_noise_floors(out_dir: Path, model: str, slices: Sequence[str] = ()) -> dict[str, NoiseFloor]:
+def load_noise_floors(out_dir: Path, model: str, slices: Sequence[str] = (), thinking: bool = False) -> dict[str, NoiseFloor]:
     """The budgets a later round must stay inside, as round zero measured them for this model."""
-    path = out_dir / "baseline" / _artifact_key(model, slices or DEFAULT_SLICES) / "noise-floors.json"
+    path = out_dir / "baseline" / _artifact_key(model, slices or DEFAULT_SLICES, thinking) / "noise-floors.json"
     if not path.is_file():
         return {}
     payload = json.loads(path.read_text(encoding="utf-8"))
@@ -405,6 +413,8 @@ def run_learning_round(
         train_delta = _delta(before_train, after_train)
         holdout_delta = _delta(before_hold, after_hold)
         flipped = _flipped(before_train + before_hold, after_train + after_hold)
+        train_moves = _moves(before_train, after_train)
+        holdout_moves = _moves(before_hold, after_hold)
         attribution = Attribution(
             flipped_predicted=len(flipped),
             flipped_unpredicted=len(flipped_unpredicted),
@@ -438,6 +448,7 @@ def run_learning_round(
                 holdout_delta=holdout_delta,
                 sweep=sweep,
                 attribution=attribution,
+                moves=(train_moves, holdout_moves),
                 flipped=flipped,
                 unpredicted=flipped_unpredicted,
                 scores=after_train + after_hold,
@@ -456,6 +467,7 @@ def run_learning_round(
             holdout_delta=holdout_delta,
             sweep=sweep,
             attribution=attribution,
+            moves=(train_moves, holdout_moves),
             flipped=flipped,
             unpredicted=flipped_unpredicted,
             scores=after_train + after_hold,
@@ -543,6 +555,21 @@ def _delta(before: Sequence[PairFamilyScore], after: Sequence[PairFamilyScore]) 
     return (now - was) / len(scorable)
 
 
+def _moves(before: Sequence[PairFamilyScore], after: Sequence[PairFamilyScore]) -> tuple[int, int]:
+    """(pairs that became correct, pairs that stopped being correct) — what the sign test is run over."""
+    was = {item.pair: item.outcome for item in before if item.outcome != "unscorable"}
+    better = worse = 0
+    for item in after:
+        previous = was.get(item.pair)
+        if previous is None or item.outcome == "unscorable":
+            continue
+        if previous != "pair_correct" and item.outcome == "pair_correct":
+            better += 1
+        elif previous == "pair_correct" and item.outcome != "pair_correct":
+            worse += 1
+    return better, worse
+
+
 def _flipped(before: Sequence[PairFamilyScore], after: Sequence[PairFamilyScore]) -> list[str]:
     """Pairs this round turned right, by name and in a stable order."""
     was = {item.pair: item.outcome for item in before}
@@ -577,6 +604,7 @@ def _finish(
     holdout_delta: float = 0.0,
     sweep: Mapping[str, int] | None = None,
     attribution: Attribution | None = None,
+    moves: tuple[tuple[int, int], tuple[int, int]] = ((0, 0), (0, 0)),
     flipped: Sequence[str] = (),
     unpredicted: Sequence[str] = (),
     scores: Sequence[PairFamilyScore] = (),
@@ -595,6 +623,10 @@ def _finish(
         sweep=dict(sweep or {}),
         attribution=attribution or Attribution(),
         cost_usd=cost,
+        train_better=moves[0][0],
+        train_worse=moves[0][1],
+        holdout_better=moves[1][0],
+        holdout_worse=moves[1][1],
     )
     if version is not None:
         record = RoundRecord(**{**record.__dict__, "config_version": version})
