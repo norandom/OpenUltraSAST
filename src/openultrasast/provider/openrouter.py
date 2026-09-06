@@ -68,10 +68,29 @@ class OpenRouterChatClient:
         messages: Sequence[Mapping[str, object]],
         tools: Sequence[Mapping[str, object]] | None = None,
         timeout_seconds: int = 60,
+        extra_body: Mapping[str, object] | None = None,
     ) -> dict[str, object]:
+        """The assistant message of the reply, provider fields included (a reasoning field is kept for the caller to replay)."""
+        payload = self.complete_chat_raw(
+            model=model, messages=messages, tools=tools, timeout_seconds=timeout_seconds, extra_body=extra_body
+        )
+        return _extract_message(payload)
+
+    def complete_chat_raw(
+        self,
+        *,
+        model: str,
+        messages: Sequence[Mapping[str, object]],
+        tools: Sequence[Mapping[str, object]] | None = None,
+        timeout_seconds: int = 60,
+        extra_body: Mapping[str, object] | None = None,
+    ) -> dict[str, object]:
+        """The whole response payload, so a caller can read `usage` for cost accounting."""
         body: dict[str, object] = {"model": model, "messages": list(messages), "temperature": 0}
         if tools:
             body["tools"] = list(tools)
+        for key, value in (extra_body or {}).items():
+            body[key] = value
         payload = json.dumps(body).encode()
         request = urllib.request.Request(
             f"{self.base_url.rstrip('/')}/chat/completions",
@@ -88,10 +107,9 @@ class OpenRouterChatClient:
                 return cast(dict[str, object], json.loads(response.read().decode()))
 
         try:
-            response_payload = call_with_retry(_do, attempts=self.max_attempts, base_delay=self.retry_base_delay)
+            return call_with_retry(_do, attempts=self.max_attempts, base_delay=self.retry_base_delay)
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
             raise OpenRouterError(f"OpenRouter chat request failed: {exc}") from exc
-        return _extract_message(response_payload)
 
     def complete_json(self, *, model: str, messages: list[dict[str, str]], timeout_seconds: int = 60) -> object:
         message = self.complete_chat(model=model, messages=messages, timeout_seconds=timeout_seconds)

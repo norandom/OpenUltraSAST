@@ -101,6 +101,8 @@ class ToolCall:
 class ChatResponse:
     content: str | None = None
     tool_calls: tuple[ToolCall, ...] = ()
+    reasoning: str | None = None  # provider chain-of-thought; replayed on tool turns, never shown or scored
+    mean_logprob: float | None = None  # averaged token log-probability when the caller asked for it
 
 
 class ChatClient(Protocol):
@@ -198,7 +200,24 @@ def chat_response_from_message(message: Mapping[str, object]) -> ChatResponse:
             parsed = _tool_call_from_openrouter(item, index)
             if parsed is not None:
                 calls.append(parsed)
-    return ChatResponse(content=text, tool_calls=tuple(calls))
+    reasoning = message.get("reasoning_content") or message.get("reasoning")
+    return ChatResponse(
+        content=text,
+        tool_calls=tuple(calls),
+        reasoning=reasoning if isinstance(reasoning, str) and reasoning else None,
+        mean_logprob=_mean_logprob(message.get("logprobs")),
+    )
+
+
+def _mean_logprob(payload: object) -> float | None:
+    """The mean token log-probability of a reply, used by the classifier to abstain when it is unsure."""
+    if not isinstance(payload, Mapping):
+        return None
+    tokens = payload.get("content")
+    if not isinstance(tokens, Sequence) or isinstance(tokens, str | bytes):
+        return None
+    values = [float(item["logprob"]) for item in tokens if isinstance(item, Mapping) and isinstance(item.get("logprob"), int | float)]
+    return sum(values) / len(values) if values else None
 
 
 def _tool_call_from_openrouter(item: object, index: int) -> ToolCall | None:

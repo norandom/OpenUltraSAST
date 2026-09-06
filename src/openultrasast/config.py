@@ -33,6 +33,9 @@ class ModelConfig:
     hunter: str | None = None
     verifier: str | None = None
     patcher: str | None = None
+    judge: str | None = None  # second, independent judgement before anything is published as proven
+    chat_base_url: str | None = None  # chat endpoint; independent of the embedding endpoint
+    chat_api_key_env: str | None = None  # environment variable holding that endpoint's key
 
 
 @dataclass(frozen=True)
@@ -136,6 +139,19 @@ class VariantsConfig:
 
 
 @dataclass(frozen=True)
+class LearningConfig:
+    # learning-harness: the classified detector set and its rounds.
+    families_path: str | None = None  # taxonomy file; the shipped ruleset when unset
+    configs_dir: str = ".openultrasast/learning/configs"
+    k_runs: int = 5  # runs per pair; a single run misses most real changes
+    round_cost_cap_usd: float = 10.0
+    minibatch: int = 8  # train pairs in a round's first stage
+    detector_model: str | None = None
+    judge_model: str | None = None
+    cutoff_date: str | None = None  # rows fixed after this date are reported as a separate slice
+
+
+@dataclass(frozen=True)
 class ObligationsConfig:
     # authorization-obligations: the obligation checker in MAP (standard/deep only).
     enabled: bool = True
@@ -160,6 +176,7 @@ class ResolvedConfig:
     regress: RegressConfig = RegressConfig()
     variants: VariantsConfig = VariantsConfig()
     obligations: ObligationsConfig = ObligationsConfig()
+    learning: LearningConfig = LearningConfig()
     runs_dir: str = ".openultrasast/runs"
 
 
@@ -186,6 +203,7 @@ def load_config(config_path: Path | None = None) -> ResolvedConfig:
         regress=_load_regress(data.get("regress", {})),
         variants=_load_variants(data.get("variants", {})),
         obligations=_load_obligations(data.get("obligations", {})),
+        learning=_load_learning(data.get("learning", {})),
         runs_dir=os.environ.get("OPENULTRASAST_RUNS_DIR", ".openultrasast/runs"),
     )
 
@@ -210,6 +228,9 @@ def _load_models(value: object) -> ModelConfig:
         hunter=_string(data.get("hunter")),
         verifier=_string(data.get("verifier")),
         patcher=_string(data.get("patcher")),
+        judge=_string(data.get("judge")),
+        chat_base_url=_string(data.get("chat_base_url")),
+        chat_api_key_env=_string(data.get("chat_api_key_env")),
     )
 
 
@@ -354,6 +375,20 @@ def _load_variants(value: object) -> VariantsConfig:
     return VariantsConfig(
         enabled=bool(data.get("enabled", True)),
         max_mechanisms=_int_value(data.get("max_mechanisms"), 500),
+    )
+
+
+def _load_learning(value: object) -> LearningConfig:
+    data = _section(value)
+    return LearningConfig(
+        families_path=_string(data.get("families_path")),
+        configs_dir=_string(data.get("configs_dir")) or LearningConfig.configs_dir,
+        k_runs=_int_value(data.get("k_runs"), LearningConfig.k_runs),
+        round_cost_cap_usd=_float_value(data.get("round_cost_cap_usd"), LearningConfig.round_cost_cap_usd),
+        minibatch=_int_value(data.get("minibatch"), LearningConfig.minibatch),
+        detector_model=_string(data.get("detector_model")),
+        judge_model=_string(data.get("judge_model")),
+        cutoff_date=_string(data.get("cutoff_date")),
     )
 
 
