@@ -93,6 +93,9 @@ def catalog_text(slice_name: str, recipes: list[dict[str, object]]) -> str:
             lines.append(f'reviewer = "{_q(reviewer)}"')
         if recipe.get("known_limit"):
             lines.append(f'known_limit = "{_q(recipe["known_limit"])}"')
+        fix_date = _fix_date(recipe)
+        if fix_date:
+            lines.append(f'fix_date = "{_q(fix_date)}"')  # Req 10.5: the post-cutoff slice needs a date to sort by
         for relpath, context_vuln, context_fixed in context_rel(recipe):
             lines += [
                 "",
@@ -121,6 +124,19 @@ def catalog_text(slice_name: str, recipes: list[dict[str, object]]) -> str:
             lines.append(f'evidence = "{_q(recipe["evidence"])}"')
         lines.append("")
     return "\n".join(lines)
+
+
+def _fix_date(recipe: dict[str, object]) -> str:
+    """The date of the fix at the precision the recipe recorded it: a full ISO day, or the year, or nothing.
+
+    Every harvested recipe carries a year; almost none carries a day, and inventing `-01-01` would turn a year into
+    a claim about a month. The post-cutoff comparison reads the earliest possible date of whatever precision is
+    here, so a coarse date can only ever under-claim (learning-harness Req 10.5)."""
+    recorded = str(recipe.get("fix_date", "") or "")
+    if recorded:
+        return recorded
+    year = recipe.get("year")
+    return str(year) if isinstance(year, int) and 1990 <= year <= 2100 else ""
 
 
 _DEFAULT_TIER = {"vibe-py": "seeded", "vfc-js": "advisory", "agent-vfc": "title", "vfc": "advisory", "sast": "advisory"}

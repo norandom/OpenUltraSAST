@@ -99,6 +99,7 @@ def run_baseline(
     k_runs: int = DEFAULT_K_RUNS,
     prompt: str | None = None,
     spent_usd: Callable[[], float] | None = None,
+    cutoff: str = "",
 ) -> BaselineReport:
     """Clone one detector into every family, measure each family **with its own configuration**, write the artifacts.
 
@@ -123,7 +124,7 @@ def run_baseline(
         if config is None:
             continue  # a family with no configuration is not measured rather than measured with someone else's
         scores.append(score_case(case, scan_factory(config), taxonomy=taxonomy, runs=k_runs, family=name))
-    metrics = aggregate(scores, taxonomy=taxonomy)
+    metrics = aggregate(scores, taxonomy=taxonomy, cutoff=cutoff)
     floors = {name: _floor(name, block, [item for item in scores if item.family == name], k_runs) for name, block in metrics.items()}
     report = BaselineReport(
         model=model,
@@ -132,7 +133,7 @@ def run_baseline(
         slices=tuple(slices),
         floors=floors,
         metrics={name: block.to_dict() for name, block in metrics.items()},
-        per_slice={name: block.to_dict() for name, block in aggregate(scores, taxonomy=taxonomy, per_slice=True).items()},
+        per_slice={name: block.to_dict() for name, block in aggregate(scores, taxonomy=taxonomy, per_slice=True, cutoff=cutoff).items()},
         scores=tuple(scores),
         cost_usd=spent_usd() if spent_usd is not None else 0.0,
     )
@@ -156,6 +157,7 @@ def score_case(case: PairCase, scan: Scan, *, taxonomy: FamilyTaxonomy, runs: in
             runs=(),
             outcome="unscorable",
             slice=case.slice,
+            fix_date=case.fix_date,
             unscorable_reason=case.unscorable,
         )
     with tempfile.TemporaryDirectory(prefix="ousast-round-") as scratch:

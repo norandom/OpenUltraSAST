@@ -1288,12 +1288,22 @@ def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy:
             for case in cases
             if _label(case, taxonomy) in configs
         ]
-        families = {name: block.to_dict() for name, block in aggregate(scores, taxonomy=taxonomy).items()}
+        cutoff = config.learning.cutoff_date or ""
+        families = {name: block.to_dict() for name, block in aggregate(scores, taxonomy=taxonomy, cutoff=cutoff).items()}
         if args.json:
             print(json.dumps({"families": families}, indent=2, sort_keys=True))
         else:
             for name, block in sorted(families.items()):
-                print(f"learning score {name}: scorable={block['scorable']} recall={block['recall']:.3f} youden={block['youden']:.3f}")
+                raw = block.get("post_cutoff")
+                recent: dict[str, object] = raw if isinstance(raw, dict) else {}
+                tail = (
+                    f" post-cutoff({cutoff})={recent.get('scorable', 0)} undated={block['undated']}"
+                    if cutoff
+                    else " post-cutoff=none configured"
+                )
+                print(
+                    f"learning score {name}: scorable={block['scorable']} recall={block['recall']:.3f} youden={block['youden']:.3f}{tail}"
+                )
         return 0
     if args.learning_command == "baseline":
         report = run_baseline(
@@ -1304,6 +1314,7 @@ def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy:
             model=model,
             out_dir=out,
             k_runs=k_runs,
+            cutoff=config.learning.cutoff_date or "",
         )
         print(f"learning baseline {model}: {len(report.floors)} families, k={report.k_runs} -> {out / 'baseline'}")
         return 0

@@ -25,6 +25,21 @@ FamilyOutcome = Literal["pair_correct", "both_flagged", "both_silent", "reversed
 # Families whose bug shape is the absence of a check on a reached handler: without the registration that
 # makes the handler reachable, the pair says nothing either way, which is a corpus defect with its own name.
 CONTEXT_DEPENDENT_FAMILIES = frozenset({"access_control"})
+
+
+def is_post_cutoff(fix_date: str, cutoff: str) -> bool:
+    """True when the *earliest possible* date of ``fix_date`` is after ``cutoff`` (Req 10.5).
+
+    The corpus records dates at the precision it has: a full ISO day for a few rows, a year for almost all of them.
+    A year-precision row counts only when the whole year is after the cutoff, so a coarse date can under-claim the
+    clean slice but never over-claim it — and over-claiming is the one that would turn contamination into a result.
+    """
+    if not fix_date or not cutoff:
+        return False
+    earliest = fix_date if len(fix_date) == 10 else f"{fix_date[:4]}-01-01"
+    return earliest > cutoff
+
+
 Rung = Literal["suspicion", "static_corroboration", "proven"]
 _RUNGS: tuple[Rung, ...] = ("suspicion", "static_corroboration", "proven")
 FunctionRanges = Mapping[str, Sequence[tuple[str, int, int]]]
@@ -46,6 +61,7 @@ class PairFamilyScore:
     flips: int = 0  # runs that disagreed with the majority
     rung: Rung = "suspicion"
     unscorable_reason: str | None = None
+    fix_date: str = ""  # the date the corpus recorded, at whatever precision it has (Req 10.5)
 
 
 def score_pair_family(
@@ -70,7 +86,15 @@ def score_pair_family(
     slice_name = str(getattr(case, "slice", "") or "")
     reason = unscorable_reason(case, parse_ok=parse_ok, ranges=ranges, entry_points=entry_points, family=family)
     if reason is not None:
-        return PairFamilyScore(pair=name, family=family, slice=slice_name, runs=(), outcome="unscorable", unscorable_reason=reason)
+        return PairFamilyScore(
+            pair=name,
+            family=family,
+            slice=slice_name,
+            fix_date=str(getattr(case, "fix_date", "") or ""),
+            runs=(),
+            outcome="unscorable",
+            unscorable_reason=reason,
+        )
     spans = _spans(case, ranges)
     fixed_spans = _spans(case, fixed_ranges) if fixed_ranges is not None else spans
     outcomes: list[FamilyOutcome] = []
@@ -94,6 +118,7 @@ def score_pair_family(
         pair=name,
         family=family,
         slice=slice_name,
+        fix_date=str(getattr(case, "fix_date", "") or ""),
         runs=tuple(outcomes),
         outcome=majority,
         other_findings_vuln=other_vuln,
@@ -219,6 +244,9 @@ class FamilyMetrics:
     p_value: float | None = None  # two-sided sign test over the discordant pairs
     reliable_change: bool = False
     hierarchical_credit: bool = False  # False: the taxonomy is flat, so no answer could earn partial credit (Req 3.7)
+    cutoff: str = ""  # the detector cutoff these numbers were split on, or "" when none is configured (Req 10.5)
+    undated: int = 0  # rows the corpus records no date for; they are in neither slice and are counted here
+    post_cutoff: dict[str, object] = field(default_factory=dict)  # the same numbers over rows fixed after the cutoff
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -238,6 +266,9 @@ class FamilyMetrics:
             "p_value": self.p_value,
             "reliable_change": self.reliable_change,
             "hierarchical_credit": self.hierarchical_credit,
+            "cutoff": self.cutoff,
+            "undated": self.undated,
+            "post_cutoff": dict(self.post_cutoff),
         }
 
 
@@ -249,8 +280,13 @@ def aggregate(
     fpr_ceiling: float = 0.1,
     per_slice: bool = False,
     alpha: float = 0.05,
+    cutoff: str = "",
 ) -> dict[str, FamilyMetrics]:
-    """Group scores into per-family numbers. Unscorable rows are listed by reason and leave every denominator."""
+    """Group scores into per-family numbers. Unscorable rows are listed by reason and leave every denominator.
+
+    With a ``cutoff`` each family also reports the same numbers over the rows fixed after it, beside the whole
+    number and never instead of it: a model that may have read the fix cannot be measured on it the same way as one
+    that cannot have. Rows the corpus records no date for are counted on their own (Req 10.5)."""
     grouped: dict[str, list[PairFamilyScore]] = {}
     for score in scores:
         grouped.setdefault(f"{score.slice}/{score.family}" if per_slice else score.family, []).append(score)
@@ -281,6 +317,7 @@ def aggregate(
             elif before != "pair_correct" and item.outcome == "pair_correct":
                 positive += 1
         p_value = sign_test(positive, negative) if baseline is not None else None
+        recent = [item for item in scorable if is_post_cutoff(item.fix_date, cutoff)] if cutoff else []
         out[key] = FamilyMetrics(
             family=group[0].family,
             taxonomy_version=taxonomy.version,
@@ -298,8 +335,26 @@ def aggregate(
             p_value=p_value,
             reliable_change=bool(p_value is not None and p_value < alpha and positive != negative),
             hierarchical_credit=taxonomy.hierarchical,
+            cutoff=cutoff,
+            undated=sum(1 for item in group if not item.fix_date) if cutoff else 0,
+            post_cutoff=_slice_numbers(recent) if cutoff else {},
         )
     return out
+
+
+def _slice_numbers(scores: Sequence[PairFamilyScore]) -> dict[str, object]:
+    """Recall, silence and Youden over a subset, with the subset's own denominator beside them."""
+    total = len(scores)
+    counts = Counter(item.outcome for item in scores)
+    recall = (counts["pair_correct"] + counts["both_flagged"]) / total if total else 0.0
+    silence = (counts["pair_correct"] + counts["both_silent"]) / total if total else 0.0
+    return {
+        "scorable": total,
+        "outcomes": {name: count for name, count in sorted(counts.items())},
+        "recall": recall,
+        "silence": silence,
+        "youden": (recall + silence - 1.0) if total else 0.0,
+    }
 
 
 def sign_test(better: int, worse: int) -> float:
@@ -320,6 +375,7 @@ __all__ = [
     "PairFamilyScore",
     "Rung",
     "aggregate",
+    "is_post_cutoff",
     "score_pair_family",
     "sign_test",
     "unscorable_reason",

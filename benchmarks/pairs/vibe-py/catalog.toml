@@ -28,6 +28,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-22"
@@ -62,6 +63,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-639"
@@ -96,6 +98,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -130,6 +133,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-79"
@@ -164,6 +168,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -198,6 +203,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -232,6 +238,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -266,6 +273,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -300,6 +308,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-22"
@@ -334,6 +343,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-639"
@@ -368,6 +378,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -402,6 +413,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-79"
@@ -436,6 +448,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -470,6 +483,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -504,6 +518,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-79"
@@ -538,6 +553,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -572,6 +588,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-22"
@@ -606,6 +623,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-639"
@@ -640,6 +658,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -674,6 +693,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-79"
@@ -708,6 +728,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-639"
@@ -742,6 +763,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-22"
@@ -776,6 +798,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -810,6 +833,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-79"
@@ -844,6 +868,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -878,6 +903,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -912,6 +938,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -946,6 +973,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -980,6 +1008,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-22"
@@ -1014,6 +1043,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-639"
@@ -1048,6 +1078,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -1082,6 +1113,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-79"
@@ -1116,6 +1148,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -1150,6 +1183,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -1184,6 +1218,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-79"
@@ -1218,6 +1253,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -1252,6 +1288,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-22"
@@ -1286,6 +1323,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-639"
@@ -1320,6 +1358,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -1354,6 +1393,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-79"
@@ -1388,6 +1428,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -1422,6 +1463,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -1456,6 +1498,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -1490,6 +1533,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -1524,6 +1568,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-22"
@@ -1558,6 +1603,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-639"
@@ -1592,6 +1638,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -1626,6 +1673,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-79"
@@ -1660,6 +1708,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -1694,6 +1743,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -1728,6 +1778,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -1762,6 +1813,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -1796,6 +1848,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-22"
@@ -1830,6 +1883,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-639"
@@ -1864,6 +1918,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-79"
@@ -1898,6 +1953,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-79"
@@ -1932,6 +1988,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -1966,6 +2023,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -2000,6 +2058,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-942"
@@ -2034,6 +2093,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -2063,6 +2123,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -2092,6 +2153,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -2121,6 +2183,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -2150,6 +2213,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -2179,6 +2243,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -2208,6 +2273,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -2237,6 +2303,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -2266,6 +2333,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-326"
@@ -2295,6 +2363,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -2325,6 +2394,7 @@ provenance = "human"
 split = "holdout"
 review_tier = "seeded"
 known_limit = "identical_twin"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -2354,6 +2424,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-16"
@@ -2383,6 +2454,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-1004"
@@ -2412,6 +2484,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -2441,6 +2514,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -2470,6 +2544,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -2499,6 +2574,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -2533,6 +2609,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -2567,6 +2644,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -2601,6 +2679,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -2635,6 +2714,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -2669,6 +2749,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-22"
@@ -2703,6 +2784,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-639"
@@ -2737,6 +2819,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -2771,6 +2854,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-79"
@@ -2805,6 +2889,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -2839,6 +2924,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -2873,6 +2959,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -2907,6 +2994,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -2941,6 +3029,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-22"
@@ -2975,6 +3064,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-639"
@@ -3009,6 +3099,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-79"
@@ -3043,6 +3134,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-79"
@@ -3077,6 +3169,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -3111,6 +3204,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -3145,6 +3239,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-79"
@@ -3179,6 +3274,7 @@ fix_policy = "silent"
 provenance = "agent"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-601"
@@ -3209,6 +3305,7 @@ provenance = "human"
 split = "train"
 review_tier = "seeded"
 known_limit = "identical_twin"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-1336"
@@ -3239,6 +3336,7 @@ provenance = "human"
 split = "holdout"
 review_tier = "seeded"
 known_limit = "identical_twin"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-79"
@@ -3268,6 +3366,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-862"
@@ -3298,6 +3397,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-639"
@@ -3328,6 +3428,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -3358,6 +3459,7 @@ provenance = "human"
 split = "holdout"
 review_tier = "seeded"
 known_limit = "identical_twin"
+fix_date = "2026"
 
 [[pair.context]]
 relpath = "openapi_specs/openapi3.yml"
@@ -3393,6 +3495,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -3422,6 +3525,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.context]]
 relpath = "openapi_specs/openapi3.yml"
@@ -3457,6 +3561,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -3486,6 +3591,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -3515,6 +3621,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -3544,6 +3651,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-79"
@@ -3573,6 +3681,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-22"
@@ -3602,6 +3711,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -3631,6 +3741,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -3661,6 +3772,7 @@ provenance = "human"
 split = "train"
 review_tier = "seeded"
 known_limit = "identical_twin"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-502"
@@ -3690,6 +3802,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -3719,6 +3832,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-89"
@@ -3748,6 +3862,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "seeded"
+fix_date = "2026"
 
 [[pair.expected]]
 cwe = "CWE-89"

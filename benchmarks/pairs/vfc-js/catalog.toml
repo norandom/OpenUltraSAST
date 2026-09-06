@@ -23,6 +23,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "advisory"
+fix_date = "2018"
 
 [[pair.expected]]
 cwe = "CWE-22"
@@ -53,6 +54,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "advisory"
+fix_date = "2018"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -83,6 +85,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "advisory"
+fix_date = "2020"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -113,6 +116,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "advisory"
+fix_date = "2020"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -143,6 +147,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "advisory"
+fix_date = "2020"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -173,6 +178,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "advisory"
+fix_date = "2014"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -203,6 +209,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "advisory"
+fix_date = "2018"
 
 [[pair.expected]]
 cwe = "CWE-22"
@@ -232,6 +239,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "advisory"
+fix_date = "2019"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -261,6 +269,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "advisory"
+fix_date = "2018"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -290,6 +299,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "advisory"
+fix_date = "2018"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -320,6 +330,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "advisory"
+fix_date = "2017"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -350,6 +361,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "advisory"
+fix_date = "2021"
 
 [[pair.expected]]
 cwe = "CWE-78"
@@ -380,6 +392,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "advisory"
+fix_date = "2019"
 
 [[pair.expected]]
 cwe = "CWE-22"
@@ -409,6 +422,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "advisory"
+fix_date = "2019"
 
 [[pair.expected]]
 cwe = "CWE-94"
@@ -439,6 +453,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "advisory"
+fix_date = "2020"
 
 [[pair.expected]]
 cwe = "CWE-94"
@@ -469,6 +484,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "train"
 review_tier = "advisory"
+fix_date = "2021"
 
 [[pair.expected]]
 cwe = "CWE-94"
@@ -499,6 +515,7 @@ fix_policy = "silent"
 provenance = "human"
 split = "holdout"
 review_tier = "advisory"
+fix_date = "2018"
 
 [[pair.expected]]
 cwe = "CWE-78"

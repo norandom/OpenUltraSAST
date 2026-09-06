@@ -131,8 +131,44 @@ def _table(models: Mapping[str, Baseline], families: tuple[str, ...], lever: Map
                 f"| {_num(row.get('fixed_fpr_recall'))} | budget {budget} | {_cost(cost, correct)} |"
             )
     lines += ["", _credit_note(models), ""]
+    cutoff = _cutoff_note(models, families)
+    if cutoff:
+        lines += [cutoff, ""]
     if lever is not None:
         lines += [_lever_note(lever), ""]
+    return "\n".join(lines)
+
+
+def _cutoff_note(models: Mapping[str, Baseline], families: tuple[str, ...]) -> str:
+    """The post-cutoff slice, its cutoff and the undated count (Req 10.5).
+
+    A model that may have read the fix cannot be measured on it the same way as one that cannot have, so the rows
+    fixed after the detector's training cutoff are reported apart. Rows the corpus records no date for are in
+    neither slice, and their number is here rather than folded silently into the whole."""
+    rows = [
+        (model, family, baseline.metrics[family])
+        for model, baseline in sorted(models.items())
+        for family in families
+        if family in baseline.metrics and str(baseline.metrics[family].get("cutoff") or "")
+    ]
+    if not rows:
+        return "No detector cutoff is configured, so no post-cutoff slice is reported; every figure above is over the whole corpus."
+    cutoff = str(rows[0][2].get("cutoff"))
+    lines = [
+        f"Post-cutoff slice, fixed after {cutoff} and therefore beyond the detector's training data. "
+        "A row counts only when its earliest possible date is after the cutoff, so a year-precision date can "
+        "under-claim this slice but never over-claim it.",
+        "",
+        "| model | family | post-cutoff scorable | post-cutoff recall | post-cutoff Youden | undated |",
+        "|---|---|---|---|---|---|",
+    ]
+    for model, family, row in rows:
+        block = row.get("post_cutoff")
+        block = block if isinstance(block, Mapping) else {}
+        lines.append(
+            f"| {model} | {family} | {block.get('scorable', 0)} | {_num(block.get('recall'))} "
+            f"| {_num(block.get('youden'))} | {row.get('undated', 0)} |"
+        )
     return "\n".join(lines)
 
 
