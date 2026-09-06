@@ -68,6 +68,11 @@ class FamilyTaxonomy:
     def family_of_mechanism(self, mechanism: str) -> Family | None:
         return next((family for family in self.families if mechanism in family.mechanisms), None)
 
+    @property
+    def hierarchical(self) -> bool:
+        """True when some family declares a parent. While this is False, partial credit can never be earned."""
+        return any(family.parent for family in self.families)
+
     def related(self, left: str, right: str) -> Relation:
         """How two family answers relate. Abstention is not partial credit: ``unknown`` against a real
         family is ``lateral``, never ``parent_child``."""

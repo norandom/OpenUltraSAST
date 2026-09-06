@@ -262,6 +262,7 @@ class ClassifierReport:
     per_family: dict[str, int] = field(default_factory=dict)
     unknown: int = 0
     queue: tuple[QueueEntry, ...] = ()
+    hierarchical_credit: bool = False  # False: the taxonomy is flat, so no answer could earn partial credit (Req 2.6)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -275,6 +276,7 @@ class ClassifierReport:
             "per_tier": dict(sorted(self.per_tier.items())),
             "per_family": dict(sorted(self.per_family.items())),
             "unknown": self.unknown,
+            "hierarchical_credit": self.hierarchical_credit,
             "queue": [entry.to_dict() for entry in self.queue],
         }
 
@@ -334,6 +336,7 @@ def measure_classifier(
         per_family=per_family,
         unknown=unknown,
         queue=tuple(queue),
+        hierarchical_credit=taxonomy.hierarchical,
     )
 
 

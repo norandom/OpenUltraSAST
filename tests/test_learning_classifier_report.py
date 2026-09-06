@@ -99,3 +99,13 @@ def test_only_reviewed_and_seeded_rows_count_towards_agreement(tmp_path: Path) -
     report = measure_classifier(cases, taxonomy, client=None)
     assert report.labeled == 1 and report.classified == 2  # an unreviewed label is not a reference answer
     assert [entry.pair for entry in report.queue] == ["trusted"]
+
+
+def test_the_report_says_when_hierarchical_credit_could_not_apply(tmp_path: Path) -> None:
+    """Req 2.6: the shipped taxonomy is flat, so partial credit is inert and every figure must say so."""
+    from openultrasast.learning.classify import measure_classifier
+
+    taxonomy = load_families()
+    report = measure_classifier([_case(tmp_path, "a", cwe="CWE-89", family="injection")], taxonomy, client=None)
+    assert report.hierarchical_credit is False
+    assert report.to_dict()["hierarchical_credit"] is False

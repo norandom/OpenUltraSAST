@@ -181,6 +181,7 @@ class FamilyMetrics:
     positive_flips: int = 0
     p_value: float | None = None  # two-sided sign test over the discordant pairs
     reliable_change: bool = False
+    hierarchical_credit: bool = False  # False: the taxonomy is flat, so no answer could earn partial credit (Req 3.7)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -199,6 +200,7 @@ class FamilyMetrics:
             "positive_flips": self.positive_flips,
             "p_value": self.p_value,
             "reliable_change": self.reliable_change,
+            "hierarchical_credit": self.hierarchical_credit,
         }
 
 
@@ -258,6 +260,7 @@ def aggregate(
             positive_flips=positive,
             p_value=p_value,
             reliable_change=bool(p_value is not None and p_value < alpha and positive != negative),
+            hierarchical_credit=taxonomy.hierarchical,
         )
     return out
 

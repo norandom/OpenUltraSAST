@@ -263,7 +263,7 @@ Decisions: the proposer never sees holdout inputs, outputs or scores; cost is me
 ```python
 @dataclass(frozen=True)
 class Family:
-    id: str                      # e.g. "injection", "path", "deserialization", "access_control", "output_encoding", "ssrf", "prototype", "config_secrets", "memory", "unknown"
+    id: str                      # e.g. "injection", "path", "deserialization", "access_control", "output_encoding", "untrusted_destination", "prototype", "config_secrets", "memory", "unknown"
     cwes: frozenset[str]
     mechanisms: frozenset[str]
     verifier: Literal["canary", "static", "none"]

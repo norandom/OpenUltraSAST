@@ -18,7 +18,7 @@ OpenUltraSAST's detection numbers cannot be trusted and cannot be improved. The 
 
 #### Acceptance Criteria
 
-1. The Learning Harness shall define a closed, versioned taxonomy of exactly these families: injection into a query or command; file path from user input; deserialization of untrusted data; access control; output encoding; server-side request forgery; prototype pollution and unsafe object merge; permissive configuration and secrets; memory safety; unknown.
+1. The Learning Harness shall define a closed, versioned taxonomy of exactly these families: injection into a query or command; file path from user input; deserialization of untrusted data; access control; output encoding; untrusted destination (server-side request forgery and open redirect); prototype pollution and unsafe object merge; permissive configuration and secrets; memory safety; unknown.
 2. The Learning Harness shall record for every family the CWE identifiers it covers, the mechanism ids it covers, and the verifier that can confirm a claim in that family or the statement that none exists.
 3. When the taxonomy changes, the Learning Harness shall bump its version and every published number shall name the taxonomy version it was scored under.
 4. The Learning Harness shall treat CWE identifiers and mechanism ids as attributes of a family and shall never use them as the key that routes work or scores a pair.
@@ -34,6 +34,7 @@ OpenUltraSAST's detection numbers cannot be trusted and cannot be improved. The 
 3. When the classifier is evaluated, the Learning Harness shall report agreement with maintainer labels on reviewed pairs with partial credit for a parent–child relation and no credit for a lateral or fabricated family, a confusion matrix per family, and its accuracy against both a random router and an oracle router.
 4. When the classifier disagrees with a maintainer label, the Learning Harness shall queue the disagreement for review and shall not change the label.
 5. The Learning Harness shall classify every labeled row in the corpus, including rows whose current class is free text or `other`, and shall report the count classified per family and the count left `unknown`.
+6. While no family in the taxonomy declares a parent, the Learning Harness shall state beside every agreement figure that hierarchical partial credit could not apply.
 
 ### Requirement 3: A class-aware, pair-wise scorer
 
@@ -47,6 +48,7 @@ OpenUltraSAST's detection numbers cannot be trusted and cannot be improved. The 
 4. The Learning Harness shall report a fixed-false-positive-rate view per family beside Youden.
 5. When a detector is evaluated, the Learning Harness shall run it at least three times per pair and shall report a change against the last blessed round only when a reliable-change test passes, together with the negative-flip count per family.
 6. The Learning Harness shall never count a text token, a CWE string or a sink name in a finding's text as evidence of detection.
+7. While no family in the taxonomy declares a parent, the Learning Harness shall state beside every published family figure that hierarchical partial credit could not apply.
 
 ### Requirement 4: Unscorable rows and corpus hygiene
 

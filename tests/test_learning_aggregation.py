@@ -96,3 +96,21 @@ def test_the_sign_test_is_two_sided_and_symmetric() -> None:
     assert sign_test(0, 0) == 1.0
     assert sign_test(6, 0) == sign_test(0, 6) < 0.05
     assert sign_test(1, 0) > 0.05 and sign_test(3, 3) == 1.0
+
+
+def test_every_family_figure_says_when_hierarchical_credit_could_not_apply() -> None:
+    """Req 3.7: with a flat taxonomy no answer can earn partial credit, and the number must carry that."""
+    from openultrasast.learning.families import Family, FamilyTaxonomy
+    from openultrasast.learning.scoring import aggregate
+
+    flat = load_families()
+    metrics = aggregate([_score("a", "pair_correct")], taxonomy=flat)["access_control"]
+    assert metrics.hierarchical_credit is False and metrics.to_dict()["hierarchical_credit"] is False
+    nested = FamilyTaxonomy(
+        version="test",
+        families=(
+            Family(id="injection", description="d", cwes=frozenset(), mechanisms=frozenset(), verifier="none"),
+            Family(id="access_control", description="d", cwes=frozenset(), mechanisms=frozenset(), verifier="none", parent="injection"),
+        ),
+    )
+    assert aggregate([_score("a", "pair_correct")], taxonomy=nested)["access_control"].hierarchical_credit is True
