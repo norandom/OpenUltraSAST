@@ -55,13 +55,24 @@ def _finding(family: str) -> StaticFinding:
     )
 
 
+def _is_vulnerable_side(root: Path) -> bool:
+    """The materialized side, by directory name only.
+
+    An earlier version also matched "-v" anywhere in the path, which the random temporary directory name
+    sometimes contained, so the detector "found" the bug on the fixed side too and the pair flipped. A
+    flaky harness is indistinguishable from a flaky detector, which is precisely what a noise floor must
+    not measure.
+    """
+    return root.name == "vuln"
+
+
 def _steady(root: Path) -> list[StaticFinding]:
-    return [_finding("injection")] if "-v" in str(root) or root.name == "vuln" else []
+    return [_finding("injection")] if _is_vulnerable_side(root) else []
 
 
 def _flaky(counter: list[int]):  # type: ignore[no-untyped-def]
     def scan(root: Path) -> list[StaticFinding]:
-        if not ("-v" in str(root) or root.name == "vuln"):
+        if not _is_vulnerable_side(root):
             return []
         counter.append(1)
         return [_finding("injection")] if len(counter) % 2 else []
