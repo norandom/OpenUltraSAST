@@ -241,7 +241,7 @@ def run_learning_round(
     sweep_families: Sequence[str] = (),
     spent_usd: Callable[[], float] | None = None,
     trajectories: Callable[[], Sequence[Mapping[str, object]]] | None = None,
-) -> object:
+) -> RoundRecord:
     """One round: propose one change for one family, then let the evidence decide whether it stays.
 
     Staged so that the cheap answer comes first: a train minibatch, then the family's held-out pairs,
@@ -437,7 +437,7 @@ def _finish(
     scores: Sequence[PairFamilyScore] = (),
     version: str | None = None,
     trajectories: Callable[[], Sequence[Mapping[str, object]]] | None = None,
-) -> object:
+) -> RoundRecord:
     """Write the round directory and journal the outcome. Every outcome is journalled, not just the good ones."""
     from ..redaction import redact_secrets
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 from time import perf_counter
@@ -42,6 +42,7 @@ from .hunter import run_hunter_pool, write_hunter_trajectories
 from .hunter_harness import HxScanOrchestrator
 from .improve import RoundOutcome, run_improvement
 from .index import build_code_chunks
+from .learning.families import FamilyTaxonomy
 from .mapping import analyze_entry_points, attach_reachability_hints, ingest_sarif, write_entry_points, write_static_hints
 from .pair_gate import print_pair_metrics
 from .pairs import (
@@ -184,6 +185,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     pairs.add_argument("--loo-out", type=Path, default=None, help="where to write loo.json (default: reports/loo.json)")
     pairs.add_argument("--json", action="store_true", help="print the pair scoreboard as JSON")
+    pairs.add_argument("--k-runs", type=int, default=1, help="runs per pair on the hunter path; the family scorer needs at least three")
 
     subparsers.add_parser("mcp", help="run the narrow MCP server over stdio for OpenCode integration")
     mechanisms = subparsers.add_parser("mechanisms", help="maintainer: mechanism memory seeded from trusted pairs")
@@ -198,6 +200,32 @@ def main(argv: list[str] | None = None) -> int:
         help="append-only candidates file the improve lever admits from (the scan reads mechanisms.jsonl next to it; never written here)",
     )
     export.add_argument("--json", action="store_true")
+
+    learning = subparsers.add_parser("learning", help="maintainer: the classified detector set and its rounds")
+    learning_sub = learning.add_subparsers(dest="learning_command", required=True)
+    for name, help_text in (
+        ("classify", "classify every labeled pair and report the classifier against itself"),
+        ("score", "score a catalog by family, with the denominator every number was computed over"),
+        ("baseline", "round zero: clone one detector into every family and measure each against itself"),
+        ("round", "one evolve round: propose one change for one family and let the evidence decide"),
+        ("publish", "regenerate every published number from the artifacts that produced it"),
+    ):
+        command = learning_sub.add_parser(name, help=help_text)
+        command.add_argument("--out", type=Path, default=Path(".openultrasast/learning"), help="where artifacts are read and written")
+        if name != "publish":
+            command.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
+            command.add_argument("--slice", choices=SLICE_NAMES, default="all")
+            command.add_argument("--json", action="store_true")
+        if name in {"baseline", "round", "score"}:
+            command.add_argument("--k-runs", type=int, default=None, help="runs per pair; never fewer than three")
+            command.add_argument("--model", default=None, help="detector model; artifacts are keyed by it")
+            command.add_argument("--config", type=Path, default=Path("openultrasast.toml"))
+        if name == "round":
+            command.add_argument("--family", required=True)
+            command.add_argument("--cost-cap-usd", type=float, default=None)
+        if name == "publish":
+            command.add_argument("--measurements", type=Path, default=Path("benchmarks/measurements"))
+            command.add_argument("--roadmap", type=Path, default=Path(".kiro/steering/roadmap.md"))
 
     args = parser.parse_args(argv)
     if args.command == "scan":
@@ -238,6 +266,8 @@ def main(argv: list[str] | None = None) -> int:
         )
     if args.command == "mechanisms":
         return _mechanisms_export(args.catalog, args.slice, args.store, json_out=args.json)
+    if args.command == "learning":
+        return _learning(args)
     if args.command == "mcp":
         from .mcp import serve  # lazy: keeps the import cycle (mcp -> cli) one-directional
 
@@ -1160,6 +1190,129 @@ def _run_family_detectors(
         for finding in findings
     }
     return findings, payload, cited
+
+
+def _learning(args: argparse.Namespace) -> int:
+    """The maintainer's entry points into the classified detector set. Everything degrades with a reason."""
+    from .learning.classify import measure_classifier, write_review_queue
+    from .learning.families import load_families
+    from .learning.publish import publish
+
+    out: Path = args.out
+    taxonomy = load_families()
+    if args.learning_command == "publish":
+        report = publish(learning_dir=out, measurements_dir=args.measurements, roadmap=args.roadmap)
+        print(f"learning publish: {len(report.families)} families over {len(report.models)} model(s) -> {args.roadmap}")
+        for artifact in report.artifacts:
+            print(f"  artifact {artifact}")
+        return 0
+    cases = select_vendored(select_slice(load_pair_catalog(args.catalog), args.slice))
+    if args.learning_command == "classify":
+        measured = measure_classifier(cases, taxonomy, client=None)
+        out.mkdir(parents=True, exist_ok=True)
+        payload = measured.to_dict()
+        (out / "classifier.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+        written = write_review_queue(out / "review-queue.jsonl", measured.queue)
+        if args.json:
+            print(json.dumps(payload, indent=2, sort_keys=True))
+        else:
+            print(f"learning classify: classified {measured.classified}, unknown {measured.unknown}, queued {written}")
+        return 0
+    return _learning_run(args, cases, taxonomy)
+
+
+def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy: FamilyTaxonomy) -> int:
+    """score, baseline and round: the three that need a detector, and degrade with a reason without one."""
+    from .learning.detectors import load_family_configs, write_default_configs
+    from .learning.endpoint import resolve_chat_endpoint, resolve_models
+    from .learning.journal import Archive, LearningJournal
+    from .learning.proposer import HarnessXProposer
+    from .learning.rounds import MIN_K_RUNS, load_noise_floors, run_baseline, run_learning_round
+    from .learning.scoring import aggregate
+    from .tool_hunter import _SYSTEM_PROMPT
+
+    out: Path = args.out
+    config = load_config(args.config if args.config.exists() else None)
+    k_runs = args.k_runs or max(config.learning.k_runs, MIN_K_RUNS)
+    model = args.model or resolve_models(config)[0]
+    configs_dir = out / "configs"
+    if not configs_dir.exists():
+        write_default_configs(configs_dir, taxonomy, prompt=_SYSTEM_PROMPT, version="0")  # type: ignore[arg-type]
+    resolved = resolve_chat_endpoint(config)
+    if resolved is None:
+        print("learning: learning_endpoint_unavailable; scoring what can be scored without a detector")
+    client = resolved[0] if resolved else None
+    configs = load_family_configs(configs_dir, taxonomy)  # type: ignore[arg-type]
+
+    def factory(family_config: object) -> Callable[[Path], list[StaticFinding]]:
+        from .learning.detectors import Region, run_family_detector
+
+        def scan(root: Path) -> list[StaticFinding]:
+            if client is None:
+                return []
+            region = Region(path=_first_source(root), function=None)
+            return run_family_detector(root, region, family_config, client=client, model=model)  # type: ignore[arg-type]
+
+        return scan
+
+    if args.learning_command == "score":
+        from .learning.rounds import score_case
+
+        scores = [
+            score_case(case, factory(configs[_label(case)]), taxonomy=taxonomy, runs=k_runs) for case in cases if _label(case) in configs
+        ]
+        families = {name: block.to_dict() for name, block in aggregate(scores, taxonomy=taxonomy).items()}
+        if args.json:
+            print(json.dumps({"families": families}, indent=2, sort_keys=True))
+        else:
+            for name, block in sorted(families.items()):
+                print(f"learning score {name}: scorable={block['scorable']} recall={block['recall']:.3f} youden={block['youden']:.3f}")
+        return 0
+    if args.learning_command == "baseline":
+        report = run_baseline(
+            cases,
+            taxonomy=taxonomy,
+            configs_dir=configs_dir,
+            scan=factory(configs.get("unknown") or next(iter(configs.values()))),
+            model=model,
+            out_dir=out,
+            k_runs=k_runs,
+        )
+        print(f"learning baseline {model}: {len(report.floors)} families, k={report.k_runs} -> {out / 'baseline'}")
+        return 0
+    journal = LearningJournal(out / "journal.jsonl")
+    record = run_learning_round(
+        cases,
+        family=args.family,
+        taxonomy=taxonomy,
+        configs_dir=configs_dir,
+        proposer=HarnessXProposer(configs_dir=configs_dir, model=model),
+        scan_factory=factory,
+        model=model,
+        journal=journal,
+        archive=Archive(out / "archive.jsonl"),
+        floors=load_noise_floors(out, model),
+        out_dir=out,
+        cost_cap_usd=args.cost_cap_usd or config.learning.round_cost_cap_usd,
+        minibatch=config.learning.minibatch,
+        k_runs=k_runs,
+    )
+    print(f"learning round {record.round} {record.family}: {record.outcome} ({record.reason})")
+    return 0
+
+
+def _label(case: PairCase) -> str:
+    for row in case.expected:
+        if row.family:
+            return str(row.family)
+    return "unknown"
+
+
+def _first_source(root: Path) -> str:
+    from .preprocess import preprocess_repository
+
+    _, targets = preprocess_repository(root)
+    return targets[0].path if targets else "."
 
 
 def _hotspot_from_variant(finding: StaticFinding) -> Hotspot:
