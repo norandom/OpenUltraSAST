@@ -20,11 +20,14 @@ def write_markdown_report(
     verdicts: Sequence[object] | None = None,
     overlay: Sequence[object] | None = None,
     mechanisms: Mapping[str, Mapping[str, object]] | None = None,
+    obligations: Mapping[str, Mapping[str, object]] | None = None,
+    obligations_summary: Mapping[str, object] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications or [])
     overlay_by_id = _overlay_by_id(overlay or [])
     cited: dict[str, Mapping[str, object]] = {}
+    cited_obligations: dict[str, Mapping[str, object]] = {}
     lines = ["# OpenUltraSAST Report", "", f"Findings: {len(findings)}", "", "## Inventory", ""]
     if not findings:
         lines.append("No quick-mode findings were emitted.")
@@ -60,9 +63,15 @@ def write_markdown_report(
             lines.append(f"- Mechanism: `{mechanism_id}` — {info.get('summary', '')}")
             lines.append(f"- Known fix guard: `{info.get('guard', 'none')}`")
             lines.append(f"- Learned from pairs: `{', '.join(_pairs_of(info))}`")
+        info_o = (obligations or {}).get(finding.finding_id)
+        if info_o is not None:
+            cited_obligations[finding.finding_id] = info_o
+            _append_obligation_lines(lines, info_o, (mechanisms or {}).get(str(info_o.get("known_fix") or "")))
         lines.extend(["", finding.rationale, ""])
     if cited:
         _append_mechanisms(lines, cited)
+    if cited_obligations:
+        _append_obligations(lines, cited_obligations, obligations_summary)
     if overlay:
         _append_overlay(lines, overlay)
     if complexity_map is not None:
@@ -145,6 +154,7 @@ def write_sarif_report(
     path: Path,
     overlay: Sequence[object] | None = None,
     mechanisms: Mapping[str, Mapping[str, object]] | None = None,
+    obligations: Mapping[str, Mapping[str, object]] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications)
@@ -164,7 +174,11 @@ def write_sarif_report(
                 },
                 "results": [
                     _sarif_result(
-                        finding, verification_by_id.get(finding.finding_id), overlay_by_id.get(finding.finding_id), mechanisms=mechanisms
+                        finding,
+                        verification_by_id.get(finding.finding_id),
+                        overlay_by_id.get(finding.finding_id),
+                        mechanisms=mechanisms,
+                        obligation=(obligations or {}).get(finding.finding_id),
                     )
                     for finding in findings
                 ],
@@ -189,6 +203,7 @@ def write_manifest(
     worth_fixing: dict[str, object] | None = None,
     provenance: dict[str, object] | None = None,
     variants: dict[str, object] | None = None,
+    obligations: dict[str, object] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications)
@@ -227,6 +242,8 @@ def write_manifest(
         payload["provenance"] = provenance
     if variants is not None:
         payload["variants"] = variants
+    if obligations is not None:
+        payload["obligations"] = obligations
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
@@ -269,6 +286,7 @@ def _sarif_result(
     overlay: object | None = None,
     *,
     mechanisms: Mapping[str, Mapping[str, object]] | None = None,
+    obligation: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     properties: dict[str, object] = {
         "finding_id": finding.finding_id,
@@ -291,6 +309,15 @@ def _sarif_result(
             properties["mechanism_summary"] = str(info.get("summary", ""))
             properties["mechanism_guard"] = str(info.get("guard", "none"))
             properties["mechanism_pairs"] = _pairs_of(info)
+    if obligation is not None:
+        properties["obligation_kind"] = str(obligation.get("obligation", ""))
+        properties["obligation_resource"] = obligation.get("resource")
+        properties["obligation_missing"] = str(obligation.get("missing", ""))
+        properties["obligation_provenance"] = obligation.get("provenance")
+        properties["obligation_label"] = str(obligation.get("label", ""))
+        properties["obligation_evidence"] = _strings_of(obligation, "evidence")
+        properties["obligation_known_fix"] = obligation.get("known_fix")
+        properties["obligation_intent"] = obligation.get("intent")
     return {
         "ruleId": _rule_id(finding),
         "level": _sarif_level(finding.severity),
@@ -408,3 +435,44 @@ def _append_mechanisms(lines: list[str], cited: Mapping[str, Mapping[str, object
 def _pairs_of(info: Mapping[str, object]) -> list[str]:
     pairs = info.get("pairs")
     return [str(p) for p in pairs] if isinstance(pairs, list | tuple) else []
+
+
+def _append_obligation_lines(lines: list[str], info: Mapping[str, object], mechanism: Mapping[str, object] | None) -> None:
+    resource = info.get("resource") or "a resource"
+    provenance = f" (`{info.get('provenance')}`)" if info.get("provenance") else ""
+    evidence = ", ".join(_strings_of(info, "evidence")) or "the operation fact alone"
+    lines.append(f"- Obligation: `{info.get('obligation')}` on `{resource}`")
+    lines.append(f"- Missing discharger: `{info.get('missing')}`{provenance}")
+    lines.append(f"- Evidence: `{info.get('label')}` — {evidence}")
+    if info.get("known_fix"):
+        guard = mechanism.get("guard") if mechanism else info.get("missing")
+        pairs = ", ".join(_pairs_of(mechanism)) if mechanism else "the mechanism store"
+        lines.append(f"- Known fix: `{guard}` learned from `{pairs}` ({info.get('known_fix')})")
+    if info.get("intent"):
+        lines.append(f"- Intent: `{info.get('intent')}`")
+
+
+def _append_obligations(lines: list[str], cited: Mapping[str, Mapping[str, object]], summary: Mapping[str, object] | None = None) -> None:
+    lines.extend(
+        ["## Obligations", "", "Operations reached without a dominating discharger; suspicions labeled by why the obligation exists.", ""]
+    )
+    if summary is not None:
+        version = summary.get("policy_version")
+        lines.append(f"Sibling sets evaluated: {summary.get('sibling_sets', 0)} (under-populated: {summary.get('under_populated', 0)})")
+        lines.append(f"Policy version: {f'`{version}`' if version else 'none'}")
+        lines.append("")
+        sets = summary.get("sets")
+        if isinstance(sets, list | tuple):
+            for group in sets:
+                if isinstance(group, Mapping):
+                    lines.append(f"- `{group.get('module')}` / `{group.get('resource')}`: {group.get('handlers')} handlers")
+            lines.append("")
+    for finding_id, info in sorted(cited.items()):
+        resource = info.get("resource") or "a resource"
+        lines.append(f"- `{finding_id}`: `{info.get('obligation')}` on `{resource}` without `{info.get('missing')}` ({info.get('label')})")
+    lines.append("")
+
+
+def _strings_of(info: Mapping[str, object], key: str) -> list[str]:
+    value = info.get(key)
+    return [str(item) for item in value] if isinstance(value, list | tuple) else []

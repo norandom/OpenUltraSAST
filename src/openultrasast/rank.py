@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from collections.abc import Collection
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from .preprocess import FileTarget
+
+if TYPE_CHECKING:
+    from .findings import StaticFinding
 
 
 class RankingError(ValueError):
@@ -234,3 +238,28 @@ def _reachability_from_hints(hints: list[dict[str, object]]) -> int:
         elif access_level == "review-required" or access_level == "local-only":
             score = max(score, 2)
     return score
+
+
+# authorization-obligations Req 6.4: obligation findings rank by resource sensitivity and evidence label, and never above
+# a sandbox-proven finding in the same run. Every other finding keeps its priority.
+_OBLIGATION_LABEL_WEIGHT = {"declared_policy_violation": 0.9, "consistency_violation": 0.6, "function_local": 0.3}
+_OBLIGATION_SENSITIVITY_WEIGHT = {"high": 1.0, "medium": 0.7, "low": 0.4}
+_PROVEN_LEVELS = frozenset({"crash_reproduced", "exploit_demonstrated", "patch_validated", "root_cause_explained"})
+
+
+def rank_obligations(findings: list[StaticFinding], *, proven_ids: Collection[str] = ()) -> list[StaticFinding]:
+    """Rank obligation findings strictly below every proven finding in the run. Proof rungs live on verdicts, not on
+    ``StaticFinding``, so the sandbox's proven finding ids are passed in; ``evidence_level`` is honoured as well."""
+    proven = [f.ranking_priority for f in findings if f.evidence_level in _PROVEN_LEVELS or f.finding_id in proven_ids]
+    ceiling = min(proven) if proven else None
+    ranked: list[StaticFinding] = []
+    for finding in findings:
+        if not finding.finding_id.startswith("obligation:"):
+            ranked.append(finding)
+            continue
+        label = next((tag.split(":", 1)[1] for tag in finding.tags if tag.startswith("obligation_evidence:")), "function_local")
+        weight = _OBLIGATION_SENSITIVITY_WEIGHT.get(finding.severity, 0.7) * _OBLIGATION_LABEL_WEIGHT.get(label, 0.3)
+        if ceiling is not None and weight >= ceiling:
+            weight = max(ceiling * 0.99, 0.0) * _OBLIGATION_LABEL_WEIGHT.get(label, 0.3) / 0.9  # strictly below the lowest proven finding
+        ranked.append(replace(finding, ranking_priority=round(weight, 4)))
+    return ranked
