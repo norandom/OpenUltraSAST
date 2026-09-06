@@ -1,0 +1,126 @@
+# Closed family taxonomy (learning-harness, Req 1). A family is the ONLY key that routes work and
+# scores a pair; CWE ids and mechanism ids are attributes looked up through a family and are never
+# keys themselves. `verifier` says what can confirm a claim in this family: a canary oracle in the
+# sandbox, static corroboration from another checker, or nothing (the claim stays a suspicion).
+# `unknown` carries the generic mechanisms and the deliberately out-of-scope weaknesses, so a row we
+# have considered and declined is visible instead of silently unresolved. Bump `version` on any change.
+version = "1"
+
+[[family]]
+id = "injection"
+description = "Untrusted input reaches an interpreter: SQL, OS command, code, expression or server-side template."
+cwes = ["CWE-77", "CWE-78", "CWE-88", "CWE-89", "CWE-90", "CWE-91", "CWE-94", "CWE-95", "CWE-564", "CWE-917", "CWE-943", "CWE-1336"]
+mechanisms = []
+verifier = "canary"
+
+[[family]]
+id = "path"
+description = "Untrusted input reaches a filesystem path: traversal, unsafe join, file inclusion."
+cwes = ["CWE-22", "CWE-23", "CWE-36", "CWE-73", "CWE-98", "CWE-99"]
+mechanisms = ["path_join_user_input"]
+verifier = "canary"
+
+[[family]]
+id = "deserialization"
+description = "Untrusted data is deserialized into objects the process then trusts."
+cwes = ["CWE-502"]
+mechanisms = []
+verifier = "canary"
+
+[[family]]
+id = "access_control"
+description = "An operation on a protected resource is reached without the guard or ownership constraint its siblings carry."
+cwes = ["CWE-284", "CWE-285", "CWE-306", "CWE-425", "CWE-566", "CWE-639", "CWE-862", "CWE-863", "CWE-1220"]
+mechanisms = [
+    "identity_from_request_body",
+    "missing_auth_guard",
+    "unconstrained_protected_read",
+    "unconstrained_protected_write",
+    "unguarded_privileged_action",
+]
+verifier = "static"
+
+[[family]]
+id = "output_encoding"
+description = "Untrusted data reaches a rendered document or a header without encoding: cross-site scripting, response splitting."
+cwes = ["CWE-79", "CWE-80", "CWE-83", "CWE-113", "CWE-116"]
+mechanisms = []
+verifier = "none"
+
+[[family]]
+id = "untrusted_destination"
+description = "Untrusted input controls where a request or a redirect goes: server-side request forgery and open redirect."
+cwes = ["CWE-441", "CWE-601", "CWE-611", "CWE-918"]
+mechanisms = []
+verifier = "none"
+
+[[family]]
+id = "prototype"
+description = "Untrusted keys reach an object merge or attribute assignment and change behaviour other code relies on."
+cwes = ["CWE-471", "CWE-915", "CWE-1321"]
+mechanisms = ["prototype_pollution"]
+verifier = "none"
+
+[[family]]
+id = "config_secrets"
+description = "A security setting ships permissive or a credential ships in the artifact: CORS, debug, cookie flags, weak crypto, hardcoded secrets."
+cwes = [
+    "CWE-16",
+    "CWE-215",
+    "CWE-259",
+    "CWE-311",
+    "CWE-312",
+    "CWE-315",
+    "CWE-326",
+    "CWE-327",
+    "CWE-346",
+    "CWE-489",
+    "CWE-522",
+    "CWE-614",
+    "CWE-798",
+    "CWE-942",
+    "CWE-1004",
+]
+mechanisms = ["config_sink_weak_literal", "permissive_default", "secret_in_client"]
+verifier = "none"
+
+[[family]]
+id = "memory"
+description = "Memory safety in C and C++: bounds, lifetime, arithmetic. Measured on the vendored slice, never gated; specialized systems own this class."
+cwes = [
+    "CWE-119",
+    "CWE-120",
+    "CWE-121",
+    "CWE-122",
+    "CWE-125",
+    "CWE-126",
+    "CWE-131",
+    "CWE-134",
+    "CWE-190",
+    "CWE-191",
+    "CWE-401",
+    "CWE-415",
+    "CWE-416",
+    "CWE-476",
+    "CWE-680",
+    "CWE-770",
+    "CWE-787",
+    "CWE-843",
+]
+mechanisms = [
+    "fixed_buffer_capacity",
+    "null_deref_unguarded",
+    "signed_size_operand",
+    "type_confusion",
+    "uaf",
+    "unchecked_alloc_size",
+    "unchecked_length_copy",
+]
+verifier = "none"
+
+[[family]]
+id = "unknown"
+description = "No family admitted: a mechanism that spans families, or a weakness this project deliberately does not target."
+cwes = ["CWE-20", "CWE-835"]
+mechanisms = ["container_taint", "cross_artifact", "other", "redos", "source_reaches_sink", "validation_strength"]
+verifier = "none"
