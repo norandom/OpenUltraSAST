@@ -129,6 +129,56 @@ Restate the detector as an optimisable program and put a published optimiser beh
 - **The Pareto pool replaces the accept/revert tree.** `Archive` already records per-pair winners; it
   becomes the frontier, and the journal's parent records become the ancestry GEPA needs.
 
+## Where the noise actually is, and why the architecture may be wrong
+
+The maintainer's objection, and I think it is correct: the harness treats the detector as a black box
+emitting a noisy scalar, and everything follows from that — K runs, majority vote, a measured floor, a
+regression budget, a sign test. That is the stance you take when you cannot see inside the thing you are
+measuring. We can see inside it.
+
+The variance is not in the judgement. `temperature: 0` is sent and thinking is disabled, and 11 of 20
+injection pairs still disagree with themselves. A traced run shows why: over four steps the model chose
+different files to read and different grep patterns, and reached its conclusion from different context
+each time. The freedom is in the **trajectory**, and we built statistics to average over it instead of
+removing it.
+
+This is exactly what DSPy exists to argue about, and three of its constructs attack the source rather
+than the symptom.
+
+**Constraints as predicates, enforced at generation time** (`dspy.Assert`/`Suggest`, arXiv:2312.13382).
+A constraint is a boolean function of the output; on failure the past output *and the error* are injected
+into a retry. We already have the predicates — is the reported line inside a parsed function, does the
+named sink occur at that line, is the claimed family in the taxonomy, did the run cite a tool result —
+and we apply every one of them **after the fact, at scoring time, to decide whether to count a finding**.
+Applying them at generation time to decide whether to *accept* one is free, needs no dependency, and is
+the single highest-value change available. The paper reports near-total intrinsic constraint satisfaction
+and 5–15% downstream gains.
+
+**Typed decomposition instead of one free-running loop.** Our detector is a single ReAct loop that decides
+which files to read, what to grep, when to stop and what to report; every one of those is a variance
+source. DSPy's thesis is that each step gets a signature — a typed input/output contract — and a little
+control flow composes them. Ours would be roughly: locate candidate sink sites; trace whether an untrusted
+value reaches each; check for a guard between source and sink; judge. **Several of those steps need no
+model at all** — the CST, the entry-point mapper, `flows` and `obligations` already answer them
+deterministically, and we are currently paying a model to re-derive facts we hold.
+
+**Best-of-N against a checkable reward, instead of a majority vote** (`dspy.Refine`, `BestOfN`). Both
+spend K samples. A majority vote assumes the modal answer is right and discards the disagreement; Refine
+ranks the N attempts by an explicit reward and feeds a hint from the failures into the next attempt. We
+have checkable rewards for free. The same budget, used as evidence rather than as averaging.
+
+**Why this matters more for our models, not less.** GEPA and SIMBA are demonstrated with a strong
+reflection model over a weaker task model, and their gains come from evolving instructions. A cheap model
+fails on an under-specified task and does well on a narrow typed one. So the cheaper the detector model,
+the more of the return sits in decomposition and constraints and the less in prompt evolution — which is
+the opposite of the order this spec originally proposed.
+
+**The experiment that settles it, before any of this is built.** We already run K = 5. Record the tool-call
+sequence for every run, and measure how often a pair's runs took different trajectories, and whether
+outcome flips coincide with trajectory divergence. If they do, the noise architecture is treating a
+structural problem as a statistical one and most of it can be deleted rather than repaired. Cost: nothing
+beyond logging what we already generate.
+
 ## The constraint that outranks the algorithm
 
 Both algorithms assume a dataset. GEPA splits `D_train` into `D_feedback` and `D_pareto`; SIMBA's default
@@ -155,7 +205,14 @@ no pattern or policy is written by a model.
 
 ## Decisions for the maintainer
 
-0. **Adopt DSPy itself?** Proposed no. Our detector is not a DSPy program — it is an agentic tool loop over
+0. **Is the optimiser even the next thing to build?** Proposed no, and this reverses the order above.
+   Constraints at generation time, typed decomposition and best-of-N attack the variance at its source; an
+   optimiser only tunes text around a program whose freedom is the problem. Proposed sequence: measure where
+   the variance is, constrain generation, decompose the loop, then optimise — and at a trainset of twelve the
+   optimiser that fits is `BootstrapFewShot` (collect traces that scored well, install them as demonstrations
+   in a lever we already have) rather than an evolutionary search with nothing to search over.
+
+0b. **Adopt DSPy itself?** Proposed no. Our detector is not a DSPy program — it is an agentic tool loop over
    a repository with curated tools, redaction on every prompt, path clamping, a "no findings unless a tool
    was called" rule and a final-answer turn, several of which are security properties rather than
    conveniences. Handing that loop to `dspy.ReAct` and the calls to litellm would put them behind someone
@@ -197,4 +254,7 @@ Sources: [GEPA (arXiv:2507.19457)](https://arxiv.org/abs/2507.19457) ·
 [DSPy MIPROv2](https://dspy.ai/api/optimizers/MIPROv2/) ·
 [gepa-ai/gepa](https://github.com/gepa-ai/gepa) ·
 [DSPy SIMBA](https://dspy.ai/api/optimizers/SIMBA/) ·
-[dspy/teleprompt/simba.py](https://github.com/stanfordnlp/dspy/blob/main/dspy/teleprompt/simba.py)
+[dspy/teleprompt/simba.py](https://github.com/stanfordnlp/dspy/blob/main/dspy/teleprompt/simba.py) ·
+[DSPy Assertions (arXiv:2312.13382)](https://arxiv.org/pdf/2312.13382) ·
+[dspy.Refine](https://dspy.ai/api/modules/Refine/) ·
+[DSPy (arXiv:2310.03714)](https://arxiv.org/pdf/2310.03714)
