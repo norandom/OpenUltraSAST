@@ -253,3 +253,48 @@ def test_the_pairs_command_scores_k_runs_per_side(workspace: Path, monkeypatch: 
     monkeypatch.setenv("OPENULTRASAST_HUNTER_MODEL", "scripted")
     assert main(["pairs", "--catalog", str(workspace / "pairs.toml"), "--hunter", "--hunter-model", "scripted", "--k-runs", "4"]) == 0
     assert calls.count("vuln") == 8 and calls.count("fixed") == 8  # two pairs, four runs per side
+
+
+def test_a_baseline_records_what_the_endpoint_actually_spent(workspace: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Req 8.3: cost per pair is published beside every number, so the run has to read it off the client.
+
+    The client meters itself; nothing passed the meter to the baseline, so every published cost would have been
+    0.0 — and the round's cost cap, which reads the same meter, could never have fired either (Req 9.8)."""
+    from openultrasast.learning.endpoint import ChatEndpoint
+    from openultrasast.tool_hunter import ChatResponse
+
+    class Metered:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def complete(self, *, model: str, messages, tools=None, **options):  # type: ignore[no-untyped-def]
+            del model, messages, tools, options
+            self.calls += 1
+            return ChatResponse(content="[]")
+
+        def cost_usd(self) -> float:
+            return 0.25 * self.calls
+
+    client = Metered()
+    endpoint = ChatEndpoint(provider="scripted", base_url="", thinking=False)
+    monkeypatch.setattr("openultrasast.learning.endpoint.resolve_chat_endpoint", lambda *a, **k: (client, endpoint))
+    assert (
+        main(
+            [
+                "learning",
+                "baseline",
+                "--catalog",
+                str(workspace / "pairs.toml"),
+                "--out",
+                str(workspace / "learning"),
+                "--k-runs",
+                "3",
+                "--model",
+                "metered",
+            ]
+        )
+        == 0
+    )
+    report = json.loads((workspace / "learning" / "baseline" / "metered" / "report.json").read_text())
+    assert client.calls > 0
+    assert report["cost_usd"] == pytest.approx(0.25 * client.calls)

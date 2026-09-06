@@ -1272,6 +1272,10 @@ def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy:
     if resolved is None:
         print("learning: learning_endpoint_unavailable; scoring what can be scored without a detector")
     client = resolved[0] if resolved else None
+    # The client meters itself; a run that never reads the meter publishes a cost of zero and can never trip its
+    # own cap (Req 8.3, 9.8).
+    meter = getattr(client, "cost_usd", None)
+    spent: Callable[[], float] | None = meter if callable(meter) else None
     configs = load_family_configs(configs_dir, taxonomy)  # type: ignore[arg-type]
 
     def factory(family_config: object) -> Callable[[Path], list[StaticFinding]]:
@@ -1323,7 +1327,9 @@ def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy:
             # `--slice` already chose the rows; without this the baseline's own default filters them out again and
             # a run over the memory-safety slice reports nothing at all (Req 8.4).
             slices=(args.slice,) if args.slice != "all" else DEFAULT_SLICES,
+            spent_usd=spent,
         )
+        print(f"learning baseline cost: ${report.cost_usd:.4f}")
         print(f"learning baseline {model}: {len(report.floors)} families, k={report.k_runs} -> {out / 'baseline'}")
         return 0
     journal = LearningJournal(out / "journal.jsonl")
@@ -1342,11 +1348,12 @@ def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy:
         cost_cap_usd=args.cost_cap_usd or config.learning.round_cost_cap_usd,
         minibatch=config.learning.minibatch,
         k_runs=k_runs,
+        spent_usd=spent,
         # Every other family the corpus actually carries, so a change that reaches beyond its own directory is
         # measured rather than assumed impossible (Req 9.5).
         sweep_families=tuple(sorted({_label(case, taxonomy) for case in cases} & set(configs) - {args.family})),
     )
-    print(f"learning round {record.round} {record.family}: {record.outcome} ({record.reason})")
+    print(f"learning round {record.round} {record.family}: {record.outcome} ({record.reason}) cost ${record.cost_usd:.4f}")
     return 0
 
 
