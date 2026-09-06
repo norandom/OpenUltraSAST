@@ -37,7 +37,7 @@ ALLOWED_HOSTS = {
     "hg-edge.mozilla.org",
 }
 BLOCKED_TOKENS = ("fixfox", "zenodo.org/record")
-MODES = ("name", "line_range", "hunk", "enclosing")
+MODES = ("name", "line_range", "hunk", "enclosing", "handler_context")
 _SUFFIX_LANGUAGE = {
     ".c": "c",
     ".h": "c",
@@ -192,6 +192,28 @@ def extract_python_block(source: str, function_name: str) -> str:
         end = _python_block_end(masked, index, indent)
         return "".join(lines[start:end]).rstrip("\n") + "\n"
     raise RecipeError(f"function not found: {function_name}")
+
+
+def extract_handler_context(source: str, function_name: str, language: str = "c") -> str:
+    """The named function (with its decorators) followed by every statement outside it that names the function as an
+    identifier: `app.add_url_rule(..., view_func=fn)`, `router.get('/x', fn)`, `path('x', fn)`, `app.use(fn)`. Comment and
+    string mentions never count (the masked text is searched). One excerpt per side, so guards living in decorators,
+    routers and middleware are visible to the teacher and the scorer (authorization-obligations, Req 7.1)."""
+    body = extract_function(source, function_name, language)
+    lines = source.splitlines()
+    start = _start_line_of(source, body) - 1
+    end = start + len(body.splitlines())
+    masked_lines = mask_comments_and_strings(source, language).splitlines()
+    mention = re.compile(rf"(?<![\w.]){re.escape(function_name)}(?!\w)")
+    declaration = re.compile(rf"^\s*(?:async\s+)?(?:def|function|sub)\s+{re.escape(function_name)}\b")
+    registrations = [
+        lines[index]
+        for index, masked in enumerate(masked_lines)
+        if not (start <= index < end) and index < len(lines) and mention.search(masked) and not declaration.match(masked)
+    ]
+    if not registrations:
+        return body
+    return body.rstrip("\n") + "\n\n" + "\n".join(line.strip() for line in registrations) + "\n"
 
 
 def extract_line_range(source: str, start: int, end: int) -> str:
@@ -384,7 +406,7 @@ def validate_recipe(recipe: dict[str, Any], *, require_license: bool = True) -> 
         raise RecipeError(f"{name}: unknown mode {mode!r}; expected one of {MODES}")
     if not recipe.get("path"):
         raise RecipeError(f"{name}: path required")
-    if mode == "name" and not recipe.get("function"):
+    if mode in {"name", "handler_context"} and not recipe.get("function"):
         raise RecipeError(f"{name}: path and function required")
     if mode == "line_range" and not (isinstance(recipe.get("line_start"), int) and isinstance(recipe.get("line_end"), int)):
         raise RecipeError(f"{name}: line_range mode needs integer line_start and line_end")
@@ -456,8 +478,9 @@ def extract_pair_with_lines(recipe: dict[str, Any], parent_src: str, fix_src: st
             raise RecipeError(f"{recipe.get('name')}: line {line}/{fix_line} is not inside a function")
         return (extract_line_range(parent_src, *parent_bounds), parent_bounds[0]), (extract_line_range(fix_src, *fix_bounds), fix_bounds[0])
     function = str(recipe["function"])
-    parent_text = extract_function(parent_src, function, language)
-    fix_text = extract_function(fix_src, function, language)
+    extract = extract_handler_context if mode == "handler_context" else extract_function
+    parent_text = extract(parent_src, function, language)
+    fix_text = extract(fix_src, function, language)
     return (parent_text, _start_line_of(parent_src, parent_text)), (fix_text, _start_line_of(fix_src, fix_text))
 
 
@@ -511,7 +534,8 @@ def extract_pair(recipe: dict[str, Any], parent_src: str, fix_src: str) -> tuple
             raise RecipeError(f"{recipe.get('name')}: line {line}/{fix_line} is not inside a function")
         return extract_line_range(parent_src, *parent_bounds), extract_line_range(fix_src, *fix_bounds)
     function = str(recipe["function"])
-    return extract_function(parent_src, function, language), extract_function(fix_src, function, language)
+    extract = extract_handler_context if mode == "handler_context" else extract_function
+    return extract(parent_src, function, language), extract(fix_src, function, language)
 
 
 def harvest_recipe(recipe: dict[str, Any], root: Path, *, require_license: bool = True) -> tuple[Path, Path]:

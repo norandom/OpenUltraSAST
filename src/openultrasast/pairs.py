@@ -39,6 +39,7 @@ from .ruleset import PatternRule
 from .semantic import OverlayRecord, adjudicate
 from .semantic.facts import FactLoadError, load_facts
 from .semantic.functions import RESERVED_FUNCTION_LABELS, function_at, named_function_ranges, spans_named
+from .semantic.obligations.facts import OPERATION_KINDS
 
 DEFAULT_CATALOG = Path("benchmarks/pairs/catalog.toml")
 DEFAULT_SAST_CATALOG = Path("benchmarks/pairs/sast/catalog.toml")
@@ -557,6 +558,9 @@ def _parse_expected(item: dict[str, object], name: str, mechanisms: frozenset[st
         raise CatalogError(f"pair {name}: expected row is missing mechanism")
     if mechanism not in mechanisms:
         raise CatalogError(f"pair {name}: unknown mechanism {mechanism!r}; see benchmarks/pairs/mechanisms.toml")
+    obligation = item.get("obligation")
+    if obligation is not None and obligation not in OPERATION_KINDS:
+        raise CatalogError(f"pair {name}: unknown obligation {obligation!r}; expected one of {sorted(OPERATION_KINDS)}")
     return ExpectedFinding(
         cwe=str(item["cwe"]),
         vulnerability_class=str(item.get("class", item.get("vulnerability_class", "unknown"))),
@@ -567,6 +571,7 @@ def _parse_expected(item: dict[str, object], name: str, mechanisms: frozenset[st
         function=str(item["function"]) if "function" in item else None,
         sink=str(item["sink"]) if "sink" in item else None,
         mechanism=mechanism,
+        obligation=str(obligation) if obligation is not None else None,
     )
 
 
@@ -626,9 +631,10 @@ class _Side:
     records: list[OverlayRecord]
     parse_failed: int
     ranges: dict[str, tuple[tuple[str, int, int], ...]]
+    obligations: list[StaticFinding] = field(default_factory=list)  # obligation statics, computed for obligation-labeled rows only
 
 
-def _overlay_scan(target: Path, ruleset: tuple[PatternRule, ...] | None = None) -> _Side:
+def _overlay_scan(target: Path, ruleset: tuple[PatternRule, ...] | None = None, *, obligations: bool = False) -> _Side:
     targets = _targets(target)
     findings = [f for f in quick_scan_findings(target, targets, rank_targets(targets), ruleset) if f.status != "shadow"]
     records = adjudicate(root=target, targets=targets, findings=findings)
@@ -645,7 +651,43 @@ def _overlay_scan(target: Path, ruleset: tuple[PatternRule, ...] | None = None) 
             parse_failed += 1
         else:
             ranges[item.path] = named
-    return _Side(findings=findings, records=records, parse_failed=parse_failed, ranges=ranges)
+    statics = _obligation_scan(target, targets) if obligations else []
+    return _Side(findings=findings, records=records, parse_failed=parse_failed, ranges=ranges, obligations=statics)
+
+
+def _obligation_scan(root: Path, targets: Sequence[FileTarget]) -> list[StaticFinding]:
+    """Obligation findings for one side in function-local mode (no path records, no declared policy, no store): the
+    scorer's additive rule for obligation-labeled rows (Req 7.2). Never runs for rows without the label."""
+    from .config import ObligationsConfig
+    from .semantic.ir import parse_file
+    from .semantic.obligations import check_obligations, findings_to_static, load_obligation_facts
+    from .semantic.obligations.dominance import OrderDominance
+
+    try:
+        flow_facts = load_facts()
+    except FactLoadError:
+        return []
+    irs: dict[str, tuple[object, str]] = {}
+    texts: dict[str, str] = {}
+    for target in targets:
+        try:
+            text = (root / target.path).read_text(errors="ignore")
+        except OSError:
+            continue
+        texts[target.path] = text
+        irs[target.path] = (parse_file(target.path, text, target.language), text)
+    result = check_obligations(
+        irs=irs,  # type: ignore[arg-type]
+        entries=analyze_entry_points(root, list(targets)),
+        facts=load_obligation_facts(),
+        flow_facts=flow_facts,
+        policy=None,
+        paths=(),
+        dominance=OrderDominance(texts=texts),
+        store_shapes=(),
+        min_siblings=ObligationsConfig().min_siblings,
+    )
+    return findings_to_static(result)
 
 
 def _inventory_only(case: PairCase, ruleset: tuple[PatternRule, ...] | None = None) -> PairOutcome:
@@ -777,15 +819,16 @@ def _inventory_outcome(
 
 
 def _evaluate_overlay_pair(case: PairCase, vuln_root: Path, fix_root: Path, ruleset: tuple[PatternRule, ...] | None = None) -> PairOutcome:
-    vuln = _overlay_scan(vuln_root, ruleset)
-    fixed = _overlay_scan(fix_root, ruleset)
+    obligations = any(row.obligation for row in case.expected)
+    vuln = _overlay_scan(vuln_root, ruleset, obligations=obligations)
+    fixed = _overlay_scan(fix_root, ruleset, obligations=obligations)
     loss: dict[str, int] = {
         "parse_failed_vuln": vuln.parse_failed,
         "parse_failed_fixed": fixed.parse_failed,
         "unadjudicated_vuln": sum(1 for record in vuln.records if record.disposition == "unadjudicated"),
         "unadjudicated_fixed": sum(1 for record in fixed.records if record.disposition == "unadjudicated"),
     }
-    if not _adjudicated(vuln.records) and not _adjudicated(fixed.records):
+    if not _adjudicated(vuln.records) and not _adjudicated(fixed.records) and not (vuln.obligations or fixed.obligations):
         # Parser/facts could not adjudicate this language; score inventory so
         # labeled calibration does not collapse when tree-sitter grammars are absent.
         loss["unresolved_labels"] = sum(1 for row in case.expected if _label_unresolved(row, vuln.ranges))
@@ -793,16 +836,27 @@ def _evaluate_overlay_pair(case: PairCase, vuln_root: Path, fix_root: Path, rule
     detected_vuln = _detections(vuln.records)
     detected_fix = _detections(fixed.records)
     expected_total = len(case.expected)
-    matched = sum(1 for row in case.expected if _overlay_matches_expected(row, detected_vuln, case.language, vuln.ranges))
+    matched = sum(
+        1
+        for row in case.expected
+        if _overlay_matches_expected(row, detected_vuln, case.language, vuln.ranges)
+        or _obligation_matches_expected(row, vuln.obligations, vuln.ranges)
+    )
     recall = matched / expected_total if expected_total else 1.0
     detected = recall + 1e-12 >= case.min_recall
-    overlay_leaks = _overlay_leaks(case, detected_fix, fixed.ranges)
+    overlay_leaks = _overlay_leaks(case, detected_fix, fixed.ranges) + _obligation_leaks(case, fixed.obligations, fixed.ranges)
     silent = not overlay_leaks
     unresolved = sum(1 for row in case.expected if _label_unresolved(row, vuln.ranges))
     misses = tuple(
         f"{row.rule_id or '-'}:{row.path}:{row.cwe}" + ("!unresolved" if _label_unresolved(row, vuln.ranges) else "")
         for row in case.expected
-        if not _overlay_matches_expected(row, detected_vuln, case.language, vuln.ranges)
+        if not (
+            _overlay_matches_expected(row, detected_vuln, case.language, vuln.ranges)
+            or _obligation_matches_expected(row, vuln.obligations, vuln.ranges)
+        )
+    )
+    obligation_kinds = (
+        ("obligation",) if any(_obligation_matches_expected(row, vuln.obligations, vuln.ranges) for row in case.expected) else ()
     )
     return PairOutcome(
         name=case.name,
@@ -828,7 +882,7 @@ def _evaluate_overlay_pair(case: PairCase, vuln_root: Path, fix_root: Path, rule
         known_limit=case.known_limit,
         split=case.split,
         weak_labels=sum(1 for row in case.expected if is_weak_label(row)),
-        detection_kinds=tuple(sorted({record.disposition for record in detected_vuln})),
+        detection_kinds=tuple(sorted({record.disposition for record in detected_vuln} | set(obligation_kinds))),
         parse_failed_vuln=loss["parse_failed_vuln"],
         parse_failed_fixed=loss["parse_failed_fixed"],
         unadjudicated_vuln=loss["unadjudicated_vuln"],
@@ -974,6 +1028,31 @@ def _hunter_matches_expected(
     if expected.sink and expected.sink.lower() != "unknown" and expected.sink.lower() in text:
         return True
     return bool(expected.rule_id and expected.rule_id in finding.finding_id)
+
+
+def _obligation_matches_expected(expected: ExpectedFinding, statics: Sequence[StaticFinding], ranges: FunctionRanges | None) -> bool:
+    """The one additive rule (Req 7.2): a row with `obligation` is detected by a finding tagged `obligation:<kind>` whose line
+    lies inside the labeled function. Nothing else about the scorer changes; rows without the label never reach here."""
+    if not expected.obligation or not expected.function:
+        return False
+    tag = f"obligation:{expected.obligation}"
+    for finding in statics:
+        if tag not in finding.tags or finding.line is None:
+            continue
+        spans = spans_named((ranges or {}).get(finding.path, ()), expected.function)
+        if any(start <= finding.line <= end for start, end in spans):
+            return True
+    return False
+
+
+def _obligation_leaks(case: PairCase, statics: Sequence[StaticFinding], ranges: FunctionRanges | None) -> tuple[str, ...]:
+    if not statics:
+        return ()
+    if case.fix_policy == "silent":
+        return tuple(finding.finding_id for finding in statics if any(row.obligation for row in case.expected))
+    return tuple(
+        finding.finding_id for finding in statics if any(_obligation_matches_expected(row, [finding], ranges) for row in case.expected)
+    )
 
 
 def _overlay_leaks(case: PairCase, detected_fix: Sequence[OverlayRecord], ranges: FunctionRanges | None = None) -> tuple[str, ...]:

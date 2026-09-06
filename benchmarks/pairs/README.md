@@ -97,8 +97,9 @@ when a hunter model is configured. The improve loop rejects a change that
 regresses any profile on the holdout split.
 
 Harvest for every slice goes through `benchmarks/pairs/harvest.py --slice <name>`
-(modes `name`, `line_range`, `hunk`, `enclosing`; comment and string mentions
-never anchor) and `benchmarks/pairs/catalog_gen.py --slice <name>` regenerates
+(modes `name`, `line_range`, `hunk`, `enclosing`, `handler_context`; comment
+and string mentions never anchor; `handler_context` keeps the labeled handler
+with its decorators and the statements that register it) and `benchmarks/pairs/catalog_gen.py --slice <name>` regenerates
 the catalog from `recipes.toml`. Maintainer only; CI never fetches.
 
 ## Commands

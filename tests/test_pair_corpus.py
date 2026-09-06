@@ -985,3 +985,57 @@ def test_vibe_py_and_agent_vfc_carry_pointer_rows_and_the_default_run_skips_them
     payload = json.loads(buf.getvalue())
     skipped = [item for item in payload["degradations"] if item["reason"] == "pointer_pair_skipped"]
     assert len(skipped) == len(pointers) and payload["overall"]["pairs"] == 35
+
+
+_OBLIGATION_HEAD = (
+    '[[pair]]\nname = "leaky-books"\nslice = "vibe-py"\nlanguage = "python"\nvuln = "v.py"\nfixed = "f.py"\nrelpath = "app.py"\n'
+    'provenance = "human"\nreview_tier = "seeded"\n\n'
+    '[[pair.expected]]\ncwe = "CWE-639"\nclass = "broken_access_control"\npath = "app.py"\nfunction = "leaky"\n'
+    'mechanism = "unconstrained_protected_read"\n'
+)
+_LEAKY = (
+    "from flask import request\n\n\n"
+    "@app.route('/books/<title>')\ndef leaky(title):\n"
+    "    return Book.query.filter_by(book_title=title).first()\n"
+)
+_CONSTRAINED = (
+    "from flask import request\n\n\n"
+    "@app.route('/books/<title>')\ndef leaky(title):\n"
+    "    user_id = request.user.id\n"
+    "    return Book.query.filter_by(user_id=user_id, book_title=title).first()\n"
+)
+
+
+def test_obligation_labeled_row_loads_and_is_detected_by_an_obligation_finding(tmp_path: Path) -> None:
+    """authorization-obligations 4.1 (Req 7.2, 7.3): the additive `obligation` label and the scorer's one additive rule."""
+    from openultrasast.pairs import _load_catalog_file, load_mechanisms
+
+    _, ids = load_mechanisms()
+    assert {"unconstrained_protected_read", "unconstrained_protected_write", "unguarded_privileged_action"} <= ids
+    (tmp_path / "v.py").write_text(_LEAKY)
+    (tmp_path / "f.py").write_text(_CONSTRAINED)
+    (tmp_path / "catalog.toml").write_text(_OBLIGATION_HEAD + 'obligation = "protected_read"\n')
+    (case,) = _load_catalog_file(tmp_path / "catalog.toml")
+    assert case.expected[0].obligation == "protected_read"
+    outcome = evaluate_pair(case)
+    assert outcome.detected_vuln and outcome.vuln_matched == 1 and "obligation" in outcome.detection_kinds
+    assert outcome.silent_fix and outcome.pair_correct  # the constrained twin discharges the obligation
+    # the same finding outside the labeled function is not a detection
+    outside = _LEAKY.replace("def leaky(", "def someone_else(")
+    (tmp_path / "v2.py").write_text(outside)
+    (tmp_path / "catalog2.toml").write_text(_OBLIGATION_HEAD.replace('vuln = "v.py"', 'vuln = "v2.py"') + 'obligation = "protected_read"\n')
+    (elsewhere,) = _load_catalog_file(tmp_path / "catalog2.toml")
+    assert not evaluate_pair(elsewhere).detected_vuln
+
+
+def test_catalog_rejects_an_obligation_kind_outside_the_closed_set(tmp_path: Path) -> None:
+    from openultrasast.pairs import CatalogError, _load_catalog_file
+
+    (tmp_path / "v.py").write_text(_LEAKY)
+    (tmp_path / "f.py").write_text(_CONSTRAINED)
+    (tmp_path / "catalog.toml").write_text(_OBLIGATION_HEAD + 'obligation = "guess"\n')
+    with pytest.raises(CatalogError, match="unknown obligation 'guess'"):
+        _load_catalog_file(tmp_path / "catalog.toml")
+    (tmp_path / "plain.toml").write_text(_OBLIGATION_HEAD)  # rows without the field load as before
+    (case,) = _load_catalog_file(tmp_path / "plain.toml")
+    assert case.expected[0].obligation is None

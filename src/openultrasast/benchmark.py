@@ -27,6 +27,7 @@ class ExpectedFinding:
     function: str | None = None
     sink: str | None = None
     mechanism: str | None = None
+    obligation: str | None = None  # additive (authorization-obligations, Req 7.2): an OPERATION_KIND the labeled function owes
 
 
 @dataclass(frozen=True)

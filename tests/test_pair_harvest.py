@@ -522,3 +522,42 @@ def test_agent_vfc_builder_writes_toml_booleans() -> None:
     b = runpy.run_path(str(Path("benchmarks/pairs/agent-vfc/build_recipes.py")), run_name="agent_builder")
     (row,) = tomllib.loads(b["to_toml"]([{"name": "p", "vendored": False, "line": 3, "reviewer": "pending"}]))["recipe"]
     assert row["vendored"] is False and row["line"] == 3
+
+
+def test_handler_context_mode_keeps_decorators_and_registration() -> None:
+    """authorization-obligations 4.1 (Req 7.1): the handler travels with the statements that register it."""
+    lib = _lib()
+    source = (
+        "from flask import request\n\n"
+        "@app.route('/books/<title>')\n"
+        "@login_required\n"
+        "def guarded(title):\n"
+        "    return Book.query.filter_by(book_title=title).first()\n\n\n"
+        "def other():\n"
+        "    return 1\n\n\n"
+        "app.add_url_rule('/legacy/books/<title>', view_func=guarded)\n"
+        "# guarded is mentioned in a comment and 'guarded' in a string: neither is a registration\n"
+        "label = 'guarded'\n"
+    )
+    excerpt = lib["extract_handler_context"](source, "guarded", "python")
+    assert excerpt.startswith("@app.route('/books/<title>')\n@login_required\ndef guarded(title):")
+    assert "app.add_url_rule('/legacy/books/<title>', view_func=guarded)" in excerpt
+    assert "def other" not in excerpt and "mentioned in a comment" not in excerpt and "label = 'guarded'" not in excerpt
+    js = "function list(req, res) {\n  return Book.find({});\n}\n\nfunction other() {}\n\nrouter.get('/books', requireAuth, list);\n"
+    js_excerpt = lib["extract_handler_context"](js, "list", "javascript")
+    assert "function list(req, res)" in js_excerpt and "router.get('/books', requireAuth, list);" in js_excerpt
+    assert "function other" not in js_excerpt
+    recipe = {
+        "name": "r",
+        "parent": "p",
+        "commit": "c",
+        "path": "app.py",
+        "mode": "handler_context",
+        "function": "guarded",
+        "license": "MIT",
+    }
+    lib["validate_recipe"](recipe)
+    with pytest.raises(lib["RecipeError"], match="function"):
+        lib["validate_recipe"]({**recipe, "function": ""})
+    (vuln, start), (fixed, _) = lib["extract_pair_with_lines"]({**recipe}, source, source.replace("@login_required\n", ""))
+    assert start == 3 and "add_url_rule" in vuln and "@login_required" not in fixed and "add_url_rule" in fixed

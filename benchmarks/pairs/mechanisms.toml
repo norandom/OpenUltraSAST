@@ -1,6 +1,6 @@
 # Closed mechanism vocabulary for pair labels (pair-corpus-honesty, Req 2.1).
 # Every [[pair.expected]] row names one of these ids. Bump `version` when the set changes.
-version = "1"
+version = "2"
 
 [[mechanism]]
 id = "source_reaches_sink"
@@ -77,6 +77,18 @@ definition = "A validator exists but accepts inputs it should reject; the fix st
 [[mechanism]]
 id = "cross_artifact"
 definition = "The bug is only decidable with an artifact outside the vendored files (a properties file, a schema, a build flag)."
+
+[[mechanism]]
+id = "unconstrained_protected_read"
+definition = "A read of a protected resource reaches the store without an identity constraint or ownership check bound from the authenticated context (authorization-obligations, protected_read)."
+
+[[mechanism]]
+id = "unconstrained_protected_write"
+definition = "A write to a protected resource reaches the store without an identity constraint or ownership check bound from the authenticated context (authorization-obligations, protected_write)."
+
+[[mechanism]]
+id = "unguarded_privileged_action"
+definition = "A privileged action is reached by a handler without a dominating path guard or ownership check (authorization-obligations, privileged_action)."
 
 [[mechanism]]
 id = "other"
