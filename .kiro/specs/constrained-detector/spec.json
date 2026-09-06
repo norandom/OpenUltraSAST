@@ -1,16 +1,16 @@
 {
   "feature_name": "constrained-detector",
   "created_at": "2026-09-06T14:30:00Z",
-  "updated_at": "2026-09-06T16:00:00Z",
+  "updated_at": "2026-09-06T16:30:00Z",
   "language": "en",
-  "phase": "requirements",
+  "phase": "design",
   "approvals": {
     "requirements": {
       "generated": true,
-      "approved": false
+      "approved": true
     },
     "design": {
-      "generated": false,
+      "generated": true,
       "approved": false
     },
     "tasks": {
@@ -22,5 +22,5 @@
   "depends_on": [
     "learning-harness"
   ],
-  "approval_note": "2026-09-06 brief drafted at the maintainer's direction ('I'd rather spend time to design the exact DSPy style interface and evolutionary / statistical prompt optimization than fixing piece by piece'). Not approved; requirements not generated.; 2026-09-06 renamed from detector-optimizer to constrained-detector after the trajectory measurement: the brief's own conclusion is that the optimiser is not the next thing to build, and the spec should be named for what it delivers; 2026-09-06 requirements generated at the maintainer's direction, with the maintainer's emphasis recorded as Requirement 3 ('don't forget the emphasis on the real world bugs from the larger projects to avoid overfitting. we otherwise benchmark for cases that are not relevant')"
+  "approval_note": "2026-09-06 brief drafted at the maintainer's direction ('I'd rather spend time to design the exact DSPy style interface and evolutionary / statistical prompt optimization than fixing piece by piece'). Not approved; requirements not generated.; 2026-09-06 renamed from detector-optimizer to constrained-detector after the trajectory measurement: the brief's own conclusion is that the optimiser is not the next thing to build, and the spec should be named for what it delivers; 2026-09-06 requirements generated at the maintainer's direction, with the maintainer's emphasis recorded as Requirement 3 ('don't forget the emphasis on the real world bugs from the larger projects to avoid overfitting. we otherwise benchmark for cases that are not relevant'); 2026-09-06 requirements approved by the maintainer in session ('approve the requirements and run the design phase')"
 }
