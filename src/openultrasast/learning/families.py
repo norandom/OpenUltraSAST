@@ -99,6 +99,7 @@ def load_families(path: Path | None = None, *, require_all: bool = True) -> Fami
         raise FamiliesError(f"{source}: version is required")
     families: list[Family] = []
     claimed: dict[str, str] = {}
+    claimed_mechanisms: dict[str, str] = {}
     for entry in payload.get("family", []):
         if not isinstance(entry, dict):
             raise FamiliesError(f"{source}: every [[family]] entry must be a table")
@@ -109,6 +110,12 @@ def load_families(path: Path | None = None, *, require_all: bool = True) -> Fami
             if cwe in claimed:
                 raise FamiliesError(f"{source}: {cwe} is claimed by both {claimed[cwe]!r} and {family.id!r}")
             claimed[cwe] = family.id
+        for mechanism in sorted(family.mechanisms):
+            if mechanism in claimed_mechanisms:
+                raise FamiliesError(
+                    f"{source}: mechanism {mechanism} is claimed by both {claimed_mechanisms[mechanism]!r} and {family.id!r}"
+                )
+            claimed_mechanisms[mechanism] = family.id
         families.append(family)
     _check_parents(source, families)
     if require_all and tuple(family.id for family in families) != FAMILY_IDS:

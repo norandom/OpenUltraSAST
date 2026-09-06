@@ -65,6 +65,8 @@ def test_obligations_lists_what_a_function_owes_without_dumping_code(repo: Path)
     assert "identity_constraint" in {str(row["missing"]) for row in rows}
     assert all("text" not in row and "content" not in row for row in rows)
     assert obligations(repo, path="app.py", function="helper") == []
+    with pytest.raises(PathEscapesRepo):
+        obligations(repo, path="../outside.py", function="leaky")
 
 
 def test_flows_lists_adjudicated_source_to_sink_records_for_one_function(repo: Path) -> None:

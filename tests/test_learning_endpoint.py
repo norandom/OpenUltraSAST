@@ -67,6 +67,18 @@ def test_resolution_order_override_then_scripted_then_openrouter_then_none(monke
     assert resolve_chat_endpoint(ResolvedConfig()) is None
 
 
+def test_a_provider_that_refuses_to_build_degrades_to_no_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
+    from openultrasast.learning.endpoint import resolve_chat_endpoint
+
+    _endpoint_env(monkeypatch, OPENROUTER_API_KEY="or-key")
+
+    def _refuse() -> provider.OpenRouterChatClient:
+        raise provider.OpenRouterError("no key after all")
+
+    monkeypatch.setattr(provider.OpenRouterChatClient, "from_env", staticmethod(_refuse))
+    assert resolve_chat_endpoint(ResolvedConfig()) is None  # a caller degrades; nothing raises into a scan
+
+
 def test_the_config_can_point_the_chat_endpoint_somewhere_else(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
     from openultrasast.config import load_config
     from openultrasast.learning.endpoint import resolve_chat_endpoint, resolve_models

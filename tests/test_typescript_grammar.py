@@ -46,4 +46,6 @@ def test_every_vendored_typescript_pair_parses_on_both_sides() -> None:
             elif not ir.parse_ok:
                 failed.append(f"{case.name}:{side}")
     assert unsupported == []
-    assert len(failed) <= len(cases) // 4, failed  # a parse failure is a walker gap, not a missing grammar
+    # One excerpt is a truncated destructuring parameter list, so it is not valid TypeScript on its own;
+    # that is a corpus defect for the re-harvest, not a grammar gap. Pinned exactly so a regression shows.
+    assert failed == ["lensops-kubernetesmanagement-fe4910:vuln", "lensops-kubernetesmanagement-fe4910:fixed"], failed

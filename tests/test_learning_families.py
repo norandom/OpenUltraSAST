@@ -88,6 +88,10 @@ def test_relation_answers_same_lateral_fabricated_and_parent_child_when_declared
         (GOOD.replace('cwes = ["CWE-89"]', 'cwes = ["CWE-89", "CWE-89"]'), "CWE-89"),
         (GOOD.replace('description = "x"\n', ""), "description"),
         (GOOD + '\n[[family]]\nid = "path"\ndescription = "y"\ncwes = ["CWE-89"]\nmechanisms = []\nverifier = "canary"\n', "CWE-89"),
+        (
+            GOOD + '\n[[family]]\nid = "path"\ndescription = "y"\ncwes = []\nmechanisms = ["source_reaches_sink"]\nverifier = "canary"\n',
+            "source_reaches_sink",
+        ),
         (GOOD.replace('version = "1"\n', ""), "version"),
         (GOOD + '\n[[family]]\nid = "path"\nparent = "nope"\ndescription = "y"\ncwes = []\nmechanisms = []\nverifier = "none"\n', "nope"),
     ],
@@ -99,6 +103,7 @@ def test_relation_answers_same_lateral_fabricated_and_parent_child_when_declared
         "duplicate_cwe",
         "no_description",
         "cwe_claimed_twice",
+        "mechanism_claimed_twice",
         "no_version",
         "unknown_parent",
     ],
