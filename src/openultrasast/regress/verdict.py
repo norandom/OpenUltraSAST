@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from ..sandbox import SandboxResult
@@ -21,6 +22,8 @@ SANITIZER_ABORT = "sanitizer_abort"
 CRASH = "crash"
 NONZERO_EXIT = "nonzero_exit"
 EXIT_ZERO = "exit_zero"
+ORACLE_FIRED = "oracle_fired"
+ORACLE_QUIET = "oracle_quiet"
 
 WORTH_FIXING_REACHABILITY = frozenset({"reachable", "inferred-file-surface"})
 
@@ -65,8 +68,14 @@ def verdict_from_result(
     sandbox_missing: bool = False,
     safety_rejected: bool = False,
     covering_test: bool = False,
+    oracle: Callable[[SandboxResult], bool] | None = None,
 ) -> RegressionVerdict:
-    """Map a sandbox observation onto one of the four regression verdicts."""
+    """Map a sandbox observation onto one of the four regression verdicts.
+
+    ``oracle`` is how a family says what "the vulnerability fired" means for it: when one is given it
+    decides triggerability instead of the exit code, because a crash and a demonstrated injection are
+    not the same evidence. An inconclusive run stays inconclusive either way.
+    """
     if recipe_missing:
         return RegressionVerdict(verdict=INCONCLUSIVE, reason=MISSING_RECIPE)
     if sandbox_missing:
@@ -79,6 +88,12 @@ def verdict_from_result(
         return RegressionVerdict(verdict=INCONCLUSIVE, reason=TIMEOUT)
     if covering_test and result.exit_code == 0:
         return RegressionVerdict(verdict=ALREADY_COVERED, reason=COVERED_TEST_PASSED)
+    if oracle is not None:
+        return (
+            RegressionVerdict(verdict=TRIGGERABLE, reason=ORACLE_FIRED)
+            if oracle(result)
+            else RegressionVerdict(verdict=NOT_TRIGGERABLE, reason=ORACLE_QUIET)
+        )
     if result.exit_code != 0:
         return RegressionVerdict(verdict=TRIGGERABLE, reason=_nonzero_reason(result))
     return RegressionVerdict(verdict=NOT_TRIGGERABLE, reason=EXIT_ZERO)
