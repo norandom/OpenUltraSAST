@@ -211,6 +211,54 @@ procedures — and a regression budget derived from it is a budget for the searc
 the budget and the sign test are all statistical treatment for a structural problem, and the 0% and 4.2%
 rows of that table say what happens when the structure is fixed instead.
 
+## Reflection on the approved specification
+
+Read against that measurement, `learning-harness` divides cleanly into a part that stands and a part that
+was answering the wrong question.
+
+**Stands, and is worth more now than before.** The closed taxonomy; class-aware pair scoring; the split
+enforced by construction; the unscorable vocabulary and its denominators; verifier-gated reporting; the
+corpus repairs; the publication machinery; the per-pair archive. None of it depends on the noise framing,
+and all of it is what made this experiment possible to run and cost $0.23. A measurement layer that can
+answer "is our own instability structural?" in twenty minutes is the thing that was missing before.
+
+**Was answering the wrong question.**
+
+- **Req 3.5, K ≥ 3 runs per pair.** The premise is variance reduction over a repeated measurement. There is
+  no repeated measurement: 120 runs, 120 trajectories. K runs is an *ensemble of distinct search
+  procedures*, and a majority vote over it is an unweighted ensemble, not an estimate. It should either be
+  renamed and published as an ensemble — which changes what every family number means — or dropped once the
+  search is constrained.
+- **Req 8.2, the noise floor as the regression budget.** The floor measures how often an unconstrained
+  search happens to reach the sink. Deriving a regression budget from it means the worse the search wanders,
+  the more collateral damage a round is licensed to do. That is backwards, and it is why injection's budget
+  is 11 of 20.
+- **Req 9.5, the acceptance rule.** Already flagged for reading the holdout every round. Now also: it
+  compares deltas between two ensemble votes, and calls the difference an improvement.
+- **The sign test and `reliable_change`.** Added this session in good faith; they test whether an ensemble's
+  vote moved, which is not the question either.
+
+**What the data adds that neither spec anticipated.**
+
+- **The instability is entirely one-sided.** All twelve pairs produced exactly one finding set on the fixed
+  side. Specificity is solid and recall is the noisy half, so the leak ceiling and the false-positive
+  machinery are sound and it is the recall numbers that carry the caveat.
+- **`grep_repo` is the variance engine** — 555 calls against 181 `read_file` and 71 `entry_points`. The
+  single highest-leverage change in either spec is not a prompt, a lever or an optimiser: **stop asking the
+  model to locate the sink.** The CST, the entry-point mapper, `flows` and `obligations` already know. Give
+  the detector the candidate sites and ask it the question only a model can answer — does untrusted input
+  reach this one, and is there a guard.
+- **The loop is partly self-correcting**, so this should be a large win rather than a marginal one: 78
+  distinct trajectories collapse to one to three finding sets per pair, and half the pairs are already
+  stable despite never repeating an investigation.
+
+**Limits of the experiment, stated so the conclusion is not over-read.** Twelve pairs, one family, one
+slice, one model. The high-similarity bucket holds only two run pairs, so its 0% is decoration; the
+defensible number is the mid bucket's 4.2% over 24 run pairs against 30.9% over 94. And the direction of
+causation is inferred, not established — similar trajectories may be a symptom of easy pairs rather than a
+cause of agreement. The way to settle that is the constrained detector itself: fix the investigation, and
+if the floor does not collapse, this reading was wrong.
+
 ## The constraint that outranks the algorithm
 
 Both algorithms assume a dataset. GEPA splits `D_train` into `D_feedback` and `D_pareto`; SIMBA's default
