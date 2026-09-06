@@ -186,8 +186,10 @@ class ScriptedChatClient:
         messages: list[dict[str, object]],
         tools: list[dict[str, object]],
         timeout_seconds: int = 60,
+        **options: object,
     ) -> ChatResponse:
-        self.calls.append({"model": model, "messages": list(messages), "tools": tools, "timeout_seconds": timeout_seconds})
+        # `options` carries the adapter's extras (json_object, logprobs) so a test can assert what was asked for.
+        self.calls.append({"model": model, "messages": list(messages), "tools": tools, "timeout_seconds": timeout_seconds, **options})
         index = len(self.calls) - 1
         if index >= len(self._turns):
             return ChatResponse(content="")
