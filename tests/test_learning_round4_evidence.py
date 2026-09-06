@@ -68,12 +68,12 @@ def test_the_meta_agent_is_built_with_a_model_config_not_a_model_name(tmp_path: 
             return workspace
 
     monkeypatch.setattr(proposer_module, "_meta_agent_class", lambda: _Agent)
-    monkeypatch.setattr(proposer_module, "_model_config", lambda model: f"ModelConfig({model})")
+    monkeypatch.setattr(proposer_module, "_model_config", lambda model, provider="anthropic": f"ModelConfig({model}@{provider})")
     (tmp_path / "injection").mkdir()
     (tmp_path / "injection" / "checklist.md").write_text("- old\n")
     proposal = proposer_module.HarnessXProposer(configs_dir=tmp_path, model="m").propose(_facts())
     assert proposal is not None and proposal.change == {"checklist.md": "- from the meta agent\n"}
-    assert seen["inner_model"] == "ModelConfig(m)", "the agent was handed a model name where it wanted a config"
+    assert seen["inner_model"] == "ModelConfig(m@anthropic)", "the agent was handed a model name where it wanted a config"
     assert seen["allowed_write_roots"] != (tmp_path / "injection",), "the live family directory is never a write root"
 
 

@@ -1369,7 +1369,7 @@ def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy:
         family=args.family,
         taxonomy=taxonomy,
         configs_dir=configs_dir,
-        proposer=_proposer(args, configs_dir, model),
+        proposer=_proposer(args, configs_dir, model, config.harnessx.provider),
         scan_factory=factory,
         model=model,
         journal=journal,
@@ -1402,13 +1402,13 @@ def _label(case: PairCase, taxonomy: object) -> str:
     return _family_of(case, taxonomy)  # type: ignore[arg-type]
 
 
-def _proposer(args: argparse.Namespace, configs_dir: Path, model: str) -> Proposer:
+def _proposer(args: argparse.Namespace, configs_dir: Path, model: str, provider: str = "anthropic") -> Proposer:
     """`--proposals FILE` runs a recorded sequence offline; without it the round asks the meta-agent."""
     from .learning.proposer import HarnessXProposer, Proposal, ScriptedProposer
 
     path = getattr(args, "proposals", None)
     if path is None:
-        return HarnessXProposer(configs_dir=configs_dir, model=model)
+        return HarnessXProposer(configs_dir=configs_dir, model=model, provider=provider)
     rows = json.loads(Path(path).read_text(encoding="utf-8"))
     return ScriptedProposer(
         [

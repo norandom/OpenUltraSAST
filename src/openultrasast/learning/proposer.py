@@ -177,6 +177,9 @@ class HarnessXProposer:
 
     configs_dir: Path
     model: str
+    # The vendor the meta-agent talks to. Hard-coding anthropic here sent it to a provider with no key configured
+    # while the detector was talking to DeepSeek, and the round journalled that as "no proposal".
+    provider: str = "anthropic"
     reason: str = ""
     agent: MetaAgentCall | None = None  # injected in tests; None composes MetaAgent behind harness_ext
 
@@ -190,7 +193,7 @@ class HarnessXProposer:
                 self.reason = "harnessx_unavailable"
                 return None
             try:
-                call = _meta_agent_call()
+                call = _meta_agent_call(self.provider)
             except Exception:  # noqa: BLE001 — a proposer that cannot start proposes nothing and says so
                 self.reason = "harnessx_unavailable"
                 return None
@@ -263,7 +266,7 @@ def _model_config(model: str, provider: str = "anthropic") -> object:
     return ModelConfig(main=build_provider(model, provider))
 
 
-def _meta_agent_call() -> MetaAgentCall:
+def _meta_agent_call(provider: str = "anthropic") -> MetaAgentCall:
     """Compose `MetaAgent.evolve` behind `harness_ext`, writing only inside the scratch copy.
 
     `evolve` is a coroutine and returns a HarnessX config path; what this proposer takes from it is the state of the
@@ -279,7 +282,7 @@ def _meta_agent_call() -> MetaAgentCall:
         trajectories = workspace.parent / "trajectories"
         trajectories.mkdir(parents=True, exist_ok=True)
         (trajectories / "facts.json").write_text(facts_prompt(facts), encoding="utf-8")
-        agent = _meta_agent_class()(inner_model=_model_config(model), allowed_write_roots=(workspace,))
+        agent = _meta_agent_class()(inner_model=_model_config(model, provider), allowed_write_roots=(workspace,))
         output = workspace.parent / "meta-out"
         output.mkdir(parents=True, exist_ok=True)
         asyncio.run(agent.evolve(current_config=workspace, trajectories_dir=trajectories, output_dir=output))

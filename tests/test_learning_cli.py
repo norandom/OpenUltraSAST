@@ -161,7 +161,9 @@ def test_a_round_runs_from_the_command_line_and_journals_its_outcome(workspace: 
     assert len(rounds) == 1 and rounds[0]["family"] == "injection"
     # Without the extra there is no meta-agent, so the honest outcome is exactly this one. Accepting any member of
     # the enum would have hidden that the round could never propose anything at all.
-    assert (rounds[0]["outcome"], rounds[0]["reason"]) == ("rejected", "no_proposal")
+    # The reason now carries *why* the proposer had nothing: "no proposal" and "could not start" are different
+    # worlds, and only one of them is a fixable configuration error.
+    assert rounds[0]["outcome"] == "rejected" and rounds[0]["reason"].startswith("no_proposal")
     assert (workspace / "learning" / "rounds" / "1" / "attribution.json").is_file()
 
 

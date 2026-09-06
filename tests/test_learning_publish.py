@@ -187,8 +187,13 @@ def test_two_slices_of_one_model_are_two_rows_not_one_overwriting_the_other(tmp_
                     "taxonomy_version": "1",
                     "metrics": {
                         "injection": {
-                            "family": "injection", "scorable": 10, "unscorable": {}, "recall": recall,
-                            "silence": 1.0, "youden": recall, "hierarchical_credit": False,
+                            "family": "injection",
+                            "scorable": 10,
+                            "unscorable": {},
+                            "recall": recall,
+                            "silence": 1.0,
+                            "youden": recall,
+                            "hierarchical_credit": False,
                             "outcomes": {"pair_correct": 5},
                         }
                     },

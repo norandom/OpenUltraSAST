@@ -418,7 +418,18 @@ def run_learning_round(
     proposal = proposer.propose(facts)  # type: ignore[attr-defined]
     record = _round_record(round_number, family, proposal, taxonomy, config)
     if proposal is None:
-        return _finish(journal, directory, record, outcome="rejected", reason="no_proposal", cost=spent, trajectories=trajectories)
+        # `no_proposal` covers two different worlds: a proposer that considered the facts and declined, and one
+        # that could not start at all. Losing that distinction hides a fixable configuration error as a quiet round.
+        why = str(getattr(proposer, "reason", "") or "")
+        return _finish(
+            journal,
+            directory,
+            record,
+            outcome="rejected",
+            reason=f"no_proposal: {why}" if why else "no_proposal",
+            cost=spent,
+            trajectories=trajectories,
+        )
     refusal = refuse_proposal(proposal, config)
     if refusal is not None:
         return _finish(

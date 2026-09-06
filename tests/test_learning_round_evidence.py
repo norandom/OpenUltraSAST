@@ -373,3 +373,36 @@ def test_round_zero_refuses_fewer_than_three_runs(tmp_path: Path) -> None:
             out_dir=tmp_path / "out",
             k_runs=1,
         )
+
+
+def test_a_round_journals_why_the_proposer_had_nothing_to_say(world) -> None:  # type: ignore[no-untyped-def]
+    """`no_proposal` covers two different worlds: a proposer with nothing to add, and one that could not start.
+
+    Measured: the meta-agent round journalled `no_proposal` while the real cause was an authentication failure in a
+    provider seam pointing at the wrong vendor. A round that failed for a fixable configuration reason must not
+    look identical to a model that considered the facts and declined."""
+
+    class Mute:
+        reason = "meta_agent_failed: RuntimeError"
+
+        def propose(self, facts):  # type: ignore[no-untyped-def]
+            del facts
+            return None
+
+    from openultrasast.learning.rounds import run_learning_round
+
+    record = run_learning_round(
+        world["cases"],
+        family="injection",
+        taxonomy=load_families(),
+        configs_dir=world["configs"],
+        proposer=Mute(),
+        scan_factory=_injection_improves,
+        model="m",
+        journal=world["journal"],
+        archive=world["archive"],
+        floors=world["floors"],
+        out_dir=world["out"],
+    )
+    assert record.outcome == "rejected"
+    assert record.reason == "no_proposal: meta_agent_failed: RuntimeError"
