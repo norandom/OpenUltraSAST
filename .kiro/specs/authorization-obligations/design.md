@@ -363,6 +363,10 @@ def findings_to_static(result) -> list[StaticFinding]: ...   # id "obligation:<k
 
 Rules: reached = a `PathRecord` ends at the operation, or (no paths) the operation's function is an entry point; label precedence declared > consistency > function_local; a declared public route suppresses `path_guard` obligations for that route; an operation with a matching store shape gains `known_fix`; a discharge that binds `request_input` where `authenticated_context` is required is reported with `provenance = "request_input"`.
 
+### EntryPoints (registration-based)
+
+`mapping.analyze_entry_points` names a handler from a decorator today. Real projects register handlers by call (`add_url_rule(path, view_func=fn)`, `api.add_resource(Cls, path)`, `router.get(path, requireAuth, handler)`) or by convention (`Resource` verb methods, Next.js `route.ts` exports). Because both the sibling grouping (Req 3.1) and the function-local reach test (Req 5.3) key on a named entry-point handler, an unnamed registration makes every obligation unreachable. The mapper gains those four forms; access classification, evidence, conditions and the record shape are unchanged, and middleware identifiers on a registration line are access evidence exactly as decorators are.
+
 ### IntentAdjudication
 
 When a hunter client is available (the same resolution as `pairs --hunter`), the checker asks one closed question per finding with a route: "Is this route meant to be public?" with the handler text and siblings as context; the answer is recorded as `intent` and in the rationale. It never changes the label or the evidence level; when the client is absent a degradation `intent_adjudication_unavailable` is recorded once.
