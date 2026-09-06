@@ -1,0 +1,154 @@
+{
+  "agreement_by_trajectory_similarity": {
+    "high>=0.75": {
+      "disagreed": 0,
+      "rate": 0.0,
+      "run_pairs": 2
+    },
+    "low<0.4": {
+      "disagreed": 29,
+      "rate": 0.30851063829787234,
+      "run_pairs": 94
+    },
+    "mid0.4-0.75": {
+      "disagreed": 1,
+      "rate": 0.041666666666666664,
+      "run_pairs": 24
+    }
+  },
+  "command": "scratchpad/trajectory-experiment.py 12 (injection family, vibe-py, K=5, both sides)",
+  "cost_usd": 0.23402034400000005,
+  "distinct_tool_name_sequences": 78,
+  "generated": "2026-09-06",
+  "identical_trajectory_run_pairs": 0,
+  "k_runs": 5,
+  "model": "deepseek-v4-flash",
+  "note": "Is the run-to-run disagreement a matter of judgement or of the loop's freedom? Same pair, same prompt, temperature 0, five runs, recording the tool-call sequence each run took. The intended statistic \u2014 P(disagree | identical trajectory) \u2014 could not be computed, because across 120 runs there was not a single repeated trajectory. Asked as a gradient instead, outcome agreement tracks trajectory similarity monotonically. The detector is not sampling one measurement five times; it is running five different investigations, and the noise floor measures how often an unconstrained search happens to reach the sink.",
+  "pairs": 12,
+  "pairs_detail": [
+    {
+      "distinct_fixed_findings": 1,
+      "distinct_trajectories": 5,
+      "distinct_vuln_findings": 2,
+      "outcomes": {
+        "both_silent": 4,
+        "pair_correct": 1
+      },
+      "pair": "damn-vulnerable-graphql-application-views-mutate"
+    },
+    {
+      "distinct_fixed_findings": 1,
+      "distinct_trajectories": 5,
+      "distinct_vuln_findings": 1,
+      "outcomes": {
+        "pair_correct": 5
+      },
+      "pair": "damn-vulnerable-graphql-application-views-resolve-pastes"
+    },
+    {
+      "distinct_fixed_findings": 1,
+      "distinct_trajectories": 5,
+      "distinct_vuln_findings": 1,
+      "outcomes": {
+        "pair_correct": 5
+      },
+      "pair": "damn-vulnerable-graphql-application-views-resolve-system-dia"
+    },
+    {
+      "distinct_fixed_findings": 1,
+      "distinct_trajectories": 5,
+      "distinct_vuln_findings": 1,
+      "outcomes": {
+        "pair_correct": 5
+      },
+      "pair": "djangoat-analytics-hits-by-ip"
+    },
+    {
+      "distinct_fixed_findings": 1,
+      "distinct_trajectories": 5,
+      "distinct_vuln_findings": 1,
+      "outcomes": {
+        "both_silent": 5
+      },
+      "pair": "djangoat-views-user-view"
+    },
+    {
+      "distinct_fixed_findings": 1,
+      "distinct_trajectories": 5,
+      "distinct_vuln_findings": 2,
+      "outcomes": {
+        "both_silent": 3,
+        "pair_correct": 2
+      },
+      "pair": "dsvpwa-attacks-run"
+    },
+    {
+      "distinct_fixed_findings": 1,
+      "distinct_trajectories": 5,
+      "distinct_vuln_findings": 2,
+      "outcomes": {
+        "both_silent": 3,
+        "pair_correct": 2
+      },
+      "pair": "dsvpwa-handlers-do-bdr"
+    },
+    {
+      "distinct_fixed_findings": 1,
+      "distinct_trajectories": 5,
+      "distinct_vuln_findings": 3,
+      "outcomes": {
+        "both_silent": 1,
+        "pair_correct": 4
+      },
+      "pair": "dvpwa-student-create"
+    },
+    {
+      "distinct_fixed_findings": 1,
+      "distinct_trajectories": 5,
+      "distinct_vuln_findings": 2,
+      "outcomes": {
+        "both_silent": 2,
+        "pair_correct": 3
+      },
+      "pair": "extremely-vulnerable-flask-app-account-search"
+    },
+    {
+      "distinct_fixed_findings": 1,
+      "distinct_trajectories": 5,
+      "distinct_vuln_findings": 2,
+      "outcomes": {
+        "both_silent": 4,
+        "pair_correct": 1
+      },
+      "pair": "extremely-vulnerable-flask-app-signup-validate-token"
+    },
+    {
+      "distinct_fixed_findings": 1,
+      "distinct_trajectories": 5,
+      "distinct_vuln_findings": 2,
+      "outcomes": {
+        "pair_correct": 5
+      },
+      "pair": "threatbyte-routes-dashboard"
+    },
+    {
+      "distinct_fixed_findings": 1,
+      "distinct_trajectories": 5,
+      "distinct_vuln_findings": 1,
+      "outcomes": {
+        "pair_correct": 5
+      },
+      "pair": "vampi-user-model-get-user"
+    }
+  ],
+  "runs_recorded": 120,
+  "temperature": 0,
+  "thinking": false,
+  "tool_calls": {
+    "entry_points": 71,
+    "find_refs": 43,
+    "grep_repo": 555,
+    "read_definition": 13,
+    "read_file": 181
+  }
+}

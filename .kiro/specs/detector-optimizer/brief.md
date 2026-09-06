@@ -173,11 +173,43 @@ fails on an under-specified task and does well on a narrow typed one. So the che
 the more of the return sits in decomposition and constraints and the less in prompt evolution — which is
 the opposite of the order this spec originally proposed.
 
-**The experiment that settles it, before any of this is built.** We already run K = 5. Record the tool-call
-sequence for every run, and measure how often a pair's runs took different trajectories, and whether
-outcome flips coincide with trajectory divergence. If they do, the noise architecture is treating a
-structural problem as a statistical one and most of it can be deleted rather than repaired. Cost: nothing
-beyond logging what we already generate.
+### The experiment, run (2026-09-06, `benchmarks/measurements/2026-09-06-trajectory-divergence.json`)
+
+Twelve injection pairs, both sides, K = 5, temperature 0, thinking disabled, recording the tool-call
+sequence of every run. $0.23.
+
+**The intended statistic could not be computed. Across 120 runs there was not one repeated trajectory** —
+4.67 distinct trajectories per vulnerable side and 4.92 per fixed side, out of 5, and 78 distinct tool-*name*
+sequences ignoring arguments entirely. The detector is not sampling one measurement five times. It is running
+five different investigations and voting on the results.
+
+Asked as a gradient instead, the relationship is monotone and clean:
+
+| trajectory similarity (Jaccard over tool calls) | run pairs | disagreed on the outcome |
+|---|---|---|
+| high (≥ 0.75) | 2 | 0 (0.0%) |
+| mid (0.4–0.75) | 24 | 1 (4.2%) |
+| low (< 0.4) | 94 | 29 (30.9%) |
+
+Three more facts from the same run:
+
+- **The variance is a search problem, and the search is `grep_repo`.** 555 grep calls against 181 `read_file`,
+  71 `entry_points`, 43 `find_refs`, 13 `read_definition`. The model spends its budget guessing patterns to
+  locate a sink — while the CST, the entry-point mapper, `flows` and `obligations` already know where the
+  sinks are.
+- **All of the instability is on the vulnerable side.** Every one of the twelve pairs produced exactly one
+  distinct finding set on the fixed side. The detector is reliably silent on the fix and unreliably vocal on
+  the bug, so the noise is entirely in detection and none of it in false positives.
+- **Findings converge far more than trajectories do.** 78 distinct trajectories, but one to three distinct
+  finding sets per pair. Many different investigations reach the same answer; six of twelve pairs are stable
+  despite never once repeating a trajectory.
+
+**What this does to the noise architecture.** The floor is not measuring the detector's uncertainty about a
+question. It is measuring how often an unconstrained search happens to reach the sink. A majority vote over
+five runs is therefore not variance reduction — it is an unweighted ensemble of five arbitrary search
+procedures — and a regression budget derived from it is a budget for the search's luck. K runs, the floor,
+the budget and the sign test are all statistical treatment for a structural problem, and the 0% and 4.2%
+rows of that table say what happens when the structure is fixed instead.
 
 ## The constraint that outranks the algorithm
 
