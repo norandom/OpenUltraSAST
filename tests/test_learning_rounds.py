@@ -224,3 +224,37 @@ def test_round_zero_records_what_it_spent(tmp_path: Path) -> None:
     )
     assert report.cost_usd == 1.25
     assert json.loads((tmp_path / "out" / "baseline" / "m" / "report.json").read_text())["cost_usd"] == 1.25
+
+
+def test_round_zero_records_the_pairs_it_could_not_reach_instead_of_losing_the_run(tmp_path: Path) -> None:
+    """One transient error must not cost a run that has already paid for hundreds of calls.
+
+    Round zero is the most expensive thing this harness does. A provider hiccup two thirds of the way through used
+    to raise straight out of `run_baseline`, and everything measured so far went with it — so the honest response
+    to a flaky endpoint was to run the whole thing again and hope."""
+    from openultrasast.learning.rounds import run_baseline
+
+    taxonomy = load_families()
+    seen: list[str] = []
+
+    def build(_config):  # type: ignore[no-untyped-def]
+        def scan(root: Path) -> list[StaticFinding]:
+            seen.append(root.name)
+            if len(seen) == 3:
+                raise TimeoutError("the endpoint hung up")
+            return _steady(root)
+
+        return scan
+
+    report = run_baseline(
+        [_case(tmp_path, "a"), _case(tmp_path, "b")],
+        taxonomy=taxonomy,
+        configs_dir=tmp_path / "configs",
+        scan_factory=build,
+        model="m",
+        out_dir=tmp_path / "out",
+        k_runs=3,
+    )
+    assert report.metrics["injection"]["scorable"] == 1, "the pair that was reached is still measured"
+    assert report.metrics["injection"]["unscorable"] == {"detector_unreachable": 1}
+    assert (tmp_path / "out" / "baseline" / "m" / "report.json").is_file()

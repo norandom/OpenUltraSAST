@@ -123,7 +123,22 @@ def run_baseline(
         config = configs.get(name)
         if config is None:
             continue  # a family with no configuration is not measured rather than measured with someone else's
-        scores.append(score_case(case, scan_factory(config), taxonomy=taxonomy, runs=k_runs, family=name))
+        try:
+            scores.append(score_case(case, scan_factory(config), taxonomy=taxonomy, runs=k_runs, family=name))
+        except Exception:  # noqa: BLE001 — a provider hiccup costs one pair, not the whole run
+            # Round zero is the most expensive thing this harness does. Raising here threw away everything already
+            # measured and paid for, so the only honest response to a flaky endpoint was to run it all again.
+            scores.append(
+                PairFamilyScore(
+                    pair=case.name,
+                    family=name,
+                    slice=case.slice,
+                    fix_date=case.fix_date,
+                    runs=(),
+                    outcome="unscorable",
+                    unscorable_reason="detector_unreachable",
+                )
+            )
     metrics = aggregate(scores, taxonomy=taxonomy, cutoff=cutoff)
     floors = {name: _floor(name, block, [item for item in scores if item.family == name], k_runs) for name, block in metrics.items()}
     report = BaselineReport(
