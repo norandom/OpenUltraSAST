@@ -69,6 +69,7 @@ class BaselineReport:
     floors: dict[str, NoiseFloor] = field(default_factory=dict)
     metrics: dict[str, dict[str, object]] = field(default_factory=dict)
     scores: tuple[PairFamilyScore, ...] = ()
+    cost_usd: float = 0.0
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -76,6 +77,7 @@ class BaselineReport:
             "k_runs": self.k_runs,
             "taxonomy_version": self.taxonomy_version,
             "slices": list(self.slices),
+            "cost_usd": self.cost_usd,
             "floors": {name: floor.to_dict() for name, floor in sorted(self.floors.items())},
             "metrics": {name: dict(block) for name, block in sorted(self.metrics.items())},
         }
@@ -92,6 +94,7 @@ def run_baseline(
     slices: Sequence[str] = DEFAULT_SLICES,
     k_runs: int = DEFAULT_K_RUNS,
     prompt: str | None = None,
+    spent_usd: Callable[[], float] | None = None,
 ) -> BaselineReport:
     """Clone one detector into every family, measure each family against itself, and write the artifacts."""
     from ..tool_hunter import _SYSTEM_PROMPT
@@ -110,6 +113,7 @@ def run_baseline(
         floors=floors,
         metrics={name: block.to_dict() for name, block in metrics.items()},
         scores=tuple(scores),
+        cost_usd=spent_usd() if spent_usd is not None else 0.0,
     )
     _write(out_dir, report)
     return report

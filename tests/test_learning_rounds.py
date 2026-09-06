@@ -188,3 +188,20 @@ def test_an_unscorable_pair_is_listed_and_never_run(tmp_path: Path) -> None:
     assert report.metrics["injection"]["scorable"] == 0
     assert report.metrics["injection"]["unscorable"] == {"identical_twin": 1}
     assert calls == []
+
+
+def test_round_zero_records_what_it_spent(tmp_path: Path) -> None:
+    """Publishing puts a cost beside every number, so the baseline has to know what it cost."""
+    from openultrasast.learning.rounds import run_baseline
+
+    report = run_baseline(
+        [_case(tmp_path, "a")],
+        taxonomy=load_families(),
+        configs_dir=tmp_path / "configs",
+        scan=_steady,
+        model="m",
+        out_dir=tmp_path / "out",
+        spent_usd=lambda: 1.25,
+    )
+    assert report.cost_usd == 1.25
+    assert json.loads((tmp_path / "out" / "baseline" / "m" / "report.json").read_text())["cost_usd"] == 1.25
