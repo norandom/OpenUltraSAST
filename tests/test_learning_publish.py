@@ -153,7 +153,8 @@ def test_the_raw_artifacts_are_written_where_the_numbers_are_read_from(tmp_path:
     written = sorted(path.name for path in measurements.iterdir())
     assert any(name.endswith("-learning-families.json") for name in written)
     payload = json.loads((measurements / next(name for name in written if name.endswith("-learning-families.json"))).read_text())
-    assert payload["models"]["deepseek-v4-flash"]["injection"]["scorable"] == 10
+    # keyed by what identifies the run, so two slices of one model cannot collapse into one entry
+    assert payload["models"]["deepseek-v4-flash (vibe-py)"]["injection"]["scorable"] == 10
     assert payload["command"]
 
 
@@ -165,3 +166,39 @@ def test_publishing_with_no_baseline_says_so_rather_than_inventing_a_table(tmp_p
     report = publish(learning_dir=tmp_path / "empty", measurements_dir=tmp_path / "m", roadmap=roadmap)
     assert report.families == () and "no baseline" in report.table.lower()
     assert "learning-harness:begin" in roadmap.read_text()
+
+
+def test_two_slices_of_one_model_are_two_rows_not_one_overwriting_the_other(tmp_path: Path) -> None:
+    """Keyed by model alone, the vibe-py run silently replaced the agent-vfc run and the published table showed
+    hand-written teaching code as if it were the corpus — the exact failure Req 3 exists to prevent."""
+    from openultrasast.learning.publish import publish
+
+    out = tmp_path / "learning"
+    for key, slice_name, recall in (("deepseek-v4-flash-vibe-py", "vibe-py", 0.833), ("deepseek-v4-flash-agent-vfc", "agent-vfc", 0.444)):
+        directory = out / "baseline" / key
+        directory.mkdir(parents=True)
+        (directory / "report.json").write_text(
+            json.dumps(
+                {
+                    "model": "deepseek-v4-flash",
+                    "slices": [slice_name],
+                    "k_runs": 5,
+                    "cost_usd": 1.0,
+                    "taxonomy_version": "1",
+                    "metrics": {
+                        "injection": {
+                            "family": "injection", "scorable": 10, "unscorable": {}, "recall": recall,
+                            "silence": 1.0, "youden": recall, "hierarchical_credit": False,
+                            "outcomes": {"pair_correct": 5},
+                        }
+                    },
+                    "floors": {},
+                }
+            )
+        )
+    roadmap = tmp_path / "roadmap.md"
+    roadmap.write_text("# Roadmap\n")
+    report = publish(learning_dir=out, measurements_dir=tmp_path / "m", roadmap=roadmap)
+    assert "vibe-py" in report.table and "agent-vfc" in report.table
+    assert report.table.count("| injection |") == 2, "one row per slice, not one row that survived"
+    assert "0.833" in report.table and "0.444" in report.table

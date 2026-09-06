@@ -1,0 +1,626 @@
+{
+  "command": "uv run ousast learning publish",
+  "floors": {
+    "deepseek-v4-flash (agent-vfc)": {
+      "access_control": {
+        "budget_flips": 4,
+        "family": "access_control",
+        "flaky_pairs": 4,
+        "gates": true,
+        "k_runs": 5,
+        "negative_flip_rate": 1.0,
+        "pairs": 4
+      },
+      "config_secrets": {
+        "budget_flips": 2,
+        "family": "config_secrets",
+        "flaky_pairs": 2,
+        "gates": true,
+        "k_runs": 5,
+        "negative_flip_rate": 0.3333333333333333,
+        "pairs": 6
+      },
+      "injection": {
+        "budget_flips": 1,
+        "family": "injection",
+        "flaky_pairs": 1,
+        "gates": true,
+        "k_runs": 5,
+        "negative_flip_rate": 0.5,
+        "pairs": 2
+      },
+      "path": {
+        "budget_flips": 3,
+        "family": "path",
+        "flaky_pairs": 3,
+        "gates": true,
+        "k_runs": 5,
+        "negative_flip_rate": 1.0,
+        "pairs": 3
+      },
+      "prototype": {
+        "budget_flips": 5,
+        "family": "prototype",
+        "flaky_pairs": 5,
+        "gates": true,
+        "k_runs": 5,
+        "negative_flip_rate": 0.7142857142857143,
+        "pairs": 7
+      },
+      "untrusted_destination": {
+        "budget_flips": 3,
+        "family": "untrusted_destination",
+        "flaky_pairs": 3,
+        "gates": true,
+        "k_runs": 5,
+        "negative_flip_rate": 0.6,
+        "pairs": 5
+      }
+    },
+    "deepseek-v4-flash (vibe-py)": {
+      "access_control": {
+        "budget_flips": 3,
+        "family": "access_control",
+        "flaky_pairs": 3,
+        "gates": true,
+        "k_runs": 5,
+        "negative_flip_rate": 1.0,
+        "pairs": 3
+      },
+      "config_secrets": {
+        "budget_flips": 1,
+        "family": "config_secrets",
+        "flaky_pairs": 1,
+        "gates": true,
+        "k_runs": 5,
+        "negative_flip_rate": 0.3333333333333333,
+        "pairs": 3
+      },
+      "deserialization": {
+        "budget_flips": 0,
+        "family": "deserialization",
+        "flaky_pairs": 0,
+        "gates": true,
+        "k_runs": 5,
+        "negative_flip_rate": 0.0,
+        "pairs": 2
+      },
+      "injection": {
+        "budget_flips": 11,
+        "family": "injection",
+        "flaky_pairs": 11,
+        "gates": true,
+        "k_runs": 5,
+        "negative_flip_rate": 0.55,
+        "pairs": 20
+      },
+      "output_encoding": {
+        "budget_flips": 1,
+        "family": "output_encoding",
+        "flaky_pairs": 1,
+        "gates": true,
+        "k_runs": 5,
+        "negative_flip_rate": 1.0,
+        "pairs": 1
+      },
+      "path": {
+        "budget_flips": 1,
+        "family": "path",
+        "flaky_pairs": 1,
+        "gates": true,
+        "k_runs": 5,
+        "negative_flip_rate": 1.0,
+        "pairs": 1
+      }
+    },
+    "deepseek-v4-pro (vibe-py)": {
+      "access_control": {
+        "budget_flips": 2,
+        "family": "access_control",
+        "flaky_pairs": 2,
+        "gates": true,
+        "k_runs": 5,
+        "negative_flip_rate": 0.6666666666666666,
+        "pairs": 3
+      },
+      "config_secrets": {
+        "budget_flips": 2,
+        "family": "config_secrets",
+        "flaky_pairs": 2,
+        "gates": true,
+        "k_runs": 5,
+        "negative_flip_rate": 0.6666666666666666,
+        "pairs": 3
+      },
+      "deserialization": {
+        "budget_flips": 1,
+        "family": "deserialization",
+        "flaky_pairs": 1,
+        "gates": true,
+        "k_runs": 5,
+        "negative_flip_rate": 0.5,
+        "pairs": 2
+      },
+      "injection": {
+        "budget_flips": 14,
+        "family": "injection",
+        "flaky_pairs": 14,
+        "gates": true,
+        "k_runs": 5,
+        "negative_flip_rate": 0.7,
+        "pairs": 20
+      },
+      "output_encoding": {
+        "budget_flips": 0,
+        "family": "output_encoding",
+        "flaky_pairs": 0,
+        "gates": true,
+        "k_runs": 5,
+        "negative_flip_rate": 0.0,
+        "pairs": 1
+      },
+      "path": {
+        "budget_flips": 0,
+        "family": "path",
+        "flaky_pairs": 0,
+        "gates": true,
+        "k_runs": 5,
+        "negative_flip_rate": 0.0,
+        "pairs": 1
+      }
+    }
+  },
+  "generated": "2026-09-06",
+  "models": {
+    "deepseek-v4-flash (agent-vfc)": {
+      "access_control": {
+        "cutoff": "",
+        "directional_bias": -1.0,
+        "family": "access_control",
+        "fixed_fpr_recall": 0.0,
+        "hierarchical_credit": false,
+        "leak_rate": 0.0,
+        "negative_flips": 0,
+        "outcomes": {
+          "both_silent": 4
+        },
+        "p_value": null,
+        "positive_flips": 0,
+        "post_cutoff": {},
+        "recall": 0.0,
+        "reliable_change": false,
+        "scorable": 4,
+        "silence": 1.0,
+        "taxonomy_version": "1",
+        "undated": 0,
+        "unscorable": {
+          "known_limit:client_side_caller": 1,
+          "unresolved_label": 1
+        },
+        "youden": 0.0
+      },
+      "config_secrets": {
+        "cutoff": "",
+        "directional_bias": -0.5,
+        "family": "config_secrets",
+        "fixed_fpr_recall": 0.0,
+        "hierarchical_credit": false,
+        "leak_rate": 0.16666666666666666,
+        "negative_flips": 0,
+        "outcomes": {
+          "both_flagged": 1,
+          "both_silent": 4,
+          "pair_correct": 1
+        },
+        "p_value": null,
+        "positive_flips": 0,
+        "post_cutoff": {},
+        "recall": 0.3333333333333333,
+        "reliable_change": false,
+        "scorable": 6,
+        "silence": 0.8333333333333334,
+        "taxonomy_version": "1",
+        "undated": 0,
+        "unscorable": {},
+        "youden": 0.16666666666666674
+      },
+      "injection": {
+        "cutoff": "",
+        "directional_bias": 0.0,
+        "family": "injection",
+        "fixed_fpr_recall": 0.0,
+        "hierarchical_credit": false,
+        "leak_rate": 0.5,
+        "negative_flips": 0,
+        "outcomes": {
+          "both_flagged": 1,
+          "both_silent": 1
+        },
+        "p_value": null,
+        "positive_flips": 0,
+        "post_cutoff": {},
+        "recall": 0.5,
+        "reliable_change": false,
+        "scorable": 2,
+        "silence": 0.5,
+        "taxonomy_version": "1",
+        "undated": 0,
+        "unscorable": {},
+        "youden": 0.0
+      },
+      "path": {
+        "cutoff": "",
+        "directional_bias": 0.3333333333333333,
+        "family": "path",
+        "fixed_fpr_recall": 0.0,
+        "hierarchical_credit": false,
+        "leak_rate": 0.3333333333333333,
+        "negative_flips": 0,
+        "outcomes": {
+          "both_flagged": 1,
+          "pair_correct": 2
+        },
+        "p_value": null,
+        "positive_flips": 0,
+        "post_cutoff": {},
+        "recall": 1.0,
+        "reliable_change": false,
+        "scorable": 3,
+        "silence": 0.6666666666666666,
+        "taxonomy_version": "1",
+        "undated": 0,
+        "unscorable": {},
+        "youden": 0.6666666666666665
+      },
+      "prototype": {
+        "cutoff": "",
+        "directional_bias": -0.5714285714285714,
+        "family": "prototype",
+        "fixed_fpr_recall": 0.42857142857142855,
+        "hierarchical_credit": false,
+        "leak_rate": 0.0,
+        "negative_flips": 0,
+        "outcomes": {
+          "both_silent": 4,
+          "pair_correct": 3
+        },
+        "p_value": null,
+        "positive_flips": 0,
+        "post_cutoff": {},
+        "recall": 0.42857142857142855,
+        "reliable_change": false,
+        "scorable": 7,
+        "silence": 1.0,
+        "taxonomy_version": "1",
+        "undated": 0,
+        "unscorable": {},
+        "youden": 0.4285714285714286
+      },
+      "untrusted_destination": {
+        "cutoff": "",
+        "directional_bias": 0.0,
+        "family": "untrusted_destination",
+        "fixed_fpr_recall": 0.0,
+        "hierarchical_credit": false,
+        "leak_rate": 0.4,
+        "negative_flips": 0,
+        "outcomes": {
+          "both_flagged": 2,
+          "both_silent": 2,
+          "pair_correct": 1
+        },
+        "p_value": null,
+        "positive_flips": 0,
+        "post_cutoff": {},
+        "recall": 0.6,
+        "reliable_change": false,
+        "scorable": 5,
+        "silence": 0.6,
+        "taxonomy_version": "1",
+        "undated": 0,
+        "unscorable": {},
+        "youden": 0.19999999999999996
+      }
+    },
+    "deepseek-v4-flash (vibe-py)": {
+      "access_control": {
+        "cutoff": "",
+        "directional_bias": 0.0,
+        "family": "access_control",
+        "fixed_fpr_recall": 1.0,
+        "hierarchical_credit": false,
+        "leak_rate": 0.0,
+        "negative_flips": 0,
+        "outcomes": {
+          "pair_correct": 3
+        },
+        "p_value": null,
+        "positive_flips": 0,
+        "post_cutoff": {},
+        "recall": 1.0,
+        "reliable_change": false,
+        "scorable": 3,
+        "silence": 1.0,
+        "taxonomy_version": "1",
+        "undated": 0,
+        "unscorable": {
+          "identical_twin": 1
+        },
+        "youden": 1.0
+      },
+      "config_secrets": {
+        "cutoff": "",
+        "directional_bias": 0.0,
+        "family": "config_secrets",
+        "fixed_fpr_recall": 1.0,
+        "hierarchical_credit": false,
+        "leak_rate": 0.0,
+        "negative_flips": 0,
+        "outcomes": {
+          "pair_correct": 3
+        },
+        "p_value": null,
+        "positive_flips": 0,
+        "post_cutoff": {},
+        "recall": 1.0,
+        "reliable_change": false,
+        "scorable": 3,
+        "silence": 1.0,
+        "taxonomy_version": "1",
+        "undated": 0,
+        "unscorable": {},
+        "youden": 1.0
+      },
+      "deserialization": {
+        "cutoff": "",
+        "directional_bias": 0.0,
+        "family": "deserialization",
+        "fixed_fpr_recall": 1.0,
+        "hierarchical_credit": false,
+        "leak_rate": 0.0,
+        "negative_flips": 0,
+        "outcomes": {
+          "pair_correct": 2
+        },
+        "p_value": null,
+        "positive_flips": 0,
+        "post_cutoff": {},
+        "recall": 1.0,
+        "reliable_change": false,
+        "scorable": 2,
+        "silence": 1.0,
+        "taxonomy_version": "1",
+        "undated": 0,
+        "unscorable": {
+          "identical_twin": 1
+        },
+        "youden": 1.0
+      },
+      "injection": {
+        "cutoff": "",
+        "directional_bias": -0.15,
+        "family": "injection",
+        "fixed_fpr_recall": 0.75,
+        "hierarchical_credit": false,
+        "leak_rate": 0.1,
+        "negative_flips": 0,
+        "outcomes": {
+          "both_flagged": 2,
+          "both_silent": 5,
+          "pair_correct": 13
+        },
+        "p_value": null,
+        "positive_flips": 0,
+        "post_cutoff": {},
+        "recall": 0.75,
+        "reliable_change": false,
+        "scorable": 20,
+        "silence": 0.9,
+        "taxonomy_version": "1",
+        "undated": 0,
+        "unscorable": {
+          "identical_twin": 2
+        },
+        "youden": 0.6499999999999999
+      },
+      "output_encoding": {
+        "cutoff": "",
+        "directional_bias": 0.0,
+        "family": "output_encoding",
+        "fixed_fpr_recall": 1.0,
+        "hierarchical_credit": false,
+        "leak_rate": 0.0,
+        "negative_flips": 0,
+        "outcomes": {
+          "pair_correct": 1
+        },
+        "p_value": null,
+        "positive_flips": 0,
+        "post_cutoff": {},
+        "recall": 1.0,
+        "reliable_change": false,
+        "scorable": 1,
+        "silence": 1.0,
+        "taxonomy_version": "1",
+        "undated": 0,
+        "unscorable": {
+          "identical_twin": 1
+        },
+        "youden": 1.0
+      },
+      "path": {
+        "cutoff": "",
+        "directional_bias": 0.0,
+        "family": "path",
+        "fixed_fpr_recall": 1.0,
+        "hierarchical_credit": false,
+        "leak_rate": 0.0,
+        "negative_flips": 0,
+        "outcomes": {
+          "pair_correct": 1
+        },
+        "p_value": null,
+        "positive_flips": 0,
+        "post_cutoff": {},
+        "recall": 1.0,
+        "reliable_change": false,
+        "scorable": 1,
+        "silence": 1.0,
+        "taxonomy_version": "1",
+        "undated": 0,
+        "unscorable": {},
+        "youden": 1.0
+      }
+    },
+    "deepseek-v4-pro (vibe-py)": {
+      "access_control": {
+        "cutoff": "",
+        "directional_bias": -1.0,
+        "family": "access_control",
+        "fixed_fpr_recall": 0.0,
+        "hierarchical_credit": false,
+        "leak_rate": 0.0,
+        "negative_flips": 0,
+        "outcomes": {
+          "both_silent": 3
+        },
+        "p_value": null,
+        "positive_flips": 0,
+        "post_cutoff": {},
+        "recall": 0.0,
+        "reliable_change": false,
+        "scorable": 3,
+        "silence": 1.0,
+        "taxonomy_version": "1",
+        "undated": 0,
+        "unscorable": {
+          "identical_twin": 1
+        },
+        "youden": 0.0
+      },
+      "config_secrets": {
+        "cutoff": "",
+        "directional_bias": 0.0,
+        "family": "config_secrets",
+        "fixed_fpr_recall": 1.0,
+        "hierarchical_credit": false,
+        "leak_rate": 0.0,
+        "negative_flips": 0,
+        "outcomes": {
+          "pair_correct": 3
+        },
+        "p_value": null,
+        "positive_flips": 0,
+        "post_cutoff": {},
+        "recall": 1.0,
+        "reliable_change": false,
+        "scorable": 3,
+        "silence": 1.0,
+        "taxonomy_version": "1",
+        "undated": 0,
+        "unscorable": {},
+        "youden": 1.0
+      },
+      "deserialization": {
+        "cutoff": "",
+        "directional_bias": 0.0,
+        "family": "deserialization",
+        "fixed_fpr_recall": 1.0,
+        "hierarchical_credit": false,
+        "leak_rate": 0.0,
+        "negative_flips": 0,
+        "outcomes": {
+          "pair_correct": 2
+        },
+        "p_value": null,
+        "positive_flips": 0,
+        "post_cutoff": {},
+        "recall": 1.0,
+        "reliable_change": false,
+        "scorable": 2,
+        "silence": 1.0,
+        "taxonomy_version": "1",
+        "undated": 0,
+        "unscorable": {
+          "identical_twin": 1
+        },
+        "youden": 1.0
+      },
+      "injection": {
+        "cutoff": "",
+        "directional_bias": -0.55,
+        "family": "injection",
+        "fixed_fpr_recall": 0.35,
+        "hierarchical_credit": false,
+        "leak_rate": 0.1,
+        "negative_flips": 0,
+        "outcomes": {
+          "both_flagged": 2,
+          "both_silent": 13,
+          "pair_correct": 5
+        },
+        "p_value": null,
+        "positive_flips": 0,
+        "post_cutoff": {},
+        "recall": 0.35,
+        "reliable_change": false,
+        "scorable": 20,
+        "silence": 0.9,
+        "taxonomy_version": "1",
+        "undated": 0,
+        "unscorable": {
+          "identical_twin": 2
+        },
+        "youden": 0.25
+      },
+      "output_encoding": {
+        "cutoff": "",
+        "directional_bias": 0.0,
+        "family": "output_encoding",
+        "fixed_fpr_recall": 1.0,
+        "hierarchical_credit": false,
+        "leak_rate": 0.0,
+        "negative_flips": 0,
+        "outcomes": {
+          "pair_correct": 1
+        },
+        "p_value": null,
+        "positive_flips": 0,
+        "post_cutoff": {},
+        "recall": 1.0,
+        "reliable_change": false,
+        "scorable": 1,
+        "silence": 1.0,
+        "taxonomy_version": "1",
+        "undated": 0,
+        "unscorable": {
+          "identical_twin": 1
+        },
+        "youden": 1.0
+      },
+      "path": {
+        "cutoff": "",
+        "directional_bias": 0.0,
+        "family": "path",
+        "fixed_fpr_recall": 1.0,
+        "hierarchical_credit": false,
+        "leak_rate": 0.0,
+        "negative_flips": 0,
+        "outcomes": {
+          "pair_correct": 1
+        },
+        "p_value": null,
+        "positive_flips": 0,
+        "post_cutoff": {},
+        "recall": 1.0,
+        "reliable_change": false,
+        "scorable": 1,
+        "silence": 1.0,
+        "taxonomy_version": "1",
+        "undated": 0,
+        "unscorable": {},
+        "youden": 1.0
+      }
+    }
+  }
+}
