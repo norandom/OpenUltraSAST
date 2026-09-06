@@ -171,3 +171,43 @@ def test_the_command_line_reports_the_slice_the_cutoff_and_the_undated_count(tmp
     )
     line = next(item for item in captured if item.startswith("learning score injection"))
     assert "post-cutoff(2025-07-01)=2" in line and "undated=0" in line
+
+
+def test_a_baseline_over_a_named_slice_measures_that_slice(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`--slice vfc` selected the vfc rows and then `run_baseline` filtered them all out again.
+
+    Its `slices` default is the two web slices, so a baseline over the memory-safety slice — the run Req 8.4 asks
+    for as a measured, non-gating number — produced an empty report and said nothing about it."""
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).parent))
+    from test_learning_cli import CATALOG, FIXED, VULN, _detector  # noqa: PLC0415
+
+    from openultrasast.cli import main
+
+    (tmp_path / "a-v.py").write_text(VULN)
+    (tmp_path / "a-f.py").write_text(FIXED)
+    (tmp_path / "pairs.toml").write_text(CATALOG.format(name="a", split="train").replace('slice = "vibe-py"', 'slice = "vfc"'))
+    _detector(monkeypatch)
+    assert (
+        main(
+            [
+                "learning",
+                "baseline",
+                "--catalog",
+                str(tmp_path / "pairs.toml"),
+                "--slice",
+                "vfc",
+                "--out",
+                str(tmp_path / "l"),
+                "--k-runs",
+                "3",
+                "--model",
+                "m",
+            ]
+        )
+        == 0
+    )
+    report = json.loads((tmp_path / "l" / "baseline" / "m" / "report.json").read_text())
+    assert report["slices"] == ["vfc"]
+    assert report["metrics"]["injection"]["scorable"] == 1

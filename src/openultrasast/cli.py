@@ -1257,7 +1257,7 @@ def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy:
     from .learning.detectors import load_family_configs, write_default_configs
     from .learning.endpoint import resolve_chat_endpoint, resolve_models
     from .learning.journal import Archive, LearningJournal
-    from .learning.rounds import MIN_K_RUNS, load_noise_floors, run_baseline, run_learning_round
+    from .learning.rounds import DEFAULT_SLICES, MIN_K_RUNS, load_noise_floors, run_baseline, run_learning_round
     from .learning.scoring import aggregate
     from .tool_hunter import _SYSTEM_PROMPT
 
@@ -1320,6 +1320,9 @@ def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy:
             out_dir=out,
             k_runs=k_runs,
             cutoff=config.learning.cutoff_date or "",
+            # `--slice` already chose the rows; without this the baseline's own default filters them out again and
+            # a run over the memory-safety slice reports nothing at all (Req 8.4).
+            slices=(args.slice,) if args.slice != "all" else DEFAULT_SLICES,
         )
         print(f"learning baseline {model}: {len(report.floors)} families, k={report.k_runs} -> {out / 'baseline'}")
         return 0
