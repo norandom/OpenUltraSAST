@@ -1,0 +1,29 @@
+{
+  "feature_name": "learning-harness",
+  "created_at": "2026-09-06T06:32:41Z",
+  "updated_at": "2026-09-06T06:34:14Z",
+  "language": "en",
+  "phase": "requirements-generated",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": false
+    },
+    "design": {
+      "generated": false,
+      "approved": false
+    },
+    "tasks": {
+      "generated": false,
+      "approved": false
+    }
+  },
+  "ready_for_implementation": false,
+  "depends_on": [
+    "pair-corpus-honesty",
+    "corpus-seeded-mechanisms",
+    "authorization-obligations",
+    "tree-sitter-overlay-extra",
+    "harnessx-self-improving-rulesets"
+  ]
+}
