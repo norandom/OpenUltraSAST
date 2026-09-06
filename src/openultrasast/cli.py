@@ -430,6 +430,8 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     variant_findings: list[StaticFinding] = []
     mechanisms_cited: dict[str, dict[str, object]] = {}
     obligations_payload: dict[str, object] | None = None
+    learning_payload: dict[str, object] | None = None
+    learning_cited: dict[str, dict[str, object]] = {}
     obligations_cited: dict[str, dict[str, object]] = {}
     if Stage.MAP in plan.requested:
         built_map = runtime.run_stage(
@@ -488,6 +490,18 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             )
             if obligation_findings:
                 findings = rank_obligations(findings + obligation_findings)
+                write_findings(findings, findings_path)
+        if config.learning.enabled:
+            family_findings, learning_payload, learning_cited = _run_family_detectors(
+                root=run.target,
+                hotspots=built_map.hotspots if built_map is not None else (),
+                cases=None,
+                settings=config.learning,
+                config=config,
+                runtime=runtime,
+            )
+            if family_findings:
+                findings = findings + family_findings
                 write_findings(findings, findings_path)
         plan = record_completed(plan, Stage.MAP)
         if not hunter_model:
@@ -592,6 +606,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             mechanisms=mechanisms_cited or None,
             obligations=obligations_cited or None,
             obligations_summary=obligations_payload or None,
+            learning=learning_cited or None,
         ),
     )
     runtime.run_stage(
@@ -603,6 +618,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             overlay=overlay_records if wrote_overlay else None,
             mechanisms=mechanisms_cited or None,
             obligations=obligations_cited or None,
+            learning=learning_cited or None,
         ),
     )
     runtime.run_stage(
@@ -633,6 +649,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             provenance=provenance.to_dict(),
             variants=variants_payload,
             obligations=obligations_payload,
+            learning=learning_payload,
         ),
     )
     runtime.finish(status="succeeded")
@@ -1061,6 +1078,88 @@ def _check_obligations(
             "intent_rationale": finding.intent_rationale,
         }
     return statics, payload, cited
+
+
+def _run_family_detectors(
+    *,
+    root: Path,
+    hotspots: Sequence[object],
+    cases: object,
+    settings: object,
+    config: object,
+    runtime: HarnessRuntime,
+) -> tuple[list[StaticFinding], dict[str, object], dict[str, dict[str, object]]]:
+    """Fifth MAP proposer (learning-harness Req 6.3, 7.1): one detector per admitted family, plus the generalist.
+
+    Every claim passes through its family's verifier and carries what produced it. Nothing rises above
+    suspicion here: the verifier writes a tag, and the evidence ladder is another boundary's to move.
+    """
+    del cases
+    from .learning.classify import classify_region, measure_classifier
+    from .learning.detectors import DetectorConfigError, Region, load_family_configs, run_region_detectors
+    from .learning.endpoint import resolve_chat_endpoint, resolve_models
+    from .learning.families import FamiliesError, load_families
+    from .learning.verifiers import apply_verification, verifier_for
+
+    empty: dict[str, dict[str, object]] = {}
+    configs_dir = root / str(getattr(settings, "configs_dir", ".openultrasast/learning/configs"))
+    try:
+        taxonomy = load_families(Path(p) if (p := getattr(settings, "families_path", None)) else None)
+        configs = load_family_configs(configs_dir, taxonomy)
+    except (FamiliesError, DetectorConfigError) as exc:
+        runtime.state["degradations"].append({"stage": "learning", "reason": "learning_configs_unavailable", "detail": str(exc)[:200]})
+        return [], {}, empty
+    if not configs:
+        runtime.state["degradations"].append(
+            {"stage": "learning", "reason": "learning_configs_unavailable", "detail": f"no family configurations under {configs_dir}"}
+        )
+        return [], {}, empty
+    resolved = resolve_chat_endpoint(config)  # type: ignore[arg-type]
+    if resolved is None:
+        runtime.state["degradations"].append({"stage": "learning", "reason": "learning_endpoint_unavailable"})
+        return [], {}, empty
+    client, endpoint = resolved
+    model = resolve_models(config)[0]  # type: ignore[arg-type]
+    findings: list[StaticFinding] = []
+    per_family: dict[str, int] = {}
+    seen: set[str] = set()
+    for hotspot in hotspots:
+        path = str(getattr(hotspot, "path", ""))
+        function = getattr(hotspot, "function_name", None)
+        key = f"{path}::{function}"
+        if not path or key in seen:
+            continue
+        seen.add(key)
+        answer = classify_region(root, path, function=function, taxonomy=taxonomy, client=None)
+        region = Region(path=path, function=str(function) if function else None, families=answer.families)
+
+        def _run(region: Region = region) -> list[StaticFinding]:
+            return run_region_detectors(root, region, configs, client=client, model=model)
+
+        produced = runtime.run_stage("learning", _run)
+        for finding in produced:
+            family_id = next((tag.split(":", 1)[1] for tag in finding.tags if tag.startswith("family:")), "unknown")
+            verification = verifier_for(taxonomy.by_id(family_id)).verify(finding, root=root, language="python")
+            findings.append(apply_verification(finding, verification))
+            per_family[family_id] = per_family.get(family_id, 0) + 1
+    report = measure_classifier([], taxonomy, client=None)
+    payload: dict[str, object] = {
+        "taxonomy_version": taxonomy.version,
+        "families": per_family,
+        "classifier": report.to_dict(),
+        "round": None,
+        "endpoint": endpoint.provider,
+        "regions": len(seen),
+    }
+    cited: dict[str, dict[str, object]] = {
+        finding.finding_id: {
+            "family": next((tag.split(":", 1)[1] for tag in finding.tags if tag.startswith("family:")), ""),
+            "detector": next((tag.split(":", 1)[1] for tag in finding.tags if tag.startswith("detector:")), ""),
+            "verifier": next((tag.split(":", 1)[1] for tag in finding.tags if tag.startswith("verifier:")), ""),
+        }
+        for finding in findings
+    }
+    return findings, payload, cited
 
 
 def _hotspot_from_variant(finding: StaticFinding) -> Hotspot:

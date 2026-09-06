@@ -141,6 +141,7 @@ class VariantsConfig:
 @dataclass(frozen=True)
 class LearningConfig:
     # learning-harness: the classified detector set and its rounds.
+    enabled: bool = False  # off until round zero has written the family configurations this reads
     families_path: str | None = None  # taxonomy file; the shipped ruleset when unset
     configs_dir: str = ".openultrasast/learning/configs"
     k_runs: int = 5  # runs per pair; a single run misses most real changes
@@ -381,6 +382,7 @@ def _load_variants(value: object) -> VariantsConfig:
 def _load_learning(value: object) -> LearningConfig:
     data = _section(value)
     return LearningConfig(
+        enabled=bool(data.get("enabled", LearningConfig.enabled)),
         families_path=_string(data.get("families_path")),
         configs_dir=_string(data.get("configs_dir")) or LearningConfig.configs_dir,
         k_runs=_int_value(data.get("k_runs"), LearningConfig.k_runs),
