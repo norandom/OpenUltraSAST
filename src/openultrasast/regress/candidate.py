@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
@@ -131,24 +131,23 @@ class RegressionRunner:
         sandbox_limits: SandboxConfig,
         *,
         repo_root: Path,
+        oracle: Callable[[SandboxResult], bool] | None = None,
     ) -> RegressionVerdict:
         job = recipe_for(language, snippet, image, sandbox_limits, repo_root=repo_root)
         if job is None:
             return verdict_from_result(recipe_missing=True)
-        return self.run_snippet(snippet, job)
+        return self.run_snippet(snippet, job, oracle=oracle)
 
-    def run_snippet(self, snippet: str, job: SandboxJob | None) -> RegressionVerdict:
+    def run_snippet(
+        self, snippet: str, job: SandboxJob | None, *, oracle: Callable[[SandboxResult], bool] | None = None
+    ) -> RegressionVerdict:
         if job is None:
             return verdict_from_result(recipe_missing=True)
         try:
             check_snippet_safety(snippet)
         except UnsafeSnippetError:
             return verdict_from_result(safety_rejected=True)
-        return _verdict_from_result(self._sandbox.run(job))
-
-
-def _verdict_from_result(result: SandboxResult) -> RegressionVerdict:
-    return verdict_from_result(result)
+        return verdict_from_result(self._sandbox.run(job), oracle=oracle)
 
 
 def snippet_for(language: str, path: str, function_name: str | None) -> str:
