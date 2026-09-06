@@ -12,7 +12,7 @@ sensitivity = "high"
 [[operation]]
 id = "orm-write"
 kind = "protected_write"
-calls = ["add", "delete", "update", "save", "commit", "insert_one", "update_one", "delete_one", "bulk_update"]
+calls = ["session.add", "session.delete", "session.merge", "query.update", "query.delete", "objects.update", "objects.create", "objects.filter", "insert_one", "update_one", "delete_one", "bulk_update"]
 requires = ["identity_constraint", "ownership_check"]
 sensitivity = "high"
 
@@ -33,7 +33,7 @@ sensitivity = "high"
 [[operation]]
 id = "security-setting"
 kind = "security_setting"
-calls = ["CORS", "cross_origin", "set_cookie", "Fernet", "run", "config.update", "TrustedHostMiddleware", "add_middleware", "set_debug"]
+calls = ["CORS", "cross_origin", "set_cookie", "app.run", "config.update", "TrustedHostMiddleware", "add_middleware", "set_debug"]
 resource_arg = 0
 requires = ["non_permissive_value"]
 sensitivity = "medium"
@@ -42,7 +42,7 @@ sensitivity = "medium"
 id = "route-guard"
 kind = "path_guard"
 decorators = ["login_required", "jwt_required", "auth_required", "roles_required", "permission_required", "admin_required", "requires_auth", "authenticated", "token_required"]
-calls = ["token_validator", "verify_jwt_in_request", "get_jwt_identity", "check_auth", "require_login", "authenticate", "abort", "login_required", "current_user_required"]
+calls = ["token_validator", "verify_jwt_in_request", "get_jwt_identity", "check_auth", "require_login", "authenticate", "login_required", "current_user_required"]
 
 [[discharger]]
 id = "identity-from-context"
@@ -59,7 +59,7 @@ calls = ["check_owner", "is_owner", "assert_owner", "ensure_owner", "owns", "can
 [[discharger]]
 id = "safe-setting"
 kind = "non_permissive_value"
-calls = ["CORS", "cross_origin", "set_cookie", "run", "config.update", "add_middleware"]
+calls = ["CORS", "cross_origin", "set_cookie", "app.run", "config.update", "add_middleware"]
 permissive_values = ["'*'", "\"*\"", "True", "0.0.0.0", "None", "False", "allow_all", "disable"]
 
 [[discharger]]

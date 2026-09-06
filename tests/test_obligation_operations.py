@@ -10,9 +10,12 @@ APP = (
     "from flask import request\n\n\n"
     "@app.route('/books/<title>')\n@login_required\ndef guarded(title):\n"
     "    return Book.query.filter_by(book_title=title).first()\n\n\n"
-    "@app.route('/books/mine/<title>')\ndef constrained(title):\n"
+    "@app.route('/books/mine/<title>')\n@login_required\ndef constrained(title):\n"
     "    user_id = request.user.id\n"
     "    return Book.query.filter_by(user_id=user_id, book_title=title).first()\n\n\n"
+    "@app.route('/books/shared/<title>')\ndef constrained_too(title):\n"
+    "    owner = current_user.id\n"
+    "    return Book.query.filter_by(owner=owner, book_title=title).first()\n\n\n"
     "@app.route('/books/any/<title>')\ndef leaky(title):\n"
     "    owner = request.args.get('owner')\n"
     "    return Book.query.filter_by(user_id=owner, book_title=title).first()\n\n\n"
@@ -39,9 +42,10 @@ def _entry(function: str, line: int, end: int, access: str, evidence: list[str])
 
 ENTRIES = [
     _entry("guarded", 6, 7, "authenticated", ["@login_required"]),
-    _entry("constrained", 11, 13, "public", []),
-    _entry("leaky", 17, 19, "public", []),
-    _entry("health", 23, 24, "public", []),
+    _entry("constrained", 12, 14, "authenticated", ["@login_required"]),
+    _entry("constrained_too", 18, 20, "public", []),
+    _entry("leaky", 24, 26, "public", []),
+    _entry("health", 30, 31, "public", []),
 ]
 
 
@@ -54,6 +58,7 @@ def test_find_operations_names_kind_fact_function_and_resource() -> None:
     assert [(op.function, op.kind, op.resource) for op in ops] == [
         ("guarded", "protected_read", "book"),
         ("constrained", "protected_read", "book"),
+        ("constrained_too", "protected_read", "book"),
         ("leaky", "protected_read", "book"),
     ]
     assert all(op.path == "app.py" and op.fact_id == "orm-read" and op.line > 0 for op in ops)
@@ -73,6 +78,7 @@ def test_find_discharges_reports_witness_kind_provenance_and_scope() -> None:
         by_function.setdefault(w.function, []).append((w.kind, w.provenance, w.scope))
     assert ("path_guard", "authenticated_context", "decorator") in by_function["guarded"]
     assert ("identity_constraint", "authenticated_context", "statement") in by_function["constrained"]
+    assert ("identity_constraint", "authenticated_context", "statement") in by_function["constrained_too"]
     assert ("identity_constraint", "request_input", "statement") in by_function["leaky"]  # present, but discharges nothing
     assert "health" not in by_function
     assert all(w.path == "app.py" and w.fact_id for w in witnesses)
@@ -87,6 +93,6 @@ def test_discharge_witness_covers_operation_only_when_kind_and_provenance_fit() 
     ops = {op.function: op for op in find_operations(ir, facts, text=APP)}
     witnesses = find_discharges(ir, facts, load_facts().for_language("python"), text=APP, entries=ENTRIES)
     covering = {op.function: [w.kind for w in witnesses if covers(w, op)] for op in ops.values()}
-    assert covering["constrained"] == ["identity_constraint"]
+    assert covering["constrained"] == ["identity_constraint"] and covering["constrained_too"] == ["identity_constraint"]
     assert covering["leaky"] == []  # request-bound identity does not cover
     assert covering["guarded"] == []  # a path guard does not cover a protected read (only privileged actions)

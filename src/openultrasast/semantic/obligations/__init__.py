@@ -6,6 +6,7 @@ ownership check, a non-permissive value, validated input). Facts are closed data
 findings never claim a proof rung.
 """
 
+from .check import ObligationFinding, ObligationResult, check_obligations, findings_to_static
 from .facts import (
     DISCHARGER_KINDS,
     OPERATION_KINDS,
@@ -25,10 +26,14 @@ __all__ = [
     "DischargerFact",
     "ObligationFacts",
     "ObligationFactsError",
+    "ObligationFinding",
+    "ObligationResult",
     "ObligationShape",
     "OperationFact",
+    "check_obligations",
     "derive_obligation",
     "explain_skip",
+    "findings_to_static",
     "load_obligation_facts",
     "obligation_mechanisms",
 ]

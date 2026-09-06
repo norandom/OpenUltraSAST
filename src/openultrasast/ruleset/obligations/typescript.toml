@@ -12,7 +12,7 @@ sensitivity = "high"
 [[operation]]
 id = "orm-write"
 kind = "protected_write"
-calls = ["update", "updateOne", "updateMany", "deleteOne", "deleteMany", "delete", "create", "insert", "upsert", "save", "remove", "findByIdAndUpdate", "findByIdAndDelete"]
+calls = ["updateOne", "updateMany", "deleteOne", "deleteMany", "findByIdAndUpdate", "findByIdAndDelete", "upsert", "insertOne", "insertMany", "prisma.update", "prisma.delete", "prisma.create"]
 requires = ["identity_constraint", "ownership_check"]
 sensitivity = "high"
 
@@ -33,7 +33,7 @@ sensitivity = "high"
 [[operation]]
 id = "security-setting"
 kind = "security_setting"
-calls = ["cors", "cookie", "session", "helmet", "listen", "use", "setHeader", "createClient", "from"]
+calls = ["cors", "cookie", "session", "helmet", "app.listen", "setHeader", "createClient"]
 resource_arg = 0
 requires = ["non_permissive_value"]
 sensitivity = "medium"

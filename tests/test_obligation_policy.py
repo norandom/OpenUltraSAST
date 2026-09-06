@@ -42,6 +42,7 @@ def test_unknown_fields_and_values_are_rejected_by_name(tmp_path: Path) -> None:
         (GOOD.replace('sensitivity = "high"', 'sensitivity = "critical"'), "critical"),
         (GOOD + "\nallow_everything = true\n", "allow_everything"),
         (GOOD.replace('identity_source = "request.user"', 'identity_source = "whatever.works"'), "identity_source"),
+        (GOOD + '\n[[route]]\npath = "/x"\naccess = "public"\ncolor = "blue"\n', "color"),
     ):
         path.write_text(bad)
         with pytest.raises(PolicyError, match=needle):

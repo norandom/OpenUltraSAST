@@ -103,6 +103,11 @@ def find_discharges(
     return tuple(_dedupe(witnesses))
 
 
+def valid_witness(witness: Discharge) -> bool:
+    """An identity constraint witnesses a discharge only when its value comes from the authenticated context."""
+    return witness.kind != "identity_constraint" or witness.provenance == "authenticated_context"
+
+
 def covers(witness: Discharge, operation: Operation) -> bool:
     """A witness discharges an operation when it sits in the same function, has a kind the operation requires, and, for an
     identity constraint, binds its value from the authenticated context. Ordering along the path is the Dominance protocol's
@@ -111,7 +116,7 @@ def covers(witness: Discharge, operation: Operation) -> bool:
         return False
     if witness.kind not in operation.requires:
         return False
-    if witness.kind == "identity_constraint" and witness.provenance != "authenticated_context":
+    if not valid_witness(witness):
         return False
     return not (witness.kind == "non_permissive_value" and witness.line != operation.line)
 
@@ -130,7 +135,7 @@ def _decorator_witnesses(path: str, function: FunctionIR, fact: DischargerFact, 
     out: list[Discharge] = []
     for decorator in decorators:
         name = _decorator_name(decorator)
-        if any(candidate == name or candidate in decorator for candidate in fact.decorators):
+        if any(candidate == name for candidate in fact.decorators):  # the parsed decorator name only, never free text
             out.append(
                 Discharge(
                     path=path,
@@ -245,4 +250,4 @@ def _dedupe(witnesses: Sequence[Discharge]) -> list[Discharge]:
     return out
 
 
-__all__ = ["SCOPES", "Discharge", "Operation", "covers", "find_discharges", "find_operations"]
+__all__ = ["SCOPES", "Discharge", "Operation", "covers", "find_discharges", "find_operations", "valid_witness"]

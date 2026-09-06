@@ -60,9 +60,6 @@ def test_loader_rejects_kinds_and_fields_outside_the_closed_sets(tmp_path: Path)
     (tmp_path / "python.toml").write_text(good + '\n[[discharger]]\nid = "g"\nkind = "maybe_guard"\ndecorators = ["login_required"]\n')
     with pytest.raises(ObligationFactsError, match="maybe_guard"):
         load_obligation_facts(tmp_path)
-    (tmp_path / "python.toml").write_text(good + '\n[[discharger]]\nid = "g"\nkind = "maybe_guard"\ndecorators = ["login_required"]\n')
-    with pytest.raises(ObligationFactsError, match="maybe_guard"):
-        load_obligation_facts(tmp_path)
 
 
 def test_flow_facts_loader_ignores_the_obligation_facts_directory() -> None:
