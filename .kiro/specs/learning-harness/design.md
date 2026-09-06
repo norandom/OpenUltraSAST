@@ -148,9 +148,10 @@ tests/test_learning_families.py, test_learning_classify.py, test_learning_scorin
 
 ### Modified Files
 - `src/openultrasast/pairs.py` — `PairCase.unscorable: str | None` computed at load (identical twin via normalized body hash, `known_limit` passthrough); duplicate report across pairs before split; `split_by_repository` helper honoring existing `split` fields and reporting straddles; `_evaluate_hunter_pair` delegates matching and leaks to `learning.scoring` through an injected callable so `pairs` does not import `learning`; `build_pair_signals` gains a `split` filter.
-- `src/openultrasast/benchmark.py` — `ExpectedFinding.family: str | None = None` (additive; validated against the taxonomy when present).
+- `src/openultrasast/benchmark.py` — `ExpectedFinding.family: str | None = None` (additive, stored as an opaque string; the Classifier validates loaded labels against the taxonomy so `pairs` and `benchmark` never import `learning`).
 - `src/openultrasast/tool_hunter.py` — `run_tool_hunter` gains `system_prompt`, `context_files`, `tools`, `max_chars` and `tags` parameters with today's values as defaults; finding parsing accepts an optional `family` field; the reply loop replays `reasoning_content`.
-- `src/openultrasast/provider/openrouter.py` — `OpenRouterChatClient` gains `extra_body` (thinking, response_format, logprobs) and keeps `reasoning_content` on assistant messages; no behavior change for existing callers.
+- `src/openultrasast/hunter_tools.py` — four new tools beside `read_file`, `grep_repo`, `find_refs`: `read_definition(symbol)`, `entry_points(path)`, `flows(path, function)`, `obligations(path, function)`, each clamped to the repository and returning identifiers and line spans only; `HUNTER_TOOLS` schemas extended.
+- `src/openultrasast/provider/openrouter.py` — `OpenRouterChatClient` gains `extra_body` (thinking, response_format, logprobs) and retains the `reasoning_content` field on assistant messages; replaying it across tool turns is the hunter loop's job (`tool_hunter`), not the client's. No behavior change for existing callers.
 - `src/openultrasast/config.py` — `[models]` gains `chat_base_url`, `chat_api_key_env`, `judge`; `[learning]` section (`families_path`, `configs_dir`, `k_runs = 5`, `round_cost_cap_usd`, `minibatch`, `cutoff_date`); `load_dotenv` unchanged, tests inject endpoints explicitly.
 - `src/openultrasast/semantic/seed.py`, `semantic/loo.py`, `improve/evolve.py` — teacher selection through `learning.split.teachers`; refusals recorded; `evaluate_loo` teaches from train only.
 - `src/openultrasast/regress/candidate.py`, `regress/verdict.py` — `run_regression` accepts an optional `oracle: Callable[[SandboxResult], bool]`; `verdict_from_result` uses the oracle when given, exit code otherwise.
@@ -231,7 +232,7 @@ Decisions: the proposer never sees holdout inputs, outputs or scores; cost is me
 |---|---|---|---|---|---|
 | Families | data | closed taxonomy with verifier per family | 1.x | ruleset file (P0) | Service |
 | Classifier | logic | assign families with tier, measure itself | 2.x | Families (P0), Endpoint (P1) | Service, State |
-| Scorer | logic | class-aware pair outcomes and statistics | 3.x, 4.x | Families (P0), Detectors (P0), Verifiers (P1) | Service |
+| Scorer | logic | class-aware pair outcomes and statistics | 3.x, 4.x | Families (P0); findings from Detectors and rungs from Verifiers are inputs, not imports (P1) | Service |
 | Split | logic | the one teacher rule and holdout refusal | 5.x | pairs (P0) | Service |
 | Detectors | logic | per-family configuration and runner | 6.1–6.5 | tool_hunter (P0), Endpoint (P0), Classifier (P0) | Service, State |
 | Endpoint | integration | independent chat endpoint resolution and DeepSeek adapter | 6.6 | provider.openrouter (P0), config (P0) | Service |
@@ -334,6 +335,7 @@ class Archive:                          # .openultrasast/learning/archive.jsonl
 - Tier 2 (model): `json_object` question with the taxonomy definitions, `thinking` disabled, `logprobs` requested; averaged log-probability under a threshold yields `unknown`.
 - Tier 3: `unknown`.
 - Never writes a label; disagreements go to `.openultrasast/learning/review-queue.jsonl`.
+- Validates every loaded catalog `family` label against the taxonomy at classification time and rejects a fabricated id by name; the corpus loader stores the label as an opaque string.
 
 **Dependencies**: Inbound: Scorer, Detectors (P0). Outbound: Families (P0), Endpoint (P1, degrades to tier 1 + unknown without a client).
 
@@ -375,7 +377,7 @@ def measure_classifier(cases: Sequence[PairCase], taxonomy: FamilyTaxonomy, *, c
 **Responsibilities & Constraints**
 - Detection: a finding whose `family:` tag relates `same` or `parent_child` to the labeled family and whose line lies in the labeled function; `fabricated` scores the maximum penalty; text is never inspected.
 - Silence: no `same`/`parent_child` finding of the labeled family inside the labeled function on the fixed side; other findings are counted in `other_findings`, never as leaks.
-- K runs per pair; reliable change against the last blessed round via a paired test on per-pair outcomes; negative flips per family.
+- K runs per pair at every evaluation (baseline K = 5, rounds K ≥ 3 as 3.5 requires); reliable change against the last blessed round via a paired test on per-pair outcomes; negative flips per family.
 
 **Contracts**: Service [x]
 
@@ -532,7 +534,7 @@ def second_judge(verification: Verification, claim: StaticFinding, *, client: Ch
 | Requirements | 8.1–8.4, 9.1–9.9 |
 
 **Responsibilities & Constraints**
-- `run_baseline`: clone the current hunter prompt into every family directory, run K = 5 over scorable vendored pairs of the selected slices, compute per-family negative-flip rate between runs as `NoiseFloor`, persist `noise-floors.json`, publish round zero.
+- `run_baseline`: clone the current hunter prompt into every family directory, run K = 5 over scorable vendored pairs of the selected slices, compute per-family negative-flip rate between runs as `NoiseFloor`, persist `noise-floors.json`, publish round zero. Artifacts and floors are keyed by detector model (`baseline/<model>/`), so a second model is baselined by changing `[models].hunter` and re-running; `publish` renders a model comparison table from every baseline present. This is the maintainer's reconsideration path if the default model underperforms; configurations are never touched by a model swap.
 - `run_learning_round`: failure facts for the target family → proposer → refusal checks (holdout, length cap, allowed levers) → minibatch → holdout → sweep → accept (freeze, bump version, archive) or revert (restore the directory snapshot) → journal → rejected buffer.
 - Acceptance: `train_delta >= 0 and holdout_delta >= 0 and (train_delta > 0 or holdout_delta > 0) and all(sweep[f] <= floor[f])`; ties reject.
 - Cost metered per stage from usage; crossing `round_cost_cap_usd` at any stage reverts and records `reverted_cost`.
@@ -552,6 +554,7 @@ def run_baseline(cases, *, slices, taxonomy, configs_dir, client, model, k_runs=
 def run_learning_round(cases, *, family, taxonomy, configs_dir, proposer, client, model, journal, archive, floors, cost_cap_usd, minibatch) -> RoundRecord
 ```
 - Idempotency: a round directory is written under `.openultrasast/learning/rounds/<n>/` with the snapshot, proposal, scores and trajectories; rerunning a round number refuses.
+- Every stage scores with K runs as the scorer requires; the noise floor is the tolerance for the cross-family sweep, not a substitute for repeated runs.
 
 #### Proposer
 
@@ -607,7 +610,7 @@ def publish(cases, *, taxonomy, journal, floors, out_dir=Path("benchmarks/measur
 - Invariants: a finding carries exactly one `family:` tag; a pair has at most one `unscorable` reason; a round targets exactly one family; the archive maps a pair to one winning configuration per family.
 
 ### Data Contracts
-- Catalog row additions: `[[pair.expected]] family = "<id>"` (validated against the taxonomy), `known_limit = "identical_twin"` for the five twins; `unscorable` is computed, never stored.
+- Catalog row additions: `[[pair.expected]] family = "<id>"` (opaque at load, validated by the Classifier), `known_limit = "identical_twin"` for the five twins, `fix_date = "YYYY-MM-DD"` populated by the catalog generator from recipe metadata where available (rows without it are counted as undated in the post-cutoff slice); `unscorable` is computed, never stored.
 - Manifest block `learning = {taxonomy_version, families: {id: FamilyMetrics}, classifier: ClassifierReport, round: n | null}`; findings carry tags `family:`, `detector:`, `verifier:<rung>`.
 - Journal and archive JSONL as above; `noise-floors.json`; `review-queue.jsonl` entries `{pair, label_family, classified, tier, confidence}`.
 
