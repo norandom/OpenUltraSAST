@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from openultrasast.config import SandboxConfig
 from openultrasast.findings import StaticFinding
 from openultrasast.learning.families import load_families
@@ -47,7 +49,7 @@ def test_every_canary_template_renders_and_passes_the_snippet_safety_check() -> 
     assert render_canary("injection", language="rust", path="a.rs", function="f") is None
 
 
-def test_a_canary_token_is_unique_per_claim_so_one_family_never_answers_for_another() -> None:
+def test_a_canary_token_is_unique_to_the_experiment_it_names() -> None:
     from openultrasast.learning.canaries import render_canary
 
     first = render_canary("injection", language="python", path="app.py", function="lookup")
@@ -55,6 +57,8 @@ def test_a_canary_token_is_unique_per_claim_so_one_family_never_answers_for_anot
     third = render_canary("path", language="python", path="app.py", function="lookup")
     assert first and second and third
     assert first[1] != second[1] != third[1] and first[1] != third[1]
+    # the same family, file and function is the same experiment, so it is deliberately the same token
+    assert render_canary("injection", language="python", path="app.py", function="lookup")[1] == first[1]  # type: ignore[index]
 
 
 def test_the_canary_verifier_proves_only_when_the_oracle_fires(tmp_path: Path) -> None:
@@ -143,3 +147,51 @@ def _runner(reply: object) -> FakeSandboxRunner:
             return reply(marker)  # type: ignore[operator]
 
     return _Runner()
+
+
+VULNERABLE = {
+    "injection": "import os\n\n\ndef lookup(value):\n    os.system(value)\n    return 'done'\n",
+    "path": "def lookup(value):\n    with open(value, encoding='utf-8') as handle:\n        return handle.read()\n",
+    "deserialization": "import pickle\n\n\ndef lookup(value):\n    return pickle.loads(value)\n",
+}
+FIXED = {
+    "injection": (
+        "import shlex, subprocess\n\n\ndef lookup(value):\n"
+        "    subprocess.run(['echo', shlex.quote(value)], check=False)\n    return 'done'\n"
+    ),
+    "path": (
+        "from pathlib import Path\n\n\ndef lookup(value):\n"
+        "    name = Path(value).name\n    return (Path('/tmp') / name).read_text(encoding='utf-8') if False else ''\n"
+    ),
+    "deserialization": "import json\n\n\ndef lookup(value):\n    return json.loads(value.decode('utf-8', 'ignore') or '{}')\n",
+}
+
+
+@pytest.mark.parametrize("family", CANARY_FAMILIES)
+def test_each_canary_fires_on_a_real_bug_and_stays_quiet_on_its_fixed_twin(tmp_path: Path, family: str) -> None:
+    """The oracle must be a property of the code, not of the harness: run the snippet for real, both sides.
+
+    The injection fixture's fixed twin deliberately echoes its input, which is why the payload carries a
+    value unrelated to the oracle token: an echoing handler must not be able to satisfy the oracle.
+    """
+    import subprocess
+    import sys
+
+    from openultrasast.learning.canaries import render_canary
+
+    for side, sources in (("vuln", VULNERABLE), ("fixed", FIXED)):
+        workspace = tmp_path / side / "workspace"
+        scratch = tmp_path / side / "scratch"
+        workspace.mkdir(parents=True)
+        scratch.mkdir(parents=True)
+        (workspace / "app.py").write_text(sources[family])
+        rendered = render_canary(
+            family, language="python", path="app.py", function="lookup", workspace=str(workspace), scratch=str(scratch)
+        )
+        assert rendered is not None
+        snippet, token = rendered
+        script = scratch / "case.py"
+        script.write_text(snippet)
+        completed = subprocess.run([sys.executable, str(script)], capture_output=True, text=True, timeout=60, check=False)
+        fired = token in completed.stdout or token in completed.stderr
+        assert fired is (side == "vuln"), f"{family} {side}: {completed.stdout!r} {completed.stderr!r}"

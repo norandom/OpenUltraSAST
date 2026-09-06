@@ -150,3 +150,36 @@ def test_the_rung_is_the_best_verifier_outcome_among_the_detections(tmp_path: Pa
     assert score.outcome == "pair_correct" and score.rung == "static_corroboration"
     plain = score_pair_family(_case(tmp_path), "access_control", [[_finding("access_control", 12)]], [[]], ranges=RANGES, taxonomy=taxonomy)
     assert plain.rung == "suspicion"
+
+
+def test_the_unscorable_reason_tells_a_tooling_gap_from_a_corpus_defect(tmp_path: Path) -> None:
+    """Req 4.1: an unparsable row is a tooling gap; a row whose labeled function no range names is a corpus defect."""
+    from openultrasast.learning.scoring import unscorable_reason
+
+    case = _case(tmp_path)
+    assert unscorable_reason(case, parse_ok=True, ranges=RANGES) is None
+    assert unscorable_reason(case, parse_ok=False, ranges={}) == "unsupported_language"
+    assert unscorable_reason(case, parse_ok=False, ranges=RANGES) == "unsupported_language"  # the parse decides, not the ranges
+    assert unscorable_reason(case, parse_ok=True, ranges={}) == "unresolved_label"
+    assert unscorable_reason(_case(tmp_path, unscorable="identical_twin"), parse_ok=True, ranges=RANGES) == "identical_twin"
+    twin = _case(tmp_path, unscorable="known_limit:java hash")
+    assert unscorable_reason(twin, parse_ok=False, ranges={}) == "known_limit:java hash"  # a declared limit wins
+
+
+def test_a_row_whose_registration_context_is_missing_is_named_as_such(tmp_path: Path) -> None:
+    """Req 4.1: an access-control row whose handler arrived without its registration cannot be scored for that reason."""
+    from openultrasast.learning.scoring import unscorable_reason
+
+    case = _case(tmp_path, family="access_control")
+    assert unscorable_reason(case, parse_ok=True, ranges=RANGES, entry_points=("leaky",)) is None
+    assert unscorable_reason(case, parse_ok=True, ranges=RANGES, entry_points=()) == "missing_context"
+    # only families whose bug shape needs the registration are judged on it
+    assert unscorable_reason(_case(tmp_path, family="injection"), parse_ok=True, ranges=RANGES, entry_points=()) is None
+
+
+def test_an_unparsable_side_is_scored_unscorable_rather_than_missed(tmp_path: Path) -> None:
+    from openultrasast.learning.scoring import score_pair_family
+
+    taxonomy = load_families()
+    score = score_pair_family(_case(tmp_path), "access_control", [[]], [[]], ranges={}, taxonomy=taxonomy, parse_ok=False)
+    assert score.outcome == "unscorable" and score.unscorable_reason == "unsupported_language"

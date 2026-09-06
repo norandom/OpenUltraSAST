@@ -103,13 +103,43 @@ def test_the_static_verifier_raises_an_access_control_claim_the_checker_agrees_w
     assert elsewhere.rung == "suspicion"
 
 
-def test_a_verification_can_be_written_onto_the_claim_as_a_tag(repo: Path) -> None:
+def test_a_verification_is_written_onto_the_claim_as_a_tag_and_nothing_else(repo: Path) -> None:
+    """The evidence ladder belongs to another boundary; a verifier says what it saw with a tag."""
     from openultrasast.learning.verifiers import apply_verification, verifier_for
 
     taxonomy = load_families()
     claim = _claim("leaky", 12, "access_control")
     verified = apply_verification(claim, verifier_for(taxonomy.by_id("access_control")).verify(claim, root=repo, language="python"))
     assert "verifier:static_corroboration" in verified.tags
-    assert verified.evidence_level == "static_corroboration" and claim.evidence_level == "suspicion"
+    assert verified.evidence_level == "suspicion" and claim.evidence_level == "suspicion"  # the ladder is untouched
     plain = apply_verification(claim, verifier_for(taxonomy.by_id("memory")).verify(claim, root=repo, language="python"))
-    assert "verifier:suspicion" in plain.tags and plain.evidence_level == "suspicion"
+    assert "verifier:suspicion" in plain.tags and plain.tags.count("verifier:suspicion") == 1
+
+
+def test_a_rung_only_reaches_the_ladder_through_an_explicit_mapping() -> None:
+    """Every rung must land on a level the project's ladder actually defines, or the report raises later."""
+    from openultrasast.learning.verifiers import RUNGS, evidence_level_for
+    from openultrasast.verification import EvidenceLevel
+
+    assert {rung: evidence_level_for(rung) for rung in RUNGS} == {
+        "suspicion": EvidenceLevel.SUSPICION,
+        "static_corroboration": EvidenceLevel.STATIC_CORROBORATION,
+        "proven": EvidenceLevel.EXPLOIT_DEMONSTRATED,
+    }
+    assert all(EvidenceLevel(evidence_level_for(rung).value) for rung in RUNGS)  # never a value outside the ladder
+
+
+def test_a_verified_claim_still_passes_the_projects_own_verification_helpers(repo: Path) -> None:
+    """The bug this pins: stamping a learning rung onto evidence_level raised ValueError in three call sites."""
+    from openultrasast.learning.verifiers import Verification, apply_verification, raise_to
+    from openultrasast.verification import VerificationStatus, is_report_verified, verify_finding
+
+    claim = _claim("lookup", 3, "injection")
+    proven = apply_verification(claim, Verification(rung="proven", reason="oracle_fired", oracle_output="CANARY x"))
+    assert "verifier:proven" in proven.tags
+    assert verify_finding(proven).evidence_level == "suspicion"  # would raise ValueError if the rung were stamped on
+    assert is_report_verified(proven.evidence_level, VerificationStatus.ACCEPTED) is False
+    raised = raise_to(proven, "proven")
+    assert raised.evidence_level == "exploit_demonstrated"
+    assert verify_finding(raised).evidence_level == "exploit_demonstrated"
+    assert is_report_verified(raised.evidence_level, VerificationStatus.ACCEPTED) is True

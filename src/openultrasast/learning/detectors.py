@@ -89,6 +89,8 @@ def _load_one(directory: Path) -> FamilyConfig:
             f"{directory}: prompt and checklist length {len(prompt) + len(checklist)} exceeds the cap of {MAX_PROMPT_CHARS}"
         )
     tools = tuple(str(name) for name in settings.get("tools", []) or ())
+    if not tools:
+        raise DetectorConfigError(f"{directory}: tools is required and must not be empty; a detector with no tools reports nothing")
     unknown_tools = [name for name in tools if name not in CURATED_TOOLS]
     if unknown_tools:
         raise DetectorConfigError(f"{directory}: unknown tool(s) {', '.join(unknown_tools)}; expected from {', '.join(CURATED_TOOLS)}")

@@ -175,7 +175,11 @@ class Archive:
             handle.write(redact_secrets(json.dumps(payload, sort_keys=True)) + "\n")
 
     def winners(self, family: str) -> dict[str, str]:
-        """pair -> the first configuration version that scored it correct. A later version takes it by winning it."""
+        """pair -> the earliest configuration version that scored it correct.
+
+        Earliest, not latest: the point of the archive is that a version which solves a pair keeps its
+        claim to it, so a later version that loses the pair cannot quietly take it off the board.
+        """
         winners: dict[str, str] = {}
         for payload in _read_jsonl(self.path):
             if str(payload.get("family")) != family or str(payload.get("outcome")) != "pair_correct":

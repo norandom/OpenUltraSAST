@@ -19,9 +19,11 @@ from typing import Literal, Protocol
 
 from ..findings import StaticFinding
 from ..sandbox import SandboxResult
+from ..verification import EvidenceLevel
 from .families import Family
 
 Rung = Literal["suspicion", "static_corroboration", "proven"]
+RUNGS: tuple[Rung, ...] = ("suspicion", "static_corroboration", "proven")
 VerifierKind = Literal["canary", "static", "none"]
 
 
@@ -93,12 +95,37 @@ def verifier_for(family: Family, *, canary: Verifier | None = None) -> Verifier:
 
 
 def apply_verification(claim: StaticFinding, verification: Verification) -> StaticFinding:
-    """A copy of the claim carrying what the verifier said. The original is never mutated."""
+    """A copy of the claim carrying what the verifier said, as a tag.
+
+    The evidence ladder belongs to another boundary and this spec does not change it, so nothing here
+    writes ``evidence_level``. "proven" is this spec's word, not a rung the ladder defines, and stamping
+    it onto the field made the project's own verification helpers raise. A caller that wants to move a
+    claim up the ladder does it through :func:`raise_to`, which can only produce a level the ladder has.
+    """
     tags = [tag for tag in claim.tags if not tag.startswith("verifier:")] + [f"verifier:{verification.rung}"]
-    return replace(claim, tags=tags, evidence_level=verification.rung)
+    return replace(claim, tags=tags)
+
+
+def evidence_level_for(rung: Rung) -> EvidenceLevel:
+    """The project's evidence level a verifier rung corresponds to. The only bridge between the two vocabularies."""
+    return _LADDER[rung]
+
+
+def raise_to(claim: StaticFinding, rung: Rung) -> StaticFinding:
+    """A copy of the claim at the ladder level this rung corresponds to. Never a value the ladder lacks."""
+    return replace(claim, evidence_level=str(evidence_level_for(rung)))
+
+
+_LADDER: dict[Rung, EvidenceLevel] = {
+    "suspicion": EvidenceLevel.SUSPICION,
+    "static_corroboration": EvidenceLevel.STATIC_CORROBORATION,
+    # A canary that fired in the sandbox demonstrated the vulnerability, which is what this level means here.
+    "proven": EvidenceLevel.EXPLOIT_DEMONSTRATED,
+}
 
 
 __all__ = [
+    "RUNGS",
     "NoVerifier",
     "Rung",
     "StaticVerifier",
@@ -106,6 +133,8 @@ __all__ = [
     "Verifier",
     "VerifierKind",
     "apply_verification",
+    "evidence_level_for",
+    "raise_to",
     "token_oracle",
     "verifier_for",
 ]

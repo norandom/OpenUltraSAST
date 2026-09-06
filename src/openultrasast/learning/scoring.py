@@ -22,6 +22,9 @@ from ..findings import StaticFinding
 from .families import FamilyTaxonomy
 
 FamilyOutcome = Literal["pair_correct", "both_flagged", "both_silent", "reversed", "unscorable"]
+# Families whose bug shape is the absence of a check on a reached handler: without the registration that
+# makes the handler reachable, the pair says nothing either way, which is a corpus defect with its own name.
+CONTEXT_DEPENDENT_FAMILIES = frozenset({"access_control"})
 Rung = Literal["suspicion", "static_corroboration", "proven"]
 _RUNGS: tuple[Rung, ...] = ("suspicion", "static_corroboration", "proven")
 FunctionRanges = Mapping[str, Sequence[tuple[str, int, int]]]
@@ -53,11 +56,13 @@ def score_pair_family(
     *,
     ranges: FunctionRanges,
     taxonomy: FamilyTaxonomy,
+    parse_ok: bool = True,
+    entry_points: Sequence[str] | None = None,
 ) -> PairFamilyScore:
     """Score one pair for one family over K runs of the detector on each side."""
     name = str(getattr(case, "name", "?"))
     slice_name = str(getattr(case, "slice", "") or "")
-    reason = _unscorable(case, ranges)
+    reason = unscorable_reason(case, parse_ok=parse_ok, ranges=ranges, entry_points=entry_points, family=family)
     if reason is not None:
         return PairFamilyScore(pair=name, family=family, slice=slice_name, runs=(), outcome="unscorable", unscorable_reason=reason)
     spans = _spans(case, ranges)
@@ -101,11 +106,36 @@ def _outcome(detected: bool, leaked: bool) -> FamilyOutcome:
     return "reversed" if leaked else "both_silent"
 
 
-def _unscorable(case: object, ranges: FunctionRanges) -> str | None:
+def unscorable_reason(
+    case: object,
+    *,
+    parse_ok: bool = True,
+    ranges: FunctionRanges,
+    entry_points: Sequence[str] | None = None,
+    family: str = "",
+) -> str | None:
+    """Why this pair cannot be scored, or None. The reasons have different owners, so they must not be conflated.
+
+    A maintainer-declared limit wins over anything computed. An unparsable side is a tooling gap
+    (``unsupported_language``), a labeled function no parsed range names is a corpus labelling defect
+    (``unresolved_label``), and a handler that arrived without the registration that makes it reachable is a
+    harvest defect (``missing_context``), which only matters for families whose bug shape is a missing check.
+    """
     declared = getattr(case, "unscorable", None)
     if declared:
         return str(declared)
-    return None if _spans(case, ranges) else "unresolved_label"
+    if not parse_ok:
+        return "unsupported_language"
+    if not _spans(case, ranges):
+        return "unresolved_label"
+    labeled_family = family or next(
+        (str(getattr(row, "family", "") or "") for row in getattr(case, "expected", ()) or () if getattr(row, "family", None)), ""
+    )
+    if entry_points is not None and labeled_family in CONTEXT_DEPENDENT_FAMILIES:
+        labeled = {str(getattr(row, "function", "") or "") for row in getattr(case, "expected", ()) or ()}
+        if not (labeled & set(entry_points)):
+            return "missing_context"
+    return None
 
 
 def _spans(case: object, ranges: FunctionRanges) -> tuple[tuple[str, int, int], ...]:
@@ -276,6 +306,7 @@ def sign_test(better: int, worse: int) -> float:
 
 
 __all__ = [
+    "CONTEXT_DEPENDENT_FAMILIES",
     "FamilyMetrics",
     "FamilyOutcome",
     "FunctionRanges",
@@ -284,4 +315,5 @@ __all__ = [
     "aggregate",
     "score_pair_family",
     "sign_test",
+    "unscorable_reason",
 ]

@@ -156,3 +156,12 @@ def test_round_zero_can_write_a_configuration_for_every_family(tmp_path: Path) -
     assert all(config.version == "0" for config in configs.values())
     assert all(config.prompt.startswith("You are a security hunter.") for config in configs.values())
     assert configs["access_control"].prompt != configs["injection"].prompt  # each carries its own family's definition
+
+
+def test_a_configuration_with_no_tools_is_refused_rather_than_reporting_nothing(tmp_path: Path) -> None:
+    """A detector offered no tools never calls one, and the hunter loop then returns nothing at all."""
+    from openultrasast.learning.detectors import DetectorConfigError, load_family_configs
+
+    _write_config(tmp_path, "injection", tools=[])
+    with pytest.raises(DetectorConfigError, match="tools"):
+        load_family_configs(tmp_path, load_families())

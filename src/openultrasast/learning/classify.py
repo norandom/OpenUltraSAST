@@ -155,10 +155,11 @@ def _ask(client: ChatClient | None, model: str, taxonomy: FamilyTaxonomy, questi
         {"role": "user", "content": f"Families:\n{catalog}\n\n{question}\n\nAnswer as JSON."},
     ]
     try:
-        response = client.complete(model=model, messages=messages, tools=[], json_object=True, logprobs=True)  # type: ignore[call-arg]
-    except TypeError:  # a client without the adapter's extras
-        response = client.complete(model=model, messages=messages, tools=[])
-    except Exception:  # noqa: BLE001 — the classifier is advisory; a failed call abstains
+        try:
+            response = client.complete(model=model, messages=messages, tools=[], json_object=True, logprobs=True)  # type: ignore[call-arg]
+        except TypeError:  # a client without the adapter's extras
+            response = client.complete(model=model, messages=messages, tools=[])
+    except Exception:  # noqa: BLE001 — the classifier is advisory; any failed call abstains, including in the fallback
         return Classification(families=(), tier="none")
     confidence = response.mean_logprob
     if confidence is not None and confidence < MIN_CONFIDENCE:
