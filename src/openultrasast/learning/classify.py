@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
@@ -43,9 +43,15 @@ class Classification:
     confidence: float | None = None  # mean token log-probability when the model answered
 
 
-def classify_pair(case: object, taxonomy: FamilyTaxonomy, *, client: ChatClient | None, model: str = "") -> Classification:
-    """The families a labeled pair belongs to: its declared label, else its mechanism, else its weakness."""
-    families = _static_families_of_pair(case, taxonomy)
+def classify_pair(
+    case: object, taxonomy: FamilyTaxonomy, *, client: ChatClient | None, model: str = "", use_declared: bool = True
+) -> Classification:
+    """The families a labeled pair belongs to: its declared label, else its mechanism, else its weakness.
+
+    ``use_declared`` is False when the classifier is being measured against those same labels, so that
+    agreement is not the classifier reading back the answer it is scored on.
+    """
+    families = _static_families_of_pair(case, taxonomy, use_declared=use_declared)
     if families:
         return Classification(families=families, tier="static")
     return _ask(client, model, taxonomy, _pair_question(case))
@@ -80,12 +86,12 @@ def validate_family_labels(cases: Sequence[object], taxonomy: FamilyTaxonomy) ->
                 raise FamilyLabelError(f"pair {name}: unknown family {label!r}; expected one of {', '.join(sorted(known))}")
 
 
-def _static_families_of_pair(case: object, taxonomy: FamilyTaxonomy) -> tuple[str, ...]:
+def _static_families_of_pair(case: object, taxonomy: FamilyTaxonomy, *, use_declared: bool = True) -> tuple[str, ...]:
     declared: list[str] = []
     derived: list[str] = []
     for row in getattr(case, "expected", ()) or ():
         label = getattr(row, "family", None)
-        if label and any(family.id == label for family in taxonomy.families):
+        if use_declared and label and any(family.id == label for family in taxonomy.families):
             declared.append(str(label))
             continue
         obligation = getattr(row, "obligation", None)
@@ -216,12 +222,174 @@ def _region_question(root: Path, path: str, function: str | None) -> str:
     return f"Which families does this code belong to?\n{path}::{function}\n{body}"
 
 
+@dataclass(frozen=True)
+class QueueEntry:
+    """One disagreement between a maintainer label and the classifier, for a human to settle."""
+
+    pair: str
+    label: str
+    classified: tuple[str, ...]
+    tier: Tier
+    confidence: float | None = None
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "pair": self.pair,
+            "label": self.label,
+            "classified": list(self.classified),
+            "tier": self.tier,
+            "confidence": self.confidence,
+        }
+
+
+@dataclass(frozen=True)
+class ClassifierReport:
+    """How the classifier did on its own: coverage over the whole corpus, agreement where a reference exists.
+
+    ``labeled`` is how many rows carry a maintainer family label. Agreement, the confusion matrix and both
+    baselines are computed over those rows only, so an unlabeled corpus reports coverage and says the
+    reference set is empty rather than inventing a score.
+    """
+
+    taxonomy_version: str
+    classified: int
+    labeled: int
+    agreement: float  # credit for the classifier's first answer
+    oracle_router: float  # credit for the best of its answers
+    random_router: float  # a uniform pick over the real families
+    confusion: dict[str, dict[str, int]] = field(default_factory=dict)
+    per_tier: dict[str, int] = field(default_factory=dict)
+    per_family: dict[str, int] = field(default_factory=dict)
+    unknown: int = 0
+    queue: tuple[QueueEntry, ...] = ()
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "taxonomy_version": self.taxonomy_version,
+            "classified": self.classified,
+            "labeled": self.labeled,
+            "agreement": self.agreement,
+            "oracle_router": self.oracle_router,
+            "random_router": self.random_router,
+            "confusion": {label: dict(sorted(answers.items())) for label, answers in sorted(self.confusion.items())},
+            "per_tier": dict(sorted(self.per_tier.items())),
+            "per_family": dict(sorted(self.per_family.items())),
+            "unknown": self.unknown,
+            "queue": [entry.to_dict() for entry in self.queue],
+        }
+
+
+def measure_classifier(
+    cases: Sequence[object],
+    taxonomy: FamilyTaxonomy,
+    *,
+    client: ChatClient | None,
+    model: str = "",
+    reference_tiers: Sequence[str] = ("seeded", "reviewed"),
+) -> ClassifierReport:
+    """Classify every case and score the classifier against the labels a maintainer stands behind."""
+    rows = list(cases)
+    real = [family.id for family in taxonomy.families if family.id != "unknown"]
+    per_tier: dict[str, int] = {}
+    per_family: dict[str, int] = {}
+    confusion: dict[str, dict[str, int]] = {}
+    queue: list[QueueEntry] = []
+    unknown = 0
+    credits: list[float] = []
+    oracles: list[float] = []
+    for case in rows:
+        answer = classify_pair(case, taxonomy, client=client, model=model, use_declared=False)
+        per_tier[answer.tier] = per_tier.get(answer.tier, 0) + 1
+        for family_id in answer.families:
+            per_family[family_id] = per_family.get(family_id, 0) + 1
+        if not answer.families:
+            unknown += 1
+        label = _reference_label(case, taxonomy, reference_tiers)
+        if label is None:
+            continue
+        first = answer.families[0] if answer.families else "unknown"
+        credits.append(_credit(taxonomy, label, (first,)))
+        oracles.append(_credit(taxonomy, label, answer.families or ("unknown",)))
+        confusion.setdefault(label, {})[first] = confusion.setdefault(label, {}).get(first, 0) + 1
+        if credits[-1] < 1.0:
+            queue.append(
+                QueueEntry(
+                    pair=str(getattr(case, "name", "?")),
+                    label=label,
+                    classified=answer.families,
+                    tier=answer.tier,
+                    confidence=answer.confidence,
+                )
+            )
+    labeled = len(credits)
+    return ClassifierReport(
+        taxonomy_version=taxonomy.version,
+        classified=len(rows),
+        labeled=labeled,
+        agreement=sum(credits) / labeled if labeled else 0.0,
+        oracle_router=sum(oracles) / labeled if labeled else 0.0,
+        random_router=(1.0 / len(real)) if real and labeled else 0.0,
+        confusion=confusion,
+        per_tier=per_tier,
+        per_family=per_family,
+        unknown=unknown,
+        queue=tuple(queue),
+    )
+
+
+def write_review_queue(path: Path, entries: Sequence[QueueEntry]) -> int:
+    """Append disagreements a human has not seen yet; a pair already queued is never duplicated."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    seen: set[str] = set()
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                try:
+                    seen.add(str(json.loads(line).get("pair", "")))
+                except json.JSONDecodeError:
+                    continue
+    written = 0
+    with path.open("a", encoding="utf-8") as handle:
+        for entry in entries:
+            if entry.pair in seen:
+                continue
+            handle.write(json.dumps(entry.to_dict(), sort_keys=True) + "\n")
+            seen.add(entry.pair)
+            written += 1
+    return written
+
+
+def _reference_label(case: object, taxonomy: FamilyTaxonomy, reference_tiers: Sequence[str]) -> str | None:
+    """The family a maintainer stands behind for this pair, or None. Only trusted tiers are a reference."""
+    if str(getattr(case, "review_tier", "")) not in reference_tiers:
+        return None
+    known = {family.id for family in taxonomy.families}
+    for row in getattr(case, "expected", ()) or ():
+        label = getattr(row, "family", None)
+        if label and str(label) in known:
+            return str(label)
+    return None
+
+
+def _credit(taxonomy: FamilyTaxonomy, label: str, answers: Sequence[str]) -> float:
+    """1.0 for the same family, half for a parent or child, nothing for a lateral or fabricated answer."""
+    best = 0.0
+    for answer in answers:
+        relation = taxonomy.related(label, answer)
+        best = max(best, 1.0 if relation == "same" else 0.5 if relation == "parent_child" else 0.0)
+    return best
+
+
 __all__ = [
     "MIN_CONFIDENCE",
     "Classification",
+    "ClassifierReport",
     "FamilyLabelError",
+    "QueueEntry",
     "classify_finding",
     "classify_pair",
     "classify_region",
+    "measure_classifier",
     "validate_family_labels",
+    "write_review_queue",
 ]
