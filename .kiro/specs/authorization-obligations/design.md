@@ -131,7 +131,7 @@ src/openultrasast/
 │   ├── policy.py         # DeclaredPolicy schema + load_declared_policy(path) (closed; rejects unknown fields); version hash
 │   ├── dominance.py      # Dominance protocol; OrderDominance default (decorators, router middleware, statement order, hop order)
 │   └── check.py          # check_obligations(...) -> ObligationResult(findings, discharges, sibling_sets, degradations); findings_to_static
-├── data/facts/obligations.toml   # closed operation/discharger facts per language (python, javascript, typescript)
+├── ruleset/obligations/{python,javascript,typescript}.toml   # closed operation/discharger facts, beside (not inside) the flow facts dir that load_facts globs
 ├── cli.py                # MAP: obligation check after variant search; manifest `obligations`; `mechanisms export` also writes obligation shapes
 ├── config.py             # [obligations] enabled=true, min_siblings=3, policy_path=".openultrasast/obligations.toml"
 ├── reports.py            # obligation lines in markdown, `obligation_*` SARIF properties
@@ -358,7 +358,7 @@ class ObligationResult:
     degradations: tuple[dict[str, object], ...]
 
 def check_obligations(*, irs, entries, facts, flow_facts, policy, paths, dominance, store_shapes, min_siblings) -> ObligationResult: ...
-def findings_to_static(result) -> list[StaticFinding]: ...   # id "obligation:<kind>:<path>:<line>", evidence suspicion, tags
+def findings_to_static(result) -> list[StaticFinding]: ...   # id "obligation:<kind>:<path>:<line>:<missing>", evidence suspicion, tags
 ```
 
 Rules: reached = a `PathRecord` ends at the operation, or (no paths) the operation's function is an entry point; label precedence declared > consistency > function_local; a declared public route suppresses `path_guard` obligations for that route; an operation with a matching store shape gains `known_fix`; a discharge that binds `request_input` where `authenticated_context` is required is reported with `provenance = "request_input"`.
@@ -369,7 +369,7 @@ When a hunter client is available (the same resolution as `pairs --hunter`), the
 
 ### Reports, manifest, rank
 
-Markdown per finding: `- Obligation: <kind> on <resource>`, `- Missing discharger: <kind> (<provenance>)`, `- Evidence: <label> — <siblings | clause>`, `- Known fix: <guard shape> learned from <pairs>`, `- Intent: <adjudication>`; a `## Obligations` section lists sibling sets and the policy version. SARIF properties `obligation_kind`, `obligation_missing`, `obligation_label`, `obligation_evidence`, `obligation_known_fix`, `obligation_intent`. Manifest `obligations = {sibling_sets, under_populated, operations, findings_by_label, policy_version | null, degradations}`. Rank: `ranking_priority = base(sensitivity) x weight(label)` with `declared > consistency > function_local`, capped strictly below the lowest sandbox-proven finding in the run.
+Markdown per finding: `- Obligation: <kind> on <resource>`, `- Missing discharger: <kind> (<provenance>)`, `- Evidence: <label> — <siblings | clause>`, `- Known fix: <guard shape> learned from <pairs>`, `- Intent: <adjudication>`; a `## Obligations` section lists sibling sets and the policy version. SARIF properties `obligation_kind`, `obligation_missing`, `obligation_label`, `obligation_evidence`, `obligation_known_fix`, `obligation_intent`. Manifest `obligations = {sibling_sets, under_populated, operations, findings_by_label, policy_version | null, degradations, sets}` (`sets` lists `{module, resource, handlers}` so the report can name them). Rank: `ranking_priority = base(sensitivity) x weight(label)` with `declared > consistency > function_local`, capped strictly below the lowest sandbox-proven finding in the run. Proof rungs live on `CandidateVerdict`, never on `StaticFinding`, so the cap takes the proven finding ids from the run's `TRIGGERABLE` verdicts: `rank_obligations(findings, proven_ids=...)` runs once at MAP and again after REGRESS when the sandbox proved anything.
 
 ### Corpus and leave-one-out
 
