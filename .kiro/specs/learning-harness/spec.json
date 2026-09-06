@@ -1,7 +1,7 @@
 {
   "feature_name": "learning-harness",
   "created_at": "2026-09-06T06:32:41Z",
-  "updated_at": "2026-09-06T08:34:55Z",
+  "updated_at": "2026-09-06T13:00:00Z",
   "language": "en",
   "phase": "implementation",
   "approvals": {
@@ -26,5 +26,5 @@
     "tree-sitter-overlay-extra",
     "harnessx-self-improving-rulesets"
   ],
-  "approval_note": "2026-09-06 requirements approved by the maintainer in session ('approve the requirements and run the design phase'); 2026-09-06 design approved by the maintainer in session ('approve the design and generate the tasks'); 2026-09-06 tasks approved by the maintainer in session ('approve the tasks and go on with the implementation'); 2026-09-06 requirements amended by the maintainer in session ('amend the requirements to untrusted_destination and note the flat taxonomy'): Req 1.1 names untrusted destination instead of server-side request forgery, and Req 2.7 and 3.7 require every agreement and family figure to state that hierarchical partial credit could not apply while the taxonomy is flat; 2026-09-06 Req 6.1 amended by the maintainer in session ('drop the skills set from the requirement'): a detector configuration has no skills set, because the skill router belongs to the tool's earlier shape and a family's prompt, checklist, tools and counterexamples already carry what a round evolves"
+  "approval_note": "2026-09-06 requirements approved by the maintainer in session ('approve the requirements and run the design phase'); 2026-09-06 design approved by the maintainer in session ('approve the design and generate the tasks'); 2026-09-06 tasks approved by the maintainer in session ('approve the tasks and go on with the implementation'); 2026-09-06 requirements amended by the maintainer in session ('amend the requirements to untrusted_destination and note the flat taxonomy'): Req 1.1 names untrusted destination instead of server-side request forgery, and Req 2.7 and 3.7 require every agreement and family figure to state that hierarchical partial credit could not apply while the taxonomy is flat; 2026-09-06 Req 6.1 amended by the maintainer in session ('drop the skills set from the requirement'): a detector configuration has no skills set, because the skill router belongs to the tool's earlier shape and a family's prompt, checklist, tools and counterexamples already carry what a round evolves; 2026-09-06 design amended during task 4.1 (recorded in design.md): a recipe may name cross-file registration documents, because connexion registers by operationId in an OpenAPI file and express in a router module, so Req 10.2 is unreachable from a single-file excerpt for those rows; 2026-09-06 task 5.3 amended by the maintainer in session (asked and answered): the first evolve rounds target `injection` rather than `access_control`, because under the split and review-tier rules access_control has one train teacher and four holdout pairs and teaches zero obligation shapes, while injection has twelve teachers and ten holdout pairs"
 }
