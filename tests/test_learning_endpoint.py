@@ -172,3 +172,33 @@ def test_the_underlying_client_forwards_extra_body_and_keeps_usage(monkeypatch: 
     assert payload["usage"] == {"prompt_tokens": 7}
     message = provider._extract_message(payload)
     assert message["reasoning_content"] == "because"  # retained for the caller to replay
+
+
+def test_logprobs_are_read_off_the_choice_where_the_provider_puts_them() -> None:
+    """OpenAI-shaped providers put `logprobs` on the choice, not on the message.
+
+    `_message_of` returned only `choices[0].message`, so the confidence signal the classifier is supposed to
+    abstain on was always `None` — a knob that reads as "never unsure" whatever the model said."""
+    from openultrasast.learning.endpoint import _message_of
+
+    payload = {
+        "choices": [
+            {
+                "message": {"content": "yes", "role": "assistant"},
+                "logprobs": {"content": [{"token": "yes", "logprob": -0.5}, {"token": "!", "logprob": -1.5}]},
+            }
+        ]
+    }
+    message = _message_of(payload)
+    assert message["content"] == "yes"
+    from openultrasast.tool_hunter import chat_response_from_message
+
+    assert chat_response_from_message(message).mean_logprob == pytest.approx(-1.0)
+
+
+def test_a_reply_without_logprobs_reports_none_rather_than_a_number() -> None:
+    from openultrasast.learning.endpoint import _message_of
+    from openultrasast.tool_hunter import chat_response_from_message
+
+    message = _message_of({"choices": [{"message": {"content": "yes"}}]})
+    assert chat_response_from_message(message).mean_logprob is None

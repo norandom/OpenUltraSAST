@@ -189,12 +189,19 @@ def _provider_of(base_url: str) -> Provider:
 
 
 def _message_of(payload: object) -> Mapping[str, object]:
+    """The reply message, carrying the choice's `logprobs` with it.
+
+    OpenAI-shaped providers put `logprobs` on the *choice*, beside the message rather than inside it. Reading only
+    the message meant the confidence signal was always absent, so a knob meant to let the classifier abstain when
+    it is unsure read as "never unsure" whatever the model said."""
     if isinstance(payload, Mapping):
         choices = payload.get("choices")
         if isinstance(choices, Sequence) and choices and isinstance(choices[0], Mapping):
-            message = choices[0].get("message")
+            choice = choices[0]
+            message = choice.get("message")
             if isinstance(message, Mapping):
-                return message
+                logprobs = choice.get("logprobs")
+                return {**message, "logprobs": logprobs} if logprobs is not None else message
     return {}
 
 
