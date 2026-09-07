@@ -10,16 +10,17 @@
     "caveats": [
       "Round 1's rejection was correct, but for an authoring error rather than the loop's insight: the memory lever writes hard_negatives.jsonl, rendered to the detector as 'Known non-issues, do not report these', and it was fed the four vulnerability shapes the train split teaches.",
       "Round 4 never proposed anything: the meta-agent composed correctly and failed authentication, because the provider seam was hard-coded to anthropic while the detector talks to DeepSeek.",
-      "The minibatch is 8 and the holdout 10. A sign test cannot reach p<0.05 below n=6 discordant pairs, so at this corpus size a reliability-gated rule would accept almost nothing either. The corpus is the binding constraint, not the rule."
+      "The minibatch is 8 and the holdout 10. A sign test cannot reach p<0.05 below n=6 discordant pairs, so at this corpus size a reliability-gated rule would accept almost nothing either. The corpus is the binding constraint, not the rule.",
+      "Round 5 re-ran round 1's content through the lever it should have used -- counterexamples, rendered as 'Worked examples' -- and was rejected because one pair of eight moved, at p=1.000. The experiment designed to give the demo lever a fair test could not give it one: the rule cannot tell a lever that helps from a lever that does nothing."
     ],
     "conclusion": "No decision was distinguishable from chance, in either direction. Two rejections at p=0.250 and p=1.000, one acceptance at p=0.500 that versioned the configuration to v1. On a family where 11 of 20 pairs disagree with themselves between runs of the unchanged detector, the threshold rule in Req 9.5 -- reject if any pair regresses, accept if one improves and none regress -- is reading noise in both directions and reporting it as progress.",
-    "decisions": 4,
+    "decisions": 5,
     "distinguishable_from_noise": 0,
     "injection_noise_floor_at_round_zero": {
       "flaky_pairs": 11,
       "scorable": 20
     },
-    "total_cost_usd": 1.76
+    "total_cost_usd": 2.17
   },
   "rounds": [
     {
@@ -150,6 +151,40 @@
         "p_value": 1.0,
         "reliable": false,
         "worse": 0
+      }
+    },
+    {
+      "attribution": {
+        "flipped_predicted": 1,
+        "flipped_unpredicted": 0,
+        "precision": 1.0
+      },
+      "config_version_after": "1",
+      "cost_usd": 0.41933022399999986,
+      "holdout": {
+        "better": 1,
+        "delta": -0.25,
+        "p_value": 0.625,
+        "reliable": false,
+        "worse": 3
+      },
+      "lever": "counterexample",
+      "outcome": "rejected",
+      "reason": "train_regressed",
+      "round": 5,
+      "sweep": {
+        "access_control": 0,
+        "config_secrets": 0,
+        "deserialization": 0,
+        "output_encoding": 0,
+        "path": 0
+      },
+      "train": {
+        "better": 0,
+        "delta": -0.125,
+        "p_value": 1.0,
+        "reliable": false,
+        "worse": 1
       }
     }
   ],
