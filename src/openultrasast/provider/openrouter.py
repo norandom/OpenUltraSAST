@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import re
@@ -20,10 +21,14 @@ _T = TypeVar("_T")
 
 
 def _is_transient(exc: Exception) -> bool:
-    """A network failure worth retrying (rate-limit, 5xx, connection error, timeout)."""
+    """A network failure worth retrying: rate-limit, 5xx, connection error, timeout, or a body that stopped.
+
+    `http.client.IncompleteRead` and `RemoteDisconnected` arrive while the *body* is being read, after the
+    connection succeeded, so they are not `URLError`. Measured: one of them ended an evolve round that had already
+    been paid for."""
     if isinstance(exc, urllib.error.HTTPError):
         return exc.code in _TRANSIENT_STATUS
-    return isinstance(exc, urllib.error.URLError | TimeoutError)
+    return isinstance(exc, urllib.error.URLError | TimeoutError | http.client.HTTPException)
 
 
 def call_with_retry(
@@ -108,8 +113,8 @@ class OpenRouterChatClient:
 
         try:
             return call_with_retry(_do, attempts=self.max_attempts, base_delay=self.retry_base_delay)
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
-            raise OpenRouterError(f"OpenRouter chat request failed: {exc}") from exc
+        except (urllib.error.URLError, TimeoutError, http.client.HTTPException, json.JSONDecodeError) as exc:
+            raise OpenRouterError(f"OpenRouter chat request failed: {type(exc).__name__}: {exc}") from exc
 
     def complete_json(self, *, model: str, messages: list[dict[str, str]], timeout_seconds: int = 60) -> object:
         message = self.complete_chat(model=model, messages=messages, timeout_seconds=timeout_seconds)
@@ -151,8 +156,8 @@ class OpenRouterEmbeddingClient:
 
         try:
             response_payload = call_with_retry(_do, attempts=self.max_attempts, base_delay=self.retry_base_delay)
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
-            raise OpenRouterError(f"OpenRouter embedding request failed: {exc}") from exc
+        except (urllib.error.URLError, TimeoutError, http.client.HTTPException, json.JSONDecodeError) as exc:
+            raise OpenRouterError(f"OpenRouter embedding request failed: {type(exc).__name__}: {exc}") from exc
         return parse_embedding_response(response_payload)
 
 

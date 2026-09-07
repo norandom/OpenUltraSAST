@@ -406,10 +406,25 @@ def run_learning_round(
         spent = spent_usd() if spent_usd is not None else 0.0
         return not within_budget(spent, cost_cap_usd)
 
-    before_scan = scan_factory(config)
-    before_train = _score(batch, before_scan, family)
-    before_hold = _score(holdout, before_scan, family)
     record = _round_record(round_number, family, None, taxonomy, config)
+    try:
+        before_scan = scan_factory(config)
+        before_train = _score(batch, before_scan, family)
+        before_hold = _score(holdout, before_scan, family)
+    except Exception as exc:
+        # These stages run before anything is applied, so there is nothing to revert — but they have already spent
+        # money, and a round that leaves no record is a round nobody can account for. Measured: round 5 died on a
+        # network read during its first stage and vanished.
+        _finish(
+            journal,
+            directory,
+            record,
+            outcome="reverted",
+            reason=f"stage_failed: {type(exc).__name__}",
+            cost=spent_usd() if spent_usd is not None else 0.0,
+            trajectories=trajectories,
+        )
+        raise
     if _over_cap():
         return _finish(
             journal, directory, record, outcome="reverted_cost", reason="cost_cap_exceeded", cost=spent, trajectories=trajectories
@@ -551,7 +566,7 @@ def run_learning_round(
             version=version,
             trajectories=trajectories,
         )
-    except Exception:
+    except Exception as exc:
         # A stage that raises has already spent money and already changed the tree. Both facts belong in the
         # journal before the exception leaves, or the next round starts from a state nothing describes.
         snapshot.restore()
@@ -560,7 +575,7 @@ def run_learning_round(
             directory,
             record,
             outcome="reverted",
-            reason="stage_failed",
+            reason=f"stage_failed: {type(exc).__name__}",
             proposal=proposal,
             cost=spent,
             trajectories=trajectories,

@@ -63,3 +63,53 @@ def test_non_retryable_value_error_propagates_immediately() -> None:
 
     with pytest.raises(OpenRouterError):
         call_with_retry(op, attempts=3, base_delay=0, sleep=_no_sleep)
+
+
+def test_a_body_that_stops_mid_read_is_transient() -> None:
+    """Measured: an evolve round died on `http.client.IncompleteRead(0 bytes read)`.
+
+    The retry classified only connection-level failures, so a response whose *body* stopped arriving escaped both
+    the retry and the error wrapper, and the exception walked out of the round. The network is allowed to be
+    unreliable; losing a paid round to it is our defect, not the provider's."""
+    import http.client
+
+    from openultrasast.provider.openrouter import OpenRouterError, _is_transient, call_with_retry
+
+    assert _is_transient(http.client.IncompleteRead(b"")) is True
+    assert _is_transient(http.client.RemoteDisconnected("closed")) is True
+    assert _is_transient(ValueError("a bug in our own code")) is False
+
+    attempts = []
+
+    def flaky() -> str:
+        attempts.append(1)
+        if len(attempts) < 3:
+            raise http.client.IncompleteRead(b"")
+        return "ok"
+
+    assert call_with_retry(flaky, attempts=3, base_delay=0.0, sleep=lambda _s: None) == "ok"
+    assert len(attempts) == 3
+    assert issubclass(OpenRouterError, Exception)
+
+
+def test_a_read_failure_is_reported_as_a_provider_error_not_a_raw_http_exception() -> None:
+    import http.client
+    import urllib.error
+
+    from openultrasast.provider.openrouter import OpenRouterChatClient, OpenRouterError
+
+    client = OpenRouterChatClient(api_key="k", base_url="https://example.invalid", max_attempts=1)
+
+    def boom(*_args: object, **_kwargs: object) -> object:
+        raise http.client.IncompleteRead(b"")
+
+    import openultrasast.provider.openrouter as module
+
+    original = module.urllib.request.urlopen
+    module.urllib.request.urlopen = boom  # type: ignore[assignment]
+    try:
+        with pytest.raises(OpenRouterError, match="IncompleteRead"):
+            client.complete_chat_raw(model="m", messages=[{"role": "user", "content": "x"}])
+    finally:
+        module.urllib.request.urlopen = original  # type: ignore[assignment]
+    assert urllib.error.URLError is not None

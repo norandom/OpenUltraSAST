@@ -224,7 +224,7 @@ def test_a_stage_that_raises_is_reverted_journalled_and_re_raised(world) -> None
         _run(world, _proposal(), build)
     assert (world["configs"] / "injection" / "checklist.md").read_text() == "- old\n"
     outcomes = [(item.outcome, item.reason) for item in world["journal"].rounds()]
-    assert outcomes == [("reverted", "stage_failed")]
+    assert outcomes == [("reverted", "stage_failed: RuntimeError")]  # the exception type is part of the record
     assert (world["out"] / "rounds" / "1" / "scores.json").is_file()
 
 
@@ -406,3 +406,23 @@ def test_a_round_journals_why_the_proposer_had_nothing_to_say(world) -> None:  #
     )
     assert record.outcome == "rejected"
     assert record.reason == "no_proposal: meta_agent_failed: RuntimeError"
+
+
+def test_a_round_that_dies_before_it_applies_anything_is_still_journalled(world) -> None:  # type: ignore[no-untyped-def]
+    """Measured: round 5 died on a network read during its *first* stage and left no record at all.
+
+    The exception path was wrapped around the stages after the proposal is applied, because those are the ones that
+    have something to revert. The ones before it had already spent money."""
+
+    def build(config: FamilyConfig):  # type: ignore[no-untyped-def]
+        def scan(root: Path) -> list[StaticFinding]:
+            raise ConnectionError("the body stopped arriving")
+
+        return scan
+
+    with pytest.raises(ConnectionError):
+        _run(world, _proposal(), build)
+    outcomes = [(item.outcome, item.reason) for item in world["journal"].rounds()]
+    assert outcomes == [("reverted", "stage_failed: ConnectionError")]
+    assert (world["out"] / "rounds" / "1").is_dir()
+    assert (world["configs"] / "injection" / "checklist.md").read_text() == "- old\n"
