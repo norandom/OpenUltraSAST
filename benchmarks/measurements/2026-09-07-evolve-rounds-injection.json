@@ -1,0 +1,157 @@
+{
+  "command": "uv run ousast learning round --family injection --slice vibe-py --k-runs 3 --model deepseek-v4-flash",
+  "family": "injection",
+  "generated": "2026-09-07",
+  "k_runs": 3,
+  "minibatch": 8,
+  "model": "deepseek-v4-flash",
+  "note": "learning-harness task 5.3, amended to target injection because access_control has one train teacher. Each round records the two-sided sign test over the pairs that actually moved, beside the decision the threshold rule made. The question these rounds were run to answer is whether any of those decisions carried evidence.",
+  "reading": {
+    "caveats": [
+      "Round 1's rejection was correct, but for an authoring error rather than the loop's insight: the memory lever writes hard_negatives.jsonl, rendered to the detector as 'Known non-issues, do not report these', and it was fed the four vulnerability shapes the train split teaches.",
+      "Round 4 never proposed anything: the meta-agent composed correctly and failed authentication, because the provider seam was hard-coded to anthropic while the detector talks to DeepSeek.",
+      "The minibatch is 8 and the holdout 10. A sign test cannot reach p<0.05 below n=6 discordant pairs, so at this corpus size a reliability-gated rule would accept almost nothing either. The corpus is the binding constraint, not the rule."
+    ],
+    "conclusion": "No decision was distinguishable from chance, in either direction. Two rejections at p=0.250 and p=1.000, one acceptance at p=0.500 that versioned the configuration to v1. On a family where 11 of 20 pairs disagree with themselves between runs of the unchanged detector, the threshold rule in Req 9.5 -- reject if any pair regresses, accept if one improves and none regress -- is reading noise in both directions and reporting it as progress.",
+    "decisions": 4,
+    "distinguishable_from_noise": 0,
+    "injection_noise_floor_at_round_zero": {
+      "flaky_pairs": 11,
+      "scorable": 20
+    },
+    "total_cost_usd": 1.76
+  },
+  "rounds": [
+    {
+      "attribution": {
+        "flipped_predicted": 1,
+        "flipped_unpredicted": 0,
+        "precision": 1.0
+      },
+      "config_version_after": "0",
+      "cost_usd": 0.5971665280000001,
+      "holdout": {
+        "better": 1,
+        "delta": -0.375,
+        "p_value": 0.375,
+        "reliable": false,
+        "worse": 4
+      },
+      "lever": "memory",
+      "outcome": "rejected",
+      "reason": "train_regressed",
+      "round": 1,
+      "sweep": {
+        "access_control": 0,
+        "config_secrets": 0,
+        "deserialization": 0,
+        "output_encoding": 0,
+        "path": 0
+      },
+      "train": {
+        "better": 0,
+        "delta": -0.375,
+        "p_value": 0.25,
+        "reliable": false,
+        "worse": 3
+      }
+    },
+    {
+      "attribution": {
+        "flipped_predicted": 1,
+        "flipped_unpredicted": 1,
+        "precision": 0.5
+      },
+      "config_version_after": "0",
+      "cost_usd": 0.5615603119999997,
+      "holdout": {
+        "better": 1,
+        "delta": 0.0,
+        "p_value": 1.0,
+        "reliable": false,
+        "worse": 1
+      },
+      "lever": "checklist",
+      "outcome": "rejected",
+      "reason": "train_regressed",
+      "round": 2,
+      "sweep": {
+        "access_control": 1,
+        "config_secrets": 0,
+        "deserialization": 0,
+        "output_encoding": 0,
+        "path": 0
+      },
+      "train": {
+        "better": 0,
+        "delta": -0.125,
+        "p_value": 1.0,
+        "reliable": false,
+        "worse": 1
+      }
+    },
+    {
+      "attribution": {
+        "flipped_predicted": 4,
+        "flipped_unpredicted": 0,
+        "precision": 1.0
+      },
+      "config_version_after": "1",
+      "cost_usd": 0.47976149600000073,
+      "holdout": {
+        "better": 2,
+        "delta": 0.125,
+        "p_value": 1.0,
+        "reliable": false,
+        "worse": 1
+      },
+      "lever": "prompt",
+      "outcome": "accepted",
+      "reason": "improved",
+      "round": 3,
+      "sweep": {
+        "access_control": 0,
+        "config_secrets": 0,
+        "deserialization": 0,
+        "output_encoding": 0,
+        "path": 0
+      },
+      "train": {
+        "better": 2,
+        "delta": 0.25,
+        "p_value": 0.5,
+        "reliable": false,
+        "worse": 0
+      }
+    },
+    {
+      "attribution": {
+        "flipped_predicted": 0,
+        "flipped_unpredicted": 0,
+        "precision": 0.0
+      },
+      "config_version_after": "1",
+      "cost_usd": 0.11708116000000007,
+      "holdout": {
+        "better": 0,
+        "delta": 0.0,
+        "p_value": 1.0,
+        "reliable": false,
+        "worse": 0
+      },
+      "lever": null,
+      "outcome": "rejected",
+      "reason": "no_proposal",
+      "round": 4,
+      "sweep": {},
+      "train": {
+        "better": 0,
+        "delta": 0.0,
+        "p_value": 1.0,
+        "reliable": false,
+        "worse": 0
+      }
+    }
+  ],
+  "slice": "vibe-py"
+}
