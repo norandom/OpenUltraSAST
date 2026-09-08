@@ -1,13 +1,13 @@
 {
   "counts": {
-    "load_bearing": 74,
+    "load_bearing": 79,
     "standalone_capability": 7
   },
-  "generated": "2026-09-08",
+  "generated": "2026-09-08 (regenerated after group 2 added the cpg/ seam)",
   "kept_with_a_lever_stripped": {
     "improve/evolve.py + improve/validator.py": "the design's Removed list named these whole, but each is a mix: the mechanism lever (removed) and the deterministic rule-status improve loop that `ousast improve` still runs from benchmark evidence, which has no LLM in it and is not what this feature supersedes. Deleting the files would have taken a retained capability with them."
   },
-  "modules": 81,
+  "modules": 86,
   "note": "Classification of every source module after the group-1 subtraction. load_bearing = reachable from a gate, the CLI, or named by a surviving requirement; standalone_capability = its own entry point or protocol, deliberately off the scan path; orphaned = no importer, no entry point, no surviving requirement -- removed, never carried.",
   "orphaned": [],
   "removed_in_this_pass": {
@@ -123,6 +123,31 @@
       ],
       "module": "config",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [
+        "cpg.backend",
+        "model.taint"
+      ],
+      "module": "cpg",
+      "reason": "model-grounded-detection Req 4: the CPG seam package"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [
+        "model.taint"
+      ],
+      "module": "cpg.backend",
+      "reason": "model-grounded-detection Req 4.1/4.5: the single Joern subprocess boundary"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [
+        "cpg.backend"
+      ],
+      "module": "cpg.capability",
+      "reason": "model-grounded-detection Req 4.2/4.3: the engine probe that degrades to suspicion"
     },
     {
       "classification": "load_bearing",
@@ -295,7 +320,8 @@
       "classification": "load_bearing",
       "importers": [
         "cli",
-        "model.specs"
+        "model.specs",
+        "model.taint"
       ],
       "module": "model",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI"
@@ -322,9 +348,25 @@
     },
     {
       "classification": "load_bearing",
-      "importers": [],
+      "importers": [
+        "model.taint"
+      ],
+      "module": "model.ladder",
+      "reason": "model-grounded-detection Req 5: the evidence ladder every finding carries"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [
+        "model.taint"
+      ],
       "module": "model.specs",
       "reason": "model-grounded-detection Req 7.2-7.4: the security vocabularies the CPG queries are parameterised by"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [],
+      "module": "model.taint",
+      "reason": "model-grounded-detection Req 6.1: taint reachability over the CPG, the flow-family arbiter"
     },
     {
       "classification": "load_bearing",
@@ -598,6 +640,7 @@
       "classification": "load_bearing",
       "importers": [
         "cli",
+        "cpg.capability",
         "hunter_tools",
         "model.candidates",
         "model.specs",
@@ -627,6 +670,7 @@
     {
       "classification": "load_bearing",
       "importers": [
+        "cpg.capability",
         "semantic",
         "semantic.overlay"
       ],

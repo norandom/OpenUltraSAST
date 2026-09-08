@@ -31,6 +31,11 @@ SPEC_OWNED = {
     "model.specs": "model-grounded-detection Req 7.2-7.4: the security vocabularies the CPG queries are parameterised by",
     "model.endpoint": "model-grounded-detection Req 8: the judge client, wired by model/judge.py in group 3",
     "model.audit": "model-grounded-detection Req 3: this classifier; run by the maintainer, not by the scan",
+    "model.ladder": "model-grounded-detection Req 5: the evidence ladder every finding carries",
+    "model.taint": "model-grounded-detection Req 6.1: taint reachability over the CPG, the flow-family arbiter",
+    "cpg": "model-grounded-detection Req 4: the CPG seam package",
+    "cpg.backend": "model-grounded-detection Req 4.1/4.5: the single Joern subprocess boundary",
+    "cpg.capability": "model-grounded-detection Req 4.2/4.3: the engine probe that degrades to suspicion",
 }
 
 STANDALONE = {
