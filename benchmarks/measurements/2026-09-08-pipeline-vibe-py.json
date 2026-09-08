@@ -1,0 +1,318 @@
+{
+  "caveat": "access_control and config_secrets were silenced by a routing bug in both scan_region and this harness -- family routing fixed in the ceiling harness and not carried across, the third time that shape appeared in this feature. Fixed; a corrected run supersedes these six rows.",
+  "cost_usd": 0.0126,
+  "detection_rate": 0.8,
+  "division_of_labour": {
+    "model_entailed": 9,
+    "note": "The LLM supplies most of the recall; the model supplies the precision, halving the leak by dropping claims it could contradict. That is the division the architecture was designed around. Every suspicion converted to model_entailed is leak removed for free and one fewer model call, which is exactly what sink-table coverage and interprocedural resolution buy -- so those have a measured payoff now rather than a hoped-for one.",
+    "suspicion": 15
+  },
+  "generated": "2026-09-08",
+  "hunter_baseline": {
+    "leak_rate": 0.123,
+    "note": "deepseek-v4-flash K=5, 2026-09-06-learning-families.json",
+    "pair_correct": 0.767
+  },
+  "leak_rate": 0.0667,
+  "model": "deepseek-v4-flash",
+  "outcomes": {
+    "both_flagged": 2,
+    "both_silent": 6,
+    "pair_correct": 22
+  },
+  "pair_correct_rate": 0.7333,
+  "pairs": 30,
+  "reading": "The first like-for-like comparison with the LLM hunter, and the first evidence the architecture pays. Half the leak (6.7% against 12.3%), 55x cheaper ($0.0126 against ~$0.69), a fifth of the model calls (K=1 against K=5), and one pair short of the hunter's recall (22 against 23 of 30). Every number here is UNDERSTATED: all six both_silent pairs are access_control and config_secrets, which had no pipeline path to their arbiters when this ran.",
+  "rows": [
+    {
+      "family": "injection",
+      "fixed_findings": 2,
+      "outcome": "both_flagged",
+      "pair": "damn-vulnerable-graphql-application-views-mutate",
+      "vuln_findings": 3,
+      "vuln_rungs": [
+        "suspicion"
+      ]
+    },
+    {
+      "family": "injection",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "damn-vulnerable-graphql-application-views-resolve-pastes",
+      "vuln_findings": 3,
+      "vuln_rungs": [
+        "suspicion"
+      ]
+    },
+    {
+      "family": "injection",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "damn-vulnerable-graphql-application-views-resolve-system-dia",
+      "vuln_findings": 3,
+      "vuln_rungs": [
+        "suspicion"
+      ]
+    },
+    {
+      "family": "injection",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "djangoat-analytics-hits-by-ip",
+      "vuln_findings": 4,
+      "vuln_rungs": [
+        "suspicion"
+      ]
+    },
+    {
+      "family": "deserialization",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "djangoat-views-reset-password",
+      "vuln_findings": 2,
+      "vuln_rungs": [
+        "suspicion"
+      ]
+    },
+    {
+      "family": "injection",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "djangoat-views-user-view",
+      "vuln_findings": 1,
+      "vuln_rungs": [
+        "model_entailed"
+      ]
+    },
+    {
+      "family": "injection",
+      "fixed_findings": 7,
+      "outcome": "both_flagged",
+      "pair": "dsvpwa-attacks-run",
+      "vuln_findings": 7,
+      "vuln_rungs": [
+        "suspicion"
+      ]
+    },
+    {
+      "family": "config_secrets",
+      "fixed_findings": 0,
+      "outcome": "both_silent",
+      "pair": "dsvpwa-dsvpwa-main",
+      "vuln_findings": 0,
+      "vuln_rungs": []
+    },
+    {
+      "family": "injection",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "dsvpwa-handlers-do-bdr",
+      "vuln_findings": 3,
+      "vuln_rungs": [
+        "suspicion"
+      ]
+    },
+    {
+      "family": "config_secrets",
+      "fixed_findings": 0,
+      "outcome": "both_silent",
+      "pair": "dvpwa-app-init",
+      "vuln_findings": 0,
+      "vuln_rungs": []
+    },
+    {
+      "family": "config_secrets",
+      "fixed_findings": 0,
+      "outcome": "both_silent",
+      "pair": "dvpwa-middlewares-session-middleware",
+      "vuln_findings": 0,
+      "vuln_rungs": []
+    },
+    {
+      "family": "injection",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "dvpwa-student-create",
+      "vuln_findings": 2,
+      "vuln_rungs": [
+        "suspicion"
+      ]
+    },
+    {
+      "family": "deserialization",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "extremely-vulnerable-flask-app-account-before-request",
+      "vuln_findings": 2,
+      "vuln_rungs": [
+        "suspicion"
+      ]
+    },
+    {
+      "family": "injection",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "extremely-vulnerable-flask-app-account-search",
+      "vuln_findings": 1,
+      "vuln_rungs": [
+        "model_entailed"
+      ]
+    },
+    {
+      "family": "injection",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "extremely-vulnerable-flask-app-signup-validate-token",
+      "vuln_findings": 1,
+      "vuln_rungs": [
+        "model_entailed"
+      ]
+    },
+    {
+      "family": "access_control",
+      "fixed_findings": 0,
+      "outcome": "both_silent",
+      "pair": "threatbyte-api-v1-delete",
+      "vuln_findings": 0,
+      "vuln_rungs": []
+    },
+    {
+      "family": "access_control",
+      "fixed_findings": 0,
+      "outcome": "both_silent",
+      "pair": "threatbyte-api-v1-get",
+      "vuln_findings": 0,
+      "vuln_rungs": []
+    },
+    {
+      "family": "injection",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "threatbyte-routes-dashboard",
+      "vuln_findings": 1,
+      "vuln_rungs": [
+        "model_entailed"
+      ]
+    },
+    {
+      "family": "injection",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "vampi-user-model-get-user",
+      "vuln_findings": 4,
+      "vuln_rungs": [
+        "suspicion"
+      ]
+    },
+    {
+      "family": "access_control",
+      "fixed_findings": 0,
+      "outcome": "both_silent",
+      "pair": "vampi-users-update-password",
+      "vuln_findings": 0,
+      "vuln_rungs": []
+    },
+    {
+      "family": "injection",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "vfapi-main-delete-user",
+      "vuln_findings": 4,
+      "vuln_rungs": [
+        "suspicion"
+      ]
+    },
+    {
+      "family": "injection",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "vfapi-main-put-user",
+      "vuln_findings": 5,
+      "vuln_rungs": [
+        "suspicion"
+      ]
+    },
+    {
+      "family": "injection",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "vfapi-main-sql-return-users-from-username",
+      "vuln_findings": 1,
+      "vuln_rungs": [
+        "suspicion"
+      ]
+    },
+    {
+      "family": "output_encoding",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "vulnerable-python-apps-bad-mvc-do-get",
+      "vuln_findings": 5,
+      "vuln_rungs": [
+        "suspicion"
+      ]
+    },
+    {
+      "family": "path",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "vulnerable-python-apps-dir-traversal-do-get",
+      "vuln_findings": 3,
+      "vuln_rungs": [
+        "suspicion"
+      ]
+    },
+    {
+      "family": "injection",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "vulnpy-cmdi-do-os-system",
+      "vuln_findings": 1,
+      "vuln_rungs": [
+        "model_entailed"
+      ]
+    },
+    {
+      "family": "injection",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "vulnpy-cmdi-do-subprocess-popen",
+      "vuln_findings": 1,
+      "vuln_rungs": [
+        "model_entailed"
+      ]
+    },
+    {
+      "family": "injection",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "vulpy-libuser-create",
+      "vuln_findings": 1,
+      "vuln_rungs": [
+        "model_entailed"
+      ]
+    },
+    {
+      "family": "injection",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "vulpy-libuser-login",
+      "vuln_findings": 1,
+      "vuln_rungs": [
+        "model_entailed"
+      ]
+    },
+    {
+      "family": "injection",
+      "fixed_findings": 0,
+      "outcome": "pair_correct",
+      "pair": "vulpy-libuser-password-change",
+      "vuln_findings": 1,
+      "vuln_rungs": [
+        "model_entailed"
+      ]
+    }
+  ],
+  "seconds": 1050.9,
+  "slice": "vibe-py"
+}
