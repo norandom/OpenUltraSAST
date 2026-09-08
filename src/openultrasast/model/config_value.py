@@ -26,7 +26,9 @@ def verdict(cpg: CpgResult, spec: ConfigSpec, *, function: str = "") -> Verdict 
     if not settings:
         return None
 
+    # Both abstractions read the same literal: a permissive flag ("*", True) and a weak algorithm ("md5").
     permissive = {value.strip().strip("'\"").lower() for value in spec.permissive}
+    permissive |= {value.strip().strip("'\"").lower() for value in spec.weak_algorithms}
     for row in settings:
         literals = row["literals"]
         if not isinstance(literals, list):

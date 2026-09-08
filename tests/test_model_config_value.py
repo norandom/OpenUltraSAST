@@ -76,3 +76,44 @@ def test_the_verdict_is_deterministic() -> None:
              "literalArgs": ["True", "0.0.0.0"], "args": ["x"]}]
     cpg = _cpg(rows)
     assert verdict(cpg, _spec(), function="login") == verdict(cpg, _spec(), function="login")
+
+
+# --- framework coverage and the weak-algorithm arm --------------------------------------------------------
+#
+# The settings table was Flask/FastAPI-shaped (CORS, set_cookie, app.run) while the corpus contains aiohttp
+# and Django. Separately, config_secrets spans three abstractions and only one was wired: a permissive
+# setting VALUE. Weak algorithm CHOICE (CWE-326/327) has its data already -- `weak_literals` on the hashlib
+# sink fact -- and nothing read it.
+
+
+def test_the_settings_table_covers_the_frameworks_in_the_corpus() -> None:
+    from openultrasast.model.specs import config_specs
+
+    settings = set(config_specs(language="python")["config_secrets"].settings)
+    for framework, call in (("aiohttp", "session_setup"), ("aiohttp", "EncryptedCookieStorage"),
+                            ("django", "SECURE_SSL_REDIRECT"), ("flask", "set_cookie")):
+        assert call in settings, f"{framework}'s {call} is not a modelled security setting"
+
+
+def test_a_weak_algorithm_is_entailed_by_its_literal() -> None:
+    """CWE-327: the danger is the algorithm NAMED, not a permissive flag."""
+    from openultrasast.model.config_value import verdict
+    from openultrasast.model.ladder import Rung
+    from openultrasast.model.specs import config_specs
+
+    spec = config_specs(language="python")["config_secrets"]
+    rows = [{"setting": 'hashlib.new("md5")', "line": "4", "method": "digest",
+             "literalArgs": ['"md5"'], "args": ['"md5"']}]
+    answer = verdict(_cpg(rows), spec, function="digest")
+    assert answer is not None and answer.rung is Rung.ENTAILED
+    assert "md5" in answer.witness.lower()
+
+
+def test_a_strong_algorithm_yields_no_finding() -> None:
+    from openultrasast.model.config_value import verdict
+    from openultrasast.model.specs import config_specs
+
+    spec = config_specs(language="python")["config_secrets"]
+    rows = [{"setting": 'hashlib.new("sha256")', "line": "4", "method": "digest",
+             "literalArgs": ['"sha256"'], "args": ['"sha256"']}]
+    assert verdict(_cpg(rows), spec, function="digest") is None

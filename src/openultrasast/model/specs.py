@@ -140,9 +140,15 @@ class ConfigSpec:
     language: str
     settings: tuple[str, ...]
     permissive: tuple[str, ...]
+    # CWE-326/327. A weak algorithm is a different abstraction from a permissive flag: the danger is the
+    # algorithm NAMED, not a setting left open. The data has been on the sink facts (`weak_literals`) since
+    # before this feature and nothing read it.
+    weak_algorithms: tuple[str, ...] = ()
 
 
-def config_specs(*, language: str, facts: ObligationFacts | None = None) -> Mapping[str, ConfigSpec]:
+def config_specs(
+    *, language: str, facts: ObligationFacts | None = None, flow_facts: SemanticFacts | None = None
+) -> Mapping[str, ConfigSpec]:
     """One ``ConfigSpec`` per configuration family, from the obligation facts' security-setting operations.
 
     ``permissive_values`` on a ``non_permissive_value`` discharger is the closed set of literals that leave a
@@ -151,9 +157,23 @@ def config_specs(*, language: str, facts: ObligationFacts | None = None) -> Mapp
     scoped = (facts if facts is not None else load_obligation_facts()).for_language(language)
     settings = tuple(sorted({call for fact in scoped.operations if fact.kind == "security_setting" for call in fact.calls}))
     permissive = tuple(sorted({value for fact in scoped.dischargers for value in fact.permissive_values}))
+    # A sink carrying `weak_literals` names an algorithm choice, and the call that takes it is itself a
+    # security setting: `hashlib.new("md5")` is dangerous because of the string, exactly as CORS is because
+    # of the "*". Reading them here is what wires the second of config_secrets' three abstractions.
+    flow = (flow_facts if flow_facts is not None else load_facts()).for_language(language)
+    weak = tuple(sorted({literal for sink in flow.sinks for literal in sink.weak_literals}))
+    weak_calls = tuple(sorted({call for sink in flow.sinks if sink.weak_literals for call in sink.calls}))
     if not settings or not permissive:
         return {}
-    return {"config_secrets": ConfigSpec(family="config_secrets", language=language, settings=settings, permissive=permissive)}
+    return {
+        "config_secrets": ConfigSpec(
+            family="config_secrets",
+            language=language,
+            settings=tuple(sorted(set(settings) | set(weak_calls))),
+            permissive=permissive,
+            weak_algorithms=weak,
+        )
+    }
 
 
 def taint_specs(

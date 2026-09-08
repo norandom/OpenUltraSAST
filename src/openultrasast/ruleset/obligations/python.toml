@@ -33,7 +33,13 @@ sensitivity = "high"
 [[operation]]
 id = "security-setting"
 kind = "security_setting"
-calls = ["CORS", "cross_origin", "set_cookie", "app.run", "config.update", "TrustedHostMiddleware", "add_middleware", "set_debug"]
+# Flask/FastAPI (CORS, set_cookie, app.run), aiohttp (session_setup, the cookie storages) and Django
+# (the SECURE_* / DEBUG settings). The table was Flask-shaped while the corpus contains aiohttp and Django
+# apps, so three config pairs had no modelled setting in them at all.
+calls = ["CORS", "cross_origin", "set_cookie", "app.run", "config.update", "TrustedHostMiddleware", "add_middleware", "set_debug",
+         "session_setup", "EncryptedCookieStorage", "SimpleCookieStorage", "cookie_storage", "setup_session",
+         "SECURE_SSL_REDIRECT", "SESSION_COOKIE_SECURE", "CSRF_COOKIE_SECURE", "SESSION_COOKIE_HTTPONLY", "ALLOWED_HOSTS", "DEBUG",
+         "set_secure_cookie", "make_secure_cookie"]
 resource_arg = 0
 requires = ["non_permissive_value"]
 sensitivity = "medium"
@@ -59,7 +65,8 @@ calls = ["check_owner", "is_owner", "assert_owner", "ensure_owner", "owns", "can
 [[discharger]]
 id = "safe-setting"
 kind = "non_permissive_value"
-calls = ["CORS", "cross_origin", "set_cookie", "app.run", "config.update", "add_middleware"]
+calls = ["CORS", "cross_origin", "set_cookie", "app.run", "config.update", "add_middleware",
+         "session_setup", "SimpleCookieStorage", "setup_session", "set_secure_cookie"]
 permissive_values = ["'*'", "\"*\"", "True", "0.0.0.0", "None", "False", "allow_all", "disable"]
 
 [[discharger]]

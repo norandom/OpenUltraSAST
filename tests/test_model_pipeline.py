@@ -176,8 +176,6 @@ def test_the_residual_question_matches_the_arbiter_that_raised_it() -> None:
     """
     from openultrasast.model.pipeline import residual_question
 
-    rows = [{"operation": "q.filter_by(id=n)", "opLine": "9", "opMethod": "leaky", "dominatingGuards": []},
-            {"operation": "q.filter_by(id=n)", "opLine": "3", "opMethod": "safe", "dominatingGuards": ["current_user"]}]
     dom = residual_question(_dominance_spec(), "leaky line 9: no discharging guard", "leaky")
     assert "sanitizer" not in dom.lower(), "an absence bug has no sanitizer to judge"
     assert "guard" in dom.lower()
