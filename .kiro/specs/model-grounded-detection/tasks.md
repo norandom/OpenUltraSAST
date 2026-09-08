@@ -158,7 +158,7 @@ queries in group 4). The gates, `redaction.py`, `pairs.py` overlay/inventory pat
   - _Requirements: 5.1, 5.2, 6.1_
   - _Depends: 2.1, 1.1_
 
-- [ ] 2.3 Determinism, and the go/no-go reading
+- [x] 2.3 Determinism, and the go/no-go reading
   - `test_two_runs_over_one_cpg_give_an_identical_verdict_sequence`. Run the injection taint verdict over the
     injection slice, regenerate the entailment ceiling for injection, and write the reading into the
     Implementation Notes: does Joern produce a deterministic verdict at acceptable per-target cost and time?
@@ -313,3 +313,69 @@ the zero-dependency guard in `test_gate` pins. Manifest committed at
 
 Group 2 (the Joern go/no-go) has not started. `semantic/engines.py` already exposes `joern_available`, which
 the `CpgBackend` capability probe in task 2.1 should build on rather than duplicate.
+
+## Implementation Notes — group 2 (2026-09-08)
+
+**Verdict: GO.** Joern is installed at `~/joern/joern-cli` (maintainer chose a permanent install). Artifact:
+`benchmarks/measurements/2026-09-08-joern-go-no-go.json`.
+
+| | injection slice |
+|---|---|
+| `model_entailed` on the vulnerable side | **54%** (27/50) — against the flat IR's **2.2%** |
+| ... on minimal-fix pairs only | **61.5%** (16/26) |
+| pairs distinguished (vuln entailed, fix clean) | 32% overall, **38.5%** on minimal-fix pairs |
+| determinism (Req 6.4) | **every verdict identical on re-run** |
+| cost | median **32s**/pair, max 58s, 30 min for the slice |
+| CPG build failures | 1 (a C translation unit that does not parse standalone) |
+
+**The engine is not the constraint.** Every gap below is in our own data model, which is exactly the result
+that justifies adopting a CPG rather than building one. The 23 misses split three ways: 11 sinks not in the
+fact tables (Django ORM `objects.raw`, `self.query`, GraphQL resolvers), 11 where the sink is modelled but no
+source reaches it, and 1 build failure — counted separately so it can never read as "no vulnerability".
+
+**The finding that changes the design.** Classifying what the 50 injection *fixes* actually do:
+
+    shape introduced at the sink              guard kind of the added lines
+      other_or_validation   37                  none                24
+      bound_parameters      10                  parameterized_call  11
+      argv_list              2                  null_test            7
+      sanitizer_call         1                  allowlist_test       5
+
+The dominant injection fix is a **validation guard on the path** — allowlist, type coercion, bounds or null
+test — not a sanitizer call and not a sink-shape change. Taint reachability can never separate those pairs:
+the flow still reaches the sink; what changed is that a guard now *dominates* the path. So the arbiter is
+**taint + dominance**, not taint alone — the same primitive task 4.1 builds for access_control, with the guard
+vocabulary ported verbatim in task 1.1 as its lookup list. Two planned mechanisms collapse into one, and
+task 4.1 should be built before the remaining `TaintSpec`s rather than after.
+
+**Five bugs the live engine exposed, none visible offline.** Two of them *inverted* a verdict rather than
+weakening it, which is why each was fixed as a class:
+1. A sink was its own sanitizer — facts carrying a *shape* qualifier (`parameterized`, `literal_format_arg`)
+   describe a safe form of the sink call, not a cleansing call. Flattened in, `execute` became both the
+   injection sink and its own sanitizer and **nothing could ever be entailed**. Fixing the class immediately
+   caught C's entire `printf` family.
+2. `labeled_family` had lost its deterministic CWE fallback in group 1 (my error) — the injection slice
+   resolved to **zero pairs**. Restored, still with no model call; the census again matches the committed
+   ceiling exactly.
+3. Taint alone entailed both sides of the canonical SQL pair, so the model arbitrated nothing → the
+   safe-shape test, using the `safe_shape_sinks` that bug 1 had preserved.
+4. Joern's `call.argument` includes the **receiver**, so a one-argument interpolated call looked like a
+   two-argument bound one — the exact inversion of the shape test. Fixed with `argumentIndexGt(0)`.
+5. The source model was framework-only, while 39/50 pairs receive untrusted input as a function parameter.
+   Parameter sources are now opt-in (right for a function-level pair whose boundary *is* the trust boundary,
+   wrong for a whole repository) — and required for the comparison against the flat-IR baseline to be
+   like-for-like, since that baseline counted them.
+
+**Corpus caveat, and why the differential is reported per stratum.** Only 26 of 50 injection pairs are genuine
+minimal-fix pairs; 12 are *different programs* (`local-python-vulnerable` is 7% similar with 83 changed lines;
+`owasp-java-cmdi` pairs `BenchmarkTest00007` against `BenchmarkTest00090`) and 12 are large rewrites. Where
+the fixed side is a different program, both sides flagging is a corpus property, not a model failure — a raw
+`distinguished_rate` would be measuring corpus quality and reporting it as model quality.
+
+**A correction to a claim made mid-run.** The Flask-shaped source table (no `request.POST`/`request.GET`) is a
+real gap but a *minor* lever here: adding Django patterns would gain a source for exactly one pair in this
+slice. The larger levers are the missing sinks and guard dominance.
+
+**Next**, in this order: 4.1 guard dominance over the tainted path; 4.2 the missing sinks (Django ORM,
+GraphQL, and the four families with no sink fact at all); then the two remaining safe-shape forms, argv-list
+and `shell=False`.
