@@ -104,7 +104,7 @@ def scan_region(
         # here — so a "no" from the judge is a genuine contradiction and the claim is dropped.
         if client is None:
             return []
-        said = _ask(client, model, _sanitizer_question(spec, answer.witness, function))
+        said = _ask(client, model, residual_question(spec, answer.witness, function))
         if said:
             return [ModelFinding(site=_site(function, answer.witness), family=spec.family,
                                  rung=Rung.CORROBORATED, witness=answer.witness)]
@@ -134,7 +134,31 @@ def scan_region(
     return findings
 
 
-def _sanitizer_question(spec: TaintSpec | DominanceSpec | ConfigSpec, witness: str, function: str) -> str:
+def residual_question(spec: TaintSpec | DominanceSpec | ConfigSpec, witness: str, function: str) -> str:
+    """The one question the arbiter could not settle -- phrased for the arbiter that raised it.
+
+    Asking a sanitizer question about a missing guard is not merely odd, it silently loses findings: the judge
+    answers "no" to a question that does not apply and the claim is dropped. Every vibe-py access_control pair
+    was lost this way.
+    """
+    if isinstance(spec, DominanceSpec):
+        return (
+            f"You are judging ONE finding a static model already made. Do not look for other issues.\n\n"
+            f"A dominance analysis of {spec.language} code found an obligated operation that NO discharging\n"
+            f"guard governs, in a file where sibling handlers are guarded:\n\n"
+            f"  {witness}\n  function: {function or '?'}\n\n"
+            f"The model has established the asymmetry. The open question is whether this operation genuinely\n"
+            f"needs the guard its siblings have -- or is legitimately public.\n\n"
+            'Answer ONLY with JSON: {"vulnerable": true|false, "why": "<one sentence>"}'
+        )
+    if isinstance(spec, ConfigSpec):
+        return (
+            f"You are judging ONE finding a static model already made. Do not look for other issues.\n\n"
+            f"Constant evaluation of {spec.language} code found a security setting given a value the model\n"
+            f"could not read as safe:\n\n  {witness}\n  function: {function or '?'}\n\n"
+            f"The open question is whether this setting is genuinely permissive in a deployed configuration.\n\n"
+            'Answer ONLY with JSON: {"vulnerable": true|false, "why": "<one sentence>"}'
+        )
     source, _, sink = witness.partition(" -> ")
     return (
         f"You are judging ONE candidate a static model already found. Do not look for other issues.\n\n"
@@ -174,4 +198,4 @@ def _site(function: str, witness: str) -> str:
     return f"{function or '?'}:{line}"
 
 
-__all__ = ["CANDIDATE_QUESTION", "MAX_JUDGED_CANDIDATES", "ModelFinding", "scan_region"]
+__all__ = ["CANDIDATE_QUESTION", "MAX_JUDGED_CANDIDATES", "ModelFinding", "residual_question", "scan_region"]

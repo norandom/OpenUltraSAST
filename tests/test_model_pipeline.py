@@ -163,3 +163,37 @@ def test_a_configuration_family_is_arbitrated_by_constant_abstraction() -> None:
     findings = scan_region(_cpg(rows), _config_spec(), function="create_app", client=None, model="", candidates=())
     assert len(findings) == 1 and findings[0].rung is Rung.ENTAILED
     assert findings[0].family == "config_secrets"
+
+
+def test_the_residual_question_matches_the_arbiter_that_raised_it() -> None:
+    """A corroborated verdict from dominance is not a question about a sanitizer.
+
+    The pipeline asked `_sanitizer_question` for every corroboration, so an absence finding was put to the
+    judge as "a sanitizer appears on the path: yes -- does it suffice?", which is meaningless for a missing
+    guard. The judge answered no and the finding was discarded: all three vibe-py access_control pairs scored
+    both_silent even though the dominance arbiter had returned model_corroborated for each. Fourth instance in
+    this feature of taint-specific behaviour applied to every family.
+    """
+    from openultrasast.model.pipeline import residual_question
+
+    rows = [{"operation": "q.filter_by(id=n)", "opLine": "9", "opMethod": "leaky", "dominatingGuards": []},
+            {"operation": "q.filter_by(id=n)", "opLine": "3", "opMethod": "safe", "dominatingGuards": ["current_user"]}]
+    dom = residual_question(_dominance_spec(), "leaky line 9: no discharging guard", "leaky")
+    assert "sanitizer" not in dom.lower(), "an absence bug has no sanitizer to judge"
+    assert "guard" in dom.lower()
+
+    cfg = residual_question(_config_spec(), 'CORS(...): permissive literal "*"', "create_app")
+    assert "sanitizer" not in cfg.lower() and "setting" in cfg.lower()
+
+    taint = residual_question(_spec(), "request.args['c'] -> os.system(cmd)", "run")
+    assert "sanitizer" in taint.lower()
+
+
+def test_a_corroborated_absence_finding_survives_a_judge_that_agrees() -> None:
+    from openultrasast.model.ladder import Rung
+    from openultrasast.model.pipeline import scan_region
+
+    rows = [{"operation": "q.filter_by(id=n)", "opLine": "9", "opMethod": "leaky", "dominatingGuards": []},
+            {"operation": "q.filter_by(id=n)", "opLine": "3", "opMethod": "safe", "dominatingGuards": ["current_user"]}]
+    findings = scan_region(_cpg(rows), _dominance_spec(), function="leaky", client=_Client(), model="m", candidates=())
+    assert len(findings) == 1 and findings[0].rung is Rung.ENTAILED
