@@ -28,7 +28,10 @@ def verdict(cpg: CpgResult, spec: ConfigSpec, *, function: str = "") -> Verdict 
 
     permissive = {value.strip().strip("'\"").lower() for value in spec.permissive}
     for row in settings:
-        for literal in row["literals"]:
+        literals = row["literals"]
+        if not isinstance(literals, list):
+            continue
+        for literal in literals:
             if str(literal).strip().strip("'\"").lower() in permissive:
                 return Verdict(
                     rung=Rung.ENTAILED,
@@ -37,7 +40,7 @@ def verdict(cpg: CpgResult, spec: ConfigSpec, *, function: str = "") -> Verdict 
                 )
 
     # A setting whose value the model could not read. Not safe, not decided.
-    computed = [row for row in settings if not row["literals"]]
+    computed = [row for row in settings if not row["literals"]]  # type: ignore[truthy-iterable]
     if computed:
         row = computed[0]
         return Verdict(
