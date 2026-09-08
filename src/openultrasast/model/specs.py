@@ -122,6 +122,35 @@ class DominanceSpec:
     dischargers: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class ConfigSpec:
+    """What a configuration family's constant-abstraction query matches on, for one language.
+
+    A config bug has no flow and no guard: ``CORS(app, origins="*")`` is dangerous because of the value it is
+    *set to*, not because anything reaches it. So the arbiter evaluates the argument against a closed
+    permissive set — the third form beside taint reachability and guard dominance.
+    """
+
+    family: str
+    language: str
+    settings: tuple[str, ...]
+    permissive: tuple[str, ...]
+
+
+def config_specs(*, language: str, facts: ObligationFacts | None = None) -> Mapping[str, ConfigSpec]:
+    """One ``ConfigSpec`` per configuration family, from the obligation facts' security-setting operations.
+
+    ``permissive_values`` on a ``non_permissive_value`` discharger is the closed set of literals that leave a
+    setting open — the one place in the facts where a value, rather than a call, is the evidence.
+    """
+    scoped = (facts if facts is not None else load_obligation_facts()).for_language(language)
+    settings = tuple(sorted({call for fact in scoped.operations if fact.kind == "security_setting" for call in fact.calls}))
+    permissive = tuple(sorted({value for fact in scoped.dischargers for value in fact.permissive_values}))
+    if not settings or not permissive:
+        return {}
+    return {"config_secrets": ConfigSpec(family="config_secrets", language=language, settings=settings, permissive=permissive)}
+
+
 def taint_specs(
     *,
     language: str,
@@ -184,6 +213,8 @@ def dominance_specs(*, language: str, facts: ObligationFacts | None = None) -> M
 
 __all__ = [
     "GUARD_KINDS",
+    "ConfigSpec",
+    "config_specs",
     "GUARD_PATTERNS",
     "DominanceSpec",
     "TaintSpec",
