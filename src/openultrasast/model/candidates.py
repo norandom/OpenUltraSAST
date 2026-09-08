@@ -15,7 +15,7 @@ the sequence of model calls, are determined by the input alone.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -263,22 +263,20 @@ def ceiling(cases: Sequence[object], *, taxonomy: object, generator: str = "ir")
     import tempfile
 
     from ..pairs import _materialize_side, _overlay_scan, _quick_scan
-    from .rounds import _family_of
-    from .scoring import _spans
 
     families: dict[str, dict[str, int]] = {}
     slices: dict[str, dict[str, int]] = {}
     gaps: list[tuple[str, str, str]] = []
     sites: dict[str, list[int]] = {}
     for case in cases:
-        family = _family_of(case, taxonomy)  # type: ignore[arg-type]
+        family = labeled_family(case)
         slice_name = str(getattr(case, "slice", "") or "")
         region_path = str(getattr(case, "relpath", "") or "")
         with tempfile.TemporaryDirectory(prefix="ousast-ceiling-") as scratch:
             root = _materialize_side(Path(scratch) / "vuln", case, side="vuln")  # type: ignore[arg-type]
             if generator == "ruleset":
                 ranges = _overlay_scan(root).ranges
-                spans = _spans(case, ranges)
+                spans = labeled_spans(case, ranges)
                 found = [
                     finding
                     for finding in _quick_scan(root)
@@ -289,7 +287,7 @@ def ceiling(cases: Sequence[object], *, taxonomy: object, generator: str = "ir")
                 labeled = [str(getattr(row, "function", "") or "") for row in getattr(case, "expected", ()) or ()]
                 result = enumerate_candidates(
                     root,
-                    _Region(region_path, next((name for name in labeled if name), None)),
+                    Region(region_path, next((name for name in labeled if name), None)),
                     family,
                     taxonomy=taxonomy,
                     limit=10**6,  # the ceiling is about coverage, never about the batch bound
@@ -331,9 +329,45 @@ def _distribution(counts: list[int]) -> dict[str, int]:
     }
 
 
+def labeled_family(case: object) -> str:
+    """The family a pair is labeled with, or ``unknown``.
+
+    The deleted ``learning/rounds.py`` fell back to the LLM classifier here. Nothing does now: an unlabeled
+    pair is honestly ``unknown`` rather than guessed, which is the same discipline the evidence ladder applies
+    to a claim the model cannot arbitrate.
+    """
+    for row in getattr(case, "expected", ()) or ():
+        family = getattr(row, "family", None)
+        if family:
+            return str(family)
+    return "unknown"
+
+
+def labeled_spans(
+    case: object, ranges: Mapping[str, Sequence[tuple[str, int, int]]], *, function: str = ""
+) -> tuple[tuple[str, int, int], ...]:
+    """The (path, start, end) spans of the labeled functions; ``function`` overrides the label for the fixed side.
+
+    Re-homed from the deleted ``learning/scoring.py`` — the enumerator's ceiling needs it to know which region a
+    candidate had to fall inside, and it carries none of the K-run machinery that surrounded it.
+    """
+    wanted = {function} if function else {str(getattr(row, "function", "") or "") for row in getattr(case, "expected", ()) or ()}
+    wanted.discard("")
+    found: list[tuple[str, int, int]] = []
+    for path, entries in ranges.items():
+        for name, start, end in entries:
+            if name in wanted:
+                found.append((path, start, end))
+    return tuple(found)
+
+
 @dataclass(frozen=True)
-class _Region:
-    """The two fields `enumerate_candidates` reads, so the ceiling does not import the detector module."""
+class Region:
+    """The two fields ``enumerate_candidates`` reads: where to look, and which function bounds the search.
+
+    Public since the detector module that used to own this type was removed with the noise architecture — the
+    enumerator still needs a name for its input, and callers still need one to construct.
+    """
 
     path: str
     function: str | None
@@ -347,5 +381,8 @@ __all__ = [
     "CandidateKind",
     "CandidateReport",
     "CandidateSet",
+    "Region",
     "enumerate_candidates",
+    "labeled_family",
+    "labeled_spans",
 ]

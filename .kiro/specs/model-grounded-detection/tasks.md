@@ -58,7 +58,7 @@ queries in group 4). The gates, `redaction.py`, `pairs.py` overlay/inventory pat
 
 ## Group 1 — Subtract and audit (gate-protected, no Joern yet)
 
-- [ ] 1.1 Port the security vocabularies out before deleting their modules
+- [x] 1.1 Port the security vocabularies out before deleting their modules
   - Create `src/openultrasast/model/specs.py` and move into it, as data, the knowledge the deleted modules
     carry: `_GUARD_PATTERNS` and the guard-kind vocabulary from `semantic/variants.py`; the sink token tables
     (from `benchmarks/pairs/catalog_gen.py::_SINK_TOKENS` and `semantic/facts.py` SinkFacts) as the seed
@@ -70,7 +70,7 @@ queries in group 4). The gates, `redaction.py`, `pairs.py` overlay/inventory pat
     seed, and that the guard vocabulary is preserved verbatim. `model/specs.py` is read-only data — no LLM and no future optimiser writes it, and a test asserts the module exposes no writer (Req 7.4, the verifier boundary).
   - _Requirements: 1.2, 7.1, 7.2, 7.3, 7.4_
 
-- [ ] 1.2 Re-home the three retained modules
+- [x] 1.2 Re-home the three retained modules
   - Move `learning/families.py` → `model/taxonomy.py`, `learning/candidates.py` → `model/candidates.py`,
     `learning/endpoint.py` → `model/endpoint.py`. Update their imports and every importer. `candidates.py`
     keeps its behaviour exactly (it is the suspicion-band feeder, Req 8.4) — its tests move with it and stay
@@ -80,7 +80,7 @@ queries in group 4). The gates, `redaction.py`, `pairs.py` overlay/inventory pat
   - _Requirements: 4.4, 7.1_
   - _Depends: 1.1_
 
-- [ ] 1.3 Detach the retained paths from the removed code
+- [x] 1.3 Detach the retained paths from the removed code
   - `pairs.py`: remove the hunter-scoring path (`_evaluate_hunter_pair`, `_hunter_outcome`, `_family_metrics`,
     `PairEvalResult.per_family`, `build_pair_signals` split arg, the `k_runs`/`hunter` plumbing) and its
     `learning.*` imports; keep `_evaluate_overlay_pair`/`_evaluate_inventory_pair` and the `context_files`
@@ -95,7 +95,7 @@ queries in group 4). The gates, `redaction.py`, `pairs.py` overlay/inventory pat
   - _Requirements: 1.3, 1.4, 11.2_
   - _Depends: 1.2_
 
-- [ ] 1.4 Remove the noise architecture and the mechanism/evolve loop
+- [x] 1.4 Remove the noise architecture and the mechanism/evolve loop
   - Delete `learning/{rounds,acceptance,proposer,journal,canaries,verifiers,difficulty,scoring,classify,
     detectors,split,publish,slices,predicates,judgments}.py` (everything under `learning/` except the three
     modules re-homed in 1.2, which are already gone from the directory), then remove the now-empty `learning/`
@@ -110,7 +110,7 @@ queries in group 4). The gates, `redaction.py`, `pairs.py` overlay/inventory pat
   - _Requirements: 1.1, 1.2, 1.2b, 1.3, 1.4_
   - _Depends: 1.3_
 
-- [ ] 1.5 Reduce the test suite to surviving behaviour
+- [x] 1.5 Reduce the test suite to surviving behaviour
   - For every deleted module, delete the test files that existed only to pin it (`test_learning_*`,
     `test_mechanism_*`, `test_obligation_*` only where it tested the lever not the checker, `test_pair_*`
     hunter-scoring cases, etc.) in this same change. For every surviving test, confirm it maps to a surviving
@@ -122,7 +122,7 @@ queries in group 4). The gates, `redaction.py`, `pairs.py` overlay/inventory pat
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
   - _Depends: 1.4_
 
-- [ ] 1.6 The module audit manifest
+- [x] 1.6 The module audit manifest
   - Add `model/audit.py` that classifies every `src/**/*.py` as `load_bearing` (reachable from a gate, the
     scan CLI, or a surviving requirement), `standalone_capability` (its own CLI/users — e.g. `mcp.py`,
     `skills.py`), or `orphaned` (no importer, no entry, no requirement). Remove the orphans. Give
@@ -250,3 +250,66 @@ queries in group 4). The gates, `redaction.py`, `pairs.py` overlay/inventory pat
   mistake this whole spec was written to stop.
 - `(P)` parallelism is deliberately absent: the subtraction is sequential by dependency, and the Joern spike
   gates everything after it. Do not fan out.
+
+## Implementation Notes — group 1 (2026-09-08)
+
+Landed as one change. Gate baseline captured before the first edit and re-checked after every step; the three
+gates are **byte-identical to `2026-09-06-gate-baseline.txt`** at the end, as Req 1.4 and 11.2 require.
+
+**What the subtraction cost and bought.** 99 source modules -> 81; 832 tests -> 646 (642 passing, 4 skipped);
+the whole `learning/` package (16 modules, ~4,100 lines) plus six `semantic/` modules removed. mypy clean over
+82 files, ruff clean, core `dependencies = []` untouched.
+
+**Sequence that made it safe.** Vocabularies ported first (1.1), importers detached second (1.2-1.3), deletion
+third (1.4). Every import break during 1.4 was therefore a detachment miss in the importer, fixed there — no
+module was ever restored to satisfy one. Two such misses appeared, both handled as a class rather than an
+instance: `semantic/obligations/{operations,shapes}.py` both imported `trailing_name` from the deleted
+`variants.py`, so the helper was re-homed to `semantic/ir.py` (its natural place — it is a pure helper over
+`CallSite.name`) and both importers updated in the same edit.
+
+**Deviations from the design, each recorded with its reason.**
+
+1. *`improve/evolve.py` and `improve/validator.py` were stripped, not deleted.* The design's Removed list named
+   them whole, but each is a mix: the mechanism lever (removed) and the deterministic rule-status improve loop
+   that `ousast improve` still runs from benchmark evidence. That loop has no LLM in it, predates the noise
+   architecture, and is not what this feature supersedes; deleting the files would have taken a retained
+   capability with them. `test_subtraction_complete` now asserts the lever's absence **by symbol**, so it
+   cannot creep back.
+2. *The `learning` CLI group became `model candidates`.* Deleting the group outright would have orphaned
+   `model/candidates.py` — the retained suspicion-band enumerator — by removing its only entry point, and
+   Req 3 would then have flagged it for deletion. The offline ceiling report survives as `ousast model
+   candidates`.
+3. *`thinking` moved from `[learning]` to `[models]`.* It is a model setting, and `LearningConfig` was removed;
+   its coverage moved to `test_model_endpoint` rather than being dropped.
+4. *Three helpers were re-homed rather than lost:* `Region` (promoted from `_Region`, since the detector module
+   that owned the type is gone), `labeled_family` and `labeled_spans` (from the deleted `rounds`/`scoring`).
+   `labeled_family` no longer falls back to the LLM classifier — an unlabeled pair is honestly `unknown`, the
+   same discipline the evidence ladder applies to a claim the model cannot arbitrate.
+
+**A measured gap, named rather than papered over (Req 9.2).** Task 1.1's observable asked that every family
+have a `TaintSpec` or `DominanceSpec` seed. It cannot today: the retained sink facts have **no sink whose CWE
+routes to `path`, `output_encoding`, `untrusted_destination` or `prototype`** — the same hole the entailment
+ceiling diagnosed ("closed literal sink table: misses per-family sinks"). Rather than weaken the test, it now
+asserts the seeded set *and* the gap set exactly, so neither can change silently, and task 4.2 must update it
+when it authors those sinks.
+
+**Test reduction (Req 2), by cluster.** 34 files deleted whole: 21 `test_learning_*` (rounds, acceptance,
+scoring, classify, detectors, proposer, journal, canaries, verifiers, publish, split, cli, scan, pairs_path,
+cutoff, reliability, aggregation, classifier_report, pairs_evidence, round evidence x2, thinking), 4
+`test_mechanism_*`, `test_variants`, `test_variant_search`, `test_loo`, `test_obligation_export`,
+`test_mechanism_reports`, `test_fixture_difficulty`. Partial trims where a file mixed retained and removed
+behaviour: `test_semantic_pipeline` (3 mechanism tests of 12), `test_degradation_matrix` (3 rows for removed
+capabilities), `test_pair_corpus` (the hunter scorer), `test_obligation_check` (the `known_fix` assertion,
+which depended on the deleted store — the id contract, suspicion rung and tags it also covered are kept),
+`test_index` (the bakeoff test). Two files re-homed with their subject: `test_learning_families` ->
+`test_model_taxonomy`, `test_learning_endpoint` -> `test_model_endpoint`.
+
+**The audit (Req 3) found exactly one genuine orphan:** `vectorstore.py`, a store bakeoff harness with no
+production caller and no CLI entry, alive only through its own test — removed with it. The five named
+subsystems each carry a decision: `mcp`, `skills`, `fusion`, `harness_ext`, `hunter_harness` are all
+`standalone_capability` (own entry point or protocol), joined by `stage_processors` and `slot_contract`, which
+the zero-dependency guard in `test_gate` pins. Manifest committed at
+`benchmarks/measurements/2026-09-08-module-audit.json`; a test asserts the tree still matches it.
+
+Group 2 (the Joern go/no-go) has not started. `semantic/engines.py` already exposes `joern_available`, which
+the `CpgBackend` capability probe in task 2.1 should build on rather than duplicate.

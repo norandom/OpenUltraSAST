@@ -8,11 +8,9 @@ impossible; the validator additionally enforces status/bounds/staging/resolution
 
 from __future__ import annotations
 
-import json
 import re
-from collections.abc import Mapping, Sequence
-from dataclasses import asdict, dataclass
-from pathlib import Path
+from collections.abc import Mapping
+from dataclasses import dataclass
 
 from ..policy import CwePolicy
 from ..ruleset import PatternRule
@@ -63,40 +61,6 @@ class PolicyConstantEdit:
 
 
 @dataclass(frozen=True)
-class MechanismEdit:
-    """A `mechanisms`-lever edit (corpus-seeded-mechanisms Req 5): admit or retract one exporter record by id.
-
-    The loop never writes a shape; it may only move a record the exporter derived from a trusted pair into or out of
-    the scan-time store. Free text is confined to ``rationale``.
-    """
-
-    action: str  # admit | retract
-    mechanism_id: str
-    source: str = "loo"  # loo | export
-    rationale: str = ""
-    lever: str = "mechanisms"
-
-    def key(self) -> str:
-        return f"mechanisms:{self.action}:{self.mechanism_id}"
-
-
-@dataclass(frozen=True)
-class StoreSnapshot:
-    """Bytes of the scan-time mechanism store before a round; ``restore`` is the byte-for-byte revert."""
-
-    path: Path
-    content: bytes | None  # None when the file did not exist
-
-    def restore(self) -> None:
-        if self.content is None:
-            if self.path.exists():
-                self.path.unlink()
-            return
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_bytes(self.content)
-
-
-@dataclass(frozen=True)
 class EvolveBounds:
     k_range: tuple[float, float] = (20.0, 200.0)
     min_score_range: tuple[int, int] = (0, 100)
@@ -113,48 +77,8 @@ class EvolveValidator:
             self._validate_rule(edit, ruleset_by_id, policy)
         elif isinstance(edit, PolicyConstantEdit):
             self._validate_policy(edit)
-        elif isinstance(edit, MechanismEdit):
-            raise StrictValidationError("mechanism edits need the exporter candidate set: use validate_mechanism", kind="mechanism_change")
         else:
             raise StrictValidationError(f"unknown edit type {type(edit).__name__}", kind="rule_change")
-
-    def validate_mechanism(
-        self, edit: MechanismEdit, candidates: Mapping[str, object], admitted: Mapping[str, object] | None = None
-    ) -> None:
-        """Req 5.2: only records the exporter derived from trusted pairs, with a closed guard and identifier-only shape text.
-
-        A retraction may also name a record that is admitted in the scan store but no longer in the candidate set.
-        """
-        from ..semantic.variants import GUARD_KINDS, SOURCE_KINDS
-
-        if edit.action not in MECHANISM_ACTIONS:
-            raise StrictValidationError(f"mechanism edit action {edit.action!r} is not admit or retract", kind="mechanism_change")
-        record = candidates.get(edit.mechanism_id)
-        if record is None and edit.action == "retract" and admitted is not None:
-            record = admitted.get(edit.mechanism_id)
-        if record is None:
-            raise StrictValidationError(
-                f"unknown mechanism {edit.mechanism_id!r}: not in the exporter candidate set", kind="mechanism_change"
-            )
-        if getattr(record, "origin", "") != "corpus":
-            raise StrictValidationError(
-                f"{edit.mechanism_id}: origin {getattr(record, 'origin', '')!r} is not corpus (only exporter records)",
-                kind="mechanism_change",
-            )
-        shape = getattr(record, "shape", None)
-        if not isinstance(shape, dict):
-            raise StrictValidationError(f"{edit.mechanism_id}: record carries no shape", kind="mechanism_change")
-        if str(shape.get("guard")) not in GUARD_KINDS or str(getattr(record, "guard", "")) not in GUARD_KINDS:
-            raise StrictValidationError(
-                f"{edit.mechanism_id}: guard {shape.get('guard')!r} is not a closed guard kind", kind="mechanism_change"
-            )
-        for field_name in ("sink_name", "language", "mechanism"):
-            value = str(shape.get(field_name, ""))
-            if not _IDENTIFIER.match(value.replace("-", "_")):
-                raise StrictValidationError(f"{edit.mechanism_id}: {field_name} {value!r} is not an identifier", kind="mechanism_change")
-        kinds = shape.get("source_kinds") or []
-        if not isinstance(kinds, list) or any(str(kind) not in SOURCE_KINDS for kind in kinds):
-            raise StrictValidationError(f"{edit.mechanism_id}: source kinds {kinds!r} are not closed kinds", kind="mechanism_change")
 
     def _validate_rule(self, edit: RuleStatusEdit, ruleset_by_id: Mapping[str, PatternRule], policy: Mapping[str, CwePolicy]) -> None:
         if edit.to_status not in VALID_STATUS:
@@ -178,25 +102,6 @@ class EvolveValidator:
             raise StrictValidationError(f"MIN_SCORE={edit.to_value} out of bounds {self._bounds.min_score_range}", kind="policy_change")
 
 
-def apply_mechanism_edits(edits: Sequence[MechanismEdit], candidates: object, scan_store: Path) -> StoreSnapshot:
-    """Apply admit/retract edits to the scan-time store; returns the snapshot whose ``restore`` reverts byte for byte.
-
-    Admission appends the exporter record unchanged; retraction appends a tombstone row (``retracted = true``) so the
-    log stays append-only and ``MechanismStore.load`` folds the record away.
-    """
-    snapshot = StoreSnapshot(path=scan_store, content=scan_store.read_bytes() if scan_store.exists() else None)
-    by_id = {record.id: record for record in candidates.load()}  # type: ignore[attr-defined]
-    scan_store.parent.mkdir(parents=True, exist_ok=True)
-    with scan_store.open("a") as handle:
-        for edit in edits:
-            record = by_id[edit.mechanism_id]
-            payload = asdict(record)
-            if edit.action == "retract":
-                payload["retracted"] = True
-            handle.write(json.dumps(payload, sort_keys=True) + "\n")
-    return snapshot
-
-
 def edits_to_ledger(edits: list[RuleStatusEdit], base: Mapping[str, dict[str, object]]) -> dict[str, dict[str, object]]:
     """Overlay rule-status edits onto a copy of the base ledger."""
     ledger: dict[str, dict[str, object]] = {key: dict(value) for key, value in base.items()}
@@ -211,9 +116,6 @@ __all__ = [
     "EvolveBounds",
     "EvolveValidator",
     "MECHANISM_ACTIONS",
-    "MechanismEdit",
-    "StoreSnapshot",
-    "apply_mechanism_edits",
     "PolicyConstantEdit",
     "RuleStatusEdit",
     "StrictValidationError",

@@ -1,4 +1,4 @@
-"""MAP overlay, prove filter, reports, pair scoring, mechanism memory."""
+"""MAP overlay, prove filter, reports, pair scoring."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from openultrasast.gate import LANGUAGE_MANIFESTS
 from openultrasast.pairs import PairCase, evaluate_pair, load_pair_catalog
 from openultrasast.preprocess import preprocess_repository
 from openultrasast.rank import rank_targets
-from openultrasast.semantic import MechanismStore, OverlayRecord, append_mechanism, filter_promoted_hotspots, order_promotions
+from openultrasast.semantic import OverlayRecord, filter_promoted_hotspots
 from openultrasast.semantic.prove_filter import promoted_findings
 
 
@@ -265,79 +265,3 @@ def test_markdown_report_includes_four_overlay_labels(tmp_path: Path) -> None:
     assert "coverage" in text
 
 
-def test_mechanism_order_boosts_paraphrased_match(tmp_path: Path) -> None:
-    store = MechanismStore(tmp_path / "mechanisms.jsonl")
-    append_mechanism(
-        store,
-        summary="request parameter reaches eval",
-        cwe="CWE-95",
-        language="python",
-        tags=["syscall_entry"],
-        what_made_it_exploitable="dynamic execution of attacker input",
-    )
-    eval_id = "python-unsafe-eval:app.py:1"
-    hash_id = "python-weak-hash:hash.py:1"
-    hotspots = (_hotspot(hash_id, score=5.0, path="hash.py"), _hotspot(eval_id, score=5.0, path="app.py"))
-    records = (
-        _record(hash_id, "promote", path="hash.py", cwe="CWE-327", sinks=("hashlib",), language="python"),
-        _record(eval_id, "promote", sources=("request",), cwe="CWE-95", sinks=("eval",), language="python"),
-    )
-    findings = [_finding(hash_id, path="hash.py"), _finding(eval_id)]
-
-    class _Client:
-        def embed(self, *, model: str, inputs: list[str], timeout_seconds: int = 60) -> list[list[float]]:
-            del model, timeout_seconds
-            vectors: list[list[float]] = []
-            for text in inputs:
-                if "eval" in text.lower() or "CWE-95" in text:
-                    vectors.append([1.0, 0.0])
-                else:
-                    vectors.append([0.0, 1.0])
-            return vectors
-
-    ordered, degradation = order_promotions(hotspots, records, findings, store=store, client=_Client(), model="test-embed")
-    assert degradation is None
-    assert ordered[0].inventory_finding_ids == (eval_id,)
-    assert {item.inventory_finding_ids[0] for item in ordered} == {eval_id, hash_id}
-
-
-def test_mechanism_degrades_to_heuristic_without_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
-    store = MechanismStore(tmp_path / "mechanisms.jsonl")
-    append_mechanism(
-        store,
-        summary="request parameter reaches eval",
-        cwe="CWE-95",
-        language="python",
-        tags=["syscall_entry"],
-        what_made_it_exploitable="dynamic execution of attacker input",
-    )
-    eval_id = "python-unsafe-eval:app.py:1"
-    hash_id = "python-weak-hash:hash.py:1"
-    hotspots = (_hotspot(hash_id, score=6.0, path="hash.py"), _hotspot(eval_id, score=3.0, path="app.py"))
-    records = (
-        _record(hash_id, "promote", path="hash.py", cwe="CWE-327", sinks=("hashlib",)),
-        _record(eval_id, "promote", sources=("request",)),
-    )
-    findings = [_finding(hash_id, path="hash.py"), _finding(eval_id)]
-    ordered, degradation = order_promotions(hotspots, records, findings, store=store, client=None, model=None)
-    assert degradation == "embeddings_unavailable"
-    assert [item.inventory_finding_ids[0] for item in ordered] == [hash_id, eval_id]
-
-
-def test_mechanisms_are_not_written_from_unadjudicated(tmp_path: Path) -> None:
-    store = MechanismStore(tmp_path / "mechanisms.jsonl")
-    record = OverlayRecord(
-        proposal_id="python-unsafe-eval:app.py:1",
-        path="app.py",
-        line=1,
-        disposition="unadjudicated",
-        reason="parse_failed",
-        cwe="CWE-95",
-        sources=(),
-        sinks=(),
-        sanitizers=(),
-        evidence_level="static_corroboration",
-    )
-    assert record.disposition != "promote"
-    assert store.load() == ()

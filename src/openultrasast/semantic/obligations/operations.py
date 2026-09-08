@@ -14,8 +14,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from ..facts import SemanticFacts
-from ..ir import FileIR, FunctionIR
-from ..variants import trailing_name
+from ..ir import FileIR, FunctionIR, trailing_name
 from .facts import DischargerFact, ObligationFacts
 from .shapes import _call_matches, _constraint_provenance, _is_literal, _operations, _permissive
 

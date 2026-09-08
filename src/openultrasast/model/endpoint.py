@@ -154,7 +154,7 @@ def resolve_chat_endpoint(config: ResolvedConfig, *, override: ChatClient | None
     if configured or key_env:
         key = os.environ.get(key_env or DEEPSEEK_KEY_ENV, "")
         base_url = configured or DEEPSEEK_BASE_URL
-        return _deepseek_client(key, base_url, model, provider=_provider_of(base_url), thinking=config.learning.thinking)
+        return _deepseek_client(key, base_url, model, provider=_provider_of(base_url), thinking=config.models.thinking)
     deepseek_key = os.environ.get(DEEPSEEK_KEY_ENV)
     if deepseek_key:
         return _deepseek_client(
@@ -162,7 +162,7 @@ def resolve_chat_endpoint(config: ResolvedConfig, *, override: ChatClient | None
             os.environ.get(DEEPSEEK_BASE_ENV, DEEPSEEK_BASE_URL),
             model,
             provider="deepseek",
-            thinking=config.learning.thinking,
+            thinking=config.models.thinking,
         )
     if os.environ.get("OPENROUTER_API_KEY"):
         try:
@@ -175,9 +175,9 @@ def resolve_chat_endpoint(config: ResolvedConfig, *, override: ChatClient | None
 
 
 def resolve_models(config: ResolvedConfig) -> tuple[str, str]:
-    """(detector model, judge model). `[learning]` wins, then `[models]`, then the shipped defaults."""
-    detector = config.learning.detector_model or config.models.hunter or DEFAULT_DETECTOR_MODEL
-    judge = config.learning.judge_model or config.models.judge or DEFAULT_JUDGE_MODEL
+    """(detector model, judge model) from `[models]`, then the shipped defaults."""
+    detector = config.models.hunter or DEFAULT_DETECTOR_MODEL
+    judge = config.models.judge or DEFAULT_JUDGE_MODEL
     return detector, judge
 
 

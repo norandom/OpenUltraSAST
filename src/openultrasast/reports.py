@@ -22,7 +22,6 @@ def write_markdown_report(
     mechanisms: Mapping[str, Mapping[str, object]] | None = None,
     obligations: Mapping[str, Mapping[str, object]] | None = None,
     obligations_summary: Mapping[str, object] | None = None,
-    learning: Mapping[str, Mapping[str, object]] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications or [])
@@ -73,8 +72,6 @@ def write_markdown_report(
         _append_mechanisms(lines, cited)
     if cited_obligations:
         _append_obligations(lines, cited_obligations, obligations_summary)
-    if learning:
-        _append_learning(lines, learning)
     if overlay:
         _append_overlay(lines, overlay)
     if complexity_map is not None:
@@ -158,7 +155,6 @@ def write_sarif_report(
     overlay: Sequence[object] | None = None,
     mechanisms: Mapping[str, Mapping[str, object]] | None = None,
     obligations: Mapping[str, Mapping[str, object]] | None = None,
-    learning: Mapping[str, Mapping[str, object]] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications)
@@ -183,7 +179,6 @@ def write_sarif_report(
                         overlay_by_id.get(finding.finding_id),
                         mechanisms=mechanisms,
                         obligation=(obligations or {}).get(finding.finding_id),
-                        learning=(learning or {}).get(finding.finding_id),
                     )
                     for finding in findings
                 ],
@@ -209,7 +204,6 @@ def write_manifest(
     provenance: dict[str, object] | None = None,
     variants: dict[str, object] | None = None,
     obligations: dict[str, object] | None = None,
-    learning: dict[str, object] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications)
@@ -250,8 +244,6 @@ def write_manifest(
         payload["variants"] = variants
     if obligations is not None:
         payload["obligations"] = obligations
-    if learning:
-        payload["learning"] = learning
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
@@ -295,7 +287,6 @@ def _sarif_result(
     *,
     mechanisms: Mapping[str, Mapping[str, object]] | None = None,
     obligation: Mapping[str, object] | None = None,
-    learning: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     properties: dict[str, object] = {
         "finding_id": finding.finding_id,
@@ -327,10 +318,6 @@ def _sarif_result(
         properties["obligation_evidence"] = _strings_of(obligation, "evidence")
         properties["obligation_known_fix"] = obligation.get("known_fix")
         properties["obligation_intent"] = obligation.get("intent")
-    if learning is not None:
-        properties["family"] = str(learning.get("family", ""))
-        properties["detector"] = str(learning.get("detector", ""))
-        properties["verifier"] = str(learning.get("verifier", ""))
     return {
         "ruleId": _rule_id(finding),
         "level": _sarif_level(finding.severity),
@@ -483,16 +470,6 @@ def _append_obligations(lines: list[str], cited: Mapping[str, Mapping[str, objec
     for finding_id, info in sorted(cited.items()):
         resource = info.get("resource") or "a resource"
         lines.append(f"- `{finding_id}`: `{info.get('obligation')}` on `{resource}` without `{info.get('missing')}` ({info.get('label')})")
-    lines.append("")
-
-
-def _append_learning(lines: list[str], cited: Mapping[str, Mapping[str, object]]) -> None:
-    """Which family found a claim, which detector version produced it, and what a verifier said about it."""
-    lines.extend(["## Classified detectors", "", "Findings from the per-family detectors, with what confirmed them.", ""])
-    for finding_id, info in sorted(cited.items()):
-        lines.append(
-            f"- `{finding_id}`: family `{info.get('family')}`, detector `{info.get('detector')}`, verifier `{info.get('verifier')}`"
-        )
     lines.append("")
 
 

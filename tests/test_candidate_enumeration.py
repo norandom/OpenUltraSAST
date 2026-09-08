@@ -16,7 +16,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent))
 from test_obligation_operations import APP  # noqa: E402
 
-from openultrasast.learning.families import load_families  # noqa: E402
+from openultrasast.model.taxonomy import load_families  # noqa: E402
 from openultrasast.semantic.extra import has_semantic_extra  # noqa: E402
 
 INJECTION = (
@@ -33,7 +33,7 @@ INJECTION = (
 
 
 def _region(path: str = "app.py", function: str | None = "run"):  # type: ignore[no-untyped-def]
-    from openultrasast.learning.detectors import Region
+    from openultrasast.model.candidates import Region
 
     return Region(path=path, function=function)
 
@@ -44,7 +44,7 @@ def _write(tmp_path: Path, name: str, text: str) -> Path:
 
 
 def test_a_call_site_candidate_carries_what_the_model_needs_to_judge_it(tmp_path: Path) -> None:
-    from openultrasast.learning.candidates import enumerate_candidates
+    from openultrasast.model.candidates import enumerate_candidates
 
     root = _write(tmp_path, "app.py", INJECTION)
     result = enumerate_candidates(root, _region(), "injection", taxonomy=load_families())
@@ -62,7 +62,7 @@ def test_a_call_site_candidate_carries_what_the_model_needs_to_judge_it(tmp_path
 
 
 def test_the_family_decides_which_kinds_are_candidates() -> None:
-    from openultrasast.learning.candidates import FAMILY_SHAPE
+    from openultrasast.model.candidates import FAMILY_SHAPE
 
     taxonomy = load_families()
     assert set(FAMILY_SHAPE) == {family.id for family in taxonomy.families}, "every family says what carries its bug"
@@ -76,7 +76,7 @@ def test_the_family_decides_which_kinds_are_candidates() -> None:
 @pytest.mark.skipif(not has_semantic_extra(), reason="the guards come from the parsed IR")
 def test_access_control_candidates_are_operations_with_the_guards_in_scope(tmp_path: Path) -> None:
     """An absence bug has no sink. Its candidate is the operation, and what the model needs is what guards it."""
-    from openultrasast.learning.candidates import enumerate_candidates
+    from openultrasast.model.candidates import enumerate_candidates
 
     root = _write(tmp_path, "app.py", APP)
     guarded = enumerate_candidates(root, _region(function="guarded"), "access_control", taxonomy=load_families())
@@ -95,7 +95,7 @@ def test_access_control_candidates_are_operations_with_the_guards_in_scope(tmp_p
 
 
 def test_a_side_the_parser_rejects_yields_no_candidates_and_says_why(tmp_path: Path) -> None:
-    from openultrasast.learning.candidates import enumerate_candidates
+    from openultrasast.model.candidates import enumerate_candidates
 
     root = _write(tmp_path, "app.py", "def broken(:\n    pass\n")
     result = enumerate_candidates(root, _region(function="broken"), "injection", taxonomy=load_families())
@@ -103,7 +103,7 @@ def test_a_side_the_parser_rejects_yields_no_candidates_and_says_why(tmp_path: P
 
 
 def test_a_labeled_function_with_nothing_to_judge_says_no_candidate(tmp_path: Path) -> None:
-    from openultrasast.learning.candidates import enumerate_candidates
+    from openultrasast.model.candidates import enumerate_candidates
 
     root = _write(tmp_path, "app.py", "def empty():\n    return 1\n")
     result = enumerate_candidates(root, _region(function="empty"), "injection", taxonomy=load_families())
@@ -111,7 +111,7 @@ def test_a_labeled_function_with_nothing_to_judge_says_no_candidate(tmp_path: Pa
 
 
 def test_the_bound_is_a_constant_and_the_overflow_is_counted(tmp_path: Path) -> None:
-    from openultrasast.learning.candidates import MAX_CANDIDATES_PER_CALL, enumerate_candidates
+    from openultrasast.model.candidates import MAX_CANDIDATES_PER_CALL, enumerate_candidates
 
     # one call per line, so the arithmetic is the bound and not the fixture
     body = "\n".join(f"    sink_{index}(value)" for index in range(MAX_CANDIDATES_PER_CALL + 5))
@@ -123,7 +123,7 @@ def test_the_bound_is_a_constant_and_the_overflow_is_counted(tmp_path: Path) -> 
 
 def test_enumerating_twice_returns_an_identical_sequence(tmp_path: Path) -> None:
     """The batches, and therefore the sequence of model calls, are determined by the input alone (Req 2.4)."""
-    from openultrasast.learning.candidates import enumerate_candidates
+    from openultrasast.model.candidates import enumerate_candidates
 
     root = _write(tmp_path, "app.py", APP)
     taxonomy = load_families()
@@ -139,7 +139,7 @@ def _order(result):  # type: ignore[no-untyped-def]
 
 
 def test_a_region_without_a_function_enumerates_the_whole_file(tmp_path: Path) -> None:
-    from openultrasast.learning.candidates import enumerate_candidates
+    from openultrasast.model.candidates import enumerate_candidates
 
     root = _write(tmp_path, "app.py", APP)
     whole = enumerate_candidates(root, _region(function=None), "injection", taxonomy=load_families())
@@ -150,7 +150,7 @@ def test_a_region_without_a_function_enumerates_the_whole_file(tmp_path: Path) -
 
 @pytest.mark.parametrize("family", ["injection", "path", "deserialization", "untrusted_destination", "config_secrets"])
 def test_every_family_shape_enumerates_something_on_a_file_that_has_it(tmp_path: Path, family: str) -> None:
-    from openultrasast.learning.candidates import enumerate_candidates
+    from openultrasast.model.candidates import enumerate_candidates
 
     root = _write(tmp_path, "app.py", INJECTION)
     result = enumerate_candidates(root, _region(), family, taxonomy=load_families())
@@ -164,7 +164,7 @@ def test_every_family_shape_enumerates_something_on_a_file_that_has_it(tmp_path:
 
 def test_the_ceiling_counts_labeled_functions_with_at_least_one_candidate(tmp_path: Path) -> None:
     from openultrasast.benchmark import ExpectedFinding
-    from openultrasast.learning.candidates import ceiling
+    from openultrasast.model.candidates import ceiling
     from openultrasast.pairs import PairCase
 
     def case(name: str, body: str, *, slice_name: str, family: str) -> PairCase:
@@ -210,7 +210,7 @@ def test_the_ceiling_counts_labeled_functions_with_at_least_one_candidate(tmp_pa
 
 def test_the_ruleset_generator_is_measured_too_so_the_comparison_is_reproducible(tmp_path: Path) -> None:
     """12.1% against 96.6% is why the ruleset is not the generator. A remembered number is not a measurement."""
-    from openultrasast.learning.candidates import ceiling
+    from openultrasast.model.candidates import ceiling
     from openultrasast.pairs import DEFAULT_CATALOG, load_pair_catalog, select_slice, select_vendored
 
     cases = [c for c in select_vendored(select_slice(load_pair_catalog(DEFAULT_CATALOG), "vibe-py")) if not c.unscorable][:6]
@@ -225,12 +225,12 @@ def test_the_command_runs_offline_and_writes_a_stable_artifact(tmp_path: Path, m
 
     for name in ("OPENULTRASAST_HUNTER_CLIENT", "DEEPSEEK_API_KEY", "OPENROUTER_API_KEY"):
         monkeypatch.delenv(name, raising=False)
-    out = tmp_path / "learning"
-    assert main(["learning", "candidates", "--slice", "vibe-py", "--out", str(out)]) == 0
+    out = tmp_path / "model"
+    assert main(["model", "candidates", "--slice", "vibe-py", "--out", str(out)]) == 0
     artifact = out / "candidate-ceiling.json"
     assert artifact.is_file()
     first = artifact.read_bytes()
-    assert main(["learning", "candidates", "--slice", "vibe-py", "--out", str(out)]) == 0
+    assert main(["model", "candidates", "--slice", "vibe-py", "--out", str(out)]) == 0
     assert artifact.read_bytes() == first, "the ceiling is a property of the corpus, not of when it was measured"
     import json
 

@@ -17,8 +17,7 @@ from dataclasses import dataclass
 
 from ..facts import SemanticFacts
 from ..functions import named_ranges_from_ir
-from ..ir import CallSite, FileIR, FunctionIR
-from ..variants import trailing_name
+from ..ir import CallSite, FileIR, FunctionIR, trailing_name
 from .facts import DISCHARGER_KINDS, OPERATION_KINDS, PROVENANCE_KINDS, DischargerFact, ObligationFacts, OperationFact
 
 FAMILY = "obligation"

@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import tempfile
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 from time import perf_counter
@@ -31,7 +31,6 @@ from .calibration import (
 )
 from .complexity import map as complexity_map
 from .complexity.ledger import persist_verdicts
-from .complexity.map import Hotspot
 from .config import ObligationsConfig, load_config, load_dotenv
 from .findings import StaticFinding, quick_scan_findings, write_findings
 from .fusion import FusionDecision, fuse_findings_dispatch
@@ -42,16 +41,13 @@ from .hunter import run_hunter_pool, write_hunter_trajectories
 from .hunter_harness import HxScanOrchestrator
 from .improve import RoundOutcome, run_improvement
 from .index import build_code_chunks
-from .learning.families import FamilyTaxonomy
 from .mapping import analyze_entry_points, attach_reachability_hints, ingest_sarif, write_entry_points, write_static_hints
 from .pair_gate import print_pair_metrics
 from .pairs import (
     DEFAULT_CATALOG,
     SLICE_NAMES,
-    PairCase,
     evaluate_catalog,
     load_pair_catalog,
-    make_hunter_scan,
     result_payload,
     select_profile,
     select_slice,
@@ -61,24 +57,19 @@ from .pairs import (
 from .policy import assert_rules_resolve, load_policy
 from .preprocess import FileTarget, preprocess_repository, write_preprocess_artifact
 from .provenance import fingerprint
-from .provider.openrouter import OpenRouterEmbeddingClient, OpenRouterError
 from .rank import rank_obligations, rank_targets, write_rankings
 from .regress import TRIGGERABLE, CandidateVerdict, run_regression, write_verdicts
-from .regress.candidate import hotspot_from_finding
 from .reports import scan_exit_code, write_manifest, write_markdown_report, write_sarif_report
 from .ruleset import DEFAULT_RULESET_DIR, load_ruleset
 from .run import ScanRun, create_scan_run
 from .sandbox import resolve_sandbox_probe, resolve_sandbox_runner
 from .scoring import build_score_artifact
 from .semantic import (
-    MechanismStore,
     OverlayRecord,
     adjudicate,
-    append_mechanism,
     filter_promoted_hotspots,
     finding_from_coverage,
     load_facts,
-    order_promotions,
     write_overlay,
 )
 from .semantic.facts import FactLoadError, SemanticFacts
@@ -101,7 +92,7 @@ class ScanOutcome:
 
 
 if TYPE_CHECKING:
-    from .learning.proposer import Proposer
+    pass
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -154,22 +145,6 @@ def main(argv: list[str] | None = None) -> int:
         "--profile-tolerance", type=float, default=0.0, help="allowed per-profile drop in pair_correct/Youden before rejecting"
     )
     improve.add_argument("--min-holdout-pairs", type=int, default=5, help="profiles with fewer holdout pairs are reported, not gated")
-    improve.add_argument(
-        "--mechanism-candidates",
-        type=Path,
-        default=None,
-        help=(
-            "exporter candidates the mechanisms lever may admit (default: <target>/.openultrasast/calibration/"
-            "mechanism-candidates.jsonl, then ./.openultrasast/calibration/mechanism-candidates.jsonl)"
-        ),
-    )
-    improve.add_argument(
-        "--mechanism-store",
-        type=Path,
-        default=None,
-        help="scan-time mechanisms.jsonl the lever writes (default: <target>/.openultrasast/calibration/mechanisms.jsonl)",
-    )
-    improve.add_argument("--no-mechanisms", action="store_true", help="disable the mechanisms lever for this run")
 
     pairs = subparsers.add_parser(
         "pairs",
@@ -181,72 +156,18 @@ def main(argv: list[str] | None = None) -> int:
         "--profile", choices=("all", "human", "agent", "mixed", "synthetic"), default="all", help="filter pairs by provenance profile"
     )
     pairs.add_argument("--split", choices=("all", "train", "holdout"), default="all", help="filter pairs by declared split")
-    pairs.add_argument("--hunter", action="store_true", help="also score the LLM tool hunter on overlay slices (needs a hunter model)")
-    pairs.add_argument("--hunter-model", default=None, help="model id for --hunter (default: [models].hunter from openultrasast.toml)")
     pairs.add_argument("--pointers", action="store_true", help="allow network for non-vendored pointer pairs this run (nightly; CI never)")
-    pairs.add_argument(
-        "--loo", action="store_true", help="leave-one-out: score each pair against a store seeded from the other trusted pairs"
-    )
-    pairs.add_argument("--loo-out", type=Path, default=None, help="where to write loo.json (default: reports/loo.json)")
     pairs.add_argument("--json", action="store_true", help="print the pair scoreboard as JSON")
-    pairs.add_argument(
-        "--k-runs", type=int, default=None, help="runs per pair on the hunter path; never fewer than three, and three by default"
-    )
 
     subparsers.add_parser("mcp", help="run the narrow MCP server over stdio for OpenCode integration")
-    mechanisms = subparsers.add_parser("mechanisms", help="maintainer: mechanism memory seeded from trusted pairs")
-    mechanisms_sub = mechanisms.add_subparsers(dest="mechanisms_command", required=True)
-    export = mechanisms_sub.add_parser("export", help="derive mechanism records from seeded/reviewed pairs (offline)")
-    export.add_argument("--slice", choices=SLICE_NAMES, default="all")
-    export.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
-    export.add_argument(
-        "--store",
-        type=Path,
-        default=Path(CALIBRATION_DIR) / "mechanism-candidates.jsonl",
-        help="append-only candidates file the improve lever admits from (the scan reads mechanisms.jsonl next to it; never written here)",
-    )
-    export.add_argument("--json", action="store_true")
-
-    learning = subparsers.add_parser("learning", help="maintainer: the classified detector set and its rounds")
-    learning_sub = learning.add_subparsers(dest="learning_command", required=True)
-    for name, help_text in (
-        ("classify", "classify every labeled pair and report the classifier against itself"),
-        ("score", "score a catalog by family, with the denominator every number was computed over"),
-        ("baseline", "round zero: clone one detector into every family and measure each against itself"),
-        ("candidates", "offline: what a candidate-driven detector could find, per family and per slice"),
-        ("round", "one evolve round: propose one change for one family and let the evidence decide"),
-        ("publish", "regenerate every published number from the artifacts that produced it"),
-    ):
-        command = learning_sub.add_parser(name, help=help_text)
-        command.add_argument("--out", type=Path, default=Path(".openultrasast/learning"), help="where artifacts are read and written")
-        if name != "publish":
-            command.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
-            command.add_argument("--slice", choices=SLICE_NAMES, default="all")
-            command.add_argument("--json", action="store_true")
-        if name == "baseline":
-            command.add_argument(
-                "--resume",
-                action="store_true",
-                help="keep the pairs a previous run of this baseline already measured and paid for",
-            )
-        if name == "candidates":
-            command.add_argument("--generator", choices=("ir", "ruleset"), default="ir", help="which pass enumerates the candidate sites")
-        if name in {"baseline", "round", "score"}:
-            command.add_argument("--k-runs", type=int, default=None, help="runs per pair; never fewer than three")
-            command.add_argument("--model", default=None, help="detector model; artifacts are keyed by it")
-            command.add_argument("--config", type=Path, default=Path("openultrasast.toml"))
-        if name == "round":
-            command.add_argument("--family", required=True)
-            command.add_argument("--cost-cap-usd", type=float, default=None)
-            command.add_argument(
-                "--proposals",
-                type=Path,
-                default=None,
-                help="a JSON list of proposals to try in order; without it the round asks the meta-agent",
-            )
-        if name == "publish":
-            command.add_argument("--measurements", type=Path, default=Path("benchmarks/measurements"))
-            command.add_argument("--roadmap", type=Path, default=Path(".kiro/steering/roadmap.md"))
+    model_cmd = subparsers.add_parser("model", help="maintainer: the model layer that arbitrates detector claims")
+    model_sub = model_cmd.add_subparsers(dest="model_command", required=True)
+    candidates = model_sub.add_parser("candidates", help="offline: what the candidate enumerator can reach, per family and per slice")
+    candidates.add_argument("--out", type=Path, default=Path(".openultrasast/model"), help="where artifacts are written")
+    candidates.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
+    candidates.add_argument("--slice", choices=SLICE_NAMES, default="all")
+    candidates.add_argument("--generator", choices=("ir", "ruleset"), default="ir", help="which pass enumerates the candidate sites")
+    candidates.add_argument("--json", action="store_true")
 
     args = parser.parse_args(argv)
     if args.command == "scan":
@@ -268,9 +189,6 @@ def main(argv: list[str] | None = None) -> int:
             pair_catalog=None if args.no_pair_gate else args.pair_catalog,
             profile_tolerance=args.profile_tolerance,
             min_holdout_pairs=args.min_holdout_pairs,
-            mechanism_candidates=args.mechanism_candidates,
-            mechanism_store=args.mechanism_store,
-            mechanisms_enabled=not args.no_mechanisms,
         )
     if args.command == "pairs":
         return _pairs(
@@ -279,17 +197,10 @@ def main(argv: list[str] | None = None) -> int:
             json_out=args.json,
             profile=args.profile,
             split=args.split,
-            hunter=args.hunter,
-            hunter_model=args.hunter_model,
             pointers=args.pointers,
-            loo=args.loo,
-            loo_out=args.loo_out,
-            k_runs=args.k_runs,
         )
-    if args.command == "mechanisms":
-        return _mechanisms_export(args.catalog, args.slice, args.store, json_out=args.json)
-    if args.command == "learning":
-        return _learning(args)
+    if args.command == "model":
+        return _model_candidates(args)
     if args.command == "mcp":
         from .mcp import serve  # lazy: keeps the import cycle (mcp -> cli) one-directional
 
@@ -478,12 +389,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     built_map = None
     overlay_records: list[OverlayRecord] = []
     wrote_overlay = False
-    variants_payload: dict[str, object] | None = None
-    variant_findings: list[StaticFinding] = []
-    mechanisms_cited: dict[str, dict[str, object]] = {}
     obligations_payload: dict[str, object] | None = None
-    learning_payload: dict[str, object] | None = None
-    learning_cited: dict[str, dict[str, object]] = {}
     obligations_cited: dict[str, dict[str, object]] = {}
     if Stage.MAP in plan.requested:
         built_map = runtime.run_stage(
@@ -517,19 +423,6 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             if extra:
                 findings = findings + extra
                 write_findings(findings, findings_path)
-        if config.variants.enabled:
-            variant_findings, overlay_records, variants_payload, mechanisms_cited = _search_variants(
-                root=run.target,
-                targets=targets,
-                overlay_records=overlay_records,
-                facts=facts_or_error,
-                max_mechanisms=config.variants.max_mechanisms,
-                runtime=runtime,
-            )
-            if variant_findings:
-                findings = findings + variant_findings
-                write_findings(findings, findings_path)
-            write_overlay(overlay_records, overlay_path)
         if config.obligations.enabled:
             obligation_findings, obligations_payload, obligations_cited = _check_obligations(
                 root=run.target,
@@ -542,18 +435,6 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             )
             if obligation_findings:
                 findings = rank_obligations(findings + obligation_findings)
-                write_findings(findings, findings_path)
-        if config.learning.enabled:
-            family_findings, learning_payload, learning_cited = _run_family_detectors(
-                root=run.target,
-                hotspots=built_map.hotspots if built_map is not None else (),
-                cases=None,
-                settings=config.learning,
-                config=config,
-                runtime=runtime,
-            )
-            if family_findings:
-                findings = findings + family_findings
                 write_findings(findings, findings_path)
         plan = record_completed(plan, Stage.MAP)
         if not hunter_model:
@@ -588,33 +469,11 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             sandbox = resolve_sandbox_runner()
             hotspots = built_map.hotspots if built_map is not None else ()
             hotspots = filter_promoted_hotspots(hotspots, overlay_records, findings)
-            store = MechanismStore(run.target / CALIBRATION_DIR / "mechanisms.jsonl")
-            embed_client = None
-            embed_model = config.embeddings.model
-            if embed_model:
-                try:
-                    embed_client = OpenRouterEmbeddingClient.from_env()
-                except OpenRouterError:
-                    embed_client = None
-            hotspots, budget_degradation = order_promotions(
-                hotspots,
-                overlay_records,
-                findings,
-                store=store,
-                client=embed_client,
-                model=embed_model,
-            )
-            if budget_degradation:
-                runtime.state["degradations"].append({"stage": "prove_budget", "reason": budget_degradation})
             promoted = [
                 finding
                 for finding in findings
                 if finding.finding_id in {record.proposal_id for record in overlay_records if record.disposition == "promote"}
             ]
-            # Variant findings are candidates after the promotions (Req 3.4): same safety check, same cap, lowest rank.
-            variant_ids = {finding.finding_id for finding in variant_findings}
-            promoted = promoted + [finding for finding in findings if finding.finding_id in variant_ids]
-            hotspots = hotspots + tuple(_hotspot_from_variant(finding) for finding in findings if finding.finding_id in variant_ids)
             cwe_by_rule_id = {rule.rule_id: rule.cwe for rule in ruleset}
             rule_cwe_by_finding = {finding.finding_id: cwe_by_rule_id.get(finding.finding_id.split(":", 1)[0], "") for finding in promoted}
             languages_by_path = {target.path: target.language for target in targets}
@@ -640,7 +499,6 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             if proven_ids and any(finding.finding_id.startswith("obligation:") for finding in findings):
                 findings = rank_obligations(findings, proven_ids=proven_ids)
                 write_findings(findings, findings_path)
-            _append_proven_mechanisms(store, records, overlay_records, findings, run.target)
             verdict_records = records
             wrote_verdicts = True
             plan = record_completed(plan, Stage.REGRESS)
@@ -655,10 +513,8 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             complexity_map=built_map,
             verdicts=verdict_records if wrote_verdicts else None,
             overlay=overlay_records if wrote_overlay else None,
-            mechanisms=mechanisms_cited or None,
             obligations=obligations_cited or None,
             obligations_summary=obligations_payload or None,
-            learning=learning_cited or None,
         ),
     )
     runtime.run_stage(
@@ -668,9 +524,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             verifications,
             sarif_path,
             overlay=overlay_records if wrote_overlay else None,
-            mechanisms=mechanisms_cited or None,
             obligations=obligations_cited or None,
-            learning=learning_cited or None,
         ),
     )
     runtime.run_stage(
@@ -699,9 +553,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             complexity=complexity_payload,
             worth_fixing=worth_fixing_payload,
             provenance=provenance.to_dict(),
-            variants=variants_payload,
             obligations=obligations_payload,
-            learning=learning_payload,
         ),
     )
     runtime.finish(status="succeeded")
@@ -714,35 +566,6 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         calibrations_applied=len(applied_calibrations),
         exit_code=scan_exit_code(findings, verifications, fail_on, worth_fixing_verdicts=verdict_records),
     )
-
-
-def _append_proven_mechanisms(
-    store: MechanismStore,
-    verdicts: tuple[CandidateVerdict, ...],
-    overlay_records: list[OverlayRecord],
-    findings: list[StaticFinding],
-    target: Path,
-) -> None:
-    overlay_by_id = {record.proposal_id: record for record in overlay_records}
-    finding_by_id = {finding.finding_id: finding for finding in findings}
-    for verdict in verdicts:
-        if verdict.verdict != TRIGGERABLE:
-            continue
-        for finding_id in verdict.inventory_finding_ids:
-            record = overlay_by_id.get(finding_id)
-            if record is None or record.disposition != "promote":
-                continue
-            finding = finding_by_id.get(finding_id)
-            append_mechanism(
-                store,
-                summary=record.reason,
-                cwe=record.cwe,
-                language=record.language or verdict.language,
-                tags=finding.tags if finding is not None else (),
-                what_made_it_exploitable=record.reason,
-                source_finding_id=finding_id,
-                source_repo=str(target),
-            )
 
 
 def _attach_tool_hunter(
@@ -900,9 +723,6 @@ def _improve(
     pair_catalog: Path | None = None,
     profile_tolerance: float = 0.0,
     min_holdout_pairs: int = 5,
-    mechanism_candidates: Path | None = None,
-    mechanism_store: Path | None = None,
-    mechanisms_enabled: bool = True,
 ) -> int:
     if not manifest_path.exists() or not manifest_path.is_file():
         raise SystemExit(f"benchmark manifest is not a file: {manifest_path}")
@@ -913,19 +733,6 @@ def _improve(
         pair_cases = select_split(load_pair_catalog(pair_catalog), "holdout")
     manifest = load_benchmark_manifest(manifest_path)
     target = resolve_benchmark_source(manifest_path, manifest)
-    # corpus-seeded-mechanisms Req 5: the lever runs when a candidates file exists (exporter output) and the pair gate is on.
-    # Candidates: an explicit path, else the target's calibration dir, else the working directory's (where `mechanisms export`
-    # writes by default). The store always lives where a scan of this target reads it unless overridden.
-    calibration = target / CALIBRATION_DIR
-    candidates_path: Path | None = mechanism_candidates
-    if candidates_path is None:
-        for candidate in (calibration / "mechanism-candidates.jsonl", Path(CALIBRATION_DIR) / "mechanism-candidates.jsonl"):
-            if candidate.is_file():
-                candidates_path = candidate
-                break
-    if not mechanisms_enabled or not pair_cases or candidates_path is None or not candidates_path.is_file():
-        candidates_path = None
-    store_path = mechanism_store if mechanism_store is not None else calibration / "mechanisms.jsonl"
     policy = load_policy()
 
     # The loop writes its accepted ledger where `scan`/`benchmark` read it, so a
@@ -935,11 +742,6 @@ def _improve(
         if dry_run:
             ledger_path = Path(scratch) / "rule_policy.json"
             journal_path = Path(scratch) / "improve_journal.json"
-            if candidates_path is not None:  # a dry run must not mutate the scan-time store either
-                scratch_store = Path(scratch) / "mechanisms.jsonl"
-                if store_path.is_file():
-                    scratch_store.write_bytes(store_path.read_bytes())
-                store_path = scratch_store
         else:
             ledger_path = ledger or default_ledger
             journal_path = journal or ledger_path.with_name("improve_journal.json")
@@ -957,8 +759,6 @@ def _improve(
             pair_cases=pair_cases,
             profile_tolerance=profile_tolerance,
             min_holdout_pairs=min_holdout_pairs,
-            mechanism_candidates=candidates_path,
-            mechanism_store=store_path if candidates_path is not None else None,
         )
         _print_improve_outcomes(outcomes, manifest_path, target, ledger_path, dry_run=dry_run)
     return 0
@@ -971,30 +771,13 @@ def _pairs(
     json_out: bool,
     profile: str = "all",
     split: str = "all",
-    hunter: bool = False,
-    hunter_model: str | None = None,
     pointers: bool = False,
-    loo: bool = False,
-    loo_out: Path | None = None,
-    k_runs: int | None = None,
 ) -> int:
     if not catalog.exists() or not catalog.is_file():
         raise SystemExit(f"pair catalog is not a file: {catalog}")
     cases = select_split(select_profile(select_slice(load_pair_catalog(catalog), slice_name), profile), split)
-    if loo:
-        return _pairs_loo(cases, loo_out or Path("reports") / "loo.json", json_out=json_out)
-    scan = None
-    if hunter:
-        config_path = Path("openultrasast.toml")
-        config = load_config(config_path if config_path.exists() else None)
-        model = hunter_model or config.models.hunter or ""
-        client = tool_hunter.resolve_hunter_client()
-        if model and client is not None:
-            from .learning.families import load_families
-
-            scan = make_hunter_scan(client, model, taxonomy=load_families())
     try:
-        result = evaluate_catalog(cases, hunter=scan, pointers=True if pointers else None, k_runs=k_runs)
+        result = evaluate_catalog(cases, pointers=True if pointers else None)
     except ValueError as exc:
         raise SystemExit(f"--k-runs: {exc}") from exc
     if json_out:
@@ -1003,50 +786,6 @@ def _pairs(
     print_pair_metrics("pair eval", result)
     print(f"signals={len(result.signals)}")
     return 0
-
-
-def _search_variants(
-    *,
-    root: Path,
-    targets: list[FileTarget],
-    overlay_records: list[OverlayRecord],
-    facts: SemanticFacts | FactLoadError,
-    max_mechanisms: int,
-    runtime: HarnessRuntime,
-) -> tuple[list[StaticFinding], list[OverlayRecord], dict[str, object], dict[str, dict[str, object]]]:
-    """Third MAP proposer (corpus-seeded-mechanisms Req 3): shapes from the mechanism store, merged with overlay flows.
-
-    Also returns the mechanisms the findings cite (summary, guard, pairs, cwe) for the reports (Req 6.1).
-    """
-    from .semantic.mechanisms import corpus_mechanisms
-    from .semantic.variant_search import hits_to_findings, search_tree
-
-    store = MechanismStore(root / CALIBRATION_DIR / "mechanisms.jsonl")
-    empty: dict[str, object] = {"mechanisms_searched": 0, "files_searched": 0, "findings": 0, "merged_into_overlay": 0}
-    if isinstance(facts, FactLoadError):
-        return [], overlay_records, empty, {}
-    result = runtime.run_stage("variants", lambda: search_tree(root, targets, store, facts, max_mechanisms=max_mechanisms))
-    for degradation in result.degradations:
-        runtime.state["degradations"].append(degradation)
-    records_by_id = {record.id: record for record in corpus_mechanisms(store.load())}
-    summaries = {record.id: (record.summary, record.pairs, record.cwe) for record in records_by_id.values()}
-    findings, records = hits_to_findings(result.hits, overlay_records, summaries)
-    merged = sum(1 for before, after in zip(overlay_records, records, strict=True) if before.mechanism_id is None and after.mechanism_id)
-    payload: dict[str, object] = {
-        "mechanisms_searched": result.mechanisms_searched,
-        "files_searched": result.files_searched,
-        "findings": len(findings),
-        "merged_into_overlay": merged,
-    }
-    cited_ids = {tag.split(":", 1)[1] for finding in findings for tag in finding.tags if tag.startswith("mechanism:")} | {
-        str(record.mechanism_id) for record in records if record.mechanism_id
-    }
-    cited: dict[str, dict[str, object]] = {
-        mechanism_id: {"summary": record.summary, "guard": record.guard, "pairs": list(record.pairs), "cwe": record.cwe}
-        for mechanism_id, record in records_by_id.items()
-        if mechanism_id in cited_ids
-    }
-    return findings, records, payload, cited
 
 
 def _check_obligations(
@@ -1065,7 +804,7 @@ def _check_obligations(
     enter the sandbox candidate set.
     """
     from .semantic.ir import parse_file
-    from .semantic.obligations import load_obligation_facts, obligation_mechanisms
+    from .semantic.obligations import load_obligation_facts
     from .semantic.obligations.check import check_obligations, findings_to_static
     from .semantic.obligations.dominance import OrderDominance
     from .semantic.obligations.policy import PolicyError, load_declared_policy
@@ -1089,7 +828,6 @@ def _check_obligations(
         policy = load_declared_policy(policy_path)
     except PolicyError as exc:
         runtime.state["degradations"].append({"stage": "obligations", "reason": "policy_invalid", "detail": str(exc)[:200]})
-    store = MechanismStore(root / CALIBRATION_DIR / "mechanisms.jsonl")
     result = runtime.run_stage(
         "obligations",
         lambda: check_obligations(
@@ -1100,7 +838,7 @@ def _check_obligations(
             policy=policy,
             paths=(),
             dominance=OrderDominance(texts=texts),
-            store_shapes=obligation_mechanisms(store.load()),
+            store_shapes=(),  # known-fix hints came from the deleted mechanism store
             min_siblings=settings.min_siblings,
         ),
     )
@@ -1138,292 +876,6 @@ def _check_obligations(
     return statics, payload, cited
 
 
-def _run_family_detectors(
-    *,
-    root: Path,
-    hotspots: Sequence[object],
-    cases: object,
-    settings: object,
-    config: object,
-    runtime: HarnessRuntime,
-) -> tuple[list[StaticFinding], dict[str, object], dict[str, dict[str, object]]]:
-    """Fifth MAP proposer (learning-harness Req 6.3, 7.1): one detector per admitted family, plus the generalist.
-
-    Every claim passes through its family's verifier and carries what produced it. Nothing rises above
-    suspicion here: the verifier writes a tag, and the evidence ladder is another boundary's to move.
-    """
-    del cases
-    from .learning.classify import classify_region
-    from .learning.detectors import DetectorConfigError, Region, load_family_configs, run_region_detectors
-    from .learning.endpoint import resolve_chat_endpoint, resolve_models
-    from .learning.families import FamiliesError, load_families
-    from .learning.verifiers import apply_verification, verifier_for
-
-    empty: dict[str, dict[str, object]] = {}
-    configs_dir = root / str(getattr(settings, "configs_dir", ".openultrasast/learning/configs"))
-    try:
-        taxonomy = load_families(Path(p) if (p := getattr(settings, "families_path", None)) else None)
-        configs = load_family_configs(configs_dir, taxonomy)
-    except (FamiliesError, DetectorConfigError) as exc:
-        runtime.state["degradations"].append({"stage": "learning", "reason": "learning_configs_unavailable", "detail": str(exc)[:200]})
-        return [], {}, empty
-    if not configs:
-        runtime.state["degradations"].append(
-            {"stage": "learning", "reason": "learning_configs_unavailable", "detail": f"no family configurations under {configs_dir}"}
-        )
-        return [], {}, empty
-    resolved = resolve_chat_endpoint(config)  # type: ignore[arg-type]
-    if resolved is None:
-        runtime.state["degradations"].append({"stage": "learning", "reason": "learning_endpoint_unavailable"})
-        return [], {}, empty
-    client, endpoint = resolved
-    model = resolve_models(config)[0]  # type: ignore[arg-type]
-    findings: list[StaticFinding] = []
-    per_family: dict[str, int] = {}
-    per_tier: dict[str, int] = {}
-    abstained = 0
-    seen: set[str] = set()
-    for hotspot in hotspots:
-        path = str(getattr(hotspot, "path", ""))
-        function = getattr(hotspot, "function_name", None)
-        key = f"{path}::{function}"
-        if not path or key in seen:
-            continue
-        seen.add(key)
-        answer = classify_region(root, path, function=function, taxonomy=taxonomy, client=None)
-        per_tier[answer.tier] = per_tier.get(answer.tier, 0) + 1
-        abstained += 0 if answer.families else 1
-        region = Region(path=path, function=str(function) if function else None, families=answer.families)
-
-        def _run(region: Region = region) -> list[StaticFinding]:
-            return run_region_detectors(root, region, configs, client=client, model=model)
-
-        produced = runtime.run_stage("learning", _run)
-        for finding in produced:
-            family_id = next((tag.split(":", 1)[1] for tag in finding.tags if tag.startswith("family:")), "unknown")
-            verification = verifier_for(taxonomy.by_id(family_id)).verify(finding, root=root, language="python")
-            findings.append(apply_verification(finding, verification))
-            per_family[family_id] = per_family.get(family_id, 0) + 1
-    payload: dict[str, object] = {
-        "taxonomy_version": taxonomy.version,
-        "families": per_family,
-        # What the classifier did on *this* scan. Scoring it needs labels a maintainer stands behind, which a scan
-        # of someone else's repository does not have, so the block reports the routing rather than an accuracy.
-        "classifier": {
-            "regions": len(seen),
-            "per_tier": dict(sorted(per_tier.items())),
-            "abstained": abstained,
-            # Req 2.6/3.7: say out loud that no family declares a parent at this taxonomy version, so the
-            # partial credit for a parent-child relation never applied to any number here.
-            "hierarchical_credit": taxonomy.hierarchical,
-        },
-        "round": None,
-        "endpoint": endpoint.provider,
-        "regions": len(seen),
-    }
-    cited: dict[str, dict[str, object]] = {
-        finding.finding_id: {
-            "family": next((tag.split(":", 1)[1] for tag in finding.tags if tag.startswith("family:")), ""),
-            "detector": next((tag.split(":", 1)[1] for tag in finding.tags if tag.startswith("detector:")), ""),
-            "verifier": next((tag.split(":", 1)[1] for tag in finding.tags if tag.startswith("verifier:")), ""),
-        }
-        for finding in findings
-    }
-    return findings, payload, cited
-
-
-def _learning(args: argparse.Namespace) -> int:
-    """The maintainer's entry points into the classified detector set. Everything degrades with a reason."""
-    from .learning.classify import measure_classifier, write_review_queue
-    from .learning.families import load_families
-    from .learning.publish import publish
-
-    out: Path = args.out
-    taxonomy = load_families()
-    if args.learning_command == "publish":
-        report = publish(learning_dir=out, measurements_dir=args.measurements, roadmap=args.roadmap)
-        print(f"learning publish: {len(report.families)} families over {len(report.models)} model(s) -> {args.roadmap}")
-        for artifact in report.artifacts:
-            print(f"  artifact {artifact}")
-        return 0
-    cases = select_vendored(select_slice(load_pair_catalog(args.catalog), args.slice))
-    if args.learning_command == "candidates":
-        # No model is called anywhere in this command. The ceiling is a property of the corpus and the enumerator,
-        # so it can end this feature before a cent is spent on it (constrained-detector task 1.3).
-        from .learning.candidates import ceiling
-
-        coverage = ceiling(cases, taxonomy=taxonomy, generator=args.generator)
-        out.mkdir(parents=True, exist_ok=True)
-        payload = coverage.to_dict()
-        (out / "candidate-ceiling.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-        if args.json:
-            print(json.dumps(payload, indent=2, sort_keys=True))
-        else:
-            for family, block in sorted(coverage.per_family.items()):
-                print(
-                    f"learning candidates {family}: {block['with_candidate']}/{block['pairs']} "
-                    f"= {_as_float(block['ceiling']):.1%} ceiling, sites {block['sites']}"
-                )
-            for slice_name, block in sorted(coverage.per_slice.items()):
-                print(f"  slice {slice_name}: {_as_float(block['ceiling']):.1%} over {block['pairs']} pairs")
-        return 0
-    if args.learning_command == "classify":
-        measured = measure_classifier(cases, taxonomy, client=None)
-        out.mkdir(parents=True, exist_ok=True)
-        payload = measured.to_dict()
-        (out / "classifier.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-        written = write_review_queue(out / "review-queue.jsonl", measured.queue)
-        if args.json:
-            print(json.dumps(payload, indent=2, sort_keys=True))
-        else:
-            print(f"learning classify: classified {measured.classified}, unknown {measured.unknown}, queued {written}")
-        return 0
-    return _learning_run(args, cases, taxonomy)
-
-
-def _learning_run(args: argparse.Namespace, cases: Sequence[PairCase], taxonomy: FamilyTaxonomy) -> int:
-    """score, baseline and round: the three that need a detector, and degrade with a reason without one."""
-    from .learning.detectors import load_family_configs, write_default_configs
-    from .learning.endpoint import resolve_chat_endpoint, resolve_models
-    from .learning.journal import Archive, LearningJournal
-    from .learning.rounds import DEFAULT_SLICES, MIN_K_RUNS, load_noise_floors, run_baseline, run_learning_round
-    from .learning.scoring import aggregate
-    from .tool_hunter import _SYSTEM_PROMPT
-
-    out: Path = args.out
-    config = load_config(args.config if args.config.exists() else None)
-    k_runs = args.k_runs or max(config.learning.k_runs, MIN_K_RUNS)
-    model = args.model or resolve_models(config)[0]
-    configs_dir = out / "configs"
-    if not configs_dir.exists():
-        write_default_configs(configs_dir, taxonomy, prompt=_SYSTEM_PROMPT, version="0")  # type: ignore[arg-type]
-    resolved = resolve_chat_endpoint(config)
-    if resolved is None:
-        print("learning: learning_endpoint_unavailable; scoring what can be scored without a detector")
-    client = resolved[0] if resolved else None
-    # The client meters itself; a run that never reads the meter publishes a cost of zero and can never trip its
-    # own cap (Req 8.3, 9.8).
-    meter = getattr(client, "cost_usd", None)
-    spent: Callable[[], float] | None = meter if callable(meter) else None
-    configs = load_family_configs(configs_dir, taxonomy)  # type: ignore[arg-type]
-
-    def factory(family_config: object) -> Callable[[Path], list[StaticFinding]]:
-        from .learning.detectors import Region, run_family_detector
-
-        def scan(root: Path) -> list[StaticFinding]:
-            if client is None:
-                return []
-            region = Region(path=_first_source(root), function=None)
-            return run_family_detector(root, region, family_config, client=client, model=model)  # type: ignore[arg-type]
-
-        return scan
-
-    if args.learning_command == "score":
-        from .learning.rounds import score_case
-
-        scores = [
-            score_case(case, factory(configs[_label(case, taxonomy)]), taxonomy=taxonomy, runs=k_runs, family=_label(case, taxonomy))
-            for case in cases
-            if _label(case, taxonomy) in configs
-        ]
-        cutoff = config.learning.cutoff_date or ""
-        families = {name: block.to_dict() for name, block in aggregate(scores, taxonomy=taxonomy, cutoff=cutoff).items()}
-        if args.json:
-            print(json.dumps({"families": families}, indent=2, sort_keys=True))
-        else:
-            for name, block in sorted(families.items()):
-                raw = block.get("post_cutoff")
-                recent: dict[str, object] = raw if isinstance(raw, dict) else {}
-                tail = (
-                    f" post-cutoff({cutoff})={recent.get('scorable', 0)} undated={block['undated']}"
-                    if cutoff
-                    else " post-cutoff=none configured"
-                )
-                print(
-                    f"learning score {name}: scorable={block['scorable']} recall={block['recall']:.3f} youden={block['youden']:.3f}{tail}"
-                )
-        return 0
-    if args.learning_command == "baseline":
-        report = run_baseline(
-            cases,
-            taxonomy=taxonomy,
-            configs_dir=configs_dir,
-            scan_factory=factory,
-            model=model,
-            out_dir=out,
-            k_runs=k_runs,
-            cutoff=config.learning.cutoff_date or "",
-            # `--slice` already chose the rows; without this the baseline's own default filters them out again and
-            # a run over the memory-safety slice reports nothing at all (Req 8.4).
-            slices=(args.slice,) if args.slice != "all" else DEFAULT_SLICES,
-            spent_usd=spent,
-            thinking=config.learning.thinking,
-            resume=args.resume,
-        )
-        print(f"learning baseline cost: ${report.cost_usd:.4f}")
-        print(f"learning baseline {model}: {len(report.floors)} families, k={report.k_runs} -> {out / 'baseline'}")
-        return 0
-    journal = LearningJournal(out / "journal.jsonl")
-    record = run_learning_round(
-        cases,
-        family=args.family,
-        taxonomy=taxonomy,
-        configs_dir=configs_dir,
-        proposer=_proposer(args, configs_dir, model, config.harnessx.provider),
-        scan_factory=factory,
-        model=model,
-        journal=journal,
-        archive=Archive(out / "archive.jsonl"),
-        floors=load_noise_floors(out, model, (args.slice,) if args.slice != "all" else DEFAULT_SLICES, config.learning.thinking),
-        out_dir=out,
-        cost_cap_usd=args.cost_cap_usd or config.learning.round_cost_cap_usd,
-        minibatch=config.learning.minibatch,
-        k_runs=k_runs,
-        spent_usd=spent,
-        # Every other family the corpus actually carries, so a change that reaches beyond its own directory is
-        # measured rather than assumed impossible (Req 9.5).
-        sweep_families=tuple(sorted({_label(case, taxonomy) for case in cases} & set(configs) - {args.family})),
-    )
-    print(f"learning round {record.round} {record.family}: {record.outcome} ({record.reason}) cost ${record.cost_usd:.4f}")
-    return 0
-
-
-def _as_float(value: object) -> float:
-    return float(value) if isinstance(value, int | float) else 0.0
-
-
-def _label(case: PairCase, taxonomy: object) -> str:
-    """The family that routes this pair: the maintainer's label when there is one, else the classifier's answer.
-
-    Reading only the declared label would send every unlabeled row to the generalist, whose findings earn no credit
-    against any real family, so a scoreboard built that way reports structural zeros (Req 2.1, 8.2)."""
-    from .learning.rounds import _family_of
-
-    return _family_of(case, taxonomy)  # type: ignore[arg-type]
-
-
-def _proposer(args: argparse.Namespace, configs_dir: Path, model: str, provider: str = "anthropic") -> Proposer:
-    """`--proposals FILE` runs a recorded sequence offline; without it the round asks the meta-agent."""
-    from .learning.proposer import HarnessXProposer, Proposal, ScriptedProposer
-
-    path = getattr(args, "proposals", None)
-    if path is None:
-        return HarnessXProposer(configs_dir=configs_dir, model=model, provider=provider)
-    rows = json.loads(Path(path).read_text(encoding="utf-8"))
-    return ScriptedProposer(
-        [
-            Proposal(
-                hypothesis=str(row["hypothesis"]),
-                lever=row["lever"],
-                change=dict(row["change"]),
-                predicted_affected=tuple(row.get("predicted_affected", ())),
-                predicted_at_risk=tuple(row.get("predicted_at_risk", ())),
-            )
-            for row in rows
-        ]
-    )
-
-
 def _first_source(root: Path) -> str:
     from .preprocess import preprocess_repository
 
@@ -1431,60 +883,12 @@ def _first_source(root: Path) -> str:
     return targets[0].path if targets else "."
 
 
-def _hotspot_from_variant(finding: StaticFinding) -> Hotspot:
-    return hotspot_from_finding(finding, rationale="variant of a known mechanism (suspicion; sandbox may raise)")
-
-
-def _pairs_loo(cases: Sequence[PairCase], out: Path, *, json_out: bool) -> int:
-    """Req 4: the corpus's own detection rate; written as an artifact, never a gate."""
-    from .semantic.loo import evaluate_loo
-
-    result = evaluate_loo(select_vendored(cases))
-    payload = result.to_dict()
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-    if json_out:
-        print(json.dumps(payload, indent=2, sort_keys=True))
-        return 0
-    for slice_name, metrics in result.per_slice.items():
-        print(
-            f"loo {slice_name}: pairs={metrics['pairs']} detected={metrics['detected']} silent={metrics['silent']} "
-            f"youden={metrics['youden']:+.3f} teaching={metrics['teaching']}"
-        )
-    print(f"artifact={out}")
-    return 0
-
-
-def _mechanisms_export(catalog: Path, slice_name: str, store_path: Path, *, json_out: bool) -> int:
-    from .semantic.mechanisms import MechanismStore
-    from .semantic.seed import export_mechanisms
-
-    if not catalog.is_file():
-        raise SystemExit(f"pair catalog is not a file: {catalog}")
-    cases = select_vendored(select_slice(load_pair_catalog(catalog), slice_name))
-    report = export_mechanisms(cases, MechanismStore(store_path))
-    payload = {"slice": slice_name, "store": str(store_path), "pairs": len(cases), **report.to_dict()}
-    if json_out:
-        print(json.dumps(payload, indent=2, sort_keys=True))
-        return 0
-    print(f"mechanisms export slice={slice_name} pairs={len(cases)} seeded={report.seeded} records={report.records} -> {store_path}")
-    for pair, reason in report.skipped:
-        print(f"  skip {pair}: {reason}")
-    return 0
-
-
 def _print_improve_outcomes(outcomes: list[RoundOutcome], manifest_path: Path, target: Path, ledger_path: Path, *, dry_run: bool) -> None:
     print(f"manifest={manifest_path}")
     print(f"target={target}")
     accepted = [o for o in outcomes if o.accepted]
     for outcome in outcomes:
-        edits = (
-            ", ".join(
-                [f"{e.rule_id}:{e.from_status}->{e.to_status}" for e in outcome.edits]
-                + [f"{m.action} {m.mechanism_id}" for m in outcome.mechanism_edits]
-            )
-            or "-"
-        )
+        edits = ", ".join(f"{e.rule_id}:{e.from_status}->{e.to_status}" for e in outcome.edits) or "-"
         print(
             f"round {outcome.round}: {outcome.reason} | "
             f"recall {outcome.recall_before:.2%}->{outcome.recall_after:.2%} "
@@ -1504,6 +908,36 @@ def _print_improve_outcomes(outcomes: list[RoundOutcome], manifest_path: Path, t
 
 def _load_scan_findings(run_dir: Path) -> list[StaticFinding]:
     return load_findings(run_dir / "findings.json")
+
+
+def _model_candidates(args: argparse.Namespace) -> int:
+    """What the candidate enumerator can reach, per family and per slice. No model is called anywhere here.
+
+    The ceiling is a property of the corpus and the enumerator, so it can end a design before a cent is spent
+    on it — which is what it did for the pattern-ruleset generator (12.1% against the IR's 96.6%).
+    """
+    from .model.candidates import ceiling
+    from .model.taxonomy import load_families
+
+    cases = select_vendored(select_slice(load_pair_catalog(args.catalog), args.slice))
+    coverage = ceiling(cases, taxonomy=load_families(), generator=args.generator)
+    out: Path = args.out
+    out.mkdir(parents=True, exist_ok=True)
+    payload = coverage.to_dict()
+    (out / "candidate-ceiling.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        for family, block in sorted(coverage.per_family.items()):
+            ceiling_value = float(block["ceiling"]) if isinstance(block["ceiling"], int | float) else 0.0
+            print(
+                f"model candidates {family}: {block['with_candidate']}/{block['pairs']} "
+                f"= {ceiling_value:.1%} ceiling, sites {block['sites']}"
+            )
+        for slice_name, block in sorted(coverage.per_slice.items()):
+            ceiling_value = float(block["ceiling"]) if isinstance(block["ceiling"], int | float) else 0.0
+            print(f"  slice {slice_name}: {ceiling_value:.1%} over {block['pairs']} pairs")
+    return 0
 
 
 def _index(path: Path, config_path: Path, chunk_lines: int) -> int:

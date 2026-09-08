@@ -17,8 +17,8 @@ from pathlib import Path
 
 import pytest
 
-from openultrasast.learning.families import load_families
 from openultrasast.mapping import analyze_entry_points
+from openultrasast.model.taxonomy import load_families
 from openultrasast.pairs import DEFAULT_CATALOG, load_pair_catalog, select_vendored
 from openultrasast.preprocess import preprocess_repository
 from openultrasast.semantic.extra import has_semantic_extra

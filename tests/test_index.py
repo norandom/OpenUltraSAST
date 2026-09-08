@@ -15,7 +15,6 @@ from openultrasast.index import (
     write_vector_index,
 )
 from openultrasast.preprocess import RepoSnapshot, preprocess_repository
-from openultrasast.vectorstore import bakeoff_json_local, bakeoff_payload
 
 
 class FakeEmbeddingClient:
@@ -103,15 +102,3 @@ def test_retrieval_package_is_bounded_by_character_budget() -> None:
     assert package.truncated is True
 
 
-def test_json_local_bakeoff_selects_default_store(tmp_path: Path) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    (repo / "app.py").write_text("def login(user):\n    return user\n")
-    snapshot, targets = preprocess_repository(repo)
-    chunks = build_code_chunks(repo, targets)
-    index = build_vector_index(snapshot=snapshot, chunks=chunks, embedding_model="model", client=FakeEmbeddingClient())
-
-    result = bakeoff_json_local(index, tmp_path / "vector-index.json", query_embedding=[20.0, 1.0])
-
-    assert result.passed is True
-    assert bakeoff_payload(result)["selected_default"] is True

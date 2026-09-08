@@ -14,7 +14,7 @@ GOOD = (
 
 
 def test_taxonomy_loads_ten_families_each_with_a_verifier() -> None:
-    from openultrasast.learning.families import FAMILY_IDS, VERIFIER_KINDS, load_families
+    from openultrasast.model.taxonomy import FAMILY_IDS, VERIFIER_KINDS, load_families
 
     taxonomy = load_families()
     assert len(FAMILY_IDS) == 10 and FAMILY_IDS[-1] == "unknown"
@@ -27,7 +27,7 @@ def test_taxonomy_loads_ten_families_each_with_a_verifier() -> None:
 
 
 def test_every_mechanism_id_resolves_to_exactly_one_family() -> None:
-    from openultrasast.learning.families import load_families
+    from openultrasast.model.taxonomy import load_families
     from openultrasast.pairs import load_mechanisms
 
     taxonomy = load_families()
@@ -43,7 +43,7 @@ def test_every_mechanism_id_resolves_to_exactly_one_family() -> None:
 
 
 def test_every_labeled_corpus_cwe_resolves_and_no_cwe_is_claimed_twice() -> None:
-    from openultrasast.learning.families import load_families
+    from openultrasast.model.taxonomy import load_families
 
     taxonomy = load_families()
     seen: dict[str, str] = {}
@@ -63,7 +63,7 @@ def test_every_labeled_corpus_cwe_resolves_and_no_cwe_is_claimed_twice() -> None
 
 
 def test_relation_answers_same_lateral_fabricated_and_parent_child_when_declared(tmp_path: Path) -> None:
-    from openultrasast.learning.families import load_families
+    from openultrasast.model.taxonomy import load_families
 
     taxonomy = load_families()
     assert taxonomy.related("injection", "injection") == "same"
@@ -109,7 +109,7 @@ def test_relation_answers_same_lateral_fabricated_and_parent_child_when_declared
     ],
 )
 def test_loader_rejects_data_bugs_by_name(tmp_path: Path, text: str, needle: str) -> None:
-    from openultrasast.learning.families import FamiliesError, load_families
+    from openultrasast.model.taxonomy import FamiliesError, load_families
 
     (tmp_path / "families.toml").write_text(text)
     with pytest.raises(FamiliesError, match=needle):
@@ -117,7 +117,7 @@ def test_loader_rejects_data_bugs_by_name(tmp_path: Path, text: str, needle: str
 
 
 def test_the_shipped_file_must_declare_the_whole_closed_set_in_order(tmp_path: Path) -> None:
-    from openultrasast.learning.families import FamiliesError, load_families
+    from openultrasast.model.taxonomy import FamiliesError, load_families
 
     (tmp_path / "families.toml").write_text(GOOD)
     with pytest.raises(FamiliesError, match="in that order"):

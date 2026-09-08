@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import urllib.request
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -33,7 +34,7 @@ def _endpoint_env(monkeypatch: pytest.MonkeyPatch, **values: str | None) -> None
 
 
 def test_deepseek_wins_over_openrouter_and_never_touches_the_embedding_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
-    from openultrasast.learning.endpoint import DEEPSEEK_BASE_URL, resolve_chat_endpoint
+    from openultrasast.model.endpoint import DEEPSEEK_BASE_URL, resolve_chat_endpoint
 
     _endpoint_env(monkeypatch, DEEPSEEK_API_KEY="ds-key", OPENROUTER_API_KEY="or-key", OPENROUTER_BASE_URL="https://openrouter.ai/api/v1")
     resolved = resolve_chat_endpoint(ResolvedConfig())
@@ -47,7 +48,7 @@ def test_deepseek_wins_over_openrouter_and_never_touches_the_embedding_endpoint(
 
 
 def test_resolution_order_override_then_scripted_then_openrouter_then_none(monkeypatch: pytest.MonkeyPatch) -> None:
-    from openultrasast.learning.endpoint import resolve_chat_endpoint
+    from openultrasast.model.endpoint import resolve_chat_endpoint
     from openultrasast.tool_hunter import ChatResponse, ScriptedChatClient
 
     injected = ScriptedChatClient([ChatResponse(content="{}")])
@@ -68,7 +69,7 @@ def test_resolution_order_override_then_scripted_then_openrouter_then_none(monke
 
 
 def test_a_provider_that_refuses_to_build_degrades_to_no_endpoint(monkeypatch: pytest.MonkeyPatch) -> None:
-    from openultrasast.learning.endpoint import resolve_chat_endpoint
+    from openultrasast.model.endpoint import resolve_chat_endpoint
 
     _endpoint_env(monkeypatch, OPENROUTER_API_KEY="or-key")
 
@@ -81,16 +82,14 @@ def test_a_provider_that_refuses_to_build_degrades_to_no_endpoint(monkeypatch: p
 
 def test_the_config_can_point_the_chat_endpoint_somewhere_else(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
     from openultrasast.config import load_config
-    from openultrasast.learning.endpoint import resolve_chat_endpoint, resolve_models
+    from openultrasast.model.endpoint import resolve_chat_endpoint, resolve_models
 
     _endpoint_env(monkeypatch, MY_KEY="local-key")
     monkeypatch.setenv("MY_KEY", "local-key")
     (tmp_path / "ousast.toml").write_text(
-        '[models]\njudge = "deepseek-v4-pro"\nchat_base_url = "http://localhost:11434/v1"\nchat_api_key_env = "MY_KEY"\n\n'
-        "[learning]\nk_runs = 3\nround_cost_cap_usd = 2.5\nminibatch = 4\n"
+        '[models]\njudge = "deepseek-v4-pro"\nchat_base_url = "http://localhost:11434/v1"\nchat_api_key_env = "MY_KEY"\n'
     )
     config = load_config(tmp_path / "ousast.toml")
-    assert config.learning.k_runs == 3 and config.learning.round_cost_cap_usd == 2.5 and config.learning.minibatch == 4
     resolved = resolve_chat_endpoint(config)
     assert resolved is not None and resolved[1].base_url == "http://localhost:11434/v1"
     detector, judge = resolve_models(config)
@@ -98,7 +97,7 @@ def test_the_config_can_point_the_chat_endpoint_somewhere_else(monkeypatch: pyte
 
 
 def test_the_adapter_disables_thinking_asks_for_json_and_keeps_the_reasoning_field() -> None:
-    from openultrasast.learning.endpoint import DeepSeekChatClient
+    from openultrasast.model.endpoint import DeepSeekChatClient
 
     recorder = _Recorder([{"content": '{"intent": "public"}', "reasoning_content": "step one"}])
     client = DeepSeekChatClient(recorder)  # type: ignore[arg-type]
@@ -110,7 +109,7 @@ def test_the_adapter_disables_thinking_asks_for_json_and_keeps_the_reasoning_fie
 
 
 def test_the_adapter_retries_once_on_empty_json_content_then_gives_up() -> None:
-    from openultrasast.learning.endpoint import DeepSeekChatClient
+    from openultrasast.model.endpoint import DeepSeekChatClient
 
     recorder = _Recorder([{"content": ""}, {"content": '{"ok": true}'}])
     client = DeepSeekChatClient(recorder)  # type: ignore[arg-type]
@@ -123,7 +122,7 @@ def test_the_adapter_retries_once_on_empty_json_content_then_gives_up() -> None:
 
 
 def test_log_probabilities_are_requested_only_when_asked_for() -> None:
-    from openultrasast.learning.endpoint import DeepSeekChatClient
+    from openultrasast.model.endpoint import DeepSeekChatClient
 
     recorder = _Recorder([{"content": "{}", "logprobs": {"content": [{"logprob": -0.1}, {"logprob": -0.3}]}}])
     client = DeepSeekChatClient(recorder)  # type: ignore[arg-type]
@@ -133,7 +132,7 @@ def test_log_probabilities_are_requested_only_when_asked_for() -> None:
 
 
 def test_cost_comes_from_the_providers_own_usage_fields() -> None:
-    from openultrasast.learning.endpoint import ChatEndpoint, price_of
+    from openultrasast.model.endpoint import ChatEndpoint, price_of
 
     flash = ChatEndpoint(provider="deepseek", base_url="https://api.deepseek.com", thinking=False, prices=price_of("deepseek-v4-flash"))
     cost = flash.cost({"prompt_cache_hit_tokens": 1_000_000, "prompt_cache_miss_tokens": 1_000_000, "completion_tokens": 1_000_000})
@@ -179,7 +178,7 @@ def test_logprobs_are_read_off_the_choice_where_the_provider_puts_them() -> None
 
     `_message_of` returned only `choices[0].message`, so the confidence signal the classifier is supposed to
     abstain on was always `None` — a knob that reads as "never unsure" whatever the model said."""
-    from openultrasast.learning.endpoint import _message_of
+    from openultrasast.model.endpoint import _message_of
 
     payload = {
         "choices": [
@@ -197,8 +196,29 @@ def test_logprobs_are_read_off_the_choice_where_the_provider_puts_them() -> None
 
 
 def test_a_reply_without_logprobs_reports_none_rather_than_a_number() -> None:
-    from openultrasast.learning.endpoint import _message_of
+    from openultrasast.model.endpoint import _message_of
     from openultrasast.tool_hunter import chat_response_from_message
 
     message = _message_of({"choices": [{"message": {"content": "yes"}}]})
     assert chat_response_from_message(message).mean_logprob is None
+
+
+def test_thinking_is_a_measured_condition_on_the_models_section() -> None:
+    """The knob moved from `[learning]` to `[models]` with the noise architecture's removal.
+
+    Thinking is off by default because that is what the committed baseline was measured under — the provider
+    silently ignores `temperature` while thinking — not because it is known to be better.
+    """
+    from openultrasast.config import load_config
+
+    assert load_config(None).models.thinking is False
+
+
+def test_the_config_can_turn_thinking_on(tmp_path: Path) -> None:
+    from openultrasast.config import load_config
+
+    path = tmp_path / "ousast.toml"
+    path.write_text("[models]\nthinking = true\n")
+    assert load_config(path).models.thinking is True
+    path.write_text("[models]\nthinking = false\n")
+    assert load_config(path).models.thinking is False

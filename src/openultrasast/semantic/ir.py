@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import re
 from dataclasses import dataclass
 
 
@@ -230,3 +231,14 @@ def _unparse(node: ast.AST) -> str:
         return ast.unparse(node)
     except Exception:
         return ""
+
+
+def trailing_name(callee: str) -> str:
+    """``os.path.join`` -> ``join``; ``Runtime.getRuntime().exec`` -> ``exec``; keeps the last identifier segment.
+
+    Re-homed here from the deleted ``semantic/variants.py``: it is a pure helper over ``CallSite.name`` and has
+    nothing to do with the mechanism search that used to surround it.
+    """
+    tail = callee.rsplit(".", 1)[-1].rsplit("::", 1)[-1].rsplit("->", 1)[-1]
+    match = re.search(r"[A-Za-z_$][\w$]*\s*$", tail)
+    return match.group(0).strip() if match else tail

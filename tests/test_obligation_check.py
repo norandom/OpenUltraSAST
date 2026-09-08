@@ -115,37 +115,24 @@ def test_path_records_gate_reachability_and_a_dominating_hop_discharges() -> Non
     assert covered.findings  # without the hop witness the finding stands
 
 
-def test_findings_become_suspicion_static_findings_with_known_fix_and_labels(tmp_path: Path) -> None:
-    from openultrasast.semantic.mechanisms import MechanismStore, append_from_pair
-    from openultrasast.semantic.obligations.check import findings_to_static
-    from openultrasast.semantic.obligations.shapes import ObligationShape, obligation_mechanisms
+def test_findings_become_suspicion_static_findings_with_labels() -> None:
+    """The finding-id contract, the suspicion rung and the tags, without the deleted mechanism store.
 
-    store = MechanismStore(tmp_path / "m.jsonl")
-    shape = ObligationShape(
-        language="python",
-        operation_kind="protected_read",
-        discharger_kind="identity_constraint",
-        provenance="authenticated_context",
-        resource_class="owned",
-        mechanism="missing_auth_guard",
-    )
-    record = append_from_pair(store, shape, summary="s", cwe="CWE-639", pair="vampi", provenance="human", tier="seeded")
-    result = _check(store_shapes=obligation_mechanisms(store.load()))
+    The original also asserted `known_fix` — a hint the store supplied. The store is gone, so the hint is gone
+    with it; everything the checker establishes on its own is still pinned here.
+    """
+    from openultrasast.semantic.obligations.check import findings_to_static
+
+    result = _check()
     leaky = next(f for f in result.findings if f.operation.function == "leaky" and f.missing == "identity_constraint")
-    assert leaky.known_fix == record.id
+    guarded = next(f for f in result.findings if f.operation.function == "guarded" and f.missing == "identity_constraint")
     statics = findings_to_static(result)
     ids = {s.finding_id for s in statics}
-    guarded = next(f for f in result.findings if f.operation.function == "guarded" and f.missing == "identity_constraint")
     assert f"obligation:protected_read:app.py:{leaky.operation.line}:identity_constraint" in ids  # exact id contract
     assert f"obligation:protected_read:app.py:{guarded.operation.line}:identity_constraint" in ids
     static = next(s for s in statics if s.line == leaky.operation.line and "discharger:identity_constraint" in s.tags)
     assert static.evidence_level == "suspicion"
-    assert {
-        "obligation:protected_read",
-        "discharger:identity_constraint",
-        "obligation_evidence:consistency_violation",
-        f"mechanism:{record.id}",
-    } <= set(static.tags)
+    assert {"obligation:protected_read", "discharger:identity_constraint", "obligation_evidence:consistency_violation"} <= set(static.tags)
     assert "app.py::constrained" in static.rationale
 
 

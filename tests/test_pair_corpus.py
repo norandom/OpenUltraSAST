@@ -370,55 +370,6 @@ def test_known_limit_pairs_are_evaluated_but_excluded_from_achievable(tmp_path: 
     assert set(result.per_mechanism) == {"cross_artifact", "source_reaches_sink"}
     assert result.loss["sast"]["known_limit"] == 1
     assert "overlay" in result.scorers["sast"] and "inventory" in result.scorers["sast"]
-    assert result.degradations and result.degradations[0]["reason"] == "hunter_model_unavailable"
-
-
-def test_hunter_scorer_credits_a_family_tag_and_never_the_words(tmp_path: Path) -> None:
-    """learning-harness Req 3.1/3.6 replaced this path's rule: the family tag decides, the rationale never does."""
-    from openultrasast.findings import StaticFinding
-
-    src = "from flask import request\n\ndef f():\n    return eval(request.args.get('x'))\n"
-    row = ExpectedFinding(
-        cwe="CWE-95",
-        vulnerability_class="code injection",
-        path="app.py",
-        evidence="",
-        sink="eval",
-        function="f",
-        mechanism="source_reaches_sink",
-    )
-
-    def scripted(tags: list[str]):  # type: ignore[no-untyped-def]
-        def scan(root: Path) -> list[StaticFinding]:
-            if "eval(" not in (root / "app.py").read_text():
-                return []
-            return [
-                StaticFinding(
-                    finding_id="tool-hunter:app.py:4",
-                    path="app.py",
-                    title="eval of request input",
-                    severity="high",
-                    confidence="medium",
-                    evidence_level="suspicion",
-                    rationale="CWE-95 eval executes attacker input",
-                    line=4,
-                    function_name=None,
-                    reachability_status="unknown",
-                    reachability_evidence=[],
-                    reachability_conditions=[],
-                    tags=tags,
-                    ranking_priority=1.0,
-                )
-            ]
-
-        return scan
-
-    case = _case(tmp_path, "hunt", src, "def f():\n    return 1\n", row)
-    tagged = evaluate_catalog([case], hunter=scripted(["family:injection"])).scorers["sast"]["hunter"]
-    assert tagged.pair_correct == 1 and tagged.detected_vuln == 1 and tagged.silent_fix == 1
-    # the same finding, the same words, no family tag: not a detection, because the rationale is not evidence
-    untagged = evaluate_catalog([case], hunter=scripted([])).scorers["sast"]["hunter"]
-    assert untagged.detected_vuln == 0 and untagged.silent_fix == 1
 
 
 def test_juliet_strcpy_pair_bodies_differ_and_java_hash_is_known_limit() -> None:
