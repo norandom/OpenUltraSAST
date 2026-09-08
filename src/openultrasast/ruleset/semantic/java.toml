@@ -29,3 +29,39 @@ cwe = "CWE-327"
 calls = ["getInstance"]
 rule_ids = ["java-weak-hash"]
 weak_literals = ["MD5", "SHA-1", "SHA1"]
+
+# --- model-grounded-detection: Java web sinks --------------------------------------------------------------
+# Java shipped with injection, deserialization and crypto sinks only, so the path and output_encoding families
+# had nothing routing to them by CWE and a Java pair in either was unreadable (hutool-cve-2018-17297 reported
+# "no path spec for java"). Documented dangerous APIs of the JDK and the servlet API, provenance per entry.
+
+[[sink]]
+# CWE-22. The JDK's filesystem entry points that accept a caller-supplied path.
+id = "file.open"
+cwe = "CWE-22"
+calls = ["File", "FileInputStream", "FileOutputStream", "FileReader", "FileWriter", "RandomAccessFile", "Paths.get", "Files.newInputStream", "Files.readAllBytes"]
+rule_ids = []
+
+[[sink]]
+# CWE-79. Servlet response writers: what reaches these reaches the browser unescaped.
+id = "response.write"
+cwe = "CWE-79"
+calls = ["println", "print", "write", "getWriter", "setHeader", "addHeader"]
+rule_ids = []
+
+[[sink]]
+# CWE-918 / CWE-601: outbound requests and redirects to a caller-supplied destination.
+id = "outbound.request"
+cwe = "CWE-918"
+calls = ["openConnection", "openStream", "sendRedirect", "getForObject", "exchange"]
+rule_ids = []
+
+[[sanitizer]]
+# CWE-22 / CWE-79. The documented normalising and encoding APIs; ESAPI is what the OWASP suite itself uses.
+id = "java.escape"
+calls = ["getCanonicalPath", "normalize", "ESAPI.encoder", "encodeForHTML", "encodeForURL", "StringEscapeUtils.escapeHtml4", "URLEncoder.encode"]
+
+[[sanitizer]]
+id = "parameterized_statement"
+calls = ["prepareStatement", "setString", "setInt"]
+parameterized = true
