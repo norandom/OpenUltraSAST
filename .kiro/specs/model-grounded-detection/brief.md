@@ -158,6 +158,53 @@ really untrusted, whether a guard really covers the case). It does not need soun
 can confirm *some* claims and honestly returns "could not confirm — stays suspicion" for the rest is already
 the independent arbiter we never had.
 
+## 4c. IL or AST, build or adopt — the substrate decision
+
+**IL, and adopt one.** Both halves are forced by the entailment measurement.
+
+*Why an IL, not the AST we have.* Our `semantic/ir.py` is not an IL — it is a lossy AST projection: per-function
+flat lists of calls and binds, no control-flow graph, no basic blocks, no data-dependence edges. That is
+*why* entailment sits at 2.2%. Real abstract interpretation is a fixpoint over a **CFG**: guard *dominance*
+(is the check on every path to the operation) is a dominator-tree question, and path-sensitive taint (a
+sanitizer on the taint path specifically) needs the branch structure. A flat bind list cannot express either;
+it can only over-approximate taint flow-insensitively by name, which is the one-hop ceiling we measured. The
+model layer wants the classical IL that merges AST + CFG + PDG + call graph into one graph — a **Code Property
+Graph (CPG)** — over which taint is a reachability query (source → sink minus sanitizer) and absence is a
+dominance query.
+
+*Why adopt, not build.* Building a multi-language CFG/PDG/taint engine on top of tree-sitter is precisely
+reinventing CodeQL, Semgrep and Joern — a multi-year effort, and the maximal case of the failure mode this
+session logged eighteen times. **Joern** is the adoptable answer: Apache-2.0, a CPG engine for exactly our
+corpus (C/C++/Java/JavaScript/Python/Kotlin/binary), a built-in taint-propagation engine, embeddable, and
+there is already a published CPG-plus-LLM bridge (Codebadger, an MCP server over Joern) and an arXiv line on
+CPGs as the substrate for LLM program analysis. Joern *is* "a model built up from code" as a graph — the exact
+thing the maintainer described. The alternatives: CodeQL is more powerful but least adoptable (restrictive
+license, query-only, GitHub-owned); Semgrep's taint engine is lighter and we already have integration
+precedent through Clearwing's sidecar, but interprocedural taint is behind the paid Pro engine.
+
+*The flow, concretely:*
+
+```
+source ──▶ Joern: compile to CPG (one IL: AST + CFG + PDG + call graph, language-agnostic)
+        ──▶ taint reachability (source→sink − sanitizer)  +  CFG dominance (absence)
+        ──▶ deterministic verdict: model_entailed | model_corroborated | (neither) suspicion
+        ──▶ LLM judges the residual, its claim CHECKED against the CPG
+```
+
+The CPG is language-agnostic once its frontend exists, so the taint and dominance logic is written *once*, not
+per language — which is the whole reason our per-language tree-sitter approach kept hitting naming and grammar
+gaps.
+
+*What stays ours, and is the contribution.* Joern is a workbench, not an opinionated web/logic detector with
+an LLM judge. What we own and port onto it: the closed **family taxonomy**; the **source / sink / sanitizer /
+guard models** for the web/logic CWEs — our obligation facts and closed guard vocabulary become CPG queries
+and taint specifications; and the **LLM-adjudication-checked-against-the-CPG** orchestration. That security
+modelling — expressed as queries over an adopted CPG — is where our work is genuinely ahead of both Joern
+(no opinion on these classes) and Clearwing (crash-oracle, no arbiter for bugs that do not crash).
+
+*The one real cost.* Joern is JVM/Scala; embedding it in a Python tool means its server mode or the MCP bridge,
+not an in-process call. That is an integration cost, named, and far below the cost of building the engine.
+
 ## 5. The course
 
 **Build the model layer up from the code as the arbiter; make the LLM a proposer the model audits; delete the
@@ -170,13 +217,12 @@ Concretely, superseding both prior specs:
    LLM oracle we could not otherwise trust. A deterministic model arbiter removes the need for every piece.
    `learning-harness` Req 3.5, 8.2, 9.5 and the evolve tasks are retired, not amended.
 
-2. **Promote our existing assets from detector inputs to the arbiter itself.** The IR **candidate
-   enumerator** (12.1% ruleset vs 96.6% IR, measured), the **binding chains**, and the **obligation /
-   absence-bug checker** stop being prompt context and become the model that *checks* claims. The work is to
-   grow them from `suspicion`-level enumeration into `model_corroborated` and `model_entailed` verdicts:
-   interprocedural dataflow over the candidate sites (extend our binding-chain resolution, borrow Clearwing's
-   intra-procedural taint tables as a seed), and guard-dominance over operations (extend the obligation
-   dominance work already in the tree).
+2. **Adopt a CPG engine (Joern) as the arbiter substrate; port our security models onto it.** We do not lift
+   our flat IR to a CFG ourselves (§4c). The taxonomy, the source/sink/sanitizer/guard models, and the
+   obligation/absence logic move from prompt context to **CPG taint specifications and dominance queries** —
+   deterministic `model_corroborated` and `model_entailed` verdicts over an engine that already has the CFG
+   and PDG our IR lacks. Our tree-sitter IR retains one job: cheap candidate enumeration for the `suspicion`
+   band where the CPG has no verdict.
 
 3. **The LLM proposes; the model disposes.** One bounded, typed question per candidate — the constrained
    detector we already started — but the answer is not scored against a corpus, it is *checked against the
@@ -206,10 +252,12 @@ The earlier draft of this brief over-rotated to "adopt Clearwing wholesale," bec
 foregrounds execution. The maintainer's correction re-centres it, and the honest split is cleaner than either
 extreme:
 
-- **The model layer is ours to build**, and it is where our genuine assets already live and where the SAST
-  value for web/logic bugs is. This is not a rebuild — it is promoting code we already have (IR, candidates,
-  obligations) from inputs to arbiter, and deleting the noise layer that sat on top of it. Far less code than
-  exists today, not more.
+- **The model layer is adopt-plus-contribute, not build.** The arbiter *engine* is Joern's CPG (Apache-2.0,
+  our languages, taint + dominance built in); the *contribution* is our security modelling on top of it — the
+  taxonomy and the source/sink/sanitizer/guard specs for the web/logic classes, plus the LLM adjudication
+  checked against the CPG. The entailment measurement (2.2% on our flat IR) is what rules out building the
+  engine ourselves: that number is the distance between our AST projection and a real CPG, and closing it by
+  hand is reimplementing Joern.
 - **The execution tier is Clearwing's to adopt**, later, for the memory-safety classes where it is strong and
   we are weak — via the fork the maintainer already maintains. We do not reimplement its sandbox lifecycle,
   container pooling, sanitizer images or PoC stability; those are exactly the parts this session proved we get
