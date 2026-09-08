@@ -119,3 +119,47 @@ def test_the_candidate_budget_is_bounded() -> None:
     many = tuple({"id": f"a:{i}:x", "text": "db.raw(q)", "line": i} for i in range(50))
     scan_region(_cpg([]), _spec(), function="run", client=client, model="m", candidates=many)
     assert client.calls == MAX_JUDGED_CANDIDATES
+
+
+# --- family dispatch ------------------------------------------------------------------------------------
+#
+# The pipeline first shipped taking a TaintSpec and calling taint_verdict, so access_control and
+# config_secrets -- which have working arbiters since group 4 -- produced nothing at all. On the first
+# vibe-py run every one of their pairs scored `both_silent`, which read as the model failing when in fact
+# there was no code path to the arbiter. Same class as the ceiling harness routing config through taint.
+
+
+def _dominance_spec():  # type: ignore[no-untyped-def]
+    from openultrasast.model.specs import DominanceSpec
+
+    return DominanceSpec(family="access_control", language="python",
+                         operations=("filter_by",), dischargers=("current_user",))
+
+
+def _config_spec():  # type: ignore[no-untyped-def]
+    from openultrasast.model.specs import ConfigSpec
+
+    return ConfigSpec(family="config_secrets", language="python", settings=("CORS",), permissive=('"*"',))
+
+
+def test_an_absence_family_is_arbitrated_by_dominance_not_taint() -> None:
+    from openultrasast.model.ladder import Rung
+    from openultrasast.model.pipeline import scan_region
+
+    rows = [{"operation": "Note.query.filter_by(id=n)", "opLine": "9", "opMethod": "leaky", "dominatingGuards": []},
+            {"operation": "Note.query.filter_by(id=n)", "opLine": "3", "opMethod": "safe",
+             "dominatingGuards": ["current_user.id"]}]
+    findings = scan_region(_cpg(rows), _dominance_spec(), function="leaky", client=None, model="", candidates=())
+    assert len(findings) == 1 and findings[0].rung is Rung.ENTAILED
+    assert findings[0].family == "access_control"
+
+
+def test_a_configuration_family_is_arbitrated_by_constant_abstraction() -> None:
+    from openultrasast.model.ladder import Rung
+    from openultrasast.model.pipeline import scan_region
+
+    rows = [{"setting": 'CORS(app, origins="*")', "line": "3", "method": "create_app",
+             "literalArgs": ['"*"'], "args": ["app"]}]
+    findings = scan_region(_cpg(rows), _config_spec(), function="create_app", client=None, model="", candidates=())
+    assert len(findings) == 1 and findings[0].rung is Rung.ENTAILED
+    assert findings[0].family == "config_secrets"

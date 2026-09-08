@@ -28,8 +28,10 @@ from typing import Any
 
 from ..cpg.backend import CpgResult
 from ..redaction import redact_secrets
-from .ladder import Rung
-from .specs import TaintSpec
+from .config_value import verdict as config_verdict
+from .dominance import verdict as dominance_verdict
+from .ladder import Rung, Verdict
+from .specs import ConfigSpec, DominanceSpec, TaintSpec
 from .taint import verdict as taint_verdict
 
 logger = logging.getLogger(__name__)
@@ -62,9 +64,26 @@ class ModelFinding:
     contradiction: str = ""
 
 
+def _arbitrate(
+    cpg: CpgResult, spec: TaintSpec | DominanceSpec | ConfigSpec, *, function: str, parameter_sources: bool
+) -> Verdict | None:
+    """Route a family to the arbiter that can actually decide it.
+
+    Dispatching on the spec type rather than on a family name keeps this honest: a family without an arbiter
+    cannot be silently routed to the wrong one. The pipeline first shipped taint-only, so access_control and
+    config_secrets -- whose arbiters had worked since group 4 -- produced nothing, and every one of their
+    pairs read as `both_silent` on the first end-to-end run.
+    """
+    if isinstance(spec, DominanceSpec):
+        return dominance_verdict(cpg, spec, function=function)
+    if isinstance(spec, ConfigSpec):
+        return config_verdict(cpg, spec, function=function)
+    return taint_verdict(cpg, spec, function=function, parameter_sources=parameter_sources)
+
+
 def scan_region(
     cpg: CpgResult,
-    spec: TaintSpec,
+    spec: TaintSpec | DominanceSpec | ConfigSpec,
     *,
     function: str = "",
     client: Any | None = None,
@@ -73,7 +92,7 @@ def scan_region(
     parameter_sources: bool = False,
 ) -> list[ModelFinding]:
     """Findings for one region and family, ordered strongest first."""
-    answer = taint_verdict(cpg, spec, function=function, parameter_sources=parameter_sources)
+    answer = _arbitrate(cpg, spec, function=function, parameter_sources=parameter_sources)
 
     if answer is not None and answer.rung is Rung.ENTAILED:
         # The graph decided. No model call, and no candidate needs asking about: this region has its finding.
@@ -115,7 +134,7 @@ def scan_region(
     return findings
 
 
-def _sanitizer_question(spec: TaintSpec, witness: str, function: str) -> str:
+def _sanitizer_question(spec: TaintSpec | DominanceSpec | ConfigSpec, witness: str, function: str) -> str:
     source, _, sink = witness.partition(" -> ")
     return (
         f"You are judging ONE candidate a static model already found. Do not look for other issues.\n\n"
