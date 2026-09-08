@@ -1,13 +1,13 @@
 {
   "counts": {
-    "load_bearing": 84,
+    "load_bearing": 85,
     "standalone_capability": 7
   },
-  "generated": "2026-09-08 (regenerated after group 5: calibration and reporting)",
+  "generated": "2026-09-08 (regenerated after group 6: the deferred execution tier)",
   "kept_with_a_lever_stripped": {
     "improve/evolve.py + improve/validator.py": "the design's Removed list named these whole, but each is a mix: the mechanism lever (removed) and the deterministic rule-status improve loop that `ousast improve` still runs from benchmark evidence, which has no LLM in it and is not what this feature supersedes. Deleting the files would have taken a retained capability with them."
   },
-  "modules": 91,
+  "modules": 92,
   "note": "Classification of every source module after the group-1 subtraction. load_bearing = reachable from a gate, the CLI, or named by a surviving requirement; standalone_capability = its own entry point or protocol, deliberately off the scan path; orphaned = no importer, no entry point, no surviving requirement -- removed, never carried.",
   "orphaned": [],
   "removed_in_this_pass": {
@@ -331,6 +331,7 @@
         "model.candidates",
         "model.config_value",
         "model.dominance",
+        "model.execution",
         "model.judge",
         "model.specs",
         "model.taint"
@@ -379,6 +380,12 @@
     {
       "classification": "load_bearing",
       "importers": [],
+      "module": "model.execution",
+      "reason": "model-grounded-detection Req 10: the deferred execution tier seam, adopted not built"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [],
       "module": "model.judge",
       "reason": "model-grounded-detection Req 8: one bounded question, checked against the model"
     },
@@ -387,6 +394,7 @@
       "importers": [
         "model.config_value",
         "model.dominance",
+        "model.execution",
         "model.judge",
         "model.taint"
       ],

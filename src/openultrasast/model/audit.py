@@ -38,6 +38,7 @@ SPEC_OWNED = {
     "model.config_value": "model-grounded-detection Req 6.3: constant abstraction for the configuration families",
     "model.calibrate": "model-grounded-detection Req 9: the corpus as the model's calibration set",
     "model.report": "model-grounded-detection Req 9.3/11.1: per-slice reporting with the overfitting gap",
+    "model.execution": "model-grounded-detection Req 10: the deferred execution tier seam, adopted not built",
     "cpg": "model-grounded-detection Req 4: the CPG seam package",
     "cpg.backend": "model-grounded-detection Req 4.1/4.5: the single Joern subprocess boundary",
     "cpg.capability": "model-grounded-detection Req 4.2/4.3: the engine probe that degrades to suspicion",

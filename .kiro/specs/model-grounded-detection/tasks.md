@@ -231,7 +231,7 @@ queries in group 4). The gates, `redaction.py`, `pairs.py` overlay/inventory pat
 
 ## Group 6 — The execution tier stub (deferred)
 
-- [ ] 6.1 The execution_confirmed rung and the Clearwing adoption seam
+- [x] 6.1 The execution_confirmed rung and the Clearwing adoption seam
   - Wire `Rung.execution_confirmed` as an optional escalation reached only where the model cannot decide
     (memory/C first), behind a capability probe for the Clearwing fork. Do **not** reimplement any sandbox
     machinery; the seam calls the adopted tool. Not required for any web/logic class at v1.
@@ -533,3 +533,25 @@ These are the **pre-closure-fix** numbers. A full re-measure is in flight and th
 regenerated from it.
 
 713 tests passing, mypy and ruff clean, gates byte-identical, zero orphaned modules.
+
+## Implementation Notes — group 6 (2026-09-08)
+
+The rung this project deliberately does **not** build. Clearwing already runs sandbox lifecycles, container
+pools, sanitizer images, PoC replay and stability classification, and the corrective brief concluded — from
+this project's own defect history — that reimplementing that class of machinery is where we go wrong. So
+`model/execution.py` is a seam: it decides eligibility, calls an adopted tool, records what happened. A test
+asserts *structurally* that it imports no container/subprocess machinery and defines no build/run/compile/patch
+function, because the failure mode to prevent is this file quietly growing a sandbox.
+
+Eligibility is narrow in both directions. Only a family a static model cannot arbitrate (memory safety in C,
+where the bug turns on runtime layout) — Req 10.3 forbids any web/logic family depending on this tier, and
+each of them now has taint reachability, guard dominance or constant abstraction instead. And only a finding
+the model left *undecided*: the tier escalates uncertainty, never re-checks a verdict already reached.
+
+One deliberate asymmetry: **a failure to reproduce is not a refutation.** A sandbox that does not trigger a
+bug has not shown the bug is absent, only that this attempt did not trigger it, so the candidate stays exactly
+where the model left it and the reason says so. Reading a failed reproduction as a clean bill of health is the
+same error class as reading an absent engine as "no vulnerability".
+
+With no adopted tool present — the normal case — the rung is simply never reached and `clearwing_unavailable`
+is recorded.
