@@ -111,3 +111,74 @@ def test_the_spec_drives_the_query_parameters() -> None:
     assert seen["sinks"] == ("os.system", "execute")
     assert seen["sanitizers"] == ("escape", "quote")
     assert seen["function"] == "run"
+
+
+# --- the safe-shape test (task 2.3 finding) ------------------------------------------------------------
+#
+# Taint reachability alone does not distinguish a parameterised fix from an interpolated bug: the flow
+# `request.args["name"] -> name -> execute` exists on BOTH sides of the canonical SQL pair.
+#
+#     vuln   db.execute("select ... '" + name + "'")      one argument, interpolated
+#     fixed  db.execute("select ... = %s", (name,))       two arguments, bound
+#
+# What separates them is the SHAPE of the sink call, which is exactly what `TaintSpec.safe_shape_sinks`
+# preserves. Without this test the model entails both sides and arbitrates nothing.
+
+
+def _shape_spec():  # type: ignore[no-untyped-def]
+    from openultrasast.model.specs import TaintSpec
+
+    return TaintSpec(
+        family="injection",
+        language="python",
+        sources=("request.args",),
+        sinks=("execute",),
+        sanitizers=(),
+        safe_shape_sinks=("execute",),
+    )
+
+
+def test_a_parameterised_sink_call_is_not_a_vulnerability_even_though_the_flow_reaches_it() -> None:
+    from openultrasast.model.taint import verdict
+
+    rows = [{
+        "sink": 'db.execute("select ... = %s", (name,))', "sinkLine": "5", "sinkMethod": "run",
+        "source": "request.args['name']", "sanitized": False, "length": 4, "sinkArity": 2, "sinkArg0Literal": True,
+    }]
+    assert verdict(_cpg(rows), _shape_spec(), function="run") is None, "a bound query is the fix, not the bug"
+
+
+def test_an_interpolated_sink_call_of_the_same_name_is_entailed() -> None:
+    from openultrasast.model.ladder import Rung
+    from openultrasast.model.taint import verdict
+
+    rows = [{
+        "sink": 'db.execute("select ... \'" + name + "\'")', "sinkLine": "5", "sinkMethod": "run",
+        "source": "request.args['name']", "sanitized": False, "length": 4, "sinkArity": 1, "sinkArg0Literal": False,
+    }]
+    answer = verdict(_cpg(rows), _shape_spec(), function="run")
+    assert answer is not None and answer.rung is Rung.ENTAILED
+
+
+def test_the_shape_test_only_applies_to_sinks_declared_safe_in_that_shape() -> None:
+    """`os.system(x)` with one argument is not "safe because it has one argument" -- the rule is per sink."""
+    from openultrasast.model.ladder import Rung
+    from openultrasast.model.taint import verdict
+
+    rows = [{
+        "sink": "os.system(full)", "sinkLine": "7", "sinkMethod": "run",
+        "source": "request.args['cmd']", "sanitized": False, "length": 5, "sinkArity": 1, "sinkArg0Literal": False,
+    }]
+    answer = verdict(_cpg(rows), _spec(), function="run")  # os.system is not in safe_shape_sinks
+    assert answer is not None and answer.rung is Rung.ENTAILED
+
+
+def test_a_row_without_shape_fields_is_judged_on_the_flow_alone() -> None:
+    """Older rows, or an engine that could not report arity, must not be silently treated as safe."""
+    from openultrasast.model.ladder import Rung
+    from openultrasast.model.taint import verdict
+
+    rows = [{"sink": "db.execute(q)", "sinkLine": "5", "sinkMethod": "run", "source": "request.args['n']",
+             "sanitized": False, "length": 3}]
+    answer = verdict(_cpg(rows), _shape_spec(), function="run")
+    assert answer is not None and answer.rung is Rung.ENTAILED

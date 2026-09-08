@@ -135,7 +135,7 @@ queries in group 4). The gates, `redaction.py`, `pairs.py` overlay/inventory pat
 
 ## Group 2 — The Joern spike on one family (go/no-go)
 
-- [ ] 2.1 The CpgBackend seam, out of process
+- [x] 2.1 The CpgBackend seam, out of process
   - `src/openultrasast/cpg/capability.py::has_cpg()` — Joern on PATH (probe `joern-parse --help`), the
     `has_semantic_extra` pattern exactly. `cpg/backend.py`: `CpgResult` (a built `cpg.bin` path + a `run(query,
     params)->JSON` callable); `JoernBackend` (subprocess: `joern-parse <root>` then `joern --script
@@ -148,7 +148,7 @@ queries in group 4). The gates, `redaction.py`, `pairs.py` overlay/inventory pat
   - _Requirements: 4.1, 4.2, 4.3, 4.5, 11.3_
   - _Depends: 1.6_
 
-- [ ] 2.2 The injection taint query and its verdict
+- [x] 2.2 The injection taint query and its verdict
   - `cpg/queries/taint.sc` — a CPGQL script parameterised by a `TaintSpec` (sources, sinks, sanitizers) that
     emits, per candidate, the JSON `{sink, source, path, sanitized: bool}`. `model/taint.py::verdict(cpg,
     spec, candidate)` → `ENTAILED` when a source→sink path exists with `sanitized=false`, `CORROBORATED` when

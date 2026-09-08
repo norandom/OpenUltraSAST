@@ -45,17 +45,31 @@
 
   val rows = sinkCalls.l.flatMap { sink =>
     // Data flows into the arguments; asking the call node itself finds nothing.
-    val flows = sink.argument.reachableByFlows(sourceNodes).l
+    // `call.argument` includes the RECEIVER at argumentIndex 0 (`db` in `db.execute(...)`), so counting it
+    // makes a one-argument interpolated call look like a two-argument bound one -- the exact inversion of the
+    // test. Real arguments start at index 1.
+    val realArgs = sink.argument.argumentIndexGt(0).l
+    val flows    = sink.argument.reachableByFlows(sourceNodes).l
+
+    // The SHAPE of the sink call, which is what distinguishes a fix from a bug when the fix is a safe form
+    // rather than a sanitizing call: `execute(sql, params)` binds where `execute(sql + x)` interpolates, and
+    // `printf("literal", x)` is safe where `printf(userFmt)` is not. The taint path is identical in both, so
+    // without these two fields the model entails a pair's fixed side exactly as readily as its vulnerable one.
+    val arity       = realArgs.size
+    val arg0Literal = realArgs.headOption.map(a => a.isLiteral).getOrElse(false)
+
     flows.map { flow =>
       val elements = flow.elements.map(_.code).l
       val sanitized = sanitizerNames.nonEmpty && elements.exists(code => sanitizerNames.exists(s => code.contains(s)))
       ujson.Obj(
-        "sink"       -> sink.code.take(200),
-        "sinkLine"   -> sink.lineNumber.getOrElse(-1).toString,
-        "sinkMethod" -> sink.method.name,
-        "source"     -> elements.headOption.getOrElse("").take(200),
-        "sanitized"  -> sanitized,
-        "length"     -> elements.size
+        "sink"            -> sink.code.take(200),
+        "sinkLine"        -> sink.lineNumber.getOrElse(-1).toString,
+        "sinkMethod"      -> sink.method.name,
+        "source"          -> elements.headOption.getOrElse("").take(200),
+        "sanitized"       -> sanitized,
+        "length"          -> elements.size,
+        "sinkArity"       -> arity,
+        "sinkArg0Literal" -> arg0Literal
       )
     }
   }
