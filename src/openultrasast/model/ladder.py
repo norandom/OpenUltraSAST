@@ -18,6 +18,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import TYPE_CHECKING, TypeVar
+
+if TYPE_CHECKING:
+    from ..findings import StaticFinding
+
+_Finding = TypeVar("_Finding", bound="StaticFinding")
 
 
 class Rung(StrEnum):
@@ -45,4 +51,20 @@ class Verdict:
     contradiction: str = ""  # why an LLM claim was dropped, when it was
 
 
-__all__ = ["Rung", "Verdict", "at_or_above"]
+def at_rung(finding: _Finding, verdict: Verdict | None) -> _Finding:
+    """Return ``finding`` carrying ``verdict``'s rung and witness, or unchanged when there is no verdict.
+
+    This is the only way a finding rises above ``suspicion`` (Req 5.4). The witness travels with the rung
+    because a rung without the evidence that justifies it is just a louder assertion.
+    """
+    from dataclasses import replace
+
+    if verdict is None or verdict.rung is Rung.SUSPICION:
+        return finding
+    rationale = finding.rationale
+    if verdict.witness and verdict.witness not in rationale:
+        rationale = f"{rationale} [{verdict.rung.value}: {verdict.witness}]".strip()
+    return replace(finding, rung=verdict.rung.value, rationale=rationale)
+
+
+__all__ = ["Rung", "Verdict", "at_or_above", "at_rung"]

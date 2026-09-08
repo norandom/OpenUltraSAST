@@ -46,6 +46,7 @@ def write_markdown_report(
                 f"- Severity: `{finding.severity}`",
                 f"- Confidence: `{finding.confidence}`",
                 f"- Evidence level: `{finding.evidence_level}`",
+                f"- Rung: `{finding.rung}`",
                 f"- Verification: `{verification.status if verification else 'not_run'}`",
                 f"- Reachability: `{finding.reachability_status}`",
                 f"- Conditions: `{', '.join(finding.reachability_conditions) or 'none'}`",
@@ -218,6 +219,7 @@ def write_manifest(
                 "line": finding.line,
                 "severity": finding.severity,
                 "evidence_level": finding.evidence_level,
+                "rung": finding.rung,
                 "verification_status": verification_by_id[finding.finding_id].status
                 if finding.finding_id in verification_by_id
                 else "not_run",
@@ -293,6 +295,7 @@ def _sarif_result(
         "severity": finding.severity,
         "confidence": finding.confidence,
         "evidence_level": finding.evidence_level,
+        "rung": finding.rung,
         "verification": asdict(verification) if verification else None,
         "reachability_status": finding.reachability_status,
         "reachability_conditions": finding.reachability_conditions,

@@ -29,6 +29,10 @@ class StaticFinding:
     ranking_priority: float
     status: str = "enabled"
     proposed_snippet: str | None = None
+    # What ESTABLISHED this finding (model-grounded-detection Req 5). Defaults to `suspicion` and is raised
+    # only by `model.ladder.at_rung` with a Verdict behind it, so nothing can claim the model arbitrated a
+    # claim the model never saw. Distinct from `evidence_level`, which is the older overlay pipeline's word.
+    rung: str = "suspicion"
 
 
 SEVERITY_LABEL = {5: "critical", 4: "high", 3: "medium", 2: "low", 1: "low", 0: "info"}

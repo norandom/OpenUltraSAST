@@ -170,7 +170,7 @@ queries in group 4). The gates, `redaction.py`, `pairs.py` overlay/inventory pat
 
 ## Group 3 — The ladder and the judge
 
-- [ ] 3.1 The evidence ladder as the verdict type
+- [x] 3.1 The evidence ladder as the verdict type
   - `model/ladder.py`: `Rung` enum (suspicion/model_corroborated/model_entailed/execution_confirmed),
     `Verdict` (rung, family, witness, contradiction). Findings carry the rung in markdown, SARIF and JSON.
   - Observable: a finding at each rung round-trips through every output format with its rung intact; nothing
@@ -178,7 +178,7 @@ queries in group 4). The gates, `redaction.py`, `pairs.py` overlay/inventory pat
   - _Requirements: 5.1, 5.3, 5.4_
   - _Depends: 2.3_
 
-- [ ] 3.2 The judge: one bounded question, checked against the model
+- [x] 3.2 The judge: one bounded question, checked against the model
   - `model/judge.py::judge(candidate, cpg, spec, *, client, model)` — if the model entails, report
     `model_entailed` with no LLM call; else ask the LLM one typed question (source expression / guard / family)
     with no tools; then check the answer against the CPG — contradiction drops the claim (records why),
@@ -379,3 +379,38 @@ slice. The larger levers are the missing sinks and guard dominance.
 **Next**, in this order: 4.1 guard dominance over the tainted path; 4.2 the missing sinks (Django ORM,
 GraphQL, and the four families with no sink fact at all); then the two remaining safe-shape forms, argv-list
 and `shell=False`.
+
+## Implementation Notes — group 3 (2026-09-08)
+
+**3.1 — the rung is a new field beside `evidence_level`, not a rename of it.** The existing
+`evidence_level` carries `static_corroboration`, emitted by the *flat IR overlay*. Req 4.4 demotes that path
+to the suspicion band, so restating its value as `model_corroborated` would claim a CPG arbitrated something
+it never saw, while rewriting every legacy finding to `suspicion` would be a product-visible regression
+nobody asked for. So `StaticFinding.rung` is added, defaults to `suspicion`, and is raised *only* by
+`ladder.at_rung(finding, verdict)` — which is the structural form of Req 5.4. The witness travels with the
+rung, because a rung without the evidence that justifies it is just a louder assertion. The rung reaches
+markdown, JSON (`asdict`, so automatically) and SARIF. `evidence_level` is now redundant in intent and should
+be retired once the model layer covers every path; that is a follow-up, not a silent change.
+
+**3.2 — the judge, and what it does *not* contain.** Three outcomes, exhaustive: the model entails (report it,
+**never call the model**), the model contradicts (drop the claim, record why), the model cannot decide (report
+`suspicion`, honestly). The LLM is asked exactly one bounded, typed question, with `tools=[]` so it cannot
+search for the site, and only about the residual the graph cannot settle — whether a sanitizer on a *real*
+flow is sufficient. Its answer can only ever confirm a flow the CPG already found; it can never conjure one.
+
+Req 8.5 is asserted structurally rather than by prose: a test parses `judge.py` and fails if the AST contains
+any name like `k_runs`, `majority`, `vote`, `average`, `acceptance`, `floor` or `budget`, or any `for`/`while`
+loop at all, or an import from the deleted round machinery. The first draft of that test matched the word
+"votes" inside the module's own docstring, which is the reason it now inspects code rather than text — the
+docstring is allowed to name the machinery it replaced.
+
+**Verified live against a real CPG**, not only against scripted rows:
+
+    vuln   rung=model_entailed   witness=request.args["name"] -> db.execute("select * from users ...
+    fixed  rung=suspicion        contradiction: the model resolved no flow: no source reaches this sink
+    model calls made: 0
+
+Both sides arbitrated by the graph with the LLM never consulted — which is the entire point of the arbiter,
+and the thing the prior architecture could not do at any price.
+
+678 tests passing, mypy and ruff clean, three gates byte-identical, zero orphaned modules.
