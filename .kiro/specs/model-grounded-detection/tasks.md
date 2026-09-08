@@ -191,7 +191,7 @@ queries in group 4). The gates, `redaction.py`, `pairs.py` overlay/inventory pat
 
 ## Group 4 — Absence and the rest of the taxonomy
 
-- [ ] 4.1 Guard dominance for the absence families
+- [x] 4.1 Guard dominance for the absence families
   - `cpg/queries/dominance.sc` + `model/dominance.py::verdict(cpg, spec, candidate)` — `ENTAILED` when an
     obligated operation is dominated by no discharger while its siblings are, seeded from the obligation
     facts. This is the arbiter for the classes that never crash (access_control).
@@ -200,7 +200,7 @@ queries in group 4). The gates, `redaction.py`, `pairs.py` overlay/inventory pat
   - _Requirements: 6.2, 7.3_
   - _Depends: 3.2_
 
-- [ ] 4.2 The remaining TaintSpecs and the ceiling regeneration
+- [x] 4.2 The remaining TaintSpecs and the ceiling regeneration
   - Fill `TaintSpec`s for path, deserialization, untrusted_destination, output_encoding, prototype, and the
     config constant-abstraction arm (`model/taint.py`). Regenerate the full entailment ceiling per family and
     per slice and commit it; name where each family falls back to `suspicion`.
@@ -414,3 +414,62 @@ Both sides arbitrated by the graph with the LLM never consulted — which is the
 and the thing the prior architecture could not do at any price.
 
 678 tests passing, mypy and ruff clean, three gates byte-identical, zero orphaned modules.
+
+## Implementation Notes — group 4 (2026-09-08)
+
+All three arbiter forms now work against a real CPG. Artifact:
+`benchmarks/measurements/2026-09-08-model-entailment-ceiling-cpg.json`.
+
+| | full model layer | flat IR baseline |
+|---|---|---|
+| `model_entailed` | **39.1%** (36/92) | 2.2% |
+| any verdict | **45.6%** | 24% (corroborated, one-hop) |
+| pairs distinguished | **23.9%** (22/92) | — |
+
+Per family: untrusted_destination 0.80 entailed, injection 0.58 (0.36 distinguished), deserialization 0.33,
+prototype 0.14, config_secrets 0.10, path 0.00. **access_control reaches 6 of 8 pairs and 0.38
+distinguished** — the class no crash oracle can reach, arbitrated deterministically with no model call.
+
+**4.1: "governed by a guard" is three relations, not one.** Measured against the engine rather than assumed:
+an identity constraint lives *inside* the operation's arguments; an identity branch is a denial whose
+`controlledBy` condition names the identity (`abort(403).controlledBy == [note.owner_id != current_user.id]`)
+— it runs *after* the fetch, so it never dominates the operation but does control whether the value escapes;
+only the third shape is plain dominance. That is why the query uses `controlledBy`.
+
+**The bug that mattered most.** My first commit of 4.1 made the absence arbiter *silence its own family*:
+`constraint_params` were treated as dischargers, so a field named `user_id` counted as a guard — but
+`filter_by(id=user_id)` off the request is what an IDOR *is*. Compounded by substring matching, `user` matched
+`users` inside `"SELECT * FROM users WHERE id = ?"`, and every operation in the handler read as guarded. On
+`threatbyte-api-v1-delete` the arbiter returned no verdict at all on a textbook IDOR. Both fixed; the family
+went from 0 verdicts to 6 of 8, every one distinguished.
+
+**A hypothesis I tested and had to discard.** From the group-2 misses I diagnosed path's 0/8 as a missing
+`req.url` source token, and said so. The probe — the same 8 pairs with and without the token — returned
+**0/8 → 0/8**. Falsified. The real cause: the sink is lexically inside an anonymous callback, so its
+enclosing method is the closure (`<lambda>0`) and the `sinkMethod == function` filter drops it;
+`verdict(function="")` on the same CPG returns `model_entailed`.
+
+**And the obvious fix for that is wrong.** Relaxing the filter raises the number with a *false witness*: the
+flows found in the closure are `res -> fs.readFileSync(...)` and `this -> ...`, neither of which is the
+vulnerability (the real path crosses a helper: `req.url -> url -> resolveUrl(...) -> possibleFilename`).
+Turning a miss into a wrong entailment is worse than the miss — it is the arbiter asserting something untrue,
+the one failure mode this architecture exists to prevent. The correct fix is two-part: scope a sink to any
+method *lexically nested* in the labeled function, and scope parameter sources to the labeled function's own
+parameters. Then re-measure, counting only witnesses that name a real source.
+
+**Every miss is classified**, none is architectural: 23 sink absent from the excerpt or unmodelled, 13 no
+recognisable source in the excerpt, 3 source unmodelled (the idiom named).
+
+**Two honesty items recorded in the artifact.** 16 of 92 pairs carry no function label and are therefore
+arbitrated over the whole file, so a verdict can credit a different finding than the labeled one —
+`owasp-python-hash` (CWE-327) is credited for a permissive `set_cookie` elsewhere in its file, on both sides.
+And `config_secrets` (1/10) conflates three abstractions: permissive setting *values* (the arm implemented
+here), weak *algorithm* choice (CWE-326/327 — the facts already carry `weak_literals` on the hashlib sink,
+unwired), and hardcoded secrets (CWE-798, needing a credential-literal check); its settings table is also
+Flask/FastAPI-shaped while the pairs are aiohttp. `hutool-cve-2018-17297` has no path spec at all — 4.2
+authored path sinks for python and javascript only.
+
+**Next, in evidence order:** the closure-scoping fix (with correct parameter scoping, then re-measure); Java
+path sinks; the `weak_literals` arm for config; aiohttp settings.
+
+693 tests passing, mypy and ruff clean, gates byte-identical, zero orphaned modules.

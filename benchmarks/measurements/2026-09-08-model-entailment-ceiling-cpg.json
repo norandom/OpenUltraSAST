@@ -1,0 +1,1255 @@
+{
+  "flat_ir_baseline": {
+    "corroborated_one_hop": 0.239,
+    "entailed": 0.022,
+    "source": "2026-09-08-model-entailment-ceiling.json"
+  },
+  "generated": "2026-09-08",
+  "java_gap": "hutool-cve-2018-17297 has no path spec at all: task 4.2 authored path sinks for python and javascript only.",
+  "miss_cause_note": "Classified statically from the excerpt text. `source_unmodelled` names a recognisable untrusted-input idiom the fact tables do not carry -- req.url (raw Node HTTP, what a static file server reads) and request.POST/GET (Django) are the two that recur. These are one-line data additions, not architecture.",
+  "miss_causes": {
+    "no_recognisable_source_in_excerpt": {
+      "examples": [
+        "damn-vulnerable-graphql-application-views-resolve-pastes (injection)",
+        "djangoat-analytics-hits-by-ip (injection)",
+        "dsvpwa-handlers-do-bdr (injection)",
+        "dvpwa-student-create (injection)"
+      ],
+      "pairs": 13
+    },
+    "sink_absent_from_excerpt_or_unmodelled": {
+      "examples": [
+        "sven-cwe-089-query-concat (injection)",
+        "hutool-cve-2018-17297 (path)",
+        "openssl-cve-2022-1292 (injection)",
+        "damn-vulnerable-graphql-application-views-mutate (injection)"
+      ],
+      "pairs": 23
+    },
+    "source_unmodelled": {
+      "examples": [
+        "djangoat-views-reset-password (deserialization, request.POST)",
+        "dsvpwa-attacks-run (injection, handler.params)",
+        "angular-http-server-1-0-0 (path, req.url)"
+      ],
+      "pairs": 3
+    }
+  },
+  "overall": {
+    "any_verdict_rate": 0.4565,
+    "corroborated": 6,
+    "distinguished": 22,
+    "distinguished_rate": 0.2391,
+    "entailed": 36,
+    "entailed_rate": 0.3913,
+    "none": 50,
+    "pairs": 92
+  },
+  "path_family_probe": {
+    "actual_cause": "The sink is lexically inside an anonymous callback, so its enclosing method is the closure rather than the labeled function, and the verdict's `sinkMethod == function` filter drops it. On angular-http-server the sink `fs.readFileSync(possibleFilename)` sits in the callback passed to fs.stat, and Joern names its method `<lambda>0`; verdict(function='requestListener') returns None while verdict(function='') returns model_entailed. JavaScript is callback-heavy, so the labeled function and the method containing the sink routinely differ.",
+    "correct_fix": [
+      "scope a sink to any method lexically nested within the labeled function, not only the labeled function itself",
+      "scope parameter sources to the labeled function's own parameters, not every enclosing or lambda parameter",
+      "then re-measure: only a witness naming the real source should count"
+    ],
+    "method": "the same 8 path pairs, run with and without req.url/request.url/req.path/url.parse added to the source facts",
+    "question": "Does the missing `req.url` source token explain path's 0/8?",
+    "result": {
+      "with_req_url_added": "0/8",
+      "with_shipped_facts": "0/8"
+    },
+    "verdict": "FALSIFIED. The source token was not the cause, and adding it converts nothing.",
+    "why_the_obvious_fix_is_wrong": "Relaxing the filter alone raises the number with a FALSE witness. With parameter sources on, the flows found in that closure are `res -> fs.readFileSync(...)` and `this -> ...`, neither of which is the vulnerability -- the real path is req.url -> url -> resolveUrl(...) -> possibleFilename -> sink, which also crosses a helper call. Turning a miss into a wrong entailment is worse than the miss: it is the arbiter asserting something untrue, which is the one failure mode this architecture exists to prevent."
+  },
+  "per_family": {
+    "access_control": {
+      "any_verdict_rate": 0.75,
+      "corroborated": 6,
+      "distinguished": 3,
+      "distinguished_rate": 0.375,
+      "entailed": 0,
+      "entailed_rate": 0.0,
+      "none": 2,
+      "pairs": 8
+    },
+    "config_secrets": {
+      "any_verdict_rate": 0.1,
+      "corroborated": 0,
+      "distinguished": 0,
+      "distinguished_rate": 0.0,
+      "entailed": 1,
+      "entailed_rate": 0.1,
+      "none": 9,
+      "pairs": 10
+    },
+    "deserialization": {
+      "any_verdict_rate": 0.3333,
+      "corroborated": 0,
+      "distinguished": 1,
+      "distinguished_rate": 0.3333,
+      "entailed": 1,
+      "entailed_rate": 0.3333,
+      "none": 2,
+      "pairs": 3
+    },
+    "injection": {
+      "any_verdict_rate": 0.58,
+      "corroborated": 0,
+      "distinguished": 18,
+      "distinguished_rate": 0.36,
+      "entailed": 29,
+      "entailed_rate": 0.58,
+      "none": 21,
+      "pairs": 50
+    },
+    "output_encoding": {
+      "any_verdict_rate": 0.0,
+      "corroborated": 0,
+      "distinguished": 0,
+      "distinguished_rate": 0.0,
+      "entailed": 0,
+      "entailed_rate": 0.0,
+      "none": 1,
+      "pairs": 1
+    },
+    "path": {
+      "any_verdict_rate": 0.0,
+      "corroborated": 0,
+      "distinguished": 0,
+      "distinguished_rate": 0.0,
+      "entailed": 0,
+      "entailed_rate": 0.0,
+      "none": 8,
+      "pairs": 8
+    },
+    "prototype": {
+      "any_verdict_rate": 0.1429,
+      "corroborated": 0,
+      "distinguished": 0,
+      "distinguished_rate": 0.0,
+      "entailed": 1,
+      "entailed_rate": 0.1429,
+      "none": 6,
+      "pairs": 7
+    },
+    "untrusted_destination": {
+      "any_verdict_rate": 0.8,
+      "corroborated": 0,
+      "distinguished": 0,
+      "distinguished_rate": 0.0,
+      "entailed": 4,
+      "entailed_rate": 0.8,
+      "none": 1,
+      "pairs": 5
+    }
+  },
+  "per_slice": {
+    "agent-vfc": {
+      "any_verdict_rate": 0.2857,
+      "corroborated": 3,
+      "distinguished": 0,
+      "distinguished_rate": 0.0,
+      "entailed": 5,
+      "entailed_rate": 0.1786,
+      "none": 20,
+      "pairs": 28
+    },
+    "github": {
+      "any_verdict_rate": 0.6667,
+      "corroborated": 0,
+      "distinguished": 2,
+      "distinguished_rate": 0.3333,
+      "entailed": 4,
+      "entailed_rate": 0.6667,
+      "none": 2,
+      "pairs": 6
+    },
+    "local": {
+      "any_verdict_rate": 1.0,
+      "corroborated": 0,
+      "distinguished": 0,
+      "distinguished_rate": 0.0,
+      "entailed": 2,
+      "entailed_rate": 1.0,
+      "none": 0,
+      "pairs": 2
+    },
+    "sast": {
+      "any_verdict_rate": 1.0,
+      "corroborated": 0,
+      "distinguished": 4,
+      "distinguished_rate": 0.5,
+      "entailed": 8,
+      "entailed_rate": 1.0,
+      "none": 0,
+      "pairs": 8
+    },
+    "vfc": {
+      "any_verdict_rate": 0.0,
+      "corroborated": 0,
+      "distinguished": 0,
+      "distinguished_rate": 0.0,
+      "entailed": 0,
+      "entailed_rate": 0.0,
+      "none": 1,
+      "pairs": 1
+    },
+    "vfc-js": {
+      "any_verdict_rate": 0.4706,
+      "corroborated": 0,
+      "distinguished": 4,
+      "distinguished_rate": 0.2353,
+      "entailed": 8,
+      "entailed_rate": 0.4706,
+      "none": 9,
+      "pairs": 17
+    },
+    "vibe-py": {
+      "any_verdict_rate": 0.4,
+      "corroborated": 3,
+      "distinguished": 12,
+      "distinguished_rate": 0.4,
+      "entailed": 9,
+      "entailed_rate": 0.3,
+      "none": 18,
+      "pairs": 30
+    }
+  },
+  "remeasured": {
+    "families": [
+      "access_control",
+      "config_secrets"
+    ],
+    "pairs": 18,
+    "why": "access_control was measured before the constraint_params / word-boundary fixes, which had it reporting every operation as guarded; config_secrets was routed through taint instead of the constant-abstraction arm. The flow families were unaffected and keep their original numbers."
+  },
+  "rows": [
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "model_entailed",
+      "language": "python",
+      "pair": "local-python-vulnerable",
+      "seconds": 32.4,
+      "slice": "local",
+      "vuln_rung": "model_entailed",
+      "witness": "request.args[\"expr\"] -> eval(request.args[\"expr\"]) (line 28, 1 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "model_entailed",
+      "language": "javascript",
+      "pair": "local-javascript-vulnerable",
+      "seconds": 30.5,
+      "slice": "local",
+      "vuln_rung": "model_entailed",
+      "witness": "\"make \" + req.query.target -> childProcess.execSync(\"make \" + req.query.target) (line 14, 1 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "model_entailed",
+      "language": "python",
+      "pair": "sven-cwe-078-os-system",
+      "seconds": 26.9,
+      "slice": "github",
+      "vuln_rung": "model_entailed",
+      "witness": "username -> os.system(\"useradd -G docker,wheel -p \" + encPass + \" \" + username) (line 10, 2 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "model_entailed",
+      "language": "python",
+      "pair": "sven-cwe-078-shell-true",
+      "seconds": 28.6,
+      "slice": "github",
+      "vuln_rung": "model_entailed",
+      "witness": "cmd -> _exec_cmd(self, cmd) (line 14, 2 steps)"
+    },
+    {
+      "distinguished": true,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "sven-cwe-089-execute-percent",
+      "seconds": 27.9,
+      "slice": "github",
+      "vuln_rung": "model_entailed",
+      "witness": "game -> cursor.execute(\"SELECT x,y,letter FROM moves WHERE gameID = %d;\" % game) (line 12, 3 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "sven-cwe-089-query-concat",
+      "seconds": 27.1,
+      "slice": "github",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "path",
+      "fixed_rung": "none",
+      "language": "java",
+      "pair": "hutool-cve-2018-17297",
+      "seconds": 29.4,
+      "slice": "github",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": true,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "node-serialize-cve-2017-5941",
+      "seconds": 28.2,
+      "slice": "github",
+      "vuln_rung": "model_entailed",
+      "witness": "obj -> eval(\"(\" + obj + \")\") (line 4, 2 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "model_entailed",
+      "language": "python",
+      "pair": "owasp-python-codeinj",
+      "seconds": 28.0,
+      "slice": "sast",
+      "vuln_rung": "model_entailed",
+      "witness": "urllib.parse.unquote_plus(request.cookies.get(\"BenchmarkTest00074\", \"noCookieValueSupplied\")) -> exec(bar) (line 51, 9 steps)"
+    },
+    {
+      "distinguished": true,
+      "family": "deserialization",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "owasp-python-deser",
+      "seconds": 27.6,
+      "slice": "sast",
+      "vuln_rung": "model_entailed",
+      "witness": "urllib.parse.unquote_plus(request.cookies.get(\"BenchmarkTest00078\", \"noCookieValueSupplied\")) -> pickle.loads(base64.urlsafe_b64decode(bar)) (line 53, 12 steps)"
+    },
+    {
+      "distinguished": true,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "owasp-python-cmdi",
+      "seconds": 27.7,
+      "slice": "sast",
+      "vuln_rung": "model_entailed",
+      "witness": "request.form.get(\"BenchmarkTest00165\") -> subprocess.run(argList, capture_output = True, encoding = \"utf-8\") (line 57, 15 steps)"
+    },
+    {
+      "distinguished": true,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "owasp-python-sqli",
+      "seconds": 28.0,
+      "slice": "sast",
+      "vuln_rung": "model_entailed",
+      "witness": "request.form.get(\"BenchmarkTest00099\") -> cur.execute(sql) (line 49, 14 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "config_secrets",
+      "fixed_rung": "model_entailed",
+      "language": "python",
+      "pair": "owasp-python-hash",
+      "seconds": 30.2,
+      "slice": "sast",
+      "vuln_rung": "model_entailed",
+      "witness": "response.set_cookie('BenchmarkTest00054', 'someSecret', max_age = 60 * 3, secure = True, path = request.path, domain = 'localhost') (line 26): permissive literal True"
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "model_entailed",
+      "language": "java",
+      "pair": "owasp-java-cmdi",
+      "seconds": 49.7,
+      "slice": "sast",
+      "vuln_rung": "model_entailed",
+      "witness": "getHeader(\"BenchmarkTest00007\") -> r.exec(args, argsEnv) (line 61, 10 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "model_entailed",
+      "language": "java",
+      "pair": "owasp-java-sqli",
+      "seconds": 48.8,
+      "slice": "sast",
+      "vuln_rung": "model_entailed",
+      "witness": "getHeader(\"BenchmarkTest00008\") -> connection.prepareCall(sql) (line 57, 9 steps)"
+    },
+    {
+      "distinguished": true,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "java",
+      "pair": "juliet-java-cwe78-exec",
+      "seconds": 47.9,
+      "slice": "sast",
+      "vuln_rung": "model_entailed",
+      "witness": "String data -> Runtime.getRuntime().exec(osCommand + data) (line 8, 2 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "openssl-cve-2022-1292",
+      "seconds": 1.2,
+      "slice": "vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "damn-vulnerable-graphql-application-views-mutate",
+      "seconds": 26.8,
+      "slice": "vibe-py",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "damn-vulnerable-graphql-application-views-resolve-pastes",
+      "seconds": 26.9,
+      "slice": "vibe-py",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "damn-vulnerable-graphql-application-views-resolve-system-dia",
+      "seconds": 26.8,
+      "slice": "vibe-py",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "djangoat-analytics-hits-by-ip",
+      "seconds": 30.4,
+      "slice": "vibe-py",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "deserialization",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "djangoat-views-reset-password",
+      "seconds": 30.0,
+      "slice": "vibe-py",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": true,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "djangoat-views-user-view",
+      "seconds": 31.2,
+      "slice": "vibe-py",
+      "vuln_rung": "model_entailed",
+      "witness": "request -> User.objects.raw(\"SELECT * FROM %s WHERE user_id='%s' ORDER BY is_admin='0'\" % (table_name,user_id_form)) (line 22, 9 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "dsvpwa-attacks-run",
+      "seconds": 52.3,
+      "slice": "vibe-py",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "config_secrets",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "dsvpwa-dsvpwa-main",
+      "seconds": 30.5,
+      "slice": "vibe-py",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "dsvpwa-handlers-do-bdr",
+      "seconds": 41.2,
+      "slice": "vibe-py",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "config_secrets",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "dvpwa-app-init",
+      "seconds": 29.0,
+      "slice": "vibe-py",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "config_secrets",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "dvpwa-middlewares-session-middleware",
+      "seconds": 28.7,
+      "slice": "vibe-py",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "dvpwa-student-create",
+      "seconds": 40.0,
+      "slice": "vibe-py",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "deserialization",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "extremely-vulnerable-flask-app-account-before-request",
+      "seconds": 30.8,
+      "slice": "vibe-py",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": true,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "extremely-vulnerable-flask-app-account-search",
+      "seconds": 28.0,
+      "slice": "vibe-py",
+      "vuln_rung": "model_entailed",
+      "witness": "request.args.get('search', '') -> text(f\"text like '%{search_param}%'\") (line 20, 6 steps)"
+    },
+    {
+      "distinguished": true,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "extremely-vulnerable-flask-app-signup-validate-token",
+      "seconds": 27.7,
+      "slice": "vibe-py",
+      "vuln_rung": "model_entailed",
+      "witness": "session -> session.execute(text(f\"\"\"\n                SELECT id, code FROM {RegistrationCode.__tablename__} WHERE code = '{code}'\n            \"\"\")) (line 15, 2 steps)"
+    },
+    {
+      "distinguished": true,
+      "family": "access_control",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "threatbyte-api-v1-delete",
+      "seconds": 27.7,
+      "slice": "vibe-py",
+      "vuln_rung": "model_corroborated",
+      "witness": "delete line 28: obligated operation with no discharging guard, and no guarded sibling"
+    },
+    {
+      "distinguished": true,
+      "family": "access_control",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "threatbyte-api-v1-get",
+      "seconds": 30.8,
+      "slice": "vibe-py",
+      "vuln_rung": "model_corroborated",
+      "witness": "get line 27: obligated operation with no discharging guard, and no guarded sibling"
+    },
+    {
+      "distinguished": true,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "threatbyte-routes-dashboard",
+      "seconds": 27.8,
+      "slice": "vibe-py",
+      "vuln_rung": "model_entailed",
+      "witness": "request.args.get('search', '') -> cursor.execute(s_query) (line 29, 8 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "vampi-user-model-get-user",
+      "seconds": 27.4,
+      "slice": "vibe-py",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": true,
+      "family": "access_control",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "vampi-users-update-password",
+      "seconds": 30.3,
+      "slice": "vibe-py",
+      "vuln_rung": "model_corroborated",
+      "witness": "update_password line 16: obligated operation with no discharging guard, and no guarded sibling"
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "vfapi-main-delete-user",
+      "seconds": 27.6,
+      "slice": "vibe-py",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "vfapi-main-put-user",
+      "seconds": 27.0,
+      "slice": "vibe-py",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "vfapi-main-sql-return-users-from-username",
+      "seconds": 26.7,
+      "slice": "vibe-py",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "output_encoding",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "vulnerable-python-apps-bad-mvc-do-get",
+      "seconds": 30.2,
+      "slice": "vibe-py",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "path",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "vulnerable-python-apps-dir-traversal-do-get",
+      "seconds": 38.2,
+      "slice": "vibe-py",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": true,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "vulnpy-cmdi-do-os-system",
+      "seconds": 45.5,
+      "slice": "vibe-py",
+      "vuln_rung": "model_entailed",
+      "witness": "command -> os.system(command) (line 14, 2 steps)"
+    },
+    {
+      "distinguished": true,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "vulnpy-cmdi-do-subprocess-popen",
+      "seconds": 31.3,
+      "slice": "vibe-py",
+      "vuln_rung": "model_entailed",
+      "witness": "command -> subprocess.Popen(command, stdout = subprocess.PIPE, stderr = subprocess.STDOUT, shell = True) (line 14, 2 steps)"
+    },
+    {
+      "distinguished": true,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "vulpy-libuser-create",
+      "seconds": 35.7,
+      "slice": "vibe-py",
+      "vuln_rung": "model_entailed",
+      "witness": "password -> c.execute(\"INSERT INTO users (username, password, failures, mfa_enabled, mfa_secret) VALUES ('%s', '%s', '%d', '%d', '%s')\" % (username,password,0,0,'')) (line 18, 4 steps)"
+    },
+    {
+      "distinguished": true,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "vulpy-libuser-login",
+      "seconds": 54.1,
+      "slice": "vibe-py",
+      "vuln_rung": "model_entailed",
+      "witness": "username -> c.execute(\"SELECT * FROM users WHERE username = '{}' and password = '{}'\".format(username, password)) (line 20, 5 steps)"
+    },
+    {
+      "distinguished": true,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "vulpy-libuser-password-change",
+      "seconds": 49.6,
+      "slice": "vibe-py",
+      "vuln_rung": "model_entailed",
+      "witness": "password -> c.execute(\"UPDATE users SET password = '{}' WHERE username = '{}'\".format(password, username)) (line 20, 5 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "path",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "angular-http-server-1-0-0",
+      "seconds": 32.3,
+      "slice": "vfc-js",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": true,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "apex-publish-static-files-2-0-0",
+      "seconds": 32.2,
+      "slice": "vfc-js",
+      "vuln_rung": "model_entailed",
+      "witness": "this -> execSync(\n\t\t\t\t'\"' + opts.sqlclPath + '\"' + // Sqlcl path\n\t\t\t\t' ' + opts.connectString + // Connect string (user/pass@server:port/sid)\n\t\t\t\t' @\"' + path.resolve(__dirname, 'lib/script') + '\"' + // Sql t (line 61, 2 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "bestzip-2-1-6",
+      "seconds": 29.1,
+      "slice": "vfc-js",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "model_entailed",
+      "language": "javascript",
+      "pair": "clamscan-1-2-0",
+      "seconds": 46.0,
+      "slice": "vfc-js",
+      "vuln_rung": "model_entailed",
+      "witness": "this -> execFile(self.settings[self.scanner].path, self._build_clam_args(path), (err, stdout, stderr) => {\n                    const {is_infected, viruses} = self._process_result(stdout, path);\n\n              (line 1401, 49 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "model_entailed",
+      "language": "javascript",
+      "pair": "diskusage-ng-0-2-6",
+      "seconds": 31.5,
+      "slice": "vfc-js",
+      "vuln_rung": "model_entailed",
+      "witness": "this -> exec('df -k \"' + path + '\"', function(err, stdout) {\n        if (err) {\n            return cb(err);\n        }\n\n        try {\n            cb(null, parse(stdout));\n        } catch (e) {\n            cb(e (line 19, 2 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "model_entailed",
+      "language": "javascript",
+      "pair": "dns-sync-0-1-0",
+      "seconds": 30.6,
+      "slice": "vfc-js",
+      "vuln_rung": "model_entailed",
+      "witness": "hostname -> shell.exec(cmd, {silent: true}) (line 22, 7 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "path",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "glance-3-0-0",
+      "seconds": 29.5,
+      "slice": "vfc-js",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": true,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "hot-formula-parser-3-0-0",
+      "seconds": 47.8,
+      "slice": "vfc-js",
+      "vuln_rung": "model_entailed",
+      "witness": "yytext -> eval(\"[\" + yytext + \"]\") (line 166, 2 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "libnmap-0-4-11",
+      "seconds": 31.1,
+      "slice": "vfc-js",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "pdf-image-1-0-5",
+      "seconds": 30.9,
+      "slice": "vfc-js",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "model_entailed",
+      "language": "javascript",
+      "pair": "pidusage-1-0-0",
+      "seconds": 31.6,
+      "slice": "vfc-js",
+      "vuln_rung": "model_entailed",
+      "witness": "this -> exec(cmd + pid, function(err, stdout, stderr) {\n      if(err)\n        return done(err, null)\n\n      stdout = stdout.split(os.EOL)[1]\n      stdout = stdout.replace(/^\\s+/, '').replace(/\\s\\s+/g, ' ').sp (line 116, 2 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "portprocesses-1-0-4",
+      "seconds": 29.0,
+      "slice": "vfc-js",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "path",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "serve-here-js-1-1-0",
+      "seconds": 28.6,
+      "slice": "vfc-js",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "static-eval-1-1-1",
+      "seconds": 35.5,
+      "slice": "vfc-js",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": true,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "thenify-3-3-0",
+      "seconds": 31.5,
+      "slice": "vfc-js",
+      "vuln_rung": "model_entailed",
+      "witness": "this -> eval(createWrapper($$__fn__$$.name, options)) (line 29, 4 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "underscore-1-13-0-0",
+      "seconds": 30.2,
+      "slice": "vfc-js",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": true,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "whereis-0-4-0",
+      "seconds": 29.1,
+      "slice": "vfc-js",
+      "vuln_rung": "model_entailed",
+      "witness": "name -> cp.exec('which ' + name, function(error, stdout, stderr) {\n    stdout = stdout.split('\\n')[0];\n    if (error || stderr || stdout === '' || stdout.charAt(0) !== '/') {\n      stdout = stdout.split('\\n') (line 15, 3 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "untrusted_destination",
+      "fixed_rung": "model_entailed",
+      "language": "javascript",
+      "pair": "anastasios-pw-session-14ec1a",
+      "seconds": 28.6,
+      "slice": "agent-vfc",
+      "vuln_rung": "model_entailed",
+      "witness": "request: Request -> request.isNavigationRequest (line 14, 2 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "untrusted_destination",
+      "fixed_rung": "model_entailed",
+      "language": "javascript",
+      "pair": "astroclaw-pw-session-1553a8",
+      "seconds": 28.7,
+      "slice": "agent-vfc",
+      "vuln_rung": "model_entailed",
+      "witness": "request: Request -> request.isNavigationRequest (line 14, 2 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "config_secrets",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "capgo-app-hono-4dadd2",
+      "seconds": 30.7,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "path",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "dnf-plugin-anyrepo-config-26d19a",
+      "seconds": 27.4,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "prototype",
+      "fixed_rung": "model_entailed",
+      "language": "javascript",
+      "pair": "edutrace-page-ee7ba2",
+      "seconds": 33.8,
+      "slice": "agent-vfc",
+      "vuln_rung": "model_entailed",
+      "witness": "this -> setFormData(prevData => {\n      const newData = JSON.parse(JSON.stringify(prevData));\n      let current = newData;\n      for (let i = 0; i < keys.length - 1; i++) {\n        current = current[keys[i]]; (line 65, 2 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "prototype",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "etude-lexical-markdown-editorconfig-c61a8b",
+      "seconds": 28.7,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "prototype",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "etude-lexical-markdown-editorconfig-db4f54",
+      "seconds": 28.9,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "untrusted_destination",
+      "fixed_rung": "model_entailed",
+      "language": "javascript",
+      "pair": "market-cap-route-4f8ae9",
+      "seconds": 29.6,
+      "slice": "agent-vfc",
+      "vuln_rung": "model_entailed",
+      "witness": "request: NextRequest -> request.url (line 14, 2 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "config_secrets",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "melodix-playerprovider-089931",
+      "seconds": 30.1,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "config_secrets",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "mercado-do-vale-news-catalogmetadataservice-9b5fcf",
+      "seconds": 28.5,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "prototype",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "money-track-category-icons-4d4a5b",
+      "seconds": 28.9,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "prototype",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "nestjs-filter-normalizer-aa0e60",
+      "seconds": 29.2,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "config_secrets",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "new-erp-final-app-6e9644",
+      "seconds": 30.7,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "untrusted_destination",
+      "fixed_rung": "model_entailed",
+      "language": "javascript",
+      "pair": "nimestream-route-d17f53",
+      "seconds": 30.5,
+      "slice": "agent-vfc",
+      "vuln_rung": "model_entailed",
+      "witness": "request -> request.url (line 14, 2 steps)"
+    },
+    {
+      "distinguished": false,
+      "family": "access_control",
+      "fixed_rung": "model_corroborated",
+      "language": "python",
+      "pair": "openniw-jobs-0fc947",
+      "seconds": 26.8,
+      "slice": "agent-vfc",
+      "vuln_rung": "model_corroborated",
+      "witness": "get_job line 16: obligated operation with no discharging guard, and no guarded sibling"
+    },
+    {
+      "distinguished": false,
+      "family": "access_control",
+      "fixed_rung": "model_corroborated",
+      "language": "python",
+      "pair": "openniw-jobs-b74de3",
+      "seconds": 26.9,
+      "slice": "agent-vfc",
+      "vuln_rung": "model_corroborated",
+      "witness": "get_job line 16: obligated operation with no discharging guard, and no guarded sibling"
+    },
+    {
+      "distinguished": false,
+      "family": "access_control",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "overleaf-with-claude-exportscontroller-3980b9",
+      "seconds": 1.1,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "prototype",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "popmark-editorconfig-e5ac40",
+      "seconds": 32.1,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "prototype",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "rag-pipeline-utils-config-handler-76e5f0",
+      "seconds": 31.8,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "config_secrets",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "registry-proxy-worker-426847",
+      "seconds": 28.4,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "access_control",
+      "fixed_rung": "model_corroborated",
+      "language": "javascript",
+      "pair": "supplieradvisor-mvp-route-387bcf",
+      "seconds": 31.8,
+      "slice": "agent-vfc",
+      "vuln_rung": "model_corroborated",
+      "witness": "PATCH line 37: obligated operation with no discharging guard, and no guarded sibling"
+    },
+    {
+      "distinguished": false,
+      "family": "access_control",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "supplieradvisor-mvp-route-a69e8f",
+      "seconds": 30.4,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "tools-cli-tools-a96bc0",
+      "seconds": 29.0,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "path",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "trackly-cli-path-diagnostics-1c1aed",
+      "seconds": 29.9,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "path",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "upstreamdrift-local-server-c3a078",
+      "seconds": 28.4,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "untrusted_destination",
+      "fixed_rung": "none",
+      "language": "python",
+      "pair": "waggledance-swarm-ssrf-host-guard-9a4548",
+      "seconds": 29.3,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "injection",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "workers-research-utils-209444",
+      "seconds": 31.8,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    },
+    {
+      "distinguished": false,
+      "family": "config_secrets",
+      "fixed_rung": "none",
+      "language": "javascript",
+      "pair": "zoonk-origin-bfbf67",
+      "seconds": 27.8,
+      "slice": "agent-vfc",
+      "vuln_rung": "none",
+      "witness": ""
+    }
+  ],
+  "scope_caveat": {
+    "entailed_among_them": 14,
+    "examples": [
+      "hutool-cve-2018-17297",
+      "juliet-java-cwe78-exec",
+      "local-javascript-vulnerable",
+      "local-python-vulnerable",
+      "node-serialize-cve-2017-5941",
+      "owasp-java-cmdi"
+    ],
+    "note": "These are arbitrated over the whole file rather than a labeled function, so a verdict may be about a real finding other than the labeled one. owasp-python-hash is the clear case: a CWE-327 weak-hash pair credited for a permissive set_cookie elsewhere in the file, on both sides.",
+    "of_total": 92,
+    "pairs_without_a_function_label": 16
+  },
+  "task": "model-grounded-detection 4.2 \u2014 entailment ceiling with the full model layer (taint + dominance)"
+}
