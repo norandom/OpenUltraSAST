@@ -38,6 +38,7 @@ kind = "security_setting"
 # apps, so three config pairs had no modelled setting in them at all.
 calls = ["CORS", "cross_origin", "set_cookie", "app.run", "config.update", "TrustedHostMiddleware", "add_middleware", "set_debug",
          "session_setup", "EncryptedCookieStorage", "SimpleCookieStorage", "cookie_storage", "setup_session",
+         "Application", "RedisStorage", "aiohttp_jinja2.setup", "Environment",
          "SECURE_SSL_REDIRECT", "SESSION_COOKIE_SECURE", "CSRF_COOKIE_SECURE", "SESSION_COOKIE_HTTPONLY", "ALLOWED_HOSTS", "DEBUG",
          "set_secure_cookie", "make_secure_cookie"]
 resource_arg = 0
@@ -66,7 +67,8 @@ calls = ["check_owner", "is_owner", "assert_owner", "ensure_owner", "owns", "can
 id = "safe-setting"
 kind = "non_permissive_value"
 calls = ["CORS", "cross_origin", "set_cookie", "app.run", "config.update", "add_middleware",
-         "session_setup", "SimpleCookieStorage", "setup_session", "set_secure_cookie"]
+         "session_setup", "SimpleCookieStorage", "setup_session", "set_secure_cookie",
+         "Application", "RedisStorage", "Environment"]
 permissive_values = ["'*'", "\"*\"", "True", "0.0.0.0", "None", "False", "allow_all", "disable"]
 
 [[discharger]]
