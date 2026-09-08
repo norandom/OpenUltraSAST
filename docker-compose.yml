@@ -1,0 +1,33 @@
+# OpenUltraSAST as a contributor runs it: nothing installed on the host but Docker.
+#
+#   docker compose build
+#   TARGET=/path/to/repo docker compose run --rm ousast scan /target
+#
+# The target is mounted READ-ONLY. A tool that reads your source to tell you about it has no business being
+# able to write to it, and a contributor evaluating an unfamiliar analyser should not have to take that on
+# trust.
+
+services:
+  ousast:
+    build:
+      context: .
+      args:
+        JOERN_VERSION: ${JOERN_VERSION:-v4.0.623}
+    image: openultrasast:${OUSAST_VERSION:-dev}
+    volumes:
+      - ${TARGET:-.}:/target:ro          # the repository under analysis, read-only
+      - ./reports:/reports               # where findings land, the one writable mount
+    working_dir: /work
+    tmpfs:
+      # CPG construction is scratch-heavy and none of it should outlive the run or touch the host.
+      - /work:size=${WORK_SIZE:-4g}
+    environment:
+      # The LLM endpoint is optional: without it the model layer still entails, and the suspicion band simply
+      # goes unasked. Passed through rather than baked in, so no key is ever in an image layer.
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      TMPDIR: /work
+    # A CPG build is memory-hungry, and two Joern JVMs at once is what triggered an out-of-memory kill on a
+    # 7.7 GB machine during this project's measurements.
+    mem_limit: ${OUSAST_MEM_LIMIT:-6g}
+    network_mode: ${OUSAST_NETWORK:-none}   # `bridge` only when the LLM judge is wanted
