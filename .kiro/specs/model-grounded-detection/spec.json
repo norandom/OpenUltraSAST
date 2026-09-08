@@ -1,16 +1,16 @@
 {
   "feature_name": "model-grounded-detection",
   "created_at": "2026-09-08T00:00:00Z",
-  "updated_at": "2026-09-08T02:00:00Z",
+  "updated_at": "2026-09-08T03:00:00Z",
   "language": "en",
-  "phase": "requirements",
+  "phase": "design",
   "approvals": {
     "requirements": {
       "generated": true,
-      "approved": false
+      "approved": true
     },
     "design": {
-      "generated": false,
+      "generated": true,
       "approved": false
     },
     "tasks": {
@@ -24,5 +24,5 @@
     "constrained-detector"
   ],
   "depends_on": [],
-  "approval_note": "2026-09-08 corrective brief drafted at the maintainer's direction ('can you produce a corrective spec that supersedes the project and sets a course'). Written after the learning-harness evolve rounds produced zero decisions distinguishable from noise, and after researching Clearwing (/home/mc/Source/clearwing, fork norandom/deepwing), Google Big Sleep, and the DARPA AIxCC 2025 finals. Not approved; requirements not generated. The central recommendation is to adopt Clearwing as the execution substrate rather than rebuild, and to contribute the web/logic detection path (taxonomy + IR candidate enumeration + obligation checker + a differential web oracle) that Clearwing's crash-oracle model does not reach. ; 2026-09-08 renamed execution-grounded-detection -> model-grounded-detection after the maintainer's correction: execution is not possible for all SAST targets and the bugs we own do not crash, so the arbiter is a program model built deterministically from code (IR candidate enumeration, binding-chain dataflow, obligation/guard-dominance) that checks LLM claims, producing a static evidence ladder (suspicion -> model_corroborated -> model_entailed); execution is a deferred tier for memory-safety-in-C only, adopted from Clearwing when a class needs it. ; 2026-09-08 requirements generated at the maintainer's direction ('write the requirements, and include to throw away broken parts. include the reduction of tests to what makes sense. I think there is an outgrowth problem here'): subtraction is Req 1-3 (remove the noise architecture, reduce 832 tests to surviving behavior, audit 99 modules for orphans) and precedes adoption of the Joern CPG arbiter (Req 4-8), the corpus as calibration set (Req 9), and the deferred Clearwing execution tier (Req 10)."
+  "approval_note": "2026-09-08 corrective brief drafted at the maintainer's direction ('can you produce a corrective spec that supersedes the project and sets a course'). Written after the learning-harness evolve rounds produced zero decisions distinguishable from noise, and after researching Clearwing (/home/mc/Source/clearwing, fork norandom/deepwing), Google Big Sleep, and the DARPA AIxCC 2025 finals. Not approved; requirements not generated. The central recommendation is to adopt Clearwing as the execution substrate rather than rebuild, and to contribute the web/logic detection path (taxonomy + IR candidate enumeration + obligation checker + a differential web oracle) that Clearwing's crash-oracle model does not reach. ; 2026-09-08 renamed execution-grounded-detection -> model-grounded-detection after the maintainer's correction: execution is not possible for all SAST targets and the bugs we own do not crash, so the arbiter is a program model built deterministically from code (IR candidate enumeration, binding-chain dataflow, obligation/guard-dominance) that checks LLM claims, producing a static evidence ladder (suspicion -> model_corroborated -> model_entailed); execution is a deferred tier for memory-safety-in-C only, adopted from Clearwing when a class needs it. ; 2026-09-08 requirements generated at the maintainer's direction ('write the requirements, and include to throw away broken parts. include the reduction of tests to what makes sense. I think there is an outgrowth problem here'): subtraction is Req 1-3 (remove the noise architecture, reduce 832 tests to surviving behavior, audit 99 modules for orphans) and precedes adoption of the Joern CPG arbiter (Req 4-8), the corpus as calibration set (Req 9), and the deferred Clearwing execution tier (Req 10). ; 2026-09-08 requirements approved by the maintainer in session ('approve the requirements and run the design phase'); design generated: subtraction is phase 1 (gate-protected, ~5000 lines removed before any Joern), a Joern spike on the injection family is phase 2 and can end the design before the integration cost is paid."
 }
