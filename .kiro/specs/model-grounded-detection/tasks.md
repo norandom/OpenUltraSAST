@@ -67,8 +67,8 @@ queries in group 4). The gates, `redaction.py`, `pairs.py` overlay/inventory pat
     not logic — the CPG queries that consume it come in groups 2 and 4.
   - Observable: `model/specs.py` imports nothing from `learning/`, `improve/`, `semantic/variants`,
     `semantic/mechanisms`; a test asserts every family in the taxonomy has a `TaintSpec` or a `DominanceSpec`
-    seed, and that the guard vocabulary is preserved verbatim.
-  - _Requirements: 1.2, 7.1, 7.2, 7.3_
+    seed, and that the guard vocabulary is preserved verbatim. `model/specs.py` is read-only data — no LLM and no future optimiser writes it, and a test asserts the module exposes no writer (Req 7.4, the verifier boundary).
+  - _Requirements: 1.2, 7.1, 7.2, 7.3, 7.4_
 
 - [ ] 1.2 Re-home the three retained modules
   - Move `learning/families.py` → `model/taxonomy.py`, `learning/candidates.py` → `model/candidates.py`,
