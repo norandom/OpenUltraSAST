@@ -1,0 +1,78 @@
+{
+  "ceilings_web_logic_taxonomy": {
+    "candidate_enumerable": {
+      "meaning": "for comparison: a candidate SITE exists inside the labeled function (constrained-detector group 1)",
+      "rate": 0.966
+    },
+    "model_corroborated_one_hop": {
+      "meaning": "derive_shape resolves a source at the sink argument (one-hop) even when the fix mechanism is opaque",
+      "n": "22/92",
+      "rate": 0.239
+    },
+    "model_entailed_today": {
+      "meaning": "the model alone establishes the vuln differential: a source->sink with the fix's guard recognised, or an obligation undischarged on vuln and discharged on fixed, or a permissive literal changed",
+      "n": "2/92",
+      "rate": 0.022
+    },
+    "taint_reachable_multi_hop": {
+      "meaning": "sink argument's binding chain (depth 6) reaches a source token; the achievable corroboration band once the taint is deepened",
+      "n": "26/74 flow families",
+      "rate": 0.351
+    }
+  },
+  "command": "offline abstract interpretation over the vendored corpus, no LLM",
+  "generated": "2026-09-08",
+  "memory_slice": "176 pairs deferred to the execution/SMT tier; not a static gap",
+  "modeling": "abstract interpretation (taint reachability + guard dominance + constant abstraction). SMT reserved for the deferred memory/C tier; concolic avoided by design (no interpreter, un-runnable targets).",
+  "note": "The analogue of the candidate ceiling, one rung up: not 'can a site be enumerated' (96.6%) but 'can a deterministic model DECIDE the vulnerability without trusting the LLM'. An entailment witness is the static analogue of a reproduced crash.",
+  "per_family_entailed": {
+    "access_control": {
+      "entailed": 0,
+      "one_hop_corrob": 3,
+      "pairs": 8
+    },
+    "config_secrets": {
+      "entailed": 0,
+      "one_hop_corrob": 1,
+      "pairs": 10
+    },
+    "deserialization": {
+      "entailed": 0,
+      "one_hop_corrob": 1,
+      "pairs": 3
+    },
+    "injection": {
+      "entailed": 2,
+      "one_hop_corrob": 17,
+      "pairs": 50
+    },
+    "output_encoding": {
+      "entailed": 0,
+      "one_hop_corrob": 0,
+      "pairs": 1
+    },
+    "path": {
+      "entailed": 0,
+      "one_hop_corrob": 0,
+      "pairs": 8
+    },
+    "prototype": {
+      "entailed": 0,
+      "one_hop_corrob": 0,
+      "pairs": 7
+    },
+    "untrusted_destination": {
+      "entailed": 0,
+      "one_hop_corrob": 0,
+      "pairs": 5
+    }
+  },
+  "verdict": "The model cannot be a PURE arbiter at v1: deterministic abstract interpretation decides ~2% at entailment and ~24-35% at corroboration, far below the 96.6% at which a site can be handed to an LLM. The architecture the numbers support is a LAYERED arbiter: report model_entailed where the model proves it (deterministic, no LLM); let the LLM judge but CHECK its claim against the resolved taint on the corroboration band (noise removed there); honest `suspicion` for the rest, which is where the future execution/differential tier earns its place. The near-term work is deepening the abstract interpretation -- function naming, per-family sink/sanitizer tables, multi-hop taint reused from the candidate enumerator's depth-4 chain -- each measurable, the first knob already moved injection 24% -> 48%.",
+  "why_the_gap": [
+    "one-hop source resolution at the sink argument: real bugs put the taint 1-3 binds upstream (q = '...'+id; execute(q)) and the shallow resolver stops at `q`",
+    "closed literal sink table: misses project wrappers (run_sql_query) and per-family sinks (path: open/join/send_file; xss: render/innerHTML; prototype: Object.assign/[key]=)",
+    "function-naming gap: 20/50 injection pairs report no_function because the CST names the labeled handler `<anon>` or a wrapper name -- the same defect that caps vfc-js candidate coverage",
+    "fix-mechanism recognition only fires when the guard lands inside the labeled function; decorator/middleware/config fixes are invisible to the in-function guard classifier",
+    "absence model finds no operation in 5/8 access_control: thin operation detection and cross-file decorators"
+  ]
+}

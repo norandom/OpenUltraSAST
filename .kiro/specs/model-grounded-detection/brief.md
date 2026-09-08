@@ -122,6 +122,36 @@ Two properties are the whole point:
   model rather than averaged over runs. The LLM stops being the oracle and becomes a proposer the model
   audits.
 
+**Measured, 2026-09-08 — the entailment ceiling** (`benchmarks/measurements/2026-09-08-model-entailment-ceiling.json`,
+offline, no LLM):
+
+| rung | web/logic taxonomy | for comparison |
+|---|---|---|
+| `model_entailed` today | **2.2%** (2/92) | — |
+| `model_corroborated`, one-hop taint | **24%** (22/92) | — |
+| taint reachable, multi-hop (flow families) | **35%** (26/74) | — |
+| candidate site enumerable | — | **96.6%** (constrained-detector group 1) |
+
+The gap between 96.6% (a site exists) and 2.2% (the model *decides* the vulnerability) is the gap between
+enumerating and arbitrating, and it is the whole finding. The model cannot be a *pure* arbiter at v1. But it
+is not a wall — the measurement diagnoses depth, not impossibility: one-hop source resolution (real taint sits
+1–3 binds upstream: `q = "…" + id; execute(q)`), a closed literal sink table (misses project wrappers and the
+path/xss/prototype sinks), and the function-naming gap that eats 20/50 injection pairs as `no_function`.
+Deepening the taint to reuse the candidate enumerator's depth-4 chain already moved injection 24% → 48%.
+
+So the architecture the numbers support is a **layered arbiter**, not a pure one:
+
+- where the model **entails** — report `model_entailed`, deterministic, the LLM not needed;
+- where the model **corroborates a taint path** (~35% and rising) — the LLM judges, but its claim is *checked*
+  against the resolved path, so run-to-run noise is removed on this band;
+- where the model can only **enumerate** (the rest, up to 96.6%) — honest `suspicion`, the LLM proposes with
+  no deterministic backstop, and this is exactly the band where the deferred execution / differential tier
+  earns its place.
+
+Pure `model_entailed`-as-arbiter is the north star. The v1 is the layered arbiter, and the near-term work is
+named by the measurement: fix function naming, build per-family sink/sanitizer tables, and lift the flow
+model onto the multi-hop binding chain we already have.
+
 This is the classical SAST arbiter — dataflow / abstract interpretation, the CodeQL and Infer lineage —
 with the LLM supplying the semantic judgement the model is weakest at (aliasing intent, whether a value is
 really untrusted, whether a guard really covers the case). It does not need soundness. A partial model that
