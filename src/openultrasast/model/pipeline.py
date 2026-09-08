@@ -142,13 +142,18 @@ def residual_question(spec: TaintSpec | DominanceSpec | ConfigSpec, witness: str
     was lost this way.
     """
     if isinstance(spec, DominanceSpec):
+        # Only the CORROBORATED case reaches this question -- an entailed verdict returns before the judge is
+        # consulted. Corroborated means precisely that no sibling is guarded, so there is no asymmetry to
+        # appeal to and claiming one contradicts the witness printed directly beneath it.
         return (
             f"You are judging ONE finding a static model already made. Do not look for other issues.\n\n"
-            f"A dominance analysis of {spec.language} code found an obligated operation that NO discharging\n"
-            f"guard governs, in a file where sibling handlers are guarded:\n\n"
+            f"A dominance analysis of {spec.language} code found an obligated operation on a protected\n"
+            f"resource that NO discharging guard governs on any path:\n\n"
             f"  {witness}\n  function: {function or '?'}\n\n"
-            f"The model has established the asymmetry. The open question is whether this operation genuinely\n"
-            f"needs the guard its siblings have -- or is legitimately public.\n\n"
+            f"No sibling handler in this file is guarded either, so the model cannot tell from consistency\n"
+            f"alone whether the guard is missing or the whole module is deliberately public. That is the\n"
+            f"open question: does this operation require an authorization check, or is it legitimately\n"
+            f"public?\n\n"
             'Answer ONLY with JSON: {"vulnerable": true|false, "why": "<one sentence>"}'
         )
     if isinstance(spec, ConfigSpec):

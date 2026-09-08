@@ -195,3 +195,21 @@ def test_a_corroborated_absence_finding_survives_a_judge_that_agrees() -> None:
             {"operation": "q.filter_by(id=n)", "opLine": "3", "opMethod": "safe", "dominatingGuards": ["current_user"]}]
     findings = scan_region(_cpg(rows), _dominance_spec(), function="leaky", client=_Client(), model="m", candidates=())
     assert len(findings) == 1 and findings[0].rung is Rung.ENTAILED
+
+
+def test_the_dominance_question_describes_the_evidence_the_model_actually_has() -> None:
+    """The residual question is only ever asked for CORROBORATED, never ENTAILED -- entailed returns early.
+
+    It was written for the entailed case, so it asserted "in a file where sibling handlers are guarded" and
+    asked about "the guard its siblings have", directly above a witness reading "and no guarded sibling".
+    The judge, handed a prompt contradicting its own evidence line, answered no and the finding was dropped:
+    vampi-users-update-password scored both_silent while the arbiter returned corroborated on the vulnerable
+    side and nothing on the fixed one.
+    """
+    from openultrasast.model.pipeline import residual_question
+
+    witness = "update_password line 16: obligated operation with no discharging guard, and no guarded sibling"
+    q = residual_question(_dominance_spec(), witness, "update_password")
+    assert "siblings have" not in q, "the corroborated case has no guarded siblings to appeal to"
+    assert "sibling handlers are guarded" not in q
+    assert "guard" in q.lower() and "public" in q.lower(), "it must still ask whether the operation needs a guard"
