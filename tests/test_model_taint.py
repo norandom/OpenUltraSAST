@@ -182,3 +182,25 @@ def test_a_row_without_shape_fields_is_judged_on_the_flow_alone() -> None:
              "sanitized": False, "length": 3}]
     answer = verdict(_cpg(rows), _shape_spec(), function="run")
     assert answer is not None and answer.rung is Rung.ENTAILED
+
+
+def test_parameter_sources_are_opt_in_and_reach_the_query() -> None:
+    """A function-level pair's parameters are its trust boundary; a whole repository's are not.
+
+    39 of the 50 injection pairs carry no framework source token at all — their untrusted input arrives as a
+    function parameter — and the flat-IR baseline this feature is measured against counted those as sources.
+    So the flag must exist and must default to off.
+    """
+    from openultrasast.cpg.backend import CpgResult
+    from openultrasast.model.taint import verdict
+
+    seen: dict[str, object] = {}
+
+    def run(query: str, params: dict[str, object]) -> object:
+        seen.update(params)
+        return []
+
+    verdict(CpgResult(cpg_path=Path("c.bin"), run=run), _spec(), function="run")
+    assert seen["parameterSources"] == "false", "treating every parameter as untrusted is not the default"
+    verdict(CpgResult(cpg_path=Path("c.bin"), run=run), _spec(), function="run", parameter_sources=True)
+    assert seen["parameterSources"] == "true"

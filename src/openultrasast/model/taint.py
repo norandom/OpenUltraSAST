@@ -19,11 +19,22 @@ from .ladder import Rung, Verdict
 from .specs import TaintSpec
 
 
-def verdict(cpg: CpgResult, spec: TaintSpec, *, function: str = "") -> Verdict | None:
-    """The strongest verdict the taint query supports for ``spec`` in ``function``, or ``None`` to stay at suspicion."""
+def verdict(cpg: CpgResult, spec: TaintSpec, *, function: str = "", parameter_sources: bool = False) -> Verdict | None:
+    """The strongest verdict the taint query supports for ``spec`` in ``function``, or ``None`` to stay at suspicion.
+
+    ``parameter_sources`` additionally treats the labeled function's own parameters as untrusted. That is right
+    for a function-level pair, where the function boundary *is* the trust boundary, and wrong for a whole
+    repository, where most parameters carry internal values — so it is off by default and the caller opts in.
+    """
     rows = cpg.run(
         "taint",
-        {"sources": spec.sources, "sinks": spec.sinks, "sanitizers": spec.sanitizers, "function": function},
+        {
+            "sources": spec.sources,
+            "sinks": spec.sinks,
+            "sanitizers": spec.sanitizers,
+            "function": function,
+            "parameterSources": "true" if parameter_sources else "false",
+        },
     )
     flows = _flows(rows, function=function)
     # A sink whose *shape* is safe is the fix, not the bug. `execute(sql, params)` binds rather than

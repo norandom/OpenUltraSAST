@@ -15,12 +15,20 @@
 //   * `reachableByFlows` is called ON the sink WITH the source, not the other way about.
 //
 // Parameters (comma-separated where plural):
-//   cpgFile, sources, sinks, sanitizers (optional), function (optional: restrict to this enclosing method)
+//   cpgFile, sources, sinks, sanitizers (optional), function (optional: restrict to this enclosing method),
+//   parameterSources ("true" to treat the labeled function's parameters as untrusted -- see below)
 //
 // Output: a fenced JSON array of {sink, sinkLine, sinkMethod, source, sanitized, length}. The fence exists
 // because Joern prints a banner, pass logs and a prompt around whatever a script emits.
 
-@main def exec(cpgFile: String, sources: String, sinks: String, sanitizers: String = "", function: String = "") = {
+@main def exec(
+    cpgFile: String,
+    sources: String,
+    sinks: String,
+    sanitizers: String = "",
+    function: String = "",
+    parameterSources: String = "false"
+) = {
   importCpg(cpgFile)
 
   def split(raw: String): List[String] = raw.split(",").map(_.trim).filter(_.nonEmpty).toList
@@ -32,7 +40,22 @@
   // A source is any call whose code contains one of the patterns. Matching on `code` rather than a method
   // name keeps `request.args["x"]` (an indexAccess over a fieldAccess) and `req.body.name` both reachable
   // without a per-framework rule for each.
-  def sourceNodes = cpg.call.filter(c => sourcePatterns.exists(p => c.code.contains(p)))
+  // Framework sources: a call whose code contains one of the patterns. Matching on `code` rather than a
+  // method name keeps `request.args["x"]` (an indexAccess over a fieldAccess) and `req.body.name` both
+  // reachable without a per-framework rule for each.
+  def frameworkSources = cpg.call.filter(c => sourcePatterns.exists(p => c.code.contains(p)))
+
+  // Parameter sources: the labeled function's own parameters. In a function-level pair the function boundary
+  // IS the trust boundary -- the corpus is built so the labeled function's inputs are attacker-controlled --
+  // and 39 of this slice's 50 pairs carry no framework token at all. Our flat-IR baseline counted these as
+  // sources (`source_kinds: ["parameter"]`), so a comparison against it is only like-for-like with them on.
+  // Off by default: outside a labeled function, treating every parameter as untrusted is not sound.
+  def parameterNodes =
+    if (parameterSources != "true") Iterator.empty
+    else if (function.isEmpty) cpg.method.parameter.iterator
+    else cpg.method.nameExact(function).parameter.iterator
+
+  def sourceNodes = frameworkSources.l.iterator ++ parameterNodes
 
   // A sink call: matched by short name (`system`), by leading code (`os.system(...)`), or by resolved
   // full name (`os.py:<module>.system`), so both bare and dotted forms in the spec hit.
