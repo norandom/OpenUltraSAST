@@ -1,10 +1,11 @@
 {
-  "caveat": "access_control and config_secrets were silenced by a routing bug in both scan_region and this harness -- family routing fixed in the ceiling harness and not carried across, the third time that shape appeared in this feature. Fixed; a corrected run supersedes these six rows.",
-  "cost_usd": 0.0126,
-  "detection_rate": 0.8,
+  "cost_note": "Three full runs of this measurement cost about $0.03 in total.",
+  "cost_usd": 0.0076,
+  "detection_rate": 0.8667,
   "division_of_labour": {
+    "model_corroborated": 2,
     "model_entailed": 9,
-    "note": "The LLM supplies most of the recall; the model supplies the precision, halving the leak by dropping claims it could contradict. That is the division the architecture was designed around. Every suspicion converted to model_entailed is leak removed for free and one fewer model call, which is exactly what sink-table coverage and interprocedural resolution buy -- so those have a measured payoff now rather than a hoped-for one.",
+    "note": "The model arbitrates 11 of 26 findings. Every conversion from suspicion to a model rung removes a leak and a model call at once, which is the payoff curve for sink coverage and interprocedural resolution: closing them moves findings out of the LLM's column into the model's.",
     "suspicion": 15
   },
   "generated": "2026-09-08",
@@ -17,19 +18,19 @@
   "model": "deepseek-v4-flash",
   "outcomes": {
     "both_flagged": 2,
-    "both_silent": 6,
-    "pair_correct": 22
+    "both_silent": 4,
+    "pair_correct": 24
   },
-  "pair_correct_rate": 0.7333,
+  "pair_correct_rate": 0.8,
   "pairs": 30,
-  "reading": "The first like-for-like comparison with the LLM hunter, and the first evidence the architecture pays. Half the leak (6.7% against 12.3%), 55x cheaper ($0.0126 against ~$0.69), a fifth of the model calls (K=1 against K=5), and one pair short of the hunter's recall (22 against 23 of 30). Every number here is UNDERSTATED: all six both_silent pairs are access_control and config_secrets, which had no pipeline path to their arbiters when this ran.",
+  "reading": "The wired pipeline beats the LLM hunter on both axes: 80.0% pair-correct against 76.7%, and 6.7% leak against 12.3% -- at one fifth of the model calls (K=1 against K=5) and ~90x cheaper ($0.0076 against ~$0.69). This is the first like-for-like comparison; the earlier 'detection has regressed' reading was taken with the proposer disconnected (an arbiter judged against a detector) and before four wiring bugs were found.",
   "rows": [
     {
       "family": "injection",
       "fixed_findings": 2,
       "outcome": "both_flagged",
       "pair": "damn-vulnerable-graphql-application-views-mutate",
-      "vuln_findings": 3,
+      "vuln_findings": 4,
       "vuln_rungs": [
         "suspicion"
       ]
@@ -39,7 +40,7 @@
       "fixed_findings": 0,
       "outcome": "pair_correct",
       "pair": "damn-vulnerable-graphql-application-views-resolve-pastes",
-      "vuln_findings": 3,
+      "vuln_findings": 4,
       "vuln_rungs": [
         "suspicion"
       ]
@@ -107,7 +108,7 @@
       "fixed_findings": 0,
       "outcome": "pair_correct",
       "pair": "dsvpwa-handlers-do-bdr",
-      "vuln_findings": 3,
+      "vuln_findings": 2,
       "vuln_rungs": [
         "suspicion"
       ]
@@ -171,18 +172,22 @@
     {
       "family": "access_control",
       "fixed_findings": 0,
-      "outcome": "both_silent",
+      "outcome": "pair_correct",
       "pair": "threatbyte-api-v1-delete",
-      "vuln_findings": 0,
-      "vuln_rungs": []
+      "vuln_findings": 1,
+      "vuln_rungs": [
+        "model_corroborated"
+      ]
     },
     {
       "family": "access_control",
       "fixed_findings": 0,
-      "outcome": "both_silent",
+      "outcome": "pair_correct",
       "pair": "threatbyte-api-v1-get",
-      "vuln_findings": 0,
-      "vuln_rungs": []
+      "vuln_findings": 1,
+      "vuln_rungs": [
+        "model_corroborated"
+      ]
     },
     {
       "family": "injection",
@@ -227,7 +232,7 @@
       "fixed_findings": 0,
       "outcome": "pair_correct",
       "pair": "vfapi-main-put-user",
-      "vuln_findings": 5,
+      "vuln_findings": 4,
       "vuln_rungs": [
         "suspicion"
       ]
@@ -247,7 +252,7 @@
       "fixed_findings": 0,
       "outcome": "pair_correct",
       "pair": "vulnerable-python-apps-bad-mvc-do-get",
-      "vuln_findings": 5,
+      "vuln_findings": 4,
       "vuln_rungs": [
         "suspicion"
       ]
@@ -313,6 +318,36 @@
       ]
     }
   ],
-  "seconds": 1050.9,
-  "slice": "vibe-py"
+  "run_history": [
+    {
+      "leak": 0.067,
+      "note": "access_control and config_secrets had no pipeline path to their arbiters",
+      "pair_correct": 0.733,
+      "run": 1
+    },
+    {
+      "leak": 0.067,
+      "note": "family routing fixed -- IDENTICAL result, which was the clue: the arbiter was reached and its verdict discarded",
+      "pair_correct": 0.733,
+      "run": 2
+    },
+    {
+      "leak": 0.067,
+      "note": "residual question phrased for the arbiter that raised it; 2 of 3 access_control pairs converted from silent to pair-correct",
+      "pair_correct": 0.8,
+      "run": 3
+    }
+  ],
+  "seconds": 1071.1,
+  "slice": "vibe-py",
+  "still_silent": {
+    "access_control": {
+      "cause": "vampi-users-update-password: the dominance arbiter returns corroborated for it in isolation, so this is a pipeline-level issue still to diagnose.",
+      "pairs": 1
+    },
+    "config_secrets": {
+      "cause": "the settings table is Flask/FastAPI-shaped (CORS, set_cookie, app.run); these pairs are aiohttp (session_middleware, setup_redis). Known since group 4.",
+      "pairs": 3
+    }
+  }
 }
