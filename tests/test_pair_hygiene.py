@@ -15,7 +15,11 @@ IDENTICAL_TWINS = {
     "vampi-books-get-by-title",
     "vulnpy-deserialization-do-pickle-load",
 }
-VENDORED_PER_SLICE = {"local": 3, "github": 6, "sast": 11, "vibe-py": 35, "vfc-js": 17, "vfc": 176, "agent-vfc": 29}
+# `owasp` added 2026-09-08: 40 generated BenchmarkJava xss pairs, the only harvested category the model was
+# shown to distinguish before vendoring. This guard exists so a corpus change is never silent — updating it
+# is the acknowledgement.
+VENDORED_PER_SLICE = {"local": 3, "github": 6, "sast": 11, "vibe-py": 35, "vfc-js": 17, "vfc": 176,
+                      "agent-vfc": 29, "owasp": 40}
 
 
 def test_identical_twins_are_unscorable_and_no_row_is_dropped() -> None:

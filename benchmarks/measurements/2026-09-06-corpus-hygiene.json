@@ -92,6 +92,8 @@
     "owasp-java-hash"
   ],
   "note": "Repositories in `straddling` have pairs on both sides of the train/holdout split, so a learning path can be taught by one file of a repository and evaluated on another. Pairs in `duplicate_groups` share a vulnerable excerpt byte for byte after the provenance header is stripped. Both cap what any detector number can mean. Groups in `cross_split_duplicates` sit on both sides of the split while being the same code, so the train row teaches the holdout row exactly; forks of one project defeat the repository-level split.",
+  "owasp_note": "The 40 vendored BenchmarkJava xss pairs are all holdout. OWASP-Benchmark/BenchmarkJava already straddled the split before them (owasp-java-cmdi train, owasp-java-sqli holdout), so the new pairs enlarge an existing straddle rather than create one. It matters less than it did -- the learning path a train row could teach is deleted -- but it is recorded, not hidden.",
+  "regenerated": "2026-09-08 after the owasp slice was vendored",
   "straddling": [
     [
       "Contrast-Security-OSS/DjanGoat",
@@ -121,7 +123,47 @@
       [
         "owasp-java-cmdi",
         "owasp-java-hash",
-        "owasp-java-sqli"
+        "owasp-java-sqli",
+        "owasp-xss-benchmarktest00013",
+        "owasp-xss-benchmarktest00014",
+        "owasp-xss-benchmarktest00030",
+        "owasp-xss-benchmarktest00036",
+        "owasp-xss-benchmarktest00041",
+        "owasp-xss-benchmarktest00144",
+        "owasp-xss-benchmarktest00145",
+        "owasp-xss-benchmarktest00146",
+        "owasp-xss-benchmarktest00148",
+        "owasp-xss-benchmarktest00149",
+        "owasp-xss-benchmarktest00150",
+        "owasp-xss-benchmarktest00152",
+        "owasp-xss-benchmarktest00153",
+        "owasp-xss-benchmarktest00154",
+        "owasp-xss-benchmarktest00155",
+        "owasp-xss-benchmarktest00156",
+        "owasp-xss-benchmarktest00157",
+        "owasp-xss-benchmarktest00276",
+        "owasp-xss-benchmarktest00279",
+        "owasp-xss-benchmarktest00280",
+        "owasp-xss-benchmarktest00284",
+        "owasp-xss-benchmarktest00287",
+        "owasp-xss-benchmarktest00290",
+        "owasp-xss-benchmarktest00291",
+        "owasp-xss-benchmarktest00292",
+        "owasp-xss-benchmarktest00301",
+        "owasp-xss-benchmarktest00375",
+        "owasp-xss-benchmarktest00376",
+        "owasp-xss-benchmarktest00378",
+        "owasp-xss-benchmarktest00380",
+        "owasp-xss-benchmarktest00382",
+        "owasp-xss-benchmarktest00383",
+        "owasp-xss-benchmarktest00384",
+        "owasp-xss-benchmarktest00385",
+        "owasp-xss-benchmarktest00387",
+        "owasp-xss-benchmarktest00388",
+        "owasp-xss-benchmarktest00390",
+        "owasp-xss-benchmarktest00392",
+        "owasp-xss-benchmarktest00395",
+        "owasp-xss-benchmarktest00467"
       ]
     ],
     [
@@ -423,5 +465,5 @@
       "train"
     ]
   ],
-  "vendored_pairs": 277
+  "vendored_pairs": 317
 }

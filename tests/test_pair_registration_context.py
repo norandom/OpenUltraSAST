@@ -403,7 +403,8 @@ def test_the_vendored_count_is_unchanged_by_the_re_harvest() -> None:
     per_slice: dict[str, int] = {}
     for case in cases:
         per_slice[case.slice] = per_slice.get(case.slice, 0) + 1
-    assert per_slice == {"agent-vfc": 29, "github": 6, "local": 3, "sast": 11, "vfc": 176, "vfc-js": 17, "vibe-py": 35}
+    assert per_slice == {"agent-vfc": 29, "github": 6, "local": 3, "owasp": 40, "sast": 11, "vfc": 176,
+                         "vfc-js": 17, "vibe-py": 35}
 
 
 def test_prose_inside_a_decorator_never_grants_a_guard(tmp_path: Path) -> None:

@@ -1,0 +1,1068 @@
+# OWASP BenchmarkJava slice — cross-site scripting (model-grounded-detection corpus expansion).
+# slice = "owasp"
+#
+# WHAT THIS IS. Generated SAST-benchmark servlets, not real-world code. The slice measures BREADTH across a
+# weakness class; it must never stand in for real-world performance, and its numbers belong in their own row.
+# The corpus already shows a +16% overfitting gap between the development slice and the deciding real-world
+# one, and a large synthetic slice blended into a headline would widen that invisibly.
+#
+# GROUND TRUTH is the suite's own expectedresults-1.2.csv, which states per test whether it is really
+# vulnerable. A pair is a really-vulnerable test matched with the safe test of the SAME category it most
+# resembles: adjacent tests come from one template, so the two differ in the sink or the sanitiser rather
+# than being unrelated programs. Every pair here is >= 0.75 similar (median 0.91), against the 64% of the
+# older `sast` OWASP entries that the group-4 stratification flagged as "different programs".
+#
+# WHY ONLY XSS. Seven categories were harvested and one representative of each was run through the model
+# before vendoring. Only xss distinguished: its fix adds ESAPI encoding, which the Java sanitizer facts
+# recognise. cmdi, sqli, ldapi and xpathi put the sink in a helper class outside the servlet and resolved no
+# flow at all; pathtraver found the flow but its "safe" twin carries no distinguishing call, so text
+# similarity had matched a twin that is not semantically the fix. Those 198 pairs are deliberately NOT
+# vendored: adding pairs the model cannot read would inflate the corpus while making every number less
+# interpretable.
+#
+# EVIDENCE for this slice is 3 of 3 pairs distinguished (model_entailed on the vulnerable side, dropping to
+# model_corroborated on the fixed one). That is a small sample and is stated as such; the slice's own
+# measurement is the real check.
+#
+# LICENCE: GPL-2.0, per BenchmarkJava's LICENSE file. The older `sast` entries declare GPL-3.0 for OWASP;
+# that appears to be an error and is not copied here.
+
+[[pair]]
+name = "owasp-xss-benchmarktest00013"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00013.java"
+fixed = "java/BenchmarkTest00282.java"
+relpath = "testcode/BenchmarkTest00013.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.952
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00013.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00014"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00014.java"
+fixed = "java/BenchmarkTest00282.java"
+relpath = "testcode/BenchmarkTest00014.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.957
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00014.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00030"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00030.java"
+fixed = "java/BenchmarkTest00282.java"
+relpath = "testcode/BenchmarkTest00030.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.823
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00030.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00036"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00036.java"
+fixed = "java/BenchmarkTest00283.java"
+relpath = "testcode/BenchmarkTest00036.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.753
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00036.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00041"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00041.java"
+fixed = "java/BenchmarkTest00289.java"
+relpath = "testcode/BenchmarkTest00041.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.798
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00041.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00144"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00144.java"
+fixed = "java/BenchmarkTest00151.java"
+relpath = "testcode/BenchmarkTest00144.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.987
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00144.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00145"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00145.java"
+fixed = "java/BenchmarkTest00288.java"
+relpath = "testcode/BenchmarkTest00145.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.884
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00145.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00146"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00146.java"
+fixed = "java/BenchmarkTest00282.java"
+relpath = "testcode/BenchmarkTest00146.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.887
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00146.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00148"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00148.java"
+fixed = "java/BenchmarkTest00281.java"
+relpath = "testcode/BenchmarkTest00148.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.914
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00148.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00149"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00149.java"
+fixed = "java/BenchmarkTest00282.java"
+relpath = "testcode/BenchmarkTest00149.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.919
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00149.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00150"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00150.java"
+fixed = "java/BenchmarkTest00281.java"
+relpath = "testcode/BenchmarkTest00150.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.921
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00150.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00152"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00152.java"
+fixed = "java/BenchmarkTest00283.java"
+relpath = "testcode/BenchmarkTest00152.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.839
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00152.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00153"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00153.java"
+fixed = "java/BenchmarkTest00288.java"
+relpath = "testcode/BenchmarkTest00153.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.893
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00153.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00154"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00154.java"
+fixed = "java/BenchmarkTest00285.java"
+relpath = "testcode/BenchmarkTest00154.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.838
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00154.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00155"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00155.java"
+fixed = "java/BenchmarkTest00285.java"
+relpath = "testcode/BenchmarkTest00155.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.914
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00155.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00156"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00156.java"
+fixed = "java/BenchmarkTest00151.java"
+relpath = "testcode/BenchmarkTest00156.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.98
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00156.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00157"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00157.java"
+fixed = "java/BenchmarkTest00281.java"
+relpath = "testcode/BenchmarkTest00157.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.927
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00157.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00276"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00276.java"
+fixed = "java/BenchmarkTest00281.java"
+relpath = "testcode/BenchmarkTest00276.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.967
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00276.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00279"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00279.java"
+fixed = "java/BenchmarkTest00278.java"
+relpath = "testcode/BenchmarkTest00279.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.914
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00279.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00280"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00280.java"
+fixed = "java/BenchmarkTest00285.java"
+relpath = "testcode/BenchmarkTest00280.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.877
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00280.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00284"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00284.java"
+fixed = "java/BenchmarkTest00285.java"
+relpath = "testcode/BenchmarkTest00284.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.986
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00284.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00287"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00287.java"
+fixed = "java/BenchmarkTest00286.java"
+relpath = "testcode/BenchmarkTest00287.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.96
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00287.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00290"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00290.java"
+fixed = "java/BenchmarkTest00289.java"
+relpath = "testcode/BenchmarkTest00290.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.966
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00290.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00291"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00291.java"
+fixed = "java/BenchmarkTest00289.java"
+relpath = "testcode/BenchmarkTest00291.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.962
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00291.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00292"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00292.java"
+fixed = "java/BenchmarkTest00289.java"
+relpath = "testcode/BenchmarkTest00292.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.927
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00292.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00301"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00301.java"
+fixed = "java/BenchmarkTest00288.java"
+relpath = "testcode/BenchmarkTest00301.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.936
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00301.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00375"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00375.java"
+fixed = "java/BenchmarkTest00381.java"
+relpath = "testcode/BenchmarkTest00375.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.958
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00375.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00376"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00376.java"
+fixed = "java/BenchmarkTest00393.java"
+relpath = "testcode/BenchmarkTest00376.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.963
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00376.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00378"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00378.java"
+fixed = "java/BenchmarkTest00391.java"
+relpath = "testcode/BenchmarkTest00378.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.946
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00378.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00380"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00380.java"
+fixed = "java/BenchmarkTest00391.java"
+relpath = "testcode/BenchmarkTest00380.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.857
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00380.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00382"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00382.java"
+fixed = "java/BenchmarkTest00377.java"
+relpath = "testcode/BenchmarkTest00382.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.976
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00382.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00383"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00383.java"
+fixed = "java/BenchmarkTest00379.java"
+relpath = "testcode/BenchmarkTest00383.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.938
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00383.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00384"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00384.java"
+fixed = "java/BenchmarkTest00381.java"
+relpath = "testcode/BenchmarkTest00384.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.939
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00384.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00385"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00385.java"
+fixed = "java/BenchmarkTest00379.java"
+relpath = "testcode/BenchmarkTest00385.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.909
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00385.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00387"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00387.java"
+fixed = "java/BenchmarkTest00393.java"
+relpath = "testcode/BenchmarkTest00387.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.977
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00387.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00388"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00388.java"
+fixed = "java/BenchmarkTest00391.java"
+relpath = "testcode/BenchmarkTest00388.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.955
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00388.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00390"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00390.java"
+fixed = "java/BenchmarkTest00391.java"
+relpath = "testcode/BenchmarkTest00390.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.907
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00390.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00392"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00392.java"
+fixed = "java/BenchmarkTest00389.java"
+relpath = "testcode/BenchmarkTest00392.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.892
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00392.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00395"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00395.java"
+fixed = "java/BenchmarkTest00391.java"
+relpath = "testcode/BenchmarkTest00395.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.931
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00395.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"
+
+[[pair]]
+name = "owasp-xss-benchmarktest00467"
+slice = "owasp"
+language = "java"
+origin = "owasp-benchmark-java"
+license = "GPL-2.0"
+repo = "OWASP-Benchmark/BenchmarkJava"
+cwe = "CWE-79"
+vuln = "java/BenchmarkTest00467.java"
+fixed = "java/BenchmarkTest00468.java"
+relpath = "testcode/BenchmarkTest00467.java"
+min_recall = 1.0
+fix_policy = "silent"
+provenance = "synthetic"
+split = "holdout"
+# template similarity to its safe twin, measured at harvest: 0.969
+
+[[pair.expected]]
+cwe = "CWE-79"
+family = "output_encoding"
+class = "cross-site scripting"
+path = "testcode/BenchmarkTest00467.java"
+function = "doPost"
+evidence = "marked really-vulnerable in expectedresults-1.2.csv; the twin encodes with ESAPI"
+mechanism = "container_taint"

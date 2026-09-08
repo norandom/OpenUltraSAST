@@ -48,16 +48,17 @@ DEFAULT_SAST_CATALOG = Path("benchmarks/pairs/sast/catalog.toml")
 DEFAULT_VFC_CATALOG = Path("benchmarks/pairs/vfc/catalog.toml")
 DEFAULT_VIBE_PY_CATALOG = Path("benchmarks/pairs/vibe-py/catalog.toml")
 DEFAULT_VFC_JS_CATALOG = Path("benchmarks/pairs/vfc-js/catalog.toml")
+DEFAULT_OWASP_CATALOG = Path("benchmarks/pairs/owasp/catalog.toml")
 DEFAULT_AGENT_VFC_CATALOG = Path("benchmarks/pairs/agent-vfc/catalog.toml")
 DEFAULT_DATASETS = Path("benchmarks/pairs/datasets.toml")
 DEFAULT_MECHANISMS = Path("benchmarks/pairs/mechanisms.toml")
 
 # Slices scored on overlay dispositions (inventory fallback when nothing adjudicates).
-OVERLAY_SLICES = frozenset({"sast", "vfc", "vibe-py", "vfc-js", "agent-vfc"})
+OVERLAY_SLICES = frozenset({"sast", "vfc", "vibe-py", "vfc-js", "agent-vfc", "owasp"})
 # Harvested function slices: every label must name the function (design §LabelSchema); "<anon>" does not scope.
 FUNCTION_REQUIRED_SLICES = OVERLAY_SLICES - {"sast"}
 FunctionRanges = dict[str, tuple[tuple[str, int, int], ...]]
-SLICE_NAMES = ("all", "local", "github", "sast", "vfc", "vibe-py", "vfc-js", "agent-vfc")
+SLICE_NAMES = ("all", "local", "github", "sast", "vfc", "vibe-py", "vfc-js", "agent-vfc", "owasp")
 PROVENANCES = frozenset({"human", "agent", "mixed", "synthetic"})
 SPLITS = frozenset({"train", "holdout"})
 # Req 9: how a label was established. Only seeded and reviewed pairs steer the improve loop.
@@ -235,6 +236,7 @@ def load_pair_catalog(path: Path = DEFAULT_CATALOG) -> tuple[PairCase, ...]:
             DEFAULT_VIBE_PY_CATALOG,
             DEFAULT_VFC_JS_CATALOG,
             DEFAULT_AGENT_VFC_CATALOG,
+            DEFAULT_OWASP_CATALOG,
         ):
             if extra.exists():
                 cases = cases + _load_catalog_file(extra)
