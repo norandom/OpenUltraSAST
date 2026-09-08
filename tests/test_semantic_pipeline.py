@@ -263,5 +263,3 @@ def test_markdown_report_includes_four_overlay_labels(tmp_path: Path) -> None:
     assert "demoted" in text
     assert "unadjudicated" in text
     assert "coverage" in text
-
-

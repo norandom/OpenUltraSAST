@@ -67,17 +67,19 @@ def _flows(rows: object, *, function: str) -> list[dict[str, object]]:
             continue
         if function and not _in_scope(row, function):
             continue
-        kept.append({
-            "sink": str(row.get("sink", "")),
-            "sinkArity": row.get("sinkArity"),
-            "sinkArg0Literal": row.get("sinkArg0Literal"),
-            "inLabeledScope": row.get("inLabeledScope"),
-            "sinkLine": str(row.get("sinkLine", "")),
-            "sinkMethod": str(row.get("sinkMethod", "")),
-            "source": str(row.get("source", "")),
-            "sanitized": bool(row.get("sanitized", False)),
-            "length": _as_int(row.get("length")),
-        })
+        kept.append(
+            {
+                "sink": str(row.get("sink", "")),
+                "sinkArity": row.get("sinkArity"),
+                "sinkArg0Literal": row.get("sinkArg0Literal"),
+                "inLabeledScope": row.get("inLabeledScope"),
+                "sinkLine": str(row.get("sinkLine", "")),
+                "sinkMethod": str(row.get("sinkMethod", "")),
+                "source": str(row.get("source", "")),
+                "sanitized": bool(row.get("sanitized", False)),
+                "length": _as_int(row.get("length")),
+            }
+        )
     return kept
 
 

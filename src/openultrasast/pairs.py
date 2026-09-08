@@ -100,7 +100,6 @@ _DEFAULT_PROVENANCE = {"sast": "synthetic", "local": "human", "github": "human",
 _MANIFEST_MECHANISM = "source_reaches_sink"  # cheat-sheet fixtures referenced via expected_from
 
 
-
 class CatalogError(ValueError):
     """Raised when a pair catalog violates the label schema."""
 

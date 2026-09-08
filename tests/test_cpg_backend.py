@@ -44,8 +44,21 @@ def test_the_seam_imports_nothing_outside_the_standard_library() -> None:
             imported.add(node.module.split(".")[0])
         elif isinstance(node, ast.Import):
             imported.update(alias.name.split(".")[0] for alias in node.names)
-    stdlib = {"__future__", "json", "os", "re", "shutil", "subprocess", "tempfile", "dataclasses", "pathlib", "typing",
-              "collections", "logging", "hashlib"}
+    stdlib = {
+        "__future__",
+        "json",
+        "os",
+        "re",
+        "shutil",
+        "subprocess",
+        "tempfile",
+        "dataclasses",
+        "pathlib",
+        "typing",
+        "collections",
+        "logging",
+        "hashlib",
+    }
     assert imported <= stdlib, f"the seam imports outside the standard library: {sorted(imported - stdlib)}"
     assert "import jpype" not in source and "py4j" not in source, "Joern is reached by subprocess, never in-process"
 

@@ -64,9 +64,7 @@ class ModelFinding:
     contradiction: str = ""
 
 
-def _arbitrate(
-    cpg: CpgResult, spec: TaintSpec | DominanceSpec | ConfigSpec, *, function: str, parameter_sources: bool
-) -> Verdict | None:
+def _arbitrate(cpg: CpgResult, spec: TaintSpec | DominanceSpec | ConfigSpec, *, function: str, parameter_sources: bool) -> Verdict | None:
     """Route a family to the arbiter that can actually decide it.
 
     Dispatching on the spec type rather than on a family name keeps this honest: a family without an arbiter
@@ -96,8 +94,7 @@ def scan_region(
 
     if answer is not None and answer.rung is Rung.ENTAILED:
         # The graph decided. No model call, and no candidate needs asking about: this region has its finding.
-        return [ModelFinding(site=_site(function, answer.witness), family=spec.family, rung=Rung.ENTAILED,
-                             witness=answer.witness)]
+        return [ModelFinding(site=_site(function, answer.witness), family=spec.family, rung=Rung.ENTAILED, witness=answer.witness)]
 
     if answer is not None:
         # A real flow through a sanitizer. Whether it suffices is the residual, and the model HAS coverage
@@ -106,8 +103,7 @@ def scan_region(
             return []
         said = _ask(client, model, residual_question(spec, answer.witness, function))
         if said:
-            return [ModelFinding(site=_site(function, answer.witness), family=spec.family,
-                                 rung=Rung.CORROBORATED, witness=answer.witness)]
+            return [ModelFinding(site=_site(function, answer.witness), family=spec.family, rung=Rung.CORROBORATED, witness=answer.witness)]
         return []
 
     # The model resolved nothing. It is SILENT, not negative — so the enumerator's candidates are put to the

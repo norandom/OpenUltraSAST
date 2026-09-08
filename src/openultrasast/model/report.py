@@ -56,15 +56,16 @@ def render(rows: Sequence[SliceRow], *, development: str = "", deciding: str = "
 
     total_pairs = sum(row.pairs for row in rows)
     total_covered = sum(row.covered for row in rows)
-    lines += ["", f"Across every slice: {total_covered}/{total_pairs} = {total_covered / total_pairs:.0%} "
-                  "— read the rows above it, not this line."]
+    lines += [
+        "",
+        f"Across every slice: {total_covered}/{total_pairs} = {total_covered / total_pairs:.0%} — read the rows above it, not this line.",
+    ]
 
     gap = overfitting_gap(rows, development=development, deciding=deciding)
     if gap is not None:
         lines += [
             "",
-            f"**Overfitting gap: {gap:+.0%}** — `{development}` (development) minus `{deciding}`, "
-            f"which is the deciding real-world slice.",
+            f"**Overfitting gap: {gap:+.0%}** — `{development}` (development) minus `{deciding}`, which is the deciding real-world slice.",
         ]
     elif development or deciding:
         lines += ["", f"**Overfitting gap: not measurable** — `{development}` or `{deciding}` is absent from this run."]

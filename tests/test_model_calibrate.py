@@ -48,12 +48,14 @@ def test_flagging_both_sides_equally_is_a_gap_not_a_success() -> None:
 def test_gaps_are_grouped_by_family_with_their_reasons() -> None:
     from openultrasast.model.calibrate import calibrate
 
-    report = calibrate([
-        _outcome("a", family="path", vuln="none", reason="sink_not_in_table"),
-        _outcome("b", family="path", vuln="none", reason="sink_not_in_table"),
-        _outcome("c", family="injection", vuln="none", reason="source_unmodelled"),
-        _outcome("d", family="injection"),
-    ])
+    report = calibrate(
+        [
+            _outcome("a", family="path", vuln="none", reason="sink_not_in_table"),
+            _outcome("b", family="path", vuln="none", reason="sink_not_in_table"),
+            _outcome("c", family="injection", vuln="none", reason="source_unmodelled"),
+            _outcome("d", family="injection"),
+        ]
+    )
     by_family = report.gaps_by_family()
     assert set(by_family) == {"path", "injection"}
     assert by_family["path"]["pairs"] == 2
@@ -65,10 +67,12 @@ def test_the_report_is_per_slice_and_names_the_deciding_one() -> None:
     """Req 9.3/11.1: the real-world slice decides; a development slice must not stand in for the corpus."""
     from openultrasast.model.calibrate import calibrate
 
-    report = calibrate([
-        _outcome("a", slice_name="vibe-py"),
-        _outcome("b", slice_name="vfc-js", vuln="none", reason="sink_not_in_table"),
-    ])
+    report = calibrate(
+        [
+            _outcome("a", slice_name="vibe-py"),
+            _outcome("b", slice_name="vfc-js", vuln="none", reason="sink_not_in_table"),
+        ]
+    )
     assert set(report.per_slice) == {"vibe-py", "vfc-js"}
     assert report.per_slice["vibe-py"]["covered"] == 1
     assert report.per_slice["vfc-js"]["gaps"] == 1

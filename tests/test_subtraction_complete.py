@@ -53,8 +53,14 @@ def test_no_surviving_module_imports_a_removed_one() -> None:
 
 def test_the_removed_modules_are_gone_from_the_tree() -> None:
     assert not (SRC / "learning").exists(), "the learning package is removed; taxonomy/candidates/endpoint live under model/"
-    for relative in ("semantic/mechanisms.py", "semantic/variants.py", "semantic/variant_search.py",
-                     "semantic/prove_budget.py", "semantic/loo.py", "semantic/seed.py"):
+    for relative in (
+        "semantic/mechanisms.py",
+        "semantic/variants.py",
+        "semantic/variant_search.py",
+        "semantic/prove_budget.py",
+        "semantic/loo.py",
+        "semantic/seed.py",
+    ):
         assert not (SRC / relative).exists(), f"{relative} still exists"
 
 
@@ -69,8 +75,16 @@ def test_the_mechanism_lever_is_gone_from_the_retained_improve_loop() -> None:
     """
     evolve = (SRC / "improve" / "evolve.py").read_text()
     validator = (SRC / "improve" / "validator.py").read_text()
-    for symbol in ("MechanismEdit", "MechanismStore", "apply_mechanism_edits", "evaluate_mechanism_profiles",
-                   "propose_mechanism_edits", "validate_mechanism", "mechanism_store", "mechanism_candidates"):
+    for symbol in (
+        "MechanismEdit",
+        "MechanismStore",
+        "apply_mechanism_edits",
+        "evaluate_mechanism_profiles",
+        "propose_mechanism_edits",
+        "validate_mechanism",
+        "mechanism_store",
+        "mechanism_candidates",
+    ):
         assert symbol not in evolve, f"{symbol} survives in improve/evolve.py"
         assert symbol not in validator, f"{symbol} survives in improve/validator.py"
     assert "def run_improvement(" in evolve and "def propose_status_edits(" in evolve, "the rule-status loop must survive"

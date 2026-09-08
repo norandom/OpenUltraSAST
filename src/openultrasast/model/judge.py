@@ -79,11 +79,14 @@ def judge(
 
     said_vulnerable = _ask(client, model, spec, answer.witness, function)
     if said_vulnerable is None:
-        return Verdict(rung=Rung.SUSPICION, family=spec.family, witness=answer.witness,
-                       contradiction="the judge returned no usable answer")
+        return Verdict(rung=Rung.SUSPICION, family=spec.family, witness=answer.witness, contradiction="the judge returned no usable answer")
     if not said_vulnerable:
-        return Verdict(rung=Rung.SUSPICION, family=spec.family, witness=answer.witness,
-                       contradiction="the judge held the sanitizer on this path sufficient")
+        return Verdict(
+            rung=Rung.SUSPICION,
+            family=spec.family,
+            witness=answer.witness,
+            contradiction="the judge held the sanitizer on this path sufficient",
+        )
     return answer  # CORROBORATED: a real flow the judge agrees is not neutralised
 
 
@@ -96,8 +99,13 @@ def _ask(client: Any, model: str, spec: TaintSpec, witness: str, function: str) 
         line = tail.split(",")[0].strip(") ")
     prompt = redact_secrets(
         QUESTION.format(
-            language=spec.language, source=source.strip(), sink=sink.strip(), line=line or "?",
-            function=function or "?", sanitized="yes", family=spec.family,
+            language=spec.language,
+            source=source.strip(),
+            sink=sink.strip(),
+            line=line or "?",
+            function=function or "?",
+            sanitized="yes",
+            family=spec.family,
         )
     )
     try:

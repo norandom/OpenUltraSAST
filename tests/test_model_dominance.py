@@ -31,8 +31,7 @@ def _cpg(rows):  # type: ignore[no-untyped-def]
 
 
 def _op(method: str, guards: list[str], line: int = 10) -> dict[str, object]:
-    return {"operation": "Note.query.filter_by(id=nid)", "opLine": str(line), "opMethod": method,
-            "dominatingGuards": guards}
+    return {"operation": "Note.query.filter_by(id=nid)", "opLine": str(line), "opMethod": method, "dominatingGuards": guards}
 
 
 def test_an_unguarded_operation_among_guarded_siblings_is_entailed() -> None:

@@ -62,10 +62,21 @@ def test_every_finding_shows_its_rung() -> None:
     from openultrasast.model.report import render_findings
 
     finding = StaticFinding(
-        finding_id="r:app.py:1", path="app.py", title="t", severity="high", confidence="medium",
-        evidence_level="static_corroboration", rationale="why", line=1, function_name="run",
-        reachability_status="unknown", reachability_evidence=[], reachability_conditions=[], tags=[],
-        ranking_priority=1.0, rung=Rung.ENTAILED,
+        finding_id="r:app.py:1",
+        path="app.py",
+        title="t",
+        severity="high",
+        confidence="medium",
+        evidence_level="static_corroboration",
+        rationale="why",
+        line=1,
+        function_name="run",
+        reachability_status="unknown",
+        reachability_evidence=[],
+        reachability_conditions=[],
+        tags=[],
+        ranking_priority=1.0,
+        rung=Rung.ENTAILED,
     )
     text = render_findings([finding])
     assert "model_entailed" in text and "app.py" in text

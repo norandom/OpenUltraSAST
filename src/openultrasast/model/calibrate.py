@@ -24,6 +24,7 @@ class FamilyGaps(TypedDict):
     pairs: int
     reasons: dict[str, int]
 
+
 # Ascending, matching `ladder.Rung`. A pair is split when the vulnerable side outranks its fix.
 _ORDER = {"none": 0, "": 0, "suspicion": 0, "model_corroborated": 1, "model_entailed": 2, "execution_confirmed": 3}
 
@@ -82,15 +83,18 @@ class CalibrationReport:
 
     def to_markdown(self) -> str:
         """Per-slice rows first; there is no headline here that is not backed by them (Req 9.3, 11.1)."""
-        lines = ["## Model calibration", "", "Coverage is a pair the model *splits*: a strictly higher rung on",
-                 "the vulnerable side than on its fix. Everything else is a named gap.", "",
-                 "| slice | pairs | covered | gaps | coverage |", "|---|---|---|---|---|"]
+        lines = [
+            "## Model calibration",
+            "",
+            "Coverage is a pair the model *splits*: a strictly higher rung on",
+            "the vulnerable side than on its fix. Everything else is a named gap.",
+            "",
+            "| slice | pairs | covered | gaps | coverage |",
+            "|---|---|---|---|---|",
+        ]
         for slice_name, block in sorted(self.per_slice.items()):
             pairs = block["pairs"] or 1
-            lines.append(
-                f"| {slice_name} | {block['pairs']} | {block['covered']} | {block['gaps']} | "
-                f"{block['covered'] / pairs:.0%} |"
-            )
+            lines.append(f"| {slice_name} | {block['pairs']} | {block['covered']} | {block['gaps']} | {block['covered'] / pairs:.0%} |")
         by_family = self.gaps_by_family()
         if by_family:
             lines += ["", "### Gaps by family", ""]
@@ -116,8 +120,9 @@ def calibrate(outcomes: Iterable[PairOutcome]) -> CalibrationReport:
         if split:
             covered.append(outcome.pair)
         else:
-            gaps.append(ModelGap(pair=outcome.pair, family=outcome.family, slice=outcome.slice,
-                                 reason=outcome.reason or _default_reason(outcome)))
+            gaps.append(
+                ModelGap(pair=outcome.pair, family=outcome.family, slice=outcome.slice, reason=outcome.reason or _default_reason(outcome))
+            )
     return CalibrationReport(
         covered=tuple(sorted(covered)),
         gaps=tuple(sorted(gaps, key=lambda g: (g.family, g.pair))),

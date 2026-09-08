@@ -14,9 +14,9 @@ from pathlib import Path
 def _spec():  # type: ignore[no-untyped-def]
     from openultrasast.model.specs import ConfigSpec
 
-    return ConfigSpec(family="config_secrets", language="python",
-                      settings=("CORS", "set_cookie", "app.run"),
-                      permissive=("'*'", '"*"', "True", "0.0.0.0"))
+    return ConfigSpec(
+        family="config_secrets", language="python", settings=("CORS", "set_cookie", "app.run"), permissive=("'*'", '"*"', "True", "0.0.0.0")
+    )
 
 
 def _cpg(rows):  # type: ignore[no-untyped-def]
@@ -29,8 +29,7 @@ def test_a_permissive_literal_is_entailed() -> None:
     from openultrasast.model.config_value import verdict
     from openultrasast.model.ladder import Rung
 
-    rows = [{"setting": 'CORS(app, origins="*")', "line": "3", "method": "create_app",
-             "literalArgs": ['"*"'], "args": ["app", '"*"']}]
+    rows = [{"setting": 'CORS(app, origins="*")', "line": "3", "method": "create_app", "literalArgs": ['"*"'], "args": ["app", '"*"']}]
     answer = verdict(_cpg(rows), _spec(), function="create_app")
     assert answer is not None and answer.rung is Rung.ENTAILED
     assert "*" in answer.witness and "CORS" in answer.witness
@@ -39,8 +38,15 @@ def test_a_permissive_literal_is_entailed() -> None:
 def test_a_restrictive_literal_yields_no_finding() -> None:
     from openultrasast.model.config_value import verdict
 
-    rows = [{"setting": 'CORS(app, origins="https://app.example")', "line": "3", "method": "create_app",
-             "literalArgs": ['"https://app.example"'], "args": ["app", '"https://app.example"']}]
+    rows = [
+        {
+            "setting": 'CORS(app, origins="https://app.example")',
+            "line": "3",
+            "method": "create_app",
+            "literalArgs": ['"https://app.example"'],
+            "args": ["app", '"https://app.example"'],
+        }
+    ]
     assert verdict(_cpg(rows), _spec(), function="create_app") is None
 
 
@@ -49,8 +55,15 @@ def test_a_non_literal_argument_is_corroborated_not_entailed() -> None:
     from openultrasast.model.config_value import verdict
     from openultrasast.model.ladder import Rung
 
-    rows = [{"setting": "CORS(app, origins=configured_origins)", "line": "3", "method": "create_app",
-             "literalArgs": [], "args": ["app", "configured_origins"]}]
+    rows = [
+        {
+            "setting": "CORS(app, origins=configured_origins)",
+            "line": "3",
+            "method": "create_app",
+            "literalArgs": [],
+            "args": ["app", "configured_origins"],
+        }
+    ]
     answer = verdict(_cpg(rows), _spec(), function="create_app")
     assert answer is not None and answer.rung is Rung.CORROBORATED
 
@@ -72,8 +85,7 @@ def test_a_failed_query_is_not_read_as_a_safe_configuration() -> None:
 def test_the_verdict_is_deterministic() -> None:
     from openultrasast.model.config_value import verdict
 
-    rows = [{"setting": 'set_cookie("s", secure=False)', "line": "9", "method": "login",
-             "literalArgs": ["True", "0.0.0.0"], "args": ["x"]}]
+    rows = [{"setting": 'set_cookie("s", secure=False)', "line": "9", "method": "login", "literalArgs": ["True", "0.0.0.0"], "args": ["x"]}]
     cpg = _cpg(rows)
     assert verdict(cpg, _spec(), function="login") == verdict(cpg, _spec(), function="login")
 
@@ -90,8 +102,12 @@ def test_the_settings_table_covers_the_frameworks_in_the_corpus() -> None:
     from openultrasast.model.specs import config_specs
 
     settings = set(config_specs(language="python")["config_secrets"].settings)
-    for framework, call in (("aiohttp", "session_setup"), ("aiohttp", "EncryptedCookieStorage"),
-                            ("django", "SECURE_SSL_REDIRECT"), ("flask", "set_cookie")):
+    for framework, call in (
+        ("aiohttp", "session_setup"),
+        ("aiohttp", "EncryptedCookieStorage"),
+        ("django", "SECURE_SSL_REDIRECT"),
+        ("flask", "set_cookie"),
+    ):
         assert call in settings, f"{framework}'s {call} is not a modelled security setting"
 
 
@@ -102,8 +118,7 @@ def test_a_weak_algorithm_is_entailed_by_its_literal() -> None:
     from openultrasast.model.specs import config_specs
 
     spec = config_specs(language="python")["config_secrets"]
-    rows = [{"setting": 'hashlib.new("md5")', "line": "4", "method": "digest",
-             "literalArgs": ['"md5"'], "args": ['"md5"']}]
+    rows = [{"setting": 'hashlib.new("md5")', "line": "4", "method": "digest", "literalArgs": ['"md5"'], "args": ['"md5"']}]
     answer = verdict(_cpg(rows), spec, function="digest")
     assert answer is not None and answer.rung is Rung.ENTAILED
     assert "md5" in answer.witness.lower()
@@ -114,6 +129,5 @@ def test_a_strong_algorithm_yields_no_finding() -> None:
     from openultrasast.model.specs import config_specs
 
     spec = config_specs(language="python")["config_secrets"]
-    rows = [{"setting": 'hashlib.new("sha256")', "line": "4", "method": "digest",
-             "literalArgs": ['"sha256"'], "args": ['"sha256"']}]
+    rows = [{"setting": 'hashlib.new("sha256")', "line": "4", "method": "digest", "literalArgs": ['"sha256"'], "args": ['"sha256"']}]
     assert verdict(_cpg(rows), spec, function="digest") is None

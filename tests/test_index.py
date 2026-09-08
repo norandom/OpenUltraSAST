@@ -100,5 +100,3 @@ def test_retrieval_package_is_bounded_by_character_budget() -> None:
     assert package.role == "verifier"
     assert package.hits
     assert package.truncated is True
-
-

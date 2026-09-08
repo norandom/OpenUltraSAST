@@ -71,8 +71,12 @@ def test_the_verdict_is_restricted_to_the_labeled_function() -> None:
 
     rows = [
         {
-            "sink": "os.system(x)", "sinkLine": "40", "sinkMethod": "elsewhere",
-            "source": "request.args['x']", "sanitized": False, "length": 2,
+            "sink": "os.system(x)",
+            "sinkLine": "40",
+            "sinkMethod": "elsewhere",
+            "source": "request.args['x']",
+            "sanitized": False,
+            "length": 2,
         }
     ]
     assert verdict(_cpg(rows), _spec(), function="run") is None, "a flow in another function does not judge this one"
@@ -141,10 +145,18 @@ def _shape_spec():  # type: ignore[no-untyped-def]
 def test_a_parameterised_sink_call_is_not_a_vulnerability_even_though_the_flow_reaches_it() -> None:
     from openultrasast.model.taint import verdict
 
-    rows = [{
-        "sink": 'db.execute("select ... = %s", (name,))', "sinkLine": "5", "sinkMethod": "run",
-        "source": "request.args['name']", "sanitized": False, "length": 4, "sinkArity": 2, "sinkArg0Literal": True,
-    }]
+    rows = [
+        {
+            "sink": 'db.execute("select ... = %s", (name,))',
+            "sinkLine": "5",
+            "sinkMethod": "run",
+            "source": "request.args['name']",
+            "sanitized": False,
+            "length": 4,
+            "sinkArity": 2,
+            "sinkArg0Literal": True,
+        }
+    ]
     assert verdict(_cpg(rows), _shape_spec(), function="run") is None, "a bound query is the fix, not the bug"
 
 
@@ -152,10 +164,18 @@ def test_an_interpolated_sink_call_of_the_same_name_is_entailed() -> None:
     from openultrasast.model.ladder import Rung
     from openultrasast.model.taint import verdict
 
-    rows = [{
-        "sink": 'db.execute("select ... \'" + name + "\'")', "sinkLine": "5", "sinkMethod": "run",
-        "source": "request.args['name']", "sanitized": False, "length": 4, "sinkArity": 1, "sinkArg0Literal": False,
-    }]
+    rows = [
+        {
+            "sink": 'db.execute("select ... \'" + name + "\'")',
+            "sinkLine": "5",
+            "sinkMethod": "run",
+            "source": "request.args['name']",
+            "sanitized": False,
+            "length": 4,
+            "sinkArity": 1,
+            "sinkArg0Literal": False,
+        }
+    ]
     answer = verdict(_cpg(rows), _shape_spec(), function="run")
     assert answer is not None and answer.rung is Rung.ENTAILED
 
@@ -165,10 +185,18 @@ def test_the_shape_test_only_applies_to_sinks_declared_safe_in_that_shape() -> N
     from openultrasast.model.ladder import Rung
     from openultrasast.model.taint import verdict
 
-    rows = [{
-        "sink": "os.system(full)", "sinkLine": "7", "sinkMethod": "run",
-        "source": "request.args['cmd']", "sanitized": False, "length": 5, "sinkArity": 1, "sinkArg0Literal": False,
-    }]
+    rows = [
+        {
+            "sink": "os.system(full)",
+            "sinkLine": "7",
+            "sinkMethod": "run",
+            "source": "request.args['cmd']",
+            "sanitized": False,
+            "length": 5,
+            "sinkArity": 1,
+            "sinkArg0Literal": False,
+        }
+    ]
     answer = verdict(_cpg(rows), _spec(), function="run")  # os.system is not in safe_shape_sinks
     assert answer is not None and answer.rung is Rung.ENTAILED
 
@@ -178,8 +206,7 @@ def test_a_row_without_shape_fields_is_judged_on_the_flow_alone() -> None:
     from openultrasast.model.ladder import Rung
     from openultrasast.model.taint import verdict
 
-    rows = [{"sink": "db.execute(q)", "sinkLine": "5", "sinkMethod": "run", "source": "request.args['n']",
-             "sanitized": False, "length": 3}]
+    rows = [{"sink": "db.execute(q)", "sinkLine": "5", "sinkMethod": "run", "source": "request.args['n']", "sanitized": False, "length": 3}]
     answer = verdict(_cpg(rows), _shape_spec(), function="run")
     assert answer is not None and answer.rung is Rung.ENTAILED
 
@@ -225,10 +252,17 @@ def test_a_sink_in_a_nested_closure_is_in_scope_when_the_query_says_so() -> None
     from openultrasast.model.ladder import Rung
     from openultrasast.model.taint import verdict
 
-    rows = [{
-        "sink": "fs.readFileSync(possibleFilename)", "sinkLine": "6", "sinkMethod": "<lambda>0",
-        "source": "req", "sanitized": False, "length": 4, "inLabeledScope": True,
-    }]
+    rows = [
+        {
+            "sink": "fs.readFileSync(possibleFilename)",
+            "sinkLine": "6",
+            "sinkMethod": "<lambda>0",
+            "source": "req",
+            "sanitized": False,
+            "length": 4,
+            "inLabeledScope": True,
+        }
+    ]
     answer = verdict(_cpg(rows), _spec(), function="requestListener")
     assert answer is not None and answer.rung is Rung.ENTAILED
     assert "<lambda>0" not in answer.witness, "the witness names the flow, not the synthetic closure name"
@@ -237,10 +271,17 @@ def test_a_sink_in_a_nested_closure_is_in_scope_when_the_query_says_so() -> None
 def test_a_sink_in_an_unrelated_function_stays_out_of_scope() -> None:
     from openultrasast.model.taint import verdict
 
-    rows = [{
-        "sink": "fs.readFileSync('/etc/' + name)", "sinkLine": "11", "sinkMethod": "unrelated",
-        "source": "name", "sanitized": False, "length": 2, "inLabeledScope": False,
-    }]
+    rows = [
+        {
+            "sink": "fs.readFileSync('/etc/' + name)",
+            "sinkLine": "11",
+            "sinkMethod": "unrelated",
+            "source": "name",
+            "sanitized": False,
+            "length": 2,
+            "inLabeledScope": False,
+        }
+    ]
     assert verdict(_cpg(rows), _spec(), function="requestListener") is None
 
 
@@ -248,8 +289,9 @@ def test_rows_without_the_scope_flag_fall_back_to_the_method_name() -> None:
     """A row from an engine that cannot report scope must not silently become in-scope."""
     from openultrasast.model.taint import verdict
 
-    rows = [{"sink": "os.system(x)", "sinkLine": "9", "sinkMethod": "<lambda>0",
-             "source": "request.args['x']", "sanitized": False, "length": 2}]
+    rows = [
+        {"sink": "os.system(x)", "sinkLine": "9", "sinkMethod": "<lambda>0", "source": "request.args['x']", "sanitized": False, "length": 2}
+    ]
     assert verdict(_cpg(rows), _spec(), function="run") is None
 
 
@@ -266,12 +308,33 @@ def test_a_flow_from_a_real_source_outranks_a_shorter_one_from_a_bare_parameter(
     from openultrasast.model.taint import verdict
 
     rows = [
-        {"sink": "fs.readFileSync(p)", "sinkLine": "6", "sinkMethod": "<lambda>0", "source": "res",
-         "sanitized": False, "length": 3, "inLabeledScope": True},
-        {"sink": "fs.readFileSync(p)", "sinkLine": "6", "sinkMethod": "<lambda>0", "source": "this",
-         "sanitized": False, "length": 7, "inLabeledScope": True},
-        {"sink": "fs.readFileSync(p)", "sinkLine": "6", "sinkMethod": "<lambda>0",
-         "source": "request.args['f']", "sanitized": False, "length": 11, "inLabeledScope": True},
+        {
+            "sink": "fs.readFileSync(p)",
+            "sinkLine": "6",
+            "sinkMethod": "<lambda>0",
+            "source": "res",
+            "sanitized": False,
+            "length": 3,
+            "inLabeledScope": True,
+        },
+        {
+            "sink": "fs.readFileSync(p)",
+            "sinkLine": "6",
+            "sinkMethod": "<lambda>0",
+            "source": "this",
+            "sanitized": False,
+            "length": 7,
+            "inLabeledScope": True,
+        },
+        {
+            "sink": "fs.readFileSync(p)",
+            "sinkLine": "6",
+            "sinkMethod": "<lambda>0",
+            "source": "request.args['f']",
+            "sanitized": False,
+            "length": 11,
+            "inLabeledScope": True,
+        },
     ]
     answer = verdict(_cpg(rows), _spec(), function="requestListener")
     assert answer is not None and answer.rung is Rung.ENTAILED
@@ -291,10 +354,24 @@ def test_a_modelled_source_flow_decides_even_when_a_parameter_flow_is_unsanitize
     from openultrasast.model.taint import verdict
 
     rows = [
-        {"sink": "fs.readFileSync(safe)", "sinkLine": "41", "sinkMethod": "<lambda>0", "source": "res",
-         "sanitized": False, "length": 3, "inLabeledScope": True},
-        {"sink": "fs.readFileSync(safe)", "sinkLine": "41", "sinkMethod": "<lambda>0",
-         "source": "request.args['f']", "sanitized": True, "length": 22, "inLabeledScope": True},
+        {
+            "sink": "fs.readFileSync(safe)",
+            "sinkLine": "41",
+            "sinkMethod": "<lambda>0",
+            "source": "res",
+            "sanitized": False,
+            "length": 3,
+            "inLabeledScope": True,
+        },
+        {
+            "sink": "fs.readFileSync(safe)",
+            "sinkLine": "41",
+            "sinkMethod": "<lambda>0",
+            "source": "request.args['f']",
+            "sanitized": True,
+            "length": 22,
+            "inLabeledScope": True,
+        },
     ]
     answer = verdict(_cpg(rows), _spec(), function="requestListener")
     assert answer is not None and answer.rung is Rung.CORROBORATED, "a sanitized real flow is not an entailment"
@@ -305,7 +382,16 @@ def test_parameter_flows_still_decide_when_no_modelled_source_reaches_the_sink()
     from openultrasast.model.ladder import Rung
     from openultrasast.model.taint import verdict
 
-    rows = [{"sink": "os.system(cmd)", "sinkLine": "4", "sinkMethod": "run", "source": "username",
-             "sanitized": False, "length": 2, "inLabeledScope": True}]
+    rows = [
+        {
+            "sink": "os.system(cmd)",
+            "sinkLine": "4",
+            "sinkMethod": "run",
+            "source": "username",
+            "sanitized": False,
+            "length": 2,
+            "inLabeledScope": True,
+        }
+    ]
     answer = verdict(_cpg(rows), _spec(), function="run")
     assert answer is not None and answer.rung is Rung.ENTAILED

@@ -234,9 +234,7 @@ def run_round(
         regressed,
         small,
     )
-    outcome = _outcome(
-        round_index, accepted=accepted, reason=reason, edits=edits, before=before, after=after, degradations=refusals
-    )
+    outcome = _outcome(round_index, accepted=accepted, reason=reason, edits=edits, before=before, after=after, degradations=refusals)
     return RoundOutcome(
         **{
             **outcome.__dict__,

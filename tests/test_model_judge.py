@@ -19,8 +19,7 @@ from pathlib import Path
 def _spec():  # type: ignore[no-untyped-def]
     from openultrasast.model.specs import TaintSpec
 
-    return TaintSpec(family="injection", language="python", sources=("request.args",),
-                     sinks=("os.system",), sanitizers=("escape",))
+    return TaintSpec(family="injection", language="python", sources=("request.args",), sinks=("os.system",), sanitizers=("escape",))
 
 
 def _cpg(rows):  # type: ignore[no-untyped-def]
@@ -29,8 +28,9 @@ def _cpg(rows):  # type: ignore[no-untyped-def]
     return CpgResult(cpg_path=Path("cpg.bin"), run=lambda q, p: rows)
 
 
-ENTAILING_ROW = [{"sink": "os.system(cmd)", "sinkLine": "4", "sinkMethod": "run",
-                  "source": "request.args['c']", "sanitized": False, "length": 3}]
+ENTAILING_ROW = [
+    {"sink": "os.system(cmd)", "sinkLine": "4", "sinkMethod": "run", "source": "request.args['c']", "sanitized": False, "length": 3}
+]
 
 
 class _Client:
@@ -75,8 +75,7 @@ def test_a_claim_the_model_supports_advances_to_corroborated() -> None:
     from openultrasast.model.judge import judge
     from openultrasast.model.ladder import Rung
 
-    rows = [{"sink": "os.system(cmd)", "sinkLine": "4", "sinkMethod": "run",
-             "source": "request.args['c']", "sanitized": True, "length": 3}]
+    rows = [{"sink": "os.system(cmd)", "sinkLine": "4", "sinkMethod": "run", "source": "request.args['c']", "sanitized": True, "length": 3}]
     client = _Client('{"vulnerable": true, "family": "injection"}')
     answer = judge(_cpg(rows), _spec(), function="run", client=client, model="m")
     assert answer.rung is Rung.CORROBORATED
@@ -88,8 +87,7 @@ def test_the_llm_declining_leaves_a_corroborated_flow_at_suspicion() -> None:
     from openultrasast.model.judge import judge
     from openultrasast.model.ladder import Rung
 
-    rows = [{"sink": "os.system(cmd)", "sinkLine": "4", "sinkMethod": "run",
-             "source": "request.args['c']", "sanitized": True, "length": 3}]
+    rows = [{"sink": "os.system(cmd)", "sinkLine": "4", "sinkMethod": "run", "source": "request.args['c']", "sanitized": True, "length": 3}]
     client = _Client('{"vulnerable": false, "family": "injection"}')
     answer = judge(_cpg(rows), _spec(), function="run", client=client, model="m")
     assert answer.rung is Rung.SUSPICION
@@ -101,8 +99,9 @@ def test_without_a_client_the_verdict_still_stands_on_its_own() -> None:
     from openultrasast.model.ladder import Rung
 
     assert judge(_cpg(ENTAILING_ROW), _spec(), function="run", client=None, model="").rung is Rung.ENTAILED
-    sanitized = [{"sink": "os.system(cmd)", "sinkLine": "4", "sinkMethod": "run",
-                  "source": "request.args['c']", "sanitized": True, "length": 3}]
+    sanitized = [
+        {"sink": "os.system(cmd)", "sinkLine": "4", "sinkMethod": "run", "source": "request.args['c']", "sanitized": True, "length": 3}
+    ]
     answer = judge(_cpg(sanitized), _spec(), function="run", client=None, model="")
     assert answer.rung is Rung.SUSPICION and "endpoint" in answer.contradiction.lower()
 
@@ -111,8 +110,7 @@ def test_the_question_is_bounded_typed_and_offers_no_tools() -> None:
     """Req 8.1: the LLM answers one question about a site it was handed; it never searches for the site."""
     from openultrasast.model.judge import judge
 
-    rows = [{"sink": "os.system(cmd)", "sinkLine": "4", "sinkMethod": "run",
-             "source": "request.args['c']", "sanitized": True, "length": 3}]
+    rows = [{"sink": "os.system(cmd)", "sinkLine": "4", "sinkMethod": "run", "source": "request.args['c']", "sanitized": True, "length": 3}]
     client = _Client()
     judge(_cpg(rows), _spec(), function="run", client=client, model="m")
     call = client.calls[0]
@@ -126,8 +124,16 @@ def test_the_prompt_is_redacted() -> None:
     """Req 11.4: every prompt passes through redaction."""
     from openultrasast.model.judge import judge
 
-    rows = [{"sink": "connect(pw)", "sinkLine": "4", "sinkMethod": "run",
-             "source": "AKIA" + "IOSFODNN7" + "EXAMPLE", "sanitized": True, "length": 2}]
+    rows = [
+        {
+            "sink": "connect(pw)",
+            "sinkLine": "4",
+            "sinkMethod": "run",
+            "source": "AKIA" + "IOSFODNN7" + "EXAMPLE",
+            "sanitized": True,
+            "length": 2,
+        }
+    ]
     client = _Client()
     judge(_cpg(rows), _spec(), function="run", client=client, model="m")
     text = " ".join(str(m.get("content", "")) for m in client.calls[0]["messages"])  # type: ignore[index,union-attr]
@@ -142,13 +148,11 @@ def test_there_is_no_k_run_averaging_anywhere_in_the_judge() -> None:
     tree = ast.parse(source)
 
     # Check CODE, not prose: the docstring is allowed to name the machinery it replaced.
-    names = {
-        node.id for node in ast.walk(tree) if isinstance(node, ast.Name)
-    } | {
-        node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute)
-    } | {
-        node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
-    }
+    names = (
+        {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
+        | {node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute)}
+        | {node.name for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)}
+    )
     for banned in ("k_runs", "majority", "vote", "votes", "average", "mean", "acceptance", "floor", "budget"):
         assert banned not in names, f"{banned} has no place in the judge"
 

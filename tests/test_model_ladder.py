@@ -15,9 +15,19 @@ def _finding(**kw: object):  # type: ignore[no-untyped-def]
     from openultrasast.findings import StaticFinding
 
     base = dict(
-        finding_id="r1:app.py:1", path="app.py", title="t", severity="high", confidence="medium",
-        evidence_level="static_corroboration", rationale="why", line=1, function_name="run",
-        reachability_status="unknown", reachability_evidence=[], reachability_conditions=[], tags=[],
+        finding_id="r1:app.py:1",
+        path="app.py",
+        title="t",
+        severity="high",
+        confidence="medium",
+        evidence_level="static_corroboration",
+        rationale="why",
+        line=1,
+        function_name="run",
+        reachability_status="unknown",
+        reachability_evidence=[],
+        reachability_conditions=[],
+        tags=[],
         ranking_priority=1.0,
     )
     base.update(kw)

@@ -1,47 +1,31 @@
 {
-  "correction": "The three silent config pairs were reported as corpus defects on a similarity measure (23%, 45%, 53%). That threshold came from the OWASP minimal-fix analysis and does not apply to this slice: vibe-py pairs a vulnerable function with a DIFFERENT, SAFE function from the same repository, so low similarity is the design. djangoat-views-user-view is 36% similar and dsvpwa-handlers-do-bdr 34%, both pair_correct. Two of the three were a settings-table gap and now split.",
-  "cost_note": "Four full runs of this measurement cost roughly $0.04 in total.",
-  "cost_usd": 0.0067,
-  "detection_rate": 0.9333,
-  "division_of_labour": {
-    "model_corroborated": 2,
-    "model_entailed": 11,
-    "note": "The model arbitrates 13 of 28 findings, up from 9 of 24 in run 1. Both findings gained in run 4 came from the MODEL, not the LLM, and cost fell from $0.0126 to $0.0067 as work moved onto the free deterministic path. That is the payoff curve for fact-table coverage, measured: closing a gap moves findings out of the LLM's column into the model's, improving precision and cost at once.",
-    "suspicion": 15
-  },
+  "caveat": "30 pairs of ONE slice, and the slice iterated against all session. The +16% overfitting gap against vfc-js is why contributor-scan Req 8.1 and 8.2 exist. A contributor-facing tool has to hold up on a repository nobody tuned against, which is what that spec's Req 4 and 10 are for.",
+  "cost_usd": 0.0068,
+  "detection_rate": 0.9667,
   "generated": "2026-09-08",
   "hunter_baseline": {
     "leak_rate": 0.123,
     "note": "deepseek-v4-flash K=5, 2026-09-06-learning-families.json",
     "pair_correct": 0.767
   },
-  "known_limit": "permissive_values is a flat list of literals with no keyword association, so it holds both True and False. debug=True is dangerous while httponly=True is safe and the model cannot tell them apart. It did not bite here -- run 4's leak is identical to run 3's -- but it is a real limit of the fact schema.",
   "leak_rate": 0.0667,
   "model": "deepseek-v4-flash",
   "outcomes": {
     "both_flagged": 2,
-    "both_silent": 2,
-    "pair_correct": 26
+    "both_silent": 1,
+    "pair_correct": 27
   },
-  "pair_correct_rate": 0.8667,
+  "pair_correct_rate": 0.9,
   "pairs": 30,
-  "reading": "The wired pipeline beats the LLM hunter on both axes: 86.7% pair-correct against 76.7%, and 6.7% leak against 12.3% -- at one fifth of the model calls (K=1 against K=5) and ~100x cheaper ($0.0067 against ~$0.69). The earlier 'detection has regressed' reading was taken with the proposer disconnected, an arbiter judged against a detector, and before four wiring bugs were found.",
-  "remaining_misses": {
-    "both_flagged": {
-      "cause": "the leak: LLM proposals the model cannot contradict",
-      "family": "injection",
-      "pairs": 2
-    },
-    "dsvpwa-dsvpwa-main": "its setting is an argparse default (--ssl defaulting to 0), a CLI default rather than a security-setting call. Predicted before the settings change and unchanged by it.",
-    "vampi-users-update-password": "the dominance arbiter returns corroborated for it in isolation; still undiagnosed at pipeline level."
-  },
+  "reading": "The wired pipeline beats the LLM hunter on both axes: 90.0% pair-correct against 76.7%, and 6.7% leak against 12.3% -- at one fifth of the model calls (K=1 against K=5) and ~100x cheaper ($0.0068 against ~$0.69). 27 of 30 pairs correct, one miss remaining. The earlier 'detection has regressed' reading was taken with the proposer disconnected -- an arbiter judged against a detector -- and before five wiring bugs were found.",
+  "remaining_miss": "dsvpwa-dsvpwa-main: its setting is an argparse default (--ssl defaulting to 0), a CLI default rather than a security-setting call. Predicted out of reach before the settings work and still is; contorting the arbiter around one pair would be worse than the miss.",
   "rows": [
     {
       "family": "injection",
       "fixed_findings": 2,
       "outcome": "both_flagged",
       "pair": "damn-vulnerable-graphql-application-views-mutate",
-      "vuln_findings": 4,
+      "vuln_findings": 3,
       "vuln_rungs": [
         "suspicion"
       ]
@@ -51,7 +35,7 @@
       "fixed_findings": 0,
       "outcome": "pair_correct",
       "pair": "damn-vulnerable-graphql-application-views-resolve-pastes",
-      "vuln_findings": 3,
+      "vuln_findings": 4,
       "vuln_rungs": [
         "suspicion"
       ]
@@ -119,7 +103,7 @@
       "fixed_findings": 0,
       "outcome": "pair_correct",
       "pair": "dsvpwa-handlers-do-bdr",
-      "vuln_findings": 4,
+      "vuln_findings": 3,
       "vuln_rungs": [
         "suspicion"
       ]
@@ -227,10 +211,12 @@
     {
       "family": "access_control",
       "fixed_findings": 0,
-      "outcome": "both_silent",
+      "outcome": "pair_correct",
       "pair": "vampi-users-update-password",
-      "vuln_findings": 0,
-      "vuln_rungs": []
+      "vuln_findings": 1,
+      "vuln_rungs": [
+        "model_corroborated"
+      ]
     },
     {
       "family": "injection",
@@ -335,30 +321,31 @@
   ],
   "run_history": [
     {
-      "leak": 0.067,
-      "note": "access_control and config_secrets had no pipeline path to their arbiters",
+      "note": "absence and config families had no pipeline path to their arbiters",
       "pair_correct": 0.733,
       "run": 1
     },
     {
-      "leak": 0.067,
-      "note": "family routing fixed -- IDENTICAL result, which was the clue: the arbiter was reached and its verdict discarded",
+      "note": "routing fixed -- IDENTICAL result, which was the clue: the arbiter was reached and its verdict discarded",
       "pair_correct": 0.733,
       "run": 2
     },
     {
-      "leak": 0.067,
-      "note": "residual question phrased for the arbiter that raised it; 2 of 3 access_control pairs converted",
+      "note": "residual question phrased for the arbiter that raised it",
       "pair_correct": 0.8,
       "run": 3
     },
     {
-      "leak": 0.067,
-      "note": "aiohttp Application/RedisStorage added to the settings table; 2 more config pairs converted, leak unchanged",
+      "note": "aiohttp Application(debug=True) and RedisStorage(httponly=False) added to the settings table",
       "pair_correct": 0.867,
       "run": 4
+    },
+    {
+      "note": "the dominance question no longer contradicts its own evidence line",
+      "pair_correct": 0.9,
+      "run": 5
     }
   ],
-  "seconds": 1029.0,
+  "seconds": 1213.5,
   "slice": "vibe-py"
 }

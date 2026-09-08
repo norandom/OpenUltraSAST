@@ -190,6 +190,7 @@ def taint_specs(
     scoped = (facts if facts is not None else load_facts()).for_language(language)
     families = taxonomy if taxonomy is not None else load_families()
     sources = tuple(sorted({pattern for fact in scoped.sources for pattern in fact.patterns}))
+
     # A shape qualifier means "this sink is safe in this form", never "this call cleans the value".
     def _is_shape(fact: object) -> bool:
         return bool(getattr(fact, "parameterized", False)) or getattr(fact, "literal_format_arg", None) is not None

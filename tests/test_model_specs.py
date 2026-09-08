@@ -26,7 +26,7 @@ def test_the_guard_classifier_still_recognises_each_kind() -> None:
 
     assert classify_guard_text('cur.execute("SELECT * FROM t WHERE id = %s", (uid,))') == "parameterized_call"
     assert classify_guard_text("if not current_user.is_authenticated: abort(403)") == "auth_check"
-    assert classify_guard_text('if name not in ALLOWED: abort(400)') == "allowlist_test"
+    assert classify_guard_text("if name not in ALLOWED: abort(400)") == "allowlist_test"
     assert classify_guard_text("if len(buf) > 64: return") == "bounds_test"
     assert classify_guard_text("if value is None: return") == "null_test"
     assert classify_guard_text("page = int(raw)") == "type_change"
@@ -50,8 +50,15 @@ def test_the_seeded_families_and_the_named_gaps_are_both_exact() -> None:
         seeded |= {spec.family for spec in dominance_specs(language=language).values()}
     deferred = {"unknown", "memory"}  # the declined bucket and the deferred execution tier
     assert seeded == {
-        "injection", "deserialization", "config_secrets", "access_control",
-        "path", "output_encoding", "untrusted_destination", "prototype", "memory",
+        "injection",
+        "deserialization",
+        "config_secrets",
+        "access_control",
+        "path",
+        "output_encoding",
+        "untrusted_destination",
+        "prototype",
+        "memory",
     }
     gaps = {family.id for family in taxonomy.families} - seeded - deferred
     assert gaps == set(), f"a family lost its seed: {sorted(gaps)}"

@@ -24,8 +24,7 @@ from pathlib import Path
 def _spec():  # type: ignore[no-untyped-def]
     from openultrasast.model.specs import TaintSpec
 
-    return TaintSpec(family="injection", language="python", sources=("request.args",),
-                     sinks=("os.system",), sanitizers=("escape",))
+    return TaintSpec(family="injection", language="python", sources=("request.args",), sinks=("os.system",), sanitizers=("escape",))
 
 
 def _cpg(rows):  # type: ignore[no-untyped-def]
@@ -46,10 +45,28 @@ class _Client:
         return ChatResponse(content=self._answer)
 
 
-ENTAILING = [{"sink": "os.system(cmd)", "sinkLine": "4", "sinkMethod": "run", "source": "request.args['c']",
-              "sanitized": False, "length": 3, "inLabeledScope": True}]
-SANITIZED = [{"sink": "os.system(cmd)", "sinkLine": "4", "sinkMethod": "run", "source": "request.args['c']",
-              "sanitized": True, "length": 3, "inLabeledScope": True}]
+ENTAILING = [
+    {
+        "sink": "os.system(cmd)",
+        "sinkLine": "4",
+        "sinkMethod": "run",
+        "source": "request.args['c']",
+        "sanitized": False,
+        "length": 3,
+        "inLabeledScope": True,
+    }
+]
+SANITIZED = [
+    {
+        "sink": "os.system(cmd)",
+        "sinkLine": "4",
+        "sinkMethod": "run",
+        "source": "request.args['c']",
+        "sanitized": True,
+        "length": 3,
+        "inLabeledScope": True,
+    }
+]
 
 
 def test_an_entailed_site_becomes_a_finding_with_no_model_call() -> None:
@@ -85,8 +102,14 @@ def test_a_candidate_the_model_cannot_see_is_reported_at_suspicion() -> None:
     from openultrasast.model.pipeline import scan_region
 
     client = _Client()
-    findings = scan_region(_cpg([]), _spec(), function="run", client=client, model="m",
-                           candidates=({"id": "app.py:9:raw_query", "text": "db.raw(q)", "line": 9},))
+    findings = scan_region(
+        _cpg([]),
+        _spec(),
+        function="run",
+        client=client,
+        model="m",
+        candidates=({"id": "app.py:9:raw_query", "text": "db.raw(q)", "line": 9},),
+    )
     assert client.calls == 1, "one bounded question per candidate"
     assert len(findings) == 1 and findings[0].rung is Rung.SUSPICION
     assert findings[0].site == "app.py:9:raw_query"
@@ -96,8 +119,14 @@ def test_a_candidate_the_judge_declines_is_not_reported() -> None:
     from openultrasast.model.pipeline import scan_region
 
     client = _Client('{"vulnerable": false, "why": "constant"}')
-    findings = scan_region(_cpg([]), _spec(), function="run", client=client, model="m",
-                           candidates=({"id": "app.py:9:x", "text": "db.raw('literal')", "line": 9},))
+    findings = scan_region(
+        _cpg([]),
+        _spec(),
+        function="run",
+        client=client,
+        model="m",
+        candidates=({"id": "app.py:9:x", "text": "db.raw('literal')", "line": 9},),
+    )
     assert findings == []
 
 
@@ -107,8 +136,9 @@ def test_without_a_client_only_what_the_model_establishes_is_reported() -> None:
     from openultrasast.model.pipeline import scan_region
 
     assert scan_region(_cpg(ENTAILING), _spec(), function="run", client=None, model="", candidates=())[0].rung is Rung.ENTAILED
-    assert scan_region(_cpg([]), _spec(), function="run", client=None, model="",
-                       candidates=({"id": "a:1:x", "text": "t", "line": 1},)) == []
+    assert (
+        scan_region(_cpg([]), _spec(), function="run", client=None, model="", candidates=({"id": "a:1:x", "text": "t", "line": 1},)) == []
+    )
 
 
 def test_the_candidate_budget_is_bounded() -> None:
@@ -132,8 +162,7 @@ def test_the_candidate_budget_is_bounded() -> None:
 def _dominance_spec():  # type: ignore[no-untyped-def]
     from openultrasast.model.specs import DominanceSpec
 
-    return DominanceSpec(family="access_control", language="python",
-                         operations=("filter_by",), dischargers=("current_user",))
+    return DominanceSpec(family="access_control", language="python", operations=("filter_by",), dischargers=("current_user",))
 
 
 def _config_spec():  # type: ignore[no-untyped-def]
@@ -146,9 +175,10 @@ def test_an_absence_family_is_arbitrated_by_dominance_not_taint() -> None:
     from openultrasast.model.ladder import Rung
     from openultrasast.model.pipeline import scan_region
 
-    rows = [{"operation": "Note.query.filter_by(id=n)", "opLine": "9", "opMethod": "leaky", "dominatingGuards": []},
-            {"operation": "Note.query.filter_by(id=n)", "opLine": "3", "opMethod": "safe",
-             "dominatingGuards": ["current_user.id"]}]
+    rows = [
+        {"operation": "Note.query.filter_by(id=n)", "opLine": "9", "opMethod": "leaky", "dominatingGuards": []},
+        {"operation": "Note.query.filter_by(id=n)", "opLine": "3", "opMethod": "safe", "dominatingGuards": ["current_user.id"]},
+    ]
     findings = scan_region(_cpg(rows), _dominance_spec(), function="leaky", client=None, model="", candidates=())
     assert len(findings) == 1 and findings[0].rung is Rung.ENTAILED
     assert findings[0].family == "access_control"
@@ -158,8 +188,7 @@ def test_a_configuration_family_is_arbitrated_by_constant_abstraction() -> None:
     from openultrasast.model.ladder import Rung
     from openultrasast.model.pipeline import scan_region
 
-    rows = [{"setting": 'CORS(app, origins="*")', "line": "3", "method": "create_app",
-             "literalArgs": ['"*"'], "args": ["app"]}]
+    rows = [{"setting": 'CORS(app, origins="*")', "line": "3", "method": "create_app", "literalArgs": ['"*"'], "args": ["app"]}]
     findings = scan_region(_cpg(rows), _config_spec(), function="create_app", client=None, model="", candidates=())
     assert len(findings) == 1 and findings[0].rung is Rung.ENTAILED
     assert findings[0].family == "config_secrets"
@@ -191,8 +220,10 @@ def test_a_corroborated_absence_finding_survives_a_judge_that_agrees() -> None:
     from openultrasast.model.ladder import Rung
     from openultrasast.model.pipeline import scan_region
 
-    rows = [{"operation": "q.filter_by(id=n)", "opLine": "9", "opMethod": "leaky", "dominatingGuards": []},
-            {"operation": "q.filter_by(id=n)", "opLine": "3", "opMethod": "safe", "dominatingGuards": ["current_user"]}]
+    rows = [
+        {"operation": "q.filter_by(id=n)", "opLine": "9", "opMethod": "leaky", "dominatingGuards": []},
+        {"operation": "q.filter_by(id=n)", "opLine": "3", "opMethod": "safe", "dominatingGuards": ["current_user"]},
+    ]
     findings = scan_region(_cpg(rows), _dominance_spec(), function="leaky", client=_Client(), model="m", candidates=())
     assert len(findings) == 1 and findings[0].rung is Rung.ENTAILED
 
