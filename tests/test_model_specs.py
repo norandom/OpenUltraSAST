@@ -128,19 +128,20 @@ def test_safe_shape_sinks_are_kept_for_the_shape_test() -> None:
     assert c_memory is not None and "printf" in c_memory.safe_shape_sinks
 
 
-def test_dischargers_carry_identity_and_constraint_tokens_but_not_the_negative_fields() -> None:
-    """A discharger fact spreads across six fields and two of them mean the opposite.
+def test_dischargers_carry_identity_tokens_but_not_the_negative_fields() -> None:
+    """A discharger fact spreads across six fields and only three of them evidence a discharge.
 
-    `identity_sources` (current_user, request.user) and `constraint_params` (owner_id, user_id) are how an
-    identity constraint is actually written, and omitting them left the absence arbiter reporting "no guard"
-    on a handler that plainly had one. `request_sources` and `permissive_values` are excluded because they
-    describe the vulnerable shape, not the fix -- including them would let the arbiter read a bug as its fix.
+    `identity_sources` (current_user, request.user) is how an identity constraint is actually written, and
+    omitting it left the absence arbiter reporting "no guard" on handlers that plainly had one.
+    `request_sources` and `permissive_values` describe the vulnerable shape rather than the fix -- including
+    them would let the arbiter read a bug as its own fix. (`constraint_params` is excluded too, for a
+    different reason, covered by its own test.)
     """
     from openultrasast.model.specs import dominance_specs
     from openultrasast.semantic.obligations import load_obligation_facts
 
     spec = dominance_specs(language="python")["access_control"]
-    assert "current_user" in spec.dischargers and "owner_id" in spec.dischargers
+    assert "current_user" in spec.dischargers
     assert "login_required" in spec.dischargers  # decorators still present
 
     facts = load_obligation_facts().for_language("python")
@@ -148,3 +149,22 @@ def test_dischargers_carry_identity_and_constraint_tokens_but_not_the_negative_f
         v for fact in facts.dischargers for v in fact.permissive_values
     }
     assert not (negative & set(spec.dischargers)), "the negative fields must never read as a discharge"
+
+
+def test_constraint_params_are_not_dischargers_on_their_own() -> None:
+    """A field named `user_id` is what an IDOR is MADE OF, not what fixes one.
+
+    `filter_by(id=user_id)` with `user_id` taken off the request is the bug. The original checker only
+    counted an identity constraint whose value's provenance was the authenticated context, so the parameter
+    name alone evidences nothing. Treating it as a guard silenced the entire access_control family: on
+    threatbyte-api-v1-delete every operation reported as guarded, and the arbiter found no bug at all.
+    """
+    from openultrasast.model.specs import dominance_specs
+    from openultrasast.semantic.obligations import load_obligation_facts
+
+    spec = dominance_specs(language="python")["access_control"]
+    facts = load_obligation_facts().for_language("python")
+    params = {p for fact in facts.dischargers for p in fact.constraint_params}
+    assert params, "the fixture would be vacuous if the facts carried no constraint params"
+    assert not (params & set(spec.dischargers)), f"constraint params must not discharge alone: {sorted(params & set(spec.dischargers))}"
+    assert "current_user" in spec.dischargers, "identity sources still do discharge"

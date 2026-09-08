@@ -30,7 +30,11 @@
   val opNames     = split(operations)
   val guardTokens = split(dischargers)
 
-  def mentionsGuard(code: String): Boolean = guardTokens.exists(g => code.contains(g))
+  // Word-boundary matching, never substring. A discharger token like `user` matched as a substring hits
+  // `users` inside "SELECT * FROM users WHERE id = ?", marking a textbook IDOR as guarded -- a silent false
+  // negative on the one family this arbiter exists for.
+  def mentionsGuard(code: String): Boolean =
+    guardTokens.exists(g => java.util.regex.Pattern.compile("(?<![A-Za-z0-9_])" + java.util.regex.Pattern.quote(g) + "(?![A-Za-z0-9_])").matcher(code).find())
 
   // Match by CALL NAME, never by code containment: the frontend desugars `Note.query.filter_by(x).first()`
   // into a chain of temporaries, and matching on code yields four or five rows for one operation -- some of

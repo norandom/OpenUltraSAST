@@ -109,11 +109,16 @@ class DominanceSpec:
 
         calls, decorators          an explicit guard: ``login_required``, ``check_owner``
         identity_sources           the authenticated context: ``current_user``, ``request.user``
-        constraint_params          a field that constrains by identity: ``owner_id``, ``user_id``
 
-    ``request_sources`` and ``permissive_values`` are excluded because they describe the NEGATIVE case -- a
-    value that comes from the request discharges nothing, and a permissive literal is the bug rather than the
-    guard. Including them would let the absence arbiter read a vulnerability as its own fix.
+    Three fields are deliberately excluded, and each for a different reason:
+
+        constraint_params          NOT a discharge on its own. A field named ``user_id`` is what an IDOR is
+                                   *made of* -- ``filter_by(id=user_id)`` with ``user_id`` off the request is
+                                   the bug, not the fix. The original checker only counted a constraint whose
+                                   value's provenance was the authenticated context, so the param name alone
+                                   evidences nothing and treating it as a guard silences the whole family.
+        request_sources            a value from the request discharges nothing, by definition.
+        permissive_values          a permissive literal is the bug, not the guard.
     """
 
     family: str
@@ -205,7 +210,6 @@ def dominance_specs(*, language: str, facts: ObligationFacts | None = None) -> M
             {call for fact in scoped.dischargers for call in fact.calls}
             | {decorator for fact in scoped.dischargers for decorator in fact.decorators}
             | {source for fact in scoped.dischargers for source in fact.identity_sources}
-            | {param for fact in scoped.dischargers for param in fact.constraint_params}
         )
     )
     return {"access_control": DominanceSpec(family="access_control", language=language, operations=operations, dischargers=dischargers)}
