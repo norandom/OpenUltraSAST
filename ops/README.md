@@ -3,6 +3,37 @@
 Infrastructure for the optional engines. Nothing here is a project dependency: the core install is
 `dependencies = []` and every engine below degrades to a recorded reason when it is absent.
 
+## Use it as a command
+
+Source the wrapper once and Docker stops being something you think about:
+
+```bash
+# ~/.bashrc or ~/.zshrc
+source /path/to/OpenUltraSAST/ops/shell/ousast.sh
+```
+
+```powershell
+# $PROFILE
+. C:\path\to\OpenUltraSAST\ops\shell\ousast.ps1
+```
+
+Then, from any directory:
+
+```bash
+ousast scan .
+ousast scan src/api
+ousast-with-judge scan .     # opt into the LLM judge: needs network and a key
+```
+
+The wrapper rewrites paths under your working directory to their mounted equivalents, so `src/api` means what
+you expect. Anything outside the mount is passed through unchanged with a warning rather than silently
+rewritten into a path the container cannot see. Your directory is mounted **read-only**; findings go to
+`./.ousast`, the one writable mount. The image builds itself on first use and says so.
+
+If `joern-parse` is already on your PATH and a local venv exists, the wrapper uses those instead — someone who
+installed the engine deliberately should not be quietly routed through a container. Set
+`OUSAST_PREFER_NATIVE=0` to always containerise.
+
 ## Two ways to get the engine
 
 **Docker (recommended for contributors).** The tool and Joern ship in one image, so nothing is installed on

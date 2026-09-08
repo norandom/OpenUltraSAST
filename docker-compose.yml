@@ -15,8 +15,8 @@ services:
         JOERN_VERSION: ${JOERN_VERSION:-v4.0.623}
     image: openultrasast:${OUSAST_VERSION:-dev}
     volumes:
-      - ${TARGET:-.}:/target:ro          # the repository under analysis, read-only
-      - ./reports:/reports               # where findings land, the one writable mount
+      - ${TARGET:-.}:/target:ro                       # the repository under analysis, read-only
+      - ${OUSAST_REPORTS:-./reports}:/reports          # where findings land, the one writable mount
     working_dir: /work
     tmpfs:
       # CPG construction is scratch-heavy and none of it should outlive the run or touch the host.
