@@ -76,13 +76,28 @@ def classify_guard_text(text: str) -> str:
 
 @dataclass(frozen=True)
 class TaintSpec:
-    """What a flow family's source→sink−sanitizer query matches on, for one language."""
+    """What a flow family's source-to-sink-minus-sanitizer query matches on, for one language.
+
+    ``sanitizers`` holds only *cleansing calls* -- a node on the flow path that makes the value safe, such as
+    ``ast.literal_eval``. It deliberately excludes every fact that carries a **shape qualifier**, because
+    those describe a safe *form of the sink call*, not a call that cleans a value:
+
+        parameterized        ``execute(sql, params)`` binds rather than interpolates
+        literal_format_arg   ``printf("literal", x)`` has a constant format string
+
+    Flattening either kind into the sanitizer list is actively wrong: the sink becomes its own sanitizer, so
+    every flow through it reports as already-clean and nothing is ever entailed. Both were present in the
+    shipped facts (`execute` for Python, the whole printf family for C) and both surfaced on the first live
+    Joern run. The names are kept in ``safe_shape_sinks`` so the shape test can be modelled properly in task
+    4.2 rather than silently mis-modelled here.
+    """
 
     family: str
     language: str
     sources: tuple[str, ...]
     sinks: tuple[str, ...]
     sanitizers: tuple[str, ...]
+    safe_shape_sinks: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -113,7 +128,12 @@ def taint_specs(
     scoped = (facts if facts is not None else load_facts()).for_language(language)
     families = taxonomy if taxonomy is not None else load_families()
     sources = tuple(sorted({pattern for fact in scoped.sources for pattern in fact.patterns}))
-    sanitizers = tuple(sorted({call for fact in scoped.sanitizers for call in fact.calls}))
+    # A shape qualifier means "this sink is safe in this form", never "this call cleans the value".
+    def _is_shape(fact: object) -> bool:
+        return bool(getattr(fact, "parameterized", False)) or getattr(fact, "literal_format_arg", None) is not None
+
+    sanitizers = tuple(sorted({call for fact in scoped.sanitizers if not _is_shape(fact) for call in fact.calls}))
+    safe_shapes = tuple(sorted({call for fact in scoped.sanitizers if _is_shape(fact) for call in fact.calls}))
     by_family: dict[str, set[str]] = {}
     for sink in scoped.sinks:
         family = families.family_of_cwe(sink.cwe)
@@ -121,7 +141,14 @@ def taint_specs(
             continue
         by_family.setdefault(family.id, set()).update(sink.calls)
     return {
-        family_id: TaintSpec(family=family_id, language=language, sources=sources, sinks=tuple(sorted(calls)), sanitizers=sanitizers)
+        family_id: TaintSpec(
+            family=family_id,
+            language=language,
+            sources=sources,
+            sinks=tuple(sorted(calls)),
+            sanitizers=sanitizers,
+            safe_shape_sinks=safe_shapes,
+        )
         for family_id, calls in sorted(by_family.items())
     }
 

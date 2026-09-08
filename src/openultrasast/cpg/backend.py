@@ -109,7 +109,7 @@ class JoernBackend:
         scratch = Path(tempfile.mkdtemp(prefix="ousast-cpg-"))
         cpg_path = scratch / "cpg.bin"
         command = [parse or "joern-parse", str(root), "--output", str(cpg_path)]
-        completed = self._run(command, timeout=self.build_timeout)
+        completed = self._run(command, timeout=self.build_timeout, cwd=scratch)
         if completed is None or completed.returncode != 0 or not cpg_path.is_file():
             detail = (completed.stderr or completed.stdout or "")[-400:] if completed is not None else "timeout"
             logger.warning("cpg build failed for %s: %s", root, detail)
@@ -125,17 +125,19 @@ class JoernBackend:
         command = [shutil.which("joern") or "joern", "--script", str(script), "--param", f"cpgFile={cpg_path}"]
         for key, value in sorted(params.items()):
             command += ["--param", f"{key}={_render(value)}"]
-        completed = self._run(command, timeout=self.query_timeout)
+        # Joern writes a `workspace/` beside the working directory; run it inside the CPG's own scratch dir so
+        # it can never land in the repository being analysed.
+        completed = self._run(command, timeout=self.query_timeout, cwd=cpg_path.parent)
         if completed is None or completed.returncode != 0:
             detail = (completed.stderr or "")[-400:] if completed is not None else "timeout"
             logger.warning("cpg query %s failed: %s", query, detail)
             return None
         return extract_payload(completed.stdout or "")
 
-    def _run(self, command: list[str], *, timeout: int) -> subprocess.CompletedProcess[str] | None:
+    def _run(self, command: list[str], *, timeout: int, cwd: Path | None = None) -> subprocess.CompletedProcess[str] | None:
         run = self.runner if self.runner is not None else subprocess.run
         try:
-            return run(command, capture_output=True, text=True, timeout=timeout, check=False)
+            return run(command, capture_output=True, text=True, timeout=timeout, check=False, cwd=str(cwd) if cwd else None)
         except (OSError, subprocess.SubprocessError):
             return None
 

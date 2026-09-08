@@ -99,3 +99,30 @@ def test_the_specs_module_exposes_no_writer() -> None:
     ]
     assert not writers, f"specs must be read-only, found writers: {writers}"
     assert "open(" not in SPECS.read_text().replace("# ", ""), "specs must not open a file for writing"
+
+
+def test_a_sink_is_never_its_own_sanitizer() -> None:
+    """A parameterized fact names a safe sink *shape*, not a cleansing call on the path.
+
+    Two shipped facts have this shape: `parameterized_execute` ("execute with bound parameters is safe") and
+    C's `literal_format` ("printf with a constant format string is safe"). Flattened into the sanitizer list
+    each makes its sink its own sanitizer, so every flow through it reports as already-clean and nothing is
+    ever entailed. Both were caught on the first live Joern run — the second only because the first was fixed
+    as a class rather than as an instance.
+    """
+    from openultrasast.model.specs import taint_specs
+
+    for language in ("python", "javascript", "java", "c"):
+        for spec in taint_specs(language=language).values():
+            overlap = set(spec.sinks) & set(spec.sanitizers)
+            assert not overlap, f"{language}/{spec.family}: sink is its own sanitizer: {sorted(overlap)}"
+
+
+def test_safe_shape_sinks_are_kept_for_the_shape_test() -> None:
+    from openultrasast.model.specs import taint_specs
+
+    spec = taint_specs(language="python")["injection"]
+    assert "execute" in spec.safe_shape_sinks, "the safe-shape names must survive for a later shape test"
+    assert "execute" not in spec.sanitizers
+    c_memory = taint_specs(language="c").get("memory")
+    assert c_memory is not None and "printf" in c_memory.safe_shape_sinks

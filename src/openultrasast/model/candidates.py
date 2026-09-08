@@ -18,7 +18,10 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from .taxonomy import FamilyTaxonomy
 
 CandidateKind = Literal["call", "bind", "operation", "config"]
 
@@ -255,7 +258,7 @@ class CandidateReport:
         }
 
 
-def ceiling(cases: Sequence[object], *, taxonomy: object, generator: str = "ir") -> CandidateReport:
+def ceiling(cases: Sequence[object], *, taxonomy: FamilyTaxonomy, generator: str = "ir") -> CandidateReport:
     """Per family and per slice, the fraction of labeled functions a generator can put a candidate inside.
 
     ``generator`` is ``ir`` or ``ruleset``. The ruleset arm exists so the comparison that rejected it — 12.1%
@@ -269,7 +272,7 @@ def ceiling(cases: Sequence[object], *, taxonomy: object, generator: str = "ir")
     gaps: list[tuple[str, str, str]] = []
     sites: dict[str, list[int]] = {}
     for case in cases:
-        family = labeled_family(case)
+        family = labeled_family(case, taxonomy)
         slice_name = str(getattr(case, "slice", "") or "")
         region_path = str(getattr(case, "relpath", "") or "")
         with tempfile.TemporaryDirectory(prefix="ousast-ceiling-") as scratch:
@@ -329,17 +332,37 @@ def _distribution(counts: list[int]) -> dict[str, int]:
     }
 
 
-def labeled_family(case: object) -> str:
-    """The family a pair is labeled with, or ``unknown``.
+def labeled_family(case: object, taxonomy: FamilyTaxonomy | None = None) -> str:
+    """The family a pair belongs to, derived deterministically: declared label, else obligation, else mechanism,
+    else CWE. ``unknown`` when none of those resolve.
 
-    The deleted ``learning/rounds.py`` fell back to the LLM classifier here. Nothing does now: an unlabeled
-    pair is honestly ``unknown`` rather than guessed, which is the same discipline the evidence ladder applies
-    to a claim the model cannot arbitrate.
+    The deleted ``learning/classify.py`` had exactly this chain and only asked an LLM when every link failed —
+    which, for a labeled corpus, was never. Group 1 first reduced this to the declared label alone, which
+    silently emptied every family whose pairs are labeled by CWE rather than by name; the chain is restored
+    here because it was never the noisy part.
     """
+    from .taxonomy import load_families
+
+    families: FamilyTaxonomy = taxonomy if taxonomy is not None else load_families()
+    declared: list[str] = []
+    derived: list[str] = []
     for row in getattr(case, "expected", ()) or ():
-        family = getattr(row, "family", None)
-        if family:
-            return str(family)
+        label = getattr(row, "family", None)
+        if label and any(family.id == label for family in families.families):
+            declared.append(str(label))
+            continue
+        if getattr(row, "obligation", None):
+            derived.append("access_control")
+        mechanism = getattr(row, "mechanism", None)
+        by_mechanism = families.family_of_mechanism(str(mechanism)) if mechanism else None
+        if by_mechanism is not None and by_mechanism.id != "unknown":
+            derived.append(by_mechanism.id)
+            continue
+        by_cwe = families.family_of_cwe(str(getattr(row, "cwe", "") or ""))
+        if by_cwe is not None and by_cwe.id != "unknown":
+            derived.append(by_cwe.id)
+    for family in declared or derived:
+        return family
     return "unknown"
 
 
