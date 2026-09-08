@@ -204,3 +204,108 @@ def test_parameter_sources_are_opt_in_and_reach_the_query() -> None:
     assert seen["parameterSources"] == "false", "treating every parameter as untrusted is not the default"
     verdict(CpgResult(cpg_path=Path("c.bin"), run=run), _spec(), function="run", parameter_sources=True)
     assert seen["parameterSources"] == "true"
+
+
+# --- closure scoping (group 4 finding) -----------------------------------------------------------------
+#
+# JavaScript is callback-heavy, so the method containing a sink routinely is not the labeled function:
+#
+#     function requestListener(req, res) {          // labeled
+#         fs.stat(possibleFilename, function(err, stats) {
+#             fs.readFileSync(possibleFilename)     // sink, enclosing method is <lambda>0
+#         })
+#     }
+#
+# Filtering on `sinkMethod == function` dropped every such sink -- the whole `path` family measured 0/8.
+# The query now decides scope by line-range containment and reports it; the Python side trusts that flag and
+# keeps the name comparison only as a fallback for rows that carry no flag.
+
+
+def test_a_sink_in_a_nested_closure_is_in_scope_when_the_query_says_so() -> None:
+    from openultrasast.model.ladder import Rung
+    from openultrasast.model.taint import verdict
+
+    rows = [{
+        "sink": "fs.readFileSync(possibleFilename)", "sinkLine": "6", "sinkMethod": "<lambda>0",
+        "source": "req", "sanitized": False, "length": 4, "inLabeledScope": True,
+    }]
+    answer = verdict(_cpg(rows), _spec(), function="requestListener")
+    assert answer is not None and answer.rung is Rung.ENTAILED
+    assert "<lambda>0" not in answer.witness, "the witness names the flow, not the synthetic closure name"
+
+
+def test_a_sink_in_an_unrelated_function_stays_out_of_scope() -> None:
+    from openultrasast.model.taint import verdict
+
+    rows = [{
+        "sink": "fs.readFileSync('/etc/' + name)", "sinkLine": "11", "sinkMethod": "unrelated",
+        "source": "name", "sanitized": False, "length": 2, "inLabeledScope": False,
+    }]
+    assert verdict(_cpg(rows), _spec(), function="requestListener") is None
+
+
+def test_rows_without_the_scope_flag_fall_back_to_the_method_name() -> None:
+    """A row from an engine that cannot report scope must not silently become in-scope."""
+    from openultrasast.model.taint import verdict
+
+    rows = [{"sink": "os.system(x)", "sinkLine": "9", "sinkMethod": "<lambda>0",
+             "source": "request.args['x']", "sanitized": False, "length": 2}]
+    assert verdict(_cpg(rows), _spec(), function="run") is None
+
+
+def test_a_flow_from_a_real_source_outranks_a_shorter_one_from_a_bare_parameter() -> None:
+    """Shortest-wins alone picks the wrong witness once closures are in scope.
+
+    In the angular-http-server shape the closure yields three unsanitized flows to one sink:
+    `req.url.split('?')[0]` (11 steps, the actual vulnerability), `res` (3 steps) and `this` (7). Shortest
+    would report `res -> fs.readFileSync(...)`, which names no attacker input and is simply untrue. A flow
+    whose source matches the spec's source model outranks one from a bare captured name; shortest still
+    breaks ties, so the order stays total and the verdict deterministic.
+    """
+    from openultrasast.model.ladder import Rung
+    from openultrasast.model.taint import verdict
+
+    rows = [
+        {"sink": "fs.readFileSync(p)", "sinkLine": "6", "sinkMethod": "<lambda>0", "source": "res",
+         "sanitized": False, "length": 3, "inLabeledScope": True},
+        {"sink": "fs.readFileSync(p)", "sinkLine": "6", "sinkMethod": "<lambda>0", "source": "this",
+         "sanitized": False, "length": 7, "inLabeledScope": True},
+        {"sink": "fs.readFileSync(p)", "sinkLine": "6", "sinkMethod": "<lambda>0",
+         "source": "request.args['f']", "sanitized": False, "length": 11, "inLabeledScope": True},
+    ]
+    answer = verdict(_cpg(rows), _spec(), function="requestListener")
+    assert answer is not None and answer.rung is Rung.ENTAILED
+    assert "request.args['f']" in answer.witness, f"witness named no real source: {answer.witness}"
+    assert verdict(_cpg(rows), _spec(), function="requestListener") == answer  # still deterministic
+
+
+def test_a_modelled_source_flow_decides_even_when_a_parameter_flow_is_unsanitized() -> None:
+    """Parameter sources are a fallback, never an override.
+
+    On the fixed angular-http-server side the real flow `req.url -> ... -> readFileSync` IS sanitized by
+    path.normalize, but the captured `res` parameter also reaches the sink unsanitized. Judging on the union
+    reports the fix as still vulnerable, on the strength of a flow that names no attacker input. When any
+    modelled source reaches the sink, those flows are the evidence and the bare-parameter ones are ignored.
+    """
+    from openultrasast.model.ladder import Rung
+    from openultrasast.model.taint import verdict
+
+    rows = [
+        {"sink": "fs.readFileSync(safe)", "sinkLine": "41", "sinkMethod": "<lambda>0", "source": "res",
+         "sanitized": False, "length": 3, "inLabeledScope": True},
+        {"sink": "fs.readFileSync(safe)", "sinkLine": "41", "sinkMethod": "<lambda>0",
+         "source": "request.args['f']", "sanitized": True, "length": 22, "inLabeledScope": True},
+    ]
+    answer = verdict(_cpg(rows), _spec(), function="requestListener")
+    assert answer is not None and answer.rung is Rung.CORROBORATED, "a sanitized real flow is not an entailment"
+    assert "request.args['f']" in answer.witness
+
+
+def test_parameter_flows_still_decide_when_no_modelled_source_reaches_the_sink() -> None:
+    from openultrasast.model.ladder import Rung
+    from openultrasast.model.taint import verdict
+
+    rows = [{"sink": "os.system(cmd)", "sinkLine": "4", "sinkMethod": "run", "source": "username",
+             "sanitized": False, "length": 2, "inLabeledScope": True}]
+    answer = verdict(_cpg(rows), _spec(), function="run")
+    assert answer is not None and answer.rung is Rung.ENTAILED

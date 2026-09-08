@@ -45,9 +45,14 @@ def verdict(cpg: CpgResult, spec: TaintSpec, *, function: str = "", parameter_so
     flows = [flow for flow in flows if not _has_safe_shape(flow, spec)]
     if not flows:
         return None
-    unsanitized = [flow for flow in flows if not flow["sanitized"]]
-    # Deterministic by construction: sort, then take the first. Nothing here depends on engine ordering.
-    chosen = min(unsanitized or flows, key=_rank)
+    # Parameter sources are a FALLBACK, never an override. When a modelled source reaches the sink, those
+    # flows are the evidence: a captured `res` parameter also reaching it unsanitized must not report a fix as
+    # still vulnerable on the strength of a flow that names no attacker input.
+    modelled = [flow for flow in flows if _from_modelled_source(flow, spec)]
+    considered = modelled or flows
+    unsanitized = [flow for flow in considered if not flow["sanitized"]]
+    # Deterministic by construction: a total order, then take the first. Nothing depends on engine ordering.
+    chosen = min(unsanitized or considered, key=lambda flow: _rank(flow, spec))
     rung = Rung.ENTAILED if not chosen["sanitized"] else Rung.CORROBORATED
     return Verdict(rung=rung, family=spec.family, witness=_witness(chosen))
 
@@ -60,12 +65,13 @@ def _flows(rows: object, *, function: str) -> list[dict[str, object]]:
     for row in rows:
         if not isinstance(row, Mapping):
             continue
-        if function and str(row.get("sinkMethod", "")) != function:
+        if function and not _in_scope(row, function):
             continue
         kept.append({
             "sink": str(row.get("sink", "")),
             "sinkArity": row.get("sinkArity"),
             "sinkArg0Literal": row.get("sinkArg0Literal"),
+            "inLabeledScope": row.get("inLabeledScope"),
             "sinkLine": str(row.get("sinkLine", "")),
             "sinkMethod": str(row.get("sinkMethod", "")),
             "source": str(row.get("source", "")),
@@ -100,9 +106,37 @@ def _as_int(value: object) -> int:
     return int(value) if isinstance(value, int | float) else 0
 
 
-def _rank(flow: Mapping[str, object]) -> tuple[int, str, str]:
-    """Shortest flow first, then lexicographic — a total order, so two runs cannot disagree."""
-    return (_as_int(flow["length"]), str(flow["source"]), str(flow["sink"]))
+def _in_scope(row: Mapping[str, object], function: str) -> bool:
+    """Is this sink inside the labeled function, counting closures nested within it?
+
+    JavaScript is callback-heavy, so the method containing a sink routinely is not the labeled function --
+    `fs.readFileSync` inside the callback passed to `fs.stat` has enclosing method `<lambda>0`. The query
+    decides containment by line range and reports it here; a row that carries no flag falls back to the name
+    comparison, because an engine that cannot report scope must not have its sinks silently treated as scoped.
+    """
+    flag = row.get("inLabeledScope")
+    if isinstance(flag, bool):
+        return flag
+    return str(row.get("sinkMethod", "")) == function
+
+
+def _from_modelled_source(flow: Mapping[str, object], spec: TaintSpec) -> bool:
+    """Does this flow start at something the source model names, rather than a bare captured parameter?"""
+    source = str(flow["source"])
+    return any(pattern in source for pattern in spec.sources)
+
+
+def _rank(flow: Mapping[str, object], spec: TaintSpec) -> tuple[int, int, str, str]:
+    """A flow from a modelled source first, then shortest, then lexicographic — a total order.
+
+    Shortest alone picks the wrong witness once closures are in scope: a captured `res` reaches the sink in
+    three steps while the actual `req.url -> ... -> possibleFilename` path takes eleven, and reporting the
+    former names no attacker input at all. Naming a real source is what makes a witness evidence rather than
+    an assertion, so it outranks brevity.
+    """
+    source = str(flow["source"])
+    rank_modelled = 0 if _from_modelled_source(flow, spec) else 1
+    return (rank_modelled, _as_int(flow["length"]), source, str(flow["sink"]))
 
 
 def _witness(flow: Mapping[str, object]) -> str:

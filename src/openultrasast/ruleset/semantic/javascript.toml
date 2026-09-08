@@ -28,6 +28,17 @@ id = "parameterized_query"
 calls = ["query", "execute"]
 parameterized = true
 
+# --- model-grounded-detection: raw-Node request sources -------------------------------------------------
+# The shipped `req` source fact carries the Express idioms (req.query, req.body, req.params). A raw Node
+# http server -- which is what a static file server is -- reads the path straight off `req.url`
+# (http.IncomingMessage.url), and `url.parse(req.url)` is the documented way to split it. Measured need:
+# with these absent, the angular-http-server path-traversal pair resolved its flow to the captured `res`
+# rather than to attacker input, because no modelled source matched.
+
+[[source]]
+id = "node-request"
+patterns = ["req.url", "request.url", "req.rawHeaders", "url.parse", "parsedUrl"]
+
 # --- model-grounded-detection task 4.2 -------------------------------------------------------------------
 # See the note in python.toml: documented dangerous APIs, provenance per entry, reviewed as data.
 
@@ -65,3 +76,19 @@ id = "redirect"
 cwe = "CWE-601"
 calls = ["redirect", "location.assign", "location.replace"]
 rule_ids = []
+
+# --- model-grounded-detection: sanitizers -----------------------------------------------------------------
+# This file shipped with no [[sanitizer]] entries at all, so no JavaScript fix of any family could be
+# recognised and the model entailed a fixed twin exactly as readily as its vulnerable one. Measured on the
+# angular-http-server path-traversal pair, whose fix is precisely `path.normalize(...).replace(/^(\.\.[\/\\])+/, '')`.
+# Documented normalising / escaping APIs, provenance per entry, reviewed as data.
+
+[[sanitizer]]
+# CWE-22. Node's documented path normalisation; `resolve` and `join` against a fixed base collapse `..`.
+id = "path.normalize"
+calls = ["path.normalize", "path.resolve"]
+
+[[sanitizer]]
+# CWE-79. The standard encoders: the DOM/global URI encoders and the common escaping helpers.
+id = "html.escape"
+calls = ["encodeURIComponent", "encodeURI", "escapeHtml", "escape", "sanitizeHtml", "DOMPurify.sanitize"]

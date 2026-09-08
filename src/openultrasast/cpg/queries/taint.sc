@@ -15,7 +15,8 @@
 //   * `reachableByFlows` is called ON the sink WITH the source, not the other way about.
 //
 // Parameters (comma-separated where plural):
-//   cpgFile, sources, sinks, sanitizers (optional), function (optional: restrict to this enclosing method),
+//   cpgFile, sources, sinks, sanitizers (optional), function (optional: restrict to this method AND any
+//     closure lexically nested inside it -- see `nestedInLabeled`),
 //   parameterSources ("true" to treat the labeled function's parameters as untrusted -- see below)
 //
 // Output: a fenced JSON array of {sink, sinkLine, sinkMethod, source, sanitized, length}. The fence exists
@@ -33,6 +34,17 @@
 
   def split(raw: String): List[String] = raw.split(",").map(_.trim).filter(_.nonEmpty).toList
 
+  // Word-boundary matching, never substring. `resolveUrl` contains `resolve`, so a bare-substring sanitizer
+  // test marked the VULNERABLE flow sanitized and the verdict fell back to a captured `res` that names no
+  // attacker input. Same bug class as the dominance query's guard matching; fixed in both.
+  def mentionsToken(code: String, tokens: List[String]): Boolean =
+    tokens.exists(t =>
+      java.util.regex.Pattern
+        .compile("(?<![A-Za-z0-9_])" + java.util.regex.Pattern.quote(t) + "(?![A-Za-z0-9_])")
+        .matcher(code)
+        .find()
+    )
+
   val sourcePatterns = split(sources)
   val sinkNames      = split(sinks)
   val sanitizerNames = split(sanitizers)
@@ -45,10 +57,26 @@
   // reachable without a per-framework rule for each.
   def frameworkSources = cpg.call.filter(c => sourcePatterns.exists(p => c.code.contains(p)))
 
-  // Parameter sources: the labeled function's own parameters. In a function-level pair the function boundary
-  // IS the trust boundary -- the corpus is built so the labeled function's inputs are attacker-controlled --
-  // and 39 of this slice's 50 pairs carry no framework token at all. Our flat-IR baseline counted these as
-  // sources (`source_kinds: ["parameter"]`), so a comparison against it is only like-for-like with them on.
+  // The labeled methods, and the region they lexically own. A closure defined inside the labeled function --
+  // the callback passed to `fs.stat`, say -- has its own synthetic method (`<lambda>0`) whose astParentFullName
+  // is empty, so nesting is decided by line-range containment within the same file, which is reliable.
+  lazy val labeledMethods = if (function.isEmpty) List.empty else cpg.method.nameExact(function).l
+
+  def nestedInLabeled(m: io.shiftleft.codepropertygraph.generated.nodes.Method): Boolean =
+    labeledMethods.exists { lm =>
+      m.name == function || (
+        m.filename == lm.filename &&
+        m.lineNumber.getOrElse(-1) >= lm.lineNumber.getOrElse(0) &&
+        m.lineNumberEnd.getOrElse(-1) <= lm.lineNumberEnd.getOrElse(Int.MaxValue)
+      )
+    }
+
+  // Parameter sources: the labeled function's OWN parameters, never a nested closure's. In a function-level
+  // pair the function boundary IS the trust boundary -- the corpus is built so the labeled function's inputs
+  // are attacker-controlled -- and 39 of the injection slice's 50 pairs carry no framework token at all. Our
+  // flat-IR baseline counted these (`source_kinds: ["parameter"]`), so the comparison is only like-for-like
+  // with them on. Scoping matters as much as enabling: a callback's own parameters (`err`, `stats`) are not
+  // attacker input, and counting them produced flows like `res -> readFileSync` that name no real source.
   // Off by default: outside a labeled function, treating every parameter as untrusted is not sound.
   def parameterNodes =
     if (parameterSources != "true") Iterator.empty
@@ -63,7 +91,7 @@
     val all = cpg.call.filter(c =>
       sinkNames.exists(n => c.name == n || c.code.startsWith(n + "(") || c.code.startsWith(n) || c.methodFullName.contains(n))
     )
-    if (function.isEmpty) all else all.filter(_.method.name == function)
+    if (function.isEmpty) all else all.filter(c => nestedInLabeled(c.method))
   }
 
   val rows = sinkCalls.l.flatMap { sink =>
@@ -83,7 +111,7 @@
 
     flows.map { flow =>
       val elements = flow.elements.map(_.code).l
-      val sanitized = sanitizerNames.nonEmpty && elements.exists(code => sanitizerNames.exists(s => code.contains(s)))
+      val sanitized = sanitizerNames.nonEmpty && elements.exists(code => mentionsToken(code, sanitizerNames))
       ujson.Obj(
         "sink"            -> sink.code.take(200),
         "sinkLine"        -> sink.lineNumber.getOrElse(-1).toString,
@@ -92,7 +120,8 @@
         "sanitized"       -> sanitized,
         "length"          -> elements.size,
         "sinkArity"       -> arity,
-        "sinkArg0Literal" -> arg0Literal
+        "sinkArg0Literal" -> arg0Literal,
+        "inLabeledScope"  -> (function.isEmpty || nestedInLabeled(sink.method))
       )
     }
   }
