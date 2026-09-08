@@ -1,13 +1,13 @@
 {
   "counts": {
-    "load_bearing": 82,
+    "load_bearing": 84,
     "standalone_capability": 7
   },
-  "generated": "2026-09-08 (regenerated after group 4: dominance and constant abstraction)",
+  "generated": "2026-09-08 (regenerated after group 5: calibration and reporting)",
   "kept_with_a_lever_stripped": {
     "improve/evolve.py + improve/validator.py": "the design's Removed list named these whole, but each is a mix: the mechanism lever (removed) and the deterministic rule-status improve loop that `ousast improve` still runs from benchmark evidence, which has no LLM in it and is not what this feature supersedes. Deleting the files would have taken a retained capability with them."
   },
-  "modules": 89,
+  "modules": 91,
   "note": "Classification of every source module after the group-1 subtraction. load_bearing = reachable from a gate, the CLI, or named by a surviving requirement; standalone_capability = its own entry point or protocol, deliberately off the scan path; orphaned = no importer, no entry point, no surviving requirement -- removed, never carried.",
   "orphaned": [],
   "removed_in_this_pass": {
@@ -172,6 +172,7 @@
         "improve.evolve",
         "map_gate",
         "model.ladder",
+        "model.report",
         "pairs",
         "rank",
         "regress.candidate",
@@ -345,6 +346,12 @@
     },
     {
       "classification": "load_bearing",
+      "importers": [],
+      "module": "model.calibrate",
+      "reason": "model-grounded-detection Req 9: the corpus as the model's calibration set"
+    },
+    {
+      "classification": "load_bearing",
       "importers": [
         "cli"
       ],
@@ -385,6 +392,12 @@
       ],
       "module": "model.ladder",
       "reason": "model-grounded-detection Req 5: the evidence ladder every finding carries"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [],
+      "module": "model.report",
+      "reason": "model-grounded-detection Req 9.3/11.1: per-slice reporting with the overfitting gap"
     },
     {
       "classification": "load_bearing",
