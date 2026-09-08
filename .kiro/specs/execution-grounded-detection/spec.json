@@ -1,0 +1,16 @@
+{
+  "feature_name": "execution-grounded-detection",
+  "created_at": "2026-09-08T00:00:00Z",
+  "updated_at": "2026-09-08T00:00:00Z",
+  "language": "en",
+  "phase": "brief",
+  "approvals": {
+    "requirements": { "generated": false, "approved": false },
+    "design": { "generated": false, "approved": false },
+    "tasks": { "generated": false, "approved": false }
+  },
+  "ready_for_implementation": false,
+  "supersedes": ["learning-harness", "constrained-detector"],
+  "depends_on": [],
+  "approval_note": "2026-09-08 corrective brief drafted at the maintainer's direction ('can you produce a corrective spec that supersedes the project and sets a course'). Written after the learning-harness evolve rounds produced zero decisions distinguishable from noise, and after researching Clearwing (/home/mc/Source/clearwing, fork norandom/deepwing), Google Big Sleep, and the DARPA AIxCC 2025 finals. Not approved; requirements not generated. The central recommendation is to adopt Clearwing as the execution substrate rather than rebuild, and to contribute the web/logic detection path (taxonomy + IR candidate enumeration + obligation checker + a differential web oracle) that Clearwing's crash-oracle model does not reach."
+}
