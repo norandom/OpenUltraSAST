@@ -36,10 +36,9 @@ def test_the_guard_classifier_still_recognises_each_kind() -> None:
 def test_the_seeded_families_and_the_named_gaps_are_both_exact() -> None:
     """What the retained fact data can seed, and what it provably cannot — Req 9.2, a gap is *named*.
 
-    `path`, `output_encoding`, `untrusted_destination` and `prototype` have no sink in `ruleset/semantic`
-    whose CWE routes to them, which is the same hole the entailment ceiling diagnosed ("closed literal sink
-    table: misses per-family sinks"). Task 4.2 authors those sinks and must update this test when it does —
-    the set is asserted exactly so a gap can neither appear nor close silently.
+    Task 4.2 closed the gap this test was written to hold open: `path`, `output_encoding`,
+    `untrusted_destination` and `prototype` now have sink facts routing to them by CWE. The set is still
+    asserted exactly, so a family can neither lose its seed nor gain one without this record moving.
     """
     from openultrasast.model.specs import dominance_specs, taint_specs
     from openultrasast.model.taxonomy import load_families
@@ -50,11 +49,12 @@ def test_the_seeded_families_and_the_named_gaps_are_both_exact() -> None:
         seeded |= {spec.family for spec in taint_specs(language=language).values()}
         seeded |= {spec.family for spec in dominance_specs(language=language).values()}
     deferred = {"unknown", "memory"}  # the declined bucket and the deferred execution tier
-    assert seeded == {"injection", "deserialization", "config_secrets", "access_control", "memory"}
+    assert seeded == {
+        "injection", "deserialization", "config_secrets", "access_control",
+        "path", "output_encoding", "untrusted_destination", "prototype", "memory",
+    }
     gaps = {family.id for family in taxonomy.families} - seeded - deferred
-    assert gaps == {"path", "output_encoding", "untrusted_destination", "prototype"}, (
-        "a family lost or gained a seed without this record being updated"
-    )
+    assert gaps == set(), f"a family lost its seed: {sorted(gaps)}"
 
 
 def test_the_injection_taint_spec_carries_sources_sinks_and_sanitizers() -> None:
@@ -126,3 +126,25 @@ def test_safe_shape_sinks_are_kept_for_the_shape_test() -> None:
     assert "execute" not in spec.sanitizers
     c_memory = taint_specs(language="c").get("memory")
     assert c_memory is not None and "printf" in c_memory.safe_shape_sinks
+
+
+def test_dischargers_carry_identity_and_constraint_tokens_but_not_the_negative_fields() -> None:
+    """A discharger fact spreads across six fields and two of them mean the opposite.
+
+    `identity_sources` (current_user, request.user) and `constraint_params` (owner_id, user_id) are how an
+    identity constraint is actually written, and omitting them left the absence arbiter reporting "no guard"
+    on a handler that plainly had one. `request_sources` and `permissive_values` are excluded because they
+    describe the vulnerable shape, not the fix -- including them would let the arbiter read a bug as its fix.
+    """
+    from openultrasast.model.specs import dominance_specs
+    from openultrasast.semantic.obligations import load_obligation_facts
+
+    spec = dominance_specs(language="python")["access_control"]
+    assert "current_user" in spec.dischargers and "owner_id" in spec.dischargers
+    assert "login_required" in spec.dischargers  # decorators still present
+
+    facts = load_obligation_facts().for_language("python")
+    negative = {p for fact in facts.dischargers for p in fact.request_sources} | {
+        v for fact in facts.dischargers for v in fact.permissive_values
+    }
+    assert not (negative & set(spec.dischargers)), "the negative fields must never read as a discharge"

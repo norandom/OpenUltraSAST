@@ -27,3 +27,41 @@ rule_ids = ["js-sql-injection"]
 id = "parameterized_query"
 calls = ["query", "execute"]
 parameterized = true
+
+# --- model-grounded-detection task 4.2 -------------------------------------------------------------------
+# See the note in python.toml: documented dangerous APIs, provenance per entry, reviewed as data.
+
+[[sink]]
+# CWE-1321. Prototype pollution reaches the object graph through a recursive merge or an unchecked
+# dynamic key. These are the documented merge helpers plus the assignment forms.
+id = "prototype.merge"
+cwe = "CWE-1321"
+calls = ["merge", "mergeDeep", "extend", "defaultsDeep", "Object.assign", "set", "setWith"]
+rule_ids = []
+
+[[sink]]
+# CWE-79. The documented "trusted HTML" sinks in the DOM and the major frameworks.
+id = "html.unescaped"
+cwe = "CWE-79"
+calls = ["innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "dangerouslySetInnerHTML", "v-html"]
+rule_ids = []
+
+[[sink]]
+# CWE-22. Node filesystem entry points that accept a caller-supplied path.
+id = "path.open"
+cwe = "CWE-22"
+calls = ["readFile", "readFileSync", "createReadStream", "sendFile", "unlink", "unlinkSync"]
+rule_ids = []
+
+[[sink]]
+# CWE-918 / CWE-601: outbound requests and redirects to a caller-supplied destination.
+id = "outbound.request"
+cwe = "CWE-918"
+calls = ["axios.get", "axios.post", "fetch", "request", "got", "http.get", "https.get"]
+rule_ids = []
+
+[[sink]]
+id = "redirect"
+cwe = "CWE-601"
+calls = ["redirect", "location.assign", "location.replace"]
+rule_ids = []

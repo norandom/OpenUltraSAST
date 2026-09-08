@@ -104,8 +104,16 @@ class TaintSpec:
 class DominanceSpec:
     """What an absence family's guard-dominates-operation query matches on, for one language.
 
-    ``dischargers`` are the guards that discharge an obligation; the query asks whether one of them dominates
-    the operation on every path, which is the arbiter for the classes that never crash.
+    ``dischargers`` are every token that can evidence a discharge, drawn from four fields of a discharger
+    fact and deliberately not from the other two:
+
+        calls, decorators          an explicit guard: ``login_required``, ``check_owner``
+        identity_sources           the authenticated context: ``current_user``, ``request.user``
+        constraint_params          a field that constrains by identity: ``owner_id``, ``user_id``
+
+    ``request_sources`` and ``permissive_values`` are excluded because they describe the NEGATIVE case -- a
+    value that comes from the request discharges nothing, and a permissive literal is the bug rather than the
+    guard. Including them would let the absence arbiter read a vulnerability as its own fix.
     """
 
     family: str
@@ -167,6 +175,8 @@ def dominance_specs(*, language: str, facts: ObligationFacts | None = None) -> M
         sorted(
             {call for fact in scoped.dischargers for call in fact.calls}
             | {decorator for fact in scoped.dischargers for decorator in fact.decorators}
+            | {source for fact in scoped.dischargers for source in fact.identity_sources}
+            | {param for fact in scoped.dischargers for param in fact.constraint_params}
         )
     )
     return {"access_control": DominanceSpec(family="access_control", language=language, operations=operations, dischargers=dischargers)}

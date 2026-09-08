@@ -71,3 +71,49 @@ calls = ["yaml.safe_load", "safe_load"]
 id = "parameterized_execute"
 calls = ["execute", "executemany"]
 parameterized = true
+
+# --- model-grounded-detection task 4.2 -------------------------------------------------------------------
+# Sinks for the four families that previously had no fact routing to them by CWE, plus the ORM raw-SQL forms
+# the Joern go/no-go measured as misses (11 of 23). Every entry below is a documented dangerous API of the
+# named library, not an inferred pattern; the provenance is on each entry so a maintainer can review the data
+# as data. `rule_ids` is left empty where no pattern rule exists: these facts feed the model layer, and a
+# sink fact is not a detection rule.
+
+[[sink]]
+# CWE-89. Django's documented raw-SQL escape hatches (docs: "Performing raw SQL queries") and the
+# SQLAlchemy/peewee text forms. These were the single largest miss class in the go/no-go.
+id = "orm.raw"
+cwe = "CWE-89"
+calls = ["objects.raw", "raw", "RawSQL", "extra", "text", "from_statement"]
+rule_ids = []
+
+[[sink]]
+# CWE-22. Filesystem entry points that accept a caller-supplied path: the stdlib openers plus Flask's
+# send_file/send_from_directory and Django's FileResponse.
+id = "path.open"
+cwe = "CWE-22"
+calls = ["open", "send_file", "send_from_directory", "FileResponse", "os.remove", "os.unlink", "shutil.copy", "shutil.move", "shutil.rmtree"]
+rule_ids = []
+
+[[sink]]
+# CWE-79. The documented "this string is trusted HTML" escapes: Jinja/Flask render_template_string and
+# Markup, Django's mark_safe and format_html. Rendering a template *file* is not a sink; rendering a
+# caller-supplied *string* is.
+id = "html.unescaped"
+cwe = "CWE-79"
+calls = ["render_template_string", "Markup", "mark_safe", "format_html", "HttpResponse"]
+rule_ids = []
+
+[[sink]]
+# CWE-918 (SSRF) and CWE-601 (open redirect): outbound requests and redirects to a caller-supplied
+# destination. requests/urllib/httpx are the documented HTTP clients; redirect is Flask's and Django's.
+id = "outbound.request"
+cwe = "CWE-918"
+calls = ["requests.get", "requests.post", "requests.request", "urlopen", "urlretrieve", "httpx.get", "httpx.post"]
+rule_ids = []
+
+[[sink]]
+id = "redirect"
+cwe = "CWE-601"
+calls = ["redirect", "HttpResponseRedirect", "url_for"]
+rule_ids = []

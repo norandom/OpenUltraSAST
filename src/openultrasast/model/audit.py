@@ -34,6 +34,7 @@ SPEC_OWNED = {
     "model.ladder": "model-grounded-detection Req 5: the evidence ladder every finding carries",
     "model.taint": "model-grounded-detection Req 6.1: taint reachability over the CPG, the flow-family arbiter",
     "model.judge": "model-grounded-detection Req 8: one bounded question, checked against the model",
+    "model.dominance": "model-grounded-detection Req 6.2: guard dominance, the arbiter for bugs that never crash",
     "cpg": "model-grounded-detection Req 4: the CPG seam package",
     "cpg.backend": "model-grounded-detection Req 4.1/4.5: the single Joern subprocess boundary",
     "cpg.capability": "model-grounded-detection Req 4.2/4.3: the engine probe that degrades to suspicion",

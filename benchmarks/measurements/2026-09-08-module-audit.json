@@ -1,13 +1,13 @@
 {
   "counts": {
-    "load_bearing": 80,
+    "load_bearing": 81,
     "standalone_capability": 7
   },
-  "generated": "2026-09-08 (regenerated after group 3 added the ladder and the judge)",
+  "generated": "2026-09-08 (regenerated after group 4 added the dominance arbiter)",
   "kept_with_a_lever_stripped": {
     "improve/evolve.py + improve/validator.py": "the design's Removed list named these whole, but each is a mix: the mechanism lever (removed) and the deterministic rule-status improve loop that `ousast improve` still runs from benchmark evidence, which has no LLM in it and is not what this feature supersedes. Deleting the files would have taken a retained capability with them."
   },
-  "modules": 87,
+  "modules": 88,
   "note": "Classification of every source module after the group-1 subtraction. load_bearing = reachable from a gate, the CLI, or named by a surviving requirement; standalone_capability = its own entry point or protocol, deliberately off the scan path; orphaned = no importer, no entry point, no surviving requirement -- removed, never carried.",
   "orphaned": [],
   "removed_in_this_pass": {
@@ -128,6 +128,7 @@
       "classification": "load_bearing",
       "importers": [
         "cpg.backend",
+        "model.dominance",
         "model.judge",
         "model.taint"
       ],
@@ -137,6 +138,7 @@
     {
       "classification": "load_bearing",
       "importers": [
+        "model.dominance",
         "model.judge",
         "model.taint"
       ],
@@ -324,6 +326,7 @@
       "importers": [
         "cli",
         "model.candidates",
+        "model.dominance",
         "model.judge",
         "model.specs",
         "model.taint"
@@ -348,6 +351,12 @@
     {
       "classification": "load_bearing",
       "importers": [],
+      "module": "model.dominance",
+      "reason": "model-grounded-detection Req 6.2: guard dominance, the arbiter for bugs that never crash"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [],
       "module": "model.endpoint",
       "reason": "model-grounded-detection Req 8: the judge client, wired by model/judge.py in group 3"
     },
@@ -360,6 +369,7 @@
     {
       "classification": "load_bearing",
       "importers": [
+        "model.dominance",
         "model.judge",
         "model.taint"
       ],
@@ -369,6 +379,7 @@
     {
       "classification": "load_bearing",
       "importers": [
+        "model.dominance",
         "model.judge",
         "model.taint"
       ],
