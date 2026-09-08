@@ -211,7 +211,7 @@ queries in group 4). The gates, `redaction.py`, `pairs.py` overlay/inventory pat
 
 ## Group 5 — Corpus calibration and reporting
 
-- [ ] 5.1 The corpus as the model's calibration set
+- [x] 5.1 The corpus as the model's calibration set
   - `model/calibrate.py` — over the vulnerable-parent/fix pairs, run the model on both sides and record
     whether it distinguishes them; a pair it cannot split is a named model gap (with the reason), not a miss.
     Provide the CVE-history harvest seam (recipe → parent/fix, the fix diff read as oracle).
@@ -220,7 +220,7 @@ queries in group 4). The gates, `redaction.py`, `pairs.py` overlay/inventory pat
   - _Requirements: 9.1, 9.2, 9.4, 11.1_
   - _Depends: 4.2_
 
-- [ ] 5.2 Reporting: per-slice, overfitting gap, rung
+- [x] 5.2 Reporting: per-slice, overfitting gap, rung
   - `model/report.py` — per-slice numbers, the overfitting gap beside every headline, the evidence rung on
     every finding; no cross-slice aggregate without its per-slice rows. Re-home the surviving per-slice
     honesty discipline (it was in the deleted `scoring`/`publish`).
@@ -473,3 +473,63 @@ authored path sinks for python and javascript only.
 path sinks; the `weak_literals` arm for config; aiohttp settings.
 
 693 tests passing, mypy and ruff clean, gates byte-identical, zero orphaned modules.
+
+## Implementation Notes — closure scoping + group 5 (2026-09-08)
+
+### The closure-scoping fix (queued by the group-4 evidence, done before group 5)
+
+JavaScript is callback-heavy, so the method containing a sink routinely is not the labeled function; scope is
+now decided by **line-range containment** in the same file (`astParentFullName` is empty for lambdas) and
+reported as `inLabeledScope`, with the name comparison kept only as a fallback so an engine that cannot report
+scope never has its sinks silently treated as scoped. Parameter sources stay bound to the labeled function's
+*own* parameters — a callback's `err`/`stats` are not attacker input.
+
+Fixing the scope exposed three more bugs, **each of which would have raised the number while making the
+answer untrue**:
+
+1. *Shortest-flow-wins picked the wrong witness.* With closures in scope one sink had flows from `req.url…`
+   (10 steps, the vulnerability), `res` (3) and `this` (7). A flow from a modelled source now outranks a
+   shorter one from a bare captured name; shortest still breaks ties, so the order stays total.
+2. *The JS fact file had no `[[sanitizer]]` entries at all*, so no JavaScript fix of any family could ever be
+   recognised.
+3. *Adding them regressed the witness*, because `resolveUrl` **contains** `resolve` and the substring test
+   marked the vulnerable flow sanitized. This is the same bug class already fixed in `dominance.sc` and not
+   carried across — the exact fix-the-instance-miss-the-class failure. `taint.sc` matches on word boundaries
+   now.
+
+And the rule the fix turns on: **parameter sources are a fallback, never an override.** When a modelled source
+reaches the sink those flows are the evidence; otherwise a captured `res` reaching a *sanitized* sink reports
+the fix as still vulnerable on a flow that names no attacker input.
+
+**A correction to the group-4 reading.** `req.url` was *not* a wrong diagnosis — it was untestable in
+isolation. The probe returned 0/8 → 0/8 because the scoping bug blocked everything downstream of it. Both
+were needed. On the pair that motivated all of it:
+
+    vuln   model_entailed      req.url.split('?')[0] -> readFileSync(possibleFilename)   10 steps
+    fixed  model_corroborated  the same flow, sanitized by path.normalize                22 steps
+    distinguished: true
+
+### Group 5
+
+**5.1 inverts what the corpus is for.** A pair the model cannot split is a *named gap in the model*, not a
+detector miss to average: the arbiter is deterministic, so it fails that pair identically every time and only
+better modelling moves it. Every gap carries a reason even when the caller supplies none, because a bare gap
+teaches nothing. `covered` means a strictly higher rung on the vulnerable side than on its fix — flagging both
+sides equally is not coverage, which is precisely what group 2 measured taint reachability doing on every
+parameterised SQL pair. The harvest seam derives the vulnerable side as the fix commit's parent, with the fix
+diff as the oracle; nothing is hand-labelled.
+
+**5.2 keeps three disciplines from the deleted publish layer**, each because its absence caused a real error
+here: per-slice rows always (`render` *raises* without them — a mixed headline once hid agent-written code at
+44% against the development slice's 83%); the overfitting gap beside the headline and **absent rather than
+zero** when a slice is missing (reading an unmeasured slice as "no overfitting" is the flattering failure);
+and the rung on every finding.
+
+Run against the committed artifact the report says things worth not hiding: **agent-vfc 0/28 covered**,
+vibe-py 40% against vfc-js 24%, **overfitting gap +16%**, and `untrusted_destination` at 80% entailed but
+4 of 5 entailing on *both* sides — which the coverage metric correctly scores as zero.
+
+These are the **pre-closure-fix** numbers. A full re-measure is in flight and the calibration report will be
+regenerated from it.
+
+713 tests passing, mypy and ruff clean, gates byte-identical, zero orphaned modules.
