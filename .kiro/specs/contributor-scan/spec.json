@@ -1,0 +1,26 @@
+{
+  "feature_name": "contributor-scan",
+  "created_at": "2026-09-08T20:00:00Z",
+  "updated_at": "2026-09-08T20:00:00Z",
+  "language": "en",
+  "phase": "brief",
+  "approvals": {
+    "requirements": {
+      "generated": false,
+      "approved": false
+    },
+    "design": {
+      "generated": false,
+      "approved": false
+    },
+    "tasks": {
+      "generated": false,
+      "approved": false
+    }
+  },
+  "ready_for_implementation": false,
+  "depends_on": [
+    "model-grounded-detection"
+  ],
+  "approval_note": "2026-09-08 brief drafted after the maintainer asked what the spec state was and whether anything was forgotten. It was: model-grounded-detection is 16/16 complete and its arbiter is measured at 86.7% pair-correct / 6.7% leak, but the model layer has ZERO production callers -- ousast scan does not use it, so the feature is complete and unshipped at once. That is a scope gap in the predecessor (it had no task saying 'make this reachable', and its byte-identical-gates requirement is satisfied precisely because nothing is wired). This spec covers scan integration, whole-repo scanning against known vulnerable repositories, the deferred memory-family decision, and records the pipeline, ops and corpus work delivered outside any spec. Not approved; requirements not generated."
+}
