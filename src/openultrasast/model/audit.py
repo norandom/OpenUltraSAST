@@ -40,6 +40,8 @@ SPEC_OWNED = {
     "model.report": "model-grounded-detection Req 9.3/11.1: per-slice reporting with the overfitting gap",
     "model.execution": "model-grounded-detection Req 10: the deferred execution tier seam, adopted not built",
     "model.pipeline": "model-grounded-detection Req 8: the enumerator proposes, the LLM answers, the model disposes",
+    "model.regions": "contributor-scan Req 2: regions from entry points, with the families each admits",
+    "model.scan": "contributor-scan Req 3: the repository driver -- one CPG, one budget, ranked spend",
     "cpg": "model-grounded-detection Req 4: the CPG seam package",
     "cpg.backend": "model-grounded-detection Req 4.1/4.5: the single Joern subprocess boundary",
     "cpg.capability": "model-grounded-detection Req 4.2/4.3: the engine probe that degrades to suspicion",

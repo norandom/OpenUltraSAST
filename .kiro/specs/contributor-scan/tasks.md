@@ -21,7 +21,7 @@
 
 ## Group 1 — Wire it (gate-protected)
 
-- [ ] 1.1 Regions from entry points
+- [x] 1.1 Regions from entry points
   - `model/regions.py`: `ScanRegion(path, function, families, rank, source)` and
     `regions_for(entries, targets, *, taxonomy, language_of)`. Rank from what `EntryPointRecord` already
     carries (`access_level`, `trust_boundary`) — do not invent a new signal. File-level fallback when a target
@@ -33,7 +33,7 @@
     as such; no region carries a family whose spec is absent for its language.
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 8.5_
 
-- [ ] 1.2 The repository driver
+- [x] 1.2 The repository driver
   - `model/scan.py`: `ScanBudget`, `ModelScanResult`, `scan_repository(...)`. **One CPG per run**, reused
     across regions. Regions in rank order; budget decremented per model call and checked before each; the
     remainder counted into `regions_unjudged`. Findings ordered by rung, then rank.

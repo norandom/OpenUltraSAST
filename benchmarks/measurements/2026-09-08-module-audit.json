@@ -1,13 +1,13 @@
 {
   "counts": {
-    "load_bearing": 86,
+    "load_bearing": 88,
     "standalone_capability": 7
   },
-  "generated": "2026-09-08 (regenerated after the detector pipeline was wired)",
+  "generated": "2026-09-09 (regenerated after contributor-scan group 1 added regions and the repo driver)",
   "kept_with_a_lever_stripped": {
     "improve/evolve.py + improve/validator.py": "the design's Removed list named these whole, but each is a mix: the mechanism lever (removed) and the deterministic rule-status improve loop that `ousast improve` still runs from benchmark evidence, which has no LLM in it and is not what this feature supersedes. Deleting the files would have taken a retained capability with them."
   },
-  "modules": 93,
+  "modules": 95,
   "note": "Classification of every source module after the group-1 subtraction. load_bearing = reachable from a gate, the CLI, or named by a surviving requirement; standalone_capability = its own entry point or protocol, deliberately off the scan path; orphaned = no importer, no entry point, no surviving requirement -- removed, never carried.",
   "orphaned": [],
   "removed_in_this_pass": {
@@ -336,6 +336,8 @@
         "model.execution",
         "model.judge",
         "model.pipeline",
+        "model.regions",
+        "model.scan",
         "model.specs",
         "model.taint"
       ],
@@ -357,20 +359,25 @@
     {
       "classification": "load_bearing",
       "importers": [
-        "cli"
+        "cli",
+        "model.scan"
       ],
       "module": "model.candidates",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI"
     },
     {
       "classification": "load_bearing",
-      "importers": [],
+      "importers": [
+        "model.pipeline"
+      ],
       "module": "model.config_value",
       "reason": "model-grounded-detection Req 6.3: constant abstraction for the configuration families"
     },
     {
       "classification": "load_bearing",
-      "importers": [],
+      "importers": [
+        "model.pipeline"
+      ],
       "module": "model.dominance",
       "reason": "model-grounded-detection Req 6.2: guard dominance, the arbiter for bugs that never crash"
     },
@@ -400,6 +407,7 @@
         "model.execution",
         "model.judge",
         "model.pipeline",
+        "model.scan",
         "model.taint"
       ],
       "module": "model.ladder",
@@ -407,9 +415,19 @@
     },
     {
       "classification": "load_bearing",
-      "importers": [],
+      "importers": [
+        "model.scan"
+      ],
       "module": "model.pipeline",
       "reason": "model-grounded-detection Req 8: the enumerator proposes, the LLM answers, the model disposes"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [
+        "model.scan"
+      ],
+      "module": "model.regions",
+      "reason": "contributor-scan Req 2: regions from entry points, with the families each admits"
     },
     {
       "classification": "load_bearing",
@@ -419,11 +437,19 @@
     },
     {
       "classification": "load_bearing",
+      "importers": [],
+      "module": "model.scan",
+      "reason": "contributor-scan Req 3: the repository driver -- one CPG, one budget, ranked spend"
+    },
+    {
+      "classification": "load_bearing",
       "importers": [
         "model.config_value",
         "model.dominance",
         "model.judge",
         "model.pipeline",
+        "model.regions",
+        "model.scan",
         "model.taint"
       ],
       "module": "model.specs",
@@ -443,6 +469,7 @@
       "importers": [
         "cli",
         "model.candidates",
+        "model.scan",
         "model.specs"
       ],
       "module": "model.taxonomy",
