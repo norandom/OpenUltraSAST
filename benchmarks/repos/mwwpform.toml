@@ -1,0 +1,36 @@
+# MW WP Form 5.0.3 -- a WordPress plugin with an arbitrary file deletion.
+#
+# The PATH family's checkout, chosen so the class-by-class table (5.8) has more than one flaw class in it.
+# Verified in the code: at this commit `classes/services/class.mail.php:259` reads
+#
+#     protected function _delete_files() {
+#         foreach ( $this->attachments as $file ) {
+#             if ( file_exists( $file ) ) {
+#                 unlink( $file );
+#
+# and the fix (02ebc67, "fix Delete only attachments in MW_WP_Form_Mail_Service->_delete_files()") replaces
+# the existence check with `realpath()`, `is_file()` and a confinement test against the plugin's own upload
+# directory. `unlink` is a modelled path sink and `realpath` a modelled sanitizer, so this is a pair the
+# engine should be able to separate rather than merely flag.
+
+name = "mwwpform"
+url = "https://github.com/inc2734/mw-wp-form.git"
+commit = "3bdd33d834afe449c898b78ed6f71a57193df71b"
+language = "php"
+license = "GPL-2.0"
+license_file = "readme.txt"
+measures = ["detection"]
+note = """
+The parent of the fix commit; released as 5.0.3, fixed in 5.0.4 (2023-12-08). Nothing is vendored -- the
+recipe fetches on request and CI never does.
+"""
+
+[[known]]
+id = "CVE-2023-6559"
+family = "path"
+weakness = "arbitrary file deletion: an attachment path reaches unlink() behind a file_exists check that confines nothing"
+file = "classes/services/class.mail.php"
+function = "_delete_files"
+line = 259
+reference = "fixed in 02ebc67b5856787e25c357ce928b61f8e37920f4, which adds realpath(), is_file() and a directory-confinement test; the vulnerable line is verified in the checkout"
+in_scope = true

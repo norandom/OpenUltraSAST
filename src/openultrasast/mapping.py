@@ -218,7 +218,13 @@ _PHP_REGISTRATION = re.compile(
 _PHP_REST_ROUTE = re.compile(r"\bregister_rest_route\s*\(")
 _PHP_CALLBACK = re.compile(r"""['"]callback['"]\s*=>\s*""" + _PHP_CALLABLE)
 _PHP_PERMISSION = re.compile(r"""['"]permission_callback['"]\s*=>\s*(?P<value>[^,\)]+)""")
-_PHP_FUNCTION = re.compile(r"^\s*function\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*\(")
+# A method carries visibility and modifiers before `function`, and modern PHP always writes them. Matching
+# only a bare `function` made every class-based plugin ONE file-level region: MW WP Form's
+# `protected function _delete_files()` was invisible, while Paid Memberships Pro's methods happened to
+# work because that file omits the modifiers.
+_PHP_FUNCTION = re.compile(
+    r"^\s*(?:(?:final|abstract|public|protected|private|static)\s+)*function\s+&?\s*(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*\("
+)
 
 
 def _php_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:

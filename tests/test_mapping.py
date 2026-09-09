@@ -332,3 +332,30 @@ def test_an_array_callable_is_a_handler_too(tmp_path: Path) -> None:
     assert by_name["get_order"].kind == "route", "an array callable registers a route"
     assert by_name["get_order"].access_level == "authenticated", "its permission_callback is not __return_true"
     assert by_name["fetch"].access_level == "public", "nopriv, through an array callable"
+
+
+def test_a_php_method_with_a_visibility_modifier_is_a_region(tmp_path: Path) -> None:
+    """Modern PHP always writes `public`/`protected`/`private` before `function`.
+
+    Matching only a bare `function` made every class-based plugin ONE file-level region: MW WP Form's
+    `protected function _delete_files()` was invisible, and its file went from 16 method-scoped regions to a
+    single one spanning everything. Paid Memberships Pro happened to work only because that file omits the
+    modifiers.
+    """
+    from openultrasast.mapping import analyze_entry_points
+    from openultrasast.preprocess import preprocess_repository
+
+    (tmp_path / "svc.php").write_text(
+        "<?php\n"
+        "class Service {\n"
+        "    public function open($p) { return fopen($p, 'r'); }\n"
+        "    protected function _delete_files($f) { unlink($f); }\n"
+        "    private static function helper($x) { return $x; }\n"
+        "    function bare($y) { echo $y; }\n"
+        "}\n"
+    )
+    _, targets = preprocess_repository(tmp_path)
+
+    names = {entry.function_name for entry in analyze_entry_points(tmp_path, targets)}
+
+    assert {"open", "_delete_files", "helper", "bare"} <= names
