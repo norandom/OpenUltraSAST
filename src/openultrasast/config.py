@@ -144,6 +144,18 @@ class VariantsConfig:
 
 
 @dataclass(frozen=True)
+class ModelLayerConfig:
+    # contributor-scan: the model layer in MAP. Named for the LAYER, not the model: `ModelConfig` is already
+    # the `[models]` block (hunter, judge, endpoint) and two meanings of one name is how you get a scan that
+    # silently reads the wrong settings. Additive -- without a CPG engine the scan is unchanged.
+    enabled: bool = True
+    # A TOTAL for the run, not a per-region cap. Conservative by default: a first scan of an unfamiliar
+    # repository should not be able to run away with someone's budget before they have decided they want it.
+    max_model_calls: int = 100
+    max_regions: int = 300
+
+
+@dataclass(frozen=True)
 class ObligationsConfig:
     # authorization-obligations: the obligation checker in MAP (standard/deep only).
     enabled: bool = True
@@ -168,6 +180,7 @@ class ResolvedConfig:
     regress: RegressConfig = RegressConfig()
     variants: VariantsConfig = VariantsConfig()
     obligations: ObligationsConfig = ObligationsConfig()
+    model: ModelLayerConfig = ModelLayerConfig()
     runs_dir: str = ".openultrasast/runs"
 
 
@@ -194,6 +207,7 @@ def load_config(config_path: Path | None = None) -> ResolvedConfig:
         regress=_load_regress(data.get("regress", {})),
         variants=_load_variants(data.get("variants", {})),
         obligations=_load_obligations(data.get("obligations", {})),
+        model=_load_model(data.get("model", {})),
         runs_dir=os.environ.get("OPENULTRASAST_RUNS_DIR", ".openultrasast/runs"),
     )
 
@@ -366,6 +380,15 @@ def _load_variants(value: object) -> VariantsConfig:
     return VariantsConfig(
         enabled=bool(data.get("enabled", True)),
         max_mechanisms=_int_value(data.get("max_mechanisms"), 500),
+    )
+
+
+def _load_model(value: object) -> ModelLayerConfig:
+    data = _section(value)
+    return ModelLayerConfig(
+        enabled=bool(data.get("enabled", ModelLayerConfig.enabled)),
+        max_model_calls=_int_value(data.get("max_model_calls"), ModelLayerConfig.max_model_calls),
+        max_regions=_int_value(data.get("max_regions"), ModelLayerConfig.max_regions),
     )
 
 

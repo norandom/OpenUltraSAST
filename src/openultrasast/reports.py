@@ -205,6 +205,7 @@ def write_manifest(
     provenance: dict[str, object] | None = None,
     variants: dict[str, object] | None = None,
     obligations: dict[str, object] | None = None,
+    model: dict[str, object] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications)
@@ -246,6 +247,8 @@ def write_manifest(
         payload["variants"] = variants
     if obligations is not None:
         payload["obligations"] = obligations
+    if model is not None:
+        payload["model"] = model
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 

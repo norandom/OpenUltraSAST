@@ -45,7 +45,7 @@
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 8.3_
   - _Depends: 1.1_
 
-- [ ] 1.3 The MAP stage
+- [x] 1.3 The MAP stage
   - Wire `scan_repository` into `cli.py` inside `Stage.MAP`, mirroring `_check_obligations`: takes
     `entry_points` and `targets`, returns findings merged **additively** beside the pattern, overlay and
     obligation findings. A `[model]` config block (enabled, budget, max regions), zero-dep, conservative
@@ -57,6 +57,25 @@
     `dependencies = []`, and the engine, endpoint and execution tier each degrade to a recorded reason.
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 8.4_
   - _Depends: 1.2_
+
+- [ ] 1.4 Batch the queries — one Joern invocation per scan, not one per region and family
+  - **Why this is in group 1 rather than group 2.** Wiring 1.3 exposed that the cost model in the design was
+    half right. One CPG per scan was the right call, but every *query* is its own `joern --script` JVM launch
+    of roughly 30 seconds, and the driver issues one per region per family. A single ten-line Python file
+    admits six families and therefore takes six launches and over three minutes. At 100 regions that is ~5
+    hours; at 1000, ~50. Task 2.2's go/no-go would not have been a measurement, only arithmetic.
+  - Extend `cpg/backend.py` with a batched call: one invocation carrying many (region, family, spec) requests
+    and returning rows keyed back to each. The `.sc` scripts already take parameter lists; they take a list of
+    requests instead. `model/scan.py` collects the work first, issues one call, then arbitrates from the rows.
+  - **Keep the seam.** The subprocess boundary stays the only Joern touch-point (predecessor Req 4.5). Server
+    mode would keep a JVM warm but adds a process model and weakens that promise; batching needs neither.
+  - **The arbiters do not change.** `taint`, `dominance`, `config_value` and `pipeline` take rows and are
+    already measured; if this task needs to edit one, that is a signal the batching is leaking into them.
+  - Observable: a scan over N regions issues **one** `joern --script` invocation, not N×families; the same
+    fixture produces the same findings and rungs as the unbatched path, asserted against a recorded baseline;
+    the ten-line scan drops from minutes to seconds.
+  - _Requirements: 3.5, 4.2, 4.3_
+  - _Depends: 1.3_
 
 ## Group 2 — Scale it (the phase that can reshape the rest)
 
@@ -151,6 +170,9 @@
 
 - Group 1 must land and pass review before group 2: measuring an unwired pipeline is what produced a
   session's worth of harness-only numbers.
+- Task 1.4 was added after 1.3 was wired, when a ten-line scan took three minutes. It belongs in group 1
+  because group 1's promise is a working scan, and a scan that cannot finish on a real repository is not one.
+  Finding it here rather than in 2.2 is the argument for wiring before measuring.
 - **Task 2.2 is a go/no-go.** If one CPG per repository is infeasible, stop and redesign the region/budget
   model rather than building groups 3–6 on an assumption.
 - Group 5 is deliberately last. The corpus is not the binding constraint today — reachability is — and 198 of

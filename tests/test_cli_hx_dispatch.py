@@ -41,8 +41,11 @@ def test_degradation_recorded_when_models_set_but_extra_absent(tmp_path: Path, m
 
     degradations = manifest.get("degradations", [])
     stages = {entry["stage"] for entry in degradations}
-    assert stages == {"hunter_pool", "verify"}
-    assert all(entry["reason"] == "harnessx_extra_unavailable" for entry in degradations)
+    # `model` is present because the model layer records that no CPG engine was available rather than being
+    # silently absent (contributor-scan Req 1.3). This test is about the HarnessX extra, so it asserts over
+    # the HarnessX stages specifically instead of the whole set.
+    assert stages == {"hunter_pool", "verify", "model"}
+    assert all(entry["reason"] == "harnessx_extra_unavailable" for entry in degradations if entry["stage"] != "model")
     # Fallback still produced findings (deterministic hunter ran).
     assert manifest["findings"]
 

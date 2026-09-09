@@ -65,10 +65,14 @@ def test_standard_scan_extra_absent_matches_deterministic_baseline(tmp_path: Pat
 
     assert requested == baseline  # byte-identical findings -> sync driver behaviour unchanged
     stages = {entry["stage"] for entry in requested_manifest.get("degradations", [])}
-    assert stages == {"hunter_pool", "verify"}
-    assert all(entry["reason"] == "harnessx_extra_unavailable" for entry in requested_manifest["degradations"])
+    # `model` joins the set when the model layer runs without a CPG engine: findings are byte-identical
+    # (asserted above) and the only difference is that the scan now SAYS the arbiter was unavailable
+    # (contributor-scan Req 1.3) rather than being silently absent.
+    assert stages == {"hunter_pool", "verify", "model"}
+    assert {e["reason"] for e in requested_manifest["degradations"] if e["stage"] == "model"} == {"cpg_unavailable"}
+    assert all(entry["reason"] == "harnessx_extra_unavailable" for entry in requested_manifest["degradations"] if entry["stage"] != "model")
     assert all(entry["reason"] != "hunter_model_unavailable" for entry in requested_manifest["degradations"])
-    assert [entry["reason"] for entry in baseline_manifest.get("degradations", [])] == ["hunter_model_unavailable"]
+    assert [e["reason"] for e in baseline_manifest.get("degradations", []) if e["stage"] != "model"] == ["hunter_model_unavailable"]
 
 
 def test_quick_scan_is_unaffected_by_the_extra(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

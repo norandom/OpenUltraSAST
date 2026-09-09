@@ -31,7 +31,7 @@ from .calibration import (
 )
 from .complexity import map as complexity_map
 from .complexity.ledger import persist_verdicts
-from .config import ObligationsConfig, load_config, load_dotenv
+from .config import ModelLayerConfig, ObligationsConfig, ResolvedConfig, load_config, load_dotenv
 from .findings import StaticFinding, quick_scan_findings, write_findings
 from .fusion import FusionDecision, fuse_findings_dispatch
 from .gate import FALSE_POSITIVE_CEILING, RECALL_FLOOR
@@ -390,6 +390,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
     overlay_records: list[OverlayRecord] = []
     wrote_overlay = False
     obligations_payload: dict[str, object] | None = None
+    model_payload: dict[str, object] | None = None
     obligations_cited: dict[str, dict[str, object]] = {}
     if Stage.MAP in plan.requested:
         built_map = runtime.run_stage(
@@ -436,6 +437,19 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             if obligation_findings:
                 findings = rank_obligations(findings + obligation_findings)
                 write_findings(findings, findings_path)
+        # Fifth MAP proposer: the model layer (contributor-scan Req 1). Additive -- it adds findings beside
+        # the pattern, overlay and obligation ones and removes none of them.
+        model_findings, model_payload = _run_model_layer(
+            root=run.target,
+            targets=targets,
+            entries=entry_points,
+            settings=config.model,
+            runtime=runtime,
+            config=config,
+        )
+        if model_findings:
+            findings = findings + model_findings
+            write_findings(findings, findings_path)
         plan = record_completed(plan, Stage.MAP)
         if not hunter_model:
             runtime.state["degradations"].append(skip_as_degradation(Stage.MAP, "hunter_model_unavailable"))
@@ -554,6 +568,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             worth_fixing=worth_fixing_payload,
             provenance=provenance.to_dict(),
             obligations=obligations_payload,
+            model=model_payload,
         ),
     )
     runtime.finish(status="succeeded")
@@ -786,6 +801,118 @@ def _pairs(
     print_pair_metrics("pair eval", result)
     print(f"signals={len(result.signals)}")
     return 0
+
+
+def _model_skipped(reason: str) -> dict[str, object]:
+    """A skipped stage reports the same SHAPE as a run one, plus why it skipped.
+
+    A consumer reading this should not have to branch on whether the stage ran; a payload that is sometimes
+    a full record and sometimes a single key is how a report ends up silently omitting a section.
+    """
+    return {**_model_payload(None), "skipped": reason}
+
+
+def _model_payload(result: object, *, unjudged_paths: tuple[str, ...] = ()) -> dict[str, object]:
+    """What the scan records about the model layer.
+
+    `unjudged_sample` names the regions the budget did not reach, lowest-ranked first. Counting them is the
+    honesty requirement (Req 3.3); NAMING them is what makes an exclusion list for a large repository
+    something a maintainer can write from evidence rather than guesswork.
+    """
+    return {
+        "by_rung": dict(getattr(result, "by_rung", {}) or {}),
+        "regions_scanned": getattr(result, "regions_scanned", 0),
+        "regions_unjudged": getattr(result, "regions_unjudged", 0),
+        "unjudged_sample": list(unjudged_paths),
+        "model_calls": getattr(result, "model_calls", 0),
+        "cost_usd": getattr(result, "cost_usd", 0.0),
+        "seconds": getattr(result, "seconds", 0.0),
+    }
+
+
+def _run_model_layer(
+    *,
+    root: Path,
+    targets: list[FileTarget],
+    entries: Sequence[object],
+    settings: ModelLayerConfig,
+    runtime: HarnessRuntime,
+    config: ResolvedConfig,
+) -> tuple[list[StaticFinding], dict[str, object]]:
+    """Fifth MAP proposer (contributor-scan Req 1): the model layer, arbitrating regions of the repository.
+
+    Additive by construction. Without a CPG engine this records a reason and returns nothing, and the scan is
+    byte-for-byte what it is today -- the model layer must never make the tool worse for someone who does not
+    have Joern.
+    """
+    if not settings.enabled:
+        return [], _model_skipped("disabled")
+
+    from .cpg.backend import resolve_cpg_backend
+    from .model.endpoint import resolve_chat_endpoint, resolve_models
+    from .model.regions import regions_for
+    from .model.scan import ScanBudget, scan_repository
+
+    backend = resolve_cpg_backend()
+    if not backend.available():
+        runtime.state["degradations"].append({"stage": "model", "reason": "cpg_unavailable"})
+        return [], _model_skipped("cpg_unavailable")
+
+    regions = regions_for(entries, targets)
+    if not regions:
+        return [], _model_skipped("no_regions")
+
+    resolved = resolve_chat_endpoint(config)
+    client = resolved[0] if resolved else None
+    if client is None:
+        # Not a failure: entailment still works and only the suspicion band goes unasked (Req 11.3).
+        runtime.state["degradations"].append({"stage": "model", "reason": "learning_endpoint_unavailable"})
+
+    result = runtime.run_stage(
+        "model",
+        lambda: scan_repository(
+            root,
+            regions,
+            backend=backend,
+            client=client,
+            model=resolve_models(config)[0],
+            budget=ScanBudget(max_model_calls=settings.max_model_calls, max_regions=settings.max_regions),
+        ),
+    )
+    for degradation in result.degradations:
+        runtime.state["degradations"].append(dict(degradation))
+
+    # The regions the budget did not reach, weakest first -- the evidence an exclusion list is built from.
+    unjudged = tuple(region.path for region in regions[result.regions_scanned :][:10])
+    findings = [_finding_from_model(item) for item in result.findings]
+    return findings, _model_payload(result, unjudged_paths=unjudged)
+
+
+def _finding_from_model(item: object) -> StaticFinding:
+    """A model finding as a StaticFinding, carrying its rung and witness (Req 5.1)."""
+    site = str(getattr(item, "site", ""))
+    path, _, rest = site.partition(":")
+    line = rest.split(":")[0] if rest else ""
+    rung = getattr(item, "rung", None)
+    witness = str(getattr(item, "witness", "") or getattr(item, "contradiction", ""))
+    family = str(getattr(item, "family", ""))
+    return StaticFinding(
+        finding_id=f"model:{family}:{site}",
+        path=path or site,
+        title=f"{family} ({getattr(rung, 'value', rung)})",
+        severity="medium",
+        confidence="medium",
+        evidence_level="suspicion",
+        rationale=witness or f"the model layer reported a {family} candidate",
+        line=int(line) if line.isdigit() else None,
+        function_name=None,
+        reachability_status="unknown",
+        reachability_evidence=[],
+        reachability_conditions=[],
+        tags=[f"family:{family}", f"rung:{getattr(rung, 'value', rung)}"],
+        ranking_priority=0.0,
+        rung=str(getattr(rung, "value", rung) or "suspicion"),
+    )
 
 
 def _check_obligations(
