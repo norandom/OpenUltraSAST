@@ -113,6 +113,17 @@ cross it, and the honest description is not "we missed it" but "the graph does n
 plugin data travels this way. It is the single largest structural gap for PHP, and it is not a fact-table
 problem.
 
+It is also not a permanent one, and "structurally impossible" would be the wrong thing to leave here. Note
+what is and is not missing: `$_REQUEST` reaching `set_current_page`'s return is a path the graph *has*, and
+`apply_filters`' return reaching `$wpdb->get_row` is a path the graph *has*. Only the join between them is
+absent — and the key it joins on, `'wp_statistics_current_page'`, is a string literal written at both ends.
+The same is true of `$this->attachments` in MW WP Form, where the key is a field name.
+
+So the strategy is two-stage taint with a link table: ask the existing query for each half against a
+synthetic endpoint, build the table by reading literals rather than inferring anything, and join. The rung
+carries the join's uncertainty — one registered callback and a literal key entails, several callbacks or a
+computed hook name corroborates. Task 5.11 states it, with both pinned pairs as its observable.
+
 What the engine reports on that plugin instead is two other sites — `getTop:406` and `TotalCount:443` — the
 same weakness class at the wrong lines, identical on both sides, so the pair does not separate. They are not
 noise: upstream now annotates both with `// phpcs:ignore WordPress.DB.PreparedSQL...`, and later rewrote

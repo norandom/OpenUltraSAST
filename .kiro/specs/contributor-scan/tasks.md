@@ -537,7 +537,8 @@
     yet nothing is reported on either side, because the only edge between the two files is
     `add_filter('...', array($this, 'method'))` / `apply_filters('...')` -- both ends naming the callback with
     a **string**. No frontend can draw that edge. Most WordPress plugin data travels this way, which makes it
-    the largest structural gap for PHP and not a fact-table problem. Recorded as 5.11.
+    the largest structural gap for PHP and not a fact-table problem. The detection strategy for it is
+    5.11, which handles it and the `$this` field case with one mechanism.
   - _Requirements: 4.1, 4.4, 9.1_
   - _Depends: 5.7_
 
@@ -589,44 +590,51 @@
   - _Requirements: 4.2, 4.3, 9.1_
   - _Depends: 5.7_
 
-- [ ] 5.11 The WordPress hook edge, or an honest statement that it is not drawn
-  - `add_filter('name', array($this, 'method'))` and `apply_filters('name', $value)` are a data-flow edge that
-    no CPG frontend draws, because both ends name the callback with a string. 5.8 measured the cost: WP
-    Statistics' CVE-2022-25148 has a modelled source, a modelled sink and a modelled fix, and is invisible on
-    both sides purely because the path runs through this edge.
-  - The registry is static and small. Every `add_action`/`add_filter` in a plugin names a hook and a callback,
-    and the mapper already parses both for entry points -- so the pairs can be built without any inference,
-    and the question is only where to apply them: a synthesized call edge in a preprocessing pass, or a
-    source/sink pairing the taint query is told about.
-  - Do NOT approximate it with "any hook may reach any handler". That is a complete graph over the plugin and
-    would entail everything.
-  - **The neighbouring string-named forms were checked and are sound**, so this task is the hook registry and
-    nothing else. Measured on probes, 2026-09-09:
-    - taint SURVIVES a string-named callable -- `array_map('trim', $_GET['a'])` and
-      `call_user_func('trim', $_GET['a'])` both reach the sink and are entailed, like a plain call;
-    - a sanitizer named by a string IS recognised -- `array_map('esc_sql', ...)` and
-      `call_user_func('esc_sql', ...)` both suppress, matching PMPro's own `array_map('esc_sql', $status)`;
-    - the textual sanitizer test (`taint.sc`: does a path element's code mention the name) does NOT
-      over-suppress. A query where a SIBLING value is `esc_sql`-wrapped is still entailed for the unwrapped
-      one, and a decoy `'esc_sql'` literal flowing to the same sink does not suppress either -- because
-      `flow.elements` are the nodes on that value's own path.
-    The hook is different in kind: `add_filter` and `apply_filters` are not one expression with a callback in
-    it, they are two statements in two files joined only through a hashtable in WordPress core.
-  - Observable: CVE-2022-25148 entailed on `wpstatistics`'s vulnerable side and absent on its fixed side --
-    the pair already pinned, already measured as a double miss, so the number moves or it does not.
-  - _Requirements: 4.4, 8.1, 9.1_
-  - _Depends: 5.8_
+- [ ] 5.11 Two-stage taint with a link table — the detection strategy for both structural misses
+  - "Structurally impossible" is a verdict, not a plan, and both PHP structural misses turn out to be the
+    SAME shape: two halves of a path, joined by a key that is a literal in the source text.
 
-- [ ] 5.12 Taint a field where it is assigned
-  - Excluding `$this` from parameter sources cuts PMPro's order class from 16 entailed findings to 6, all
-    named-parameter sourced, and makes its pair separate cleanly -- and loses CVE-2023-6559 outright, because
-    MW WP Form's `_delete_files()` takes no parameters and its attacker-controlled path arrives as
-    `$this->attachments`. The receiver was kept and the measurement written next to it in `taint.sc`.
-  - The right fix is field-sensitivity: `$this->attachments` should be tainted at the assignment that fills
-    it, so a method with no parameters is not either universally tainted or universally clean.
-  - Observable: CVE-2023-6559 still entailed with the receiver excluded, and PMPro's receiver-sourced count
-    down from 11.
-  - _Requirements: 6.1, 9.1_
+    ```
+    hook:   $_REQUEST -> ... -> return of set_current_page          [half 1]
+            key: 'wp_statistics_current_page'   literal at both ends
+            return of apply_filters(key) -> ... -> $wpdb->get_row   [half 2]
+
+    field:  $_POST -> ... -> assignment to $this->attachments       [half 1]
+            key: attachments                    a field name at both ends
+            read of $this->attachments -> ... -> unlink             [half 2]
+    ```
+
+    Neither half is missing from the graph. Only the join is. So this is not a request to make a CPG
+    frontend draw an edge it cannot draw; it is a second question asked with the query we already have.
+  - **Stage 1 -- summaries.** The existing taint question, pointed at a synthetic endpoint instead of a
+    modelled sink: does untrusted data reach the RETURN of a registered callback, or an ASSIGNMENT to
+    `$this->F`? One extra request per endpoint, on the batch that already runs.
+  - **The link table.** Built by reading literals, never by inference: every
+    `add_action`/`add_filter('H', callable)` against every `apply_filters`/`do_action('H', ...)`; every
+    `$this->F =` against every read of `$this->F` in the same class. The mapper already parses the first of
+    those for entry points.
+  - **Stage 2 -- the second half.** Again the existing query: does the `apply_filters` return, or the field
+    read, reach a modelled sink?
+  - **Join on the key**, and let the RUNG carry the join's uncertainty, which is what keeps this honest:
+    - exactly one callback registered for the hook, string literal at both ends -> `model_entailed`;
+    - several callbacks, or a computed hook name (`"save_post_" . $type`) -> `model_corroborated`, because
+      the join is a match rather than a resolution, and the witness must say which.
+    Refuse absolutely the approximation "any hook may reach any handler": that is a complete graph over the
+    plugin and would entail everything.
+  - Costs no new dependency, no CPG mutation and no IR. Both stages ride the batch that already runs, which
+    is the whole reason to express this as a query-level join rather than a graph rewrite.
+  - **The two compose into a precision win already measured and refused.** With the field half working,
+    `_delete_files()` is reached through `$this->attachments` rather than through `$this` being tainted
+    wholesale -- so the receiver can then be dropped from parameter sources, taking PMPro's 11
+    receiver-sourced findings with it. The fix rejected in 5.8 becomes available once the mechanism under it
+    is right, and 5.8's numbers are the before-side of that measurement.
+  - Observable, and both are already-pinned pairs so the numbers move or they do not:
+    - CVE-2022-25148 entailed on `wpstatistics`'s vulnerable side, absent on its fixed side;
+    - CVE-2023-6559 still entailed on `mwwpform` WITH the receiver excluded, and PMPro's receiver-sourced
+      count down from 11 to 0 with its CVE still found.
+  - Order: the field half first. It is the smaller link table, it has a pinned pair of its own, and it is
+    what unlocks the receiver change; the hook half then reuses the same two-stage machinery.
+  - _Requirements: 4.4, 6.1, 8.1, 9.1_
   - _Depends: 5.8_
 
 ## Group 6 — Regression baselines
