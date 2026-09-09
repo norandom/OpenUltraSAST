@@ -917,13 +917,15 @@ def _run_model_layer(
     from .model.endpoint import resolve_chat_endpoint, resolve_models
     from .model.regions import regions_for
     from .model.scan import ScanBudget, scan_repository
+    from .model.shipped import declared_sources
 
     backend = resolve_cpg_backend()
     if not backend.available():
         runtime.state["degradations"].append({"stage": "model", "reason": "cpg_unavailable"})
         return [], _model_skipped("cpg_unavailable")
 
-    regions = regions_for(entries, targets)
+    # The project's own build declaration, when it makes one, decides what the budget is spent on first.
+    regions = regions_for(entries, targets, shipped=declared_sources(root))
     if not regions:
         return [], _model_skipped("no_regions")
 

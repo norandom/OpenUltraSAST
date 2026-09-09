@@ -1,0 +1,25 @@
+{
+  "caveat": "One repository, and the only one measured with a build declaration this module can read. The automake and CMake readers are first cuts; a project using bazel, meson or setuptools declares nothing to them yet and is correctly left alone rather than guessed at.",
+  "delta": {
+    "entailed_findings": "0 -> 3, and all three are false positives -- see below",
+    "interprocedural_regions": "25 -> 1 (the survivor is contrib/tools/pngfix.c:main, which bin_PROGRAMS installs)",
+    "regions": "121 -> 121, unchanged by design",
+    "taint_query_seconds": "300.1 -> 125.0",
+    "total_query_seconds": "311.9 -> 138.5"
+  },
+  "generated": "2026-09-09",
+  "how": {
+    "not_shipped_is_not_unscanned": "Non-shipped regions are still arbitrated, function-locally. A contributor editing a test must still get an answer about it; what they lose is the expensive interprocedural treatment and first claim on the budget.",
+    "silence_is_not_exclusion": "A repository with no build file this can read gets None back and nothing changes. vampi declares nothing, so its numbers are untouched.",
+    "the_project_declares_it": "Makefile.am names installed targets in lib_LTLIBRARIES and bin_PROGRAMS, and each target's <target>_SOURCES names its files. check_PROGRAMS and noinst_PROGRAMS are automake's own word for 'not installed', which is exactly the distinction wanted. Taking every _SOURCES would have called libpng's whole test suite shipped code -- contrib/libtests declares its sources the same way the library does."
+  },
+  "reading": "A project's own build files say what it ships, and libpng's say the library plus two installed tools. Every one of its twenty-five entry-point regions was a main() in an example program or a test tool, and those regions carried the interprocedural analysis that dominated the query phase. Ranking build-declared code first and withholding the interprocedural treatment from the rest cuts the taint query by 58% and changes no region count: not shipped is not unscanned.",
+  "repo": "libpng at cf53e54ccf631d8de68a30ebb3b8eeed1d6f1a08",
+  "spec": "contributor-scan 2.10 (Req 4.2, 8.1)",
+  "the_three_new_findings_are_false_positives": {
+    "site": "contrib/gregbook/wpng.c:374 -- strcpy(outname+len, \".png\")",
+    "structural_cause": "Both C families carry ZERO sanitizers: c/injection and c/memory each have 0. No C flow can ever be discharged, and there is no notion of a bounds guard at all -- so every argv -> strcpy in any C codebase entails, however carefully it is bounded. Guard dominance is exactly the abstraction that decides this, and it is wired to access_control only. Recorded as task 2.12.",
+    "why_it_is_safe": "outname is char[256], and line 325 guards with `if ((len = strlen(inname)) > 250)`. By line 374 len <= 250, so the copy writes at most 255 bytes. The bound dominates the sink.",
+    "why_they_appeared_now": "They were not introduced by this change so much as uncovered by it: with callDepth 3 the sink set was different, and the 26 fgets false positives were masking them. Three identical rows for one site is task 2.9 again."
+  }
+}

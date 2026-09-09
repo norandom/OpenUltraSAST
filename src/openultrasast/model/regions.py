@@ -19,7 +19,7 @@ Two restraints are deliberate:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from .specs import config_specs, dominance_specs, taint_specs
 
@@ -59,9 +59,12 @@ class ScanRegion:
     families: tuple[str, ...]
     rank: float
     source: str  # "entry_point" | "module_scope" | "file_fallback"
+    # Does the project's own build declaration name this file? True when it declares nothing at all --
+    # silence is not exclusion, and no repository is penalised for a build system we cannot read.
+    shipped: bool = True
 
 
-def regions_for(entries: Sequence[object], targets: Sequence[object]) -> tuple[ScanRegion, ...]:
+def regions_for(entries: Sequence[object], targets: Sequence[object], *, shipped: frozenset[str] | None = None) -> tuple[ScanRegion, ...]:
     """Regions for a repository, strongest first.
 
     A file with an entry point yields regions for its handlers only — a fallback region beside them would
@@ -142,7 +145,13 @@ def regions_for(entries: Sequence[object], targets: Sequence[object]) -> tuple[S
         regions.append(ScanRegion(path=path, function=None, language=language, families=families, rank=0.1, source="file_fallback"))
 
     # A total order: rank descending, then path and function, so two runs of one repository agree.
-    return tuple(sorted(regions, key=lambda r: (-r.rank, r.path, r.function or "")))
+    if shipped is not None:
+        regions = [replace(region, shipped=region.path in shipped) for region in regions]
+
+    # Shipped first, then rank. A project's own build declaration outranks any score computed here: libpng's
+    # twenty-five entry points were all `main()` in example programs and test tools, and they took the
+    # interprocedural analysis with them.
+    return tuple(sorted(regions, key=lambda r: (not r.shipped, -r.rank, r.path, r.function or "")))
 
 
 def _language_of(target: object) -> str | None:

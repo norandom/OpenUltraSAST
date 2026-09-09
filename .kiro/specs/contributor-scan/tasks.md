@@ -209,7 +209,7 @@
   - _Requirements: 5.1, 5.2_
   - _Depends: 2.10_
 
-- [ ] 2.10 Do not spend the scan on example code
+- [x] 2.10 Do not spend the scan on example code
   - 22 of libpng's 30 highest-ranked regions are under `contrib/` -- the sample programs shipped with the
     library rather than the library. The budget and the 243s taint query go there first.
   - The rank already comes from the entry-point mapper; what is missing is that a path can be evidence too.
@@ -220,6 +220,20 @@
   - Observable: a recorded before/after on libpng -- regions, query seconds, and entailed sites.
   - _Requirements: 4.2, 8.1_
   - _Depends: 2.2_
+
+- [ ] 2.12 A C flow that a bounds check governs is not a finding
+  - `c/injection` and `c/memory` carry ZERO sanitizers, so no C flow can ever be discharged. Every
+    `argv -> strcpy` entails however carefully it is bounded, which is why libpng reports
+    `strcpy(outname+len, ".png")` at wpng.c:374 -- guarded four dozen lines earlier by
+    `if ((len = strlen(inname)) > 250)` against a `char[256]`.
+  - A sanitizer list will not fix this: the discharge is not a call, it is a GUARD that dominates the sink.
+    That abstraction already exists and already works -- it is what `dominance.sc` does for access control --
+    and it is wired to one family only. The work is to let a taint family name a guard-shaped discharge and
+    route it through the arbiter that can decide one.
+  - Observable: wpng.c:374 not entailed, with the pair corpus and both repositories measured either side. Do
+    not do this by adding `strlen` to a sanitizer list; that would discharge the unguarded case too.
+  - _Requirements: 8.1, 8.2_
+  - _Depends: 2.9_
 
 ## Group 3 — Ship it
 
@@ -301,3 +315,70 @@
   model rather than building groups 3–6 on an assumption.
 - Group 5 is deliberately last. The corpus is not the binding constraint today — reachability is — and 198 of
   238 OWASP pairs were left unvendored precisely because volume without readability makes every number worse.
+
+## Group 7 — Stop repeating the same false positive
+
+Three false-positive classes were found by hand today, and two of them were the *same defect in a different
+matcher*: `resolve` matched inside `resolveUrl`, `user` inside `users`, `gets` inside `fgets`. Each was fixed
+locally, and each next one survived because nobody carried the fix across. That is the thing to automate --
+not the judgement, the propagation.
+
+The constraint that shapes every task here: **no LLM-authored patterns or policy.** A model may propose a
+hypothesis and draft a change; only a deterministic measurement may adopt one. And any loop that learns from
+the corpus must respect the train/holdout split, because the last one did not: five of eleven candidate
+shapes were taught by the holdout pairs they then "recovered", turning a -0.059 Youden into +0.059.
+
+- [ ] 7.1 One matcher, asserted to be the only one
+  - The three bugs above existed because three modules each grew their own token-matching rule. There is now
+    one bounded matcher in `taint.sc` and one in `dominance.sc`, still separate copies of the same logic.
+  - Make it one definition the queries share, and add a test that fails when a second appears -- a grep-level
+    invariant is fine and is what would have caught the third instance.
+  - Observable: a test that fails if any query matches a spec token with a bare `contains` or `startsWith`.
+  - _Requirements: 8.1_
+
+- [ ] 7.2 A counter-example ledger
+  - When a finding is contradicted -- by a maintainer, by the judge with coverage, or by a declared contract
+    like an OpenAPI `security` block -- record it: the site, the rung, the witness, the spec tokens that
+    produced it, and the commit. That artifact is the durable part; today's three fixes left no trace a
+    future regression could be checked against.
+  - Each entry becomes a regression case: this site, at this commit, must not be reported at that rung.
+    `fgets(buf, 256, f)` and VAmPI's `register_user` are the first two.
+  - Observable: the ledger is committed, the cases run in CI offline, and re-introducing the substring match
+    fails a test rather than a repository scan four weeks later.
+  - _Requirements: 8.1, 10.3_
+  - _Depends: 2.9_
+
+- [ ] 7.3 Group the ledger by cause, and let a model propose the cause
+  - Twenty-six identical findings were one defect; three separate bugs were one bug class. A deterministic
+    pass should group counter-examples by what they share -- same spec token, same matcher clause, same
+    family, same witness shape -- and report the groups by size.
+  - **This is where the model earns its place, and only here.** Given a group, ask it for a hypothesis: what
+    do these share, and what change would remove all of them? It drafts; it does not decide. The output is a
+    proposed fact-table or matcher edit with a rationale, written to a review queue -- never to the ruleset,
+    and never to the declared policy file.
+  - Observable: run it against today's three fixes with the fixes reverted, and record how many it groups
+    correctly and what it proposes. A model that cannot rediscover a known cause should not be trusted with
+    an unknown one.
+  - _Requirements: 8.1, 8.4_
+  - _Depends: 7.2_
+
+- [ ] 7.4 Adopt only what a split-respecting measurement confirms
+  - A proposed edit is adopted only if it removes its counter-examples AND does not lose pair-corpus recall,
+    measured on the **train** split with the holdout untouched. The predecessor's improve lever admitted a
+    shape because it "recovers a currently missed holdout pair", which is how a -0.059 Youden was reported
+    as +0.059.
+  - The gates already exist and must stay byte-identical across an adoption, or the adoption is a
+    regression wearing a fix's clothes.
+  - Observable: an adoption record per accepted edit -- counter-examples removed, train recall before and
+    after, holdout untouched and unread, gates identical.
+  - _Requirements: 8.1, 8.2, 10.2, 10.3_
+  - _Depends: 7.3_
+
+- [ ] 7.5 Report what the loop cost as well as what it bought
+  - A false-positive reducer that quietly trades recall is worse than none, and the trade is invisible unless
+    it is measured on both sides. Today's 2.6 removed three leaks and lost no correct detection; that is the
+    shape of an acceptable trade and it was only knowable because both numbers were taken.
+  - Observable: every adoption records precision and recall on both repositories and the pair corpus, and a
+    net-negative adoption is reverted automatically rather than argued about.
+  - _Requirements: 8.2, 10.3_
+  - _Depends: 7.4_

@@ -129,7 +129,7 @@ def scan_repository(
 
     # Sort here rather than trusting the caller. The budget decides what goes unexamined, so the order it is
     # spent in belongs to whoever holds the budget.
-    ordered_regions = sorted(regions, key=lambda r: (-r.rank, r.path, r.function or ""))
+    ordered_regions = sorted(regions, key=lambda r: (not r.shipped, -r.rank, r.path, r.function or ""))
 
     # Phase 1: collect the whole scan's questions, for at most `max_regions` regions. Nothing is asked yet.
     work: list[tuple[str, ScanRegion, ArbiterSpec]] = []
@@ -271,8 +271,13 @@ def _is_entry_point(region: ScanRegion) -> bool:
 
     A module body is excluded even when the mapper marked it an entry point: a module has no parameters, so
     there is nothing for the parameter-source rule to mean there.
+
+    So is a file the project does not declare it ships. Every one of libpng's entry points was a `main()` in
+    an example program or a test tool, and they carried the whole interprocedural budget with them; a
+    library has no entry points, so there was nothing else for it to anchor to. Those regions are still
+    arbitrated, function-locally -- not shipped is not unscanned.
     """
-    return region.source == "entry_point" and bool(region.function) and region.function != MODULE_SCOPE
+    return region.source == "entry_point" and bool(region.function) and region.function != MODULE_SCOPE and region.shipped
 
 
 def _spec_for(family: str, language: str) -> ArbiterSpec | None:

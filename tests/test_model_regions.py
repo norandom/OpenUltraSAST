@@ -210,3 +210,31 @@ def test_a_module_body_is_not_offered_the_handler_families() -> None:
     assert "access_control" not in module.families
     assert "config_secrets" in module.families, "settings are exactly what module bodies carry"
     assert module.source == "module_scope"
+
+
+def test_a_project_that_declares_nothing_is_not_penalised() -> None:
+    """contributor-scan 2.10: silence is not exclusion.
+
+    `declared_sources` returns None for a repository with no build files this can read, and every region
+    stays shipped. A tool that quietly deprioritised code because it could not parse a Makefile would be
+    worse than one that ignores the question.
+    """
+    from openultrasast.model.regions import regions_for
+
+    regions = regions_for([_entry()], [_target()], shipped=None)
+
+    assert all(region.shipped for region in regions)
+
+
+def test_what_the_project_does_not_ship_ranks_below_what_it_does() -> None:
+    """libpng's twenty-five entry points were all `main()` in example programs and test tools."""
+    from openultrasast.model.regions import regions_for
+
+    entries = [_entry(path="lib.py", function="handler", access="public"), _entry(path="example.py", function="main", access="public")]
+    targets = [_target(path="lib.py"), _target(path="example.py")]
+
+    regions = regions_for(entries, targets, shipped=frozenset({"lib.py"}))
+
+    ordered = [(r.path, r.shipped) for r in regions]
+    assert ordered[0] == ("lib.py", True), "shipped code comes first whatever the rank says"
+    assert ("example.py", False) in ordered, "not shipped is not unscanned"
