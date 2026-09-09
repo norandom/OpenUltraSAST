@@ -66,3 +66,50 @@ record is not scattered:
 - Five bugs in `model-grounded-detection` shared one shape — a taint-specific assumption applied to every
   family, each found by a measurement rather than a check. Any new family-specific path should be audited for
   siblings before it is measured, not after.
+
+## What the evidence says so far (appended 2026-09-09, after group 2)
+
+This is a research project whose findings get taught, so a negative result is a deliverable. But the standing
+test the work has to pass is blunter than that:
+
+> "it must find the bugs, otherwise it's SAST noise. most devs know codeql / semgrep have dataflow
+> capabilities but never use it"
+
+That sentence settles what the differentiator is, and it is **not the dataflow engine**. CodeQL and Semgrep
+already have one and developers do not turn it on. What they will not do is write queries, tune a ruleset, or
+read two hundred rows to find the one that matters. So the product is the **rung** -- a claim the graph
+decided, reported without configuration -- and everything below `model_entailed` is on trial.
+
+### The scoreboard, honestly
+
+| checkout | known in-scope | found | rung | false positives |
+|---|---|---|---|---|
+| vampi (python, 520 lines) | 3 | **3** | all `model_entailed` | 2, both endpoints the OpenAPI spec declares public |
+| libpng (c, 89k lines) | 0 (its CVE is out of family) | — | — | 30 over the session, now 1 |
+
+vampi is the result worth teaching: SQL injection across two modules, a broken object-level authorization,
+and a second BOLA **the engine found before it was in the recipe**. libpng is the result worth being honest
+about: 198 rows, zero of them valid, and the reason is structural rather than a tuning problem -- the library
+never calls a sink the `c/memory` family models.
+
+### What the session actually demonstrated
+
+Nine defects, each found by a measurement and none by review. Three of them were one bug class in three
+matchers (`resolve` in `resolveUrl`, `user` in `users`, `gets` in `fgets`); two were capability present but
+unreachable (the model layer itself, then `query_batch`); two were a paid budget stopping unpaid work and a
+question scoped to a function when the bug crosses modules.
+
+The teachable finding is not any one of them. It is that **a corpus of function-level pairs cannot see any of
+them**, and every one appeared within minutes of pointing the tool at a real repository. The gates stayed
+byte-identical through all nine fixes, which is the same statement from the other side.
+
+### What this changes about priorities
+
+* **2.11 (the suspicion band) is the critical path**, not a cleanup task. libpng produced 163 rows that
+  assert an API is present rather than misused. That is precisely the noise the quote above is about, and no
+  amount of arbiter accuracy survives shipping it.
+* **A family that cannot decide its class must say so** (2.16). A silent C scan must not read as a clean bill
+  of health; that is worse than noise because it is quiet.
+* **Negative results get recorded as measurements, not as failures.** `c/memory` scoring zero on libpng is a
+  finding about the abstraction, and the artifact says which abstraction would reach it (size arithmetic,
+  i.e. a constraint problem) rather than leaving it as a gap to be tuned at.
