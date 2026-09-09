@@ -425,7 +425,7 @@
   - _Requirements: 2.1, 8.1, 9.1_
   - _Depends: 5.1_
 
-- [ ] 5.5 php2cpg emits a CPG containing one file
+- [x] 5.5 php2cpg emits a CPG containing one file — NOT A DEFECT, it was the shim
   - **Found by 5.4 and it blocks the WordPress target.** A CPG built over two PHP files contains only one,
     and the survivor is the last alphabetically. Reproduced twice on independent samples; both files parse
     cleanly under `php -l` and under PHP-Parser directly, and `joern-parse` reports success either way.
@@ -439,6 +439,13 @@
     failure Req 5.6 was approved for.
   - Observable: a CPG over N PHP files contains N files, or a recorded reason it cannot with the version and
     the reproduction.
+  - **Resolved 2026-09-09: there was no defect.** Rerun with a native php-cli (8.3.6, no shim) over the same
+    two files and the CPG contains both, all eight methods, and no PHP-Parser banner warning at all. The
+    shim ran each `php` invocation in its own container -- needed because this machine has no interpreter --
+    and php2cpg drives PHP-Parser per file, so that isolation kept only one file's JSON.
+  - **The lesson is worth more than the fix.** Two independent reproductions agreed, and both were measured
+    through the same broken instrument. A consistent result is not a correct one when every measurement
+    shares an apparatus, which is the same trap as a corpus that cannot see the defect it is scoring.
   - _Requirements: 4.3, 5.6, 9.1_
   - _Depends: 5.4_
 
