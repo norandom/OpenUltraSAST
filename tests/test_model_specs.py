@@ -241,3 +241,46 @@ def test_a_sink_is_matched_as_a_word_not_a_substring() -> None:
     assert "gets" in memory.sinks, "the unbounded read is a sink"
     assert "fgets" in memory.sources, "the bounded read is a SOURCE of untrusted input, never a sink"
     assert "fgets" not in memory.sinks
+
+
+def test_php_facts_derive_the_families_a_web_application_needs() -> None:
+    """contributor-scan 5.1, toward the WordPress target.
+
+    Written against a real PHP CPG rather than against PHP source, because the two do not look alike: a
+    superglobal is an `<operator>.indexAccess` whose CODE reads `$_GET["name"]`, while a dangerous operation
+    is a plain call named `mysqli_query` or `echo`. Sources therefore match on code and sinks on name.
+    """
+    from openultrasast.model.specs import taint_specs
+
+    families = taint_specs(language="php")
+
+    assert {"injection", "output_encoding", "path", "deserialization", "untrusted_destination"} <= set(families)
+    injection = families["injection"]
+    assert "mysqli_query" in injection.sinks, "SQL"
+    assert "system" in injection.sinks, "command execution"
+    assert "$_GET" in injection.sources, "a superglobal is matched on the code of an index access"
+    assert "echo" in families["output_encoding"].sinks, "PHP's XSS sink is a language construct php2cpg emits as a call"
+
+
+def test_no_php_sink_is_its_own_sanitizer() -> None:
+    """The bug class this codebase has hit three times, asserted for the newest fact table before it can."""
+    from openultrasast.model.specs import taint_specs
+
+    for family, spec in taint_specs(language="php").items():
+        assert not set(spec.sinks) & set(spec.sanitizers), f"{family}: an operation that discharges itself can never be reported"
+
+
+def test_a_php_file_can_become_a_region() -> None:
+    """Facts alone reach nothing: `_LANGUAGES` decides whether a file is offered to the model layer at all."""
+    from openultrasast.model.regions import regions_for
+
+    class _Target:
+        path = "wp-admin/admin-ajax.php"
+        language = "php"
+        loc = 100
+        tags: tuple[str, ...] = ()
+
+    regions = regions_for([], [_Target()])
+
+    assert regions, "a php file with no entry point should still yield a file-level region"
+    assert regions[0].language == "php"

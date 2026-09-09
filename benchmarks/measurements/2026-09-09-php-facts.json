@@ -1,0 +1,32 @@
+{
+  "arbiter_validation": {
+    "get_user": "model_entailed injection -- $_GET -> concat -> mysqli_query",
+    "run": "model_entailed injection -- system($_POST)",
+    "safe_user": "model_corroborated -- mysqli_real_escape_string seen on the path, so the rung drops",
+    "show": "model_entailed output_encoding -- echo $_GET"
+  },
+  "caveat": "A 13-line probe is not a WordPress result. What is established is that the seam works end to end for PHP: php2cpg parses, the facts derive, the arbiter decides, and a scan reports at the right locations. Everything about scale and coverage is unmeasured.",
+  "generated": "2026-09-09",
+  "how_the_tables_were_derived": "Against a real PHP CPG rather than against PHP source, because the two do not look alike. Verified with joern-parse 4.0.623 / php2cpg: a superglobal is an `<operator>.indexAccess` whose CODE reads $_GET[\"name\"], while a dangerous operation is a plain call NAMED mysqli_query or echo. So sources match on code and sinks match on name, and every entry the probe did not exercise is marked unverified in the file.",
+  "reading": "PHP facts exist, derive five families, and decide a real PHP CPG correctly on a 13-line probe: the vulnerable SQL concat entails, its escaped twin drops to corroborated, XSS via echo entails and command injection via system entails. That is 4 of 4 by the arbiter and 2 of 3 through a whole scan, and the difference between those two numbers is the finding.",
+  "scan_validation": {
+    "entailed": 2,
+    "found": [
+      "vuln.php:12:show",
+      "vuln.php:13:run"
+    ],
+    "missed": "vuln.php:6:get_user, the SQL injection",
+    "regions": 1
+  },
+  "spec": "contributor-scan 5.1 (Req 9.1) -- PHP fact tables, first step toward the v0.1 WordPress target",
+  "the_gap_the_scan_exposed": {
+    "detail": "PHP files yield FILE-LEVEL regions, because no PHP entry points are mapped yet. The taint arbiter returns ONE verdict per region per family, so a file-level region reports at most one injection finding however many it contains: `system` won on flow length and the SQL injection at line 6 went unreported. This is the mirror image of task 2.9 -- that one is many regions collapsing to one site, this is many sites collapsing to one verdict -- and it bites hardest exactly where PHP needs it not to, since a WordPress file is large and has no decorator for the mapper to find.",
+    "id": "one-verdict-per-region-per-family"
+  },
+  "what_is_still_missing_for_wordpress": [
+    "Entry-point mapping for WordPress's registration model: add_action, add_filter, admin-ajax, REST routes. Without it every PHP file is one file-level region.",
+    "The one-verdict-per-region limit above, which makes a file-level region under-report by construction.",
+    "Validation beyond a 13-line probe. `include`/`require` are marked unverified in the table and are PHP's most characteristic path bug.",
+    "No PHP pairs exist in the corpus -- 263 python, 351 c_cpp, 47 javascript, 49 java, 0 php -- so there is nothing to score a change against yet."
+  ]
+}

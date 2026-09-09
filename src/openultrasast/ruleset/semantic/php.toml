@@ -1,0 +1,158 @@
+# PHP semantic facts (contributor-scan 5.1, toward the v0.1 WordPress target).
+#
+# Written against a real PHP CPG rather than against PHP source, because the two do not look alike. Verified
+# on 2026-09-09 with joern-parse 4.0.623 / php2cpg over a probe file:
+#
+#   $_GET["name"]                       ->  call name `<operator>.indexAccess`, code `$_GET["name"]`
+#   mysqli_query($conn, $sql)           ->  call name `mysqli_query`
+#   echo $_GET["msg"]                   ->  call name `echo`
+#   "..." . $name . "..."               ->  call name `<operator>.concat`
+#   "... $clean ..."                    ->  call name `encaps`
+#
+# That shapes the file: SOURCES are matched on call CODE (a superglobal is an index access, not a call by
+# that name), and SINKS are matched on call NAME (PHP's dangerous operations are plain function calls).
+#
+# Entries marked `unverified` were not exercised by the probe. They are the ones to check first when a real
+# WordPress checkout is scanned; nothing here should be trusted further than it has been run.
+
+version = "1"
+language = "php"
+
+# --- sources -----------------------------------------------------------------------------------------
+# The superglobals. `$_SERVER` is included because its request-derived members (HTTP_USER_AGENT, HTTP_HOST,
+# QUERY_STRING, REQUEST_URI) are attacker-controlled; its process members are not, which is a precision cost
+# accepted here and worth revisiting once WordPress is measured.
+
+[[source]]
+id = "request"
+patterns = ["$_GET", "$_POST", "$_REQUEST", "$_COOKIE", "$_FILES"]
+
+[[source]]
+id = "server"
+patterns = ["$_SERVER"]
+
+[[source]]
+id = "raw_body"
+patterns = ["php://input"]
+
+# --- injection sinks ---------------------------------------------------------------------------------
+
+[[sink]]
+id = "sql"
+cwe = "CWE-89"
+calls = [
+  "mysqli_query",
+  "mysqli_multi_query",
+  "mysqli_real_query",
+  "mysql_query",
+  "pg_query",
+  "pg_send_query",
+  "sqlite_query",
+  "sqlite_unbuffered_query",
+]
+rule_ids = []
+
+[[sink]]
+id = "command"
+cwe = "CWE-78"
+calls = ["system", "exec", "shell_exec", "passthru", "proc_open", "popen", "pcntl_exec"]
+rule_ids = []
+
+[[sink]]
+id = "code_eval"
+cwe = "CWE-95"
+calls = ["eval", "assert", "create_function"]
+rule_ids = []
+
+# --- output encoding ---------------------------------------------------------------------------------
+# `echo` and `print` are language constructs and php2cpg does emit them as calls -- verified on the probe.
+
+[[sink]]
+id = "echo"
+cwe = "CWE-79"
+calls = ["echo", "print", "printf", "vprintf", "print_r", "var_dump", "fwrite"]
+rule_ids = []
+
+# --- path --------------------------------------------------------------------------------------------
+
+[[sink]]
+id = "filesystem"
+cwe = "CWE-22"
+calls = [
+  "fopen",
+  "file_get_contents",
+  "file_put_contents",
+  "readfile",
+  "unlink",
+  "copy",
+  "rename",
+  "scandir",
+  "opendir",
+  "mkdir",
+  "rmdir",
+  "move_uploaded_file",
+]
+rule_ids = []
+
+# unverified: whether php2cpg emits `include`/`require` as calls or as their own node kind. If it does not,
+# PHP's most characteristic path bug is invisible and this is the first thing to fix.
+[[sink]]
+id = "file_inclusion"
+cwe = "CWE-98"
+calls = ["include", "include_once", "require", "require_once"]
+rule_ids = []
+
+# --- deserialization ---------------------------------------------------------------------------------
+
+[[sink]]
+id = "unserialize"
+cwe = "CWE-502"
+calls = ["unserialize"]
+rule_ids = []
+
+# --- untrusted destination ---------------------------------------------------------------------------
+
+[[sink]]
+id = "outbound_request"
+cwe = "CWE-918"
+calls = ["curl_exec", "curl_setopt", "fsockopen", "stream_socket_client", "get_headers"]
+rule_ids = []
+
+[[sink]]
+id = "redirect"
+cwe = "CWE-601"
+calls = ["header"]
+rule_ids = []
+
+# --- sanitizers --------------------------------------------------------------------------------------
+# A cleansing CALL only. Nothing here is a shape qualifier except where marked, and no entry may also appear
+# as a sink: an operation that is its own discharge can never be reported, which is a bug this codebase has
+# now hit three times in three different matchers.
+
+[[sanitizer]]
+id = "html_escape"
+calls = ["htmlspecialchars", "htmlentities", "html_entity_decode_safe"]
+
+[[sanitizer]]
+id = "sql_escape"
+calls = ["mysqli_real_escape_string", "mysql_real_escape_string", "pg_escape_string", "pg_escape_literal"]
+
+[[sanitizer]]
+id = "shell_escape"
+calls = ["escapeshellarg", "escapeshellcmd"]
+
+[[sanitizer]]
+id = "path_confine"
+calls = ["basename", "realpath"]
+
+[[sanitizer]]
+id = "coerce"
+calls = ["intval", "floatval", "filter_var", "settype", "absint"]
+
+# A prepared statement is a SHAPE, not a cleansing call: `mysqli_prepare` makes the query safe by binding
+# rather than by transforming the value, which is the same distinction `execute`/`executemany` carry in
+# python.toml.
+[[sanitizer]]
+id = "prepared_statement"
+calls = ["mysqli_prepare", "mysqli_stmt_bind_param", "pg_prepare", "pg_execute"]
+parameterized = true

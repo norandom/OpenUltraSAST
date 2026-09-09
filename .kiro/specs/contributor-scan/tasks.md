@@ -377,6 +377,10 @@
   measurement that could produce a true positive.
 
 - [ ] 5.1 PHP/WordPress slice
+  - **Fact tables landed 2026-09-09** (`benchmarks/measurements/2026-09-09-php-facts.json`). Five families
+    derive, and the arbiter decides a real PHP CPG 4 of 4 on a probe: SQL concat entails, its escaped twin
+    drops to corroborated, `echo` XSS and `system` command injection entail. `php` added to the region
+    model's languages. What remains is below.
   - Plugin and core weaknesses. `php2cpg` needs a PHP interpreter, which the image provides. **Validate on a
     sample that the model can read the pairs before vendoring** — the OWASP harvest found 238 and vendored 40
     for exactly this reason.
@@ -403,6 +407,23 @@
     decision closes these would join 173 idle pairs.
   - _Requirements: 9.2, 9.4, 9.5, 9.6_
   - _Depends: 4.1_
+
+- [ ] 5.4 WordPress entry points, and the one-verdict-per-region limit
+  - Two things stand between the PHP facts and a WordPress result, and the second was found by running the
+    first.
+  - **Entry points.** WordPress registers handlers with `add_action`, `add_filter`, admin-ajax and REST
+    routes. Nothing maps them, so every PHP file becomes one file-level region. The mapper already handles
+    registration-based entry points for other frameworks (predecessor task 2.6), so this is a new recogniser
+    rather than a new mechanism.
+  - **One verdict per region per family.** The taint arbiter returns a single verdict for a region and
+    family, so a file-level region reports at most one injection finding however many the file holds: on the
+    probe, `system` won on flow length and the SQL injection went unreported. This is the mirror of 2.9 --
+    that is many regions collapsing to one site, this is many sites collapsing to one verdict -- and it bites
+    hardest where PHP needs it not to.
+  - Observable: the probe reports 3 of 3, and a WordPress checkout yields function-scoped regions rather than
+    one region per file.
+  - _Requirements: 2.1, 8.1, 9.1_
+  - _Depends: 5.1_
 
 ## Group 6 — Regression baselines
 

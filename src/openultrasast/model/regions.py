@@ -36,7 +36,7 @@ _ACCESS_RANK: dict[str, float] = {
 
 # Languages whose facts the model layer carries. Anything else yields no region rather than an empty scan
 # that looks like a clean bill of health.
-_LANGUAGES = {"python", "javascript", "typescript", "java", "c", "c_cpp"}
+_LANGUAGES = {"python", "javascript", "typescript", "java", "c", "c_cpp", "php"}
 _NORMALISE = {"typescript": "javascript", "c_cpp": "c"}
 
 # What a CPG calls a file's top-level code. A module body is a method like any other to the engine, and
