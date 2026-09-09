@@ -126,6 +126,16 @@ def scan_repository(
             degradations=({"stage": "model", "reason": "cpg_build_failed"},),
         )
 
+    # A CPG the frontend built with files missing is not the repository the caller asked about, and no
+    # verdict over it can say anything about the code that was dropped. There is no rung for that, because
+    # the ladder labels verdicts and none was ever produced here -- so it is a degradation, named, with the
+    # files listed. See `cpg.backend._unparsed_files` for how a frontend drops a file while exiting 0.
+    if getattr(cpg, "unparsed", ()):  # a backend need not carry the field
+        unparsed = tuple(cpg.unparsed)
+        degradations.append(
+            {"stage": "model", "reason": "files_unparsed", "count": len(unparsed), "files": [Path(name).name for name in unparsed[:20]]}
+        )
+
     # Count calls here rather than reading a client's own meter: the budget is this driver's contract and
     # must hold for any client, including one that keeps no usage log.
     counted = _CountingClient(client) if client is not None else None
@@ -150,6 +160,7 @@ def scan_repository(
     # the queries themselves are milliseconds once the CPG is loaded.
     rows_by_id: dict[str, list[object]] = {}
     per_kind: dict[str, float] = {}
+    census_reported = False
     query_started = time.monotonic()
     for kind, requests in _grouped(work).items():
         kind_started = time.monotonic()
@@ -162,6 +173,18 @@ def scan_repository(
                 # failed at CPG load and the scan reported 500 regions examined with nothing found.
                 degradations.append({"stage": "model", "reason": "query_failed", "kind": kind, "requests": len(requests)})
             else:
+                # The graph census rides the batch under a reserved key. A frontend that fails every file
+                # still exits 0 with a valid CPG containing nothing, and `joern-parse` does not propagate
+                # its warnings, so without this a scan of an EMPTY graph is indistinguishable from a scan
+                # that found nothing -- which is how a two-file WordPress slice reported a clean bill of
+                # health over a 12KB graph with no methods in it at all.
+                census = answered_batch.pop("__census__", None)
+                if census and not census_reported:
+                    entry = census[0] if isinstance(census[0], Mapping) else {}
+                    methods = int(str(entry.get("methods", "0")) or 0)
+                    if methods == 0:
+                        degradations.append({"stage": "model", "reason": "cpg_empty", "files": int(str(entry.get("files", "0")) or 0)})
+                    census_reported = True
                 rows_by_id.update(answered_batch)
         else:  # a backend without batching still works, one call at a time
             for rid, params in requests.items():

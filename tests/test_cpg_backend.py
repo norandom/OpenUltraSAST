@@ -8,6 +8,7 @@ Nothing here imports a JVM binding, and every test runs with Joern absent.
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -341,3 +342,29 @@ def test_a_batch_goes_through_a_file_not_the_command_line(tmp_path: Path) -> Non
     assert staged, "the batch is staged to a file"
     written = Path(staged[0].split("=", 1)[1])
     assert written.is_file() and len(written.read_text()) > 200_000, "and the file holds the whole payload"
+
+
+def test_a_file_the_frontend_dropped_is_carried_off_the_build() -> None:
+    """A Joern frontend fails a file without failing the build, and exits 0 with the rest of the graph.
+
+    php2cpg 4.0.623 does exactly this: one oversized file corrupts the batched parser stream, that file is
+    logged at WARN and dropped, and the CPG comes back missing it. A scan over the remainder that says
+    nothing is a clean bill of health over code nobody looked at.
+    """
+    warning = (
+        "2026-09-09 17:46:21.892 WARN  AstCreationPass  Failed to process '/src/class.memberorder.php'\n"
+        "2026-09-09 17:46:21.892 WARN  SymbolSummaryPass  Failed to process '/src/class.memberorder.php'\n"
+        "2026-09-09 17:46:21.893 WARN  AstCreationPass  Failed to process '/src/rest-api.php'\n"
+    )
+    from openultrasast.cpg.backend import _unparsed_files
+
+    completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="", stderr=warning)
+    assert _unparsed_files(completed) == ("/src/class.memberorder.php", "/src/rest-api.php")
+
+
+def test_a_build_with_nothing_dropped_reports_no_unparsed_files() -> None:
+    from openultrasast.cpg.backend import _unparsed_files
+
+    completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="Successfully wrote graph", stderr="")
+    assert _unparsed_files(completed) == ()
+    assert _unparsed_files(None) == ()

@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -94,6 +95,11 @@ class CpgResult:
     cpg_path: Path
     run: Callable[[str, Mapping[str, object]], object | None]
     run_batch: Callable[[str, Mapping[str, Mapping[str, object]]], dict[str, list[object]] | None] | None = None
+    # Files the frontend read and could not turn into a graph. A CPG is not all-or-nothing: `php2cpg` logs a
+    # warning per file it drops and still exits 0 with a graph that is missing them, so a scan over the
+    # remainder is a scan of LESS CODE THAN IT WAS ASKED ABOUT, and silence about those files is the same
+    # quiet failure as an empty query result. The names travel with the CPG so the driver can say so.
+    unparsed: tuple[str, ...] = ()
 
 
 class CpgBackend(Protocol):
@@ -144,33 +150,45 @@ class JoernBackend:
         cpg_path = scratch / "cpg.bin"
         command = [parse or "joern-parse", self._heap_flag(), str(root), "--output", str(cpg_path)]
         completed = self._run(command, timeout=self.build_timeout, cwd=scratch)
+        unparsed = _unparsed_files(completed)
         if completed is None or completed.returncode != 0 or not cpg_path.is_file():
             detail = (completed.stderr or completed.stdout or "")[-400:] if completed is not None else "timeout"
             logger.warning("cpg build failed for %s: %s", root, detail)
-            if not self._build_with_frontend(root, cpg_path, scratch, language):
+            retried = self._build_with_frontend(root, cpg_path, scratch, language)
+            if retried is None:
                 return None
+            unparsed = retried
+        if unparsed:
+            logger.warning("the frontend could not parse %d file(s) under %s: %s", len(unparsed), root, ", ".join(unparsed[:5]))
         return CpgResult(
             cpg_path=cpg_path,
             run=lambda query, params: self.query(cpg_path, query, params),
             run_batch=lambda query, requests: self.query_batch(cpg_path, query, requests),
+            unparsed=unparsed,
         )
 
-    def _build_with_frontend(self, root: Path, cpg_path: Path, scratch: Path, language: str) -> bool:
-        """Retry the build through the language frontend alone. False when there is nothing to retry with."""
+    def _build_with_frontend(self, root: Path, cpg_path: Path, scratch: Path, language: str) -> tuple[str, ...] | None:
+        """Retry the build through the language frontend alone.
+
+        Returns the files the frontend dropped -- possibly none -- or ``None`` when there is nothing to retry
+        with or the retry failed too. An empty tuple and ``None`` are different answers here for the same
+        reason they are everywhere else in this module: one means "built, and complete", the other means
+        "could not build".
+        """
         frontend = _FRONTENDS.get(language.lower())
         if not frontend:
-            return False
+            return None
         binary = shutil.which(frontend)
         if binary is None:
             logger.warning("no frontend %s on PATH to retry the build for %s", frontend, root)
-            return False
+            return None
         completed = self._run([binary, self._heap_flag(), str(root), "-o", str(cpg_path)], timeout=self.build_timeout, cwd=scratch)
         if completed is None or completed.returncode != 0 or not cpg_path.is_file():
             detail = (completed.stderr or completed.stdout or "")[-400:] if completed is not None else "timeout"
             logger.warning("%s also failed for %s: %s", frontend, root, detail)
-            return False
+            return None
         logger.info("built the cpg for %s with %s after joern-parse failed", root, frontend)
-        return True
+        return _unparsed_files(completed)
 
     def query_batch(self, cpg_path: Path, query: str, requests: Mapping[str, Mapping[str, object]]) -> dict[str, list[object]] | None:
         """Run ONE script invocation carrying many requests, keyed back to their ids.
@@ -259,6 +277,41 @@ class JoernBackend:
             return run(command, capture_output=True, text=True, timeout=timeout, check=False, cwd=str(cwd) if cwd else None)
         except (OSError, subprocess.SubprocessError):
             return None
+
+
+# Every Joern frontend logs a dropped file the same way, at WARN, and then carries on:
+#
+#     WARN  AstCreationPass   Failed to process '/abs/path/to/file.php'
+#
+# The quotes are part of the line, which is what makes this safely greppable rather than a guess at column
+# positions. Several passes report the same file, so the caller de-duplicates.
+_UNPARSED = re.compile(r"Failed to process '([^']+)'")
+
+
+def _unparsed_files(completed: subprocess.CompletedProcess[str] | None) -> tuple[str, ...]:
+    """The files the frontend read and dropped, in first-seen order.
+
+    This exists because a Joern frontend fails a file WITHOUT failing the build. `php2cpg` 4.0.623 feeds
+    several files to one `php-parse` process and reads its stdout and stderr merged; php-parse writes a
+    `====> File <next>:` banner to stderr the moment it starts the next file, while the previous file's JSON
+    -- megabytes of it -- is still draining from a block-buffered stdout. The banner lands inside the JSON,
+    ujson reports `expected json value got "="`, and the frontend drops that file. Reproducibly, on real
+    plugin code:
+
+        one 1834-line file alone            -> a 142KB CPG, no failures
+        the same file plus a two-line file  -> a 5.7KB CPG, BOTH files dropped, exit status 0
+
+    So the size that matters is one file's AST dump, not the repository's, and one oversized file can empty
+    the whole graph. Before this, that arrived as a scan reporting no findings and no degradations -- a clean
+    bill of health over a graph containing nothing at all.
+    """
+    if completed is None:
+        return ()
+    seen: dict[str, None] = {}
+    for stream in (completed.stdout or "", completed.stderr or ""):
+        for match in _UNPARSED.finditer(stream):
+            seen.setdefault(match.group(1), None)
+    return tuple(seen)
 
 
 def _render(value: object) -> str:

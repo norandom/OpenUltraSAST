@@ -1,0 +1,48 @@
+# WP Statistics 13.1.5 -- a WordPress plugin with an unauthenticated SQL injection reached through a hook.
+#
+# The third WordPress checkout, and the one chosen because it is NOT expected to be found. PMPro's CVE is a
+# concatenation inside the function that receives the value; this one crosses WordPress's filter dispatcher,
+# which is the shape most plugin data actually travels in. A table that only lists hits teaches nothing about
+# where the engine stops.
+#
+# Verified in the code. At this commit `includes/class-wp-statistics-pages.php:225` reads:
+#
+#     $exist = $wpdb->get_row("SELECT `page_id` FROM ... AND `id` = {$current_page['id']}", ARRAY_A);
+#
+# and one line below, the SAME value is used correctly:
+#
+#     $wpdb->query($wpdb->prepare("UPDATE ... AND `id` = %d", $current_page['id']));
+#
+# The value arrives from an unauthenticated REST hit. `Hits::rest_params()` copies every `$_REQUEST` key into
+# `$this->rest_hits`; `Hits::set_current_page()` returns `'id' => $this->rest_hits->current_page_id`; and it
+# is bound to the sink not by a call but by
+#
+#     add_filter('wp_statistics_current_page', array($this, 'set_current_page'));   # hits.php:43
+#     return apply_filters('wp_statistics_current_page', $current_page);            # pages.php:105
+#
+# Both ends of that edge name the callback with a STRING, so no frontend can draw it. The fix (bc98b414)
+# wraps both values in `esc_sql`, which is a modelled sanitizer -- so if the flow were visible at all, the
+# pair would separate.
+
+name = "wpstatistics"
+url = "https://github.com/wp-statistics/wp-statistics.git"
+commit = "ca66e7b89587dce3ee189f1eb42211ad111db4b7"
+language = "php"
+license = "GPL-2.0"
+license_file = "license.txt"
+measures = ["detection"]
+note = """
+The parent of the fix commit bc98b414 ("Sanitize current_page_id & current_page_type in rest request",
+2022-02-13), released in the 13.1.x line. Nothing is vendored -- the recipe fetches on request and CI never
+does.
+"""
+
+[[known]]
+id = "CVE-2022-25148"
+family = "injection"
+weakness = "unauthenticated SQL injection: current_page_id from an unauthenticated REST hit is interpolated into a $wpdb->get_row query, having crossed the wp_statistics_current_page filter"
+file = "includes/class-wp-statistics-pages.php"
+function = "record"
+line = 225
+reference = "fixed in bc98b4146afd6f4b29fda1136772dcf1a42f26e6, which applies esc_sql to current_page_type and current_page_id at their source; the vulnerable line is verified in the checkout"
+in_scope = true

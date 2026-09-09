@@ -280,7 +280,13 @@
         ): _*
       )
     }
-    println(ujson.write(ujson.Obj.from(answers)))
+    // A census of the graph, under a key no request id can collide with (ids are numbers). A frontend can
+    // fail every file and STILL exit 0 with a valid, empty CPG -- `joern-parse` does not even propagate the
+    // per-file warnings -- so "no rows" and "no graph" are indistinguishable to the driver without this.
+    // It rides the batch rather than costing its own invocation, because JVM startup is what this whole
+    // batching design exists to avoid.
+    val census = ujson.Arr(ujson.Obj("methods" -> cpg.method.size.toString, "files" -> cpg.file.size.toString))
+    println(ujson.write(ujson.Obj.from(answers.toSeq :+ ("__census__" -> census))))
   } else {
     println(
       ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, function, parameterSources, file, callDepth, boundedSinks): _*))
