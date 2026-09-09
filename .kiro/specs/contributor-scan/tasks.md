@@ -600,6 +600,18 @@
     source/sink pairing the taint query is told about.
   - Do NOT approximate it with "any hook may reach any handler". That is a complete graph over the plugin and
     would entail everything.
+  - **The neighbouring string-named forms were checked and are sound**, so this task is the hook registry and
+    nothing else. Measured on probes, 2026-09-09:
+    - taint SURVIVES a string-named callable -- `array_map('trim', $_GET['a'])` and
+      `call_user_func('trim', $_GET['a'])` both reach the sink and are entailed, like a plain call;
+    - a sanitizer named by a string IS recognised -- `array_map('esc_sql', ...)` and
+      `call_user_func('esc_sql', ...)` both suppress, matching PMPro's own `array_map('esc_sql', $status)`;
+    - the textual sanitizer test (`taint.sc`: does a path element's code mention the name) does NOT
+      over-suppress. A query where a SIBLING value is `esc_sql`-wrapped is still entailed for the unwrapped
+      one, and a decoy `'esc_sql'` literal flowing to the same sink does not suppress either -- because
+      `flow.elements` are the nodes on that value's own path.
+    The hook is different in kind: `add_filter` and `apply_filters` are not one expression with a callback in
+    it, they are two statements in two files joined only through a hashtable in WordPress core.
   - Observable: CVE-2022-25148 entailed on `wpstatistics`'s vulnerable side and absent on its fixed side --
     the pair already pinned, already measured as a double miss, so the number moves or it does not.
   - _Requirements: 4.4, 8.1, 9.1_
