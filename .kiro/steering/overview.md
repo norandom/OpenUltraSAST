@@ -56,20 +56,44 @@ invocation per query kind.
 | libpng envelope (89k lines of C) | build 16s, query 250s, scan 446s, **911 MB** | `2026-09-09-repo-libpng-envelope.json` |
 | libpng valid findings | **zero** | same |
 | report proportionality | libpng 198 sections → **39** | `2026-09-09-report-proportionality.json` |
+| **CVE-2023-23488, production plugin code** | **found at `class.memberorder.php:936`**, the exact line | `2026-09-09-pmpro-cve-found.json` |
+| — precision on that file | 16 of 26 unprepared `$wpdb` queries; **0 of 26 use `->prepare`** | same |
 
 ## What is not true yet
 
 - **The C story does not work.** `c/memory` has produced zero true positives and three distinct classes of
   false one. It models string functions; libpng overflows through arithmetic, and its library code never
   calls a sink we model. This is structural, not tuning.
-- **One language is demonstrated.** Python. JavaScript has fact tables and pair coverage but no repository.
-  PHP, Ruby and Go have **zero families** — Joern would parse them and the engine would say nothing.
+- **Two languages are demonstrated.** Python end to end, and PHP on a real plugin slice where it found a
+  real CVE. Ruby and Go still have **zero families** — Joern parses them and the engine says nothing.
+- **Not at repository scale for PHP.** The 637-file checkout does not load; the 2-file slice does. That
+  boundary is unmeasured (task 5.10).
 - **The suspicion band is still too loud.** vampi emits 61 report sections for a 520-line application, 38 of
   them a candidate the graph could not decide with a judge's opinion attached.
 - **The evidence base is two repositories.** One has never produced a true positive.
 - **Control dependence is unavailable.** 0 of 13,184 calls in the libpng CPG and 0 of 1,152 in vampi's have a
   controlling control structure, so every guard question runs on CFG dominance instead.
 - **`execution_confirmed` has no production caller.** The rung exists and nothing reaches it.
+
+## What scoping is for, which is not what it looks like
+
+The first real CVE was found by **cutting**, not by scanning more. Two of Paid Memberships Pro's 637 files —
+the ones holding both ends of the bug — load in 9 seconds, query in 111, and report CVE-2023-23488 at the
+exact line. The full checkout does not load at all.
+
+That two-file slice **is the contributor case**. A developer editing `class.memberorder.php` gets precisely
+that scan. So scoping is not a workaround for a scale problem; it is the thesis, and the scale problem is
+what happens when the thesis is ignored.
+
+The distinction that matters is not whether to cut but **who decides and whether the decision is recorded**:
+
+| | decided by | recoverable afterwards |
+| --- | --- | --- |
+| **scoping** — a build declaration, a diff, a subtree | the project or the developer | yes, and it is in the artifact |
+| **triage** — "this looks like boilerplate" | a model | no; if it drops the file with the bug, the scan reports clean |
+
+Both give the same answer when the model is right. Only one of them tells you when it was wrong, and every
+failure found on this checkout was of exactly that shape.
 
 ## Why a corpus of benchmarks is not enough on its own
 
