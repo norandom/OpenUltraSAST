@@ -40,6 +40,19 @@ from .taxonomy import load_families
 # would let a fourth spec kind reach `_grouped` and silently fall through to the taint branch.
 ArbiterSpec = TaintSpec | DominanceSpec | ConfigSpec
 
+# How far below an entry point a sink may sit and still be attributed to it.
+#
+# An entry point is the trust boundary, so its parameters ARE attacker input and a sink it reaches is its
+# responsibility -- which is what makes VAmPI's SQL injection askable at all: a request parameter reaches
+# `get_by_username`, is passed to `User.get_user` in another module, interpolated there and executed. A
+# function-scoped question sees neither end of that.
+#
+# Bounded, and deliberately shallow. "Every method transitively reachable from a handler" is most of a
+# repository: the question stops being about this entry point and the query stops being affordable. Three
+# levels covers handler -> service -> data access, which is where these bugs live. Raising it is a
+# measurement, not a preference.
+ENTRY_POINT_CALL_DEPTH = 3
+
 logger = logging.getLogger(__name__)
 
 _RUNG_ORDER = {Rung.ENTAILED: 0, Rung.CORROBORATED: 1, Rung.SUSPICION: 2, Rung.EXECUTION_CONFIRMED: -1}
@@ -167,7 +180,11 @@ def scan_repository(
                 client=None if exhausted else counted,
                 model=model,
                 candidates=candidates,
-                parameter_sources=False,  # a repository's parameters are not all attacker input
+                # A repository's parameters are not all attacker input -- but an ENTRY POINT's are, by
+                # definition. That is the trust boundary, and it is the one place both halves of the old
+                # objection stop applying.
+                parameter_sources=_is_entry_point(region),
+                call_depth=ENTRY_POINT_CALL_DEPTH if _is_entry_point(region) else 0,
             )
         except Exception as exc:  # noqa: BLE001 -- one bad region must not end the scan
             logger.warning("model scan failed for %s: %s", region.path, exc)
@@ -218,14 +235,34 @@ def _grouped(work: Sequence[tuple[str, ScanRegion, ArbiterSpec]]) -> dict[str, d
     grouped: dict[str, dict[str, Mapping[str, object]]] = {}
     for rid, region, spec in work:
         function = region.function or ""
+        entry = _is_entry_point(region)
         if isinstance(spec, DominanceSpec):
             kind, params = "dominance", dominance_params(spec, function=function)
         elif isinstance(spec, ConfigSpec):
             kind, params = "config", config_params(spec, function=function, file=region.path)
         else:
-            kind, params = "taint", taint_params(spec, function=function, file=region.path, parameter_sources=False)
+            kind, params = (
+                "taint",
+                taint_params(
+                    spec,
+                    function=function,
+                    file=region.path,
+                    parameter_sources=entry,
+                    call_depth=ENTRY_POINT_CALL_DEPTH if entry else 0,
+                ),
+            )
         grouped.setdefault(kind, {})[rid] = params
     return grouped
+
+
+def _is_entry_point(region: ScanRegion) -> bool:
+    """Is this region a place untrusted input actually enters?
+
+    A named function the entry-point mapper found, not a file the walker fell back to. The distinction is
+    what makes treating parameters as untrusted sound: a handler's parameters carry request data, an
+    arbitrary helper's carry whatever its caller had.
+    """
+    return region.source == "entry_point" and bool(region.function)
 
 
 def _spec_for(family: str, language: str) -> ArbiterSpec | None:

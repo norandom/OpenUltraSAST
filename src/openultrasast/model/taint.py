@@ -19,7 +19,9 @@ from .ladder import Rung, Verdict
 from .specs import TaintSpec
 
 
-def request_params(spec: TaintSpec, *, function: str = "", file: str = "", parameter_sources: bool = False) -> dict[str, object]:
+def request_params(
+    spec: TaintSpec, *, function: str = "", file: str = "", parameter_sources: bool = False, call_depth: int = 0
+) -> dict[str, object]:
     """The query parameters this arbiter sends. Shared with the batcher so there is one definition, not two.
 
     Two copies of a parameter dict is precisely the duplication that produced five bugs of one shape in the
@@ -37,17 +39,29 @@ def request_params(spec: TaintSpec, *, function: str = "", file: str = "", param
         "function": function,
         "file": file,
         "parameterSources": "true" if parameter_sources else "false",
+        "callDepth": str(call_depth),
     }
 
 
-def verdict(cpg: CpgResult, spec: TaintSpec, *, function: str = "", file: str = "", parameter_sources: bool = False) -> Verdict | None:
+def verdict(
+    cpg: CpgResult, spec: TaintSpec, *, function: str = "", file: str = "", parameter_sources: bool = False, call_depth: int = 0
+) -> Verdict | None:
     """The strongest verdict the taint query supports for ``spec`` in ``function``, or ``None`` to stay at suspicion.
 
     ``parameter_sources`` additionally treats the labeled function's own parameters as untrusted. That is right
     for a function-level pair, where the function boundary *is* the trust boundary, and wrong for a whole
     repository, where most parameters carry internal values — so it is off by default and the caller opts in.
+    An ENTRY POINT is the case where both are true at once: its parameters are attacker input by definition,
+    which is what the driver uses to decide.
+
+    ``call_depth`` admits sinks that many call-graph levels below the labeled method. Zero keeps the old
+    function-local question; above zero is what lets a handler's parameter reach a sink in another module,
+    which is the shape VAmPI's SQL injection has and the shape a function-scoped question cannot see.
     """
-    rows = cpg.run("taint", request_params(spec, function=function, file=file, parameter_sources=parameter_sources))
+    rows = cpg.run(
+        "taint",
+        request_params(spec, function=function, file=file, parameter_sources=parameter_sources, call_depth=call_depth),
+    )
     flows = _flows(rows, function=function)
     # A sink whose *shape* is safe is the fix, not the bug. `execute(sql, params)` binds rather than
     # interpolates and `printf("literal", x)` has a constant format string, so the flow that reaches them is
@@ -66,7 +80,7 @@ def verdict(cpg: CpgResult, spec: TaintSpec, *, function: str = "", file: str = 
     # Deterministic by construction: a total order, then take the first. Nothing depends on engine ordering.
     chosen = min(unsanitized or considered, key=lambda flow: _rank(flow, spec))
     rung = Rung.ENTAILED if not chosen["sanitized"] else Rung.CORROBORATED
-    return Verdict(rung=rung, family=spec.family, witness=_witness(chosen))
+    return Verdict(rung=rung, family=spec.family, witness=_witness(chosen), location=_location(chosen))
 
 
 def _flows(rows: object, *, function: str) -> list[dict[str, object]]:
@@ -87,6 +101,7 @@ def _flows(rows: object, *, function: str) -> list[dict[str, object]]:
                 "inLabeledScope": row.get("inLabeledScope"),
                 "sinkLine": str(row.get("sinkLine", "")),
                 "sinkMethod": str(row.get("sinkMethod", "")),
+                "sinkFile": str(row.get("sinkFile", "")),
                 "source": str(row.get("source", "")),
                 "sanitized": bool(row.get("sanitized", False)),
                 "length": _as_int(row.get("length")),
@@ -155,7 +170,24 @@ def _rank(flow: Mapping[str, object], spec: TaintSpec) -> tuple[int, int, str, s
 
 def _witness(flow: Mapping[str, object]) -> str:
     line = flow.get("sinkLine") or "?"
-    return f"{flow['source']} -> {flow['sink']} (line {line}, {flow['length']} steps)"
+    where = str(flow.get("sinkFile") or "")
+    at = f" in {where}" if where else ""
+    return f"{flow['source']} -> {flow['sink']}{at} (line {line}, {flow['length']} steps)"
+
+
+def _location(flow: Mapping[str, object]) -> str:
+    """``path:line:function`` of the SINK, when the engine reported a file. Empty leaves the region's own.
+
+    All three parts come from the sink, not from the region that asked. A flow that crosses modules ends in
+    a different file AND a different function, and naming the entry point beside the sink's line describes a
+    place that does not exist -- `models/user_model.py:73:get_by_username`, where line 73 is inside
+    `get_user`.
+    """
+    where = str(flow.get("sinkFile") or "")
+    line = str(flow.get("sinkLine") or "")
+    if not where or not line.lstrip("-").isdigit() or int(line) < 0:
+        return ""
+    return f"{where}:{line}:{flow.get('sinkMethod') or '?'}"
 
 
 __all__ = ["request_params", "verdict"]

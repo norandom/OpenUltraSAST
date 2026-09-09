@@ -268,8 +268,32 @@ def test_a_witness_line_is_read_whatever_follows_the_number() -> None:
     Splitting on the comma produced sites like `config.py:17): permissive literal '0.0.0.0':?` -- a line
     number no editor can open and no consumer can compare.
     """
+    from openultrasast.model.ladder import Rung, Verdict
     from openultrasast.model.pipeline import _site
 
-    assert _site("config.py", "", "permissive literal '0.0.0.0' (line 17): permissive") == "config.py:17:?"
-    assert _site("a.py", "run", "flow reaches os.system (line 9, via x)") == "a.py:9:run"
-    assert _site("a.py", "run", "no line at all") == "a.py:?:run"
+    def at(witness: str) -> Verdict:
+        return Verdict(rung=Rung.ENTAILED, family="injection", witness=witness)
+
+    assert _site("config.py", "", at("permissive literal '0.0.0.0' (line 17): permissive")) == "config.py:17:?"
+    assert _site("a.py", "run", at("flow reaches os.system (line 9, via x)")) == "a.py:9:run"
+    assert _site("a.py", "run", at("no line at all")) == "a.py:?:run"
+
+
+def test_an_arbiter_that_knows_where_the_evidence_is_names_that_file() -> None:
+    """Once a flow may cross modules, the region that asked is not where the answer lives.
+
+    VAmPI's SQL injection is reached from a handler in api_views/users.py and executed in
+    models/user_model.py. Reporting it against the handler sends a contributor to the wrong file.
+    """
+    from openultrasast.model.ladder import Rung, Verdict
+    from openultrasast.model.pipeline import _site
+
+    crossed = Verdict(
+        rung=Rung.ENTAILED,
+        family="injection",
+        witness="username -> execute",
+        location="models/user_model.py:73:get_user",
+    )
+
+    # The asking region is api_views/users.py:get_by_username; every part of the site is the sink's instead.
+    assert _site("api_views/users.py", "get_by_username", crossed) == "models/user_model.py:73:get_user"

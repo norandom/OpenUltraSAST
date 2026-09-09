@@ -66,7 +66,13 @@ class ModelFinding:
 
 
 def _arbitrate(
-    cpg: CpgResult, spec: TaintSpec | DominanceSpec | ConfigSpec, *, path: str, function: str, parameter_sources: bool
+    cpg: CpgResult,
+    spec: TaintSpec | DominanceSpec | ConfigSpec,
+    *,
+    path: str,
+    function: str,
+    parameter_sources: bool,
+    call_depth: int,
 ) -> Verdict | None:
     """Route a family to the arbiter that can actually decide it.
 
@@ -79,7 +85,7 @@ def _arbitrate(
         return dominance_verdict(cpg, spec, function=function)
     if isinstance(spec, ConfigSpec):
         return config_verdict(cpg, spec, function=function, file=path)
-    return taint_verdict(cpg, spec, function=function, file=path, parameter_sources=parameter_sources)
+    return taint_verdict(cpg, spec, function=function, file=path, parameter_sources=parameter_sources, call_depth=call_depth)
 
 
 def scan_region(
@@ -92,13 +98,14 @@ def scan_region(
     model: str = "",
     candidates: Sequence[Mapping[str, object]] = (),
     parameter_sources: bool = False,
+    call_depth: int = 0,
 ) -> list[ModelFinding]:
     """Findings for one region and family, ordered strongest first."""
-    answer = _arbitrate(cpg, spec, path=path, function=function, parameter_sources=parameter_sources)
+    answer = _arbitrate(cpg, spec, path=path, function=function, parameter_sources=parameter_sources, call_depth=call_depth)
 
     if answer is not None and answer.rung is Rung.ENTAILED:
         # The graph decided. No model call, and no candidate needs asking about: this region has its finding.
-        return [ModelFinding(site=_site(path, function, answer.witness), family=spec.family, rung=Rung.ENTAILED, witness=answer.witness)]
+        return [ModelFinding(site=_site(path, function, answer), family=spec.family, rung=Rung.ENTAILED, witness=answer.witness)]
 
     if answer is not None:
         # A real flow through a sanitizer. Whether it suffices is the residual, and the model HAS coverage
@@ -107,9 +114,7 @@ def scan_region(
             return []
         said = _ask(client, model, residual_question(spec, answer.witness, function))
         if said:
-            return [
-                ModelFinding(site=_site(path, function, answer.witness), family=spec.family, rung=Rung.CORROBORATED, witness=answer.witness)
-            ]
+            return [ModelFinding(site=_site(path, function, answer), family=spec.family, rung=Rung.CORROBORATED, witness=answer.witness)]
         return []
 
     # The model resolved nothing. It is SILENT, not negative — so the enumerator's candidates are put to the
@@ -203,13 +208,21 @@ def _ask(client: Any, model: str, question: str) -> bool | None:
 _LINE_IN_WITNESS = re.compile(r"\(line (\d+)")
 
 
-def _site(path: str, function: str, witness: str) -> str:
+def _site(path: str, function: str, verdict: Verdict) -> str:
     """``path:line:function`` -- the same shape a candidate id carries, because one consumer parses both.
 
     An arbitrated finding used to be ``function:line``, which the report layer then read as ``path:line``:
     every entailed finding arrived with a function name where its file belonged and no line at all. A
     contributor cannot open that, and nothing downstream can match it against a known location.
+
+    The arbiter's own ``location`` wins when it has one. Once a flow may cross into another module, the
+    region that asked is no longer where the answer lives, and naming the asker would send a contributor to
+    the wrong file.
     """
+    if verdict.location:
+        # Already `path:line:function`, and every part of it is the sink's. See `taint._location`.
+        return verdict.location
+    witness = verdict.witness
     # A regex, because the witness is prose and the delimiter after the number varies: "(line 17,"
     # in one family and "(line 17):" in another. Splitting on a comma produced sites like
     # `config.py:17): permissive literal '0.0.0.0':?`.

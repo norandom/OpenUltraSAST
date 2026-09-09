@@ -1,0 +1,140 @@
+{
+  "against": "benchmarks/measurements/2026-09-09-repo-vampi.json (task 2.2, same checkout and budget)",
+  "caveat": "Two known vulnerabilities in one 520-line repository is not a detection rate, and VAmPI is now the repository this change was developed against -- exactly the overfitting shape Req 8 exists to catch. The depth-3 bound and the entry-point rule need a checkout nobody tuned against before they mean anything general.",
+  "completed": true,
+  "config": "shipped defaults",
+  "degradations": [
+    {
+      "detail": "no path records; obligations evaluated within entry-point handlers only",
+      "files": [
+        "api_views/books.py",
+        "api_views/users.py",
+        "models/books_model.py",
+        "models/user_model.py"
+      ],
+      "language": "python",
+      "reason": "obligations_function_local",
+      "stage": "obligations"
+    },
+    {
+      "reason": "budget_exhausted",
+      "regions_unasked": 17,
+      "stage": "model"
+    },
+    {
+      "reason": "hunter_model_unavailable",
+      "stage": "map"
+    }
+  ],
+  "delta": {
+    "cost_usd": "0.0067 -> 0.0067",
+    "entailed_findings": "7 -> 8",
+    "known_found_by_the_model_layer": "0 of 2 before task 2.2's fixes; 1 of 2 in the committed 2.2 run (the BOLA, once the budget stopped halting free arbitration); 2 of 2 now",
+    "peak_rss_mb": "868.6 -> 827.3",
+    "query_seconds": "40.86 -> 37.44",
+    "scan_seconds": "177.09 -> 182.2",
+    "vampi_sqli": "missed -> model_entailed at models/user_model.py:73:get_user"
+  },
+  "exit_code": 0,
+  "findings_by_rung": {
+    "execution_confirmed": 0,
+    "model_corroborated": 0,
+    "model_entailed": 8,
+    "suspicion": 54
+  },
+  "findings_total": 62,
+  "generated": "2026-09-09",
+  "how": {
+    "an_entry_point_is_the_trust_boundary": "parameter_sources was off for repository scans because a repository's parameters are not all attacker input. An ENTRY POINT's are, by definition -- that is what an entry point means. The driver now turns it on for regions the mapper found and named, and leaves it off for files the walker fell back to and for named functions that are not entry points.",
+    "labeled_methods_are_resolved_by_file_too": "cpg.method.nameExact(f) matches a same-named method in any module. A corpus of one-file excerpts could never surface that; a repository can.",
+    "sinks_may_sit_below_the_handler": "reachableByFlows already followed calls; the QUESTION did not. Sinks were filtered to the labeled function's own body, so a flow into another module had no sink to end at and the engine was silent. taint.sc now admits sinks in methods reachable from the labeled method, bounded at ENTRY_POINT_CALL_DEPTH = 3 -- handler to service to data access. Unbounded would make the question about most of the repository rather than about this entry point.",
+    "the_finding_names_the_sink_not_the_asker": "A crossing flow ends in a different file AND a different function, so all three parts of the site come from the sink. Reporting models/user_model.py:73:get_by_username would name a place that does not exist: line 73 is inside get_user."
+  },
+  "known_outcomes": [
+    {
+      "family": "injection",
+      "finding_id": "model:injection:models/user_model.py:73:get_user",
+      "id": "VAmPI-SQLI",
+      "line": 73,
+      "location": "models/user_model.py:get_user:73",
+      "matches": 3,
+      "result": "found",
+      "rung": "model_entailed"
+    },
+    {
+      "family": "access_control",
+      "finding_id": "model:access_control:api_views/users.py:?:update_password",
+      "id": "VAmPI-BOLA",
+      "line": null,
+      "location": "api_views/users.py:update_password:187",
+      "matches": 5,
+      "result": "found",
+      "rung": "model_entailed"
+    }
+  ],
+  "mode": "standard",
+  "model": {
+    "arbitrate_seconds": 121.88,
+    "build_seconds": 6.08,
+    "by_rung": {
+      "execution_confirmed": 0,
+      "model_corroborated": 0,
+      "model_entailed": 8,
+      "suspicion": 38
+    },
+    "cost_usd": 0.0067,
+    "model_calls": 105,
+    "query_seconds": 37.44,
+    "regions_scanned": 22,
+    "regions_unasked": 17,
+    "regions_unjudged": 0,
+    "seconds": 165.4,
+    "unjudged_sample": []
+  },
+  "peak_rss_mb": 827.3,
+  "reading": "The cross-function region closes 2.2's no-go. VAmPI-SQLI is now entailed at models/user_model.py:73:get_user -- the exact execute call -- where a per-function region saw neither end of it. Both known vulnerabilities are now reported by the model layer at model_entailed, where before 2.2 neither was. The cost of asking the bigger question was nothing measurable: query time 40.9s -> 37.4s and peak memory 869MB -> 827MB, because scoping by file and following the call graph pull in opposite directions and roughly cancel at this size. That number is from ONE 520-line repository; the envelope checkout will say whether it holds.",
+  "repo": {
+    "commit": "f16052dce83f05847133ec98f01c5193a41de7d8",
+    "known": [
+      {
+        "family": "injection",
+        "id": "VAmPI-SQLI",
+        "in_scope": true,
+        "location": "models/user_model.py:get_user:73",
+        "weakness": "SQL injection: the username is interpolated into the query string at line 72 and executed at 73"
+      },
+      {
+        "family": "access_control",
+        "id": "VAmPI-BOLA",
+        "in_scope": true,
+        "location": "api_views/users.py:update_password:187",
+        "weakness": "unauthorized password change: the path username is used instead of the authenticated token subject"
+      }
+    ],
+    "language": "python",
+    "license": "MIT",
+    "measures": [
+      "detection"
+    ],
+    "name": "vampi",
+    "url": "https://github.com/erev0s/VAmPI.git"
+  },
+  "scan_seconds": 182.2,
+  "spec": "contributor-scan 2.4 (Req 4.4, 8.1)",
+  "stages": {
+    "completed": [
+      "static",
+      "map"
+    ],
+    "requested": [
+      "static",
+      "map"
+    ],
+    "skipped": []
+  },
+  "still_open": [
+    "2.5 module-level regions: app.py's host='0.0.0.0' sits in , whose method Joern names <module>, and is still reported zero times.",
+    "2.6 access control entails 7 of 9 handlers, including register_user and get_all_users, which are meant to be public. Unchanged by this task and still the largest precision problem.",
+    "2.7 dominance witnesses carry no line, so access-control sites still read api_views/users.py:?:update_password."
+  ]
+}

@@ -274,3 +274,38 @@ def test_a_failed_build_still_reports_what_the_build_cost() -> None:
 
     assert result.build_seconds >= 0.0
     assert result.query_seconds == 0.0, "nothing was queried"
+
+
+def test_only_an_entry_point_gets_the_interprocedural_question(tmp_path) -> None:
+    """contributor-scan 2.4: the trust boundary decides, not convenience.
+
+    An entry point's parameters ARE attacker input and a sink it reaches is its responsibility, so its
+    question follows the call graph. A file the walker fell back to has neither property: treating an
+    arbitrary helper's parameters as untrusted is what the repository default was protecting against.
+    """
+    from openultrasast.model.regions import ScanRegion
+    from openultrasast.model.scan import ENTRY_POINT_CALL_DEPTH, _grouped, _spec_for
+
+    def region(source: str, function: str | None) -> ScanRegion:
+        return ScanRegion(path="a.py", function=function, language="python", families=("injection",), rank=1.0, source=source)
+
+    spec = _spec_for("injection", "python")
+    assert spec is not None
+    handler = region("entry_point", "get_by_username")
+    fallback = region("file_fallback", None)
+    named_but_not_an_entry_point = region("file_fallback", "helper")
+
+    grouped = _grouped((("0", handler, spec), ("1", fallback, spec), ("2", named_but_not_an_entry_point, spec)))["taint"]
+
+    assert grouped["0"]["parameterSources"] == "true"
+    assert grouped["0"]["callDepth"] == str(ENTRY_POINT_CALL_DEPTH)
+    for rid in ("1", "2"):
+        assert grouped[rid]["parameterSources"] == "false"
+        assert grouped[rid]["callDepth"] == "0", "following calls from an arbitrary function is not sound"
+
+
+def test_the_call_depth_is_bounded() -> None:
+    """'Every method reachable from a handler' is most of a repository, and an unbounded question is slow."""
+    from openultrasast.model.scan import ENTRY_POINT_CALL_DEPTH
+
+    assert 0 < ENTRY_POINT_CALL_DEPTH <= 5

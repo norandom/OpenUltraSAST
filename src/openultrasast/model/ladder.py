@@ -49,6 +49,10 @@ class Verdict:
     family: str
     witness: str = ""  # the taint path or the dominance fact; empty only at `suspicion`
     contradiction: str = ""  # why an LLM claim was dropped, when it was
+    # ``path:line`` of the evidence, when the arbiter knows it. Once a flow may cross into another module,
+    # the region that asked the question is no longer where the answer lives, and a finding reported against
+    # the handler's file when the bug is two modules away is unactionable.
+    location: str = ""
 
 
 def at_rung(finding: _Finding, verdict: Verdict | None) -> _Finding:

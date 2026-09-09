@@ -118,7 +118,7 @@
   - _Requirements: 4.2_
   - _Depends: 2.2_
 
-- [ ] 2.4 A region that spans the flow, not just a function
+- [x] 2.4 A region that spans the flow, not just a function
   - **2.2's finding, and the one that reshapes the phase.** VAmPI-SQLI is a request parameter reaching
     `get_by_username(username)`, passed to `User.get_user(username)` in another module, interpolated into a
     query and executed. Source and sink are in different functions, regions are per-function, and a
