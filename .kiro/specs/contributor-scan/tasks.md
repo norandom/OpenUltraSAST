@@ -185,7 +185,7 @@
   - _Requirements: 8.1, 8.2_
   - _Depends: 2.6_
 
-- [ ] 2.9 One defect is one finding, however many regions reach it
+- [x] 2.9 One defect is one finding, however many regions reach it
   - libpng's scan produced 26 entailed findings that are all the identical site,
     `contrib/gregbook/wpng.c:335:main`. Many regions reach one shared sink and each emits its own finding;
     nothing dedupes by site. A contributor would be shown the same defect twenty-six times.

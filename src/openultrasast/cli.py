@@ -969,6 +969,17 @@ def _run_model_layer(
     return findings, _model_payload(result, unjudged_paths=unjudged, coverage=coverage)
 
 
+def _model_rationale(item: object, witness: str, family: str) -> str:
+    """The witness, plus how many entry points reach this site when more than one does.
+
+    A site reached from twenty-six entry points is one defect with a wide blast radius, which is worth
+    saying once. It used to be said twenty-six times.
+    """
+    base = witness or f"the model layer reported a {family} candidate"
+    reached = int(getattr(item, "reached_from", 1) or 1)
+    return base if reached <= 1 else f"{base} (reached from {reached} regions)"
+
+
 def _finding_from_model(item: object) -> StaticFinding:
     """A model finding as a StaticFinding, carrying its rung and witness (Req 5.1)."""
     site = str(getattr(item, "site", ""))
@@ -984,7 +995,7 @@ def _finding_from_model(item: object) -> StaticFinding:
         severity="medium",
         confidence="medium",
         evidence_level="suspicion",
-        rationale=witness or f"the model layer reported a {family} candidate",
+        rationale=_model_rationale(item, witness, family),
         line=int(line) if line.isdigit() else None,
         function_name=function or None,
         reachability_status="unknown",

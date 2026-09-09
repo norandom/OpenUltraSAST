@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -206,7 +206,7 @@ def scan_repository(
 
     scanned = len(judged)
 
-    findings = _ordered(collected)
+    findings = _ordered(_deduplicated(collected))
     return ModelScanResult(
         findings=findings,
         by_rung=_tally(findings),
@@ -287,6 +287,30 @@ def _spec_for(family: str, language: str) -> ArbiterSpec | None:
     if family == "config_secrets":
         return config_specs(language=language).get(family)
     return taint_specs(language=language).get(family)
+
+
+def _deduplicated(collected: Sequence[tuple[ModelFinding, float]]) -> list[tuple[ModelFinding, float]]:
+    """One finding per (site, family), keeping the strongest rung and counting the regions that reached it.
+
+    Task 2.4 let a region's question follow the call graph, and the moment it did, many entry points could
+    reach one shared sink -- libpng reported the same site twenty-six times. A contributor shown the same
+    defect twenty-six times learns to scroll past it, and "reached from 26 entry points" is the useful half
+    of that observation.
+
+    Two families at one site stay two findings: `echo $_GET[...]` is an injection question and an output
+    encoding question, and they have different answers.
+    """
+    best: dict[tuple[str, str], tuple[ModelFinding, float]] = {}
+    for finding, rank in collected:
+        key = (finding.site, finding.family)
+        current = best.get(key)
+        if current is None:
+            best[key] = (finding, rank)
+            continue
+        kept, kept_rank = current
+        stronger = finding if _RUNG_ORDER[finding.rung] < _RUNG_ORDER[kept.rung] else kept
+        best[key] = (replace(stronger, reached_from=kept.reached_from + finding.reached_from), max(rank, kept_rank))
+    return list(best.values())
 
 
 def _ordered(collected: Sequence[tuple[ModelFinding, float]]) -> tuple[ModelFinding, ...]:

@@ -64,6 +64,9 @@ class ModelFinding:
     rung: Rung
     witness: str = ""
     contradiction: str = ""
+    # How many regions reached this site. One defect is one finding however many entry points lead to it;
+    # the count is the useful part of the duplication, and the rows are not.
+    reached_from: int = 1
 
 
 def _arbitrate_all(

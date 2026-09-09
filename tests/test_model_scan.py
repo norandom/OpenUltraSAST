@@ -327,3 +327,40 @@ def test_the_scan_reports_query_time_per_kind() -> None:
 
     assert set(result.query_seconds_by_kind) == {"taint", "config"}
     assert sum(result.query_seconds_by_kind.values()) <= result.query_seconds + 0.05
+
+
+def test_one_defect_is_one_finding_however_many_regions_reach_it(tmp_path) -> None:
+    """contributor-scan 2.9. Task 2.4 let a region's question follow the call graph, and the moment it did,
+    many entry points could reach one shared sink: libpng reported the same site twenty-six times. A
+    contributor shown the same defect twenty-six times learns to scroll past it."""
+    from openultrasast.model.ladder import Rung
+    from openultrasast.model.pipeline import ModelFinding
+    from openultrasast.model.scan import _deduplicated
+
+    same = [
+        (ModelFinding(site="wpng.c:335:main", family="memory", rung=Rung.SUSPICION, witness="w"), 0.2),
+        (ModelFinding(site="wpng.c:335:main", family="memory", rung=Rung.ENTAILED, witness="w"), 1.0),
+        (ModelFinding(site="wpng.c:335:main", family="memory", rung=Rung.SUSPICION, witness="w"), 0.5),
+    ]
+
+    kept = _deduplicated(same)
+
+    assert len(kept) == 1
+    finding, rank = kept[0]
+    assert finding.rung is Rung.ENTAILED, "the strongest rung survives"
+    assert finding.reached_from == 3, "and the count is what the duplication was worth"
+    assert rank == 1.0
+
+
+def test_two_families_at_one_site_stay_two_findings() -> None:
+    """`echo $_GET[...]` is an injection question and an output-encoding question, with different answers."""
+    from openultrasast.model.ladder import Rung
+    from openultrasast.model.pipeline import ModelFinding
+    from openultrasast.model.scan import _deduplicated
+
+    both = [
+        (ModelFinding(site="app.php:9:show", family="injection", rung=Rung.ENTAILED), 1.0),
+        (ModelFinding(site="app.php:9:show", family="output_encoding", rung=Rung.ENTAILED), 1.0),
+    ]
+
+    assert len(_deduplicated(both)) == 2
