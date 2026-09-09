@@ -1,0 +1,22 @@
+{
+  "caveat": "One repository, and both discharge shapes were found on it. The rule is measured here only; whether a bound-in-the-method demotes real overflows elsewhere is unknown until a checkout with a genuine CWE-121 is scanned.",
+  "delta": {
+    "entailed_findings": "3 -> 1",
+    "taint_query_seconds": "125.0 -> 127.1 (unchanged within noise)"
+  },
+  "generated": "2026-09-09",
+  "how": {
+    "which_sinks": "Read from the sink fact's own CWE, not declared here. CWE-121 is a stack buffer overflow, so gets/sprintf/strcat/strcpy are dischargeable by a bound. It is the only overflow CWE in the fact tables and it is C-only, so no Python or JavaScript sink is affected and the pair corpus is untouched -- gates byte-identical.",
+    "why_corroborated_and_not_silence": "A bound somewhere in the function means the graph CANNOT ENTAIL -- it has not shown the copy is unguarded. It has not shown it is guarded either, and a bound is no proof of safety in any case, off-by-one being the classic way they fail. So the judge is asked. Proving the flag-mediated case needs path-sensitive reasoning this arbiter does not do.",
+    "why_not_a_sanitizer_list": "`strlen` appears in the guarded and the unguarded case alike. The discharge is a GUARD, not a call, so a sanitizer entry would silence both.",
+    "why_the_method_and_not_the_dominators": "The first implementation required the bound to dominate the sink, which is what the access-control arbiter does. It found nothing. libpng guards `strcpy(outname+len, \".png\")` with `(len = strlen(inname)) > 250`, but that check sits on an else-if chain whose sibling branch skips it, and the protection reaches the sink through an `error` flag -- `++error` in the guarded branch, `if (!error)` around the copy. Joern's dominator set for that sink has 89 calls and correctly excludes the bound. Verified directly against the CPG before changing the rule; `controlledBy` returns 0 conditions there as well."
+  },
+  "reading": "c/injection and c/memory carried zero sanitizers, so no C flow could ever be discharged and every argv -> strcpy entailed however carefully it was bounded. A bound now lowers the rung to corroborated: libpng's entailed findings fall from 3 to 1, and the survivor is a different false-positive shape recorded as 2.13 rather than chased.",
+  "repo": "libpng at cf53e54ccf631d8de68a30ebb3b8eeed1d6f1a08",
+  "spec": "contributor-scan 2.12 (Req 8.1, 8.2)",
+  "the_remaining_finding_is_also_a_false_positive": {
+    "site": "contrib/examples/iccfrompng.c:124 -- strcpy(output + len, \".icc\")",
+    "why_it_is_safe": "`output = malloc(len + 5)`, then `memcpy(output, filename, len)` and a 5-byte copy at offset len. It fits exactly.",
+    "why_the_rule_does_not_reach_it": "There is no relational comparison here at all. The destination is ALLOCATED to size rather than bounds-checked, which is a different discharge shape. Recorded as 2.13 and deliberately not chased: extending the rule on this repository to clear this site is the overfitting Req 8 exists to prevent."
+  }
+}

@@ -19,7 +19,8 @@
 //     closure lexically nested inside it -- see `nestedInLabeled`),
 //   parameterSources ("true" to treat the labeled function's parameters as untrusted -- see below),
 //   file (optional: restrict sinks to this source file),
-//   callDepth (optional: how many call-graph levels below the labeled method may hold a sink)
+//   callDepth (optional: how many call-graph levels below the labeled method may hold a sink),
+//   boundedSinks (optional: sinks whose danger is a LENGTH, which a dominating bound discharges)
 //
 // `file` is what makes a region with no enclosing function askable at all. Without it such a region sends
 //   function="" and matches every sink in the repository, and the driver attributes that whole answer to
@@ -45,6 +46,7 @@
     function: String = "",
     file: String = "",
     callDepth: String = "0",
+    boundedSinks: String = "",
     parameterSources: String = "false",
     requests: String = ""
 ) = {
@@ -52,7 +54,16 @@
 
   def split(raw: String): List[String] = raw.split(",").map(_.trim).filter(_.nonEmpty).toList
 
-  def rowsFor(sourcesS: String, sinksS: String, sanitizersS: String, functionS: String, paramSrc: String, fileS: String, depthS: String): List[ujson.Obj] = {
+  def rowsFor(
+      sourcesS: String,
+      sinksS: String,
+      sanitizersS: String,
+      functionS: String,
+      paramSrc: String,
+      fileS: String,
+      depthS: String,
+      boundedS: String
+  ): List[ujson.Obj] = {
 
   // Word-boundary matching, never substring. `resolveUrl` contains `resolve`, so a bare-substring sanitizer
   // test marked the VULNERABLE flow sanitized and the verdict fell back to a captured `res` that names no
@@ -71,6 +82,12 @@
   val sourcePatterns = split(sourcesS)
   val sinkNames      = split(sinksS)
   val sanitizerNames = split(sanitizersS)
+  val boundedNames   = split(boundedS)
+
+  // A relational comparison against an integer literal: `len > 250`, `n <= sizeof(buf)`. Equality and null
+  // checks are deliberately excluded -- `if (buf)` and `p == NULL` govern whether the sink RUNS, not how
+  // much it copies, and counting them would discharge every guarded-against-null overflow there is.
+  val boundShape = java.util.regex.Pattern.compile("(?:<=|>=|<|>)\\s*[0-9]+|[0-9]+\\s*(?:<=|>=|<|>)")
   val function       = functionS
   val parameterSources = paramSrc
 
@@ -188,6 +205,29 @@
     val arity       = realArgs.size
     val arg0Literal = realArgs.headOption.map(a => a.isLiteral).getOrElse(false)
 
+    // Is there a bound on the data reaching this sink? Only asked of sinks whose CWE says the danger is a
+    // length, and the bound must mention a name the sink actually uses -- an unrelated `i < 10` loop in the
+    // same function discharges nothing.
+    //
+    // Scoped to the METHOD rather than to the sink's dominators, and that is deliberate. libpng guards
+    // `strcpy(outname+len, ".png")` with `(len = strlen(inname)) > 250`, but the check sits on an else-if
+    // chain whose sibling branch skips it entirely, and the protection is carried to the sink through an
+    // `error` flag: `++error` in the guarded branch, `if (!error)` around the copy. So the bound does NOT
+    // dominate the sink -- Joern is right about that -- and requiring dominance found nothing.
+    //
+    // Which is exactly why this lowers the rung instead of clearing the finding. A bound on this variable
+    // somewhere in this function means the graph CANNOT ENTAIL: it has not shown the copy is unguarded. It
+    // has not shown it is guarded either, so the judge is asked. Proving the flag-mediated case needs
+    // path-sensitive reasoning this arbiter does not do.
+    val boundedSink = boundedNames.exists(n => sink.name == n)
+    val argNames    = sink.argument.ast.isIdentifier.name.l.distinct
+    val bounds =
+      if (!boundedSink || argNames.isEmpty) List.empty
+      else
+        sink.method.ast.isCall.code.l.filter(c =>
+          boundShape.matcher(c).find() && argNames.exists(a => mentionsToken(c, List(a)))
+        )
+
     flows.map { flow =>
       val elements = flow.elements.map(_.code).l
       val sanitized = sanitizerNames.nonEmpty && elements.exists(code => mentionsToken(code, sanitizerNames))
@@ -203,6 +243,8 @@
         "length"          -> elements.size,
         "sinkArity"       -> arity,
         "sinkArg0Literal" -> arg0Literal,
+        "bounded"         -> bounds.nonEmpty,
+        "bound"            -> bounds.headOption.getOrElse("").take(120),
         "inLabeledScope"  -> (function.isEmpty || nestedInLabeled(sink.method) || reachableMethods.contains(sink.method.fullName))
       )
     }
@@ -217,11 +259,24 @@
     val answers = parsed.map { case (id, req) =>
       def field(name: String): String = req.obj.get(name).map(_.str).getOrElse("")
       val paramSrc = req.obj.get("parameterSources").map(_.str).getOrElse("false")
-      id -> ujson.Arr(rowsFor(field("sources"), field("sinks"), field("sanitizers"), field("function"), paramSrc, field("file"), field("callDepth")): _*)
+      id -> ujson.Arr(
+        rowsFor(
+          field("sources"),
+          field("sinks"),
+          field("sanitizers"),
+          field("function"),
+          paramSrc,
+          field("file"),
+          field("callDepth"),
+          field("boundedSinks")
+        ): _*
+      )
     }
     println(ujson.write(ujson.Obj.from(answers)))
   } else {
-    println(ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, function, parameterSources, file, callDepth): _*)))
+    println(
+      ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, function, parameterSources, file, callDepth, boundedSinks): _*))
+    )
   }
   println("---OUSAST-CPG-END---")
 }

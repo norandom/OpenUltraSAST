@@ -74,6 +74,14 @@ def classify_guard_text(text: str) -> str:
 # --- The specs the CPG queries are parameterised by ------------------------------------------------------
 
 
+# Buffer-overflow classes: the danger is a length, so a bound that dominates the sink discharges it. Only
+# CWE-121 is in the fact tables today, and it is C-only -- naming the family keeps a later fact from having
+# to remember this rule exists.
+OVERFLOW_CWES = frozenset(
+    {"CWE-119", "CWE-120", "CWE-121", "CWE-122", "CWE-124", "CWE-126", "CWE-127", "CWE-787", "CWE-788", "CWE-805", "CWE-806"}
+)
+
+
 @dataclass(frozen=True)
 class TaintSpec:
     """What a flow family's source-to-sink-minus-sanitizer query matches on, for one language.
@@ -97,6 +105,12 @@ class TaintSpec:
     sources: tuple[str, ...]
     sinks: tuple[str, ...]
     sanitizers: tuple[str, ...]
+    # Sinks whose danger is a LENGTH, and which a bound that dominates them therefore discharges. Derived
+    # from the sink fact's own CWE rather than asserted here: CWE-121 is a stack buffer overflow, and a
+    # `strcpy` a `len > 250` check governs is not the same claim as one nothing governs. A sanitizer list
+    # cannot express this -- `strlen` appears in the guarded and unguarded case alike -- which is why the
+    # discharge is a guard and not a call.
+    bounded_sinks: tuple[str, ...] = ()
     safe_shape_sinks: tuple[str, ...] = ()
 
 
@@ -210,11 +224,16 @@ def taint_specs(
     sanitizers = tuple(sorted({call for fact in scoped.sanitizers if not _is_shape(fact) for call in fact.calls}))
     safe_shapes = tuple(sorted({call for fact in scoped.sanitizers if _is_shape(fact) for call in fact.calls}))
     by_family: dict[str, set[str]] = {}
+    bounded: dict[str, set[str]] = {}
     for sink in scoped.sinks:
         family = families.family_of_cwe(sink.cwe)
         if family is None:
             continue
         by_family.setdefault(family.id, set()).update(sink.calls)
+        # A sink whose CWE is a buffer-overflow class is dischargeable by a bound that dominates it. The CWE
+        # is on the fact already, so which sinks these are is read from the data rather than declared here.
+        if sink.cwe in OVERFLOW_CWES:
+            bounded.setdefault(family.id, set()).update(sink.calls)
     return {
         family_id: TaintSpec(
             family=family_id,
@@ -222,6 +241,7 @@ def taint_specs(
             sources=sources,
             sinks=tuple(sorted(calls)),
             sanitizers=sanitizers,
+            bounded_sinks=tuple(sorted(bounded.get(family_id, ()))),
             safe_shape_sinks=safe_shapes,
         )
         for family_id, calls in sorted(by_family.items())

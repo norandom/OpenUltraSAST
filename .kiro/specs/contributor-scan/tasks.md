@@ -221,7 +221,7 @@
   - _Requirements: 4.2, 8.1_
   - _Depends: 2.2_
 
-- [ ] 2.12 A C flow that a bounds check governs is not a finding
+- [x] 2.12 A C flow that a bounds check governs is not a finding
   - `c/injection` and `c/memory` carry ZERO sanitizers, so no C flow can ever be discharged. Every
     `argv -> strcpy` entails however carefully it is bounded, which is why libpng reports
     `strcpy(outname+len, ".png")` at wpng.c:374 -- guarded four dozen lines earlier by
@@ -234,6 +234,20 @@
     not do this by adding `strlen` to a sanitizer list; that would discharge the unguarded case too.
   - _Requirements: 8.1, 8.2_
   - _Depends: 2.9_
+
+- [ ] 2.13 A destination allocated to size is bounded too
+  - 2.12's remainder, and libpng's last entailed finding: `strcpy(output + len, ".icc")` at
+    contrib/examples/iccfrompng.c:124, where `output = malloc(len + 5)` and a five-byte copy lands at offset
+    `len`. It fits exactly. There is no comparison anywhere, so the bound rule cannot see it -- the
+    destination is ALLOCATED to size rather than bounds-checked.
+  - Deliberately not done inside 2.12. Both discharge shapes were found on the same repository, and
+    extending a rule until one checkout is clean is the overfitting Req 8 exists to prevent. This wants a
+    second C checkout with a genuine CWE-121 first, so the change can be measured for what it silences as
+    well as what it clears.
+  - Observable: iccfrompng.c:124 not entailed, AND a real overflow on another checkout still entailed.
+    Without the second half this task should not be closed.
+  - _Requirements: 8.1, 8.2_
+  - _Depends: 2.12, 5.3_
 
 ## Group 3 — Ship it
 

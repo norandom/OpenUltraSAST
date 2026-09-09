@@ -415,3 +415,51 @@ def test_a_region_scopes_its_question_to_its_own_file() -> None:
     assert config["file"] == "config.py"
     # The pair path stays unscoped, so the committed pair measurements remain reproducible.
     assert taint_params(taint_specs(language="python")["injection"], function="run")["file"] == ""
+
+
+def _bounded_rows(bounded: bool):  # type: ignore[no-untyped-def]
+    return [
+        {
+            "sink": 'strcpy(outname+len, ".png")',
+            "sinkLine": "374",
+            "sinkMethod": "main",
+            "sinkFile": "contrib/gregbook/wpng.c",
+            "source": "*argv",
+            "sanitized": False,
+            "length": 6,
+            "sinkArity": 2,
+            "sinkArg0Literal": False,
+            "inLabeledScope": True,
+            "bounded": bounded,
+            "bound": "(len = strlen(inname)) > 250" if bounded else "",
+        }
+    ]
+
+
+def test_a_bound_that_governs_the_sink_lowers_the_rung() -> None:
+    """contributor-scan 2.12. libpng's `strcpy(outname+len, ".png")` is governed by `len > 250` against a
+    char[256]. Entailing it is a claim the code contradicts -- but a bound is not proof either, since
+    off-by-one is how they fail, so the judge is asked rather than the site silenced."""
+    from openultrasast.cpg.backend import CpgResult
+    from openultrasast.model.ladder import Rung
+    from openultrasast.model.specs import taint_specs
+    from openultrasast.model.taint import verdict
+
+    spec = taint_specs(language="c")["memory"]
+    assert "strcpy" in spec.bounded_sinks, "a CWE-121 sink is dischargeable by a bound"
+
+    governed = verdict(CpgResult(cpg_path=Path("c.bin"), run=lambda q, p: _bounded_rows(True)), spec, function="main")
+    ungoverned = verdict(CpgResult(cpg_path=Path("c.bin"), run=lambda q, p: _bounded_rows(False)), spec, function="main")
+
+    assert governed is not None and governed.rung is Rung.CORROBORATED
+    assert "governed by" in governed.witness, "the witness names the bound it found"
+    assert ungoverned is not None and ungoverned.rung is Rung.ENTAILED, "an unguarded copy is still the finding"
+
+
+def test_only_a_length_sink_can_be_discharged_by_a_bound() -> None:
+    """A `len > 10` check does not make an SQL injection safe. The CWE decides, and CWE-121 is C-only."""
+    from openultrasast.model.specs import taint_specs
+
+    assert not taint_specs(language="python")["injection"].bounded_sinks
+    assert not taint_specs(language="c")["injection"].bounded_sinks
+    assert taint_specs(language="c")["memory"].bounded_sinks

@@ -40,6 +40,7 @@ def request_params(
         "file": file,
         "parameterSources": "true" if parameter_sources else "false",
         "callDepth": str(call_depth),
+        "boundedSinks": spec.bounded_sinks,
     }
 
 
@@ -76,10 +77,18 @@ def verdict(
     # still vulnerable on the strength of a flow that names no attacker input.
     modelled = [flow for flow in flows if _from_modelled_source(flow, spec)]
     considered = modelled or flows
-    unsanitized = [flow for flow in considered if not flow["sanitized"]]
+    # A flow the graph cannot see a discharge for is the finding; a sanitized or BOUNDED one is a question.
+    # libpng bounds `strcpy(outname+len, ".png")` with `(len = strlen(inname)) > 250` against a char[256],
+    # and entailing it is a claim the code contradicts. But the bound reaches the sink through an `error`
+    # flag rather than by dominating it, so the graph has not shown the copy is guarded either -- and a
+    # bound is no proof of safety in any case, off-by-one being the classic way they fail. Corroborated is
+    # the honest rung: the model cannot assert this, so the judge is asked instead of the site being
+    # silenced.
+    open_flows = [flow for flow in considered if not flow["sanitized"] and not flow["bounded"]]
     # Deterministic by construction: a total order, then take the first. Nothing depends on engine ordering.
-    chosen = min(unsanitized or considered, key=lambda flow: _rank(flow, spec))
-    rung = Rung.ENTAILED if not chosen["sanitized"] else Rung.CORROBORATED
+    chosen = min(open_flows or considered, key=lambda flow: _rank(flow, spec))
+    settled = bool(chosen["sanitized"]) or bool(chosen["bounded"])
+    rung = Rung.CORROBORATED if settled else Rung.ENTAILED
     return Verdict(rung=rung, family=spec.family, witness=_witness(chosen), location=_location(chosen))
 
 
@@ -102,6 +111,8 @@ def _flows(rows: object, *, function: str) -> list[dict[str, object]]:
                 "sinkLine": str(row.get("sinkLine", "")),
                 "sinkMethod": str(row.get("sinkMethod", "")),
                 "sinkFile": str(row.get("sinkFile", "")),
+                "bounded": bool(row.get("bounded", False)),
+                "bound": str(row.get("bound", "")),
                 "source": str(row.get("source", "")),
                 "sanitized": bool(row.get("sanitized", False)),
                 "length": _as_int(row.get("length")),
@@ -172,7 +183,9 @@ def _witness(flow: Mapping[str, object]) -> str:
     line = flow.get("sinkLine") or "?"
     where = str(flow.get("sinkFile") or "")
     at = f" in {where}" if where else ""
-    return f"{flow['source']} -> {flow['sink']}{at} (line {line}, {flow['length']} steps)"
+    bound = str(flow.get("bound") or "")
+    governed = f", governed by `{bound}`" if flow.get("bounded") and bound else ""
+    return f"{flow['source']} -> {flow['sink']}{at} (line {line}, {flow['length']} steps{governed})"
 
 
 def _location(flow: Mapping[str, object]) -> str:
