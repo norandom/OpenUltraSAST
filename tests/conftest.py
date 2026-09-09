@@ -19,6 +19,17 @@ def _pointer_pairs_offline(monkeypatch: pytest.MonkeyPatch, tmp_path_factory: py
     monkeypatch.setenv("OPENULTRASAST_PAIR_CACHE", str(tmp_path_factory.mktemp("pair-cache")))
 
 
+@pytest.fixture(autouse=True)
+def _repos_offline(monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory) -> None:
+    """Req 4.1: pinned repository recipes never fetch during a test run, whatever the operator's shell exports.
+
+    The cache is redirected as well as the switch cleared, so a developer with warm checkouts and a test that
+    forgets to pass an explicit root still cannot read them by accident.
+    """
+    monkeypatch.delenv("OPENULTRASAST_REPOS_NETWORK", raising=False)
+    monkeypatch.setenv("OPENULTRASAST_REPO_CACHE", str(tmp_path_factory.mktemp("repo-cache")))
+
+
 @pytest.fixture
 def assert_cold_of_harnessx():  # type: ignore[no-untyped-def]
     """Run ``code`` in a fresh interpreter and assert it imported no ``harnessx`` module.

@@ -79,7 +79,7 @@
 
 ## Group 2 — Scale it (the phase that can reshape the rest)
 
-- [ ] 2.1 A pinned known-vulnerable checkout
+- [x] 2.1 A pinned known-vulnerable checkout
   - `benchmarks/repos/<name>.toml`: url, commit, the known CVE, the file and function it lives in, licence.
     Start with one small enough to iterate on. Fetch is explicit and offline-by-default, like the pointer
     pairs.

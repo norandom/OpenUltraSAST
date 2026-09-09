@@ -1,0 +1,34 @@
+# libpng -- 91k lines of C across 101 files.
+#
+# This is the ENVELOPE checkout, and the only question it answers is whether one CPG over a real C library
+# is affordable: build time, query time, peak memory, and whether the region ranker produces a sane number
+# of regions rather than thousands.
+#
+# Its known CVE is deliberately marked out of scope. An out-of-bounds read is not a family this engine
+# arbitrates -- there is no taint sanitizer lattice, guard dominance or constant abstraction that decides
+# it -- so "not found" here is not a miss, and recording it as one would be the easiest way to make a
+# measurement lie.
+
+name = "libpng"
+url = "https://github.com/glennrp/libpng.git"
+commit = "cf53e54ccf631d8de68a30ebb3b8eeed1d6f1a08"
+language = "c"
+license = "libpng-2.0"
+license_file = "LICENSE"
+measures = ["envelope"]
+note = """
+The pinned commit is the parent of 788a624d7387a758ffd5c7ab010f1870dea753a1, the commit that added the
+missing clamp; `git describe` calls it v1.6.51-1-gcf53e54cc. The licence file is `LICENSE` at this commit; it was renamed
+to `LICENSE.md` later, which is why the recipe names the file and the verifier checks it. Nothing is vendored from this repository -- the
+recipe fetches it on request and CI never does.
+"""
+
+[[known]]
+id = "CVE-2025-66293"
+family = "memory_safety"
+weakness = "out-of-bounds read: an unclamped composited component indexes the sRGB conversion table"
+file = "pngread.c"
+function = "png_image_read_composite"
+line = 3279
+reference = "fixed in 788a624d7387a758ffd5c7ab010f1870dea753a1; the CVE is named in the code comment added by d1ec15266204deb4102d2b5e40216bb7637261c8"
+in_scope = false

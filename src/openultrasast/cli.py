@@ -60,6 +60,16 @@ from .provenance import fingerprint
 from .rank import rank_obligations, rank_targets, write_rankings
 from .regress import TRIGGERABLE, CandidateVerdict, run_regression, write_verdicts
 from .reports import scan_exit_code, write_manifest, write_markdown_report, write_sarif_report
+from .repos import (
+    DEFAULT_REPO_DIR,
+    RepoUnavailable,
+    checkout_path,
+    load_repo_recipes,
+    recipe_payload,
+)
+from .repos import resolve as resolve_repo
+from .repos import select as select_repo
+from .repos import verify as verify_repo
 from .ruleset import DEFAULT_RULESET_DIR, load_ruleset
 from .run import ScanRun, create_scan_run
 from .sandbox import resolve_sandbox_probe, resolve_sandbox_runner
@@ -159,6 +169,15 @@ def main(argv: list[str] | None = None) -> int:
     pairs.add_argument("--pointers", action="store_true", help="allow network for non-vendored pointer pairs this run (nightly; CI never)")
     pairs.add_argument("--json", action="store_true", help="print the pair scoreboard as JSON")
 
+    repos = subparsers.add_parser(
+        "repos",
+        help="pinned known-vulnerable checkouts: list them, and verify a recipe against the code it names",
+    )
+    repos.add_argument("--dir", type=Path, default=DEFAULT_REPO_DIR)
+    repos.add_argument("--repo", default="all", help="one recipe by name, or all")
+    repos.add_argument("--fetch", action="store_true", help="allow network to materialise missing checkouts (CI never)")
+    repos.add_argument("--json", action="store_true")
+
     subparsers.add_parser("mcp", help="run the narrow MCP server over stdio for OpenCode integration")
     model_cmd = subparsers.add_parser("model", help="maintainer: the model layer that arbitrates detector claims")
     model_sub = model_cmd.add_subparsers(dest="model_command", required=True)
@@ -199,6 +218,8 @@ def main(argv: list[str] | None = None) -> int:
             split=args.split,
             pointers=args.pointers,
         )
+    if args.command == "repos":
+        return _repos(args.dir, args.repo, fetch=args.fetch, json_out=args.json)
     if args.command == "model":
         return _model_candidates(args)
     if args.command == "mcp":
@@ -801,6 +822,45 @@ def _pairs(
     print_pair_metrics("pair eval", result)
     print(f"signals={len(result.signals)}")
     return 0
+
+
+def _repos(directory: Path, name: str, *, fetch: bool, json_out: bool) -> int:
+    """List the pinned checkouts and check each recipe against the code it claims to describe.
+
+    Offline by default: without ``--fetch`` a missing checkout is reported as missing, not fetched. Exit is
+    non-zero only when a materialised checkout CONTRADICTS its recipe -- a recipe that merely has not been
+    fetched is not a failure, or CI could never run this.
+    """
+    recipes = select_repo(load_repo_recipes(directory), name)
+    if not recipes:
+        raise SystemExit(f"no repository recipe matches {name!r} in {directory}")
+
+    rows: list[dict[str, object]] = []
+    contradicted = 0
+    for recipe in recipes:
+        problems: tuple[str, ...] = ()
+        try:
+            root = resolve_repo(recipe, fetch=True if fetch else None)
+        except RepoUnavailable:
+            state, path = "absent", checkout_path(recipe)
+        else:
+            problems = verify_repo(recipe, root)
+            state, path = ("contradicted" if problems else "verified"), root
+            contradicted += 1 if problems else 0
+        rows.append({**recipe_payload(recipe), "state": state, "path": str(path), "problems": list(problems)})
+
+        if not json_out:
+            in_scope = len(recipe.in_scope)
+            measures = ",".join(recipe.measures)
+            print(f"{recipe.name:10} {state:13} {recipe.language:8} measures={measures} known={len(recipe.known)} in_scope={in_scope}")
+            for problem in problems:
+                print(f"  ! {problem}")
+            if state == "absent":
+                print(f"  fetch with: ousast repos --repo {recipe.name} --fetch")
+
+    if json_out:
+        print(json.dumps(rows, indent=2, sort_keys=True))
+    return 1 if contradicted else 0
 
 
 def _model_skipped(reason: str) -> dict[str, object]:

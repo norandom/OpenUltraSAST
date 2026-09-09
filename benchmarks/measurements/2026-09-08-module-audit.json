@@ -1,13 +1,13 @@
 {
   "counts": {
-    "load_bearing": 88,
+    "load_bearing": 89,
     "standalone_capability": 7
   },
-  "generated": "2026-09-09 (regenerated after contributor-scan group 1 added regions and the repo driver)",
+  "generated": "2026-09-09 (regenerated after contributor-scan 2.1 added the pinned-checkout recipes)",
   "kept_with_a_lever_stripped": {
     "improve/evolve.py + improve/validator.py": "the design's Removed list named these whole, but each is a mix: the mechanism lever (removed) and the deterministic rule-status improve loop that `ousast improve` still runs from benchmark evidence, which has no LLM in it and is not what this feature supersedes. Deleting the files would have taken a retained capability with them."
   },
-  "modules": 95,
+  "modules": 96,
   "note": "Classification of every source module after the group-1 subtraction. load_bearing = reachable from a gate, the CLI, or named by a surviving requirement; standalone_capability = its own entry point or protocol, deliberately off the scan path; orphaned = no importer, no entry point, no surviving requirement -- removed, never carried.",
   "orphaned": [],
   "removed_in_this_pass": {

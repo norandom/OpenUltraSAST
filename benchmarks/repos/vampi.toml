@@ -1,0 +1,47 @@
+# VAmPI -- a deliberately vulnerable Flask API, small enough to iterate on.
+#
+# This is the DETECTION checkout. The corpus already scores excerpts cut out of VAmPI, and one of them
+# (users/update_password) was diagnosed as a miss. Scanning the whole repository asks the question the
+# excerpts cannot: does a verdict survive when the route registration, the handler and the query live in
+# three different modules, and when the region ranker has to find the handler rather than being handed it?
+#
+# Its routes are registered through an OpenAPI `operationId`, not a decorator, so it also exercises the
+# registration-based entry-point mapping rather than the decorator path.
+
+name = "vampi"
+url = "https://github.com/erev0s/VAmPI.git"
+commit = "f16052dce83f05847133ec98f01c5193a41de7d8"
+language = "python"
+license = "MIT"
+license_file = "LICENSE"
+measures = ["detection"]
+note = """
+520 lines across 11 Python files: too small to say anything about the envelope, and chosen for exactly that
+reason -- a detection result here is not confounded by budget exhaustion or region ranking.
+"""
+
+# VAmPI serves the vulnerable code paths behind a global switch, `int(os.getenv('vulnerable', 1))` in app.py.
+# The default is already vulnerable; it is pinned here because a measurement that silently ran the patched
+# branch would report a clean repository and look like a detection failure.
+[environment]
+vulnerable = "1"
+
+[[known]]
+id = "VAmPI-SQLI"
+family = "injection"
+weakness = "SQL injection: the username is interpolated into the query string at line 72 and executed at 73"
+file = "models/user_model.py"
+function = "get_user"
+line = 73
+reference = "README.md 'List of Vulnerabilities'; the vulnerable branch is guarded by `if vuln:`"
+in_scope = true
+
+[[known]]
+id = "VAmPI-BOLA"
+family = "access_control"
+weakness = "unauthorized password change: the path username is used instead of the authenticated token subject"
+file = "api_views/users.py"
+function = "update_password"
+line = 187
+reference = "README.md 'Unauthorized Password Change'; the non-vulnerable branch uses resp['sub']"
+in_scope = true
