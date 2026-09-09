@@ -88,6 +88,24 @@ Everything here is in `contributor-scan`, group 2, and all of it is measurable o
 10. **Group 3–4 — ship it.** Contributor output, the Docker image, the memory-family decision, retiring
     `evidence_level` now that the rung carries the meaning.
 
+## Alongside — keep the codebase from growing into the problem
+
+> "we should make sure our code base here doesn't explode. for example we have a custom IR."
+
+`.kiro/specs/ir-consolidation/` (brief, unapproved) separates two questions with opposite answers:
+
+* **The source IR is already carried, not about to be added.** `semantic/` is 3,218 lines — 16% of the
+  codebase — holding a hand-written IR and flat taint engine measured at **2.2% entailment against the CPG's
+  41.3%**, still running as a proposer. Vine and Ghidra P-Code are *binary* IRs and do not help here; the
+  work is subtraction. A candidate ~1,000-line deletion with a number attached.
+* **The missing abstraction is C arithmetic**, and there an existing IR is exactly right. GhidraPAL's
+  three-valued-logic abstract interpreter over P-Code decides "can this index exceed this allocation", which
+  is the class `c/memory` cannot see and every libpng overflow is. Vine is dormant since 2009 and is not the
+  candidate.
+
+The ordering constraint is the point: **question 1 lands before question 2 starts**, or adopting an IR makes
+the growth problem worse rather than better.
+
 ## After — the feedback loop
 
 11. **`finding-feedback-loop`** (design generated, awaiting approval). Its ledger and dismissals are useful

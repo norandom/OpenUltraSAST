@@ -71,6 +71,44 @@ invocation per query kind.
   controlling control structure, so every guard question runs on CFG dominance instead.
 - **`execution_confirmed` has no production caller.** The rung exists and nothing reaches it.
 
+## Why a corpus of benchmarks is not enough on its own
+
+This is the finding worth teaching, and it is not an opinion — it is what the gates say.
+
+**Twelve engine defects were found in one session by pointing the tool at three real repositories. The three
+gates stayed byte-identical through every single fix.** A gate that does not move is a corpus that could not
+see the bug.
+
+| defect | what the corpus saw |
+|---|---|
+| `resolve` matched inside `resolveUrl` (sanitizers) | nothing |
+| `user` matched inside `users` (dischargers) | nothing |
+| `gets` matched inside `fgets` (sinks) — 26 identical false positives | nothing |
+| the model layer had zero production callers | nothing |
+| `query_batch` implemented, tested, unreachable | nothing |
+| a paid budget halting unpaid arbitration | nothing |
+| a region with no function claiming the whole repository's answer | nothing |
+| a guard discharging an obligation it is not a guard of | nothing |
+| `joern-parse` failing where the frontend succeeds | nothing |
+| a 1.49MB batch over Linux's 128KB argv cap | nothing |
+| an array callable not recognised as a handler | nothing |
+| one defect reported as twenty-six findings | nothing |
+
+The reason is structural rather than a gap in the corpus's coverage. **A pair is a labelled function with a
+declared family and a known answer.** It cannot exercise: which region to look at, what to spend, whether the
+capability is even reachable, whether two entry points share a sink, whether the question fits in an argv
+slot, or whether a flow crosses a module boundary. Every one of those is a property of a *repository*, and
+none of them is a property of a function.
+
+Three of the twelve are worse than invisible — they are **quiet failures**, where the tool produced a clean
+report and every honesty counter agreed with it. The rung ladder labels a *verdict*; when no verdict is
+produced there is nothing to label. That is the failure mode a benchmark score cannot express at all, because
+the score is computed from the verdicts that exist.
+
+So the corpus is necessary and not sufficient: it is the **holdout** that stops per-repository tuning, and it
+is the wrong instrument for finding out whether the tool works. Both instruments, or neither number means
+anything.
+
 ## The lesson that shaped the current specs
 
 Nine engine defects were found in one session by pointing the tool at two real repositories. **Three were the

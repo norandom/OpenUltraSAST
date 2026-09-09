@@ -493,6 +493,36 @@
   - _Requirements: 4.4, 8.1, 9.1_
   - _Depends: 5.1_
 
+- [ ] 5.8 WordPress's popular flaw classes, on popular plugins
+  - > "in wp focus on some of their popular flaws and plugins. these are the keys to unlock practical
+    > software verification."
+  - One plugin is a checkout; a class is a claim. WordPress's recurring shapes are narrow and well
+    documented, and each maps to a family this engine already has:
+    - **Unauthenticated AJAX** — `wp_ajax_nopriv_*` reaching a `$wpdb` query. Declared-public plus injection,
+      both of which the mapper and the facts now carry.
+    - **Missing capability check** — a handler that acts without `current_user_can` / `check_admin_referer`.
+      This is the access_control family, and PHP has NO obligation facts yet, so it cannot be asked at all.
+    - **Unescaped output** — a stored option or meta value reaching `echo` without `esc_html`. Blocked on 5.6,
+      because the flat sanitizer list cannot say "escapes for HTML but not for SQL".
+    - **Arbitrary file operations** — a request value reaching `unlink`/`file_get_contents`. Facts exist.
+  - Pick plugins by installed base rather than by convenience, and pin each at a version with a verified
+    advisory the way `pmpro.toml` does -- the CVE read out of the code, not out of the advisory text.
+  - Observable: a class-by-class table over several plugins, saying for each whether it was found, missed, or
+    out of scope. That is the artifact worth teaching from; a single found CVE is not.
+  - _Requirements: 4.1, 4.4, 9.1_
+  - _Depends: 5.7_
+
+- [ ] 5.9 PHP obligation facts, so access control can be asked at all
+  - `dominance_specs(language="php")` returns nothing: PHP has no obligated operations and no dischargers, so
+    the access-control family is silent on every WordPress scan rather than wrong on it.
+  - The vocabulary is small and conventional -- `current_user_can`, `check_admin_referer`, `wp_verify_nonce`,
+    `is_user_logged_in` as dischargers; `$wpdb` writes, `update_option`, `wp_delete_post`, `wp_update_user`
+    as obligated operations -- and it is the single largest missing WordPress flaw class.
+  - Do it after 5.6, so a discharge counts for the obligation it discharges rather than for all of them.
+  - Observable: a missing-capability finding on a plugin that has one, and silence on one that checks.
+  - _Requirements: 8.1, 9.1_
+  - _Depends: 5.6_
+
 ## Group 6 — Regression baselines
 
 - [ ] 6.1 Repository baseline and delta
