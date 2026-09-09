@@ -476,6 +476,23 @@
   - _Requirements: 8.1, 9.1_
   - _Depends: 5.1_
 
+- [ ] 5.7 Does the PHP call graph carry a flow through an object?
+  - **The WordPress checkout scans and does not find its CVE.** Both ends are inside the budget --
+    `pmpro_rest_api_get_order` at position 290 as a recognised entry point, `getMemberOrderByCode` at 472 --
+    and the taint query runs for 23 seconds. So the question is the middle.
+  - The flow crosses `new MemberOrder( $code )` into a constructor and then
+    `$this->getMemberOrderByCode( $code )`. Both are dynamic in PHP, and whether php2cpg resolves either into
+    a CALLEE edge is unverified: two attempts to query the call graph failed on script errors and were
+    abandoned rather than guessed at.
+  - Answer that first. If the edges exist, the gap is elsewhere -- the source may be `$request->get_params()`
+    rather than a superglobal, which `parameter_sources` should cover but has not been checked on this shape.
+    If they do not, task 2.4's interprocedural region cannot bridge an object boundary and PHP needs
+    something else, which is a finding worth having either way.
+  - Observable: a recorded answer naming which edges exist, and either the CVE found or a stated reason it
+    cannot be.
+  - _Requirements: 4.4, 8.1, 9.1_
+  - _Depends: 5.1_
+
 ## Group 6 — Regression baselines
 
 - [ ] 6.1 Repository baseline and delta

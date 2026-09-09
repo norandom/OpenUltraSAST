@@ -1,0 +1,52 @@
+{
+  "detection": {
+    "both_in_budget": true,
+    "cve": "CVE-2023-23488",
+    "entry_point": "includes/rest-api.php:pmpro_rest_api_get_order -- recognised, rank 0.80, position 290, entry_point",
+    "found": false,
+    "open_question": "The flow crosses `new MemberOrder( $code )` into a constructor and then `$this->getMemberOrderByCode( $code )`. Whether Joern's PHP frontend resolves either into a call edge is unverified -- two attempts to query the call graph failed on script errors. If it does not, task 2.4's interprocedural region cannot bridge this and the PHP story needs something else. Recorded as 5.7.",
+    "sink": "classes/class.memberorder.php:936 getMemberOrderByCode -- $wpdb->get_var with concatenated $code, position 472"
+  },
+  "envelope": {
+    "build_seconds": 46.9,
+    "files": 637,
+    "lines": 117302,
+    "note": "the 500 is the ScanBudget max_regions cap, not a failure; both the CVE's entry point (position 290) and its sink (position 472) are inside it",
+    "per_kind": {
+      "config": 22.0,
+      "dominance": 28.7,
+      "taint": 23.1
+    },
+    "query_seconds": 73.8,
+    "regions": 1577,
+    "regions_scanned": 500,
+    "regions_unjudged": 1100,
+    "total_seconds": 140.1
+  },
+  "generated": "2026-09-09",
+  "reading": "The checkout is real, the CVE is verified in the code, and the scan runs cleanly on 117k lines of PHP. **The CVE is not detected.** That is the result, and three separate engine defects had to be fixed before the scan could even produce it -- each of which had previously reported the plugin clean for a different reason.",
+  "repo": "Paid Memberships Pro 2.9.7 at 1a900be3f09f243876150fc3c04a97bcb24ef84b, CVE-2023-23488",
+  "spec": "contributor-scan 5.1 -- the WordPress detection checkout",
+  "three_defects_found_getting_here": [
+    {
+      "cause": "joern-parse threw after applying overlays; php2cpg on the identical tree produced a 4.3MB CPG with no errors",
+      "fix": "retry through <language>2cpg, which is what Joern's own message recommends for a large codebase",
+      "id": "joern-parse-fails-where-the-frontend-succeeds",
+      "symptom": "1577 regions, 0 scanned, cpg_build_failed in 42s"
+    },
+    {
+      "cause": "Linux caps a single argument at MAX_ARG_STRLEN (128KB); the taint batch was 2500 requests and 1.49MB, execve returned E2BIG, and query_batch's {} read as 'no rows found'",
+      "fix": "stage the payload to a file and pass the path",
+      "id": "a-batch-larger-than-the-argv-limit",
+      "symptom": "500 scanned, 0 found, taint query 0.05 seconds -- less than a JVM takes to start",
+      "why_it_matters": "this is the failure the rung ladder cannot catch -- every other honesty counter labels a VERDICT, and here none was produced to label"
+    },
+    {
+      "cause": "PMPro registers routes as array( $this, 'method' ) and the recogniser matched only string callbacks, so the entry point ranked 0.30 at position 1036, below the budget. The sink at position 450 WAS scanned and found nothing, because only an entry point's parameters are untrusted.",
+      "fix": "recognise array callables; the handler moves to position 290 at rank 0.80",
+      "id": "an-array-callable-is-not-a-handler",
+      "symptom": "500 scanned, 0 found, taint query 21.66s -- the query ran and found nothing"
+    }
+  ],
+  "what_this_says_about_the_v0_1_target": "The WordPress engine path works: php2cpg parses, the facts derive, regions are function-scoped, hooks and REST routes carry declared access, and a 117k-line plugin scans in 140 seconds. What is not established is detection on a real plugin, and one checkout that does not find its CVE is not yet evidence either way about the fact tables -- 5.7 has to answer whether the call graph can carry the flow at all."
+}
