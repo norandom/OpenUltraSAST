@@ -189,6 +189,18 @@ class JoernBackend:
             logger.warning("no such cpg query: %s", script)
             return {}
         payload = json.dumps({rid: {k: _render(v) for k, v in req.items()} for rid, req in requests.items()})
+        # Through a FILE, never the command line. Linux caps a single argument at MAX_ARG_STRLEN (128KB)
+        # whatever ARG_MAX says, and a repository blows through that: 2500 taint requests over a 637-file
+        # WordPress plugin is a 1.49MB payload. execve returns E2BIG, `_run` catches the OSError, this returns
+        # {} -- and {} reads as "no rows found". The scan reported 500 regions examined and nothing found, in
+        # 0.05 seconds of taint query, which is a quiet failure of exactly the kind the rung ladder cannot
+        # catch because no verdict was ever produced to label.
+        requests_file = cpg_path.parent / f"{query}-requests.json"
+        try:
+            requests_file.write_text(payload)
+        except OSError as exc:
+            logger.warning("could not stage cpg batch %s: %s", query, exc)
+            return {}
         command = [
             shutil.which("joern") or "joern",
             self._heap_flag(),
@@ -197,7 +209,7 @@ class JoernBackend:
             "--param",
             f"cpgFile={cpg_path}",
             "--param",
-            f"requests={payload}",
+            f"requestsFile={requests_file}",
         ]
         completed = self._run(command, timeout=self.query_timeout, cwd=cpg_path.parent)
         if completed is None or completed.returncode != 0:

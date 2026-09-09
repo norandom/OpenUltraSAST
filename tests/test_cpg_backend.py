@@ -303,3 +303,38 @@ def test_an_unknown_language_has_nothing_to_retry_with(tmp_path: Path, monkeypat
     monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
     assert JoernBackend(runner=runner).build(tmp_path, language="cobol") is None
     assert JoernBackend(runner=runner).build(tmp_path) is None
+
+
+def test_a_batch_goes_through_a_file_not_the_command_line(tmp_path: Path) -> None:
+    """Linux caps a SINGLE argument at MAX_ARG_STRLEN (128KB) whatever ARG_MAX says.
+
+    2500 taint requests over a 637-file WordPress plugin is a 1.49MB payload. As `--param requests=<json>`
+    execve returned E2BIG, the runner caught the OSError, query_batch returned {} -- and {} reads as "no rows
+    found". The scan reported 500 regions examined, nothing found, and 0.05 seconds of taint query: a quiet
+    failure the rung ladder cannot catch, because no verdict was ever produced to label.
+    """
+    from openultrasast.cpg.backend import BEGIN, END, JoernBackend
+
+    commands: list[list[str]] = []
+
+    class _Done:
+        returncode = 0
+        stderr = ""
+        stdout = f'{BEGIN}\n{{"r0": []}}\n{END}\n'
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        commands.append(list(command))
+        return _Done()
+
+    cpg = tmp_path / "cpg.bin"
+    cpg.write_text("cpg")
+    big = {f"r{i}": {"sources": ("request.args",) * 40, "sinks": ("execute",) * 40} for i in range(2000)}
+
+    JoernBackend(runner=runner).query_batch(cpg, "taint", big)
+
+    argv = commands[0]
+    assert not any(len(arg) > 131072 for arg in argv), "no argument may approach MAX_ARG_STRLEN"
+    staged = [arg for arg in argv if arg.startswith("requestsFile=")]
+    assert staged, "the batch is staged to a file"
+    written = Path(staged[0].split("=", 1)[1])
+    assert written.is_file() and len(written.read_text()) > 200_000, "and the file holds the whole payload"

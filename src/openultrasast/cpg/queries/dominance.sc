@@ -42,9 +42,17 @@
     file: String = "",
     operationRequires: String = "",
     dischargersByKind: String = "",
-    requests: String = ""
+    requests: String = "",
+    requestsFile: String = ""
 ) = {
   importCpg(cpgFile)
+
+  // The batch arrives as a FILE. A single command-line argument is capped at 128KB on Linux and a
+  // repository's requests are megabytes, so passing them as `--param requests=` failed with E2BIG and the
+  // driver read the empty result as "no rows". `requests` is kept for the single-request forms and the tests.
+  val requestsJson =
+    if (requestsFile.nonEmpty) scala.io.Source.fromFile(requestsFile).mkString
+    else requests
 
   def split(raw: String): List[String] = raw.split(",").map(_.trim).filter(_.nonEmpty).toList
 
@@ -162,8 +170,8 @@
   }
 
   println("---OUSAST-CPG-BEGIN---")
-  if (requests.nonEmpty) {
-    val parsed = ujson.read(requests).obj
+  if (requestsJson.nonEmpty) {
+    val parsed = ujson.read(requestsJson).obj
     val answers = parsed.map { case (id, req) =>
       def field(name: String): String = req.obj.get(name).map(_.str).getOrElse("")
       id -> ujson.Arr(
