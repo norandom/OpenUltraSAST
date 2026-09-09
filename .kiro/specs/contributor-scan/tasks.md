@@ -197,7 +197,7 @@
   - _Requirements: 5.1, 8.1_
   - _Depends: 2.4_
 
-- [ ] 2.11 The suspicion band has to be worth reading
+- [x] 2.11 The suspicion band has to be worth reading
   - libpng's scan produced 198 rows: 26 entailed (all one false positive, since fixed), 113 `c-unsafe-*`
     pattern matches that assert an API is PRESENT rather than misused, 50 overlay-coverage annotations that
     are not findings at all, and 9 model suspicions. Zero validated defects.
@@ -347,6 +347,20 @@
 
 ## Group 5 — Grow the corpus
 
+**What group 2 established about each of these**, so none is started on a wrong assumption:
+
+* **PHP/WordPress**: Joern ships `php2cpg`, so the engine can parse it. The blocker is ours --
+  `taint_specs(language="php")` returns **zero families**, as do ruby and go. WordPress would parse and
+  produce nothing, which is the quiet failure that reads as a clean bill of health. The work is fact tables
+  first, corpus second.
+* **A known-vulnerable old libpng**: measured and it will not work, for a reason the version cannot fix.
+  Every file using `strcpy`/`strcat`/`sprintf`/`gets` is under `contrib/`; the library uses none of them and
+  overflows through arithmetic instead. See 2.15 and 2.16.
+* **Vibe-code repos**: the best fit available. Python and JavaScript both have full fact tables, the pair
+  corpus already carries 70 vibe-py and 17 vfc-js pairs, and vampi -- the one repository where the engine
+  finds 3 of 3 -- is exactly this shape. A whole-repository vibe-code checkout is the cheapest next
+  measurement that could produce a true positive.
+
 - [ ] 5.1 PHP/WordPress slice
   - Plugin and core weaknesses. `php2cpg` needs a PHP interpreter, which the image provides. **Validate on a
     sample that the model can read the pairs before vendoring** — the OWASP harvest found 238 and vendored 40
@@ -356,7 +370,16 @@
   - _Requirements: 9.1, 9.4, 9.5, 9.6, 9.7_
   - _Depends: 3.2_
 
-- [ ] 5.2 More vibe-code pairs
+- [ ] 5.2 More vibe-code pairs, and at least one as a whole repository
+  - The pair corpus has 70 vibe-py and 17 vfc-js pairs, all excerpts. Group 2 showed that excerpts cannot
+    see the defects a repository shows: nine engine bugs this session, none of them visible to the corpus,
+    the gates byte-identical through every fix.
+  - So the higher-value half of this task is a **pinned vibe-code repository**, not more pairs. It is the
+    cheapest measurement that could produce a second true-positive checkout, because Python and JavaScript
+    are the two languages whose fact tables are complete.
+  - Observable: a `benchmarks/repos/` recipe for a vibe-code checkout with in-scope known vulnerabilities,
+    and a measurement saying which were found at which rung.
+  - _Requirements: 9.1, 9.2, 4.1_
   - The slice where the stated audience works, currently 35 pairs. Same read-check discipline.
   - _Requirements: 9.3, 9.4, 9.5, 9.6, 9.7_
 
@@ -454,3 +477,65 @@ shapes were taught by the holdout pairs they then "recovered", turning a -0.059 
     net-negative adoption is reverted automatically rather than argued about.
   - _Requirements: 8.2, 10.3_
   - _Depends: 7.4_
+
+## Group 8 — Per-repository state a developer owns
+
+> "an evolution (gepa, simba) style prompting with a declarative and persistent approach when evaluating
+> findings per target repo? so that devs can commit state and evolve the harness / dismiss findings"
+
+Yes, and Group 7 is half of it already -- 7.2's counter-example ledger is the persistent state, 7.3 is a model
+proposing from it, 7.4 is a split-respecting adoption. What this adds is the part that makes it a developer's
+rather than a maintainer's: the state lives **in the target repository**, committed beside the code, and it is
+declarative.
+
+**The boundary that decides the design.** A reflective optimiser may evolve a **prompt**, because a prompt is
+how we ask a question. It may not author **patterns or policy** -- the fact tables and the rulesets stay
+human-authored, and the tool never writes the declared policy file. So GEPA-style evolution has exactly one
+legitimate target here: the judge and residual questions in `model/pipeline.py`, which are already the
+LLM-facing surface. Evolving those against a repository's own dismissals is sound. Evolving sink tables from
+them is the thing this project has refused from the start, and the closed-loop leak is why it is right to.
+
+- [ ] 8.1 A dismissal file the developer owns
+  - `.openultrasast/dismissals.toml` in the TARGET repository: finding id or site, the rung it was dismissed
+    at, a reason, and who. Committed with the code, reviewed like code, and diffable -- a dismissal without a
+    reason is how a suppression file becomes a graveyard nobody can audit.
+  - The tool READS it and never writes it, which is the same rule the declared policy file already follows.
+    `ousast scan` reports dismissed findings as dismissed with their reason rather than hiding them, so a
+    stale dismissal is visible rather than silent.
+  - Observable: a scan of vampi with two dismissals reports 3 findings and 2 dismissed-with-reason, and the
+    file is untouched by the run.
+  - _Requirements: 5.1, 5.2_
+
+- [ ] 8.2 Dismissals are an evaluation set, per repository
+  - A dismissal is a labelled example: this site, at this rung, is not a finding here. Together with the
+    known vulnerabilities a `benchmarks/repos/` recipe already declares, that is a per-repository eval set
+    with both classes in it -- which is exactly what an optimiser needs and what a suppression list normally
+    throws away.
+  - Split it the way the pair corpus is split. A dismissal that teaches the prompt that recovers it is the
+    leak measured on 2026-09-05, where five of eleven candidate shapes were taught by the holdout pairs they
+    then recovered and a -0.059 Youden was reported as +0.059.
+  - Observable: the eval set builds from a recipe plus a dismissal file, with a declared train/holdout split
+    and a test that the holdout is never read during optimisation.
+  - _Requirements: 8.2, 10.2_
+  - _Depends: 8.1_
+
+- [ ] 8.3 Evolve the QUESTION, never the facts
+  - GEPA/SIMBA-style reflective evolution over `CANDIDATE_QUESTION` and `residual_question`, scored on 8.2's
+    train split: fewer dismissed sites affirmed, no known vulnerability lost.
+  - Hard boundaries, and they are the point of putting this in its own group: the optimiser proposes prompt
+    text only; it never edits a fact table, a ruleset or the declared policy file; an evolved prompt is
+    committed by a human like any other change; and the three gates stay byte-identical or the evolution is
+    a regression wearing a fix's clothes.
+  - Observable: an evolution record per accepted prompt -- train score before and after, holdout untouched,
+    known vulnerabilities still found, gates identical, and the diff of the prompt.
+  - _Requirements: 8.1, 8.2, 10.3_
+  - _Depends: 8.2, 7.4_
+
+- [ ] 8.4 Say what the harness learned, in the repository it learned it in
+  - Per-repository state is only useful if a developer can see what it did. A committed record of which
+    dismissals shaped the current prompt, and what that cost on the shared corpus, is what keeps this from
+    becoming a per-repo tuning that nobody can reason about.
+  - Observable: `ousast repos` or the report shows, for a target with evolved state, what was learned and
+    what it was measured against.
+  - _Requirements: 5.2, 10.4_
+  - _Depends: 8.3_

@@ -466,3 +466,54 @@ def _finding() -> StaticFinding:
         tags=["syscall_entry"],
         ranking_priority=3.0,
     )
+
+
+def _pattern_finding(rule: str, path: str, line: int) -> StaticFinding:
+    from dataclasses import replace
+
+    base = _finding()
+    return replace(base, finding_id=f"{rule}:{path}:{line}", path=path, line=line, title=f"{rule} needs review")
+
+
+def test_a_pattern_rule_with_many_sites_is_summarised_not_repeated(tmp_path: Path) -> None:
+    """contributor-scan 2.11. libpng emitted 198 sections, 163 of them asserting that `memcpy` and `strcpy`
+    are PRESENT in a library that uses them correctly throughout. That is the noise developers have learned
+    to skip in every other tool, and shipping it costs the findings beside it their credibility."""
+    crowded = [_pattern_finding("c-unsafe-copy", f"src/f{i}.c", i) for i in range(20)]
+    output = tmp_path / "report.md"
+
+    write_markdown_report(crowded, output)
+
+    text = output.read_text()
+    assert "## Pattern matches" in text
+    assert "20 site(s) across 20 file(s)" in text
+    assert text.count("## c-unsafe-copy needs review") == 0, "twenty sections for one rule is the noise"
+    assert "`findings.json`" in text, "counted, never dropped"
+
+
+def test_a_pattern_rule_with_few_sites_keeps_its_sections(tmp_path: Path) -> None:
+    """One `python-flask-debug` is a finding a contributor can act on, and must not be summarised away."""
+    output = tmp_path / "report.md"
+
+    write_markdown_report([_pattern_finding("python-flask-debug", "app.py", 17)], output)
+
+    text = output.read_text()
+    assert "## python-flask-debug needs review" in text
+    assert "## Pattern matches" not in text
+
+
+def test_a_reasoned_claim_keeps_its_section_whatever_its_rung(tmp_path: Path) -> None:
+    """An obligation or model finding sits at `suspicion` too, but it is a claim about a site rather than an
+    observation that an API exists. Twenty of them are twenty findings, not one property of the codebase."""
+    from dataclasses import replace
+
+    base = _finding()
+    reasoned = [
+        replace(base, finding_id=f"obligation:protected_read:api/u.py:{i}", evidence_level="suspicion", path="api/u.py", line=i)
+        for i in range(20)
+    ]
+    output = tmp_path / "report.md"
+
+    write_markdown_report(reasoned, output)
+
+    assert output.read_text().count(f"## {base.title}") == 20

@@ -1,0 +1,24 @@
+{
+  "counted_never_dropped": "findings.json stays complete -- it is the record a baseline is compared against, and this is a view of it. The grouped section states the count, the rules, the top files, and that the model reaching none of them means no fact table covered the site rather than that the site is safe.",
+  "generated": "2026-09-09",
+  "measured": {
+    "libpng": {
+      "findings": 198,
+      "grouped": 161,
+      "report_lines": 679,
+      "sections_after": 39,
+      "sections_before": 198
+    },
+    "vampi": {
+      "findings": 60,
+      "grouped": 0,
+      "note": "its three pattern rows are under the limit and keep their sections",
+      "sections_after": 61,
+      "sections_before": 61
+    }
+  },
+  "rule": "A report is proportionate to what the engine can say. A finding whose only evidence is a text pattern -- evidence_level `static_corroboration` at rung `suspicion`, nothing corroborating the match -- is grouped by rule once that rule has more than three sites. Under three it keeps the sections it always had. Anything a proposer reasoned about keeps its section whatever its rung, because an undecided CLAIM about a site is not an observation that an API exists.",
+  "spec": "contributor-scan 2.11 (Req 5.1, 5.2)",
+  "what_it_does_not_fix": "vampi still emits 61 sections for a 520-line application: 38 model suspicions and 13 obligation findings, all reasoned claims and none of them collapsed by this rule. Whether fifty-one undecided claims is itself too many for a contributor is a separate question this task does not answer, and the honest position is that the rule fixes pattern noise rather than volume.",
+  "why_evidence_level_and_not_rung": "Filtering on rung was the obvious rule and it was wrong: the obligations checker emits at `suspicion` too, so hiding that rung would have hidden an entire detector. The discriminator is evidence_level. On libpng 163 of 198 rows are static_corroboration; on vampi 3 of 60 are. The model layer and the obligations checker carry `suspicion` there instead, which is the distinction the ladder was built to make."
+}

@@ -28,11 +28,28 @@ def write_markdown_report(
     overlay_by_id = _overlay_by_id(overlay or [])
     cited: dict[str, Mapping[str, object]] = {}
     cited_obligations: dict[str, Mapping[str, object]] = {}
+    # THE RULE (contributor-scan 2.11): a report is proportionate to what the engine can say.
+    #
+    # A finding whose only evidence is a text pattern -- `evidence_level == "static_corroboration"`, nothing
+    # corroborating it beyond the match -- is grouped by rule instead of given a section each. libpng emitted
+    # 198 sections of which 163 were exactly that, asserting `memcpy` and `strcpy` are PRESENT in a library
+    # that uses them correctly throughout. That is the noise developers have learned to skip in every other
+    # tool, and shipping it costs the findings beside it their credibility.
+    #
+    # Grouped, never dropped, and proportionate rather than hidden. A rule with a handful of sites keeps its
+    # full sections -- one `python-flask-debug` is a finding a contributor can act on and must not be
+    # summarised away. A rule with fifty-four is a property of the codebase. Anything a proposer actually
+    # reasoned about -- the model layer, the obligations checker -- keeps its section whatever its rung,
+    # because an undecided CLAIM about a site is not an observation that an API exists.
+    patterned = _crowded_pattern_rules(findings)
+    crowded = {id(item) for item in patterned}
+    reasoned = [item for item in findings if id(item) not in crowded]
+
     lines = ["# OpenUltraSAST Report", "", f"Findings: {len(findings)}", "", "## Inventory", ""]
     if not findings:
         lines.append("No quick-mode findings were emitted.")
         lines.append("")
-    for finding in findings:
+    for finding in reasoned:
         verification = verification_by_id.get(finding.finding_id)
         disposition = overlay_by_id.get(finding.finding_id)
         lines.extend(
@@ -69,6 +86,8 @@ def write_markdown_report(
             cited_obligations[finding.finding_id] = info_o
             _append_obligation_lines(lines, info_o, (mechanisms or {}).get(str(info_o.get("known_fix") or "")))
         lines.extend(["", finding.rationale, ""])
+    if patterned:
+        _append_pattern_matches(lines, patterned)
     if cited:
         _append_mechanisms(lines, cited)
     if cited_obligations:
@@ -351,6 +370,64 @@ def _sarif_level(severity: str) -> str:
     if severity == "medium":
         return "warning"
     return "note"
+
+
+# How many sites a pattern rule may have before it is summarised instead of listed in full. A rule at or
+# under this keeps the behaviour it always had; over it, the report stops repeating itself.
+_PATTERN_DETAIL_LIMIT = 3
+
+
+def _crowded_pattern_rules(findings: Sequence[StaticFinding]) -> list[StaticFinding]:
+    """Pattern-only findings belonging to a rule that matched more sites than are worth listing."""
+    counts: dict[str, int] = {}
+    for finding in findings:
+        if _is_pattern_only(finding):
+            rule = str(finding.finding_id).split(":", 1)[0]
+            counts[rule] = counts.get(rule, 0) + 1
+    return [
+        finding
+        for finding in findings
+        if _is_pattern_only(finding) and counts.get(str(finding.finding_id).split(":", 1)[0], 0) > _PATTERN_DETAIL_LIMIT
+    ]
+
+
+def _is_pattern_only(finding: StaticFinding) -> bool:
+    """Is a text match the only thing behind this finding?
+
+    `static_corroboration` is what the static layer emits when a pattern matched and nothing else spoke. A
+    proposer that reasoned about the site -- the model layer, the obligations checker -- carries `suspicion`
+    here even when its rung is also suspicion, and that is the distinction: an undecided CLAIM is not the
+    same as an observation that an API is present.
+    """
+    return str(finding.evidence_level) == "static_corroboration" and str(finding.rung) == "suspicion"
+
+
+def _append_pattern_matches(lines: list[str], patterned: Sequence[StaticFinding]) -> None:
+    """Pattern matches, grouped by rule. Proportionate: few sites are named, many are counted."""
+    by_rule: dict[str, list[StaticFinding]] = {}
+    for finding in patterned:
+        by_rule.setdefault(str(finding.finding_id).split(":", 1)[0], []).append(finding)
+
+    lines.extend(
+        [
+            "## Pattern matches",
+            "",
+            f"{len(patterned)} site(s) matched a static pattern with nothing corroborating them. A match says "
+            "an API is present, not that it is misused; the model reached none of these, and silence from the "
+            "model means no fact table covered the site rather than that it is safe. All of them are in "
+            "`findings.json`.",
+            "",
+        ]
+    )
+    for rule, items in sorted(by_rule.items(), key=lambda entry: (-len(entry[1]), entry[0])):
+        by_file: dict[str, int] = {}
+        for finding in items:
+            by_file[str(finding.path)] = by_file.get(str(finding.path), 0) + 1
+        top = sorted(by_file.items(), key=lambda entry: (-entry[1], entry[0]))[:3]
+        where = ", ".join(f"`{name}` ({count})" for name, count in top)
+        more = f", and {len(by_file) - len(top)} more file(s)" if len(by_file) > len(top) else ""
+        lines.append(f"- `{rule}` — {len(items)} site(s) across {len(by_file)} file(s): {where}{more}")
+    lines.append("")
 
 
 def _verification_by_id(verifications: list[VerificationResult]) -> dict[str, VerificationResult]:
