@@ -5,6 +5,43 @@
 adopted, the model layer was built, wired and measured, and two repositories have been scanned. See
 `overview.md` for what is true today; this is what happens next and in what order.
 
+## The target: a first release for small projects
+
+> "a first release that is ready for smaller projects like libpng or wordpress"
+
+Those two are, today, exactly the cases that do not work — and they fail for **different** reasons, which is
+what makes them a good pair of targets rather than one.
+
+| target | why it fails now | what a release needs |
+| --- | --- | --- |
+| **WordPress** (php) | `taint_specs(language="php")` returns **zero families**. Joern's `php2cpg` parses it; we say nothing. | Fact tables and entry-point mapping. The engine is right for this: PHP web bugs are the classic taint families, which is what the taint arbiter already decides well. |
+| **libpng** (c) | `c/memory` models string functions; libpng overflows through *arithmetic*, and its library never calls a sink we model. | Either a second abstraction (size arithmetic — a constraint problem) or an honest, stated limit. |
+
+So "ready for" has to mean two different things, and the release criteria say which applies where:
+
+* For a project whose bug class a family **can** decide (WordPress, vibe-code): find the known vulnerability.
+* For one it **cannot** (libpng today): run inside its envelope, report nothing false, and *state the limit*
+  rather than returning a quiet clean bill of health.
+
+The second is not a consolation. A tool that says "I do not model this class" is usable; one that silently
+finds nothing is the thing that teaches developers to distrust SAST.
+
+### Release criteria (v0.1)
+
+1. Runs unattended on a pinned checkout of each target within a stated time and memory envelope.
+2. **Zero known-false entailed findings** on every pinned checkout.
+3. Finds the known vulnerability wherever a family can decide it in principle (Req 4.6).
+4. States what each family cannot decide, in the report (Req 5.6).
+5. The report is proportionate — no rule repeating itself past a stated count (Req 5.5).
+6. Installs and runs without the user having Joern, a JVM, or a PHP interpreter (docker compose + wrapper).
+7. A committed regression baseline per target, so the next change is measurable rather than argued about.
+
+### What that reorders
+
+PHP moves **up**: it is the shortest path from here to a target the maintainer named, and it is the case the
+existing arbiter is best suited to. The C decision moves up with it, because criterion 4 needs `c/memory`
+either earning its place or being scoped — and scoping it is cheap.
+
 ## The one test everything is ordered by
 
 > "it must find the bugs, otherwise it's SAST noise. most devs know codeql / semgrep have dataflow
@@ -28,15 +65,18 @@ Everything here is in `contributor-scan`, group 2, and all of it is measurable o
    Needs the access level's *provenance*, because for decorator frameworks "public" means "no decorator
    found", which is the bug itself.
 
-## Next — make it find more, in the cheapest order
+## Next — reach the named targets
 
-5. **5.2 — a pinned vibe-code repository.** The cheapest route to a *second* checkout that can produce a true
-   positive, because Python and JavaScript are the two languages whose fact tables are complete. Everything
-   downstream is tuned on two repositories until this lands.
-6. **2.15 — a C checkout whose CVE goes through a sink we model.** Decides whether `c/memory` earns its place
-   or gets scoped (2.16). libpng cannot answer this; no version of it can.
-7. **5.1 — PHP fact tables, then WordPress.** `php2cpg` exists; our PHP families are empty. Tables first,
-   corpus second — the other order produces a confident silence.
+5. **5.1 — PHP fact tables, then a WordPress checkout.** The shortest path to a target the maintainer named,
+   and the case this arbiter suits best. Sources, sinks and sanitizers for PHP; entry points for WordPress's
+   registration model (`add_action`, `add_filter`, admin-ajax, REST routes) which the mapper already handles
+   in principle. **Validate on pairs before pointing it at WordPress** — tables first, corpus second, because
+   the other order produces a confident silence.
+6. **2.15 / 2.16 — settle `c/memory`.** Either a C checkout whose CVE runs through a sink we model, giving the
+   family its first true positive, or the family's scope narrowed and stated. Release criterion 4 needs one
+   or the other, and the second is cheap. libpng cannot answer the first; no version of it can.
+7. **5.2 — a pinned vibe-code repository.** Still the cheapest *second* true-positive checkout, and the guard
+   against tuning everything on vampi. Below PHP now only because it is not a named release target.
 
 ## Then — close the deferred engine questions
 
@@ -72,3 +112,7 @@ Everything here is in `contributor-scan`, group 2, and all of it is measurable o
 The scoreboard in `overview.md`, and one question: **can a developer run this on a repository they did not
 write and get something they act on?** Today that is true for one Python application and false for one C
 library, and the specs above are ordered by what changes that.
+
+A release is ready when that question is answered **yes for WordPress and honestly for libpng** — found for
+the one whose class we decide, and a stated limit for the one we do not. Both are release criteria; only one
+of them is a detection claim.
