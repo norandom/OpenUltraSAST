@@ -309,3 +309,21 @@ def test_the_call_depth_is_bounded() -> None:
     from openultrasast.model.scan import ENTRY_POINT_CALL_DEPTH
 
     assert 0 < ENTRY_POINT_CALL_DEPTH <= 5
+
+
+def test_the_scan_reports_query_time_per_kind() -> None:
+    """contributor-scan 2.3: which query costs the time is the whole server-mode decision.
+
+    On libpng the phase split taint 243.3s / config 10.7s over two invocations, against ~13s of fixed
+    startup each. A single total cannot tell startup from evaluation, and the two lead to opposite answers.
+    """
+    from openultrasast.model.scan import scan_repository
+
+    regions = (
+        _region(path="a.py", families=("injection",)),
+        _region(path="b.py", families=("config_secrets",)),
+    )
+    result = scan_repository(Path("/repo"), regions, backend=_Backend(), client=None, model="")
+
+    assert set(result.query_seconds_by_kind) == {"taint", "config"}
+    assert sum(result.query_seconds_by_kind.values()) <= result.query_seconds + 0.05

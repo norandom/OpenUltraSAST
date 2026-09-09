@@ -98,7 +98,7 @@
   - _Requirements: 4.2, 4.3, 4.4, 4.5_
   - _Depends: 2.1_
 
-- [ ] 2.3 Decide on Joern server mode, on 2.2's numbers
+- [x] 2.3 Decide on Joern server mode, on 2.2's numbers
   - Joern offers `--server` with `--server-host`, `--server-port` and basic auth: one warm JVM with the CPG
     loaded once, and queries in milliseconds after that. It would remove the three-to-four JVM starts
     (~100s) that remain per scan now that 1.4 has batched the queries.
@@ -115,6 +115,13 @@
     so as a port listening on a contributor's laptop.
   - Observable: a recorded decision that cites 2.2's build-time-to-query-time split. A preference does not
     close this task; a ratio does.
+  - **Decided: no.** On libpng (89k lines of C) the query phase splits taint 243.3s / config 10.7s over two
+    invocations, and fixed overhead measured on that CPG is ~13s per invocation. So ~26s of 250s is JVM
+    startup and ~224s is CPGQL evaluation: a warm server removes 6% of a 446s scan and none of the part that
+    costs. Recorded in `benchmarks/measurements/2026-09-09-repo-libpng-envelope.json`.
+  - The small repository pointed the other way -- vampi's 34.3s over three kinds is roughly three startups
+    and almost no evaluation -- and the ratio inverts with size. That inversion is precisely why this task
+    was sequenced after a real repository instead of being decided on a 520-line file.
   - _Requirements: 4.2_
   - _Depends: 2.2_
 
@@ -177,6 +184,30 @@
     unchanged at 0% on the non-VAmPI pairs -- the check that this suppressed a declaration and not a family.
   - _Requirements: 8.1, 8.2_
   - _Depends: 2.6_
+
+- [ ] 2.9 One defect is one finding, however many regions reach it
+  - libpng's scan produced 26 entailed findings that are all the identical site,
+    `contrib/gregbook/wpng.c:335:main`. Many regions reach one shared sink and each emits its own finding;
+    nothing dedupes by site. A contributor would be shown the same defect twenty-six times.
+  - Invisible at vampi scale, where regions rarely share a sink, and it appeared the moment task 2.4 let a
+    region's question follow the call graph.
+  - Dedupe on the reported site, keeping the strongest rung and recording how many regions reached it --
+    "reached from 26 entry points" is useful information, twenty-six rows are not.
+  - Observable: libpng's entailed count reflects distinct sites; the artifact records both numbers.
+  - _Requirements: 5.1, 8.1_
+  - _Depends: 2.4_
+
+- [ ] 2.10 Do not spend the scan on example code
+  - 22 of libpng's 30 highest-ranked regions are under `contrib/` -- the sample programs shipped with the
+    library rather than the library. The budget and the 243s taint query go there first.
+  - The rank already comes from the entry-point mapper; what is missing is that a path can be evidence too.
+    Vendored, generated, example and test trees are not what a contributor is changing. This is also the
+    cheapest available reduction of the 243s.
+  - Do not hardcode `contrib/`: derive it, record what was excluded and why, and measure the scan with and
+    without so the exclusion is a number rather than a preference.
+  - Observable: a recorded before/after on libpng -- regions, query seconds, and entailed sites.
+  - _Requirements: 4.2, 8.1_
+  - _Depends: 2.2_
 
 ## Group 3 — Ship it
 

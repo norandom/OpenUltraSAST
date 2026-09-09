@@ -28,3 +28,8 @@ vector-store/
 *.log
 
 .DS_Store
+
+# Joern writes a `workspace/` beside its working directory. The backend runs it inside the CPG's
+# own scratch dir so it never lands here, but a maintainer querying a CPG by hand from the repo root
+# will create one.
+workspace/

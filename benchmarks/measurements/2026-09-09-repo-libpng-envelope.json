@@ -1,0 +1,113 @@
+{
+  "caveat": "The CVE is out of scope by construction, so this measures the envelope and says nothing about detection accuracy on C. The 26 entailed findings are one site, and it is in example code; no claim is made that they are correct.",
+  "completed": true,
+  "config": "shipped defaults",
+  "degradations": [
+    {
+      "reason": "budget_exhausted",
+      "regions_unasked": 32,
+      "stage": "model"
+    },
+    {
+      "reason": "hunter_model_unavailable",
+      "stage": "map"
+    }
+  ],
+  "exit_code": 0,
+  "findings_by_rung": {
+    "execution_confirmed": 0,
+    "model_corroborated": 0,
+    "model_entailed": 26,
+    "suspicion": 172
+  },
+  "findings_total": 198,
+  "fixed_invocation_overhead_seconds": 13.3,
+  "generated": "2026-09-09",
+  "known_outcomes": [
+    {
+      "family": "memory_safety",
+      "id": "CVE-2025-66293",
+      "location": "pngread.c:png_image_read_composite:3279",
+      "note": "this engine arbitrates no family that decides this weakness; 'not found' would be a category error, not a miss",
+      "result": "out_of_scope"
+    }
+  ],
+  "mode": "standard",
+  "model": {
+    "arbitrate_seconds": 121.98,
+    "build_seconds": 16.08,
+    "by_rung": {
+      "execution_confirmed": 0,
+      "model_corroborated": 0,
+      "model_entailed": 26,
+      "suspicion": 9
+    },
+    "cost_usd": 0.0122,
+    "model_calls": 105,
+    "query_seconds": 250.0,
+    "regions_scanned": 121,
+    "regions_unasked": 32,
+    "regions_unjudged": 0,
+    "seconds": 388.06,
+    "unjudged_sample": []
+  },
+  "new_defects": [
+    {
+      "detail": "All 26 entailed findings are the identical site, contrib/gregbook/wpng.c:335:main. Many regions reach one shared sink and each emits its own finding; nothing dedupes by site. A contributor would be shown the same defect 26 times. Invisible at vampi scale, where regions rarely share a sink.",
+      "id": "one-sink-many-regions-many-findings"
+    },
+    {
+      "detail": "22 of the 30 highest-ranked regions are under contrib/ -- the example programs shipped with libpng, not the library. The budget and the 243s taint query are being spent on sample code.",
+      "id": "example-code-outranks-the-library"
+    }
+  ],
+  "peak_rss_mb": 911.1,
+  "per_kind_query_seconds": {
+    "config": 10.7,
+    "dominance": "absent: C has no handlers, so no access_control family",
+    "taint": 243.3
+  },
+  "reading": "89,082 lines of C across 93 files: CPG built in 16s at 911MB peak under a 2GB heap cap, whole scan 446s, $0.0122, 121 regions all arbitrated. Memory is not the constraint a fleet runner would hit -- a 2-vCPU/7GB runner has room for this and the rest of the job. Time is, and it is not the build: 16s to build against 250s to query.",
+  "repo": {
+    "commit": "cf53e54ccf631d8de68a30ebb3b8eeed1d6f1a08",
+    "known": [
+      {
+        "family": "memory_safety",
+        "id": "CVE-2025-66293",
+        "in_scope": false,
+        "location": "pngread.c:png_image_read_composite:3279",
+        "weakness": "out-of-bounds read: an unclamped composited component indexes the sRGB conversion table"
+      }
+    ],
+    "language": "c",
+    "license": "libpng-2.0",
+    "measures": [
+      "envelope"
+    ],
+    "name": "libpng",
+    "url": "https://github.com/glennrp/libpng.git"
+  },
+  "scaling_shape": {
+    "answer": "No, and it is also not the pressure. The build parallelises well and costs 16s; the query does not parallelise by sharding and costs 250s. Sharding a repository across a fleet therefore splits the cheap phase, and after task 2.4 we know a shard boundary hides exactly the cross-module flows that matter. Scoping the CPG to a contributor's DIFF cuts the expensive phase instead, and is what this spec is for. Caching the built CPG as an artifact saves 16s of 446s and is barely worth it.",
+    "measured_ceiling": "911MB for 89k lines. Linear extrapolation puts a million-line repository near 5GB, which WOULD exceed a standard runner -- so the ceiling is real, just much further out than libpng. Locating it needs a genuinely large checkout, not this one.",
+    "question": "CI/CD runners are a horizontal fleet, not a vertically scaled box. Is one whole-repository CPG the only way?"
+  },
+  "scan_seconds": 446.25,
+  "server_mode_decision": {
+    "evidence": "The query phase splits taint 243.3s / config 10.7s over two invocations. Fixed overhead measured separately on this CPG is ~13s per invocation, so ~26s of the 250s is JVM startup and ~224s is CPGQL evaluation. A warm server removes the 26s: 6% of a 446s scan, and nothing at all of the part that costs.",
+    "verdict": "no",
+    "why_the_small_repository_pointed_the_other_way": "On vampi the query phase was 34.3s over three kinds, which is roughly three startups and almost no evaluation -- startup-dominated, and it made server mode look worth having. The ratio inverts with repository size. That inversion is why task 2.3 was sequenced after a real repository rather than decided on a 520-line file."
+  },
+  "spec": "contributor-scan 2.2/2.3 (Req 4.1-4.5) -- the envelope checkout",
+  "stages": {
+    "completed": [
+      "static",
+      "map"
+    ],
+    "requested": [
+      "static",
+      "map"
+    ],
+    "skipped": []
+  }
+}

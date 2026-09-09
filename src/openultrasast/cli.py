@@ -890,6 +890,7 @@ def _model_payload(result: object, *, unjudged_paths: tuple[str, ...] = ()) -> d
         "seconds": getattr(result, "seconds", 0.0),
         "build_seconds": getattr(result, "build_seconds", 0.0),
         "query_seconds": getattr(result, "query_seconds", 0.0),
+        "query_seconds_by_kind": dict(getattr(result, "query_seconds_by_kind", {}) or {}),
         "arbitrate_seconds": getattr(result, "arbitrate_seconds", 0.0),
     }
 

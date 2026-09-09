@@ -83,6 +83,9 @@ class ModelScanResult:
     # a single figure cannot answer any of them.
     build_seconds: float = 0.0
     query_seconds: float = 0.0
+    # Per query kind, because the total cannot say whether the cost is JVM startup (which a warm server
+    # would remove) or CPGQL evaluation (which it would not). That is the whole of the server-mode decision.
+    query_seconds_by_kind: Mapping[str, float] = field(default_factory=dict)
     degradations: tuple[Mapping[str, object], ...] = ()
 
     @property
@@ -141,8 +144,10 @@ def scan_repository(
     # per family put a ten-line file at four minutes and a thousand regions at roughly fifty hours -- while
     # the queries themselves are milliseconds once the CPG is loaded.
     rows_by_id: dict[str, list[object]] = {}
+    per_kind: dict[str, float] = {}
     query_started = time.monotonic()
     for kind, requests in _grouped(work).items():
+        kind_started = time.monotonic()
         batch = getattr(cpg, "run_batch", None)
         if callable(batch):
             rows_by_id.update(batch(kind, requests) or {})
@@ -150,6 +155,7 @@ def scan_repository(
             for rid, params in requests.items():
                 answered = cpg.run(kind, params)
                 rows_by_id[rid] = list(answered) if isinstance(answered, list) else []
+        per_kind[kind] = round(time.monotonic() - kind_started, 2)
     query_seconds = round(time.monotonic() - query_started, 2)
 
     # Phase 3: arbitrate from the rows already in hand. The arbiters are unchanged: each is handed a
@@ -212,6 +218,7 @@ def scan_repository(
         seconds=round(time.monotonic() - started, 2),
         build_seconds=build_seconds,
         query_seconds=query_seconds,
+        query_seconds_by_kind=per_kind,
         degradations=tuple(degradations),
     )
 
