@@ -1,0 +1,15 @@
+{
+  "feature_name": "finding-feedback-loop",
+  "created_at": "2026-09-09T12:00:00Z",
+  "updated_at": "2026-09-09T12:00:00Z",
+  "language": "en",
+  "phase": "brief",
+  "approvals": {
+    "requirements": { "generated": false, "approved": false },
+    "design": { "generated": false, "approved": false },
+    "tasks": { "generated": false, "approved": false }
+  },
+  "ready_for_implementation": false,
+  "depends_on": ["contributor-scan"],
+  "approval_note": "2026-09-09 brief drafted. Scope lifted out of contributor-scan, where two task groups (a counter-example ledger and per-repository evolutionary prompting) had been appended directly to tasks.md without passing requirements or design -- a workflow error, and they are a separate feature rather than a refinement of scan integration. Prompted by the maintainer asking for GEPA/SIMBA-style evolution with declarative persistent per-repository state so developers can commit dismissals and evolve the harness. The design boundary is that an optimiser may evolve the QUESTION (judge and residual prompts) and never the FACTS (tables, rulesets, declared policy), because the closed-loop leak measured 2026-09-05 turned a -0.059 holdout Youden into +0.059 by teaching from the pairs it then recovered. Not approved; requirements not generated."
+}

@@ -411,131 +411,15 @@
 - Group 5 is deliberately last. The corpus is not the binding constraint today — reachability is — and 198 of
   238 OWASP pairs were left unvendored precisely because volume without readability makes every number worse.
 
-## Group 7 — Stop repeating the same false positive
+---
 
-Three false-positive classes were found by hand today, and two of them were the *same defect in a different
-matcher*: `resolve` matched inside `resolveUrl`, `user` inside `users`, `gets` inside `fgets`. Each was fixed
-locally, and each next one survived because nobody carried the fix across. That is the thing to automate --
-not the judgement, the propagation.
+## Lifted out of this spec (2026-09-09)
 
-The constraint that shapes every task here: **no LLM-authored patterns or policy.** A model may propose a
-hypothesis and draft a change; only a deterministic measurement may adopt one. And any loop that learns from
-the corpus must respect the train/holdout split, because the last one did not: five of eleven candidate
-shapes were taught by the holdout pairs they then "recovered", turning a -0.059 Youden into +0.059.
+Two groups drafted here -- a counter-example ledger, and per-repository evolutionary prompting so developers
+can commit dismissals and evolve the harness -- were appended directly to this file without passing
+requirements or design. That was a workflow error and they are a separate feature, not a refinement of scan
+integration. They now live in `.kiro/specs/finding-feedback-loop/`, at brief, unapproved.
 
-- [ ] 7.1 One matcher, asserted to be the only one
-  - The three bugs above existed because three modules each grew their own token-matching rule. There is now
-    one bounded matcher in `taint.sc` and one in `dominance.sc`, still separate copies of the same logic.
-  - Make it one definition the queries share, and add a test that fails when a second appears -- a grep-level
-    invariant is fine and is what would have caught the third instance.
-  - Observable: a test that fails if any query matches a spec token with a bare `contains` or `startsWith`.
-  - _Requirements: 8.1_
-
-- [ ] 7.2 A counter-example ledger
-  - When a finding is contradicted -- by a maintainer, by the judge with coverage, or by a declared contract
-    like an OpenAPI `security` block -- record it: the site, the rung, the witness, the spec tokens that
-    produced it, and the commit. That artifact is the durable part; today's three fixes left no trace a
-    future regression could be checked against.
-  - Each entry becomes a regression case: this site, at this commit, must not be reported at that rung.
-    `fgets(buf, 256, f)` and VAmPI's `register_user` are the first two.
-  - Observable: the ledger is committed, the cases run in CI offline, and re-introducing the substring match
-    fails a test rather than a repository scan four weeks later.
-  - _Requirements: 8.1, 10.3_
-  - _Depends: 2.9_
-
-- [ ] 7.3 Group the ledger by cause, and let a model propose the cause
-  - Twenty-six identical findings were one defect; three separate bugs were one bug class. A deterministic
-    pass should group counter-examples by what they share -- same spec token, same matcher clause, same
-    family, same witness shape -- and report the groups by size.
-  - **This is where the model earns its place, and only here.** Given a group, ask it for a hypothesis: what
-    do these share, and what change would remove all of them? It drafts; it does not decide. The output is a
-    proposed fact-table or matcher edit with a rationale, written to a review queue -- never to the ruleset,
-    and never to the declared policy file.
-  - Observable: run it against today's three fixes with the fixes reverted, and record how many it groups
-    correctly and what it proposes. A model that cannot rediscover a known cause should not be trusted with
-    an unknown one.
-  - _Requirements: 8.1, 8.4_
-  - _Depends: 7.2_
-
-- [ ] 7.4 Adopt only what a split-respecting measurement confirms
-  - A proposed edit is adopted only if it removes its counter-examples AND does not lose pair-corpus recall,
-    measured on the **train** split with the holdout untouched. The predecessor's improve lever admitted a
-    shape because it "recovers a currently missed holdout pair", which is how a -0.059 Youden was reported
-    as +0.059.
-  - The gates already exist and must stay byte-identical across an adoption, or the adoption is a
-    regression wearing a fix's clothes.
-  - Observable: an adoption record per accepted edit -- counter-examples removed, train recall before and
-    after, holdout untouched and unread, gates identical.
-  - _Requirements: 8.1, 8.2, 10.2, 10.3_
-  - _Depends: 7.3_
-
-- [ ] 7.5 Report what the loop cost as well as what it bought
-  - A false-positive reducer that quietly trades recall is worse than none, and the trade is invisible unless
-    it is measured on both sides. Today's 2.6 removed three leaks and lost no correct detection; that is the
-    shape of an acceptable trade and it was only knowable because both numbers were taken.
-  - Observable: every adoption records precision and recall on both repositories and the pair corpus, and a
-    net-negative adoption is reverted automatically rather than argued about.
-  - _Requirements: 8.2, 10.3_
-  - _Depends: 7.4_
-
-## Group 8 — Per-repository state a developer owns
-
-> "an evolution (gepa, simba) style prompting with a declarative and persistent approach when evaluating
-> findings per target repo? so that devs can commit state and evolve the harness / dismiss findings"
-
-Yes, and Group 7 is half of it already -- 7.2's counter-example ledger is the persistent state, 7.3 is a model
-proposing from it, 7.4 is a split-respecting adoption. What this adds is the part that makes it a developer's
-rather than a maintainer's: the state lives **in the target repository**, committed beside the code, and it is
-declarative.
-
-**The boundary that decides the design.** A reflective optimiser may evolve a **prompt**, because a prompt is
-how we ask a question. It may not author **patterns or policy** -- the fact tables and the rulesets stay
-human-authored, and the tool never writes the declared policy file. So GEPA-style evolution has exactly one
-legitimate target here: the judge and residual questions in `model/pipeline.py`, which are already the
-LLM-facing surface. Evolving those against a repository's own dismissals is sound. Evolving sink tables from
-them is the thing this project has refused from the start, and the closed-loop leak is why it is right to.
-
-- [ ] 8.1 A dismissal file the developer owns
-  - `.openultrasast/dismissals.toml` in the TARGET repository: finding id or site, the rung it was dismissed
-    at, a reason, and who. Committed with the code, reviewed like code, and diffable -- a dismissal without a
-    reason is how a suppression file becomes a graveyard nobody can audit.
-  - The tool READS it and never writes it, which is the same rule the declared policy file already follows.
-    `ousast scan` reports dismissed findings as dismissed with their reason rather than hiding them, so a
-    stale dismissal is visible rather than silent.
-  - Observable: a scan of vampi with two dismissals reports 3 findings and 2 dismissed-with-reason, and the
-    file is untouched by the run.
-  - _Requirements: 5.1, 5.2_
-
-- [ ] 8.2 Dismissals are an evaluation set, per repository
-  - A dismissal is a labelled example: this site, at this rung, is not a finding here. Together with the
-    known vulnerabilities a `benchmarks/repos/` recipe already declares, that is a per-repository eval set
-    with both classes in it -- which is exactly what an optimiser needs and what a suppression list normally
-    throws away.
-  - Split it the way the pair corpus is split. A dismissal that teaches the prompt that recovers it is the
-    leak measured on 2026-09-05, where five of eleven candidate shapes were taught by the holdout pairs they
-    then recovered and a -0.059 Youden was reported as +0.059.
-  - Observable: the eval set builds from a recipe plus a dismissal file, with a declared train/holdout split
-    and a test that the holdout is never read during optimisation.
-  - _Requirements: 8.2, 10.2_
-  - _Depends: 8.1_
-
-- [ ] 8.3 Evolve the QUESTION, never the facts
-  - GEPA/SIMBA-style reflective evolution over `CANDIDATE_QUESTION` and `residual_question`, scored on 8.2's
-    train split: fewer dismissed sites affirmed, no known vulnerability lost.
-  - Hard boundaries, and they are the point of putting this in its own group: the optimiser proposes prompt
-    text only; it never edits a fact table, a ruleset or the declared policy file; an evolved prompt is
-    committed by a human like any other change; and the three gates stay byte-identical or the evolution is
-    a regression wearing a fix's clothes.
-  - Observable: an evolution record per accepted prompt -- train score before and after, holdout untouched,
-    known vulnerabilities still found, gates identical, and the diff of the prompt.
-  - _Requirements: 8.1, 8.2, 10.3_
-  - _Depends: 8.2, 7.4_
-
-- [ ] 8.4 Say what the harness learned, in the repository it learned it in
-  - Per-repository state is only useful if a developer can see what it did. A committed record of which
-    dismissals shaped the current prompt, and what that cost on the shared corpus, is what keeps this from
-    becoming a per-repo tuning that nobody can reason about.
-  - Observable: `ousast repos` or the report shows, for a target with evolved state, what was learned and
-    what it was measured against.
-  - _Requirements: 5.2, 10.4_
-  - _Depends: 8.3_
+Three requirements amendments this group argues for are drafted at the end of `requirements.md`, also
+unapproved: what a report may repeat, a family stating a class it cannot decide, and Req 4.1 requiring a
+checkout that can actually demonstrate detection.

@@ -194,3 +194,65 @@ tables and queries can be checked for regressions that pair scoring cannot see.
 3. The system shall treat an unexplained loss of a previously-entailed finding as a regression to be
    investigated, not a number to be accepted.
 4. The baseline shall record the engine version, because a CPG engine change moves every verdict it produces.
+
+---
+
+## Proposed amendments from group 2 (drafted 2026-09-09, NOT approved)
+
+Group 2 was specified as the phase that can reshape the rest, and it did. These are the changes it argues for
+at the requirements level rather than the task level. They are recorded here unapproved; the tasks already
+merged into group 2 implement what was within the approved requirements, and these are the parts that are not.
+
+### Amendment A — Req 5 should state what a report may repeat
+
+**Why.** libpng emitted 198 findings, 163 of them a static pattern asserting that `memcpy` and `strcpy` are
+*present* in a library that uses them correctly throughout. Req 5 says the output must be one a contributor
+can act on; it does not say anything about volume, so nothing in the spec was violated by a report no
+contributor would read.
+
+**Proposed criterion.** *The report shall be proportionate to the evidence behind a finding: a rule whose only
+evidence is a text match shall be summarised once it exceeds a stated number of sites, and a finding a
+proposer reasoned about shall keep its detail whatever its rung. Nothing shall be dropped from
+`findings.json`, which remains the record a baseline is compared against.*
+
+Implemented in task 2.11 for pattern matches. **Not implemented, and the reason this is an amendment rather
+than a closed task:** the same argument applies to the model layer's own suspicion band, which is 38 of vampi's
+60 findings — an enumerated candidate that the graph could not decide and an LLM affirmed. That is the same
+epistemic class as a pattern match with an opinion attached, and treating it as a reasoned claim is what
+leaves 51 sections on a 520-line application.
+
+### Amendment B — a family that cannot decide a class shall say so
+
+**Why.** `c/memory` produced zero true positives across an 89k-line C library and three distinct classes of
+false one. The reason is structural: it models string functions, and libpng overflows through arithmetic. A
+silent scan currently reads as a clean bill of health, and the stated goal is that an LLM will help a
+developer dive in — so it will fluently explain a silence it has no basis for.
+
+**Proposed criterion.** *Where a family's abstraction cannot decide a weakness class, the system shall state
+the limit in the report rather than be silent about it, and no scan shall present the absence of findings as
+evidence of absence.*
+
+This is worse than noise because it is quiet, and it is the one failure mode the rung ladder does not already
+guard against.
+
+### Amendment C — Req 4 should require a checkout that can produce a true positive
+
+**Why.** Req 4.1 asks for "at least one known-vulnerable repository checkout at a vulnerable commit", and
+libpng satisfies it while being incapable of demonstrating detection: its CVE is out of family, and no
+version of it can be otherwise, because the library never calls a sink any family models. The requirement is
+met and the intent is not.
+
+**Proposed criterion.** *At least one pinned checkout shall carry a known vulnerability that a family can
+decide in principle, so that a scan producing nothing is distinguishable from an engine that cannot see.*
+
+vampi satisfies this for Python. Nothing satisfies it for C, and 2.15 exists to find out whether anything can.
+
+### What group 2 confirmed rather than changed
+
+* **Req 8's overfitting warning earned its place twice.** It stopped a rule being extended until libpng was
+  clean (2.13), and it forced the access-control precision work to be measured on pairs nobody tuned against
+  (2.6), where the leak fell 42.9% → 0.0% with pair-correct unchanged.
+* **Req 3.3's honesty counters were the load-bearing part.** `regions_unjudged` is what made a budget that
+  stopped free work visible at all.
+* **Req 11.2's byte-identical gates held through every one of nine defect fixes** — which says the same thing
+  from the other side: the corpus could not have caught any of them.
