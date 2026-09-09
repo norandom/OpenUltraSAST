@@ -146,3 +146,30 @@ def test_serve_stdio_loop_handles_tools_list() -> None:
     assert serve(stdin, stdout) == 0
     response = json.loads(stdout.getvalue().strip())
     assert {tool["name"] for tool in response["result"]["tools"]} == EXPECTED_TOOLS
+
+
+def test_the_findings_list_carries_the_rung_and_leads_with_what_was_decided(tmp_path: Path) -> None:
+    """The final objective is an LLM diving in without re-deriving the reasoning.
+
+    Without the rung a caller cannot tell the finding the graph DECIDED from the ones an enumerator merely
+    proposed: libpng returned 198 rows of which one was entailed, and finding it would have meant fetching
+    all 198 individually. The evidence itself stays on `get_finding`; what the list owes is triage.
+    """
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "findings.json").write_text(
+        json.dumps(
+            {
+                "findings": [
+                    {"finding_id": "b", "path": "z.c", "line": 9, "severity": "low", "title": "noise", "rung": "suspicion"},
+                    {"finding_id": "a", "path": "a.py", "line": 73, "severity": "high", "title": "sqli", "rung": "model_entailed"},
+                ]
+            }
+        )
+    )
+
+    result = _call(McpServer(), "openultrasast.findings", {"run_dir": str(run)})
+
+    assert [item["finding_id"] for item in result["findings"]] == ["a", "b"], "decided first"
+    assert result["findings"][0]["rung"] == "model_entailed"
+    assert result["by_rung"] == {"model_entailed": 1, "suspicion": 1}

@@ -113,3 +113,27 @@ byte-identical through all nine fixes, which is the same statement from the othe
 * **Negative results get recorded as measurements, not as failures.** `c/memory` scoring zero on libpng is a
   finding about the abstraction, and the artifact says which abstraction would reach it (size arithmetic,
   i.e. a constraint problem) rather than leaving it as a gap to be tuned at.
+
+### The final objective, and what it needs
+
+> "that + an LLM way of diving in without being forced to rethink the code"
+
+Two halves, and they are complementary. The **rung** says *this was decided*; the second half says the
+developer must not have to re-derive *why*. The material for that already exists and is called the
+**witness**: `username -> db.session.execute(text(user_query)) in models/user_model.py (line 73, 8 steps)` is
+the reasoning, already written down, already attached to the finding.
+
+So the objective is largely a plumbing question, and the session's recurring defect shape applies to it.
+Checked rather than assumed: `openultrasast.get_finding` returns the whole record including the witness, but
+`openultrasast.findings` was dropping the rung -- so an LLM listing libpng's 198 rows could not tell the one
+the graph decided from the 197 an enumerator proposed without fetching all 198 individually. Fixed: the list
+carries the rung, leads with what was decided, and returns a per-rung tally.
+
+What still stands between here and the objective:
+
+* **The witness is one line.** It names the source, the sink, the file and the step count, but not the steps.
+  For "dive in without rethinking", the path elements are the thing worth having, and the query already walks
+  them (`flow.elements`) before discarding all but the first.
+* **The suspicion band drowns the signal** (2.11). An LLM given 163 "this API is present" rows will reason
+  about them, at length, and that is worse than a human ignoring them.
+* **A family that cannot decide must say so** (2.16), or the LLM will confidently explain a silence.

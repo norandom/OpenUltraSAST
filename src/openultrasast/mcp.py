@@ -91,6 +91,13 @@ def _status(args: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# Strongest first. A caller listing a real repository's findings gets hundreds of rows, and without the
+# rung it cannot tell the one the graph decided from the ones an enumerator proposed -- libpng returned 198
+# rows of which one was entailed. It would have to fetch each finding individually to find out, which is the
+# re-derivation this list exists to spare it.
+_RUNG_ORDER = {"execution_confirmed": 0, "model_entailed": 1, "model_corroborated": 2, "suspicion": 3}
+
+
 def _findings(args: dict[str, Any]) -> dict[str, Any]:
     payload = _read_json(Path(_require(args, "run_dir")) / "findings.json")
     items = [
@@ -100,10 +107,15 @@ def _findings(args: dict[str, Any]) -> dict[str, Any]:
             "line": finding.get("line"),
             "severity": finding["severity"],
             "title": finding["title"],
+            "rung": finding.get("rung", "suspicion"),
         }
         for finding in payload.get("findings", [])
     ]
-    return {"findings": items, "count": len(items)}
+    items.sort(key=lambda item: (_RUNG_ORDER.get(str(item["rung"]), len(_RUNG_ORDER)), str(item["path"]), item["line"] or 0))
+    by_rung: dict[str, int] = {}
+    for item in items:
+        by_rung[str(item["rung"])] = by_rung.get(str(item["rung"]), 0) + 1
+    return {"findings": items, "count": len(items), "by_rung": by_rung}
 
 
 def _load_finding(run_dir: Path, finding_id: str) -> dict[str, Any]:
