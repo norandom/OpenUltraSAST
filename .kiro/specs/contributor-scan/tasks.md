@@ -272,14 +272,40 @@
     and five buffer-overflow fixes checked (`png_set_quantize`, `png_image_finish_read`,
     `png_init_read_transformations`, `png_do_quantize`, `png_write_image_8bit`) touch no modelled sink at
     all.
-  - So there are two ways forward and they are different sizes. Pin a C project whose CVE genuinely runs
-    through a string function -- cheap, and it gives the memory family its first true positive. Or model how
-    C actually overflows: a `memcpy` whose size is computed, an index that is not bounded. That is size
-    arithmetic rather than sink matching, a different abstraction, and it should not be started by accident.
-  - Observable: a pinned checkout with an in-scope CVE found at a rung, or a recorded decision that the
-    memory family needs the second abstraction before any C detection claim is made.
+  - So there are two ways forward and they are different sizes.
+  - **Cheap: pin a C project whose CVE genuinely runs through a string function.** That gives the memory
+    family its first true positive and tells us whether the family works at all. It does not make libpng
+    decidable.
+  - **Expensive, and a different engine: model how C actually overflows.** A `memcpy` whose size is
+    computed, an index that is not bounded. That is *size arithmetic*, not sink matching -- "can this
+    expression exceed this allocation" rather than "does tainted data reach this call". It is a constraint
+    problem, which is what SMT is for and what this project deliberately did not adopt: the architecture
+    decision was abstract interpretation as arbiter, taken because a model layer can be built from code
+    where execution cannot be assumed. That decision was right for the flow families and it does not reach
+    this one.
+  - The maintainer has attacked libpng this way directly -- SMT to lay out memory, then guiding a fuzzer to
+    produce the PNGs that reach it -- which is evidence about the shape of the problem, not a suggestion to
+    reimplement it. It says the honest routes to C memory safety are constraint solving or execution, and
+    the ladder already has a rung for the second (`execution_confirmed`, built and unreachable per the
+    module audit).
+  - Observable: a pinned checkout with an in-scope CVE found at a rung, OR a recorded decision that
+    `c/memory` is scoped to string-function misuse and makes no claim about arithmetic overflows. Do not
+    leave it implying it covers a class it cannot see.
   - _Requirements: 4.1, 4.4_
   - _Depends: 2.12_
+
+- [ ] 2.16 Say what `c/memory` actually covers, or retire it
+  - Its score so far is zero true positives and every finding a false one: 26 from a substring match, 3 from
+    a bound it could not see, 1 from an allocation sized to fit. Each was a real defect in the engine and
+    each is now fixed, but the family has never once been right, and 2.15 explains why -- it models string
+    functions in a codebase class that overflows through arithmetic.
+  - This spec's predecessor threw away parts that did not carry their weight, and the same question applies
+    here. The answer may well be "keep it, scoped and labelled" -- `strcpy` misuse is real in plenty of C --
+    but it should be a recorded decision with a number behind it, not an assumption.
+  - Observable: either a measured true positive on the 2.15 checkout, or the family's declared scope
+    narrowed in the facts and the docs so no reader takes a silent C scan for a clean bill of health.
+  - _Requirements: 3.1, 8.2_
+  - _Depends: 2.15_
 
 ## Group 3 — Ship it
 
