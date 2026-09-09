@@ -95,6 +95,10 @@ in the corpus exercises it.
 4. The measurement shall state whether the known vulnerability was found, and at which rung.
 5. The system shall not require the whole repository to fit in one CPG if that proves infeasible; the
    fallback shall be recorded and measured rather than assumed.
+6. At least one pinned checkout shall carry a known vulnerability that a family can decide in principle, so
+   that a scan producing nothing is distinguishable from an engine that cannot see. *(Added 2026-09-09.
+   Criterion 4.1 is satisfied by libpng, whose CVE is out of family and which no version can fix, because
+   the library never calls a sink any family models: the letter was met and the intent was not.)*
 
 ### Requirement 5: Output a contributor can act on
 
@@ -107,6 +111,17 @@ in the corpus exercises it.
    reader does not treat it as established.
 3. The system shall write findings to the writable output location, never into the repository under analysis.
 4. The system shall summarise a scan in a form readable without opening a JSON file.
+5. The report shall be proportionate to the evidence behind a finding: a rule whose only evidence is a text
+   match shall be summarised once it exceeds a stated number of sites, and a finding a proposer reasoned
+   about shall keep its detail whatever its rung. Nothing shall be dropped from `findings.json`, which
+   remains the record a baseline is compared against. *(Added 2026-09-09. libpng emitted 198 findings, 163 of
+   them a pattern asserting `memcpy` and `strcpy` are PRESENT in a library that uses them correctly
+   throughout, and no criterion here forbade it.)*
+6. Where a family's abstraction cannot decide a weakness class, the system shall state that limit in the
+   report, and no scan shall present an absence of findings as evidence of absence. *(Added 2026-09-09.
+   `c/memory` scored zero true positives across 89k lines of C for a structural reason — it models string
+   functions and libpng overflows through arithmetic. A silent scan reading as a clean bill of health is
+   worse than noise because it is quiet, and it is the one failure mode the rung ladder does not guard.)*
 
 ### Requirement 6: Packaging is part of the product
 
@@ -197,55 +212,22 @@ tables and queries can be checked for regressions that pair scoring cannot see.
 
 ---
 
-## Proposed amendments from group 2 (drafted 2026-09-09, NOT approved)
+## Amendment record — group 2 (approved 2026-09-09)
 
-Group 2 was specified as the phase that can reshape the rest, and it did. These are the changes it argues for
-at the requirements level rather than the task level. They are recorded here unapproved; the tasks already
-merged into group 2 implement what was within the approved requirements, and these are the parts that are not.
+Group 2 was specified as the phase that can reshape the rest, and it did. Three amendments were drafted from
+what it measured and **approved by the maintainer on 2026-09-09**; they are folded into the numbered
+requirements above and marked there with the evidence that produced them.
 
-### Amendment A — Req 5 should state what a report may repeat
+| amendment | folded into | evidence |
+| --- | --- | --- |
+| A — what a report may repeat | Req 5.5 | libpng: 198 findings, 163 a pattern match; task 2.11 fixed that half |
+| B — a family that cannot decide must say so | Req 5.6 | `c/memory`: 0 true positives on 89k lines of C |
+| C — a checkout that can demonstrate detection | Req 4.6 | libpng satisfies 4.1 and cannot demonstrate detection |
 
-**Why.** libpng emitted 198 findings, 163 of them a static pattern asserting that `memcpy` and `strcpy` are
-*present* in a library that uses them correctly throughout. Req 5 says the output must be one a contributor
-can act on; it does not say anything about volume, so nothing in the spec was violated by a report no
-contributor would read.
-
-**Proposed criterion.** *The report shall be proportionate to the evidence behind a finding: a rule whose only
-evidence is a text match shall be summarised once it exceeds a stated number of sites, and a finding a
-proposer reasoned about shall keep its detail whatever its rung. Nothing shall be dropped from
-`findings.json`, which remains the record a baseline is compared against.*
-
-Implemented in task 2.11 for pattern matches. **Not implemented, and the reason this is an amendment rather
-than a closed task:** the same argument applies to the model layer's own suspicion band, which is 38 of vampi's
-60 findings — an enumerated candidate that the graph could not decide and an LLM affirmed. That is the same
-epistemic class as a pattern match with an opinion attached, and treating it as a reasoned claim is what
-leaves 51 sections on a 520-line application.
-
-### Amendment B — a family that cannot decide a class shall say so
-
-**Why.** `c/memory` produced zero true positives across an 89k-line C library and three distinct classes of
-false one. The reason is structural: it models string functions, and libpng overflows through arithmetic. A
-silent scan currently reads as a clean bill of health, and the stated goal is that an LLM will help a
-developer dive in — so it will fluently explain a silence it has no basis for.
-
-**Proposed criterion.** *Where a family's abstraction cannot decide a weakness class, the system shall state
-the limit in the report rather than be silent about it, and no scan shall present the absence of findings as
-evidence of absence.*
-
-This is worse than noise because it is quiet, and it is the one failure mode the rung ladder does not already
-guard against.
-
-### Amendment C — Req 4 should require a checkout that can produce a true positive
-
-**Why.** Req 4.1 asks for "at least one known-vulnerable repository checkout at a vulnerable commit", and
-libpng satisfies it while being incapable of demonstrating detection: its CVE is out of family, and no
-version of it can be otherwise, because the library never calls a sink any family models. The requirement is
-met and the intent is not.
-
-**Proposed criterion.** *At least one pinned checkout shall carry a known vulnerability that a family can
-decide in principle, so that a scan producing nothing is distinguishable from an engine that cannot see.*
-
-vampi satisfies this for Python. Nothing satisfies it for C, and 2.15 exists to find out whether anything can.
+**A is only half implemented, deliberately.** Task 2.11 made pattern matches proportionate. The same argument
+applies to the model layer's own suspicion band — 38 of vampi's 60 findings — which is an enumerated
+candidate the graph could not decide and an LLM affirmed: a pattern match with an opinion attached, not a
+reasoned claim. Task 2.17 carries that half.
 
 ### What group 2 confirmed rather than changed
 

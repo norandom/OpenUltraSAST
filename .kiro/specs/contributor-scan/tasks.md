@@ -307,6 +307,21 @@
   - _Requirements: 3.1, 8.2_
   - _Depends: 2.15_
 
+- [ ] 2.17 The model's own suspicion band is a pattern match with an opinion attached
+  - **Req 5.5's other half.** Task 2.11 made pattern matches proportionate and left this untouched, so vampi
+    still emits 61 sections for a 520-line application -- 38 of them model suspicions, roughly one per
+    fourteen lines of code.
+  - The epistemic case for treating them as reasoned claims does not survive inspection. A model suspicion is
+    what the enumerator proposed at a site the graph could NOT decide, affirmed by a judge with no coverage
+    there. That is a pattern match with an opinion attached, and it is weaker evidence than the obligations
+    checker's output, which comes from a structural analysis rather than a guess.
+  - So group them by family the way 2.11 groups pattern rules, and keep obligation findings and everything
+    at `model_corroborated` or above in full. Expect vampi to fall from 61 sections to roughly 23.
+  - Measure both repositories, and measure what it costs: if a real finding only ever appeared at model
+    suspicion, this hides it, and that is the number that decides whether the rule is right.
+  - _Requirements: 5.1, 5.2, 5.5_
+  - _Depends: 2.11_
+
 ## Group 3 — Ship it
 
 - [ ] 3.1 Contributor output

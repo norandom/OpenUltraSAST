@@ -1,15 +1,26 @@
 {
   "feature_name": "finding-feedback-loop",
   "created_at": "2026-09-09T12:00:00Z",
-  "updated_at": "2026-09-09T12:00:00Z",
+  "updated_at": "2026-09-09T12:30:00Z",
   "language": "en",
-  "phase": "brief",
+  "phase": "requirements",
   "approvals": {
-    "requirements": { "generated": false, "approved": false },
-    "design": { "generated": false, "approved": false },
-    "tasks": { "generated": false, "approved": false }
+    "requirements": {
+      "generated": true,
+      "approved": false
+    },
+    "design": {
+      "generated": false,
+      "approved": false
+    },
+    "tasks": {
+      "generated": false,
+      "approved": false
+    }
   },
   "ready_for_implementation": false,
-  "depends_on": ["contributor-scan"],
-  "approval_note": "2026-09-09 brief drafted. Scope lifted out of contributor-scan, where two task groups (a counter-example ledger and per-repository evolutionary prompting) had been appended directly to tasks.md without passing requirements or design -- a workflow error, and they are a separate feature rather than a refinement of scan integration. Prompted by the maintainer asking for GEPA/SIMBA-style evolution with declarative persistent per-repository state so developers can commit dismissals and evolve the harness. The design boundary is that an optimiser may evolve the QUESTION (judge and residual prompts) and never the FACTS (tables, rulesets, declared policy), because the closed-loop leak measured 2026-09-05 turned a -0.059 holdout Youden into +0.059 by teaching from the pairs it then recovered. Not approved; requirements not generated."
+  "depends_on": [
+    "contributor-scan"
+  ],
+  "approval_note": "2026-09-09 brief drafted. Scope lifted out of contributor-scan, where two task groups (a counter-example ledger and per-repository evolutionary prompting) had been appended directly to tasks.md without passing requirements or design -- a workflow error, and they are a separate feature rather than a refinement of scan integration. Prompted by the maintainer asking for GEPA/SIMBA-style evolution with declarative persistent per-repository state so developers can commit dismissals and evolve the harness. The design boundary is that an optimiser may evolve the QUESTION (judge and residual prompts) and never the FACTS (tables, rulesets, declared policy), because the closed-loop leak measured 2026-09-05 turned a -0.059 holdout Youden into +0.059 by teaching from the pairs it then recovered. Not approved; requirements not generated. ; 2026-09-09 requirements generated at the maintainer's direction ('approve the amendments and generate the requirements for finding-feedback-loop'). Seven requirements: a dismissal file the developer owns and the tool never writes; a counter-example ledger whose entries are runnable regression cases grouped by shared cause; a model that proposes a cause into a review queue and decides nothing, validated by reverting the three known matcher fixes; dismissals plus recipe vulnerabilities as one split evaluation set with the holdout unread; evolution scoped to the judge and residual questions with the fact tables off limits by any automated means; an adoption that reports what it traded and reverts itself when net-negative; and the loop inheriting the corpus blind spot, so its evidence base is repositories and it says how few of them there are. Not approved."
 }
