@@ -70,7 +70,7 @@ text, and each measured against its own fixed commit.
 |---|---|---|---|---|
 | Unauthenticated injection, sink in the function that receives the value | `pmpro`, CVE-2023-23488 | entailed at `class.memberorder.php:936:getMemberOrderByCode`, sourced from `$code` | absent | **found**, and the pair separates |
 | Arbitrary file operation | `mwwpform`, CVE-2023-6559 | entailed at `class.mail.php:259:_delete_files` | absent | **found**, and the pair separates |
-| Unauthenticated injection, value crosses a WordPress hook | `wpstatistics`, CVE-2022-25148 | not reported | not reported | **missed**, structurally |
+| Unauthenticated injection, value crosses a WordPress hook | `wpstatistics`, CVE-2022-25148 | entailed at `class-wp-statistics-pages.php:225:record` | absent | **found**, and the pair separates |
 | Missing capability check | — | — | — | **cannot be asked**: PHP has no obligation facts |
 | Unescaped output | — | — | — | **cannot be trusted**: the sanitizer list is flat |
 
@@ -135,7 +135,17 @@ not merely its reachability. Asking only "does a source reach this assignment" m
 fixed side went from 1 finding to 13 before that clause existed, which is the pair no longer separating at
 all. It costs about 1.6× on the taint query for that class (62s → 97s), memoised per field.
 
-The hook half is the same machinery against a different key, and is not written yet.
+**The hook half is implemented too, and CVE-2022-25148 is found**: `class-wp-statistics-pages.php:225:record`
+on the vulnerable side, absent on the fixed side, with the correctly-`prepare`d sibling query one line below
+it not flagged on either. The link table is read from the source text, because php2cpg drops a registration's
+callback argument entirely -- the CPG holds `add_filter("wp_statistics_current_page", )`, so the edge cannot
+come from the graph at any price.
+
+The half that mattered was asking per ARRAY KEY rather than per callback. "Does an unsanitized value reach
+this callback's return" is true on *both* sides, because the fix escapes `type` and `id` and leaves
+`search_query` alone; a callback-level answer flags the fix as readily as the bug. The key is a literal at
+both ends — `"id"` where the callback writes it, `['id']` where the sink reads it — so it joins the same way
+the hook name and the field name do. That is the same idea for the third time.
 
 What the engine reports on that plugin instead is two other sites — `getTop:406` and `TotalCount:443` — the
 same weakness class at the wrong lines, identical on both sides, so the pair does not separate. They are not

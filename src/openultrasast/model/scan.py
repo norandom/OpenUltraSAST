@@ -146,6 +146,12 @@ def scan_repository(
     # spent in belongs to whoever holds the budget.
     ordered_regions = sorted(regions, key=lambda r: (not r.shipped, -r.rank, r.path, r.function or ""))
 
+    # The hook link table, built once for the whole scan. It is a property of the repository rather than of
+    # any region, and it is read from the source text because the graph does not carry it: php2cpg drops a
+    # registration's callback argument, so `add_filter("hook", array($this, "m"))` reaches the CPG as
+    # `add_filter("hook", )`. See `mapping.php_hook_callbacks`.
+    hooks = _hook_callbacks(root, regions)
+
     # Phase 1: collect the whole scan's questions, for at most `max_regions` regions. Nothing is asked yet.
     work: list[tuple[str, ScanRegion, ArbiterSpec]] = []
     for region in ordered_regions[: limits.max_regions]:
@@ -162,7 +168,7 @@ def scan_repository(
     per_kind: dict[str, float] = {}
     census_reported = False
     query_started = time.monotonic()
-    for kind, requests in _grouped(work).items():
+    for kind, requests in _grouped(work, hook_callbacks=hooks).items():
         kind_started = time.monotonic()
         batch = getattr(cpg, "run_batch", None)
         if callable(batch):
@@ -276,7 +282,9 @@ def _prefetched(rows: list[object]):  # type: ignore[no-untyped-def]
     return run
 
 
-def _grouped(work: Sequence[tuple[str, ScanRegion, ArbiterSpec]]) -> dict[str, dict[str, Mapping[str, object]]]:
+def _grouped(
+    work: Sequence[tuple[str, ScanRegion, ArbiterSpec]], *, hook_callbacks: str = ""
+) -> dict[str, dict[str, Mapping[str, object]]]:
     """The work, keyed by query kind, with each request built by the arbiter's OWN parameter function.
 
     Building the parameters here instead would be a second copy that drifts from the arbiter's -- the exact
@@ -299,10 +307,30 @@ def _grouped(work: Sequence[tuple[str, ScanRegion, ArbiterSpec]]) -> dict[str, d
                     file=region.path,
                     parameter_sources=entry,
                     call_depth=ENTRY_POINT_CALL_DEPTH if entry else 0,
+                    hook_callbacks=hook_callbacks,
                 ),
             )
         grouped.setdefault(kind, {})[rid] = params
     return grouped
+
+
+def _hook_callbacks(root: Path, regions: Sequence[ScanRegion]) -> str:
+    """``hook:callback;hook:callback`` for the PHP files this scan is about, or ``""``.
+
+    Rendered here rather than in the query because a CPGQL parameter is a string, and rendered from the
+    regions rather than by walking the tree because the regions already name every file in scope.
+    """
+    paths = sorted({region.path for region in regions if region.language == "php" and region.path})
+    if not paths:
+        return ""
+    from ..mapping import php_hook_callbacks
+    from ..preprocess import FileTarget
+
+    targets = [
+        FileTarget(path=path, absolute_path=str(root / path), language="php", loc=0, tags=[], has_fuzz_entry_point=False) for path in paths
+    ]
+    table = php_hook_callbacks(root, targets)
+    return ";".join(f"{hook}:{name}" for hook, names in table.items() for name in names)
 
 
 def _is_entry_point(region: ScanRegion) -> bool:

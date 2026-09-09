@@ -20,7 +20,13 @@ from .specs import TaintSpec
 
 
 def request_params(
-    spec: TaintSpec, *, function: str = "", file: str = "", parameter_sources: bool = False, call_depth: int = 0
+    spec: TaintSpec,
+    *,
+    function: str = "",
+    file: str = "",
+    parameter_sources: bool = False,
+    call_depth: int = 0,
+    hook_callbacks: str = "",
 ) -> dict[str, object]:
     """The query parameters this arbiter sends. Shared with the batcher so there is one definition, not two.
 
@@ -41,6 +47,10 @@ def request_params(
         "parameterSources": "true" if parameter_sources else "false",
         "callDepth": str(call_depth),
         "boundedSinks": spec.bounded_sinks,
+        # The hook link table, `hook:callback;hook:callback`. Read out of the source text rather than the
+        # graph, because php2cpg drops a registration's callback argument entirely -- see
+        # `mapping.php_hook_callbacks`. Empty for every language that does not register handlers by string.
+        "hookCallbacks": hook_callbacks,
     }
 
 
@@ -59,9 +69,11 @@ def verdict(
     function-local question; above zero is what lets a handler's parameter reach a sink in another module,
     which is the shape VAmPI's SQL injection has and the shape a function-scoped question cannot see.
     """
-    considered = _usable_flows(cpg, spec, function=function, file=file, parameter_sources=parameter_sources, call_depth=call_depth)
-    if not considered:
-        return None
+    # The strongest of the per-site verdicts, which is what this always meant. It used to run its own
+    # selection over the union of flows, and two copies of "which flow decides" is the duplication this
+    # module has been bitten by before: the per-site preference added to `verdicts` did not reach here, so
+    # the two entry points disagreed about the same rows.
+    #
     # A flow the graph cannot see a discharge for is the finding; a sanitized or BOUNDED one is a question.
     # libpng bounds `strcpy(outname+len, ".png")` with `(len = strlen(inname)) > 250` against a char[256],
     # and entailing it is a claim the code contradicts. But the bound reaches the sink through an `error`
@@ -69,10 +81,8 @@ def verdict(
     # bound is no proof of safety in any case, off-by-one being the classic way they fail. Corroborated is
     # the honest rung: the model cannot assert this, so the judge is asked instead of the site being
     # silenced.
-    open_flows = [flow for flow in considered if not flow["sanitized"] and not flow["bounded"]]
-    # Deterministic by construction: a total order, then take the first. Nothing depends on engine ordering.
-    chosen = min(open_flows or considered, key=lambda flow: _rank(flow, spec))
-    return _verdict_for(chosen, spec)
+    answers = verdicts(cpg, spec, function=function, file=file, parameter_sources=parameter_sources, call_depth=call_depth)
+    return answers[0] if answers else None
 
 
 def _usable_flows(
@@ -100,9 +110,7 @@ def _usable_flows(
         "taint",
         request_params(spec, function=function, file=file, parameter_sources=parameter_sources, call_depth=call_depth),
     )
-    flows = [flow for flow in _flows(rows, function=function) if not _has_safe_shape(flow, spec)]
-    modelled = [flow for flow in flows if _from_modelled_source(flow, spec)]
-    return modelled or flows
+    return [flow for flow in _flows(rows, function=function) if not _has_safe_shape(flow, spec)]
 
 
 def verdicts(
@@ -134,8 +142,13 @@ def verdicts(
 
     chosen: list[Mapping[str, object]] = []
     for site_flows in by_site.values():
-        open_flows = [flow for flow in site_flows if not flow["sanitized"] and not flow["bounded"]]
-        chosen.append(min(open_flows or site_flows, key=lambda flow: _rank(flow, spec)))
+        # Parameter sources are a FALLBACK, never an override, and that preference is PER SINK SITE. Applied
+        # across the whole region it decides one site's question with another site's evidence: on Paid
+        # Memberships Pro, field-sourced flows at lines 671 and 705 displaced the parameter-sourced flow at
+        # 936, and CVE-2023-23488 vanished from a region that still reported fifteen other findings.
+        preferred = [flow for flow in site_flows if _from_modelled_source(flow, spec)] or list(site_flows)
+        open_flows = [flow for flow in preferred if not flow["sanitized"] and not flow["bounded"]]
+        chosen.append(min(open_flows or preferred, key=lambda flow: _rank(flow, spec)))
     # Same total order the single-verdict path uses, so `verdicts(...)[0] == verdict(...)`.
     chosen.sort(key=lambda flow: (bool(flow["sanitized"]) or bool(flow["bounded"]), _rank(flow, spec)))
     return [_verdict_for(flow, spec) for flow in chosen]
@@ -170,6 +183,7 @@ def _flows(rows: object, *, function: str) -> list[dict[str, object]]:
                 "bound": str(row.get("bound", "")),
                 "source": str(row.get("source", "")),
                 "sanitized": bool(row.get("sanitized", False)),
+                "sourceKind": str(row.get("sourceKind", "")),
                 "length": _as_int(row.get("length")),
             }
         )
@@ -215,8 +229,25 @@ def _in_scope(row: Mapping[str, object], function: str) -> bool:
     return str(row.get("sinkMethod", "")) == function
 
 
+# A source the model VOUCHES for, as opposed to a bare captured parameter. The two-stage joins produce the
+# first kind without producing a superglobal: a hook source reads as `$current_page["id"]` and a field source
+# as `$this->attachments`, neither of which matches a source pattern, yet both were established by a flow the
+# query resolved from a real one.
+_MODELLED_KINDS = frozenset({"framework", "field", "hook"})
+
+
 def _from_modelled_source(flow: Mapping[str, object], spec: TaintSpec) -> bool:
-    """Does this flow start at something the source model names, rather than a bare captured parameter?"""
+    """Does this flow start at something the source model names, rather than a bare captured parameter?
+
+    `sourceKind` is the engine's own answer and wins when present. Before it existed this was decided by
+    matching the source's TEXT against the source patterns, which cannot see the difference between a hook
+    source and a parameter -- both are just identifiers by then. On WP Statistics that cost the CVE: seven
+    sanitized `$_SERVER["REQUEST_URI"]` flows counted as modelled, the unsanitized hook flow did not, and
+    `modelled or flows` in `_usable_flows` discarded the finding between the query and the verdict.
+    """
+    kind = str(flow.get("sourceKind", ""))
+    if kind:
+        return kind in _MODELLED_KINDS
     source = str(flow["source"])
     return any(pattern in source for pattern in spec.sources)
 

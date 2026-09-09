@@ -48,6 +48,7 @@
     callDepth: String = "0",
     boundedSinks: String = "",
     parameterSources: String = "false",
+    hookCallbacks: String = "",
     requests: String = "",
     requestsFile: String = ""
 ) = {
@@ -66,6 +67,7 @@
       sourcesS: String,
       sinksS: String,
       sanitizersS: String,
+      hookCallbacksS: String,
       functionS: String,
       paramSrc: String,
       fileS: String,
@@ -183,6 +185,21 @@
     else if (function.isEmpty) cpg.method.parameter.filterNot(_.name == "this").iterator
     else cpg.method.nameExact(function).parameter.filterNot(_.name == "this").iterator
 
+  // The region this request is about, as a predicate on the method. Named rather than inlined because the
+  // field sources have to be scoped to exactly the same place as the sinks, and a second copy of these
+  // three branches is precisely the drift this file has been bitten by before.
+  def inScope(m: io.shiftleft.codepropertygraph.generated.nodes.Method): Boolean =
+    if (function.isEmpty) {
+      // A region with no enclosing function: the file IS the scope.
+      fileS.isEmpty || m.filename.endsWith(fileS)
+    } else if (depth > 0) {
+      // Following the call graph means leaving the region's file on purpose, so the file filter would
+      // contradict the point. The reachable set is the scope, and the row reports where the sink landed.
+      nestedInLabeled(m) || reachableMethods.contains(m.fullName)
+    } else {
+      (fileS.isEmpty || m.filename.endsWith(fileS)) && nestedInLabeled(m)
+    }
+
   // ---- the field half of the two-stage join (task 5.11) ---------------------------------------------
   //
   // `_delete_files()` takes no parameters at all. Its attacker-controlled path arrives as a FIELD, written
@@ -260,12 +277,172 @@
       }
     )
 
-  def fieldSourceNodes = {
-    val reads = cpg.call.nameExact(FIELD_ACCESS).filter(c => inScope(c.method)).l
-    if (reads.isEmpty) Iterator.empty else reads.filter(r => fieldIsTainted(fileS, r.code.trim)).iterator
+  // A read of a MEMBER of a tainted object is tainted too. WP Statistics assigns the whole request to
+  // `$this->rest_hits` in one method and reads `$this->rest_hits->current_page_id` in another, so an exact
+  // code match sees two unrelated strings where the source text says one is inside the other. Every prefix
+  // that ends on a `->` boundary is checked, left to right.
+  def taintedPrefixes(code: String, fileName: String): Boolean = {
+    val parts = code.split("->").map(_.trim).filter(_.nonEmpty)
+    if (parts.length < 2) false
+    else (2 to parts.length).exists(n => fieldIsTainted(fileName, parts.take(n).mkString("->")))
   }
 
-  def sourceNodes = frameworkSources.l.iterator ++ parameterNodes ++ fieldSourceNodes
+  def fieldSourceNodes = {
+    val reads = cpg.call.nameExact(FIELD_ACCESS).filter(c => inScope(c.method)).l
+    if (reads.isEmpty) Iterator.empty else reads.filter(r => taintedPrefixes(r.code.trim, fileS)).iterator
+  }
+
+  // ---- the hook half of the two-stage join (task 5.11) ----------------------------------------------
+  //
+  // WP Statistics' CVE-2022-25148 has a modelled source, a modelled sink and `esc_sql` as its fix, and is
+  // invisible on both sides, because the only thing joining the two files is
+  //
+  //     add_filter('wp_statistics_current_page', array($this, 'set_current_page'));   // hits.php:43
+  //     return apply_filters('wp_statistics_current_page', $current_page);            // pages.php:105
+  //
+  // Both ends name the callback with a STRING, and php2cpg drops the callback argument entirely -- the CPG
+  // literally holds `add_filter("wp_statistics_current_page", )`. So the link CANNOT come from the graph at
+  // any price, and it arrives instead as `hookCallbacks`, read out of the source text by
+  // `mapping.php_hook_callbacks` where both ends are literals.
+  //
+  // The rule: an `apply_filters('H', ...)` call is a SOURCE when some callback registered for H returns
+  // data that an unsanitized flow reached. That is the same question as the field half, against a different
+  // key.
+  val HOOK_APPLY = Set("apply_filters", "apply_filters_ref_array", "do_action", "do_action_ref_array")
+
+  val hookTable: Map[String, List[String]] =
+    hookCallbacksS
+      .split(";")
+      .map(_.trim)
+      .filter(_.nonEmpty)
+      .flatMap { entry =>
+        val at = entry.indexOf(':')
+        if (at <= 0 || at == entry.length - 1) None else Some(entry.substring(0, at) -> entry.substring(at + 1))
+      }
+      .groupBy(_._1)
+      .map { case (hook, pairs) => hook -> pairs.map(_._2).toList }
+
+  def unquote(raw: String): String = {
+    val t = raw.trim
+    if (t.length >= 2 && ((t.head == '"' && t.last == '"') || (t.head == '\'' && t.last == '\''))) t.substring(1, t.length - 1) else t
+  }
+
+  // Half one's seeds are STRICTER than the field half's, and deliberately. A filter callback's own parameter
+  // is the value being filtered, not request data, and the receiver is the object -- counting either makes
+  // every registered callback "return tainted" and the join degenerates into the complete graph this design
+  // exists to refuse. Only a real framework source, or a field already shown to hold one, counts.
+  //
+  // They are also NOT scoped to the requesting file, which the field half is. A hook registry is global by
+  // construction: the whole point of the edge is that `set_current_page` lives in one file and the
+  // `apply_filters` that calls it lives in another. Scoping these seeds the way the field half scopes its
+  // own defeats exactly the join being built, and the query returned nothing until this was separated.
+  val hookSeedsByFile = scala.collection.mutable.Map.empty[String, List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode]]
+
+  def hookSeedsIn(fileName: String) =
+    hookSeedsByFile.getOrElseUpdate(
+      fileName, {
+        val methods = methodsIn(fileName)
+        val framework: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
+          methods.flatMap(_.ast.isCall.filter(c => sourcePatterns.exists(p => c.code.contains(p))).l)
+        val fields: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
+          methods.flatMap(_.ast.isCall.nameExact(FIELD_ACCESS).l).filter(r => taintedPrefixes(r.code.trim, fileName))
+        framework ++ fields
+      }
+    )
+
+  // Half one is asked PER ARRAY KEY, not per callback, and that distinction is the whole result.
+  //
+  // "Does an unsanitized value reach this callback's return" is true on BOTH sides of the WP Statistics
+  // pair, because the fix escapes two of the three members and leaves the third alone:
+  //
+  //     vulnerable   $tmp["id"] = $this->rest_hits->current_page_id
+  //     fixed        $tmp["id"] = esc_sql($this->rest_hits->current_page_id)
+  //     both         $tmp["search_query"] = ... unescaped, and harmless where it is used
+  //
+  // A callback-level answer flags the fixed side exactly as readily as the vulnerable one, which is a leak
+  // and not a detection. The key is a literal at both ends -- written `"id"` in the callback and `['id']`
+  // at the sink -- so it joins the same way the hook name and the field name do. Third use of one idea.
+  val INDEX_ACCESS = "<operator>.indexAccess"
+  val hookKeysMemo = scala.collection.mutable.Map.empty[(String, String), Set[String]]
+
+  def keyOf(access: io.shiftleft.codepropertygraph.generated.nodes.Call): String =
+    access.argument.l.lift(1).map(a => unquote(a.code)).getOrElse("")
+
+  def taintedKeysOf(fileName: String, callback: String): Set[String] =
+    hookKeysMemo.getOrElseUpdate(
+      (fileName, callback), {
+        val seeds = hookSeedsIn(fileName)
+        if (seeds.isEmpty) Set.empty[String]
+        else
+          cpg.method
+            .nameExact(callback)
+            .ast
+            .isCall
+            .nameExact(ASSIGNMENT)
+            .l
+            .flatMap { assignment =>
+              val args = assignment.argument.l
+              if (args.size < 2) None
+              else
+                args.head match {
+                  case target: io.shiftleft.codepropertygraph.generated.nodes.Call if target.name == INDEX_ACCESS =>
+                    val key = keyOf(target)
+                    if (key.isEmpty) None
+                    else if (args(1).start.reachableByFlows(seeds.iterator).l.exists(f => !f.elements.l.exists(sanitizesHere)))
+                      Some(key)
+                    else None
+                  case _ => None
+                }
+            }
+            .toSet
+      }
+    )
+
+  def hookSourceNodes =
+    if (hookTable.isEmpty) Iterator.empty
+    else {
+      val applies = cpg.call.filter(c => HOOK_APPLY.contains(c.name)).filter(c => inScope(c.method)).l
+      if (applies.isEmpty) Iterator.empty
+      else {
+        val keys = applies.flatMap { call =>
+          val hook = call.argument.l.headOption.map(a => unquote(a.code)).getOrElse("")
+          hookTable.getOrElse(hook, Nil).flatMap(cb => taintedKeysOf("", cb))
+        }.toSet
+        if (keys.isEmpty) Iterator.empty
+        else
+          cpg.call
+            .nameExact(INDEX_ACCESS)
+            .filter(c => inScope(c.method))
+            .l
+            .filter(access => keys.contains(keyOf(access)))
+            // ...and actually derived from the filtered value, not merely sharing a key name with it.
+            .filter(access => access.start.reachableBy(applies.iterator).nonEmpty)
+            .iterator
+      }
+    }
+
+  def sourceNodes = frameworkSources.l.iterator ++ parameterNodes ++ fieldSourceNodes ++ hookSourceNodes
+
+  // WHICH KIND of source a flow started from, reported per row so the driver can tell them apart.
+  //
+  // It has to be reported rather than guessed, because by the time a row reaches Python a hook source reads
+  // as `$current_page["id"]` and a parameter reads as `$args` -- two identifiers, indistinguishable. The
+  // driver treats parameter-sourced flows as a FALLBACK it discards whenever a real modelled source is also
+  // present, which is right for parameters and wrong for these: on WP Statistics, seven sanitized
+  // `$_SERVER["REQUEST_URI"]` flows displaced the unsanitized hook flow carrying CVE-2022-25148, and the
+  // finding disappeared between the query and the verdict.
+  lazy val frameworkIds = frameworkSources.l.map(_.id).toSet
+  lazy val fieldIds     = fieldSourceNodes.map(_.id).toSet
+  lazy val hookIds      = hookSourceNodes.map(_.id).toSet
+
+  def sourceKindOf(head: Option[io.shiftleft.codepropertygraph.generated.nodes.AstNode]): String =
+    head match {
+      case Some(node) if frameworkIds.contains(node.id) => "framework"
+      case Some(node) if hookIds.contains(node.id)      => "hook"
+      case Some(node) if fieldIds.contains(node.id)     => "field"
+      case Some(_)                                      => "parameter"
+      case None                                         => ""
+    }
 
   // Whether there is anything to trace from at all. Asking `reachableByFlows` with an empty source list is
   // not merely wasted work: Joern answers it by logging "Attempting to determine flows from empty list of
@@ -287,20 +464,31 @@
   def sinkMatches(c: io.shiftleft.codepropertygraph.generated.nodes.Call, n: String): Boolean =
     c.name == n || c.code.startsWith(n + "(") || mentionsToken(c.code, List(n)) || mentionsToken(c.methodFullName, List(n))
 
-  // The region this request is about, as a predicate on the method. Named rather than inlined because the
-  // field sources have to be scoped to exactly the same place as the sinks, and a second copy of these
-  // three branches is precisely the drift this file has been bitten by before.
-  def inScope(m: io.shiftleft.codepropertygraph.generated.nodes.Method): Boolean =
-    if (function.isEmpty) {
-      // A region with no enclosing function: the file IS the scope.
-      fileS.isEmpty || m.filename.endsWith(fileS)
-    } else if (depth > 0) {
-      // Following the call graph means leaving the region's file on purpose, so the file filter would
-      // contradict the point. The reachable set is the scope, and the row reports where the sink landed.
-      nestedInLabeled(m) || reachableMethods.contains(m.fullName)
-    } else {
-      (fileS.isEmpty || m.filename.endsWith(fileS)) && nestedInLabeled(m)
+  // Does THIS path element cleanse the value flowing through it?
+  //
+  // The old test asked whether a sanitizer's name appeared anywhere in the element's source text, and that
+  // is wrong on exactly the shape WordPress writes. WP Statistics' vulnerable query is one concatenation:
+  //
+  //     "... " . (array_key_exists(...) ? "AND `uri` = '" . esc_sql($page_uri) . "'" : "")
+  //             . "AND `id` = {$current_page['id']}"
+  //
+  // `esc_sql` cleanses `$page_uri`. It does nothing whatsoever for `$current_page['id']`, which is the
+  // injectable value and CVE-2022-25148 -- but both live in one expression, so the concatenation node's
+  // code mentions `esc_sql` and the whole flow read as sanitized. A sibling's cleansing was being credited
+  // to its neighbour.
+  //
+  // So the element must BE the cleansing, not merely contain a mention of one:
+  //   * a call to the sanitizer -- by node name, or by its code opening with `name(`;
+  //   * the sanitizer named as a string literal, which is how `array_map('esc_sql', $status)` applies it and
+  //     is a form PMPro actually writes.
+  def sanitizesHere(node: io.shiftleft.codepropertygraph.generated.nodes.AstNode): Boolean = {
+    val code = node.code
+    val byName = node match {
+      case call: io.shiftleft.codepropertygraph.generated.nodes.Call => sanitizerNames.exists(n => call.name == n)
+      case _                                                        => false
     }
+    byName || sanitizerNames.exists(n => code.startsWith(n + "(") || code.contains("'" + n + "'") || code.contains("\"" + n + "\""))
+  }
 
   def sinkCalls = cpg.call.filter(c => sinkNames.exists(n => sinkMatches(c, n))).filter(c => inScope(c.method))
 
@@ -344,9 +532,11 @@
 
     flows.map { flow =>
       val elements = flow.elements.map(_.code).l
-      val sanitized = sanitizerNames.nonEmpty && elements.exists(code => mentionsToken(code, sanitizerNames))
+      val sanitized = sanitizerNames.nonEmpty && flow.elements.l.exists(node => sanitizesHere(node))
+      val sourceKind = sourceKindOf(flow.elements.l.headOption)
       ujson.Obj(
         "sink"            -> sink.code.take(200),
+        "sourceKind"      -> sourceKind,
         "sinkLine"        -> sink.lineNumber.getOrElse(-1).toString,
         "sinkMethod"      -> sink.method.name,
         // Where the sink actually is. With callDepth > 0 that need not be the region's own file, and a
@@ -378,6 +568,7 @@
           field("sources"),
           field("sinks"),
           field("sanitizers"),
+          field("hookCallbacks"),
           field("function"),
           paramSrc,
           field("file"),
@@ -395,7 +586,7 @@
     println(ujson.write(ujson.Obj.from(answers.toSeq :+ ("__census__" -> census))))
   } else {
     println(
-      ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, function, parameterSources, file, callDepth, boundedSinks): _*))
+      ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, hookCallbacks, function, parameterSources, file, callDepth, boundedSinks): _*))
     )
   }
   println("---OUSAST-CPG-END---")

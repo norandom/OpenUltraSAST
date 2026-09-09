@@ -590,7 +590,7 @@
   - _Requirements: 4.2, 4.3, 9.1_
   - _Depends: 5.7_
 
-- [~] 5.11 Two-stage taint with a link table — the detection strategy for both structural misses
+- [x] 5.11 Two-stage taint with a link table — the detection strategy for both structural misses
   - "Structurally impossible" is a verdict, not a plan, and both PHP structural misses turn out to be the
     SAME shape: two halves of a path, joined by a key that is a literal in the source text.
 
@@ -654,8 +654,40 @@
       analysis twice costs more than skipping path reconstruction saves.
     - Memoizing per **field** rather than per file took it to 97s, because only fields some region actually
       reads are worth the flow query. Roughly 1.6x the pre-field cost for that class.
-  - Still open: the hook half, and the one finding that survives on PMPro's fixed side
-    (`saveOrder:1469 <- $this->timestamp`).
+  - **Hook half done 2026-09-09, and CVE-2022-25148 is found.**
+
+    | | vulnerable | fixed |
+    |---|---|---|
+    | `wpstatistics` | 3 entailed, incl. `class-wp-statistics-pages.php:225:record` | 2 entailed, that one absent |
+    | `mwwpform` | 1 (`$this->attachments`) | 0 |
+    | `pmpro` | 18, incl. CVE at `:936` | 1 |
+    | VAmPI | 4 | unchanged |
+
+    The link table is `mapping.php_hook_callbacks`, read from the source text -- php2cpg drops a
+    registration's callback argument, so the CPG holds `add_filter("wp_statistics_current_page", )` and the
+    edge cannot come from the graph at any price.
+  - Four things this cost, each a measurement rather than a guess:
+    - **Half one must be asked per ARRAY KEY, not per callback.** "Does an unsanitized value reach this
+      callback's return" is TRUE on both sides: the fix escapes `type` and `id` and leaves `search_query`
+      alone. A callback-level answer flags the fixed side as readily as the vulnerable one, which is a leak.
+      The key is a literal at both ends -- `"id"` in the callback, `['id']` at the sink -- so it joins the
+      same way the hook name and the field name do. Third use of the one idea.
+    - **The sanitizer test had to stop crediting a sibling's cleansing.** WP Statistics' query is one
+      concatenation holding `esc_sql($page_uri)` AND the injectable `{$current_page['id']}`; asking whether a
+      sanitizer's name appears in a path element's text marked the whole flow sanitized. An element must now
+      BE the cleansing -- a call to it, or its name as a string literal, which keeps `array_map('esc_sql', ...)`
+      working.
+    - **Hook seeds are repository-wide where field seeds are file-scoped.** A hook registry is global by
+      construction: `set_current_page` is in one file and its `apply_filters` in another. The query returned
+      nothing at all until those two scopes were separated.
+    - **`sourceKind` had to be reported, not inferred.** By the time a row reaches Python a hook source reads
+      as `$current_page["id"]` and a parameter as `$args`. `_usable_flows` discards parameter flows whenever
+      a modelled one is present, so seven sanitized `$_SERVER["REQUEST_URI"]` flows displaced the CVE. And
+      that preference had to move PER SINK SITE: applied across a region it decided one site with another
+      site's evidence, and PMPro's CVE at :936 vanished from a region still reporting fifteen findings.
+  - Still open: array-key sensitivity is only modelled where the callback builds its result by key
+    assignment; the one finding surviving on PMPro's fixed side (`saveOrder:1469 <- $this->timestamp`); and
+    `verdict` now delegates to `verdicts`, so the two can no longer disagree.
   - _Requirements: 4.4, 6.1, 8.1, 9.1_
   - _Depends: 5.8_
 

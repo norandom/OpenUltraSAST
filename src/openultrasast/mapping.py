@@ -117,6 +117,36 @@ def analyze_entry_points(root: Path, targets: list[FileTarget]) -> list[EntryPoi
     return sorted(records, key=lambda item: (item.path, item.line is None, item.line or 0, item.name))
 
 
+def php_hook_callbacks(root: Path, targets: list[FileTarget]) -> dict[str, tuple[str, ...]]:
+    """WordPress's hook registry, read out of the source text because the graph does not carry it.
+
+    `php2cpg` 4.0.623 drops the callback argument of a registration entirely. What the CPG holds is
+
+        add_filter("wp_statistics_current_page", )
+
+    with an empty second argument, so the link between a hook and its handler cannot be recovered from the
+    graph at any price. It can be recovered from the source, where both ends are string literals -- and that
+    is the same place, and the same regex, the entry-point mapper already reads them from.
+
+    This is the link table for the hook half of the two-stage join (task 5.11). It is deliberately a plain
+    name-to-names mapping with no inference in it: a hook whose name is computed (`"save_post_" . $type`)
+    simply does not appear, rather than being guessed at.
+    """
+    table: dict[str, set[str]] = {}
+    for target in targets:
+        if target.language != "php":
+            continue
+        try:
+            text = (root / target.path).read_text(errors="ignore")
+        except OSError:
+            continue
+        for match in _PHP_REGISTRATION.finditer(text):
+            handler = match.group("handler") or match.group("method")
+            if handler:
+                table.setdefault(match.group("hook"), set()).add(handler)
+    return {hook: tuple(sorted(names)) for hook, names in sorted(table.items())}
+
+
 def attach_reachability_hints(targets: list[FileTarget], entry_points: list[EntryPointRecord]) -> list[FileTarget]:
     hints_by_path: dict[str, list[dict[str, object]]] = {}
     for entry_point in entry_points:
