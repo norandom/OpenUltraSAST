@@ -113,14 +113,21 @@
       seen
     }
 
+  // A module body spans its whole file, so line-range containment would make `<module>` the parent of every
+  // function in it -- and a module-scope region would then report every handler's sinks a second time. The
+  // module region exists to cover the code that is in NO function, so its membership is direct.
+  val moduleScope = function == "<module>"
+
   def nestedInLabeled(m: io.shiftleft.codepropertygraph.generated.nodes.Method): Boolean =
-    labeledMethods.exists { lm =>
-      m.name == function || (
-        m.filename == lm.filename &&
-        m.lineNumber.getOrElse(-1) >= lm.lineNumber.getOrElse(0) &&
-        m.lineNumberEnd.getOrElse(-1) <= lm.lineNumberEnd.getOrElse(Int.MaxValue)
-      )
-    }
+    if (moduleScope) m.name == function
+    else
+      labeledMethods.exists { lm =>
+        m.name == function || (
+          m.filename == lm.filename &&
+          m.lineNumber.getOrElse(-1) >= lm.lineNumber.getOrElse(0) &&
+          m.lineNumberEnd.getOrElse(-1) <= lm.lineNumberEnd.getOrElse(Int.MaxValue)
+        )
+      }
 
   // Parameter sources: the labeled function's OWN parameters, never a nested closure's. In a function-level
   // pair the function boundary IS the trust boundary -- the corpus is built so the labeled function's inputs

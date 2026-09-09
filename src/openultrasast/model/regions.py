@@ -39,6 +39,15 @@ _ACCESS_RANK: dict[str, float] = {
 _LANGUAGES = {"python", "javascript", "typescript", "java", "c", "c_cpp"}
 _NORMALISE = {"typescript": "javascript", "c_cpp": "c"}
 
+# What a CPG calls a file's top-level code. A module body is a method like any other to the engine, and
+# naming it here is what lets a region ask about the code that is not inside any function.
+MODULE_SCOPE = "<module>"
+
+# What the mapper emits for `if __name__ == '__main__':` -- a marker for a module-level entry point, not
+# the name of a function. Sent to the engine as a function name it matched nothing, so a repository's
+# module-level settings were unaskable: VAmPI's `host='0.0.0.0'` went unreported.
+_MODULE_MARKERS = frozenset({"__main__"})
+
 
 @dataclass(frozen=True)
 class ScanRegion:
@@ -49,7 +58,7 @@ class ScanRegion:
     language: str
     families: tuple[str, ...]
     rank: float
-    source: str  # "entry_point" | "file_fallback"
+    source: str  # "entry_point" | "module_scope" | "file_fallback"
 
 
 def regions_for(entries: Sequence[object], targets: Sequence[object]) -> tuple[ScanRegion, ...]:
@@ -78,16 +87,50 @@ def regions_for(entries: Sequence[object], targets: Sequence[object]) -> tuple[S
         if not families:
             continue
         function = getattr(entry, "function_name", None) or None
+        module_body = function in _MODULE_MARKERS
+        if module_body:
+            # A module body is not a handler, whatever the mapper called it, so it is offered the families a
+            # file gets rather than the families a handler gets. Carrying `access_control` here entailed a
+            # missing authorization check on `if __name__ == '__main__':`.
+            function, families = MODULE_SCOPE, _families(language, has_handler=False)
+            if not families:
+                continue
         rank = _ACCESS_RANK.get(str(getattr(entry, "access_level", "")), 0.5)
         key = (path, function)
         current = best.get(key)
         if current is None or rank > current.rank:
-            best[key] = ScanRegion(path=path, function=function, language=language, families=families, rank=rank, source="entry_point")
+            best[key] = ScanRegion(
+                path=path,
+                function=function,
+                language=language,
+                families=families,
+                rank=rank,
+                source="module_scope" if module_body else "entry_point",
+            )
 
     # A nameless entry point IS the file. Where a named region already covers that file it adds nothing but
     # a second full-file pass, so it is dropped -- unless the file has no named region at all.
     named_paths = {path for path, function in best if function is not None}
     regions = [region for (path, function), region in best.items() if function is not None or path not in named_paths]
+
+    # Every file whose regions are all function-scoped still has code that is in no function: the settings, the
+    # route registrations, the globals. Those regions cannot see it -- their queries filter by function name --
+    # and there is no file-level region beside them, because one would duplicate every function's findings.
+    # So the module body gets its own region, which partitions the file rather than overlapping it.
+    #
+    # This was cheap to add only after batching: before it, a region was a JVM.
+    scoped = {region.path for region in regions if region.function is not None}
+    have_module = {region.path for region in regions if region.function == MODULE_SCOPE}
+    for path in sorted(scoped - have_module):
+        language = by_path.get(path)
+        if language is None:
+            continue
+        families = _families(language, has_handler=False)
+        if families:
+            regions.append(
+                ScanRegion(path=path, function=MODULE_SCOPE, language=language, families=families, rank=0.15, source="module_scope")
+            )
+
     covered = {region.path for region in regions}
 
     for path, language in by_path.items():

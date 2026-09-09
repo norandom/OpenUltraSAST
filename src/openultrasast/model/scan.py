@@ -31,7 +31,7 @@ from .config_value import request_params as config_params
 from .dominance import request_params as dominance_params
 from .ladder import Rung
 from .pipeline import ModelFinding, scan_region
-from .regions import ScanRegion
+from .regions import MODULE_SCOPE, ScanRegion
 from .specs import ConfigSpec, DominanceSpec, TaintSpec, config_specs, dominance_specs, taint_specs
 from .taint import request_params as taint_params
 from .taxonomy import load_families
@@ -261,8 +261,11 @@ def _is_entry_point(region: ScanRegion) -> bool:
     A named function the entry-point mapper found, not a file the walker fell back to. The distinction is
     what makes treating parameters as untrusted sound: a handler's parameters carry request data, an
     arbitrary helper's carry whatever its caller had.
+
+    A module body is excluded even when the mapper marked it an entry point: a module has no parameters, so
+    there is nothing for the parameter-source rule to mean there.
     """
-    return region.source == "entry_point" and bool(region.function)
+    return region.source == "entry_point" and bool(region.function) and region.function != MODULE_SCOPE
 
 
 def _spec_for(family: str, language: str) -> ArbiterSpec | None:

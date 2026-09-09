@@ -135,7 +135,7 @@
   - _Requirements: 4.4, 8.1_
   - _Depends: 2.2_
 
-- [ ] 2.5 Module-level regions the engine can actually ask about
+- [x] 2.5 Module-level regions the engine can actually ask about
   - A setting in `if __name__ == '__main__':` belongs to a region the mapper calls `app.py:__main__`, but
     Joern names that method `<module>`. The function filter matches nothing, so module-level configuration
     is invisible. Before 2.2's file scoping it was worse, not better: the literal was reported eight times

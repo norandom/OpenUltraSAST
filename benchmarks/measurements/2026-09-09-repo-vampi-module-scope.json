@@ -1,0 +1,140 @@
+{
+  "against": "benchmarks/measurements/2026-09-09-repo-vampi-crossfunction.json (task 2.4, same checkout and budget)",
+  "caveat": "Still one 520-line repository, and still the one every change this session was developed against. <module> is what Joern's Python frontend calls a module body; other frontends name it differently (JavaScript uses :program), so this is verified for Python only.",
+  "completed": true,
+  "config": "shipped defaults",
+  "cost": "3 more regions (22 -> 25) for about 4s more query time and no more model calls, because the budget is a total and was already spent. regions_unasked rose 17 -> 20 accordingly: those regions got the free pass and are reported as unasked rather than as clean.",
+  "degradations": [
+    {
+      "detail": "no path records; obligations evaluated within entry-point handlers only",
+      "files": [
+        "api_views/books.py",
+        "api_views/users.py",
+        "models/books_model.py",
+        "models/user_model.py"
+      ],
+      "language": "python",
+      "reason": "obligations_function_local",
+      "stage": "obligations"
+    },
+    {
+      "reason": "budget_exhausted",
+      "regions_unasked": 20,
+      "stage": "model"
+    },
+    {
+      "reason": "hunter_model_unavailable",
+      "stage": "map"
+    }
+  ],
+  "delta": {
+    "cost_usd": "0.0067 -> 0.0068",
+    "entailed_findings": "8 -> 9",
+    "peak_rss_mb": "827.3 -> 822.9",
+    "query_seconds": "37.44 -> 41.32",
+    "regions": "22 -> 25",
+    "scan_seconds": "182.2 -> 185.77",
+    "vampi_bind_address": "8 findings in the wrong files (pre-2.2) -> 0 (2.2) -> 1, at app.py:17:<module>"
+  },
+  "exit_code": 0,
+  "findings_by_rung": {
+    "execution_confirmed": 0,
+    "model_corroborated": 0,
+    "model_entailed": 9,
+    "suspicion": 54
+  },
+  "findings_total": 63,
+  "generated": "2026-09-09",
+  "how": {
+    "a_module_body_is_not_a_handler": "Caught by this run: the marker-derived region inherited the handler families and entailed a missing authorization check on the main guard -- a finding with no possible remediation. Module regions are offered the families a file gets, not the families a handler gets.",
+    "a_module_is_its_own_body_not_its_children": "A module method spans its whole file, so the taint query's line-range containment made <module> the parent of every function in it, and a module region would have reported every handler's sinks a second time. Under module scope, membership is direct.",
+    "every_function_scoped_file_gets_its_module_body": "A file whose regions are all function-scoped has code in no function -- settings, route registration, globals -- that no region can see. A file-level region beside them would report every handler's findings twice, which is why the earlier rule dropped it. A module-scope region instead PARTITIONS the file. Adding it was only cheap after batching: before that, a region was a JVM.",
+    "the_main_guard_marker_is_not_a_function": "__main__ is what the mapper emits for the `if __name__` main guard. Sent to the engine as a function name it matched nothing, because a CPG calls a file's top-level code <module>. The region model translates the marker -- the one place that turns what the mapper meant into what the scanner asks."
+  },
+  "known_outcomes": [
+    {
+      "family": "injection",
+      "finding_id": "model:injection:models/user_model.py:73:get_user",
+      "id": "VAmPI-SQLI",
+      "line": 73,
+      "location": "models/user_model.py:get_user:73",
+      "matches": 3,
+      "result": "found",
+      "rung": "model_entailed"
+    },
+    {
+      "family": "access_control",
+      "finding_id": "model:access_control:api_views/users.py:?:update_password",
+      "id": "VAmPI-BOLA",
+      "line": null,
+      "location": "api_views/users.py:update_password:187",
+      "matches": 5,
+      "result": "found",
+      "rung": "model_entailed"
+    }
+  ],
+  "mode": "standard",
+  "model": {
+    "arbitrate_seconds": 121.96,
+    "build_seconds": 5.43,
+    "by_rung": {
+      "execution_confirmed": 0,
+      "model_corroborated": 0,
+      "model_entailed": 9,
+      "suspicion": 38
+    },
+    "cost_usd": 0.0068,
+    "model_calls": 105,
+    "query_seconds": 41.32,
+    "regions_scanned": 25,
+    "regions_unasked": 20,
+    "regions_unjudged": 0,
+    "seconds": 168.71,
+    "unjudged_sample": []
+  },
+  "peak_rss_mb": 822.9,
+  "reading": "Module-level code is now askable. VAmPI's host='0.0.0.0' is reported exactly once, at app.py:17:<module>, where before task 2.2 it was reported eight times in eight files that do not contain it, and after 2.2 it was reported nowhere. All three findings the model layer can reach at a known location are now correct: the SQL injection, the BOLA, and the permissive bind address.",
+  "repo": {
+    "commit": "f16052dce83f05847133ec98f01c5193a41de7d8",
+    "known": [
+      {
+        "family": "injection",
+        "id": "VAmPI-SQLI",
+        "in_scope": true,
+        "location": "models/user_model.py:get_user:73",
+        "weakness": "SQL injection: the username is interpolated into the query string at line 72 and executed at 73"
+      },
+      {
+        "family": "access_control",
+        "id": "VAmPI-BOLA",
+        "in_scope": true,
+        "location": "api_views/users.py:update_password:187",
+        "weakness": "unauthorized password change: the path username is used instead of the authenticated token subject"
+      }
+    ],
+    "language": "python",
+    "license": "MIT",
+    "measures": [
+      "detection"
+    ],
+    "name": "vampi",
+    "url": "https://github.com/erev0s/VAmPI.git"
+  },
+  "scan_seconds": 185.77,
+  "spec": "contributor-scan 2.5 (Req 4.4)",
+  "stages": {
+    "completed": [
+      "static",
+      "map"
+    ],
+    "requested": [
+      "static",
+      "map"
+    ],
+    "skipped": []
+  },
+  "still_open": [
+    "2.6 access control entails 7 of 9 handlers, including register_user and get_all_users, which are meant to be public. Unchanged, and still the largest precision problem.",
+    "2.7 dominance witnesses carry no line, so access-control sites still read api_views/users.py:?:update_password."
+  ]
+}

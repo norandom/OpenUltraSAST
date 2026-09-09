@@ -47,9 +47,9 @@ def test_an_entry_point_becomes_a_region() -> None:
     from openultrasast.model.regions import regions_for
 
     regions = regions_for([_entry()], [_target()])
-    assert len(regions) == 1
-    assert regions[0].path == "api/users.py" and regions[0].function == "update_password"
-    assert regions[0].source == "entry_point"
+    handlers = [r for r in regions if r.source == "entry_point"]
+    assert len(handlers) == 1
+    assert handlers[0].path == "api/users.py" and handlers[0].function == "update_password"
 
 
 def test_a_file_with_no_entry_point_still_gets_a_region_that_says_so() -> None:
@@ -91,7 +91,7 @@ def test_public_entry_points_outrank_internal_ones() -> None:
 
     entries = [_entry(path="a.py", function="internal", access="local-only"), _entry(path="b.py", function="exposed", access="public")]
     targets = [_target(path="a.py"), _target(path="b.py")]
-    ranked = regions_for(entries, targets)
+    ranked = [r for r in regions_for(entries, targets) if r.source == "entry_point"]
     assert [r.function for r in ranked] == ["exposed", "internal"], "highest risk first"
     assert ranked[0].rank > ranked[1].rank
 
@@ -109,7 +109,50 @@ def test_a_file_with_an_entry_point_is_not_also_a_fallback_region() -> None:
     from openultrasast.model.regions import regions_for
 
     regions = regions_for([_entry()], [_target()])
-    assert len(regions) == 1
+    assert not [r for r in regions if r.source == "file_fallback"]
+
+
+def test_a_function_scoped_file_still_gets_its_module_body_asked_about() -> None:
+    """contributor-scan 2.5. Settings, route registration and globals are in no function.
+
+    A file whose regions are all function-scoped cannot see them -- every query filters by function name --
+    and a file-level region beside them would report every handler's findings a second time. So the module
+    body gets a region of its own, which partitions the file rather than overlapping it. VAmPI's
+    `host='0.0.0.0'` sits in `if __name__ == '__main__':` and was reported nowhere without this.
+    """
+    from openultrasast.model.regions import MODULE_SCOPE, regions_for
+
+    regions = regions_for([_entry()], [_target()])
+
+    module = [r for r in regions if r.function == MODULE_SCOPE]
+    assert len(module) == 1, "exactly one module region per function-scoped file"
+    assert module[0].path == "api/users.py"
+    assert module[0].source == "module_scope"
+    assert module[0].rank < min(r.rank for r in regions if r.source == "entry_point")
+
+
+def test_a_file_level_region_is_not_given_a_second_module_region() -> None:
+    """A file-level region already covers the module body; a second one would duplicate it."""
+    from openultrasast.model.regions import MODULE_SCOPE, regions_for
+
+    regions = regions_for([], [_target(path="config.py")])
+
+    assert [r.function for r in regions] == [None]
+    assert not [r for r in regions if r.function == MODULE_SCOPE]
+
+
+def test_the_main_guard_marker_is_translated_to_module_scope() -> None:
+    """`__main__` is what the mapper emits for `if __name__ == '__main__':`, not a function that exists.
+
+    Sent to the engine as a function name it matched nothing at all, which is why a module-level setting
+    could be reported zero times while looking like a scanned file.
+    """
+    from openultrasast.model.regions import MODULE_SCOPE, regions_for
+
+    regions = regions_for([_entry(path="app.py", function="__main__", access="local-only")], [_target(path="app.py")])
+
+    assert MODULE_SCOPE in {r.function for r in regions}
+    assert "__main__" not in {r.function for r in regions}
 
 
 def test_an_unsupported_language_yields_no_region() -> None:
@@ -133,15 +176,16 @@ def test_nameless_entry_points_do_not_duplicate_a_file_already_covered() -> None
         _entry(function=None, access="public"),
     ]
     regions = regions_for(entries, [_target()])
-    assert len(regions) == 1
-    assert regions[0].function == "ping"
+    assert [r.function for r in regions if r.source == "entry_point"] == ["ping"]
+    # The module region partitions the file rather than duplicating the handler, so it is not a second pass.
+    assert not [r for r in regions if r.function is None]
 
 
 def test_a_file_with_only_nameless_entry_points_still_gets_one_region() -> None:
     from openultrasast.model.regions import regions_for
 
     regions = regions_for([_entry(function=None), _entry(function=None)], [_target()])
-    assert len(regions) == 1 and regions[0].function is None
+    assert [r.function for r in regions] == [None], "two nameless entries are one file-level region"
 
 
 def test_two_named_handlers_in_one_file_are_two_regions() -> None:
@@ -149,4 +193,20 @@ def test_two_named_handlers_in_one_file_are_two_regions() -> None:
     from openultrasast.model.regions import regions_for
 
     regions = regions_for([_entry(function="a"), _entry(function="b")], [_target()])
-    assert sorted(r.function for r in regions) == ["a", "b"]
+    assert sorted(r.function for r in regions if r.source == "entry_point") == ["a", "b"]
+
+
+def test_a_module_body_is_not_offered_the_handler_families() -> None:
+    """`if __name__ == '__main__':` is not an endpoint, whatever the mapper labelled it.
+
+    Carrying `access_control` into a module region entailed a missing authorization check on a main guard --
+    a finding with no possible remediation, on the first repository the region existed.
+    """
+    from openultrasast.model.regions import MODULE_SCOPE, regions_for
+
+    regions = regions_for([_entry(path="app.py", function="__main__", access="local-only")], [_target(path="app.py")])
+    module = next(r for r in regions if r.function == MODULE_SCOPE)
+
+    assert "access_control" not in module.families
+    assert "config_secrets" in module.families, "settings are exactly what module bodies carry"
+    assert module.source == "module_scope"
