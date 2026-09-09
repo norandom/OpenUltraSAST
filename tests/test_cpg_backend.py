@@ -147,7 +147,10 @@ def test_a_failed_batch_yields_no_rows_for_any_request(monkeypatch: pytest.Monke
         stderr = "boom"
 
     backend = JoernBackend(runner=lambda c, **k: _Bad())
-    assert backend.query_batch(Path("/tmp/c.bin"), "taint", {"r1": {}}) == {}
+    assert backend.query_batch(Path("/tmp/c.bin"), "taint", {"r1": {}}) is None, (
+        "None means COULD NOT ASK; {} would mean the engine answered and found nothing, and a caller that "
+        "cannot tell them apart reports a failed scan as a clean repository"
+    )
 
 
 def test_a_batch_result_that_omits_a_request_returns_nothing_for_it() -> None:

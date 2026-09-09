@@ -155,7 +155,14 @@ def scan_repository(
         kind_started = time.monotonic()
         batch = getattr(cpg, "run_batch", None)
         if callable(batch):
-            rows_by_id.update(batch(kind, requests) or {})
+            answered_batch = batch(kind, requests)
+            if answered_batch is None:
+                # The engine could not answer. That is NOT an empty result, and recording it is what keeps a
+                # failed scan from reading as a clean repository: on a 117k-line PHP checkout every query
+                # failed at CPG load and the scan reported 500 regions examined with nothing found.
+                degradations.append({"stage": "model", "reason": "query_failed", "kind": kind, "requests": len(requests)})
+            else:
+                rows_by_id.update(answered_batch)
         else:  # a backend without batching still works, one call at a time
             for rid, params in requests.items():
                 answered = cpg.run(kind, params)

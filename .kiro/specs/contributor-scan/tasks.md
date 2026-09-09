@@ -476,7 +476,7 @@
   - _Requirements: 8.1, 9.1_
   - _Depends: 5.1_
 
-- [ ] 5.7 Does the PHP call graph carry a flow through an object?
+- [x] 5.7 Does the PHP call graph carry a flow through an object? — NOT a call-graph question
   - **The WordPress checkout scans and does not find its CVE.** Both ends are inside the budget --
     `pmpro_rest_api_get_order` at position 290 as a recognised entry point, `getMemberOrderByCode` at 472 --
     and the taint query runs for 23 seconds. So the question is the middle.
@@ -490,6 +490,15 @@
     something else, which is a finding worth having either way.
   - Observable: a recorded answer naming which edges exist, and either the CVE found or a stated reason it
     cannot be.
+  - **Answered 2026-09-09, and it was the wrong question.** The 117k-line pmpro CPG does not LOAD -- import
+    throws in a ForkJoinParallelCpgPassWithAccumulator during overlay application -- so every query against
+    it returns nothing. Isolated by running the ARBITER against two prebuilt CPGs rather than writing more
+    ad-hoc Scala: `get_order_by_code` on the small probe returns 1 `model_entailed` with parameter sources
+    and depth 3, while `getMemberOrderByCode` on pmpro, the identical shape, returns 0 under identical
+    settings. Same arbiter, same spec, same question; the CPG is the difference.
+  - That clears the facts: `$wpdb` sinks work, the parameter-source rule works, and a PHP parameter reaching
+    `$wpdb->get_var` through a concat is entailed. Whether php2cpg resolves `new X()` and `$this->method()`
+    remains **unmeasured**, because it cannot be measured on a CPG that will not load. Recorded as 5.10.
   - _Requirements: 4.4, 8.1, 9.1_
   - _Depends: 5.1_
 
@@ -522,6 +531,18 @@
   - Observable: a missing-capability finding on a plugin that has one, and silence on one that checks.
   - _Requirements: 8.1, 9.1_
   - _Depends: 5.6_
+
+- [ ] 5.10 A PHP CPG large enough to matter that actually loads
+  - `php2cpg` builds a 4.3MB CPG for a 637-file plugin with no errors, and importing it throws during
+    overlay application. Every query then returns nothing.
+  - Find the boundary: does it load at 100 files, 300, 600? Is one file responsible, or is it size? Joern's
+    own message suggests the frontend for large codebases, which is what the fallback already does, so the
+    remaining lever is whether overlays can be applied separately or the tree scoped.
+  - Until this is answered, PHP detection is demonstrated only on files small enough to build cleanly, and
+    no claim about WordPress can be made either way.
+  - Observable: the largest PHP tree that loads and queries, measured, with the failure boundary recorded.
+  - _Requirements: 4.2, 4.3, 9.1_
+  - _Depends: 5.7_
 
 ## Group 6 — Regression baselines
 

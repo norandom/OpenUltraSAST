@@ -1,15 +1,26 @@
 {
   "feature_name": "ir-consolidation",
   "created_at": "2026-09-09T17:00:00Z",
-  "updated_at": "2026-09-09T17:00:00Z",
+  "updated_at": "2026-09-09T17:30:00Z",
   "language": "en",
   "phase": "brief",
   "approvals": {
-    "requirements": { "generated": false, "approved": false },
-    "design": { "generated": false, "approved": false },
-    "tasks": { "generated": false, "approved": false }
+    "requirements": {
+      "generated": false,
+      "approved": false
+    },
+    "design": {
+      "generated": false,
+      "approved": false
+    },
+    "tasks": {
+      "generated": false,
+      "approved": false
+    }
   },
   "ready_for_implementation": false,
-  "depends_on": ["contributor-scan"],
-  "approval_note": "2026-09-09 brief drafted after the maintainer raised codebase growth and suggested adopting an existing IR (Vine, or Rolf Rolles' work, or Ghidra's). The brief separates two questions with opposite answers. The SOURCE IR is already carried rather than about to be added: semantic/ is 3218 lines, 16% of the codebase, holding a hand-written IR and flat taint engine measured at 2.2% entailment against the CPG's 41.3%, still running as a proposer -- and Vine and P-Code are binary IRs that do not help, so the work there is subtraction not substitution. The MISSING abstraction is the C arithmetic-overflow class, where GhidraPAL's three-valued-logic abstract interpreter over Ghidra P-Code is exactly the right shape and exists; Vine is dormant since 2009 and is not the candidate. Constraint recorded: question 1 lands before question 2 starts, or the brief makes the growth problem worse. Not approved."
+  "depends_on": [
+    "contributor-scan"
+  ],
+  "approval_note": "2026-09-09 brief drafted after the maintainer raised codebase growth and suggested adopting an existing IR (Vine, or Rolf Rolles' work, or Ghidra's). The brief separates two questions with opposite answers. The SOURCE IR is already carried rather than about to be added: semantic/ is 3218 lines, 16% of the codebase, holding a hand-written IR and flat taint engine measured at 2.2% entailment against the CPG's 41.3%, still running as a proposer -- and Vine and P-Code are binary IRs that do not help, so the work there is subtraction not substitution. The MISSING abstraction is the C arithmetic-overflow class, where GhidraPAL's three-valued-logic abstract interpreter over Ghidra P-Code is exactly the right shape and exists; Vine is dormant since 2009 and is not the candidate. Constraint recorded: question 1 lands before question 2 starts, or the brief makes the growth problem worse. Not approved. ; 2026-09-09 angr added as the strongest candidate for the binary-side question after the maintainer raised it: Python 3 so it fits the extras pattern this codebase already uses for heavyweight capabilities, BSD-2-Clause against Vine's GPL-2.0 which would be a decision about the whole tool, actively maintained, and it names VALUE-SET ANALYSIS as a capability -- which is precisely the abstraction c/memory lacks and is abstract interpretation rather than SMT, matching the architecture decision already taken. GhidraPAL stays as the worked example of a bit-precise TVL domain to read before writing one, not as a platform."
 }

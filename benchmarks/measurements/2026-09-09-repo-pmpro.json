@@ -1,10 +1,18 @@
 {
+  "call_graph_question_answered": {
+    "answer": "It was never a call-graph question. The 117k-line pmpro CPG does not LOAD: importing it throws in a ForkJoinParallelCpgPassWithAccumulator during overlay application, so every query against it returns nothing.",
+    "how_it_was_isolated": "The arbiter itself was run against two prebuilt CPGs instead of writing more ad-hoc Scala. On the small wpdb probe, `get_order_by_code` -- source and sink in ONE function -- returns 1 model_entailed with parameter_sources and depth 3. On the pmpro CPG, `getMemberOrderByCode`, which has exactly the same shape, returns 0 under identical settings. Same arbiter, same spec, same question: the difference is the CPG.",
+    "question": "does the PHP call graph carry a flow through `new MemberOrder()` and `$this->method()`?",
+    "task": "5.7",
+    "what_remains_unknown": "Whether php2cpg resolves `new X()` and `$this->method()` into callee edges is STILL unmeasured, because it cannot be measured on a CPG that will not load. It needs a plugin small enough to build cleanly, or the load failure fixed first.",
+    "what_this_clears": "The `$wpdb` sinks work, the parameter-source rule works, and a PHP flow from a parameter through a concat into `$wpdb->get_var` is entailed. None of those was the problem."
+  },
   "detection": {
     "both_in_budget": true,
     "cve": "CVE-2023-23488",
     "entry_point": "includes/rest-api.php:pmpro_rest_api_get_order -- recognised, rank 0.80, position 290, entry_point",
     "found": false,
-    "open_question": "The flow crosses `new MemberOrder( $code )` into a constructor and then `$this->getMemberOrderByCode( $code )`. Whether Joern's PHP frontend resolves either into a call edge is unverified -- two attempts to query the call graph failed on script errors. If it does not, task 2.4's interprocedural region cannot bridge this and the PHP story needs something else. Recorded as 5.7.",
+    "open_question": "ANSWERED 2026-09-09 -- see call_graph_question_answered",
     "sink": "classes/class.memberorder.php:936 getMemberOrderByCode -- $wpdb->get_var with concatenated $code, position 472"
   },
   "envelope": {
@@ -27,6 +35,12 @@
   "reading": "The checkout is real, the CVE is verified in the code, and the scan runs cleanly on 117k lines of PHP. **The CVE is not detected.** That is the result, and three separate engine defects had to be fixed before the scan could even produce it -- each of which had previously reported the plugin clean for a different reason.",
   "repo": "Paid Memberships Pro 2.9.7 at 1a900be3f09f243876150fc3c04a97bcb24ef84b, CVE-2023-23488",
   "spec": "contributor-scan 5.1 -- the WordPress detection checkout",
+  "the_fourth_quiet_failure": {
+    "cause": "`query_batch` returned `{}` for a failure and `{}` for a genuine empty answer, so a caller could not tell 'could not ask' from 'nothing found'. Every query on this checkout failed at CPG load and the scan recorded none of it.",
+    "fix": "A failed batch returns None and the driver records a `query_failed` degradation naming the kind and the request count. Unparseable output is a failure too, not an empty answer.",
+    "symptom": "500 regions scanned, 0 findings, no degradations -- a vulnerable plugin reported clean",
+    "why_it_matters_most": "Every other honesty mechanism here labels a VERDICT -- suspicion, regions_unjudged, regions_unasked, stated family limits. When no verdict is produced there is nothing to label, and the report is indistinguishable from a clean one. That is the fourth such failure found on this single checkout."
+  },
   "three_defects_found_getting_here": [
     {
       "cause": "joern-parse threw after applying overlays; php2cpg on the identical tree produced a 4.3MB CPG with no errors",

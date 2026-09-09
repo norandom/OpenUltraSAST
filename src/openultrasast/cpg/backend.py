@@ -93,7 +93,7 @@ class CpgResult:
 
     cpg_path: Path
     run: Callable[[str, Mapping[str, object]], object | None]
-    run_batch: Callable[[str, Mapping[str, Mapping[str, object]]], dict[str, list[object]]] | None = None
+    run_batch: Callable[[str, Mapping[str, Mapping[str, object]]], dict[str, list[object]] | None] | None = None
 
 
 class CpgBackend(Protocol):
@@ -172,7 +172,7 @@ class JoernBackend:
         logger.info("built the cpg for %s with %s after joern-parse failed", root, frontend)
         return True
 
-    def query_batch(self, cpg_path: Path, query: str, requests: Mapping[str, Mapping[str, object]]) -> dict[str, list[object]]:
+    def query_batch(self, cpg_path: Path, query: str, requests: Mapping[str, Mapping[str, object]]) -> dict[str, list[object]] | None:
         """Run ONE script invocation carrying many requests, keyed back to their ids.
 
         JVM startup, not CPG construction, is what dominates a repository scan: every ``joern --script`` call
@@ -181,13 +181,15 @@ class JoernBackend:
         by then; the work itself is milliseconds. So the batch carries the whole scan's questions in one
         parameter and the script loops over them.
 
-        Fails closed like every other path here: an engine that could not answer returns ``{}``, never an
-        empty result per request, because "no rows" and "could not ask" must stay distinguishable.
+        Fails closed like every other path here, and says which kind of nothing it is: an engine that could
+        not answer returns ``None`` while a genuine empty answer is ``{}``. That distinction is the whole
+        point -- "no rows" and "could not ask" look identical to a caller that only sees a dict, and a
+        117k-line PHP CPG that threw while loading turned a failed scan into a clean bill of health.
         """
         script = self.queries_dir / f"{query}.sc"
         if not script.is_file():
             logger.warning("no such cpg query: %s", script)
-            return {}
+            return None
         payload = json.dumps({rid: {k: _render(v) for k, v in req.items()} for rid, req in requests.items()})
         # Through a FILE, never the command line. Linux caps a single argument at MAX_ARG_STRLEN (128KB)
         # whatever ARG_MAX says, and a repository blows through that: 2500 taint requests over a 637-file
@@ -200,7 +202,7 @@ class JoernBackend:
             requests_file.write_text(payload)
         except OSError as exc:
             logger.warning("could not stage cpg batch %s: %s", query, exc)
-            return {}
+            return None
         command = [
             shutil.which("joern") or "joern",
             self._heap_flag(),
@@ -215,10 +217,14 @@ class JoernBackend:
         if completed is None or completed.returncode != 0:
             detail = (completed.stderr or "")[-400:] if completed is not None else "timeout"
             logger.warning("cpg batch %s failed: %s", query, detail)
-            return {}
+            return None
         parsed = extract_payload(completed.stdout or "")
         if not isinstance(parsed, Mapping):
-            return {}
+            # Unparseable output is a failure, not an empty answer. A 117k-line PHP CPG that throws while
+            # loading printed a stack trace and no payload, and returning {} made the whole scan read as a
+            # clean repository -- 500 regions examined, nothing found, no degradation recorded.
+            logger.warning("cpg batch %s returned no parseable payload", query)
+            return None
         # A request the engine did not answer is absent, not empty: the caller must be able to tell them apart.
         return {str(rid): list(rows) for rid, rows in parsed.items() if isinstance(rows, list)}
 

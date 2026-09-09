@@ -364,3 +364,29 @@ def test_two_families_at_one_site_stay_two_findings() -> None:
     ]
 
     assert len(_deduplicated(both)) == 2
+
+
+def test_a_query_the_engine_could_not_answer_is_recorded_not_ignored() -> None:
+    """contributor-scan 5.7. A 117k-line PHP CPG threw while loading, so every query returned nothing -- and
+    the scan reported 500 regions examined, no findings, and no degradation. A failed query and a clean
+    repository looked identical.
+
+    This is the failure mode the rung ladder cannot catch: every other honesty counter labels a VERDICT, and
+    here none was produced to label.
+    """
+    from openultrasast.cpg.backend import CpgResult
+    from openultrasast.model.scan import scan_repository
+
+    class _Backend:
+        def available(self) -> bool:
+            return True
+
+        def build(self, root, **kwargs):  # type: ignore[no-untyped-def]
+            return CpgResult(cpg_path=Path("cpg.bin"), run=lambda q, p: [], run_batch=lambda q, r: None)
+
+    result = scan_repository(Path("/repo"), (_region(),), backend=_Backend(), client=None, model="")
+
+    failures = [d for d in result.degradations if d.get("reason") == "query_failed"]
+    assert failures, "a query that could not be asked must be reported"
+    assert failures[0]["kind"] == "taint"
+    assert result.findings == ()
