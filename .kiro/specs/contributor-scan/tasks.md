@@ -502,7 +502,7 @@
   - _Requirements: 4.4, 8.1, 9.1_
   - _Depends: 5.1_
 
-- [ ] 5.8 WordPress's popular flaw classes, on popular plugins
+- [x] 5.8 WordPress's popular flaw classes, on popular plugins
   - > "in wp focus on some of their popular flaws and plugins. these are the keys to unlock practical
     > software verification."
   - One plugin is a checkout; a class is a claim. WordPress's recurring shapes are narrow and well
@@ -518,6 +518,26 @@
     advisory the way `pmpro.toml` does -- the CVE read out of the code, not out of the advisory text.
   - Observable: a class-by-class table over several plugins, saying for each whether it was found, missed, or
     out of scope. That is the artifact worth teaching from; a single found CVE is not.
+  - **Done 2026-09-09.** The table is in `benchmarks/repos/README.md`, "WordPress, class by class". Three
+    plugins pinned, each CVE read out of the code, each measured against its own fixed commit:
+
+    | class | plugin, CVE | verdict |
+    |---|---|---|
+    | unauthenticated injection, sink in the receiving function | `pmpro`, CVE-2023-23488 | **found**, pair separates |
+    | arbitrary file operation | `mwwpform`, CVE-2023-6559 | **found**, pair separates |
+    | unauthenticated injection across a WordPress hook | `wpstatistics`, CVE-2022-25148 | **missed**, structurally |
+    | missing capability check | — | cannot be asked (5.9) |
+    | unescaped output | — | cannot be trusted (5.6) |
+
+    Both hits are entailed by the graph alone and both disappear on the fixed side, because both fixes are
+    calls the fact tables carry. Precision is not clean and the table says so: PMPro's vulnerable side
+    reports 15 entailed, 4 from a named parameter and 11 from the receiver, with one demonstrable false
+    positive surviving into 2.9.8.
+  - The miss is the useful half. WP Statistics' source and sink are both modelled and the fix is `esc_sql`,
+    yet nothing is reported on either side, because the only edge between the two files is
+    `add_filter('...', array($this, 'method'))` / `apply_filters('...')` -- both ends naming the callback with
+    a **string**. No frontend can draw that edge. Most WordPress plugin data travels this way, which makes it
+    the largest structural gap for PHP and not a fact-table problem. Recorded as 5.11.
   - _Requirements: 4.1, 4.4, 9.1_
   - _Depends: 5.7_
 
@@ -547,10 +567,55 @@
     exact verified line. 16 entailed injection findings, and the file holds 26 `$wpdb` query calls of which
     **zero** use `->prepare`, so the engine under-reports rather than over-reports. See
     `benchmarks/measurements/2026-09-09-pmpro-cve-found.json`.
-  - Still open: the 637-file boundary itself, and whether the REST handler two calls away can reach it --
-    this slice found the sink through a same-function flow, not across the object.
+  - **Root cause found 2026-09-09, and it was never a scale limit.** `php2cpg` 4.0.623 reads its PHP parser's
+    stdout and stderr as one merged stream. The parser writes a `====> File <next>:` banner to stderr the
+    moment it starts the next file, while the previous file's multi-megabyte JSON is still draining from a
+    block-buffered stdout; the banner lands inside the JSON, ujson reports `expected json value got "="`, and
+    that file is dropped. Reproducible in three commands:
+
+        class.memberorder.php alone (1834 lines)  ->  142KB CPG, no failures
+        the same file + a two-line file           ->  5.7KB CPG, BOTH dropped, exit status 0
+
+    One oversized file empties the whole graph, and `joern-parse` propagates none of the warnings -- thirteen
+    lines of output, exit 0, "Successfully wrote graph". It is also a **race**, not a threshold: five builds
+    of the same two-file input gave three graphs and two empty ones.
+  - Two things follow. The engine now says so (`cpg_empty`, from a census carried on the batched query; see
+    `cpg/backend.py`), which is what turned this from a clean bill of health into a diagnosis. And the
+    mitigation is per-file, not per-repository: `--exclude` the file whose dump is oversized and the rest of
+    the tree builds, so the coverage disclosure should name the excluded files rather than the build failing.
+  - Still open: wiring that exclusion loop, the 637-file build with it in place, and whether the REST handler
+    two calls away can reach the sink -- the slice found it through a same-function flow, not across the
+    object.
   - _Requirements: 4.2, 4.3, 9.1_
   - _Depends: 5.7_
+
+- [ ] 5.11 The WordPress hook edge, or an honest statement that it is not drawn
+  - `add_filter('name', array($this, 'method'))` and `apply_filters('name', $value)` are a data-flow edge that
+    no CPG frontend draws, because both ends name the callback with a string. 5.8 measured the cost: WP
+    Statistics' CVE-2022-25148 has a modelled source, a modelled sink and a modelled fix, and is invisible on
+    both sides purely because the path runs through this edge.
+  - The registry is static and small. Every `add_action`/`add_filter` in a plugin names a hook and a callback,
+    and the mapper already parses both for entry points -- so the pairs can be built without any inference,
+    and the question is only where to apply them: a synthesized call edge in a preprocessing pass, or a
+    source/sink pairing the taint query is told about.
+  - Do NOT approximate it with "any hook may reach any handler". That is a complete graph over the plugin and
+    would entail everything.
+  - Observable: CVE-2022-25148 entailed on `wpstatistics`'s vulnerable side and absent on its fixed side --
+    the pair already pinned, already measured as a double miss, so the number moves or it does not.
+  - _Requirements: 4.4, 8.1, 9.1_
+  - _Depends: 5.8_
+
+- [ ] 5.12 Taint a field where it is assigned
+  - Excluding `$this` from parameter sources cuts PMPro's order class from 16 entailed findings to 6, all
+    named-parameter sourced, and makes its pair separate cleanly -- and loses CVE-2023-6559 outright, because
+    MW WP Form's `_delete_files()` takes no parameters and its attacker-controlled path arrives as
+    `$this->attachments`. The receiver was kept and the measurement written next to it in `taint.sc`.
+  - The right fix is field-sensitivity: `$this->attachments` should be tainted at the assignment that fills
+    it, so a method with no parameters is not either universally tainted or universally clean.
+  - Observable: CVE-2023-6559 still entailed with the receiver excluded, and PMPro's receiver-sourced count
+    down from 11.
+  - _Requirements: 6.1, 9.1_
+  - _Depends: 5.8_
 
 ## Group 6 — Regression baselines
 
