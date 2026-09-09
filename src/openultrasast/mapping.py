@@ -204,12 +204,19 @@ def _language_entry_points(target: FileTarget, text: str) -> list[EntryPointReco
 # `wp_ajax_nopriv_*` is admin-ajax for logged-OUT users and is therefore declared public, while `wp_ajax_*`
 # fires only for logged-in ones. That is a DECLARED access level, not a guess from an absent decorator, which
 # is the distinction task 2.8 turns on.
+# A callback is a bare string OR an array callable. `array( $this, 'method' )` is the normal form in a
+# class-based plugin -- Paid Memberships Pro registers every REST route that way -- and matching only the
+# string form left its handlers ranked as plain functions, below the budget, so the entry point that carries
+# CVE-2023-23488's source was never asked about.
+_PHP_CALLABLE = (
+    r"""(?:['"](?P<handler>[A-Za-z_][A-Za-z0-9_]*)['"]|(?:array\s*\(|\[)\s*\$this\s*,\s*['"](?P<method>[A-Za-z_][A-Za-z0-9_]*)['"])"""
+)
 _PHP_REGISTRATION = re.compile(
-    r"""\b(?P<call>add_action|add_filter|add_shortcode)\s*\(\s*['"](?P<hook>[^'"]+)['"]\s*,\s*['"](?P<handler>[A-Za-z_][A-Za-z0-9_]*)['"]""",
+    r"""\b(?P<call>add_action|add_filter|add_shortcode)\s*\(\s*['"](?P<hook>[^'"]+)['"]\s*,\s*""" + _PHP_CALLABLE,
     re.VERBOSE,
 )
 _PHP_REST_ROUTE = re.compile(r"\bregister_rest_route\s*\(")
-_PHP_CALLBACK = re.compile(r"""['"]callback['"]\s*=>\s*['"](?P<handler>[A-Za-z_][A-Za-z0-9_]*)['"]""")
+_PHP_CALLBACK = re.compile(r"""['"]callback['"]\s*=>\s*""" + _PHP_CALLABLE)
 _PHP_PERMISSION = re.compile(r"""['"]permission_callback['"]\s*=>\s*(?P<value>[^,\)]+)""")
 _PHP_FUNCTION = re.compile(r"^\s*function\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*\(")
 
@@ -226,7 +233,10 @@ def _php_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
 
     for number, line in enumerate(lines, start=1):
         for match in _PHP_REGISTRATION.finditer(line):
-            hook, handler = match.group("hook"), match.group("handler")
+            hook = match.group("hook")
+            handler = match.group("handler") or match.group("method")
+            if not handler:
+                continue
             access, evidence = _wordpress_hook_access(match.group("call"), hook)
             start, end = bounds.get(handler, (number, number))
             records.append(
@@ -236,7 +246,9 @@ def _php_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
             window = "\n".join(lines[number - 1 : number + 12])
             callback = _PHP_CALLBACK.search(window)
             if callback is not None:
-                handler = callback.group("handler")
+                handler = callback.group("handler") or callback.group("method")
+                if not handler:
+                    continue
                 permission = _PHP_PERMISSION.search(window)
                 access, evidence = _rest_route_access(permission.group("value").strip() if permission else None)
                 start, end = bounds.get(handler, (number, number))

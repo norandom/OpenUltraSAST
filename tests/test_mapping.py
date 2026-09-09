@@ -302,3 +302,33 @@ def test_every_php_function_becomes_a_region(tmp_path: Path) -> None:
     regions = regions_for(analyze_entry_points(tmp_path, targets), targets)
 
     assert {region.function for region in regions} >= {"a", "b"}
+
+
+def test_an_array_callable_is_a_handler_too(tmp_path: Path) -> None:
+    """`array( $this, 'method' )` is the normal form in a class-based plugin.
+
+    Paid Memberships Pro registers every REST route that way, and matching only the string form left its
+    handlers ranked as plain functions below the scan budget -- so the entry point carrying CVE-2023-23488's
+    source was never asked about, while the sink two calls away was.
+    """
+    from openultrasast.mapping import analyze_entry_points
+    from openultrasast.preprocess import preprocess_repository
+
+    (tmp_path / "api.php").write_text(
+        "<?php\n"
+        "register_rest_route( $ns, '/order', array( array(\n"
+        "  'methods' => 'GET',\n"
+        "  'callback' => array( $this, 'get_order' ),\n"
+        "  'permission_callback' => array( $this, 'permissions_check' )\n"
+        ") ) );\n"
+        "add_action('wp_ajax_nopriv_fetch', array( $this, 'fetch' ));\n"
+        "function get_order($request) { echo 1; }\n"
+        "function fetch() { echo 2; }\n"
+    )
+    _, targets = preprocess_repository(tmp_path)
+
+    by_name = {entry.function_name: entry for entry in analyze_entry_points(tmp_path, targets)}
+
+    assert by_name["get_order"].kind == "route", "an array callable registers a route"
+    assert by_name["get_order"].access_level == "authenticated", "its permission_callback is not __return_true"
+    assert by_name["fetch"].access_level == "public", "nopriv, through an array callable"
