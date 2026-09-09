@@ -555,3 +555,37 @@ same error class as reading an absent engine as "no vulnerability".
 
 With no adopted tool present — the normal case — the rung is simply never reached and `clearwing_unavailable`
 is recorded.
+
+## Completion status — audited 2026-09-09
+
+**All 16 tasks are complete as written. Not all requirements are satisfied in the product.** The distinction
+matters and was not visible from the checkboxes: several tasks delivered a library, verified it, measured it,
+and stopped — because no task said to connect it. Recorded here so a later reader is not misled by 16/16.
+
+**Satisfied and reachable:**
+
+- Req 1–3 (subtraction, test reduction, module audit) — done and durable; the audit manifest is committed and
+  a test holds the tree to it.
+- Req 4–7 (the CPG seam, the ladder, deterministic taint/dominance/constant-abstraction verdicts, the ported
+  security models) — built, tested, and measured at 41.3% entailed against the flat IR's 2.2%.
+- Req 5.3 (rung in every output format) — markdown, SARIF and JSON all carry it.
+- Req 8 (the LLM proposes, the model disposes) — works, and measures 90.0% pair-correct / 6.7% leak against
+  the hunter's 76.7% / 12.3%. But only through a measurement harness (see below).
+
+**Built but not reachable — the requirement is not met in the product:**
+
+| Requirement | State |
+|---|---|
+| 11.1 per-slice reporting, overfitting gap, rung on every finding | `model/report.py` exists and is tested; **no production caller**. The discipline is implemented and applied to nothing a user sees. |
+| 10.1 `execution_confirmed` reachable for the classes the model cannot decide | `resolve_execution_backend` returns `NullExecutionBackend` on **both** branches. The rung can never be reached. Honest as the stub task 6.1 specified, but not operational. |
+| 9.4 CVE-history harvest at repository scale | `harvest_recipe` exists and is tested; no caller. A seam with nothing plugged into it. |
+| 8.1–8.5 in production | The pipeline is real and measured, but `ousast scan` calls none of it. |
+
+**Why this happened, and it is a spec defect rather than an execution one.** There was never a task saying
+*make this reachable*, and Req 11.2 — the gates stay byte-identical — is satisfied **precisely because
+nothing is wired**. That was read as reassurance for a whole session when it was evidence.
+
+**Where it is being closed:** `contributor-scan` takes all four. Req 1 there covers scan integration
+(closing 8.x and 11.1 in the product), Req 7.1 forces the memory decision that 10.1 defers, and Req 9 covers
+the corpus harvest 9.4 left as a seam. This spec is **not reopened**; it stays complete as the record of
+building and measuring the arbiter.
