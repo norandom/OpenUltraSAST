@@ -19,6 +19,21 @@ from .ladder import Rung, Verdict
 from .specs import TaintSpec
 
 
+def request_params(spec: TaintSpec, *, function: str = "", parameter_sources: bool = False) -> dict[str, object]:
+    """The query parameters this arbiter sends. Shared with the batcher so there is one definition, not two.
+
+    Two copies of a parameter dict is precisely the duplication that produced five bugs of one shape in the
+    predecessor: a change made in one place and not its sibling.
+    """
+    return {
+        "sources": spec.sources,
+        "sinks": spec.sinks,
+        "sanitizers": spec.sanitizers,
+        "function": function,
+        "parameterSources": "true" if parameter_sources else "false",
+    }
+
+
 def verdict(cpg: CpgResult, spec: TaintSpec, *, function: str = "", parameter_sources: bool = False) -> Verdict | None:
     """The strongest verdict the taint query supports for ``spec`` in ``function``, or ``None`` to stay at suspicion.
 
@@ -26,16 +41,7 @@ def verdict(cpg: CpgResult, spec: TaintSpec, *, function: str = "", parameter_so
     for a function-level pair, where the function boundary *is* the trust boundary, and wrong for a whole
     repository, where most parameters carry internal values — so it is off by default and the caller opts in.
     """
-    rows = cpg.run(
-        "taint",
-        {
-            "sources": spec.sources,
-            "sinks": spec.sinks,
-            "sanitizers": spec.sanitizers,
-            "function": function,
-            "parameterSources": "true" if parameter_sources else "false",
-        },
-    )
+    rows = cpg.run("taint", request_params(spec, function=function, parameter_sources=parameter_sources))
     flows = _flows(rows, function=function)
     # A sink whose *shape* is safe is the fix, not the bug. `execute(sql, params)` binds rather than
     # interpolates and `printf("literal", x)` has a constant format string, so the flow that reaches them is
@@ -146,4 +152,4 @@ def _witness(flow: Mapping[str, object]) -> str:
     return f"{flow['source']} -> {flow['sink']} (line {line}, {flow['length']} steps)"
 
 
-__all__ = ["verdict"]
+__all__ = ["request_params", "verdict"]

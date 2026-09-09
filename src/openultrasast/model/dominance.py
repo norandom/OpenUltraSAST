@@ -26,12 +26,14 @@ from .ladder import Rung, Verdict
 from .specs import DominanceSpec
 
 
+def request_params(spec: DominanceSpec, *, function: str = "") -> dict[str, object]:
+    """The query parameters this arbiter sends. Shared with the batcher; see the note in `taint.request_params`."""
+    return {"operations": spec.operations, "dischargers": spec.dischargers, "function": function}
+
+
 def verdict(cpg: CpgResult, spec: DominanceSpec, *, function: str = "") -> Verdict | None:
     """The verdict for the obligated operation in ``function``, or ``None`` when there is nothing to say."""
-    rows = cpg.run(
-        "dominance",
-        {"operations": spec.operations, "dischargers": spec.dischargers, "function": function},
-    )
+    rows = cpg.run("dominance", request_params(spec, function=function))
     operations = _operations(rows)
     if not operations:
         return None
@@ -85,4 +87,4 @@ def _operations(rows: object) -> list[dict[str, object]]:
     return kept
 
 
-__all__ = ["verdict"]
+__all__ = ["request_params", "verdict"]

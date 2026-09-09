@@ -19,9 +19,14 @@ from .ladder import Rung, Verdict
 from .specs import ConfigSpec
 
 
+def request_params(spec: ConfigSpec, *, function: str = "") -> dict[str, object]:
+    """The query parameters this arbiter sends. Shared with the batcher; see the note in `taint.request_params`."""
+    return {"settings": spec.settings, "function": function}
+
+
 def verdict(cpg: CpgResult, spec: ConfigSpec, *, function: str = "") -> Verdict | None:
     """The verdict for a security setting in ``function``, or ``None`` when nothing is established."""
-    rows = cpg.run("config", {"settings": spec.settings, "function": function})
+    rows = cpg.run("config", request_params(spec, function=function))
     settings = _settings(rows, spec, function=function)
     if not settings:
         return None
@@ -79,4 +84,4 @@ def _settings(rows: object, spec: ConfigSpec, *, function: str) -> list[dict[str
     return sorted(kept, key=lambda row: (str(row["method"]), str(row["line"]), str(row["setting"])))
 
 
-__all__ = ["verdict"]
+__all__ = ["request_params", "verdict"]

@@ -105,3 +105,60 @@ def test_the_query_scripts_are_shipped_beside_the_seam() -> None:
     """The CPGQL is ours and is data: it lives with the package, not inlined in a Python string."""
     queries = Path("src/openultrasast/cpg/queries")
     assert (queries / "taint.sc").is_file(), "the injection taint query must ship with the package"
+
+
+def test_a_batch_is_one_invocation_carrying_many_requests(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The cost that dominates a repository scan is JVM startup, not CPG construction.
+
+    Every `joern --script` call starts a JVM (~30s). The driver issued one per region per family, so a
+    ten-line Python file -- six families, one region -- took over four minutes, and 1000 regions would take
+    ~50 hours. Batching collapses that to one invocation per query kind.
+    """
+    from openultrasast.cpg.backend import BEGIN, END, JoernBackend
+
+    calls: list[list[str]] = []
+
+    class _Done:
+        returncode = 0
+        stderr = ""
+        stdout = f'{BEGIN}\n{{"r1": [{{"sink": "os.system(x)"}}], "r2": []}}\n{END}\n'
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        calls.append(list(command))
+        return _Done()
+
+    backend = JoernBackend(runner=runner)
+    rows = backend.query_batch(
+        Path("/tmp/c.bin"),
+        "taint",
+        {"r1": {"sources": ("request.args",), "sinks": ("os.system",)}, "r2": {"sources": ("request.args",), "sinks": ("eval",)}},
+    )
+    assert len(calls) == 1, "a batch must be ONE invocation, whatever it carries"
+    assert rows["r1"] and rows["r2"] == []
+
+
+def test_a_failed_batch_yields_no_rows_for_any_request(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fail closed, as everywhere else: an engine that could not answer must not read as 'nothing here'."""
+    from openultrasast.cpg.backend import JoernBackend
+
+    class _Bad:
+        returncode = 1
+        stdout = ""
+        stderr = "boom"
+
+    backend = JoernBackend(runner=lambda c, **k: _Bad())
+    assert backend.query_batch(Path("/tmp/c.bin"), "taint", {"r1": {}}) == {}
+
+
+def test_a_batch_result_that_omits_a_request_returns_nothing_for_it() -> None:
+    """A missing key is not an empty answer: the caller must be able to tell them apart."""
+    from openultrasast.cpg.backend import BEGIN, END, JoernBackend
+
+    class _Partial:
+        returncode = 0
+        stderr = ""
+        stdout = f'{BEGIN}\n{{"r1": []}}\n{END}\n'
+
+    backend = JoernBackend(runner=lambda c, **k: _Partial())
+    rows = backend.query_batch(Path("/tmp/c.bin"), "taint", {"r1": {}, "r2": {}})
+    assert rows.get("r1") == [] and "r2" not in rows

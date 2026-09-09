@@ -116,6 +116,43 @@ class JoernBackend:
             return None
         return CpgResult(cpg_path=cpg_path, run=lambda query, params: self.query(cpg_path, query, params))
 
+    def query_batch(self, cpg_path: Path, query: str, requests: Mapping[str, Mapping[str, object]]) -> dict[str, list[object]]:
+        """Run ONE script invocation carrying many requests, keyed back to their ids.
+
+        JVM startup, not CPG construction, is what dominates a repository scan: every ``joern --script`` call
+        starts a JVM of roughly thirty seconds, and issuing one per region per family put a ten-line Python
+        file at four minutes and a thousand regions at about fifty hours. The CPG is already built and loaded
+        by then; the work itself is milliseconds. So the batch carries the whole scan's questions in one
+        parameter and the script loops over them.
+
+        Fails closed like every other path here: an engine that could not answer returns ``{}``, never an
+        empty result per request, because "no rows" and "could not ask" must stay distinguishable.
+        """
+        script = self.queries_dir / f"{query}.sc"
+        if not script.is_file():
+            logger.warning("no such cpg query: %s", script)
+            return {}
+        payload = json.dumps({rid: {k: _render(v) for k, v in req.items()} for rid, req in requests.items()})
+        command = [
+            shutil.which("joern") or "joern",
+            "--script",
+            str(script),
+            "--param",
+            f"cpgFile={cpg_path}",
+            "--param",
+            f"requests={payload}",
+        ]
+        completed = self._run(command, timeout=self.query_timeout, cwd=cpg_path.parent)
+        if completed is None or completed.returncode != 0:
+            detail = (completed.stderr or "")[-400:] if completed is not None else "timeout"
+            logger.warning("cpg batch %s failed: %s", query, detail)
+            return {}
+        parsed = extract_payload(completed.stdout or "")
+        if not isinstance(parsed, Mapping):
+            return {}
+        # A request the engine did not answer is absent, not empty: the caller must be able to tell them apart.
+        return {str(rid): list(rows) for rid, rows in parsed.items() if isinstance(rows, list)}
+
     def query(self, cpg_path: Path, query: str, params: Mapping[str, object]) -> object | None:
         """Run a shipped CPGQL script against a built CPG and return its fenced JSON payload."""
         script = self.queries_dir / f"{query}.sc"

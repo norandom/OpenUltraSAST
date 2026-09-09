@@ -116,3 +116,37 @@ def test_an_unsupported_language_yields_no_region() -> None:
     from openultrasast.model.regions import regions_for
 
     assert regions_for([], [_target(path="x.rb", language="ruby")]) == ()
+
+
+def test_nameless_entry_points_do_not_duplicate_a_file_already_covered() -> None:
+    """The mapper can emit several entry points for one file, some with no function name.
+
+    On a ten-line Flask file it produced three: `ping`, and two nameless ones. Turning each into a region
+    scanned the same file three times and multiplied the Joern invocations by three for no new coverage.
+    A nameless entry point is the file; if a named region already covers that file, it adds nothing.
+    """
+    from openultrasast.model.regions import regions_for
+
+    entries = [
+        _entry(function="ping", access="public"),
+        _entry(function=None, access="local-only"),
+        _entry(function=None, access="public"),
+    ]
+    regions = regions_for(entries, [_target()])
+    assert len(regions) == 1
+    assert regions[0].function == "ping"
+
+
+def test_a_file_with_only_nameless_entry_points_still_gets_one_region() -> None:
+    from openultrasast.model.regions import regions_for
+
+    regions = regions_for([_entry(function=None), _entry(function=None)], [_target()])
+    assert len(regions) == 1 and regions[0].function is None
+
+
+def test_two_named_handlers_in_one_file_are_two_regions() -> None:
+    """Deduping must not collapse genuinely distinct handlers."""
+    from openultrasast.model.regions import regions_for
+
+    regions = regions_for([_entry(function="a"), _entry(function="b")], [_target()])
+    assert sorted(r.function for r in regions) == ["a", "b"]

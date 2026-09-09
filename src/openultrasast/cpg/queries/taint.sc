@@ -22,17 +22,28 @@
 // Output: a fenced JSON array of {sink, sinkLine, sinkMethod, source, sanitized, length}. The fence exists
 // because Joern prints a banner, pass logs and a prompt around whatever a script emits.
 
+// BATCHED. `requests` is a JSON object of {id: {sources, sinks, sanitizers, function, parameterSources}} and
+// the output is {id: [row, ...]}. One invocation answers a whole scan's questions, because the JVM start
+// (~30s) dwarfs the queries themselves once the CPG is loaded -- one call per region per family put a
+// ten-line file at four minutes and a thousand regions at roughly fifty hours.
+//
+// The single-request form is kept below it: the pair harnesses and every measurement committed so far use it,
+// and changing their call shape would silently invalidate comparisons against those artifacts.
+
 @main def exec(
     cpgFile: String,
-    sources: String,
-    sinks: String,
+    sources: String = "",
+    sinks: String = "",
     sanitizers: String = "",
     function: String = "",
-    parameterSources: String = "false"
+    parameterSources: String = "false",
+    requests: String = ""
 ) = {
   importCpg(cpgFile)
 
   def split(raw: String): List[String] = raw.split(",").map(_.trim).filter(_.nonEmpty).toList
+
+  def rowsFor(sourcesS: String, sinksS: String, sanitizersS: String, functionS: String, paramSrc: String): List[ujson.Obj] = {
 
   // Word-boundary matching, never substring. `resolveUrl` contains `resolve`, so a bare-substring sanitizer
   // test marked the VULNERABLE flow sanitized and the verdict fell back to a captured `res` that names no
@@ -45,9 +56,11 @@
         .find()
     )
 
-  val sourcePatterns = split(sources)
-  val sinkNames      = split(sinks)
-  val sanitizerNames = split(sanitizers)
+  val sourcePatterns = split(sourcesS)
+  val sinkNames      = split(sinksS)
+  val sanitizerNames = split(sanitizersS)
+  val function       = functionS
+  val parameterSources = paramSrc
 
   // A source is any call whose code contains one of the patterns. Matching on `code` rather than a method
   // name keeps `request.args["x"]` (an indexAccess over a fieldAccess) and `req.body.name` both reachable
@@ -126,7 +139,20 @@
     }
   }
 
+    rows
+  }
+
   println("---OUSAST-CPG-BEGIN---")
-  println(ujson.write(ujson.Arr(rows: _*)))
+  if (requests.nonEmpty) {
+    val parsed = ujson.read(requests).obj
+    val answers = parsed.map { case (id, req) =>
+      def field(name: String): String = req.obj.get(name).map(_.str).getOrElse("")
+      val paramSrc = req.obj.get("parameterSources").map(_.str).getOrElse("false")
+      id -> ujson.Arr(rowsFor(field("sources"), field("sinks"), field("sanitizers"), field("function"), paramSrc): _*)
+    }
+    println(ujson.write(ujson.Obj.from(answers)))
+  } else {
+    println(ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, function, parameterSources): _*)))
+  }
   println("---OUSAST-CPG-END---")
 }

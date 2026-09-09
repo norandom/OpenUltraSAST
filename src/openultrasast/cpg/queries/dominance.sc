@@ -22,13 +22,26 @@
 //
 // Output: a fenced JSON array of {operation, opLine, opMethod, dominatingGuards}.
 
-@main def exec(cpgFile: String, operations: String, dischargers: String, function: String = "") = {
+// BATCHED, like taint.sc: `requests` is {id: {operations, dischargers, function}} and the output is
+// {id: [row, ...]}. One JVM start answers a whole scan. The single-request form is kept so the committed
+// measurements remain reproducible against the same call shape.
+
+@main def exec(
+    cpgFile: String,
+    operations: String = "",
+    dischargers: String = "",
+    function: String = "",
+    requests: String = ""
+) = {
   importCpg(cpgFile)
 
   def split(raw: String): List[String] = raw.split(",").map(_.trim).filter(_.nonEmpty).toList
 
-  val opNames     = split(operations)
-  val guardTokens = split(dischargers)
+  def rowsFor(operationsS: String, dischargersS: String, functionS: String): List[ujson.Obj] = {
+
+  val opNames     = split(operationsS)
+  val guardTokens = split(dischargersS)
+  val function    = functionS
 
   // Word-boundary matching, never substring. A discharger token like `user` matched as a substring hits
   // `users` inside "SELECT * FROM users WHERE id = ?", marking a textbook IDOR as guarded -- a silent false
@@ -69,7 +82,19 @@
     )
   }
 
+    rows
+  }
+
   println("---OUSAST-CPG-BEGIN---")
-  println(ujson.write(ujson.Arr(rows: _*)))
+  if (requests.nonEmpty) {
+    val parsed = ujson.read(requests).obj
+    val answers = parsed.map { case (id, req) =>
+      def field(name: String): String = req.obj.get(name).map(_.str).getOrElse("")
+      id -> ujson.Arr(rowsFor(field("operations"), field("dischargers"), field("function")): _*)
+    }
+    println(ujson.write(ujson.Obj.from(answers)))
+  } else {
+    println(ujson.write(ujson.Arr(rowsFor(operations, dischargers, function): _*)))
+  }
   println("---OUSAST-CPG-END---")
 }

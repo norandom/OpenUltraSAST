@@ -24,12 +24,20 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from ..cpg.backend import CpgResult
 from .candidates import enumerate_candidates
+from .config_value import request_params as config_params
+from .dominance import request_params as dominance_params
 from .ladder import Rung
 from .pipeline import ModelFinding, scan_region
 from .regions import ScanRegion
 from .specs import ConfigSpec, DominanceSpec, TaintSpec, config_specs, dominance_specs, taint_specs
+from .taint import request_params as taint_params
 from .taxonomy import load_families
+
+# The three arbiters a region can be routed to. Naming the union keeps the batcher honest: `object`
+# would let a fourth spec kind reach `_grouped` and silently fall through to the taint branch.
+ArbiterSpec = TaintSpec | DominanceSpec | ConfigSpec
 
 logger = logging.getLogger(__name__)
 
@@ -90,36 +98,60 @@ def scan_repository(
     # spent in belongs to whoever holds the budget.
     ordered_regions = sorted(regions, key=lambda r: (-r.rank, r.path, r.function or ""))
 
-    for region in ordered_regions:
-        if scanned >= limits.max_regions or (counted is not None and counted.calls >= limits.max_model_calls):
-            degradations.append({"stage": "model", "reason": "budget_exhausted", "regions_unjudged": len(regions) - scanned})
-            break
+    # Phase 1: collect the whole scan's questions, for at most `max_regions` regions. Nothing is asked yet.
+    work: list[tuple[str, ScanRegion, ArbiterSpec]] = []
+    for region in ordered_regions[: limits.max_regions]:
         for family in region.families:
             spec = _spec_for(family, region.language)
             if spec is None:
                 continue
-            try:
-                # Enumerate the region's candidate sites so the judge has something to answer about where the
-                # model resolves nothing. Without this a repository scan reports only what taint, dominance
-                # and constant abstraction establish unaided -- and the suspicion band, which supplied 15 of
-                # 26 findings in the pair measurement, would never be populated at all.
-                enumerated = enumerate_candidates(root, region, family, taxonomy=taxonomy)
-                candidates = [{"id": c.id, "text": c.text, "line": c.line} for c in enumerated.candidates]
-                found = scan_region(
-                    cpg,
-                    spec,
-                    function=region.function or "",
-                    client=counted,
-                    model=model,
-                    candidates=candidates,
-                    parameter_sources=False,  # a repository's parameters are not all attacker input
-                )
-            except Exception as exc:  # noqa: BLE001 -- one bad region must not end the scan
-                logger.warning("model scan failed for %s: %s", region.path, exc)
-                degradations.append({"stage": "model", "reason": "region_failed", "path": region.path})
-                continue
-            collected.extend((finding, region.rank) for finding in found)
-        scanned += 1
+            work.append((f"{len(work)}", region, spec))
+
+    # Phase 2: ONE invocation per query kind. JVM startup dominates a repository scan -- a call per region
+    # per family put a ten-line file at four minutes and a thousand regions at roughly fifty hours -- while
+    # the queries themselves are milliseconds once the CPG is loaded.
+    rows_by_id: dict[str, list[object]] = {}
+    for kind, requests in _grouped(work).items():
+        batch = getattr(cpg, "run_batch", None)
+        if callable(batch):
+            rows_by_id.update(batch(kind, requests) or {})
+        else:  # a backend without batching still works, one call at a time
+            for rid, params in requests.items():
+                answered = cpg.run(kind, params)
+                rows_by_id[rid] = list(answered) if isinstance(answered, list) else []
+
+    # Phase 3: arbitrate from the rows already in hand. The arbiters are unchanged: each is handed a
+    # CpgResult that simply returns its own prefetched rows.
+    #
+    # `judged` counts regions actually ARBITRATED, not regions collected: a region the budget stopped before
+    # is unjudged, and reporting it as scanned is the silent truncation this exists to prevent.
+    judged: set[tuple[str, str | None]] = set()
+    for rid, region, spec in work:
+        if counted is not None and counted.calls >= limits.max_model_calls:
+            degradations.append({"stage": "model", "reason": "budget_exhausted", "regions_unjudged": max(len(regions) - len(judged), 0)})
+            break
+        family = getattr(spec, "family", "")
+        prefetched = CpgResult(cpg_path=cpg.cpg_path, run=_prefetched(rows_by_id.get(rid, [])))
+        try:
+            enumerated = enumerate_candidates(root, region, family, taxonomy=taxonomy)
+            candidates = [{"id": c.id, "text": c.text, "line": c.line} for c in enumerated.candidates]
+            found = scan_region(
+                prefetched,
+                spec,
+                function=region.function or "",
+                client=counted,
+                model=model,
+                candidates=candidates,
+                parameter_sources=False,  # a repository's parameters are not all attacker input
+            )
+        except Exception as exc:  # noqa: BLE001 -- one bad region must not end the scan
+            logger.warning("model scan failed for %s: %s", region.path, exc)
+            degradations.append({"stage": "model", "reason": "region_failed", "path": region.path})
+            continue
+        judged.add((region.path, region.function))
+        collected.extend((finding, region.rank) for finding in found)
+
+    scanned = len(judged)
 
     findings = _ordered(collected)
     return ModelScanResult(
@@ -134,7 +166,36 @@ def scan_repository(
     )
 
 
-def _spec_for(family: str, language: str) -> TaintSpec | DominanceSpec | ConfigSpec | None:
+def _prefetched(rows: list[object]):  # type: ignore[no-untyped-def]
+    """A `run` that ignores the question and returns rows already fetched in the batch."""
+
+    def run(query: str, params: Mapping[str, object]) -> object:
+        del query, params
+        return rows
+
+    return run
+
+
+def _grouped(work: Sequence[tuple[str, ScanRegion, ArbiterSpec]]) -> dict[str, dict[str, Mapping[str, object]]]:
+    """The work, keyed by query kind, with each request built by the arbiter's OWN parameter function.
+
+    Building the parameters here instead would be a second copy that drifts from the arbiter's -- the exact
+    shape of the five bugs the predecessor spent a session finding.
+    """
+    grouped: dict[str, dict[str, Mapping[str, object]]] = {}
+    for rid, region, spec in work:
+        function = region.function or ""
+        if isinstance(spec, DominanceSpec):
+            kind, params = "dominance", dominance_params(spec, function=function)
+        elif isinstance(spec, ConfigSpec):
+            kind, params = "config", config_params(spec, function=function)
+        else:
+            kind, params = "taint", taint_params(spec, function=function, parameter_sources=False)
+        grouped.setdefault(kind, {})[rid] = params
+    return grouped
+
+
+def _spec_for(family: str, language: str) -> ArbiterSpec | None:
     """The spec whose arbiter can decide this family. Routing stays a lookup; dispatch stays in `_arbitrate`."""
     if family == "access_control":
         return dominance_specs(language=language).get(family)

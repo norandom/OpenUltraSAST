@@ -7,11 +7,16 @@
 // Parameters: cpgFile, settings, function (optional).
 // Output: fenced JSON array of {setting, line, method, args, literalArgs}.
 
-@main def exec(cpgFile: String, settings: String, function: String = "") = {
+// BATCHED, like taint.sc. Single-request form kept for the committed measurements.
+
+@main def exec(cpgFile: String, settings: String = "", function: String = "", requests: String = "") = {
   importCpg(cpgFile)
 
   def split(raw: String): List[String] = raw.split(",").map(_.trim).filter(_.nonEmpty).toList
-  val names = split(settings)
+
+  def rowsFor(settingsS: String, functionS: String): List[ujson.Obj] = {
+  val names = split(settingsS)
+  val function = functionS
 
   def matches(name: String): Boolean = names.exists(n => name == n || name == n.split("\\.").last)
 
@@ -38,7 +43,19 @@
     )
   }
 
+    rows
+  }
+
   println("---OUSAST-CPG-BEGIN---")
-  println(ujson.write(ujson.Arr(rows: _*)))
+  if (requests.nonEmpty) {
+    val parsed = ujson.read(requests).obj
+    val answers = parsed.map { case (id, req) =>
+      def field(name: String): String = req.obj.get(name).map(_.str).getOrElse("")
+      id -> ujson.Arr(rowsFor(field("settings"), field("function")): _*)
+    }
+    println(ujson.write(ujson.Obj.from(answers)))
+  } else {
+    println(ujson.write(ujson.Arr(rowsFor(settings, function): _*)))
+  }
   println("---OUSAST-CPG-END---")
 }

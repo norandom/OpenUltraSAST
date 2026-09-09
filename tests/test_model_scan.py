@@ -145,3 +145,44 @@ def test_a_region_is_only_asked_about_families_it_carries() -> None:
 
     scan_repository(Path("/repo"), (_region(families=("injection",)),), backend=_B(), client=None, model="")
     assert "dominance" not in asked and "config" not in asked
+
+
+def test_the_driver_issues_one_query_invocation_per_kind_not_one_per_region(tmp_path) -> None:
+    """Task 1.4: JVM startup, not CPG construction, is what dominates a repository scan.
+
+    Before batching the driver issued one `joern --script` call per region per family. A ten-line Python file
+    admits six families, so it cost six JVM launches and over four minutes; a thousand regions would have
+    taken about fifty hours. The whole scan's questions now go in one invocation per query kind.
+    """
+    from openultrasast.model.scan import scan_repository
+
+    invocations: list[str] = []
+
+    class _CountingBackend:
+        def available(self):  # type: ignore[no-untyped-def]
+            return True
+
+        def build(self, root):  # type: ignore[no-untyped-def]
+            from openultrasast.cpg.backend import CpgResult
+
+            def run(query, params):  # type: ignore[no-untyped-def]
+                invocations.append(f"single:{query}")
+                return []
+
+            def run_batch(query, requests):  # type: ignore[no-untyped-def]
+                invocations.append(f"batch:{query}")
+                return {rid: [] for rid in requests}
+
+            result = CpgResult(cpg_path=Path("c.bin"), run=run)
+            object.__setattr__(result, "run_batch", run_batch)
+            return result
+
+    source = "import os\n\n\ndef run(cmd):\n    os.system(cmd)\n"
+    for i in range(30):
+        (tmp_path / f"f{i}.py").write_text(source)
+    regions = tuple(_region(path=f"f{i}.py", families=("injection", "path")) for i in range(30))
+
+    scan_repository(tmp_path, regions, backend=_CountingBackend(), client=None, model="")
+    assert not any(i.startswith("single:") for i in invocations), f"unbatched calls remain: {invocations[:4]}"
+    # 30 regions x 2 families would have been 60 invocations; batching makes it one per query kind.
+    assert len(invocations) <= 3, f"expected one invocation per query kind, got {len(invocations)}"

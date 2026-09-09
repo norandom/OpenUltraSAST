@@ -58,7 +58,7 @@
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 8.4_
   - _Depends: 1.2_
 
-- [ ] 1.4 Batch the queries — one Joern invocation per scan, not one per region and family
+- [x] 1.4 Batch the queries — one Joern invocation per scan, not one per region and family
   - **Why this is in group 1 rather than group 2.** Wiring 1.3 exposed that the cost model in the design was
     half right. One CPG per scan was the right call, but every *query* is its own `joern --script` JVM launch
     of roughly 30 seconds, and the driver issues one per region per family. A single ten-line Python file
@@ -88,14 +88,35 @@
   - _Depends: 1.3_
 
 - [ ] 2.2 The first repository measurement
-  - Run the full scan against that checkout and commit the artifact: CPG build time, scan wall-clock, peak
-    memory, findings by rung, cost, `regions_unjudged`, and **whether the known CVE was found and at which
-    rung**. If the repository cannot be processed in its envelope, record the stage it failed at.
+  - Run the full scan against that checkout and commit the artifact: CPG build time, query time and total
+    scan wall-clock as three separate numbers, peak memory, findings by rung, cost, `regions_unjudged`,
+    and **whether the known CVE was found and at which rung**. The build/query split is separated because
+    2.3 is decided on that ratio and cannot be decided on a single wall-clock figure. If the repository cannot be processed in its envelope, record the stage it failed at.
   - This is the go/no-go for the shape of the rest: if one CPG per repository is infeasible, the region and
     budget design changes and phases 3–6 should not be built on it first.
   - Observable: the artifact exists with every field; the reading states go or no-go and why.
   - _Requirements: 4.2, 4.3, 4.4, 4.5_
   - _Depends: 2.1_
+
+- [ ] 2.3 Decide on Joern server mode, on 2.2's numbers
+  - Joern offers `--server` with `--server-host`, `--server-port` and basic auth: one warm JVM with the CPG
+    loaded once, and queries in milliseconds after that. It would remove the three-to-four JVM starts
+    (~100s) that remain per scan now that 1.4 has batched the queries.
+  - **Deliberately sequenced after the measurement, because deciding it now would be optimising before
+    measuring.** Batching already moved query cost from O(regions) to O(1) per scan; whether the remaining
+    floor matters is a ratio 2.2 produces and nothing before it does. If a real CPG build takes ten minutes,
+    a 100s query floor is noise and server mode buys nothing. If the build is thirty seconds, the floor is
+    3x the build and server mode is the obvious next move.
+  - Costs to weigh against that ratio: process lifecycle (start, health, shutdown, orphan reaping -- stray
+    JVMs had to be killed by hand twice while building the batching); the seam weakening from "the subprocess
+    is the only Joern touch-point" to "subprocess or HTTP client", which is the promise that has kept the
+    backend replaceable; and that a CPGQL endpoint evaluates Scala, so it is arbitrary code execution on the
+    analysis host -- acceptable inside the shipped container, which runs `network_mode: none`, and much less
+    so as a port listening on a contributor's laptop.
+  - Observable: a recorded decision that cites 2.2's build-time-to-query-time split. A preference does not
+    close this task; a ratio does.
+  - _Requirements: 4.2_
+  - _Depends: 2.2_
 
 ## Group 3 — Ship it
 

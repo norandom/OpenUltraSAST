@@ -64,8 +64,11 @@ def regions_for(entries: Sequence[object], targets: Sequence[object]) -> tuple[S
         if language:
             by_path[str(getattr(target, "path", ""))] = language
 
-    regions: list[ScanRegion] = []
-    covered: set[str] = set()
+    # One region per (path, function). The mapper can emit several entry points for a single file -- on a
+    # ten-line Flask file it produced three, one named and two nameless -- and turning each into a region
+    # scanned the same code repeatedly, multiplying Joern invocations for no new coverage. Where several
+    # entries agree on a region, the highest access rank wins, because that is the one worth looking at first.
+    best: dict[tuple[str, str | None], ScanRegion] = {}
     for entry in entries:
         path = str(getattr(entry, "path", ""))
         language = by_path.get(path)
@@ -74,17 +77,18 @@ def regions_for(entries: Sequence[object], targets: Sequence[object]) -> tuple[S
         families = _families(language, has_handler=True)
         if not families:
             continue
-        covered.add(path)
-        regions.append(
-            ScanRegion(
-                path=path,
-                function=(getattr(entry, "function_name", None) or None),
-                language=language,
-                families=families,
-                rank=_ACCESS_RANK.get(str(getattr(entry, "access_level", "")), 0.5),
-                source="entry_point",
-            )
-        )
+        function = getattr(entry, "function_name", None) or None
+        rank = _ACCESS_RANK.get(str(getattr(entry, "access_level", "")), 0.5)
+        key = (path, function)
+        current = best.get(key)
+        if current is None or rank > current.rank:
+            best[key] = ScanRegion(path=path, function=function, language=language, families=families, rank=rank, source="entry_point")
+
+    # A nameless entry point IS the file. Where a named region already covers that file it adds nothing but
+    # a second full-file pass, so it is dropped -- unless the file has no named region at all.
+    named_paths = {path for path, function in best if function is not None}
+    regions = [region for (path, function), region in best.items() if function is not None or path not in named_paths]
+    covered = {region.path for region in regions}
 
     for path, language in by_path.items():
         if path in covered:
