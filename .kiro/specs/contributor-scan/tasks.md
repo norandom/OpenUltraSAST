@@ -541,6 +541,14 @@
   - Until this is answered, PHP detection is demonstrated only on files small enough to build cleanly, and
     no claim about WordPress can be made either way.
   - Observable: the largest PHP tree that loads and queries, measured, with the failure boundary recorded.
+  - **Partly answered 2026-09-09, and it produced the first real CVE.** A two-file slice carrying both ends
+    of the CVE -- `classes/class.memberorder.php` and `includes/rest-api.php`, 2885 lines -- loads, queries
+    in 122 seconds, and reports **CVE-2023-23488 at class.memberorder.php:936:getMemberOrderByCode**, the
+    exact verified line. 16 entailed injection findings, and the file holds 26 `$wpdb` query calls of which
+    **zero** use `->prepare`, so the engine under-reports rather than over-reports. See
+    `benchmarks/measurements/2026-09-09-pmpro-cve-found.json`.
+  - Still open: the 637-file boundary itself, and whether the REST handler two calls away can reach it --
+    this slice found the sink through a same-function flow, not across the object.
   - _Requirements: 4.2, 4.3, 9.1_
   - _Depends: 5.7_
 
