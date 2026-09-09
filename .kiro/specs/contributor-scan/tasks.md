@@ -590,7 +590,7 @@
   - _Requirements: 4.2, 4.3, 9.1_
   - _Depends: 5.7_
 
-- [ ] 5.11 Two-stage taint with a link table — the detection strategy for both structural misses
+- [~] 5.11 Two-stage taint with a link table — the detection strategy for both structural misses
   - "Structurally impossible" is a verdict, not a plan, and both PHP structural misses turn out to be the
     SAME shape: two halves of a path, joined by a key that is a literal in the source text.
 
@@ -634,6 +634,28 @@
       count down from 11 to 0 with its CVE still found.
   - Order: the field half first. It is the smaller link table, it has a pinned pair of its own, and it is
     what unlocks the receiver change; the hook half then reuses the same two-stage machinery.
+  - **Field half done 2026-09-09.** `taint.sc` gains `fieldSourceNodes`: a read of `$this->F` is a source
+    when some assignment to the same literal `$this->F` in the same file is fed by an UNSANITIZED flow from
+    a seed. The receiver then left `parameterNodes`, which is only sound because of it.
+
+    |  | before | after |
+    |---|---|---|
+    | `mwwpform` vulnerable | 1, sourced from `this` | 1, sourced from `$this->attachments` |
+    | `mwwpform` fixed | 0 | 0 |
+    | `pmpro` vulnerable | 15 — 4 named, 11 receiver | 18 — all named or field, CVE still at :936 |
+    | `pmpro` fixed | 1, receiver-sourced | 1 |
+    | VAmPI | 4 entailed | 4 entailed, unchanged |
+
+    Three things learned, each of which cost a measurement:
+    - **A summary must carry the sanitization status of its half, not just reachability.** Without that,
+      `$this->sqlQuery = "..." . esc_sql($x)` reads as tainted and PMPro's fixed side went 1 -> 13. That is
+      the pair not separating, which is the only number that matters.
+    - **Two-phase `reachableBy` then `reachableByFlows` is SLOWER**, not faster: 183s -> 256s. Running the
+      analysis twice costs more than skipping path reconstruction saves.
+    - Memoizing per **field** rather than per file took it to 97s, because only fields some region actually
+      reads are worth the flow query. Roughly 1.6x the pre-field cost for that class.
+  - Still open: the hook half, and the one finding that survives on PMPro's fixed side
+    (`saveOrder:1469 <- $this->timestamp`).
   - _Requirements: 4.4, 6.1, 8.1, 9.1_
   - _Depends: 5.8_
 

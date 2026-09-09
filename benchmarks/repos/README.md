@@ -81,17 +81,19 @@ side because the fix is a call the fact tables already carry: `$wpdb->prepare` f
 other. That is the distinction worth teaching. The engine is not recognising a bug; it is failing to find a
 cleansing call on a path it resolved, and then finding one.
 
-The precision is not clean, and saying so is the point. On PMPro's order class the vulnerable side reports
-**15 entailed findings**, of which **4** are sourced from a named parameter and **11** from the receiver,
-`$this`. One receiver-sourced finding survives into 2.9.8 at a query whose every fragment is wrapped in
-`esc_sql` — a false positive, and a legible one: the flow reaches the sink through `$this->sqlQuery`, so the
-sanitizer is on the fragments and not on the path.
+Every finding now names the value it followed. On PMPro's order class the vulnerable side reports **18
+entailed findings** and the fixed side **1**, and each one is sourced either from a named parameter (`$id`,
+`$code`, `$token`) or from a named field (`$this->sqlQuery`, `$this->Email`). None is sourced from `$this`.
 
-Excluding the receiver was tried and reverted. It cuts that file to 6 findings, all named-parameter sourced,
-and makes the PMPro pair separate cleanly — and it **loses CVE-2023-6559**, because `_delete_files()` takes
-no parameters at all and its attacker-controlled path arrives as `$this->attachments`, assigned by another
-method. Trading a verified CVE for findings merely suspected of being false is the wrong trade. The real
-defect is field-sensitivity: a field should be tainted where it is assigned.
+That took two changes, and the order between them is the whole point. Excluding the receiver from parameter
+sources was tried **first** and reverted: it cuts the file to 6 findings and makes the pair separate cleanly,
+and it **loses CVE-2023-6559**, because `_delete_files()` takes no parameters at all and its
+attacker-controlled path arrives as `$this->attachments`, assigned by another method entirely. Trading a
+verified CVE for findings merely suspected of being false is the wrong trade.
+
+With the field half of the join in place (below), that path is carried by the field it actually travels
+through, and the receiver no longer has to stand in for it — so it can go, and the eleven receiver-sourced
+findings go with it. The precision fix became available once the mechanism underneath it was right.
 
 ### The one it misses, and why
 
@@ -123,6 +125,17 @@ So the strategy is two-stage taint with a link table: ask the existing query for
 synthetic endpoint, build the table by reading literals rather than inferring anything, and join. The rung
 carries the join's uncertainty — one registered callback and a literal key entails, several callbacks or a
 computed hook name corroborates. Task 5.11 states it, with both pinned pairs as its observable.
+
+**The field half is implemented and measured.** `$this->attachments` is tainted at the assignment that fills
+it, joined to the read by the literal field code, so CVE-2023-6559 is found as
+`class.mail.php:259:_delete_files ← $this->attachments` and is absent on the fixed side. One thing it needed
+that is easy to get wrong: the summary has to carry the **sanitization** status of the half it summarises,
+not merely its reachability. Asking only "does a source reach this assignment" marks
+`$this->sqlQuery = "..." . esc_sql($x) . "..."` tainted, and PMPro builds most of its queries that way — the
+fixed side went from 1 finding to 13 before that clause existed, which is the pair no longer separating at
+all. It costs about 1.6× on the taint query for that class (62s → 97s), memoised per field.
+
+The hook half is the same machinery against a different key, and is not written yet.
 
 What the engine reports on that plugin instead is two other sites — `getTop:406` and `TotalCount:443` — the
 same weakness class at the wrong lines, identical on both sides, so the pair does not separate. They are not

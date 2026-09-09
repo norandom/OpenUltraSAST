@@ -165,27 +165,107 @@
   // attacker input, and counting them produced flows like `res -> readFileSync` that name no real source.
   // Off by default: outside a labeled function, treating every parameter as untrusted is not sound.
   //
-  // The RECEIVER is INCLUDED, and it was measured rather than assumed. `$this` is a parameter in the CPG --
-  // index 0 of every PHP method -- and excluding it is tempting: on Paid Memberships Pro's order class, 12 of
-  // 16 entailed findings are `this -> $wpdb->...`, and one of them survives into 2.9.8 at a query whose every
-  // fragment is `esc_sql`-wrapped, reaching the sink through `$this->sqlQuery`. Excluding it cuts that file
-  // from 16 findings to 6, all sourced from a named parameter, and makes the 2.9.7/2.9.8 pair separate
-  // cleanly.
+  // The RECEIVER is excluded, and only because the field half below makes that safe. `$this` is a parameter
+  // in the CPG -- index 0 of every PHP method -- and counting it means every method that reads any field
+  // reaches every sink: 11 of 15 entailed findings on one PMPro class were `this -> $wpdb->...`, one of them
+  // surviving into 2.9.8 at a query whose every fragment is `esc_sql`-wrapped.
   //
-  // It also loses CVE-2023-6559. MW WP Form's `_delete_files()` takes NO parameters: the attacker-controlled
-  // path arrives as `$this->attachments`, assigned by another method entirely. With the receiver excluded
-  // that finding goes to zero on the vulnerable side.
+  // Excluding it was TRIED FIRST and reverted, because on its own it loses CVE-2023-6559: MW WP Form's
+  // `_delete_files()` takes no parameters at all and its attacker-controlled path arrives as
+  // `$this->attachments`. Trading a verified CVE for findings merely suspected of being false is the wrong
+  // trade, and deleting the receiver removes the symptom by removing the evidence.
   //
-  // So the trade is a verified CVE against findings merely SUSPECTED of being false, and it is refused. The
-  // real defect is field-sensitivity -- `$this->attachments` should be tainted where it is assigned, not by
-  // the receiver being tainted everywhere -- and deleting the receiver removes the symptom by removing the
-  // evidence.
+  // With `fieldSourceNodes` below, that path is carried by the field it actually travels through, so the
+  // receiver no longer has to stand in for it. The order matters: this line is only correct because of the
+  // one after it.
   def parameterNodes =
     if (parameterSources != "true") Iterator.empty
-    else if (function.isEmpty) cpg.method.parameter.iterator
-    else cpg.method.nameExact(function).parameter.iterator
+    else if (function.isEmpty) cpg.method.parameter.filterNot(_.name == "this").iterator
+    else cpg.method.nameExact(function).parameter.filterNot(_.name == "this").iterator
 
-  def sourceNodes = frameworkSources.l.iterator ++ parameterNodes
+  // ---- the field half of the two-stage join (task 5.11) ---------------------------------------------
+  //
+  // `_delete_files()` takes no parameters at all. Its attacker-controlled path arrives as a FIELD, written
+  // by one method and read back by another:
+  //
+  //     public function __construct( ..., array $attachments = array() )   // a parameter
+  //         $this->attachments = $attachments;                             // half one ends here
+  //     protected function _delete_files()
+  //         foreach ( $this->attachments as $file )                        // half two starts here
+  //             unlink( $file );                                           // CVE-2023-6559
+  //
+  // Both halves are already in the graph: parameter to assignment inside one method, field read to sink
+  // inside another. Only the JOIN between them is missing, and the key it joins on is the literal
+  // `$this->attachments`, written identically at both ends. So this is a second question asked with the
+  // query that already exists, not an edge a frontend has to invent.
+  //
+  // The alternative is making `$this` itself a source. That finds this CVE and eleven false positives with
+  // it on one PMPro class, because every method that reads any field then reaches every sink. A field name
+  // is the precision, and it costs one string comparison.
+  //
+  // Scoped three ways, so a field name common to every class ever written cannot become a wormhole:
+  //   * only fields the sink scope actually READS are considered;
+  //   * only assignments in the SAME FILE count;
+  //   * the assignment's right-hand side must itself be reachable from a source -- which is the whole claim.
+  val FIELD_ACCESS = "<operator>.fieldAccess"
+  val ASSIGNMENT   = "<operator>.assignment"
+
+  // Memoized per FIELD, not per file, because the expensive part is one flow query per candidate assignment
+  // and only the fields some region actually reads are worth asking about. A batch asks about one file many
+  // times over -- 205 requests across 41 regions of one class -- so without a memo this runs hundreds of
+  // times over the same assignments.
+  val methodsByFile  = scala.collection.mutable.Map.empty[String, List[io.shiftleft.codepropertygraph.generated.nodes.Method]]
+  val seedsByFile    = scala.collection.mutable.Map.empty[String, List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode]]
+  val fieldTaintMemo = scala.collection.mutable.Map.empty[(String, String), Boolean]
+
+  def methodsIn(fileName: String) =
+    methodsByFile.getOrElseUpdate(fileName, cpg.method.filter(m => fileName.isEmpty || m.filename.endsWith(fileName)).l)
+
+  // Framework sources are untrusted wherever they appear. Parameters are untrusted only where the caller has
+  // said this region is an entry point -- the same contract `parameterNodes` carries, and for the same
+  // reason: an arbitrary helper's parameters carry whatever its caller happened to have.
+  def seedsIn(fileName: String) =
+    seedsByFile.getOrElseUpdate(
+      fileName, {
+        val methods = methodsIn(fileName)
+        val framework: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
+          methods.flatMap(_.ast.isCall.filter(c => sourcePatterns.exists(p => c.code.contains(p))).l)
+        val params: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
+          if (parameterSources == "true") methods.flatMap(_.parameter.l) else Nil
+        framework ++ params
+      }
+    )
+
+  def fieldIsTainted(fileName: String, fieldCode: String): Boolean =
+    fieldTaintMemo.getOrElseUpdate(
+      (fileName, fieldCode), {
+        val seeds = seedsIn(fileName)
+        if (seeds.isEmpty) false
+        else
+          methodsIn(fileName).flatMap(_.ast.isCall.nameExact(ASSIGNMENT).l).exists { assignment =>
+            val args = assignment.argument.l
+            args.size >= 2 && (args.head match {
+              case target: io.shiftleft.codepropertygraph.generated.nodes.Call
+                  if target.name == FIELD_ACCESS && target.code.trim == fieldCode =>
+                // The summary must carry the SANITIZATION status of the half it summarises, not merely its
+                // reachability. Asking only "does a source reach this assignment" marks
+                // `$this->sqlQuery = "..." . esc_sql($x) . "..."` tainted, and PMPro builds most of its
+                // queries that way: the fixed side of its pair went from 1 finding to 13 without this,
+                // which is the pair no longer separating at all.
+                val flows = args(1).start.reachableByFlows(seeds.iterator).l
+                flows.exists(f => !f.elements.map(_.code).l.exists(code => mentionsToken(code, sanitizerNames)))
+              case _ => false
+            })
+          }
+      }
+    )
+
+  def fieldSourceNodes = {
+    val reads = cpg.call.nameExact(FIELD_ACCESS).filter(c => inScope(c.method)).l
+    if (reads.isEmpty) Iterator.empty else reads.filter(r => fieldIsTainted(fileS, r.code.trim)).iterator
+  }
+
+  def sourceNodes = frameworkSources.l.iterator ++ parameterNodes ++ fieldSourceNodes
 
   // Whether there is anything to trace from at all. Asking `reachableByFlows` with an empty source list is
   // not merely wasted work: Joern answers it by logging "Attempting to determine flows from empty list of
@@ -207,20 +287,22 @@
   def sinkMatches(c: io.shiftleft.codepropertygraph.generated.nodes.Call, n: String): Boolean =
     c.name == n || c.code.startsWith(n + "(") || mentionsToken(c.code, List(n)) || mentionsToken(c.methodFullName, List(n))
 
-  def sinkCalls = {
-    val all = cpg.call.filter(c => sinkNames.exists(n => sinkMatches(c, n)))
+  // The region this request is about, as a predicate on the method. Named rather than inlined because the
+  // field sources have to be scoped to exactly the same place as the sinks, and a second copy of these
+  // three branches is precisely the drift this file has been bitten by before.
+  def inScope(m: io.shiftleft.codepropertygraph.generated.nodes.Method): Boolean =
     if (function.isEmpty) {
       // A region with no enclosing function: the file IS the scope.
-      if (fileS.isEmpty) all else all.filter(_.method.filename.endsWith(fileS))
+      fileS.isEmpty || m.filename.endsWith(fileS)
     } else if (depth > 0) {
       // Following the call graph means leaving the region's file on purpose, so the file filter would
       // contradict the point. The reachable set is the scope, and the row reports where the sink landed.
-      all.filter(c => nestedInLabeled(c.method) || reachableMethods.contains(c.method.fullName))
+      nestedInLabeled(m) || reachableMethods.contains(m.fullName)
     } else {
-      val inFile = if (fileS.isEmpty) all else all.filter(_.method.filename.endsWith(fileS))
-      inFile.filter(c => nestedInLabeled(c.method))
+      (fileS.isEmpty || m.filename.endsWith(fileS)) && nestedInLabeled(m)
     }
-  }
+
+  def sinkCalls = cpg.call.filter(c => sinkNames.exists(n => sinkMatches(c, n))).filter(c => inScope(c.method))
 
   val rows = sinkCalls.l.flatMap { sink =>
     // Data flows into the arguments; asking the call node itself finds nothing.
