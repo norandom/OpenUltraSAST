@@ -197,6 +197,18 @@
   - _Requirements: 5.1, 8.1_
   - _Depends: 2.4_
 
+- [ ] 2.11 The suspicion band has to be worth reading
+  - libpng's scan produced 198 rows: 26 entailed (all one false positive, since fixed), 113 `c-unsafe-*`
+    pattern matches that assert an API is PRESENT rather than misused, 50 overlay-coverage annotations that
+    are not findings at all, and 9 model suspicions. Zero validated defects.
+  - The rung is honest -- these say "needs review" and mean it -- but a contributor handed 163 rows about a
+    library that uses `memcpy` correctly throughout will not read the one that matters. 82 of the 113 are in
+    `contrib/`, so task 2.10 removes most of it; what remains needs a policy, not a filter invented here.
+  - Observable: a stated rule for what reaches a contributor's report at `suspicion`, and libpng's row count
+    under it, measured.
+  - _Requirements: 5.1, 5.2_
+  - _Depends: 2.10_
+
 - [ ] 2.10 Do not spend the scan on example code
   - 22 of libpng's 30 highest-ranked regions are under `contrib/` -- the sample programs shipped with the
     library rather than the library. The budget and the 243s taint query go there first.

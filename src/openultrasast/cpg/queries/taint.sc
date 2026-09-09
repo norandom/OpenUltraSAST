@@ -57,13 +57,16 @@
   // Word-boundary matching, never substring. `resolveUrl` contains `resolve`, so a bare-substring sanitizer
   // test marked the VULNERABLE flow sanitized and the verdict fell back to a captured `res` that names no
   // attacker input. Same bug class as the dominance query's guard matching; fixed in both.
+  // The boundary only applies where there IS a word character to bound: a token like `input(` ends in `(`,
+  // and an unconditional lookahead would make it unmatchable in `input(x)`.
+  def boundedPattern(token: String): java.util.regex.Pattern = {
+    val before = if (token.headOption.exists(c => c.isLetterOrDigit || c == '_')) "(?<![A-Za-z0-9_])" else ""
+    val after = if (token.lastOption.exists(c => c.isLetterOrDigit || c == '_')) "(?![A-Za-z0-9_])" else ""
+    java.util.regex.Pattern.compile(before + java.util.regex.Pattern.quote(token) + after)
+  }
+
   def mentionsToken(code: String, tokens: List[String]): Boolean =
-    tokens.exists(t =>
-      java.util.regex.Pattern
-        .compile("(?<![A-Za-z0-9_])" + java.util.regex.Pattern.quote(t) + "(?![A-Za-z0-9_])")
-        .matcher(code)
-        .find()
-    )
+    tokens.exists(t => boundedPattern(t).matcher(code).find())
 
   val sourcePatterns = split(sourcesS)
   val sinkNames      = split(sinksS)
@@ -145,10 +148,18 @@
 
   // A sink call: matched by short name (`system`), by leading code (`os.system(...)`), or by resolved
   // full name (`os.py:<module>.system`), so both bare and dotted forms in the spec hit.
+  //
+  // Every clause is word-BOUNDED, and the unbounded `contains` that used to end this list is why: `fgets`
+  // contains `gets`, so every bounded read in libpng matched the sink for the unbounded one, and all 26
+  // entailed findings on that repository were the same false positive -- `*argv -> fgets(buf, 256, f)`,
+  // which is the safe API being reported as the dangerous one. Third instance of this bug class here, after
+  // the sanitizer that matched `resolve` inside `resolveUrl` and the discharger that matched `user` inside
+  // `users`; the sink matcher had simply never been given the same treatment.
+  def sinkMatches(c: io.shiftleft.codepropertygraph.generated.nodes.Call, n: String): Boolean =
+    c.name == n || c.code.startsWith(n + "(") || mentionsToken(c.code, List(n)) || mentionsToken(c.methodFullName, List(n))
+
   def sinkCalls = {
-    val all = cpg.call.filter(c =>
-      sinkNames.exists(n => c.name == n || c.code.startsWith(n + "(") || c.code.startsWith(n) || c.methodFullName.contains(n))
-    )
+    val all = cpg.call.filter(c => sinkNames.exists(n => sinkMatches(c, n)))
     if (function.isEmpty) {
       // A region with no enclosing function: the file IS the scope.
       if (fileS.isEmpty) all else all.filter(_.method.filename.endsWith(fileS))

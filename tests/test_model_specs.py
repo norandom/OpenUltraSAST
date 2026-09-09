@@ -221,3 +221,23 @@ def test_a_guard_discharges_only_the_obligation_it_is_a_guard_of() -> None:
     assert "token_validator" not in identity, "authentication is not an object-level check"
     assert "token_validator" in set(spec.dischargers_by_kind["path_guard"])
     assert "['sub']" in identity or '["sub"]' in identity
+
+
+def test_a_sink_is_matched_as_a_word_not_a_substring() -> None:
+    """contributor-scan: `fgets` contains `gets`, and the safe API is not the dangerous one.
+
+    The sink matcher's last clause was an unbounded `methodFullName.contains(n)`, so every bounded read in
+    libpng matched the sink for the unbounded one: all 26 entailed findings on that repository were the same
+    false positive, `*argv -> fgets(buf, 256, f)`. Third instance of this bug class here, after the sanitizer
+    that matched `resolve` inside `resolveUrl` and the discharger that matched `user` inside `users`.
+
+    The query is Scala, so this asserts the fact tables still carry the pair that made it visible; the
+    boundary itself is exercised against a real CPG in the repository measurements.
+    """
+    from openultrasast.model.specs import taint_specs
+
+    memory = taint_specs(language="c")["memory"]
+
+    assert "gets" in memory.sinks, "the unbounded read is a sink"
+    assert "fgets" in memory.sources, "the bounded read is a SOURCE of untrusted input, never a sink"
+    assert "fgets" not in memory.sinks
