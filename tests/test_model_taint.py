@@ -463,3 +463,39 @@ def test_only_a_length_sink_can_be_discharged_by_a_bound() -> None:
     assert not taint_specs(language="python")["injection"].bounded_sinks
     assert not taint_specs(language="c")["injection"].bounded_sinks
     assert taint_specs(language="c")["memory"].bounded_sinks
+
+
+def test_a_region_reports_every_sink_site_not_just_the_strongest() -> None:
+    """contributor-scan 5.4. One verdict per region was right for a pair and wrong for a region spanning a
+    file: a PHP file with SQL injection on one line and command injection on another got ONE injection
+    verdict, and `system` won it on flow length, so the SQL injection went unreported by construction."""
+    from openultrasast.cpg.backend import CpgResult
+    from openultrasast.model.specs import taint_specs
+    from openultrasast.model.taint import verdict, verdicts
+
+    def row(sink, line, length):  # type: ignore[no-untyped-def]
+        return {
+            "sink": sink,
+            "sinkLine": str(line),
+            "sinkMethod": "handler",
+            "sinkFile": "app.php",
+            "source": '$_GET["x"]',
+            "sanitized": False,
+            "length": length,
+            "sinkArity": 2,
+            "sinkArg0Literal": False,
+            "inLabeledScope": True,
+            "bounded": False,
+            "bound": "",
+        }
+
+    rows = [row("mysqli_query($c, $sql)", 6, 5), row("system($cmd)", 13, 1)]
+    cpg = CpgResult(cpg_path=Path("c.bin"), run=lambda q, p: rows)
+    spec = taint_specs(language="php")["injection"]
+
+    every = verdicts(cpg, spec, function="", file="app.php")
+
+    assert len(every) == 2, "two sink sites are two findings"
+    assert {v.location for v in every} == {"app.php:6:handler", "app.php:13:handler"}
+    # The pair path is unchanged: the strongest is still what `verdict` returns.
+    assert every[0].location == verdict(cpg, spec, function="", file="app.php").location

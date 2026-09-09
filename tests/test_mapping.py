@@ -261,3 +261,44 @@ def test_entry_points_name_handlers_registered_by_call_or_convention(tmp_path: P
     assert routes[("api_views/books.py", "delete")].access_level == "public"
     body = routes[("api_views/books.py", "get_by_title")]
     assert body.line == 4 and body.end_line == 5  # the record spans the handler, not the registration line
+
+
+def test_wordpress_hooks_declare_their_access(tmp_path: Path) -> None:
+    """contributor-scan 5.4. WordPress registers handlers rather than decorating them, and the hook name is
+    the declaration: `wp_ajax_nopriv_*` is WordPress saying logged-out callers reach this."""
+    from openultrasast.mapping import analyze_entry_points
+    from openultrasast.preprocess import preprocess_repository
+
+    (tmp_path / "plugin.php").write_text(
+        "<?php\n"
+        "add_action('wp_ajax_nopriv_fetch', 'mp_fetch');\n"
+        "add_action('wp_ajax_save', 'mp_save');\n"
+        "add_shortcode('box', 'mp_box');\n"
+        "function mp_fetch() { echo $_GET['id']; }\n"
+        "function mp_save() { echo $_POST['t']; }\n"
+        "function mp_box($a) { echo $a; }\n"
+        "function mp_helper($x) { return intval($x); }\n"
+    )
+    _, targets = preprocess_repository(tmp_path)
+
+    by_name = {entry.function_name: entry for entry in analyze_entry_points(tmp_path, targets)}
+
+    assert by_name["mp_fetch"].access_level == "public", "nopriv is declared unauthenticated"
+    assert by_name["mp_save"].access_level == "authenticated", "wp_ajax_ fires only for logged-in callers"
+    assert by_name["mp_box"].access_level == "public", "a shortcode renders in page content"
+    assert by_name["mp_helper"].access_level == "review-required", "a plain function is not a declared endpoint"
+
+
+def test_every_php_function_becomes_a_region(tmp_path: Path) -> None:
+    """Without this a PHP file is ONE region however many functions it holds, and a region that spans a file
+    attributes every finding to the file rather than to the function that holds it."""
+    from openultrasast.mapping import analyze_entry_points
+    from openultrasast.model.regions import regions_for
+    from openultrasast.preprocess import preprocess_repository
+
+    (tmp_path / "lib.php").write_text("<?php\nfunction a() { echo 1; }\nfunction b() { echo 2; }\n")
+    _, targets = preprocess_repository(tmp_path)
+
+    regions = regions_for(analyze_entry_points(tmp_path, targets), targets)
+
+    assert {region.function for region in regions} >= {"a", "b"}

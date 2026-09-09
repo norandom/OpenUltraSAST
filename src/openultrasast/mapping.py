@@ -187,7 +187,97 @@ def _language_entry_points(target: FileTarget, text: str) -> list[EntryPointReco
         return _c_entry_points(target, text)
     if target.language == "solidity":
         return _solidity_entry_points(target, text)
+    if target.language == "php":
+        return _php_entry_points(target, text)
     return []
+
+
+# WordPress registers handlers rather than decorating them, and the hook name states the access level:
+# `wp_ajax_nopriv_*` is admin-ajax for logged-OUT users and is therefore declared public, while `wp_ajax_*`
+# fires only for logged-in ones. That is a DECLARED access level, not a guess from an absent decorator, which
+# is the distinction task 2.8 turns on.
+_PHP_REGISTRATION = re.compile(
+    r"""\b(?P<call>add_action|add_filter|add_shortcode)\s*\(\s*['"](?P<hook>[^'"]+)['"]\s*,\s*['"](?P<handler>[A-Za-z_][A-Za-z0-9_]*)['"]""",
+    re.VERBOSE,
+)
+_PHP_REST_ROUTE = re.compile(r"\bregister_rest_route\s*\(")
+_PHP_CALLBACK = re.compile(r"""['"]callback['"]\s*=>\s*['"](?P<handler>[A-Za-z_][A-Za-z0-9_]*)['"]""")
+_PHP_PERMISSION = re.compile(r"""['"]permission_callback['"]\s*=>\s*(?P<value>[^,\)]+)""")
+_PHP_FUNCTION = re.compile(r"^\s*function\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*\(")
+
+
+def _php_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
+    """WordPress's registration model, plus every top-level function as a region of its own.
+
+    The functions matter as much as the hooks. Without them a PHP file is ONE file-level region, and a region
+    that spans a file attributes every finding to the file rather than to the function that holds it.
+    """
+    records: list[EntryPointRecord] = []
+    lines = text.splitlines()
+    bounds = _php_function_bounds(lines)
+
+    for number, line in enumerate(lines, start=1):
+        for match in _PHP_REGISTRATION.finditer(line):
+            hook, handler = match.group("hook"), match.group("handler")
+            access, evidence = _wordpress_hook_access(match.group("call"), hook)
+            start, end = bounds.get(handler, (number, number))
+            records.append(_entry(target, start, end, handler, f"wp:{hook}", "route", access, "http_request", evidence, []))
+        if _PHP_REST_ROUTE.search(line):
+            window = "\n".join(lines[number - 1 : number + 12])
+            callback = _PHP_CALLBACK.search(window)
+            if callback is not None:
+                handler = callback.group("handler")
+                permission = _PHP_PERMISSION.search(window)
+                access, evidence = _rest_route_access(permission.group("value").strip() if permission else None)
+                start, end = bounds.get(handler, (number, number))
+                records.append(_entry(target, start, end, handler, "wp:rest_route", "route", access, "http_request", evidence, []))
+
+    registered = {record.function_name for record in records}
+    for name, (start, end) in sorted(bounds.items()):
+        if name not in registered:
+            records.append(
+                _entry(target, start, end, name, f"php:{name}", "function", "review-required", "call", ["php function declaration"], [])
+            )
+    return records
+
+
+def _wordpress_hook_access(call: str, hook: str) -> tuple[AccessLevel, list[str]]:
+    """The hook name is the declaration. `nopriv` is WordPress saying "logged-out callers reach this"."""
+    if hook.startswith("wp_ajax_nopriv_"):
+        return "public", [f"{call}('{hook}') is admin-ajax for logged-out callers"]
+    if hook.startswith("wp_ajax_"):
+        return "authenticated", [f"{call}('{hook}') fires only for logged-in callers"]
+    if call == "add_shortcode":
+        return "public", [f"add_shortcode('{hook}') renders in page content"]
+    return "review-required", [f"{call}('{hook}')"]
+
+
+def _rest_route_access(permission: str | None) -> tuple[AccessLevel, list[str]]:
+    """`permission_callback` is the REST contract. `__return_true` declares the route open."""
+    if permission is None:
+        return "review-required", ["register_rest_route with no permission_callback"]
+    if "__return_true" in permission:
+        return "public", ["permission_callback => __return_true declares the route public"]
+    return "authenticated", [f"permission_callback => {permission[:60]}"]
+
+
+def _php_function_bounds(lines: Sequence[str]) -> dict[str, tuple[int, int]]:
+    """Line ranges of top-level PHP functions, by brace depth. Good enough to scope a region."""
+    bounds: dict[str, tuple[int, int]] = {}
+    name: str | None = None
+    start = 0
+    depth = 0
+    for number, line in enumerate(lines, start=1):
+        if name is None:
+            match = _PHP_FUNCTION.match(line)
+            if match is not None:
+                name, start, depth = match.group("name"), number, 0
+        if name is not None:
+            depth += line.count("{") - line.count("}")
+            if depth <= 0 and "{" in "".join(lines[start - 1 : number]):
+                bounds[name] = (start, number)
+                name = None
+    return bounds
 
 
 def _python_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:

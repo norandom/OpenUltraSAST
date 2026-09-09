@@ -59,24 +59,9 @@ def verdict(
     function-local question; above zero is what lets a handler's parameter reach a sink in another module,
     which is the shape VAmPI's SQL injection has and the shape a function-scoped question cannot see.
     """
-    rows = cpg.run(
-        "taint",
-        request_params(spec, function=function, file=file, parameter_sources=parameter_sources, call_depth=call_depth),
-    )
-    flows = _flows(rows, function=function)
-    # A sink whose *shape* is safe is the fix, not the bug. `execute(sql, params)` binds rather than
-    # interpolates and `printf("literal", x)` has a constant format string, so the flow that reaches them is
-    # not a vulnerability -- even though the taint path is identical to the vulnerable twin's. Dropping these
-    # is what lets the model distinguish a pair at all: measured on the injection slice, taint reachability
-    # alone entailed both sides of the canonical SQL pair and therefore arbitrated nothing.
-    flows = [flow for flow in flows if not _has_safe_shape(flow, spec)]
-    if not flows:
+    considered = _usable_flows(cpg, spec, function=function, file=file, parameter_sources=parameter_sources, call_depth=call_depth)
+    if not considered:
         return None
-    # Parameter sources are a FALLBACK, never an override. When a modelled source reaches the sink, those
-    # flows are the evidence: a captured `res` parameter also reaching it unsanitized must not report a fix as
-    # still vulnerable on the strength of a flow that names no attacker input.
-    modelled = [flow for flow in flows if _from_modelled_source(flow, spec)]
-    considered = modelled or flows
     # A flow the graph cannot see a discharge for is the finding; a sanitized or BOUNDED one is a question.
     # libpng bounds `strcpy(outname+len, ".png")` with `(len = strlen(inname)) > 250` against a char[256],
     # and entailing it is a claim the code contradicts. But the bound reaches the sink through an `error`
@@ -87,9 +72,79 @@ def verdict(
     open_flows = [flow for flow in considered if not flow["sanitized"] and not flow["bounded"]]
     # Deterministic by construction: a total order, then take the first. Nothing depends on engine ordering.
     chosen = min(open_flows or considered, key=lambda flow: _rank(flow, spec))
-    settled = bool(chosen["sanitized"]) or bool(chosen["bounded"])
+    return _verdict_for(chosen, spec)
+
+
+def _usable_flows(
+    cpg: CpgResult,
+    spec: TaintSpec,
+    *,
+    function: str,
+    file: str,
+    parameter_sources: bool,
+    call_depth: int,
+) -> list[dict[str, object]]:
+    """The flows both entry points reason over, so neither can drift from the other.
+
+    A sink whose *shape* is safe is the fix, not the bug: `execute(sql, params)` binds rather than
+    interpolates and `printf("literal", x)` has a constant format string, so a flow reaching them is not a
+    vulnerability even though its taint path is identical to the vulnerable twin's. Dropping those is what
+    lets the model distinguish a pair at all -- measured on the injection slice, taint reachability alone
+    entailed both sides of the canonical SQL pair and arbitrated nothing.
+
+    Parameter sources are then a FALLBACK, never an override. When a modelled source reaches the sink those
+    flows are the evidence, so a captured `res` parameter also reaching it unsanitized cannot report a fix as
+    still vulnerable on the strength of a flow that names no attacker input.
+    """
+    rows = cpg.run(
+        "taint",
+        request_params(spec, function=function, file=file, parameter_sources=parameter_sources, call_depth=call_depth),
+    )
+    flows = [flow for flow in _flows(rows, function=function) if not _has_safe_shape(flow, spec)]
+    modelled = [flow for flow in flows if _from_modelled_source(flow, spec)]
+    return modelled or flows
+
+
+def verdicts(
+    cpg: CpgResult,
+    spec: TaintSpec,
+    *,
+    function: str = "",
+    file: str = "",
+    parameter_sources: bool = False,
+    call_depth: int = 0,
+) -> list[Verdict]:
+    """One verdict per distinct SINK SITE, strongest first.
+
+    ``verdict`` answers "what is the strongest thing to say about this region", which is the right question
+    for a pair: one labelled function, one bug, one answer. It is the wrong question for a region that spans
+    a file. A PHP file with an SQL injection on line 6 and a command injection on line 13 got ONE injection
+    verdict, and `system` won it on flow length -- so the SQL injection went unreported, by construction
+    rather than by any failure of the analysis.
+
+    The first element is exactly what ``verdict`` returns, so the pair path and the committed measurements
+    that rest on it are unchanged.
+    """
+    flows = _usable_flows(cpg, spec, function=function, file=file, parameter_sources=parameter_sources, call_depth=call_depth)
+    if not flows:
+        return []
+    by_site: dict[str, list[Mapping[str, object]]] = {}
+    for flow in flows:
+        by_site.setdefault(_location(flow) or str(flow.get("sink", "")), []).append(flow)
+
+    chosen: list[Mapping[str, object]] = []
+    for site_flows in by_site.values():
+        open_flows = [flow for flow in site_flows if not flow["sanitized"] and not flow["bounded"]]
+        chosen.append(min(open_flows or site_flows, key=lambda flow: _rank(flow, spec)))
+    # Same total order the single-verdict path uses, so `verdicts(...)[0] == verdict(...)`.
+    chosen.sort(key=lambda flow: (bool(flow["sanitized"]) or bool(flow["bounded"]), _rank(flow, spec)))
+    return [_verdict_for(flow, spec) for flow in chosen]
+
+
+def _verdict_for(flow: Mapping[str, object], spec: TaintSpec) -> Verdict:
+    settled = bool(flow["sanitized"]) or bool(flow["bounded"])
     rung = Rung.CORROBORATED if settled else Rung.ENTAILED
-    return Verdict(rung=rung, family=spec.family, witness=_witness(chosen), location=_location(chosen))
+    return Verdict(rung=rung, family=spec.family, witness=_witness(flow), location=_location(flow))
 
 
 def _flows(rows: object, *, function: str) -> list[dict[str, object]]:

@@ -1,0 +1,23 @@
+{
+  "caveat": "Every PHP number here comes from probe files of a dozen lines. The recogniser is validated on a WordPress-shaped sample, not on WordPress.",
+  "generated": "2026-09-09",
+  "one_verdict_per_region_fixed": {
+    "libpng": "1 -> 2 entailed; the second (contrib/libtests/makepng.c:1580:strstash) was hidden by the collapse. Neither is validated and both are in contrib/.",
+    "php_probe": "2 of 3 -> 3 of 3; the SQL injection at vuln.php:5 had been losing to `system` on flow length",
+    "vampi": "6 entailed, unchanged -- and now with line numbers on access-control findings from task 2.7",
+    "what": "taint.verdicts() returns one verdict per distinct SINK SITE, strongest first, and its first element is exactly what verdict() returns -- so the pair path and every committed measurement resting on it are unchanged, and the gates are byte-identical."
+  },
+  "reading": "Both halves of 5.4 are implemented and one is blocked by the frontend. Per-site verdicts take the PHP probe from 2 of 3 to 3 of 3 and surface a second libpng finding that the collapse was hiding. The WordPress recogniser reads declared access correctly and turns one file-level region into ten function-scoped ones. But php2cpg emits a CPG containing only ONE PHP file in this configuration, which blocks the WordPress target until it is understood.",
+  "spec": "contributor-scan 5.4 (Req 2.1, 8.1, 9.1)",
+  "the_blocker": {
+    "detail": "A CPG built over two PHP files contains only one of them, and the survivor is the last alphabetically. Reproduced twice: {plugin.php, vuln.php} kept vuln.php; {only_fn.php, stmt_then_fn.php} kept stmt_then_fn.php. Both files parse cleanly under `php -l` and under PHP-Parser directly, and joern-parse reports success. php2cpg logs 'Found warning in PHP-Parser JSON output' naming the surviving file, which is PHP-Parser's own `====> File X:` banner appearing in what php2cpg expects to be pure JSON.",
+    "id": "php2cpg-emits-one-file",
+    "not_yet_isolated": "This machine has no PHP interpreter, so php2cpg was driven through a container shim. The banner comes from PHP-Parser rather than from the shim, which makes a shim-only cause unlikely but not excluded. Rerunning with a native php-cli -- which the shipped image has -- is the first step.",
+    "why_it_blocks_wordpress": "A plugin is many files. A scan that silently covers one of them and reports success is the quiet failure Req 5.6 was approved for, and it would read as a clean bill of health."
+  },
+  "wordpress_recogniser": {
+    "access_is_declared_not_guessed": "The hook name IS the declaration: wp_ajax_nopriv_* is WordPress saying logged-out callers reach this, so it is public; wp_ajax_* fires only for logged-in ones. permission_callback => __return_true declares a REST route open. That is the declared-provenance signal task 2.8 needs, arriving from a second framework.",
+    "measured": "1 file-level region -> 10 function-scoped; mp_fetch_report public (rank 1.0), mp_save_report authenticated (0.8), mp_render_box public, mp_helper review-required",
+    "what": "add_action / add_filter / add_shortcode with a string callback, and register_rest_route's callback with its permission_callback. Plus every top-level PHP function as its own region, without which a file is one region however many functions it holds."
+  }
+}

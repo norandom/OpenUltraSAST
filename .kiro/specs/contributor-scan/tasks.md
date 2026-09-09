@@ -408,7 +408,7 @@
   - _Requirements: 9.2, 9.4, 9.5, 9.6_
   - _Depends: 4.1_
 
-- [ ] 5.4 WordPress entry points, and the one-verdict-per-region limit
+- [x] 5.4 WordPress entry points, and the one-verdict-per-region limit
   - Two things stand between the PHP facts and a WordPress result, and the second was found by running the
     first.
   - **Entry points.** WordPress registers handlers with `add_action`, `add_filter`, admin-ajax and REST
@@ -424,6 +424,23 @@
     one region per file.
   - _Requirements: 2.1, 8.1, 9.1_
   - _Depends: 5.1_
+
+- [ ] 5.5 php2cpg emits a CPG containing one file
+  - **Found by 5.4 and it blocks the WordPress target.** A CPG built over two PHP files contains only one,
+    and the survivor is the last alphabetically. Reproduced twice on independent samples; both files parse
+    cleanly under `php -l` and under PHP-Parser directly, and `joern-parse` reports success either way.
+  - php2cpg logs `Found warning in PHP-Parser JSON output` naming the surviving file, and that warning is
+    PHP-Parser's own `====> File X:` banner appearing in what php2cpg expects to be pure JSON. That is the
+    thread to pull.
+  - Not yet isolated: this machine has no PHP interpreter, so php2cpg was driven through a container shim.
+    The banner comes from PHP-Parser rather than from the shim, which makes a shim-only cause unlikely but
+    not excluded. **Rerun with the native php-cli in the shipped image first.**
+  - A plugin is many files. A scan that silently covers one of them and reports success is exactly the quiet
+    failure Req 5.6 was approved for.
+  - Observable: a CPG over N PHP files contains N files, or a recorded reason it cannot with the version and
+    the reproduction.
+  - _Requirements: 4.3, 5.6, 9.1_
+  - _Depends: 5.4_
 
 ## Group 6 — Regression baselines
 

@@ -34,6 +34,7 @@ from .dominance import verdict as dominance_verdict
 from .ladder import Rung, Verdict
 from .specs import ConfigSpec, DominanceSpec, TaintSpec
 from .taint import verdict as taint_verdict
+from .taint import verdicts as taint_verdicts
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +64,30 @@ class ModelFinding:
     rung: Rung
     witness: str = ""
     contradiction: str = ""
+
+
+def _arbitrate_all(
+    cpg: CpgResult,
+    spec: TaintSpec | DominanceSpec | ConfigSpec,
+    *,
+    path: str,
+    function: str,
+    parameter_sources: bool,
+    call_depth: int,
+) -> list[Verdict]:
+    """Every verdict this region admits, strongest first.
+
+    One verdict per region was the right answer for a pair -- one labelled function, one bug -- and the wrong
+    one for a region that spans a file. A PHP file with an SQL injection on line 6 and a command injection on
+    line 13 produced ONE injection verdict, and `system` won it on flow length, so the SQL injection went
+    unreported by construction. Only taint can report several sites today; dominance and config still answer
+    once per region, which is correct for dominance (its claim is about the region's consistency) and a
+    known gap for config.
+    """
+    if isinstance(spec, (DominanceSpec, ConfigSpec)):
+        answer = _arbitrate(cpg, spec, path=path, function=function, parameter_sources=parameter_sources, call_depth=call_depth)
+        return [answer] if answer is not None else []
+    return taint_verdicts(cpg, spec, function=function, file=path, parameter_sources=parameter_sources, call_depth=call_depth)
 
 
 def _arbitrate(
@@ -101,12 +126,18 @@ def scan_region(
     call_depth: int = 0,
 ) -> list[ModelFinding]:
     """Findings for one region and family, ordered strongest first."""
-    answer = _arbitrate(cpg, spec, path=path, function=function, parameter_sources=parameter_sources, call_depth=call_depth)
+    answers = _arbitrate_all(cpg, spec, path=path, function=function, parameter_sources=parameter_sources, call_depth=call_depth)
 
-    if answer is not None and answer.rung is Rung.ENTAILED:
-        # The graph decided. No model call, and no candidate needs asking about: this region has its finding.
-        return [ModelFinding(site=_site(path, function, answer), family=spec.family, rung=Rung.ENTAILED, witness=answer.witness)]
+    entailed = [answer for answer in answers if answer.rung is Rung.ENTAILED]
+    if entailed:
+        # The graph decided. No model call, and no candidate needs asking about: this region has its findings,
+        # one per site rather than one per region.
+        return [
+            ModelFinding(site=_site(path, function, answer), family=spec.family, rung=Rung.ENTAILED, witness=answer.witness)
+            for answer in entailed
+        ]
 
+    answer = answers[0] if answers else None
     if answer is not None:
         # A real flow through a sanitizer. Whether it suffices is the residual, and the model HAS coverage
         # here — so a "no" from the judge is a genuine contradiction and the claim is dropped.
