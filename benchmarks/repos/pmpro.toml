@@ -1,0 +1,37 @@
+# Paid Memberships Pro 2.9.7 -- a WordPress plugin with an unauthenticated SQL injection.
+#
+# This is the WordPress DETECTION checkout, and the first one whose bug class the PHP fact tables were built
+# for. 637 PHP files and 117k lines, so it is also the first PHP envelope measurement.
+#
+# The CVE was verified in the code rather than taken from an advisory. At this commit
+# `classes/class.memberorder.php:936` reads:
+#
+#     $id = $wpdb->get_var("SELECT id FROM $wpdb->pmpro_membership_orders WHERE code = '" . $code . "' LIMIT 1");
+#
+# and 2.9.8 replaces it with `$wpdb->get_var( $wpdb->prepare( "... code = %s LIMIT 1", $code ) )`. The value
+# reaches it from the `/pmpro/v1/order` REST route, whose handler does
+# `$code = sanitize_text_field( $params['code'] )` -- which is a real WordPress sanitizer that does nothing
+# whatsoever about SQL injection, and is why the flat sanitizer list must not carry it.
+
+name = "pmpro"
+url = "https://github.com/strangerstudios/paid-memberships-pro.git"
+commit = "1a900be3f09f243876150fc3c04a97bcb24ef84b"
+language = "php"
+license = "GPL-2.0"
+license_file = "license.txt"
+measures = ["detection", "envelope"]
+note = """
+Tag 2.9.7, dated 2022-12-01; the fix is tag 2.9.8. Nothing is vendored -- the recipe fetches on request and
+CI never does. 637 PHP files, 117302 lines, which makes this the first PHP checkout large enough to say
+anything about the envelope.
+"""
+
+[[known]]
+id = "CVE-2023-23488"
+family = "injection"
+weakness = "unauthenticated SQL injection: the `code` parameter of the /pmpro/v1/order REST route is concatenated into a query without preparation"
+file = "classes/class.memberorder.php"
+function = "getMemberOrderByCode"
+line = 936
+reference = "fixed in tag 2.9.8, which wraps the same query in $wpdb->prepare with a %s placeholder; the vulnerable line is verified in the checkout"
+in_scope = true

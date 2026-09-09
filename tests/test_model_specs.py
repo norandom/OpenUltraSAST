@@ -284,3 +284,41 @@ def test_a_php_file_can_become_a_region() -> None:
 
     assert regions, "a php file with no entry point should still yield a file-level region"
     assert regions[0].language == "php"
+
+
+def test_wordpress_database_calls_are_matched_qualified() -> None:
+    """contributor-scan: WordPress never calls mysqli directly, it goes through $wpdb.
+
+    Verified against a CPG: `$wpdb->get_var(..)` is a call NAMED `get_var` whose CODE carries the qualifier.
+    The qualified form is what belongs in the table -- a bare `get_var` or `query` would match any method of
+    that name anywhere, which is the generic-name trap that made `query.get` match every `.get(` in a
+    repository.
+    """
+    from openultrasast.model.specs import taint_specs
+
+    injection = taint_specs(language="php")["injection"]
+
+    assert "$wpdb->get_var" in injection.sinks
+    assert "$wpdb->query" in injection.sinks
+    assert "get_var" not in injection.sinks, "unqualified would match any method of that name"
+    assert "query" not in injection.sinks
+    # insert/update/delete take arrays and WordPress prepares them itself.
+    assert "$wpdb->insert" not in injection.sinks
+
+
+def test_a_sanitizer_that_does_not_stop_sql_injection_is_not_listed() -> None:
+    """CVE-2023-23488 is a `sanitize_text_field` value concatenated into a query.
+
+    `sanitize_text_field`, `esc_html` and `esc_attr` are real WordPress sanitizers and none of them stops SQL
+    injection. Listing them -- the obvious thing to do when writing PHP facts -- would make that CVE and its
+    whole class invisible, because the sanitizer list is flat across families and cannot say "escapes for
+    HTML but not for SQL". Recorded as task 5.6.
+    """
+    from openultrasast.model.specs import taint_specs
+
+    sanitizers = set(taint_specs(language="php")["injection"].sanitizers)
+
+    assert "sanitize_text_field" not in sanitizers
+    assert "esc_html" not in sanitizers
+    assert "$wpdb->prepare" in sanitizers, "the parameterized form does stop it"
+    assert "esc_sql" in sanitizers

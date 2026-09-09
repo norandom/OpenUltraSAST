@@ -37,6 +37,26 @@ patterns = ["php://input"]
 
 # --- injection sinks ---------------------------------------------------------------------------------
 
+# WordPress does not call mysqli directly; it goes through $wpdb. Verified against a CPG: `$wpdb->get_var(..)`
+# is a call NAMED `get_var` whose CODE carries the qualifier, so the qualified form is what belongs here. A
+# bare `get_var` or `query` would match any method of that name anywhere -- the generic-name trap that made
+# `query.get` match every `.get(` in a repository.
+#
+# `$wpdb->insert`, `->update` and `->delete` are deliberately absent: they take arrays and WordPress prepares
+# them itself, so they are not injection sinks.
+[[sink]]
+id = "wpdb"
+cwe = "CWE-89"
+calls = [
+  "$wpdb->get_var",
+  "$wpdb->get_results",
+  "$wpdb->get_row",
+  "$wpdb->get_col",
+  "$wpdb->query",
+  "$wpdb->replace",
+]
+rule_ids = []
+
 [[sink]]
 id = "sql"
 cwe = "CWE-89"
@@ -135,7 +155,19 @@ calls = ["htmlspecialchars", "htmlentities", "html_entity_decode_safe"]
 
 [[sanitizer]]
 id = "sql_escape"
-calls = ["mysqli_real_escape_string", "mysql_real_escape_string", "pg_escape_string", "pg_escape_literal"]
+calls = ["mysqli_real_escape_string", "mysql_real_escape_string", "pg_escape_string", "pg_escape_literal", "esc_sql"]
+
+# `$wpdb->prepare` is WordPress's parameterized form and appears ON the flow path, so it reads as a cleansing
+# call rather than as a shape qualifier.
+#
+# NOTE what is NOT here. `sanitize_text_field`, `esc_html` and `esc_attr` are real WordPress sanitizers and
+# none of them stops SQL injection -- CVE-2023-23488 is exactly a `sanitize_text_field` value concatenated
+# into a query. Adding them would make that CVE, and its whole class, invisible. The sanitizer list is
+# currently flat across families, which cannot express "escapes for HTML but not for SQL"; until it can, only
+# SQL-specific cleansers belong here.
+[[sanitizer]]
+id = "wpdb_prepare"
+calls = ["$wpdb->prepare"]
 
 [[sanitizer]]
 id = "shell_escape"

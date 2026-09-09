@@ -460,6 +460,22 @@
   - _Requirements: 4.3, 5.6, 9.1_
   - _Depends: 5.4_
 
+- [ ] 5.6 A sanitizer cleanses the family it cleanses, not every family
+  - `TaintSpec.sanitizers` is one flat list per language, and its comment states the assumption plainly:
+    "a sanitizer that breaks one flow breaks it whatever the sink's family". PHP falsifies it. `esc_html`
+    stops XSS and does nothing for SQL injection; `esc_sql` is the reverse; `sanitize_text_field` stops
+    neither and is the most-used of the three.
+  - **CVE-2023-23488 is the proof.** Its handler calls `sanitize_text_field( $params['code'] )` and then
+    concatenates the result into a query. Adding WordPress's sanitizers to the flat list -- the obvious thing
+    to do when writing PHP facts -- would make that CVE and its whole class invisible. Task 5.1 therefore
+    carries only SQL-specific cleansers, which leaves XSS under-sanitized instead.
+  - This is 2.6's finding arriving in the taint family: a discharge counts for the obligation it discharges.
+    The dominance arbiter now reads `requires`/kind from the facts; the taint spec has no equivalent.
+  - Observable: `esc_html` marks an output_encoding flow sanitized and leaves an injection flow entailed, on
+    a pair that carries both.
+  - _Requirements: 8.1, 9.1_
+  - _Depends: 5.1_
+
 ## Group 6 — Regression baselines
 
 - [ ] 6.1 Repository baseline and delta
