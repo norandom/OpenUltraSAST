@@ -9,7 +9,7 @@ language actually admit.
 from __future__ import annotations
 
 
-def _entry(path="api/users.py", function="update_password", access="public", boundary="network"):  # type: ignore[no-untyped-def]
+def _entry(path="api/users.py", function="update_password", access="public", boundary="network", declared=False):  # type: ignore[no-untyped-def]
     from openultrasast.mapping import EntryPointRecord
 
     return EntryPointRecord(
@@ -25,6 +25,7 @@ def _entry(path="api/users.py", function="update_password", access="public", bou
         conditions=[],
         provenance="decorator",
         rationale="",
+        access_declared=declared,
     )
 
 
@@ -238,3 +239,36 @@ def test_what_the_project_does_not_ship_ranks_below_what_it_does() -> None:
     ordered = [(r.path, r.shipped) for r in regions]
     assert ordered[0] == ("lib.py", True), "shipped code comes first whatever the rank says"
     assert ("example.py", False) in ordered, "not shipped is not unscanned"
+
+
+def test_a_declared_open_endpoint_carries_no_authorization_obligation() -> None:
+    """contributor-scan 2.8. VAmPI's OpenAPI spec declares register_user and login_user open, and the arbiter
+    entailed a missing guard on both -- reporting an absence on endpoints whose contract says there is
+    nothing to miss."""
+    from openultrasast.model.regions import regions_for
+
+    declared_open = _entry(path="api.py", function="register_user", access="public", declared=True)
+    assert declared_open.access_declared, "the fixture must actually carry the declaration it is testing"
+
+    regions = regions_for([declared_open], [_target(path="api.py")])
+    handler = next(r for r in regions if r.function == "register_user")
+
+    assert "access_control" not in handler.families
+    assert "injection" in handler.families, "only the obligation goes; the flow families stay"
+
+
+def test_an_inferred_public_endpoint_keeps_the_obligation() -> None:
+    """The case this rule must not break, and the reason it keys on provenance rather than on the level.
+
+    For a decorator framework "public" means only that no `@login_required` was found -- which is precisely
+    the bug the access-control family exists to report. Suppressing on the value alone would silence the
+    detector on its primary case.
+    """
+    from openultrasast.model.regions import regions_for
+
+    inferred = _entry(path="app.py", function="handler", access="public")  # access_declared defaults False
+
+    regions = regions_for([inferred], [_target(path="app.py")])
+    handler = next(r for r in regions if r.function == "handler")
+
+    assert "access_control" in handler.families

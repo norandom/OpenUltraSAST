@@ -1,0 +1,24 @@
+{
+  "caveat": "One repository has a route manifest and one framework has been read for hook conventions. Every other language still infers 'public' from an absent decorator, and for those the obligation is correctly kept -- so this rule improves precision exactly where a contract exists and changes nothing anywhere else.",
+  "generated": "2026-09-09",
+  "measured": {
+    "known_vulnerabilities": "3 of 3 still entailed -- the SQL injection and both documented BOLAs",
+    "regions_offered_access_control": "6 of 14 handlers, exactly the six the spec declares authenticated",
+    "removed": [
+      "api_views/users.py:register_user",
+      "api_views/users.py:login_user"
+    ],
+    "vampi_access_control_precision": "2 of 4 (50.0%) -> 2 of 2 (100.0%)",
+    "vampi_entailed": "6 -> 4"
+  },
+  "reading": "An endpoint whose own contract declares it open carries no authorization obligation -- there is nothing for a guard to be missing from. VAmPI's last two false positives were register_user and login_user, both declared open by its OpenAPI spec, and both are gone. Access-control precision on the repository goes from 2 of 4 to 2 of 2, with every known vulnerability still entailed and the pair corpus unmoved.",
+  "second_framework": "WordPress supplied the second source of declared access on the same day: wp_ajax_nopriv_ for a logged-out admin-ajax handler, wp_ajax_ for a logged-in one, and permission_callback => __return_true for an open REST route. A rule resting on one framework's convention would have been a special case; two makes it a shape.",
+  "spec": "contributor-scan 2.8 (Req 8.1, 8.2)",
+  "the_guard_that_matters": {
+    "all_pairs": "pair_correct 3, leak 1 (11.1%) -- unchanged from task 2.6",
+    "check": "the access-control pair corpus, which nobody tuned this against",
+    "excluding_vampi_excerpts": "pair_correct 2, leak 0 (0.0%) -- unchanged",
+    "reading": "The precision was not bought by silencing the family. Pair excerpts carry no route manifest and no WordPress hook, so nothing in them is declared open and the rule does not fire there -- which is the correct behaviour and the reason the numbers are identical."
+  },
+  "why_provenance_and_not_the_value": "The mapper's access_level says 'public' in two very different situations. An OpenAPI operation with no `security` block is DECLARED open, because the spec is a complete contract; a WordPress `wp_ajax_nopriv_` hook is WordPress saying logged-out callers reach this. But a Flask handler with no `@login_required` is 'public' only because nothing was found -- which is precisely the bug this family exists to report. Suppressing on the value alone would have silenced the detector on its primary case, so EntryPointRecord now carries `access_declared` and only a declaration removes the obligation."
+}

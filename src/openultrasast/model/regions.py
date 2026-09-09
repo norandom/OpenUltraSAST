@@ -86,7 +86,13 @@ def regions_for(entries: Sequence[object], targets: Sequence[object], *, shipped
         language = by_path.get(path)
         if language is None:
             continue
-        families = _families(language, has_handler=True)
+        # A handler its own contract declares OPEN carries no authorization obligation: there is nothing
+        # for a guard to be missing from. The declaration is what makes this sound -- an OpenAPI operation
+        # with no `security` block, a `wp_ajax_nopriv_` hook, a REST `permission_callback => __return_true`.
+        # An INFERRED "public" is the opposite case and must keep the family, because for a decorator
+        # framework it means only that no `@login_required` was found, which is the bug itself.
+        declared_open = bool(getattr(entry, "access_declared", False)) and str(getattr(entry, "access_level", "")) == "public"
+        families = _families(language, has_handler=not declared_open)
         if not families:
             continue
         function = getattr(entry, "function_name", None) or None

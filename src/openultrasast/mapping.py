@@ -74,6 +74,14 @@ class EntryPointRecord:
     conditions: list[str]
     provenance: str
     rationale: str
+    # Did the access level come from a DECLARATION, or from the absence of one?
+    #
+    # The distinction decides whether "public" can be trusted. An OpenAPI operation with no `security` block
+    # is declared open, because the spec is a complete contract; a WordPress `wp_ajax_nopriv_` hook is
+    # WordPress saying logged-out callers reach this. But a Flask handler with no `@login_required` is
+    # "public" only because nothing was found -- which is precisely the bug the access-control family exists
+    # to report, so treating it as a declaration would silence the detector on its primary case.
+    access_declared: bool = False
 
 
 def ingest_sarif(path: Path) -> list[StaticHint]:
@@ -221,7 +229,9 @@ def _php_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
             hook, handler = match.group("hook"), match.group("handler")
             access, evidence = _wordpress_hook_access(match.group("call"), hook)
             start, end = bounds.get(handler, (number, number))
-            records.append(_entry(target, start, end, handler, f"wp:{hook}", "route", access, "http_request", evidence, []))
+            records.append(
+                _entry(target, start, end, handler, f"wp:{hook}", "route", access, "http_request", evidence, [], access_declared=True)
+            )
         if _PHP_REST_ROUTE.search(line):
             window = "\n".join(lines[number - 1 : number + 12])
             callback = _PHP_CALLBACK.search(window)
@@ -230,7 +240,11 @@ def _php_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
                 permission = _PHP_PERMISSION.search(window)
                 access, evidence = _rest_route_access(permission.group("value").strip() if permission else None)
                 start, end = bounds.get(handler, (number, number))
-                records.append(_entry(target, start, end, handler, "wp:rest_route", "route", access, "http_request", evidence, []))
+                records.append(
+                    _entry(
+                        target, start, end, handler, "wp:rest_route", "route", access, "http_request", evidence, [], access_declared=True
+                    )
+                )
 
     registered = {record.function_name for record in records}
     for name, (start, end) in sorted(bounds.items()):
@@ -425,6 +439,9 @@ def _route_manifest_entry_points(root: Path, targets: Sequence[FileTarget]) -> l
                     conditions=[],
                     provenance=f"entrypoint:route:{access}",
                     rationale=f"registered by operationId {operation} in {relative}",
+                    # A route manifest is a complete contract: an operation with no `security` block is
+                    # declared open, not merely undecorated.
+                    access_declared=True,
                 )
             )
     return records
@@ -679,6 +696,7 @@ def _entry(
     trust_boundary: str,
     access_evidence: list[str],
     conditions: list[str],
+    access_declared: bool = False,
 ) -> EntryPointRecord:
     return EntryPointRecord(
         path=target.path,
@@ -693,6 +711,7 @@ def _entry(
         conditions=conditions,
         provenance=f"entrypoint:{kind}:{access_level}",
         rationale=f"{kind} surface classified as {access_level} at {trust_boundary}",
+        access_declared=access_declared,
     )
 
 

@@ -169,7 +169,7 @@
   - _Requirements: 5.1_
   - _Depends: 2.2_
 
-- [ ] 2.8 An endpoint that declares itself public carries no obligation
+- [x] 2.8 An endpoint that declares itself public carries no obligation
   - **2.6's remainder.** Both false positives left on VAmPI are `register_user` and `login_user`, which its
     OpenAPI spec declares public with no `security` block. The arbiter cannot see that declaration, so it
     reports a missing guard on an endpoint whose contract says there is nothing to miss.
