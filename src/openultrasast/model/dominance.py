@@ -19,6 +19,7 @@ The rungs are deliberately asymmetric:
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping, Sequence
 
 from ..cpg.backend import CpgResult
@@ -26,14 +27,29 @@ from .ladder import Rung, Verdict
 from .specs import DominanceSpec
 
 
-def request_params(spec: DominanceSpec, *, function: str = "") -> dict[str, object]:
-    """The query parameters this arbiter sends. Shared with the batcher; see the note in `taint.request_params`."""
-    return {"operations": spec.operations, "dischargers": spec.dischargers, "function": function}
+def request_params(spec: DominanceSpec, *, function: str = "", file: str = "") -> dict[str, object]:
+    """The query parameters this arbiter sends. Shared with the batcher; see the note in `taint.request_params`.
+
+    ``operationRequires`` and ``dischargersByKind`` carry the facts' own relation as JSON, so the engine can
+    ask whether a guard discharges THIS obligation rather than whether it discharges anything. ``file`` scopes
+    the rows: the sibling comparison is a claim about one file contradicting itself, and two functions of the
+    same name in different modules were otherwise pooled into one region's answer.
+    """
+    return {
+        "operations": spec.operations,
+        "dischargers": spec.dischargers,
+        "function": function,
+        "file": file,
+        "operationRequires": json.dumps({k: list(v) for k, v in spec.requirements.items()}, sort_keys=True) if spec.requirements else "",
+        "dischargersByKind": json.dumps({k: list(v) for k, v in spec.dischargers_by_kind.items()}, sort_keys=True)
+        if spec.dischargers_by_kind
+        else "",
+    }
 
 
-def verdict(cpg: CpgResult, spec: DominanceSpec, *, function: str = "") -> Verdict | None:
+def verdict(cpg: CpgResult, spec: DominanceSpec, *, function: str = "", file: str = "") -> Verdict | None:
     """The verdict for the obligated operation in ``function``, or ``None`` when there is nothing to say."""
-    rows = cpg.run("dominance", request_params(spec, function=function))
+    rows = cpg.run("dominance", request_params(spec, function=function, file=file))
     operations = _operations(rows)
     if not operations:
         return None

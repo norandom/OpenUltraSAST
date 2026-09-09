@@ -82,7 +82,7 @@ def _arbitrate(
     pairs read as `both_silent` on the first end-to-end run.
     """
     if isinstance(spec, DominanceSpec):
-        return dominance_verdict(cpg, spec, function=function)
+        return dominance_verdict(cpg, spec, function=function, file=path)
     if isinstance(spec, ConfigSpec):
         return config_verdict(cpg, spec, function=function, file=path)
     return taint_verdict(cpg, spec, function=function, file=path, parameter_sources=parameter_sources, call_depth=call_depth)

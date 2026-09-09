@@ -1,0 +1,213 @@
+{
+  "against": "benchmarks/measurements/2026-09-09-repo-vampi-module-scope.json (task 2.5, same checkout and budget)",
+  "caveat": "9 pairs and one repository. The pair excerpts are single functions, so they can only ever reach model_corroborated -- there is no sibling to be inconsistent with -- and one leak that remains (vampi-books-get-by-title) is a corpus artifact: VAmPI keeps the vulnerable and fixed branches in the same function, so both sides of the excerpt contain the unguarded query.",
+  "completed": true,
+  "config": "shipped defaults",
+  "degradations": [
+    {
+      "detail": "no path records; obligations evaluated within entry-point handlers only",
+      "files": [
+        "api_views/books.py",
+        "api_views/users.py",
+        "models/books_model.py",
+        "models/user_model.py"
+      ],
+      "language": "python",
+      "reason": "obligations_function_local",
+      "stage": "obligations"
+    },
+    {
+      "reason": "budget_exhausted",
+      "regions_unasked": 20,
+      "stage": "model"
+    },
+    {
+      "reason": "hunter_model_unavailable",
+      "stage": "map"
+    }
+  ],
+  "exit_code": 0,
+  "findings_by_rung": {
+    "execution_confirmed": 0,
+    "model_corroborated": 0,
+    "model_entailed": 6,
+    "suspicion": 54
+  },
+  "findings_total": 60,
+  "found_before_it_was_recorded": "get_by_title was flagged by the engine before it was in the recipe. Its code carries the comment '# Broken Object Level Authorization' and the README lists it, so it was a real finding being scored as a false positive. It is now the recipe's third known vulnerability, and all three are entailed.",
+  "generated": "2026-09-09",
+  "known_outcomes": [
+    {
+      "family": "injection",
+      "finding_id": "model:injection:models/user_model.py:73:get_user",
+      "id": "VAmPI-SQLI",
+      "line": 73,
+      "location": "models/user_model.py:get_user:73",
+      "matches": 3,
+      "result": "found",
+      "rung": "model_entailed"
+    },
+    {
+      "family": "access_control",
+      "finding_id": "model:access_control:api_views/users.py:?:update_password",
+      "id": "VAmPI-BOLA",
+      "line": null,
+      "location": "api_views/users.py:update_password:187",
+      "matches": 5,
+      "result": "found",
+      "rung": "model_entailed"
+    },
+    {
+      "family": "access_control",
+      "finding_id": "model:access_control:api_views/books.py:?:get_by_title",
+      "id": "VAmPI-BOLA-BOOKS",
+      "line": null,
+      "location": "api_views/books.py:get_by_title:51",
+      "matches": 9,
+      "result": "found",
+      "rung": "model_entailed"
+    }
+  ],
+  "mode": "standard",
+  "model": {
+    "arbitrate_seconds": 123.96,
+    "build_seconds": 6.46,
+    "by_rung": {
+      "execution_confirmed": 0,
+      "model_corroborated": 0,
+      "model_entailed": 6,
+      "suspicion": 38
+    },
+    "cost_usd": 0.007,
+    "model_calls": 103,
+    "query_seconds": 34.27,
+    "regions_scanned": 25,
+    "regions_unasked": 20,
+    "regions_unjudged": 0,
+    "seconds": 164.69,
+    "unjudged_sample": []
+  },
+  "oracle": {
+    "declared_public": [
+      "populate_db",
+      "basic",
+      "get_all_users",
+      "debug",
+      "register_user",
+      "login_user",
+      "get_by_username",
+      "get_all_books"
+    ],
+    "documented_access_control_defects": [
+      "update_password",
+      "get_by_title"
+    ],
+    "pairs": "14 pair cases carry an access_control expectation with a gold label; 9 build a CPG, and 7 of those are from projects unrelated to VAmPI.",
+    "vampi": "VAmPI ships an OpenAPI 3 spec whose per-operation `security: bearerAuth` block declares which endpoints require authorization, and every endpoint that declares it calls token_validator in code. Two independent sources agreeing is the ground truth used here, not a reading of the handlers."
+  },
+  "peak_rss_mb": 554.5,
+  "precision": {
+    "pairs_all": {
+      "leak_after": "1 (11.1%)",
+      "leak_before": "4 (44.4%)",
+      "n": 9,
+      "pair_correct_after": "3 (33.3%)",
+      "pair_correct_before": "3 (33.3%)"
+    },
+    "pairs_excluding_vampi_excerpts": {
+      "leak_after": "0 (0.0%)",
+      "leak_before": "3 (42.9%)",
+      "n": 7,
+      "pair_correct_after": "2 (28.6%)",
+      "pair_correct_before": "2 (28.6%)"
+    },
+    "vampi_after": {
+      "entailed": 4,
+      "false_positives": 2,
+      "flagged": [
+        "login_user",
+        "register_user",
+        "get_by_title",
+        "update_password"
+      ],
+      "note": "both remaining false positives are endpoints the spec declares public. That class is untouched by this task.",
+      "precision": "50.0%",
+      "true_positives": 2
+    },
+    "vampi_before": {
+      "entailed": 7,
+      "false_positives": 5,
+      "flagged": [
+        "get_all_books",
+        "get_all_users",
+        "register_user",
+        "get_by_title",
+        "delete_user",
+        "me",
+        "update_password"
+      ],
+      "note": "me, delete_user and get_by_title all DO call an authorization guard; get_all_books, get_all_users and register_user are declared public.",
+      "precision": "28.6%",
+      "true_positives": 2
+    }
+  },
+  "reading": "Precision on the repository rises 28.6% -> 50.0% and every known vulnerability is still found. The independent check matters more: on the labelled access-control pairs, leak falls 44.4% -> 11.1% with pair_correct unchanged, and on the seven pairs from projects unrelated to VAmPI leak falls 42.9% -> 0.0% with pair_correct unchanged. Every detection lost was on a pair where the FIXED side was flagged too, which scores nothing; no correct detection was traded away.",
+  "repo": {
+    "commit": "f16052dce83f05847133ec98f01c5193a41de7d8",
+    "known": [
+      {
+        "family": "injection",
+        "id": "VAmPI-SQLI",
+        "in_scope": true,
+        "location": "models/user_model.py:get_user:73",
+        "weakness": "SQL injection: the username is interpolated into the query string at line 72 and executed at 73"
+      },
+      {
+        "family": "access_control",
+        "id": "VAmPI-BOLA",
+        "in_scope": true,
+        "location": "api_views/users.py:update_password:187",
+        "weakness": "unauthorized password change: the path username is used instead of the authenticated token subject"
+      },
+      {
+        "family": "access_control",
+        "id": "VAmPI-BOLA-BOOKS",
+        "in_scope": true,
+        "location": "api_views/books.py:get_by_title:51",
+        "weakness": "broken object level authorization: a book is fetched by title with no ownership constraint and its secret returned"
+      }
+    ],
+    "language": "python",
+    "license": "MIT",
+    "measures": [
+      "detection"
+    ],
+    "name": "vampi",
+    "url": "https://github.com/erev0s/VAmPI.git"
+  },
+  "scan_seconds": 182.45,
+  "spec": "contributor-scan 2.6 (Req 8.1, 8.2)",
+  "stages": {
+    "completed": [
+      "static",
+      "map"
+    ],
+    "requested": [
+      "static",
+      "map"
+    ],
+    "skipped": []
+  },
+  "still_open": [
+    "Both remaining VAmPI false positives (register_user, login_user) are endpoints the OpenAPI spec declares public. The arbiter cannot see that declaration, and the mapper's access_level is not a safe substitute: for decorator-based frameworks 'public' means 'no decorator found', which is the bug itself. Recorded as 2.8.",
+    "2.7 dominance witnesses carry no line, so access-control sites still read api_views/users.py:?:update_password."
+  ],
+  "what_was_wrong": {
+    "a_guard_discharges_the_obligation_it_is_a_guard_of": "The largest one. orm-read requires an identity_constraint or an ownership_check; token_validator is a path_guard. Flattened into one list, authenticating the caller discharged an object-level obligation -- so a handler that authenticates and then looks the record up by a PATH parameter read as fully guarded. The facts state the relation; the spec was throwing it away.",
+    "a_trailing_segment_is_not_a_match": "`query.get` was matched by its last segment, so every `.get(` in the repository was a protected database operation: request.headers.get('Authorization') and request_data.get('username') included. Four of the seven false positives came from this, including three handlers that do authorize.",
+    "a_word_boundary_needs_a_word": "Found while fixing the above. Guard matching wrapped every token in (?<![A-Za-z0-9_]) ... (?![A-Za-z0-9_]). The identity token ['sub'] begins with [ and the character before it in resp['sub'] is p, so the assertion could never hold: every identity token starting with punctuation was unmatchable, and the identity constraint that separates a correct lookup from an IDOR was invisible. The boundary now applies only at ends that are word characters.",
+    "configuration_is_not_authorization": "dominance_specs took every obligation fact. `security_setting` operations are configuration, discharged by a VALUE, which config_specs already claims them for. They made app.run(...) an operation requiring an authorization guard and put thirteen tokens in BOTH the operation and discharger lists -- an obligation that is its own discharge.",
+    "input_validation_is_not_authorization": "`validated_input` dischargers (jsonschema.validate, parse_obj) were pooled with the guards. No operation in the table requires them, and counting them marked handlers with no authorization check at all as guarded.",
+    "two_functions_can_share_a_name": "dominance rows were repository-wide, so the model's unguarded delete_user was attributed to the API handler's region. Rows are now scoped to the region's file, which is also what the rung's own justification says: the evidence is a FILE contradicting itself."
+  }
+}

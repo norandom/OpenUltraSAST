@@ -175,3 +175,49 @@ def test_constraint_params_are_not_dischargers_on_their_own() -> None:
     assert params, "the fixture would be vacuous if the facts carried no constraint params"
     assert not (params & set(spec.dischargers)), f"constraint params must not discharge alone: {sorted(params & set(spec.dischargers))}"
     assert "current_user" in spec.dischargers, "identity sources still do discharge"
+
+
+def test_configuration_facts_do_not_become_authorization_obligations() -> None:
+    """contributor-scan 2.6. A permissive CORS origin is discharged by a VALUE, not by a guard.
+
+    Taking every obligation fact made `app.run(...)` an operation requiring an authorization check, and put
+    thirteen tokens in both the operation and the discharger list -- an obligation that is its own discharge,
+    the same shape as the taint sink that used to sanitize itself.
+    """
+    from openultrasast.model.specs import dominance_specs
+
+    spec = dominance_specs(language="python")["access_control"]
+
+    assert not set(spec.operations) & set(spec.dischargers), "nothing may be both the obligation and its discharge"
+    assert "app.run" not in spec.operations
+    assert "CORS" not in spec.operations
+
+
+def test_input_validation_does_not_discharge_an_authorization_obligation() -> None:
+    """`jsonschema.validate` establishes the shape of a request, never who is making it."""
+    from openultrasast.model.specs import dominance_specs
+
+    spec = dominance_specs(language="python")["access_control"]
+
+    assert "validate" not in spec.dischargers
+    assert "parse_obj" not in spec.dischargers
+    assert "token_validator" in spec.dischargers, "a real route guard must survive the filter"
+
+
+def test_a_guard_discharges_only_the_obligation_it_is_a_guard_of() -> None:
+    """The relation the facts state, which the flat list was throwing away.
+
+    `filter_by` requires an identity_constraint or an ownership_check; `token_validator` is a path_guard.
+    Pooled together, authenticating the caller discharged an object-level obligation, so a handler that
+    authenticates and then looks the record up by a PATH parameter read as fully guarded -- VAmPI's broken
+    object-level authorization, and the shape of most real IDORs.
+    """
+    from openultrasast.model.specs import dominance_specs
+
+    spec = dominance_specs(language="python")["access_control"]
+
+    assert spec.requirements["filter_by"] == ("identity_constraint", "ownership_check")
+    identity = set(spec.dischargers_by_kind["identity_constraint"])
+    assert "token_validator" not in identity, "authentication is not an object-level check"
+    assert "token_validator" in set(spec.dischargers_by_kind["path_guard"])
+    assert "['sub']" in identity or '["sub"]' in identity

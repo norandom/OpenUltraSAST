@@ -237,7 +237,7 @@ def _grouped(work: Sequence[tuple[str, ScanRegion, ArbiterSpec]]) -> dict[str, d
         function = region.function or ""
         entry = _is_entry_point(region)
         if isinstance(spec, DominanceSpec):
-            kind, params = "dominance", dominance_params(spec, function=function)
+            kind, params = "dominance", dominance_params(spec, function=function, file=region.path)
         elif isinstance(spec, ConfigSpec):
             kind, params = "config", config_params(spec, function=function, file=region.path)
         else:

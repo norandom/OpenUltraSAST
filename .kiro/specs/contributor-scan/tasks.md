@@ -144,7 +144,7 @@
   - _Requirements: 4.4_
   - _Depends: 2.2_
 
-- [ ] 2.6 Access control that does not entail every public endpoint
+- [x] 2.6 Access control that does not entail every public endpoint
   - 7 of 9 VAmPI handlers were entailed, including `register_user` and `get_all_users`, which are meant to
     be unauthenticated. The dominance rule -- unguarded, with guarded siblings -- was calibrated on pairs
     where a guarded twin always existed. At repository scale every public endpoint has guarded siblings.
@@ -161,6 +161,22 @@
   - Observable: every entailed finding in a repository scan has an integer line.
   - _Requirements: 5.1_
   - _Depends: 2.2_
+
+- [ ] 2.8 An endpoint that declares itself public carries no obligation
+  - **2.6's remainder.** Both false positives left on VAmPI are `register_user` and `login_user`, which its
+    OpenAPI spec declares public with no `security` block. The arbiter cannot see that declaration, so it
+    reports a missing guard on an endpoint whose contract says there is nothing to miss.
+  - The mapper's `access_level` is NOT a safe substitute on its own. For an OpenAPI route it comes from the
+    declared `security` block and is trustworthy; for a decorator-based framework "public" means only that
+    no `@login_required` was found, which is precisely the bug this family exists to report. Suppressing on
+    that would silence the primary detection case for Flask and Express.
+  - So the work is to carry the PROVENANCE of the access level, not just its value: a declared contract
+    removes the obligation, an absent decorator does not. `EntryPointRecord.provenance` currently only
+    echoes the level, so this needs a real signal rather than a string match on evidence text.
+  - Observable: `register_user` and `login_user` no longer entailed on vampi, with the pair-corpus leak rate
+    unchanged at 0% on the non-VAmPI pairs -- the check that this suppressed a declaration and not a family.
+  - _Requirements: 8.1, 8.2_
+  - _Depends: 2.6_
 
 ## Group 3 — Ship it
 

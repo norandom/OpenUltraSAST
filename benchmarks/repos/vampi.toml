@@ -45,3 +45,17 @@ function = "update_password"
 line = 187
 reference = "README.md 'Unauthorized Password Change'; the non-vulnerable branch uses resp['sub']"
 in_scope = true
+
+# Found by the engine before it was in this file. The first repository run flagged get_by_title, and the code
+# says why in its own comment: the vulnerable branch fetches a book by title with no ownership constraint and
+# returns its secret. It is listed in the README alongside the password one, and leaving it out of the recipe
+# would have scored a real finding as a false positive.
+[[known]]
+id = "VAmPI-BOLA-BOOKS"
+family = "access_control"
+weakness = "broken object level authorization: a book is fetched by title with no ownership constraint and its secret returned"
+file = "api_views/books.py"
+function = "get_by_title"
+line = 51
+reference = "the code comment '# Broken Object Level Authorization' on the vulnerable branch; README 'Broken Object Level Authorization'"
+in_scope = true

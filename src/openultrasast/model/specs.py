@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ..semantic.facts import SemanticFacts, load_facts
 from ..semantic.obligations.facts import ObligationFacts, load_obligation_facts
@@ -119,12 +119,24 @@ class DominanceSpec:
                                    evidences nothing and treating it as a guard silences the whole family.
         request_sources            a value from the request discharges nothing, by definition.
         permissive_values          a permissive literal is the bug, not the guard.
+
+    ``dischargers`` is the flat union, kept because a caller may not care which kind discharged what.
+    ``requirements`` and ``dischargers_by_kind`` carry the relation the facts actually state: an operation
+    names the obligation KINDS that would discharge it, and only a discharger of one of those kinds counts.
+
+    Flattening that relation away was a false-negative engine. `orm-read` requires an ``identity_constraint``
+    or an ``ownership_check``; `token_validator` is a ``path_guard``. Pooled together, authenticating the
+    caller discharged an object-level obligation -- so a handler that authenticates and then looks the
+    record up by a PATH parameter read as fully guarded. That is the shape of VAmPI's broken object-level
+    authorization, and of most real IDORs.
     """
 
     family: str
     language: str
     operations: tuple[str, ...]
     dischargers: tuple[str, ...]
+    requirements: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    dischargers_by_kind: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -219,21 +231,56 @@ def taint_specs(
 def dominance_specs(*, language: str, facts: ObligationFacts | None = None) -> Mapping[str, DominanceSpec]:
     """One ``DominanceSpec`` per absence family for this language.
 
-    The obligation facts are authored for authorization, so every obligated operation routes to
-    ``access_control``; the shape generalises when a second absence family is added to the taxonomy.
+    Not every obligation fact is an authorization one, and taking them all was wrong in both directions.
+
+    * ``security_setting`` operations are configuration: a permissive CORS origin or a debug flag is
+      discharged by a VALUE, which is what ``config_specs`` already claims them for and what this arbiter
+      cannot decide. Pooled in here they made `app.run(...)` an operation requiring an authorization guard,
+      and put thirteen tokens in both the operation and discharger lists -- an obligation that is its own
+      discharge, the same shape as the taint sink that used to sanitize itself.
+    * ``validated_input`` dischargers are schema checks. `jsonschema.validate` does not establish who the
+      caller is, and no operation in the table requires it; counting it as a guard marked handlers with no
+      authorization check at all as guarded.
+
+    So both sides are filtered by kind, and the filter is derived from the facts' own ``requires`` relation
+    rather than a list maintained here.
     """
     scoped = (facts if facts is not None else load_obligation_facts()).for_language(language)
     if not scoped.operations:
         return {}
-    operations = tuple(sorted({call for fact in scoped.operations for call in fact.calls}))
+    guarded = tuple(fact for fact in scoped.operations if fact.kind != "security_setting")
+    if not guarded:
+        return {}
+    # What the retained operations actually ask for. A discharger of any other kind discharges nothing here.
+    required = {kind for fact in guarded for kind in fact.requires}
+    dischargers_for = tuple(fact for fact in scoped.dischargers if fact.kind in required)
+    operations = tuple(sorted({call for fact in guarded for call in fact.calls}))
     dischargers = tuple(
         sorted(
-            {call for fact in scoped.dischargers for call in fact.calls}
-            | {decorator for fact in scoped.dischargers for decorator in fact.decorators}
-            | {source for fact in scoped.dischargers for source in fact.identity_sources}
+            {call for fact in dischargers_for for call in fact.calls}
+            | {decorator for fact in dischargers_for for decorator in fact.decorators}
+            | {source for fact in dischargers_for for source in fact.identity_sources}
         )
     )
-    return {"access_control": DominanceSpec(family="access_control", language=language, operations=operations, dischargers=dischargers)}
+    if not operations or not dischargers:
+        return {}
+    # The relation the facts state, kept rather than flattened: which obligation kinds each operation call
+    # would accept as a discharge, and which tokens evidence each kind.
+    requirements = {call: tuple(sorted(set(fact.requires))) for fact in guarded for call in fact.calls}
+    by_kind: dict[str, tuple[str, ...]] = {}
+    for fact in dischargers_for:
+        tokens = set(fact.calls) | set(fact.decorators) | set(fact.identity_sources)
+        by_kind[fact.kind] = tuple(sorted(set(by_kind.get(fact.kind, ())) | tokens))
+    return {
+        "access_control": DominanceSpec(
+            family="access_control",
+            language=language,
+            operations=operations,
+            dischargers=dischargers,
+            requirements=requirements,
+            dischargers_by_kind=by_kind,
+        )
+    }
 
 
 __all__ = [
