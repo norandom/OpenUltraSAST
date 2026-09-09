@@ -385,13 +385,8 @@ def _crowded_pattern_rules(findings: Sequence[StaticFinding]) -> list[StaticFind
     counts: dict[str, int] = {}
     for finding in findings:
         if _is_pattern_only(finding):
-            rule = str(finding.finding_id).split(":", 1)[0]
-            counts[rule] = counts.get(rule, 0) + 1
-    return [
-        finding
-        for finding in findings
-        if _is_pattern_only(finding) and counts.get(str(finding.finding_id).split(":", 1)[0], 0) > _PATTERN_DETAIL_LIMIT
-    ]
+            counts[_rule_key(finding)] = counts.get(_rule_key(finding), 0) + 1
+    return [finding for finding in findings if _is_pattern_only(finding) and counts.get(_rule_key(finding), 0) > _PATTERN_DETAIL_LIMIT]
 
 
 def _append_coverage(lines: list[str], coverage: Sequence[Mapping[str, object]]) -> None:
@@ -425,30 +420,51 @@ def _append_coverage(lines: list[str], coverage: Sequence[Mapping[str, object]])
 
 
 def _is_pattern_only(finding: StaticFinding) -> bool:
-    """Is a text match the only thing behind this finding?
+    """Was this proposed with nothing corroborating it?
 
-    `static_corroboration` is what the static layer emits when a pattern matched and nothing else spoke. A
-    proposer that reasoned about the site -- the model layer, the obligations checker -- carries `suspicion`
-    here even when its rung is also suspicion, and that is the distinction: an undecided CLAIM is not the
-    same as an observation that an API is present.
+    Two shapes qualify, and the second took a second look to see.
+
+    A **static pattern match** (`static_corroboration` at `suspicion`) says an API is present.
+
+    A **model suspicion** (`model:` at `suspicion`) is what the enumerator proposed at a site the graph could
+    NOT decide, affirmed by a judge that has no coverage there -- a pattern match with an opinion attached.
+    Its rationale says so in its own words: "the model resolved no flow here; its sink table may not cover
+    this API". It reads like a reasoned claim because a model produced it, which is exactly why it needs
+    naming: on vampi it is 38 of 60 findings, roughly one per fourteen lines of a 520-line application.
+
+    What does NOT qualify is the obligations checker, which also sits at `suspicion`. Its output comes from a
+    structural analysis -- an obligated operation with no discharging guard -- rather than from a guess, and
+    collapsing it would hide a detector.
     """
-    return str(finding.evidence_level) == "static_corroboration" and str(finding.rung) == "suspicion"
+    if str(finding.rung) != "suspicion":
+        return False
+    if str(finding.evidence_level) == "static_corroboration":
+        return True
+    return str(finding.finding_id).startswith("model:")
+
+
+def _rule_key(finding: StaticFinding) -> str:
+    """How a proposal is grouped. Model findings key on their FAMILY, since their rule is always `model`."""
+    parts = str(finding.finding_id).split(":")
+    if parts and parts[0] == "model" and len(parts) > 1:
+        return f"model:{parts[1]}"
+    return parts[0] if parts else ""
 
 
 def _append_pattern_matches(lines: list[str], patterned: Sequence[StaticFinding]) -> None:
     """Pattern matches, grouped by rule. Proportionate: few sites are named, many are counted."""
     by_rule: dict[str, list[StaticFinding]] = {}
     for finding in patterned:
-        by_rule.setdefault(str(finding.finding_id).split(":", 1)[0], []).append(finding)
+        by_rule.setdefault(_rule_key(finding), []).append(finding)
 
     lines.extend(
         [
-            "## Pattern matches",
+            "## Proposed, not corroborated",
             "",
-            f"{len(patterned)} site(s) matched a static pattern with nothing corroborating them. A match says "
-            "an API is present, not that it is misused; the model reached none of these, and silence from the "
-            "model means no fact table covered the site rather than that it is safe. All of them are in "
-            "`findings.json`.",
+            f"{len(patterned)} site(s) were proposed with nothing corroborating them: a static pattern saying "
+            "an API is present, or a candidate the model could not decide and a judge affirmed without "
+            "coverage there. Neither says the site is misused. Silence from the model means no fact table "
+            "covered it rather than that it is safe, and all of them are in `findings.json`.",
             "",
         ]
     )

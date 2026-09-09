@@ -1,0 +1,25 @@
+{
+  "generated": "2026-09-09",
+  "measured": {
+    "libpng": {
+      "findings": 198,
+      "sections_after_2_11": 39,
+      "sections_after_2_17": 30
+    },
+    "vampi": {
+      "findings": 60,
+      "report_lines": "1085 -> 446",
+      "sections_after": 26,
+      "sections_before": 61
+    }
+  },
+  "reading": "Task 2.11 made static pattern matches proportionate and left the model layer's own suspicions alone, on the reasoning that a proposer had reasoned about them. That reasoning does not survive inspection: a model suspicion is what the enumerator proposed at a site the graph could NOT decide, affirmed by a judge with no coverage there. Its own rationale says so -- 'the model resolved no flow here; its sink table may not cover this API'. It is a pattern match with an opinion attached, and it reads like a reasoned claim only because a model produced it.",
+  "spec": "contributor-scan 2.17 (Req 5.5) -- the model's own suspicion band",
+  "the_section_renamed": "'Pattern matches' became 'Proposed, not corroborated', because it now holds two shapes: a static pattern saying an API is present, and a candidate the model could not decide. Model rows group by FAMILY rather than by rule, since their rule is always `model`.",
+  "what_is_not_grouped": "The obligations checker also sits at `suspicion`, and is NOT grouped. Its output comes from a structural analysis -- an obligated operation with no discharging guard -- rather than from a guess. An earlier attempt at this rule filtered on rung alone and would have collapsed it; six tests failed and they were right to.",
+  "what_it_costs": {
+    "caveat": "Three known vulnerabilities in one repository. The rule would hide a real finding that only ever reached model-suspicion, and no such finding exists in the evidence base -- which is a statement about how small the evidence base is as much as about the rule.",
+    "method": "For each known vulnerability the recipe declares, take every finding row at its location and ask whether any survives the rule. If a known vulnerability appeared ONLY at model-suspicion, this rule hides it, and that is the number that decides whether the rule is right.",
+    "result": "VAmPI-SQLI, VAmPI-BOLA and VAmPI-BOLA-BOOKS all still found at model_entailed and all three survive the rule. Nothing known is hidden."
+  }
+}

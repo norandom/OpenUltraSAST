@@ -485,7 +485,7 @@ def test_a_pattern_rule_with_many_sites_is_summarised_not_repeated(tmp_path: Pat
     write_markdown_report(crowded, output)
 
     text = output.read_text()
-    assert "## Pattern matches" in text
+    assert "## Proposed, not corroborated" in text
     assert "20 site(s) across 20 file(s)" in text
     assert text.count("## c-unsafe-copy needs review") == 0, "twenty sections for one rule is the noise"
     assert "`findings.json`" in text, "counted, never dropped"
@@ -499,7 +499,7 @@ def test_a_pattern_rule_with_few_sites_keeps_its_sections(tmp_path: Path) -> Non
 
     text = output.read_text()
     assert "## python-flask-debug needs review" in text
-    assert "## Pattern matches" not in text
+    assert "## Proposed, not corroborated" not in text
 
 
 def test_a_reasoned_claim_keeps_its_section_whatever_its_rung(tmp_path: Path) -> None:
@@ -552,3 +552,68 @@ def test_a_scan_that_made_no_claims_states_no_limits(tmp_path: Path) -> None:
     write_markdown_report([_finding()], output)
 
     assert "## What was analysed" not in output.read_text()
+
+
+def test_a_model_suspicion_is_grouped_like_a_pattern_match(tmp_path: Path) -> None:
+    """contributor-scan 2.17, Req 5.5's other half.
+
+    A model suspicion is what the enumerator proposed at a site the graph could NOT decide, affirmed by a
+    judge with no coverage there -- a pattern match with an opinion attached. It reads like a reasoned claim
+    because a model produced it, and on vampi it was 38 of 60 findings on a 520-line application.
+    """
+    from dataclasses import replace
+
+    base = _finding()
+    suspicions = [
+        replace(
+            base,
+            finding_id=f"model:injection:api/f{i}.py:{i}:jsonify",
+            evidence_level="suspicion",
+            rung="suspicion",
+            path=f"api/f{i}.py",
+            line=i,
+            rationale="the model resolved no flow here; its sink table may not cover this API",
+        )
+        for i in range(20)
+    ]
+    output = tmp_path / "report.md"
+
+    write_markdown_report(suspicions, output)
+
+    text = output.read_text()
+    assert "`model:injection`" in text, "grouped by family, since the rule is always `model`"
+    assert "20 site(s)" in text
+    assert text.count(f"## {base.title}") == 0
+
+
+def test_an_obligation_finding_is_not_grouped_away(tmp_path: Path) -> None:
+    """It sits at `suspicion` too, but it comes from a structural analysis rather than a guess. Collapsing
+    it would hide a detector -- which an earlier attempt at this rule did, and six tests caught it."""
+    from dataclasses import replace
+
+    base = _finding()
+    obligations = [
+        replace(base, finding_id=f"obligation:protected_read:api/u.py:{i}", evidence_level="suspicion", rung="suspicion", line=i)
+        for i in range(20)
+    ]
+    output = tmp_path / "report.md"
+
+    write_markdown_report(obligations, output)
+
+    assert output.read_text().count(f"## {base.title}") == 20
+
+
+def test_an_entailed_model_finding_keeps_its_section(tmp_path: Path) -> None:
+    """The rung is the product. Whatever the model layer DECIDED is never summarised away."""
+    from dataclasses import replace
+
+    base = _finding()
+    entailed = [
+        replace(base, finding_id=f"model:injection:app.py:{i}:execute", evidence_level="suspicion", rung="model_entailed", line=i)
+        for i in range(20)
+    ]
+    output = tmp_path / "report.md"
+
+    write_markdown_report(entailed, output)
+
+    assert output.read_text().count(f"## {base.title}") == 20

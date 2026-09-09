@@ -318,7 +318,7 @@
   - _Requirements: 3.1, 8.2_
   - _Depends: 2.15_
 
-- [ ] 2.17 The model's own suspicion band is a pattern match with an opinion attached
+- [x] 2.17 The model's own suspicion band is a pattern match with an opinion attached
   - **Req 5.5's other half.** Task 2.11 made pattern matches proportionate and left this untouched, so vampi
     still emits 61 sections for a 520-line application -- 38 of them model suspicions, roughly one per
     fourteen lines of code.
