@@ -1,0 +1,7 @@
+{
+  "name": "zero-with-a-reason",
+  "status": "brief",
+  "approved": false,
+  "summary": "A finding count is meaningless without a denominator: make every zero decomposable and let a scan prove it did work.",
+  "depends_on": ["contributor-scan"]
+}
