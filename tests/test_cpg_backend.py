@@ -265,7 +265,11 @@ def test_the_operator_can_raise_the_heap(tmp_path: Path, monkeypatch: pytest.Mon
 def test_a_failed_joern_parse_retries_through_the_language_frontend(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Measured on a 637-file WordPress plugin: `joern-parse` threw after applying overlays while `php2cpg`
     on the same tree produced a 4.3MB CPG with no errors. Joern's own message recommends the direct route for
-    a large codebase, so this is the documented fallback rather than a workaround."""
+    a large codebase, so this is the documented fallback rather than a workaround.
+
+    Uses a language OUTSIDE `_PREFER_FRONTEND`, because php no longer waits for joern-parse to fail first --
+    see the test below.
+    """
     from openultrasast.cpg.backend import JoernBackend
 
     tried: list[str] = []
@@ -286,10 +290,10 @@ def test_a_failed_joern_parse_retries_through_the_language_frontend(tmp_path: Pa
     monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
     monkeypatch.setattr("shutil.which", lambda name: f"/opt/joern/{name}")
 
-    result = JoernBackend(runner=runner).build(tmp_path, language="php")
+    result = JoernBackend(runner=runner).build(tmp_path, language="python")
 
     assert result is not None, "the frontend succeeded where joern-parse did not"
-    assert tried == ["joern-parse", "php2cpg"]
+    assert tried == ["joern-parse", "pysrc2cpg"]
 
 
 def test_an_unknown_language_has_nothing_to_retry_with(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -380,3 +384,58 @@ def test_a_joern_log_line_inside_the_fence_does_not_destroy_the_payload() -> Non
 
     noisy = f'{BEGIN}\n[INFO ] Attempting to determine flows from empty list of sources.\n{{"0": [], "1": [1]}}\n{END}\n'
     assert extract_payload(noisy) == {"0": [], "1": [1]}
+
+
+def test_php_builds_through_the_frontend_and_retries_while_files_are_dropped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """php2cpg fails INTERMITTENTLY, and unlike joern-parse it says so.
+
+    Measured on one WordPress slice: joern-parse produced a usable graph 5 times in 8 and reported nothing
+    when it did not -- exit 0, "Successfully wrote graph", no methods in the graph. php2cpg on the same tree
+    managed 11 in 12 and named every file it dropped. So php goes straight to the frontend, and a build that
+    reports dropped files is simply attempted again.
+    """
+    import subprocess
+
+    from openultrasast.cpg.backend import JoernBackend
+
+    tried: list[str] = []
+    warning = "WARN AstCreationPass Failed to process '/src/big.php'\n"
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        tried.append(Path(command[0]).name)
+        Path(command[command.index("-o") + 1]).write_text("cpg")
+        # Drops a file on the first two attempts, clean on the third.
+        stderr = warning if len(tried) <= 2 else ""
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr=stderr)
+
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/joern/{name}")
+
+    result = JoernBackend(runner=runner).build(tmp_path, language="php")
+
+    assert result is not None
+    assert tried == ["php2cpg", "php2cpg", "php2cpg"], "joern-parse is not consulted for php, and it retried"
+    assert result.unparsed == (), "the third attempt was clean, so nothing is reported as dropped"
+
+
+def test_a_php_build_that_never_stops_dropping_files_reports_them(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Retrying is not the same as pretending. When every attempt drops the same file, the caller is told."""
+    import subprocess
+
+    from openultrasast.cpg.backend import FRONTEND_BUILD_ATTEMPTS, JoernBackend
+
+    attempts = 0
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        nonlocal attempts
+        attempts += 1
+        Path(command[command.index("-o") + 1]).write_text("cpg")
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="WARN Failed to process '/src/stubborn.php'\n")
+
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/joern/{name}")
+
+    result = JoernBackend(runner=runner).build(tmp_path, language="php")
+
+    assert attempts == FRONTEND_BUILD_ATTEMPTS, "it gives up rather than retrying forever"
+    assert result is not None and result.unparsed == ("/src/stubborn.php",)

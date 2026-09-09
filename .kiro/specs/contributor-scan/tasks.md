@@ -580,10 +580,24 @@
     One oversized file empties the whole graph, and `joern-parse` propagates none of the warnings -- thirteen
     lines of output, exit 0, "Successfully wrote graph". It is also a **race**, not a threshold: five builds
     of the same two-file input gave three graphs and two empty ones.
-  - Two things follow. The engine now says so (`cpg_empty`, from a census carried on the batched query; see
-    `cpg/backend.py`), which is what turned this from a clean bill of health into a diagnosis. And the
-    mitigation is per-file, not per-repository: `--exclude` the file whose dump is oversized and the rest of
-    the tree builds, so the coverage disclosure should name the excluded files rather than the build failing.
+  - **Corrected 2026-09-09, and the first diagnosis above was WRONG.** The banner-interleaving story is not
+    what happens. Capturing the exact bytes php2cpg receives -- by putting a logging wrapper on `php` -- shows
+    the parser's output arriving COMPLETE and VALID: two well-formed JSON documents, 5,176,594 bytes,
+    byte-identical across runs. The defect is inside php2cpg's own reading of that input, and nothing outside
+    it repairs a given attempt. Tried and each changed nothing: an unbuffered PHP shim, compacting the JSON
+    to a fifth of its size (5,176,594 -> 943,028), and `ForkJoinPool.common.parallelism=1`.
+  - What IS true and useful: the failure is **intermittent**, and `joern-parse` is both worse at it and
+    silent about it. On one WordPress slice, measured:
+
+        joern-parse   5 of 8 builds usable, and says nothing when they are not
+        php2cpg      11 of 12 builds usable, and names every file it dropped
+
+  - So php now builds through the frontend directly and retries while it reports dropped files
+    (`_build_with_retries`, 4 attempts). Retrying is only sound because the failure is intermittent AND
+    reported -- retrying a silent failure would be superstition. Driver-level result on the slice that
+    previously needed four manual retries: **6 of 6 builds usable**, 3 entailed findings each time.
+  - Still open: a file that fails on every attempt is still reported rather than analysed, and `--exclude`
+    plus a second CPG for the excluded files is the remaining lever.
   - Still open: wiring that exclusion loop, the 637-file build with it in place, and whether the REST handler
     two calls away can reach the sink -- the slice found it through a same-function flow, not across the
     object.

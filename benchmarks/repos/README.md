@@ -177,9 +177,24 @@ is still draining from a block-buffered stdout. The banner lands inside the JSON
 `joern-parse` propagates none of it: thirteen lines of output, exit status 0, "Successfully wrote graph".
 One oversized file empties the entire graph, so this was never the scale limit it looked like.
 
-It is also a **race**, not a threshold. Five builds of the same two-file input: three produced a graph, two
-came back empty. Before the batched query started carrying a census of the graph, two of every five scans of
-that plugin would have reported a clean bill of health.
+It is also **intermittent**, not a threshold. Five builds of the same two-file input: three produced a graph,
+two came back empty. Before the batched query started carrying a census of the graph, two of every five scans
+of that plugin would have reported a clean bill of health.
+
+The first explanation offered here — stderr banners interleaving into buffered stdout — was wrong, and worth
+recording as wrong. Capturing the exact bytes php2cpg receives shows the parser's output arriving complete
+and valid, byte-identical across runs; the defect is inside php2cpg's own reading of it. An unbuffered shim,
+compacting the JSON to a fifth of its size, and pinning ForkJoin parallelism each changed nothing.
+
+What did work is not a repair but a measurement. `joern-parse` is worse at this than the frontend it calls,
+and silent about it:
+
+    joern-parse   5 of 8 builds usable, and says nothing when they are not
+    php2cpg      11 of 12 builds usable, and names every file it dropped
+
+So PHP builds through `php2cpg` directly and retries while it reports dropped files. Retrying is sound only
+because the failure is intermittent *and* reported — retrying a silent failure would be superstition. The
+slice that previously needed four manual retries now builds 6 times out of 6.
 
 That is the argument for why a corpus of benchmarks is not enough on its own, made concretely. Every gate
 stayed byte-identical through all of it. A corpus tells you a verdict is right; it cannot tell you the

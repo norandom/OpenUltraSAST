@@ -63,6 +63,23 @@ _FRONTENDS = {
     "c_cpp": "c2cpg",
 }
 
+# Languages where the frontend is run DIRECTLY instead of through `joern-parse`, and how many times.
+#
+# `joern-parse` invokes the same frontend, but measured on one WordPress slice it succeeds far less often
+# and, worse, tells you nothing when it does not: thirteen lines of output, exit status 0, "Successfully
+# wrote graph", and a graph with no methods in it. The frontend logs a warning per file it drops.
+#
+#     joern-parse   5 of 8 builds usable
+#     php2cpg      11 of 12 builds usable, and names the files it dropped
+#
+# php2cpg 4.0.623 fails intermittently when it reads its PHP parser's output: the parser's bytes are
+# complete and valid -- verified by capturing them -- so the defect is inside the frontend's own JSON
+# reading, and nothing outside it can repair a given attempt. What CAN be done is notice (the warning is
+# right there) and try again. Compacting the parser's output to a fifth of its size, running the parser
+# through a shim, and pinning `ForkJoinPool.common.parallelism=1` were each tried and each changed nothing.
+_PREFER_FRONTEND = frozenset({"php"})
+FRONTEND_BUILD_ATTEMPTS = 4
+
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 
 
@@ -173,6 +190,20 @@ class JoernBackend:
             return None
         scratch = Path(tempfile.mkdtemp(prefix="ousast-cpg-"))
         cpg_path = scratch / "cpg.bin"
+
+        # A frontend whose failures are visible and retryable is worth more than one whose are not.
+        if language.lower() in _PREFER_FRONTEND:
+            retried = self._build_with_retries(root, cpg_path, scratch, language)
+            if retried is not None:
+                unparsed = retried
+                if unparsed:
+                    logger.warning("the frontend could not parse %d file(s) under %s: %s", len(unparsed), root, ", ".join(unparsed[:5]))
+                return CpgResult(
+                    cpg_path=cpg_path,
+                    run=lambda query, params: self.query(cpg_path, query, params),
+                    run_batch=lambda query, requests: self.query_batch(cpg_path, query, requests),
+                    unparsed=unparsed,
+                )
         command = [parse or "joern-parse", self._heap_flag(), str(root), "--output", str(cpg_path)]
         completed = self._run(command, timeout=self.build_timeout, cwd=scratch)
         unparsed = _unparsed_files(completed)
@@ -191,6 +222,33 @@ class JoernBackend:
             run_batch=lambda query, requests: self.query_batch(cpg_path, query, requests),
             unparsed=unparsed,
         )
+
+    def _build_with_retries(self, root: Path, cpg_path: Path, scratch: Path, language: str) -> tuple[str, ...] | None:
+        """Build through the frontend, trying again while it reports files it could not parse.
+
+        Retrying is only sound because the failure is INTERMITTENT and the frontend says when it happened.
+        Retrying a silent failure would be superstition; retrying a reported one is just using the report.
+        The loop stops at the first clean build, and returns the last attempt's dropped files rather than
+        pretending a partial graph is a whole one.
+
+        ``None`` means there was nothing to build with, so the caller falls back to ``joern-parse``.
+        """
+        best: tuple[str, ...] | None = None
+        for attempt in range(FRONTEND_BUILD_ATTEMPTS):
+            unparsed = self._build_with_frontend(root, cpg_path, scratch, language)
+            if unparsed is None:
+                return best  # the frontend is missing or failed outright; keep any earlier partial build
+            if not unparsed:
+                return ()
+            best = unparsed
+            logger.info(
+                "frontend dropped %d file(s) on attempt %d of %d for %s; retrying",
+                len(unparsed),
+                attempt + 1,
+                FRONTEND_BUILD_ATTEMPTS,
+                root,
+            )
+        return best
 
     def _build_with_frontend(self, root: Path, cpg_path: Path, scratch: Path, language: str) -> tuple[str, ...] | None:
         """Retry the build through the language frontend alone.
