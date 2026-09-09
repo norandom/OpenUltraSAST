@@ -28,7 +28,7 @@
 // the kinds that would discharge it and `dischargersByKind` maps a kind to its tokens; when both are absent
 // the flat list is used, which is the committed single-request behaviour.
 //
-// Output: a fenced JSON array of {operation, opLine, opMethod, dominatingGuards}.
+// Output: a fenced JSON array of {operation, opLine, opMethod, opFile, dominatingGuards}.
 
 // BATCHED, like taint.sc: `requests` is {id: {operations, dischargers, function}} and the output is
 // {id: [row, ...]}. One JVM start answers a whole scan. The single-request form is kept so the committed
@@ -151,6 +151,9 @@
       "operation"        -> op.code.take(200),
       "opLine"           -> op.lineNumber.getOrElse(-1).toString,
       "opMethod"         -> method.name,
+      // Where the operation is. Without it an access-control finding reaches a contributor as
+      // `api_views/users.py:?:update_password` -- a location no editor can open.
+      "opFile"           -> method.filename,
       "dominatingGuards" -> ujson.Arr(guards.map(ujson.Str(_)): _*)
     )
   }

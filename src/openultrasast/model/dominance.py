@@ -77,10 +77,24 @@ def verdict(cpg: CpgResult, spec: DominanceSpec, *, function: str = "", file: st
             f"while {len(guarded_methods)} sibling handler(s) are guarded "
             f"({', '.join(guarded_methods[:3])})"
         )
-        return Verdict(rung=Rung.ENTAILED, family=spec.family, witness=witness)
+        return Verdict(rung=Rung.ENTAILED, family=spec.family, witness=witness, location=_location(target))
 
     witness = f"{target['opMethod']} line {target['opLine']}: obligated operation with no discharging guard, and no guarded sibling"
-    return Verdict(rung=Rung.CORROBORATED, family=spec.family, witness=witness)
+    return Verdict(rung=Rung.CORROBORATED, family=spec.family, witness=witness, location=_location(target))
+
+
+def _location(row: Mapping[str, object]) -> str:
+    """``path:line:function`` of the obligated operation, when the engine reported a file.
+
+    Taint and config verdicts have always carried this; dominance did not, so every access-control finding
+    reached a contributor as `api_views/users.py:?:update_password` -- the right file by accident, because
+    the region was asked about that file, and no line at all.
+    """
+    where = str(row.get("opFile") or "")
+    line = str(row.get("opLine") or "")
+    if not where or not line.lstrip("-").isdigit() or int(line) < 0:
+        return ""
+    return f"{where}:{line}:{row.get('opMethod') or '?'}"
 
 
 def _operations(rows: object) -> list[dict[str, object]]:
@@ -97,6 +111,7 @@ def _operations(rows: object) -> list[dict[str, object]]:
                 "operation": str(row.get("operation", "")),
                 "opLine": str(row.get("opLine", "")),
                 "opMethod": str(row.get("opMethod", "")),
+                "opFile": str(row.get("opFile", "")),
                 "guards": [str(g) for g in guards] if isinstance(guards, Sequence) and not isinstance(guards, str) else [],
             }
         )

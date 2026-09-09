@@ -114,3 +114,53 @@ def test_the_spec_drives_the_query_parameters() -> None:
     assert seen["operations"] == ("filter_by", "query.get", "session.delete")
     assert seen["dischargers"] == ("login_required", "current_user", "check_permission")
     assert seen["function"] == "f"
+
+
+def test_an_access_control_finding_names_a_line_a_contributor_can_open() -> None:
+    """contributor-scan 2.7. Taint and config verdicts always carried a location; dominance did not, so every
+    access-control finding arrived as `api_views/users.py:?:update_password` -- the right file by accident,
+    because the region was asked about that file, and no line at all."""
+    from pathlib import Path
+
+    from openultrasast.cpg.backend import CpgResult
+    from openultrasast.model.dominance import verdict
+    from openultrasast.model.specs import dominance_specs
+
+    rows = [
+        {
+            "operation": "User.query.filter_by(username = username)",
+            "opLine": "187",
+            "opMethod": "update_password",
+            "opFile": "api_views/users.py",
+            "dominatingGuards": [],
+        },
+        {
+            "operation": "User.query.filter_by(username = resp['sub'])",
+            "opLine": "33",
+            "opMethod": "me",
+            "opFile": "api_views/users.py",
+            "dominatingGuards": ["resp['sub']"],
+        },
+    ]
+    spec = dominance_specs(language="python")["access_control"]
+
+    answer = verdict(CpgResult(cpg_path=Path("c.bin"), run=lambda q, p: rows), spec, function="update_password")
+
+    assert answer is not None
+    assert answer.location == "api_views/users.py:187:update_password"
+
+
+def test_a_verdict_without_a_reported_file_carries_no_location() -> None:
+    """An engine that could not report the file must not have a location invented for it."""
+    from pathlib import Path
+
+    from openultrasast.cpg.backend import CpgResult
+    from openultrasast.model.dominance import verdict
+    from openultrasast.model.specs import dominance_specs
+
+    rows = [{"operation": "q.filter_by(x)", "opLine": "-1", "opMethod": "handler", "opFile": "", "dominatingGuards": []}]
+    spec = dominance_specs(language="python")["access_control"]
+
+    answer = verdict(CpgResult(cpg_path=Path("c.bin"), run=lambda q, p: rows), spec, function="handler")
+
+    assert answer is not None and answer.location == ""

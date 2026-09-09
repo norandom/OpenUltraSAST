@@ -162,7 +162,7 @@
   - _Requirements: 8.1, 8.2_
   - _Depends: 2.2_
 
-- [ ] 2.7 A dominance witness that names its line
+- [x] 2.7 A dominance witness that names its line
   - Access-control sites read `api_views/users.py:?:update_password`. Taint and config witnesses carry
     `(line N)`; dominance does not, so its findings have no line and a contributor cannot open them.
   - Observable: every entailed finding in a repository scan has an integer line.
@@ -248,6 +248,38 @@
     Without the second half this task should not be closed.
   - _Requirements: 8.1, 8.2_
   - _Depends: 2.12, 5.3_
+
+- [ ] 2.14 Control dependence is not populated, and two arbiters want it
+  - Measured, not assumed: **0 of 13,184 calls in the libpng CPG and 0 of 1,152 in the vampi CPG have a
+    controlling control structure.** `controlledBy` returns nothing in either, so the PDG's control half is
+    simply absent from the graphs we build. The data half is present and load-bearing -- `reachableByFlows`
+    is the whole taint arbiter, and `joern-parse` reports `dataflowOss` applied.
+  - Everything guard-shaped we do therefore uses CFG dominance (`dominatedBy`) or syntactic conditions
+    (`method.controlStructure.condition`) instead. That is why 2.12's first attempt failed: libpng's bound
+    reaches its sink through an `error` flag, which is a control-dependence fact and nothing else.
+  - Find out whether a CDG overlay can be enabled on `joern-parse` or in the script, what it costs on the
+    envelope checkout, and whether it makes the flag-mediated guard decidable. If it cannot be enabled,
+    record that -- it bounds what guard reasoning this engine can ever do.
+  - Observable: a recorded answer with the build-time and query-time cost, and wpng.c:374 decided or a
+    stated reason it cannot be.
+  - _Requirements: 4.2, 8.1_
+  - _Depends: 2.12_
+
+- [ ] 2.15 A C checkout whose CVE goes through a sink we model
+  - libpng cannot demonstrate a C true positive, and pinning an older vulnerable commit would not change
+    that. **Every one of the twelve files using `strcpy`/`strcat`/`sprintf`/`gets` is under `contrib/`; the
+    library itself uses none of them.** Its overflows are array and pointer arithmetic and `memcpy` sizing,
+    and five buffer-overflow fixes checked (`png_set_quantize`, `png_image_finish_read`,
+    `png_init_read_transformations`, `png_do_quantize`, `png_write_image_8bit`) touch no modelled sink at
+    all.
+  - So there are two ways forward and they are different sizes. Pin a C project whose CVE genuinely runs
+    through a string function -- cheap, and it gives the memory family its first true positive. Or model how
+    C actually overflows: a `memcpy` whose size is computed, an index that is not bounded. That is size
+    arithmetic rather than sink matching, a different abstraction, and it should not be started by accident.
+  - Observable: a pinned checkout with an in-scope CVE found at a rung, or a recorded decision that the
+    memory family needs the second abstraction before any C detection claim is made.
+  - _Requirements: 4.1, 4.4_
+  - _Depends: 2.12_
 
 ## Group 3 — Ship it
 
