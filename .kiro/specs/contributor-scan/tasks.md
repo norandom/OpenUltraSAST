@@ -294,7 +294,7 @@
   - _Requirements: 4.1, 4.4_
   - _Depends: 2.12_
 
-- [ ] 2.16 Say what `c/memory` actually covers, or retire it
+- [x] 2.16 Say what `c/memory` actually covers, or retire it
   - Its score so far is zero true positives and every finding a false one: 26 from a substring match, 3 from
     a bound it could not see, 1 from an allocation sized to fit. Each was a real defect in the engine and
     each is now fixed, but the family has never once been right, and 2.15 explains why -- it models string
@@ -304,6 +304,17 @@
     but it should be a recorded decision with a number behind it, not an assumption.
   - Observable: either a measured true positive on the 2.15 checkout, or the family's declared scope
     narrowed in the facts and the docs so no reader takes a silent C scan for a clean bill of health.
+  - **Done 2026-09-09 by the second route: kept, scoped and stated.** `strcpy` misuse is real in plenty of C
+    and the family earns its place for that; what it could not do was claim more. Its description said
+    "bounds, lifetime, arithmetic", which is exactly what it does not decide -- the description was itself
+    the quiet-failure risk. It now names the APIs it models, and a new `limits` field says what it cannot:
+    an overflow expressed as an index, a pointer offset, or a memcpy whose size is computed.
+  - The report renders it as **What was analysed**, for every family offered to a region whether or not it
+    found anything -- a family that ran and reported nothing is the case a reader is most likely to misread.
+    The counts are derived from the fact tables the arbiter used, so they cannot drift from what the engine
+    really looked for; only the limit sentence is authored.
+  - Retiring the family was the alternative and would have been wrong: it would remove the disclosure along
+    with the coverage, leaving a C scan silent for a reason nobody could read.
   - _Requirements: 3.1, 8.2_
   - _Depends: 2.15_
 

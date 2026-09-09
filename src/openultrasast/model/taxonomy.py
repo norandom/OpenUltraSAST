@@ -31,7 +31,7 @@ VERIFIER_KINDS = ("canary", "static", "none")
 Relation = Literal["same", "parent_child", "lateral", "fabricated"]
 DEFAULT_FAMILIES_PATH = Path(__file__).resolve().parents[1] / "ruleset" / "families.toml"
 
-_FAMILY_FIELDS = frozenset({"id", "description", "cwes", "mechanisms", "verifier", "parent"})
+_FAMILY_FIELDS = frozenset({"id", "description", "cwes", "mechanisms", "verifier", "parent", "limits"})
 _TOP_FIELDS = frozenset({"version", "family"})
 
 
@@ -47,6 +47,10 @@ class Family:
     mechanisms: frozenset[str]
     verifier: str  # VERIFIER_KINDS
     parent: str | None = None  # a family this one specializes; partial credit when one side is the other's parent
+    # What this family's abstraction CANNOT decide, in the words a reader needs. Empty means no limit has
+    # been stated, which is not the same as no limit existing -- and a family that has one and does not say
+    # so lets a silent scan read as a clean bill of health (Req 5.6).
+    limits: str = ""
 
 
 @dataclass(frozen=True)
@@ -153,6 +157,7 @@ def _family(source: Path, entry: dict[str, object]) -> Family:
         mechanisms=frozenset(mechanisms),
         verifier=verifier,
         parent=str(parent) if parent else None,
+        limits=str(entry.get("limits", "") or "").strip(),
     )
 
 

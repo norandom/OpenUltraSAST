@@ -122,3 +122,15 @@ def test_the_shipped_file_must_declare_the_whole_closed_set_in_order(tmp_path: P
     (tmp_path / "families.toml").write_text(GOOD)
     with pytest.raises(FamiliesError, match="in that order"):
         load_families(tmp_path / "families.toml")
+
+
+def test_the_memory_family_states_what_it_cannot_decide() -> None:
+    """contributor-scan 2.16. Its description used to claim "bounds, lifetime, arithmetic", which is exactly
+    what it does not do -- the description was itself the quiet-failure risk."""
+    from openultrasast.model.taxonomy import load_families
+
+    memory = next(family for family in load_families().families if family.id == "memory")
+
+    assert "arithmetic" in memory.limits, "the gap is stated"
+    assert "arithmetic" not in memory.description, "and no longer claimed"
+    assert "strcpy" in memory.description, "what it does cover is named"

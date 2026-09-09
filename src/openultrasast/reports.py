@@ -22,6 +22,7 @@ def write_markdown_report(
     mechanisms: Mapping[str, Mapping[str, object]] | None = None,
     obligations: Mapping[str, Mapping[str, object]] | None = None,
     obligations_summary: Mapping[str, object] | None = None,
+    coverage: Sequence[Mapping[str, object]] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications or [])
@@ -86,6 +87,8 @@ def write_markdown_report(
             cited_obligations[finding.finding_id] = info_o
             _append_obligation_lines(lines, info_o, (mechanisms or {}).get(str(info_o.get("known_fix") or "")))
         lines.extend(["", finding.rationale, ""])
+    if coverage:
+        _append_coverage(lines, coverage)
     if patterned:
         _append_pattern_matches(lines, patterned)
     if cited:
@@ -389,6 +392,36 @@ def _crowded_pattern_rules(findings: Sequence[StaticFinding]) -> list[StaticFind
         for finding in findings
         if _is_pattern_only(finding) and counts.get(str(finding.finding_id).split(":", 1)[0], 0) > _PATTERN_DETAIL_LIMIT
     ]
+
+
+def _append_coverage(lines: list[str], coverage: Sequence[Mapping[str, object]]) -> None:
+    """What was looked for, and what could not be decided (Req 5.6).
+
+    A scan that reports nothing has established that nothing it MODELS was found. That is not the same as
+    finding nothing, and the difference is the whole reason this section exists: a silent report read as a
+    clean bill of health is worse than a noisy one, because the reader acts on it.
+    """
+    lines.extend(
+        [
+            "## What was analysed",
+            "",
+            "Each family below was offered to at least one region. **A family that reported nothing has "
+            "established only that nothing it models was found** — silence here means no fact table covered "
+            "the code, not that the code is safe.",
+            "",
+            "| language | family | regions | operations modelled |",
+            "| --- | --- | --- | --- |",
+        ]
+    )
+    for row in coverage:
+        lines.append(f"| {row.get('language')} | `{row.get('family')}` | {row.get('regions')} | {row.get('modelled')} |")
+    lines.append("")
+
+    stated = [row for row in coverage if str(row.get("limits") or "")]
+    if stated:
+        lines.extend(["### Stated limits", ""])
+        for row in stated:
+            lines.extend([f"**`{row.get('family')}` ({row.get('language')})** — {row.get('limits')}", ""])
 
 
 def _is_pattern_only(finding: StaticFinding) -> bool:

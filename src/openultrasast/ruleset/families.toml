@@ -86,7 +86,8 @@ verifier = "none"
 
 [[family]]
 id = "memory"
-description = "Memory safety in C and C++: bounds, lifetime, arithmetic. Measured on the vendored slice, never gated; specialized systems own this class."
+description = "Misuse of unbounded string and format APIs in C and C++: a tainted value reaching gets, strcpy, strcat, sprintf or a non-literal format string."
+limits = """Models CALLS, not arithmetic. It cannot decide an overflow expressed as an index, a pointer offset, or a memcpy whose size is computed -- which is how most real C overflows are written, and how every one of libpng's is. A scan of C code that reports nothing from this family has established that no tainted value reached a modelled string API, and nothing at all about its buffer arithmetic."""
 cwes = [
     "CWE-119",
     "CWE-120",

@@ -517,3 +517,38 @@ def test_a_reasoned_claim_keeps_its_section_whatever_its_rung(tmp_path: Path) ->
     write_markdown_report(reasoned, output)
 
     assert output.read_text().count(f"## {base.title}") == 20
+
+
+def test_the_report_says_what_was_looked_for_and_what_cannot_be_decided(tmp_path: Path) -> None:
+    """contributor-scan 2.16, Req 5.6. `c/memory` scored zero true positives across 89k lines of C for a
+    structural reason -- it models string CALLS and libpng overflows through arithmetic. A silent scan
+    reading as a clean bill of health is worse than a noisy one, because the reader acts on it."""
+    output = tmp_path / "report.md"
+    coverage = [
+        {
+            "language": "c",
+            "family": "memory",
+            "regions": 121,
+            "modelled": 9,
+            "description": "Misuse of unbounded string and format APIs",
+            "limits": "Models CALLS, not arithmetic. It cannot decide an overflow expressed as an index.",
+        }
+    ]
+
+    write_markdown_report([], output, coverage=coverage)
+
+    text = output.read_text()
+    assert "## What was analysed" in text
+    assert "| c | `memory` | 121 | 9 |" in text, "what it looked for, counted from the fact table itself"
+    assert "### Stated limits" in text
+    assert "cannot decide an overflow expressed as an index" in text
+    assert "silence here means no fact table covered the code, not that the code is safe" in text
+
+
+def test_a_scan_that_made_no_claims_states_no_limits(tmp_path: Path) -> None:
+    """A report with no model layer has nothing to disclaim; the section would be noise."""
+    output = tmp_path / "report.md"
+
+    write_markdown_report([_finding()], output)
+
+    assert "## What was analysed" not in output.read_text()

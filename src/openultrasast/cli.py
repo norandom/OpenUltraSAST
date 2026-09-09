@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 from time import perf_counter
@@ -538,6 +538,10 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             wrote_verdicts = True
             plan = record_completed(plan, Stage.REGRESS)
     worth_fixing_payload = _worth_fixing_payload(verdict_records) if wrote_verdicts else None
+    # Req 5.6: what each family could see, for the report. Absent when the model layer did not run --
+    # and a scan with no model layer states no limits because it made no claims.
+    coverage_rows = model_payload.get("coverage") if isinstance(model_payload, dict) else None
+    coverage_for_report = coverage_rows if isinstance(coverage_rows, list) and coverage_rows else None
     runtime.run_stage(
         "report",
         lambda: write_markdown_report(
@@ -550,6 +554,7 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             overlay=overlay_records if wrote_overlay else None,
             obligations=obligations_cited or None,
             obligations_summary=obligations_payload or None,
+            coverage=coverage_for_report,
         ),
     )
     runtime.run_stage(
@@ -872,7 +877,9 @@ def _model_skipped(reason: str) -> dict[str, object]:
     return {**_model_payload(None), "skipped": reason}
 
 
-def _model_payload(result: object, *, unjudged_paths: tuple[str, ...] = ()) -> dict[str, object]:
+def _model_payload(
+    result: object, *, unjudged_paths: tuple[str, ...] = (), coverage: Sequence[Mapping[str, object]] = ()
+) -> dict[str, object]:
     """What the scan records about the model layer.
 
     `unjudged_sample` names the regions the budget did not reach, lowest-ranked first. Counting them is the
@@ -892,6 +899,7 @@ def _model_payload(result: object, *, unjudged_paths: tuple[str, ...] = ()) -> d
         "query_seconds": getattr(result, "query_seconds", 0.0),
         "query_seconds_by_kind": dict(getattr(result, "query_seconds_by_kind", {}) or {}),
         "arbitrate_seconds": getattr(result, "arbitrate_seconds", 0.0),
+        "coverage": list(coverage),
     }
 
 
@@ -929,6 +937,12 @@ def _run_model_layer(
     if not regions:
         return [], _model_skipped("no_regions")
 
+    # Req 5.6: what each family could see, recorded whether or not it found anything. A family that ran
+    # and reported nothing is the case a reader is most likely to misread.
+    from .model.report import coverage_rows
+
+    coverage = coverage_rows(regions)
+
     resolved = resolve_chat_endpoint(config)
     client = resolved[0] if resolved else None
     if client is None:
@@ -952,7 +966,7 @@ def _run_model_layer(
     # The regions the budget did not reach, weakest first -- the evidence an exclusion list is built from.
     unjudged = tuple(region.path for region in regions[result.regions_scanned :][:10])
     findings = [_finding_from_model(item) for item in result.findings]
-    return findings, _model_payload(result, unjudged_paths=unjudged)
+    return findings, _model_payload(result, unjudged_paths=unjudged, coverage=coverage)
 
 
 def _finding_from_model(item: object) -> StaticFinding:
