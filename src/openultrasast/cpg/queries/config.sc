@@ -4,17 +4,22 @@
 // This query reports each setting call with its arguments split into literals (which the model can evaluate)
 // and non-literals (which it cannot -- those become `corroborated`, never silently safe).
 //
-// Parameters: cpgFile, settings, function (optional).
+// Parameters: cpgFile, settings, function (optional), file (optional: restrict to this source file).
+//
+// `file` matters more than it looks. A region with no enclosing function -- a module of settings, an
+// __init__.py -- used to send function="" and match EVERY setting in the repository, and the driver then
+// attributed the whole answer to whichever region asked. One `host='0.0.0.0'` in app.py became eight
+// identical entailed findings in eight files that do not contain it.
 // Output: fenced JSON array of {setting, line, method, args, literalArgs}.
 
 // BATCHED, like taint.sc. Single-request form kept for the committed measurements.
 
-@main def exec(cpgFile: String, settings: String = "", function: String = "", requests: String = "") = {
+@main def exec(cpgFile: String, settings: String = "", function: String = "", file: String = "", requests: String = "") = {
   importCpg(cpgFile)
 
   def split(raw: String): List[String] = raw.split(",").map(_.trim).filter(_.nonEmpty).toList
 
-  def rowsFor(settingsS: String, functionS: String): List[ujson.Obj] = {
+  def rowsFor(settingsS: String, functionS: String, fileS: String): List[ujson.Obj] = {
   val names = split(settingsS)
   val function = functionS
 
@@ -22,7 +27,8 @@
 
   val calls = {
     val all = cpg.call.filter(c => matches(c.name)).l
-    if (function.isEmpty) all else all.filter(_.method.name == function)
+    val inFile = if (fileS.isEmpty) all else all.filter(_.method.filename.endsWith(fileS))
+    if (function.isEmpty) inFile else inFile.filter(_.method.name == function)
   }
 
   val rows = calls.map { call =>
@@ -51,11 +57,11 @@
     val parsed = ujson.read(requests).obj
     val answers = parsed.map { case (id, req) =>
       def field(name: String): String = req.obj.get(name).map(_.str).getOrElse("")
-      id -> ujson.Arr(rowsFor(field("settings"), field("function")): _*)
+      id -> ujson.Arr(rowsFor(field("settings"), field("function"), field("file")): _*)
     }
     println(ujson.write(ujson.Obj.from(answers)))
   } else {
-    println(ujson.write(ujson.Arr(rowsFor(settings, function): _*)))
+    println(ujson.write(ujson.Arr(rowsFor(settings, function, file): _*)))
   }
   println("---OUSAST-CPG-END---")
 }

@@ -162,3 +162,97 @@ def test_a_batch_result_that_omits_a_request_returns_nothing_for_it() -> None:
     backend = JoernBackend(runner=lambda c, **k: _Partial())
     rows = backend.query_batch(Path("/tmp/c.bin"), "taint", {"r1": {}, "r2": {}})
     assert rows.get("r1") == [] and "r2" not in rows
+
+
+def test_a_built_cpg_offers_the_batch_path_to_its_driver(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The capability must be reachable through the object the driver is handed, not merely present.
+
+    ``query_batch`` was implemented, tested and committed while ``build`` returned a result carrying only
+    ``run``. The driver discovers batching by looking for ``run_batch`` on that result, found nothing, and
+    fell back to one JVM per region -- silently, because every test called ``query_batch`` directly. A
+    repository scan is what made it visible: ~14s per region-family, one ``--param function=`` invocation at
+    a time.
+    """
+    from openultrasast.cpg.backend import BEGIN, END, JoernBackend
+
+    scripts: list[list[str]] = []
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        class _Done:
+            returncode = 0
+            stderr = ""
+            stdout = f'{BEGIN}\n{{"r1": [{{"sink": "os.system(x)"}}]}}\n{END}\n'
+
+        if "--output" in command:  # the parse step; make the artifact it promises
+            Path(command[command.index("--output") + 1]).write_text("cpg")
+        else:
+            scripts.append(list(command))
+        return _Done()
+
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    result = JoernBackend(runner=runner).build(tmp_path)
+
+    assert result is not None
+    assert result.run_batch is not None, "a backend that can batch must expose it, or the driver cannot find it"
+    rows = result.run_batch("taint", {"r1": {"sources": ("request.args",), "sinks": ("os.system",)}})
+    assert rows["r1"], "the batch path must reach the engine, not just exist"
+    assert len(scripts) == 1, "one invocation for the batch"
+    assert not any(arg.startswith("function=") for arg in scripts[0]), "a batch carries requests, not one function"
+
+
+def test_the_engine_runs_under_a_bounded_heap(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A JVM with no -Xmx claims a quarter of physical RAM.
+
+    That is not a tuning preference. The first repository measurements were killed under memory pressure at
+    different points, so their numbers described the host rather than the engine, and on a contributor's
+    laptop an unbounded heap is the difference between a scan running in the background and a scan the
+    machine notices.
+    """
+    from openultrasast.cpg.backend import JoernBackend
+
+    commands: list[list[str]] = []
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        class _Done:
+            returncode = 0
+            stderr = ""
+            stdout = ""
+
+        commands.append(list(command))
+        if "--output" in command:
+            Path(command[command.index("--output") + 1]).write_text("cpg")
+        return _Done()
+
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    monkeypatch.delenv("OPENULTRASAST_CPG_HEAP_MB", raising=False)
+    result = JoernBackend(runner=runner).build(tmp_path)
+    assert result is not None
+    result.run("taint", {})
+
+    assert commands, "nothing ran"
+    for command in commands:
+        assert any(arg.startswith("-J-Xmx") for arg in command), f"unbounded heap in {command[0]}"
+
+
+def test_the_operator_can_raise_the_heap(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A bound that cannot be lifted is a bound that gets removed. A big repository may need a big heap."""
+    from openultrasast.cpg.backend import JoernBackend
+
+    commands: list[list[str]] = []
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        class _Done:
+            returncode = 0
+            stderr = ""
+            stdout = ""
+
+        commands.append(list(command))
+        if "--output" in command:
+            Path(command[command.index("--output") + 1]).write_text("cpg")
+        return _Done()
+
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    monkeypatch.setenv("OPENULTRASAST_CPG_HEAP_MB", "6144")
+    JoernBackend(runner=runner).build(tmp_path)
+
+    assert "-J-Xmx6144m" in commands[0]

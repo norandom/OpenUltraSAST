@@ -6,10 +6,11 @@ two costs that were free at pair scale dominate here:
 * **CPG construction.** A build takes 5-30 seconds on a forty-line excerpt. One per region would make a
   repository scan unusable, so this builds **one** and reuses it across every region.
 * **Model calls.** The enumerator caps candidates at eight per region, which says nothing useful about a scan
-  with two thousand regions. The budget is a **total for the run**, spent on the highest-ranked regions first,
-  and whatever it does not reach is counted into ``regions_unjudged`` rather than quietly dropped. A tool that
-  silently analyses a tenth of a repository and reports a clean result is worse than one that says what it
-  did not look at.
+  with two thousand regions. The budget is a **total for the run**, spent on the highest-ranked regions first.
+  It bounds model calls and nothing else: when it runs out the JUDGE is withheld and the graph keeps deciding,
+  because arbitration costs nothing. Those regions are counted into ``regions_unasked``, and anything
+  ``max_regions`` cut before arbitration into ``regions_unjudged``. A tool that silently analyses a tenth of a
+  repository and reports a clean result is worse than one that says what it did not look at.
 
 Ordering puts rung before rank: what the model established outranks what the LLM merely proposed, whatever
 the region's risk score said beforehand.
@@ -58,10 +59,23 @@ class ModelScanResult:
     by_rung: Mapping[str, int] = field(default_factory=dict)
     regions_scanned: int = 0
     regions_unjudged: int = 0
+    # Arbitrated by the graph, but with the judge withheld because the budget was spent. Not the same as
+    # unjudged, and not the same as clean.
+    regions_unasked: int = 0
     model_calls: int = 0
     cost_usd: float = 0.0
     seconds: float = 0.0
+    # The split, not just the total. Which stage a scan's wall-clock actually goes to decides real questions
+    # -- whether a warm Joern server would buy anything, whether the budget or the CPG is the ceiling -- and
+    # a single figure cannot answer any of them.
+    build_seconds: float = 0.0
+    query_seconds: float = 0.0
     degradations: tuple[Mapping[str, object], ...] = ()
+
+    @property
+    def arbitrate_seconds(self) -> float:
+        """What is left once the CPG is built and queried: the judge calls and the arbiters themselves."""
+        return round(max(self.seconds - self.build_seconds - self.query_seconds, 0.0), 2)
 
 
 def scan_repository(
@@ -79,12 +93,15 @@ def scan_repository(
     degradations: list[Mapping[str, object]] = []
 
     taxonomy = load_families()
+    build_started = time.monotonic()
     cpg = backend.build(root)
+    build_seconds = round(time.monotonic() - build_started, 2)
     if cpg is None:
         return ModelScanResult(
             by_rung=_empty_tally(),
             regions_unjudged=len(regions),
             seconds=round(time.monotonic() - started, 2),
+            build_seconds=build_seconds,
             degradations=({"stage": "model", "reason": "cpg_build_failed"},),
         )
 
@@ -111,6 +128,7 @@ def scan_repository(
     # per family put a ten-line file at four minutes and a thousand regions at roughly fifty hours -- while
     # the queries themselves are milliseconds once the CPG is loaded.
     rows_by_id: dict[str, list[object]] = {}
+    query_started = time.monotonic()
     for kind, requests in _grouped(work).items():
         batch = getattr(cpg, "run_batch", None)
         if callable(batch):
@@ -119,17 +137,23 @@ def scan_repository(
             for rid, params in requests.items():
                 answered = cpg.run(kind, params)
                 rows_by_id[rid] = list(answered) if isinstance(answered, list) else []
+    query_seconds = round(time.monotonic() - query_started, 2)
 
     # Phase 3: arbitrate from the rows already in hand. The arbiters are unchanged: each is handed a
     # CpgResult that simply returns its own prefetched rows.
     #
-    # `judged` counts regions actually ARBITRATED, not regions collected: a region the budget stopped before
-    # is unjudged, and reporting it as scanned is the silent truncation this exists to prevent.
+    # The budget bounds MODEL CALLS, and nothing else. Arbitration is the CPG alone -- it costs no call, no
+    # token and no money -- so an exhausted budget withholds the JUDGE and lets the graph keep deciding. It
+    # used to break the loop instead, which spent a paid limit to stop unpaid work: on VAmPI that left 16 of
+    # 22 regions unexamined and missed a BOLA the graph entails for free.
+    #
+    # `judged` counts regions actually ARBITRATED and `unasked` those arbitrated with no judge behind them.
+    # Both are reported: a region the graph settled and a region the graph was silent about but nobody could
+    # afford to ask are not the same result, and collapsing them is the silent truncation this prevents.
     judged: set[tuple[str, str | None]] = set()
+    unasked: set[tuple[str, str | None]] = set()
     for rid, region, spec in work:
-        if counted is not None and counted.calls >= limits.max_model_calls:
-            degradations.append({"stage": "model", "reason": "budget_exhausted", "regions_unjudged": max(len(regions) - len(judged), 0)})
-            break
+        exhausted = counted is not None and counted.calls >= limits.max_model_calls
         family = getattr(spec, "family", "")
         prefetched = CpgResult(cpg_path=cpg.cpg_path, run=_prefetched(rows_by_id.get(rid, [])))
         try:
@@ -138,8 +162,9 @@ def scan_repository(
             found = scan_region(
                 prefetched,
                 spec,
+                path=region.path,
                 function=region.function or "",
-                client=counted,
+                client=None if exhausted else counted,
                 model=model,
                 candidates=candidates,
                 parameter_sources=False,  # a repository's parameters are not all attacker input
@@ -149,7 +174,12 @@ def scan_repository(
             degradations.append({"stage": "model", "reason": "region_failed", "path": region.path})
             continue
         judged.add((region.path, region.function))
+        if exhausted:
+            unasked.add((region.path, region.function))
         collected.extend((finding, region.rank) for finding in found)
+
+    if unasked:
+        degradations.append({"stage": "model", "reason": "budget_exhausted", "regions_unasked": len(unasked)})
 
     scanned = len(judged)
 
@@ -159,9 +189,12 @@ def scan_repository(
         by_rung=_tally(findings),
         regions_scanned=scanned,
         regions_unjudged=max(len(regions) - scanned, 0),
+        regions_unasked=len(unasked),
         model_calls=counted.calls if counted is not None else 0,
         cost_usd=round(_cost(counted), 4),
         seconds=round(time.monotonic() - started, 2),
+        build_seconds=build_seconds,
+        query_seconds=query_seconds,
         degradations=tuple(degradations),
     )
 
@@ -188,9 +221,9 @@ def _grouped(work: Sequence[tuple[str, ScanRegion, ArbiterSpec]]) -> dict[str, d
         if isinstance(spec, DominanceSpec):
             kind, params = "dominance", dominance_params(spec, function=function)
         elif isinstance(spec, ConfigSpec):
-            kind, params = "config", config_params(spec, function=function)
+            kind, params = "config", config_params(spec, function=function, file=region.path)
         else:
-            kind, params = "taint", taint_params(spec, function=function, parameter_sources=False)
+            kind, params = "taint", taint_params(spec, function=function, file=region.path, parameter_sources=False)
         grouped.setdefault(kind, {})[rid] = params
     return grouped
 

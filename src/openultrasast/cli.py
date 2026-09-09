@@ -883,10 +883,14 @@ def _model_payload(result: object, *, unjudged_paths: tuple[str, ...] = ()) -> d
         "by_rung": dict(getattr(result, "by_rung", {}) or {}),
         "regions_scanned": getattr(result, "regions_scanned", 0),
         "regions_unjudged": getattr(result, "regions_unjudged", 0),
+        "regions_unasked": getattr(result, "regions_unasked", 0),
         "unjudged_sample": list(unjudged_paths),
         "model_calls": getattr(result, "model_calls", 0),
         "cost_usd": getattr(result, "cost_usd", 0.0),
         "seconds": getattr(result, "seconds", 0.0),
+        "build_seconds": getattr(result, "build_seconds", 0.0),
+        "query_seconds": getattr(result, "query_seconds", 0.0),
+        "arbitrate_seconds": getattr(result, "arbitrate_seconds", 0.0),
     }
 
 
@@ -952,7 +956,7 @@ def _finding_from_model(item: object) -> StaticFinding:
     """A model finding as a StaticFinding, carrying its rung and witness (Req 5.1)."""
     site = str(getattr(item, "site", ""))
     path, _, rest = site.partition(":")
-    line = rest.split(":")[0] if rest else ""
+    line, _, function = rest.partition(":")
     rung = getattr(item, "rung", None)
     witness = str(getattr(item, "witness", "") or getattr(item, "contradiction", ""))
     family = str(getattr(item, "family", ""))
@@ -965,7 +969,7 @@ def _finding_from_model(item: object) -> StaticFinding:
         evidence_level="suspicion",
         rationale=witness or f"the model layer reported a {family} candidate",
         line=int(line) if line.isdigit() else None,
-        function_name=None,
+        function_name=function or None,
         reachability_status="unknown",
         reachability_evidence=[],
         reachability_conditions=[],

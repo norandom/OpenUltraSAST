@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -64,7 +65,9 @@ class ModelFinding:
     contradiction: str = ""
 
 
-def _arbitrate(cpg: CpgResult, spec: TaintSpec | DominanceSpec | ConfigSpec, *, function: str, parameter_sources: bool) -> Verdict | None:
+def _arbitrate(
+    cpg: CpgResult, spec: TaintSpec | DominanceSpec | ConfigSpec, *, path: str, function: str, parameter_sources: bool
+) -> Verdict | None:
     """Route a family to the arbiter that can actually decide it.
 
     Dispatching on the spec type rather than on a family name keeps this honest: a family without an arbiter
@@ -75,14 +78,15 @@ def _arbitrate(cpg: CpgResult, spec: TaintSpec | DominanceSpec | ConfigSpec, *, 
     if isinstance(spec, DominanceSpec):
         return dominance_verdict(cpg, spec, function=function)
     if isinstance(spec, ConfigSpec):
-        return config_verdict(cpg, spec, function=function)
-    return taint_verdict(cpg, spec, function=function, parameter_sources=parameter_sources)
+        return config_verdict(cpg, spec, function=function, file=path)
+    return taint_verdict(cpg, spec, function=function, file=path, parameter_sources=parameter_sources)
 
 
 def scan_region(
     cpg: CpgResult,
     spec: TaintSpec | DominanceSpec | ConfigSpec,
     *,
+    path: str = "",
     function: str = "",
     client: Any | None = None,
     model: str = "",
@@ -90,11 +94,11 @@ def scan_region(
     parameter_sources: bool = False,
 ) -> list[ModelFinding]:
     """Findings for one region and family, ordered strongest first."""
-    answer = _arbitrate(cpg, spec, function=function, parameter_sources=parameter_sources)
+    answer = _arbitrate(cpg, spec, path=path, function=function, parameter_sources=parameter_sources)
 
     if answer is not None and answer.rung is Rung.ENTAILED:
         # The graph decided. No model call, and no candidate needs asking about: this region has its finding.
-        return [ModelFinding(site=_site(function, answer.witness), family=spec.family, rung=Rung.ENTAILED, witness=answer.witness)]
+        return [ModelFinding(site=_site(path, function, answer.witness), family=spec.family, rung=Rung.ENTAILED, witness=answer.witness)]
 
     if answer is not None:
         # A real flow through a sanitizer. Whether it suffices is the residual, and the model HAS coverage
@@ -103,7 +107,9 @@ def scan_region(
             return []
         said = _ask(client, model, residual_question(spec, answer.witness, function))
         if said:
-            return [ModelFinding(site=_site(function, answer.witness), family=spec.family, rung=Rung.CORROBORATED, witness=answer.witness)]
+            return [
+                ModelFinding(site=_site(path, function, answer.witness), family=spec.family, rung=Rung.CORROBORATED, witness=answer.witness)
+            ]
         return []
 
     # The model resolved nothing. It is SILENT, not negative — so the enumerator's candidates are put to the
@@ -194,9 +200,22 @@ def _ask(client: Any, model: str, question: str) -> bool | None:
     return bool(payload["vulnerable"]) if isinstance(payload, Mapping) and isinstance(payload.get("vulnerable"), bool) else None
 
 
-def _site(function: str, witness: str) -> str:
-    line = witness.partition("(line ")[2].split(",")[0].strip(") ") if "(line " in witness else "?"
-    return f"{function or '?'}:{line}"
+_LINE_IN_WITNESS = re.compile(r"\(line (\d+)")
+
+
+def _site(path: str, function: str, witness: str) -> str:
+    """``path:line:function`` -- the same shape a candidate id carries, because one consumer parses both.
+
+    An arbitrated finding used to be ``function:line``, which the report layer then read as ``path:line``:
+    every entailed finding arrived with a function name where its file belonged and no line at all. A
+    contributor cannot open that, and nothing downstream can match it against a known location.
+    """
+    # A regex, because the witness is prose and the delimiter after the number varies: "(line 17,"
+    # in one family and "(line 17):" in another. Splitting on a comma produced sites like
+    # `config.py:17): permissive literal '0.0.0.0':?`.
+    found = _LINE_IN_WITNESS.search(witness)
+    line = found.group(1) if found else "?"
+    return f"{path or '?'}:{line}:{function or '?'}"
 
 
 __all__ = ["CANDIDATE_QUESTION", "MAX_JUDGED_CANDIDATES", "ModelFinding", "residual_question", "scan_region"]

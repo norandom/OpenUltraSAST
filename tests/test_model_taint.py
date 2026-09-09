@@ -395,3 +395,23 @@ def test_parameter_flows_still_decide_when_no_modelled_source_reaches_the_sink()
     ]
     answer = verdict(_cpg(rows), _spec(), function="run")
     assert answer is not None and answer.rung is Rung.ENTAILED
+
+
+def test_a_region_scopes_its_question_to_its_own_file() -> None:
+    """A region with no enclosing function must not be answered with the whole repository.
+
+    Sending `function=""` unscoped matched every hit in the tree and the driver attributed all of it to
+    whichever region asked: one permissive literal in app.py became eight identical entailed findings in
+    eight files that do not contain it.
+    """
+    from openultrasast.model.config_value import request_params as config_params
+    from openultrasast.model.specs import config_specs, taint_specs
+    from openultrasast.model.taint import request_params as taint_params
+
+    taint = taint_params(taint_specs(language="python")["injection"], function="", file="models/user_model.py")
+    config = config_params(config_specs(language="python")["config_secrets"], function="", file="config.py")
+
+    assert taint["file"] == "models/user_model.py"
+    assert config["file"] == "config.py"
+    # The pair path stays unscoped, so the committed pair measurements remain reproducible.
+    assert taint_params(taint_specs(language="python")["injection"], function="run")["file"] == ""

@@ -79,6 +79,22 @@ def test_an_entailed_site_becomes_a_finding_with_no_model_call() -> None:
     assert client.calls == 0
 
 
+def test_an_arbitrated_finding_names_its_file_the_way_a_candidate_does() -> None:
+    """One consumer parses both shapes, so both must be ``path:line:function``.
+
+    An arbitrated finding was ``function:line``, which the report layer read as ``path:line``: every entailed
+    finding reached a contributor with a function name where its file belonged and no line at all. A whole
+    repository scan is what made it visible -- `model:access_control:get_all_books:?`, path `get_all_books`.
+    """
+    from openultrasast.model.pipeline import scan_region
+
+    findings = scan_region(_cpg(ENTAILING), _spec(), path="models/user_model.py", function="get_user", client=_Client(), model="m")
+
+    path, _, rest = findings[0].site.partition(":")
+    assert path == "models/user_model.py", "the file, not the function"
+    assert rest.endswith(":get_user")
+
+
 def test_a_sanitized_flow_the_judge_confirms_becomes_corroborated() -> None:
     from openultrasast.model.ladder import Rung
     from openultrasast.model.pipeline import scan_region
@@ -244,3 +260,16 @@ def test_the_dominance_question_describes_the_evidence_the_model_actually_has() 
     assert "siblings have" not in q, "the corroborated case has no guarded siblings to appeal to"
     assert "sibling handlers are guarded" not in q
     assert "guard" in q.lower() and "public" in q.lower(), "it must still ask whether the operation needs a guard"
+
+
+def test_a_witness_line_is_read_whatever_follows_the_number() -> None:
+    """The delimiter after the line number differs by family: `(line 17,` in one, `(line 17):` in another.
+
+    Splitting on the comma produced sites like `config.py:17): permissive literal '0.0.0.0':?` -- a line
+    number no editor can open and no consumer can compare.
+    """
+    from openultrasast.model.pipeline import _site
+
+    assert _site("config.py", "", "permissive literal '0.0.0.0' (line 17): permissive") == "config.py:17:?"
+    assert _site("a.py", "run", "flow reaches os.system (line 9, via x)") == "a.py:9:run"
+    assert _site("a.py", "run", "no line at all") == "a.py:?:run"

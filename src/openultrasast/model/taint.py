@@ -19,29 +19,35 @@ from .ladder import Rung, Verdict
 from .specs import TaintSpec
 
 
-def request_params(spec: TaintSpec, *, function: str = "", parameter_sources: bool = False) -> dict[str, object]:
+def request_params(spec: TaintSpec, *, function: str = "", file: str = "", parameter_sources: bool = False) -> dict[str, object]:
     """The query parameters this arbiter sends. Shared with the batcher so there is one definition, not two.
 
     Two copies of a parameter dict is precisely the duplication that produced five bugs of one shape in the
     predecessor: a change made in one place and not its sibling.
+
+    ``file`` scopes the answer to one source file. A region with no enclosing function sends ``function=""``,
+    which without this matches the whole repository and gets that answer attributed to it -- one permissive
+    literal in `app.py` became eight identical entailed findings in eight files that do not contain it. Empty
+    means unscoped, which is what the single-region pair path still uses.
     """
     return {
         "sources": spec.sources,
         "sinks": spec.sinks,
         "sanitizers": spec.sanitizers,
         "function": function,
+        "file": file,
         "parameterSources": "true" if parameter_sources else "false",
     }
 
 
-def verdict(cpg: CpgResult, spec: TaintSpec, *, function: str = "", parameter_sources: bool = False) -> Verdict | None:
+def verdict(cpg: CpgResult, spec: TaintSpec, *, function: str = "", file: str = "", parameter_sources: bool = False) -> Verdict | None:
     """The strongest verdict the taint query supports for ``spec`` in ``function``, or ``None`` to stay at suspicion.
 
     ``parameter_sources`` additionally treats the labeled function's own parameters as untrusted. That is right
     for a function-level pair, where the function boundary *is* the trust boundary, and wrong for a whole
     repository, where most parameters carry internal values — so it is off by default and the caller opts in.
     """
-    rows = cpg.run("taint", request_params(spec, function=function, parameter_sources=parameter_sources))
+    rows = cpg.run("taint", request_params(spec, function=function, file=file, parameter_sources=parameter_sources))
     flows = _flows(rows, function=function)
     # A sink whose *shape* is safe is the fix, not the bug. `execute(sql, params)` binds rather than
     # interpolates and `printf("literal", x)` has a constant format string, so the flow that reaches them is

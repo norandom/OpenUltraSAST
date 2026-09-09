@@ -19,14 +19,20 @@ from .ladder import Rung, Verdict
 from .specs import ConfigSpec
 
 
-def request_params(spec: ConfigSpec, *, function: str = "") -> dict[str, object]:
-    """The query parameters this arbiter sends. Shared with the batcher; see the note in `taint.request_params`."""
-    return {"settings": spec.settings, "function": function}
+def request_params(spec: ConfigSpec, *, function: str = "", file: str = "") -> dict[str, object]:
+    """The query parameters this arbiter sends. Shared with the batcher; see the note in `taint.request_params`.
+
+    ``file`` scopes the answer to one source file. A region with no enclosing function sends ``function=""``,
+    which without this matches the whole repository and gets that answer attributed to it -- one permissive
+    literal in `app.py` became eight identical entailed findings in eight files that do not contain it. Empty
+    means unscoped, which is what the single-region pair path still uses.
+    """
+    return {"settings": spec.settings, "function": function, "file": file}
 
 
-def verdict(cpg: CpgResult, spec: ConfigSpec, *, function: str = "") -> Verdict | None:
+def verdict(cpg: CpgResult, spec: ConfigSpec, *, function: str = "", file: str = "") -> Verdict | None:
     """The verdict for a security setting in ``function``, or ``None`` when nothing is established."""
-    rows = cpg.run("config", request_params(spec, function=function))
+    rows = cpg.run("config", request_params(spec, function=function, file=file))
     settings = _settings(rows, spec, function=function)
     if not settings:
         return None

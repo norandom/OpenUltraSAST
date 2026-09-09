@@ -40,6 +40,12 @@ END = "---OUSAST-CPG-END---"
 
 BUILD_TIMEOUT_SECONDS = 900  # a large tree takes minutes; the go/no-go records what it actually cost
 QUERY_TIMEOUT_SECONDS = 300
+# A JVM with no -Xmx takes a quarter of physical RAM for its heap. On a contributor's laptop that is the
+# difference between a scan running in the background and a scan the machine notices, and it made the
+# first repository measurements unreproducible: runs were killed under memory pressure at different
+# points, so the numbers described the host, not the engine. Bound it, and let the operator raise it.
+CPG_HEAP_MB = 2048
+HEAP_ENV = "OPENULTRASAST_CPG_HEAP_MB"
 
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 
@@ -61,10 +67,18 @@ def extract_payload(stdout: str) -> object | None:
 
 @dataclass(frozen=True)
 class CpgResult:
-    """A built CPG and the way to query it. Opaque: only ``model/`` reads through ``run``."""
+    """A built CPG and the ways to query it. Opaque: only ``model/`` reads through these.
+
+    ``run_batch`` is optional so a backend that cannot answer many questions in one invocation still fits
+    this shape -- the driver falls back to ``run``, once per request. But a backend that CAN batch must
+    attach it HERE, because this is the driver's only way to discover the capability. Leaving it off does
+    not fail: it silently costs a JVM per region, which is how batching sat unreachable behind a passing
+    test suite until a repository scan made the cost visible.
+    """
 
     cpg_path: Path
     run: Callable[[str, Mapping[str, object]], object | None]
+    run_batch: Callable[[str, Mapping[str, Mapping[str, object]]], dict[str, list[object]]] | None = None
 
 
 class CpgBackend(Protocol):
@@ -94,6 +108,7 @@ class JoernBackend:
     runner: Runner | None = None
     build_timeout: int = BUILD_TIMEOUT_SECONDS
     query_timeout: int = QUERY_TIMEOUT_SECONDS
+    heap_mb: int = 0  # 0 means read the environment, then fall back to CPG_HEAP_MB
     queries_dir: Path = field(default_factory=lambda: QUERIES_DIR)
 
     def available(self) -> bool:
@@ -108,13 +123,17 @@ class JoernBackend:
             return None
         scratch = Path(tempfile.mkdtemp(prefix="ousast-cpg-"))
         cpg_path = scratch / "cpg.bin"
-        command = [parse or "joern-parse", str(root), "--output", str(cpg_path)]
+        command = [parse or "joern-parse", self._heap_flag(), str(root), "--output", str(cpg_path)]
         completed = self._run(command, timeout=self.build_timeout, cwd=scratch)
         if completed is None or completed.returncode != 0 or not cpg_path.is_file():
             detail = (completed.stderr or completed.stdout or "")[-400:] if completed is not None else "timeout"
             logger.warning("cpg build failed for %s: %s", root, detail)
             return None
-        return CpgResult(cpg_path=cpg_path, run=lambda query, params: self.query(cpg_path, query, params))
+        return CpgResult(
+            cpg_path=cpg_path,
+            run=lambda query, params: self.query(cpg_path, query, params),
+            run_batch=lambda query, requests: self.query_batch(cpg_path, query, requests),
+        )
 
     def query_batch(self, cpg_path: Path, query: str, requests: Mapping[str, Mapping[str, object]]) -> dict[str, list[object]]:
         """Run ONE script invocation carrying many requests, keyed back to their ids.
@@ -135,6 +154,7 @@ class JoernBackend:
         payload = json.dumps({rid: {k: _render(v) for k, v in req.items()} for rid, req in requests.items()})
         command = [
             shutil.which("joern") or "joern",
+            self._heap_flag(),
             "--script",
             str(script),
             "--param",
@@ -159,7 +179,7 @@ class JoernBackend:
         if not script.is_file():
             logger.warning("no such cpg query: %s", script)
             return None
-        command = [shutil.which("joern") or "joern", "--script", str(script), "--param", f"cpgFile={cpg_path}"]
+        command = [shutil.which("joern") or "joern", self._heap_flag(), "--script", str(script), "--param", f"cpgFile={cpg_path}"]
         for key, value in sorted(params.items()):
             command += ["--param", f"{key}={_render(value)}"]
         # Joern writes a `workspace/` beside the working directory; run it inside the CPG's own scratch dir so
@@ -170,6 +190,13 @@ class JoernBackend:
             logger.warning("cpg query %s failed: %s", query, detail)
             return None
         return extract_payload(completed.stdout or "")
+
+    def _heap_flag(self) -> str:
+        """``-J-Xmx``: both launchers forward ``-J`` arguments to the JVM."""
+        if self.heap_mb > 0:
+            return f"-J-Xmx{self.heap_mb}m"
+        configured = os.environ.get(HEAP_ENV, "").strip()
+        return f"-J-Xmx{configured if configured.isdigit() else CPG_HEAP_MB}m"
 
     def _run(self, command: list[str], *, timeout: int, cwd: Path | None = None) -> subprocess.CompletedProcess[str] | None:
         run = self.runner if self.runner is not None else subprocess.run

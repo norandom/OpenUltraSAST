@@ -87,7 +87,7 @@
   - _Requirements: 4.1_
   - _Depends: 1.3_
 
-- [ ] 2.2 The first repository measurement
+- [x] 2.2 The first repository measurement
   - Run the full scan against that checkout and commit the artifact: CPG build time, query time and total
     scan wall-clock as three separate numbers, peak memory, findings by rung, cost, `regions_unjudged`,
     and **whether the known CVE was found and at which rung**. The build/query split is separated because
@@ -116,6 +116,50 @@
   - Observable: a recorded decision that cites 2.2's build-time-to-query-time split. A preference does not
     close this task; a ratio does.
   - _Requirements: 4.2_
+  - _Depends: 2.2_
+
+- [ ] 2.4 A region that spans the flow, not just a function
+  - **2.2's finding, and the one that reshapes the phase.** VAmPI-SQLI is a request parameter reaching
+    `get_by_username(username)`, passed to `User.get_user(username)` in another module, interpolated into a
+    query and executed. Source and sink are in different functions, regions are per-function, and a
+    repository scan does not treat parameters as untrusted -- so neither region sees both ends and the
+    engine is silent on the most ordinary shape a real injection bug has.
+  - The CPG already has the call graph; `reachableByFlows` is not function-bounded. What is bounded is the
+    QUESTION the driver asks. So the work is in the region model and the query scope, not in the arbiter:
+    a region should be able to name an entry point and admit sinks reachable from it, with the file scope
+    from 2.2 kept so the answer is still attributable.
+  - Watch the cost: an unbounded interprocedural question over a large repository is how this gets slow
+    again. Measure it on vampi first, then on the envelope checkout.
+  - Observable: VAmPI-SQLI entailed or corroborated at `models/user_model.py:get_user`, with the scan's
+    wall-clock and the entailed-finding count recorded against 2.2's numbers.
+  - _Requirements: 4.4, 8.1_
+  - _Depends: 2.2_
+
+- [ ] 2.5 Module-level regions the engine can actually ask about
+  - A setting in `if __name__ == '__main__':` belongs to a region the mapper calls `app.py:__main__`, but
+    Joern names that method `<module>`. The function filter matches nothing, so module-level configuration
+    is invisible. Before 2.2's file scoping it was worse, not better: the literal was reported eight times
+    in eight files that do not contain it.
+  - Observable: `app.py:17`'s `host='0.0.0.0'` reported exactly once, at that location.
+  - _Requirements: 4.4_
+  - _Depends: 2.2_
+
+- [ ] 2.6 Access control that does not entail every public endpoint
+  - 7 of 9 VAmPI handlers were entailed, including `register_user` and `get_all_users`, which are meant to
+    be unauthenticated. The dominance rule -- unguarded, with guarded siblings -- was calibrated on pairs
+    where a guarded twin always existed. At repository scale every public endpoint has guarded siblings.
+  - This is a precision question and needs a precision measurement: on a real repository, what fraction of
+    entailed access-control findings are endpoints that genuinely require authorisation? Do not tune it
+    against VAmPI alone; that is how the +16% overfitting gap in Req 8 happened.
+  - Observable: a recorded precision figure before and after, on more than one checkout.
+  - _Requirements: 8.1, 8.2_
+  - _Depends: 2.2_
+
+- [ ] 2.7 A dominance witness that names its line
+  - Access-control sites read `api_views/users.py:?:update_password`. Taint and config witnesses carry
+    `(line N)`; dominance does not, so its findings have no line and a contributor cannot open them.
+  - Observable: every entailed finding in a repository scan has an integer line.
+  - _Requirements: 5.1_
   - _Depends: 2.2_
 
 ## Group 3 — Ship it

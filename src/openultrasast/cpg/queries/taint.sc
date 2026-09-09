@@ -17,7 +17,13 @@
 // Parameters (comma-separated where plural):
 //   cpgFile, sources, sinks, sanitizers (optional), function (optional: restrict to this method AND any
 //     closure lexically nested inside it -- see `nestedInLabeled`),
-//   parameterSources ("true" to treat the labeled function's parameters as untrusted -- see below)
+//   parameterSources ("true" to treat the labeled function's parameters as untrusted -- see below),
+//   file (optional: restrict sinks to this source file)
+//
+// `file` is what makes a region with no enclosing function askable at all. Without it such a region sends
+//   function="" and matches every sink in the repository, and the driver attributes that whole answer to
+//   whichever region asked. Scoping by file also stops a named function matching a same-named function in
+//   another module, which a corpus of one-file excerpts could never surface.
 //
 // Output: a fenced JSON array of {sink, sinkLine, sinkMethod, source, sanitized, length}. The fence exists
 // because Joern prints a banner, pass logs and a prompt around whatever a script emits.
@@ -36,6 +42,7 @@
     sinks: String = "",
     sanitizers: String = "",
     function: String = "",
+    file: String = "",
     parameterSources: String = "false",
     requests: String = ""
 ) = {
@@ -43,7 +50,7 @@
 
   def split(raw: String): List[String] = raw.split(",").map(_.trim).filter(_.nonEmpty).toList
 
-  def rowsFor(sourcesS: String, sinksS: String, sanitizersS: String, functionS: String, paramSrc: String): List[ujson.Obj] = {
+  def rowsFor(sourcesS: String, sinksS: String, sanitizersS: String, functionS: String, paramSrc: String, fileS: String): List[ujson.Obj] = {
 
   // Word-boundary matching, never substring. `resolveUrl` contains `resolve`, so a bare-substring sanitizer
   // test marked the VULNERABLE flow sanitized and the verdict fell back to a captured `res` that names no
@@ -104,7 +111,8 @@
     val all = cpg.call.filter(c =>
       sinkNames.exists(n => c.name == n || c.code.startsWith(n + "(") || c.code.startsWith(n) || c.methodFullName.contains(n))
     )
-    if (function.isEmpty) all else all.filter(c => nestedInLabeled(c.method))
+    val inFile = if (fileS.isEmpty) all else all.filter(_.method.filename.endsWith(fileS))
+    if (function.isEmpty) inFile else inFile.filter(c => nestedInLabeled(c.method))
   }
 
   val rows = sinkCalls.l.flatMap { sink =>
@@ -148,11 +156,11 @@
     val answers = parsed.map { case (id, req) =>
       def field(name: String): String = req.obj.get(name).map(_.str).getOrElse("")
       val paramSrc = req.obj.get("parameterSources").map(_.str).getOrElse("false")
-      id -> ujson.Arr(rowsFor(field("sources"), field("sinks"), field("sanitizers"), field("function"), paramSrc): _*)
+      id -> ujson.Arr(rowsFor(field("sources"), field("sinks"), field("sanitizers"), field("function"), paramSrc, field("file")): _*)
     }
     println(ujson.write(ujson.Obj.from(answers)))
   } else {
-    println(ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, function, parameterSources): _*)))
+    println(ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, function, parameterSources, file): _*)))
   }
   println("---OUSAST-CPG-END---")
 }

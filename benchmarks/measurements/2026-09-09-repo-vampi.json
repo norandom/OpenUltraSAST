@@ -1,0 +1,143 @@
+{
+  "caveat": "One repository of 520 lines. It measures whether the shape works, not whether the engine is accurate: two known vulnerabilities is not a detection rate, and libpng (the envelope checkout) has not been run.",
+  "completed": true,
+  "config": "shipped defaults",
+  "degradations": [
+    {
+      "detail": "no path records; obligations evaluated within entry-point handlers only",
+      "files": [
+        "api_views/books.py",
+        "api_views/users.py",
+        "models/books_model.py",
+        "models/user_model.py"
+      ],
+      "language": "python",
+      "reason": "obligations_function_local",
+      "stage": "obligations"
+    },
+    {
+      "reason": "budget_exhausted",
+      "regions_unasked": 17,
+      "stage": "model"
+    },
+    {
+      "reason": "hunter_model_unavailable",
+      "stage": "map"
+    }
+  ],
+  "exit_code": 0,
+  "findings_by_rung": {
+    "execution_confirmed": 0,
+    "model_corroborated": 0,
+    "model_entailed": 7,
+    "suspicion": 53
+  },
+  "findings_total": 60,
+  "generated": "2026-09-09",
+  "known_outcomes": [
+    {
+      "family": "injection",
+      "finding_id": "overlay-coverage:models/user_model.py:73:execute",
+      "id": "VAmPI-SQLI",
+      "line": 73,
+      "location": "models/user_model.py:get_user:73",
+      "matches": 2,
+      "result": "found",
+      "rung": "suspicion"
+    },
+    {
+      "family": "access_control",
+      "finding_id": "model:access_control:api_views/users.py:?:update_password",
+      "id": "VAmPI-BOLA",
+      "line": null,
+      "location": "api_views/users.py:update_password:187",
+      "matches": 5,
+      "result": "found",
+      "rung": "model_entailed"
+    }
+  ],
+  "mode": "standard",
+  "model": {
+    "arbitrate_seconds": 111.6,
+    "build_seconds": 6.17,
+    "by_rung": {
+      "execution_confirmed": 0,
+      "model_corroborated": 0,
+      "model_entailed": 7,
+      "suspicion": 37
+    },
+    "cost_usd": 0.0067,
+    "model_calls": 105,
+    "query_seconds": 40.86,
+    "regions_scanned": 22,
+    "regions_unasked": 17,
+    "regions_unjudged": 0,
+    "seconds": 158.63,
+    "unjudged_sample": []
+  },
+  "open_defects": [
+    {
+      "detail": "app.py's permissive literal sits in . Its region is app.py:__main__, but Joern names the module-level method <module>, so the function filter matches nothing. It was reported eight times in the wrong files before the fix and zero times after: less wrong, still wrong.",
+      "id": "module-level-regions-are-unaskable"
+    },
+    {
+      "detail": "VAmPI-SQLI: request parameter -> get_by_username(username) -> User.get_user(username) -> f-string -> execute. Source and sink are in different functions and different modules; regions are per-function and repository scans do not treat parameters as untrusted, so neither region sees both ends. This is the shape most real injection bugs have.",
+      "id": "region-scoped-taint-cannot-cross-a-function"
+    },
+    {
+      "detail": "7 of 9 handlers entailed, including register_user and get_all_users, which are meant to be unauthenticated. At pair scale a guarded twin always existed; at repository scale 'unguarded with guarded siblings' fires on every public endpoint.",
+      "id": "access-control-entails-too-broadly"
+    },
+    {
+      "detail": "Access-control sites read api_views/users.py:?:update_password -- a location no editor can open.",
+      "id": "dominance-witnesses-carry-no-line"
+    }
+  ],
+  "peak_rss_mb": 868.6,
+  "reading": "GO on one CPG per repository, NO-GO on region-scoped taint as the only shape. The engine handles a real checkout comfortably: one CPG for 11 files in 6.2s, every one of 22 regions arbitrated, 177s end to end at 869MB and $0.0067. Nothing here says a repository is infeasible, so phases 3-6 can be built on this shape. What it does say is that the region model has a ceiling: VAmPI-BOLA is entailed because the obligation and its absence live in one function, and VAmPI-SQLI is missed because its source is in the handler and its sink is in a different module. A per-function region cannot see a flow that crosses functions, which is the common real-world shape rather than an edge case.",
+  "repo": {
+    "commit": "f16052dce83f05847133ec98f01c5193a41de7d8",
+    "known": [
+      {
+        "family": "injection",
+        "id": "VAmPI-SQLI",
+        "in_scope": true,
+        "location": "models/user_model.py:get_user:73",
+        "weakness": "SQL injection: the username is interpolated into the query string at line 72 and executed at 73"
+      },
+      {
+        "family": "access_control",
+        "id": "VAmPI-BOLA",
+        "in_scope": true,
+        "location": "api_views/users.py:update_password:187",
+        "weakness": "unauthorized password change: the path username is used instead of the authenticated token subject"
+      }
+    ],
+    "language": "python",
+    "license": "MIT",
+    "measures": [
+      "detection"
+    ],
+    "name": "vampi",
+    "url": "https://github.com/erev0s/VAmPI.git"
+  },
+  "scan_seconds": 177.09,
+  "spec": "contributor-scan 2.2 (Req 4.1-4.5)",
+  "stages": {
+    "completed": [
+      "static",
+      "map"
+    ],
+    "requested": [
+      "static",
+      "map"
+    ],
+    "skipped": []
+  },
+  "what_this_run_changed": {
+    "budget_no_longer_stops_free_work": "The budget bounds model calls; it was enforced by breaking the region loop, so a paid limit stopped unpaid CPG arbitration. 6 of 22 regions were examined and the BOLA was missed. It now withholds the judge only: 22 of 22 arbitrated, 17 counted as regions_unasked, and the BOLA is entailed.",
+    "queries_are_scoped_to_a_file": "A region with no enclosing function sent function='' and matched the whole repository, and the driver attributed that answer to whichever region asked: one permissive literal in app.py became eight identical entailed findings in eight files that do not contain it. Queries now carry the region's file. Entailed findings fell 14 -> 7 and query time 70.9s -> 40.9s.",
+    "the_batch_path_was_unreachable": "query_batch had been implemented, tested and committed while CpgResult exposed only run, so the driver could not discover it and fell back to one JVM per region-family: the first attempt at this measurement ran 18 minutes on 520 lines. The earlier 275s->106s improvement attributed to batching came from region deduplication alone.",
+    "the_jvm_heap_is_bounded": "Joern with no -Xmx claimed a quarter of physical RAM; runs were killed under memory pressure at different points, so the numbers described the host. Now -J-Xmx2048m by default, OPENULTRASAST_CPG_HEAP_MB to raise it. This run was measured at 1536MB."
+  }
+}
