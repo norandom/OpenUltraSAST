@@ -164,12 +164,36 @@
   // with them on. Scoping matters as much as enabling: a callback's own parameters (`err`, `stats`) are not
   // attacker input, and counting them produced flows like `res -> readFileSync` that name no real source.
   // Off by default: outside a labeled function, treating every parameter as untrusted is not sound.
+  //
+  // The RECEIVER is INCLUDED, and it was measured rather than assumed. `$this` is a parameter in the CPG --
+  // index 0 of every PHP method -- and excluding it is tempting: on Paid Memberships Pro's order class, 12 of
+  // 16 entailed findings are `this -> $wpdb->...`, and one of them survives into 2.9.8 at a query whose every
+  // fragment is `esc_sql`-wrapped, reaching the sink through `$this->sqlQuery`. Excluding it cuts that file
+  // from 16 findings to 6, all sourced from a named parameter, and makes the 2.9.7/2.9.8 pair separate
+  // cleanly.
+  //
+  // It also loses CVE-2023-6559. MW WP Form's `_delete_files()` takes NO parameters: the attacker-controlled
+  // path arrives as `$this->attachments`, assigned by another method entirely. With the receiver excluded
+  // that finding goes to zero on the vulnerable side.
+  //
+  // So the trade is a verified CVE against findings merely SUSPECTED of being false, and it is refused. The
+  // real defect is field-sensitivity -- `$this->attachments` should be tainted where it is assigned, not by
+  // the receiver being tainted everywhere -- and deleting the receiver removes the symptom by removing the
+  // evidence.
   def parameterNodes =
     if (parameterSources != "true") Iterator.empty
     else if (function.isEmpty) cpg.method.parameter.iterator
     else cpg.method.nameExact(function).parameter.iterator
 
   def sourceNodes = frameworkSources.l.iterator ++ parameterNodes
+
+  // Whether there is anything to trace from at all. Asking `reachableByFlows` with an empty source list is
+  // not merely wasted work: Joern answers it by logging "Attempting to determine flows from empty list of
+  // sources." to STDOUT, which lands between the fence markers and makes the whole batch's JSON unparseable.
+  // The driver then reports `query_failed` for every request in the batch, so one method with no sources
+  // silently costs the answers for all two hundred of the others. Excluding the receiver made that common:
+  // a method whose only parameter is `$this` now has none.
+  lazy val hasSources = sourceNodes.hasNext
 
   // A sink call: matched by short name (`system`), by leading code (`os.system(...)`), or by resolved
   // full name (`os.py:<module>.system`), so both bare and dotted forms in the spec hit.
@@ -204,7 +228,7 @@
     // makes a one-argument interpolated call look like a two-argument bound one -- the exact inversion of the
     // test. Real arguments start at index 1.
     val realArgs = sink.argument.argumentIndexGt(0).l
-    val flows    = sink.argument.reachableByFlows(sourceNodes).l
+    val flows    = if (hasSources) sink.argument.reachableByFlows(sourceNodes).l else Nil
 
     // The SHAPE of the sink call, which is what distinguishes a fix from a bug when the fix is a safe form
     // rather than a sanitizing call: `execute(sql, params)` binds where `execute(sql + x)` interpolates, and

@@ -73,12 +73,37 @@ def extract_payload(stdout: str) -> object | None:
     if start < 0 or end < 0:
         return None
     body = stdout[start + len(BEGIN) : end].strip()
-    try:
-        payload: object = json.loads(body)
-    except json.JSONDecodeError:
+    # Joern logs to STDOUT, and it does so while the script is running -- so a log line can land INSIDE the
+    # fence, ahead of the payload. `[INFO ] Attempting to determine flows from empty list of sources.` did
+    # exactly that and cost a 205-request batch every one of its answers, reported as `query_failed`. The
+    # payload is always one JSON object or array, so trim to its own brackets rather than trusting the fence
+    # to contain nothing else.
+    payload = _decoded_json(body)
+    if payload is None:
         logger.debug("cpg query payload was not valid JSON")
-        return None
     return payload
+
+
+def _decoded_json(body: str) -> object | None:
+    """The first complete JSON document in ``body``, ignoring whatever Joern logged around it.
+
+    Trimming to the outermost brackets is the obvious approach and the wrong one: a log line is `[INFO ] ...`,
+    so its own bracket comes first. This starts a decode at each line that opens a document and keeps the
+    first that parses, which is exactly one line of work when nothing was logged.
+    """
+    decoder = json.JSONDecoder()
+    offset = 0
+    for line in body.splitlines(keepends=True):
+        if line.lstrip().startswith(("{", "[")):
+            try:
+                payload, _ = decoder.raw_decode(body, offset + len(line) - len(line.lstrip()))
+            except ValueError:
+                pass
+            else:
+                decoded: object = payload
+                return decoded
+        offset += len(line)
+    return None
 
 
 @dataclass(frozen=True)

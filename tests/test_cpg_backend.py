@@ -368,3 +368,15 @@ def test_a_build_with_nothing_dropped_reports_no_unparsed_files() -> None:
     completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="Successfully wrote graph", stderr="")
     assert _unparsed_files(completed) == ()
     assert _unparsed_files(None) == ()
+
+
+def test_a_joern_log_line_inside_the_fence_does_not_destroy_the_payload() -> None:
+    """Joern logs to stdout while the script runs, so a log line can land ahead of the payload.
+
+    `[INFO ] Attempting to determine flows from empty list of sources.` did, and because the batch is one
+    JSON document the driver lost all 205 answers in it and reported `query_failed` for every one.
+    """
+    from openultrasast.cpg.backend import BEGIN, END, extract_payload
+
+    noisy = f'{BEGIN}\n[INFO ] Attempting to determine flows from empty list of sources.\n{{"0": [], "1": [1]}}\n{END}\n'
+    assert extract_payload(noisy) == {"0": [], "1": [1]}
