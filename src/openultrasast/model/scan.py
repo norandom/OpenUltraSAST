@@ -110,7 +110,12 @@ def scan_repository(
 
     taxonomy = load_families()
     build_started = time.monotonic()
-    cpg = backend.build(root)
+    # The dominant region language, so a failed `joern-parse` can retry through that frontend directly.
+    counts: dict[str, int] = {}
+    for region in regions:
+        counts[region.language] = counts.get(region.language, 0) + 1
+    dominant = max(counts, key=lambda name: (counts[name], name)) if counts else ""
+    cpg = _build(backend, root, dominant)
     build_seconds = round(time.monotonic() - build_started, 2)
     if cpg is None:
         return ModelScanResult(
@@ -221,6 +226,14 @@ def scan_repository(
         query_seconds_by_kind=per_kind,
         degradations=tuple(degradations),
     )
+
+
+def _build(backend: Any, root: Path, language: str) -> Any:
+    """Build through the backend, passing the language when the backend can use it."""
+    try:
+        return backend.build(root, language=language)
+    except TypeError:  # a backend from before the retry existed, including every test double
+        return backend.build(root)
 
 
 def _prefetched(rows: list[object]):  # type: ignore[no-untyped-def]

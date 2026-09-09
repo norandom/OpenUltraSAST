@@ -47,6 +47,21 @@ QUERY_TIMEOUT_SECONDS = 300
 CPG_HEAP_MB = 2048
 HEAP_ENV = "OPENULTRASAST_CPG_HEAP_MB"
 
+# `joern-parse` detects the language and then shells out to a frontend, and on a large tree it can fail where
+# the frontend alone succeeds -- measured on a 637-file WordPress plugin, where joern-parse threw after
+# applying overlays while `php2cpg` on the same tree produced a 4.3MB CPG with no errors. Joern's own message
+# recommends the direct route for large codebases, so this is the documented fallback rather than a
+# workaround. The names are Joern's frontend executables.
+_FRONTENDS = {
+    "php": "php2cpg",
+    "python": "pysrc2cpg",
+    "javascript": "jssrc2cpg",
+    "typescript": "jssrc2cpg",
+    "java": "javasrc2cpg",
+    "c": "c2cpg",
+    "c_cpp": "c2cpg",
+}
+
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 
 
@@ -116,8 +131,12 @@ class JoernBackend:
 
         return has_cpg()
 
-    def build(self, root: Path) -> CpgResult | None:
-        """Build a CPG for ``root``. ``None`` on any failure — the caller degrades, never guesses."""
+    def build(self, root: Path, *, language: str = "") -> CpgResult | None:
+        """Build a CPG for ``root``. ``None`` on any failure — the caller degrades, never guesses.
+
+        ``language`` lets a failed ``joern-parse`` retry through the frontend directly, which is what Joern
+        itself advises for a large codebase and what a 637-file WordPress plugin needed.
+        """
         parse = shutil.which("joern-parse")
         if parse is None and os.environ.get("OPENULTRASAST_JOERN_PROBE", "").strip().lower() not in {"1", "on", "true", "yes"}:
             return None
@@ -128,12 +147,30 @@ class JoernBackend:
         if completed is None or completed.returncode != 0 or not cpg_path.is_file():
             detail = (completed.stderr or completed.stdout or "")[-400:] if completed is not None else "timeout"
             logger.warning("cpg build failed for %s: %s", root, detail)
-            return None
+            if not self._build_with_frontend(root, cpg_path, scratch, language):
+                return None
         return CpgResult(
             cpg_path=cpg_path,
             run=lambda query, params: self.query(cpg_path, query, params),
             run_batch=lambda query, requests: self.query_batch(cpg_path, query, requests),
         )
+
+    def _build_with_frontend(self, root: Path, cpg_path: Path, scratch: Path, language: str) -> bool:
+        """Retry the build through the language frontend alone. False when there is nothing to retry with."""
+        frontend = _FRONTENDS.get(language.lower())
+        if not frontend:
+            return False
+        binary = shutil.which(frontend)
+        if binary is None:
+            logger.warning("no frontend %s on PATH to retry the build for %s", frontend, root)
+            return False
+        completed = self._run([binary, self._heap_flag(), str(root), "-o", str(cpg_path)], timeout=self.build_timeout, cwd=scratch)
+        if completed is None or completed.returncode != 0 or not cpg_path.is_file():
+            detail = (completed.stderr or completed.stdout or "")[-400:] if completed is not None else "timeout"
+            logger.warning("%s also failed for %s: %s", frontend, root, detail)
+            return False
+        logger.info("built the cpg for %s with %s after joern-parse failed", root, frontend)
+        return True
 
     def query_batch(self, cpg_path: Path, query: str, requests: Mapping[str, Mapping[str, object]]) -> dict[str, list[object]]:
         """Run ONE script invocation carrying many requests, keyed back to their ids.

@@ -256,3 +256,50 @@ def test_the_operator_can_raise_the_heap(tmp_path: Path, monkeypatch: pytest.Mon
     JoernBackend(runner=runner).build(tmp_path)
 
     assert "-J-Xmx6144m" in commands[0]
+
+
+def test_a_failed_joern_parse_retries_through_the_language_frontend(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Measured on a 637-file WordPress plugin: `joern-parse` threw after applying overlays while `php2cpg`
+    on the same tree produced a 4.3MB CPG with no errors. Joern's own message recommends the direct route for
+    a large codebase, so this is the documented fallback rather than a workaround."""
+    from openultrasast.cpg.backend import JoernBackend
+
+    tried: list[str] = []
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        class _Result:
+            stderr = ""
+            stdout = ""
+
+        tried.append(Path(command[0]).name)
+        if Path(command[0]).name == "joern-parse":
+            _Result.returncode = 1
+            return _Result()
+        _Result.returncode = 0
+        Path(command[command.index("-o") + 1]).write_text("cpg")
+        return _Result()
+
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/joern/{name}")
+
+    result = JoernBackend(runner=runner).build(tmp_path, language="php")
+
+    assert result is not None, "the frontend succeeded where joern-parse did not"
+    assert tried == ["joern-parse", "php2cpg"]
+
+
+def test_an_unknown_language_has_nothing_to_retry_with(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No guessing at a frontend name: a language with no mapping fails closed, as it did before."""
+    from openultrasast.cpg.backend import JoernBackend
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        class _Result:
+            returncode = 1
+            stderr = ""
+            stdout = ""
+
+        return _Result()
+
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    assert JoernBackend(runner=runner).build(tmp_path, language="cobol") is None
+    assert JoernBackend(runner=runner).build(tmp_path) is None
