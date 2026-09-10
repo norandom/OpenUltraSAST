@@ -609,7 +609,32 @@
   - The excluded-file tree is symlinks at the ORIGINAL relative paths, because a region asks about
     `classes/class.memberorder.php` and the queries match a filename by suffix; a flattened copy would answer
     about a file nobody asked about.
-  - Still open: nothing here recovers a cross-shard flow, and the 637-file build remains unmeasured.
+  - **The 637-file premise was WRONG, and it was my own instrument. 2026-09-10.** This task opened with
+    "`php2cpg` builds a 4.3MB CPG for a 637-file plugin ... importing it throws". It never read the plugin.
+    `php` on this machine is a local shim that runs `php:8.3-cli` in docker, mounting `$HOME/joern`, `/tmp`
+    and `$PWD` -- and NOT `$HOME/.cache`, which is where every pinned checkout lives. So PHP could not see a
+    single file:
+
+        php -r 'var_dump(file_exists($f));'   ->   bool(false)      # on a file plainly there
+        php2cpg <637-file checkout>           ->   6,224-byte CPG, exit 0, ZERO reported failures
+
+    Every parser batch failed with `File  does not exist.` and php2cpg wrote an empty graph. That is the
+    SECOND false conclusion this shim has manufactured -- see 5.5, "NOT A DEFECT, it was the shim" -- and
+    the second time a measurement here was taken through a broken instrument.
+  - It is local only. The shipped image installs `php-cli` natively (`Dockerfile`), so no released path was
+    ever affected, and our own honesty machinery was right the whole time: a scan over that graph reports
+    `cpg_empty`. It was the hand-run `php2cpg` and the note above that drew the wrong conclusion from it.
+  - **With the cache mounted, the real envelope, one frontend build of 637 files / 117k lines:**
+
+        wall 33.0s     peak RSS 1,217 MB     CPG 1.6 MB     156 file-drops (69 distinct files)
+
+    Affordable on a CI runner rather than a big machine, which was the open question.
+  - The drops are per-BATCH, not per-file: php2cpg gives its parser ~20 files per invocation and a failed
+    batch reports every file in it. Dropped file sizes run from **67 bytes to 433 KB**, so size has nothing
+    to do with which files are lost -- being in an unlucky batch does. That is why retrying works, and why
+    "exclude the difficult file" was the wrong mental model.
+  - Still open: nothing here recovers a cross-shard flow, and the whole-repository SCAN (not just the build)
+    is still measuring.
   - Still open: wiring that exclusion loop, the 637-file build with it in place, and whether the REST handler
     two calls away can reach the sink -- the slice found it through a same-function flow, not across the
     object.
