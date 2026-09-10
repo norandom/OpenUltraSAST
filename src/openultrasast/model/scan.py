@@ -123,7 +123,7 @@ def scan_repository(
             regions_unjudged=len(regions),
             seconds=round(time.monotonic() - started, 2),
             build_seconds=build_seconds,
-            degradations=({"stage": "model", "reason": "cpg_build_failed"},),
+            degradations=({"stage": "model", "reason": "cpg_build_failed", "detail": getattr(backend, "last_failure", "")},),
         )
 
     # A CPG the frontend built with files missing is not the repository the caller asked about, and no

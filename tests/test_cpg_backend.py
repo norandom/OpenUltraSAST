@@ -402,6 +402,8 @@ def test_php_builds_through_the_frontend_and_retries_while_files_are_dropped(tmp
     warning = "WARN AstCreationPass Failed to process '/src/big.php'\n"
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if "-r" in command:
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
         tried.append(Path(command[0]).name)
         Path(command[command.index("-o") + 1]).write_text("cpg")
         # Drops a file on the first two attempts, clean on the third.
@@ -428,6 +430,8 @@ def test_a_php_build_that_never_stops_dropping_files_reports_them(tmp_path: Path
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
         nonlocal attempts
+        if "-r" in command:
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
         attempts += 1
         Path(command[command.index("-o") + 1]).write_text("cpg")
         return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="WARN Failed to process '/src/stubborn.php'\n")
@@ -456,6 +460,8 @@ def test_files_the_frontend_refuses_get_a_cpg_of_their_own(tmp_path: Path, monke
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
         commands.append(list(command))
+        if "-r" in command:
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")  # the input probe
         if "--script" in command:
             # The census, asked because the frontend warned. Here the warning is real: the graph is short a
             # file, so the caller should go on to exclude it and build it separately.
@@ -535,6 +541,8 @@ def test_a_warning_about_a_file_the_graph_actually_holds_does_not_split_it(tmp_p
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
         commands.append(list(command))
+        if "-r" in command:
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")  # the input probe
         if "--script" in command:
             body = '---OUSAST-CPG-BEGIN---\n{"files": "2", "methods": "9"}\n---OUSAST-CPG-END---\n'
             return subprocess.CompletedProcess(args=command, returncode=0, stdout=body, stderr="")
@@ -549,3 +557,91 @@ def test_a_warning_about_a_file_the_graph_actually_holds_does_not_split_it(tmp_p
     assert result is not None
     assert result.unparsed == (), "the graph holds both files, so nothing is missing"
     assert not any("--exclude" in command for command in commands), "and it was not split"
+
+
+def test_a_build_is_refused_when_the_interpreter_cannot_read_the_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The failure this project keeps having: the input is unreadable and the tool reports a plausible ZERO.
+
+    `php2cpg` drives PHP-Parser through whatever `php` is on PATH. Give it a `php` that cannot see the tree
+    -- a wrapper, a container missing a bind mount, symlinks pointing outside a sandbox -- and it does not
+    fail. It parses nothing, writes a graph with no methods in it, and exits 0 with no warnings. That has
+    cost this project four wrong diagnoses, including "php2cpg cannot handle 637 files" from a run that read
+    none of them.
+
+    Checking the output cannot tell that from an empty repository. Checking that the input arrived can.
+    """
+    import subprocess
+
+    from openultrasast.cpg.backend import JoernBackend
+
+    (tmp_path / "a.php").write_text("<?php function a() {}")
+    built: list[str] = []
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if "-r" in command:
+            return subprocess.CompletedProcess(args=command, returncode=3, stdout="", stderr="")  # cannot read
+        built.append(Path(command[0]).name)
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/bin/{name}")
+
+    backend = JoernBackend(runner=runner)
+    assert backend.build(tmp_path, language="php") is None, "an unreadable tree must not produce a graph"
+    assert not built, "and nothing should have been built at all"
+    assert "cannot read" in backend.last_failure, "the reason is named, not left as a bare build failure"
+
+
+def test_a_readable_tree_builds_normally(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The probe must not stand in the way of the ordinary case."""
+    import subprocess
+
+    from openultrasast.cpg.backend import JoernBackend
+
+    (tmp_path / "a.php").write_text("<?php function a() {}")
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if "-r" in command:
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+        if "--script" in command:
+            body = '---OUSAST-CPG-BEGIN---\n{"files": "1", "methods": "1"}\n---OUSAST-CPG-END---\n'
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout=body, stderr="")
+        Path(command[command.index("-o") + 1]).write_text("cpg")
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/bin/{name}")
+
+    result = JoernBackend(runner=runner).build(tmp_path, language="php")
+    assert result is not None and result.unparsed == ()
+
+
+def test_a_silently_short_graph_is_reported_even_with_no_warnings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A build that warns about nothing is exactly the build that needs checking.
+
+    A graph holding nothing arrives with no warnings at all -- silence is the symptom that has no symptom --
+    so the census is taken on every build, not only on one the frontend complained about.
+    """
+    import subprocess
+
+    from openultrasast.cpg.backend import JoernBackend
+
+    for name in ("a.php", "b.php", "c.php"):
+        (tmp_path / name).write_text("<?php function f() {}")
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if "-r" in command:
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+        if "--script" in command:
+            body = '---OUSAST-CPG-BEGIN---\n{"files": "1", "methods": "2"}\n---OUSAST-CPG-END---\n'
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout=body, stderr="")
+        Path(command[command.index("-o") + 1]).write_text("cpg")
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")  # no warnings
+
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/bin/{name}")
+
+    backend = JoernBackend(runner=runner)
+    backend.build(tmp_path, language="php")
+
+    assert "1 of 3 source files" in backend.last_failure, "three files went in, one came out, and it said so"

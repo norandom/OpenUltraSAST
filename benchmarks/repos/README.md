@@ -218,6 +218,15 @@ obvious question is whether any of it survives on the whole plugin. Measured on 
 The build is affordable; a CI runner can do this without a vertical-scale machine, which was the open
 question. The scan is not.
 
+**Correction, and it invalidates the paragraph below.** Every PHP build behind these numbers ran through a
+local `php` shim that proxies stdio through `docker run`, and php2cpg depends on the interleaving of its
+parser's stderr banners with its stdout JSON to attribute documents to files. The proxy scrambles that
+ordering: 72–88 dropped files per build, a different graph every run, and a corrupted CPG that makes Joern's
+dataflow overlay assert. With a **native** php the same 637-file tree builds in **20.0s** to a
+**4,329,471-byte CPG** with **zero** drops, byte-identical across runs. There is no frontend defect, no scale
+limit, and the whole-repository scan has never actually been measured here. What follows is kept as the
+record of a wrong diagnosis, not as a result.
+
 It is worth being precise about *why*, because the obvious answers are all wrong. It is not memory: at 2 GB
 and at 4 GB the CPG never finishes loading, with no `OutOfMemoryError` in either case, both runs stopping in
 the same place — `Braintree\Util`. It is not the request payload either. What costs is Joern's dataflow

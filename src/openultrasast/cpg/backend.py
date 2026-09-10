@@ -80,6 +80,11 @@ _FRONTENDS = {
 _PREFER_FRONTEND = frozenset({"php"})
 # The extensions that count as source for a language, used to ask whether a graph is missing anything.
 _LANGUAGE_EXTENSIONS: dict[str, tuple[str, ...]] = {"php": (".php",)}
+# Frontends that shell out to a separate interpreter, and the command that proves it can read a file.
+# `php2cpg` drives PHP-Parser through whatever `php` is on PATH, so the frontend is only as good as that
+# interpreter's view of the filesystem -- and a `php` that cannot see the tree does not fail, it produces an
+# empty graph with exit status 0 and no warnings.
+_INTERPRETERS: dict[str, str] = {"php": "php"}
 FRONTEND_BUILD_ATTEMPTS = 4
 
 # Request fields that describe the REPOSITORY rather than the region, and are therefore identical in every
@@ -184,6 +189,8 @@ class JoernBackend:
     query_timeout: int = QUERY_TIMEOUT_SECONDS
     heap_mb: int = 0  # 0 means read the environment, then fall back to CPG_HEAP_MB
     queries_dir: Path = field(default_factory=lambda: QUERIES_DIR)
+    # Why the last build refused, so the driver can name it instead of reporting a bare `cpg_build_failed`.
+    last_failure: str = ""
 
     def available(self) -> bool:
         from .capability import has_cpg
@@ -201,6 +208,23 @@ class JoernBackend:
             return None
         scratch = Path(tempfile.mkdtemp(prefix="ousast-cpg-"))
         cpg_path = scratch / "cpg.bin"
+
+        # THE PRECONDITION. Before anything is built, make the toolchain open one file from the tree and say
+        # how big it is. Every instrument failure this project has had takes the same shape -- the input was
+        # unreadable and the tool reported a plausible ZERO -- and it has cost four wrong diagnoses:
+        #
+        #   a php that could not see ~/.cache      -> "php2cpg cannot handle 637 files"  (it read none of them)
+        #   a php whose stdio was proxied          -> "php2cpg drops half its batches"   (it dropped none)
+        #   a container missing a bind mount       -> "0 files dropped", 5,703-byte graph
+        #
+        # None of those announced themselves. `file_exists()` returns false, the parser writes nothing, the
+        # frontend exits 0, and "no errors" reads exactly like success. Checking the OUTPUT cannot separate
+        # those from a genuinely empty repository; checking that the INPUT arrived can, and costs one exec.
+        unreadable = self._interpreter_cannot_read(root, language)
+        if unreadable:
+            logger.error("cpg build refused for %s: %s", root, unreadable)
+            self.last_failure = unreadable
+            return None
 
         # A frontend whose failures are visible and retryable is worth more than one whose are not.
         if language.lower() in _PREFER_FRONTEND:
@@ -235,6 +259,36 @@ class JoernBackend:
             unparsed=unparsed,
         )
 
+    def _interpreter_cannot_read(self, root: Path, language: str) -> str:
+        """``""`` when the language's interpreter can read the tree, else why not.
+
+        Deliberately narrow: it proves one file is openable and non-empty FROM THE INTERPRETER'S OWN VIEW,
+        which is the thing that differs when `php` is a wrapper, a container without the right bind mount, or
+        a tree of symlinks pointing somewhere the sandbox cannot follow. Nothing else here can see that
+        difference, because every other signal is downstream of the parse that never happened.
+        """
+        interpreter = _INTERPRETERS.get(language.lower())
+        extensions = _LANGUAGE_EXTENSIONS.get(language.lower())
+        if not interpreter or not extensions:
+            return ""
+        binary = shutil.which(interpreter)
+        if binary is None:
+            return ""  # absent is a different failure, and the frontend reports it plainly
+        sample = next((path for path in sorted(root.rglob("*")) if path.suffix.lower() in extensions and path.is_file()), None)
+        if sample is None:
+            return ""  # nothing of this language to read; not the interpreter's fault
+        probe = "$f = $argv[1]; if (!is_readable($f) || filesize($f) < 1) { exit(3); } exit(0);"
+        completed = self._run([binary, "-r", probe, str(sample)], timeout=60)
+        if completed is None:
+            return f"the {interpreter} interpreter did not respond when asked to read {sample.name}"
+        if completed.returncode != 0:
+            return (
+                f"the {interpreter} interpreter cannot read {sample}, so the frontend would parse nothing and "
+                f"write an empty graph. Check that {interpreter} is a real interpreter with access to this "
+                f"tree -- a container or wrapper without the right mount fails exactly this way."
+            )
+        return ""
+
     def _build_sharded(self, root: Path, scratch: Path, language: str) -> tuple[tuple[Path, ...], tuple[str, ...]]:
         """Build the tree, and give the files it refuses a CPG of their OWN rather than losing them.
 
@@ -254,6 +308,12 @@ class JoernBackend:
         if dropped is None:
             return (), ()
         if not dropped:
+            # A build that warned about nothing is exactly the build that needs checking, because a graph
+            # holding nothing arrives with no warnings at all. Silence is the symptom that has no symptom.
+            census = self._graph_census(main, root, language)
+            if census is not None and census[0] < census[1]:
+                self.last_failure = f"the frontend reported no failures but the graph holds {census[0]} of {census[1]} source files"
+                logger.error("cpg build for %s: %s", root, self.last_failure)
             return (main,), ()
 
         # A warning is a symptom, not a verdict. `php2cpg` logs `Failed to process` for files that are
@@ -282,26 +342,31 @@ class JoernBackend:
             return tuple(shards), tuple(still)
         return tuple(shards), dropped
 
-    def _graph_is_complete(self, cpg_path: Path, root: Path, language: str) -> bool:
-        """Does this graph hold at least as many files as the tree has sources?
+    def _graph_census(self, cpg_path: Path, root: Path, language: str) -> tuple[int, int] | None:
+        """``(files_in_graph, files_expected)``, or ``None`` when the question cannot be asked.
 
-        Conservative in the only direction that matters: when the census cannot be taken, or the language
-        has no declared extensions, the answer is "no" and the caller does the careful thing.
+        Always asked, not only when the frontend warned. The dangerous build is the SILENT one: a graph that
+        holds nothing, reported with no errors at all, which is what an unreadable tree produces and what a
+        genuinely clean scan of an empty repository looks like. A warning is a symptom; this is the evidence.
         """
         extensions = _LANGUAGE_EXTENSIONS.get(language.lower())
         if not extensions:
-            return False
+            return None
         expected = sum(1 for path in root.rglob("*") if path.suffix.lower() in extensions and path.is_file())
         if not expected:
-            return False
+            return None
         payload = self.query(cpg_path, "census", {})
         if not isinstance(payload, Mapping):
-            return False
+            return None
         try:
-            files = int(str(payload.get("files", "0")))
+            return int(str(payload.get("files", "0"))), expected
         except ValueError:
-            return False
-        return files >= expected
+            return None
+
+    def _graph_is_complete(self, cpg_path: Path, root: Path, language: str) -> bool:
+        """Conservative: when the census cannot be taken, the answer is "no" and the caller is careful."""
+        census = self._graph_census(cpg_path, root, language)
+        return census is not None and census[0] >= census[1]
 
     def _island_root(self, root: Path, scratch: Path, files: Sequence[str]) -> Path | None:
         """A tree holding only ``files``, at their original relative paths.

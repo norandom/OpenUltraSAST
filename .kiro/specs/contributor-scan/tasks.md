@@ -675,7 +675,29 @@
   - The next measurement is therefore the per-request cost itself, and specifically what the two-stage joins
     cost at scale: they were 1.6x on a slice (62s -> 97s) and are plausibly the dominant term here. Until
     that is known, raising the timeout would only buy a slower way to find out.
-  - Still open: that measurement; and nothing here recovers a cross-shard flow.
+  - **ALL OF THE ABOVE ABOUT php2cpg IS WRONG. There is no frontend defect. 2026-09-10.** Every PHP build on
+    this machine ran through a local `php` shim that proxies stdio through `docker run`, and php2cpg depends
+    on the INTERLEAVING of its parser's stderr banners with its stdout JSON to attribute each document to a
+    file. The proxy scrambles that ordering. Measured on the same 177-file tree:
+
+        streaming shim   drops 72-88   767KB / 969KB / 1.2MB   different every run
+        buffered shim    drops 0       5,703 bytes             empty, and silent about it
+        NATIVE php       drops 0       2,872,996 bytes         byte-identical across three runs
+
+    So: no intermittent batch failure, no ~50% drop rate, no malformed CPG, no dataflow assertion, and no
+    scale limit. The `AssertionError: astParent ... has two parents` was a graph the shim had corrupted.
+  - **The real 637-file envelope, native php:** `drops=0`, a **4,329,471-byte CPG**, **20.0s wall**, **1.9GB
+    peak RSS**. Which is what the ORIGINAL note in this task said -- "php2cpg builds a 4.3MB CPG for a
+    637-file plugin with no errors" -- and it was right; everything written against it since was measured
+    through a broken instrument.
+  - Three of today's mechanisms were therefore built against an artifact: `_build_with_retries`, the sharded
+    build with its island CPG, and the census-before-split guard. They are inert on a correct instrument (no
+    drops means no retry and no split) and would still help against a genuine frontend failure, so they
+    stay -- but the evidence offered for them in their commit messages was not real, and this is the record
+    of that.
+  - Still open, and now measurable for the first time: whether the queries survive a well-formed 637-file
+    graph, what they cost, and what they find. Nothing here recovers a cross-shard flow, but on a correct
+    instrument there are no shards.
   - Still open: wiring that exclusion loop, the 637-file build with it in place, and whether the REST handler
     two calls away can reach the sink -- the slice found it through a same-function flow, not across the
     object.

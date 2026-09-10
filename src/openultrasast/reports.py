@@ -427,7 +427,7 @@ def _append_coverage(lines: list[str], coverage: Sequence[Mapping[str, object]],
 # silence in the table above is narrower than it looks.
 _COVERAGE_DEGRADATIONS: dict[str, str] = {
     "cpg_empty": "The code graph came back with no methods in it, so **nothing above was analysed at all**.",
-    "cpg_build_failed": "The code graph could not be built, so nothing above was analysed.",
+    "cpg_build_failed": "The code graph could not be built, so nothing above was analysed. {detail}",
     "cpg_sharded": (
         "The graph had to be built in {shards} parts, because the frontend could not parse the whole tree at "
         "once. Each part was queried, but **a flow whose source is in one part and whose sink is in another "
