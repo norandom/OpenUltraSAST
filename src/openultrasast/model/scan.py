@@ -223,15 +223,22 @@ def scan_repository(
         exhausted = counted is not None and counted.calls >= limits.max_model_calls
         family = getattr(spec, "family", "")
         prefetched = CpgResult(cpg_path=cpg.cpg_path, run=_prefetched(rows_by_id.get(rid, [])))
+        judge = None if exhausted else counted
         try:
-            enumerated = enumerate_candidates(root, region, family, taxonomy=taxonomy)
-            candidates = [{"id": c.id, "text": c.text, "line": c.line} for c in enumerated.candidates]
+            # Candidates exist to be PUT to the judge, and `scan_region` discards them the moment there is
+            # no judge to put them to. Enumerating them anyway costs a parse of the region's file per family
+            # per region: on a 637-file plugin that was 2,500 enumerations and 737 SECONDS of arbitration
+            # over rows that had already been fetched. Nobody should pay for a question nobody will ask.
+            candidates: list[dict[str, object]] = []
+            if judge is not None:
+                enumerated = enumerate_candidates(root, region, family, taxonomy=taxonomy)
+                candidates = [{"id": c.id, "text": c.text, "line": c.line} for c in enumerated.candidates]
             found = scan_region(
                 prefetched,
                 spec,
                 path=region.path,
                 function=region.function or "",
-                client=None if exhausted else counted,
+                client=judge,
                 model=model,
                 candidates=candidates,
                 # A repository's parameters are not all attacker input -- but an ENTRY POINT's are, by

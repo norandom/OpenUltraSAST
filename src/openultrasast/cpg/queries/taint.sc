@@ -573,8 +573,11 @@
           field("sources"),
           field("sinks"),
           field("sanitizers"),
-          field("hookCallbacks"),
-          field("dispatchApply"),
+          // Repository-wide, so the driver sends them ONCE as a top-level parameter rather than repeating
+          // them in every request. The per-request form is still honoured for the tests and the single
+          // -region path.
+          if (field("hookCallbacks").nonEmpty) field("hookCallbacks") else hookCallbacks,
+          if (field("dispatchApply").nonEmpty) field("dispatchApply") else dispatchApply,
           field("function"),
           paramSrc,
           field("file"),

@@ -80,6 +80,15 @@ _FRONTENDS = {
 _PREFER_FRONTEND = frozenset({"php"})
 FRONTEND_BUILD_ATTEMPTS = 4
 
+# Request fields that describe the REPOSITORY rather than the region, and are therefore identical in every
+# request of a batch. They are hoisted to a single `--param` instead of being repeated thousands of times.
+#
+# Not a micro-optimisation. `hookCallbacks` is 16,270 characters on a 637-file plugin, and repeating it
+# across 2,500 requests made a 42.5MB request file of which 41.7MB was the same string over and over. Joern
+# parsed that with ujson inside a 2GB heap and the whole batch died in ForkJoinPool, which the driver
+# correctly reported as `query_failed` for all 2,500 regions -- a whole-repository scan that decided nothing.
+_SHARED_REQUEST_FIELDS = ("hookCallbacks", "dispatchApply")
+
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 
 
@@ -407,7 +416,9 @@ class JoernBackend:
         if not script.is_file():
             logger.warning("no such cpg query: %s", script)
             return None
-        payload = json.dumps({rid: {k: _render(v) for k, v in req.items()} for rid, req in requests.items()})
+        rendered = {rid: {k: _render(v) for k, v in req.items()} for rid, req in requests.items()}
+        shared = _hoist_shared(rendered)
+        payload = json.dumps(rendered)
         # Through a FILE, never the command line. Linux caps a single argument at MAX_ARG_STRLEN (128KB)
         # whatever ARG_MAX says, and a repository blows through that: 2500 taint requests over a 637-file
         # WordPress plugin is a 1.49MB payload. execve returns E2BIG, `_run` catches the OSError, this returns
@@ -430,6 +441,8 @@ class JoernBackend:
             "--param",
             f"requestsFile={requests_file}",
         ]
+        for name, value in shared.items():
+            command += ["--param", f"{name}={value}"]
         completed = self._run(command, timeout=self.query_timeout, cwd=cpg_path.parent)
         if completed is None or completed.returncode != 0:
             detail = (completed.stderr or "")[-400:] if completed is not None else "timeout"
@@ -511,6 +524,26 @@ def _unparsed_files(completed: subprocess.CompletedProcess[str] | None) -> tuple
         for match in _UNPARSED.finditer(stream):
             seen.setdefault(match.group(1), None)
     return tuple(seen)
+
+
+def _hoist_shared(rendered: dict[str, dict[str, str]]) -> dict[str, str]:
+    """Pull the repository-wide fields out of every request, returning them once.
+
+    A field only lifts if it is IDENTICAL across the whole batch, so a value that genuinely varies per
+    region stays where it belongs and nothing is silently shared between questions.
+    """
+    if not rendered:
+        return {}
+    shared: dict[str, str] = {}
+    for name in _SHARED_REQUEST_FIELDS:
+        values = {request.get(name, "") for request in rendered.values()}
+        if len(values) == 1:
+            value = values.pop()
+            if value:
+                shared[name] = value
+            for request in rendered.values():
+                request.pop(name, None)
+    return shared
 
 
 def _render(value: object) -> str:
