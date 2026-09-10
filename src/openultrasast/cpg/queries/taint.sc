@@ -49,6 +49,7 @@
     boundedSinks: String = "",
     parameterSources: String = "false",
     hookCallbacks: String = "",
+    dispatchApply: String = "",
     requests: String = "",
     requestsFile: String = ""
 ) = {
@@ -68,6 +69,7 @@
       sinksS: String,
       sanitizersS: String,
       hookCallbacksS: String,
+      dispatchApplyS: String,
       functionS: String,
       paramSrc: String,
       fileS: String,
@@ -308,7 +310,10 @@
   // The rule: an `apply_filters('H', ...)` call is a SOURCE when some callback registered for H returns
   // data that an unsanitized flow reached. That is the same question as the field half, against a different
   // key.
-  val HOOK_APPLY = Set("apply_filters", "apply_filters_ref_array", "do_action", "do_action_ref_array")
+  // The registry's vocabulary arrives as a FACT, never as a constant here. `apply_filters` is WordPress's
+  // name for this; Django signals, jQuery events and Symfony's dispatcher all have their own, and each is a
+  // row in a semantic fact table rather than an edit to this query.
+  val hookApply = split(dispatchApplyS).toSet
 
   val hookTable: Map[String, List[String]] =
     hookCallbacksS
@@ -399,9 +404,9 @@
     )
 
   def hookSourceNodes =
-    if (hookTable.isEmpty) Iterator.empty
+    if (hookTable.isEmpty || hookApply.isEmpty) Iterator.empty
     else {
-      val applies = cpg.call.filter(c => HOOK_APPLY.contains(c.name)).filter(c => inScope(c.method)).l
+      val applies = cpg.call.filter(c => hookApply.contains(c.name)).filter(c => inScope(c.method)).l
       if (applies.isEmpty) Iterator.empty
       else {
         val keys = applies.flatMap { call =>
@@ -569,6 +574,7 @@
           field("sinks"),
           field("sanitizers"),
           field("hookCallbacks"),
+          field("dispatchApply"),
           field("function"),
           paramSrc,
           field("file"),
@@ -586,7 +592,7 @@
     println(ujson.write(ujson.Obj.from(answers.toSeq :+ ("__census__" -> census))))
   } else {
     println(
-      ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, hookCallbacks, function, parameterSources, file, callDepth, boundedSinks): _*))
+      ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, hookCallbacks, dispatchApply, function, parameterSources, file, callDepth, boundedSinks): _*))
     )
   }
   println("---OUSAST-CPG-END---")

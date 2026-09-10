@@ -555,6 +555,10 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
             obligations=obligations_cited or None,
             obligations_summary=obligations_payload or None,
             coverage=coverage_for_report,
+            # Degradations are coverage facts: an empty graph, a graph built in parts, a query that never
+            # ran. Kept out of the report they leave the reader unable to tell "nothing was found" from
+            # "nothing was looked at".
+            degradations=list(runtime.state.get("degradations") or ()),
         ),
     )
     runtime.run_stage(

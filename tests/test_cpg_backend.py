@@ -437,5 +437,76 @@ def test_a_php_build_that_never_stops_dropping_files_reports_them(tmp_path: Path
 
     result = JoernBackend(runner=runner).build(tmp_path, language="php")
 
-    assert attempts == FRONTEND_BUILD_ATTEMPTS, "it gives up rather than retrying forever"
-    assert result is not None and result.unparsed == ("/src/stubborn.php",)
+    assert attempts >= FRONTEND_BUILD_ATTEMPTS, "it retried"
+    assert attempts < 100, "and it gave up rather than retrying forever"
+    assert result is not None and result.unparsed == ("/src/stubborn.php",), "the file is named, not silently lost"
+
+
+def test_files_the_frontend_refuses_get_a_cpg_of_their_own(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A dropped file is dropped from the ONLY graph there is, and every question about it then has no
+    answer. The same file builds fine alone -- the failure is per-invocation -- so it is excluded from the
+    main build and given a second CPG, and queries run over both."""
+    import subprocess
+
+    from openultrasast.cpg.backend import JoernBackend
+
+    (tmp_path / "big.php").write_text("<?php function a() {}")
+    (tmp_path / "ok.php").write_text("<?php function b() {}")
+    commands: list[list[str]] = []
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        commands.append(list(command))
+        Path(command[command.index("-o") + 1]).write_text("cpg")
+        # The whole tree always drops big.php; any build that excludes it, or covers it alone, is clean.
+        excluded = "--exclude" in command
+        island = "excluded-root" in command[2]
+        stderr = "" if excluded or island else f"WARN Failed to process '{tmp_path / 'big.php'}'\n"
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr=stderr)
+
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/joern/{name}")
+
+    result = JoernBackend(runner=runner).build(tmp_path, language="php")
+
+    assert result is not None
+    assert result.unparsed == (), "the excluded file built on its own, so nothing is finally unparsed"
+    assert any("--exclude" in command for command in commands), "the main build excluded the difficult file"
+    assert any("excluded-root" in command[2] for command in commands), "and the difficult file got its own build"
+    assert (tmp_path / "big.php").exists(), "the source tree is untouched"
+
+
+def test_rows_from_every_shard_reach_the_caller(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Two graphs, one answer. The census is summed and carries the shard count, so `cpg_empty` still means
+    "no graph anywhere" rather than "the first of two was small"."""
+    from openultrasast.cpg.backend import JoernBackend
+
+    backend = JoernBackend()
+    answers = {
+        "a.bin": {"0": [{"sink": "one"}], "__census__": [{"methods": "3", "files": "1"}]},
+        "b.bin": {"0": [{"sink": "two"}], "1": [{"sink": "three"}], "__census__": [{"methods": "4", "files": "2"}]},
+    }
+    monkeypatch.setattr(JoernBackend, "query_batch", lambda self, path, query, requests: answers[path.name])
+
+    merged = backend.query_batch_across([Path("a.bin"), Path("b.bin")], "taint", {})
+
+    assert merged is not None
+    assert merged["0"] == [{"sink": "one"}, {"sink": "two"}]
+    assert merged["1"] == [{"sink": "three"}]
+    assert merged["__census__"] == [{"methods": "7", "files": "3", "shards": "2"}]
+
+
+def test_a_shard_that_cannot_answer_does_not_lose_the_others(monkeypatch: pytest.MonkeyPatch) -> None:
+    from openultrasast.cpg.backend import JoernBackend
+
+    backend = JoernBackend()
+    monkeypatch.setattr(
+        JoernBackend,
+        "query_batch",
+        lambda self, path, query, requests: None if path.name == "a.bin" else {"0": [{"sink": "kept"}]},
+    )
+
+    merged = backend.query_batch_across([Path("a.bin"), Path("b.bin")], "taint", {})
+    assert merged is not None and merged["0"] == [{"sink": "kept"}]
+
+    monkeypatch.setattr(JoernBackend, "query_batch", lambda self, path, query, requests: None)
+    assert backend.query_batch_across([Path("a.bin")], "taint", {}) is None, "no shard answered is not an empty answer"

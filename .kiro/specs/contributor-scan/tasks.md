@@ -596,8 +596,20 @@
     (`_build_with_retries`, 4 attempts). Retrying is only sound because the failure is intermittent AND
     reported -- retrying a silent failure would be superstition. Driver-level result on the slice that
     previously needed four manual retries: **6 of 6 builds usable**, 3 entailed findings each time.
-  - Still open: a file that fails on every attempt is still reported rather than analysed, and `--exclude`
-    plus a second CPG for the excluded files is the remaining lever.
+  - **Excluded files now get a CPG of their own, 2026-09-10.** A file the frontend refuses is excluded from
+    the main build and put in a second graph -- the same file builds perfectly well alone, the failure being
+    per-invocation -- and the queries run over both, rows concatenated per request id. The two-file PMPro
+    slice that used to report `cpg_empty` and nothing at all now reports **18 entailed findings including
+    CVE-2023-23488 at :936**, with `cpg_sharded` beside them.
+  - What it does NOT buy is a flow that crosses the shard boundary, and that is why the split is reported
+    rather than quietly served: a source in the excluded file whose sink is in the rest of the tree is
+    invisible to every question asked. `reports` now renders this under "What could not be analysed", along
+    with `cpg_empty`, `files_unparsed`, `query_failed` and `budget_exhausted` -- a degradation is a fact
+    about coverage, not a warning to file away.
+  - The excluded-file tree is symlinks at the ORIGINAL relative paths, because a region asks about
+    `classes/class.memberorder.php` and the queries match a filename by suffix; a flattened copy would answer
+    about a file nobody asked about.
+  - Still open: nothing here recovers a cross-shard flow, and the 637-file build remains unmeasured.
   - Still open: wiring that exclusion loop, the 637-file build with it in place, and whether the REST handler
     two calls away can reach the sink -- the slice found it through a same-function flow, not across the
     object.

@@ -190,6 +190,13 @@ def scan_repository(
                     methods = int(str(entry.get("methods", "0")) or 0)
                     if methods == 0:
                         degradations.append({"stage": "model", "reason": "cpg_empty", "files": int(str(entry.get("files", "0")) or 0)})
+                    # More than one graph means some files could only be built apart from the rest, and a
+                    # flow whose source is in one shard and whose sink is in another does not exist for any
+                    # question we can ask. Reporting the split is the difference between a partial answer and
+                    # a partial answer that looks whole.
+                    shards = int(str(entry.get("shards", "1")) or 1)
+                    if shards > 1:
+                        degradations.append({"stage": "model", "reason": "cpg_sharded", "shards": shards})
                     census_reported = True
                 rows_by_id.update(answered_batch)
         else:  # a backend without batching still works, one call at a time

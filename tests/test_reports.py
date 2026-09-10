@@ -617,3 +617,40 @@ def test_an_entailed_model_finding_keeps_its_section(tmp_path: Path) -> None:
     write_markdown_report(entailed, output)
 
     assert output.read_text().count(f"## {base.title}") == 20
+
+
+def test_a_sharded_graph_is_stated_in_the_report(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """A graph built in parts cannot see a flow that crosses the parts, and the reader has no way to know
+    that from the findings alone."""
+    from openultrasast.reports import write_markdown_report
+
+    path = tmp_path / "report.md"
+    write_markdown_report(
+        [],
+        path,
+        [],
+        coverage=[{"language": "php", "family": "injection", "regions": 3, "modelled": 12, "limits": ""}],
+        degradations=[
+            {"stage": "model", "reason": "cpg_sharded", "shards": 2},
+            {"stage": "model", "reason": "files_unparsed", "count": 1, "files": ["big.php"]},
+        ],
+    )
+    text = path.read_text()
+    assert "### What could not be analysed" in text
+    assert "built in 2 parts" in text
+    assert "is not visible to any question asked here" in text
+    assert "`big.php`" in text
+
+
+def test_a_clean_scan_states_no_coverage_gaps(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    from openultrasast.reports import write_markdown_report
+
+    path = tmp_path / "report.md"
+    write_markdown_report(
+        [],
+        path,
+        [],
+        coverage=[{"language": "php", "family": "injection", "regions": 3, "modelled": 12, "limits": ""}],
+        degradations=[],
+    )
+    assert "### What could not be analysed" not in path.read_text()

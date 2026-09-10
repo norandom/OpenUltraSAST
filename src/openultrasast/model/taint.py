@@ -51,6 +51,9 @@ def request_params(
         # graph, because php2cpg drops a registration's callback argument entirely -- see
         # `mapping.php_hook_callbacks`. Empty for every language that does not register handlers by string.
         "hookCallbacks": hook_callbacks,
+        # The registry's own vocabulary, from the fact tables. Without it the query would have to know what
+        # `apply_filters` is, which makes a general mechanism into a WordPress feature.
+        "dispatchApply": spec.dispatch_apply,
     }
 
 

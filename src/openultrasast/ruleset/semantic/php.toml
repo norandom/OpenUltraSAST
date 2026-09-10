@@ -188,3 +188,15 @@ calls = ["intval", "floatval", "filter_var", "settype", "absint"]
 id = "prepared_statement"
 calls = ["mysqli_prepare", "mysqli_stmt_bind_param", "pg_prepare", "pg_execute"]
 parameterized = true
+
+# A registry that connects a producer to a consumer through a STRING key rather than a call. Neither end
+# names the other, so no CPG frontend can draw the edge: php2cpg does not even keep the callback argument,
+# and `add_filter("hook", array($this, "m"))` reaches the graph as `add_filter("hook", )`.
+#
+# WordPress is what forced this into existence and none of it is about WordPress. The shape is general --
+# Django signals, jQuery events, Symfony's event dispatcher, any plugin system -- and a second framework is
+# a row here rather than a change to the query. That is the whole reason it is a fact and not a constant.
+[[dispatch]]
+id = "wordpress_hooks"
+register = ["add_action", "add_filter", "add_shortcode"]
+apply = ["apply_filters", "apply_filters_ref_array", "do_action", "do_action_ref_array"]

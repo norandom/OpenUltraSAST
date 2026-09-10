@@ -117,7 +117,7 @@ def analyze_entry_points(root: Path, targets: list[FileTarget]) -> list[EntryPoi
     return sorted(records, key=lambda item: (item.path, item.line is None, item.line or 0, item.name))
 
 
-def php_hook_callbacks(root: Path, targets: list[FileTarget]) -> dict[str, tuple[str, ...]]:
+def php_hook_callbacks(root: Path, targets: list[FileTarget], register_calls: Sequence[str] | None = None) -> dict[str, tuple[str, ...]]:
     """WordPress's hook registry, read out of the source text because the graph does not carry it.
 
     `php2cpg` 4.0.623 drops the callback argument of a registration entirely. What the CPG holds is
@@ -131,7 +131,24 @@ def php_hook_callbacks(root: Path, targets: list[FileTarget]) -> dict[str, tuple
     This is the link table for the hook half of the two-stage join (task 5.11). It is deliberately a plain
     name-to-names mapping with no inference in it: a hook whose name is computed (`"save_post_" . $type`)
     simply does not appear, rather than being guessed at.
+
+    ``register_calls`` comes from the semantic fact tables and defaults to whatever they declare for PHP.
+    Nothing here knows what WordPress is: the registry shape is general -- Django signals, jQuery events, a
+    plugin system's event bus -- and a second framework is a row in a TOML, not a change to this function.
     """
+    if register_calls is None:
+        from .semantic.facts import load_facts
+
+        register_calls = tuple(sorted({call for fact in load_facts().for_language("php").dispatches for call in fact.register}))
+    if not register_calls:
+        return {}
+    pattern = re.compile(
+        r"""\b(?P<call>"""
+        + "|".join(re.escape(name) for name in register_calls)
+        + r""")\s*\(\s*['"](?P<hook>[^'"]+)['"]\s*,\s*"""
+        + _PHP_CALLABLE,
+        re.VERBOSE,
+    )
     table: dict[str, set[str]] = {}
     for target in targets:
         if target.language != "php":
@@ -140,7 +157,7 @@ def php_hook_callbacks(root: Path, targets: list[FileTarget]) -> dict[str, tuple
             text = (root / target.path).read_text(errors="ignore")
         except OSError:
             continue
-        for match in _PHP_REGISTRATION.finditer(text):
+        for match in pattern.finditer(text):
             handler = match.group("handler") or match.group("method")
             if handler:
                 table.setdefault(match.group("hook"), set()).add(handler)

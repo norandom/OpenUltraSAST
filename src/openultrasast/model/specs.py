@@ -112,6 +112,9 @@ class TaintSpec:
     # discharge is a guard and not a call.
     bounded_sinks: tuple[str, ...] = ()
     safe_shape_sinks: tuple[str, ...] = ()
+    # The calls that read a value back out of a string-keyed registry (`apply_filters`, `do_action`). Facts,
+    # not constants, so a second framework is a row in a TOML rather than an edit to the query.
+    dispatch_apply: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -221,6 +224,7 @@ def taint_specs(
     def _is_shape(fact: object) -> bool:
         return bool(getattr(fact, "parameterized", False)) or getattr(fact, "literal_format_arg", None) is not None
 
+    dispatch_apply = tuple(sorted({call for fact in scoped.dispatches for call in fact.apply}))
     sanitizers = tuple(sorted({call for fact in scoped.sanitizers if not _is_shape(fact) for call in fact.calls}))
     safe_shapes = tuple(sorted({call for fact in scoped.sanitizers if _is_shape(fact) for call in fact.calls}))
     by_family: dict[str, set[str]] = {}
@@ -243,6 +247,7 @@ def taint_specs(
             sanitizers=sanitizers,
             bounded_sinks=tuple(sorted(bounded.get(family_id, ()))),
             safe_shape_sinks=safe_shapes,
+            dispatch_apply=dispatch_apply,
         )
         for family_id, calls in sorted(by_family.items())
     }

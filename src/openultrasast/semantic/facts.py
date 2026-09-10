@@ -54,11 +54,33 @@ class SanitizerFact:
 
 
 @dataclass(frozen=True)
+class DispatchFact:
+    """A framework that connects a producer to a consumer through a STRING key rather than a call.
+
+    WordPress is the example that forced this, but nothing here is about WordPress. The shape is general --
+    a registry keyed by a name, written as a literal at both ends -- and it is how Django signals, jQuery
+    events, Symfony's event dispatcher and every plugin system of this kind route data. No CPG frontend can
+    draw the edge, because neither end names the other.
+
+    ``register`` names the calls that put a callback INTO the registry, ``apply`` the calls that take a value
+    back OUT of it. Both belong in a fact table for the same reason sinks do: a query that hardcodes
+    `apply_filters` is a query that only works on one framework, and the next one needs a code change rather
+    than a row.
+    """
+
+    id: str
+    register: tuple[str, ...]
+    apply: tuple[str, ...]
+    language: str
+
+
+@dataclass(frozen=True)
 class SemanticFacts:
     version: str
     sources: tuple[SourceFact, ...]
     sinks: tuple[SinkFact, ...]
     sanitizers: tuple[SanitizerFact, ...]
+    dispatches: tuple[DispatchFact, ...] = ()
 
     def for_language(self, language: str) -> SemanticFacts:
         key = _LANGUAGE_ALIASES.get(language, language)
@@ -67,6 +89,7 @@ class SemanticFacts:
             sources=tuple(item for item in self.sources if item.language == key),
             sinks=tuple(item for item in self.sinks if item.language == key),
             sanitizers=tuple(item for item in self.sanitizers if item.language == key),
+            dispatches=tuple(item for item in self.dispatches if item.language == key),
         )
 
 
@@ -77,6 +100,7 @@ def load_facts(directory: Path | None = None) -> SemanticFacts:
     sources: list[SourceFact] = []
     sinks: list[SinkFact] = []
     sanitizers: list[SanitizerFact] = []
+    dispatches: list[DispatchFact] = []
     versions: list[str] = []
     found = False
     for path in sorted(root.glob("*.toml")):
@@ -90,9 +114,33 @@ def load_facts(directory: Path | None = None) -> SemanticFacts:
         sources.extend(_sources(payload.get("source"), language, path))
         sinks.extend(_sinks(payload.get("sink"), language, path))
         sanitizers.extend(_sanitizers(payload.get("sanitizer"), language, path))
+        dispatches.extend(_dispatches(payload.get("dispatch"), language, path))
     if not found:
         raise FactLoadError(f"no semantic fact files in {root}")
-    return SemanticFacts(version=versions[0] if versions else "1", sources=tuple(sources), sinks=tuple(sinks), sanitizers=tuple(sanitizers))
+    return SemanticFacts(
+        version=versions[0] if versions else "1",
+        sources=tuple(sources),
+        sinks=tuple(sinks),
+        sanitizers=tuple(sanitizers),
+        dispatches=tuple(dispatches),
+    )
+
+
+def _dispatches(value: object, language: str, path: Path) -> list[DispatchFact]:
+    facts: list[DispatchFact] = []
+    for item in _items(value):
+        identifier = str(item.get("id", "")).strip()
+        if not identifier:
+            raise FactLoadError(f"dispatch without an id in {path}")
+        facts.append(
+            DispatchFact(
+                id=identifier,
+                register=_strings(item.get("register"), "register", path),
+                apply=_strings(item.get("apply"), "apply", path),
+                language=language,
+            )
+        )
+    return facts
 
 
 def _items(value: object) -> list[dict[str, object]]:

@@ -26,7 +26,7 @@ import re
 import shutil
 import subprocess
 import tempfile
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
@@ -193,15 +193,16 @@ class JoernBackend:
 
         # A frontend whose failures are visible and retryable is worth more than one whose are not.
         if language.lower() in _PREFER_FRONTEND:
-            retried = self._build_with_retries(root, cpg_path, scratch, language)
-            if retried is not None:
-                unparsed = retried
+            shards, unparsed = self._build_sharded(root, scratch, language)
+            if shards:
                 if unparsed:
                     logger.warning("the frontend could not parse %d file(s) under %s: %s", len(unparsed), root, ", ".join(unparsed[:5]))
+                if len(shards) > 1:
+                    logger.info("querying %d cpg shards for %s; flows that cross them are not visible", len(shards), root)
                 return CpgResult(
-                    cpg_path=cpg_path,
-                    run=lambda query, params: self.query(cpg_path, query, params),
-                    run_batch=lambda query, requests: self.query_batch(cpg_path, query, requests),
+                    cpg_path=shards[0],
+                    run=lambda query, params: self.query_across(shards, query, params),
+                    run_batch=lambda query, requests: self.query_batch_across(shards, query, requests),
                     unparsed=unparsed,
                 )
         command = [parse or "joern-parse", self._heap_flag(), str(root), "--output", str(cpg_path)]
@@ -223,7 +224,117 @@ class JoernBackend:
             unparsed=unparsed,
         )
 
-    def _build_with_retries(self, root: Path, cpg_path: Path, scratch: Path, language: str) -> tuple[str, ...] | None:
+    def _build_sharded(self, root: Path, scratch: Path, language: str) -> tuple[tuple[Path, ...], tuple[str, ...]]:
+        """Build the tree, and give the files it refuses a CPG of their OWN rather than losing them.
+
+        A frontend that drops a file drops it from the only graph there is, and every question about that
+        file then has no answer -- which is how a 637-file plugin became a scan of nothing. But the same
+        files build perfectly well on their own: the failure is per-invocation, not per-file. So a file the
+        main build refuses is excluded from it and put in a second CPG, and the queries run over both.
+
+        What this does NOT buy is a flow that crosses the shard boundary. A source in the excluded file and
+        its sink in the rest of the tree is invisible, and no merging of results can recover it -- which is
+        why the driver reports the split rather than quietly serving a partial answer.
+
+        Returns the CPGs to query and the files that defeated even a shard of their own.
+        """
+        main = scratch / "cpg.bin"
+        dropped = self._build_with_retries(root, main, scratch, language)
+        if dropped is None:
+            return (), ()
+        if not dropped:
+            return (main,), ()
+
+        # Second pass over the same tree, this time telling the frontend to leave the difficult files alone,
+        # so the rest of the repository is analysed instead of nothing being analysed.
+        remainder = self._build_with_retries(root, main, scratch, language, exclude=dropped)
+        shards: list[Path] = []
+        if remainder is not None and main.is_file():
+            shards.append(main)
+
+        island = self._island_root(root, scratch, dropped)
+        if island is None:
+            return tuple(shards), dropped
+        second = scratch / "cpg-excluded.bin"
+        still = self._build_with_retries(island, second, scratch, language)
+        if still is not None and second.is_file():
+            shards.append(second)
+            return tuple(shards), tuple(still)
+        return tuple(shards), dropped
+
+    def _island_root(self, root: Path, scratch: Path, files: Sequence[str]) -> Path | None:
+        """A tree holding only ``files``, at their original relative paths.
+
+        The paths have to be preserved: a region asks about `classes/class.memberorder.php`, and the queries
+        match a method's filename by suffix, so a flattened copy would answer about a file nobody asked
+        about. Symlinks, because the alternative is copying a repository to analyse it.
+        """
+        island = scratch / "excluded-root"
+        made = 0
+        for name in files:
+            source = Path(name)
+            if not source.is_absolute():
+                source = root / name
+            if not source.is_file():
+                continue
+            try:
+                relative = source.relative_to(root)
+            except ValueError:
+                relative = Path(source.name)
+            destination = island / relative
+            try:
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                if not destination.exists():
+                    destination.symlink_to(source)
+                made += 1
+            except OSError as exc:  # noqa: PERF203 - one bad file must not lose the rest
+                logger.warning("could not stage %s for its own cpg: %s", source, exc)
+        return island if made else None
+
+    def query_across(self, shards: Sequence[Path], query: str, params: Mapping[str, object]) -> object | None:
+        """One question over every shard, answers concatenated. ``None`` only when no shard could answer."""
+        merged: list[object] = []
+        answered = 0
+        for shard in shards:
+            rows = self.query(shard, query, params)
+            if rows is None:
+                continue
+            answered += 1
+            if isinstance(rows, list):
+                merged.extend(rows)
+        return merged if answered else None
+
+    def query_batch_across(
+        self, shards: Sequence[Path], query: str, requests: Mapping[str, Mapping[str, object]]
+    ) -> dict[str, list[object]] | None:
+        """The batch over every shard, rows concatenated per request id.
+
+        The census is summed rather than taken from one shard, and carries the shard count, because
+        `cpg_empty` has to mean "no graph anywhere" and not "the first of two graphs was small".
+        """
+        merged: dict[str, list[object]] = {}
+        methods = 0
+        files = 0
+        answered = 0
+        for shard in shards:
+            one = self.query_batch(shard, query, requests)
+            if one is None:
+                continue
+            answered += 1
+            census = one.pop("__census__", None)
+            if census and isinstance(census[0], Mapping):
+                methods += int(str(census[0].get("methods", "0")) or 0)
+                files += int(str(census[0].get("files", "0")) or 0)
+            for rid, rows in one.items():
+                merged.setdefault(rid, []).extend(rows)
+        if not answered:
+            return None
+        merged["__census__"] = [{"methods": str(methods), "files": str(files), "shards": str(len(shards))}]
+        return merged
+
+    def _build_with_retries(
+        self, root: Path, cpg_path: Path, scratch: Path, language: str, exclude: Sequence[str] = ()
+    ) -> tuple[str, ...] | None:
         """Build through the frontend, trying again while it reports files it could not parse.
 
         Retrying is only sound because the failure is INTERMITTENT and the frontend says when it happened.
@@ -235,7 +346,7 @@ class JoernBackend:
         """
         best: tuple[str, ...] | None = None
         for attempt in range(FRONTEND_BUILD_ATTEMPTS):
-            unparsed = self._build_with_frontend(root, cpg_path, scratch, language)
+            unparsed = self._build_with_frontend(root, cpg_path, scratch, language, exclude)
             if unparsed is None:
                 return best  # the frontend is missing or failed outright; keep any earlier partial build
             if not unparsed:
@@ -250,7 +361,9 @@ class JoernBackend:
             )
         return best
 
-    def _build_with_frontend(self, root: Path, cpg_path: Path, scratch: Path, language: str) -> tuple[str, ...] | None:
+    def _build_with_frontend(
+        self, root: Path, cpg_path: Path, scratch: Path, language: str, exclude: Sequence[str] = ()
+    ) -> tuple[str, ...] | None:
         """Retry the build through the language frontend alone.
 
         Returns the files the frontend dropped -- possibly none -- or ``None`` when there is nothing to retry
@@ -265,7 +378,10 @@ class JoernBackend:
         if binary is None:
             logger.warning("no frontend %s on PATH to retry the build for %s", frontend, root)
             return None
-        completed = self._run([binary, self._heap_flag(), str(root), "-o", str(cpg_path)], timeout=self.build_timeout, cwd=scratch)
+        command = [binary, self._heap_flag(), str(root), "-o", str(cpg_path)]
+        for name in exclude:
+            command += ["--exclude", name]
+        completed = self._run(command, timeout=self.build_timeout, cwd=scratch)
         if completed is None or completed.returncode != 0 or not cpg_path.is_file():
             detail = (completed.stderr or completed.stdout or "")[-400:] if completed is not None else "timeout"
             logger.warning("%s also failed for %s: %s", frontend, root, detail)

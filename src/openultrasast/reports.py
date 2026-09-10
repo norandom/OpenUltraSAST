@@ -23,6 +23,7 @@ def write_markdown_report(
     obligations: Mapping[str, Mapping[str, object]] | None = None,
     obligations_summary: Mapping[str, object] | None = None,
     coverage: Sequence[Mapping[str, object]] | None = None,
+    degradations: Sequence[Mapping[str, object]] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     verification_by_id = _verification_by_id(verifications or [])
@@ -87,8 +88,8 @@ def write_markdown_report(
             cited_obligations[finding.finding_id] = info_o
             _append_obligation_lines(lines, info_o, (mechanisms or {}).get(str(info_o.get("known_fix") or "")))
         lines.extend(["", finding.rationale, ""])
-    if coverage:
-        _append_coverage(lines, coverage)
+    if coverage or degradations:
+        _append_coverage(lines, coverage or (), degradations or ())
     if patterned:
         _append_pattern_matches(lines, patterned)
     if cited:
@@ -389,7 +390,7 @@ def _crowded_pattern_rules(findings: Sequence[StaticFinding]) -> list[StaticFind
     return [finding for finding in findings if _is_pattern_only(finding) and counts.get(_rule_key(finding), 0) > _PATTERN_DETAIL_LIMIT]
 
 
-def _append_coverage(lines: list[str], coverage: Sequence[Mapping[str, object]]) -> None:
+def _append_coverage(lines: list[str], coverage: Sequence[Mapping[str, object]], degradations: Sequence[Mapping[str, object]] = ()) -> None:
     """What was looked for, and what could not be decided (Req 5.6).
 
     A scan that reports nothing has established that nothing it MODELS was found. That is not the same as
@@ -417,6 +418,53 @@ def _append_coverage(lines: list[str], coverage: Sequence[Mapping[str, object]])
         lines.extend(["### Stated limits", ""])
         for row in stated:
             lines.extend([f"**`{row.get('family')}` ({row.get('language')})** — {row.get('limits')}", ""])
+
+    _append_not_analysed(lines, degradations)
+
+
+# A degradation is a fact about COVERAGE, not a warning to be filed away. Each of these says the scan
+# answered a smaller question than the one it was asked, and a reader who is not told cannot know that the
+# silence in the table above is narrower than it looks.
+_COVERAGE_DEGRADATIONS: dict[str, str] = {
+    "cpg_empty": "The code graph came back with no methods in it, so **nothing above was analysed at all**.",
+    "cpg_build_failed": "The code graph could not be built, so nothing above was analysed.",
+    "cpg_sharded": (
+        "The graph had to be built in {shards} parts, because the frontend could not parse the whole tree at "
+        "once. Each part was queried, but **a flow whose source is in one part and whose sink is in another "
+        "is not visible to any question asked here**."
+    ),
+    "files_unparsed": "{count} file(s) could not be parsed and are absent from the graph: {files}.",
+    "query_failed": "A `{kind}` query failed for {requests} region(s), so those regions were not decided.",
+    "budget_exhausted": "The model-call budget ran out with {regions_unasked} region(s) still unasked.",
+    "region_failed": "The region `{path}` could not be arbitrated.",
+}
+
+
+def _append_not_analysed(lines: list[str], degradations: Sequence[Mapping[str, object]]) -> None:
+    """The part of the repository the scan did NOT get to, said plainly.
+
+    Silence in the coverage table means "no fact table covered this". Silence here would mean something
+    else entirely -- that the graph was empty, or split, or that the query never ran -- and the reader has
+    no way to tell those apart from the findings alone.
+    """
+    rendered: list[str] = []
+    for item in degradations:
+        template = _COVERAGE_DEGRADATIONS.get(str(item.get("reason") or ""))
+        if template is None:
+            continue
+        fields = dict(item)
+        files = fields.get("files")
+        if isinstance(files, (list, tuple)):
+            fields["files"] = ", ".join(f"`{name}`" for name in files)
+        try:
+            rendered.append(template.format(**fields))
+        except (KeyError, IndexError):  # a degradation shaped differently than its template expects
+            rendered.append(f"`{item.get('reason')}`")
+    if not rendered:
+        return
+    lines.extend(["### What could not be analysed", ""])
+    lines.extend(f"- {line}" for line in rendered)
+    lines.append("")
 
 
 def _is_pattern_only(finding: StaticFinding) -> bool:
