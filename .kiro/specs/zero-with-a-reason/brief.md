@@ -93,6 +93,34 @@ php2cpg race** — a two-line file added to `class.memberorder.php` is exactly w
 PHP the canary belongs in its own build (`ousast doctor`), where it proves the toolchain works, and the
 funnel and the oracle prove that *this* build worked. They are complementary, not redundant.
 
+### 3b. The instrument must prove it can read the input
+
+Every instrument failure in this project has the same shape, and it is not a coincidence: **the input was
+unreadable and the tool reported a plausible zero.** `file_exists()` returns false, the parser writes nothing,
+the frontend exits 0, and "0 files dropped, 5,703-byte graph" reads exactly like success.
+
+It has now happened four times in one day — a docker shim that did not mount `~/.cache` (twice, hours apart,
+the second time after I had diagnosed the first), a measurement harness whose script path did not resolve
+from its working directory, and a container that could not follow the symlinks in the tree it was handed.
+
+The rule that would have caught all four costs one line: **before measuring, make the tool open one input
+and fail loudly if it cannot.** Not a check of the output, which is where all the effort has gone -- a check
+that the input arrived. `_graph_is_complete` is this idea applied after the fact; the cheaper version is to
+ask first.
+
+This applies to our own measurement scripts as much as to the engine. A harness that prints `0.5s` and
+`rows=?` where a JVM takes fifteen seconds to start is not reporting a fast query, and it should say so in
+those words rather than leaving a question mark for a tired reader to skip.
+
+### 3c. Nothing compiles the CPG queries
+
+`taint.sc`, `dominance.sc` and `config.sc` are 900 lines of Scala that the test suite never compiles. A
+signature change to `rowsFor` shipped with **850 tests passing** and broke every query at runtime; it was
+found by a measurement failing, not by CI.
+
+The canary in mechanism 3 covers this exactly -- a query that cannot compile cannot entail the canary -- which
+is another reason it belongs in `ousast doctor` rather than in-band.
+
 ### 4. Types that cannot express the confusion
 
 `dict | None` meaning "no rows" versus "could not ask" is a convention, and bugs 2, 3 and 7 are each a place
