@@ -61,6 +61,24 @@ Skills are located in `.opencode/skills/kiro-*/SKILL.md`
 - Keep steering current and verify alignment with `/kiro-spec-status`
 - Follow the user's instructions precisely, and within that scope act autonomously: gather the necessary context and complete the requested work end-to-end in this run, asking questions only when essential information is missing or the instructions are critically ambiguous.
 
+### Verify the instrument before you believe the measurement
+Every wrong diagnosis this project has recorded came from the same shape: **the input was unreadable and the
+tool reported a plausible zero.** `file_exists()` false, the parser writes nothing, the frontend exits 0 —
+and "no errors, 0 findings" reads exactly like a clean result. It has cost four wrong root causes in one day
+and two in an earlier session, twice from the same `php` shim.
+
+So, before reporting any measurement:
+
+1. **Prove the tool read its input.** Make it open one file and print the size. A zero from an unread tree
+   and a zero from clean code are indistinguishable afterwards. `JoernBackend` now does this itself; a
+   scratch harness must do it too.
+2. **Distrust a number that is too good.** A joern script "finishing" in 0.5s when a JVM takes 15s to start
+   is a failed launch. A harness must fail loudly with the exit code, never print `rows=?` next to a time.
+3. **Prefer the shipped environment.** The Docker image has a native `php`; local wrappers that proxy stdio
+   are not valid instruments for `php2cpg`, which depends on stream ordering.
+4. **When a result contradicts a working baseline, suspect the instrument first.** Slices that found CVEs an
+   hour ago do not stop working because a repository is larger.
+
 ## Steering Configuration
 - Load entire `.kiro/steering/` as project memory
 - Default files: `product.md`, `tech.md`, `structure.md`
