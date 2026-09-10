@@ -805,6 +805,43 @@
   - _Requirements: 4.4, 6.1, 8.1, 9.1_
   - _Depends: 5.8_
 
+- [x] 5.13 What a taint request actually costs — measured, and it is not the joins
+  - The whole-repository scan fails on taint alone: `dominance` and `config` answer 13 requests in ~75s each
+    while `taint` exceeds a 2,400s ceiling on 2,500. Four configurations over ONE verified graph (637 files,
+    7,061 methods, census confirmed before timing anything) and ONE request set of 250:
+
+    | | seconds | per request | rows |
+    |---|---|---|---|
+    | both joins off | 1657.5 | **6,630 ms** | 5779 |
+    | field half only | 1623.0 | 6,492 ms | 5779 |
+    | hook half only | 1781.0 | 7,124 ms | 5779 |
+    | both on | 2026.3 | 8,105 ms | 5779 |
+
+  - **The base query is the cost, not the joins.** 6.63s per request with both halves disabled; the field
+    half is free (inside noise, and measured slightly faster), the hook half adds 7.5%, both add 22%.
+    Removing them buys a fifth of the time and costs two of the three CVEs, which is not a trade worth
+    making.
+  - **The estimate this replaces was wrong and worth recording as wrong.** ">0.94s per request" came from
+    assuming taint COMPLETED within its 2,400s ceiling. It timed out, so that was a floor presented as a
+    figure. The measured cost is seven times higher.
+  - Extrapolated: 2,500 requests (the current 500-region budget) is **~4.6 hours**, and all 4,463 regions
+    would be about **41 hours**. Repository-scale PHP is not slow, it is the wrong shape of question asked
+    thousands of times.
+  - **Caveat on the rows.** All four configurations return 5,779 rows -- identical. These are the TOP 50
+    regions, which are exactly the REST handlers where framework sources already exist and the joins add
+    nothing. The joins earn their keep lower down: `_delete_files` at rank 0.30 and `record` in WP
+    Statistics. So this measures their COST faithfully and says nothing about their VALUE, and the two must
+    not be conflated when deciding what to cut.
+  - The levers, in order of leverage, and none of them is the arbiter:
+    - **Fewer, better regions.** 50 well-chosen beats 500 mediocre, which is 5.12 and worth ~10x on its own.
+    - **Fewer families per region.** Five taint families are asked of every region regardless of whether the
+      scope contains a sink of that family at all. At `callDepth=0` that is exactly checkable and the empty
+      ones are free to skip; above zero it needs the reachable set.
+    - **`callDepth`.** Three levels of fan-out over 7,061 methods is the term that makes each request cost
+      seconds rather than milliseconds.
+  - _Requirements: 4.2, 4.3, 9.1_
+  - _Depends: 5.10_
+
 - [ ] 5.12 The ranker knows one framework, and everything else lands in "unknown"
   - > "the ranker hardcodes wp nodes etc. which means it's not generalizeable. I'd like the LLM to be a
     > flexible layer here to avoid hardcoded / overly specific ranker implementations"
