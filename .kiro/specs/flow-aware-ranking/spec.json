@@ -1,0 +1,7 @@
+{
+  "name": "flow-aware-ranking",
+  "status": "brief",
+  "approved": false,
+  "summary": "Rank (region, family) pairs by cheap evidence of a possible taint flow, so an expensive query is spent where it can pay.",
+  "depends_on": ["contributor-scan"]
+}

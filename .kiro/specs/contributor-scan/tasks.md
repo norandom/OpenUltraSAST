@@ -897,7 +897,31 @@
     method-recogniser fixes moved it. The reason it is not reported is that the taint query TIMED OUT
     (`query_failed`, all 2,500 requests), so no region got a verdict, well ranked or not. Ranking is a real
     problem; it is not this miss.
-  - The fix is three layers, and the LLM is only the third:
+  - **Reframed 2026-09-10, and this is the shape the whole thing should take.** Pruning impossible questions
+    (5.14) is not a separate optimisation, it is TIER 0 of the ranker. The two are one mechanism at different
+    resolutions, and once that is seen the unit of ranking changes:
+
+    > **Rank (region, family) PAIRS, not regions — and rank them by evidence that a taint flow could exist.**
+
+    Today the ranker orders regions by declared access and then asks all five families of each, so a region
+    is examined for `deserialization` in a repository that never calls `unserialize`. The expensive question
+    is "does a source reach a sink of family F in this scope", and it costs 6.63 seconds. Every cheap
+    approximation of that question is available for free, from the fact tables and a text scan:
+
+    | tier | evidence | what it means |
+    |---|---|---|
+    | **0** | no sink of F in scope | **never ask** -- provably empty, cannot lose a finding |
+    | 1 | sink present, no source in scope or reachable | ask last |
+    | 2 | sink and source present, a sanitizer between them | may still corroborate |
+    | 3 | sink and source, no sanitizer, entry point or declared-public | ask first |
+
+    Tier 0 must be EXACT -- it is the only tier that excludes rather than orders, so it may only hold pairs
+    that provably cannot yield a flow. Everything above it is ordering, where being wrong costs position
+    rather than the finding.
+  - That makes the ranker a **cheap conservative approximation of the query it schedules**, which is the
+    right relationship: the ranker's job is to spend an expensive budget where the cheap evidence is
+    strongest, and its errors are bounded by construction because it cannot exclude anything above tier 0.
+  - The three layers below then describe HOW a tier is decided, not what the unit is:
     - **Facts, not code.** Framework vocabulary moves into the semantic tables the way `[[dispatch]]` already
       did today. An `[[access]]` fact declares hook-name patterns and their access level, so
       `wp_ajax_nopriv_*` is a row rather than an `if`. Covers every framework somebody has written facts for,
