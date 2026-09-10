@@ -473,7 +473,10 @@ def run_family_detector(root: Path, region: Region, config: FamilyConfig, *, cli
 
 **Responsibilities & Constraints**
 - Resolution order: explicit injection (tests) → `OPENULTRASAST_HUNTER_CLIENT` scripted modes → `DEEPSEEK_API_KEY` with `DEEPSEEK_BASE_URL` (default `https://api.deepseek.com`) → `OPENROUTER_API_KEY` with `OPENROUTER_BASE_URL`. Embeddings keep reading `OPENROUTER_*` only.
-- `[models]`: `hunter` (default `deepseek-v4-flash`), `judge` (default `deepseek-v4-pro`), `chat_base_url`, `chat_api_key_env`.
+- `[models]`: `hunter` (default `deepseek-v4.1-flash`), `judge` (default `deepseek-v4.1-flash`), `chat_base_url`, `chat_api_key_env`.
+  V4 Pro was discontinued on 2026-09-10 and its requests route to V4.1 Flash from 2026-09-14, billed at Flash's
+  price. Detector and judge are now the SAME model, so any claim that the judge is a stronger second opinion is
+  a claim about the prompt and the evidence put to it, not about model class.
 - Adapter: `thinking` disabled and `temperature 0` for detectors and classifier; `reasoning_content` replayed; `response_format json_object` with one retry on empty content; `logprobs` on request; usage fields normalized (`prompt_cache_hit_tokens`) into cost accounting.
 
 **Contracts**: Service [x]
@@ -504,7 +507,7 @@ class DeepSeekChatClient:   # implements ChatClient; wraps OpenRouterChatClient 
 - `CanaryVerifier` (injection, path, deserialization, and command execution inside injection): writes a snippet from a family template that imports the target function, plants a canary (row in an in-memory database, file under `/scratch`, object with a marker method) and prints `CANARY:<token>` only when the vulnerability fires; the oracle is the token in stdout, never the exit code. The snippet passes `check_snippet_safety` unchanged.
 - `StaticVerifier` (access control): the obligations checker's finding on the same function raises to `static_corroboration`.
 - `NoVerifier`: stays at `suspicion`.
-- `second_judge`: a `deepseek-v4-pro` call with the snippet, the oracle output and the claim, answering `json_object` `{"confirms": bool, "reason": str}`; a proven claim is published only when it confirms.
+- `second_judge`: a `deepseek-v4.1-flash` call with the snippet, the oracle output and the claim, answering `json_object` `{"confirms": bool, "reason": str}`; a proven claim is published only when it confirms.
 - Templates, oracle code and gold labels live under `learning/verifiers/` and `benchmarks/`, both excluded from every proposer write root.
 
 **Contracts**: Service [x]
