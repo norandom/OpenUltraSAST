@@ -842,6 +842,34 @@
   - _Requirements: 4.2, 4.3, 9.1_
   - _Depends: 5.10_
 
+- [ ] 5.14 Stop asking questions that cannot have an answer
+  - Half the taint budget is spent on questions whose answer is known in advance. Measured on the 500 regions
+    a PMPro scan actually examines:
+
+    | family | asked | of those, the file holds no sink of that family |
+    |---|---|---|
+    | `deserialization` | 487 | **487 — every one** |
+    | `untrusted_destination` | 500 | 340 |
+    | `output_encoding` | 500 | 178 |
+    | `injection` | 500 | 165 |
+    | `path` | 500 | 140 |
+    | **total** | **2,487** | **1,310 (53%)** |
+
+    At the measured 6.63 s/request that is **4.6 hours now, 2.2 hours pruned** -- and the cut costs nothing,
+    because a family with no sink in scope cannot produce a flow. This is not a heuristic.
+  - Two rules, and they differ in how exact they are:
+    - **Repository-level, exact at any `callDepth`.** If no file in the repository contains a sink of family
+      F, never ask F. That alone removes all 487 `deserialization` requests here -- a fifth of the budget --
+      and PMPro simply never calls `unserialize`.
+    - **Scope-level, exact at `callDepth=0` only.** If the region's own file holds no sink of F, skip it.
+      Above zero the sink may live in a reachable method in another file, so this needs the reachable set
+      rather than the file, and it should be computed there or not claimed.
+  - Do this BEFORE the ranker. It is arithmetic rather than judgement, it cannot lose a finding, and it makes
+    every later measurement of ranking cheaper to run.
+  - Observable: taint requests issued per scan, and whether the query completes at all on `pmpro`.
+  - _Requirements: 4.2, 9.1_
+  - _Depends: 5.13_
+
 - [ ] 5.12 The ranker knows one framework, and everything else lands in "unknown"
   - > "the ranker hardcodes wp nodes etc. which means it's not generalizeable. I'd like the LLM to be a
     > flexible layer here to avoid hardcoded / overly specific ranker implementations"
@@ -929,6 +957,42 @@
     optimiser did not see. `getMemberOrderByCode` is at ~1036 of 4,463 today.
   - _Requirements: 4.4, 9.1_
   - _Depends: 5.8_
+
+## Where PHP detection stands, 2026-09-10
+
+**What works, measured on pinned checkouts with the CVE read out of the code:** three real CVEs found on real
+WordPress plugins, each entailed by the graph alone with no model in the loop, each absent from its fixed
+side.
+
+| | found at | sourced from |
+|---|---|---|
+| CVE-2023-23488 | `class.memberorder.php:936:getMemberOrderByCode` | `$id` |
+| CVE-2023-6559 | `class.mail.php:259:_delete_files` | `$this->attachments` |
+| CVE-2022-25148 | `class-wp-statistics-pages.php:225:record` | `$current_page["type"]` |
+
+Two of those needed the two-stage join (5.11) and would be invisible without it. The mechanism generalises:
+one idea -- two halves of a path joined by a key that is a literal in the source -- covered a hook name, a
+field name and an array key.
+
+**What does not work: the whole repository.** A 637-file plugin builds in 76s to a 4.25MB graph, `dominance`
+and `config` answer, and `taint` does not finish. Three blockers, in the order they bite:
+
+1. **Cost.** 6.63 s per taint request (5.13). 500 regions is 4.6 hours; 53% of those requests cannot produce
+   a flow at all (5.14).
+2. **Ranking.** 84% of regions share one rank, ordered alphabetically (5.12), so two thirds of the budget is
+   spent arbitrarily.
+3. **Coverage.** `access_control` is never asked for PHP at all (5.9), and `output_encoding` cannot be
+   trusted while the sanitizer list is flat (5.6).
+
+**What is NOT a blocker, contrary to most of what this task file said this morning:** php2cpg. There is one
+genuine frontend defect -- a `global` inside a closure produces a CPG Joern's own overlay rejects -- and it
+affects 0.2% of files, is detected and excluded automatically, and is reported. Everything else attributed to
+the frontend was a local `php` shim proxying stdio, which cost four wrong diagnoses in a day.
+
+**Honesty machinery, which is the part that held up.** Every failure above is reported rather than silent:
+`cpg_empty`, `files_unparsed`, `cpg_sharded`, `regions_truncated`, `query_failed`, and a "What could not be
+analysed" section that names them in the reader's terms. A scan that decides nothing and says so is a
+different artifact from one that decides nothing quietly, and only the second is dangerous.
 
 ## Group 6 — Regression baselines
 

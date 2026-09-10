@@ -51,32 +51,42 @@ So the ordering principle is: **make the output worth reading, then make it find
 behind an unreadable report changes nothing, and a second language before the report is fixed just doubles the
 noise.
 
-## Now — make the output worth reading
+## Now — make a repository scan finish at all
 
-Everything here is in `contributor-scan`, group 2, and all of it is measurable on the two checkouts that exist.
+The output work this section used to hold is done, and PHP went considerably further than it planned: three
+CVEs on real WordPress plugins, entailed by the graph with no model in the loop, each dropping on its fixed
+side. The detector is not the problem any more. **Finishing is.**
 
-1. **2.17 — the model's own suspicion band.** vampi emits 61 sections for 520 lines; 38 are a candidate the
-   graph could not decide with a judge's opinion attached. Expected: 61 → ~23. Measure what it hides.
-2. **2.9 — one defect is one finding.** 26 identical rows for one site. Dedupe on the site, keep the strongest
-   rung, record `reached_from`.
-3. **2.16 — say what a family cannot decide.** Req 5.6. This is the anti-quiet-failure fix, and it matters
-   most for the teaching goal: an LLM handed a silent C scan will fluently explain why the code is fine.
-4. **2.8 — a declared-public endpoint carries no obligation.** Removes both remaining vampi false positives.
-   Needs the access level's *provenance*, because for decorator frameworks "public" means "no decorator
-   found", which is the bug itself.
+A 637-file plugin builds in 76 seconds and then the taint query does not complete. Everything below is
+ordered by one question: what is the shortest path to a scan of a real plugin that reports its CVE?
 
-## Next — reach the named targets
+1. **5.14 — stop asking questions that cannot have an answer.** 53% of taint requests are put to a family
+   whose sinks do not appear in scope; every one of PMPro's 487 `deserialization` requests is asked of a
+   repository that never calls `unserialize`. Arithmetic, not judgement, and it cannot lose a finding.
+   4.6 hours → 2.2. Do this first because it makes every later measurement cheaper to run.
+2. **5.12 — rank, because 84% of regions currently share one rank ordered alphabetically.** Two thirds of the
+   budget is spent arbitrarily. Fifty well-chosen regions beat five hundred; combined with (1) that is the
+   difference between hours and minutes. The ranker is an LLM job, and it is safe as one because ranking
+   cannot manufacture a finding -- it decides what is looked at, never what is reported.
+   **The loop is closed and that is a design requirement, not a caveat:** a region the ranker excludes is
+   never arbitrated, so it never produces a label, so the ranker never learns it was wrong. An exploration
+   slice and a small fully-labelled corpus are what make the signal unbiased.
+3. **5.13 — the 6.63 s/request itself**, if (1) and (2) are not enough. `callDepth=3` over 7,061 methods is
+   the term that makes a request cost seconds; the two-stage joins are NOT the cost (measured: 22%, and they
+   found two of the three CVEs).
 
-5. **5.1 — PHP fact tables, then a WordPress checkout.** The shortest path to a target the maintainer named,
-   and the case this arbiter suits best. Sources, sinks and sanitizers for PHP; entry points for WordPress's
-   registration model (`add_action`, `add_filter`, admin-ajax, REST routes) which the mapper already handles
-   in principle. **Validate on pairs before pointing it at WordPress** — tables first, corpus second, because
-   the other order produces a confident silence.
-6. **2.15 / 2.16 — settle `c/memory`.** Either a C checkout whose CVE runs through a sink we model, giving the
-   family its first true positive, or the family's scope narrowed and stated. Release criterion 4 needs one
-   or the other, and the second is cheap. libpng cannot answer the first; no version of it can.
-7. **5.2 — a pinned vibe-code repository.** Still the cheapest *second* true-positive checkout, and the guard
-   against tuning everything on vampi. Below PHP now only because it is not a named release target.
+Only after a scan finishes is there any point tuning what it finds.
+
+## Next — the families that cannot be asked
+
+4. **5.9 — PHP obligation facts.** `dominance_specs(language="php")` is empty, so missing-capability checks
+   are not asked on any WordPress scan. Not a miss; nothing was measured.
+5. **5.6 — a sanitizer cleanses the family it cleanses.** The list is flat, so `esc_sql` reads as sufficient
+   for XSS and `esc_html` as insufficient for SQL. Wrong in both directions, so no `output_encoding` verdict
+   currently means anything.
+6. **File the php2cpg defect upstream.** A `global` inside a closure yields a CPG Joern's own dataflow
+   overlay rejects, bisected to four lines. Worked around here (0.2% of files, detected and excluded and
+   reported), but it costs the WHOLE graph rather than the file, and other users will hit it.
 
 ## Then — close the deferred engine questions
 
