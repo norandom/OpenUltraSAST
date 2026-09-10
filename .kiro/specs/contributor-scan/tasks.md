@@ -805,6 +805,60 @@
   - _Requirements: 4.4, 6.1, 8.1, 9.1_
   - _Depends: 5.8_
 
+- [ ] 5.12 The ranker knows one framework, and everything else lands in "unknown"
+  - > "the ranker hardcodes wp nodes etc. which means it's not generalizeable. I'd like the LLM to be a
+    > flexible layer here to avoid hardcoded / overly specific ranker implementations"
+  - **What is actually hardcoded, precisely.** The rank SCALE is generic -- `_ACCESS_RANK` maps abstract
+    access levels to numbers and knows nothing about any framework. The EVIDENCE feeding it does not:
+    `mapping._wordpress_hook_access` is a Python function containing the literals `wp_ajax_nopriv_` and
+    `wp_ajax_`, and `_rest_route_access` contains `__return_true`. One framework, written in code.
+  - **The consequence is not "slightly worse on other frameworks", it is no ordering at all.** Anything the
+    classifier does not recognise falls to `review-required` = 0.30, and within a tie the order is
+    alphabetical by path -- arbitrary. On Paid Memberships Pro that is where CVE-2023-23488's region sits,
+    below every REST handler at 0.80, at position ~1036 of 4,463. With a 500-region budget the arbiter never
+    sees it. A Laravel, Symfony or Django codebase would have EVERY region in that tier: 4,463 regions
+    ordered by filename.
+  - The fix is three layers, and the LLM is only the third:
+    - **Facts, not code.** Framework vocabulary moves into the semantic tables the way `[[dispatch]]` already
+      did today. An `[[access]]` fact declares hook-name patterns and their access level, so
+      `wp_ajax_nopriv_*` is a row rather than an `if`. Covers every framework somebody has written facts for,
+      costs nothing at runtime, and is auditable.
+    - **Generic features that need no framework knowledge at all.** Every region can be scored on things the
+      CPG and the existing fact tables already know: how many modelled sinks its file contains, whether a
+      modelled source appears in it, its call-graph distance to the nearest sink, whether it is shipped,
+      whether any sink call in it lacks a sanitizer on any path. A method holding an unprepared `$wpdb`
+      query one hop from a parameter should outrank an empty getter WITHOUT anyone having written a
+      WordPress rule. This is the layer that would have moved CVE-2023-23488's region on its own, and it
+      should be built before any model is involved -- otherwise the LLM's contribution cannot be measured
+      against anything.
+    - **The LLM for the residue.** Regions the facts cannot classify and the features cannot separate. It
+      sees the feature vector plus a short excerpt and orders them.
+  - **Why ranking is a safe place for a model, and adjudication is not.** A ranker cannot manufacture a
+    finding. It decides what is LOOKED AT, never what is reported: the arbiters still entail or stay silent,
+    the three gates stay byte-identical, and a misranked region costs recall rather than producing a false
+    claim. The failure is also now visible rather than silent, because `regions_truncated` reports "500 of
+    4,463 examined" -- an unexamined region can no longer be mistaken for a clean one.
+  - Constraints that belong in the design before any model budget is spent:
+    - **Cost.** One call per region is 4,463 calls a scan and nobody runs that in CI. The model ranks a
+      prefiltered candidate set in batches, or it is not shipped.
+    - **Leak.** Four pinned CVEs is a tiny training set and this project has the scar already -- see the
+      closed-loop train-on-test finding, where the improve lever learned from holdout pairs and inflated its
+      own numbers. Optimisation must be leave-one-repository-out and the reported figure must come from a
+      plugin the optimiser never saw.
+    - **Reproducibility.** Two runs of one repository must agree, or a baseline diff means nothing. The
+      ranking is recorded in the manifest so a change in what was examined is auditable rather than
+      invisible.
+    - **Degradation.** With no model configured the scan still runs on layers one and two, and the report
+      says which ranker produced the order.
+  - A model could also PROPOSE facts for an unrecognised framework -- "this codebase registers handlers with
+    `Router::get(...)`" as a candidate `[[dispatch]]` row. That is a different and slower loop, and it must
+    go through human approval, because a fact is policy and the standing rule is that no policy is
+    LLM-authored. Ranking at runtime is not policy; a fact table is.
+  - Observable: the rank position of each pinned CVE's region, before and after, on a repository the
+    optimiser did not see. `getMemberOrderByCode` is at ~1036 of 4,463 today.
+  - _Requirements: 4.4, 9.1_
+  - _Depends: 5.8_
+
 ## Group 6 — Regression baselines
 
 - [ ] 6.1 Repository baseline and delta

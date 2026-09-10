@@ -40,7 +40,12 @@ BEGIN = "---OUSAST-CPG-BEGIN---"
 END = "---OUSAST-CPG-END---"
 
 BUILD_TIMEOUT_SECONDS = 900  # a large tree takes minutes; the go/no-go records what it actually cost
+# A slice's questions answer in seconds; a repository's do not. Measured on a 637-file WordPress plugin:
+# 13 dominance requests answer in 50s (most of it loading the graph) and 2,500 taint requests exceed 300s.
+# The constant was chosen when a "scan" meant an excerpt, and a repository scan is not a slower slice -- it
+# is a different order of question, so the ceiling is configurable rather than a number to keep raising.
 QUERY_TIMEOUT_SECONDS = 300
+QUERY_TIMEOUT_ENV = "OPENULTRASAST_CPG_QUERY_TIMEOUT"
 # A JVM with no -Xmx takes a quarter of physical RAM for its heap. On a contributor's laptop that is the
 # difference between a scan running in the background and a scan the machine notices, and it made the
 # first repository measurements unreproducible: runs were killed under memory pressure at different
@@ -210,7 +215,7 @@ class JoernBackend:
 
     runner: Runner | None = None
     build_timeout: int = BUILD_TIMEOUT_SECONDS
-    query_timeout: int = QUERY_TIMEOUT_SECONDS
+    query_timeout: int = field(default_factory=lambda: _configured_timeout())
     heap_mb: int = 0  # 0 means read the environment, then fall back to CPG_HEAP_MB
     queries_dir: Path = field(default_factory=lambda: QUERIES_DIR)
     # Why the last build refused, so the driver can name it instead of reporting a bare `cpg_build_failed`.
@@ -710,6 +715,14 @@ def _hoist_shared(rendered: dict[str, dict[str, str]]) -> dict[str, str]:
             for request in rendered.values():
                 request.pop(name, None)
     return shared
+
+
+def _configured_timeout() -> int:
+    """The query ceiling, from the environment or the default. Never zero or negative."""
+    raw = os.environ.get(QUERY_TIMEOUT_ENV, "").strip()
+    if raw.isdigit() and int(raw) > 0:
+        return int(raw)
+    return QUERY_TIMEOUT_SECONDS
 
 
 def _render(value: object) -> str:
