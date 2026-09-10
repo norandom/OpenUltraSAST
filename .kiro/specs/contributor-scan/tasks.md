@@ -826,8 +826,10 @@
     independent of the region's family, both repeated 2,500 times. Memoised across the batch (found while
     building flow-aware-ranking's evidence mode, which asks no dataflow and still took an hour), the same
     250 requests with both joins on: **2,026.3 s → 287.0 s, 8,105 → 1,148 ms per request, identical 5,779
-    rows.** A 7× speedup with nothing about the analysis changed. The base cost of a taint request is about
-    1.1 s, and the levers above still apply to it.
+    rows.** A 7× speedup with nothing about the analysis changed -- but "1.1 s" is an average over a set
+    that was 88% tier-0 pairs answering instantly. With those pruned (flow-aware-ranking phase 1), the 339
+    requests that CAN have an answer still exceed 2,400 s: **7–10 s per real request at `callDepth = 3`**.
+    The memoisation was real and stays; the per-request figure to design against is that one.
   - **The estimate this replaces was wrong and worth recording as wrong.** ">0.94s per request" came from
     assuming taint COMPLETED within its 2,400s ceiling. It timed out, so that was a floor presented as a
     figure. The measured cost is seven times higher.

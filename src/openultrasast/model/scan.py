@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from ..cpg.backend import CpgResult
-from .evidence import evidence_from_rows
+from .evidence import TIER_EXCLUDE, evidence_from_rows
 from .candidates import enumerate_candidates
 from .config_value import request_params as config_params
 from .dominance import request_params as dominance_params
@@ -70,6 +70,11 @@ class ScanBudget:
     # what is asked or in what order. One extra query invocation without dataflow -- a JVM load, then
     # milliseconds per pair.
     tiering: bool = True
+    # Phase 1 of flow-aware-ranking: do not ask a taint question whose answer is known in advance. A pair at
+    # tier 0 has no sink of its family in reach, and a family with no sink cannot produce a flow -- in any
+    # language, under any dataflow model. Skipping it cannot lose a finding. It is the only tier that
+    # excludes, which is why it is the only one allowed to act before the ranker is measured.
+    prune_tier0: bool = True
 
 
 @dataclass(frozen=True)
@@ -97,6 +102,9 @@ class ModelScanResult:
     # Recorded, not acted on: this is what "the ranker got better" will be measured against.
     tiers: tuple[tuple[str, str, str, int], ...] = ()
     tier_counts: Mapping[int, int] = field(default_factory=dict)
+    # Taint requests not issued because their pair was tier 0. Exact, so not a degradation: nothing that
+    # could have been found was skipped. Reported so the request count is legible.
+    requests_pruned: int = 0
 
     @property
     def arbitrate_seconds(self) -> float:
@@ -190,6 +198,7 @@ def scan_repository(
     # no `reachableByFlows`. Recorded on the result and NOT used to reorder or skip anything -- that is a
     # later phase, and it must be measured against this record before it is allowed to change behaviour.
     tiers: list[tuple[str, str, str, int]] = []
+    tier_by_rid: dict[str, int] = {}
     per_kind: dict[str, float] = {}
     if limits.tiering and callable(getattr(cpg, "run_batch", None)):
         grouped_taint = _grouped(work, hook_callbacks=hooks).get("taint", {})
@@ -219,6 +228,7 @@ def scan_repository(
                     )
                     if evidence is not None:
                         tiers.append((region.path, region.function or "", getattr(spec, "family", ""), evidence.tier))
+                        tier_by_rid[rid] = evidence.tier
 
     # Phase 2: ONE invocation per query kind. JVM startup dominates a repository scan -- a call per region
     # per family put a ten-line file at four minutes and a thousand regions at roughly fifty hours -- while
@@ -226,7 +236,17 @@ def scan_repository(
     rows_by_id: dict[str, list[object]] = {}
     census_reported = False
     query_started = time.monotonic()
+    pruned = 0
     for kind, requests in _grouped(work, hook_callbacks=hooks).items():
+        if kind == "taint" and limits.prune_tier0 and tier_by_rid:
+            # Tier 0 is exact: a family with no sink in reach cannot yield a flow. Measured on a 637-file
+            # plugin, that is 2,161 of 2,500 requests -- 86% of a query that timed out at forty minutes.
+            keep = {rid: params for rid, params in requests.items() if tier_by_rid.get(rid, TIER_EXCLUDE + 1) != TIER_EXCLUDE}
+            pruned = len(requests) - len(keep)
+            requests = keep
+            if not requests:
+                per_kind[kind] = 0.0
+                continue
         kind_started = time.monotonic()
         batch = getattr(cpg, "run_batch", None)
         if callable(batch):
@@ -338,6 +358,7 @@ def scan_repository(
         degradations=tuple(degradations),
         tiers=tuple(tiers),
         tier_counts={tier: sum(1 for t in tiers if t[3] == tier) for tier in sorted({t[3] for t in tiers})},
+        requests_pruned=pruned,
     )
 
 

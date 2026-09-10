@@ -419,3 +419,56 @@ def test_a_region_cap_that_hides_most_of_a_repository_is_reported() -> None:
     truncated = [d for d in result.degradations if d.get("reason") == "regions_truncated"]
     assert truncated, "the cap hid two thirds of the regions and said nothing"
     assert truncated[0]["examined"] == 10 and truncated[0]["total"] == 30
+
+
+def test_tier_zero_pairs_are_not_asked_and_nothing_else_is_skipped() -> None:
+    """Phase 1 of flow-aware-ranking. A pair with no sink of its family in reach cannot yield a flow, so its
+    taint request is never issued -- and every other pair's request still is."""
+    from openultrasast.model.regions import ScanRegion
+    from openultrasast.model.scan import ScanBudget, scan_repository
+
+    issued: list[dict[str, object]] = []
+
+    class _Backend:
+        def available(self) -> bool:
+            return True
+
+        def build(self, root, *, language=""):  # type: ignore[no-untyped-def]
+            from openultrasast.cpg.backend import CpgResult
+
+            def batch(kind, requests):  # type: ignore[no-untyped-def]
+                if any(p.get("evidenceOnly") == "true" for p in requests.values()):
+                    # Every family but the first has no sink in reach.
+                    return {
+                        rid: [{"kind": "summary", "sinks": 1 if i == 0 else 0, "sourceLocal": True, "familyInRepo": True}]
+                        + (
+                            [
+                                {
+                                    "kind": "sink",
+                                    "sink": "os.system(x)",
+                                    "sinkLine": "4",
+                                    "sinkMethod": "run",
+                                    "sinkArity": 1,
+                                    "sinkArg0Literal": False,
+                                    "cleansedOnCall": False,
+                                }
+                            ]
+                            if i == 0
+                            else []
+                        )
+                        for i, rid in enumerate(requests)
+                    }
+                issued.append({"kind": kind, "count": len(requests)})
+                return {rid: [] for rid in requests}
+
+            return CpgResult(cpg_path=Path("cpg.bin"), run=lambda q, p: [], run_batch=batch)
+
+    region = ScanRegion(
+        path="a.py", function="run", language="python", families=("injection", "path", "deserialization"), rank=0.9, source="entry_point"
+    )
+    result = scan_repository(Path("."), [region], backend=_Backend(), budget=ScanBudget(max_model_calls=0))
+
+    taint = next(i for i in issued if i["kind"] == "taint")
+    assert taint["count"] == 1, "only the pair with a sink in reach is asked"
+    assert result.requests_pruned == 2, "and the two tier-0 pairs are counted, not silently dropped"
+    assert not any(d.get("reason") == "query_failed" for d in result.degradations)

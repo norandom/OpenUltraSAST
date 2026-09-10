@@ -93,6 +93,17 @@ A phase that cannot show that is not an improvement, it is a story.
 - **Phase 1 — tier 0 only, no model.** Exact pruning. Gate: **53% fewer taint requests issued, measured** —
   and nothing more. 1,177 requests at 6.63 s is still 2.2 hours, so this phase does NOT make the scan finish;
   it halves the problem. Claiming completion here would send someone looking for a bug where there is none.
+
+  **Done 2026-09-10, gate exceeded, scan still does not finish — and the reason corrects phase 0's cost
+  figure.** On the 637-file plugin: `tier_counts = {0: 2161, 1: 60, 2: 20, 3: 211, 4: 48}`, **2,161 of 2,500
+  requests pruned (86%)**, evidence pass 94.5 s. The remaining **339 requests still hit the 2,400 s ceiling**
+  — more than 7 s each.
+
+  Phase 0 reported 1,148 ms per request after memoisation. That was an average over a 250-request set of
+  which 88% were tier 0 and returned instantly; the ~30 real requests in it cost about 9.5 s each. Pruning
+  removes exactly the cheap questions and keeps the expensive ones, so it cannot make those faster. The
+  honest per-request cost of a taint question that *can* have an answer is **7–10 s at `callDepth = 3`**,
+  and that is the number phase 2 and 5.13 must work against — not 1.1 s, and not 6.6 s either.
 - **Phase 2 — heuristic tiers, still no model.** The vector and tiers defined below, ordered within a tier
   by a published weighted sum. Gate: `budget_at_recall` — the smallest K holding every pinned CVE — **below
   50 on every pinned repository**, and `pmpro`'s taint query completing at that K. This is the phase that
