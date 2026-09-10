@@ -656,8 +656,26 @@
   - Two defects the measurement exposed and fixed along the way -- both mine, both invisible at slice scale:
     `hookCallbacks` was repeated into every request (42.5MB of which 41.7MB was one string), and candidates
     were enumerated for a judge that was never going to be asked (737s -> 19.8s of arbitration).
-  - Still open: the heap a 637-file PHP CPG actually needs; whether the query survives with it; and nothing
-    here recovers a cross-shard flow.
+  - **It is not a heap problem, and it is not the payload.** At 2GB *and* 4GB the CPG never finishes
+    loading -- no `OutOfMemoryError`, both runs hit a 900s ceiling, and both died in the same place,
+    `Braintree\Util`. What costs is Joern's dataflow overlay, recomputed on every import.
+  - **Two thirds of that repository is not its own code.** Of 637 files, **429 are vendored SDKs** (Braintree
+    and Stripe, each shipping its own LICENSE and README) and 31 are tests; PMPro's own code is **177 files,
+    62k lines**. Auditing a plugin by scanning the payment SDK it bundles is wrong on its own terms -- those
+    findings are not the plugin's bugs -- and it is what makes the graph unaffordable. This is the same idea
+    `shipped.py` applies to `Makefile.am`, which PHP has no equivalent of.
+  - **Scoping to authored code helps and does not fix it.** 177 files:
+
+        regions 4,463 -> 1,324     total 996.6s -> 843.7s     peak RSS 1,132 -> 1,316 MB
+        findings 0                 CVE-2023-23488 still not reported
+
+    The taint query hits `QUERY_TIMEOUT_SECONDS` (300s) on **each** shard -- 600.3s of the 843.7s is two
+    timeouts, not work. So the wall is the per-request cost of the taint query at 2,500 requests, and
+    nothing about memory, the build, or the vendored code removes it.
+  - The next measurement is therefore the per-request cost itself, and specifically what the two-stage joins
+    cost at scale: they were 1.6x on a slice (62s -> 97s) and are plausibly the dominant term here. Until
+    that is known, raising the timeout would only buy a slower way to find out.
+  - Still open: that measurement; and nothing here recovers a cross-shard flow.
   - Still open: wiring that exclusion loop, the 637-file build with it in place, and whether the REST handler
     two calls away can reach the sink -- the slice found it through a same-function flow, not across the
     object.

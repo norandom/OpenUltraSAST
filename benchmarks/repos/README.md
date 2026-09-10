@@ -216,8 +216,22 @@ obvious question is whether any of it survives on the whole plugin. Measured on 
 | CVE-2023-23488 | **not reported** |
 
 The build is affordable; a CI runner can do this without a vertical-scale machine, which was the open
-question. The scan is not: the taint query dies in `ForkJoinPool` after ten minutes, and so does a bare
-`cpg.file.size` census, so it is the CPG under a 2 GB heap rather than the request payload.
+question. The scan is not.
+
+It is worth being precise about *why*, because the obvious answers are all wrong. It is not memory: at 2 GB
+and at 4 GB the CPG never finishes loading, with no `OutOfMemoryError` in either case, both runs stopping in
+the same place — `Braintree\Util`. It is not the request payload either. What costs is Joern's dataflow
+overlay, recomputed on every import, over a graph two thirds of which is not the plugin's code at all:
+**429 of the 637 files are vendored SDKs** (Braintree, Stripe) and 31 are tests, leaving 177 files of PMPro's
+own. Auditing a plugin by scanning the payment SDK it bundles is wrong on its own terms.
+
+Scoping to those 177 files helps and does not fix it:
+
+    regions 4,463 -> 1,324     total 996.6s -> 843.7s     findings still 0
+
+600.3s of that 843.7s is the taint query hitting its 300s timeout on each of two shards — two timeouts, not
+work. The wall is the per-request cost of the taint query, and neither memory, nor the build, nor dropping
+the vendored code moves it.
 
 So the honest statement of PHP detection today is that **the slices find the CVEs and the repository does
 not** — one file finds CVE-2023-23488, two files find it with a shard, and 637 files find nothing at all.
