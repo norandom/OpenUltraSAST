@@ -354,23 +354,21 @@
   // every registered callback "return tainted" and the join degenerates into the complete graph this design
   // exists to refuse. Only a real framework source, or a field already shown to hold one, counts.
   //
-  // They are also NOT scoped to the requesting file, which the field half is. A hook registry is global by
-  // construction: the whole point of the edge is that `set_current_page` lives in one file and the
-  // `apply_filters` that calls it lives in another. Scoping these seeds the way the field half scopes its
-  // own defeats exactly the join being built, and the query returned nothing until this was separated.
-  val hookSeedsByFile = scala.collection.mutable.Map.empty[String, List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode]]
-
-  def hookSeedsIn(fileName: String) =
-    hookSeedsByFile.getOrElseUpdate(
-      fileName, {
-        val methods = methodsIn(fileName)
-        val framework: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
-          methods.flatMap(_.ast.isCall.filter(c => sourcePatterns.exists(p => c.code.contains(p))).l)
-        val fields: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
-          methods.flatMap(_.ast.isCall.nameExact(FIELD_ACCESS).l).filter(r => taintedPrefixes(r.code.trim, fileName))
-        framework ++ fields
-      }
-    )
+  // They are NOT scoped to the requesting file, which the field half is: a hook registry is global by
+  // construction, `set_current_page` lives in one file and the `apply_filters` that calls it in another,
+  // and the query returned nothing while they were. They ARE scoped to the CALLBACK's file. The first
+  // version scoped them to nothing -- every field access in every method of the repository, each put through
+  // the field join -- and on a 637-file plugin that step alone did not finish in 270 s, for a callback whose
+  // sources are, by the join's own logic, the reads in its body and the assignments in its class. WP
+  // Statistics is the case that has to survive: the callback and `$this->rest_hits = ...` share a file,
+  // and only the sink is elsewhere. Task 5.13 has the numbers.
+  def hookSeedsOf(callback: io.shiftleft.codepropertygraph.generated.nodes.Method) = {
+    val framework: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
+      callback.ast.isCall.filter(c => sourcePatterns.exists(p => c.code.contains(p))).l
+    val fields: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
+      callback.ast.isCall.nameExact(FIELD_ACCESS).l.filter(r => taintedPrefixes(r.code.trim, callback.filename))
+    framework ++ fields
+  }
 
   // Half one is asked PER ARRAY KEY, not per callback, and that distinction is the whole result.
   //
@@ -385,39 +383,40 @@
   // and not a detection. The key is a literal at both ends -- written `"id"` in the callback and `['id']`
   // at the sink -- so it joins the same way the hook name and the field name do. Third use of one idea.
   val INDEX_ACCESS = "<operator>.indexAccess"
-  val hookKeysMemo = scala.collection.mutable.Map.empty[(String, String), Set[String]]
+  val hookKeysMemo = scala.collection.mutable.Map.empty[String, Set[String]]
 
   def keyOf(access: io.shiftleft.codepropertygraph.generated.nodes.Call): String =
     access.argument.l.lift(1).map(a => unquote(a.code)).getOrElse("")
 
-  def taintedKeysOf(fileName: String, callback: String): Set[String] =
+  def taintedKeysOf(callback: String): Set[String] =
     hookKeysMemo.getOrElseUpdate(
-      (fileName, callback), {
-        val seeds = hookSeedsIn(fileName)
-        if (seeds.isEmpty) Set.empty[String]
-        else
-          cpg.method
-            .nameExact(callback)
-            .ast
-            .isCall
-            .nameExact(ASSIGNMENT)
-            .l
-            .flatMap { assignment =>
-              val args = assignment.argument.l
-              if (args.size < 2) None
-              else
-                args.head match {
-                  case target: io.shiftleft.codepropertygraph.generated.nodes.Call if target.name == INDEX_ACCESS =>
-                    val key = keyOf(target)
-                    if (key.isEmpty) None
-                    else if (args(1).start.reachableByFlows(seeds.iterator).l.exists(f => !f.elements.l.exists(sanitizesHere)))
-                      Some(key)
-                    else None
-                  case _ => None
-                }
-            }
-            .toSet
-      }
+      callback,
+      cpg.method
+        .nameExact(callback)
+        .l
+        .flatMap { method =>
+          val seeds = hookSeedsOf(method)
+          if (seeds.isEmpty) Nil
+          else
+            method.ast.isCall
+              .nameExact(ASSIGNMENT)
+              .l
+              .flatMap { assignment =>
+                val args = assignment.argument.l
+                if (args.size < 2) None
+                else
+                  args.head match {
+                    case target: io.shiftleft.codepropertygraph.generated.nodes.Call if target.name == INDEX_ACCESS =>
+                      val key = keyOf(target)
+                      if (key.isEmpty) None
+                      else if (args(1).start.reachableByFlows(seeds.iterator).l.exists(f => !f.elements.l.exists(sanitizesHere)))
+                        Some(key)
+                      else None
+                    case _ => None
+                  }
+              }
+        }
+        .toSet
     )
 
   def hookSourceNodes =
@@ -428,7 +427,7 @@
       else {
         val keys = applies.flatMap { call =>
           val hook = call.argument.l.headOption.map(a => unquote(a.code)).getOrElse("")
-          hookTable.getOrElse(hook, Nil).flatMap(cb => taintedKeysOf("", cb))
+          hookTable.getOrElse(hook, Nil).flatMap(taintedKeysOf)
         }.toSet
         if (keys.isEmpty) Iterator.empty
         else
@@ -443,7 +442,16 @@
       }
     }
 
-  def sourceNodes = frameworkSources.l.iterator ++ parameterNodes ++ fieldSourceNodes ++ hookSourceNodes
+  // Materialised ONCE per request, because every one of the four is a `def` that walks the graph --
+  // `frameworkSources` scans every call in the repository, `hookSourceNodes` runs one `reachableBy` per
+  // candidate index access -- and `sourceNodes` is consumed once per SINK. A file-scope region with 346 sinks
+  // paid for 346 repository scans and 346 hook joins. Measured on ten real pmpro pairs at callDepth 1:
+  // 16.5 s per request with the hook half off, past 54 s with it on, before this; see task 5.13.
+  lazy val frameworkList = frameworkSources.l
+  lazy val parameterList = parameterNodes.toList
+  lazy val fieldList     = fieldSourceNodes.toList
+  lazy val hookList      = hookSourceNodes.toList
+  def sourceNodes = frameworkList.iterator ++ parameterList.iterator ++ fieldList.iterator ++ hookList.iterator
 
   // WHICH KIND of source a flow started from, reported per row so the driver can tell them apart.
   //
@@ -453,9 +461,9 @@
   // present, which is right for parameters and wrong for these: on WP Statistics, seven sanitized
   // `$_SERVER["REQUEST_URI"]` flows displaced the unsanitized hook flow carrying CVE-2022-25148, and the
   // finding disappeared between the query and the verdict.
-  lazy val frameworkIds = frameworkSources.l.map(_.id).toSet
-  lazy val fieldIds     = fieldSourceNodes.map(_.id).toSet
-  lazy val hookIds      = hookSourceNodes.map(_.id).toSet
+  lazy val frameworkIds = frameworkList.map(_.id).toSet
+  lazy val fieldIds     = fieldList.map(_.id).toSet
+  lazy val hookIds      = hookList.map(_.id).toSet
 
   def sourceKindOf(head: Option[io.shiftleft.codepropertygraph.generated.nodes.AstNode]): String =
     head match {

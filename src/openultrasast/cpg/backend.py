@@ -87,6 +87,15 @@ _FRONTENDS = {
 _PREFER_FRONTEND = frozenset({"php"})
 # The extensions that count as source for a language, used to ask whether a graph is missing anything.
 _LANGUAGE_EXTENSIONS: dict[str, tuple[str, ...]] = {"php": (".php",)}
+
+# A source file above this size is a data table, not code: WP Statistics carries two vendored browser
+# profile files of 1.6 MB and 1.5 MB, each one array literal, and they were 60% of the graph (9.6 MB with
+# them, 3.6 MB without). The reaching-definitions overlay does not merely slow down on them, it never
+# finishes -- 25 minutes at 4 GB, OutOfMemoryError inside `initGen` at every cap `--max-num-def` offers,
+# because a single assignment of a hundred-thousand-element literal is ONE definition. Nothing flows
+# through a lookup table that a scan could name, and the file is named in the log so the exclusion is
+# visible rather than silent. Task 5.13.
+MAX_SOURCE_BYTES = 1_000_000
 # Frontends that shell out to a separate interpreter, and the command that proves it can read a file.
 # `php2cpg` drives PHP-Parser through whatever `php` is on PATH, so the frontend is only as good as that
 # interpreter's view of the filesystem -- and a `php` that cannot see the tree does not fail, it produces an
@@ -287,6 +296,7 @@ class JoernBackend:
             retried = self._build_with_frontend(root, cpg_path, scratch, language)
             if retried is None:
                 return None
+            self._apply_overlays(cpg_path, scratch)
             unparsed = retried
         if unparsed:
             logger.warning("the frontend could not parse %d file(s) under %s: %s", len(unparsed), root, ", ".join(unparsed[:5]))
@@ -297,6 +307,22 @@ class JoernBackend:
             unparsed=unparsed,
             cleanup=dispose,
         )
+
+    def _files_too_large_to_flow(self, root: Path, language: str) -> tuple[str, ...]:
+        """Source files over `MAX_SOURCE_BYTES`, relative to the root, in the language the build is about."""
+        extensions = _LANGUAGE_EXTENSIONS.get(language.lower())
+        if not extensions:
+            return ()
+        found: list[str] = []
+        for path in sorted(root.rglob("*")):
+            if path.suffix.lower() not in extensions or not path.is_file():
+                continue
+            try:
+                if path.stat().st_size > MAX_SOURCE_BYTES:
+                    found.append(str(path.relative_to(root)))
+            except OSError:
+                continue
+        return tuple(found)
 
     def _files_with_frontend_defect(self, root: Path, language: str) -> tuple[str, ...]:
         """Files carrying a construct this frontend miscompiles, found by reading the source.
@@ -386,6 +412,16 @@ class JoernBackend:
                 root,
                 ", ".join(Path(name).name for name in defective[:5]),
             )
+        oversized = self._files_too_large_to_flow(root, language)
+        if oversized:
+            logger.warning(
+                "excluding %d file(s) under %s over %d bytes (data tables the dataflow overlay never finishes on): %s",
+                len(oversized),
+                root,
+                MAX_SOURCE_BYTES,
+                ", ".join(f"{Path(name).name} ({(root / name).stat().st_size // 1024} KB)" for name in oversized[:5]),
+            )
+            defective = (*defective, *oversized)
 
         main = scratch / "cpg.bin"
         dropped = self._build_with_retries(root, main, scratch, language, exclude=defective)
@@ -522,7 +558,51 @@ class JoernBackend:
         merged["__census__"] = [{"methods": str(methods), "files": str(files), "shards": str(len(shards))}]
         return merged
 
+    def _apply_overlays(self, cpg_path: Path, scratch: Path) -> bool:
+        """Run Joern's default overlays ONCE, at build time, and keep the result in the graph.
+
+        A frontend writes a raw graph. Everything that answers a dataflow question -- the call graph, the
+        type layer, the reaching-definitions pass `OssDataFlow` -- is an OVERLAY, and `importCpg` computes
+        every overlay the graph lacks each time a JVM opens it. `joern-parse` applies them once and saves;
+        `php2cpg` output has none, so from the day PHP builds went through the frontend directly
+        (2026-09-09, 1ce7e9d) every query batch has paid the whole pass again before its first request.
+        Measured: 54 s of fixed cost per batch on a 637-file plugin, and on WP Statistics the pass alone
+        ran the default 2 GB heap out of memory after 21 minutes -- a graph the same tool had entailed
+        CVE-2022-25148 on, one hour before the switch, from a `joern-parse` build. Task 5.13.
+
+        `queries/overlay.sc` is that once: `importCpg`, `save`, and the saved graph replaces the raw one
+        under the same path. (`joern-parse --overlaysonly` is the obvious tool and is broken in 4.0.623.)
+        A failure here is logged and the raw graph kept, so the scan degrades to the old cost rather than
+        losing its graph.
+        """
+        joern = shutil.which("joern")
+        if joern is None:
+            return False
+        script = self.queries_dir / "overlay.sc"
+        command = [joern, self._heap_flag(), "--script", str(script), "--param", f"cpgFile={cpg_path}"]
+        completed = self._run(command, timeout=self.build_timeout, cwd=scratch)
+        workspace = scratch / "workspace"
+        saved = workspace / cpg_path.name / "cpg.bin"
+        try:
+            answered = completed is not None and completed.returncode == 0 and extract_payload(completed.stdout or "") is not None
+            if not answered or not saved.is_file():
+                detail = (completed.stderr or completed.stdout or "")[-400:] if completed is not None else "timeout"
+                logger.warning("overlays could not be applied to %s, keeping the raw graph: %s", cpg_path, detail)
+                return False
+            saved.replace(cpg_path)
+            return True
+        finally:
+            shutil.rmtree(workspace, ignore_errors=True)
+
     def _build_with_retries(
+        self, root: Path, cpg_path: Path, scratch: Path, language: str, exclude: Sequence[str] = ()
+    ) -> tuple[str, ...] | None:
+        outcome = self._build_with_retries_raw(root, cpg_path, scratch, language, exclude)
+        if outcome is not None:
+            self._apply_overlays(cpg_path, scratch)
+        return outcome
+
+    def _build_with_retries_raw(
         self, root: Path, cpg_path: Path, scratch: Path, language: str, exclude: Sequence[str] = ()
     ) -> tuple[str, ...] | None:
         """Build through the frontend, trying again while it reports files it could not parse.
@@ -657,12 +737,30 @@ class JoernBackend:
             return None
         return extract_payload(completed.stdout or "")
 
-    def _heap_flag(self) -> str:
-        """``-J-Xmx``: both launchers forward ``-J`` arguments to the JVM."""
+    def _heap_mb(self) -> int:
         if self.heap_mb > 0:
-            return f"-J-Xmx{self.heap_mb}m"
+            return self.heap_mb
         configured = os.environ.get(HEAP_ENV, "").strip()
-        return f"-J-Xmx{configured if configured.isdigit() else CPG_HEAP_MB}m"
+        return int(configured) if configured.isdigit() else CPG_HEAP_MB
+
+    def _heap_flag(self) -> str:
+        """``-J-Xmx``: both launchers forward ``-J`` arguments to the JVM they start."""
+        return f"-J-Xmx{self._heap_mb()}m"
+
+    def _jvm_env(self) -> dict[str, str]:
+        """The heap for the JVM that does the work, which is NOT the one ``-J`` reaches.
+
+        ``joern --script`` starts a launcher JVM and forks a second one to run the script
+        (``replpp.scripting.NonForkingScriptRunner``, despite the name), and the ``-J-Xmx`` goes to the
+        launcher only: 163 MB resident, next to a worker with no ``-Xmx`` at all sitting at 2.26 GB -- the
+        JVM default of a quarter of physical memory. So ``OPENULTRASAST_CPG_HEAP_MB`` governed nothing on an
+        8 GB machine and would silently take 16 GB on a 64 GB one. ``JAVA_TOOL_OPTIONS`` is read by every
+        JVM at start-up, forked ones included, and is appended to rather than replaced so an operator's own
+        options survive.
+        """
+        env = dict(os.environ)
+        env["JAVA_TOOL_OPTIONS"] = f"{env.get('JAVA_TOOL_OPTIONS', '').strip()} -Xmx{self._heap_mb()}m".strip()
+        return env
 
     def _run(self, command: list[str], *, timeout: int, cwd: Path | None = None) -> subprocess.CompletedProcess[str] | None:
         """Run one Joern command, and on timeout kill the whole PROCESS GROUP rather than the child.
@@ -689,6 +787,7 @@ class JoernBackend:
                 stderr=subprocess.PIPE,
                 text=True,
                 cwd=str(cwd) if cwd else None,
+                env=self._jvm_env(),
                 start_new_session=True,  # its own process group, so the JVM dies with the script
             ) as process:
                 try:

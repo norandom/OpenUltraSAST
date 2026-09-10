@@ -26,7 +26,7 @@ def _joern() -> str | None:
 
 
 @pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
-@pytest.mark.parametrize("name", ["taint", "dominance", "config", "census"])
+@pytest.mark.parametrize("name", ["taint", "dominance", "config", "census", "overlay"])
 def test_each_query_compiles_and_answers(name: str, tmp_path: Path) -> None:
     """Compile and RUN each query against a graph, and require a fenced payload back.
 
@@ -49,11 +49,11 @@ def test_each_query_compiles_and_answers(name: str, tmp_path: Path) -> None:
         pytest.skip(f"could not build a sample cpg: {(built.stderr or '')[-200:]}")
 
     command = [_joern() or "joern", "--script", str(script.resolve()), "--param", f"cpgFile={cpg}"]
-    if name != "census":
+    if name not in {"census", "overlay"}:
         requests = tmp_path / "requests.json"
         requests.write_text(json.dumps({"0": {"sources": "$_GET", "sinks": "$wpdb->query", "function": "handler"}}))
         command += ["--param", f"requestsFile={requests}"]
-    done = subprocess.run(command, capture_output=True, text=True, timeout=900, check=False)
+    done = subprocess.run(command, capture_output=True, text=True, timeout=900, check=False, cwd=str(tmp_path))
 
     assert done.returncode == 0, f"{name}.sc did not run: {(done.stderr or done.stdout or '')[-500:]}"
     assert extract_payload(done.stdout or "") is not None, f"{name}.sc produced no parseable payload"

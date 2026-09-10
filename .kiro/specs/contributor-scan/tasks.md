@@ -830,6 +830,94 @@
     that was 88% tier-0 pairs answering instantly. With those pruned (flow-aware-ranking phase 1), the 339
     requests that CAN have an answer still exceed 2,400 s: **7–10 s per real request at `callDepth = 3`**.
     The memoisation was real and stays; the per-request figure to design against is that one.
+  - **Worse than that, measured directly.** Forty of the 339 real requests, on their own, at `callDepth = 3`:
+    **no payload after 57 minutes -- more than 85 s per request.** The 7–10 s figure above was itself an
+    average diluted by cheaper pairs. At that cost the phase-1 scan's 339 requests need roughly eight hours,
+    which is why 2,400 s was never close. The depth-1 and depth-0 comparison did NOT run (the harness died
+    after the depth-3 timeout).
+  - **Attributed, then removed.** Ten real pairs (file-scope regions with 1 to 346 sinks, and two functions),
+    `callDepth = 1`, each half switched separately, hard process-group-killing timeouts, 2 GB JVM. The fixed
+    cost of one Joern invocation -- boot, script compile, graph load, an EMPTY batch -- is **54 s**, and is
+    subtracted below:
+
+    | configuration | 10 requests | net per request |
+    |---|---|---|
+    | both halves off | 165.0 s | 11.1 s |
+    | field half only | 163.4 s | 10.9 s |
+    | hook half only | **timeout at 540 s** | > 49 s |
+    | hook half only, seeds scoped to the callback's file | 151.5 s | 9.8 s |
+    | both halves on, after the fix | 150.8 s | 9.7 s |
+
+    The field half costs nothing measurable. The hook half was the whole difference between the cheap REST
+    handlers and the real pairs, and stage timers on stderr said exactly where: the last stage to report was
+    `applies=5`, and the next -- `taintedKeysOf` -- never did, inside 270 s, for a single request. Its seeds
+    were `hookSeedsIn("")`: EVERY field access in EVERY one of the 7,061 methods, each put through the field
+    join's `reachableByFlows`. Once per batch, memoised, and never finishing. The seeds a callback's key
+    assignments can be fed by are the reads in its own body and the assignments in its own class, so the
+    seeds are now computed from the callback method and its file. WP Statistics -- the case the hook half
+    exists for -- has `set_current_page` and `$this->rest_hits = ...` in the same file and only `record` in
+    another, so the join should be unchanged for it. **Not yet re-verified**, and the reason is its own
+    finding: on the WP Statistics graph as the backend builds it today (php2cpg, one file excluded, 9.6 MB),
+    `importCpg` alone -- no request at all -- does not return inside 400 s, where the pmpro graph (4.2 MB)
+    loads in 54 s. The pre-change query times out on the same request too, so it is not the seed change;
+    and the backend's own census had already said `cpg query census failed: timeout` during the build,
+    which is the instrument reporting exactly this and being read as a warning. The suspect is the
+    default-overlay pass `importCpg` runs on a raw frontend graph every time -- `joern-parse` runs it once
+    and saves the result, php2cpg output does not -- and the measurement in flight is `importCpg` plus
+    `save` with a 25-minute cap. **Confirmed on the first try, at the default heap:** `importCpg` plus
+    `save` died of `OutOfMemoryError` inside `OssDataFlow.create` -- the reaching-definitions overlay --
+    after 21 minutes. And the history closes the case: the hook half was verified at 20:42 on 09-09
+    (d6908f1) from a `joern-parse` build, which applies the overlays once and saves them; at 21:11 the same
+    evening (1ce7e9d) PHP builds switched to raw `php2cpg` output, which has none. Every query batch since
+    has recomputed the whole dataflow layer before its first request -- that is the 54 s "fixed cost" on
+    pmpro, and on WP Statistics it is the wall. The build now runs `joern-parse --overlaysonly` once after
+    the frontend, so a query loads a graph that already has its layers; whether the WP Statistics pass
+    completes at all with a heap the product can now actually set was the next measurement: **at 4 GB it
+    did not OOM and did not finish either, killed at 25 minutes.** So it is not the heap, it is the pass:
+    something in that graph makes per-method reaching definitions explode. `--max-num-def`, the
+    per-method cap on that pass, did not save it either: at 1000 it skipped 11 methods and OOMed at 3 GB
+    after 474 s; at 200 it skipped 110 and OOMed after 432 s, both inside `initGen`. The cap counts
+    DEFINITIONS, and the culprits are two vendored browser-profile tables --
+    `includes/vendor/whichbrowser/parser/data/profiles.php` (1.6 MB) and `models-android.php` (1.5 MB) --
+    each a single array literal: one definition, a hundred thousand elements. They were 60% of the graph
+    (9.6 MB with them, 3.6 MB without).
+  - **Resolved, all three, and re-verified.**
+
+    | | before | after |
+    |---|---|---|
+    | WP Statistics graph | 9.6 MB, overlay pass never finishes | 3.6 MB raw, overlays in 64 s once, **reloads in 8 s** |
+    | `record` injection request, `callDepth = 3` | timeout at 520 s | **39 s including the JVM** |
+    | CVE-2022-25148 at `pages.php:225` | unverifiable | **entailed, `sourceKind = hook`, unsanitized row present** |
+    | pmpro, 10 real pairs, both halves on | 150.8 s (raw graph) | 123.0 s (saved overlays); same 4 evidence keys, 40 duplicate flow rows fewer on one request |
+
+    Three changes, each named in the log rather than silent: (1) `queries/overlay.sc` runs `importCpg` +
+    `save` once at build time and the saved graph replaces the raw one (`joern-parse --overlaysonly` is the
+    obvious tool and NPEs in 4.0.623); (2) a source file over `MAX_SOURCE_BYTES` (1 MB) is excluded from
+    the build as a data table and reported in `unparsed`; (3) the hook half's seeds are the callback's own
+    file. The payload diff between a raw and a saved-overlay pmpro graph was checked request by request:
+    identical (sink, line, source kind, sanitized) sets, fewer repeated flow paths on the saved one.
+  - **Open, and the maintainer's call, not mine:** `includes/vendor/` is 207 of WP Statistics's 357 PHP
+    files and is not excluded by `preprocess.IGNORED_DIRS`, so vendored third-party code is both scanned
+    and in the graph. Whether a project's vendored code is in scope is policy; the size guard above is
+    not, it is a tool that cannot process a lookup table and says so.
+  - **Also found on the way.** `sourceNodes` was a `def` composed of four `def`s, and it was consumed once
+    per SINK: a 346-sink file-scope region re-ran the repository-wide `frameworkSources` scan 346 times.
+    The four are materialised once per request now. It was not the dominant term (request 4, one sink, was
+    0.4 s of graph work either way) but it was pure waste.
+  - **Two more instrument findings from the same afternoon.** (1) A `joern --script` run is TWO JVMs: a
+    launcher, which is all `-J-Xmx` reaches (163 MB resident), and a forked worker that runs the script with
+    no `-Xmx` at all (2.26 GB resident -- the JVM default of a quarter of physical memory). So
+    `OPENULTRASAST_CPG_HEAP_MB` governed nothing on this 8 GB machine and would silently take 16 GB on a
+    64 GB one. The backend now also sets `JAVA_TOOL_OPTIONS`, which every JVM reads, forked ones included.
+    (2) The backend's own unit tests, which feed `build()` a fake engine, left fifteen `ousast-cpg-*`
+    directories in `/tmp` per run -- small, but the product's stale sweep waits six hours and the
+    directories looked exactly like the leak that was just fixed. `conftest.py` now points `tempfile` at
+    the test's own directory.
+  - **What "11 s per request" is, then.** With the hook half fixed, the real pairs cost about 10 s each at
+    depth 1, of which stage timers attribute well under a second to source materialisation and the joins;
+    the rest is `reachableByFlows` per sink, which is the query's actual work. So the 339 phase-1 requests
+    are roughly 55 minutes at depth 1 -- affordable as a batch, still not as a per-push scan, and the depth
+    question (this at `callDepth = 3`) is still the open measurement.
   - **The estimate this replaces was wrong and worth recording as wrong.** ">0.94s per request" came from
     assuming taint COMPLETED within its 2,400s ceiling. It timed out, so that was a floor presented as a
     figure. The measured cost is seven times higher.

@@ -49,3 +49,16 @@ def assert_cold_of_harnessx():  # type: ignore[no-untyped-def]
         return proc.stdout
 
     return _check
+
+
+@pytest.fixture(autouse=True)
+def _scratch_under_tmp_path(monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory) -> None:
+    """Every CPG build makes an `ousast-cpg-*` scratch directory, and a test that feeds it a fake engine never
+    reaches the cleanup a real run does: one run of the backend tests left fifteen of them in the system
+    temp directory, and the product's stale sweep waits six hours. Pointing `tempfile` at the test's own
+    directory keeps them out of `/tmp` entirely, whatever the test forgets.
+    """
+    import tempfile
+
+    scratch = tmp_path_factory.mktemp("scratch")
+    monkeypatch.setattr(tempfile, "tempdir", str(scratch))

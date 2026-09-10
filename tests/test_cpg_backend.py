@@ -15,6 +15,28 @@ from pathlib import Path
 import pytest
 
 
+def _is_overlay(command) -> bool:  # type: ignore[no-untyped-def]
+    return any(str(part).endswith("overlay.sc") for part in command)
+
+
+def _overlaid(command, cwd=None):  # type: ignore[no-untyped-def]
+    """The build-time overlay step (`joern --script overlay.sc --param cpgFile=...`, run in the scratch dir),
+    answered the way Joern answers it: a saved graph under `workspace/<name>/cpg.bin` and a fenced payload.
+
+    Returned by a fake runner whenever it sees the script, so tests that count frontend invocations or
+    dispatch on `-o` / `--script` keep counting only what they are about.
+    """
+    import subprocess
+
+    from openultrasast.cpg.backend import BEGIN, END
+
+    cpg = Path(next(p for p in command if str(p).startswith("cpgFile=")).split("=", 1)[1])
+    saved = Path(cwd or cpg.parent) / "workspace" / cpg.name / "cpg.bin"
+    saved.parent.mkdir(parents=True, exist_ok=True)
+    saved.write_text("cpg+overlays")
+    return subprocess.CompletedProcess(args=command, returncode=0, stdout=f'{BEGIN}\n{{"files": "1", "methods": "1"}}\n{END}\n', stderr="")
+
+
 def test_without_joern_the_resolved_backend_is_the_null_one(monkeypatch: pytest.MonkeyPatch) -> None:
     from openultrasast.cpg.backend import NullBackend, resolve_cpg_backend
 
@@ -128,6 +150,8 @@ def test_a_batch_is_one_invocation_carrying_many_requests(monkeypatch: pytest.Mo
         stdout = f'{BEGIN}\n{{"r1": [{{"sink": "os.system(x)"}}], "r2": []}}\n{END}\n'
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
         calls.append(list(command))
         return _Done()
 
@@ -185,6 +209,9 @@ def test_a_built_cpg_offers_the_batch_path_to_its_driver(tmp_path: Path, monkeyp
     scripts: list[list[str]] = []
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
+
         class _Done:
             returncode = 0
             stderr = ""
@@ -220,6 +247,9 @@ def test_the_engine_runs_under_a_bounded_heap(tmp_path: Path, monkeypatch: pytes
     commands: list[list[str]] = []
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
+
         class _Done:
             returncode = 0
             stderr = ""
@@ -248,6 +278,9 @@ def test_the_operator_can_raise_the_heap(tmp_path: Path, monkeypatch: pytest.Mon
     commands: list[list[str]] = []
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
+
         class _Done:
             returncode = 0
             stderr = ""
@@ -278,6 +311,9 @@ def test_a_failed_joern_parse_retries_through_the_language_frontend(tmp_path: Pa
     tried: list[str] = []
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
+
         class _Result:
             stderr = ""
             stdout = ""
@@ -304,6 +340,9 @@ def test_an_unknown_language_has_nothing_to_retry_with(tmp_path: Path, monkeypat
     from openultrasast.cpg.backend import JoernBackend
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
+
         class _Result:
             returncode = 1
             stderr = ""
@@ -334,6 +373,8 @@ def test_a_batch_goes_through_a_file_not_the_command_line(tmp_path: Path) -> Non
         stdout = f'{BEGIN}\n{{"r0": []}}\n{END}\n'
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
         commands.append(list(command))
         return _Done()
 
@@ -405,6 +446,8 @@ def test_php_builds_through_the_frontend_and_retries_while_files_are_dropped(tmp
     warning = "WARN AstCreationPass Failed to process '/src/big.php'\n"
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
         if "-r" in command:
             return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
         tried.append(Path(command[0]).name)
@@ -433,6 +476,8 @@ def test_a_php_build_that_never_stops_dropping_files_reports_them(tmp_path: Path
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
         nonlocal attempts
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
         if "-r" in command:
             return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
         attempts += 1
@@ -462,6 +507,8 @@ def test_files_the_frontend_refuses_get_a_cpg_of_their_own(tmp_path: Path, monke
     commands: list[list[str]] = []
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
         commands.append(list(command))
         if "-r" in command:
             return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")  # the input probe
@@ -543,6 +590,8 @@ def test_a_warning_about_a_file_the_graph_actually_holds_does_not_split_it(tmp_p
     commands: list[list[str]] = []
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
         commands.append(list(command))
         if "-r" in command:
             return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")  # the input probe
@@ -581,6 +630,8 @@ def test_a_build_is_refused_when_the_interpreter_cannot_read_the_tree(tmp_path: 
     built: list[str] = []
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
         if "-r" in command:
             return subprocess.CompletedProcess(args=command, returncode=3, stdout="", stderr="")  # cannot read
         built.append(Path(command[0]).name)
@@ -604,6 +655,8 @@ def test_a_readable_tree_builds_normally(tmp_path: Path, monkeypatch: pytest.Mon
     (tmp_path / "a.php").write_text("<?php function a() {}")
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
         if "-r" in command:
             return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
         if "--script" in command:
@@ -633,6 +686,8 @@ def test_a_silently_short_graph_is_reported_even_with_no_warnings(tmp_path: Path
         (tmp_path / name).write_text("<?php function f() {}")
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
         if "-r" in command:
             return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
         if "--script" in command:
@@ -668,6 +723,8 @@ def test_a_file_php2cpg_miscompiles_is_excluded_and_named(tmp_path: Path, monkey
     commands: list[list[str]] = []
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
         if "-r" in command:
             return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
         commands.append(list(command))
@@ -741,6 +798,8 @@ def test_a_built_cpg_can_dispose_of_its_scratch_tree(tmp_path: Path, monkeypatch
     (tmp_path / "a.php").write_text("<?php function a() {}")
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
         if "-r" in command:
             return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
         if "--script" in command:
@@ -785,3 +844,100 @@ def test_the_sweep_removes_only_old_scratch_and_only_ours(tmp_path: Path, monkey
     assert not old.exists(), "an abandoned tree older than the ceiling is reclaimed"
     assert fresh.is_dir(), "a scan running right now is left alone"
     assert foreign.is_dir(), "and nothing outside this module's own prefix is ever touched"
+
+
+def test_heap_reaches_the_forked_script_jvm(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`-J-Xmx` sizes only the launcher; the JVM that runs the script is forked without it, so the heap has
+    to travel as JAVA_TOOL_OPTIONS too -- appended, so an operator's own options survive."""
+    from openultrasast.cpg.backend import JoernBackend
+
+    monkeypatch.setenv("JAVA_TOOL_OPTIONS", "-Dfile.encoding=UTF-8")
+    monkeypatch.setenv("OPENULTRASAST_CPG_HEAP_MB", "1536")
+    backend = JoernBackend(runner=lambda c, **k: None)
+    assert backend._heap_flag() == "-J-Xmx1536m"
+    assert backend._jvm_env()["JAVA_TOOL_OPTIONS"] == "-Dfile.encoding=UTF-8 -Xmx1536m"
+    monkeypatch.delenv("JAVA_TOOL_OPTIONS")
+    assert JoernBackend(runner=lambda c, **k: None, heap_mb=1024)._jvm_env()["JAVA_TOOL_OPTIONS"] == "-Xmx1024m"
+
+
+def test_a_frontend_build_gets_its_overlays_once_at_build_time(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """php2cpg writes a raw graph; `importCpg` computes every missing overlay each time a JVM opens it.
+
+    That cost 54 s per query batch on a 637-file plugin and ran WP Statistics out of heap. The build runs
+    `queries/overlay.sc` once, after the last frontend attempt, and the saved graph replaces the raw one
+    under the same path -- and a failed overlay pass keeps the raw graph rather than losing it.
+    """
+    import subprocess
+
+    from openultrasast.cpg.backend import JoernBackend
+
+    commands: list[list[str]] = []
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        commands.append(list(command))
+        if "-r" in command:
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
+        if "--script" in command:
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+        Path(command[command.index("-o") + 1]).write_text("raw")
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/joern/{name}")
+
+    result = JoernBackend(runner=runner).build(tmp_path, language="php")
+    assert result is not None
+    overlay_runs = [c for c in commands if _is_overlay(c)]
+    assert len(overlay_runs) == 1, "once, not per attempt"
+    assert f"cpgFile={result.cpg_path}" in overlay_runs[0]
+    assert result.cpg_path.read_text() == "cpg+overlays", "the overlaid graph replaced the raw one, same path"
+    assert not (result.cpg_path.parent / "workspace").exists(), "Joern's workspace does not outlive the step"
+
+    def failing(command, **kwargs):  # type: ignore[no-untyped-def]
+        if _is_overlay(command):
+            return subprocess.CompletedProcess(args=command, returncode=1, stdout="", stderr="OutOfMemoryError")
+        return runner(command, **kwargs)
+
+    kept = JoernBackend(runner=failing).build(tmp_path, language="php")
+    assert kept is not None and kept.cpg_path.read_text() == "raw", "a failed overlay pass degrades, it does not lose the graph"
+
+
+def test_a_source_file_the_size_of_a_data_table_is_excluded_and_named(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """WP Statistics vendors two browser-profile files of 1.6 MB and 1.5 MB, each one array literal. They
+    were 60% of its graph, and the reaching-definitions overlay never finished on them -- 25 minutes at 4 GB,
+    OutOfMemoryError at every `--max-num-def`, because one giant assignment is ONE definition. Nothing a
+    scan could name flows through a lookup table, so a file over `MAX_SOURCE_BYTES` stays out of the build,
+    is excluded by name, and is reported rather than silently dropped.
+    """
+    import subprocess
+
+    from openultrasast.cpg.backend import MAX_SOURCE_BYTES, JoernBackend
+
+    (tmp_path / "code.php").write_text("<?php\nfunction a($x) { return $x; }\n")
+    (tmp_path / "vendor").mkdir()
+    (tmp_path / "vendor" / "profiles.php").write_text("<?php\nreturn [" + "'x' => 1,\n" * (MAX_SOURCE_BYTES // 10) + "];\n")
+    commands: list[list[str]] = []
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
+        if "-r" in command:
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+        commands.append(list(command))
+        if "--script" in command:
+            body = '---OUSAST-CPG-BEGIN---\n{"files": "1", "methods": "1"}\n---OUSAST-CPG-END---\n'
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout=body, stderr="")
+        Path(command[command.index("-o") + 1]).write_text("cpg")
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/bin/{name}")
+
+    result = JoernBackend(runner=runner).build(tmp_path, language="php")
+    assert result is not None
+    build = next(c for c in commands if "-o" in c)
+    assert "--exclude" in build and "vendor/profiles.php" in build, "the data table is excluded from the build by name"
+    assert not any("code.php" in part for part in build), "and the code is not"
+    assert [Path(name).name for name in result.unparsed] == ["profiles.php"], "and it is reported, not silently dropped"
