@@ -85,6 +85,30 @@ _LANGUAGE_EXTENSIONS: dict[str, tuple[str, ...]] = {"php": (".php",)}
 # interpreter's view of the filesystem -- and a `php` that cannot see the tree does not fail, it produces an
 # empty graph with exit status 0 and no warnings.
 _INTERPRETERS: dict[str, str] = {"php": "php"}
+
+# A `global` declaration inside a CLOSURE makes php2cpg 4.0.623 emit a node with two AST parents, and Joern
+# then refuses to apply its own dataflow overlay to the graph:
+#
+#     java.lang.AssertionError: Iterable was expected to have exactly one element, but it has 2.
+#     Hint: trying to resolve astParent ... (which is probably a malformed cpg)
+#
+# Four lines reproduce it, and the whole graph is lost -- not the file, the GRAPH, so every query over the
+# repository fails at load:
+#
+#     <?php
+#     function f($n) {
+#         h("p", function($p) { global $g; return $p . $g; });
+#     }
+#
+# Controlled: `use` is irrelevant (it asserts with and without), and a `global` at function scope is fine.
+# Bisected from a 637-file plugin down to one file, one function, this construct.
+#
+# It is rare enough to exclude rather than to give up over: 1 of 637 files in Paid Memberships Pro, 1 of 357
+# in WP Statistics, 0 of 169 in MW WP Form -- about 0.2%. Excluding them costs those files and saves the
+# other 99.8%, which is the difference between a scan and no scan at all. They are reported as `unparsed`,
+# so the coverage section names them rather than implying they were clean.
+_CLOSURE = re.compile(r"\bfunction\s*\(")
+_GLOBAL_IN_BODY = re.compile(r"\bglobal\s+\$")
 FRONTEND_BUILD_ATTEMPTS = 4
 
 # Request fields that describe the REPOSITORY rather than the region, and are therefore identical in every
@@ -259,6 +283,41 @@ class JoernBackend:
             unparsed=unparsed,
         )
 
+    def _files_with_frontend_defect(self, root: Path, language: str) -> tuple[str, ...]:
+        """Files carrying a construct this frontend miscompiles, found by reading the source.
+
+        Excluding a file is a real loss and is only justified when the alternative is losing everything. It
+        is here: one such file makes the whole graph unqueryable, so the choice is 99.8% of the repository or
+        none of it. See `_CLOSURE` above for the construct, the reproducer, and the controls.
+        """
+        if language.lower() != "php":
+            return ()
+        found: list[str] = []
+        for path in sorted(root.rglob("*.php")):
+            if not path.is_file():
+                continue
+            try:
+                text = path.read_text(errors="ignore")
+            except OSError:
+                continue
+            for match in _CLOSURE.finditer(text):
+                opening = text.find("{", match.end())
+                if opening < 0:
+                    continue
+                depth, index = 0, opening
+                while index < len(text):
+                    if text[index] == "{":
+                        depth += 1
+                    elif text[index] == "}":
+                        depth -= 1
+                        if depth == 0:
+                            break
+                    index += 1
+                if _GLOBAL_IN_BODY.search(text[opening:index]):
+                    found.append(str(path))
+                    break
+        return tuple(found)
+
     def _interpreter_cannot_read(self, root: Path, language: str) -> str:
         """``""`` when the language's interpreter can read the tree, else why not.
 
@@ -303,18 +362,28 @@ class JoernBackend:
 
         Returns the CPGs to query and the files that defeated even a shard of their own.
         """
+        # Excluded from the start, because one of them costs the entire graph rather than itself.
+        defective = self._files_with_frontend_defect(root, language)
+        if defective:
+            logger.warning(
+                "excluding %d file(s) under %s that php2cpg miscompiles (a `global` inside a closure): %s",
+                len(defective),
+                root,
+                ", ".join(Path(name).name for name in defective[:5]),
+            )
+
         main = scratch / "cpg.bin"
-        dropped = self._build_with_retries(root, main, scratch, language)
+        dropped = self._build_with_retries(root, main, scratch, language, exclude=defective)
         if dropped is None:
             return (), ()
         if not dropped:
             # A build that warned about nothing is exactly the build that needs checking, because a graph
             # holding nothing arrives with no warnings at all. Silence is the symptom that has no symptom.
             census = self._graph_census(main, root, language)
-            if census is not None and census[0] < census[1]:
+            if census is not None and census[0] < census[1] - len(defective):
                 self.last_failure = f"the frontend reported no failures but the graph holds {census[0]} of {census[1]} source files"
                 logger.error("cpg build for %s: %s", root, self.last_failure)
-            return (main,), ()
+            return (main,), defective
 
         # A warning is a symptom, not a verdict. `php2cpg` logs `Failed to process` for files that are
         # nonetheless in the finished graph -- measured: a build reporting two drops produced a graph holding

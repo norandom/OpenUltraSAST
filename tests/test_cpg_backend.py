@@ -645,3 +645,42 @@ def test_a_silently_short_graph_is_reported_even_with_no_warnings(tmp_path: Path
     backend.build(tmp_path, language="php")
 
     assert "1 of 3 source files" in backend.last_failure, "three files went in, one came out, and it said so"
+
+
+def test_a_file_php2cpg_miscompiles_is_excluded_and_named(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A `global` inside a closure makes php2cpg emit a node with two AST parents, and Joern then refuses to
+    apply its dataflow overlay -- to the WHOLE graph, not that file. Every query over the repository fails at
+    load, so one such file costs everything.
+
+    Four lines reproduce it; `use` is irrelevant, and a `global` at function scope is fine. It appears in
+    about 0.2% of files (1 of 637 in Paid Memberships Pro, 1 of 357 in WP Statistics, 0 of 169 in MW WP
+    Form), so excluding it saves the other 99.8% -- and it is reported, not silently dropped.
+    """
+    import subprocess
+
+    from openultrasast.cpg.backend import JoernBackend
+
+    (tmp_path / "ok.php").write_text("<?php\nfunction a() { global $g; return $g; }\n")
+    (tmp_path / "bad.php").write_text('<?php\nfunction f($n) {\n  h("p", function($p) { global $g; return $p . $g; });\n}\n')
+    commands: list[list[str]] = []
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if "-r" in command:
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+        commands.append(list(command))
+        if "--script" in command:
+            body = '---OUSAST-CPG-BEGIN---\n{"files": "1", "methods": "2"}\n---OUSAST-CPG-END---\n'
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout=body, stderr="")
+        Path(command[command.index("-o") + 1]).write_text("cpg")
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/bin/{name}")
+
+    result = JoernBackend(runner=runner).build(tmp_path, language="php")
+
+    assert result is not None
+    assert [Path(name).name for name in result.unparsed] == ["bad.php"], "the miscompiled file is named"
+    build = next(c for c in commands if "--script" not in c)
+    assert "--exclude" in build and any("bad.php" in part for part in build), "and excluded from the build"
+    assert not any("ok.php" in part for part in build if part != str(tmp_path)), "a global at function scope is fine"
