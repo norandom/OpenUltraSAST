@@ -48,6 +48,7 @@
     callDepth: String = "0",
     boundedSinks: String = "",
     parameterSources: String = "false",
+    fieldSources: String = "true",
     hookCallbacks: String = "",
     dispatchApply: String = "",
     requests: String = "",
@@ -72,6 +73,7 @@
       dispatchApplyS: String,
       functionS: String,
       paramSrc: String,
+      fieldSrc: String,
       fileS: String,
       depthS: String,
       boundedS: String
@@ -289,10 +291,15 @@
     else (2 to parts.length).exists(n => fieldIsTainted(fileName, parts.take(n).mkString("->")))
   }
 
-  def fieldSourceNodes = {
-    val reads = cpg.call.nameExact(FIELD_ACCESS).filter(c => inScope(c.method)).l
-    if (reads.isEmpty) Iterator.empty else reads.filter(r => taintedPrefixes(r.code.trim, fileS)).iterator
-  }
+  // Off by request only, and defaulting to ON when the field is absent, so nothing about the shipped
+  // behaviour depends on a caller remembering to set it. It exists so the join can be measured against
+  // itself: a cost you cannot switch off is a cost you cannot attribute.
+  def fieldSourceNodes =
+    if (fieldSrc != "true") Iterator.empty
+    else {
+      val reads = cpg.call.nameExact(FIELD_ACCESS).filter(c => inScope(c.method)).l
+      if (reads.isEmpty) Iterator.empty else reads.filter(r => taintedPrefixes(r.code.trim, fileS)).iterator
+    }
 
   // ---- the hook half of the two-stage join (task 5.11) ----------------------------------------------
   //
@@ -568,6 +575,7 @@
     val answers = parsed.map { case (id, req) =>
       def field(name: String): String = req.obj.get(name).map(_.str).getOrElse("")
       val paramSrc = req.obj.get("parameterSources").map(_.str).getOrElse("false")
+      val fieldSrc = req.obj.get("fieldSources").map(_.str).getOrElse("true")
       id -> ujson.Arr(
         rowsFor(
           field("sources"),
@@ -580,6 +588,7 @@
           if (field("dispatchApply").nonEmpty) field("dispatchApply") else dispatchApply,
           field("function"),
           paramSrc,
+          fieldSrc,
           field("file"),
           field("callDepth"),
           field("boundedSinks")
@@ -595,7 +604,7 @@
     println(ujson.write(ujson.Obj.from(answers.toSeq :+ ("__census__" -> census))))
   } else {
     println(
-      ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, hookCallbacks, dispatchApply, function, parameterSources, file, callDepth, boundedSinks): _*))
+      ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, hookCallbacks, dispatchApply, function, parameterSources, fieldSources, file, callDepth, boundedSinks): _*))
     )
   }
   println("---OUSAST-CPG-END---")
