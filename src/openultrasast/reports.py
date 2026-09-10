@@ -436,6 +436,10 @@ _COVERAGE_DEGRADATIONS: dict[str, str] = {
     "files_unparsed": "{count} file(s) could not be parsed and are absent from the graph: {files}.",
     "query_failed": "A `{kind}` query failed for {requests} region(s), so those regions were not decided.",
     "budget_exhausted": "The model-call budget ran out with {regions_unasked} region(s) still unasked.",
+    "regions_truncated": (
+        "Only the **{examined} highest-ranked of {total} regions** were examined. Nothing above says anything "
+        "about the rest of the repository."
+    ),
     "region_failed": "The region `{path}` could not be arbitrated.",
 }
 

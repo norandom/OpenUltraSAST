@@ -390,3 +390,30 @@ def test_a_query_the_engine_could_not_answer_is_recorded_not_ignored() -> None:
     assert failures, "a query that could not be asked must be reported"
     assert failures[0]["kind"] == "taint"
     assert result.findings == ()
+
+
+def test_a_region_cap_that_hides_most_of_a_repository_is_reported() -> None:
+    """Paid Memberships Pro yields 4,463 regions from 637 files. A default budget of 500 examines 11% of it,
+    and a report that does not say so invites its silence to be read as a clean bill of health for the rest.
+    """
+    from openultrasast.model.regions import ScanRegion
+    from openultrasast.model.scan import ScanBudget, scan_repository
+
+    class _Backend:
+        def available(self) -> bool:
+            return True
+
+        def build(self, root, *, language=""):  # type: ignore[no-untyped-def]
+            from openultrasast.cpg.backend import CpgResult
+
+            return CpgResult(cpg_path=Path("cpg.bin"), run=lambda query, params: [])
+
+    regions = [
+        ScanRegion(path=f"f{n}.py", function="handler", language="python", families=("injection",), rank=0.5, source="entry_point")
+        for n in range(30)
+    ]
+    result = scan_repository(Path("."), regions, backend=_Backend(), budget=ScanBudget(max_model_calls=0, max_regions=10))
+
+    truncated = [d for d in result.degradations if d.get("reason") == "regions_truncated"]
+    assert truncated, "the cap hid two thirds of the regions and said nothing"
+    assert truncated[0]["examined"] == 10 and truncated[0]["total"] == 30

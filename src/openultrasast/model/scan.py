@@ -152,6 +152,21 @@ def scan_repository(
     # `add_filter("hook", )`. See `mapping.php_hook_callbacks`.
     hooks = _hook_callbacks(root, regions)
 
+    # The region cap is a COVERAGE fact, not a tuning knob nobody needs to hear about. Paid Memberships Pro
+    # yields 4,463 regions from 637 files, so a default budget of 500 examines 11% of the repository -- and
+    # a report that does not say so invites its silence to be read as a clean bill of health for the other
+    # 89%. `budget_exhausted` is a different thing: that is the JUDGE running out, this is the work never
+    # being collected at all.
+    if len(ordered_regions) > limits.max_regions:
+        degradations.append(
+            {
+                "stage": "model",
+                "reason": "regions_truncated",
+                "examined": limits.max_regions,
+                "total": len(ordered_regions),
+            }
+        )
+
     # Phase 1: collect the whole scan's questions, for at most `max_regions` regions. Nothing is asked yet.
     work: list[tuple[str, ScanRegion, ArbiterSpec]] = []
     for region in ordered_regions[: limits.max_regions]:
