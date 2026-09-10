@@ -633,8 +633,31 @@
     batch reports every file in it. Dropped file sizes run from **67 bytes to 433 KB**, so size has nothing
     to do with which files are lost -- being in an unlucky batch does. That is why retrying works, and why
     "exclude the difficult file" was the wrong mental model.
-  - Still open: nothing here recovers a cross-shard flow, and the whole-repository SCAN (not just the build)
-    is still measuring.
+  - **The whole-repository scan was measured on 2026-09-10, and it does not work yet.** It builds, it shards,
+    it reports every gap honestly -- and it decides nothing.
+
+    | | |
+    |---|---|
+    | preprocess + entry-point mapping | 107s -> 673 targets, 4,412 entry points, **4,463 regions** |
+    | build (driver, incl. retries + shards + census) | 255.9s |
+    | query | 720.9s (taint 600.3, dominance 64.1, config 56.5) |
+    | arbitrate | 19.8s |
+    | total | **996.6s**, peak child RSS **1,132 MB** |
+    | regions examined | **500 of 4,463 (11%)**, the default cap |
+    | findings | **0** |
+    | CVE-2023-23488 | **not reported** |
+
+    The taint query dies in `ForkJoinPool` after ten minutes, and so does a bare `cpg.file.size` census, so
+    the problem is the CPG itself under a 2GB heap and not the request payload. The engine says all of it:
+    `files_unparsed`, `query_failed` for 2,500 regions, `cpg_sharded`. Nothing here reads as clean.
+  - So the honest statement of PHP detection today: **the slices find the CVEs and the repository does
+    not.** One file finds CVE-2023-23488, two files find it with a shard, and 637 files find nothing at all.
+    A release claim about scanning a WordPress plugin cannot be made on this evidence.
+  - Two defects the measurement exposed and fixed along the way -- both mine, both invisible at slice scale:
+    `hookCallbacks` was repeated into every request (42.5MB of which 41.7MB was one string), and candidates
+    were enumerated for a judge that was never going to be asked (737s -> 19.8s of arbitration).
+  - Still open: the heap a 637-file PHP CPG actually needs; whether the query survives with it; and nothing
+    here recovers a cross-shard flow.
   - Still open: wiring that exclusion loop, the 637-file build with it in place, and whether the REST handler
     two calls away can reach the sink -- the slice found it through a same-function flow, not across the
     object.
