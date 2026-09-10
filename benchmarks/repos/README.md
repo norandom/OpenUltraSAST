@@ -200,6 +200,40 @@ That is the argument for why a corpus of benchmarks is not enough on its own, ma
 stayed byte-identical through all of it. A corpus tells you a verdict is right; it cannot tell you the
 verdict was reached by looking at anything.
 
+## The whole-plugin envelope
+
+The class-by-class table above is measured on slices — one or two files carrying both ends of a CVE. The
+obvious question is whether any of it survives on the whole plugin. Measured on `pmpro`, 637 files and
+117k lines:
+
+| | |
+|---|---|
+| preprocess + entry-point mapping | 107s → 673 targets, 4,412 entry points, **4,463 regions** |
+| frontend build, one attempt | 33s, peak RSS 1,217 MB, a 1.6 MB CPG |
+| full scan: build / query / arbitrate | 255.9s / 720.9s / 19.8s — **996.6s total**, peak RSS 1,132 MB |
+| regions examined | **500 of 4,463 (11%)** — the default cap |
+| findings | **0** |
+| CVE-2023-23488 | **not reported** |
+
+The build is affordable; a CI runner can do this without a vertical-scale machine, which was the open
+question. The scan is not: the taint query dies in `ForkJoinPool` after ten minutes, and so does a bare
+`cpg.file.size` census, so it is the CPG under a 2 GB heap rather than the request payload.
+
+So the honest statement of PHP detection today is that **the slices find the CVEs and the repository does
+not** — one file finds CVE-2023-23488, two files find it with a shard, and 637 files find nothing at all.
+No release claim about scanning a WordPress plugin can rest on this.
+
+What the run does do correctly is refuse to look clean. It reports `files_unparsed`, `query_failed` for
+2,500 regions, `cpg_sharded`, and the region cap that hid 89% of the repository — all of which appear in
+the report under "What could not be analysed". A scan that decides nothing and says so is a different
+artifact from a scan that decides nothing quietly, and the whole point of the rung ladder is that the
+second one must not be possible.
+
+It also found two defects that slice-scale measurement never would have. `hookCallbacks` describes the
+repository rather than the region and was being repeated into every request — 42.5 MB of which 41.7 MB was
+one string, now 1.78 MB. And candidates were enumerated for a judge that was never going to be asked, which
+was 737 of the 996 seconds; arbitration is now 19.8s.
+
 ## Baselines
 
 Task 6.1 turns a scan of a pinned checkout into a committed baseline, so a change to the fact tables or the
