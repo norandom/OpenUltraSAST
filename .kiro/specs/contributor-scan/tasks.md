@@ -821,6 +821,13 @@
     half is free (inside noise, and measured slightly faster), the hook half adds 7.5%, both add 22%.
     Removing them buys a fifth of the time and costs two of the three CVEs, which is not a trade worth
     making.
+  - **Corrected 2026-09-10, same day: most of that 6.63 s was never dataflow.** `sinkCalls` scanned every
+    call in the graph per request, and `reachableMethods` ran a call-graph BFS per request — both
+    independent of the region's family, both repeated 2,500 times. Memoised across the batch (found while
+    building flow-aware-ranking's evidence mode, which asks no dataflow and still took an hour), the same
+    250 requests with both joins on: **2,026.3 s → 287.0 s, 8,105 → 1,148 ms per request, identical 5,779
+    rows.** A 7× speedup with nothing about the analysis changed. The base cost of a taint request is about
+    1.1 s, and the levers above still apply to it.
   - **The estimate this replaces was wrong and worth recording as wrong.** ">0.94s per request" came from
     assuming taint COMPLETED within its 2,400s ceiling. It timed out, so that was a floor presented as a
     figure. The measured cost is seven times higher.

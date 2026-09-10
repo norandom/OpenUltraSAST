@@ -1,0 +1,96 @@
+[
+  {
+    "repo": "mwwpform",
+    "regions": 983,
+    "distinct_ranks": 5,
+    "largest_tier_share": 0.817,
+    "largest_tier_rank": 0.3,
+    "budget_at_recall": 513,
+    "known": [
+      {
+        "id": "CVE-2023-6559",
+        "family": "path",
+        "site": "classes/services/class.mail.php:259:_delete_files",
+        "position": 512,
+        "rank": 0.3,
+        "in_scope": true,
+        "reached_transitively": false
+      }
+    ]
+  },
+  {
+    "repo": "pmpro",
+    "regions": 4463,
+    "distinct_ranks": 5,
+    "largest_tier_share": 0.838,
+    "largest_tier_rank": 0.3,
+    "budget_at_recall": 391,
+    "known": [
+      {
+        "id": "CVE-2023-23488",
+        "family": "injection",
+        "site": "classes/class.memberorder.php:936:getMemberOrderByCode",
+        "position": 390,
+        "rank": 0.3,
+        "in_scope": true,
+        "reached_transitively": false
+      }
+    ]
+  },
+  {
+    "repo": "vampi",
+    "regions": 25,
+    "distinct_ranks": 5,
+    "largest_tier_share": 0.36,
+    "largest_tier_rank": 1.0,
+    "budget_at_recall": 16,
+    "known": [
+      {
+        "id": "VAmPI-SQLI",
+        "family": "injection",
+        "site": "models/user_model.py:73:get_user",
+        "position": null,
+        "rank": null,
+        "in_scope": true,
+        "reached_transitively": true
+      },
+      {
+        "id": "VAmPI-BOLA",
+        "family": "access_control",
+        "site": "api_views/users.py:187:update_password",
+        "position": 15,
+        "rank": 0.8,
+        "in_scope": true,
+        "reached_transitively": false
+      },
+      {
+        "id": "VAmPI-BOLA-BOOKS",
+        "family": "access_control",
+        "site": "api_views/books.py:51:get_by_title",
+        "position": 10,
+        "rank": 0.8,
+        "in_scope": true,
+        "reached_transitively": false
+      }
+    ]
+  },
+  {
+    "repo": "wpstatistics",
+    "regions": 1673,
+    "distinct_ranks": 6,
+    "largest_tier_share": 0.753,
+    "largest_tier_rank": 0.3,
+    "budget_at_recall": 504,
+    "known": [
+      {
+        "id": "CVE-2022-25148",
+        "family": "injection",
+        "site": "includes/class-wp-statistics-pages.php:225:record",
+        "position": 503,
+        "rank": 0.3,
+        "in_scope": true,
+        "reached_transitively": false
+      }
+    ]
+  }
+]

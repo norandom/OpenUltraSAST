@@ -1,28 +1,24 @@
 {
+  "modules": 98,
   "counts": {
-    "load_bearing": 90,
+    "load_bearing": 91,
     "standalone_capability": 7
   },
-  "generated": "2026-09-09 (regenerated after contributor-scan 2.10 added model/shipped.py)",
-  "kept_with_a_lever_stripped": {
-    "improve/evolve.py + improve/validator.py": "the design's Removed list named these whole, but each is a mix: the mechanism lever (removed) and the deterministic rule-status improve loop that `ousast improve` still runs from benchmark evidence, which has no LLM in it and is not what this feature supersedes. Deleting the files would have taken a retained capability with them."
-  },
-  "modules": 97,
-  "note": "Classification of every source module after the group-1 subtraction. load_bearing = reachable from a gate, the CLI, or named by a surviving requirement; standalone_capability = its own entry point or protocol, deliberately off the scan path; orphaned = no importer, no entry point, no surviving requirement -- removed, never carried.",
   "orphaned": [],
-  "removed_in_this_pass": {
-    "learning/ (16 modules)": "the noise architecture: rounds, acceptance, proposer, journal, canaries, verifiers, difficulty, scoring, classify, detectors, split, publish. Taxonomy, candidates and endpoint were re-homed to model/ first.",
-    "semantic/loo.py": "leave-one-out scoring of the mechanism store",
-    "semantic/mechanisms.py": "the mechanism store and the shape search that fed the optimisation loop",
-    "semantic/prove_budget.py": "embedding-ordered promotion budget, driven by the mechanism store",
-    "semantic/seed.py": "the mechanism exporter",
-    "semantic/variant_search.py": "variant search over the mechanism store",
-    "semantic/variants.py": "the shape-derivation optimisation surface; its guard vocabulary was ported verbatim to model/specs.py first, and trailing_name re-homed to semantic/ir.py",
-    "vectorstore.py": "a vector-store bakeoff harness with no production caller and no CLI entry, kept alive only by its own test -- the one genuine orphan the audit found"
+  "standalone": {
+    "fusion": "two-panel adjudication engine; reached from the scan's report stage and used standalone",
+    "harness_ext": "HarnessX extension surface; loaded by name when the optional harness is present",
+    "hunter_harness": "harness wiring for the tool hunter; used by the hunter path and by mcp",
+    "mcp": "narrow MCP server over stdio; its own `ousast mcp` entry point and OpenCode integration",
+    "skills": "skill router; consumed by mcp and by the OpenCode integration, not by the scan path",
+    "slot_contract": "the slot/contract protocol stage_processors implements",
+    "stage_processors": "HarnessX slot-contracted scan stages; pinned by the zero-dependency guard in test_gate"
   },
   "rows": [
     {
+      "module": "benchmark",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "gate",
@@ -30,28 +26,28 @@
         "map_gate",
         "mcp",
         "pairs"
-      ],
-      "module": "benchmark",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "calibration",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli"
-      ],
-      "module": "calibration",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "cli",
       "classification": "load_bearing",
+      "reason": "entry point",
       "importers": [
         "mcp"
-      ],
-      "module": "cli",
-      "reason": "entry point"
+      ]
     },
     {
+      "module": "complexity",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "complexity.hints",
@@ -61,32 +57,32 @@
         "regress.candidate",
         "semantic.prove_filter",
         "tool_hunter"
-      ],
-      "module": "complexity",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "complexity.hints",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "complexity",
         "complexity.map"
-      ],
-      "module": "complexity.hints",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "complexity.ledger",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "complexity",
         "complexity.map",
         "regress.candidate"
-      ],
-      "module": "complexity.ledger",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "complexity.map",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "complexity",
         "complexity.hints",
@@ -95,22 +91,22 @@
         "regress.candidate",
         "semantic.prove_filter",
         "tool_hunter"
-      ],
-      "module": "complexity.map",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "complexity.signals",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "complexity",
         "complexity.hints",
         "complexity.map"
-      ],
-      "module": "complexity.signals",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "config",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "harness",
@@ -120,45 +116,49 @@
         "regress.candidate",
         "regress.recipes",
         "run"
-      ],
-      "module": "config",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "cpg",
       "classification": "load_bearing",
+      "reason": "model-grounded-detection Req 4: the CPG seam package",
       "importers": [
+        "cli",
         "cpg.backend",
         "model.config_value",
         "model.dominance",
         "model.judge",
         "model.pipeline",
+        "model.scan",
         "model.taint"
-      ],
-      "module": "cpg",
-      "reason": "model-grounded-detection Req 4: the CPG seam package"
+      ]
     },
     {
+      "module": "cpg.backend",
       "classification": "load_bearing",
+      "reason": "model-grounded-detection Req 4.1/4.5: the single Joern subprocess boundary",
       "importers": [
+        "cli",
         "model.config_value",
         "model.dominance",
         "model.judge",
         "model.pipeline",
+        "model.scan",
         "model.taint"
-      ],
-      "module": "cpg.backend",
-      "reason": "model-grounded-detection Req 4.1/4.5: the single Joern subprocess boundary"
+      ]
     },
     {
+      "module": "cpg.capability",
       "classification": "load_bearing",
+      "reason": "model-grounded-detection Req 4.2/4.3: the engine probe that degrades to suspicion",
       "importers": [
         "cpg.backend"
-      ],
-      "module": "cpg.capability",
-      "reason": "model-grounded-detection Req 4.2/4.3: the engine probe that degrades to suspicion"
+      ]
     },
     {
+      "module": "findings",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "benchmark",
         "calibration",
@@ -187,147 +187,148 @@
         "tool_hunter",
         "verification",
         "verify_judge"
-      ],
-      "module": "findings",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
-      "classification": "standalone_capability",
-      "importers": [
-        "cli"
-      ],
       "module": "fusion",
-      "reason": "two-panel adjudication engine; reached from the scan's report stage and used standalone"
-    },
-    {
-      "classification": "load_bearing",
+      "classification": "standalone_capability",
+      "reason": "two-panel adjudication engine; reached from the scan's report stage and used standalone",
       "importers": [
         "cli"
-      ],
-      "module": "gate",
-      "reason": "entry point"
+      ]
     },
     {
+      "module": "gate",
       "classification": "load_bearing",
+      "reason": "entry point",
+      "importers": [
+        "cli"
+      ]
+    },
+    {
+      "module": "harness",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "slot_contract"
-      ],
-      "module": "harness",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "harness_ext",
       "classification": "standalone_capability",
+      "reason": "HarnessX extension surface; loaded by name when the optional harness is present",
       "importers": [
         "cli",
         "fusion",
         "hunter_harness",
         "stage_processors",
         "verify_judge"
-      ],
-      "module": "harness_ext",
-      "reason": "HarnessX extension surface; loaded by name when the optional harness is present"
+      ]
     },
     {
+      "module": "hunter",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "hunter_harness"
-      ],
-      "module": "hunter",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "hunter_harness",
       "classification": "standalone_capability",
+      "reason": "harness wiring for the tool hunter; used by the hunter path and by mcp",
       "importers": [
         "cli"
-      ],
-      "module": "hunter_harness",
-      "reason": "harness wiring for the tool hunter; used by the hunter path and by mcp"
+      ]
     },
     {
+      "module": "hunter_tools",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "tool_hunter"
-      ],
-      "module": "hunter_tools",
-      "reason": "imported by tool_hunter"
+      ]
     },
     {
+      "module": "improve",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "improve.evolve"
-      ],
-      "module": "improve",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "improve.evolve",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "improve"
-      ],
-      "module": "improve.evolve",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
-      "classification": "load_bearing",
-      "importers": [
-        "improve",
-        "improve.evolve"
-      ],
       "module": "improve.journal",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
-    },
-    {
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "improve",
         "improve.evolve"
-      ],
-      "module": "improve.validator",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "improve.validator",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
+        "improve",
+        "improve.evolve"
+      ]
+    },
+    {
+      "module": "index",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "skills"
-      ],
-      "module": "index",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
-      "classification": "load_bearing",
-      "importers": [],
       "module": "map_gate",
-      "reason": "entry point"
+      "classification": "load_bearing",
+      "reason": "entry point",
+      "importers": []
     },
     {
+      "module": "mapping",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "gate",
         "hunter_tools",
         "improve.evolve",
         "map_gate",
+        "model.scan",
         "pairs",
         "preprocess",
         "stage_processors"
-      ],
-      "module": "mapping",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "mcp",
       "classification": "standalone_capability",
+      "reason": "narrow MCP server over stdio; its own `ousast mcp` entry point and OpenCode integration",
       "importers": [
         "cli"
-      ],
-      "module": "mcp",
-      "reason": "narrow MCP server over stdio; its own `ousast mcp` entry point and OpenCode integration"
+      ]
     },
     {
+      "module": "model",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "model.candidates",
@@ -337,70 +338,83 @@
         "model.judge",
         "model.pipeline",
         "model.regions",
+        "model.report",
         "model.scan",
         "model.specs",
         "model.taint"
-      ],
-      "module": "model",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
-      "classification": "load_bearing",
-      "importers": [],
       "module": "model.audit",
-      "reason": "model-grounded-detection Req 3: this classifier; run by the maintainer, not by the scan"
+      "classification": "load_bearing",
+      "reason": "model-grounded-detection Req 3: this classifier; run by the maintainer, not by the scan",
+      "importers": []
     },
     {
-      "classification": "load_bearing",
-      "importers": [],
       "module": "model.calibrate",
-      "reason": "model-grounded-detection Req 9: the corpus as the model's calibration set"
+      "classification": "load_bearing",
+      "reason": "model-grounded-detection Req 9: the corpus as the model's calibration set",
+      "importers": []
     },
     {
+      "module": "model.candidates",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "model.scan"
-      ],
-      "module": "model.candidates",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
-      "classification": "load_bearing",
-      "importers": [
-        "model.pipeline"
-      ],
       "module": "model.config_value",
-      "reason": "model-grounded-detection Req 6.3: constant abstraction for the configuration families"
-    },
-    {
       "classification": "load_bearing",
+      "reason": "model-grounded-detection Req 6.3: constant abstraction for the configuration families",
       "importers": [
-        "model.pipeline"
-      ],
+        "model.pipeline",
+        "model.scan"
+      ]
+    },
+    {
       "module": "model.dominance",
-      "reason": "model-grounded-detection Req 6.2: guard dominance, the arbiter for bugs that never crash"
+      "classification": "load_bearing",
+      "reason": "model-grounded-detection Req 6.2: guard dominance, the arbiter for bugs that never crash",
+      "importers": [
+        "model.pipeline",
+        "model.scan"
+      ]
     },
     {
-      "classification": "load_bearing",
-      "importers": [],
       "module": "model.endpoint",
-      "reason": "model-grounded-detection Req 8: the judge client, wired by model/judge.py in group 3"
+      "classification": "load_bearing",
+      "reason": "model-grounded-detection Req 8: the judge client, wired by model/judge.py in group 3",
+      "importers": [
+        "cli"
+      ]
     },
     {
+      "module": "model.evidence",
       "classification": "load_bearing",
-      "importers": [],
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
+        "model.scan"
+      ]
+    },
+    {
       "module": "model.execution",
-      "reason": "model-grounded-detection Req 10: the deferred execution tier seam, adopted not built"
+      "classification": "load_bearing",
+      "reason": "model-grounded-detection Req 10: the deferred execution tier seam, adopted not built",
+      "importers": []
     },
     {
-      "classification": "load_bearing",
-      "importers": [],
       "module": "model.judge",
-      "reason": "model-grounded-detection Req 8: one bounded question, checked against the model"
+      "classification": "load_bearing",
+      "reason": "model-grounded-detection Req 8: one bounded question, checked against the model",
+      "importers": []
     },
     {
+      "module": "model.ladder",
       "classification": "load_bearing",
+      "reason": "model-grounded-detection Req 5: the evidence ladder every finding carries",
       "importers": [
         "model.config_value",
         "model.dominance",
@@ -409,94 +423,110 @@
         "model.pipeline",
         "model.scan",
         "model.taint"
-      ],
-      "module": "model.ladder",
-      "reason": "model-grounded-detection Req 5: the evidence ladder every finding carries"
+      ]
     },
     {
-      "classification": "load_bearing",
-      "importers": [
-        "model.scan"
-      ],
       "module": "model.pipeline",
-      "reason": "model-grounded-detection Req 8: the enumerator proposes, the LLM answers, the model disposes"
-    },
-    {
       "classification": "load_bearing",
+      "reason": "model-grounded-detection Req 8: the enumerator proposes, the LLM answers, the model disposes",
       "importers": [
         "model.scan"
-      ],
+      ]
+    },
+    {
       "module": "model.regions",
-      "reason": "contributor-scan Req 2: regions from entry points, with the families each admits"
+      "classification": "load_bearing",
+      "reason": "contributor-scan Req 2: regions from entry points, with the families each admits",
+      "importers": [
+        "cli",
+        "model.scan"
+      ]
     },
     {
-      "classification": "load_bearing",
-      "importers": [],
       "module": "model.report",
-      "reason": "model-grounded-detection Req 9.3/11.1: per-slice reporting with the overfitting gap"
+      "classification": "load_bearing",
+      "reason": "model-grounded-detection Req 9.3/11.1: per-slice reporting with the overfitting gap",
+      "importers": [
+        "cli"
+      ]
     },
     {
-      "classification": "load_bearing",
-      "importers": [],
       "module": "model.scan",
-      "reason": "contributor-scan Req 3: the repository driver -- one CPG, one budget, ranked spend"
+      "classification": "load_bearing",
+      "reason": "contributor-scan Req 3: the repository driver -- one CPG, one budget, ranked spend",
+      "importers": [
+        "cli"
+      ]
     },
     {
+      "module": "model.shipped",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
+        "cli"
+      ]
+    },
+    {
+      "module": "model.specs",
+      "classification": "load_bearing",
+      "reason": "model-grounded-detection Req 7.2-7.4: the security vocabularies the CPG queries are parameterised by",
       "importers": [
         "model.config_value",
         "model.dominance",
         "model.judge",
         "model.pipeline",
         "model.regions",
+        "model.report",
         "model.scan",
         "model.taint"
-      ],
-      "module": "model.specs",
-      "reason": "model-grounded-detection Req 7.2-7.4: the security vocabularies the CPG queries are parameterised by"
+      ]
     },
     {
+      "module": "model.taint",
       "classification": "load_bearing",
+      "reason": "model-grounded-detection Req 6.1: taint reachability over the CPG, the flow-family arbiter",
       "importers": [
         "model.judge",
-        "model.pipeline"
-      ],
-      "module": "model.taint",
-      "reason": "model-grounded-detection Req 6.1: taint reachability over the CPG, the flow-family arbiter"
+        "model.pipeline",
+        "model.scan"
+      ]
     },
     {
+      "module": "model.taxonomy",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "model.candidates",
+        "model.report",
         "model.scan",
         "model.specs"
-      ],
-      "module": "model.taxonomy",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "pair_gate",
       "classification": "load_bearing",
+      "reason": "entry point",
       "importers": [
         "cli"
-      ],
-      "module": "pair_gate",
-      "reason": "entry point"
+      ]
     },
     {
+      "module": "pairs",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "improve",
         "improve.evolve",
         "model.candidates",
         "pair_gate"
-      ],
-      "module": "pairs",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "policy",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "findings",
@@ -507,20 +537,20 @@
         "scoring.project_score",
         "semantic.overlay",
         "stage_processors"
-      ],
-      "module": "policy",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "policy.verycode",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "policy"
-      ],
-      "module": "policy.verycode",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "preprocess",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "complexity.hints",
@@ -536,44 +566,45 @@
         "map_gate",
         "mapping",
         "model.candidates",
+        "model.scan",
         "pairs",
         "rank",
         "regress.candidate",
         "semantic.overlay",
         "skills",
         "stage_processors"
-      ],
-      "module": "preprocess",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "provenance",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli"
-      ],
-      "module": "provenance",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
-      "classification": "load_bearing",
-      "importers": [
-        "model.endpoint",
-        "tool_hunter"
-      ],
       "module": "provider",
-      "reason": "imported by model.endpoint, tool_hunter"
-    },
-    {
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "model.endpoint",
         "tool_hunter"
-      ],
-      "module": "provider.openrouter",
-      "reason": "imported by model.endpoint, tool_hunter"
+      ]
     },
     {
+      "module": "provider.openrouter",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
+        "model.endpoint",
+        "tool_hunter"
+      ]
+    },
+    {
+      "module": "rank",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "calibration",
         "cli",
@@ -586,76 +617,84 @@
         "map_gate",
         "pairs",
         "stage_processors"
-      ],
-      "module": "rank",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "redaction",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "harness",
         "model.judge",
         "model.pipeline",
         "reports",
         "semantic.obligations.intent"
-      ],
-      "module": "redaction",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "regress",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "regress.candidate"
-      ],
-      "module": "regress",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "regress.candidate",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "regress"
-      ],
-      "module": "regress.candidate",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
-      "classification": "load_bearing",
-      "importers": [
-        "regress",
-        "regress.candidate"
-      ],
       "module": "regress.recipes",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
-    },
-    {
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "regress",
         "regress.candidate"
-      ],
+      ]
+    },
+    {
       "module": "regress.safety",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
-    },
-    {
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "regress",
         "regress.candidate"
-      ],
-      "module": "regress.verdict",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "regress.verdict",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
+        "regress",
+        "regress.candidate"
+      ]
+    },
+    {
+      "module": "reports",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli"
-      ],
-      "module": "reports",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "repos",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
+        "cli"
+      ]
+    },
+    {
+      "module": "ruleset",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "findings",
@@ -665,83 +704,84 @@
         "improve.validator",
         "pairs",
         "stage_processors"
-      ],
-      "module": "ruleset",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "ruleset.store",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "improve.validator",
         "ruleset"
-      ],
-      "module": "ruleset.store",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "run",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "reports"
-      ],
-      "module": "run",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "sandbox",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "regress.candidate",
         "regress.recipes",
         "regress.safety",
         "regress.verdict"
-      ],
-      "module": "sandbox",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "sandbox.probe",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "sandbox"
-      ],
-      "module": "sandbox.probe",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "sandbox.runner",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "regress.candidate",
         "regress.recipes",
         "regress.safety",
         "sandbox"
-      ],
-      "module": "sandbox.runner",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "scoring",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "improve.evolve",
         "stage_processors"
-      ],
-      "module": "scoring",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "scoring.project_score",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "scoring"
-      ],
-      "module": "scoring.project_score",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "semantic",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "cpg.capability",
         "hunter_tools",
+        "mapping",
         "model.candidates",
         "model.specs",
         "pairs",
@@ -755,43 +795,44 @@
         "semantic.overlay",
         "semantic.prove_filter",
         "semantic.taint"
-      ],
-      "module": "semantic",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "semantic.cst",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "semantic.ir"
-      ],
-      "module": "semantic.cst",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "semantic.engines",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cpg.capability",
         "semantic",
         "semantic.overlay"
-      ],
-      "module": "semantic.engines",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "semantic.extra",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "semantic",
         "semantic.cst",
         "semantic.engines"
-      ],
-      "module": "semantic.extra",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "semantic.facts",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "hunter_tools",
+        "mapping",
         "model.candidates",
         "model.specs",
         "pairs",
@@ -801,23 +842,23 @@
         "semantic.obligations.shapes",
         "semantic.overlay",
         "semantic.taint"
-      ],
-      "module": "semantic.facts",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "semantic.functions",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "hunter_tools",
         "pairs",
         "semantic.obligations.shapes",
         "semantic.overlay"
-      ],
-      "module": "semantic.functions",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "semantic.ir",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "hunter_tools",
@@ -830,12 +871,12 @@
         "semantic.obligations.shapes",
         "semantic.overlay",
         "semantic.taint"
-      ],
-      "module": "semantic.ir",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "semantic.obligations",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "hunter_tools",
@@ -849,33 +890,33 @@
         "semantic.obligations.policy",
         "semantic.obligations.shapes",
         "semantic.obligations.siblings"
-      ],
-      "module": "semantic.obligations",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "semantic.obligations.check",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "semantic.obligations",
         "semantic.obligations.intent"
-      ],
-      "module": "semantic.obligations.check",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "semantic.obligations.dominance",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "hunter_tools",
         "pairs",
         "semantic.obligations.check"
-      ],
-      "module": "semantic.obligations.dominance",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "semantic.obligations.facts",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "model.specs",
         "pairs",
@@ -885,148 +926,136 @@
         "semantic.obligations.policy",
         "semantic.obligations.shapes",
         "semantic.obligations.siblings"
-      ],
-      "module": "semantic.obligations.facts",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "semantic.obligations.intent",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli"
-      ],
-      "module": "semantic.obligations.intent",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "semantic.obligations.operations",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "model.candidates",
         "semantic.obligations.check",
         "semantic.obligations.dominance",
         "semantic.obligations.siblings"
-      ],
-      "module": "semantic.obligations.operations",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "semantic.obligations.policy",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
         "semantic.obligations.check"
-      ],
-      "module": "semantic.obligations.policy",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "semantic.obligations.shapes",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "semantic.obligations",
         "semantic.obligations.operations"
-      ],
-      "module": "semantic.obligations.shapes",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "semantic.obligations.siblings",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "semantic.obligations.check"
-      ],
-      "module": "semantic.obligations.siblings",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "semantic.overlay",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "semantic",
         "semantic.prove_filter"
-      ],
-      "module": "semantic.overlay",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "semantic.prove_filter",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "semantic"
-      ],
-      "module": "semantic.prove_filter",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "semantic.taint",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "semantic.overlay"
-      ],
-      "module": "semantic.taint",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "skills",
       "classification": "standalone_capability",
+      "reason": "skill router; consumed by mcp and by the OpenCode integration, not by the scan path",
       "importers": [
         "hunter",
         "hunter_harness"
-      ],
-      "module": "skills",
-      "reason": "skill router; consumed by mcp and by the OpenCode integration, not by the scan path"
+      ]
     },
     {
+      "module": "slot_contract",
       "classification": "standalone_capability",
+      "reason": "the slot/contract protocol stage_processors implements",
       "importers": [
         "stage_processors"
-      ],
-      "module": "slot_contract",
-      "reason": "the slot/contract protocol stage_processors implements"
+      ]
     },
     {
-      "classification": "standalone_capability",
-      "importers": [],
       "module": "stage_processors",
-      "reason": "HarnessX slot-contracted scan stages; pinned by the zero-dependency guard in test_gate"
+      "classification": "standalone_capability",
+      "reason": "HarnessX slot-contracted scan stages; pinned by the zero-dependency guard in test_gate",
+      "importers": []
     },
     {
+      "module": "stages",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli"
-      ],
-      "module": "stages",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "tool_hunter",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "model.endpoint"
-      ],
-      "module": "tool_hunter",
-      "reason": "imported by model.endpoint"
+      ]
     },
     {
+      "module": "verification",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "calibration",
         "cli",
         "fusion",
         "reports",
         "verify_judge"
-      ],
-      "module": "verification",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     },
     {
+      "module": "verify_judge",
       "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli"
-      ],
-      "module": "verify_judge",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+      ]
     }
-  ],
-  "spec": "model-grounded-detection Req 3 (the outgrowth audit)",
-  "standalone": {
-    "fusion": "two-panel adjudication engine; reached from the scan's report stage and used standalone",
-    "harness_ext": "HarnessX extension surface; loaded by name when the optional harness is present",
-    "hunter_harness": "harness wiring for the tool hunter; used by the hunter path and by mcp",
-    "mcp": "narrow MCP server over stdio; its own `ousast mcp` entry point and OpenCode integration",
-    "skills": "skill router; consumed by mcp and by the OpenCode integration, not by the scan path",
-    "slot_contract": "the slot/contract protocol stage_processors implements",
-    "stage_processors": "HarnessX slot-contracted scan stages; pinned by the zero-dependency guard in test_gate"
-  }
+  ]
 }

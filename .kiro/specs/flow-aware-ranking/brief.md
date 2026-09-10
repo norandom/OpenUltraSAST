@@ -55,6 +55,41 @@ A phase that cannot show that is not an improvement, it is a story.
 - **Phase 0 — the oracle and the baseline.** The evidence extractor (no model) and a scoring harness over the
   pinned CVEs, reporting each one's rank position. Gate: reproduces today's numbers — CVE-2023-23488 at
   position 390 of 4,463, 83.8% of regions in one tier. Without a baseline nothing later is measurable.
+
+  **Done 2026-09-10.** `benchmarks/ranking/position.py`, committed as
+  `benchmarks/ranking/baselines/2026-09-10-access-rank.json`:
+
+  | repository | regions | largest tier | CVE position | `budget_at_recall` |
+  |---|---|---|---|---|
+  | `pmpro` | 4,463 | 83.8% at 0.30 | 390 | 391 |
+  | `mwwpform` | 983 | 81.7% at 0.30 | **512** | **513** |
+  | `wpstatistics` | 1,673 | 75.3% at 0.30 | **503** | **504** |
+  | `vampi` | 25 | 36.0% at 1.00 | 15, 10 (SQLI reached transitively) | 16 |
+
+  **And this corrects the cross-assessment above.** "Ranking's job is concentration, not inclusion" was
+  measured on `pmpro` alone, where the CVE is inside the budget. On the other two plugins the CVE sits at
+  512 and 503 — **outside a 500-region budget** — so the current ranker never examines it at all, and the
+  slices found those CVEs only because a slice has too few regions to exclude anything. Both jobs are
+  real: inclusion on two repositories, concentration on all three. The single metric `budget_at_recall`
+  covers both, which is why it is the one that matters.
+
+  The instrument is `evidenceOnly` mode on the taint query, recorded on every scan as `ModelScanResult.tiers`
+  and `tier_counts`, and acted on by nothing — so every later phase is measured against a record made by
+  scans that did not know they were being measured.
+
+  **Measured cost of the instrument**, 637-file graph, the scan's own 500-region request set:
+
+      2,500 pairs in 98.9 s including JVM load — about 40 ms per pair
+      tier 0 (no sink of that family in reach): 2,161 of 2,500 = 86%
+
+  Two attempts before that ran past an hour each without producing a payload, and the cause was mine both
+  times: repository-wide walks — the sink scan, the reachable-method BFS, `familyInRepo` — repeated per
+  request. Memoising them across the batch is what made "milliseconds per pair" true rather than claimed.
+
+  **And the same memoisation reaches the dataflow mode.** The identical 250-request set that cost 2,026.3 s
+  (8,105 ms per request) with both joins on now costs **287.0 s — 1,148 ms per request — for the same 5,779
+  rows.** Most of what contributor-scan 5.13 measured as "the base taint query" was the per-request scans,
+  not the dataflow. That correction is recorded there.
 - **Phase 1 — tier 0 only, no model.** Exact pruning. Gate: **53% fewer taint requests issued, measured** —
   and nothing more. 1,177 requests at 6.63 s is still 2.2 hours, so this phase does NOT make the scan finish;
   it halves the problem. Claiming completion here would send someone looking for a bug where there is none.

@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from ..cpg.backend import CpgResult
+from .evidence import evidence_from_rows
 from .candidates import enumerate_candidates
 from .config_value import request_params as config_params
 from .dominance import request_params as dominance_params
@@ -64,6 +65,11 @@ class ScanBudget:
 
     max_model_calls: int = 200
     max_regions: int = 500
+    # Compute the evidence tier of every (region, family) pair and RECORD it. Phase 0 of flow-aware-ranking:
+    # the instrument runs on every real scan so later phases are measurable, and it changes nothing about
+    # what is asked or in what order. One extra query invocation without dataflow -- a JVM load, then
+    # milliseconds per pair.
+    tiering: bool = True
 
 
 @dataclass(frozen=True)
@@ -87,6 +93,10 @@ class ModelScanResult:
     # would remove) or CPGQL evaluation (which it would not). That is the whole of the server-mode decision.
     query_seconds_by_kind: Mapping[str, float] = field(default_factory=dict)
     degradations: tuple[Mapping[str, object], ...] = ()
+    # The evidence tier of each (path, function, family) pair the scan collected, and the count per tier.
+    # Recorded, not acted on: this is what "the ranker got better" will be measured against.
+    tiers: tuple[tuple[str, str, str, int], ...] = ()
+    tier_counts: Mapping[int, int] = field(default_factory=dict)
 
     @property
     def arbitrate_seconds(self) -> float:
@@ -176,11 +186,44 @@ def scan_repository(
                 continue
             work.append((f"{len(work)}", region, spec))
 
+    # Phase 1b: the evidence tier of every taint pair, before any dataflow is asked. Same query, `evidenceOnly`,
+    # no `reachableByFlows`. Recorded on the result and NOT used to reorder or skip anything -- that is a
+    # later phase, and it must be measured against this record before it is allowed to change behaviour.
+    tiers: list[tuple[str, str, str, int]] = []
+    per_kind: dict[str, float] = {}
+    if limits.tiering and callable(getattr(cpg, "run_batch", None)):
+        grouped_taint = _grouped(work, hook_callbacks=hooks).get("taint", {})
+        if grouped_taint:
+            evidence_requests = {rid: {**dict(params), "evidenceOnly": "true"} for rid, params in grouped_taint.items()}
+            tier_started = time.monotonic()
+            answered_evidence = cpg.run_batch("taint", evidence_requests)
+            per_kind["evidence"] = round(time.monotonic() - tier_started, 2)
+            if answered_evidence is None:
+                degradations.append({"stage": "model", "reason": "query_failed", "kind": "evidence", "requests": len(evidence_requests)})
+            else:
+                answered_evidence.pop("__census__", None)
+                by_rid = {rid: (region, spec) for rid, region, spec in work}
+                for rid, rows in answered_evidence.items():
+                    pair = by_rid.get(rid)
+                    if pair is None:
+                        continue
+                    region, spec = pair
+                    evidence = evidence_from_rows(
+                        rows,
+                        entry=_is_entry_point(region),
+                        # Rank 1.0 is the public tier. Provenance -- declared by a route contract versus
+                        # inferred from an absent decorator -- is not yet carried on ScanRegion, so this is
+                        # the proxy phase 0 has; the brief names it as the field to thread through next.
+                        access_declared_public=region.rank >= 1.0,
+                        bound_names=getattr(spec, "safe_shape_sinks", ()),
+                    )
+                    if evidence is not None:
+                        tiers.append((region.path, region.function or "", getattr(spec, "family", ""), evidence.tier))
+
     # Phase 2: ONE invocation per query kind. JVM startup dominates a repository scan -- a call per region
     # per family put a ten-line file at four minutes and a thousand regions at roughly fifty hours -- while
     # the queries themselves are milliseconds once the CPG is loaded.
     rows_by_id: dict[str, list[object]] = {}
-    per_kind: dict[str, float] = {}
     census_reported = False
     query_started = time.monotonic()
     for kind, requests in _grouped(work, hook_callbacks=hooks).items():
@@ -293,6 +336,8 @@ def scan_repository(
         query_seconds=query_seconds,
         query_seconds_by_kind=per_kind,
         degradations=tuple(degradations),
+        tiers=tuple(tiers),
+        tier_counts={tier: sum(1 for t in tiers if t[3] == tier) for tier in sorted({t[3] for t in tiers})},
     )
 
 

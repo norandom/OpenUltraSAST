@@ -49,6 +49,7 @@
     boundedSinks: String = "",
     parameterSources: String = "false",
     fieldSources: String = "true",
+    evidenceOnly: String = "false",
     hookCallbacks: String = "",
     dispatchApply: String = "",
     requests: String = "",
@@ -65,6 +66,12 @@
 
   def split(raw: String): List[String] = raw.split(",").map(_.trim).filter(_.nonEmpty).toList
 
+  // Per-family answers that do not depend on the region, kept across the whole batch.
+  val familyInRepoMemo = scala.collection.mutable.Map.empty[String, Boolean]
+  val sinkCandidatesMemo = scala.collection.mutable.Map.empty[String, List[io.shiftleft.codepropertygraph.generated.nodes.Call]]
+  val reachableMemo = scala.collection.mutable.Map.empty[(String, String, Int), Set[String]]
+  val methodSourceMemo = scala.collection.mutable.Map.empty[String, Boolean]
+
   def rowsFor(
       sourcesS: String,
       sinksS: String,
@@ -74,6 +81,7 @@
       functionS: String,
       paramSrc: String,
       fieldSrc: String,
+      evidenceS: String,
       fileS: String,
       depthS: String,
       boundedS: String
@@ -132,7 +140,9 @@
   // Bounded by `callDepth`, because "every method transitively reachable from an entry point" is most of a
   // repository, and an unbounded question is how this becomes slow again.
   val depth = scala.util.Try(depthS.toInt).getOrElse(0)
-  lazy val reachableMethods: Set[String] =
+  lazy val reachableMethods: Set[String] = reachableMemo.getOrElseUpdate((function, fileS, depth), computeReachable)
+
+  def computeReachable: Set[String] =
     if (depth <= 0 || labeledMethods.isEmpty) Set.empty
     else {
       var frontier = labeledMethods.toSet
@@ -502,7 +512,66 @@
     byName || sanitizerNames.exists(n => code.startsWith(n + "(") || code.contains("'" + n + "'") || code.contains("\"" + n + "\""))
   }
 
-  def sinkCalls = cpg.call.filter(c => sinkNames.exists(n => sinkMatches(c, n))).filter(c => inScope(c.method))
+  // The candidate sink calls for a FAMILY do not depend on the region, and scanning every call in the graph
+  // for each of 2,487 requests was a large share of what made a request cost seconds -- in evidence mode,
+  // which asks for no dataflow at all, it alone took a query past an hour. Scanned once per sink list and
+  // kept for the batch; the per-request work is the scope filter over that list.
+  def sinkCalls =
+    sinkCandidatesMemo
+      .getOrElseUpdate(sinksS, cpg.call.filter(c => sinkNames.exists(n => sinkMatches(c, n))).l)
+      .filter(c => inScope(c.method))
+
+  // ---- EVIDENCE MODE: the same question without the dataflow (flow-aware-ranking, phase 0) --------------
+  //
+  // Tiering is the CPG query WITHOUT dataflow; arbitration is the query WITH it. Same graph, same facts, two
+  // costs. This branch answers "what is in scope" -- which sink calls, what shape they take, whether a
+  // cleansing call wraps THEIR argument, whether a source is local or reachable -- and returns before
+  // `reachableByFlows` is ever called. Milliseconds per call, where a flow costs 6.63 seconds.
+  //
+  // Every field is stated in fact-table terms, so the vector means the same thing in every language the
+  // graph can hold. A `summary` row is always emitted, even when there are no sinks, because "no sinks" is
+  // tier 0 and must be distinguishable from "the query failed".
+  if (evidenceS == "true") {
+    // Whether a method holds a modelled source, memoised by full name across the batch: the same helper
+    // is reachable from hundreds of regions, and re-walking its AST for each of them is what made a
+    // no-dataflow query take minutes. `cpg.method.filter(...)` over every method per request was the
+    // other half of that, replaced by a direct lookup of the reachable names.
+    def methodHasSource(m: io.shiftleft.codepropertygraph.generated.nodes.Method): Boolean =
+      methodSourceMemo.getOrElseUpdate(m.fullName, m.ast.isCall.exists(c => sourcePatterns.exists(p => c.code.contains(p))))
+    val sinkList    = sinkCalls.l
+    val sourceLocal = labeledMethods.exists(methodHasSource)
+    val sourceNear  = depth > 0 && cpg.method.fullNameExact(reachableMethods.toSeq: _*).exists(methodHasSource)
+    // Anywhere in the repository at all. Exact at every callDepth, and the cheapest cut there is: a family
+    // with no sink anywhere cannot produce a flow for any region. Memoised on the sink list, because it is
+    // the same answer for every request of one family and a repository-wide walk per request turned a
+    // milliseconds-per-pair query into minutes.
+    val familyInRepo = familyInRepoMemo.getOrElseUpdate(sinksS, cpg.call.exists(c => sinkNames.exists(n => sinkMatches(c, n))))
+    val summary = ujson.Obj(
+      "kind"         -> "summary",
+      "sinks"        -> sinkList.size,
+      "sourceLocal"  -> sourceLocal,
+      "sourceNear"   -> sourceNear,
+      "familyInRepo" -> familyInRepo
+    )
+    val perSink = sinkList.map { sink =>
+      val realArgs = sink.argument.argumentIndexGt(0).l
+      ujson.Obj(
+        "kind"            -> "sink",
+        "sink"            -> sink.code.take(200),
+        "sinkLine"        -> sink.lineNumber.getOrElse(-1).toString,
+        "sinkMethod"      -> sink.method.name,
+        "sinkFile"        -> sink.method.filename.split("/").last,
+        "sinkArity"       -> realArgs.size,
+        "sinkArg0Literal" -> realArgs.headOption.map(a => a.isLiteral).getOrElse(false),
+        // A sanitizer of this family is an ANCESTOR of an argument in the AST -- it wraps what flows in --
+        // as opposed to merely appearing somewhere in the same function. This is the field a text scan
+        // gets wrong, and the one that would have misranked CVE-2023-23488: `esc_sql` is in that function,
+        // on a different statement.
+        "cleansedOnCall"  -> sink.argument.ast.l.exists(node => sanitizesHere(node))
+      )
+    }
+    return summary :: perSink
+  }
 
   val rows = sinkCalls.l.flatMap { sink =>
     // Data flows into the arguments; asking the call node itself finds nothing.
@@ -576,6 +645,7 @@
       def field(name: String): String = req.obj.get(name).map(_.str).getOrElse("")
       val paramSrc = req.obj.get("parameterSources").map(_.str).getOrElse("false")
       val fieldSrc = req.obj.get("fieldSources").map(_.str).getOrElse("true")
+      val evidence = req.obj.get("evidenceOnly").map(_.str).getOrElse("false")
       id -> ujson.Arr(
         rowsFor(
           field("sources"),
@@ -589,6 +659,7 @@
           field("function"),
           paramSrc,
           fieldSrc,
+          evidence,
           field("file"),
           field("callDepth"),
           field("boundedSinks")
@@ -604,7 +675,7 @@
     println(ujson.write(ujson.Obj.from(answers.toSeq :+ ("__census__" -> census))))
   } else {
     println(
-      ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, hookCallbacks, dispatchApply, function, parameterSources, fieldSources, file, callDepth, boundedSinks): _*))
+      ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, hookCallbacks, dispatchApply, function, parameterSources, fieldSources, evidenceOnly, file, callDepth, boundedSinks): _*))
     )
   }
   println("---OUSAST-CPG-END---")

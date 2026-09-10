@@ -388,7 +388,9 @@ def test_a_query_the_engine_could_not_answer_is_recorded_not_ignored() -> None:
 
     failures = [d for d in result.degradations if d.get("reason") == "query_failed"]
     assert failures, "a query that could not be asked must be reported"
-    assert failures[0]["kind"] == "taint"
+    kinds = {d["kind"] for d in failures}
+    assert "taint" in kinds, "the taint failure is recorded"
+    assert "evidence" in kinds, "and so is the evidence pass that runs before it -- phase 0 of flow-aware-ranking"
     assert result.findings == ()
 
 
