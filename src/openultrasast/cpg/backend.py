@@ -78,6 +78,8 @@ _FRONTENDS = {
 # right there) and try again. Compacting the parser's output to a fifth of its size, running the parser
 # through a shim, and pinning `ForkJoinPool.common.parallelism=1` were each tried and each changed nothing.
 _PREFER_FRONTEND = frozenset({"php"})
+# The extensions that count as source for a language, used to ask whether a graph is missing anything.
+_LANGUAGE_EXTENSIONS: dict[str, tuple[str, ...]] = {"php": (".php",)}
 FRONTEND_BUILD_ATTEMPTS = 4
 
 # Request fields that describe the REPOSITORY rather than the region, and are therefore identical in every
@@ -254,6 +256,15 @@ class JoernBackend:
         if not dropped:
             return (main,), ()
 
+        # A warning is a symptom, not a verdict. `php2cpg` logs `Failed to process` for files that are
+        # nonetheless in the finished graph -- measured: a build reporting two drops produced a graph holding
+        # both of its files and all 139 methods, the same size as a clean one. Splitting on that evidence is
+        # actively harmful, because shards cannot see each other's flows: it cost a two-file WordPress pair
+        # its CVE. So ask the graph before doing anything drastic to it.
+        if self._graph_is_complete(main, root, language):
+            logger.info("the frontend warned about %d file(s) under %s but the graph holds them all", len(dropped), root)
+            return (main,), ()
+
         # Second pass over the same tree, this time telling the frontend to leave the difficult files alone,
         # so the rest of the repository is analysed instead of nothing being analysed.
         remainder = self._build_with_retries(root, main, scratch, language, exclude=dropped)
@@ -270,6 +281,27 @@ class JoernBackend:
             shards.append(second)
             return tuple(shards), tuple(still)
         return tuple(shards), dropped
+
+    def _graph_is_complete(self, cpg_path: Path, root: Path, language: str) -> bool:
+        """Does this graph hold at least as many files as the tree has sources?
+
+        Conservative in the only direction that matters: when the census cannot be taken, or the language
+        has no declared extensions, the answer is "no" and the caller does the careful thing.
+        """
+        extensions = _LANGUAGE_EXTENSIONS.get(language.lower())
+        if not extensions:
+            return False
+        expected = sum(1 for path in root.rglob("*") if path.suffix.lower() in extensions and path.is_file())
+        if not expected:
+            return False
+        payload = self.query(cpg_path, "census", {})
+        if not isinstance(payload, Mapping):
+            return False
+        try:
+            files = int(str(payload.get("files", "0")))
+        except ValueError:
+            return False
+        return files >= expected
 
     def _island_root(self, root: Path, scratch: Path, files: Sequence[str]) -> Path | None:
         """A tree holding only ``files``, at their original relative paths.

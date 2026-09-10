@@ -456,6 +456,11 @@ def test_files_the_frontend_refuses_get_a_cpg_of_their_own(tmp_path: Path, monke
 
     def runner(command, **kwargs):  # type: ignore[no-untyped-def]
         commands.append(list(command))
+        if "--script" in command:
+            # The census, asked because the frontend warned. Here the warning is real: the graph is short a
+            # file, so the caller should go on to exclude it and build it separately.
+            body = '---OUSAST-CPG-BEGIN---\n{"files": "1", "methods": "1"}\n---OUSAST-CPG-END---\n'
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout=body, stderr="")
         Path(command[command.index("-o") + 1]).write_text("cpg")
         # The whole tree always drops big.php; any build that excludes it, or covers it alone, is clean.
         excluded = "--exclude" in command
@@ -510,3 +515,37 @@ def test_a_shard_that_cannot_answer_does_not_lose_the_others(monkeypatch: pytest
 
     monkeypatch.setattr(JoernBackend, "query_batch", lambda self, path, query, requests: None)
     assert backend.query_batch_across([Path("a.bin")], "taint", {}) is None, "no shard answered is not an empty answer"
+
+
+def test_a_warning_about_a_file_the_graph_actually_holds_does_not_split_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`php2cpg` logs `Failed to process` for files that are nonetheless in the finished graph. Measured: a
+    build reporting two drops produced a graph holding both its files and all 139 methods, the same size as
+    a clean one.
+
+    Acting on the warning alone is destructive rather than merely wasteful -- shards cannot see each other's
+    flows, and a two-file WordPress pair lost its CVE that way. So the graph is asked before it is split.
+    """
+    import subprocess
+
+    from openultrasast.cpg.backend import JoernBackend
+
+    (tmp_path / "a.php").write_text("<?php function a() {}")
+    (tmp_path / "b.php").write_text("<?php function b() {}")
+    commands: list[list[str]] = []
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        commands.append(list(command))
+        if "--script" in command:
+            body = '---OUSAST-CPG-BEGIN---\n{"files": "2", "methods": "9"}\n---OUSAST-CPG-END---\n'
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout=body, stderr="")
+        Path(command[command.index("-o") + 1]).write_text("cpg")
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr=f"WARN Failed to process '{tmp_path / 'a.php'}'\n")
+
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/joern/{name}")
+
+    result = JoernBackend(runner=runner).build(tmp_path, language="php")
+
+    assert result is not None
+    assert result.unparsed == (), "the graph holds both files, so nothing is missing"
+    assert not any("--exclude" in command for command in commands), "and it was not split"
