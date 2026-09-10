@@ -93,7 +93,9 @@ def test_the_config_can_point_the_chat_endpoint_somewhere_else(monkeypatch: pyte
     resolved = resolve_chat_endpoint(config)
     assert resolved is not None and resolved[1].base_url == "http://localhost:11434/v1"
     detector, judge = resolve_models(config)
-    assert detector == "deepseek-v4-flash" and judge == "deepseek-v4-pro"
+    # The default detector follows DEFAULT_DETECTOR_MODEL; the judge here is pinned by config to a legacy id,
+    # which must keep working so an old run can be reproduced and re-priced.
+    assert detector == "deepseek-v4.1-flash" and judge == "deepseek-v4-pro"
 
 
 def test_the_adapter_disables_thinking_asks_for_json_and_keeps_the_reasoning_field() -> None:

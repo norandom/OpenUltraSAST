@@ -849,12 +849,26 @@
     access levels to numbers and knows nothing about any framework. The EVIDENCE feeding it does not:
     `mapping._wordpress_hook_access` is a Python function containing the literals `wp_ajax_nopriv_` and
     `wp_ajax_`, and `_rest_route_access` contains `__return_true`. One framework, written in code.
-  - **The consequence is not "slightly worse on other frameworks", it is no ordering at all.** Anything the
-    classifier does not recognise falls to `review-required` = 0.30, and within a tie the order is
-    alphabetical by path -- arbitrary. On Paid Memberships Pro that is where CVE-2023-23488's region sits,
-    below every REST handler at 0.80, at position ~1036 of 4,463. With a 500-region budget the arbiter never
-    sees it. A Laravel, Symfony or Django codebase would have EVERY region in that tier: 4,463 regions
-    ordered by filename.
+  - **The consequence is not "slightly worse on other frameworks", it is no ordering at all.** Measured on
+    Paid Memberships Pro, 4,463 regions carry **five distinct ranks**:
+
+    | rank | regions | |
+    |---|---|---|
+    | 1.00 | 79 | 1.8% |
+    | 0.80 | 80 | 1.8% |
+    | **0.30** | **3,742** | **83.8%** -- one tier, ordered ALPHABETICALLY BY PATH |
+    | 0.15 | 464 | 10.4% |
+    | 0.10 | 98 | 2.2% |
+
+    The 0.30 tier spans positions 159 to 3,900, and **341 of the 500 regions examined come from it** -- two
+    thirds of the budget spent on an arbitrary alphabetical slice. A Laravel or Django codebase would have
+    every region in that tier: thousands, ordered by filename.
+  - **A correction that matters, because it was stated repeatedly and was wrong.** CVE-2023-23488's region
+    is at position **390 of 4,463** -- INSIDE the 500-region budget, and examined. The earlier claim that it
+    ranked ~1036 and was never reached came from a measurement taken before the array-callable and
+    method-recogniser fixes moved it. The reason it is not reported is that the taint query TIMED OUT
+    (`query_failed`, all 2,500 requests), so no region got a verdict, well ranked or not. Ranking is a real
+    problem; it is not this miss.
   - The fix is three layers, and the LLM is only the third:
     - **Facts, not code.** Framework vocabulary moves into the semantic tables the way `[[dispatch]]` already
       did today. An `[[access]]` fact declares hook-name patterns and their access level, so
@@ -868,8 +882,11 @@
       WordPress rule. This is the layer that would have moved CVE-2023-23488's region on its own, and it
       should be built before any model is involved -- otherwise the LLM's contribution cannot be measured
       against anything.
-    - **The LLM for the residue.** Regions the facts cannot classify and the features cannot separate. It
-      sees the feature vector plus a short excerpt and orders them.
+    - **The LLM does the ranking.** Not a tie-breaker for a residue -- the ordering job itself. It sees the
+      feature vector plus a short excerpt and orders regions, because the thing being judged ("is this
+      worth looking at") is a judgement about unfamiliar code, which is what a model is for and what a
+      hardcoded table demonstrably is not. Layers one and two remain as CHEAP EVIDENCE for it to read and
+      as the fallback when no model is configured, not as the primary ranker.
   - **Why ranking is a safe place for a model, and adjudication is not.** A ranker cannot manufacture a
     finding. It decides what is LOOKED AT, never what is reported: the arbiters still entail or stay silent,
     the three gates stay byte-identical, and a misranked region costs recall rather than producing a false
@@ -878,10 +895,27 @@
   - Constraints that belong in the design before any model budget is spent:
     - **Cost.** One call per region is 4,463 calls a scan and nobody runs that in CI. The model ranks a
       prefiltered candidate set in batches, or it is not shipped.
-    - **Leak.** Four pinned CVEs is a tiny training set and this project has the scar already -- see the
-      closed-loop train-on-test finding, where the improve lever learned from holdout pairs and inflated its
-      own numbers. Optimisation must be leave-one-repository-out and the reported figure must come from a
-      plugin the optimiser never saw.
+    - **Leak, and it is worse than train-on-test.** Two distinct problems, and only the first is the usual
+      one:
+      1. **Overfitting.** Four pinned CVEs is not a training set. This needs N projects and
+         leave-one-repository-out, with the reported figure from a plugin the optimiser never saw. The
+         project already has the scar -- the closed-loop finding where the improve lever learned from
+         holdout pairs and inflated its own numbers.
+      2. **The loop is CLOSED: the policy determines its own training data.** A region the ranker does not
+         put in the budget is never arbitrated, so it never produces a label, so the ranker never learns it
+         was wrong about it. The feedback is censored by the very policy being trained, and every run
+         confirms the ordering it already had. Optimising on that signal makes the ranker more confident,
+         not more correct.
+    - **Breaking the loop is a design requirement, not a refinement.** Two mechanisms, both cheap:
+      - **An exploration slice.** Reserve a fraction of the budget -- 10% is a reasonable start -- for
+        regions sampled from OUTSIDE the top-K. Those are the only labels the ranker did not choose, and
+        they are what makes the training signal unbiased. It also has an honest side effect: the scan reports
+        that some of its budget went to exploration rather than to its own best guesses.
+      - **Full labelling on a small corpus.** For repositories small enough to arbitrate EVERY region --
+        VAmPI at 25 regions, a single plugin file -- the ground truth is complete and policy-independent.
+        Expensive per repository and bounded in number, which is exactly the right shape for a reference set.
+      If the ranking is made stochastic, inverse-propensity weighting is available too, but exploration plus
+      a small fully-labelled corpus is simpler and does not require the ranker to be probabilistic.
     - **Reproducibility.** Two runs of one repository must agree, or a baseline diff means nothing. The
       ranking is recorded in the manifest so a change in what was examined is auditable rather than
       invisible.

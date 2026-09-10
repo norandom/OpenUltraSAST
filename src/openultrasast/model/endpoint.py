@@ -25,15 +25,23 @@ DEEPSEEK_BASE_URL = "https://api.deepseek.com"  # no version suffix: the platfor
 DEEPSEEK_KEY_ENV = "DEEPSEEK_API_KEY"
 DEEPSEEK_BASE_ENV = "DEEPSEEK_BASE_URL"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_DETECTOR_MODEL = "deepseek-v4-flash"
-DEFAULT_JUDGE_MODEL = "deepseek-v4-pro"
+# V4 Pro is discontinued: DeepSeek announced V4.1 Flash on 2026-09-10 and routes Pro requests to it from
+# 12:00 Beijing time on 2026-09-14, billed at Flash's price. So the judge tier is no longer a more expensive
+# model -- detector and judge are the same model, and any claim in this repo that the judge is a *stronger*
+# second opinion is now a claim about prompt and evidence, not about model class.
+DEFAULT_DETECTOR_MODEL = "deepseek-v4.1-flash"
+DEFAULT_JUDGE_MODEL = "deepseek-v4.1-flash"
 Provider = Literal["deepseek", "openrouter", "custom", "scripted"]
 _SCRIPTED_FLAGS = frozenset({"scripted", "script", "dump", "dump-only", "unsafe", "unsafe-snippet"})
 
 
 @dataclass(frozen=True)
 class Prices:
-    """USD per million tokens. DeepSeek platform pricing, peak rate, recorded 2026-09-06."""
+    """USD per million tokens. DeepSeek platform pricing, peak rate, recorded 2026-09-06.
+
+    The older ids are kept so a recorded run from before the V4.1 Flash migration still costs out correctly;
+    a manifest that cannot price its own model is a manifest nobody can audit.
+    """
 
     cache_hit_per_m: float
     input_per_m: float
@@ -41,6 +49,8 @@ class Prices:
 
 
 _PRICES: dict[str, Prices] = {
+    # V4.1 Flash is priced as Flash; Pro requests are routed here and billed at this rate from 2026-09-14.
+    "deepseek-v4.1-flash": Prices(cache_hit_per_m=0.014, input_per_m=0.44, output_per_m=1.32),
     "deepseek-v4-flash": Prices(cache_hit_per_m=0.014, input_per_m=0.44, output_per_m=1.32),
     "deepseek-v4-flash-vision-exp": Prices(cache_hit_per_m=0.014, input_per_m=0.44, output_per_m=1.32),
     "deepseek-v4-pro": Prices(cache_hit_per_m=0.044, input_per_m=1.32, output_per_m=3.96),
