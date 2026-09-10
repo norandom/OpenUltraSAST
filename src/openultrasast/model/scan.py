@@ -277,6 +277,9 @@ def scan_repository(
     scanned = len(judged)
 
     findings = _ordered(_deduplicated(collected))
+    # The graph has answered everything it is going to. Its scratch tree holds the CPG, the request files and
+    # joern's own working copy -- tens of megabytes per scan -- and nothing else reclaims it.
+    _dispose(cpg)
     return ModelScanResult(
         findings=findings,
         by_rung=_tally(findings),
@@ -291,6 +294,16 @@ def scan_repository(
         query_seconds_by_kind=per_kind,
         degradations=tuple(degradations),
     )
+
+
+def _dispose(cpg: object) -> None:
+    """Release a built CPG's scratch tree. Never raises: cleanup must not turn a good scan into a failure."""
+    cleanup = getattr(cpg, "cleanup", None)
+    if callable(cleanup):
+        try:
+            cleanup()
+        except Exception as exc:  # noqa: BLE001 -- a scan that found things must not fail while tidying up
+            logger.warning("could not remove the cpg scratch directory: %s", exc)
 
 
 def _build(backend: Any, root: Path, language: str) -> Any:

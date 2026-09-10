@@ -27,6 +27,7 @@ import shutil
 import signal
 import subprocess
 import tempfile
+import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -188,6 +189,10 @@ class CpgResult:
     # remainder is a scan of LESS CODE THAN IT WAS ASKED ABOUT, and silence about those files is the same
     # quiet failure as an empty query result. The names travel with the CPG so the driver can say so.
     unparsed: tuple[str, ...] = ()
+    # Removes the scratch tree this CPG lives in. A build allocates a temp directory holding the graph, its
+    # request files and joern's own workspace copy; nothing reclaimed it, and a day of scanning left 1,055
+    # directories and 355MB behind on a disk that was already at 95%. The driver disposes in a `finally`.
+    cleanup: Callable[[], None] | None = None
 
 
 class CpgBackend(Protocol):
@@ -236,8 +241,10 @@ class JoernBackend:
         parse = shutil.which("joern-parse")
         if parse is None and os.environ.get("OPENULTRASAST_JOERN_PROBE", "").strip().lower() not in {"1", "on", "true", "yes"}:
             return None
-        scratch = Path(tempfile.mkdtemp(prefix="ousast-cpg-"))
+        _sweep_stale_scratch()
+        scratch = Path(tempfile.mkdtemp(prefix=SCRATCH_PREFIX))
         cpg_path = scratch / "cpg.bin"
+        dispose = lambda: shutil.rmtree(scratch, ignore_errors=True)  # noqa: E731 -- one expression, named
 
         # THE PRECONDITION. Before anything is built, make the toolchain open one file from the tree and say
         # how big it is. Every instrument failure this project has had takes the same shape -- the input was
@@ -269,6 +276,7 @@ class JoernBackend:
                     run=lambda query, params: self.query_across(shards, query, params),
                     run_batch=lambda query, requests: self.query_batch_across(shards, query, requests),
                     unparsed=unparsed,
+                    cleanup=dispose,
                 )
         command = [parse or "joern-parse", self._heap_flag(), str(root), "--output", str(cpg_path)]
         completed = self._run(command, timeout=self.build_timeout, cwd=scratch)
@@ -287,6 +295,7 @@ class JoernBackend:
             run=lambda query, params: self.query(cpg_path, query, params),
             run_batch=lambda query, requests: self.query_batch(cpg_path, query, requests),
             unparsed=unparsed,
+            cleanup=dispose,
         )
 
     def _files_with_frontend_defect(self, root: Path, language: str) -> tuple[str, ...]:
@@ -690,6 +699,33 @@ class JoernBackend:
                 return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
         except (OSError, subprocess.SubprocessError):
             return None
+
+
+SCRATCH_PREFIX = "ousast-cpg-"
+# How long an abandoned scratch tree may survive. Long enough that a scan running in another process is never
+# disturbed, short enough that a machine scanning all day does not fill its disk.
+SCRATCH_MAX_AGE_SECONDS = 6 * 60 * 60
+
+
+def _sweep_stale_scratch() -> None:
+    """Remove scratch trees older than `SCRATCH_MAX_AGE_SECONDS`, best effort and never fatal.
+
+    Belt as well as braces: `cleanup` disposes of a scan's own tree, but a process killed mid-scan -- which
+    is how most of them died here -- never runs its `finally`. Only directories under the system temp root
+    carrying this module's own prefix are touched.
+    """
+    root = Path(tempfile.gettempdir())
+    cutoff = time.time() - SCRATCH_MAX_AGE_SECONDS
+    try:
+        candidates = list(root.glob(f"{SCRATCH_PREFIX}*"))
+    except OSError:
+        return
+    for path in candidates:
+        try:
+            if path.is_dir() and path.stat().st_mtime < cutoff:
+                shutil.rmtree(path, ignore_errors=True)
+        except OSError:  # noqa: PERF203 -- one unreadable entry must not stop the sweep
+            continue
 
 
 def _terminate_group(process: subprocess.Popen[str]) -> None:

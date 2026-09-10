@@ -55,6 +55,7 @@ def test_the_seam_imports_nothing_outside_the_standard_library() -> None:
         "signal",
         "subprocess",
         "tempfile",
+        "time",
         "dataclasses",
         "pathlib",
         "typing",
@@ -725,3 +726,62 @@ def test_a_timed_out_query_kills_the_jvm_not_just_the_script(tmp_path: Path) -> 
         with contextlib.suppress(ProcessLookupError, PermissionError):
             os.kill(child, 9)
     assert not alive, "the grandchild JVM must die with the script, or every timeout leaks a gigabyte"
+
+
+def test_a_built_cpg_can_dispose_of_its_scratch_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every build allocates a temp directory for the graph, its request files and joern's own working copy.
+
+    Nothing reclaimed it. A day of scanning left 1,055 directories and 355MB behind, on a disk already at
+    95%, and the scans that leaked hardest were the ones that failed -- which is the wrong way round.
+    """
+    import subprocess
+
+    from openultrasast.cpg.backend import JoernBackend
+
+    (tmp_path / "a.php").write_text("<?php function a() {}")
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if "-r" in command:
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+        if "--script" in command:
+            body = '---OUSAST-CPG-BEGIN---\n{"files": "1", "methods": "1"}\n---OUSAST-CPG-END---\n'
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout=body, stderr="")
+        Path(command[command.index("-o") + 1]).write_text("cpg")
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/bin/{name}")
+
+    result = JoernBackend(runner=runner).build(tmp_path, language="php")
+    assert result is not None and callable(result.cleanup)
+
+    scratch = result.cpg_path.parent
+    assert scratch.is_dir()
+    result.cleanup()
+    assert not scratch.exists(), "the scratch tree is gone once the caller is done with the graph"
+
+
+def test_the_sweep_removes_only_old_scratch_and_only_ours(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A process killed mid-scan never runs its cleanup, which is how most of the 1,055 died. The sweep is
+    the backstop -- and it must not touch a scan running in another process, nor anything that is not ours."""
+    import os
+    import time
+
+    from openultrasast.cpg.backend import SCRATCH_MAX_AGE_SECONDS, SCRATCH_PREFIX, _sweep_stale_scratch
+
+    monkeypatch.setattr("tempfile.gettempdir", lambda: str(tmp_path))
+    old = tmp_path / f"{SCRATCH_PREFIX}old"
+    fresh = tmp_path / f"{SCRATCH_PREFIX}fresh"
+    foreign = tmp_path / "someone-elses-work"
+    for path in (old, fresh, foreign):
+        path.mkdir()
+        (path / "cpg.bin").write_text("x")
+    stale = time.time() - SCRATCH_MAX_AGE_SECONDS - 60
+    os.utime(old, (stale, stale))
+    os.utime(foreign, (stale, stale))
+
+    _sweep_stale_scratch()
+
+    assert not old.exists(), "an abandoned tree older than the ceiling is reclaimed"
+    assert fresh.is_dir(), "a scan running right now is left alone"
+    assert foreign.is_dir(), "and nothing outside this module's own prefix is ever touched"
