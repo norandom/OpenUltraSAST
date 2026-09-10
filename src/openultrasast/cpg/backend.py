@@ -24,6 +24,7 @@ import logging
 import os
 import re
 import shutil
+import signal
 import subprocess
 import tempfile
 from collections.abc import Callable, Mapping, Sequence
@@ -655,11 +656,54 @@ class JoernBackend:
         return f"-J-Xmx{configured if configured.isdigit() else CPG_HEAP_MB}m"
 
     def _run(self, command: list[str], *, timeout: int, cwd: Path | None = None) -> subprocess.CompletedProcess[str] | None:
+        """Run one Joern command, and on timeout kill the whole PROCESS GROUP rather than the child.
+
+        `joern` and `joern-parse` are shell scripts that launch a JVM as a separate process. Killing the
+        script -- which is all `subprocess.run(timeout=)` does -- leaves that JVM running, holding its heap,
+        for as long as the machine lasts. Every `query_failed: timeout` leaked about a gigabyte.
+
+        Measured the hard way: after a day of 300s and 2,400s taint timeouts, four orphaned JVMs three hours
+        old were still resident and the machine ran out of memory. On a CI runner doing several scans in a
+        row it would OOM rather than merely degrade -- and it would look like the SCAN needing more memory,
+        which is the wrong lesson entirely.
+        """
         run = self.runner if self.runner is not None else subprocess.run
+        if self.runner is not None:  # tests inject a fake runner and never spawn anything
+            try:
+                return run(command, capture_output=True, text=True, timeout=timeout, check=False, cwd=str(cwd) if cwd else None)
+            except (OSError, subprocess.SubprocessError):
+                return None
         try:
-            return run(command, capture_output=True, text=True, timeout=timeout, check=False, cwd=str(cwd) if cwd else None)
+            with subprocess.Popen(  # noqa: S603 -- the command is built here, never from user input
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                cwd=str(cwd) if cwd else None,
+                start_new_session=True,  # its own process group, so the JVM dies with the script
+            ) as process:
+                try:
+                    stdout, stderr = process.communicate(timeout=timeout)
+                except subprocess.TimeoutExpired:
+                    _terminate_group(process)
+                    return None
+                return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
         except (OSError, subprocess.SubprocessError):
             return None
+
+
+def _terminate_group(process: subprocess.Popen[str]) -> None:
+    """SIGTERM the process group, then SIGKILL what is left. Never raises: this is cleanup, not logic."""
+    for signal_number in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.killpg(os.getpgid(process.pid), signal_number)
+        except (OSError, ProcessLookupError):
+            return
+        try:
+            process.wait(timeout=10)
+            return
+        except subprocess.TimeoutExpired:
+            continue
 
 
 # Every Joern frontend logs a dropped file the same way, at WARN, and then carries on:

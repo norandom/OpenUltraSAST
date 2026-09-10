@@ -7,6 +7,7 @@ Nothing here imports a JVM binding, and every test runs with Joern absent.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import subprocess
 from pathlib import Path
@@ -51,6 +52,7 @@ def test_the_seam_imports_nothing_outside_the_standard_library() -> None:
         "os",
         "re",
         "shutil",
+        "signal",
         "subprocess",
         "tempfile",
         "dataclasses",
@@ -684,3 +686,42 @@ def test_a_file_php2cpg_miscompiles_is_excluded_and_named(tmp_path: Path, monkey
     build = next(c for c in commands if "--script" not in c)
     assert "--exclude" in build and any("bad.php" in part for part in build), "and excluded from the build"
     assert not any("ok.php" in part for part in build if part != str(tmp_path)), "a global at function scope is fine"
+
+
+def test_a_timed_out_query_kills_the_jvm_not_just_the_script(tmp_path: Path) -> None:
+    """`joern` is a shell script that launches a JVM as a separate process.
+
+    `subprocess.run(timeout=)` kills the script and leaves the JVM resident, holding its heap. Measured the
+    hard way: after a day of 300s and 2,400s taint timeouts, four orphaned JVMs three hours old were still
+    using about a gigabyte each and the machine ran out of memory. On CI that is an OOM rather than a
+    degradation, and it would look like the scan needing more memory -- the wrong lesson entirely.
+
+    Uses a real shell script that backgrounds a child, because the whole bug is about grandchildren.
+    """
+    import os
+    import time
+
+    from openultrasast.cpg.backend import JoernBackend
+
+    marker = tmp_path / "child-alive"
+    script = tmp_path / "fake-joern.sh"
+    script.write_text(
+        f"#!/bin/sh\n( while true; do echo x > '{marker}'; sleep 0.2; done ) &\necho $! > " + str(tmp_path / "child.pid") + "\nsleep 60\n"
+    )
+    script.chmod(0o755)
+
+    started = time.monotonic()
+    assert JoernBackend()._run([str(script)], timeout=2) is None, "a timeout reports nothing, never a verdict"
+    assert time.monotonic() - started < 30, "and it does not wait for the script's own sleep"
+
+    child = int((tmp_path / "child.pid").read_text().strip())
+    time.sleep(0.5)
+    alive = True
+    try:
+        os.kill(child, 0)
+    except ProcessLookupError:
+        alive = False
+    if alive:  # cleanup, so a failure here does not leak the process it is complaining about
+        with contextlib.suppress(ProcessLookupError, PermissionError):
+            os.kill(child, 9)
+    assert not alive, "the grandchild JVM must die with the script, or every timeout leaks a gigabyte"
