@@ -71,6 +71,9 @@
   val sinkCandidatesMemo = scala.collection.mutable.Map.empty[String, List[io.shiftleft.codepropertygraph.generated.nodes.Call]]
   val reachableMemo = scala.collection.mutable.Map.empty[(String, String, Int), Set[String]]
   val methodSourceMemo = scala.collection.mutable.Map.empty[String, Boolean]
+  val fedFieldsMemo = scala.collection.mutable.Map.empty[String, Set[String]]
+  val sourceMethodsMemo = scala.collection.mutable.Map.empty[String, Set[String]]
+  val callbackFedMemo = scala.collection.mutable.Map.empty[String, Boolean]
 
   def rowsFor(
       sourcesS: String,
@@ -529,6 +532,75 @@
       .getOrElseUpdate(sinksS, cpg.call.filter(c => sinkNames.exists(n => sinkMatches(c, n))).l)
       .filter(c => inScope(c.method))
 
+  // ---- stage one of the two-stage join WITHOUT dataflow, for evidence mode (flow-aware-ranking, phase 2) --
+  //
+  // The arbiter's `carried` runs a `reachableByFlows` per candidate assignment, and over a whole
+  // repository's evidence pass that was not a cost but a wall: pmpro's 22,315 pairs went from 255 s to
+  // past 1,800 s and answered nothing. Evidence is allowed to be a structural proxy -- the brief says so
+  // of every path field -- so this asks the cheap form of the same two questions: is a field the region
+  // reads ASSIGNED, anywhere in its file, from a source expression or from a parameter of the assigning
+  // method (`$this->attachments = $attachments` in a constructor is the MW WP Form case); and does a hook
+  // applied in scope have a registered callback whose body holds a source or such a field read (WP
+  // Statistics's `set_current_page`). Memoised per file and per callback for the batch. It orders; the
+  // arbiter still decides with the flow.
+  def prefixFed(code: String, fed: Set[String]): Boolean = {
+    val parts = code.split("->").map(_.trim).filter(_.nonEmpty)
+    parts.length >= 2 && (2 to parts.length).exists(n => fed.contains(parts.take(n).mkString("->")))
+  }
+
+  // Methods of a file whose body reads a source: one level of "assigned from a call". WP Statistics writes
+  // `$this->rest_hits = (object) self::rest_params()` and `rest_params()` is where `$_REQUEST` is read.
+  def sourceMethods(fileName: String): Set[String] =
+    sourceMethodsMemo.getOrElseUpdate(
+      fileName,
+      methodsIn(fileName).filter(m => m.ast.isCall.exists(c => sourcePatterns.exists(p => c.code.contains(p)))).map(_.name).toSet
+    )
+
+  def fedFields(fileName: String): Set[String] =
+    fedFieldsMemo.getOrElseUpdate(
+      fileName,
+      methodsIn(fileName).flatMap { m =>
+        val params  = m.parameter.name.l.filterNot(_ == "this").toSet
+        val readers = sourceMethods(fileName)
+        m.ast.isCall.nameExact(ASSIGNMENT).l.flatMap { assignment =>
+          val args = assignment.argument.l
+          if (args.size < 2) None
+          else
+            args.head match {
+              case target: io.shiftleft.codepropertygraph.generated.nodes.Call if target.name == FIELD_ACCESS =>
+                val rhs = args(1)
+                val fromParameter = rhs match {
+                  case id: io.shiftleft.codepropertygraph.generated.nodes.Identifier => params.contains(id.name)
+                  case _                                                             => false
+                }
+                val fromReader = readers.nonEmpty && rhs.ast.isCall.name.l.exists(readers.contains)
+                if (fromParameter || fromReader || sourcePatterns.exists(p => rhs.code.contains(p))) Some(target.code.trim) else None
+              case _ => None
+            }
+        }
+      }.toSet
+    )
+
+  def fieldCarriedStructurally: Boolean =
+    cpg.call.nameExact(FIELD_ACCESS).filter(c => inScope(c.method)).l.exists(r => prefixFed(r.code.trim, fedFields(r.method.filename)))
+
+  def callbackFed(callback: String): Boolean =
+    callbackFedMemo.getOrElseUpdate(
+      callback,
+      cpg.method.nameExact(callback).l.exists { m =>
+        m.ast.isCall.exists(c => sourcePatterns.exists(p => c.code.contains(p))) || {
+          val fed = fedFields(m.filename)
+          fed.nonEmpty && m.ast.isCall.nameExact(FIELD_ACCESS).code.l.exists(code => prefixFed(code.trim, fed))
+        }
+      }
+    )
+
+  def hookCarriedStructurally: Boolean =
+    hookTable.nonEmpty && hookApply.nonEmpty && cpg.call.filter(c => hookApply.contains(c.name)).filter(c => inScope(c.method)).l.exists { call =>
+      val hook = call.argument.l.headOption.map(a => unquote(a.code)).getOrElse("")
+      hookTable.getOrElse(hook, Nil).exists(callbackFed)
+    }
+
   // ---- EVIDENCE MODE: the same question without the dataflow (flow-aware-ranking, phase 0) --------------
   //
   // Tiering is the CPG query WITHOUT dataflow; arbitration is the query WITH it. Same graph, same facts, two
@@ -554,13 +626,11 @@
     // the same answer for every request of one family and a repository-wide walk per request turned a
     // milliseconds-per-pair query into minutes.
     val familyInRepo = familyInRepoMemo.getOrElseUpdate(sinksS, cpg.call.exists(c => sinkNames.exists(n => sinkMatches(c, n))))
-    // `carried`: stage one of the two-stage join, reused as evidence (flow-aware-ranking, phase 2). A field
-    // read in scope whose assignment is fed by a source, or an array key a registered hook callback fills
-    // from one -- computed and memoised for the arbiter anyway, and the exact fact that puts
-    // `_delete_files()` (fed by `$this->attachments`) and `record()` (fed by a filter) where their sources
-    // say, instead of one tier below every region with a `$_GET` in its own body. Asked only where there
-    // is a sink to carry to, so the 21,000 tier-0 pairs of a plugin pay nothing for it.
-    val carried = sinkList.nonEmpty && familyInRepo && (fieldList.nonEmpty || hookList.nonEmpty)
+    // `carried`: stage one of the two-stage join as STRUCTURE, not flow -- see `fedFields` above for why the
+    // flow form was a wall. It puts `_delete_files()` (fed by `$this->attachments`) and `record()` (fed by
+    // a filter) where their sources say, instead of one tier below every region with a `$_GET` in its own
+    // body. Asked only where there is a sink to carry to, so a plugin's 21,000 tier-0 pairs pay nothing.
+    val carried = sinkList.nonEmpty && familyInRepo && (fieldCarriedStructurally || hookCarriedStructurally)
     val summary = ujson.Obj(
       "kind"         -> "summary",
       "sinks"        -> sinkList.size,
