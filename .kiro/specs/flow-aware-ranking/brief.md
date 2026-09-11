@@ -201,8 +201,15 @@ A phase that cannot show that is not an improvement, it is a story.
   wpstatistics's sits behind 96 regions tied at 7.0. The tiers are done; the ties are the whole of what
   is left, exactly as the cross-assessment said. One exact fact was missing from the vector: `shipped`,
   the build's own word on what is product, was on the region and not in the score, and 10 of the 67
-  regions ahead of MW WP Form's CVE were `test-mail.php`. Weight −2.0 for an unshipped file (v6, in
-  flight). After that, within-tier order is phase 3's -- a model reading the code the ties cannot --
+  regions ahead of MW WP Form's CVE were `test-mail.php`. Weight −2.0 for an unshipped file (v6).
+
+  **v6: no change (mwwpform 68), and the reason is a fact the vector does not have.** `declared_sources`
+  answers only from a build manifest that lists sources (Makefile.am and kin); a WordPress plugin ships a
+  `composer.json` and a `package.json`, neither of which does, so `shipped` is None and every region --
+  the 14 test-file regions ahead of the CVE included -- counts as product. Knowing that `tests/`,
+  `test-*.php` and `*Test.php` are not product is ecosystem convention, which is to say policy: it
+  belongs in a `[[layout]]` fact table per ecosystem, approved like the `[[dispatch]]` facts were, not in
+  a constant here. Proposed, not done. After that, within-tier order is phase 3's -- a model reading the code the ties cannot --
   or one more exact path fact (`distance`), and the gate stays unmet until one of them moves it.
 
 - **Phase 3 — the LLM ranker.** Same evidence, ordered by a model. Gate: beats phase 2 leave-one-repository-out.
