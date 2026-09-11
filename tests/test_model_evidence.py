@@ -97,3 +97,29 @@ def test_a_stringified_boolean_is_read_as_its_value_not_its_truthiness() -> None
     rows[1]["cleansedOnCall"] = "False"
     e = evidence_from_rows(rows, entry=True)
     assert e is not None and e.tier == TIER_OPEN, "a 'False' string must not turn an open sink into a cleansed one"
+
+
+def test_the_score_orders_within_a_tier_and_never_across_one() -> None:
+    """Phase 2: the published weights rank pairs inside a tier. They cannot lift a pair out of tier 0 --
+    a pair with no sink scores nothing whatever the weights say -- and counts are capped so a 346-sink
+    file-scope region does not outrank everything by volume alone."""
+    from openultrasast.model.evidence import OPEN_SINK_CAP, WEIGHTS, Evidence, SinkEvidence
+
+    def sink(n: int, cleansed: bool = False) -> SinkEvidence:
+        return SinkEvidence(code=f"q({n})", line=n, method="m", arity=1, arg0_literal=False, cleansed_on_call=cleansed)
+
+    nothing = Evidence(sinks=(), source_local=True)
+    assert nothing.tier == 0 and nothing.score == 0.0, "no sink, no score: the weights cannot manufacture a pair"
+
+    one = Evidence(sinks=(sink(1),), source_near=True)
+    local = Evidence(sinks=(sink(1),), source_local=True)
+    assert local.tier > one.tier, "a local source is the higher tier, not merely the higher score"
+    assert local.score == WEIGHTS["open_sink"] + WEIGHTS["source_local"]
+
+    many = Evidence(sinks=tuple(sink(i) for i in range(50)), source_near=True)
+    assert many.tier == one.tier
+    assert many.score == WEIGHTS["open_sink"] * OPEN_SINK_CAP + WEIGHTS["source_near"], "capped: volume stops counting"
+
+    cleansed = Evidence(sinks=(sink(1), sink(2, cleansed=True)), source_near=True)
+    assert cleansed.score < one.score, "a cleansed sink beside an open one counts against the pair"
+    assert sorted([many, one, local], key=lambda e: e.order_key, reverse=True) == [local, many, one]

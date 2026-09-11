@@ -21,6 +21,20 @@ TIER_CLEANSED = 2  # a source exists, but every sink call is bound or cleansed o
 TIER_OPEN = 3  # a source exists and some sink call is computed and uncleansed: ask first
 TIER_OPEN_PUBLIC = 4  # tier 3 and declared public, or a source on the same statement: ask very first
 
+# The within-tier weights, published here because they are the whole of what "heuristic ranking" means in
+# phase 2 and a reader should be able to see every one of them at once. They order, they never exclude.
+WEIGHTS: dict[str, float] = {
+    "open_sink": 1.0,  # per sink call that is computed, uncleansed and unbound, up to OPEN_SINK_CAP
+    "cleansed_sink": -0.5,  # per sink call that is cleansed on the call or bound, up to CLEANSED_SINK_CAP
+    "source_local": 2.0,  # a modelled source in the region's own body
+    "carried": 1.5,  # stage one of the two-stage join says a field or dispatch value arrives tainted
+    "source_near": 1.0,  # a modelled source within the arbiter's callDepth
+    "entry": 0.5,  # parameters untrusted by contract
+    "access_declared_public": 1.0,
+}
+OPEN_SINK_CAP = 5
+CLEANSED_SINK_CAP = 3
+
 
 @dataclass(frozen=True)
 class SinkEvidence:
@@ -76,6 +90,33 @@ class Evidence:
         if self.access_declared_public or self.source_local or self.carried:
             return TIER_OPEN_PUBLIC
         return TIER_OPEN
+
+    @property
+    def score(self) -> float:
+        """Order WITHIN a tier, by the published weights below. Never across tiers: the tier is the predicate.
+
+        A weighted sum of the same exact facts the tier is made of, so it can rank but cannot manufacture --
+        a pair with no sink scores nothing and stays tier 0 whatever its weights. Counts are capped because
+        a file-scope region with 346 sinks is not 346 times more likely to hold the bug than one with 5;
+        the cap is where the evidence stops saying more. Phase 2 of flow-aware-ranking.
+        """
+        if self.tier == TIER_EXCLUDE:
+            return 0.0  # no sink in reach: nothing to weigh, whatever the sources say
+        w = WEIGHTS
+        return (
+            w["open_sink"] * min(len(self.open_sinks), OPEN_SINK_CAP)
+            + w["cleansed_sink"] * min(sum(1 for s in self.sinks if s.cleansed_on_call or self.is_bound(s)), CLEANSED_SINK_CAP)
+            + (w["source_local"] if self.source_local else 0.0)
+            + (w["carried"] if self.carried else 0.0)
+            + (w["source_near"] if self.source_near else 0.0)
+            + (w["entry"] if self.entry else 0.0)
+            + (w["access_declared_public"] if self.access_declared_public else 0.0)
+        )
+
+    @property
+    def order_key(self) -> tuple[int, float]:
+        """Higher sorts first: ``sorted(..., key=lambda e: e.order_key, reverse=True)``."""
+        return (self.tier, self.score)
 
 
 def evidence_from_rows(
@@ -139,11 +180,14 @@ def _as_int(value: object) -> int:
 
 
 __all__ = [
+    "CLEANSED_SINK_CAP",
+    "OPEN_SINK_CAP",
     "TIER_CLEANSED",
     "TIER_EXCLUDE",
     "TIER_NO_SOURCE",
     "TIER_OPEN",
     "TIER_OPEN_PUBLIC",
+    "WEIGHTS",
     "Evidence",
     "SinkEvidence",
     "evidence_from_rows",

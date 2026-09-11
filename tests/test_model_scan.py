@@ -472,3 +472,67 @@ def test_tier_zero_pairs_are_not_asked_and_nothing_else_is_skipped() -> None:
     assert taint["count"] == 1, "only the pair with a sink in reach is asked"
     assert result.requests_pruned == 2, "and the two tier-0 pairs are counted, not silently dropped"
     assert not any(d.get("reason") == "query_failed" for d in result.degradations)
+
+
+def test_the_budget_is_spent_by_evidence_when_asked() -> None:
+    """Phase 2 of flow-aware-ranking. With `order_by_evidence`, the evidence pass runs over every region and
+    the region cap is cut from the (tier, score) order, so a low-ranked region with an open sink and a
+    local source is examined before a top-ranked region with no sink in reach. Off, the static order holds."""
+    from openultrasast.model.regions import ScanRegion
+    from openultrasast.model.scan import ScanBudget, scan_repository
+
+    class _Backend:
+        def __init__(self) -> None:
+            self.taint_files: list[list[str]] = []
+            self.evidence_sizes: list[int] = []
+
+        def available(self) -> bool:
+            return True
+
+        def build(self, root, *, language=""):  # type: ignore[no-untyped-def]
+            from openultrasast.cpg.backend import CpgResult
+
+            def batch(kind, requests):  # type: ignore[no-untyped-def]
+                if any(p.get("evidenceOnly") == "true" for p in requests.values()):
+                    self.evidence_sizes.append(len(requests))
+                    out = {}
+                    for rid, params in requests.items():
+                        hot = str(params.get("file", "")).endswith("low.py")
+                        out[rid] = [{"kind": "summary", "sinks": 1 if hot else 0, "sourceLocal": hot, "familyInRepo": True}] + (
+                            [
+                                {
+                                    "kind": "sink",
+                                    "sink": "os.system(x)",
+                                    "sinkLine": "4",
+                                    "sinkMethod": "run",
+                                    "sinkArity": 1,
+                                    "sinkArg0Literal": False,
+                                    "cleansedOnCall": False,
+                                }
+                            ]
+                            if hot
+                            else []
+                        )
+                    return out
+                if kind == "taint":
+                    self.taint_files.append(sorted({str(p.get("file", "")) for p in requests.values()}))
+                return {rid: [] for rid in requests}
+
+            return CpgResult(cpg_path=Path("cpg.bin"), run=lambda q, p: [], run_batch=batch)
+
+    top = ScanRegion(path="top.py", function="handle", language="python", families=("injection",), rank=1.0, source="entry_point")
+    low = ScanRegion(path="low.py", function="run", language="python", families=("injection",), rank=0.3, source="entry_point")
+
+    static = _Backend()
+    scan_repository(Path("."), [top, low], backend=static, budget=ScanBudget(max_model_calls=0, max_regions=1))
+    assert static.evidence_sizes == [1] and static.taint_files == [], (
+        "static order: the budget holds `top`, whose pair is tier 0 and pruned"
+    )
+
+    ordered = _Backend()
+    result = scan_repository(
+        Path("."), [top, low], backend=ordered, budget=ScanBudget(max_model_calls=0, max_regions=1, order_by_evidence=True)
+    )
+    assert ordered.evidence_sizes == [2], "the evidence pass covers every region, not only the budget"
+    assert ordered.taint_files == [["low.py"]], "and the budget is spent on the region the evidence points at"
+    assert result.tier_counts == {0: 1, 4: 1}

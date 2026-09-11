@@ -38,8 +38,43 @@ def ordered_regions(root: Path) -> list[ScanRegion]:
     return sorted(regions, key=lambda r: (not r.shipped, -r.rank, r.path, r.function or ""))
 
 
-def measure(name: str, root: Path, known: list[dict[str, object]]) -> dict[str, object]:
+def evidence_ordered_regions(root: Path, regions: list[ScanRegion]) -> tuple[list[ScanRegion], dict[str, object]]:
+    """The regions in the order phase 2 spends the budget: by each region's best (tier, score), from a real
+    evidence pass over EVERY region. Needs Joern. The ordering function is the scan's own, imported."""
+    import time
+
+    from openultrasast.cpg.backend import resolve_cpg_backend
+    from openultrasast.model.scan import _collect, _evidence_pass, _hook_callbacks, order_by_evidence
+
+    backend = resolve_cpg_backend()
+    started = time.monotonic()
+    cpg = backend.build(root, language=regions[0].language if regions else "")
+    build_seconds = round(time.monotonic() - started, 1)
+    if cpg is None:
+        raise SystemExit(f"no graph for {root}: {getattr(backend, 'last_failure', '')}")
+    try:
+        started = time.monotonic()
+        evidence, failed = _evidence_pass(cpg, _collect(regions), _hook_callbacks(root, regions))
+        evidence_seconds = round(time.monotonic() - started, 1)
+    finally:
+        if callable(getattr(cpg, "cleanup", None)):
+            cpg.cleanup()
+    tiers = Counter(e.tier for e in evidence.values())
+    facts = {
+        "build_seconds": build_seconds,
+        "evidence_seconds": evidence_seconds,
+        "pairs": len(evidence),
+        "pairs_unanswered": failed,
+        "tier_counts": {str(k): v for k, v in sorted(tiers.items())},
+    }
+    return order_by_evidence(regions, evidence), facts
+
+
+def measure(name: str, root: Path, known: list[dict[str, object]], *, by_evidence: bool = False) -> dict[str, object]:
     regions = ordered_regions(root)
+    facts: dict[str, object] = {}
+    if by_evidence:
+        regions, facts = evidence_ordered_regions(root, regions)
     tiers = Counter(r.rank for r in regions)
     largest = max(tiers.values()) if tiers else 0
     rows: list[dict[str, object]] = []
@@ -76,6 +111,7 @@ def measure(name: str, root: Path, known: list[dict[str, object]]) -> dict[str, 
         # The smallest examined-region budget that still holds every in-scope known vulnerability.
         "budget_at_recall": (max(positioned) + 1) if positioned else None,
         "known": rows,
+        **facts,
     }
 
 
@@ -83,6 +119,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--json", action="store_true", help="emit one JSON object per repository")
     parser.add_argument("--repo", help="only this recipe")
+    parser.add_argument("--evidence", action="store_true", help="phase 2: order by a real evidence pass over every region (needs Joern)")
     args = parser.parse_args()
 
     results: list[dict[str, object]] = []
@@ -99,7 +136,7 @@ def main() -> int:
             {"id": k.id, "family": k.family, "file": k.file, "function": k.function, "line": k.line, "in_scope": k.in_scope}
             for k in recipe.known
         ]
-        results.append(measure(recipe.name, root, known))
+        results.append(measure(recipe.name, root, known, by_evidence=args.evidence))
 
     if args.json:
         print(json.dumps(results, indent=2))
@@ -114,6 +151,8 @@ def main() -> int:
             scope = "" if k["in_scope"] else "  [out of scope]"
             print(f"   {k['id']:16} {where:28} {k['site']}{scope}")
         print(f"   budget_at_recall = {r['budget_at_recall']}")
+        if "tier_counts" in r:
+            print(f"   build {r['build_seconds']}s, evidence {r['evidence_seconds']}s over {r['pairs']} pairs, tiers {r['tier_counts']}")
     return 0
 
 

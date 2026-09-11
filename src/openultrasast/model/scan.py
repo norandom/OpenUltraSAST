@@ -26,10 +26,10 @@ from pathlib import Path
 from typing import Any
 
 from ..cpg.backend import CpgResult
-from .evidence import TIER_EXCLUDE, evidence_from_rows
 from .candidates import enumerate_candidates
 from .config_value import request_params as config_params
 from .dominance import request_params as dominance_params
+from .evidence import TIER_EXCLUDE, Evidence, evidence_from_rows
 from .ladder import Rung
 from .pipeline import ModelFinding, scan_region
 from .regions import MODULE_SCOPE, ScanRegion
@@ -75,6 +75,12 @@ class ScanBudget:
     # language, under any dataflow model. Skipping it cannot lose a finding. It is the only tier that
     # excludes, which is why it is the only one allowed to act before the ranker is measured.
     prune_tier0: bool = True
+    # Phase 2 of flow-aware-ranking: spend the region budget by EVIDENCE, not by static rank. The evidence
+    # pass runs over `evidence_regions` regions in static order (0 = every region; it costs milliseconds a
+    # pair), each region takes its best pair's (tier, score), and `max_regions` is then cut from that
+    # order. Off by default until the position benchmark says where the pinned CVEs land under it.
+    order_by_evidence: bool = False
+    evidence_regions: int = 0
 
 
 @dataclass(frozen=True)
@@ -185,50 +191,32 @@ def scan_repository(
             }
         )
 
-    # Phase 1: collect the whole scan's questions, for at most `max_regions` regions. Nothing is asked yet.
-    work: list[tuple[str, ScanRegion, ArbiterSpec]] = []
-    for region in ordered_regions[: limits.max_regions]:
-        for family in region.families:
-            spec = _spec_for(family, region.language)
-            if spec is None:
-                continue
-            work.append((f"{len(work)}", region, spec))
-
     # Phase 1b: the evidence tier of every taint pair, before any dataflow is asked. Same query, `evidenceOnly`,
-    # no `reachableByFlows`. Recorded on the result and NOT used to reorder or skip anything -- that is a
-    # later phase, and it must be measured against this record before it is allowed to change behaviour.
+    # no `reachableByFlows`. Phase 0 recorded it; phase 1 prunes tier 0 on it; phase 2 spends the region
+    # budget by it. Under phase 2 the pass runs over MORE regions than the budget, which is the point.
     tiers: list[tuple[str, str, str, int]] = []
-    tier_by_rid: dict[str, int] = {}
     per_kind: dict[str, float] = {}
+    evidence_by_pair: dict[tuple[str, str, str], Evidence] = {}
     if limits.tiering and callable(getattr(cpg, "run_batch", None)):
-        grouped_taint = _grouped(work, hook_callbacks=hooks).get("taint", {})
-        if grouped_taint:
-            evidence_requests = {rid: {**dict(params), "evidenceOnly": "true"} for rid, params in grouped_taint.items()}
-            tier_started = time.monotonic()
-            answered_evidence = cpg.run_batch("taint", evidence_requests)
-            per_kind["evidence"] = round(time.monotonic() - tier_started, 2)
-            if answered_evidence is None:
-                degradations.append({"stage": "model", "reason": "query_failed", "kind": "evidence", "requests": len(evidence_requests)})
-            else:
-                answered_evidence.pop("__census__", None)
-                by_rid = {rid: (region, spec) for rid, region, spec in work}
-                for rid, rows in answered_evidence.items():
-                    pair = by_rid.get(rid)
-                    if pair is None:
-                        continue
-                    region, spec = pair
-                    evidence = evidence_from_rows(
-                        rows,
-                        entry=_is_entry_point(region),
-                        # Rank 1.0 is the public tier. Provenance -- declared by a route contract versus
-                        # inferred from an absent decorator -- is not yet carried on ScanRegion, so this is
-                        # the proxy phase 0 has; the brief names it as the field to thread through next.
-                        access_declared_public=region.rank >= 1.0,
-                        bound_names=getattr(spec, "safe_shape_sinks", ()),
-                    )
-                    if evidence is not None:
-                        tiers.append((region.path, region.function or "", getattr(spec, "family", ""), evidence.tier))
-                        tier_by_rid[rid] = evidence.tier
+        candidates = (
+            ordered_regions[: (limits.evidence_regions or len(ordered_regions))]
+            if limits.order_by_evidence
+            else ordered_regions[: limits.max_regions]
+        )
+        tier_started = time.monotonic()
+        evidence_by_pair, failed = _evidence_pass(cpg, _collect(candidates), hooks)
+        per_kind["evidence"] = round(time.monotonic() - tier_started, 2)
+        if failed:
+            degradations.append({"stage": "model", "reason": "query_failed", "kind": "evidence", "requests": failed})
+        tiers = [(path, function, family, evidence.tier) for (path, function, family), evidence in evidence_by_pair.items()]
+        if limits.order_by_evidence and evidence_by_pair:
+            ordered_regions = order_by_evidence(ordered_regions, evidence_by_pair)
+
+    # Phase 1: collect the whole scan's questions, for at most `max_regions` regions. Nothing is asked yet.
+    work = _collect(ordered_regions[: limits.max_regions])
+    tier_by_rid = {
+        rid: evidence_by_pair[_pair_key(region, spec)].tier for rid, region, spec in work if _pair_key(region, spec) in evidence_by_pair
+    }
 
     # Phase 2: ONE invocation per query kind. JVM startup dominates a repository scan -- a call per region
     # per family put a ten-line file at four minutes and a thousand regions at roughly fifty hours -- while
@@ -360,6 +348,85 @@ def scan_repository(
         tier_counts={tier: sum(1 for t in tiers if t[3] == tier) for tier in sorted({t[3] for t in tiers})},
         requests_pruned=pruned,
     )
+
+
+def _pair_key(region: ScanRegion, spec: ArbiterSpec) -> tuple[str, str, str]:
+    return (region.path, region.function or "", getattr(spec, "family", ""))
+
+
+def _collect(regions: Sequence[ScanRegion]) -> list[tuple[str, ScanRegion, ArbiterSpec]]:
+    """Every (region, family) question with an arbiter, in the order given, with batch-local ids."""
+    work: list[tuple[str, ScanRegion, ArbiterSpec]] = []
+    for region in regions:
+        for family in region.families:
+            spec = _spec_for(family, region.language)
+            if spec is None:
+                continue
+            work.append((f"{len(work)}", region, spec))
+    return work
+
+
+def _evidence_pass(
+    cpg: Any, work: Sequence[tuple[str, ScanRegion, ArbiterSpec]], hooks: str
+) -> tuple[dict[tuple[str, str, str], Evidence], int]:
+    """The evidence vector of every taint pair in ``work``, keyed by (path, function, family).
+
+    Returns the vectors and the number of requests the engine did not answer (0 when it answered), so a
+    failed pass is recorded rather than read as "no evidence anywhere".
+    """
+    grouped_taint = _grouped(list(work), hook_callbacks=hooks).get("taint", {})
+    if not grouped_taint:
+        return {}, 0
+    requests = {rid: {**dict(params), "evidenceOnly": "true"} for rid, params in grouped_taint.items()}
+    answered = cpg.run_batch("taint", requests)
+    if answered is None:
+        return {}, len(requests)
+    answered.pop("__census__", None)
+    by_rid = {rid: (region, spec) for rid, region, spec in work}
+    out: dict[tuple[str, str, str], Evidence] = {}
+    for rid, rows in answered.items():
+        pair = by_rid.get(rid)
+        if pair is None:
+            continue
+        region, spec = pair
+        evidence = evidence_from_rows(
+            rows,
+            entry=_is_entry_point(region),
+            # Rank 1.0 is the public tier. Provenance -- declared by a route contract versus inferred from
+            # an absent decorator -- is not yet carried on ScanRegion, so this is the proxy phase 0 has;
+            # the brief names it as the field to thread through next.
+            access_declared_public=region.rank >= 1.0,
+            bound_names=getattr(spec, "safe_shape_sinks", ()),
+        )
+        if evidence is not None:
+            out[_pair_key(region, spec)] = evidence
+    return out, 0
+
+
+def order_by_evidence(regions: Sequence[ScanRegion], evidence: Mapping[tuple[str, str, str], Evidence]) -> list[ScanRegion]:
+    """Regions by their best pair's (tier, score), then by the static order they arrived in.
+
+    ONE definition, used by the scan to spend its budget and by `benchmarks/ranking/position.py` to say
+    where a pinned CVE lands under it; if they drifted, the benchmark would measure the wrong thing. A
+    region with no evidence at all -- no taint family, or a pass that failed -- sorts after every region
+    that has some, in static order: the scan does not know it is safe, it knows nothing about it.
+    """
+    best: dict[tuple[str, str], tuple[int, float]] = {}
+    for (path, function, _family), vector in evidence.items():
+        key = (path, function)
+        best[key] = max(best.get(key, (-1, 0.0)), vector.order_key)
+    indexed = list(enumerate(regions))
+    return [
+        region
+        for _, region in sorted(
+            indexed,
+            key=lambda item: (
+                -best.get((item[1].path, item[1].function or ""), (-1, 0.0))[0],
+                -best.get((item[1].path, item[1].function or ""), (-1, 0.0))[1],
+                item[0],
+            ),
+        )
+    ]
 
 
 def _dispose(cpg: object) -> None:

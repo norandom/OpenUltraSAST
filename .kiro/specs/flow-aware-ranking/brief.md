@@ -125,6 +125,18 @@ A phase that cannot show that is not an improvement, it is a story.
   makes a scan finish, because the job is concentration: the CVE is already inside 500, the question is
   whether it is inside 50. **If this passes, the model is a refinement, not the plan** — and knowing that is
   worth more than assuming it.
+  **Implemented 2026-09-11, measurement in flight.** `Evidence.score` is the published weighted sum, and
+  every weight is in one table in `model/evidence.py`: per open sink +1.0 (capped at 5), per cleansed or
+  bound sink −0.5 (capped at 3), local source +2.0, carried +1.5, near source +1.0, entry +0.5, declared
+  public +1.0. A tier-0 pair scores 0 whatever its sources say, so the weights order but cannot
+  manufacture. `ScanBudget.order_by_evidence` runs the evidence pass over every region (or
+  `evidence_regions` of them), takes each region's best pair's (tier, score), and cuts `max_regions` from
+  that order; `order_by_evidence()` is one function used by the scan and by
+  `benchmarks/ranking/position.py --evidence`, so the benchmark measures the order the scan spends. Off
+  by default until the benchmark says where the pinned CVEs land. A region with no taint family sorts
+  after every region with evidence -- the scan does not know it is safe, it knows nothing -- which is a
+  known cost of this phase for families like `access_control` and is noted here rather than hidden.
+
 - **Phase 3 — the LLM ranker.** Same evidence, ordered by a model. Gate: beats phase 2 leave-one-repository-out.
   If it does not, phase 2 ships and phase 3 does not.
 - **Phase 4 — break the closed loop.** An exploration slice (~10% of budget sampled outside the top-K) and
