@@ -153,8 +153,14 @@ A phase that cannot show that is not an improvement, it is a story.
   this brief handed to phase 3. WP Statistics's `record()` and MW WP Form's `_delete_files()` are in
   tier 3, one below where their sources say they belong, because `carried` -- stage one of the two-stage
   join, which the arbiter computes anyway -- was not yet reported by the evidence branch. It is now
-  (`taint.sc` reports it only where a sink exists, so tier-0 pairs pay nothing); the re-measurement is
-  in flight and is the number phase 2 stands or falls on.
+  (`taint.sc` reports it only where a sink exists, so tier-0 pairs pay nothing).
+
+  **With `carried` (v2), as they land:** mwwpform **292 → 30** (CVE-2023-6559 at 29, among 37 tier-4
+  regions; evidence pass 68 → 84 s) -- the first repository under the gate. vampi unchanged at 16. pmpro's
+  v2 pass hit the scan's 300 s default query ceiling (v1 took 255 s; the join facts on its 1,040
+  sink-bearing pairs cost more than the 45 s of headroom) and answered nothing, which the benchmark
+  reported as `tiers={}` and the static order; the benchmark now sets its own ceiling and pmpro is
+  re-measured.
 
 - **Phase 3 — the LLM ranker.** Same evidence, ordered by a model. Gate: beats phase 2 leave-one-repository-out.
   If it does not, phase 2 ships and phase 3 does not.

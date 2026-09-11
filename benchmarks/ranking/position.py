@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from collections import Counter
 from pathlib import Path
@@ -48,6 +49,11 @@ def evidence_ordered_regions(root: Path, regions: list[ScanRegion], language: st
     from openultrasast.cpg.backend import resolve_cpg_backend
     from openultrasast.model.scan import _collect, _evidence_pass, _hook_callbacks, order_by_evidence
 
+    # A benchmark pass runs over EVERY region, not the scan's 500: pmpro's 22,315 pairs took 255 s without
+    # the join facts and past the scan's 300 s default with them, and a pass that times out answers
+    # nothing -- which read as "tiers={}" once and cost a run. The scan's per-push ceiling is not this
+    # measurement's; an operator who set one keeps it.
+    os.environ.setdefault("OPENULTRASAST_CPG_QUERY_TIMEOUT", "1800")
     backend = resolve_cpg_backend()
     started = time.monotonic()
     # The RECIPE's language, never the first region's: WP Statistics's first region is JavaScript, and a
