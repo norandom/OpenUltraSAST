@@ -905,12 +905,13 @@
     | 1 | 124.9 s | 12.5 s | 38 |
     | 3 | 150.5 s | 15.0 s | **3,838** |
 
-    Depth is a 1.4× time term, not the 5× the sharding-era numbers implied -- but it is a **100× payload
-    term**: at depth 3 the same ten pairs return 3,838 flow rows, most of them the same (sink, source kind,
-    sanitized) evidence repeated once per path through the reachable set. Across 339 real requests that is
-    on the order of 130,000 rows to ship and parse, and the reporter collapses them only after they have
-    been paid for. The next cost to take out is in the query's row emission, not its graph work: one row
-    per (sink, source kind, sanitized), with a path count, would be the same evidence at 1% of the bytes.
+    Depth is a 1.4× time term, not the 5× the sharding-era numbers implied -- and a 100× payload term,
+    3,838 rows against 38. **How much of that was duplication, measured:** the query now emits one row per
+    (sink, source kind, source, sanitized) with the shortest `length` and a `paths` count, and the same ten
+    requests at depth 3 return **1,155 rows carrying 3,838 paths** -- a 3.3× collapse, exact by
+    accounting, at the same time (15.9 s/request). The other 30× is depth 3 finding more distinct sources
+    per sink, which is evidence, not repetition; the first write-up of this table called it "mostly the
+    same evidence repeated" and that was a guess the measurement did not support.
   - **The whole-repository scan completes, 2026-09-11.** pmpro, 637 files, the product's own build path
     (overlays at build, seeds scoped, size guard), no judge, `OPENULTRASAST_CPG_QUERY_TIMEOUT=7200`:
     build 97 s, evidence 76 s, **taint 4,105 s for 348 real requests = 11.8 s each**, arbitrate 99 s,

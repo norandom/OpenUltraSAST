@@ -619,28 +619,41 @@
           boundShape.matcher(c).find() && argNames.exists(a => mentionsToken(c, List(a)))
         )
 
-    flows.map { flow =>
-      val elements = flow.elements.map(_.code).l
-      val sanitized = sanitizerNames.nonEmpty && flow.elements.l.exists(node => sanitizesHere(node))
-      val sourceKind = sourceKindOf(flow.elements.l.headOption)
-      ujson.Obj(
-        "sink"            -> sink.code.take(200),
-        "sourceKind"      -> sourceKind,
-        "sinkLine"        -> sink.lineNumber.getOrElse(-1).toString,
-        "sinkMethod"      -> sink.method.name,
-        // Where the sink actually is. With callDepth > 0 that need not be the region's own file, and a
-        // finding reported against the handler's file when the bug is in another module is unactionable.
-        "sinkFile"        -> sink.method.filename,
-        "source"          -> elements.headOption.getOrElse("").take(200),
-        "sanitized"       -> sanitized,
-        "length"          -> elements.size,
-        "sinkArity"       -> arity,
-        "sinkArg0Literal" -> arg0Literal,
-        "bounded"         -> bounds.nonEmpty,
-        "bound"            -> bounds.headOption.getOrElse("").take(120),
-        "inLabeledScope"  -> (function.isEmpty || nestedInLabeled(sink.method) || reachableMethods.contains(sink.method.fullName))
-      )
-    }
+    // ONE ROW PER EVIDENCE KEY, not per path. Every field the driver reads is a property of the sink or of
+    // (source kind, source, sanitized); only `length` varies per path, and the driver ranks by the shortest.
+    // Emitting every path was a 100x payload term: ten real requests at callDepth 3 returned 3,838 rows
+    // for 38 distinct keys, and a whole-repository scan would ship on the order of 130,000 rows to have
+    // the reporter collapse them after they were paid for. `paths` keeps the count. Task 5.13.
+    flows
+      .map { flow =>
+        val elements   = flow.elements.map(_.code).l
+        val sanitized  = sanitizerNames.nonEmpty && flow.elements.l.exists(node => sanitizesHere(node))
+        val sourceKind = sourceKindOf(flow.elements.l.headOption)
+        ((sourceKind, elements.headOption.getOrElse("").take(200), sanitized), elements.size)
+      }
+      .groupBy(_._1)
+      .toList
+      .sortBy(_._1)
+      .map { case ((sourceKind, source, sanitized), paths) =>
+        ujson.Obj(
+          "sink"            -> sink.code.take(200),
+          "sourceKind"      -> sourceKind,
+          "sinkLine"        -> sink.lineNumber.getOrElse(-1).toString,
+          "sinkMethod"      -> sink.method.name,
+          // Where the sink actually is. With callDepth > 0 that need not be the region's own file, and a
+          // finding reported against the handler's file when the bug is in another module is unactionable.
+          "sinkFile"        -> sink.method.filename,
+          "source"          -> source,
+          "sanitized"       -> sanitized,
+          "length"          -> paths.map(_._2).min,
+          "paths"           -> paths.size,
+          "sinkArity"       -> arity,
+          "sinkArg0Literal" -> arg0Literal,
+          "bounded"         -> bounds.nonEmpty,
+          "bound"            -> bounds.headOption.getOrElse("").take(120),
+          "inLabeledScope"  -> (function.isEmpty || nestedInLabeled(sink.method) || reachableMethods.contains(sink.method.fullName))
+        )
+      }
   }
 
     rows

@@ -110,8 +110,9 @@ A phase that cannot show that is not an improvement, it is a story.
   found at `class.memberorder.php:936`**, among 250 entailed findings across 40 files. The 250 is the next
   fact to reckon with -- it is what "500 regions when 50 would do" looks like as output -- and it is phase
   2's material. `callDepth`, measured on the same graph, is a 1.4× time term and a 100× payload term
-  (3,838 flow rows for ten requests at depth 3 against 38 at depth 1); collapsing rows per evidence key
-  is the next cost out.
+  (3,838 flow rows for ten requests at depth 3 against 38 at depth 1). Collapsing rows per evidence key
+  takes 3.3× of that out (1,155 rows carrying 3,838 paths, exact); the rest is depth 3 naming more
+  distinct sources per sink, which is evidence the ranker gets to use.
 
   Phase 0 reported 1,148 ms per request after memoisation. That was an average over a 250-request set of
   which 88% were tier 0 and returned instantly; the ~30 real requests in it cost about 9.5 s each. Pruning
