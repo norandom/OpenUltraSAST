@@ -38,7 +38,9 @@ def ordered_regions(root: Path) -> list[ScanRegion]:
     regions = regions_for(analyze_entry_points(root, targets), targets, shipped=declared_sources(root))
     # The scan's own total order. If this drifts from scan.py the baseline measures the wrong thing, which
     # is why the sort key is the one thing here worth a test against the driver.
-    return sorted(regions, key=lambda r: (not r.shipped, -r.rank, r.path, r.function or ""))
+    from openultrasast.model.layout import with_layout
+
+    return sorted(with_layout(regions), key=lambda r: (not r.shipped, -r.rank, r.path, r.function or ""))
 
 
 def evidence_ordered_regions(root: Path, regions: list[ScanRegion], language: str) -> tuple[list[ScanRegion], dict[str, object]]:
@@ -58,7 +60,9 @@ def evidence_ordered_regions(root: Path, regions: list[ScanRegion], language: st
     started = time.monotonic()
     # The RECIPE's language, never the first region's: WP Statistics's first region is JavaScript, and a
     # build asked for as JavaScript went looking for jssrc2cpg and lost the whole repository's measurement.
-    cpg = backend.build(root, language=language)
+    from openultrasast.model.layout import vendored_directories
+
+    cpg = backend.build(root, language=language, exclude=vendored_directories(root))
     build_seconds = round(time.monotonic() - started, 1)
     if cpg is None:
         raise SystemExit(f"no graph for {root}: {getattr(backend, 'last_failure', '')}")

@@ -278,7 +278,7 @@ class JoernBackend:
 
         return has_cpg()
 
-    def build(self, root: Path, *, language: str = "") -> CpgResult | None:
+    def build(self, root: Path, *, language: str = "", exclude: Sequence[str] = ()) -> CpgResult | None:
         """Build a CPG for ``root``. ``None`` on any failure — the caller degrades, never guesses.
 
         ``language`` lets a failed ``joern-parse`` retry through the frontend directly, which is what Joern
@@ -312,7 +312,7 @@ class JoernBackend:
         # A frontend whose failures are visible and retryable is worth more than one whose are not.
         if language.lower() in _PREFER_FRONTEND:
             self.last_failure = ""
-            shards, unparsed = self._build_sharded(root, scratch, language)
+            shards, unparsed = self._build_sharded(root, scratch, language, exclude=exclude)
             if not shards and self.last_failure:
                 # A build that FAILED BY NAME is not one to retry through the other launcher: the graph the
                 # census could not load would be rebuilt the same and never asked again.
@@ -450,7 +450,9 @@ class JoernBackend:
                     )
         return ""
 
-    def _build_sharded(self, root: Path, scratch: Path, language: str) -> tuple[tuple[Path, ...], tuple[str, ...]]:
+    def _build_sharded(
+        self, root: Path, scratch: Path, language: str, exclude: Sequence[str] = ()
+    ) -> tuple[tuple[Path, ...], tuple[str, ...]]:
         """Build the tree, and give the files it refuses a CPG of their OWN rather than losing them.
 
         A frontend that drops a file drops it from the only graph there is, and every question about that
@@ -465,7 +467,9 @@ class JoernBackend:
         Returns the CPGs to query and the files that defeated even a shard of their own.
         """
         # Excluded from the start, because one of them costs the entire graph rather than itself.
-        defective = self._files_with_frontend_defect(root, language)
+        # `exclude` is the caller's: the vendored trees the `[[layout]]` facts put out of scope. This seam
+        # imports only the standard library, so it is handed the names rather than reading the table.
+        defective = (*exclude, *self._files_with_frontend_defect(root, language))
         if defective:
             logger.warning(
                 "excluding %d file(s) under %s that php2cpg miscompiles (a `global` inside a closure): %s",

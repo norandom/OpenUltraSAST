@@ -97,7 +97,7 @@ def enumerate_source_files(root: Path) -> list[Path]:
     patterns = _load_ignore_patterns(root)
     paths: list[Path] = []
     for path in root.rglob("*"):
-        if not path.is_file() or _has_ignored_dir(root, path) or _is_ignored(root, path, patterns):
+        if not path.is_file() or _has_ignored_dir(root, path) or _is_ignored(root, path, patterns) or _is_vendored(root, path):
             continue
         if detect_language(path) != "unknown":
             paths.append(path)
@@ -175,6 +175,15 @@ def _load_ignore_patterns(root: Path) -> list[str]:
 def _has_ignored_dir(root: Path, path: Path) -> bool:
     relative_parts = path.relative_to(root).parts
     return any(part in IGNORED_DIRS for part in relative_parts[:-1])
+
+
+def _is_vendored(root: Path, path: Path) -> bool:
+    """A tree the `[[layout]]` facts call somebody else's code. Out of the targets entirely: a bundled
+    library is a separate unit, analysed as one or not at all (contributor-scan 5.13; the decision is the
+    maintainer's and lives in the fact table, not here)."""
+    from .model.layout import is_vendored
+
+    return is_vendored(path.relative_to(root).as_posix())
 
 
 def _is_ignored(root: Path, path: Path, patterns: list[str]) -> bool:

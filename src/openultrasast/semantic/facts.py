@@ -75,12 +75,34 @@ class DispatchFact:
 
 
 @dataclass(frozen=True)
+class LayoutFact:
+    """What a repository's PATHS say about scope, per ecosystem: which trees are somebody else's code and
+    which files are tests.
+
+    Both are policy, which is why they are rows and not constants. Vendored code is a separate unit --
+    "divide and rule": a library is analysed as a library, or not at all, never as part of the project
+    that bundles it -- so a `vendored` tree is out of the targets AND out of the graph. A `tests` path is
+    in scope but not product: its regions are ordered after the product's, never removed, because a test
+    that reaches a sink still names the sink.
+
+    Patterns are gitignore-style, matched against the repository-relative path and against each directory
+    on it: `vendor/` names any directory called vendor at any depth, `test-*.php` any file so named.
+    """
+
+    id: str
+    vendored: tuple[str, ...]
+    tests: tuple[str, ...]
+    language: str
+
+
+@dataclass(frozen=True)
 class SemanticFacts:
     version: str
     sources: tuple[SourceFact, ...]
     sinks: tuple[SinkFact, ...]
     sanitizers: tuple[SanitizerFact, ...]
     dispatches: tuple[DispatchFact, ...] = ()
+    layouts: tuple[LayoutFact, ...] = ()
 
     def for_language(self, language: str) -> SemanticFacts:
         key = _LANGUAGE_ALIASES.get(language, language)
@@ -90,6 +112,7 @@ class SemanticFacts:
             sinks=tuple(item for item in self.sinks if item.language == key),
             sanitizers=tuple(item for item in self.sanitizers if item.language == key),
             dispatches=tuple(item for item in self.dispatches if item.language == key),
+            layouts=tuple(item for item in self.layouts if item.language == key),
         )
 
 
@@ -101,6 +124,7 @@ def load_facts(directory: Path | None = None) -> SemanticFacts:
     sinks: list[SinkFact] = []
     sanitizers: list[SanitizerFact] = []
     dispatches: list[DispatchFact] = []
+    layouts: list[LayoutFact] = []
     versions: list[str] = []
     found = False
     for path in sorted(root.glob("*.toml")):
@@ -115,6 +139,7 @@ def load_facts(directory: Path | None = None) -> SemanticFacts:
         sinks.extend(_sinks(payload.get("sink"), language, path))
         sanitizers.extend(_sanitizers(payload.get("sanitizer"), language, path))
         dispatches.extend(_dispatches(payload.get("dispatch"), language, path))
+        layouts.extend(_layouts(payload.get("layout"), language, path))
     if not found:
         raise FactLoadError(f"no semantic fact files in {root}")
     return SemanticFacts(
@@ -123,6 +148,7 @@ def load_facts(directory: Path | None = None) -> SemanticFacts:
         sinks=tuple(sinks),
         sanitizers=tuple(sanitizers),
         dispatches=tuple(dispatches),
+        layouts=tuple(layouts),
     )
 
 
@@ -137,6 +163,23 @@ def _dispatches(value: object, language: str, path: Path) -> list[DispatchFact]:
                 id=identifier,
                 register=_strings(item.get("register"), "register", path),
                 apply=_strings(item.get("apply"), "apply", path),
+                language=language,
+            )
+        )
+    return facts
+
+
+def _layouts(value: object, language: str, path: Path) -> list[LayoutFact]:
+    facts: list[LayoutFact] = []
+    for item in _items(value):
+        identifier = str(item.get("id", "")).strip()
+        if not identifier:
+            raise FactLoadError(f"layout without an id in {path}")
+        facts.append(
+            LayoutFact(
+                id=identifier,
+                vendored=_strings(item.get("vendored", []), "vendored", path),
+                tests=_strings(item.get("tests", []), "tests", path),
                 language=language,
             )
         )

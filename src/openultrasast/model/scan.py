@@ -31,6 +31,7 @@ from .config_value import request_params as config_params
 from .dominance import request_params as dominance_params
 from .evidence import TIER_EXCLUDE, Evidence, evidence_from_rows
 from .ladder import Rung
+from .layout import with_layout
 from .pipeline import ModelFinding, scan_region
 from .regions import MODULE_SCOPE, ScanRegion
 from .specs import ConfigSpec, DominanceSpec, TaintSpec, config_specs, dominance_specs, taint_specs
@@ -168,7 +169,7 @@ def scan_repository(
 
     # Sort here rather than trusting the caller. The budget decides what goes unexamined, so the order it is
     # spent in belongs to whoever holds the budget.
-    ordered_regions = sorted(regions, key=lambda r: (not r.shipped, -r.rank, r.path, r.function or ""))
+    ordered_regions = sorted(with_layout(regions), key=lambda r: (not r.shipped, -r.rank, r.path, r.function or ""))
 
     # The hook link table, built once for the whole scan. It is a property of the repository rather than of
     # any region, and it is read from the source text because the graph does not carry it: php2cpg drops a
@@ -441,11 +442,17 @@ def _dispose(cpg: object) -> None:
 
 
 def _build(backend: Any, root: Path, language: str) -> Any:
-    """Build through the backend, passing the language when the backend can use it."""
+    """Build through the backend, passing the language and the vendored trees when the backend can use them."""
+    from .layout import vendored_directories
+
+    excluded = vendored_directories(root) if root.is_dir() else ()
     try:
-        return backend.build(root, language=language)
+        return backend.build(root, language=language, exclude=excluded)
     except TypeError:  # a backend from before the retry existed, including every test double
-        return backend.build(root)
+        try:
+            return backend.build(root, language=language)
+        except TypeError:
+            return backend.build(root)
 
 
 def _prefetched(rows: list[object]):  # type: ignore[no-untyped-def]

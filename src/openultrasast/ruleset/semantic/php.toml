@@ -200,3 +200,13 @@ parameterized = true
 id = "wordpress_hooks"
 register = ["add_action", "add_filter", "add_shortcode"]
 apply = ["apply_filters", "apply_filters_ref_array", "do_action", "do_action_ref_array"]
+
+# What a PHP repository's paths say about scope. `vendored` trees are out of the scan and out of the graph
+# (a bundled library is a separate unit); `tests` paths stay in scope but are not product, so their
+# regions are ordered after the product's. Measured before this row: 207 of WP Statistics's 357 PHP files
+# were vendored and two of them were 60% of its graph; 14 of the 67 regions ahead of MW WP Form's CVE
+# were test-mail.php and test-mail-parser.php.
+[[layout]]
+id = "php_composer_and_wordpress"
+vendored = ["vendor/", "node_modules/", "third_party/", "third-party/", "lib/vendor/"]
+tests = ["tests/", "test/", "spec/", "test-*.php", "*Test.php", "*.test.php", "*_test.php", "phpunit/"]
