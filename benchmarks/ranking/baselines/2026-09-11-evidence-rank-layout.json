@@ -1,0 +1,3473 @@
+{
+  "note": "phase 2 v6 weights + [[layout]] facts (vendored trees out of targets and graph, test paths not product), Joern 4.0.625",
+  "results": [
+    {
+      "repo": "mwwpform",
+      "regions": 983,
+      "distinct_ranks": 5,
+      "largest_tier_share": 0.817,
+      "largest_tier_rank": 0.3,
+      "budget_at_recall": 54,
+      "known": [
+        {
+          "id": "CVE-2023-6559",
+          "family": "path",
+          "site": "classes/services/class.mail.php:259:_delete_files",
+          "position": 53,
+          "rank": 0.3,
+          "in_scope": true,
+          "reached_transitively": false
+        }
+      ],
+      "head": [
+        {
+          "position": 0,
+          "tier": 4,
+          "score": 9.0,
+          "site": "classes/controllers/class.main.php:_template_redirect",
+          "rank": 0.3
+        },
+        {
+          "position": 1,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.akismet_error.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 2,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.checkbox.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 3,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.checkbox.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 4,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.custom-mail-tag.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 5,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.datepicker.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 6,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.email.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 7,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.error.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 8,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.file.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 9,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.image.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 10,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.monthpicker.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 11,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.number.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 12,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.password.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 13,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.radio.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 14,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.radio.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 15,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.range.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 16,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.select.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 17,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.select.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 18,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.tel.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 19,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.text.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 20,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.textarea.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 21,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.url.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 22,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/form-fields/class.zip.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 23,
+          "tier": 4,
+          "score": 6.0,
+          "site": "classes/controllers/class.contact-data-list.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 24,
+          "tier": 4,
+          "score": 6.0,
+          "site": "classes/controllers/class.contact-data-list.php:_add_csv_download_button",
+          "rank": 0.3
+        },
+        {
+          "position": 25,
+          "tier": 4,
+          "score": 6.0,
+          "site": "classes/controllers/class.main.php:_send",
+          "rank": 0.3
+        },
+        {
+          "position": 26,
+          "tier": 4,
+          "score": 6.0,
+          "site": "classes/models/class.csv.php:download",
+          "rank": 0.3
+        },
+        {
+          "position": 27,
+          "tier": 4,
+          "score": 5.0,
+          "site": "classes/controllers/class.main.php:_mwform_formkey",
+          "rank": 1.0
+        },
+        {
+          "position": 28,
+          "tier": 4,
+          "score": 5.0,
+          "site": "classes/services/class.mail.php:send_admin_mail",
+          "rank": 0.3
+        },
+        {
+          "position": 29,
+          "tier": 4,
+          "score": 4.5,
+          "site": "classes/validation-rules/class.filesize.php:rule",
+          "rank": 0.3
+        },
+        {
+          "position": 30,
+          "tier": 4,
+          "score": 4.0,
+          "site": "classes/services/class.exec-shortcode.php:_mwform",
+          "rank": 1.0
+        },
+        {
+          "position": 31,
+          "tier": 4,
+          "score": 4.0,
+          "site": "classes/controllers/class.main.php:_file_upload",
+          "rank": 0.3
+        },
+        {
+          "position": 32,
+          "tier": 4,
+          "score": 4.0,
+          "site": "classes/models/class.mail.php:_put_mail_log",
+          "rank": 0.3
+        },
+        {
+          "position": 33,
+          "tier": 4,
+          "score": 4.0,
+          "site": "classes/models/class.mail.php:send",
+          "rank": 0.3
+        },
+        {
+          "position": 34,
+          "tier": 4,
+          "score": 4.0,
+          "site": "classes/services/class.exec-shortcode.php:initialize",
+          "rank": 0.3
+        },
+        {
+          "position": 35,
+          "tier": 4,
+          "score": 4.0,
+          "site": "classes/services/class.mail-parser.php:save",
+          "rank": 0.3
+        },
+        {
+          "position": 36,
+          "tier": 4,
+          "score": 4.0,
+          "site": "classes/services/class.mail.php:send_reply_mail",
+          "rank": 0.3
+        },
+        {
+          "position": 37,
+          "tier": 4,
+          "score": 4.0,
+          "site": "classes/services/class.redirected.php:redirect_js",
+          "rank": 0.3
+        },
+        {
+          "position": 38,
+          "tier": 4,
+          "score": 4.0,
+          "site": "mw-wp-form.php:_current_screen",
+          "rank": 0.3
+        },
+        {
+          "position": 39,
+          "tier": 4,
+          "score": 3.0,
+          "site": "classes/controllers/class.admin.php:_admin_mail_options",
+          "rank": 0.3
+        },
+        {
+          "position": 40,
+          "tier": 4,
+          "score": 3.0,
+          "site": "classes/controllers/class.admin.php:_complete_message",
+          "rank": 0.3
+        },
+        {
+          "position": 41,
+          "tier": 4,
+          "score": 3.0,
+          "site": "classes/controllers/class.admin.php:_mail_options",
+          "rank": 0.3
+        },
+        {
+          "position": 42,
+          "tier": 4,
+          "score": 3.0,
+          "site": "classes/controllers/class.admin.php:_settings",
+          "rank": 0.3
+        },
+        {
+          "position": 43,
+          "tier": 4,
+          "score": 3.0,
+          "site": "classes/controllers/class.admin.php:_style",
+          "rank": 0.3
+        },
+        {
+          "position": 44,
+          "tier": 4,
+          "score": 3.0,
+          "site": "classes/controllers/class.admin.php:_url",
+          "rank": 0.3
+        },
+        {
+          "position": 45,
+          "tier": 4,
+          "score": 3.0,
+          "site": "classes/controllers/class.admin.php:_validation_rule",
+          "rank": 0.3
+        },
+        {
+          "position": 46,
+          "tier": 4,
+          "score": 3.0,
+          "site": "classes/controllers/class.chart.php:_index",
+          "rank": 0.3
+        },
+        {
+          "position": 47,
+          "tier": 4,
+          "score": 3.0,
+          "site": "classes/controllers/class.contact-data-list.php:_add_form_columns",
+          "rank": 0.3
+        },
+        {
+          "position": 48,
+          "tier": 4,
+          "score": 3.0,
+          "site": "classes/controllers/class.contact-data.php:_detail",
+          "rank": 0.3
+        },
+        {
+          "position": 49,
+          "tier": 4,
+          "score": 3.0,
+          "site": "classes/controllers/class.stores-inquiry-data-form-list.php:_index",
+          "rank": 0.3
+        },
+        {
+          "position": 50,
+          "tier": 4,
+          "score": 3.0,
+          "site": "classes/models/class.contact-data-setting.php:get_posts",
+          "rank": 0.3
+        },
+        {
+          "position": 51,
+          "tier": 4,
+          "score": 3.0,
+          "site": "classes/models/class.validation.php:check",
+          "rank": 0.3
+        },
+        {
+          "position": 52,
+          "tier": 4,
+          "score": 3.0,
+          "site": "classes/models/class.validation.php:single_check",
+          "rank": 0.3
+        },
+        {
+          "position": 53,
+          "tier": 4,
+          "score": 3.0,
+          "site": "classes/services/class.mail.php:_delete_files",
+          "rank": 0.3
+        },
+        {
+          "position": 54,
+          "tier": 4,
+          "score": 3.0,
+          "site": "mw-wp-form.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 55,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/abstract/class.form-field.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 56,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/abstract/class.form-field.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 57,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/abstract/class.form-field.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 58,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.akismet_error.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 59,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.back-button.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 60,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.back-button.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 61,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.back-button.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 62,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.button-back.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 63,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.button-back.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 64,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.button-back.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 65,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.button-button.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 66,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.button-button.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 67,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.button-button.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 68,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.button-confirm.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 69,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.button-confirm.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 70,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.button-confirm.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 71,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.button-submit.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 72,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.button-submit.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 73,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.button-submit.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 74,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.button.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 75,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.button.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 76,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.button.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 77,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.checkbox.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 78,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.confirm-button.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 79,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.confirm-button.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 80,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.confirm-button.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 81,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.custom-mail-tag.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 82,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.custom-mail-tag.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 83,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.datepicker.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 84,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.datepicker.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 85,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.email.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 86,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.email.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 87,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.error.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 88,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.error.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 89,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.file.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 90,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.file.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 91,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.hidden.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 92,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.hidden.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 93,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.hidden.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 94,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.image.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 95,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.image.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 96,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.monthpicker.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 97,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.monthpicker.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 98,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.number.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 99,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.number.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 100,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.password.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 101,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.password.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 102,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.radio.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 103,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.range.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 104,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.range.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 105,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.select.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 106,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.submit-button.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 107,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.submit-button.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 108,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.submit-button.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 109,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.submit.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 110,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.submit.php:input_page",
+          "rank": 0.3
+        },
+        {
+          "position": 111,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.submit.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 112,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.tel.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 113,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.tel.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 114,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.text.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 115,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.text.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 116,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.textarea.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 117,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.textarea.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 118,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.url.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 119,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.url.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 120,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.zip.php:confirm_page",
+          "rank": 0.3
+        },
+        {
+          "position": 121,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/form-fields/class.zip.php:mwform_tag_generator_dialog",
+          "rank": 0.3
+        },
+        {
+          "position": 122,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/models/class.data.php:regenerate_upload_file_keys",
+          "rank": 0.3
+        },
+        {
+          "position": 123,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.akismet.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 124,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.alpha.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 125,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.alphanumeric.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 126,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.between.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 127,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.date.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 128,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.eq.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 129,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.filesize.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 130,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.filetype.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 131,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.hiragana.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 132,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.in.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 133,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.kana.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 134,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.katakana.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 135,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.mail.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 136,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.maximagesize.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 137,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.minimagesize.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 138,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.minlength.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 139,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.month.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 140,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.noempty.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 141,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.nofalse.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 142,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.numeric.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 143,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.required.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 144,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.tel.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 145,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.url.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 146,
+          "tier": 3,
+          "score": 5.5,
+          "site": "classes/validation-rules/class.zip.php:admin",
+          "rank": 0.3
+        },
+        {
+          "position": 147,
+          "tier": 3,
+          "score": 5.5,
+          "site": "mw-wp-form.php:_load_initialize_files",
+          "rank": 0.3
+        },
+        {
+          "position": 148,
+          "tier": 3,
+          "score": 5.5,
+          "site": "mw-wp-form.php:_uninstall",
+          "rank": 0.3
+        },
+        {
+          "position": 149,
+          "tier": 3,
+          "score": 4.5,
+          "site": "classes/abstract/class.form-field.php:set_defaults",
+          "rank": 0.3
+        }
+      ],
+      "build_seconds": 45.2,
+      "evidence_seconds": 80.3,
+      "pairs": 4915,
+      "pairs_unanswered": 0,
+      "tier_counts": {
+        "0": 4592,
+        "1": 43,
+        "3": 210,
+        "4": 70
+      }
+    },
+    {
+      "repo": "pmpro",
+      "regions": 4463,
+      "distinct_ranks": 5,
+      "largest_tier_share": 0.838,
+      "largest_tier_rank": 0.3,
+      "budget_at_recall": 82,
+      "known": [
+        {
+          "id": "CVE-2023-23488",
+          "family": "injection",
+          "site": "classes/class.memberorder.php:936:getMemberOrderByCode",
+          "position": 81,
+          "rank": 0.3,
+          "in_scope": true,
+          "reached_transitively": false
+        }
+      ],
+      "head": [
+        {
+          "position": 0,
+          "tier": 4,
+          "score": 11.0,
+          "site": "shortcodes/pmpro_member_profile_edit.php:pmpro_shortcode_member_profile_edit",
+          "rank": 1.0
+        },
+        {
+          "position": 1,
+          "tier": 4,
+          "score": 10.0,
+          "site": "includes/email.php:pmpro_email_templates_send_test",
+          "rank": 0.8
+        },
+        {
+          "position": 2,
+          "tier": 4,
+          "score": 10.0,
+          "site": "includes/services.php:pmpro_get_order_json",
+          "rank": 0.8
+        },
+        {
+          "position": 3,
+          "tier": 4,
+          "score": 10.0,
+          "site": "adminpages/functions.php:pmpro_add_email_order_modal",
+          "rank": 0.3
+        },
+        {
+          "position": 4,
+          "tier": 4,
+          "score": 10.0,
+          "site": "classes/class-pmpro-field.php:displayAtCheckout",
+          "rank": 0.3
+        },
+        {
+          "position": 5,
+          "tier": 4,
+          "score": 10.0,
+          "site": "classes/gateways/class.pmprogateway_cybersource.php:authorize",
+          "rank": 0.3
+        },
+        {
+          "position": 6,
+          "tier": 4,
+          "score": 10.0,
+          "site": "classes/gateways/class.pmprogateway_cybersource.php:charge",
+          "rank": 0.3
+        },
+        {
+          "position": 7,
+          "tier": 4,
+          "score": 10.0,
+          "site": "classes/gateways/class.pmprogateway_payflowpro.php:authorize",
+          "rank": 0.3
+        },
+        {
+          "position": 8,
+          "tier": 4,
+          "score": 10.0,
+          "site": "classes/gateways/class.pmprogateway_payflowpro.php:charge",
+          "rank": 0.3
+        },
+        {
+          "position": 9,
+          "tier": 4,
+          "score": 10.0,
+          "site": "classes/gateways/class.pmprogateway_paypal.php:authorize",
+          "rank": 0.3
+        },
+        {
+          "position": 10,
+          "tier": 4,
+          "score": 10.0,
+          "site": "classes/gateways/class.pmprogateway_paypal.php:charge",
+          "rank": 0.3
+        },
+        {
+          "position": 11,
+          "tier": 4,
+          "score": 10.0,
+          "site": "classes/gateways/class.pmprogateway_paypalexpress.php:pmpro_checkout_confirmed",
+          "rank": 0.3
+        },
+        {
+          "position": 12,
+          "tier": 4,
+          "score": 10.0,
+          "site": "classes/gateways/class.pmprogateway_stripe.php:pmpro_payment_option_fields",
+          "rank": 0.3
+        },
+        {
+          "position": 13,
+          "tier": 4,
+          "score": 10.0,
+          "site": "classes/gateways/class.pmprogateway_stripe.php:user_profile_fields_save",
+          "rank": 0.3
+        },
+        {
+          "position": 14,
+          "tier": 4,
+          "score": 10.0,
+          "site": "includes/functions.php:pmpro_changeMembershipLevel",
+          "rank": 0.3
+        },
+        {
+          "position": 15,
+          "tier": 4,
+          "score": 10.0,
+          "site": "includes/profile.php:pmpro_member_profile_edit_form",
+          "rank": 0.3
+        },
+        {
+          "position": 16,
+          "tier": 4,
+          "score": 10.0,
+          "site": "includes/profile.php:pmpro_membership_level_profile_fields_update",
+          "rank": 0.3
+        },
+        {
+          "position": 17,
+          "tier": 4,
+          "score": 10.0,
+          "site": "includes/updates/upgrade_1_8_9_3.php:pmpro_upgrade_1_8_9_3_ajax",
+          "rank": 0.3
+        },
+        {
+          "position": 18,
+          "tier": 4,
+          "score": 10.0,
+          "site": "services/ipnhandler.php:pmpro_ipnChangeMembershipLevel",
+          "rank": 0.3
+        },
+        {
+          "position": 19,
+          "tier": 4,
+          "score": 10.0,
+          "site": "services/ipnhandler.php:pmpro_ipnFailedPayment",
+          "rank": 0.3
+        },
+        {
+          "position": 20,
+          "tier": 4,
+          "score": 10.0,
+          "site": "services/ipnhandler.php:pmpro_ipnSaveOrder",
+          "rank": 0.3
+        },
+        {
+          "position": 21,
+          "tier": 4,
+          "score": 10.0,
+          "site": "services/stripe-webhook.php:pmpro_stripe_webhook_change_membership_level",
+          "rank": 0.3
+        },
+        {
+          "position": 22,
+          "tier": 4,
+          "score": 10.0,
+          "site": "services/twocheckout-ins.php:pmpro_insChangeMembershipLevel",
+          "rank": 0.3
+        },
+        {
+          "position": 23,
+          "tier": 4,
+          "score": 10.0,
+          "site": "services/twocheckout-ins.php:pmpro_insSaveOrder",
+          "rank": 0.3
+        },
+        {
+          "position": 24,
+          "tier": 4,
+          "score": 9.0,
+          "site": "classes/class-pmpro-wisdom-tracker.php:marketing_notice",
+          "rank": 0.3
+        },
+        {
+          "position": 25,
+          "tier": 4,
+          "score": 9.0,
+          "site": "classes/class-pmpro-wisdom-tracker.php:optin_notice",
+          "rank": 0.3
+        },
+        {
+          "position": 26,
+          "tier": 4,
+          "score": 9.0,
+          "site": "classes/gateways/class.pmprogateway_braintree.php:cancel",
+          "rank": 0.3
+        },
+        {
+          "position": 27,
+          "tier": 4,
+          "score": 9.0,
+          "site": "classes/gateways/class.pmprogateway_paypalexpress.php:cancel",
+          "rank": 0.3
+        },
+        {
+          "position": 28,
+          "tier": 4,
+          "score": 9.0,
+          "site": "classes/gateways/class.pmprogateway_stripe.php:cancel",
+          "rank": 0.3
+        },
+        {
+          "position": 29,
+          "tier": 4,
+          "score": 9.0,
+          "site": "classes/gateways/class.pmprogateway_stripe.php:pmpro_checkout_before_change_membership_level",
+          "rank": 0.3
+        },
+        {
+          "position": 30,
+          "tier": 4,
+          "score": 8.5,
+          "site": "includes/notifications.php:pmpro_notifications",
+          "rank": 0.8
+        },
+        {
+          "position": 31,
+          "tier": 4,
+          "score": 8.5,
+          "site": "adminpages/reports/login.php:pmpro_report_login_page",
+          "rank": 0.3
+        },
+        {
+          "position": 32,
+          "tier": 4,
+          "score": 8.5,
+          "site": "adminpages/reports/memberships.php:pmpro_report_memberships_page",
+          "rank": 0.3
+        },
+        {
+          "position": 33,
+          "tier": 4,
+          "score": 8.5,
+          "site": "adminpages/reports/sales.php:pmpro_report_sales_page",
+          "rank": 0.3
+        },
+        {
+          "position": 34,
+          "tier": 4,
+          "score": 8.5,
+          "site": "classes/class-pmpro-field.php:saveFile",
+          "rank": 0.3
+        },
+        {
+          "position": 35,
+          "tier": 4,
+          "score": 8.5,
+          "site": "classes/class-pmpro-members-list-table.php:no_items",
+          "rank": 0.3
+        },
+        {
+          "position": 36,
+          "tier": 4,
+          "score": 8.5,
+          "site": "classes/gateways/class.pmprogateway_braintree.php:pmpro_include_payment_information_fields",
+          "rank": 0.3
+        },
+        {
+          "position": 37,
+          "tier": 4,
+          "score": 8.5,
+          "site": "includes/addons.php:pmpro_admin_init_updating_plugins",
+          "rank": 0.3
+        },
+        {
+          "position": 38,
+          "tier": 4,
+          "score": 8.5,
+          "site": "includes/functions.php:pmpro_get_ip",
+          "rank": 0.3
+        },
+        {
+          "position": 39,
+          "tier": 4,
+          "score": 8.5,
+          "site": "includes/login.php:pmpro_login_forms_handler",
+          "rank": 0.3
+        },
+        {
+          "position": 40,
+          "tier": 4,
+          "score": 8.5,
+          "site": "includes/login.php:pmpro_reset_password_form",
+          "rank": 0.3
+        },
+        {
+          "position": 41,
+          "tier": 4,
+          "score": 8.5,
+          "site": "includes/scripts.php:pmpro_enqueue_scripts",
+          "rank": 0.3
+        },
+        {
+          "position": 42,
+          "tier": 4,
+          "score": 8.5,
+          "site": "services/ipnhandler.php:pmpro_ipnValidate",
+          "rank": 0.3
+        },
+        {
+          "position": 43,
+          "tier": 4,
+          "score": 8.0,
+          "site": "shortcodes/pmpro_account.php:pmpro_shortcode_account",
+          "rank": 1.0
+        },
+        {
+          "position": 44,
+          "tier": 4,
+          "score": 8.0,
+          "site": "shortcodes/pmpro_member.php:pmpro_member_shortcode",
+          "rank": 1.0
+        },
+        {
+          "position": 45,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/cleanup.php:pmpro_delete_user",
+          "rank": 0.3
+        },
+        {
+          "position": 46,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/compatibility/divi.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 47,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/fields.php:pmpro_checkout_after_billing_fields",
+          "rank": 0.3
+        },
+        {
+          "position": 48,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/fields.php:pmpro_checkout_after_captcha_fields",
+          "rank": 0.3
+        },
+        {
+          "position": 49,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/fields.php:pmpro_checkout_after_email_fields",
+          "rank": 0.3
+        },
+        {
+          "position": 50,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/fields.php:pmpro_checkout_after_password_fields",
+          "rank": 0.3
+        },
+        {
+          "position": 51,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/fields.php:pmpro_checkout_after_pricing_fields",
+          "rank": 0.3
+        },
+        {
+          "position": 52,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/fields.php:pmpro_checkout_after_tos_fields",
+          "rank": 0.3
+        },
+        {
+          "position": 53,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/fields.php:pmpro_checkout_after_username_fields",
+          "rank": 0.3
+        },
+        {
+          "position": 54,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/fields.php:pmpro_checkout_before_submit_button_fields",
+          "rank": 0.3
+        },
+        {
+          "position": 55,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/fields.php:pmpro_checkout_boxes_fields",
+          "rank": 0.3
+        },
+        {
+          "position": 56,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/fields.php:pmpro_display_fields_in_group",
+          "rank": 0.3
+        },
+        {
+          "position": 57,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/fields.php:pmpro_show_user_fields_in_frontend_profile",
+          "rank": 0.3
+        },
+        {
+          "position": 58,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/fields.php:pmpro_show_user_fields_in_frontend_profile_with_locations",
+          "rank": 0.3
+        },
+        {
+          "position": 59,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/functions.php:pmpro_cancelMembershipLevel",
+          "rank": 0.3
+        },
+        {
+          "position": 60,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/profile.php:pmpro_membership_history_email_modal",
+          "rank": 0.3
+        },
+        {
+          "position": 61,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/upgradecheck.php:pmpro_checkForUpgrades",
+          "rank": 0.3
+        },
+        {
+          "position": 62,
+          "tier": 4,
+          "score": 8.0,
+          "site": "scheduled/crons.php:pmpro_cron_expire_memberships",
+          "rank": 0.3
+        },
+        {
+          "position": 63,
+          "tier": 4,
+          "score": 8.0,
+          "site": "services/twocheckout-ins.php:pmpro_insRecurringRestarted",
+          "rank": 0.3
+        },
+        {
+          "position": 64,
+          "tier": 4,
+          "score": 8.0,
+          "site": "services/twocheckout-ins.php:pmpro_insRecurringStopped",
+          "rank": 0.3
+        },
+        {
+          "position": 65,
+          "tier": 4,
+          "score": 7.5,
+          "site": "shortcodes/pmpro_login.php:pmpro_shortcode_login",
+          "rank": 1.0
+        },
+        {
+          "position": 66,
+          "tier": 4,
+          "score": 7.5,
+          "site": "includes/fields.php:pmpro_registration_checks_for_user_fields",
+          "rank": 0.3
+        },
+        {
+          "position": 67,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/recaptcha.php:pmpro_wp_ajax_validate_recaptcha",
+          "rank": 1.0
+        },
+        {
+          "position": 68,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class-pmpro-wisdom-tracker.php:goodbye_form_callback",
+          "rank": 0.8
+        },
+        {
+          "position": 69,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/rest-api.php:pmpro_rest_api_get_order",
+          "rank": 0.8
+        },
+        {
+          "position": 70,
+          "tier": 4,
+          "score": 7.0,
+          "site": "adminpages/dashboard.php:pmpro_dashboard_report_recent_orders_callback",
+          "rank": 0.3
+        },
+        {
+          "position": 71,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class-pmpro-admin-activity-email.php:sendAdminActivity",
+          "rank": 0.3
+        },
+        {
+          "position": 72,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class-pmpro-field.php:displayInProfile",
+          "rank": 0.3
+        },
+        {
+          "position": 73,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class-pmpro-levels.php:delete",
+          "rank": 0.3
+        },
+        {
+          "position": 74,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class-pmpro-site-health.php:debug_information",
+          "rank": 0.3
+        },
+        {
+          "position": 75,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class-pmpro-wisdom-tracker.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 76,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class-pmpro-wisdom-tracker.php:get_data",
+          "rank": 0.3
+        },
+        {
+          "position": 77,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class-pmpro-wisdom-tracker.php:goodbye_ajax",
+          "rank": 0.3
+        },
+        {
+          "position": 78,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.memberorder.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 79,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.memberorder.php:cancel",
+          "rank": 0.3
+        },
+        {
+          "position": 80,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.memberorder.php:getLastMemberOrder",
+          "rank": 0.3
+        },
+        {
+          "position": 81,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.memberorder.php:getMemberOrderByCode",
+          "rank": 0.3
+        },
+        {
+          "position": 82,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.memberorder.php:getMemberOrderByPayPalToken",
+          "rank": 0.3
+        },
+        {
+          "position": 83,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.memberorder.php:get_order",
+          "rank": 0.3
+        },
+        {
+          "position": 84,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.memberorder.php:get_orders",
+          "rank": 0.3
+        },
+        {
+          "position": 85,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.memberorder.php:get_original_subscription_order",
+          "rank": 0.3
+        },
+        {
+          "position": 86,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.memberorder.php:saveOrder",
+          "rank": 0.3
+        },
+        {
+          "position": 87,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.memberorder.php:updateTimestamp",
+          "rank": 0.3
+        },
+        {
+          "position": 88,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:add_from_to_headers",
+          "rank": 0.3
+        },
+        {
+          "position": 89,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendAdminChangeAdminEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 90,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendAdminChangeEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 91,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendBillableInvoiceEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 92,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendBillingAdminEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 93,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendBillingEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 94,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendBillingFailureAdminEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 95,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendBillingFailureEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 96,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendCancelAdminEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 97,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendCancelEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 98,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendCheckoutAdminEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 99,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendCheckoutEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 100,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendCreditCardExpiringEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 101,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 102,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendInvoiceEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 103,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendMembershipExpiredEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 104,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendMembershipExpiringEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 105,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendPaymentActionRequiredAdminEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 106,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendPaymentActionRequiredEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 107,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendRefundedAdminEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 108,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendRefundedEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 109,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/class.pmproemail.php:sendTrialEndingEmail",
+          "rank": 0.3
+        },
+        {
+          "position": 110,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway.php:authorize",
+          "rank": 0.3
+        },
+        {
+          "position": 111,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway.php:charge",
+          "rank": 0.3
+        },
+        {
+          "position": 112,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_authorizenet.php:authorize",
+          "rank": 0.3
+        },
+        {
+          "position": 113,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_authorizenet.php:cancel",
+          "rank": 0.3
+        },
+        {
+          "position": 114,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_authorizenet.php:charge",
+          "rank": 0.3
+        },
+        {
+          "position": 115,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_authorizenet.php:subscribe",
+          "rank": 0.3
+        },
+        {
+          "position": 116,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_authorizenet.php:update",
+          "rank": 0.3
+        },
+        {
+          "position": 117,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_braintree.php:charge",
+          "rank": 0.3
+        },
+        {
+          "position": 118,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_braintree.php:pmpro_next_payment",
+          "rank": 0.3
+        },
+        {
+          "position": 119,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_check.php:authorize",
+          "rank": 0.3
+        },
+        {
+          "position": 120,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_check.php:charge",
+          "rank": 0.3
+        },
+        {
+          "position": 121,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_paypal.php:cancel",
+          "rank": 0.3
+        },
+        {
+          "position": 122,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_paypalexpress.php:charge",
+          "rank": 0.3
+        },
+        {
+          "position": 123,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_paypalexpress.php:confirm",
+          "rank": 0.3
+        },
+        {
+          "position": 124,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_paypalexpress.php:getExpressCheckoutDetails",
+          "rank": 0.3
+        },
+        {
+          "position": 125,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_paypalexpress.php:pmpro_checkout_before_processing",
+          "rank": 0.3
+        },
+        {
+          "position": 126,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_paypalexpress.php:pmpro_next_payment",
+          "rank": 0.3
+        },
+        {
+          "position": 127,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_paypalexpress.php:process",
+          "rank": 0.3
+        },
+        {
+          "position": 128,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_paypalexpress.php:process_refund",
+          "rank": 0.3
+        },
+        {
+          "position": 129,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_paypalexpress.php:setExpressCheckout",
+          "rank": 0.3
+        },
+        {
+          "position": 130,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_paypalexpress.php:subscribe",
+          "rank": 0.3
+        },
+        {
+          "position": 131,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_stripe.php:charge",
+          "rank": 0.3
+        },
+        {
+          "position": 132,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_stripe.php:get_customer_for_user",
+          "rank": 0.3
+        },
+        {
+          "position": 133,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_stripe.php:pmpro_billing_preheader_stripe_checkout",
+          "rank": 0.3
+        },
+        {
+          "position": 134,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_stripe.php:pmpro_checkout_before_processing",
+          "rank": 0.3
+        },
+        {
+          "position": 135,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_stripe.php:pmpro_cron_stripe_subscription_updates",
+          "rank": 0.3
+        },
+        {
+          "position": 136,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_stripe.php:pmpro_next_payment",
+          "rank": 0.3
+        },
+        {
+          "position": 137,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_stripe.php:process",
+          "rank": 0.3
+        },
+        {
+          "position": 138,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_stripe.php:process_refund",
+          "rank": 0.3
+        },
+        {
+          "position": 139,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_stripe.php:refund",
+          "rank": 0.3
+        },
+        {
+          "position": 140,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_stripe.php:show_stripe_checkout_pending_warning",
+          "rank": 0.3
+        },
+        {
+          "position": 141,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_stripe.php:updateSubscription",
+          "rank": 0.3
+        },
+        {
+          "position": 142,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_stripe.php:update_customer_at_checkout",
+          "rank": 0.3
+        },
+        {
+          "position": 143,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_stripe.php:update_customer_from_user",
+          "rank": 0.3
+        },
+        {
+          "position": 144,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_stripe.php:user_profile_fields",
+          "rank": 0.3
+        },
+        {
+          "position": 145,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_stripe.php:void",
+          "rank": 0.3
+        },
+        {
+          "position": 146,
+          "tier": 4,
+          "score": 7.0,
+          "site": "classes/gateways/class.pmprogateway_twocheckout.php:cancel",
+          "rank": 0.3
+        },
+        {
+          "position": 147,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/email.php:pmpro_email_templates_email_data",
+          "rank": 0.3
+        },
+        {
+          "position": 148,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/fields.php:pmpro_add_member_admin_fields",
+          "rank": 0.3
+        },
+        {
+          "position": 149,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/fields.php:pmpro_show_user_fields_in_profile",
+          "rank": 0.3
+        }
+      ],
+      "build_seconds": 129.9,
+      "evidence_seconds": 295.7,
+      "pairs": 22315,
+      "pairs_unanswered": 0,
+      "tier_counts": {
+        "0": 21240,
+        "1": 79,
+        "2": 85,
+        "3": 331,
+        "4": 580
+      }
+    },
+    {
+      "repo": "vampi",
+      "regions": 25,
+      "distinct_ranks": 5,
+      "largest_tier_share": 0.36,
+      "largest_tier_rank": 1.0,
+      "budget_at_recall": 16,
+      "known": [
+        {
+          "id": "VAmPI-SQLI",
+          "family": "injection",
+          "site": "models/user_model.py:73:get_user",
+          "position": null,
+          "rank": null,
+          "in_scope": true,
+          "reached_transitively": true
+        },
+        {
+          "id": "VAmPI-BOLA",
+          "family": "access_control",
+          "site": "api_views/users.py:187:update_password",
+          "position": 15,
+          "rank": 0.8,
+          "in_scope": true,
+          "reached_transitively": false
+        },
+        {
+          "id": "VAmPI-BOLA-BOOKS",
+          "family": "access_control",
+          "site": "api_views/books.py:51:get_by_title",
+          "position": 10,
+          "rank": 0.8,
+          "in_scope": true,
+          "reached_transitively": false
+        }
+      ],
+      "head": [
+        {
+          "position": 0,
+          "tier": 4,
+          "score": 2.5,
+          "site": "api_views/users.py:get_by_username",
+          "rank": 1.0
+        },
+        {
+          "position": 1,
+          "tier": 1,
+          "score": 3.0,
+          "site": "models/user_model.py:",
+          "rank": 1.0
+        },
+        {
+          "position": 2,
+          "tier": 0,
+          "score": 0.0,
+          "site": "api_views/books.py:get_all_books",
+          "rank": 1.0
+        },
+        {
+          "position": 3,
+          "tier": 0,
+          "score": 0.0,
+          "site": "api_views/main.py:basic",
+          "rank": 1.0
+        },
+        {
+          "position": 4,
+          "tier": 0,
+          "score": 0.0,
+          "site": "api_views/main.py:populate_db",
+          "rank": 1.0
+        },
+        {
+          "position": 5,
+          "tier": 0,
+          "score": 0.0,
+          "site": "api_views/users.py:debug",
+          "rank": 1.0
+        },
+        {
+          "position": 6,
+          "tier": 0,
+          "score": 0.0,
+          "site": "api_views/users.py:get_all_users",
+          "rank": 1.0
+        },
+        {
+          "position": 7,
+          "tier": 0,
+          "score": 0.0,
+          "site": "api_views/users.py:login_user",
+          "rank": 1.0
+        },
+        {
+          "position": 8,
+          "tier": 0,
+          "score": 0.0,
+          "site": "api_views/users.py:register_user",
+          "rank": 1.0
+        },
+        {
+          "position": 9,
+          "tier": 0,
+          "score": 0.0,
+          "site": "api_views/books.py:add_new_book",
+          "rank": 0.8
+        },
+        {
+          "position": 10,
+          "tier": 0,
+          "score": 0.0,
+          "site": "api_views/books.py:get_by_title",
+          "rank": 0.8
+        },
+        {
+          "position": 11,
+          "tier": 0,
+          "score": 0.0,
+          "site": "api_views/json_schemas.py:",
+          "rank": 0.8
+        },
+        {
+          "position": 12,
+          "tier": 0,
+          "score": 0.0,
+          "site": "api_views/users.py:delete_user",
+          "rank": 0.8
+        },
+        {
+          "position": 13,
+          "tier": 0,
+          "score": 0.0,
+          "site": "api_views/users.py:me",
+          "rank": 0.8
+        },
+        {
+          "position": 14,
+          "tier": 0,
+          "score": 0.0,
+          "site": "api_views/users.py:update_email",
+          "rank": 0.8
+        },
+        {
+          "position": 15,
+          "tier": 0,
+          "score": 0.0,
+          "site": "api_views/users.py:update_password",
+          "rank": 0.8
+        },
+        {
+          "position": 16,
+          "tier": 0,
+          "score": 0.0,
+          "site": "app.py:<module>",
+          "rank": 0.2
+        },
+        {
+          "position": 17,
+          "tier": 0,
+          "score": 0.0,
+          "site": "api_views/books.py:<module>",
+          "rank": 0.15
+        },
+        {
+          "position": 18,
+          "tier": 0,
+          "score": 0.0,
+          "site": "api_views/main.py:<module>",
+          "rank": 0.15
+        },
+        {
+          "position": 19,
+          "tier": 0,
+          "score": 0.0,
+          "site": "api_views/users.py:<module>",
+          "rank": 0.15
+        },
+        {
+          "position": 20,
+          "tier": 0,
+          "score": 0.0,
+          "site": "api_views/__init__.py:",
+          "rank": 0.1
+        },
+        {
+          "position": 21,
+          "tier": 0,
+          "score": 0.0,
+          "site": "config.py:",
+          "rank": 0.1
+        },
+        {
+          "position": 22,
+          "tier": 0,
+          "score": 0.0,
+          "site": "database/__init__.py:",
+          "rank": 0.1
+        },
+        {
+          "position": 23,
+          "tier": 0,
+          "score": 0.0,
+          "site": "models/__init__.py:",
+          "rank": 0.1
+        },
+        {
+          "position": 24,
+          "tier": 0,
+          "score": 0.0,
+          "site": "models/books_model.py:",
+          "rank": 0.1
+        }
+      ],
+      "build_seconds": 5.6,
+      "evidence_seconds": 18.4,
+      "pairs": 125,
+      "pairs_unanswered": 0,
+      "tier_counts": {
+        "0": 123,
+        "1": 1,
+        "4": 1
+      }
+    },
+    {
+      "repo": "wpstatistics",
+      "regions": 824,
+      "distinct_ranks": 6,
+      "largest_tier_share": 0.752,
+      "largest_tier_rank": 0.3,
+      "budget_at_recall": 91,
+      "known": [
+        {
+          "id": "CVE-2022-25148",
+          "family": "injection",
+          "site": "includes/class-wp-statistics-pages.php:225:record",
+          "position": 90,
+          "rank": 0.3,
+          "in_scope": true,
+          "reached_transitively": false
+        }
+      ],
+      "head": [
+        {
+          "position": 0,
+          "tier": 4,
+          "score": 10.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-authors.php:view",
+          "rank": 0.3
+        },
+        {
+          "position": 1,
+          "tier": 4,
+          "score": 10.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-category.php:view",
+          "rank": 0.3
+        },
+        {
+          "position": 2,
+          "tier": 4,
+          "score": 10.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-pages.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 3,
+          "tier": 4,
+          "score": 10.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-refer.php:view",
+          "rank": 0.3
+        },
+        {
+          "position": 4,
+          "tier": 4,
+          "score": 10.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-tags.php:view",
+          "rank": 0.3
+        },
+        {
+          "position": 5,
+          "tier": 4,
+          "score": 10.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-visitors.php:view",
+          "rank": 0.3
+        },
+        {
+          "position": 6,
+          "tier": 4,
+          "score": 9.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-category.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 7,
+          "tier": 4,
+          "score": 9.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-tags.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 8,
+          "tier": 4,
+          "score": 9.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-top-visitors-today.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 9,
+          "tier": 4,
+          "score": 8.5,
+          "site": "includes/admin/class-wp-statistics-admin-ajax.php:visitors_page_filters_action_callback",
+          "rank": 0.3
+        },
+        {
+          "position": 10,
+          "tier": 4,
+          "score": 8.5,
+          "site": "includes/admin/class-wp-statistics-admin-assets.php:admin_scripts",
+          "rank": 0.3
+        },
+        {
+          "position": 11,
+          "tier": 4,
+          "score": 8.5,
+          "site": "includes/admin/class-wp-statistics-admin-assets.php:wps_global",
+          "rank": 0.3
+        },
+        {
+          "position": 12,
+          "tier": 4,
+          "score": 8.5,
+          "site": "includes/admin/class-wp-statistics-admin-export.php:export_data",
+          "rank": 0.3
+        },
+        {
+          "position": 13,
+          "tier": 4,
+          "score": 8.5,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-optimization.php:optimize_table",
+          "rank": 0.3
+        },
+        {
+          "position": 14,
+          "tier": 4,
+          "score": 8.5,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-optimization.php:save",
+          "rank": 0.3
+        },
+        {
+          "position": 15,
+          "tier": 4,
+          "score": 8.5,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-plugins.php:view",
+          "rank": 0.3
+        },
+        {
+          "position": 16,
+          "tier": 4,
+          "score": 8.5,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-settings.php:notice",
+          "rank": 0.3
+        },
+        {
+          "position": 17,
+          "tier": 4,
+          "score": 8.5,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-settings.php:save_external_option",
+          "rank": 0.3
+        },
+        {
+          "position": 18,
+          "tier": 4,
+          "score": 8.5,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-top-visitors-today.php:view",
+          "rank": 0.3
+        },
+        {
+          "position": 19,
+          "tier": 4,
+          "score": 8.5,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-words.php:view",
+          "rank": 0.3
+        },
+        {
+          "position": 20,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-hitsmap.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 21,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-authors.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 22,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-browsers.php:view",
+          "rank": 0.3
+        },
+        {
+          "position": 23,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-country.php:view",
+          "rank": 0.3
+        },
+        {
+          "position": 24,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-exclusions.php:view",
+          "rank": 0.3
+        },
+        {
+          "position": 25,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-hits.php:view",
+          "rank": 0.3
+        },
+        {
+          "position": 26,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-online.php:view",
+          "rank": 0.3
+        },
+        {
+          "position": 27,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-pages.php:custom_page_statistics",
+          "rank": 0.3
+        },
+        {
+          "position": 28,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-pages.php:view",
+          "rank": 0.3
+        },
+        {
+          "position": 29,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-platforms.php:view",
+          "rank": 0.3
+        },
+        {
+          "position": 30,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-searches.php:view",
+          "rank": 0.3
+        },
+        {
+          "position": 31,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/class-wp-statistics-referred.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 32,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/class-wp-statistics.php:plugin_setup",
+          "rank": 0.3
+        },
+        {
+          "position": 33,
+          "tier": 4,
+          "score": 8.0,
+          "site": "includes/template-functions.php:wp_statistics_pages",
+          "rank": 0.3
+        },
+        {
+          "position": 34,
+          "tier": 4,
+          "score": 7.5,
+          "site": "includes/admin/class-wp-statistics-admin-ajax.php:empty_table_action_callback",
+          "rank": 0.3
+        },
+        {
+          "position": 35,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/class-wp-statistics-admin-dashboard.php:load_dashboard_widget",
+          "rank": 0.3
+        },
+        {
+          "position": 36,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/class-wp-statistics-admin-dashboard.php:set_user_hidden_dashboard_option",
+          "rank": 0.3
+        },
+        {
+          "position": 37,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/class-wp-statistics-admin-template.php:DateRange",
+          "rank": 0.3
+        },
+        {
+          "position": 38,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-about.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 39,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-browsers.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 40,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-countries.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 41,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-exclusions.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 42,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-hits.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 43,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-pages-chart.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 44,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-pages.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 45,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-platforms.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 46,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-post.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 47,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-quickstats.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 48,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-referring.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 49,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-search.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 50,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-summary.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 51,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-top-pages-chart.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 52,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-top-visitors.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 53,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-useronline.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 54,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-words.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 55,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-browsers.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 56,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-country.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 57,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-exclusions.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 58,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-hits.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 59,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-online.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 60,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-optimization.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 61,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-platforms.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 62,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-plugins.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 63,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-refer.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 64,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-searches.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 65,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-settings.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 66,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-visitors.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 67,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-words.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 68,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/class-wp-statistics-cli.php:online",
+          "rank": 0.3
+        },
+        {
+          "position": 69,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/class-wp-statistics-exclusion.php:exclusion_robot_threshold",
+          "rank": 0.3
+        },
+        {
+          "position": 70,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/class-wp-statistics-geoip.php:getCountry",
+          "rank": 0.3
+        },
+        {
+          "position": 71,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/class-wp-statistics-historical.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 72,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/class-wp-statistics-hits.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 73,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/class-wp-statistics-install.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 74,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/class-wp-statistics-option.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 75,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/class-wp-statistics-referred.php:get_referer_from_domain",
+          "rank": 0.3
+        },
+        {
+          "position": 76,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/class-wp-statistics-schedule.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 77,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/class-wp-statistics-search-engine.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 78,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/class-wp-statistics-search-engine.php:getLastSearchWord",
+          "rank": 0.3
+        },
+        {
+          "position": 79,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/class-wp-statistics-uninstall.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 80,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/class-wp-statistics-user-online.php:add_user_online",
+          "rank": 0.3
+        },
+        {
+          "position": 81,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/class-wp-statistics-user-online.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 82,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/class-wp-statistics-user.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 83,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/class-wp-statistics-visitor.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 84,
+          "tier": 4,
+          "score": 7.0,
+          "site": "includes/template-functions.php:wp_statistics_get_top_pages",
+          "rank": 0.3
+        },
+        {
+          "position": 85,
+          "tier": 4,
+          "score": 6.5,
+          "site": "includes/class-wp-statistics-shortcode.php:shortcodes",
+          "rank": 1.0
+        },
+        {
+          "position": 86,
+          "tier": 4,
+          "score": 6.5,
+          "site": "includes/api/v2/class-wp-statistics-api-hit.php:hit_callback",
+          "rank": 0.8
+        },
+        {
+          "position": 87,
+          "tier": 4,
+          "score": 6.5,
+          "site": "includes/class-wp-statistics-hits.php:record",
+          "rank": 0.3
+        },
+        {
+          "position": 88,
+          "tier": 4,
+          "score": 6.5,
+          "site": "includes/class-wp-statistics-hits.php:record_login_page_hits",
+          "rank": 0.3
+        },
+        {
+          "position": 89,
+          "tier": 4,
+          "score": 6.5,
+          "site": "includes/class-wp-statistics-hits.php:record_wp_hits",
+          "rank": 0.3
+        },
+        {
+          "position": 90,
+          "tier": 4,
+          "score": 6.5,
+          "site": "includes/class-wp-statistics-pages.php:record",
+          "rank": 0.3
+        },
+        {
+          "position": 91,
+          "tier": 4,
+          "score": 6.5,
+          "site": "includes/class-wp-statistics-search-engine.php:record",
+          "rank": 0.3
+        },
+        {
+          "position": 92,
+          "tier": 4,
+          "score": 6.5,
+          "site": "includes/class-wp-statistics-user-online.php:record",
+          "rank": 0.3
+        },
+        {
+          "position": 93,
+          "tier": 4,
+          "score": 6.5,
+          "site": "includes/class-wp-statistics-visitor.php:record",
+          "rank": 0.3
+        },
+        {
+          "position": 94,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/admin/TinyMCE/class-wp-statistics-tinymce.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 95,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/admin/class-wp-statistics-admin-ajax.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 96,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/admin/class-wp-statistics-admin-ajax.php:purge_data_action_callback",
+          "rank": 0.3
+        },
+        {
+          "position": 97,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/admin/class-wp-statistics-admin-assets.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 98,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/admin/class-wp-statistics-admin-dashboard.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 99,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/admin/class-wp-statistics-admin-export.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 100,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/admin/class-wp-statistics-admin-network.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 101,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/admin/class-wp-statistics-admin-notices.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 102,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/admin/class-wp-statistics-admin-post.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 103,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/admin/class-wp-statistics-admin-taxonomy.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 104,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/admin/class-wp-statistics-admin-user.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 105,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-recent.php:get",
+          "rank": 0.3
+        },
+        {
+          "position": 106,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/admin/meta-box/wp-statistics-meta-box-summary.php:getSummaryHits",
+          "rank": 0.3
+        },
+        {
+          "position": 107,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-overview.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 108,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-words.php:set_all_option_datepicker",
+          "rank": 0.3
+        },
+        {
+          "position": 109,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/api/v2/class-wp-statistics-api-hit.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 110,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/api/v2/class-wp-statistics-api-meta-box.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 111,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/class-wp-statistics-admin-bar.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 112,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/class-wp-statistics-frontend.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 113,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/class-wp-statistics-helper.php:set_all_option_datepicker",
+          "rank": 0.3
+        },
+        {
+          "position": 114,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/class-wp-statistics-menus.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 115,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/class-wp-statistics-referred.php:PrepareReferData",
+          "rank": 0.3
+        },
+        {
+          "position": 116,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/class-wp-statistics-referred.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 117,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/class-wp-statistics-rest-api.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 118,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/class-wp-statistics-shortcode.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 119,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/class-wp-statistics-user-online.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 120,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/class-wp-statistics-visitor.php:PrepareData",
+          "rank": 0.3
+        },
+        {
+          "position": 121,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/class-wp-statistics-widget.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 122,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/class-wp-statistics.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 123,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/libraries/ExportData.php:__construct",
+          "rank": 0.3
+        },
+        {
+          "position": 124,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/template-functions.php:wp_statistics_get_current_user_data",
+          "rank": 0.3
+        },
+        {
+          "position": 125,
+          "tier": 4,
+          "score": 6.0,
+          "site": "includes/template-functions.php:wp_statistics_get_user_location",
+          "rank": 0.3
+        },
+        {
+          "position": 126,
+          "tier": 4,
+          "score": 5.5,
+          "site": "includes/admin/class-wp-statistics-admin-ajax.php:purge_visitor_hits_action_callback",
+          "rank": 0.3
+        },
+        {
+          "position": 127,
+          "tier": 4,
+          "score": 5.5,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-settings.php:save_general_option",
+          "rank": 0.3
+        },
+        {
+          "position": 128,
+          "tier": 4,
+          "score": 5.0,
+          "site": "includes/class-wp-statistics-exclusion.php:exclusion_geoip",
+          "rank": 0.3
+        },
+        {
+          "position": 129,
+          "tier": 4,
+          "score": 5.0,
+          "site": "includes/class-wp-statistics-exclusion.php:exclusion_iP_match",
+          "rank": 0.3
+        },
+        {
+          "position": 130,
+          "tier": 4,
+          "score": 5.0,
+          "site": "includes/class-wp-statistics-frontend.php:add_inline_rest_js",
+          "rank": 0.3
+        },
+        {
+          "position": 131,
+          "tier": 4,
+          "score": 5.0,
+          "site": "includes/class-wp-statistics-geoip.php:getCity",
+          "rank": 0.3
+        },
+        {
+          "position": 132,
+          "tier": 4,
+          "score": 5.0,
+          "site": "includes/class-wp-statistics-ip.php:CheckIPRange",
+          "rank": 0.3
+        },
+        {
+          "position": 133,
+          "tier": 4,
+          "score": 5.0,
+          "site": "includes/class-wp-statistics-mail.php:render",
+          "rank": 0.3
+        },
+        {
+          "position": 134,
+          "tier": 4,
+          "score": 5.0,
+          "site": "includes/class-wp-statistics-mail.php:renderPart",
+          "rank": 0.3
+        },
+        {
+          "position": 135,
+          "tier": 4,
+          "score": 5.0,
+          "site": "includes/class-wp-statistics-mail.php:send",
+          "rank": 0.3
+        },
+        {
+          "position": 136,
+          "tier": 4,
+          "score": 5.0,
+          "site": "includes/class-wp-statistics-referred.php:get_domain_server",
+          "rank": 0.3
+        },
+        {
+          "position": 137,
+          "tier": 4,
+          "score": 5.0,
+          "site": "includes/class-wp-statistics-user-online.php:reset_user_online",
+          "rank": 0.3
+        },
+        {
+          "position": 138,
+          "tier": 4,
+          "score": 5.0,
+          "site": "includes/class-wp-statistics-user-online.php:update_user_online",
+          "rank": 0.3
+        },
+        {
+          "position": 139,
+          "tier": 4,
+          "score": 5.0,
+          "site": "includes/class-wp-statistics-visitor.php:save_visitor",
+          "rank": 0.3
+        },
+        {
+          "position": 140,
+          "tier": 4,
+          "score": 4.5,
+          "site": "includes/admin/class-wp-statistics-admin-ajax.php:delete_agents_action_callback",
+          "rank": 0.3
+        },
+        {
+          "position": 141,
+          "tier": 4,
+          "score": 4.5,
+          "site": "includes/admin/class-wp-statistics-admin-ajax.php:delete_ip_action_callback",
+          "rank": 0.3
+        },
+        {
+          "position": 142,
+          "tier": 4,
+          "score": 4.5,
+          "site": "includes/admin/class-wp-statistics-admin-ajax.php:delete_platforms_action_callback",
+          "rank": 0.3
+        },
+        {
+          "position": 143,
+          "tier": 4,
+          "score": 4.5,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-settings.php:reset_wp_statistics_options",
+          "rank": 0.3
+        },
+        {
+          "position": 144,
+          "tier": 4,
+          "score": 4.5,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-settings.php:save",
+          "rank": 0.3
+        },
+        {
+          "position": 145,
+          "tier": 4,
+          "score": 4.0,
+          "site": "includes/class-wp-statistics.php:instantiate",
+          "rank": 0.3
+        },
+        {
+          "position": 146,
+          "tier": 4,
+          "score": 4.0,
+          "site": "includes/libraries/ExportData.php:addRow",
+          "rank": 0.3
+        },
+        {
+          "position": 147,
+          "tier": 4,
+          "score": 4.0,
+          "site": "includes/libraries/ExportData.php:finalize",
+          "rank": 0.3
+        },
+        {
+          "position": 148,
+          "tier": 4,
+          "score": 4.0,
+          "site": "includes/libraries/ExportData.php:initialize",
+          "rank": 0.3
+        },
+        {
+          "position": 149,
+          "tier": 4,
+          "score": 3.0,
+          "site": "includes/admin/pages/class-wp-statistics-admin-page-plugins.php:show_change_log",
+          "rank": 0.3
+        }
+      ],
+      "build_seconds": 45.4,
+      "evidence_seconds": 68.7,
+      "pairs": 4120,
+      "pairs_unanswered": 0,
+      "tier_counts": {
+        "0": 3570,
+        "1": 64,
+        "2": 5,
+        "3": 189,
+        "4": 292
+      }
+    }
+  ]
+}

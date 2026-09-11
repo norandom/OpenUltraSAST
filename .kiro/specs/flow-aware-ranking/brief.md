@@ -214,7 +214,24 @@ A phase that cannot show that is not an improvement, it is a story.
   a separate unit, analysed as one or not at all ("divide and rule"; libraries ship as their own DLLs).
   Test paths stay in scope and are not product. Both re-measured; and the baseline Joern is 4.0.625 from
   here (the closure exclusion gated off, both plugins building clean), measured separately first so the
-  two changes are not confounded. After that, within-tier order is phase 3's -- a model reading the code the ties cannot --
+  two changes are not confounded.
+
+  **Measured, both** (`2026-09-11-evidence-rank-joern-4.0.625.json`, `...-layout.json`):
+
+  | repository | v6 on 4.0.623 | 4.0.625 alone | 4.0.625 + layout | regions |
+  |---|---|---|---|---|
+  | pmpro | 69 | 82 | **82** | 4,463 → 4,463 |
+  | wpstatistics | 172 | 173 | **91** | 1,673 → 824 |
+  | mwwpform | 68 | 68 | **54** | 983 → 983 |
+  | vampi | 16 | 16 | 16 | 25 |
+
+  4.0.625 puts the two once-excluded files back (pmpro's `fields.php`, WP Statistics's `install.php`)
+  and costs pmpro 13 positions, which is correct rather than worse: that code is real. The layout row
+  halves WP Statistics -- 207 vendored files gone, its graph built in 45 s instead of 139 s, its evidence
+  pass in 69 s instead of 184 s -- and takes 14 test regions out of MW WP Form's way. pmpro has neither a
+  vendored tree nor a test path the row names, so it is where the gate now stands: 82, 54, 91 against 50,
+  every region ahead of a CVE in its own tier on a tied or higher score. Phase 2 has done what exact
+  facts and a weight table can do; the ties are phase 3's. After that, within-tier order is phase 3's -- a model reading the code the ties cannot --
   or one more exact path fact (`distance`), and the gate stays unmet until one of them moves it.
 
 - **Phase 3 — the LLM ranker.** Same evidence, ordered by a model. Gate: beats phase 2 leave-one-repository-out.
