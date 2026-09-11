@@ -450,6 +450,13 @@ def test_php_builds_through_the_frontend_and_retries_while_files_are_dropped(tmp
             return _overlaid(command, kwargs.get("cwd"))
         if "-r" in command:
             return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+        if "--script" in command:  # the census on the clean build
+            return subprocess.CompletedProcess(
+                args=command,
+                returncode=0,
+                stdout='---OUSAST-CPG-BEGIN---\n{"files": "1", "methods": "1"}\n---OUSAST-CPG-END---\n',
+                stderr="",
+            )
         tried.append(Path(command[0]).name)
         Path(command[command.index("-o") + 1]).write_text("cpg")
         # Drops a file on the first two attempts, clean on the third.
@@ -880,7 +887,12 @@ def test_a_frontend_build_gets_its_overlays_once_at_build_time(tmp_path: Path, m
         if _is_overlay(command):
             return _overlaid(command, kwargs.get("cwd"))
         if "--script" in command:
-            return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+            return subprocess.CompletedProcess(
+                args=command,
+                returncode=0,
+                stdout='---OUSAST-CPG-BEGIN---\n{"files": "1", "methods": "1"}\n---OUSAST-CPG-END---\n',
+                stderr="",
+            )
         Path(command[command.index("-o") + 1]).write_text("raw")
         return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
 
@@ -941,3 +953,68 @@ def test_a_source_file_the_size_of_a_data_table_is_excluded_and_named(tmp_path: 
     assert "--exclude" in build and "vendor/profiles.php" in build, "the data table is excluded from the build by name"
     assert not any("code.php" in part for part in build), "and the code is not"
     assert [Path(name).name for name in result.unparsed] == ["profiles.php"], "and it is reported, not silently dropped"
+
+
+def test_a_clean_build_whose_census_cannot_be_taken_is_a_failed_build(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`cpg query census failed: timeout` was logged as a warning during a build whose every later query
+    then timed out too. A graph that cannot answer the census inside the query timeout cannot answer a taint
+    batch either, so the build fails, by name, instead of handing back a graph that reads as clean."""
+    import subprocess
+
+    from openultrasast.cpg.backend import JoernBackend
+
+    (tmp_path / "a.php").write_text("<?php\nfunction a($x) { return $x; }\n")
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
+        if "-r" in command:
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+        if "--script" in command:
+            raise subprocess.TimeoutExpired(command, 1)  # the census never answers
+        if "--output" in command:  # the joern-parse fallback the backend tries after a failed frontend build
+            return subprocess.CompletedProcess(args=command, returncode=1, stdout="", stderr="")
+        Path(command[command.index("-o") + 1]).write_text("cpg")
+        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/bin/{name}")
+    backend = JoernBackend(runner=runner)
+    assert backend.build(tmp_path, language="php") is None
+    assert "census" in backend.last_failure
+
+
+def test_the_census_checks_the_instrument(caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Two facts about the engine, each once wrong for a day with nothing saying so: a graph without its
+    dataflow overlay saved (every batch recomputes it) and a worker JVM whose heap is not the configured one
+    (the knob governs nothing). Both are named in the log; neither fails the scan."""
+    import logging
+    import subprocess
+
+    from openultrasast.cpg.backend import BEGIN, END, JoernBackend
+
+    (tmp_path / "a.php").write_text("<?php\n")
+    monkeypatch.setenv("OPENULTRASAST_CPG_HEAP_MB", "2048")
+
+    def census(body: str):  # type: ignore[no-untyped-def]
+        def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout=f"{BEGIN}\n{body}\n{END}\n", stderr="")
+
+        return runner
+
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/bin/{name}")
+    with caplog.at_level(logging.WARNING):
+        JoernBackend(
+            runner=census('{"files": "1", "methods": "1", "overlays": "base,controlflow,typerel,callgraph", "maxHeapMB": "1979"}')
+        )._graph_census(tmp_path / "c.bin", tmp_path, "php")
+    assert "not dataflowOss" in caplog.text and "recompute" in caplog.text
+    assert "heap" not in caplog.text, "1979 MB for a 2048 MB setting is the JVM's own rounding, not a missing knob"
+    caplog.clear()
+    with caplog.at_level(logging.WARNING):
+        JoernBackend(
+            runner=census(
+                '{"files": "1", "methods": "1", "overlays": "base,controlflow,typerel,callgraph,dataflowOss", "maxHeapMB": "512"}'
+            )
+        )._graph_census(tmp_path / "c.bin", tmp_path, "php")
+    assert "512 MB heap where 2048 MB is configured" in caplog.text
+    assert "recompute" not in caplog.text

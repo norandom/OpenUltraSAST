@@ -96,6 +96,10 @@ _LANGUAGE_EXTENSIONS: dict[str, tuple[str, ...]] = {"php": (".php",)}
 # through a lookup table that a scan could name, and the file is named in the log so the exclusion is
 # visible rather than silent. Task 5.13.
 MAX_SOURCE_BYTES = 1_000_000
+
+# The overlay a graph must carry for `reachableByFlows` to be answered from the saved graph rather than
+# recomputed at every load; Joern names it so in `cpg.metaData.overlays`.
+DATAFLOW_OVERLAY = "dataflowOss"
 # Frontends that shell out to a separate interpreter, and the command that proves it can read a file.
 # `php2cpg` drives PHP-Parser through whatever `php` is on PATH, so the frontend is only as good as that
 # interpreter's view of the filesystem -- and a `php` that cannot see the tree does not fail, it produces an
@@ -274,7 +278,13 @@ class JoernBackend:
 
         # A frontend whose failures are visible and retryable is worth more than one whose are not.
         if language.lower() in _PREFER_FRONTEND:
+            self.last_failure = ""
             shards, unparsed = self._build_sharded(root, scratch, language)
+            if not shards and self.last_failure:
+                # A build that FAILED BY NAME is not one to retry through the other launcher: the graph the
+                # census could not load would be rebuilt the same and never asked again.
+                dispose()
+                return None
             if shards:
                 if unparsed:
                     logger.warning("the frontend could not parse %d file(s) under %s: %s", len(unparsed), root, ", ".join(unparsed[:5]))
@@ -431,7 +441,15 @@ class JoernBackend:
             # A build that warned about nothing is exactly the build that needs checking, because a graph
             # holding nothing arrives with no warnings at all. Silence is the symptom that has no symptom.
             census = self._graph_census(main, root, language)
-            if census is not None and census[0] < census[1] - len(defective):
+            if census is None:
+                # A graph the census cannot load inside the query timeout cannot answer a taint batch
+                # either; every one would time out and read as "nothing here". Measured: `cpg query census
+                # failed: timeout` was logged as a warning during a build whose every later query then
+                # timed out, and the warning was read as a warning. A build with no usable graph has failed.
+                self.last_failure = "the graph could not answer the census (timeout or no payload), so no query would be answered either"
+                logger.error("cpg build for %s: %s", root, self.last_failure)
+                return (), ()
+            if census[0] < census[1] - len(defective):
                 self.last_failure = f"the frontend reported no failures but the graph holds {census[0]} of {census[1]} source files"
                 logger.error("cpg build for %s: %s", root, self.last_failure)
             return (main,), defective
@@ -474,19 +492,46 @@ class JoernBackend:
             return None
         expected = sum(1 for path in root.rglob("*") if path.suffix.lower() in extensions and path.is_file())
         if not expected:
-            return None
+            return (0, 0)  # nothing to count is not a failed count: an empty tree's graph is complete
         payload = self.query(cpg_path, "census", {})
         if not isinstance(payload, Mapping):
             return None
+        self._check_instrument(payload)
         try:
             return int(str(payload.get("files", "0"))), expected
         except ValueError:
             return None
 
+    def _check_instrument(self, census: Mapping[str, object]) -> None:
+        """Two facts the census carries about the engine itself, checked because each was once silently wrong.
+
+        A graph whose saved overlays lack the dataflow layer has it recomputed by every query batch -- 54 s
+        of fixed cost per batch on a 637-file plugin, an OutOfMemoryError on a larger one -- and nothing
+        else in the pipeline can tell. A worker JVM whose heap is not the configured one means the heap
+        knob governs nothing, which was true for a day. Both are warnings, not failures: the scan still
+        runs, slower or smaller, and the log says why. Task 5.13.
+        """
+        overlays = str(census.get("overlays", ""))
+        if overlays and DATAFLOW_OVERLAY not in overlays.split(","):
+            logger.warning(
+                "the graph carries overlays [%s] but not %s: every query batch will recompute the dataflow layer",
+                overlays,
+                DATAFLOW_OVERLAY,
+            )
+        reported = str(census.get("maxHeapMB", ""))
+        if reported.isdigit():
+            configured = self._heap_mb()
+            if abs(int(reported) - configured) > configured // 4:
+                logger.warning(
+                    "the query JVM reports a %s MB heap where %d MB is configured; the heap setting is not reaching it",
+                    reported,
+                    configured,
+                )
+
     def _graph_is_complete(self, cpg_path: Path, root: Path, language: str) -> bool:
         """Conservative: when the census cannot be taken, the answer is "no" and the caller is careful."""
         census = self._graph_census(cpg_path, root, language)
-        return census is not None and census[0] >= census[1]
+        return census is not None and census[1] > 0 and census[0] >= census[1]
 
     def _island_root(self, root: Path, scratch: Path, files: Sequence[str]) -> Path | None:
         """A tree holding only ``files``, at their original relative paths.
