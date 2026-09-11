@@ -896,6 +896,29 @@
     the build as a data table and reported in `unparsed`; (3) the hook half's seeds are the callback's own
     file. The payload diff between a raw and a saved-overlay pmpro graph was checked request by request:
     identical (sink, line, source kind, sanitized) sets, fewer repeated flow paths on the saved one.
+  - **`callDepth`, finally measured.** Same ten pairs, both halves on, the saved-overlay pmpro graph; the
+    fixed cost is now ~18 s (JVM plus an 8 s reload) and is included:
+
+    | callDepth | 10 requests | per request, JVM incl. | rows |
+    |---|---|---|---|
+    | 0 | 107.5 s | 10.8 s | 3 |
+    | 1 | 124.9 s | 12.5 s | 38 |
+    | 3 | 150.5 s | 15.0 s | **3,838** |
+
+    Depth is a 1.4× time term, not the 5× the sharding-era numbers implied -- but it is a **100× payload
+    term**: at depth 3 the same ten pairs return 3,838 flow rows, most of them the same (sink, source kind,
+    sanitized) evidence repeated once per path through the reachable set. Across 339 real requests that is
+    on the order of 130,000 rows to ship and parse, and the reporter collapses them only after they have
+    been paid for. The next cost to take out is in the query's row emission, not its graph work: one row
+    per (sink, source kind, sanitized), with a path count, would be the same evidence at 1% of the bytes.
+  - **The whole-repository scan completes, 2026-09-11.** pmpro, 637 files, the product's own build path
+    (overlays at build, seeds scoped, size guard), no judge, `OPENULTRASAST_CPG_QUERY_TIMEOUT=7200`:
+    build 97 s, evidence 76 s, **taint 4,105 s for 348 real requests = 11.8 s each**, arbitrate 99 s,
+    **total 72 minutes**, peak child RSS 2.4 GB, `tier_counts = {0: 2152, 1: 60, 2: 20, 3: 218, 4: 50}`.
+    **CVE-2023-23488 found at `class.memberorder.php:936:getMemberOrderByCode`**, among 250 entailed
+    findings across 40 files. First completion of this scan on this repository. The 2,400 s default is
+    still too low for it and stays -- a per-push scan of 4,463 regions is the flow-aware-ranking spec's
+    problem, and 250 findings is the number that spec now has to concentrate.
   - **Open, and the maintainer's call, not mine:** `includes/vendor/` is 207 of WP Statistics's 357 PHP
     files and is not excluded by `preprocess.IGNORED_DIRS`, so vendored third-party code is both scanned
     and in the graph. Whether a project's vendored code is in scope is policy; the size guard above is

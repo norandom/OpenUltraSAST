@@ -99,6 +99,20 @@ A phase that cannot show that is not an improvement, it is a story.
   requests pruned (86%)**, evidence pass 94.5 s. The remaining **339 requests still hit the 2,400 s ceiling**
   — more than 7 s each.
 
+  **The scan finishes, 2026-09-11.** Not because of anything in this spec: contributor-scan 5.13 found
+  that every query batch had been recomputing Joern's dataflow overlay at load since PHP builds went
+  through php2cpg (54 s fixed cost per batch; an OutOfMemoryError on WP Statistics), that the hook half's
+  seeds were repository-wide, and that two vendored data tables were 60% of one graph. With the overlays
+  applied once at build time, the seeds scoped to the callback's file, and files over 1 MB excluded as
+  data, the same whole-repository scan on the 637-file plugin completes: **build 97 s (overlays included),
+  evidence 76 s, taint 4,105 s for 348 real requests (11.8 s each), arbitrate 99 s, total 72 minutes**,
+  `tier_counts = {0: 2152, 1: 60, 2: 20, 3: 218, 4: 50}`, peak child RSS 2.4 GB. **CVE-2023-23488 is
+  found at `class.memberorder.php:936`**, among 250 entailed findings across 40 files. The 250 is the next
+  fact to reckon with -- it is what "500 regions when 50 would do" looks like as output -- and it is phase
+  2's material. `callDepth`, measured on the same graph, is a 1.4× time term and a 100× payload term
+  (3,838 flow rows for ten requests at depth 3 against 38 at depth 1); collapsing rows per evidence key
+  is the next cost out.
+
   Phase 0 reported 1,148 ms per request after memoisation. That was an average over a 250-request set of
   which 88% were tier 0 and returned instantly; the ~30 real requests in it cost about 9.5 s each. Pruning
   removes exactly the cheap questions and keeps the expensive ones, so it cannot make those faster. The
@@ -152,6 +166,12 @@ removes 53% of requests, and 1,177 × 6.63 s is still **2.2 hours** — nowhere 
 2,400 s that was tried. Pruning halves the problem; it does not solve it. The honest gate is "53% fewer
 requests issued, measured", and completion belongs to phase 2. Stating otherwise would have sent someone
 looking for a bug in phase 1 when phase 1 had done exactly what it can.
+
+*Amended 2026-09-11:* completion arrived, and it belonged to neither phase 1 nor phase 2 -- it belonged to
+the instrument (contributor-scan 5.13). Pruning was and is exact; what made 339 requests exceed 2,400 s was
+a dataflow overlay recomputed per batch and a seed set computed repository-wide, and the scan now completes
+in 72 minutes with the CVE found. The paragraph above stands as written because its reasoning was right on
+the numbers it had; the numbers were the instrument's.
 
 **Ranking's job is concentration, not inclusion.** The brief implies the CVE is missed because the ranker
 excluded it. It did not: CVE-2023-23488's region sits at position 390 of 4,463, inside the 500-region budget,
