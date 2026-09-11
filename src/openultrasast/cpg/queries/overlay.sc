@@ -10,7 +10,7 @@
 //
 // Measured after: the saved graph reloads in 8 s where the raw one took 64 s, and the request that had
 // timed out at 520 s answered in 39 s including the JVM. `joern-parse --overlaysonly` would be the
-// obvious tool and is broken in 4.0.623 (NullPointerException in a post-processing step that needs the
+// obvious tool and is broken in 4.0.623 -- joernio/joern#6283 (NullPointerException in a post-processing step that needs the
 // frontend it did not run), so the once is this script.
 //
 // `save` writes to `workspace/<cpg name>/cpg.bin` under the working directory; the driver moves that over

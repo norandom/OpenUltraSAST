@@ -616,7 +616,7 @@ class JoernBackend:
         CVE-2022-25148 on, one hour before the switch, from a `joern-parse` build. Task 5.13.
 
         `queries/overlay.sc` is that once: `importCpg`, `save`, and the saved graph replaces the raw one
-        under the same path. (`joern-parse --overlaysonly` is the obvious tool and is broken in 4.0.623.)
+        under the same path. (`joern-parse --overlaysonly` is the obvious tool and is broken in 4.0.623: joernio/joern#6283.)
         A failure here is logged and the raw graph kept, so the scan degrades to the old cost rather than
         losing its graph.
         """

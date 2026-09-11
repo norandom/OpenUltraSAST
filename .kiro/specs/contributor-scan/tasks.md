@@ -892,7 +892,7 @@
 
     Three changes, each named in the log rather than silent: (1) `queries/overlay.sc` runs `importCpg` +
     `save` once at build time and the saved graph replaces the raw one (`joern-parse --overlaysonly` is the
-    obvious tool and NPEs in 4.0.623); (2) a source file over `MAX_SOURCE_BYTES` (1 MB) is excluded from
+    obvious tool and NPEs in 4.0.623 -- filed as joernio/joern#6283); (2) a source file over `MAX_SOURCE_BYTES` (1 MB) is excluded from
     the build as a data table and reported in `unparsed`; (3) the hook half's seeds are the callback's own
     file. The payload diff between a raw and a saved-overlay pmpro graph was checked request by request:
     identical (sink, line, source kind, sanitized) sets, fewer repeated flow paths on the saved one.
