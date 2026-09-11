@@ -305,6 +305,7 @@ class JoernBackend:
             logger.warning("cpg build failed for %s: %s", root, detail)
             retried = self._build_with_frontend(root, cpg_path, scratch, language)
             if retried is None:
+                dispose()  # a failed build's scratch is nobody's to sweep six hours later
                 return None
             self._apply_overlays(cpg_path, scratch)
             unparsed = retried

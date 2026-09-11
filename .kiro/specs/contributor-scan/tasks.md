@@ -920,6 +920,12 @@
     findings across 40 files. First completion of this scan on this repository. The 2,400 s default is
     still too low for it and stays -- a per-push scan of 4,463 regions is the flow-aware-ranking spec's
     problem, and 250 findings is the number that spec now has to concentrate.
+  - **Upstream, 2026-09-11:** joernio/joern#6281 (the `global`-inside-a-closure miscompile) is closed as
+    fixed -- same root cause as #6269, fixed by #6270, released in **v4.0.625** (we run 4.0.623). The
+    maintainer verified our reproducer on master: no node with two AST parents, overlays apply cleanly.
+    So `_files_with_frontend_defect` and its exclusion are a workaround for two releases and should become
+    version-gated: verify on 4.0.625 (the reproducer, then pmpro and WP Statistics with NO exclusions), and
+    check whether #6283 (`--overlaysonly`) is also gone there.
   - **Open, and the maintainer's call, not mine:** `includes/vendor/` is 207 of WP Statistics's 357 PHP
     files and is not excluded by `preprocess.IGNORED_DIRS`, so vendored third-party code is both scanned
     and in the graph. Whether a project's vendored code is in scope is policy; the size guard above is

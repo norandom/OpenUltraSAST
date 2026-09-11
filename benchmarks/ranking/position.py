@@ -38,7 +38,7 @@ def ordered_regions(root: Path) -> list[ScanRegion]:
     return sorted(regions, key=lambda r: (not r.shipped, -r.rank, r.path, r.function or ""))
 
 
-def evidence_ordered_regions(root: Path, regions: list[ScanRegion]) -> tuple[list[ScanRegion], dict[str, object]]:
+def evidence_ordered_regions(root: Path, regions: list[ScanRegion], language: str) -> tuple[list[ScanRegion], dict[str, object]]:
     """The regions in the order phase 2 spends the budget: by each region's best (tier, score), from a real
     evidence pass over EVERY region. Needs Joern. The ordering function is the scan's own, imported."""
     import time
@@ -48,7 +48,9 @@ def evidence_ordered_regions(root: Path, regions: list[ScanRegion]) -> tuple[lis
 
     backend = resolve_cpg_backend()
     started = time.monotonic()
-    cpg = backend.build(root, language=regions[0].language if regions else "")
+    # The RECIPE's language, never the first region's: WP Statistics's first region is JavaScript, and a
+    # build asked for as JavaScript went looking for jssrc2cpg and lost the whole repository's measurement.
+    cpg = backend.build(root, language=language)
     build_seconds = round(time.monotonic() - started, 1)
     if cpg is None:
         raise SystemExit(f"no graph for {root}: {getattr(backend, 'last_failure', '')}")
@@ -70,11 +72,11 @@ def evidence_ordered_regions(root: Path, regions: list[ScanRegion]) -> tuple[lis
     return order_by_evidence(regions, evidence), facts
 
 
-def measure(name: str, root: Path, known: list[dict[str, object]], *, by_evidence: bool = False) -> dict[str, object]:
+def measure(name: str, root: Path, known: list[dict[str, object]], *, by_evidence: bool = False, language: str = "") -> dict[str, object]:
     regions = ordered_regions(root)
     facts: dict[str, object] = {}
     if by_evidence:
-        regions, facts = evidence_ordered_regions(root, regions)
+        regions, facts = evidence_ordered_regions(root, regions, language)
     tiers = Counter(r.rank for r in regions)
     largest = max(tiers.values()) if tiers else 0
     rows: list[dict[str, object]] = []
@@ -136,7 +138,10 @@ def main() -> int:
             {"id": k.id, "family": k.family, "file": k.file, "function": k.function, "line": k.line, "in_scope": k.in_scope}
             for k in recipe.known
         ]
-        results.append(measure(recipe.name, root, known, by_evidence=args.evidence))
+        result = measure(recipe.name, root, known, by_evidence=args.evidence, language=recipe.language)
+        results.append(result)
+        # One line per repository as it lands, so a failure on the next repository cannot lose this one.
+        print(json.dumps(result), file=sys.stderr, flush=True)
 
     if args.json:
         print(json.dumps(results, indent=2))

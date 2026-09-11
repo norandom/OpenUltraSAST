@@ -1018,3 +1018,27 @@ def test_the_census_checks_the_instrument(caplog: pytest.LogCaptureFixture, monk
         )._graph_census(tmp_path / "c.bin", tmp_path, "php")
     assert "512 MB heap where 2048 MB is configured" in caplog.text
     assert "recompute" not in caplog.text
+
+
+def test_a_build_that_fails_on_both_launchers_leaves_no_scratch_behind(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Measured: a measurement that asked for the wrong language failed both `joern-parse` and the frontend
+    and left a 9.6 MB `ousast-cpg-*` directory in /tmp. Failure paths dispose too."""
+    import subprocess
+    import tempfile
+
+    from openultrasast.cpg.backend import JoernBackend
+
+    (tmp_path / "a.php").write_text("<?php\n")
+    scratch_root = tmp_path / "scratch"
+    scratch_root.mkdir()
+    monkeypatch.setattr(tempfile, "tempdir", str(scratch_root))
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if "-r" in command:
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+        return subprocess.CompletedProcess(args=command, returncode=1, stdout="", stderr="boom")
+
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/bin/{name}")
+    assert JoernBackend(runner=runner).build(tmp_path, language="javascript") is None
+    assert list(scratch_root.iterdir()) == [], "the failed build's scratch directory is gone"
