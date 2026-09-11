@@ -32,6 +32,9 @@ WEIGHTS: dict[str, float] = {
     "source_near": 1.0,  # a modelled source within the arbiter's callDepth
     "entry": 0.5,  # parameters untrusted by contract
     "access_declared_public": 1.0,
+    # A file the build does not ship: tests, fixtures, examples. Measured: 10 of the 67 regions ahead of
+    # MW WP Form's CVE were test-mail.php.
+    "unshipped": -2.0,
 }
 OPEN_SINK_CAP = 5
 CLEANSED_SINK_CAP = 3
@@ -66,6 +69,7 @@ class Evidence:
     access_declared_public: bool = False  # declared, not inferred -- "no decorator found" is not "public"
     carried: bool | None = None  # stage one of the two-stage join, the STRONG form; None where it was not computed
     carried_weak: bool = False  # the weak form: a field assigned from a parameter of its method. Orders, never promotes.
+    shipped: bool = True  # the project's own build declaration names this file (regions.shipped); tests and fixtures are not
     bound_names: tuple[str, ...] = field(default=())  # sink names the shape test treats as bound at arity >= 2
 
     @property
@@ -114,6 +118,7 @@ class Evidence:
             + (w["source_near"] if self.source_near else 0.0)
             + (w["entry"] if self.entry else 0.0)
             + (w["access_declared_public"] if self.access_declared_public else 0.0)
+            + (w["unshipped"] if not self.shipped else 0.0)
         )
 
     @property
@@ -129,6 +134,7 @@ def evidence_from_rows(
     access_declared_public: bool = False,
     carried: bool | None = None,
     bound_names: Sequence[str] = (),
+    shipped: bool = True,
 ) -> Evidence | None:
     """Read the query's evidence rows for one request. ``None`` when the query did not answer.
 
@@ -165,6 +171,7 @@ def evidence_from_rows(
         if "carried" in summary
         else carried,
         carried_weak=str(summary.get("carriedKind", "")) == "parameter",
+        shipped=shipped,
         bound_names=tuple(bound_names),
     )
 

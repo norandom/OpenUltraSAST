@@ -175,3 +175,15 @@ def test_carried_provenance_promotes_only_when_source_fed() -> None:
     assert weak is not None and weak.tier == TIER_OPEN and weak.carried is False and weak.carried_weak
     assert none is not None and none.tier == TIER_OPEN and not none.carried_weak
     assert weak.score - none.score == WEIGHTS["carried_weak"]
+
+
+def test_an_unshipped_file_orders_after_a_shipped_one_in_the_same_tier() -> None:
+    """`shipped` is the build's own word on what is product; a test fixture with the same sink and source
+    is not where the bug ships. Orders only: the tier is unchanged."""
+    from openultrasast.model.evidence import WEIGHTS, Evidence, SinkEvidence
+
+    sink = SinkEvidence(code="q(1)", line=1, method="m", arity=1, arg0_literal=False, cleansed_on_call=False)
+    product = Evidence(sinks=(sink,), source_local=True, shipped=True)
+    fixture = Evidence(sinks=(sink,), source_local=True, shipped=False)
+    assert product.tier == fixture.tier
+    assert product.score - fixture.score == -WEIGHTS["unshipped"]

@@ -397,6 +397,7 @@ def _evidence_pass(
             # the brief names it as the field to thread through next.
             access_declared_public=region.rank >= 1.0,
             bound_names=getattr(spec, "safe_shape_sinks", ()),
+            shipped=bool(getattr(region, "shipped", True)),
         )
         if evidence is not None:
             out[_pair_key(region, spec)] = evidence
