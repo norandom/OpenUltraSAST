@@ -74,6 +74,14 @@
   val fedFieldsMemo = scala.collection.mutable.Map.empty[String, Map[String, String]]
   val sourceMethodsMemo = scala.collection.mutable.Map.empty[String, Set[String]]
   val callbackFedMemo = scala.collection.mutable.Map.empty[String, String]
+  // These four lived INSIDE `rowsFor` until 2026-09-11, which is to say they memoised nothing across the
+  // requests of a batch: every pair re-walked the file's methods, re-collected its seeds, and re-ran the
+  // field join's flow queries. Keyed by the parameters the answer depends on, so one family's seeds never
+  // answer another's.
+  val methodsByFile  = scala.collection.mutable.Map.empty[String, List[io.shiftleft.codepropertygraph.generated.nodes.Method]]
+  val seedsByFile    = scala.collection.mutable.Map.empty[(String, String, String), List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode]]
+  val fieldTaintMemo = scala.collection.mutable.Map.empty[(String, String, String, String, String), Boolean]
+  val hookKeysMemo   = scala.collection.mutable.Map.empty[(String, String, String), Set[String]]
 
   def rowsFor(
       sourcesS: String,
@@ -248,9 +256,6 @@
   // and only the fields some region actually reads are worth asking about. A batch asks about one file many
   // times over -- 205 requests across 41 regions of one class -- so without a memo this runs hundreds of
   // times over the same assignments.
-  val methodsByFile  = scala.collection.mutable.Map.empty[String, List[io.shiftleft.codepropertygraph.generated.nodes.Method]]
-  val seedsByFile    = scala.collection.mutable.Map.empty[String, List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode]]
-  val fieldTaintMemo = scala.collection.mutable.Map.empty[(String, String), Boolean]
 
   def methodsIn(fileName: String) =
     methodsByFile.getOrElseUpdate(fileName, cpg.method.filter(m => fileName.isEmpty || m.filename.endsWith(fileName)).l)
@@ -260,7 +265,7 @@
   // reason: an arbitrary helper's parameters carry whatever its caller happened to have.
   def seedsIn(fileName: String) =
     seedsByFile.getOrElseUpdate(
-      fileName, {
+      (sourcesS, paramSrc, fileName), {
         val methods = methodsIn(fileName)
         val framework: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
           methods.flatMap(_.ast.isCall.filter(c => sourcePatterns.exists(p => c.code.contains(p))).l)
@@ -272,7 +277,7 @@
 
   def fieldIsTainted(fileName: String, fieldCode: String): Boolean =
     fieldTaintMemo.getOrElseUpdate(
-      (fileName, fieldCode), {
+      (sourcesS, paramSrc, sanitizersS, fileName, fieldCode), {
         val seeds = seedsIn(fileName)
         if (seeds.isEmpty) false
         else
@@ -386,14 +391,13 @@
   // and not a detection. The key is a literal at both ends -- written `"id"` in the callback and `['id']`
   // at the sink -- so it joins the same way the hook name and the field name do. Third use of one idea.
   val INDEX_ACCESS = "<operator>.indexAccess"
-  val hookKeysMemo = scala.collection.mutable.Map.empty[String, Set[String]]
 
   def keyOf(access: io.shiftleft.codepropertygraph.generated.nodes.Call): String =
     access.argument.l.lift(1).map(a => unquote(a.code)).getOrElse("")
 
   def taintedKeysOf(callback: String): Set[String] =
     hookKeysMemo.getOrElseUpdate(
-      callback,
+      (sourcesS, sanitizersS, callback),
       cpg.method
         .nameExact(callback)
         .l
