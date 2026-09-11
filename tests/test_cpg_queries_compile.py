@@ -56,4 +56,12 @@ def test_each_query_compiles_and_answers(name: str, tmp_path: Path) -> None:
     done = subprocess.run(command, capture_output=True, text=True, timeout=900, check=False, cwd=str(tmp_path))
 
     assert done.returncode == 0, f"{name}.sc did not run: {(done.stderr or done.stdout or '')[-500:]}"
-    assert extract_payload(done.stdout or "") is not None, f"{name}.sc produced no parseable payload"
+    payload = extract_payload(done.stdout or "")
+    assert payload is not None, f"{name}.sc produced no parseable payload"
+    if name == "census":
+        # The overlay list is what the backend checks for the dataflow layer. It shipped once as a list of
+        # CHARACTERS (`b,a,s,e,...`) -- one `flatten` too many -- and every real build warned that its graph
+        # lacked `dataflowOss` while carrying it. `importCpg` applies the layer here, so it must be named.
+        overlays = str(payload.get("overlays", "")).split(",")
+        assert "dataflowOss" in overlays, f"census reports overlays {overlays!r}, which is not a list of layer names"
+        assert str(payload.get("maxHeapMB", "")).isdigit()
