@@ -128,6 +128,34 @@ _INTERPRETERS: dict[str, str] = {"php": "php"}
 # other 99.8%, which is the difference between a scan and no scan at all. They are reported as `unparsed`,
 # so the coverage section names them rather than implying they were clean.
 _CLOSURE = re.compile(r"\bfunction\s*\(")
+
+# The release that fixes the miscompile (joernio/joern#6281, same root cause as #6269, fixed by #6270).
+# At or above it the exclusion below is a loss with nothing to buy, so it is not applied.
+CLOSURE_DEFECT_FIXED_IN = (4, 0, 625)
+_JOERN_JAR = re.compile(r"^io\.joern\.joern-cli-(\d+)\.(\d+)\.(\d+)\.jar$")
+
+
+def joern_version() -> tuple[int, int, int] | None:
+    """The installed Joern's version, read off the jar beside the launcher; ``None`` when it cannot be told.
+
+    The launcher is a shell script with no `--version`, and every release ships `lib/io.joern.joern-cli-X.Y.Z.jar`
+    next to it. Unknown is unknown: a caller gating a workaround on this keeps the workaround.
+    """
+    launcher = shutil.which("joern")
+    if launcher is None:
+        return None
+    lib = Path(launcher).resolve().parent / "lib"
+    try:
+        names = [entry.name for entry in lib.iterdir()]
+    except OSError:
+        return None
+    for name in names:
+        match = _JOERN_JAR.match(name)
+        if match:
+            return (int(match.group(1)), int(match.group(2)), int(match.group(3)))
+    return None
+
+
 _GLOBAL_IN_BODY = re.compile(r"\bglobal\s+\$")
 FRONTEND_BUILD_ATTEMPTS = 4
 
@@ -344,6 +372,9 @@ class JoernBackend:
         """
         if language.lower() != "php":
             return ()
+        version = joern_version()
+        if version is not None and version >= CLOSURE_DEFECT_FIXED_IN:
+            return ()  # fixed upstream; nothing to exclude and every file to keep
         found: list[str] = []
         for path in sorted(root.rglob("*.php")):
             if not path.is_file():

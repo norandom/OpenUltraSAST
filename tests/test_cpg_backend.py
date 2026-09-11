@@ -1042,3 +1042,34 @@ def test_a_build_that_fails_on_both_launchers_leaves_no_scratch_behind(tmp_path:
     monkeypatch.setattr("shutil.which", lambda name: f"/opt/bin/{name}")
     assert JoernBackend(runner=runner).build(tmp_path, language="javascript") is None
     assert list(scratch_root.iterdir()) == [], "the failed build's scratch directory is gone"
+
+
+def test_the_closure_exclusion_stops_at_the_release_that_fixed_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """joern#6281 is fixed in v4.0.625. Below it the miscompiled file is excluded (the whole graph is the
+    alternative); at or above it nothing is excluded, because a loss with nothing to buy is only a loss.
+    An install whose version cannot be read keeps the exclusion: unknown is not "fixed"."""
+    from openultrasast.cpg.backend import JoernBackend, joern_version
+
+    (tmp_path / "bad.php").write_text('<?php\nfunction f($n) {\n  h("p", function($p) { global $g; return $p . $g; });\n}\n')
+
+    def install(version: str) -> Path:
+        home = tmp_path / f"joern-{version}"
+        (home / "lib").mkdir(parents=True)
+        (home / "lib" / f"io.joern.joern-cli-{version}.jar").write_bytes(b"")
+        (home / "joern").write_text("#!/bin/sh\n")
+        return home / "joern"
+
+    old, new = install("4.0.623"), install("4.0.625")
+    backend = JoernBackend(runner=lambda c, **k: None)
+
+    monkeypatch.setattr("shutil.which", lambda name: str(old) if name == "joern" else None)
+    assert joern_version() == (4, 0, 623)
+    assert [Path(n).name for n in backend._files_with_frontend_defect(tmp_path, "php")] == ["bad.php"]
+
+    monkeypatch.setattr("shutil.which", lambda name: str(new) if name == "joern" else None)
+    assert joern_version() == (4, 0, 625)
+    assert backend._files_with_frontend_defect(tmp_path, "php") == ()
+
+    monkeypatch.setattr("shutil.which", lambda name: "/opt/bin/joern")
+    assert joern_version() is None
+    assert [Path(n).name for n in backend._files_with_frontend_defect(tmp_path, "php")] == ["bad.php"], "unknown keeps the workaround"
