@@ -28,6 +28,8 @@ from openultrasast.model.shipped import declared_sources  # noqa: E402
 from openultrasast.preprocess import preprocess_repository  # noqa: E402
 from openultrasast.repos import checkout_path, load_repo_recipes  # noqa: E402
 
+HEAD = 150  # how much of the evidence order a baseline records, region by region
+
 
 def ordered_regions(root: Path) -> list[ScanRegion]:
     """The regions in the order `scan_repository` examines them. One definition, imported, never copied."""
@@ -62,14 +64,30 @@ def evidence_ordered_regions(root: Path, regions: list[ScanRegion], language: st
         if callable(getattr(cpg, "cleanup", None)):
             cpg.cleanup()
     tiers = Counter(e.tier for e in evidence.values())
+    ordered = order_by_evidence(regions, evidence)
+    best: dict[tuple[str, str], tuple[int, float]] = {}
+    for (path, function, _family), vector in evidence.items():
+        best[(path, function)] = max(best.get((path, function), (-1, 0.0)), vector.order_key)
     facts = {
+        # The head of the order, with each region's (tier, score), so a baseline says WHAT sits ahead of a
+        # pinned CVE and not only how much of it -- the within-tier ties are the next thing to read.
+        "head": [
+            {
+                "position": i,
+                "tier": best.get((r.path, r.function or ""), (-1, 0.0))[0],
+                "score": best.get((r.path, r.function or ""), (-1, 0.0))[1],
+                "site": f"{r.path}:{r.function or ''}",
+                "rank": r.rank,
+            }
+            for i, r in enumerate(ordered[:HEAD])
+        ],
         "build_seconds": build_seconds,
         "evidence_seconds": evidence_seconds,
         "pairs": len(evidence),
         "pairs_unanswered": failed,
         "tier_counts": {str(k): v for k, v in sorted(tiers.items())},
     }
-    return order_by_evidence(regions, evidence), facts
+    return ordered, facts
 
 
 def measure(name: str, root: Path, known: list[dict[str, object]], *, by_evidence: bool = False, language: str = "") -> dict[str, object]:
