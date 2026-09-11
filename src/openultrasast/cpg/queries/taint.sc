@@ -71,9 +71,9 @@
   val sinkCandidatesMemo = scala.collection.mutable.Map.empty[String, List[io.shiftleft.codepropertygraph.generated.nodes.Call]]
   val reachableMemo = scala.collection.mutable.Map.empty[(String, String, Int), Set[String]]
   val methodSourceMemo = scala.collection.mutable.Map.empty[String, Boolean]
-  val fedFieldsMemo = scala.collection.mutable.Map.empty[String, Set[String]]
+  val fedFieldsMemo = scala.collection.mutable.Map.empty[String, Map[String, String]]
   val sourceMethodsMemo = scala.collection.mutable.Map.empty[String, Set[String]]
-  val callbackFedMemo = scala.collection.mutable.Map.empty[String, Boolean]
+  val callbackFedMemo = scala.collection.mutable.Map.empty[String, String]
 
   def rowsFor(
       sourcesS: String,
@@ -543,9 +543,16 @@
   // applied in scope have a registered callback whose body holds a source or such a field read (WP
   // Statistics's `set_current_page`). Memoised per file and per callback for the batch. It orders; the
   // arbiter still decides with the flow.
-  def prefixFed(code: String, fed: Set[String]): Boolean = {
+  // Provenance matters: "source" (assigned from a source expression, or from a same-file method that
+  // reads one) is the strong form and promotes a tier; "parameter" (assigned from a parameter of the
+  // assigning method -- every constructor does this) is weak and only orders within one. Measured: with
+  // the two folded together tier 4 held 555 of pmpro's regions and 569 of WP Statistics's.
+  def strongest(kinds: Iterable[String]): String =
+    if (kinds.exists(_ == "source")) "source" else if (kinds.exists(_ == "parameter")) "parameter" else ""
+
+  def prefixKind(code: String, fed: Map[String, String]): String = {
     val parts = code.split("->").map(_.trim).filter(_.nonEmpty)
-    parts.length >= 2 && (2 to parts.length).exists(n => fed.contains(parts.take(n).mkString("->")))
+    if (parts.length < 2) "" else strongest((2 to parts.length).flatMap(n => fed.get(parts.take(n).mkString("->"))))
   }
 
   // Methods of a file whose body reads a source: one level of "assigned from a call". WP Statistics writes
@@ -556,50 +563,56 @@
       methodsIn(fileName).filter(m => m.ast.isCall.exists(c => sourcePatterns.exists(p => c.code.contains(p)))).map(_.name).toSet
     )
 
-  def fedFields(fileName: String): Set[String] =
+  def fedFields(fileName: String): Map[String, String] =
     fedFieldsMemo.getOrElseUpdate(
-      fileName,
-      methodsIn(fileName).flatMap { m =>
-        val params  = m.parameter.name.l.filterNot(_ == "this").toSet
+      fileName, {
         val readers = sourceMethods(fileName)
-        m.ast.isCall.nameExact(ASSIGNMENT).l.flatMap { assignment =>
-          val args = assignment.argument.l
-          if (args.size < 2) None
-          else
-            args.head match {
-              case target: io.shiftleft.codepropertygraph.generated.nodes.Call if target.name == FIELD_ACCESS =>
-                val rhs = args(1)
-                val fromParameter = rhs match {
-                  case id: io.shiftleft.codepropertygraph.generated.nodes.Identifier => params.contains(id.name)
-                  case _                                                             => false
-                }
-                val fromReader = readers.nonEmpty && rhs.ast.isCall.name.l.exists(readers.contains)
-                if (fromParameter || fromReader || sourcePatterns.exists(p => rhs.code.contains(p))) Some(target.code.trim) else None
-              case _ => None
-            }
-        }
-      }.toSet
-    )
-
-  def fieldCarriedStructurally: Boolean =
-    cpg.call.nameExact(FIELD_ACCESS).filter(c => inScope(c.method)).l.exists(r => prefixFed(r.code.trim, fedFields(r.method.filename)))
-
-  def callbackFed(callback: String): Boolean =
-    callbackFedMemo.getOrElseUpdate(
-      callback,
-      cpg.method.nameExact(callback).l.exists { m =>
-        m.ast.isCall.exists(c => sourcePatterns.exists(p => c.code.contains(p))) || {
-          val fed = fedFields(m.filename)
-          fed.nonEmpty && m.ast.isCall.nameExact(FIELD_ACCESS).code.l.exists(code => prefixFed(code.trim, fed))
-        }
+        methodsIn(fileName).flatMap { m =>
+          val params = m.parameter.name.l.filterNot(_ == "this").toSet
+          m.ast.isCall.nameExact(ASSIGNMENT).l.flatMap { assignment =>
+            val args = assignment.argument.l
+            if (args.size < 2) None
+            else
+              args.head match {
+                case target: io.shiftleft.codepropertygraph.generated.nodes.Call if target.name == FIELD_ACCESS =>
+                  val rhs = args(1)
+                  val fromParameter = rhs match {
+                    case id: io.shiftleft.codepropertygraph.generated.nodes.Identifier => params.contains(id.name)
+                    case _                                                             => false
+                  }
+                  val fromSource = sourcePatterns.exists(p => rhs.code.contains(p)) || (readers.nonEmpty && rhs.ast.isCall.name.l.exists(readers.contains))
+                  if (fromSource) Some(target.code.trim -> "source")
+                  else if (fromParameter) Some(target.code.trim -> "parameter")
+                  else None
+                case _ => None
+              }
+          }
+        }.groupBy(_._1).map { case (field, kinds) => field -> strongest(kinds.map(_._2)) }
       }
     )
 
-  def hookCarriedStructurally: Boolean =
-    hookTable.nonEmpty && hookApply.nonEmpty && cpg.call.filter(c => hookApply.contains(c.name)).filter(c => inScope(c.method)).l.exists { call =>
-      val hook = call.argument.l.headOption.map(a => unquote(a.code)).getOrElse("")
-      hookTable.getOrElse(hook, Nil).exists(callbackFed)
-    }
+  def fieldCarriedKind: String =
+    strongest(cpg.call.nameExact(FIELD_ACCESS).filter(c => inScope(c.method)).l.map(r => prefixKind(r.code.trim, fedFields(r.method.filename))))
+
+  def callbackFedKind(callback: String): String =
+    callbackFedMemo.getOrElseUpdate(
+      callback,
+      strongest(cpg.method.nameExact(callback).l.map { m =>
+        if (m.ast.isCall.exists(c => sourcePatterns.exists(p => c.code.contains(p)))) "source"
+        else {
+          val fed = fedFields(m.filename)
+          if (fed.isEmpty) "" else strongest(m.ast.isCall.nameExact(FIELD_ACCESS).code.l.map(code => prefixKind(code.trim, fed)))
+        }
+      })
+    )
+
+  def hookCarriedKind: String =
+    if (hookTable.isEmpty || hookApply.isEmpty) ""
+    else
+      strongest(cpg.call.filter(c => hookApply.contains(c.name)).filter(c => inScope(c.method)).l.flatMap { call =>
+        val hook = call.argument.l.headOption.map(a => unquote(a.code)).getOrElse("")
+        hookTable.getOrElse(hook, Nil).map(callbackFedKind)
+      })
 
   // ---- EVIDENCE MODE: the same question without the dataflow (flow-aware-ranking, phase 0) --------------
   //
@@ -630,13 +643,15 @@
     // flow form was a wall. It puts `_delete_files()` (fed by `$this->attachments`) and `record()` (fed by
     // a filter) where their sources say, instead of one tier below every region with a `$_GET` in its own
     // body. Asked only where there is a sink to carry to, so a plugin's 21,000 tier-0 pairs pay nothing.
-    val carried = sinkList.nonEmpty && familyInRepo && (fieldCarriedStructurally || hookCarriedStructurally)
+    val carriedKind = if (sinkList.nonEmpty && familyInRepo) strongest(List(fieldCarriedKind, hookCarriedKind)) else ""
+    val carried     = carriedKind.nonEmpty
     val summary = ujson.Obj(
       "kind"         -> "summary",
       "sinks"        -> sinkList.size,
       "sourceLocal"  -> sourceLocal,
       "sourceNear"   -> sourceNear,
       "carried"      -> carried,
+      "carriedKind"  -> carriedKind,
       "familyInRepo" -> familyInRepo
     )
     val perSink = sinkList.map { sink =>

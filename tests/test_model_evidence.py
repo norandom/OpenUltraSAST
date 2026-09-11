@@ -145,3 +145,33 @@ def test_the_query_may_answer_carried_itself() -> None:
     assert silent is not None and silent.carried is None and silent.tier == TIER_OPEN
     told = evidence_from_rows([{"kind": "summary", "sinks": 1, "sourceNear": True, "familyInRepo": True}, sink], carried=True)
     assert told is not None and told.carried is True
+
+
+def test_carried_provenance_promotes_only_when_source_fed() -> None:
+    """A field fed from a source (or from a same-file method that reads one) is the strong `carried` and
+    promotes to tier 4; a field fed from a parameter of its method is the weak form, orders within the
+    tier, and never promotes -- every constructor assigns a field from a parameter."""
+    from openultrasast.model.evidence import TIER_OPEN, TIER_OPEN_PUBLIC, WEIGHTS, evidence_from_rows
+
+    sink = {
+        "kind": "sink",
+        "sink": "unlink($f)",
+        "sinkLine": "259",
+        "sinkMethod": "_delete_files",
+        "sinkArity": 1,
+        "sinkArg0Literal": False,
+        "cleansedOnCall": False,
+    }
+    strong = evidence_from_rows(
+        [{"kind": "summary", "sinks": 1, "sourceNear": True, "carried": True, "carriedKind": "source", "familyInRepo": True}, sink]
+    )
+    weak = evidence_from_rows(
+        [{"kind": "summary", "sinks": 1, "sourceNear": True, "carried": True, "carriedKind": "parameter", "familyInRepo": True}, sink]
+    )
+    none = evidence_from_rows(
+        [{"kind": "summary", "sinks": 1, "sourceNear": True, "carried": False, "carriedKind": "", "familyInRepo": True}, sink]
+    )
+    assert strong is not None and strong.tier == TIER_OPEN_PUBLIC and strong.carried is True
+    assert weak is not None and weak.tier == TIER_OPEN and weak.carried is False and weak.carried_weak
+    assert none is not None and none.tier == TIER_OPEN and not none.carried_weak
+    assert weak.score - none.score == WEIGHTS["carried_weak"]

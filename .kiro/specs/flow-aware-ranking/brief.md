@@ -159,8 +159,27 @@ A phase that cannot show that is not an improvement, it is a story.
   regions; evidence pass 68 → 84 s) -- the first repository under the gate. vampi unchanged at 16. pmpro's
   v2 pass hit the scan's 300 s default query ceiling (v1 took 255 s; the join facts on its 1,040
   sink-bearing pairs cost more than the 45 s of headroom) and answered nothing, which the benchmark
-  reported as `tiers={}` and the static order; the benchmark now sets its own ceiling and pmpro is
-  re-measured.
+  reported as `tiers={}` and the static order; the benchmark now sets its own ceiling (1,800 s). WP Statistics's v2 pass went the same way (v1 156 s,
+  v2 past 300 s), so both are re-measured under it.
+
+  **Then the flow form was the wall, not the ceiling:** pmpro's v2 pass did not finish in 1,800 s either
+  (the arbiter's `carried` is a `reachableByFlows` per candidate assignment, and 1,040 sink-bearing pairs
+  of them). So `carried` in evidence mode became STRUCTURE (v3): a field the region reads is assigned, in
+  its file, from a source expression, from a parameter of the assigning method, or from a same-file
+  method that reads a source; a hook applied in scope has a registered callback holding one of those.
+  Milliseconds again (pmpro 266 s, wpstatistics 168 s, mwwpform 69 s):
+
+  | repository | static | v1 (no carried) | v2 (flow carried) | v3 (structural) | tier 4 under v3 |
+  |---|---|---|---|---|---|
+  | pmpro | 391 | 116 | timed out | **69** | 555 |
+  | wpstatistics | 504 | 223 | timed out | **172** | 569 |
+  | mwwpform | 513 | 292 | **30** | 68 | 84 |
+  | vampi | 16 | 16 | 16 | 16 | 1 |
+
+  The proxy is too loose: folding "assigned from a parameter" in with "assigned from a source" put 555
+  and 569 regions in tier 4 -- every constructor assigns a field from a parameter -- and the CVEs sit in
+  those tiers on score alone. v4 splits the provenance: source-fed (or fed by a same-file method that
+  reads a source) promotes to tier 4; parameter-fed only orders within a tier (weight +0.75). Measuring.
 
 - **Phase 3 — the LLM ranker.** Same evidence, ordered by a model. Gate: beats phase 2 leave-one-repository-out.
   If it does not, phase 2 ships and phase 3 does not.

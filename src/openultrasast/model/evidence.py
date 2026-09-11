@@ -28,6 +28,7 @@ WEIGHTS: dict[str, float] = {
     "cleansed_sink": -0.5,  # per sink call that is cleansed on the call or bound, up to CLEANSED_SINK_CAP
     "source_local": 2.0,  # a modelled source in the region's own body
     "carried": 1.5,  # stage one of the two-stage join says a field or dispatch value arrives tainted
+    "carried_weak": 0.75,  # a field assigned from a parameter of its method: every constructor does it
     "source_near": 1.0,  # a modelled source within the arbiter's callDepth
     "entry": 0.5,  # parameters untrusted by contract
     "access_declared_public": 1.0,
@@ -63,7 +64,8 @@ class Evidence:
     source_near: bool = False  # a modelled source within the arbiter's callDepth
     entry: bool = False  # parameters untrusted by contract
     access_declared_public: bool = False  # declared, not inferred -- "no decorator found" is not "public"
-    carried: bool | None = None  # stage one of the two-stage join; None where it was not computed
+    carried: bool | None = None  # stage one of the two-stage join, the STRONG form; None where it was not computed
+    carried_weak: bool = False  # the weak form: a field assigned from a parameter of its method. Orders, never promotes.
     bound_names: tuple[str, ...] = field(default=())  # sink names the shape test treats as bound at arity >= 2
 
     @property
@@ -108,6 +110,7 @@ class Evidence:
             + w["cleansed_sink"] * min(sum(1 for s in self.sinks if s.cleansed_on_call or self.is_bound(s)), CLEANSED_SINK_CAP)
             + (w["source_local"] if self.source_local else 0.0)
             + (w["carried"] if self.carried else 0.0)
+            + (w["carried_weak"] if self.carried_weak and not self.carried else 0.0)
             + (w["source_near"] if self.source_near else 0.0)
             + (w["entry"] if self.entry else 0.0)
             + (w["access_declared_public"] if self.access_declared_public else 0.0)
@@ -158,7 +161,10 @@ def evidence_from_rows(
         access_declared_public=access_declared_public,
         # The query's own answer when it gave one (phase 2: stage one of the two-stage join, reused);
         # the caller's otherwise; None where neither knows, which is not False.
-        carried=_as_bool(summary["carried"]) if "carried" in summary else carried,
+        carried=(str(summary.get("carriedKind", "")) == "source" or (_as_bool(summary["carried"]) and "carriedKind" not in summary))
+        if "carried" in summary
+        else carried,
+        carried_weak=str(summary.get("carriedKind", "")) == "parameter",
         bound_names=tuple(bound_names),
     )
 
