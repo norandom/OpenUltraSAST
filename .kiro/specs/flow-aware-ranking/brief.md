@@ -209,7 +209,12 @@ A phase that cannot show that is not an improvement, it is a story.
   the 14 test-file regions ahead of the CVE included -- counts as product. Knowing that `tests/`,
   `test-*.php` and `*Test.php` are not product is ecosystem convention, which is to say policy: it
   belongs in a `[[layout]]` fact table per ecosystem, approved like the `[[dispatch]]` facts were, not in
-  a constant here. Proposed, not done. After that, within-tier order is phase 3's -- a model reading the code the ties cannot --
+  a constant here. **Approved and done 2026-09-11** (b821ac6), with the maintainer's second decision in
+  the same row: vendored trees are OUT -- of the targets and of the graph -- because a bundled library is
+  a separate unit, analysed as one or not at all ("divide and rule"; libraries ship as their own DLLs).
+  Test paths stay in scope and are not product. Both re-measured; and the baseline Joern is 4.0.625 from
+  here (the closure exclusion gated off, both plugins building clean), measured separately first so the
+  two changes are not confounded. After that, within-tier order is phase 3's -- a model reading the code the ties cannot --
   or one more exact path fact (`distance`), and the gate stays unmet until one of them moves it.
 
 - **Phase 3 — the LLM ranker.** Same evidence, ordered by a model. Gate: beats phase 2 leave-one-repository-out.
