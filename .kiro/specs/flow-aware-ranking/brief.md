@@ -179,7 +179,16 @@ A phase that cannot show that is not an improvement, it is a story.
   The proxy is too loose: folding "assigned from a parameter" in with "assigned from a source" put 555
   and 569 regions in tier 4 -- every constructor assigns a field from a parameter -- and the CVEs sit in
   those tiers on score alone. v4 splits the provenance: source-fed (or fed by a same-file method that
-  reads a source) promotes to tier 4; parameter-fed only orders within a tier (weight +0.75). Measuring.
+  reads a source) promotes to tier 4; parameter-fed only orders within a tier (weight +0.75).
+
+  **v4, measured:** pmpro 69 and wpstatistics 172, both UNCHANGED with tier 4 still 555 and 569 -- their
+  tier-4 members are source-fed under the one-level rule (fields assigned from calls to same-file
+  helpers that read `$_REQUEST`, which on those plugins is a real request path, so the tier is roughly
+  honest and the CVE's position there is a within-tier question). mwwpform went 68 → **248**: its CVE's
+  region is fed by `$this->attachments = $attachments` in a constructor, exactly the parameter-fed shape
+  the split demotes, and exactly the shape the exact flow had put at 30. So v5 asks the exact flow for
+  precisely the parameter-fed fields a sink-bearing region reads -- memoised per (family, file, field)
+  for the batch, which the arbiter's memos were not until today -- and for nothing else.
 
 - **Phase 3 — the LLM ranker.** Same evidence, ordered by a model. Gate: beats phase 2 leave-one-repository-out.
   If it does not, phase 2 ships and phase 3 does not.

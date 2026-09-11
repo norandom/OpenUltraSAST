@@ -647,8 +647,24 @@
     // flow form was a wall. It puts `_delete_files()` (fed by `$this->attachments`) and `record()` (fed by
     // a filter) where their sources say, instead of one tier below every region with a `$_GET` in its own
     // body. Asked only where there is a sink to carry to, so a plugin's 21,000 tier-0 pairs pay nothing.
-    val carriedKind = if (sinkList.nonEmpty && familyInRepo) strongest(List(fieldCarriedKind, hookCarriedKind)) else ""
-    val carried     = carriedKind.nonEmpty
+    // Weak becomes strong only when the FLOW says so. A parameter-fed field is what every constructor
+    // makes and what MW WP Form's `_delete_files()` is actually fed by; structure cannot tell the two
+    // apart, the join can. So the exact form is asked here for exactly the parameter-fed fields a
+    // sink-bearing region reads -- memoised per (family, file, field) for the batch -- and nowhere else.
+    // That bounds the flow queries to the cases the structure could not settle, instead of the 1,040
+    // sink-bearing pairs that did not finish in 1,800 s.
+    val structuralKind = if (sinkList.nonEmpty && familyInRepo) strongest(List(fieldCarriedKind, hookCarriedKind)) else ""
+    val carriedKind =
+      if (structuralKind != "parameter") structuralKind
+      else {
+        val confirmed = cpg.call
+          .nameExact(FIELD_ACCESS)
+          .filter(c => inScope(c.method))
+          .l
+          .exists(r => prefixKind(r.code.trim, fedFields(r.method.filename)) == "parameter" && taintedPrefixes(r.code.trim, r.method.filename))
+        if (confirmed) "source" else "parameter"
+      }
+    val carried = carriedKind.nonEmpty
     val summary = ujson.Obj(
       "kind"         -> "summary",
       "sinks"        -> sinkList.size,
@@ -656,6 +672,7 @@
       "sourceNear"   -> sourceNear,
       "carried"      -> carried,
       "carriedKind"  -> carriedKind,
+      "carriedBy"    -> (if (structuralKind.isEmpty) "" else if (fieldCarriedKind == structuralKind) "field" else "hook"),
       "familyInRepo" -> familyInRepo
     )
     val perSink = sinkList.map { sink =>
