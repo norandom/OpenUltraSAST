@@ -554,11 +554,19 @@
     // the same answer for every request of one family and a repository-wide walk per request turned a
     // milliseconds-per-pair query into minutes.
     val familyInRepo = familyInRepoMemo.getOrElseUpdate(sinksS, cpg.call.exists(c => sinkNames.exists(n => sinkMatches(c, n))))
+    // `carried`: stage one of the two-stage join, reused as evidence (flow-aware-ranking, phase 2). A field
+    // read in scope whose assignment is fed by a source, or an array key a registered hook callback fills
+    // from one -- computed and memoised for the arbiter anyway, and the exact fact that puts
+    // `_delete_files()` (fed by `$this->attachments`) and `record()` (fed by a filter) where their sources
+    // say, instead of one tier below every region with a `$_GET` in its own body. Asked only where there
+    // is a sink to carry to, so the 21,000 tier-0 pairs of a plugin pay nothing for it.
+    val carried = sinkList.nonEmpty && familyInRepo && (fieldList.nonEmpty || hookList.nonEmpty)
     val summary = ujson.Obj(
       "kind"         -> "summary",
       "sinks"        -> sinkList.size,
       "sourceLocal"  -> sourceLocal,
       "sourceNear"   -> sourceNear,
+      "carried"      -> carried,
       "familyInRepo" -> familyInRepo
     )
     val perSink = sinkList.map { sink =>

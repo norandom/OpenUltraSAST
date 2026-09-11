@@ -137,6 +137,25 @@ A phase that cannot show that is not an improvement, it is a story.
   after every region with evidence -- the scan does not know it is safe, it knows nothing -- which is a
   known cost of this phase for families like `access_control` and is noted here rather than hidden.
 
+  **Measured 2026-09-11, weights v1** (`benchmarks/ranking/baselines/2026-09-11-evidence-rank.json`), the
+  evidence pass over EVERY region of each repository, Joern 4.0.623:
+
+  | repository | pairs | evidence pass | tiers 0 / 1 / 2 / 3 / 4 | `budget_at_recall` static → evidence |
+  |---|---|---|---|---|
+  | pmpro | 22,315 | 255 s | 21,275 / 74 / 86 / 759 / 121 | **391 → 116** |
+  | wpstatistics | 8,359 | 156 s | 7,468 / 77 / 5 / 726 / 83 | **504 → 223** |
+  | mwwpform | 4,915 | 68 s | 4,511 / 37 / 0 / 357 / 10 | **513 → 292** |
+  | vampi | 125 | 16 s | 123 / 1 / 0 / 0 / 1 | 16 → 16 |
+
+  Concentration of 2.2× to 3.4× on the three PHP repositories, from exact facts and a seven-entry weight
+  table; the gate (< 50 everywhere) is not met. Two readings, one per shape of miss: pmpro's CVE is
+  INSIDE its 121 tier-4 regions, so what remains there is order within the top tier -- the tie-heavy part
+  this brief handed to phase 3. WP Statistics's `record()` and MW WP Form's `_delete_files()` are in
+  tier 3, one below where their sources say they belong, because `carried` -- stage one of the two-stage
+  join, which the arbiter computes anyway -- was not yet reported by the evidence branch. It is now
+  (`taint.sc` reports it only where a sink exists, so tier-0 pairs pay nothing); the re-measurement is
+  in flight and is the number phase 2 stands or falls on.
+
 - **Phase 3 — the LLM ranker.** Same evidence, ordered by a model. Gate: beats phase 2 leave-one-repository-out.
   If it does not, phase 2 ships and phase 3 does not.
 - **Phase 4 — break the closed loop.** An exploration slice (~10% of budget sampled outside the top-K) and

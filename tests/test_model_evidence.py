@@ -123,3 +123,25 @@ def test_the_score_orders_within_a_tier_and_never_across_one() -> None:
     cleansed = Evidence(sinks=(sink(1), sink(2, cleansed=True)), source_near=True)
     assert cleansed.score < one.score, "a cleansed sink beside an open one counts against the pair"
     assert sorted([many, one, local], key=lambda e: e.order_key, reverse=True) == [local, many, one]
+
+
+def test_the_query_may_answer_carried_itself() -> None:
+    """Stage one of the two-stage join, reported by the query as `carried`. When present it is the answer;
+    when absent the caller's value stands, and absent-and-unknown stays None rather than becoming False."""
+    from openultrasast.model.evidence import TIER_OPEN, TIER_OPEN_PUBLIC, evidence_from_rows
+
+    sink = {
+        "kind": "sink",
+        "sink": "unlink($f)",
+        "sinkLine": "259",
+        "sinkMethod": "_delete_files",
+        "sinkArity": 1,
+        "sinkArg0Literal": False,
+        "cleansedOnCall": False,
+    }
+    said = evidence_from_rows([{"kind": "summary", "sinks": 1, "sourceNear": True, "carried": True, "familyInRepo": True}, sink])
+    assert said is not None and said.carried is True and said.tier == TIER_OPEN_PUBLIC
+    silent = evidence_from_rows([{"kind": "summary", "sinks": 1, "sourceNear": True, "familyInRepo": True}, sink])
+    assert silent is not None and silent.carried is None and silent.tier == TIER_OPEN
+    told = evidence_from_rows([{"kind": "summary", "sinks": 1, "sourceNear": True, "familyInRepo": True}, sink], carried=True)
+    assert told is not None and told.carried is True

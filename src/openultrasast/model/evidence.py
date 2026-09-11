@@ -156,7 +156,9 @@ def evidence_from_rows(
         source_near=_as_bool(summary.get("sourceNear")),
         entry=entry,
         access_declared_public=access_declared_public,
-        carried=carried,
+        # The query's own answer when it gave one (phase 2: stage one of the two-stage join, reused);
+        # the caller's otherwise; None where neither knows, which is not False.
+        carried=_as_bool(summary["carried"]) if "carried" in summary else carried,
         bound_names=tuple(bound_names),
     )
 

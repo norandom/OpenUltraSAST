@@ -1,0 +1,140 @@
+{
+  "note": "phase 2, weights v1: order by a real evidence pass over every region (position.py --evidence), Joern 4.0.623",
+  "results": [
+    {
+      "repo": "mwwpform",
+      "regions": 983,
+      "distinct_ranks": 5,
+      "largest_tier_share": 0.817,
+      "largest_tier_rank": 0.3,
+      "budget_at_recall": 292,
+      "known": [
+        {
+          "id": "CVE-2023-6559",
+          "family": "path",
+          "site": "classes/services/class.mail.php:259:_delete_files",
+          "position": 291,
+          "rank": 0.3,
+          "in_scope": true,
+          "reached_transitively": false
+        }
+      ],
+      "build_seconds": 47.6,
+      "evidence_seconds": 67.5,
+      "pairs": 4915,
+      "pairs_unanswered": 0,
+      "tier_counts": {
+        "0": 4511,
+        "1": 37,
+        "3": 357,
+        "4": 10
+      }
+    },
+    {
+      "repo": "pmpro",
+      "regions": 4463,
+      "distinct_ranks": 5,
+      "largest_tier_share": 0.838,
+      "largest_tier_rank": 0.3,
+      "budget_at_recall": 116,
+      "known": [
+        {
+          "id": "CVE-2023-23488",
+          "family": "injection",
+          "site": "classes/class.memberorder.php:936:getMemberOrderByCode",
+          "position": 115,
+          "rank": 0.3,
+          "in_scope": true,
+          "reached_transitively": false
+        }
+      ],
+      "build_seconds": 84.8,
+      "evidence_seconds": 255.1,
+      "pairs": 22315,
+      "pairs_unanswered": 0,
+      "tier_counts": {
+        "0": 21275,
+        "1": 74,
+        "2": 86,
+        "3": 759,
+        "4": 121
+      }
+    },
+    {
+      "repo": "vampi",
+      "regions": 25,
+      "distinct_ranks": 5,
+      "largest_tier_share": 0.36,
+      "largest_tier_rank": 1.0,
+      "budget_at_recall": 16,
+      "known": [
+        {
+          "id": "VAmPI-SQLI",
+          "family": "injection",
+          "site": "models/user_model.py:73:get_user",
+          "position": null,
+          "rank": null,
+          "in_scope": true,
+          "reached_transitively": true
+        },
+        {
+          "id": "VAmPI-BOLA",
+          "family": "access_control",
+          "site": "api_views/users.py:187:update_password",
+          "position": 15,
+          "rank": 0.8,
+          "in_scope": true,
+          "reached_transitively": false
+        },
+        {
+          "id": "VAmPI-BOLA-BOOKS",
+          "family": "access_control",
+          "site": "api_views/books.py:51:get_by_title",
+          "position": 10,
+          "rank": 0.8,
+          "in_scope": true,
+          "reached_transitively": false
+        }
+      ],
+      "build_seconds": 5.2,
+      "evidence_seconds": 15.8,
+      "pairs": 125,
+      "pairs_unanswered": 0,
+      "tier_counts": {
+        "0": 123,
+        "1": 1,
+        "4": 1
+      }
+    },
+    {
+      "repo": "wpstatistics",
+      "regions": 1673,
+      "distinct_ranks": 6,
+      "largest_tier_share": 0.753,
+      "largest_tier_rank": 0.3,
+      "budget_at_recall": 223,
+      "known": [
+        {
+          "id": "CVE-2022-25148",
+          "family": "injection",
+          "site": "includes/class-wp-statistics-pages.php:225:record",
+          "position": 222,
+          "rank": 0.3,
+          "in_scope": true,
+          "reached_transitively": false
+        }
+      ],
+      "build_seconds": 106.4,
+      "evidence_seconds": 156.2,
+      "pairs": 8359,
+      "pairs_unanswered": 0,
+      "tier_counts": {
+        "0": 7468,
+        "1": 77,
+        "2": 5,
+        "3": 726,
+        "4": 83
+      }
+    }
+  ]
+}
