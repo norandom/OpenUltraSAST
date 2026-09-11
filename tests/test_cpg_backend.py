@@ -1073,3 +1073,32 @@ def test_the_closure_exclusion_stops_at_the_release_that_fixed_it(tmp_path: Path
     monkeypatch.setattr("shutil.which", lambda name: "/opt/bin/joern")
     assert joern_version() is None
     assert [Path(n).name for n in backend._files_with_frontend_defect(tmp_path, "php")] == ["bad.php"], "unknown keeps the workaround"
+
+
+def test_the_interpreter_must_read_the_frontend_parser_too(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """php2cpg drives PHP-Parser through `php` from a script inside its own install. An interpreter that can
+    read the repository but not that script parses nothing, exits 0, and looks like a frontend regression --
+    measured with a second Joern install the containerised `php` had no mount for. Refused by name."""
+    import subprocess
+
+    from openultrasast.cpg.backend import JoernBackend
+
+    (tmp_path / "repo").mkdir()
+    (tmp_path / "repo" / "a.php").write_text("<?php\n")
+    install = tmp_path / "joern-cli"
+    parser = install / "frontends" / "php2cpg" / "bin" / "php-parser" / "php-parser.php"
+    parser.parent.mkdir(parents=True)
+    parser.write_text("<?php\n")
+    (install / "php2cpg").write_text("#!/bin/sh\n")
+
+    def runner(command, **kwargs):  # type: ignore[no-untyped-def]
+        if "-r" in command:
+            # The interpreter's view: the repository is readable, the frontend's install is not.
+            return subprocess.CompletedProcess(args=command, returncode=3 if "php-parser.php" in command[-1] else 0, stdout="", stderr="")
+        raise AssertionError("no build may start when the precondition fails")
+
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    monkeypatch.setattr("shutil.which", lambda name: str(install / "php2cpg") if name == "php2cpg" else f"/opt/bin/{name}")
+    backend = JoernBackend(runner=runner)
+    assert backend.build(tmp_path / "repo", language="php") is None
+    assert "php-parser.php" in backend.last_failure and "mounts the repository but not this install" in backend.last_failure

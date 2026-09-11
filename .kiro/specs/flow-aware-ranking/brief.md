@@ -190,6 +190,21 @@ A phase that cannot show that is not an improvement, it is a story.
   precisely the parameter-fed fields a sink-bearing region reads -- memoised per (family, file, field)
   for the batch, which the arbiter's memos were not until today -- and for nothing else.
 
+  **v5, measured, and the phase-2 verdict on it** (`2026-09-11-evidence-rank-v5.json`, with the head of
+  each order recorded): pmpro **69**, wpstatistics **172**, mwwpform **68**, vampi 16. The flow confirms
+  every parameter-fed field -- a constructor's `$this->x = $x` trivially flows from its parameter -- so
+  v5 equals v3 for mwwpform; the v2 "30" came from the older scoping (the region's file, not the
+  field's), which happened to fit that one case. 68 is the honest structural number for that shape.
+
+  Reading the heads: every region ahead of a CVE is in the CVE's own tier on a tied or higher score --
+  pmpro's CVE scores 7.0 with 23 regions at 10.0, 13 at 8.5, 10 at 8.0 and 14 at 7.0 ahead of it;
+  wpstatistics's sits behind 96 regions tied at 7.0. The tiers are done; the ties are the whole of what
+  is left, exactly as the cross-assessment said. One exact fact was missing from the vector: `shipped`,
+  the build's own word on what is product, was on the region and not in the score, and 10 of the 67
+  regions ahead of MW WP Form's CVE were `test-mail.php`. Weight −2.0 for an unshipped file (v6, in
+  flight). After that, within-tier order is phase 3's -- a model reading the code the ties cannot --
+  or one more exact path fact (`distance`), and the gate stays unmet until one of them moves it.
+
 - **Phase 3 — the LLM ranker.** Same evidence, ordered by a model. Gate: beats phase 2 leave-one-repository-out.
   If it does not, phase 2 ships and phase 3 does not.
 - **Phase 4 — break the closed loop.** An exploration slice (~10% of budget sampled outside the top-K) and

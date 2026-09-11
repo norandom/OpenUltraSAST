@@ -87,6 +87,11 @@ _FRONTENDS = {
 _PREFER_FRONTEND = frozenset({"php"})
 # The extensions that count as source for a language, used to ask whether a graph is missing anything.
 _LANGUAGE_EXTENSIONS: dict[str, tuple[str, ...]] = {"php": (".php",)}
+# The script a frontend drives THROUGH the interpreter, relative to the frontend binary's directory. The
+# interpreter has to be able to read it as much as the repository: php2cpg 4.0.625 in an install the
+# containerised `php` had no mount for parsed 1 of 637 files -- "Could not open input file" 64 times,
+# exit 0 -- and read for a minute as a frontend regression.
+_FRONTEND_PARSER: dict[str, str] = {"php": "frontends/php2cpg/bin/php-parser/php-parser.php"}
 
 # A source file above this size is a data table, not code: WP Statistics carries two vendored browser
 # profile files of 1.6 MB and 1.5 MB, each one array literal, and they were 60% of the graph (9.6 MB with
@@ -429,6 +434,20 @@ class JoernBackend:
                 f"write an empty graph. Check that {interpreter} is a real interpreter with access to this "
                 f"tree -- a container or wrapper without the right mount fails exactly this way."
             )
+        # The same question about the frontend's own parser script, which the interpreter also has to open.
+        frontend = _FRONTENDS.get(language.lower())
+        relative = _FRONTEND_PARSER.get(language.lower())
+        frontend_binary = shutil.which(frontend) if frontend else None
+        if frontend_binary and relative:
+            parser = Path(frontend_binary).resolve().parent / relative
+            if parser.is_file():
+                completed = self._run([binary, "-r", probe, str(parser)], timeout=60)
+                if completed is not None and completed.returncode != 0:
+                    return (
+                        f"the {interpreter} interpreter cannot read {parser}, the script {frontend} drives it with, "
+                        f"so every file would fail to parse and the graph would be empty. A container or wrapper "
+                        f"that mounts the repository but not this install fails exactly this way."
+                    )
         return ""
 
     def _build_sharded(self, root: Path, scratch: Path, language: str) -> tuple[tuple[Path, ...], tuple[str, ...]]:

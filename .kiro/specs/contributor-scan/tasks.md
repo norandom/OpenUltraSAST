@@ -925,7 +925,13 @@
     maintainer verified our reproducer on master: no node with two AST parents, overlays apply cleanly.
     So `_files_with_frontend_defect` and its exclusion are a workaround for two releases and should become
     version-gated: verify on 4.0.625 (the reproducer, then pmpro and WP Statistics with NO exclusions), and
-    check whether #6283 (`--overlaysonly`) is also gone there.
+    check whether #6283 (`--overlaysonly`) is also gone there. **Done, 2026-09-11:** the reproducer builds
+    and loads cleanly on 4.0.625; #6283 still reproduces there (commented upstream). Through the backend,
+    with the exclusion version-gated off: **pmpro 637 of 637 files in 100 s, WP Statistics 115 s with only
+    the two data tables excluded by name.** One more instrument finding on the way: the second install was
+    not mounted into the containerised `php`, so php2cpg 4.0.625 parsed 1 of 637 files and exited 0 --
+    caught by the build census, and the interpreter precondition now probes the frontend's own parser
+    script as well as the repository.
   - **Open, and the maintainer's call, not mine:** `includes/vendor/` is 207 of WP Statistics's 357 PHP
     files and is not excluded by `preprocess.IGNORED_DIRS`, so vendored third-party code is both scanned
     and in the graph. Whether a project's vendored code is in scope is policy; the size guard above is
