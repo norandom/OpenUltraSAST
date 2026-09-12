@@ -142,3 +142,18 @@ The content review checked boundary ownership, failure handling, vendor exclusio
 and independent finding/coverage/push status. Draft defaults remain clearly labeled. Runtime
 integration, performance and capability admission remain unverified work; no code tests were
 needed for these documentation-only amendments.
+
+### Group 2 implementation: immutable Git reads
+
+The local Git runtime is 2.43.0. Snapshot reads must suppress replacement objects
+and implicit promisor fetching, including on Git versions that predate newer
+lazy-fetch controls. The protocol allow-list is the stronger boundary: an empty
+`GIT_ALLOW_PROTOCOL` forbids transports even when repository configuration permits
+an individual protocol. Git documents this precedence in its
+[environment-variable reference](https://git-scm.com/docs/git#Documentation/git.txt-GITALLOWPROTOCOL).
+Regression fixtures must prove supplied-object identity and lack of helper execution;
+setting environment variables alone is not evidence of either property.
+
+The snapshot adapter provides change evidence, not a second region selector. Source
+materialization, changed spans, and correspondence must remain language agnostic;
+unknown parser or correspondence boundaries cannot become a successful negative.

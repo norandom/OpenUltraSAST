@@ -84,3 +84,23 @@ class PushResult(Contract):
             raise ValueError("aggregate complete coverage requires completed comparison analyses")
         if self.coverage_status == "not_applicable" and (self.analyses or self.actionable_defect_ids):
             raise ValueError("not applicable cannot carry analyzed scope or findings")
+
+
+@dataclass(frozen=True)
+class UpdateResolution(Contract):
+    """One record per supplied line, including repeated ref associations."""
+
+    update: PushUpdate
+    disposition: Literal["ready", "deleted", "missing_target", "unsupported_target", "missing_base", "unsupported_base",
+                         "no_merge_base", "ambiguous_base", "resolution_error"]
+    head_oid: str | None
+    base_oid: str | None
+    base_reason: str
+
+
+@dataclass(frozen=True)
+class PushResolution(Contract):
+    object_format: str
+    updates: tuple[UpdateResolution, ...]
+    comparisons: tuple[PushComparison, ...]
+    targets: tuple[str, ...]

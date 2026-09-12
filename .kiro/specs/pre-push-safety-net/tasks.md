@@ -56,12 +56,13 @@ the hook and capability admission are not yet implemented. See `implementation-g
   - _Verified 2026-09-12:_ independent review APPROVED; 965 tests passed, 9 skipped; touched-source Ruff/mypy passed. Parent rebuilt the local image and verified non-root, network-disabled CLI startup, all contract imports, an 83-byte configuration round trip and invalid-budget rejection. Comparison-owned completion preserves different bases for a shared head. Contracts are structural; runtime snapshot/cache/runner/admission implementations remain in later tasks.
 
 - [ ] 2. Resolve immutable pushed content
-- [ ] 2.1 Resolve every supplied ref update and comparison
+- [x] 2.1 Resolve every supplied ref update and comparison
   - Parse Git's complete update input using object-format-aware validation; resolve existing tips, new-branch configured bases, force-pushes, merges, peeled tags, deleted refs and unsupported objects.
   - Deduplicate equal targets without merging different base comparisons; retain every ref association. Do not silently substitute HEAD or fetch missing objects.
   - Done when multi-ref and missing-base fixtures produce exact comparison identities and explicit dispositions, including deletion-only no-analysis results.
   - _Boundary: Snapshot Adapter_
   - _Requirements: 1.1, 1.3, 1.4, 7.1_
+  - _Verified 2026-09-12:_ independent review APPROVED after Unicode-ref repair; 997 tests passed, 9 skipped; focused 76 passed and touched Ruff/mypy passed. Real SHA-1/SHA-256 fixtures cover exact comparisons, tags, deletion, missing/ambiguous bases, replacement/graft suppression and blocked promisor fetch. Parent read 2,547 pinned source bytes and verified real-repository comparison/ref identity with dirty state and index preserved. ASCII protocol framing retains valid Unicode ref names.
 - [ ] 2.2 Materialize isolated object snapshots
   - Read immutable tracked blobs into bounded scratch storage using machine-readable paths; do not checkout into the live tree or run filters, project scripts or network requests.
   - Preserve path identity and report symlinks, gitlinks, unavailable LFS blobs and unsupported content; never follow source outside the snapshot.

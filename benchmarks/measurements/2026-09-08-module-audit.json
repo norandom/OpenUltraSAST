@@ -1,10 +1,10 @@
 {
   "counts": {
-    "load_bearing": 97,
+    "load_bearing": 98,
     "standalone_capability": 9
   },
-  "modules": 106,
-  "note": "Refreshed 2026-09-12 after pre-push-safety-net task 1.4: immutable push and generic engine contracts are spec-owned; runtime integration remains pending.",
+  "modules": 107,
+  "note": "Refreshed 2026-09-12 after pre-push-safety-net task 2.1: local immutable ref resolution is spec-owned; runner integration remains pending.",
   "orphaned": [],
   "rows": [
     {
@@ -633,15 +633,25 @@
     },
     {
       "classification": "load_bearing",
-      "importers": [],
+      "importers": [
+        "push.snapshot"
+      ],
       "module": "push",
       "reason": "pre-push-safety-net Req 5.5/7.3: experimental push contract package; no hook installed"
     },
     {
       "classification": "load_bearing",
-      "importers": [],
+      "importers": [
+        "push.snapshot"
+      ],
       "module": "push.contracts",
       "reason": "pre-push-safety-net Req 5.5/7.3: immutable comparisons and independent result statuses; runner pending"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [],
+      "module": "push.snapshot",
+      "reason": "pre-push-safety-net Req 1.1/1.3/1.4/7.1: local immutable ref resolution; runner integration pending"
     },
     {
       "classification": "standalone_capability",
@@ -1125,6 +1135,5 @@
     "skills": "skill router; consumed by mcp and by the OpenCode integration, not by the scan path",
     "slot_contract": "the slot/contract protocol stage_processors implements",
     "stage_processors": "HarnessX slot-contracted scan stages; pinned by the zero-dependency guard in test_gate"
-  },
-  "updated_at": "2026-09-12"
+  }
 }
