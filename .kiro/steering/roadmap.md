@@ -1,5 +1,72 @@
 # Roadmap
 
+## Current direction and next review — 2026-09-12
+
+The product is an **actionable pre-push security safety net for AI-accelerated development**, across
+supported languages/frameworks. WordPress is one regression workload. Advisory must be useful and
+low noise; moving speculative SAST output into a nonblocking hook does not meet the goal. See
+`safety-net.md` for current steering. The earlier narrative below is retained as dated history and
+does not override this direction or the latest measurements.
+
+### Approach decision
+
+Keep the existing ranker as the scope mechanism. Supply it with pushed-change and affected
+first-party context. Third-party vendor code remains outside both targets and graphs. Reuse
+compatible graph/results artifacts and apply a total deadline; treat unknown external semantics
+as a coverage boundary. Require change attribution, witness and repair direction before a finding
+earns normal hook visibility. A second heuristic scope selector and an assumed incremental Joern
+engine are out of scope.
+
+### Current evidence and limitations
+
+- Whole-PMPro analysis has completed with its known CVE; the earlier "does not finish" diagnosis
+  is superseded. The recorded 72-minute scan is not a pre-push performance result.
+- The latest Joern 4.0.625 + layout ranking budgets are PMPro 82, WP Statistics 91, MW WP Form 54,
+  VAmPI 16. `<50` remains unmet; VAmPI's transitive SQLI is not measured by this position metric.
+- Equal-score tie-breaking alone cannot bring PMPro or WP Statistics under 50. The existing
+  ranker is useful, but its measured ordering is not enabled by the ordinary CLI caller.
+- Docker/Compose/ops still default to 4.0.623. Pin and provenance alignment precede deployment claims.
+- `contributor-scan` has 24/40 checked tasks; historical checkboxes are not rewritten by this review.
+  `flow-aware-ranking` is still an unapproved brief despite implementation history.
+
+## Existing Spec Updates
+
+- [ ] `contributor-scan` — review the draft driver/backend integration amendment; reconcile packaging
+  pins, family-specific sanitizer task 5.6, exact scope reporting and repository baseline honesty.
+  Preserve previously approved work; the new amendment is not implicitly approved.
+- [ ] `flow-aware-ranking` — review the amended experiment contract: ranker owns scope, vendor
+  boundary preserved, missing targets stay unresolved, actual detection and cost accompany rank,
+  untouched evaluation and exploration precede learned-ranking claims.
+- [ ] `zero-with-a-reason` — reconcile the broader funnel proposal with the hook's consumed coverage
+  contract; it is adjacent work, not a requirement to finish every diagnostics mechanism first.
+
+## Specs (dependency order)
+
+- [ ] pre-push-safety-net — Immutable pushed tips, existing-ranker integration, compatible artifact
+  reuse, total deadline, change attribution, actionability admission and compact hook behavior.
+  Dependencies: contributor-scan. Requirements/design approved 2026-09-12; tasks generated
+  (8 groups, 27 executable subtasks), independently reviewed and approved; group 1 implementation started.
+
+### Next concrete step
+
+The maintainer approved `pre-push-safety-net/tasks.md` and starting group 1. Requirements and design
+were accepted when the maintainer requested the next Kiro phase; the 27-subtask plan passed independent
+sanity review. Complete group 1 (reproducible runtime, readable PMPro/Node inputs, honest scoring
+and shared contracts). The first complete experiment is 5.2, before persistent caching and hook
+installation work. Keep PMPro as the primary core-optimization example, then freeze the core and
+prove a changed security flow and its fixed twin on a JavaScript/Express Node API workload through
+the same ranker, with a real deadline and vendor-free graph. Include benign pushes and retain Python
+regressions. `pre-push-safety-net/evaluation.md` proposes NodeGoat for integration, a separate untouched
+Node API repository for generalization, and libpng for C envelope/abstraction-limit evidence. Shared
+abstract evidence and decisions are mandatory; framework facts/adaptations are reported separately.
+Measure realistic changed-code cache behavior before more ranker tuning. Broader runtime and
+capability admission follow that result; an LLM ranker is optional.
+
+## Historical roadmap narrative — September 9–11
+
+The sections below preserve prior plans and measurements. Statements about the current bottleneck,
+PHP coverage, rollout order or feature readiness are superseded by the current section above.
+
 **Rewritten 2026-09-09.** The previous version (kept as `roadmap-2026-09-04.md`) described a pre-Joern world —
 "adjudication is still Python-`ast` plus a tree-sitter CLI stub", "Joern-as-required deferred". Joern was
 adopted, the model layer was built, wired and measured, and two repositories have been scanned. See

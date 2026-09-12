@@ -1,7 +1,16 @@
 {
   "name": "flow-aware-ranking",
+  "language": "en",
   "status": "brief",
   "approved": false,
+  "updated_at": "2026-09-12T15:35:00Z",
+  "related_specs": [
+    "pre-push-safety-net"
+  ],
+  "amendment_note": "2026-09-12: preserve the ranker as scope mechanism and vendor exclusion from targets/graphs; correct tie-only and benchmark-recall interpretations; place ranking inside a broader actionable pre-push safety net. Brief amendment remains unapproved; no historical approvals inferred.",
   "summary": "Rank (region, family) pairs by cheap evidence of a possible taint flow, so an expensive query is spent where it can pay.",
-  "depends_on": ["contributor-scan"]
+  "depends_on": [
+    "contributor-scan"
+  ],
+  "cross_language_note": "2026-09-12: maintainer endorsed the direction and clarified PMPro as core development case, JavaScript/Express Node APIs as required transfer workload, and C/C++ as additional shared-machinery/abstraction-limit evidence. Preserve language-agnostic core decisions; framework facts may differ. Detailed amended requirements/design remain pending review."
 }

@@ -1,5 +1,17 @@
 # Overview — what this is, and what is actually true of it
 
+**Current direction, 2026-09-12:** an actionable pre-push security safety net for AI-accelerated
+development across supported ecosystems. See `safety-net.md` and the proposed `pre-push-safety-net`
+spec. The ranker remains the scope mechanism; third-party vendor code stays outside targets and
+graphs. Advisory must meet the same actionability bar as blocking.
+
+**Historical scoreboard below:** it was written September 9. Later commits record a completing
+whole-PMPro scan and Joern 4.0.625 ranking measurements (82/91/54 on the three plugins), while
+default installation pins remain 4.0.623. The pre-push workflow, changed-code latency and actionable
+precision are not demonstrated by those results. In particular, the manually selected two-file
+slice below is a useful experiment, not evidence that an automatic push scope would select the
+same context. Current scope/status corrections live in `flow-aware-ranking/brief.md` and the roadmap.
+
 **Written 2026-09-09.** Fourteen specs have accumulated and the roadmap still described a pre-Joern world, so
 this is the synthesis above them: what the system does, what has been measured, and what is not true yet.
 Every number here comes from a committed artifact in `benchmarks/measurements/`.

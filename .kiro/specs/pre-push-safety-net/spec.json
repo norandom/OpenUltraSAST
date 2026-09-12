@@ -1,0 +1,54 @@
+{
+  "feature_name": "pre-push-safety-net",
+  "created_at": "2026-09-12T15:35:00Z",
+  "updated_at": "2026-09-12T16:20:40.814596Z",
+  "language": "en",
+  "phase": "implementation",
+  "approvals": {
+    "requirements": {
+      "generated": true,
+      "approved": true
+    },
+    "design": {
+      "generated": true,
+      "approved": true
+    },
+    "tasks": {
+      "generated": true,
+      "approved": true
+    }
+  },
+  "ready_for_implementation": true,
+  "implementation_approval_note": "2026-09-12: maintainer explicitly said 'approve.' in response to approval of the generated task plan and starting implementation with group 1. All tasks are approved; this implementation run starts with tasks 1.1\u20131.4. No task is complete until its fresh-evidence and reviewer gates pass.",
+  "depends_on": [
+    "contributor-scan"
+  ],
+  "related_specs": [
+    "flow-aware-ranking",
+    "zero-with-a-reason",
+    "finding-feedback-loop"
+  ],
+  "approval_note": "2026-09-12: user requested amendments and help moving the design forward for a scalable pre-push security safety net, broader than WordPress; clarified that advisory output must be actionable and not SAST noise. Requirements and a proposed design were drafted together under that explicit request. No requirements, design, tasks, enforcement policy, or latency target are marked approved. Phase remains requirements-generated until human review. Existing predecessor approvals are unchanged. ; 2026-09-12: after the amended requirements/design and cross-language evaluation were presented, the maintainer said \"ok, next kiro phase\". Requirements and design are now approved for task generation; tasks remain unapproved. Earlier unapproved statements above describe the historical drafting state.",
+  "cross_language_note": "2026-09-12: maintainer endorsed the direction and clarified PMPro as core development case, JavaScript/Express Node APIs as required transfer workload, and C/C++ as additional shared-machinery/abstraction-limit evidence. Preserve language-agnostic core decisions; framework facts may differ. Detailed amended requirements/design remain pending review.",
+  "approval_history": [
+    {
+      "at": "2026-09-12T15:56:00Z",
+      "source": "ok, next kiro phase",
+      "action": "Accepted the presented amended requirements and design for task generation; task approval and implementation remain pending."
+    },
+    {
+      "at": "2026-09-12T16:20:40.814596Z",
+      "source": "approve.",
+      "action": "Accepted the generated task plan and authorized starting group 1 (1.1\u20131.4). Implementation started; tasks require independent review and fresh verification before completion."
+    }
+  ],
+  "task_review": {
+    "verdict": "PASS",
+    "independent": true,
+    "repair_passes": 1,
+    "major_groups": 8,
+    "executable_subtasks": 27,
+    "requirements_covered": 35,
+    "record": "task-review.md"
+  }
+}

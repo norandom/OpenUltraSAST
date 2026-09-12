@@ -2,6 +2,74 @@
 
 **Status:** brief only, unapproved.
 
+## Current amendment — 2026-09-12
+
+This section supersedes forward-looking interpretations below; the iteration history is retained.
+The product goal is a scalable, actionable pre-push security safety net as AI accelerates code changes.
+PMPro and WordPress are regression workloads within that goal, not its scope boundary. See
+`../pre-push-safety-net/` for proposed push requirements and design, and
+`../../steering/safety-net.md` for the maintainer's product direction.
+
+**The ranker remains the scope mechanism.** It selects and orders the regions/questions that
+receive analysis. The push adapter supplies change and affected first-party context; it does not
+create a competing scope heuristic. Third-party vendor code remains excluded from both targets
+and graphs. Tests remain available but unshipped, as already decided. Missing external semantics
+need explicit summaries or unresolved coverage, never automatic vendor reintroduction.
+
+### Verified repository facts and bounded interpretations
+
+- Latest recorded phase-2 budgets: PMPro **82**, WP Statistics **91**, MW WP Form **54**, VAmPI **16**.
+  The `<50` gate remains unmet. The evidence passes recorded no unanswered pairs. These are stored
+  ranking measurements, not fresh detection/precision results or a pre-push latency demonstration.
+- **Equal-score ties are not the whole remaining problem.** At fixed scores, perfect tie-breaking
+  still needs at least **68** regions for PMPro and **86** for WP Statistics (67/85 strictly
+  higher-scored same-tier regions precede the targets). An LLM restricted to equal-score ties
+  cannot pass `<50`. Within-tier reordering across scores or a new feature is a distinct experiment.
+- Docker, Compose and provisioning still default to 4.0.623; the latest measurements use 4.0.625.
+  Align the shipped baseline before claiming deployment parity. New files restored by the engine
+  upgrade are legitimate coverage, not a ranker regression to tune away.
+- Ordinary CLI scans do not enable `ScanBudget.order_by_evidence`; preserve the experimental status
+  until the chosen acceptance profile passes. Record mode explicitly in every future comparison.
+- `position.py` currently equates an unmatched target function with `reached_transitively` and
+  omits it from `budget_at_recall`. Require a queried witness for transitive detection; otherwise
+  keep the target unresolved in the denominator. This currently affects VAmPI's SQLI accounting.
+- Graph construction precedes region selection. Ranking improves query allocation but does not
+  itself make graph builds incremental. The push design must measure both costs.
+
+### Revised experimental contract (draft, awaiting approval)
+
+**Maintainer clarification:** PMPro remains the chosen core-optimization example. Require a
+JavaScript/Node API transfer workload, especially Express routes/middleware, to test that those
+optimizations generalize. Frontend/framework facts map concrete semantics to common evidence;
+core ranking and scope must not gain PHP-specific branches or language-specific score bonuses.
+Equivalent normalized evidence must produce equivalent tier/score decisions. See
+`../pre-push-safety-net/evaluation.md` for the PMPro/Node/Python/C workload roles, proposed NodeGoat
+integration candidate, and separate untouched Node evaluation. C/C++ is valuable for checking
+shared machinery and abstraction limits; libpng's envelope is not a positive detection result.
+
+1. Freeze engine, facts, layout/scope, ranker mode and workload before comparing an ordering change.
+   Record selected/deferred question IDs and unanswered queries. Separate engine and scope changes
+   from ranking improvements; vendor exclusion is an explicit boundary change.
+2. Keep `budget_at_recall` as a scheduling diagnostic, not the product gate. Measure actual
+   vulnerable/fixed outcomes, actionable-alert precision, benign-push interruption, supported recall,
+   completed coverage, and total time on the same workload. No unanswered target disappears.
+3. Keep the repeatedly inspected PHP plugins as regression workloads. Use untouched repositories
+   and benign/security-changing pushes for new evaluations, with per-language/framework/family
+   outcomes. Broader C memory reasoning is not solved by ordering taint questions better.
+4. Before another LLM iteration, distinguish changing equal-score ties from reordering a whole tier.
+   Compare the candidate with the frozen heuristic at equal total cost, including model latency.
+   Protect obligation/configuration work: a taint-only score must not silently starve those families.
+5. Include a recorded exploration allocation and sufficiently small fully evaluated workloads in
+   the first learned-ranking experiment, rather than deferring selection-bias measurement until
+   after phase 3. Use a recorded seed; report unresolved/unexamined population and sampling limits.
+6. Ranking can decide where to look, never whether to alert. The hook's admission policy requires
+   supported change attribution, a useful witness and repair direction even for an entailed result.
+   Advisory mode must meet that same bar. No model may change facts, scope exclusions or rungs.
+
+This amendment does not approve the brief or its next phases. Reconcile requirements/design before
+generating implementation tasks; preserve prior measured iterations as evidence rather than relabeling
+them approved specifications.
+
 ## Why now
 
 > "we need a taint flow aware ranker, that is capable to put high risk areas into tiers"

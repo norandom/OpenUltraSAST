@@ -1,5 +1,29 @@
 # Design Document: contributor-scan
 
+## Integration amendment — 2026-09-12 (draft, unapproved)
+
+The maintainer has clarified the product as an actionable pre-push safety net across supported
+ecosystems. The proposed successor `../pre-push-safety-net/design.md` consumes this driver/backend
+without replacing its ranker: the ranker remains the scope mechanism, and vendor code stays out
+of both targets and graphs. Existing approvals below apply to the prior design, not this amendment.
+
+Proposed shared seams needing requirements/design review before implementation:
+
+- Accept an absolute deadline across graph build, overlays, retries and queries, not only region/call caps.
+- Accept an optional validated reusable graph lease while preserving ordinary fresh-build scans;
+  backend remains authoritative for artifact identity, census, compatibility and cleanup.
+- Return exact selected/deferred question IDs and context boundaries from ranker decisions;
+  callers must not reconstruct exclusions by slicing an earlier order.
+- Record engine, fact, query, layout and ranking provenance. Align Docker/Compose/ops pins with
+  the evaluated baseline before packaging parity claims.
+- Resolve task 5.6's family-specific sanitizer semantics before admitting affected capabilities to
+  a low-noise hook; ranker improvements do not repair detector semantics.
+
+The push spec owns immutable Git inputs, comparison/admission policy, persistence and presentation.
+This spec owns reusable engine contracts and family correctness. No hook imports belong inside
+the detector, no second heuristic scope selector is introduced, and no task is marked complete by
+this documentation amendment. Revalidate normal scans and repository benchmarks when seams change.
+
 ## Overview
 
 `model-grounded-detection` built an arbiter and measured it at 90.0% pair-correct / 6.7% leak on vibe-py. It
