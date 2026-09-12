@@ -1,10 +1,10 @@
 {
   "counts": {
-    "load_bearing": 92,
+    "load_bearing": 97,
     "standalone_capability": 9
   },
-  "modules": 101,
-  "note": "Inventory refreshed for pre-push-safety-net task 1.3 standalone scorer; original artifact filename retained for audit gate.",
+  "modules": 106,
+  "note": "Refreshed 2026-09-12 after pre-push-safety-net task 1.4: immutable push and generic engine contracts are spec-owned; runtime integration remains pending.",
   "orphaned": [],
   "rows": [
     {
@@ -113,6 +113,17 @@
     {
       "classification": "load_bearing",
       "importers": [
+        "config",
+        "cpg.artifact",
+        "model.contracts",
+        "push.contracts"
+      ],
+      "module": "contracts",
+      "reason": "pre-push-safety-net Req 7.3: strict shared manifest serialization, independent of push"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [
         "cli",
         "cpg.backend",
         "model.config_value",
@@ -124,6 +135,12 @@
       ],
       "module": "cpg",
       "reason": "model-grounded-detection Req 4: the CPG seam package"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [],
+      "module": "cpg.artifact",
+      "reason": "pre-push-safety-net Req 4.3/7.3: backend graph identity and live lease contract; validation integration pending"
     },
     {
       "classification": "load_bearing",
@@ -333,7 +350,8 @@
         "model.scan",
         "model.specs",
         "model.taint",
-        "preprocess"
+        "preprocess",
+        "push.contracts"
       ],
       "module": "model",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI"
@@ -367,6 +385,14 @@
       ],
       "module": "model.config_value",
       "reason": "model-grounded-detection Req 6.3: constant abstraction for the configuration families"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [
+        "push.contracts"
+      ],
+      "module": "model.contracts",
+      "reason": "pre-push-safety-net Req 4.1/7.3: generic deadline, change and exact scope contracts; integration pending"
     },
     {
       "classification": "load_bearing",
@@ -604,6 +630,18 @@
       ],
       "module": "provider.openrouter",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [],
+      "module": "push",
+      "reason": "pre-push-safety-net Req 5.5/7.3: experimental push contract package; no hook installed"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [],
+      "module": "push.contracts",
+      "reason": "pre-push-safety-net Req 5.5/7.3: immutable comparisons and independent result statuses; runner pending"
     },
     {
       "classification": "standalone_capability",

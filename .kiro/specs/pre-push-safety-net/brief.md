@@ -1,6 +1,6 @@
 # Brief: pre-push-safety-net
 
-Status: requirements, design and tasks approved on 2026-09-12; group 1 implementation started. Language: English.
+Status: requirements, design and tasks approved on 2026-09-12; group 1 implementation verified complete; groups 2–8 pending. Language: English.
 
 ## Problem
 

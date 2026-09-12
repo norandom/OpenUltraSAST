@@ -21,8 +21,9 @@ engine are out of scope.
 
 - Whole-PMPro analysis has completed with its known CVE; the earlier "does not finish" diagnosis
   is superseded. The recorded 72-minute scan is not a pre-push performance result.
-- The latest Joern 4.0.625 + layout ranking budgets are PMPro 82, WP Statistics 91, MW WP Form 54,
-  VAmPI 16. `<50` remains unmet; VAmPI's transitive SQLI is not measured by this position metric.
+- Historical Joern 4.0.625 + layout position budgets are PMPro 82, WP Statistics 91, MW WP Form 54.
+  `<50` remains unmet. VAmPI's old 16 omitted SQLI; the corrected instrument retains the unmatched
+  target and reports no full-target budget or detection recall without the required evidence.
 - Equal-score tie-breaking alone cannot bring PMPro or WP Statistics under 50. The existing
   ranker is useful, but its measured ordering is not enabled by the ordinary CLI caller.
 - Docker/Compose/ops now default to 4.0.625; task 1.1 passed local PHP/JavaScript image smoke and independent review. No host deployment or hook latency claim follows from that runtime evidence.
@@ -45,14 +46,14 @@ engine are out of scope.
 - [ ] pre-push-safety-net — Immutable pushed tips, existing-ranker integration, compatible artifact
   reuse, total deadline, change attribution, actionability admission and compact hook behavior.
   Dependencies: contributor-scan. Requirements/design approved 2026-09-12; tasks generated
-  (8 groups, 27 executable subtasks), independently reviewed and approved; group 1 implementation started.
+  (8 groups, 27 executable subtasks), independently reviewed and approved; group 1 is complete (4/27 tasks).
 
 ### Next concrete step
 
-The maintainer approved `pre-push-safety-net/tasks.md` and starting group 1. Requirements and design
-were accepted when the maintainer requested the next Kiro phase; the 27-subtask plan passed independent
-sanity review. Complete group 1 (reproducible runtime, readable PMPro/Node inputs, honest scoring
-and shared contracts). The first complete experiment is 5.2, before persistent caching and hook
+Group 1 has passed independent review: reproducible PHP/JavaScript runtime, pinned PMPro/Node inputs,
+honest scoring and shared contracts. Continue with group 2's immutable push snapshots under the
+approved task plan; see `pre-push-safety-net/implementation-group-1.md` for evidence and limits.
+The first complete experiment is 5.2, before persistent caching and hook
 installation work. Keep PMPro as the primary core-optimization example, then freeze the core and
 prove a changed security flow and its fixed twin on a JavaScript/Express Node API workload through
 the same ranker, with a real deadline and vendor-free graph. Include benign pushes and retain Python

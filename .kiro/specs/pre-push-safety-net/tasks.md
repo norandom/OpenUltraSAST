@@ -1,7 +1,8 @@
 # Implementation Plan: pre-push-safety-net
 
-Status: task plan approved by the maintainer's "approve." on 2026-09-12. Implementation has
-started with group 1 (tasks 1.1–1.4); each task remains pending until independent review and fresh verification pass.
+Status: task plan approved by the maintainer's "approve." on 2026-09-12. Group 1 (tasks 1.1–1.4)
+is complete after independent review and fresh verification. Remaining groups are pending;
+the hook and capability admission are not yet implemented. See `implementation-group-1.md`.
 
 ## Execution contract
 
@@ -21,7 +22,7 @@ started with group 1 (tasks 1.1–1.4); each task remains pending until independ
 - Sequential order is the default. Only 3.1 may run alongside group 2 after its explicit prerequisite;
   shared backend/driver, cache and report edits otherwise remain serial. No optional acceptance tests.
 
-- [ ] 1. Establish the runtime, evaluation inputs and shared contracts
+- [x] 1. Establish the runtime, evaluation inputs and shared contracts
 - [x] 1.1 Reproduce the evaluated engine environment
   - Align the shipped image, Compose and host-install defaults with Joern 4.0.625; preserve version override and checksum verification.
   - Exercise PHP with the native interpreter and the installed JavaScript frontend; open a source and the frontend parser where applicable, recording byte counts and graph census.
@@ -45,13 +46,14 @@ started with group 1 (tasks 1.1–1.4); each task remains pending until independ
   - _Boundary: Evaluation harness, repository benchmark integration_
   - _Requirements: 6.2, 6.3, 6.4, 6.5, 7.3_
   - _Verified 2026-09-12:_ independent review APPROVED; 925 tests passed, 9 skipped. Parent reproduced the frozen profile and actual VAmPI static rerun (15,942 pinned bytes, all 3 targets retained, SQLI unmatched, no transitive/detection claim, exit 1). Empty-run scoring retains 11 unresolved cases and explicitly reports unmeasured/0 recorded cases. Historical baselines remain unchanged with a caveat; new scorer consumes associated execution/review evidence and does not implement replay or admission.
-- [ ] 1.4 Establish typed push and engine integration contracts
+- [x] 1.4 Establish typed push and engine integration contracts
   - Add importable push components and validated configuration for comparison base, shared deadline/cancellation allowance, local cache limit, advisory/blocking and separate coverage policy.
   - Define ownership of update/comparison, change context, selected/deferred scope, graph identity/lease and separate finding/coverage/push statuses as described in design.
   - Keep generic engine contracts outside the push package; leave ordinary scan defaults compatible and capabilities experimental until evaluated.
   - Done when contract/config round trips preserve all identities/statuses, invalid values are rejected, and the engine has no dependency on the push package.
   - _Boundary: Push runner, Cache and Engine Boundary, CLI/config integration_
   - _Requirements: 4.1, 4.3, 5.3, 5.4, 5.5, 7.1, 7.3_
+  - _Verified 2026-09-12:_ independent review APPROVED; 965 tests passed, 9 skipped; touched-source Ruff/mypy passed. Parent rebuilt the local image and verified non-root, network-disabled CLI startup, all contract imports, an 83-byte configuration round trip and invalid-budget rejection. Comparison-owned completion preserves different bases for a shared head. Contracts are structural; runtime snapshot/cache/runner/admission implementations remain in later tasks.
 
 - [ ] 2. Resolve immutable pushed content
 - [ ] 2.1 Resolve every supplied ref update and comparison

@@ -132,8 +132,8 @@ Concrete workload roles and required paired changes are in `evaluation.md`.
 | Storage | Local content-addressed directories and JSON manifests | Atomic reusable artifacts, no database |
 | Presentation | Existing finding records plus compact hook renderer | Separate findings and coverage |
 
-Align Docker, Compose and provisioning with the evaluated Joern version before any deployment
-claim. The old defaults are 4.0.623. Pin alignment is predecessor packaging work, not completed here.
+Docker, Compose and provisioning defaults were aligned to 4.0.625 in task 1.1, with a verified
+local PHP/JavaScript image smoke. Host deployment and hook performance remain separate claims.
 
 ## File Structure Plan
 
@@ -141,6 +141,10 @@ New files (proposed, not created by this documentation change):
 
 | Path | Responsibility |
 |---|---|
+| `src/openultrasast/contracts.py` | Strict immutable manifest serialization shared by engine and adapters |
+| `src/openultrasast/model/contracts.py` | Generic deadline, change context and exact selected/deferred scope contracts |
+| `src/openultrasast/cpg/artifact.py` | Backend-owned graph identity, census and live lease protocol |
+| `src/openultrasast/push/contracts.py` | Immutable ref/comparison identities and comparison-owned completion/status records |
 | `src/openultrasast/push/snapshot.py` | Parse ref updates, resolve bases, materialize blobs, produce change context |
 | `src/openultrasast/push/cache.py` | Artifact keys, validity, atomic publication and eviction |
 | `src/openultrasast/push/policy.py` | Delta identity, actionability admission and push disposition |
@@ -148,6 +152,16 @@ New files (proposed, not created by this documentation change):
 | `src/openultrasast/push/report.py` | Compact terminal result and reproducible push manifest |
 | `benchmarks/push/README.md` and `benchmarks/push/measure.py` | Labeled push recipes and joint quality/latency measurement |
 | `tests/test_push_snapshot.py`, `tests/test_push_cache.py`, `tests/test_push_policy.py`, `tests/test_push_runner.py` | Contract and integration checks below |
+
+Contract configuration (task 1.4) uses `[push]`: optional `comparison_base`, positive
+`deadline_seconds` (30), positive `cancellation_allowance_seconds` (2), positive integer
+`cache_max_bytes` (2 GiB), `mode` (`advisory` by default, or `blocking`) and independent
+`incomplete_coverage_policy` (`allow` by default, or `block`). Unknown keys, malformed
+sections and coerced/nonfinite numeric values are rejected. These settings are inert until
+runner integration; they do not enable a hook or admit experimental capabilities. The cache
+limit is a local storage budget, not a latency claim. Completion records are owned by an
+exact comparison so reused head graphs cannot merge evidence from different bases. Live
+leases have no JSON constructor; only the backend can validate and issue them in task 6.1.
 
 Modified files: `cli.py` and `config.py` add explicit push command/configuration;
 `model/regions.py` carries change context without Git-specific logic; `model/scan.py` consumes the

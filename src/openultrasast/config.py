@@ -5,6 +5,9 @@ import os
 import tomllib
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Literal
+
+from openultrasast.contracts import Contract
 
 DEFAULT_VECTOR_STORE = "json-local"
 
@@ -164,6 +167,28 @@ class ObligationsConfig:
 
 
 @dataclass(frozen=True)
+class PushConfig(Contract):
+    """Inert experimental push settings; configuring them does not install a hook.
+
+    The 2 GiB local cache cap is a storage budget, not a performance promise. The
+    eventual cache evicts unleased entries; deadline and cleanup are separate costs.
+    No endpoint, fetch, engine download or capability admission is enabled here.
+    """
+
+    comparison_base: str | None = None
+    deadline_seconds: float = 30.0
+    cancellation_allowance_seconds: float = 2.0
+    cache_max_bytes: int = 2 * 1024 ** 3
+    mode: Literal["advisory", "blocking"] = "advisory"
+    incomplete_coverage_policy: Literal["allow", "block"] = "allow"
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.deadline_seconds <= 0 or self.cancellation_allowance_seconds <= 0 or self.cache_max_bytes <= 0:
+            raise ValueError("push deadlines, cancellation allowance and cache limit must be positive")
+
+
+@dataclass(frozen=True)
 class ResolvedConfig:
     models: ModelConfig = ModelConfig()
     embeddings: EmbeddingConfig = EmbeddingConfig()
@@ -181,6 +206,7 @@ class ResolvedConfig:
     variants: VariantsConfig = VariantsConfig()
     obligations: ObligationsConfig = ObligationsConfig()
     model: ModelLayerConfig = ModelLayerConfig()
+    push: PushConfig = PushConfig()
     runs_dir: str = ".openultrasast/runs"
 
 
@@ -208,13 +234,19 @@ def load_config(config_path: Path | None = None) -> ResolvedConfig:
         variants=_load_variants(data.get("variants", {})),
         obligations=_load_obligations(data.get("obligations", {})),
         model=_load_model(data.get("model", {})),
+        push=PushConfig.from_payload(data.get("push", {})),
         runs_dir=os.environ.get("OPENULTRASAST_RUNS_DIR", ".openultrasast/runs"),
     )
 
 
+def config_payload(config: ResolvedConfig) -> dict[str, object]:
+    """Reproducible resolved settings, including the separate experimental push policy."""
+    return asdict(config)
+
+
 def write_resolved_config(config: ResolvedConfig, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(asdict(config), indent=2, sort_keys=True) + "\n")
+    path.write_text(json.dumps(config_payload(config), indent=2, sort_keys=True) + "\n")
 
 
 def _section(value: object) -> dict[str, object]:

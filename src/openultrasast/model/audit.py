@@ -28,6 +28,11 @@ ROOTS = ("gate", "map_gate", "pair_gate", "cli", "__main__")
 
 # Modules that stand alone: their own CLI subcommand or external protocol, deliberately off the scan path.
 SPEC_OWNED = {
+    "contracts": "pre-push-safety-net Req 7.3: strict shared manifest serialization, independent of push",
+    "model.contracts": "pre-push-safety-net Req 4.1/7.3: generic deadline, change and exact scope contracts; integration pending",
+    "cpg.artifact": "pre-push-safety-net Req 4.3/7.3: backend graph identity and live lease contract; validation integration pending",
+    "push": "pre-push-safety-net Req 5.5/7.3: experimental push contract package; no hook installed",
+    "push.contracts": "pre-push-safety-net Req 5.5/7.3: immutable comparisons and independent result statuses; runner pending",
     "model.specs": "model-grounded-detection Req 7.2-7.4: the security vocabularies the CPG queries are parameterised by",
     "model.endpoint": "model-grounded-detection Req 8: the judge client, wired by model/judge.py in group 3",
     "model.audit": "model-grounded-detection Req 3: this classifier; run by the maintainer, not by the scan",
