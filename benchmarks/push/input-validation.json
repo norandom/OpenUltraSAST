@@ -1,0 +1,414 @@
+{
+  "schema_version": 1,
+  "manifest_sha256": "eec13cb19fe5e2c2402e61ebf4fd17fa809482f321e7a8e615215a12e1bcf845",
+  "population": 11,
+  "capability_prerequisites": {
+    "php/wordpress/injection": [
+      "Independent untouched PHP/WordPress vulnerable/fixed/benign population missing."
+    ],
+    "python/flask/injection": [
+      "Independent untouched Python/Flask paired changes missing."
+    ],
+    "python/flask/access_control": [
+      "Independent untouched Python/Flask paired changes missing."
+    ],
+    "javascript/express/injection": [
+      "Ghost supported-family pair review missing; NodeGoat is inspected teaching data."
+    ],
+    "c/libpng/memory_safety": [
+      "Unsupported abstract domain; envelope cannot earn detection admission."
+    ]
+  },
+  "snapshots": [
+    {
+      "id": "pmpro-vulnerable",
+      "status": "ready",
+      "bytes_read": 93181,
+      "files": [
+        {
+          "path": "license.txt",
+          "size": 1039,
+          "sha256": "98424ae7dd8610cd5e3a29dd2775347552444e4793653823bc74c010d39265ff"
+        },
+        {
+          "path": "classes/class.memberorder.php",
+          "size": 55918,
+          "sha256": "3d32b8414eb9a6bfe8962aafa8ab2caf826d2816811caf51d299db3398f54c26"
+        },
+        {
+          "path": "includes/rest-api.php",
+          "size": 36224,
+          "sha256": "f52c146967d1d154b65dc5fb289ee831a7a0d31d7a9bba4876f40eee903624b0"
+        }
+      ],
+      "commit": "1a900be3f09f243876150fc3c04a97bcb24ef84b",
+      "repository": "https://github.com/strangerstudios/paid-memberships-pro.git",
+      "license": "GPL-2.0"
+    },
+    {
+      "id": "pmpro-fixed",
+      "status": "ready",
+      "bytes_read": 93465,
+      "files": [
+        {
+          "path": "license.txt",
+          "size": 1039,
+          "sha256": "98424ae7dd8610cd5e3a29dd2775347552444e4793653823bc74c010d39265ff"
+        },
+        {
+          "path": "classes/class.memberorder.php",
+          "size": 56202,
+          "sha256": "6877bdc6f9322fe990be8aedfd1778718fc3e06b67c96eff47be16824eb9b312"
+        },
+        {
+          "path": "includes/rest-api.php",
+          "size": 36224,
+          "sha256": "f52c146967d1d154b65dc5fb289ee831a7a0d31d7a9bba4876f40eee903624b0"
+        }
+      ],
+      "commit": "2f65530f9442b4d7ccfb56821836b056217358c1",
+      "repository": "https://github.com/strangerstudios/paid-memberships-pro.git",
+      "license": "GPL-2.0"
+    },
+    {
+      "id": "pmpro-benign",
+      "status": "ready",
+      "bytes_read": 93181,
+      "files": [
+        {
+          "path": "license.txt",
+          "size": 1039,
+          "sha256": "98424ae7dd8610cd5e3a29dd2775347552444e4793653823bc74c010d39265ff"
+        },
+        {
+          "path": "classes/class.memberorder.php",
+          "size": 55962,
+          "sha256": "457cfa61eddb5d339502143ab59fd93db93d577a1557f6552081c6a6fc2ebf8b"
+        },
+        {
+          "path": "includes/rest-api.php",
+          "size": 36224,
+          "sha256": "f52c146967d1d154b65dc5fb289ee831a7a0d31d7a9bba4876f40eee903624b0"
+        }
+      ],
+      "commit": "1a900be3f09f243876150fc3c04a97bcb24ef84b",
+      "repository": "https://github.com/strangerstudios/paid-memberships-pro.git",
+      "license": "GPL-2.0"
+    },
+    {
+      "id": "nodegoat-vulnerable",
+      "status": "ready",
+      "bytes_read": 20677,
+      "files": [
+        {
+          "path": "LICENSE",
+          "size": 10273,
+          "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68"
+        },
+        {
+          "path": "package.json",
+          "size": 1979,
+          "sha256": "138377cf0f19b955d6ba043e49c24fb5eec4041a789fea5134e1fecda620c829"
+        },
+        {
+          "path": "app/routes/index.js",
+          "size": 3149,
+          "sha256": "3ab970b2888bc1501515db24a83cc7851ac9c09d00948c652300401515185eb5"
+        },
+        {
+          "path": "app/routes/contributions.js",
+          "size": 2485,
+          "sha256": "196bdeaa22da4cfe8a851b1b932710b2fcedd21f14ed75d70b739ba759a01003"
+        },
+        {
+          "path": "app/data/contributions-dao.js",
+          "size": 2791,
+          "sha256": "363065e8b3c32f0997ce2dcb17341eb3e40b7f43b00b72c576dfebf73f551c85"
+        }
+      ],
+      "commit": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
+      "repository": "https://github.com/OWASP/NodeGoat.git",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "nodegoat-fixed",
+      "status": "ready",
+      "bytes_read": 20677,
+      "files": [
+        {
+          "path": "LICENSE",
+          "size": 10273,
+          "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68"
+        },
+        {
+          "path": "package.json",
+          "size": 1979,
+          "sha256": "138377cf0f19b955d6ba043e49c24fb5eec4041a789fea5134e1fecda620c829"
+        },
+        {
+          "path": "app/routes/index.js",
+          "size": 3149,
+          "sha256": "3ab970b2888bc1501515db24a83cc7851ac9c09d00948c652300401515185eb5"
+        },
+        {
+          "path": "app/routes/contributions.js",
+          "size": 2491,
+          "sha256": "9dc0a0bc147adc4c76c27faae75f316dd537ddaf4fb35fa693002450bd4b4e92"
+        },
+        {
+          "path": "app/data/contributions-dao.js",
+          "size": 2791,
+          "sha256": "363065e8b3c32f0997ce2dcb17341eb3e40b7f43b00b72c576dfebf73f551c85"
+        }
+      ],
+      "commit": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
+      "repository": "https://github.com/OWASP/NodeGoat.git",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "nodegoat-benign",
+      "status": "ready",
+      "bytes_read": 20677,
+      "files": [
+        {
+          "path": "LICENSE",
+          "size": 10273,
+          "sha256": "73ba74dfaa520b49a401b5d21459a8523a146f3b7518a833eea5efa85130bf68"
+        },
+        {
+          "path": "package.json",
+          "size": 1979,
+          "sha256": "138377cf0f19b955d6ba043e49c24fb5eec4041a789fea5134e1fecda620c829"
+        },
+        {
+          "path": "app/routes/index.js",
+          "size": 3149,
+          "sha256": "3ab970b2888bc1501515db24a83cc7851ac9c09d00948c652300401515185eb5"
+        },
+        {
+          "path": "app/routes/contributions.js",
+          "size": 2498,
+          "sha256": "66b97183be80e55fa3d690d2fc7103aabddb4e10ef9db439c22bce6c7651bcc4"
+        },
+        {
+          "path": "app/data/contributions-dao.js",
+          "size": 2791,
+          "sha256": "363065e8b3c32f0997ce2dcb17341eb3e40b7f43b00b72c576dfebf73f551c85"
+        }
+      ],
+      "commit": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
+      "repository": "https://github.com/OWASP/NodeGoat.git",
+      "license": "Apache-2.0"
+    },
+    {
+      "id": "vampi-regression",
+      "status": "ready",
+      "bytes_read": 17541,
+      "files": [
+        {
+          "path": "LICENSE",
+          "size": 1063,
+          "sha256": "e3e05b9d17e397de650aa7a9a9784cf076ba8bf566efebe88a0e24ecb2d2b92a"
+        },
+        {
+          "path": "models/user_model.py",
+          "size": 3642,
+          "sha256": "4ce47b9850812e47140b2d2f2e20c08ae4b5338d168ce72f23e3127986ef6e1b"
+        },
+        {
+          "path": "api_views/users.py",
+          "size": 9257,
+          "sha256": "46006eb7207ebbae163f5320b13e3bf0ec464cef201a51fb2cd43b5cfdb4116c"
+        },
+        {
+          "path": "api_views/books.py",
+          "size": 3043,
+          "sha256": "78e2eb77d655573f03b7a4d0bca73dc27383b0c5ec7882a5aa8608caa52828e8"
+        },
+        {
+          "path": "app.py",
+          "size": 536,
+          "sha256": "ad26b12cfbdaab311bea86942f5ebd368dca331a0f4cdba803393739baadf42e"
+        }
+      ],
+      "commit": "f16052dce83f05847133ec98f01c5193a41de7d8",
+      "repository": "https://github.com/erev0s/VAmPI.git",
+      "license": "MIT"
+    },
+    {
+      "id": "libpng-envelope",
+      "status": "ready",
+      "bytes_read": 147103,
+      "files": [
+        {
+          "path": "LICENSE",
+          "size": 5345,
+          "sha256": "16d9daaafbf63a31a5bdc91d4600972548fef5aaa1244202393288dbd079c49a"
+        },
+        {
+          "path": "pngread.c",
+          "size": 141758,
+          "sha256": "c12022962f04abe1f7156753315bf68091398711025450803d0506dcefda3552"
+        }
+      ],
+      "commit": "cf53e54ccf631d8de68a30ebb3b8eeed1d6f1a08",
+      "repository": "https://github.com/glennrp/libpng.git",
+      "license": "libpng-2.0"
+    },
+    {
+      "id": "ghost-reserved",
+      "status": "missing_prerequisite",
+      "bytes_read": 0,
+      "files": [],
+      "problem": "ghost-reserved: pinned checkout 07671c072c5a5e0538cbe44d9d4ca66111751535 unavailable; rerun this validator with --fetch to fetch it"
+    }
+  ],
+  "cases": [
+    {
+      "id": "pmpro-introduce",
+      "base": "pmpro-fixed",
+      "tip": "pmpro-vulnerable",
+      "label": "vulnerable",
+      "role": "development",
+      "capability": "php/wordpress/injection",
+      "provenance": "Authored replay direction reintroducing the reviewed operation; not a claim about the historical introducing commit.",
+      "prerequisites": [],
+      "status": "ready",
+      "admission": "experimental"
+    },
+    {
+      "id": "pmpro-repair",
+      "base": "pmpro-vulnerable",
+      "tip": "pmpro-fixed",
+      "label": "fixed",
+      "role": "development",
+      "capability": "php/wordpress/injection",
+      "provenance": "PMPro upstream2.9.7 to2.9.8 parameter binding fix for CVE-2023-23488.",
+      "prerequisites": [],
+      "status": "ready",
+      "admission": "experimental"
+    },
+    {
+      "id": "pmpro-benign",
+      "base": "pmpro-vulnerable",
+      "tip": "pmpro-benign",
+      "label": "benign",
+      "role": "development",
+      "capability": "php/wordpress/injection",
+      "provenance": "Authored comment-only change: no new defect; vulnerable backlog remains. This label does not mean repository-clean.",
+      "prerequisites": [],
+      "status": "ready",
+      "admission": "experimental"
+    },
+    {
+      "id": "nodegoat-introduce",
+      "base": "nodegoat-fixed",
+      "tip": "nodegoat-vulnerable",
+      "label": "vulnerable",
+      "role": "transfer",
+      "capability": "javascript/express/injection",
+      "provenance": "Authored replay direction reintroducing the reviewed operation; not a claim about the historical introducing commit.",
+      "prerequisites": [],
+      "status": "ready",
+      "admission": "experimental"
+    },
+    {
+      "id": "nodegoat-repair",
+      "base": "nodegoat-vulnerable",
+      "tip": "nodegoat-fixed",
+      "label": "fixed",
+      "role": "transfer",
+      "capability": "javascript/express/injection",
+      "provenance": "Authored replacement of three eval calls with Number conversion; source tutorial also documents alternate numeric parsing.",
+      "prerequisites": [],
+      "status": "ready",
+      "admission": "experimental"
+    },
+    {
+      "id": "nodegoat-benign",
+      "base": "nodegoat-vulnerable",
+      "tip": "nodegoat-benign",
+      "label": "benign",
+      "role": "transfer",
+      "capability": "javascript/express/injection",
+      "provenance": "Authored comment-only change: no new defect; vulnerable backlog remains. This label does not mean repository-clean.",
+      "prerequisites": [],
+      "status": "ready",
+      "admission": "experimental"
+    },
+    {
+      "id": "VAmPI-SQLI",
+      "base": "vampi-regression",
+      "tip": "vampi-regression",
+      "label": "regression",
+      "role": "regression",
+      "capability": "python/flask/injection",
+      "provenance": "Existing recipe known target, full target population retained; environment vulnerable=1. Snapshot regression, not an introducing push.",
+      "prerequisites": [
+        "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+      ],
+      "status": "missing_prerequisite",
+      "admission": "experimental",
+      "problem": "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+    },
+    {
+      "id": "VAmPI-BOLA",
+      "base": "vampi-regression",
+      "tip": "vampi-regression",
+      "label": "regression",
+      "role": "regression",
+      "capability": "python/flask/access_control",
+      "provenance": "Existing recipe known target, full target population retained; environment vulnerable=1. Snapshot regression, not an introducing push.",
+      "prerequisites": [
+        "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+      ],
+      "status": "missing_prerequisite",
+      "admission": "experimental",
+      "problem": "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+    },
+    {
+      "id": "VAmPI-BOLA-BOOKS",
+      "base": "vampi-regression",
+      "tip": "vampi-regression",
+      "label": "regression",
+      "role": "regression",
+      "capability": "python/flask/access_control",
+      "provenance": "Existing recipe known target, full target population retained; environment vulnerable=1. Snapshot regression, not an introducing push.",
+      "prerequisites": [
+        "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+      ],
+      "status": "missing_prerequisite",
+      "admission": "experimental",
+      "problem": "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+    },
+    {
+      "id": "libpng-CVE-2025-66293",
+      "base": "libpng-envelope",
+      "tip": "libpng-envelope",
+      "label": "unsupported",
+      "role": "envelope",
+      "capability": "c/libpng/memory_safety",
+      "provenance": "Arithmetic/bounds is outside the current abstract domain; measures graph/cost envelope only.",
+      "prerequisites": [],
+      "status": "ready",
+      "admission": "experimental"
+    },
+    {
+      "id": "ghost-reserved-population",
+      "base": "ghost-reserved",
+      "tip": "ghost-reserved",
+      "label": "unreviewed",
+      "role": "reserved_holdout",
+      "capability": "javascript/express/unreviewed",
+      "provenance": "Reserved from production API/module/async shape and public security-fix history before scanner results. Manifest6.64.0-rc.0, Express4.22.2. Not an ESM or Express5 coverage claim.",
+      "prerequisites": [
+        "Review and freeze supported positive/fixed/benign changes from independent history; select family before scanning.",
+        "Freeze core and existing facts after development; preserve reservation and record any contamination."
+      ],
+      "status": "missing_prerequisite",
+      "admission": "experimental",
+      "problem": "ghost-reserved: pinned checkout 07671c072c5a5e0538cbe44d9d4ca66111751535 unavailable; rerun this validator with --fetch to fetch it; ghost-reserved: pinned checkout 07671c072c5a5e0538cbe44d9d4ca66111751535 unavailable; rerun this validator with --fetch to fetch it; Review and freeze supported positive/fixed/benign changes from independent history; select family before scanning.; Freeze core and existing facts after development; preserve reservation and record any contamination."
+    }
+  ],
+  "note": "Input validation only; every capability remains experimental pending independent evaluation."
+}

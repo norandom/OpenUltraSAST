@@ -1,0 +1,17 @@
+name = "nodegoat"
+url = "https://github.com/OWASP/NodeGoat.git"
+commit = "c5cb68a7084e4ae7dcc60e6a98768720a81841e8"
+language = "javascript"
+license = "Apache-2.0"
+license_file = "LICENSE"
+measures = ["detection"]
+note = "Express teaching/development transfer input, selected from documented eval injection without scanner results. Not a production holdout. Authored repair and benign variants are in benchmarks/push/inputs.json."
+[[known]]
+id = "NodeGoat-contribution-eval"
+family = "injection"
+weakness = "Request contribution fields are evaluated as JavaScript before numeric validation."
+file = "app/routes/contributions.js"
+function = "handleContributionsUpdate"
+line = 32
+reference = "The pinned source documents SSJS injection and an alternate numeric parsing repair immediately below the eval calls."
+in_scope = true

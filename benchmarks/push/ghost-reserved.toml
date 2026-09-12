@@ -1,0 +1,8 @@
+name = "ghost-reserved"
+url = "https://github.com/TryGhost/Ghost.git"
+commit = "07671c072c5a5e0538cbe44d9d4ca66111751535"
+language = "javascript"
+license = "MIT"
+license_file = "LICENSE"
+measures = ["envelope"]
+note = "Reserved independently before scanner evaluation: production Node API, CommonJS modules and async endpoints; public security-fix history at https://github.com/TryGhost/Ghost/security/advisories. Only source/manifest/license provenance inspected. No detection case or capability admission is asserted. Reviewed positive/fixed/benign labels remain an explicit prerequisite."

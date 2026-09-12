@@ -1,7 +1,7 @@
 # Evaluation: core optimization and cross-language transfer
 
 Status: evaluation contract accepted with requirements/design for task generation, 2026-09-12. Implements requirements 6.1–6.5 and 8.1–8.4.
-No new repository has been pinned, scanned or admitted by this document.
+Task 1.2 now pins development and reserved inputs in `benchmarks/push/inputs.json`; see its README for provenance and missing prerequisites. No new scanner result or capability admission is claimed.
 
 ## Workload roles
 
@@ -80,3 +80,7 @@ graph exclusion policy, deadline and admission contract. Add at least one benign
 Produce one joint scorecard before any further core optimization. A missing Node frontend, broken
 middleware mapping or wrong sanitizer model is an explicit finding of this experiment, not a reason
 to remove Node from the evaluation or silently fall back to a PHP-only release claim.
+
+## Task 1.2 input preparation
+
+The versioned push manifest records upstream PMPro vulnerable/fixed revisions, NodeGoat with an explicitly authored eval-removal repair, and comment-only benign changes that retain vulnerable backlog. Ghost is reserved independently for production Node module/async API evaluation; its reviewed supported-family pair population remains missing. The validator verifies immutable Git blob identities and source/license byte counts offline, retains every unresolved case, and keeps all capabilities experimental. Independent PHP and Python admission populations remain prerequisites; VAmPI regressions and the libpng unsupported-property envelope retain their separate roles. See `benchmarks/push/README.md` for the reproducible command and provenance boundaries.

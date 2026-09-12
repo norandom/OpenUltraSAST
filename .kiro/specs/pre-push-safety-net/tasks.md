@@ -29,7 +29,7 @@ started with group 1 (tasks 1.1–1.4); each task remains pending until independ
   - _Boundary: Cache and Engine Boundary, packaging integration_
   - _Requirements: 7.1, 7.3, 8.2_
   - _Verified 2026-09-12:_ independent review APPROVED; 888 tests passed, 9 skipped. Actual local image PHP/JavaScript graph census and source witnesses passed, unreadable PHP explicitly refused. Parent verified current provenance hashes, image identity, non-root user and CLI/frontend liveness. Evidence: `benchmarks/measurements/2026-09-12-engine-runtime-smoke.json`. Runtime readiness only; no hook latency/detection claim. Existing mypy errors in `model/scan.py` at 299/302/310 remain unchanged.
-- [ ] 1.2 Prepare labeled development and reserved evaluation changes
+- [x] 1.2 Prepare labeled development and reserved evaluation changes
   - Pin a readable PMPro change/fix and a supported Node/Express change/fix, plus benign controls; verify license and source bytes before accepting recipes.
   - Use NodeGoat only if its selected mechanism fits a current arbiter; label authored repairs as authored. Reserve an independently selected Node API repository with modern module/async context and reviewable history before tuning on transfer results.
   - Keep Python regression and libpng envelope recipes, explicit supported/unsupported populations, ref identities and development/holdout roles in machine-readable evaluation inputs.
@@ -37,6 +37,7 @@ started with group 1 (tasks 1.1–1.4); each task remains pending until independ
   - Done when recipe validation resolves immutable inputs and labels or names an explicit missing prerequisite; no favorable scanner result is required to select a recipe.
   - _Boundary: Evaluation harness_
   - _Requirements: 6.1, 6.3, 8.3, 8.4_
+  - _Verified 2026-09-12:_ independent review APPROVED; 902 tests passed, 9 skipped, then 34 focused tests passed after a diagnostic-only correction. Fresh offline validation opened 506,502 bytes and retained all 11 cases/9 snapshots: 7 cases input-ready, 4 with named missing prerequisites. See `benchmarks/push/inputs.json` and `input-validation.json`. Ghost checkout/reviewed labels and independent per-capability PHP/Python populations remain missing; every capability stays experimental. No detector run or admission claim.
 - [ ] 1.3 Make the baseline and push scorer fail honestly
   - Retain unmatched targets and unanswered queries in the declared population; require a queried witness before labeling a target transitively detected.
   - Emit actual vulnerable/fixed outcomes beside rank, selected mode, engine/facts/scope and elapsed stage costs. Freeze a versioned workload/profile before measuring.

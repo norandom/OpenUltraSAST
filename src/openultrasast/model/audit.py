@@ -48,6 +48,7 @@ SPEC_OWNED = {
 }
 
 STANDALONE = {
+    "push_inputs": "pre-push-safety-net task 1.2: offline input provenance validator; python -m openultrasast.push_inputs",
     "mcp": "narrow MCP server over stdio; its own `ousast mcp` entry point and OpenCode integration",
     "skills": "skill router; consumed by mcp and by the OpenCode integration, not by the scan path",
     "fusion": "two-panel adjudication engine; reached from the scan's report stage and used standalone",
