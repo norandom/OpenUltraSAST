@@ -63,12 +63,13 @@ the hook and capability admission are not yet implemented. See `implementation-g
   - _Boundary: Snapshot Adapter_
   - _Requirements: 1.1, 1.3, 1.4, 7.1_
   - _Verified 2026-09-12:_ independent review APPROVED after Unicode-ref repair; 997 tests passed, 9 skipped; focused 76 passed and touched Ruff/mypy passed. Real SHA-1/SHA-256 fixtures cover exact comparisons, tags, deletion, missing/ambiguous bases, replacement/graft suppression and blocked promisor fetch. Parent read 2,547 pinned source bytes and verified real-repository comparison/ref identity with dirty state and index preserved. ASCII protocol framing retains valid Unicode ref names.
-- [ ] 2.2 Materialize isolated object snapshots
+- [x] 2.2 Materialize isolated object snapshots
   - Read immutable tracked blobs into bounded scratch storage using machine-readable paths; do not checkout into the live tree or run filters, project scripts or network requests.
   - Preserve path identity and report symlinks, gitlinks, unavailable LFS blobs and unsupported content; never follow source outside the snapshot.
   - Done when non-HEAD pushes from a dirty checkout read only the intended object bytes and leave index, files and refs byte-identical after success, cancellation and failure.
   - _Boundary: Snapshot Adapter_
   - _Requirements: 1.1, 1.2, 1.3, 2.3, 7.1, 7.3_
+  - _Verified 2026-09-12:_ independent review APPROVED; 1,037 tests passed, 9 skipped; focused 116 passed; touched Ruff/mypy passed. Real SHA-1/SHA-256 fixtures verify binary-safe paths, exact blobs, no filters, explicit symlink/gitlink/LFS limits, cancellation and unchanged live state. Independent hanging-child cleanup took 0.202 s. Parent reopened and checked all 1,157 materialized repository files (8,737,198 bytes), with scratch removed and live state preserved; evidence `benchmarks/measurements/2026-09-12-snapshot-materialization.json` records a 5.783 s preparation-only lab run, not end-to-end hook latency.
 - [ ] 2.3 Attach changed spans and deletion/rename context
   - Compare recorded base/head objects using NUL-safe path handling; retain removed spans, renamed identities and declaration/config changes.
   - Supply change context to the shared ranker contract rather than selecting an independent changed-files-only scope.

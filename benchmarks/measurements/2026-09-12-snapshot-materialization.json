@@ -1,0 +1,20 @@
+{
+  "commit": "05da202d677622b56a8d1a2d767722015b84b336",
+  "base": "14a2a60e52bfaa08296da5b0bbe1043bece207fa",
+  "source_probe_bytes": 2547,
+  "files": 1157,
+  "bytes_read": 8737198,
+  "tree_complete": true,
+  "materialization_complete": true,
+  "boundaries": [],
+  "elapsed_seconds": 5.783,
+  "scratch_removed": true,
+  "live_state_preserved": true,
+  "budget_seconds": 120,
+  "purpose": "Snapshot correctness lab probe; not end-to-end hook latency",
+  "implementation_sha256": {
+    "src/openultrasast/push/snapshot.py": "fa0a77edc284f65430f8caeb7d5ebd949178b135573f28d69de017c7535ea2af",
+    "src/openultrasast/push/contracts.py": "5687fe8f7f7e3b6d40b76252e390e8236a653a28bd07e9e985bfaf6864916431"
+  },
+  "verification": "Every materialized file was reopened and checked against manifest byte length and SHA256; pyproject.toml also compared with Git blob bytes."
+}

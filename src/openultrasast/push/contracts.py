@@ -5,6 +5,7 @@ No default result status can turn an unexecuted contract into a complete negativ
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Literal
 
@@ -104,3 +105,72 @@ class PushResolution(Contract):
     updates: tuple[UpdateResolution, ...]
     comparisons: tuple[PushComparison, ...]
     targets: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class SnapshotFile(Contract):
+    # Git paths are bytes; hex survives JSON and whitespace-only/non-UTF8 names.
+    path_hex: str
+    blob_oid: str
+    mode: str
+    size_bytes: int
+    sha256: str
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        _validate_path_hex(self.path_hex)
+        if self.size_bytes < 0 or self.mode not in ("100644", "100755"):
+            raise ValueError("invalid materialized file size or mode")
+        if re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", self.blob_oid) is None:
+            raise ValueError("invalid blob identity")
+        if re.fullmatch(r"[0-9a-f]{64}", self.sha256) is None:
+            raise ValueError("invalid content digest")
+
+    @property
+    def path_bytes(self) -> bytes:
+        return bytes.fromhex(self.path_hex)
+
+
+@dataclass(frozen=True)
+class SnapshotBoundary(Contract):
+    path_hex: str | None
+    reason: str
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.path_hex is not None:
+            _validate_path_hex(self.path_hex)
+
+
+def _validate_path_hex(value: str) -> None:
+    if re.fullmatch(r"(?:[0-9a-f]{2})+", value) is None or b"\0" in bytes.fromhex(value):
+        raise ValueError("path must be nonempty NUL-free bytes encoded as lowercase hex")
+
+
+@dataclass(frozen=True)
+class SnapshotManifest(Contract):
+    commit_oid: str
+    object_format: str
+    files: tuple[SnapshotFile, ...]
+    boundaries: tuple[SnapshotBoundary, ...]
+    tree_complete: bool
+    bytes_read: int
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        width = {"sha1": 40, "sha256": 64}.get(self.object_format)
+        if width is None or re.fullmatch(r"[0-9a-f]{" + str(width) + r"}", self.commit_oid) is None:
+            raise ValueError("invalid snapshot identity")
+        if any(len(item.blob_oid) != width for item in self.files):
+            raise ValueError("blob identity does not match object format")
+        if len({item.path_hex for item in self.files}) != len(self.files):
+            raise ValueError("snapshot paths must be unique")
+        if self.bytes_read < sum(item.size_bytes for item in self.files):
+            raise ValueError("bytes read must cover every materialized blob")
+        if not self.tree_complete and not self.boundaries:
+            raise ValueError("incomplete tree requires an explicit boundary")
+
+    @property
+    def complete(self) -> bool:
+        """Materialization completeness only, never security coverage."""
+        return self.tree_complete and not self.boundaries

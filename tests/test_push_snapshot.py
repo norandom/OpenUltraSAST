@@ -205,3 +205,243 @@ def test_git_valid_unicode_ref_names_are_preserved(repo: Path, name: str) -> Non
     assert result.updates[0].update.remote_ref == ref
     assert result.comparisons[0].refs == (ref,)
     assert result.updates[0].disposition == "ready"
+
+
+def test_materialize_reads_non_head_objects_and_cleans(repo: Path, tmp_path: Path) -> None:
+    pushed = commit(repo, "<?php echo $_GET['x'];")
+    checked = commit(repo, "dirty baseline")
+    git(repo, "update-ref", "HEAD", checked)
+    (repo / "file.js").write_bytes(b"staged")
+    git(repo, "add", "file.js")
+    (repo / "file.js").write_bytes(b"dirty")
+    before = (repo / ".git/index").read_bytes()
+    with SnapshotAdapter(repo).materialize(pushed) as snapshot:
+        root = snapshot.root
+        assert (root / "file.js").read_bytes() == b"<?php echo $_GET['x'];"
+        assert snapshot.manifest.complete
+        assert snapshot.manifest.bytes_read == 22
+        assert snapshot.manifest.commit_oid == pushed
+    assert not root.exists()
+    assert (repo / ".git/index").read_bytes() == before
+    assert (repo / "file.js").read_bytes() == b"dirty"
+    assert git(repo, "rev-parse", "HEAD") == checked
+
+
+def binary_commit(repo: Path, entries: list[tuple[bytes, bytes, bytes]]) -> str:
+    records = []
+    for mode, path, data in entries:
+        if mode == b"160000":
+            oid = data
+            kind = b"commit"
+        else:
+            oid = subprocess.run(["git", "-C", str(repo), "hash-object", "-w", "--stdin"],
+                                 input=data, capture_output=True, check=True).stdout.rstrip(b"\n")
+            kind = b"blob"
+            assert int(git(repo, "cat-file", "-s", oid.decode())) == len(data)
+        records.append(mode + b" " + kind + b" " + oid + b"\t" + path + b"\0")
+    tree = subprocess.run(["git", "-C", str(repo), "mktree", "-z"], input=b"".join(records),
+                          capture_output=True, check=True).stdout.decode().strip()
+    return git(repo, "commit-tree", tree, input="binary fixture")
+
+
+def test_snapshot_exact_binary_paths_and_no_filters(repo: Path) -> None:
+    import os
+    entries = [(b"100644", path, data) for path, data in [
+        (b"handler.php", b"<?php echo $_GET['x'];\n"),
+        (b"api.js", b"app.post('/x', (req,res)=>res.send(req.body.x));\n"),
+        (b"newline\nname\t.js", b"\x00\xffbinary\r\n"), ("\u03b1.js".encode(), b"unicode"),
+        (b"\xff.js", b"invalid UTF8 name"), (b" ", b"space"),
+        (b".gitattributes", b"* filter=trap\n"),
+    ]]
+    oid = binary_commit(repo, entries)
+    sentinel = repo / "FILTER_RAN"
+    git(repo, "config", "filter.trap.smudge", "touch " + str(sentinel))
+    with SnapshotAdapter(repo).materialize(oid) as snapshot:
+        assert snapshot.manifest.complete
+        assert snapshot.manifest.bytes_read == sum(len(data) for _, _, data in entries)
+        assert {f.path_bytes for f in snapshot.manifest.files} == {path for _, path, _ in entries}
+        for _, path, data in entries:
+            assert (snapshot.root / os.fsdecode(path)).read_bytes() == data
+        assert type(snapshot.manifest).from_payload(snapshot.manifest.to_payload()) == snapshot.manifest
+    assert not sentinel.exists()
+
+
+def test_snapshot_omits_symlinks_gitlinks_and_lfs(repo: Path) -> None:
+    target = commit(repo, "submodule")
+    oid = binary_commit(repo, [
+        (b"120000", b"outside", b"/etc/passwd"),
+        (b"160000", b"submodule", target.encode()),
+        (b"100644", b"large.js", b"version https://git-lfs.github.com/spec/v1\noid sha256:" + b"0" * 64 + b"\nsize 3\n"),
+    ])
+    with SnapshotAdapter(repo).materialize(oid) as snapshot:
+        assert not snapshot.manifest.complete
+        assert snapshot.manifest.tree_complete
+        assert {b.reason for b in snapshot.manifest.boundaries} == {
+            "symlink_not_materialized", "gitlink_not_materialized", "lfs_content_unavailable"}
+        assert list(snapshot.root.iterdir()) == []
+
+
+@pytest.mark.parametrize("limit,reason", [("max_files", "file_count_limit"),
+    ("max_tree_bytes", "git_output_limit"), ("max_blob_bytes", "source_byte_limit"),
+    ("max_total_bytes", "source_byte_limit"), ("max_path_bytes", "unsupported_path")])
+def test_snapshot_limits_are_explicit(repo: Path, limit: str, reason: str) -> None:
+    from openultrasast.push.snapshot import SnapshotLimits
+    oid = binary_commit(repo, [(b"100644", b"one.js", b"123"), (b"100644", b"two.php", b"456")])
+    with SnapshotAdapter(repo).materialize(oid, limits=SnapshotLimits(**{limit: 1})) as snapshot:
+        root = snapshot.root
+        assert not snapshot.manifest.complete
+        assert reason in {b.reason for b in snapshot.manifest.boundaries}
+        assert snapshot.manifest.bytes_read <= 1 if limit == "max_total_bytes" else True
+    assert not root.exists()
+
+
+@pytest.mark.parametrize("failure", ["cancel", "deadline", "missing_blob", "consumer"])
+def test_snapshot_failure_preserves_live_state_and_cleans(repo: Path, failure: str) -> None:
+    import time
+
+    from openultrasast.model.contracts import ExecutionBudget
+    from openultrasast.push.snapshot import SnapshotInputError
+    oid = commit(repo, "object bytes")
+    git(repo, "update-ref", "HEAD", oid)
+    (repo / "file.js").write_bytes(b"staged")
+    git(repo, "add", "file.js")
+    (repo / "file.js").write_bytes(b"dirty")
+    hooks = repo / ".git/hooks/pre-push"
+    hooks.write_bytes(b"existing hook")
+    if failure == "missing_blob":
+        blob = git(repo, "rev-parse", oid + ":file.js")
+        (repo / ".git/objects" / blob[:2] / blob[2:]).unlink()
+    before = {p.relative_to(repo): p.read_bytes() for p in repo.rglob("*") if p.is_file()}
+    calls = 0
+    def cancel() -> bool:
+        nonlocal calls
+        calls += 1
+        return failure == "cancel" and calls >= 5
+    budget = ExecutionBudget(time.monotonic() + (-1 if failure == "deadline" else 10), 2.0)
+    root = None
+    try:
+        with SnapshotAdapter(repo).materialize(oid, budget=budget, cancelled=cancel) as snapshot:
+            root = snapshot.root
+            if failure == "consumer":
+                raise RuntimeError("consumer cancelled")
+            assert not snapshot.manifest.complete
+            assert snapshot.manifest.boundaries
+    except RuntimeError:
+        assert failure == "consumer"
+    except SnapshotInputError as error:
+        assert failure == "deadline" and str(error) == "deadline_exhausted"
+    assert (root is None and failure == "deadline") or (root is not None and not root.exists())
+    after = {p.relative_to(repo): p.read_bytes() for p in repo.rglob("*") if p.is_file()}
+    assert before == after
+
+
+def test_snapshot_rejects_live_scratch_parent(repo: Path) -> None:
+    from openultrasast.push.snapshot import SnapshotInputError
+    oid = commit(repo, "input")
+    for parent in (repo, repo / ".git", repo / ".git/objects"):
+        with pytest.raises(SnapshotInputError, match="outside"), SnapshotAdapter(repo).materialize(oid, scratch_parent=parent):
+            pytest.fail("unsafe scratch accepted")
+
+
+def test_snapshot_missing_tree_and_unsupported_object_are_not_clean(repo: Path) -> None:
+    oid = commit(repo, "input")
+    blob = git(repo, "rev-parse", oid + ":file.js")
+    with SnapshotAdapter(repo).materialize(blob) as snapshot:
+        assert not snapshot.manifest.complete
+        assert not snapshot.manifest.tree_complete
+    tree = git(repo, "rev-parse", oid + "^{tree}")
+    (repo / ".git/objects" / tree[:2] / tree[2:]).unlink()
+    with SnapshotAdapter(repo).materialize(oid) as snapshot:
+        assert not snapshot.manifest.complete
+        assert not snapshot.manifest.tree_complete
+        assert not snapshot.manifest.files
+
+
+def test_snapshot_refuses_oversize_blob_before_reading_it(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from openultrasast.push.snapshot import SnapshotLimits
+    oid = commit(repo, "large payload")
+    adapter = SnapshotAdapter(repo)
+    original = adapter._bounded_git
+    commands = []
+    def capture(args, *rest):
+        commands.append(args)
+        return original(args, *rest)
+    monkeypatch.setattr(adapter, "_bounded_git", capture)
+    with adapter.materialize(oid, limits=SnapshotLimits(max_blob_bytes=1)) as snapshot:
+        assert not snapshot.manifest.complete
+    assert not any(args[:2] == ("cat-file", "blob") for args in commands)
+
+
+def test_cleanup_does_not_follow_consumer_symlinks(repo: Path, tmp_path_factory: pytest.TempPathFactory) -> None:
+    outside = tmp_path_factory.mktemp("outside")
+    (outside / "keep").write_bytes(b"preserve")
+    oid = commit(repo, "source")
+    with SnapshotAdapter(repo).materialize(oid) as snapshot:
+        (snapshot.root / "external").symlink_to(outside, target_is_directory=True)
+    assert (outside / "keep").read_bytes() == b"preserve"
+    with SnapshotAdapter(repo).materialize(oid) as snapshot:
+        (snapshot.root / "file.js").unlink()
+        snapshot.root.rmdir()
+        snapshot.root.symlink_to(outside, target_is_directory=True)
+    assert (outside / "keep").read_bytes() == b"preserve"
+    assert not snapshot.root.exists()
+
+
+def test_snapshot_deadline_kills_slow_git_and_cleans(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import sys
+    import time
+
+    from openultrasast.model.contracts import ExecutionBudget
+    oid = commit(repo, "input")
+    adapter = SnapshotAdapter(repo)
+    real_popen = subprocess.Popen
+    processes = []
+    def slow_git(command, **kwargs):
+        process = real_popen([sys.executable, "-c", "import time; time.sleep(30)"], **kwargs)
+        processes.append(process)
+        return process
+    monkeypatch.setattr(subprocess, "Popen", slow_git)
+    start = time.monotonic()
+    with adapter.materialize(oid, budget=ExecutionBudget(start + 0.1, 1.0)) as snapshot:
+        assert {b.reason for b in snapshot.manifest.boundaries} == {"deadline_exhausted"}
+        assert not snapshot.manifest.complete
+    assert time.monotonic() - start < 1.5
+    assert processes and all(process.poll() is not None for process in processes)
+    assert not snapshot.root.exists()
+
+
+def test_snapshot_manifest_rejects_forged_census(repo: Path) -> None:
+    from dataclasses import replace
+    oid = commit(repo, "input")
+    with SnapshotAdapter(repo).materialize(oid) as snapshot:
+        manifest = snapshot.manifest
+        file = manifest.files[0]
+        for changes in ({"bytes_read": -1}, {"files": (file, file)}, {"tree_complete": False}):
+            with pytest.raises(ValueError):
+                replace(manifest, **changes)
+        for changes in ({"path_hex": "zz"}, {"size_bytes": -1}, {"sha256": "bad"}, {"path_hex": "00"}):
+            with pytest.raises(ValueError):
+                replace(file, **changes)
+
+
+def test_snapshot_subdirectory_adapter_cannot_scratch_in_live_parent(repo: Path) -> None:
+    from openultrasast.push.snapshot import SnapshotInputError
+    oid = commit(repo, "input")
+    nested = repo / "nested"
+    nested.mkdir()
+    with pytest.raises(SnapshotInputError, match="outside"), SnapshotAdapter(nested).materialize(oid, scratch_parent=repo):
+        pytest.fail("live parent accepted")
+
+
+def test_snapshot_write_failure_cleans_partial_scratch(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    oid = commit(repo, "input")
+    original = Path.open
+    def broken(path, mode="r", *args, **kwargs):
+        if mode == "xb":
+            raise OSError("scratch_write_failed")
+        return original(path, mode, *args, **kwargs)
+    monkeypatch.setattr(Path, "open", broken)
+    with SnapshotAdapter(repo).materialize(oid) as snapshot:
+        assert not snapshot.manifest.complete
+        assert any(b.reason == "scratch_write_failed" for b in snapshot.manifest.boundaries)
+    assert not snapshot.root.exists()

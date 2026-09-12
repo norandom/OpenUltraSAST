@@ -1,17 +1,34 @@
 """Resolve supplied push tips using local Git objects, never the live checkout.
 
 No fetch, replacement objects, checkout, filters or project commands are used.
-Materialization and changed spans are separate subsequent snapshot-adapter tasks.
+Snapshots contain exact tracked blobs; changed spans are a subsequent adapter task.
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import re
+import selectors
+import signal
+import stat
 import subprocess
-from dataclasses import replace
+import tempfile
+import time
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager, suppress
+from dataclasses import dataclass, replace
 from pathlib import Path
 
-from openultrasast.push.contracts import PushComparison, PushResolution, PushUpdate, UpdateResolution
+from openultrasast.model.contracts import ExecutionBudget
+from openultrasast.push.contracts import (
+    PushComparison,
+    PushResolution,
+    PushUpdate,
+    SnapshotBoundary,
+    SnapshotFile,
+    SnapshotManifest,
+    UpdateResolution,
+)
 
 
 class SnapshotInputError(ValueError):
@@ -31,6 +48,18 @@ class SnapshotAdapter:
         # Ask the installed Git for its object ID width rather than assuming SHA-1.
         self._oid_width = len(self._required("hash-object", "--stdin", input=""))
         self._zero = "0" * self._oid_width
+        self._git_dir = self._repository_path("--absolute-git-dir")
+        self._common_dir = self._repository_path("--path-format=absolute", "--git-common-dir")
+        try:
+            self._worktree = self._repository_path("--show-toplevel")
+        except SnapshotInputError:
+            self._worktree = self.repository  # Bare repositories have no working tree.
+
+    def _repository_path(self, *args: str) -> Path:
+        # Binary framing also matters for the repository's own whitespace/non-UTF8 name.
+        raw = self._bounded_git(("rev-parse", *args), 65536,
+                                ExecutionBudget(time.monotonic() + 10.0, 2.0), None, [])
+        return Path(os.fsdecode(raw.removesuffix(b"\n"))).resolve()
 
     def _git(self, *args: str, input: str | None = None) -> subprocess.CompletedProcess[str]:
         try:
@@ -149,3 +178,198 @@ class SnapshotAdapter:
             else:
                 comparisons.append(PushComparison(*key, refs=(update.remote_ref,)))
         return PushResolution(self.object_format, tuple(records), tuple(comparisons), tuple(targets))
+
+    @contextmanager
+    def materialize(
+        self, commit_oid: str, *, budget: ExecutionBudget | None = None,
+        limits: SnapshotLimits | None = None, scratch_parent: Path | None = None,
+        cancelled: Callable[[], bool] | None = None,
+    ) -> Iterator[MaterializedSnapshot]:
+        """Own one disposable tracked-object tree, with no checkout/filter execution.
+
+        Partial manifests are usable only for diagnostics/explicit partial analysis.
+        Scratch is removed on normal return and exceptions, including cancellation.
+        """
+        budget = budget or ExecutionBudget(time.monotonic() + 30.0, 2.0)
+        limits = limits or SnapshotLimits()
+        if re.fullmatch(r"[0-9a-f]{" + str(self._oid_width) + r"}", commit_oid) is None:
+            raise SnapshotInputError("snapshot requires a full immutable commit OID")
+        parent = (scratch_parent or Path(tempfile.gettempdir())).resolve()
+        if any(parent == root or root in parent.parents for root in (self.repository, self._worktree, self._git_dir, self._common_dir)):
+            raise SnapshotInputError("scratch parent must be outside the checkout and Git metadata")
+        _check_budget(budget, cancelled)
+        cleanup_deadline: list[float] = []
+        root = Path(tempfile.mkdtemp(prefix="ousast-snapshot-", dir=parent))
+        files: list[SnapshotFile] = []
+        boundaries: list[SnapshotBoundary] = []
+        total = 0
+        tree_complete = False
+        try:
+            try:
+                if self._bounded_git(("cat-file", "-t", commit_oid), 64, budget, cancelled, cleanup_deadline) != b"commit\n":
+                    raise SnapshotInputError("unsupported_snapshot_object")
+                listing = self._bounded_git(("ls-tree", "-r", "-z", "--full-tree", commit_oid),
+                                            limits.max_tree_bytes, budget, cancelled, cleanup_deadline)
+                records = listing.split(b"\0")
+                if records[-1] != b"":
+                    raise SnapshotInputError("truncated_tree_metadata")
+                records.pop()
+                if len(records) > limits.max_files:
+                    raise SnapshotInputError("file_count_limit")
+                tree_complete = True
+                for record in records:
+                    _check_budget(budget, cancelled)
+                    metadata, path = record.split(b"\t", 1)
+                    mode, kind, oid = metadata.split(b" ")
+                    path_hex = path.hex()
+                    components = path.split(b"/")
+                    if (not path or path.startswith(b"/") or any(part in (b"", b".", b"..") for part in components)
+                            or len(path) > limits.max_path_bytes or len(components) > limits.max_path_depth
+                            or any(part.lower() == b".git" for part in components)):
+                        boundaries.append(SnapshotBoundary(path_hex or None, "unsupported_path"))
+                        continue
+                    if mode == b"120000":
+                        boundaries.append(SnapshotBoundary(path_hex, "symlink_not_materialized"))
+                        continue
+                    if mode == b"160000":
+                        boundaries.append(SnapshotBoundary(path_hex, "gitlink_not_materialized"))
+                        continue
+                    if kind != b"blob" or mode not in (b"100644", b"100755"):
+                        boundaries.append(SnapshotBoundary(path_hex, "unsupported_tree_entry"))
+                        continue
+                    blob_oid = oid.decode("ascii")
+                    try:
+                        size = int(self._bounded_git(("cat-file", "-s", blob_oid), 64, budget, cancelled, cleanup_deadline))
+                        if size < 0 or size > limits.max_blob_bytes or size > limits.max_total_bytes - total:
+                            raise SnapshotInputError("source_byte_limit")
+                        data = self._bounded_git(("cat-file", "blob", blob_oid), size, budget, cancelled, cleanup_deadline)
+                        if len(data) != size:
+                            raise SnapshotInputError("blob_size_mismatch")
+                        digest = hashlib.new(self.object_format, b"blob " + str(size).encode() + b"\0" + data).hexdigest()
+                        if digest != blob_oid:
+                            raise SnapshotInputError("blob_identity_mismatch")
+                        total += size
+                        if data.startswith(b"version https://git-lfs.github.com/spec/v1\n"):
+                            raise SnapshotInputError("lfs_content_unavailable")
+                        target = root / os.fsdecode(path)
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        with target.open("xb") as output:
+                            output.write(data)
+                        target.chmod(0o555 if mode == b"100755" else 0o444)
+                        files.append(SnapshotFile(path_hex, blob_oid, mode.decode("ascii"), size,
+                                                  hashlib.sha256(data).hexdigest()))
+                    except SnapshotInputError as error:
+                        boundaries.append(SnapshotBoundary(path_hex, str(error)))
+                        if str(error) in ("deadline_exhausted", "cancelled", "git_output_limit", "git_cleanup_deadline_exhausted"):
+                            break
+            except (SnapshotInputError, OSError, ValueError) as error:
+                boundaries.append(SnapshotBoundary(None, str(error) or type(error).__name__))
+            yield MaterializedSnapshot(root, SnapshotManifest(commit_oid, self.object_format, tuple(files),
+                                                             tuple(boundaries), tree_complete, total))
+        finally:
+            _remove_scratch(root, _cleanup_deadline(budget, cleanup_deadline))
+
+    def _bounded_git(self, args: tuple[str, ...], limit: int, budget: ExecutionBudget,
+                     cancelled: Callable[[], bool] | None, cleanup_deadline: list[float]) -> bytes:
+        _check_budget(budget, cancelled)
+        command = ["git", "-c", "protocol.allow=never", "-c", "core.hooksPath=" + os.devnull,
+                   "-C", str(self.repository), *args]
+        try:
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                       stdin=subprocess.DEVNULL, env=self._env, start_new_session=True)
+        except OSError as error:
+            raise SnapshotInputError("git_launch_failed") from error
+        output = bytearray()
+        try:
+            assert process.stdout is not None
+            with selectors.DefaultSelector() as selector:
+                selector.register(process.stdout, selectors.EVENT_READ)
+                while selector.get_map():
+                    _check_budget(budget, cancelled)
+                    for key, _ in selector.select(min(0.05, max(0, budget.deadline_monotonic - time.monotonic()))):
+                        chunk = os.read(key.fd, min(65536, limit - len(output) + 1))
+                        if not chunk:
+                            selector.unregister(key.fileobj)
+                        else:
+                            output.extend(chunk)
+                            if len(output) > limit:
+                                raise SnapshotInputError("git_output_limit")
+            while process.poll() is None:
+                _check_budget(budget, cancelled)
+                time.sleep(0.001)
+            if process.returncode:
+                raise SnapshotInputError(f"local_git_{args[0]}_failed_exit_{process.returncode}")
+            return bytes(output)
+        finally:
+            # Kill the entire group even if its leader exited while a child held stdout.
+            with suppress(ProcessLookupError):
+                os.killpg(process.pid, signal.SIGKILL)
+            if process.poll() is None:
+                deadline = _cleanup_deadline(budget, cleanup_deadline)
+                try:
+                    process.wait(timeout=max(0, deadline - time.monotonic()))
+                except subprocess.TimeoutExpired as error:
+                    raise SnapshotInputError("git_cleanup_deadline_exhausted") from error
+            if process.stdout is not None:
+                process.stdout.close()
+
+
+@dataclass(frozen=True)
+class SnapshotLimits:
+    max_files: int = 10000
+    max_total_bytes: int = 128 * 1024 * 1024
+    max_blob_bytes: int = 8 * 1024 * 1024
+    max_tree_bytes: int = 4 * 1024 * 1024
+    max_path_bytes: int = 4095
+    max_path_depth: int = 64
+
+    def __post_init__(self) -> None:
+        for value in vars(self).values():
+            if type(value) is not int or value <= 0:
+                raise ValueError("snapshot limits must be positive integers")
+
+
+@dataclass(frozen=True)
+class MaterializedSnapshot:
+    root: Path
+    manifest: SnapshotManifest
+
+
+def _check_budget(budget: ExecutionBudget, cancelled: Callable[[], bool] | None) -> None:
+    if cancelled is not None and cancelled():
+        raise SnapshotInputError("cancelled")
+    if time.monotonic() >= budget.deadline_monotonic:
+        raise SnapshotInputError("deadline_exhausted")
+
+
+def _cleanup_deadline(budget: ExecutionBudget, recorded: list[float]) -> float:
+    if not recorded:
+        recorded.append(time.monotonic() + budget.cancellation_allowance_seconds)
+    return recorded[0]
+
+
+def _remove_scratch(root: Path, deadline: float) -> None:
+    # Directory-relative, no-follow operations avoid deleting through substituted links.
+    def remove_contents(descriptor: int) -> None:
+        for name in os.listdir(descriptor):
+            if time.monotonic() >= deadline:
+                raise SnapshotInputError("scratch_cleanup_deadline_exhausted: " + str(root))
+            info = os.stat(name, dir_fd=descriptor, follow_symlinks=False)
+            if stat.S_ISDIR(info.st_mode):
+                child = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=descriptor)
+                try:
+                    remove_contents(child)
+                finally:
+                    os.close(child)
+                os.rmdir(name, dir_fd=descriptor)
+            else:
+                os.unlink(name, dir_fd=descriptor)
+    if root.is_symlink():
+        root.unlink()
+        return
+    descriptor = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        remove_contents(descriptor)
+    finally:
+        os.close(descriptor)
+    root.rmdir()
