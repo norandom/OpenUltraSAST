@@ -44,3 +44,48 @@ Python populations are explicitly missing in `capability_prerequisites`. VAmPI r
 known targets (including SQLI), with `vulnerable=1`; these snapshot regressions are not paired pushes.
 Libpng is an envelope/unsupported-arithmetic control, not a detection success or a supported miss.
 The validator makes no finding, precision, recall, silence, latency or admission claim.
+
+## Frozen diagnostic scoring (task 1.3)
+
+`push_scoring` consumes recorded execution evidence; it does not run the scanner or
+implement push delta/admission policy. Freeze the workload and expected configuration
+**before** executing it:
+
+```sh
+.venv/bin/python -m openultrasast.push_scoring freeze benchmarks/push/inputs.json benchmarks/push/diagnostic-config-v1.json > /tmp/profile.json
+.venv/bin/python -m openultrasast.push_scoring score /tmp/profile.json benchmarks/push/input-validation.json benchmarks/push/unmeasured-run-v1.json
+```
+
+The committed v1 profile reserves the 11 declared cases and exact tip target locations.
+It is a proposed 30-second evidence-mode experiment, not measured performance. The
+`unmeasured-run-v1.json` deliberately contains no executions: scoring it exits **1**,
+retains all 11 unresolved cases, and earns no recall, coverage or admission. An invalid
+profile/runtime identity exits **2**. A fully resolved diagnostic score exits **0**;
+that exit status is not capability admission. Freeze a new version when configuration,
+source manifest, core, facts, query semantics or scope changes; do not edit a measured
+profile to match later execution. Runtime `context` must record the actual values,
+not merely copy an expected profile hash. Profiles are content identities, not signatures.
+
+Each `records` entry supplies `case_id`, actual `ranking_mode`, `rank` (or null), exact
+`selected`/`deferred` question IDs, `queries`, `alerts`, `delta`, `coverage`, `cache_state`
+and nonnegative elapsed `timings` including `total`. Cache states distinguish `cold`,
+`warm_changed` and `identical_tip`; stage costs remain beside each outcome. Queries
+supply `id`, `status` and `outcome`. A positive needs a finding with the exact frozen
+`site` and `family`, a supported `rung`, and a nonempty actual `witness`. A transitive
+claim additionally needs a recorded `origin` and ordered `flow` from that region to
+the frozen target's path/function. Missing rank never proves transitivity. Negative
+answers require the exact `target` and a witnessed discharge; empty/failed queries
+cannot earn fixed-side silence. These checks establish evidence association, not the
+truth of an arbitrary supplied witness: use engine output and review the attribution.
+
+Alerts are separate from raw findings. Only reviewed `actionable_true` alerts with
+`review_evidence`, `question_id` and exact `site` association can contribute precision;
+unreviewed/wrong-target alerts remain in its denominator. Benign comment changes retain
+vulnerable backlog, so a raw positive is not automatically a new alert. The scorer
+consumes a recorded delta; task 5.1 supplies replay, and the policy tasks establish it.
+
+Reports retain unresolved cases, sample counts, Wilson intervals, separate regression
+results, per-capability metrics, coverage and cold/warm latency. Missing benign runs
+have unknown interruption rate. VAmPI's readable regression may be measured while
+independent admission prerequisites remain missing. Unsupported/unreviewed populations
+stay visible. All results remain experimental pending the later joint admission gate.

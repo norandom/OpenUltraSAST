@@ -1,0 +1,132 @@
+[
+  {
+    "schema_version": 2,
+    "measurement": "positional_coverage_not_detection",
+    "ranking_mode": "static",
+    "profile": {
+      "checkout": {
+        "commit": "f16052dce83f05847133ec98f01c5193a41de7d8",
+        "clean": true,
+        "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "version": "position-v2",
+      "requested_ranking_mode": "static",
+      "known_targets": [
+        {
+          "id": "VAmPI-SQLI",
+          "family": "injection",
+          "file": "models/user_model.py",
+          "function": "get_user",
+          "line": 73,
+          "in_scope": true
+        },
+        {
+          "id": "VAmPI-BOLA",
+          "family": "access_control",
+          "file": "api_views/users.py",
+          "function": "update_password",
+          "line": 187,
+          "in_scope": true
+        },
+        {
+          "id": "VAmPI-BOLA-BOOKS",
+          "family": "access_control",
+          "file": "api_views/books.py",
+          "function": "get_by_title",
+          "line": 51,
+          "in_scope": true
+        }
+      ],
+      "input_witnesses": [
+        {
+          "path": "api_views/books.py",
+          "bytes_read": 3043,
+          "sha256": "78e2eb77d655573f03b7a4d0bca73dc27383b0c5ec7882a5aa8608caa52828e8"
+        },
+        {
+          "path": "api_views/users.py",
+          "bytes_read": 9257,
+          "sha256": "46006eb7207ebbae163f5320b13e3bf0ec464cef201a51fb2cd43b5cfdb4116c"
+        },
+        {
+          "path": "models/user_model.py",
+          "bytes_read": 3642,
+          "sha256": "4ce47b9850812e47140b2d2f2e20c08ae4b5338d168ce72f23e3127986ef6e1b"
+        }
+      ],
+      "implementation": {
+        "benchmarks/ranking/position.py": "c362e58843e669b68bb032574beff2342bd9597e0b451b38c727c1af643450e2",
+        "src/openultrasast/model/regions.py": "0ea1a7b153fad403848aa03f54ae45ea0dcf9c3d8b0f710238362de05139c84b",
+        "src/openultrasast/model/scan.py": "e11423755be4b72cfb6b5fd86b3d2fef68c0cc33aab997210f51430570256e93",
+        "src/openultrasast/model/evidence.py": "cda3619170a77bb8a4b7bb7fecb261e990699fe671714ccc830505a81029788d",
+        "src/openultrasast/model/layout.py": "dc9dc338dff5f1d4389d59d84ba4ddd249949470f9c2303df5ee70ad5d257f2d"
+      },
+      "detection": "not_measured",
+      "sha256": "273dd99adcd94ec93df5e4c30018c145092141ba2c4e28a409d8bb5f8e6939a2"
+    },
+    "detection_recall": null,
+    "supported_population": 3,
+    "unmatched_supported": 1,
+    "input_witnesses": [
+      {
+        "path": "api_views/books.py",
+        "bytes_read": 3043,
+        "sha256": "78e2eb77d655573f03b7a4d0bca73dc27383b0c5ec7882a5aa8608caa52828e8"
+      },
+      {
+        "path": "api_views/users.py",
+        "bytes_read": 9257,
+        "sha256": "46006eb7207ebbae163f5320b13e3bf0ec464cef201a51fb2cd43b5cfdb4116c"
+      },
+      {
+        "path": "models/user_model.py",
+        "bytes_read": 3642,
+        "sha256": "4ce47b9850812e47140b2d2f2e20c08ae4b5338d168ce72f23e3127986ef6e1b"
+      }
+    ],
+    "input_status": "readable",
+    "total_seconds": 0.793,
+    "repo": "vampi",
+    "regions": 25,
+    "distinct_ranks": 5,
+    "largest_tier_share": 0.36,
+    "largest_tier_rank": 1.0,
+    "budget_at_recall": null,
+    "budget_at_full_target_position_coverage": null,
+    "known": [
+      {
+        "id": "VAmPI-SQLI",
+        "family": "injection",
+        "site": "models/user_model.py:73:get_user",
+        "position": null,
+        "rank": null,
+        "in_scope": true,
+        "reached_transitively": false,
+        "detection": "not_measured",
+        "position_status": "unresolved_target"
+      },
+      {
+        "id": "VAmPI-BOLA",
+        "family": "access_control",
+        "site": "api_views/users.py:187:update_password",
+        "position": 15,
+        "rank": 0.8,
+        "in_scope": true,
+        "reached_transitively": false,
+        "detection": "not_measured",
+        "position_status": "matched"
+      },
+      {
+        "id": "VAmPI-BOLA-BOOKS",
+        "family": "access_control",
+        "site": "api_views/books.py:51:get_by_title",
+        "position": 10,
+        "rank": 0.8,
+        "in_scope": true,
+        "reached_transitively": false,
+        "detection": "not_measured",
+        "position_status": "matched"
+      }
+    ]
+  }
+]

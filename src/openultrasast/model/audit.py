@@ -48,6 +48,7 @@ SPEC_OWNED = {
 }
 
 STANDALONE = {
+    "push_scoring": "pre-push-safety-net task 1.3: frozen-profile diagnostic outcome scorer; python -m openultrasast.push_scoring",
     "push_inputs": "pre-push-safety-net task 1.2: offline input provenance validator; python -m openultrasast.push_inputs",
     "mcp": "narrow MCP server over stdio; its own `ousast mcp` entry point and OpenCode integration",
     "skills": "skill router; consumed by mcp and by the OpenCode integration, not by the scan path",

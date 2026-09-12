@@ -216,6 +216,12 @@ question/context/depth, facts/sanitizers, query code and relevant analysis confi
 also includes ranking/admission versions and any model/prompt identity. Comparison results include
 both base and head identities. Persist manifests with source byte counts and graph census.
 
+These identities deliberately separate graph construction from ranking experiments. A ranking-only
+change can reuse a compatible graph and unchanged query evidence while invalidating affected ranked
+results. A query/fact change invalidates its answers without automatically rebuilding a graph whose
+input/frontend/overlay semantics are unchanged. This supports iteration on the core as well as
+repeated push checks; it does not authorize reusing stale evidence after a source change.
+
 Only validated, complete artifacts can satisfy complete-result lookups. Partial artifacts may be
 retained for diagnostics but never promoted by cache presence. Publish atomically from private
 temporary paths under a per-key lock; another push may wait only within its deadline. Apply a

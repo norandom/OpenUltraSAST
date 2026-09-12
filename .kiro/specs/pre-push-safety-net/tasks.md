@@ -38,12 +38,13 @@ started with group 1 (tasks 1.1–1.4); each task remains pending until independ
   - _Boundary: Evaluation harness_
   - _Requirements: 6.1, 6.3, 8.3, 8.4_
   - _Verified 2026-09-12:_ independent review APPROVED; 902 tests passed, 9 skipped, then 34 focused tests passed after a diagnostic-only correction. Fresh offline validation opened 506,502 bytes and retained all 11 cases/9 snapshots: 7 cases input-ready, 4 with named missing prerequisites. See `benchmarks/push/inputs.json` and `input-validation.json`. Ghost checkout/reviewed labels and independent per-capability PHP/Python populations remain missing; every capability stays experimental. No detector run or admission claim.
-- [ ] 1.3 Make the baseline and push scorer fail honestly
+- [x] 1.3 Make the baseline and push scorer fail honestly
   - Retain unmatched targets and unanswered queries in the declared population; require a queried witness before labeling a target transitively detected.
   - Emit actual vulnerable/fixed outcomes beside rank, selected mode, engine/facts/scope and elapsed stage costs. Freeze a versioned workload/profile before measuring.
   - Done when a deliberately missing target and failed query cannot improve reported recall, while a verified transitive positive is counted with its witness.
   - _Boundary: Evaluation harness, repository benchmark integration_
   - _Requirements: 6.2, 6.3, 6.4, 6.5, 7.3_
+  - _Verified 2026-09-12:_ independent review APPROVED; 925 tests passed, 9 skipped. Parent reproduced the frozen profile and actual VAmPI static rerun (15,942 pinned bytes, all 3 targets retained, SQLI unmatched, no transitive/detection claim, exit 1). Empty-run scoring retains 11 unresolved cases and explicitly reports unmeasured/0 recorded cases. Historical baselines remain unchanged with a caveat; new scorer consumes associated execution/review evidence and does not implement replay or admission.
 - [ ] 1.4 Establish typed push and engine integration contracts
   - Add importable push components and validated configuration for comparison base, shared deadline/cancellation allowance, local cache limit, advisory/blocking and separate coverage policy.
   - Define ownership of update/comparison, change context, selected/deferred scope, graph identity/lease and separate finding/coverage/push statuses as described in design.

@@ -1,0 +1,15 @@
+{
+  "profile_sha256": "95c26cf474573766fa24c44f4375cfcb506b196412cd421deadff35b4eb9ef3f",
+  "context": {
+    "ranking_mode": "evidence",
+    "engine": "joern-4.0.625",
+    "facts": "642d643d5b40a20fe482ace566cc77d132870930ecd2f2e881dcecd7dc9a0641",
+    "queries": "64c1534edb07e770ab8631b48bc156ef54b71ddb8d8ee4357fd5022eb11f0229",
+    "policy": "diagnostic-only-no-admission-v1",
+    "scope": "first-party-only; declared vendor exclusion in graph and targets; exact selected/deferred question IDs required per record",
+    "hardware": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+    "budget_seconds": 30,
+    "core": "7ac2bc93b35ce9d0cdcfc543266025519999ff45339657d4a5d283c67957d682"
+  },
+  "records": []
+}

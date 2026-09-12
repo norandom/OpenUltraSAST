@@ -1,23 +1,19 @@
-"""Phase 0 of flow-aware-ranking: where does each pinned CVE sit in the order the scan actually examines?
+"""Positional coverage baseline v2: ranks are not detection recall.
 
-The ranker's success metric is not "is the CVE in the budget" -- on Paid Memberships Pro it already is, at
-position 390 of 4,463 -- but **how small the budget can be while every CVE stays in it**. That number is
-`budget_at_recall`, and until it is written down nothing later can claim to have improved it.
-
-This is the baseline. It runs no engine and asks no model: it is the region pipeline exactly as the scan
-uses it, sorted exactly as the scan sorts it, with each known vulnerability's position read off. Offline,
-against pinned checkouts, so two runs of one repository agree.
-
-    ousast-venv/bin/python benchmarks/ranking/position.py            # every pinned recipe with a checkout
-    ousast-venv/bin/python benchmarks/ranking/position.py --json     # the same, as an artifact
+Every declared target remains visible, including unmatched sites. No transitive detection
+is inferred here: that requires recorded answered queries and target witnesses in the
+push scorer. Historical v1 artifacts remain unchanged.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import subprocess
 import sys
+import time
 from collections import Counter
 from pathlib import Path
 
@@ -101,10 +97,55 @@ def evidence_ordered_regions(root: Path, regions: list[ScanRegion], language: st
 
 
 def measure(name: str, root: Path, known: list[dict[str, object]], *, by_evidence: bool = False, language: str = "") -> dict[str, object]:
-    regions = ordered_regions(root)
+    started = time.monotonic()
+    inputs = []
+    for path in sorted({str(item["file"]) for item in known}):
+        try:
+            content = (root / path).read_bytes()
+            if not content:
+                raise ValueError("empty source")
+            inputs.append(dict(path=path, bytes_read=len(content), sha256=hashlib.sha256(content).hexdigest()))
+        except (OSError, ValueError) as exc:
+            inputs.append(dict(path=path, bytes_read=0, problem=str(exc)))
     facts: dict[str, object] = {}
+    # Frozen identity recorded before the evidence pass; this is a rank-only experiment.
+    source_root = Path(__file__).resolve().parents[2]
+    version_paths = [
+        "benchmarks/ranking/position.py",
+        "src/openultrasast/model/regions.py",
+        "src/openultrasast/model/scan.py",
+        "src/openultrasast/model/evidence.py",
+        "src/openultrasast/model/layout.py",
+    ]
+    checkout = {}
+    try:
+        commit = (
+            subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], stderr=subprocess.DEVNULL, timeout=10).decode().strip()
+        )
+        status = subprocess.check_output(["git", "-C", str(root), "status", "--porcelain"], stderr=subprocess.DEVNULL, timeout=10)
+        checkout = dict(commit=commit, clean=not status, status_sha256=hashlib.sha256(status).hexdigest())
+    except (OSError, subprocess.SubprocessError):
+        checkout = dict(problem="checkout commit unavailable")
+    profile = dict(
+        checkout=checkout,
+        version="position-v2",
+        requested_ranking_mode="evidence" if by_evidence else "static",
+        known_targets=known,
+        input_witnesses=inputs,
+        implementation={path: hashlib.sha256((source_root / path).read_bytes()).hexdigest() for path in version_paths},
+        detection="not_measured",
+    )
+    profile["sha256"] = hashlib.sha256(json.dumps(profile, sort_keys=True).encode()).hexdigest()
+    regions = ordered_regions(root) if root.is_dir() else []
+    actual_mode = "static"
     if by_evidence:
-        regions, facts = evidence_ordered_regions(root, regions, language)
+        try:
+            regions, facts = evidence_ordered_regions(root, regions, language)
+            actual_mode = "evidence"
+        except (OSError, RuntimeError, subprocess.SubprocessError, SystemExit) as exc:
+            regions = []
+            actual_mode = "unavailable"
+            facts = dict(evidence_failure=str(exc))
     tiers = Counter(r.rank for r in regions)
     largest = max(tiers.values()) if tiers else 0
     rows: list[dict[str, object]] = []
@@ -112,7 +153,11 @@ def measure(name: str, root: Path, known: list[dict[str, object]], *, by_evidenc
         # A known vulnerability names a file and a function. Match on both, path by suffix because a recipe
         # writes it relative to the repository and a region may carry it the same way or deeper.
         hit = next(
-            (i for i, r in enumerate(regions) if r.path.endswith(str(item["file"])) and r.function == item["function"]),
+            (
+                i
+                for i, r in enumerate(regions)
+                if r.path in (str(item["file"]), str(root / str(item["file"]))) and r.function == item["function"]
+            ),
             None,
         )
         rows.append(
@@ -120,26 +165,39 @@ def measure(name: str, root: Path, known: list[dict[str, object]], *, by_evidenc
                 "id": item["id"],
                 "family": item["family"],
                 "site": f"{item['file']}:{item['line']}:{item['function']}",
-                # Zero-based. None means no region is named after this function: the site is a SINK that an
-                # entry-point region elsewhere reaches through `callDepth` -- VAmPI's SQL injection lives in
-                # `models/user_model.py:get_user` and is found from the handler that calls it. Its true
-                # position is that handler's, which only the flow can say, so it is reported and left out of
-                # `budget_at_recall` rather than counted as a miss it is not.
+                # Zero-based position is only a region match, never a completed detection.
                 "position": hit,
                 "rank": regions[hit].rank if hit is not None else None,
                 "in_scope": item["in_scope"],
-                "reached_transitively": hit is None,
+                "reached_transitively": False,
+                "detection": "not_measured",
+                "position_status": "matched" if hit is not None else "unresolved_target",
             }
         )
     positioned = [r["position"] for r in rows if r["position"] is not None and r["in_scope"]]
+    supported = [row for row in rows if row["in_scope"]]
+    all_located = bool(supported) and len(positioned) == len(supported)
     return {
+        "schema_version": 2,
+        "measurement": "positional_coverage_not_detection",
+        "ranking_mode": actual_mode,
+        "profile": profile,
+        "detection_recall": None,
+        "supported_population": len(supported),
+        "unmatched_supported": len(supported) - len(positioned),
+        "input_witnesses": inputs,
+        "input_status": "readable" if inputs and all(row["bytes_read"] for row in inputs) else "incomplete",
+        "total_seconds": round(time.monotonic() - started, 3),
         "repo": name,
         "regions": len(regions),
         "distinct_ranks": len(tiers),
         "largest_tier_share": round(largest / len(regions), 3) if regions else 0.0,
         "largest_tier_rank": max(tiers, key=lambda k: tiers[k]) if tiers else None,
         # The smallest examined-region budget that still holds every in-scope known vulnerability.
-        "budget_at_recall": (max(positioned) + 1) if positioned else None,
+        "budget_at_recall": None,  # Retired misleading name: rank does not measure recall.
+        "budget_at_full_target_position_coverage": (max(positioned) + 1)
+        if all_located and all(row["bytes_read"] for row in inputs)
+        else None,
         "known": rows,
         **facts,
     }
@@ -160,8 +218,7 @@ def main() -> int:
             continue
         root = checkout_path(recipe)
         if not root.is_dir():
-            print(f"{recipe.name}: not checked out, skipping", file=sys.stderr)
-            continue
+            print(f"{recipe.name}: not checked out; retaining unresolved targets", file=sys.stderr)
         known = [
             {"id": k.id, "family": k.family, "file": k.file, "function": k.function, "line": k.line, "in_scope": k.in_scope}
             for k in recipe.known
@@ -173,20 +230,20 @@ def main() -> int:
 
     if args.json:
         print(json.dumps(results, indent=2))
-        return 0
+        return 1 if any(r["unmatched_supported"] or r["input_status"] != "readable" or r.get("evidence_failure") for r in results) else 0
     for r in results:
         print(
             f"{r['repo']}: {r['regions']} regions, {r['distinct_ranks']} distinct ranks, "
             f"{100 * float(r['largest_tier_share']):.1f}% share rank {r['largest_tier_rank']}"
         )
         for k in r["known"]:
-            where = "reached via another region" if k["position"] is None else f"position {k['position']} (rank {k['rank']})"
+            where = "unresolved target position" if k["position"] is None else f"position {k['position']} (rank {k['rank']})"
             scope = "" if k["in_scope"] else "  [out of scope]"
             print(f"   {k['id']:16} {where:28} {k['site']}{scope}")
-        print(f"   budget_at_recall = {r['budget_at_recall']}")
+        print(f"   budget_at_full_target_position_coverage = {r['budget_at_full_target_position_coverage']}; detection not measured")
         if "tier_counts" in r:
             print(f"   build {r['build_seconds']}s, evidence {r['evidence_seconds']}s over {r['pairs']} pairs, tiers {r['tier_counts']}")
-    return 0
+    return 1 if any(r["unmatched_supported"] or r["input_status"] != "readable" or r.get("evidence_failure") for r in results) else 0
 
 
 if __name__ == "__main__":

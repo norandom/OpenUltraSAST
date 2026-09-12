@@ -1,9 +1,10 @@
 {
   "counts": {
     "load_bearing": 92,
-    "standalone_capability": 8
+    "standalone_capability": 9
   },
-  "modules": 100,
+  "modules": 101,
+  "note": "Inventory refreshed for pre-push-safety-net task 1.3 standalone scorer; original artifact filename retained for audit gate.",
   "orphaned": [],
   "rows": [
     {
@@ -611,6 +612,12 @@
       "reason": "pre-push-safety-net task 1.2: offline input provenance validator; python -m openultrasast.push_inputs"
     },
     {
+      "classification": "standalone_capability",
+      "importers": [],
+      "module": "push_scoring",
+      "reason": "pre-push-safety-net task 1.3: frozen-profile diagnostic outcome scorer; python -m openultrasast.push_scoring"
+    },
+    {
       "classification": "load_bearing",
       "importers": [
         "calibration",
@@ -1076,10 +1083,10 @@
     "hunter_harness": "harness wiring for the tool hunter; used by the hunter path and by mcp",
     "mcp": "narrow MCP server over stdio; its own `ousast mcp` entry point and OpenCode integration",
     "push_inputs": "pre-push-safety-net task 1.2: offline input provenance validator; python -m openultrasast.push_inputs",
+    "push_scoring": "pre-push-safety-net task 1.3: frozen-profile diagnostic outcome scorer; python -m openultrasast.push_scoring",
     "skills": "skill router; consumed by mcp and by the OpenCode integration, not by the scan path",
     "slot_contract": "the slot/contract protocol stage_processors implements",
     "stage_processors": "HarnessX slot-contracted scan stages; pinned by the zero-dependency guard in test_gate"
   },
-  "update_note": "Current tree inventory refreshed for pre-push-safety-net task 1.2 standalone input validator; filename retains the original audit date. No detection or ranking measurement.",
-  "updated_date": "2026-09-12"
+  "updated_at": "2026-09-12"
 }

@@ -1,0 +1,226 @@
+{
+  "schema_version": 1,
+  "manifest_sha256": "eec13cb19fe5e2c2402e61ebf4fd17fa809482f321e7a8e615215a12e1bcf845",
+  "cases": [
+    {
+      "id": "pmpro-introduce",
+      "base": "pmpro-fixed",
+      "tip": "pmpro-vulnerable",
+      "label": "vulnerable",
+      "role": "development",
+      "capability": "php/wordpress/injection",
+      "provenance": "Authored replay direction reintroducing the reviewed operation; not a claim about the historical introducing commit.",
+      "prerequisites": []
+    },
+    {
+      "id": "pmpro-repair",
+      "base": "pmpro-vulnerable",
+      "tip": "pmpro-fixed",
+      "label": "fixed",
+      "role": "development",
+      "capability": "php/wordpress/injection",
+      "provenance": "PMPro upstream2.9.7 to2.9.8 parameter binding fix for CVE-2023-23488.",
+      "prerequisites": []
+    },
+    {
+      "id": "pmpro-benign",
+      "base": "pmpro-vulnerable",
+      "tip": "pmpro-benign",
+      "label": "benign",
+      "role": "development",
+      "capability": "php/wordpress/injection",
+      "provenance": "Authored comment-only change: no new defect; vulnerable backlog remains. This label does not mean repository-clean.",
+      "prerequisites": []
+    },
+    {
+      "id": "nodegoat-introduce",
+      "base": "nodegoat-fixed",
+      "tip": "nodegoat-vulnerable",
+      "label": "vulnerable",
+      "role": "transfer",
+      "capability": "javascript/express/injection",
+      "provenance": "Authored replay direction reintroducing the reviewed operation; not a claim about the historical introducing commit.",
+      "prerequisites": []
+    },
+    {
+      "id": "nodegoat-repair",
+      "base": "nodegoat-vulnerable",
+      "tip": "nodegoat-fixed",
+      "label": "fixed",
+      "role": "transfer",
+      "capability": "javascript/express/injection",
+      "provenance": "Authored replacement of three eval calls with Number conversion; source tutorial also documents alternate numeric parsing.",
+      "prerequisites": []
+    },
+    {
+      "id": "nodegoat-benign",
+      "base": "nodegoat-vulnerable",
+      "tip": "nodegoat-benign",
+      "label": "benign",
+      "role": "transfer",
+      "capability": "javascript/express/injection",
+      "provenance": "Authored comment-only change: no new defect; vulnerable backlog remains. This label does not mean repository-clean.",
+      "prerequisites": []
+    },
+    {
+      "id": "VAmPI-SQLI",
+      "base": "vampi-regression",
+      "tip": "vampi-regression",
+      "label": "regression",
+      "role": "regression",
+      "capability": "python/flask/injection",
+      "provenance": "Existing recipe known target, full target population retained; environment vulnerable=1. Snapshot regression, not an introducing push.",
+      "prerequisites": [
+        "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+      ]
+    },
+    {
+      "id": "VAmPI-BOLA",
+      "base": "vampi-regression",
+      "tip": "vampi-regression",
+      "label": "regression",
+      "role": "regression",
+      "capability": "python/flask/access_control",
+      "provenance": "Existing recipe known target, full target population retained; environment vulnerable=1. Snapshot regression, not an introducing push.",
+      "prerequisites": [
+        "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+      ]
+    },
+    {
+      "id": "VAmPI-BOLA-BOOKS",
+      "base": "vampi-regression",
+      "tip": "vampi-regression",
+      "label": "regression",
+      "role": "regression",
+      "capability": "python/flask/access_control",
+      "provenance": "Existing recipe known target, full target population retained; environment vulnerable=1. Snapshot regression, not an introducing push.",
+      "prerequisites": [
+        "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+      ]
+    },
+    {
+      "id": "libpng-CVE-2025-66293",
+      "base": "libpng-envelope",
+      "tip": "libpng-envelope",
+      "label": "unsupported",
+      "role": "envelope",
+      "capability": "c/libpng/memory_safety",
+      "provenance": "Arithmetic/bounds is outside the current abstract domain; measures graph/cost envelope only.",
+      "prerequisites": []
+    },
+    {
+      "id": "ghost-reserved-population",
+      "base": "ghost-reserved",
+      "tip": "ghost-reserved",
+      "label": "unreviewed",
+      "role": "reserved_holdout",
+      "capability": "javascript/express/unreviewed",
+      "provenance": "Reserved from production API/module/async shape and public security-fix history before scanner results. Manifest6.64.0-rc.0, Express4.22.2. Not an ESM or Express5 coverage claim.",
+      "prerequisites": [
+        "Review and freeze supported positive/fixed/benign changes from independent history; select family before scanning.",
+        "Freeze core and existing facts after development; preserve reservation and record any contamination."
+      ]
+    }
+  ],
+  "config": {
+    "version": "pre-push-diagnostic-v1-2026-09-12",
+    "ranking_mode": "evidence",
+    "engine": "joern-4.0.625",
+    "facts": "642d643d5b40a20fe482ace566cc77d132870930ecd2f2e881dcecd7dc9a0641",
+    "queries": "64c1534edb07e770ab8631b48bc156ef54b71ddb8d8ee4357fd5022eb11f0229",
+    "policy": "diagnostic-only-no-admission-v1",
+    "scope": "first-party-only; declared vendor exclusion in graph and targets; exact selected/deferred question IDs required per record",
+    "hardware": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+    "budget_seconds": 30,
+    "core": "7ac2bc93b35ce9d0cdcfc543266025519999ff45339657d4a5d283c67957d682",
+    "targets": {
+      "pmpro-introduce": {
+        "path": "classes/class.memberorder.php",
+        "function": "getMemberOrderByCode",
+        "family": "injection",
+        "lines": [
+          936
+        ]
+      },
+      "pmpro-repair": {
+        "path": "classes/class.memberorder.php",
+        "function": "getMemberOrderByCode",
+        "family": "injection",
+        "lines": [
+          937
+        ]
+      },
+      "pmpro-benign": {
+        "path": "classes/class.memberorder.php",
+        "function": "getMemberOrderByCode",
+        "family": "injection",
+        "lines": [
+          937
+        ]
+      },
+      "nodegoat-introduce": {
+        "path": "app/routes/contributions.js",
+        "function": "handleContributionsUpdate",
+        "family": "injection",
+        "lines": [
+          32,
+          33,
+          34
+        ]
+      },
+      "nodegoat-repair": {
+        "path": "app/routes/contributions.js",
+        "function": "handleContributionsUpdate",
+        "family": "injection",
+        "lines": [
+          32,
+          33,
+          34
+        ]
+      },
+      "nodegoat-benign": {
+        "path": "app/routes/contributions.js",
+        "function": "handleContributionsUpdate",
+        "family": "injection",
+        "lines": [
+          32,
+          33,
+          34
+        ]
+      },
+      "VAmPI-SQLI": {
+        "path": "models/user_model.py",
+        "function": "get_user",
+        "family": "injection",
+        "lines": [
+          73
+        ]
+      },
+      "VAmPI-BOLA": {
+        "path": "api_views/users.py",
+        "function": "update_password",
+        "family": "access_control",
+        "lines": [
+          187
+        ]
+      },
+      "VAmPI-BOLA-BOOKS": {
+        "path": "api_views/books.py",
+        "function": "get_by_title",
+        "family": "access_control",
+        "lines": [
+          51
+        ]
+      }
+    }
+  },
+  "gates": {
+    "precision": 0.95,
+    "recall": 0.9,
+    "completion": 0.95,
+    "warm_p95_seconds": 30.0,
+    "fixed_false_alerts": 0,
+    "benign_false_alerts": 0
+  },
+  "profile_sha256": "95c26cf474573766fa24c44f4375cfcb506b196412cd421deadff35b4eb9ef3f"
+}
