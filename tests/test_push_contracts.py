@@ -1,4 +1,5 @@
 """Approved task 1.4 contracts: persist identities without inventing completed analysis."""
+
 import ast
 import json
 from dataclasses import FrozenInstanceError, replace
@@ -35,9 +36,11 @@ def comparison() -> PushComparison:
 def test_config_round_trip_and_ordinary_scan_compatibility(tmp_path: Path) -> None:
     baseline = load_config()
     path = tmp_path / "settings.toml"
-    path.write_text('[push]\ncomparison_base = "refs/heads/main"\ndeadline_seconds = 11.5\n'
-                    'cancellation_allowance_seconds = 1\ncache_max_bytes = 4096\nmode = "blocking"\n'
-                    'incomplete_coverage_policy = "block"\n')
+    path.write_text(
+        '[push]\ncomparison_base = "refs/heads/main"\ndeadline_seconds = 11.5\n'
+        'cancellation_allowance_seconds = 1\ncache_max_bytes = 4096\nmode = "blocking"\n'
+        'incomplete_coverage_policy = "block"\n'
+    )
     configured = load_config(path)
     assert configured.push == PushConfig("refs/heads/main", 11.5, 1, 4096, "blocking", "block")
     assert PushConfig.from_payload(json.loads(json.dumps(config_payload(configured)["push"]))) == configured.push
@@ -48,19 +51,32 @@ def test_config_round_trip_and_ordinary_scan_compatibility(tmp_path: Path) -> No
     assert baseline.push == PushConfig()
     assert baseline.push.deadline_seconds == 30
     assert baseline.push.cancellation_allowance_seconds == 2
-    assert baseline.push.cache_max_bytes == 2 * 1024 ** 3
+    assert baseline.push.cache_max_bytes == 2 * 1024**3
     assert baseline.push.mode == "advisory"
     assert baseline.push.incomplete_coverage_policy == "allow"
 
 
-@pytest.mark.parametrize("setting", [
-    'push = "bad"', 'push = []', '[push]\ndeadline_seconds = true', '[push]\ndeadline_seconds = "30"',
-    '[push]\ndeadline_seconds = nan', '[push]\ndeadline_seconds = inf', '[push]\ndeadline_seconds = 0',
-    '[push]\ncancellation_allowance_seconds = -1', '[push]\ncache_max_bytes = 0',
-    '[push]\ncache_max_bytes = 1.5', '[push]\ncache_max_bytes = true', '[push]\nmode = "nag"',
-    '[push]\nincomplete_coverage_policy = "ignore"', '[push]\ncomparison_base = ""',
-    '[push]\ncomparison_base = 1', '[push]\ndeadline_second = 60',
-])
+@pytest.mark.parametrize(
+    "setting",
+    [
+        'push = "bad"',
+        "push = []",
+        "[push]\ndeadline_seconds = true",
+        '[push]\ndeadline_seconds = "30"',
+        "[push]\ndeadline_seconds = nan",
+        "[push]\ndeadline_seconds = inf",
+        "[push]\ndeadline_seconds = 0",
+        "[push]\ncancellation_allowance_seconds = -1",
+        "[push]\ncache_max_bytes = 0",
+        "[push]\ncache_max_bytes = 1.5",
+        "[push]\ncache_max_bytes = true",
+        '[push]\nmode = "nag"',
+        '[push]\nincomplete_coverage_policy = "ignore"',
+        '[push]\ncomparison_base = ""',
+        "[push]\ncomparison_base = 1",
+        "[push]\ndeadline_second = 60",
+    ],
+)
 def test_push_configuration_rejects_unsafe_coercion(tmp_path: Path, setting: str) -> None:
     path = tmp_path / "settings.toml"
     path.write_text(setting)
@@ -70,8 +86,17 @@ def test_push_configuration_rejects_unsafe_coercion(tmp_path: Path, setting: str
 
 def test_contract_round_trips_preserve_partition_ref_and_comparison_identity() -> None:
     update = PushUpdate("refs/heads/topic", "a" * 64, "refs/heads/main", "b" * 64)
-    context = ChangeContext("b" * 64, "a" * 64, ("src/api.js",), ("src/guard.js",),
-                            (ChangedSpan("src/guard.js", 3, 8, "base"),), (), ("package.json",), (), ("dynamic dispatch",))
+    context = ChangeContext(
+        "b" * 64,
+        "a" * 64,
+        ("src/api.js",),
+        ("src/guard.js",),
+        (ChangedSpan("src/guard.js", 3, 8, "base"),),
+        (),
+        ("package.json",),
+        (),
+        ("dynamic dispatch",),
+    )
     for value in (update, comparison(), context, scope()):
         assert type(value).from_payload(json.loads(json.dumps(value.to_payload()))) == value
     assert question() != question("php", "src/api.js")
@@ -82,15 +107,21 @@ def test_contract_round_trips_preserve_partition_ref_and_comparison_identity() -
         update.local_oid = "other"  # type: ignore[misc]
 
 
-@pytest.mark.parametrize("finding,coverage,disposition", [
-    ("none", "incomplete", "allow"), ("none", "unavailable", "block"),
-    ("actionable", "incomplete", "allow"), ("actionable", "complete_within_scope", "block"),
-])
+@pytest.mark.parametrize(
+    "finding,coverage,disposition",
+    [
+        ("none", "incomplete", "allow"),
+        ("none", "unavailable", "block"),
+        ("actionable", "incomplete", "allow"),
+        ("actionable", "complete_within_scope", "block"),
+    ],
+)
 def test_result_statuses_are_independent(finding: str, coverage: str, disposition: str) -> None:
     payload = {
         "analyses": [ComparisonAnalysis(comparison(), (scope(),), (question(),), coverage).to_payload()],
         "finding_status": finding,
-        "coverage_status": coverage, "push_disposition": disposition,
+        "coverage_status": coverage,
+        "push_disposition": disposition,
         "actionable_defect_ids": ["defect-1"] if finding == "actionable" else [],
     }
     result = PushResult.from_payload(payload)
@@ -104,8 +135,11 @@ def test_incomplete_scope_cannot_be_serialized_as_complete_negative() -> None:
     result = ComparisonAnalysis(comparison(), (scope(),), (question(),), "complete_within_scope")
     assert ComparisonAnalysis.from_payload(result.to_payload()) == result
     deferred = DeferredQuestion(question("php", "index.php"), "deadline", ("unanswered",))
-    for changed in (replace(scope(), deferred=(deferred,)), replace(scope(), unresolved_boundaries=("vendor call",)),
-                    replace(scope(), population_complete=False)):
+    for changed in (
+        replace(scope(), deferred=(deferred,)),
+        replace(scope(), unresolved_boundaries=("vendor call",)),
+        replace(scope(), population_complete=False),
+    ):
         with pytest.raises(ValueError):
             replace(result, scopes=(changed,))
     with pytest.raises(ValueError):
@@ -118,19 +152,32 @@ def test_incomplete_scope_cannot_be_serialized_as_complete_negative() -> None:
         replace(scope(), deferred=(DeferredQuestion(question(), "deadline", ()),))
 
 
-@pytest.mark.parametrize("value", [
-    {"local_ref": "x", "local_oid": "a", "remote_ref": "y", "remote_oid": "b", "extra": 1},
-    {"local_ref": "x", "local_oid": 1, "remote_ref": "y", "remote_oid": "b"},
-    {"local_ref": "x", "local_oid": "a", "remote_ref": "y"},
-])
+@pytest.mark.parametrize(
+    "value",
+    [
+        {"local_ref": "x", "local_oid": "a", "remote_ref": "y", "remote_oid": "b", "extra": 1},
+        {"local_ref": "x", "local_oid": 1, "remote_ref": "y", "remote_oid": "b"},
+        {"local_ref": "x", "local_oid": "a", "remote_ref": "y"},
+    ],
+)
 def test_malformed_identity_payloads_fail(value: dict[str, object]) -> None:
     with pytest.raises(ValueError):
         PushUpdate.from_payload(value)
 
 
 def test_graph_provenance_round_trip_and_live_lease_separation() -> None:
-    identity = GraphIdentity("source-digest", "declarations", "exclusions", "api", "javascript",
-                             "4.0.625", "jssrc2cpg", "4.0.625", ("dataflowOss-v1",), (("option", "value"),))
+    identity = GraphIdentity(
+        "source-digest",
+        "declarations",
+        "exclusions",
+        "api",
+        "javascript",
+        "4.0.625",
+        "jssrc2cpg",
+        "4.0.625",
+        ("dataflowOss-v1",),
+        (("option", "value"),),
+    )
     artifact = GraphArtifact(identity, "graph-sha256", 128, GraphCensus(1, 2, 3), "complete", ())
     assert GraphArtifact.from_payload(json.loads(json.dumps(artifact.to_payload()))) == artifact
     assert replace(identity, exclusions_digest="changed") != identity
@@ -189,10 +236,16 @@ def test_deletion_only_result_is_explicitly_not_applicable() -> None:
         replace(result, coverage_status="complete_within_scope")
 
 
-@pytest.mark.parametrize("field,value", [
-    ("finding_status", "clean"), ("coverage_status", "secure"), ("push_disposition", "warn"),
-    ("finding_status", True), ("coverage_status", None),
-])
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("finding_status", "clean"),
+        ("coverage_status", "secure"),
+        ("push_disposition", "warn"),
+        ("finding_status", True),
+        ("coverage_status", None),
+    ],
+)
 def test_result_rejects_unknown_status_vocabulary(field: str, value: object) -> None:
     payload = PushResult((), "none", "not_applicable", "allow", ()).to_payload()
     payload[field] = value
@@ -201,8 +254,19 @@ def test_result_rejects_unknown_status_vocabulary(field: str, value: object) -> 
 
 
 def test_graph_partial_provenance_stays_partial_and_options_are_preserved() -> None:
-    identity = GraphIdentity("sources", "decls", "excludes", "core", "c", "4.0.625", "c2cpg", "4.0.625",
-                             ("dataflowOss-v1",), (("depth", "2"),), (("include", "src"),))
+    identity = GraphIdentity(
+        "sources",
+        "decls",
+        "excludes",
+        "core",
+        "c",
+        "4.0.625",
+        "c2cpg",
+        "4.0.625",
+        ("dataflowOss-v1",),
+        (("depth", "2"),),
+        (("include", "src"),),
+    )
     artifact = GraphArtifact(identity, "digest", 0, GraphCensus(0, 0, 0), "partial", ("source unreadable",))
     restored = GraphArtifact.from_payload(json.loads(json.dumps(artifact.to_payload())))
     assert restored == artifact

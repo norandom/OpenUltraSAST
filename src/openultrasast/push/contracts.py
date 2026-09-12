@@ -3,6 +3,7 @@
 Git resolution, admission policy and execution are separate later implementations.
 No default result status can turn an unexecuted contract into a complete negative.
 """
+
 from __future__ import annotations
 
 import re
@@ -92,8 +93,17 @@ class UpdateResolution(Contract):
     """One record per supplied line, including repeated ref associations."""
 
     update: PushUpdate
-    disposition: Literal["ready", "deleted", "missing_target", "unsupported_target", "missing_base", "unsupported_base",
-                         "no_merge_base", "ambiguous_base", "resolution_error"]
+    disposition: Literal[
+        "ready",
+        "deleted",
+        "missing_target",
+        "unsupported_target",
+        "missing_base",
+        "unsupported_base",
+        "no_merge_base",
+        "ambiguous_base",
+        "resolution_error",
+    ]
     head_oid: str | None
     base_oid: str | None
     base_reason: str

@@ -79,5 +79,6 @@ updates as a shortcut to an unmeasured latency promise.
 The product direction above is user-requested. The amended requirements, design and initial
 evaluation profile in `pre-push-safety-net` were approved for task generation on 2026-09-12
 ("ok, next kiro phase"). The maintainer then approved the task plan and starting group 1
-("approve."). Implementation is authorized under that plan; task completion still requires
+("approve.") and then group 2 ("ok, next kiro phase, approved"). Groups 1 and 2 are now verified
+complete. Implementation is authorized under that plan; task completion still requires
 independent review and fresh evidence. Hook performance and capability admission remain unproven.

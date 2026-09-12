@@ -3,6 +3,7 @@
 These schemas validate structure, not source readability, Git object existence or alert
 eligibility. Live resources deliberately have no manifest decoder.
 """
+
 from __future__ import annotations
 
 import math

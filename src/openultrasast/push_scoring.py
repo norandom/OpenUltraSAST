@@ -122,7 +122,10 @@ def _case(
         and record.get("coverage") == "complete"
     )
     negative = any(
-        q.get("status") == "answered" and q.get("outcome") == "negative" and q.get("target") == target and isinstance(q.get("witness"), str)
+        q.get("status") == "answered"
+        and q.get("outcome") == "negative"
+        and q.get("target") == target
+        and isinstance(q.get("witness"), str)
         and bool(q["witness"].strip())
         for q in queries.values()
     )

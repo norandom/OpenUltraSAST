@@ -127,3 +127,17 @@ PHP, ABAP and Ghidra binaries. We currently model **python, javascript, java, c*
 **PHP works but needs a PHP interpreter**: `php2cpg` drives PHP-Parser and shells out to `php`, so on a host
 without it a PHP tree fails to build with an opaque "Process exited with code 1". Set `php_frontend: True` in
 the inventory to install `php-cli` alongside the JVM.
+
+## Snapshot preparation smoke
+
+After building the image, exercise immutable Git comparisons and isolated source
+materialization without network access:
+
+```bash
+docker run --rm -i --network none --entrypoint python openultrasast:dev - < ops/smoke_snapshot.py
+```
+
+The smoke reads committed PHP/JavaScript bytes from a dirty, non-HEAD checkout,
+checks rename/deletion and declared configuration context, and verifies scratch
+cleanup and unchanged live state. Its JSON reports snapshot preparation only;
+it does not run the detector, install a hook, or establish hook latency.

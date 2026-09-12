@@ -1,4 +1,5 @@
 """Exercise the snapshot resolver with real local Git objects, not mocked answers."""
+
 import subprocess
 from pathlib import Path
 
@@ -41,7 +42,9 @@ def test_preserves_every_ref_and_distinct_comparisons(repo: Path) -> None:
     result = SnapshotAdapter(repo).resolve_updates(line(head, base) + line(head, other, "force") + line(head, base, "alias"))
     assert result.targets == (head,)
     assert [(c.head_oid, c.base_oid, c.refs) for c in result.comparisons] == [
-        (head, base, ("refs/heads/main", "refs/heads/alias")), (head, other, ("refs/heads/force",))]
+        (head, base, ("refs/heads/main", "refs/heads/alias")),
+        (head, other, ("refs/heads/force",)),
+    ]
     assert [r.disposition for r in result.updates] == ["ready"] * 3
     assert len(result.updates) == 3
 
@@ -119,9 +122,16 @@ def test_missing_and_unsupported_objects_are_explicit(repo: Path) -> None:
 
 def test_bad_protocol_never_silently_skips_lines(repo: Path) -> None:
     from openultrasast.push.snapshot import SnapshotInputError
+
     head = commit(repo, "head")
-    for invalid in ("\n", "only three fields\n", line(head[:-1], head), line(head, head, "bad..ref"),
-                    line("0" * len(head), head), f"(delete) {head} refs/heads/main {head}\n"):
+    for invalid in (
+        "\n",
+        "only three fields\n",
+        line(head[:-1], head),
+        line(head, head, "bad..ref"),
+        line("0" * len(head), head),
+        f"(delete) {head} refs/heads/main {head}\n",
+    ):
         with pytest.raises(SnapshotInputError):
             SnapshotAdapter(repo).resolve_updates(line(head, head) + invalid)
 
@@ -234,25 +244,35 @@ def binary_commit(repo: Path, entries: list[tuple[bytes, bytes, bytes]]) -> str:
             oid = data
             kind = b"commit"
         else:
-            oid = subprocess.run(["git", "-C", str(repo), "hash-object", "-w", "--stdin"],
-                                 input=data, capture_output=True, check=True).stdout.rstrip(b"\n")
+            oid = subprocess.run(
+                ["git", "-C", str(repo), "hash-object", "-w", "--stdin"], input=data, capture_output=True, check=True
+            ).stdout.rstrip(b"\n")
             kind = b"blob"
             assert int(git(repo, "cat-file", "-s", oid.decode())) == len(data)
         records.append(mode + b" " + kind + b" " + oid + b"\t" + path + b"\0")
-    tree = subprocess.run(["git", "-C", str(repo), "mktree", "-z"], input=b"".join(records),
-                          capture_output=True, check=True).stdout.decode().strip()
+    tree = (
+        subprocess.run(["git", "-C", str(repo), "mktree", "-z"], input=b"".join(records), capture_output=True, check=True)
+        .stdout.decode()
+        .strip()
+    )
     return git(repo, "commit-tree", tree, input="binary fixture")
 
 
 def test_snapshot_exact_binary_paths_and_no_filters(repo: Path) -> None:
     import os
-    entries = [(b"100644", path, data) for path, data in [
-        (b"handler.php", b"<?php echo $_GET['x'];\n"),
-        (b"api.js", b"app.post('/x', (req,res)=>res.send(req.body.x));\n"),
-        (b"newline\nname\t.js", b"\x00\xffbinary\r\n"), ("\u03b1.js".encode(), b"unicode"),
-        (b"\xff.js", b"invalid UTF8 name"), (b" ", b"space"),
-        (b".gitattributes", b"* filter=trap\n"),
-    ]]
+
+    entries = [
+        (b"100644", path, data)
+        for path, data in [
+            (b"handler.php", b"<?php echo $_GET['x'];\n"),
+            (b"api.js", b"app.post('/x', (req,res)=>res.send(req.body.x));\n"),
+            (b"newline\nname\t.js", b"\x00\xffbinary\r\n"),
+            ("\u03b1.js".encode(), b"unicode"),
+            (b"\xff.js", b"invalid UTF8 name"),
+            (b" ", b"space"),
+            (b".gitattributes", b"* filter=trap\n"),
+        ]
+    ]
     oid = binary_commit(repo, entries)
     sentinel = repo / "FILTER_RAN"
     git(repo, "config", "filter.trap.smudge", "touch " + str(sentinel))
@@ -268,24 +288,38 @@ def test_snapshot_exact_binary_paths_and_no_filters(repo: Path) -> None:
 
 def test_snapshot_omits_symlinks_gitlinks_and_lfs(repo: Path) -> None:
     target = commit(repo, "submodule")
-    oid = binary_commit(repo, [
-        (b"120000", b"outside", b"/etc/passwd"),
-        (b"160000", b"submodule", target.encode()),
-        (b"100644", b"large.js", b"version https://git-lfs.github.com/spec/v1\noid sha256:" + b"0" * 64 + b"\nsize 3\n"),
-    ])
+    oid = binary_commit(
+        repo,
+        [
+            (b"120000", b"outside", b"/etc/passwd"),
+            (b"160000", b"submodule", target.encode()),
+            (b"100644", b"large.js", b"version https://git-lfs.github.com/spec/v1\noid sha256:" + b"0" * 64 + b"\nsize 3\n"),
+        ],
+    )
     with SnapshotAdapter(repo).materialize(oid) as snapshot:
         assert not snapshot.manifest.complete
         assert snapshot.manifest.tree_complete
         assert {b.reason for b in snapshot.manifest.boundaries} == {
-            "symlink_not_materialized", "gitlink_not_materialized", "lfs_content_unavailable"}
+            "symlink_not_materialized",
+            "gitlink_not_materialized",
+            "lfs_content_unavailable",
+        }
         assert list(snapshot.root.iterdir()) == []
 
 
-@pytest.mark.parametrize("limit,reason", [("max_files", "file_count_limit"),
-    ("max_tree_bytes", "git_output_limit"), ("max_blob_bytes", "source_byte_limit"),
-    ("max_total_bytes", "source_byte_limit"), ("max_path_bytes", "unsupported_path")])
+@pytest.mark.parametrize(
+    "limit,reason",
+    [
+        ("max_files", "file_count_limit"),
+        ("max_tree_bytes", "git_output_limit"),
+        ("max_blob_bytes", "source_byte_limit"),
+        ("max_total_bytes", "source_byte_limit"),
+        ("max_path_bytes", "unsupported_path"),
+    ],
+)
 def test_snapshot_limits_are_explicit(repo: Path, limit: str, reason: str) -> None:
     from openultrasast.push.snapshot import SnapshotLimits
+
     oid = binary_commit(repo, [(b"100644", b"one.js", b"123"), (b"100644", b"two.php", b"456")])
     with SnapshotAdapter(repo).materialize(oid, limits=SnapshotLimits(**{limit: 1})) as snapshot:
         root = snapshot.root
@@ -301,6 +335,7 @@ def test_snapshot_failure_preserves_live_state_and_cleans(repo: Path, failure: s
 
     from openultrasast.model.contracts import ExecutionBudget
     from openultrasast.push.snapshot import SnapshotInputError
+
     oid = commit(repo, "object bytes")
     git(repo, "update-ref", "HEAD", oid)
     (repo / "file.js").write_bytes(b"staged")
@@ -313,10 +348,12 @@ def test_snapshot_failure_preserves_live_state_and_cleans(repo: Path, failure: s
         (repo / ".git/objects" / blob[:2] / blob[2:]).unlink()
     before = {p.relative_to(repo): p.read_bytes() for p in repo.rglob("*") if p.is_file()}
     calls = 0
+
     def cancel() -> bool:
         nonlocal calls
         calls += 1
         return failure == "cancel" and calls >= 5
+
     budget = ExecutionBudget(time.monotonic() + (-1 if failure == "deadline" else 10), 2.0)
     root = None
     try:
@@ -337,6 +374,7 @@ def test_snapshot_failure_preserves_live_state_and_cleans(repo: Path, failure: s
 
 def test_snapshot_rejects_live_scratch_parent(repo: Path) -> None:
     from openultrasast.push.snapshot import SnapshotInputError
+
     oid = commit(repo, "input")
     for parent in (repo, repo / ".git", repo / ".git/objects"):
         with pytest.raises(SnapshotInputError, match="outside"), SnapshotAdapter(repo).materialize(oid, scratch_parent=parent):
@@ -359,13 +397,16 @@ def test_snapshot_missing_tree_and_unsupported_object_are_not_clean(repo: Path) 
 
 def test_snapshot_refuses_oversize_blob_before_reading_it(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from openultrasast.push.snapshot import SnapshotLimits
+
     oid = commit(repo, "large payload")
     adapter = SnapshotAdapter(repo)
     original = adapter._bounded_git
     commands = []
+
     def capture(args, *rest):
         commands.append(args)
         return original(args, *rest)
+
     monkeypatch.setattr(adapter, "_bounded_git", capture)
     with adapter.materialize(oid, limits=SnapshotLimits(max_blob_bytes=1)) as snapshot:
         assert not snapshot.manifest.complete
@@ -392,14 +433,17 @@ def test_snapshot_deadline_kills_slow_git_and_cleans(repo: Path, monkeypatch: py
     import time
 
     from openultrasast.model.contracts import ExecutionBudget
+
     oid = commit(repo, "input")
     adapter = SnapshotAdapter(repo)
     real_popen = subprocess.Popen
     processes = []
+
     def slow_git(command, **kwargs):
         process = real_popen([sys.executable, "-c", "import time; time.sleep(30)"], **kwargs)
         processes.append(process)
         return process
+
     monkeypatch.setattr(subprocess, "Popen", slow_git)
     start = time.monotonic()
     with adapter.materialize(oid, budget=ExecutionBudget(start + 0.1, 1.0)) as snapshot:
@@ -412,6 +456,7 @@ def test_snapshot_deadline_kills_slow_git_and_cleans(repo: Path, monkeypatch: py
 
 def test_snapshot_manifest_rejects_forged_census(repo: Path) -> None:
     from dataclasses import replace
+
     oid = commit(repo, "input")
     with SnapshotAdapter(repo).materialize(oid) as snapshot:
         manifest = snapshot.manifest
@@ -426,6 +471,7 @@ def test_snapshot_manifest_rejects_forged_census(repo: Path) -> None:
 
 def test_snapshot_subdirectory_adapter_cannot_scratch_in_live_parent(repo: Path) -> None:
     from openultrasast.push.snapshot import SnapshotInputError
+
     oid = commit(repo, "input")
     nested = repo / "nested"
     nested.mkdir()
@@ -436,12 +482,178 @@ def test_snapshot_subdirectory_adapter_cannot_scratch_in_live_parent(repo: Path)
 def test_snapshot_write_failure_cleans_partial_scratch(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     oid = commit(repo, "input")
     original = Path.open
+
     def broken(path, mode="r", *args, **kwargs):
         if mode == "xb":
             raise OSError("scratch_write_failed")
         return original(path, mode, *args, **kwargs)
+
     monkeypatch.setattr(Path, "open", broken)
     with SnapshotAdapter(repo).materialize(oid) as snapshot:
         assert not snapshot.manifest.complete
         assert any(b.reason == "scratch_write_failed" for b in snapshot.manifest.boundaries)
     assert not snapshot.root.exists()
+
+
+def comparison(base: str | None, head: str):
+    from openultrasast.push.contracts import PushComparison
+
+    return PushComparison(head, base, "supplied_remote_tip", ("refs/heads/main",))
+
+
+@pytest.mark.parametrize(
+    "extension,prefix,guard,sink",
+    [
+        (b"php", b"<?php\n", b"  require_permission($user);\n", b"  execute($input);\n"),
+        (b"js", b"", b"  requirePermission(user);\n", b"  execute(input);\n"),
+    ],
+)
+def test_change_context_function_rename_and_removed_guard(repo: Path, extension, prefix, guard, sink) -> None:
+    path = b"handler." + extension
+    old = prefix + b"function oldHandler() {\n" + guard + sink + b"}\n"
+    new = prefix + b"function newHandler() {\n" + sink + b"}\n"
+    base = binary_commit(repo, [(b"100644", path, old)])
+    head = binary_commit(repo, [(b"100644", path, new)])
+    result = SnapshotAdapter(repo).compare(comparison(base, head), declaration_paths=())
+    assert result.base_revision == base and result.head_revision == head
+    assert result.path_encoding == "filesystem-bytes-hex"
+    assert result.changed_paths == (path.hex(),)
+    base_guard = old.split(b"\n").index(guard.rstrip(b"\n")) + 1
+    assert any(s.side == "base" and s.start_line <= base_guard <= s.end_line for s in result.spans)
+    base_sink = old.split(b"\n").index(sink.rstrip(b"\n")) + 1
+    head_sink = new.split(b"\n").index(sink.rstrip(b"\n")) + 1
+    assert any(
+        m.base_start_line <= base_sink <= m.base_end_line and m.head_start_line + base_sink - m.base_start_line == head_sink
+        for m in result.line_correspondences
+    )
+    assert not any(s.side == "head" and s.start_line <= head_sink <= s.end_line for s in result.spans)
+    assert result.relationships == ()  # Snapshot evidence cannot invent semantic call/guard edges.
+    assert type(result).from_payload(result.to_payload()) == result
+
+
+def test_change_context_nul_paths_renames_deletions_and_declarations(repo: Path) -> None:
+    old_path, new_path = b"old\n\xff.js", b"new\t\xfe.js"
+    payload = b"function unchanged() {\n  uniqueOperation();\n}\n"
+    base = binary_commit(
+        repo, [(b"100644", old_path, payload), (b"100644", b" ", b"deleted\n"), (b"100644", b"package.json", b'{"mode":"old"}\n')]
+    )
+    head = binary_commit(repo, [(b"100644", new_path, payload), (b"100644", b"package.json", b'{"mode":"new"}\n')])
+    result = SnapshotAdapter(repo).compare(comparison(base, head), declaration_paths=(b"package.json",))
+    assert {(r.base_path, r.head_path) for r in result.renames} == {(old_path.hex(), new_path.hex())}
+    assert result.deleted_paths == (b" ".hex(),)
+    assert result.declaration_paths == (b"package.json".hex(),)
+    assert any(m.base_path == old_path.hex() and m.head_path == new_path.hex() for m in result.line_correspondences)
+    assert any(s.path == b" ".hex() and s.side == "base" for s in result.spans)
+
+
+def test_change_context_unknown_base_binary_and_ambiguous_lines_are_unresolved(repo: Path) -> None:
+    base = binary_commit(repo, [(b"100644", b"api.js", b"old();\nsink();\nsink();\n"), (b"100644", b"binary", b"\x00old")])
+    head = binary_commit(repo, [(b"100644", b"api.js", b"new();\nsink();\nsink();\n"), (b"100644", b"binary", b"\x00new")])
+    missing = SnapshotAdapter(repo).compare(comparison(None, head))
+    assert "comparison_base_unavailable" in missing.unresolved_boundaries
+    result = SnapshotAdapter(repo).compare(comparison(base, head))
+    assert "declaration_paths_unavailable" in result.unresolved_boundaries
+    assert any("ambiguous_line_correspondence" in b for b in result.unresolved_boundaries)
+    assert any("binary_line_correspondence_unavailable" in b for b in result.unresolved_boundaries)
+    assert not result.line_correspondences
+
+
+def test_change_context_is_bounded_and_never_executes_diff_helpers(repo: Path) -> None:
+    from openultrasast.push.snapshot import SnapshotLimits
+
+    marker = repo / "DIFF_RAN"
+    git(repo, "config", "diff.external", "touch " + str(marker))
+    git(repo, "config", "diff.trap.textconv", "touch " + str(marker))
+    (repo / ".gitattributes").write_text("* diff=trap\n")
+    base, head = commit(repo, "old\n"), commit(repo, "new\n")
+    result = SnapshotAdapter(repo).compare(comparison(base, head), declaration_paths=())
+    assert result.spans
+    assert not marker.exists()
+    limited = SnapshotAdapter(repo).compare(comparison(base, head), limits=SnapshotLimits(max_blob_bytes=1))
+    assert any("source_byte_limit" in b for b in limited.unresolved_boundaries)
+    cancelled = SnapshotAdapter(repo).compare(comparison(base, head), cancelled=lambda: True)
+    assert "cancelled" in cancelled.unresolved_boundaries
+
+
+def test_change_context_moved_repeated_operations_do_not_claim_identity(repo: Path) -> None:
+    base = binary_commit(repo, [(b"100644", b"api.js", b"function a() {\n  sink();\n}\nfunction b() {\n  sink();\n}\n")])
+    head = binary_commit(repo, [(b"100644", b"api.js", b"function b() {\n  sink();\n}\nfunction renamed() {\n  sink();\n}\n")])
+    result = SnapshotAdapter(repo).compare(comparison(base, head), declaration_paths=())
+    assert any("ambiguous_line_correspondence" in b for b in result.unresolved_boundaries)
+    assert not any(m.base_start_line in (2, 5) for m in result.line_correspondences)
+    assert result.decode_path(result.changed_paths[0]) == "api.js"
+
+
+@pytest.mark.parametrize("limit", ["max_total_bytes", "max_diff_bytes", "max_mapping_lines", "max_files"])
+def test_change_context_total_limits_are_explicit(repo: Path, limit: str) -> None:
+    from openultrasast.push.snapshot import SnapshotLimits
+
+    base = binary_commit(repo, [(b"100644", b"a.js", b"old\n"), (b"100644", b"b.js", b"old2\n")])
+    head = binary_commit(repo, [(b"100644", b"a.js", b"new\n"), (b"100644", b"b.js", b"new2\n")])
+    result = SnapshotAdapter(repo).compare(comparison(base, head), declaration_paths=(), limits=SnapshotLimits(**{limit: 1}))
+    assert result.unresolved_boundaries
+    assert not result.line_correspondences
+
+
+def test_change_context_missing_blob_and_invalid_revisions_are_not_clean(repo: Path) -> None:
+    base, head = commit(repo, "old\n"), commit(repo, "new\n")
+    blob = git(repo, "rev-parse", base + ":file.js")
+    (repo / ".git/objects" / blob[:2] / blob[2:]).unlink()
+    result = SnapshotAdapter(repo).compare(comparison(base, head), declaration_paths=())
+    assert result.unresolved_boundaries
+    assert not result.spans and not result.line_correspondences
+    result = SnapshotAdapter(repo).compare(comparison("HEAD", head), declaration_paths=())
+    assert result.unresolved_boundaries == ("comparison_requires_immutable_commit_oid",)
+
+
+def test_change_context_lf_lines_and_final_newline_changes(repo: Path) -> None:
+    # CR, vertical tab and Unicode line separators are source bytes, not LF lines.
+    before = b"first\x0b\xe2\x80\xa8\rline\noperation();\n"
+    after = b"changed\x0b\xe2\x80\xa8\rline\noperation();\n"
+    base = binary_commit(repo, [(b"100644", b"api.js", before)])
+    head = binary_commit(repo, [(b"100644", b"api.js", after)])
+    result = SnapshotAdapter(repo).compare(comparison(base, head), declaration_paths=())
+    assert [(s.start_line, s.end_line) for s in result.spans] == [(1, 1), (1, 1)]
+    assert [(m.base_start_line, m.head_start_line) for m in result.line_correspondences] == [(2, 2)]
+    no_newline = binary_commit(repo, [(b"100644", b"api.js", after[:-1])])
+    result = SnapshotAdapter(repo).compare(comparison(head, no_newline), declaration_paths=())
+    assert any(s.side == "head" and s.start_line == 2 for s in result.spans)
+    assert not any(m.head_start_line == 2 for m in result.line_correspondences)
+
+
+def test_change_context_zero_changes_are_real_equal_objects(repo: Path) -> None:
+    oid = commit(repo, "source read by Git\n")
+    result = SnapshotAdapter(repo).compare(comparison(oid, oid), declaration_paths=())
+    assert result.changed_paths == result.spans == result.unresolved_boundaries == ()
+
+
+def test_change_context_generic_hex_contract_validation(repo: Path) -> None:
+    import os
+    from dataclasses import replace
+
+    oid = binary_commit(repo, [(b"100644", b" \xff", b"a\n")])
+    new = binary_commit(repo, [(b"100644", b" \xff", b"b\n")])
+    context = SnapshotAdapter(repo).compare(comparison(oid, new), declaration_paths=())
+    assert os.fsencode(context.decode_path(context.changed_paths[0])) == b" \xff"
+    for invalid in ("zz", "00", "FF", "20 ff"):
+        with pytest.raises(ValueError):
+            replace(context, changed_paths=(invalid,))
+
+
+def test_change_context_unmatched_move_is_not_proven_new_behavior(repo: Path) -> None:
+    base = binary_commit(repo, [(b"100644", b"old.js", b"function old() {\n guard();\n sink();\n}\n")])
+    head = binary_commit(repo, [(b"100644", b"new.js", b"function renamed() {\n sink();\n newCall();\n}\n")])
+    result = SnapshotAdapter(repo).compare(comparison(base, head), declaration_paths=())
+    assert not result.renames
+    assert "unmatched_added_deleted_path_correspondence" in result.unresolved_boundaries
+    assert {span.side for span in result.spans} == {"base", "head"}
+
+
+def test_change_context_ambiguous_identical_file_renames_preserve_gap(repo: Path) -> None:
+    payload = b"function original() {\n operation();\n}\n"
+    base = binary_commit(repo, [(b"100644", b"a.js", payload), (b"100644", b"b.js", payload)])
+    head = binary_commit(repo, [(b"100644", b"c.js", payload), (b"100644", b"d.js", payload)])
+    result = SnapshotAdapter(repo).compare(comparison(base, head), declaration_paths=())
+    assert result.renames  # Git's attribution retained, with its ambiguity alongside.
+    assert not result.line_correspondences
+    assert any("ambiguous_path_rename_correspondence" in b for b in result.unresolved_boundaries)

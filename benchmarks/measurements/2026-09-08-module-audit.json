@@ -4,7 +4,7 @@
     "standalone_capability": 9
   },
   "modules": 107,
-  "note": "Refreshed 2026-09-12 after pre-push-safety-net task 2.1: local immutable ref resolution is spec-owned; runner integration remains pending.",
+  "note": "Refreshed 2026-09-12 after pre-push-safety-net group 2: immutable comparison, materialization and lexical change context are spec-owned; ranker/runner integration remains pending.",
   "orphaned": [],
   "rows": [
     {
@@ -351,7 +351,8 @@
         "model.specs",
         "model.taint",
         "preprocess",
-        "push.contracts"
+        "push.contracts",
+        "push.snapshot"
       ],
       "module": "model",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI"
@@ -389,7 +390,8 @@
     {
       "classification": "load_bearing",
       "importers": [
-        "push.contracts"
+        "push.contracts",
+        "push.snapshot"
       ],
       "module": "model.contracts",
       "reason": "pre-push-safety-net Req 4.1/7.3: generic deadline, change and exact scope contracts; integration pending"

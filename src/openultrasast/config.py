@@ -178,7 +178,7 @@ class PushConfig(Contract):
     comparison_base: str | None = None
     deadline_seconds: float = 30.0
     cancellation_allowance_seconds: float = 2.0
-    cache_max_bytes: int = 2 * 1024 ** 3
+    cache_max_bytes: int = 2 * 1024**3
     mode: Literal["advisory", "blocking"] = "advisory"
     incomplete_coverage_policy: Literal["allow", "block"] = "allow"
 

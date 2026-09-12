@@ -3,10 +3,12 @@
 These are integration contracts; constructing them neither selects nor executes work.
 Revision identities are opaque to the engine. The snapshot adapter resolves Git objects.
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import dataclass
 from typing import Literal
 
@@ -72,6 +74,27 @@ class AffectedRelationship(Contract):
 
 
 @dataclass(frozen=True)
+class LineCorrespondence(Contract):
+    """Unique identical source lines outside edit hunks; never semantic identity proof.
+
+    A renamed declaration can retain its unchanged operation's lexical anchor.
+    Frontend evidence must still establish function/guard relationships and novelty.
+    Paths use the owning ChangeContext's explicit encoding.
+    """
+
+    base_path: str
+    head_path: str
+    base_start_line: int
+    base_end_line: int
+    head_start_line: int
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.base_start_line < 1 or self.base_end_line < self.base_start_line or self.head_start_line < 1:
+            raise ValueError("line correspondence requires positive ordered lines")
+
+
+@dataclass(frozen=True)
 class ChangeContext(Contract):
     base_revision: str | None
     head_revision: str
@@ -82,6 +105,39 @@ class ChangeContext(Contract):
     declaration_paths: tuple[str, ...]
     relationships: tuple[AffectedRelationship, ...]
     unresolved_boundaries: tuple[str, ...]
+    # Filesystem paths can be whitespace-only or non-UTF8. Adapter-produced contexts use
+    # lowercase raw-byte hex for change paths, spans, renames and line anchors.
+    # Relationship QuestionIdentity paths retain canonical question encoding; they
+    # are not encoded or decoded by this field.
+    path_encoding: Literal["text", "filesystem-bytes-hex"] = "text"
+    line_correspondences: tuple[LineCorrespondence, ...] = ()
+
+    def decode_path(self, path: str) -> str:
+        """Return the filesystem spelling for matching ordinary question paths.
+
+        Raw undecodable filename bytes survive through filesystem surrogate escapes;
+        serialization should retain the authoritative encoded contract path instead.
+        """
+        return os.fsdecode(bytes.fromhex(path)) if self.path_encoding == "filesystem-bytes-hex" else path
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.path_encoding == "filesystem-bytes-hex":
+            paths = [
+                *self.changed_paths,
+                *self.deleted_paths,
+                *self.declaration_paths,
+                *(s.path for s in self.spans),
+                *(p for r in self.renames for p in (r.base_path, r.head_path)),
+                *(p for m in self.line_correspondences for p in (m.base_path, m.head_path)),
+            ]
+            for path in paths:
+                try:
+                    raw = bytes.fromhex(path)
+                except ValueError as error:
+                    raise ValueError("invalid raw filesystem path hex") from error
+                if not raw or b"\0" in raw or raw.hex() != path:
+                    raise ValueError("invalid raw filesystem path hex")
 
 
 @dataclass(frozen=True)

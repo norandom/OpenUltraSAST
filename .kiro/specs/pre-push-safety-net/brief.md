@@ -1,6 +1,6 @@
 # Brief: pre-push-safety-net
 
-Status: requirements, design and tasks approved on 2026-09-12; group 1 and task 2.1 verified complete; group 2 implementation underway. Language: English.
+Status: requirements, design and tasks approved on 2026-09-12; groups 1 and 2 verified complete (7/27 subtasks); groups 3–8 pending. Language: English.
 
 ## Problem
 
@@ -11,8 +11,8 @@ maintainer explicitly rejects noisy advisory output as well as noisy blocking ou
 ## Current State
 
 The scan driver and Joern arbiters exist, with demonstrated PHP/Python cases. Immutable push-tip
-resolution is implemented and verified. Isolated source materialization and change context are
-under implementation; persistent graph caching and an end-to-end deadline remain pending.
+resolution, isolated source materialization and lexical change context are implemented and verified.
+Ranker integration, persistent graph caching and an end-to-end deadline remain pending.
 The driver builds a whole-root graph before cutting the region budget. The latest PMPro ranking
 experiment alone spends about 130 seconds building and 296 seconds extracting evidence. A manually
 selected two-file slice finding a CVE does not demonstrate automatic incremental analysis.

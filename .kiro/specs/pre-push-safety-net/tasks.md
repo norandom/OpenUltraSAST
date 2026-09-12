@@ -1,8 +1,8 @@
 # Implementation Plan: pre-push-safety-net
 
-Status: task plan approved by the maintainer's "approve." on 2026-09-12. Group 1 (tasks 1.1–1.4)
-is complete after independent review and fresh verification. Remaining groups are pending;
-the hook and capability admission are not yet implemented. See `implementation-group-1.md`.
+Status: task plan approved by the maintainer's "approve." on 2026-09-12. Groups 1 and 2 (tasks 1.1–2.3)
+are complete after independent review and fresh verification. Groups 3–8 remain pending;
+the hook and capability admission are not yet implemented. See `implementation-group-1.md` and `implementation-group-2.md`.
 
 ## Execution contract
 
@@ -55,7 +55,7 @@ the hook and capability admission are not yet implemented. See `implementation-g
   - _Requirements: 4.1, 4.3, 5.3, 5.4, 5.5, 7.1, 7.3_
   - _Verified 2026-09-12:_ independent review APPROVED; 965 tests passed, 9 skipped; touched-source Ruff/mypy passed. Parent rebuilt the local image and verified non-root, network-disabled CLI startup, all contract imports, an 83-byte configuration round trip and invalid-budget rejection. Comparison-owned completion preserves different bases for a shared head. Contracts are structural; runtime snapshot/cache/runner/admission implementations remain in later tasks.
 
-- [ ] 2. Resolve immutable pushed content
+- [x] 2. Resolve immutable pushed content
 - [x] 2.1 Resolve every supplied ref update and comparison
   - Parse Git's complete update input using object-format-aware validation; resolve existing tips, new-branch configured bases, force-pushes, merges, peeled tags, deleted refs and unsupported objects.
   - Deduplicate equal targets without merging different base comparisons; retain every ref association. Do not silently substitute HEAD or fetch missing objects.
@@ -70,12 +70,13 @@ the hook and capability admission are not yet implemented. See `implementation-g
   - _Boundary: Snapshot Adapter_
   - _Requirements: 1.1, 1.2, 1.3, 2.3, 7.1, 7.3_
   - _Verified 2026-09-12:_ independent review APPROVED; 1,037 tests passed, 9 skipped; focused 116 passed; touched Ruff/mypy passed. Real SHA-1/SHA-256 fixtures verify binary-safe paths, exact blobs, no filters, explicit symlink/gitlink/LFS limits, cancellation and unchanged live state. Independent hanging-child cleanup took 0.202 s. Parent reopened and checked all 1,157 materialized repository files (8,737,198 bytes), with scratch removed and live state preserved; evidence `benchmarks/measurements/2026-09-12-snapshot-materialization.json` records a 5.783 s preparation-only lab run, not end-to-end hook latency.
-- [ ] 2.3 Attach changed spans and deletion/rename context
+- [x] 2.3 Attach changed spans and deletion/rename context
   - Compare recorded base/head objects using NUL-safe path handling; retain removed spans, renamed identities and declaration/config changes.
   - Supply change context to the shared ranker contract rather than selecting an independent changed-files-only scope.
   - Done when renamed functions retain correspondence and a removed guard remains an impact seed for an unchanged operation, with missing correspondence explicitly unresolved.
   - _Boundary: Snapshot Adapter_
   - _Requirements: 1.4, 2.1, 2.4, 3.4_
+  - _Verified 2026-09-12:_ independent review APPROVED; fresh final suite 1,069 passed, 9 skipped; focused 148 passed. Global Ruff/format, touched mypy and regression gates passed. PHP/JavaScript fixtures retain removed spans and unchanged-operation anchors across declaration renames; uncertain moves, repeated lines, binary and unavailable inputs remain unresolved. Forty independent real-Git comparisons checked exact spans/anchors. Network-disabled image smoke preserved committed PHP/JavaScript bytes and dirty non-HEAD state, with cleanup verified; see `implementation-group-2.md`. Lexical anchors do not establish semantic impact or novelty.
 
 - [ ] 3. Integrate bounded execution and ranker scope with the existing engine
 - [ ] 3.1 (P) Enforce one remaining-time budget in the backend

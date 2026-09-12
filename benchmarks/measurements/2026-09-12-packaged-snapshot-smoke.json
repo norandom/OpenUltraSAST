@@ -1,0 +1,106 @@
+{
+  "purpose": "packaged snapshot and change-context smoke, not vulnerability detection or hook latency",
+  "uid": 1000,
+  "git_version": "git version 2.43.0",
+  "source_bytes": {
+    "javascript": 103,
+    "php": 46
+  },
+  "elapsed_seconds": 0.066,
+  "snapshot_complete": true,
+  "live_state_preserved": true,
+  "scratch_removed": true,
+  "change_context": {
+    "base_revision": "571abb8f43ec7b3fa8de233be65114f57cb0e77b",
+    "head_revision": "9dfa656cc7e5b8f07737ab155d0fb23d90d90e07",
+    "changed_paths": [
+      "6f6c642d6170692e6a73",
+      "6170692e6a73",
+      "7061636b6167652e6a736f6e"
+    ],
+    "deleted_paths": [],
+    "spans": [
+      {
+        "path": "6f6c642d6170692e6a73",
+        "start_line": 1,
+        "end_line": 2,
+        "side": "base"
+      },
+      {
+        "path": "6170692e6a73",
+        "start_line": 1,
+        "end_line": 1,
+        "side": "head"
+      },
+      {
+        "path": "7061636b6167652e6a736f6e",
+        "start_line": 1,
+        "end_line": 1,
+        "side": "base"
+      },
+      {
+        "path": "7061636b6167652e6a736f6e",
+        "start_line": 1,
+        "end_line": 1,
+        "side": "head"
+      }
+    ],
+    "renames": [
+      {
+        "base_path": "6f6c642d6170692e6a73",
+        "head_path": "6170692e6a73"
+      }
+    ],
+    "declaration_paths": [
+      "7061636b6167652e6a736f6e"
+    ],
+    "relationships": [],
+    "unresolved_boundaries": [
+      "7061636b6167652e6a736f6e:line_correspondence_unavailable"
+    ],
+    "path_encoding": "filesystem-bytes-hex",
+    "line_correspondences": [
+      {
+        "base_path": "6f6c642d6170692e6a73",
+        "head_path": "6170692e6a73",
+        "base_start_line": 3,
+        "base_end_line": 3,
+        "head_start_line": 2
+      },
+      {
+        "base_path": "6f6c642d6170692e6a73",
+        "head_path": "6170692e6a73",
+        "base_start_line": 4,
+        "base_end_line": 4,
+        "head_start_line": 3
+      },
+      {
+        "base_path": "6f6c642d6170692e6a73",
+        "head_path": "6170692e6a73",
+        "base_start_line": 5,
+        "base_end_line": 5,
+        "head_start_line": 4
+      },
+      {
+        "base_path": "6f6c642d6170692e6a73",
+        "head_path": "6170692e6a73",
+        "base_start_line": 6,
+        "base_end_line": 6,
+        "head_start_line": 5
+      }
+    ]
+  },
+  "image_id": "sha256:2a0dd7943ca9b9c84adc821990d38bff13a7824c7d5a9f94d07c38cb04ce333f",
+  "implementation_sha256": {
+    "src/openultrasast/push/snapshot.py": "c6891f6de9221f63e534372c3009190d227172ca0b006bfb68bb6cffd7bf38f3",
+    "src/openultrasast/model/contracts.py": "89ea70185f9dabd6a264d1cd79b3e0c73161f5af4f29fd6f391d27f357439bbf",
+    "src/openultrasast/push/contracts.py": "a0bbef3137cd1e43c46b45209e5997ca89d46f60460402333c7ef37b8f0aec99",
+    "src/openultrasast/config.py": "1c2dd83f5245222c4be3efff6952a2f26984f2743193aa17f536e2a87af75872",
+    "src/openultrasast/contracts.py": "646f944f44a203315944ab8939aaec2609c3a045469c6dab303441d675373fe1",
+    "src/openultrasast/cpg/artifact.py": "8d6fd7af3db55b22e5b150ecd322984291db4c847c45da0ee11d12be06181257",
+    "src/openultrasast/push_scoring.py": "085ca153732b8b900f162408ce834fccacccf1187788ba2b6f436dd65c68f1b7"
+  },
+  "smoke_script_sha256": "e2402ceb5105d323388b1e2bc3dc2ceb01e73b75acdadbfede5656af9b070e7c",
+  "packaged_source_matches_workspace": true,
+  "cli_help_exit_code": 0
+}

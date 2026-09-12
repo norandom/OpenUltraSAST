@@ -3,6 +3,7 @@
 Structural validity is necessary but insufficient for reuse. Task 6.1 will validate
 actual source bytes, graph digest/census and engine compatibility before issuing leases.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

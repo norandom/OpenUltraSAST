@@ -1,7 +1,7 @@
 {
   "feature_name": "pre-push-safety-net",
   "created_at": "2026-09-12T15:35:00Z",
-  "updated_at": "2026-09-12T18:32:19.033933Z",
+  "updated_at": "2026-09-12T19:09:25.547910Z",
   "language": "en",
   "phase": "implementation",
   "approvals": {
@@ -19,7 +19,7 @@
     }
   },
   "ready_for_implementation": true,
-  "implementation_approval_note": "Groups 1 and 2 explicitly authorized by the maintainer. Group 1 verified complete; this run implements group 2 (2.1\u20132.3). Remaining task plan retains approval, with execution sequenced by the spec.",
+  "implementation_approval_note": "Groups 1 and 2 explicitly authorized by the maintainer and verified complete after independent review. Remaining task plan retains approval, with execution sequenced by the spec. Implementation of the complete hook is still pending.",
   "depends_on": [
     "contributor-scan"
   ],
@@ -61,11 +61,17 @@
       "1.1",
       "1.2",
       "1.3",
-      "1.4"
+      "1.4",
+      "2.1",
+      "2.2",
+      "2.3"
     ],
-    "remaining_tasks": 23,
-    "verification_record": "implementation-group-1.md",
-    "next_group": 2,
-    "active_group": 2
+    "remaining_tasks": 20,
+    "verification_record": "implementation-group-2.md",
+    "verification_records": [
+      "implementation-group-1.md",
+      "implementation-group-2.md"
+    ],
+    "next_group": 3
   }
 }

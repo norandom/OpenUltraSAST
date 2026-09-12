@@ -6,7 +6,7 @@
 - User direction: a scalable pre-push safety net as AI accelerates development; WordPress is one case.
 - Clarifications: advisory must be actionable, not SAST noise; the ranker is the scope mechanism;
   third-party vendor code must remain outside targets and graphs.
-- Requirements, design and tasks are now approved, and group 1 implementation is verified complete; see
+- Requirements, design and tasks are now approved, and groups 1 and 2 are verified complete; see
   `tasks.md` for verified completion. The discovery log below preserves the earlier drafting state
   and measurements. No hook latency claim is made.
 

@@ -192,6 +192,12 @@ automatic fetch inside the hook. Peel annotated tags to commits; other objects a
 Deletion updates require no target scan. Deduplicate identical target graphs, but retain separate
 comparisons when the same target has different bases. Multiple refs share one deadline.
 
+The snapshot implementation uses `SnapshotAdapter.resolve_updates`, the owned `materialize`
+context manager, and `compare`. Preparation has explicit file, source-byte, tree/diff-output and
+line-mapping limits. Materialization verifies blob identity and records omitted symlinks, gitlinks
+and LFS pointers. Its completeness flag describes source preparation, not security coverage.
+The shipped implementation uses Linux directory-relative cleanup that does not follow links.
+
 Materialize tracked blobs directly into isolated scratch storage; do not checkout over the user's
 tree or run filters/build scripts. Use NUL-delimited tree/diff records and argument arrays. Include
 deletions as impact seeds and retain rename attribution. Symlinks are not followed outside the
@@ -205,6 +211,17 @@ manifest/config changes, and known affected first-party relationships. It suppli
 an alternative inclusion policy. The existing ranker produces `ScopeDecision`: selected question
 IDs, their priority/evidence, deferred question IDs with reasons, and unresolved context boundaries.
 Identifiers include unit/language/path/function/family to avoid collisions across partitions.
+
+Adapter-produced contexts declare `path_encoding="filesystem-bytes-hex"` for structural paths
+(changed/deleted/declaration paths, spans, renames and line correspondences). Use
+`ChangeContext.decode_path` when matching canonical question paths; semantic relationship
+`QuestionIdentity` paths retain their normal encoding. Existing text-context construction remains
+compatible. This preserves unusual and non-UTF-8 filesystem names without ambiguous display escaping.
+The caller supplies known declaration/configuration paths as raw bytes; an unavailable declaration
+inventory is explicitly unresolved. Unique identical lines outside edit hunks provide lexical
+correspondence even after a declaration rename or guard removal. Repeated lines, unmatched moves
+and ambiguous rename attribution remain unresolved; these anchors do not prove semantic function
+identity, guard effects or defect novelty. Those decisions remain with tasks 3.3 and 4.1.
 
 Third-party vendor exclusions apply before both preprocessing targets and graph construction.
 Tests remain available but unshipped, consistent with the approved layout decision. The ranker

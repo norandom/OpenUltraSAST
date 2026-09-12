@@ -46,13 +46,14 @@ engine are out of scope.
 - [ ] pre-push-safety-net — Immutable pushed tips, existing-ranker integration, compatible artifact
   reuse, total deadline, change attribution, actionability admission and compact hook behavior.
   Dependencies: contributor-scan. Requirements/design approved 2026-09-12; tasks generated
-  (8 groups, 27 executable subtasks), independently reviewed and approved; group 1 is complete (4/27 tasks).
+  (8 groups, 27 executable subtasks), independently reviewed and approved; groups 1 and 2 are complete (7/27 tasks).
 
 ### Next concrete step
 
-Group 1 has passed independent review: reproducible PHP/JavaScript runtime, pinned PMPro/Node inputs,
-honest scoring and shared contracts. Continue with group 2's immutable push snapshots under the
-approved task plan; see `pre-push-safety-net/implementation-group-1.md` for evidence and limits.
+Groups 1 and 2 have passed independent review: reproducible runtime, pinned inputs, honest scoring,
+shared contracts, immutable push snapshots and lexical change context. Continue with group 3: one
+execution budget, exact ranker scope, affected relationships and vendor/language partitions. See
+`pre-push-safety-net/implementation-group-2.md` for evidence and limits.
 The first complete experiment is 5.2, before persistent caching and hook
 installation work. Keep PMPro as the primary core-optimization example, then freeze the core and
 prove a changed security flow and its fixed twin on a JavaScript/Express Node API workload through
