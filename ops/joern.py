@@ -30,7 +30,7 @@ from pyinfra.operations import files, server
 
 # Pinned. An engine that silently changes version changes every verdict it produces, and the ceiling
 # artifacts under benchmarks/measurements are only comparable against a fixed one.
-JOERN_VERSION = host.data.get("joern_version", "v4.0.623")
+JOERN_VERSION = host.data.get("joern_version", "v4.0.625")
 PREFIX = host.data.get("joern_prefix", "/opt/joern")
 ARCHIVE = "joern-cli-linux-x86_64.zip"
 BASE = f"https://github.com/joernio/joern/releases/download/{JOERN_VERSION}"
@@ -71,12 +71,26 @@ server.shell(
             curl -fsSL -o {ARCHIVE} {BASE}/{ARCHIVE}
             curl -fsSL -o {ARCHIVE}.sha512 {BASE}/{ARCHIVE}.sha512
             # Verify before unpacking, never after: the archive is what we are choosing to trust.
-            sha512sum -c {ARCHIVE}.sha512
+            # Upstream names target/<archive>; our download is directly in /tmp.
+            sed 's@  target/@  @' {ARCHIVE}.sha512 > checksum.sha512
+            sha512sum -c checksum.sha512
             rm -rf {PREFIX}/joern-cli
             unzip -q -o {ARCHIVE} -d {PREFIX}
             echo {JOERN_VERSION} > {STAMP}
             # 1.8 GB in /tmp is how a disk fills up.
-            rm -f {ARCHIVE} {ARCHIVE}.sha512
+            rm -f {ARCHIVE} {ARCHIVE}.sha512 checksum.sha512
+        fi
+        """
+    ],
+    _sudo=True,
+)
+
+server.shell(
+    name="Expose the JavaScript frontend under the backend's command name",
+    commands=[
+        f"""
+        if [ ! -e {PREFIX}/joern-cli/jssrc2cpg ] && [ -x {PREFIX}/joern-cli/jssrc2cpg.sh ]; then
+            ln -s jssrc2cpg.sh {PREFIX}/joern-cli/jssrc2cpg
         fi
         """
     ],

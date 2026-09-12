@@ -12,7 +12,7 @@ services:
     build:
       context: .
       args:
-        JOERN_VERSION: ${JOERN_VERSION:-v4.0.623}
+        JOERN_VERSION: ${JOERN_VERSION:-v4.0.625}
     image: openultrasast:${OUSAST_VERSION:-dev}
     volumes:
       - ${TARGET:-.}:/target:ro                       # the repository under analysis, read-only

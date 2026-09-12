@@ -61,13 +61,29 @@ Pin the version and its checksum in an inventory rather than editing the deploy:
 
 ```python
 # inventory.py
-hosts = [("@local", {"joern_version": "v4.0.623", "joern_prefix": "/opt/joern"})]
+hosts = [("@local", {"joern_version": "v4.0.625", "joern_prefix": "/opt/joern"})]
 ```
 
 The checksum needs no inventory entry: the deploy fetches the `.sha512` upstream publishes beside the
 archive and runs `sha512sum -c` against it, before unpacking. (pyinfra's `files.download` offers
 sha384/sha256/sha1/md5 but not sha512, which is what Joern publishes — so verification is an explicit
 shell step rather than a download argument.)
+The upstream checksum's `target/` path prefix is removed to match the local download path;
+the digest remains unchanged and a mismatch still stops installation.
+
+Verify an image locally after building it (no model endpoint or network is needed for the smoke):
+
+```bash
+docker run --rm --network none --memory 3g --entrypoint python \
+  -v "$PWD/ops/smoke_engine.py:/smoke_engine.py:ro" \
+  openultrasast:dev /smoke_engine.py > engine-smoke.json
+```
+
+This checks native PHP source/parser readability, installed PHP and JavaScript frontends, saved
+dataflow overlays, graph census and exact source-node witnesses, and explicit refusal of an unreadable
+PHP file. It prints JSON only after all checks pass; a failed build/query raises an error with a nonzero
+exit. Versions, source hashes/byte counts and timings describe this small runtime smoke, not detection
+quality or a pre-push latency guarantee. Keep the image's default non-root user for the permission test.
 
 Why this exists: Joern was first installed here by hand with `curl` and `unzip`, which is fine once and
 unreproducible thereafter. The engine decides whether a finding is a `suspicion` or a `model_entailed`, and

@@ -22,12 +22,13 @@ started with group 1 (tasks 1.1–1.4); each task remains pending until independ
   shared backend/driver, cache and report edits otherwise remain serial. No optional acceptance tests.
 
 - [ ] 1. Establish the runtime, evaluation inputs and shared contracts
-- [ ] 1.1 Reproduce the evaluated engine environment
+- [x] 1.1 Reproduce the evaluated engine environment
   - Align the shipped image, Compose and host-install defaults with Joern 4.0.625; preserve version override and checksum verification.
   - Exercise PHP with the native interpreter and the installed JavaScript frontend; open a source and the frontend parser where applicable, recording byte counts and graph census.
   - Done when a local image smoke produces valid small PHP and JavaScript graph/query payloads with recorded versions, and an unreadable source fails explicitly. This builds locally; it does not deploy.
   - _Boundary: Cache and Engine Boundary, packaging integration_
   - _Requirements: 7.1, 7.3, 8.2_
+  - _Verified 2026-09-12:_ independent review APPROVED; 888 tests passed, 9 skipped. Actual local image PHP/JavaScript graph census and source witnesses passed, unreadable PHP explicitly refused. Parent verified current provenance hashes, image identity, non-root user and CLI/frontend liveness. Evidence: `benchmarks/measurements/2026-09-12-engine-runtime-smoke.json`. Runtime readiness only; no hook latency/detection claim. Existing mypy errors in `model/scan.py` at 299/302/310 remain unchanged.
 - [ ] 1.2 Prepare labeled development and reserved evaluation changes
   - Pin a readable PMPro change/fix and a supported Node/Express change/fix, plus benign controls; verify license and source bytes before accepting recipes.
   - Use NodeGoat only if its selected mechanism fits a current arbiter; label authored repairs as authored. Reserve an independently selected Node API repository with modern module/async context and reviewable history before tuning on transfer results.

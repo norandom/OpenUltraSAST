@@ -1,0 +1,79 @@
+{
+  "joern_version": "4.0.625",
+  "php_version": "PHP 8.3.6 (cli) (built: Sep  2 2026 12:56:02) (NTS)",
+  "php_parser_bytes": 43,
+  "purpose": "runtime and query smoke; does not qualify vulnerability detection or hook latency",
+  "languages": {
+    "php": {
+      "frontend": "php2cpg",
+      "source_bytes": 45,
+      "source_sha256": "f744d636071c3e5a8e72ef33fa746db22e705dfdc66dba98b5238875054d801a",
+      "graph_bytes": 49508,
+      "census": {
+        "files": "2",
+        "methods": "3",
+        "overlays": "base,controlflow,typerel,callgraph,dataflowOss",
+        "maxHeapMB": "1024"
+      },
+      "source_witness": {
+        "files": [
+          "probe.php",
+          "<unknown>"
+        ],
+        "handlers": 1,
+        "evalCalls": 1
+      },
+      "elapsed_seconds": 52.295
+    },
+    "javascript": {
+      "frontend": "jssrc2cpg",
+      "source_bytes": 48,
+      "source_sha256": "10c0c21a6e2f988119f305809af1f98e1ff39fecb9f40d6cd3dfa05301e0015b",
+      "graph_bytes": 71163,
+      "census": {
+        "files": "1",
+        "methods": "5",
+        "overlays": "base,controlflow,typerel,callgraph,dataflowOss",
+        "maxHeapMB": "1024"
+      },
+      "source_witness": {
+        "files": [
+          "probe.js"
+        ],
+        "handlers": 1,
+        "evalCalls": 1
+      },
+      "elapsed_seconds": 32.334
+    }
+  },
+  "unreadable_source": {
+    "status": "explicit_failure",
+    "reason": "the php interpreter cannot read <smoke-root>/php/probe.php, so the frontend would parse nothing and write an empty graph. Check that php is a real interpreter with access to this tree -- a container or wrapper without the right mount fails exactly this way."
+  },
+  "recorded_at": "2026-09-12T16:28:54.206163+00:00",
+  "task": "pre-push-safety-net 1.1",
+  "command": "docker run --rm --network none --memory 3g --entrypoint python -v \"$PWD/ops/smoke_engine.py:/smoke_engine.py:ro\" openultrasast:dev /smoke_engine.py",
+  "image_id": "sha256:5566d669c91bdce380275f22ae9d4aa7587866cd7b5568d9f772e20f35e41696",
+  "base_commit": "7e3b3bbc8b95b0bf947b5e9746382fcf9d8cfdb8",
+  "working_tree_file_sha256": {
+    "Dockerfile": "f0c7e3f4ec15553694063622b88c1b3da4875ad80e248c932f6dd88e48741a2f",
+    "docker-compose.yml": "1fc07e61b3156e0f31c6d2aa48e24c36349cf37aba373f4c83a0329cbc4d7b47",
+    "ops/joern.py": "30ac85e5e7b8431b9d1bc11a8074f77489077f6c5a636e11b6fb320fe5cd4d00",
+    "ops/smoke_engine.py": "f4d41b010f56f2b59e44a253e3c8e49dc6275eff903c1441de181e568011648a",
+    "src/openultrasast/cpg/backend.py": "2971f83d491b3e739e32ae3a1869cb92c138bde93ef7ea4ba5329c5a34301fdc",
+    "src/openultrasast/cpg/queries/census.sc": "d18964575fe8dd065871bdc453aa12a61857ad78b2a2d4c13e0fc6e2648736e3",
+    "src/openultrasast/cpg/queries/overlay.sc": "0b76e56b76b52c33ca61d7541ea0f8ebeb61088f1ab0866e9e42f93d7b67f644"
+  },
+  "path_note": "Ephemeral input scratch paths replaced with <smoke-root>; these are smoke file witnesses, not stable graph/cache identities.",
+  "validation": {
+    "build": "docker compose build ousast: exit 0; upstream archive SHA512 verified before extraction",
+    "backend_regressions": "40 passed in 2.98s (tests/test_cpg_backend.py)",
+    "packaging_checks": "Ruff check/format passed for changed Python; git diff --check passed; Compose default and override resolved",
+    "checksum_controls": "target-prefix and bare filename controls accepted; corrupted archive bytes rejected"
+  },
+  "resolved_packaging_failures": [
+    "Upstream checksum names target/<archive>, now normalized to downloaded basename without changing hash.",
+    "Base image already owns UID1000; reuse its account as ousast, preserving non-root UID1000.",
+    "Installed JS launcher is jssrc2cpg.sh; add extensionless alias for backend fallback."
+  ]
+}

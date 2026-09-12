@@ -25,7 +25,7 @@ engine are out of scope.
   VAmPI 16. `<50` remains unmet; VAmPI's transitive SQLI is not measured by this position metric.
 - Equal-score tie-breaking alone cannot bring PMPro or WP Statistics under 50. The existing
   ranker is useful, but its measured ordering is not enabled by the ordinary CLI caller.
-- Docker/Compose/ops still default to 4.0.623. Pin and provenance alignment precede deployment claims.
+- Docker/Compose/ops now default to 4.0.625; task 1.1 passed local PHP/JavaScript image smoke and independent review. No host deployment or hook latency claim follows from that runtime evidence.
 - `contributor-scan` has 24/40 checked tasks; historical checkboxes are not rewritten by this review.
   `flow-aware-ranking` is still an unapproved brief despite implementation history.
 
