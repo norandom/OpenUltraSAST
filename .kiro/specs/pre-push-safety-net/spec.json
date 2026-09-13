@@ -1,7 +1,7 @@
 {
   "feature_name": "pre-push-safety-net",
   "created_at": "2026-09-12T15:35:00Z",
-  "updated_at": "2026-09-13T15:06:56.856952+00:00",
+  "updated_at": "2026-09-13T15:45:15.902603+00:00",
   "language": "en",
   "phase": "implementation",
   "approvals": {
@@ -19,7 +19,7 @@
     }
   },
   "ready_for_implementation": true,
-  "implementation_approval_note": "Groups 1\u20136 implemented and verified (20/27); group 6 authorized as a whole. Main-context Kiro review fallback after fresh dispatch thread limit. Valid reuse is demonstrated; real capability registry remains empty and rollout gates remain unmet. Groups 7\u20138 pending.",
+  "implementation_approval_note": "Group 7 authorized as a whole; 7.1 verified, 7.2\u20137.3 in progress. Default capability registry empty; rollout NO-GO.",
   "depends_on": [
     "contributor-scan"
   ],
@@ -70,6 +70,11 @@
       "at": "2026-09-13T13:58:52.336506+00:00",
       "source": "continue with group 6 as a whole. do we need to amend the spec to get a go for the rollout",
       "action": "Authorized group 6 (6.1\u20136.4). Clarified complete preparation/discovery reuse after measured group 5 bottleneck; rollout gates remain unchanged. Manual Kiro review fallback remains necessary after a fresh agent dispatch hit the thread limit."
+    },
+    {
+      "at": "2026-09-13T15:45:15.902603+00:00",
+      "source": "ok, continue with group 7 as a whole",
+      "action": "Authorized tasks 7.1\u20137.3; manual Kiro fallback after fresh dispatch hit thread limit. Group 8 and rollout remain pending."
     }
   ],
   "task_review": {
@@ -102,17 +107,19 @@
       "6.1",
       "6.2",
       "6.3",
-      "6.4"
+      "6.4",
+      "7.1"
     ],
-    "remaining_tasks": 7,
-    "verification_record": "implementation-group-6.md",
+    "remaining_tasks": 6,
+    "verification_record": "implementation-group-7.md",
     "verification_records": [
       "implementation-group-1.md",
       "implementation-group-2.md",
       "implementation-group-3.md",
       "implementation-group-4.md",
       "implementation-group-5.md",
-      "implementation-group-6.md"
+      "implementation-group-6.md",
+      "implementation-group-7.md"
     ],
     "next_group": 7,
     "blocked_tasks": [],

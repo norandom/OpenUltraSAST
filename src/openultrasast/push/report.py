@@ -38,6 +38,7 @@ class PushReport:
     resolution: PushResolution | None = None
     snapshots: tuple[SnapshotManifest, ...] = ()
     change_context: ChangeContext | None = None
+    change_contexts: tuple[ChangeContext, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "provenance", MappingProxyType(dict(self.provenance)))
@@ -111,6 +112,7 @@ def _write_artifact(report: PushReport, target: Path, temporary: Path, connectio
             with os.fdopen(fd, "w", encoding="utf-8") as stream:
                 payload = {
                     "schema_version": 1,
+                    "change_contexts": [item.to_payload() for item in report.change_contexts],
                     "snapshots": [item.to_payload() for item in report.snapshots],
                     "change_context": report.change_context.to_payload() if report.change_context else None,
                     "result": report.result.to_payload(),

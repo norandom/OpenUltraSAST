@@ -191,7 +191,7 @@ independent capability qualification. Groups 7–8 remain pending; rollout remai
   - _Requirements: 1.1, 2.2, 4.1, 4.2, 4.3, 4.4, 7.3_
 
 - [ ] 7. Connect the real push interface without adding noise
-- [ ] 7.1 Execute Git's full push input and enforcement policy
+- [x] 7.1 Execute Git's full push input and enforcement policy
   - Extend the replay command to consume all update lines and remote arguments, aggregating per-ref comparisons under one deadline and preserving independent coverage and finding statuses.
   - Apply advisory, opt-in blocking and separate incomplete-coverage policy; keep external services disabled by default and normal alerts limited to admitted capabilities.
   - Done when controlled multi-ref push invocations exercise all allow/block/status combinations, including deletion-only, missing-base and no-work cases, without resetting budgets.

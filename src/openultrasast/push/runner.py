@@ -25,8 +25,9 @@ from openultrasast.model.scan import ScanBudget, scan_repository
 from openultrasast.model.shipped import declared_sources
 from openultrasast.preprocess import build_file_target, enumerate_source_files
 from openultrasast.push.cache import ArtifactCache, SemanticKeys
-from openultrasast.push.contracts import ComparisonAnalysis, SnapshotManifest
+from openultrasast.push.contracts import ComparisonAnalysis, PushComparison, PushResult, SnapshotManifest
 from openultrasast.push.policy import (
+    ActionableDefect,
     AdmissionCandidate,
     AdmissionResult,
     CapabilityKey,
@@ -162,7 +163,7 @@ def _discovery_identity() -> str:
     return digest_value([(p.relative_to(root).as_posix(), hashlib.sha256(p.read_bytes()).hexdigest()) for p in sorted(root.rglob("*.py"))])
 
 
-def replay(
+def _analyze(
     repository: Path,
     *,
     base: str,
@@ -172,7 +173,9 @@ def replay(
     backend: Any = None,
     max_regions: int = 500,
     cache_dir: Path | None = None,
-) -> ReportDelivery:
+    execution_budget: ExecutionBudget,
+    resolved: PushComparison | None = None,
+) -> PushReport:
     """Run a single explicit comparison; exit policy never stands for coverage."""
     config = config or PushConfig()
     if max_regions < 1:
@@ -180,7 +183,7 @@ def replay(
     if cache_dir is not None and cache_dir.resolve().is_relative_to(repository.resolve()):
         raise ValueError("cache directory must be outside the analyzed repository")
     started = time.monotonic()
-    budget = ExecutionBudget(started + config.deadline_seconds, config.cancellation_allowance_seconds)
+    budget = execution_budget
     scan_budget = ScanBudget(max_model_calls=0, max_regions=max_regions, order_by_evidence=True)
     if backend is None:
         backend = JoernBackend()
@@ -191,7 +194,7 @@ def replay(
     manifests: list[SnapshotManifest] = []
     reasons: list[str] = []
     admission = AdmissionResult((), (), ())
-    comparison = None
+    comparison = resolved
     context = None
     timings: dict[str, float] = {
         "deadline_seconds": config.deadline_seconds,
@@ -203,7 +206,7 @@ def replay(
     stage_started = started
     try:
         adapter = SnapshotAdapter(repository, execution_budget=budget)
-        comparison = adapter.resolve_replay(base, head)
+        comparison = resolved or adapter.resolve_replay(base, head)
         timings[stage + "_seconds"] = time.monotonic() - stage_started
         stage, stage_started = "provenance", time.monotonic()
         provenance.update(_prepare(lambda: _provenance(repository, scan_budget), budget))
@@ -354,11 +357,139 @@ def replay(
     result = admission_push_result(admission, analyses, config=config)
     timings["total_seconds"] = time.monotonic() - started
     report = PushReport(result, admission, tuple(records), provenance, timings, snapshots=tuple(manifests), change_context=context)
-    try:
-        artifact.resolve().relative_to(repository.resolve())
-    except ValueError:
-        pass
-    else:
-        write_error = "artifact_inside_repository"
-        return ReportDelivery(result, render_report(report, artifact=None, error=write_error), None, write_error)
+    return report
+
+
+def _deliver(repository: Path, report: PushReport, artifact: Path, budget: ExecutionBudget) -> ReportDelivery:
+    if artifact.resolve().is_relative_to(repository.resolve()):
+        error = "artifact_inside_repository"
+        return ReportDelivery(report.result, render_report(report, artifact=None, error=error), None, error)
     return deliver_report(report, artifact, execution_budget=budget)
+
+
+def replay(
+    repository: Path,
+    *,
+    base: str,
+    head: str,
+    artifact: Path,
+    config: PushConfig | None = None,
+    backend: Any = None,
+    max_regions: int = 500,
+    cache_dir: Path | None = None,
+) -> ReportDelivery:
+    config = config or PushConfig()
+    budget = ExecutionBudget(time.monotonic() + config.deadline_seconds, config.cancellation_allowance_seconds)
+    report = _analyze(
+        repository,
+        base=base,
+        head=head,
+        artifact=artifact,
+        config=config,
+        backend=backend,
+        max_regions=max_regions,
+        cache_dir=cache_dir,
+        execution_budget=budget,
+    )
+    return _deliver(repository, report, artifact, budget)
+
+
+def push(
+    repository: Path,
+    *,
+    updates: str | Callable[[], str],
+    remote_name: str,
+    remote_url: str,
+    artifact: Path,
+    config: PushConfig | None = None,
+    backend: Any = None,
+    max_regions: int = 500,
+    cache_dir: Path | None = None,
+) -> ReportDelivery:
+    """Consume one Git transaction. Resolution, every comparison and reporting share a deadline."""
+    config = config or PushConfig()
+    if max_regions < 1:
+        raise ValueError("max_regions must be positive")
+    if cache_dir is not None and cache_dir.resolve().is_relative_to(repository.resolve()):
+        raise ValueError("cache directory must be outside the analyzed repository")
+    started = time.monotonic()
+    budget = ExecutionBudget(started + config.deadline_seconds, config.cancellation_allowance_seconds)
+    reports: list[PushReport] = []
+    analyses: list[ComparisonAnalysis] = []
+    reasons: list[str] = []
+    resolution = None
+    try:
+        data = _prepare(updates, budget) if callable(updates) else updates
+        if len(data.encode("utf-8")) > 1024 * 1024:
+            raise ValueError("push_input_limit")
+        adapter = SnapshotAdapter(repository, comparison_base=config.comparison_base, execution_budget=budget)
+        resolution = adapter.resolve_updates(data)
+        reasons.extend("resolution:" + row.disposition for row in resolution.updates if row.disposition not in ("ready", "deleted"))
+        for comparison in resolution.comparisons:
+            if comparison.base_oid is None or time.monotonic() >= budget.deadline_monotonic:
+                analyses.append(ComparisonAnalysis(comparison, (), (), "unavailable"))
+                reasons.append("base_comparison_unavailable" if comparison.base_oid is None else "deadline_exhausted")
+                continue
+            report = _analyze(
+                repository,
+                base=comparison.base_oid,
+                head=comparison.head_oid,
+                artifact=artifact,
+                config=config,
+                backend=backend,
+                max_regions=max_regions,
+                cache_dir=cache_dir,
+                execution_budget=budget,
+                resolved=comparison,
+            )
+            reports.append(report)
+            analyses.extend(report.result.analyses)
+    except Exception as error:
+        reasons.append("push_input_failed:" + type(error).__name__)
+    if time.monotonic() >= budget.deadline_monotonic:
+        reasons.append("deadline_exhausted")
+    defects: dict[str, ActionableDefect] = {}
+    for report in reports:
+        for defect in report.admission.defects:
+            previous = defects.get(defect.defect_id)
+            if previous is None:
+                defects[defect.defect_id] = defect
+            else:
+                fields = ("witnesses", "locations", "comparisons", "refs", "change_evidence", "consequences", "repairs", "evaluation_ids")
+                defects[defect.defect_id] = replace(
+                    previous,
+                    **cast(dict[str, Any], {key: tuple(dict.fromkeys((*getattr(previous, key), *getattr(defect, key)))) for key in fields}),
+                )
+    admission = AdmissionResult(
+        tuple(defects.values()),
+        tuple(d for r in reports for d in r.admission.dispositions),
+        tuple(dict.fromkeys((*reasons, *(g for r in reports for g in r.admission.coverage_reasons)))),
+    )
+    result = admission_push_result(admission, tuple(analyses), config=config)
+    if resolution is not None and not resolution.comparisons and not reasons:
+        result = PushResult((), "none", "not_applicable", "allow", ())
+    provenance = dict(reports[0].provenance) if reports else {key: "not_run" for key in ("engine", "facts", "queries", "policy")}
+    # Remote URLs can contain credentials. Retain identity without persisting secrets.
+    provenance.update(
+        repository=str(repository.absolute()),
+        model="disabled",
+        remote_name=remote_name or "unnamed",
+        remote_url_sha256=hashlib.sha256(remote_url.encode()).hexdigest(),
+    )
+    timings = {f"comparison_{i}_{k}": v for i, r in enumerate(reports) for k, v in r.timings.items()}
+    timings.update(
+        total_seconds=time.monotonic() - started,
+        deadline_seconds=config.deadline_seconds,
+        cancellation_allowance_seconds=config.cancellation_allowance_seconds,
+    )
+    report = PushReport(
+        result,
+        admission,
+        tuple(s for r in reports for s in r.scans),
+        provenance,
+        timings,
+        resolution=resolution,
+        snapshots=tuple(s for r in reports for s in r.snapshots),
+        change_contexts=tuple(r.change_context for r in reports if r.change_context is not None),
+    )
+    return _deliver(repository, report, artifact, budget)

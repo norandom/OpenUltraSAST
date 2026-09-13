@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import tempfile
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, replace
@@ -110,10 +111,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="ousast")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    replay_parser = subparsers.add_parser("pre-push", help="replay explicit local base/head revisions (experimental)")
+    replay_parser = subparsers.add_parser("pre-push", help="check Git push input or replay local revisions (experimental)")
     replay_parser.add_argument("path", type=Path)
-    replay_parser.add_argument("--base", required=True)
-    replay_parser.add_argument("--head", required=True)
+    replay_parser.add_argument("--base")
+    replay_parser.add_argument("--head")
+    replay_parser.add_argument("--remote", nargs=2, metavar=("NAME", "URL"))
+    replay_parser.add_argument("--comparison-base")
     replay_parser.add_argument("--artifact", type=Path, required=True)
     replay_parser.add_argument(
         "--cache-dir", type=Path, help="reuse compatible local artifacts in a private directory outside the repository"
@@ -205,24 +208,31 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "pre-push":
         from .config import PushConfig
-        from .push.runner import replay
+        from .push.runner import push, replay
 
         try:
+            if bool(args.base) != bool(args.head) or bool(args.base) == bool(args.remote):
+                parser.error("provide --base and --head together, or --remote NAME URL for Git stdin")
             settings = PushConfig(
+                comparison_base=args.comparison_base,
                 deadline_seconds=args.deadline,
                 cancellation_allowance_seconds=args.cancellation_allowance,
                 mode=args.mode,
                 incomplete_coverage_policy=args.incomplete_coverage,
             )
-            delivery = replay(
-                args.path,
-                base=args.base,
-                head=args.head,
-                artifact=args.artifact,
-                config=settings,
-                max_regions=args.max_regions,
-                cache_dir=args.cache_dir,
-            )
+            options: dict[str, Any] = dict(artifact=args.artifact, config=settings, max_regions=args.max_regions, cache_dir=args.cache_dir)
+            if args.base:
+                delivery = replay(args.path, base=args.base, head=args.head, **options)
+            else:
+                # multiprocessing closes sys.stdin in its child; duplicate the Git pipe first.
+                with os.fdopen(os.dup(0), encoding="utf-8", errors="strict") as stream:
+                    delivery = push(
+                        args.path,
+                        updates=lambda: stream.read(1024 * 1024 + 1),
+                        remote_name=args.remote[0],
+                        remote_url=args.remote[1],
+                        **options,
+                    )
         except ValueError as error:
             parser.error(str(error))
         print(delivery.text, end="")
