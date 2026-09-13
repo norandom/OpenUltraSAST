@@ -405,6 +405,7 @@ def push(
     backend: Any = None,
     max_regions: int = 500,
     cache_dir: Path | None = None,
+    execution_budget: ExecutionBudget | None = None,
 ) -> ReportDelivery:
     """Consume one Git transaction. Resolution, every comparison and reporting share a deadline."""
     config = config or PushConfig()
@@ -413,7 +414,7 @@ def push(
     if cache_dir is not None and cache_dir.resolve().is_relative_to(repository.resolve()):
         raise ValueError("cache directory must be outside the analyzed repository")
     started = time.monotonic()
-    budget = ExecutionBudget(started + config.deadline_seconds, config.cancellation_allowance_seconds)
+    budget = execution_budget or ExecutionBudget(started + config.deadline_seconds, config.cancellation_allowance_seconds)
     reports: list[PushReport] = []
     analyses: list[ComparisonAnalysis] = []
     reasons: list[str] = []

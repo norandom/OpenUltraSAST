@@ -282,3 +282,65 @@ is separate from alert eligibility: current admission is always applied. No hook
 by replay. Artifact timings record discovery, graph and query hits; identical-tip hits do
 not establish representative changed-code latency. Corrupt, partial or incompatible entries
 are misses, with remaining work constrained by the same push deadline.
+
+### Experimental pre-push integration
+
+The default capability registry is empty pending independent qualification. Installing
+this interface does not make the project rollout-ready. Advisory is the default;
+blocking and strict incomplete-coverage handling are separate explicit choices.
+
+Put the installed `ousast` executable on the Git process's PATH. From this tool's
+checkout, explicitly install into the desired repository:
+
+```sh
+ops/install-pre-push /absolute/path/to/repository
+```
+
+The installer resolves Git's effective hook directory (including `core.hooksPath`),
+leaves that configuration untouched, and refuses to overwrite any existing hook.
+For an existing hook, inspect it and explicitly move it aside **before** installation:
+
+```sh
+hook_dir=$(git -C /absolute/path/to/repository rev-parse --path-format=absolute --git-path hooks)
+hook="$hook_dir/pre-push"
+test ! -e "$hook.before-ousast" && test ! -L "$hook.before-ousast" && mv -- "$hook" "$hook.before-ousast"
+ops/install-pre-push /absolute/path/to/repository
+```
+
+The wrapper chains that sibling hook with the exact remote arguments and original
+stdin bytes, even when analysis blocks. A prior rejection always remains a rejection.
+Only an explicitly chained hook executes project-owned hook code; analysis executes
+no project code. The existing hook retains its own runtime, outside the safety-net
+analysis deadline. Integration input retention is bounded to 1 MiB and the analysis
+deadline; failure to retain complete input stops the integration rather than feeding
+partial input to another consumer.
+
+Artifacts default to `$XDG_CACHE_HOME/openultrasast/push` (or `~/.cache/openultrasast/push`).
+Set `OUSAST_ARTIFACT_DIR` to an absolute directory outside the repository if needed.
+`OUSAST_PUSH_DEADLINE` defaults to 30 seconds. `OUSAST_PUSH_MODE=blocking` opts into
+blocking; `OUSAST_INCOMPLETE_COVERAGE=block` additionally blocks incomplete coverage
+in that mode. These variables do not enable detector capabilities or model calls.
+For a new branch, add an explicit `--comparison-base <local-ref>` to both command
+branches of the installed wrapper if a suitable local base exists. Without it, a new
+branch records missing-base coverage rather than silently selecting HEAD or fetching.
+Direct stdin integration is `ousast pre-push . --artifact /outside/push.json
+--remote "$1" "$2"`; explicit `--base` and `--head` replay remains available.
+
+To remove, inspect the installed wrapper first. If it is unchanged, this guarded
+recipe removes only the supplied wrapper and restores the previous hook:
+
+```sh
+hook_dir=$(git -C /absolute/path/to/repository rev-parse --path-format=absolute --git-path hooks)
+hook="$hook_dir/pre-push"
+if cmp -s ops/pre-push "$hook"; then
+    rm -- "$hook"
+    if test -e "$hook.before-ousast" || test -L "$hook.before-ousast"; then
+        mv -n -- "$hook.before-ousast" "$hook"
+    fi
+else
+    printf '%s\n' 'Wrapper differs: inspect and remove your integration changes manually.'
+fi
+```
+
+Neither installation nor removal modifies source, the index, refs, or hook-path
+configuration. Keep any prior hook backup until restoration is confirmed.

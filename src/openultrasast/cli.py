@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import tempfile
+import time
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
@@ -117,6 +119,7 @@ def main(argv: list[str] | None = None) -> int:
     replay_parser.add_argument("--head")
     replay_parser.add_argument("--remote", nargs=2, metavar=("NAME", "URL"))
     replay_parser.add_argument("--comparison-base")
+    replay_parser.add_argument("--prior-hook", type=Path, help="explicitly chain an existing hook with the same input and arguments")
     replay_parser.add_argument("--artifact", type=Path, required=True)
     replay_parser.add_argument(
         "--cache-dir", type=Path, help="reuse compatible local artifacts in a private directory outside the repository"
@@ -221,21 +224,45 @@ def main(argv: list[str] | None = None) -> int:
                 incomplete_coverage_policy=args.incomplete_coverage,
             )
             options: dict[str, Any] = dict(artifact=args.artifact, config=settings, max_regions=args.max_regions, cache_dir=args.cache_dir)
+            if args.base and args.prior_hook:
+                parser.error("--prior-hook requires Git stdin mode")
+            prior_data = None
             if args.base:
                 delivery = replay(args.path, base=args.base, head=args.head, **options)
             else:
                 # multiprocessing closes sys.stdin in its child; duplicate the Git pipe first.
-                with os.fdopen(os.dup(0), encoding="utf-8", errors="strict") as stream:
-                    delivery = push(
-                        args.path,
-                        updates=lambda: stream.read(1024 * 1024 + 1),
-                        remote_name=args.remote[0],
-                        remote_url=args.remote[1],
-                        **options,
-                    )
+                with os.fdopen(os.dup(0), "rb") as stream:
+                    if args.prior_hook:
+                        from .model.contracts import ExecutionBudget
+                        from .push.runner import _prepare
+
+                        shared = ExecutionBudget(time.monotonic() + settings.deadline_seconds, settings.cancellation_allowance_seconds)
+                        try:
+                            prior_data = _prepare(lambda: stream.read(1024 * 1024 + 1), shared)
+                            if len(prior_data) > 1024 * 1024:
+                                raise ValueError("input exceeds hook integration limit")
+                        except (ValueError, RuntimeError, TimeoutError):
+                            print("Hook input could not be retained for all consumers. Retry with complete input and sufficient time.")
+                            return 1
+                        options["execution_budget"] = shared
+
+                    def updates() -> str:
+                        return (prior_data if prior_data is not None else stream.read(1024 * 1024 + 1)).decode("utf-8")
+
+                    delivery = push(args.path, updates=updates, remote_name=args.remote[0], remote_url=args.remote[1], **options)
         except ValueError as error:
             parser.error(str(error))
-        print(delivery.text, end="")
+        print(delivery.text, end="", flush=True)
+        if args.prior_hook and prior_data is not None:
+            # This is the explicitly chained hook's own behavior, outside analysis.
+            # Never replace its rejection with our advisory success or impose our timeout on it.
+            try:
+                prior = subprocess.run([str(args.prior_hook.resolve()), *args.remote], input=prior_data, cwd=args.path)
+            except OSError:
+                print("Existing hook could not be started. Restore its executable path before retrying.")
+                return 1
+            if prior.returncode:
+                return prior.returncode if prior.returncode > 0 else 128 - prior.returncode
         return delivery.exit_code
     if args.command == "scan":
         return _scan(args.path, args.config, args.mode, args.fail_on)

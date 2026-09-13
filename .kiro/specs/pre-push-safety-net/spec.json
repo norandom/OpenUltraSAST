@@ -19,7 +19,7 @@
     }
   },
   "ready_for_implementation": true,
-  "implementation_approval_note": "Group 7 authorized as a whole; 7.1 verified, 7.2\u20137.3 in progress. Default capability registry empty; rollout NO-GO.",
+  "implementation_approval_note": "Group 7 authorized; 7.1\u20137.2 verified, 7.3 next. Default capability registry empty; rollout NO-GO.",
   "depends_on": [
     "contributor-scan"
   ],
@@ -108,9 +108,10 @@
       "6.2",
       "6.3",
       "6.4",
-      "7.1"
+      "7.1",
+      "7.2"
     ],
-    "remaining_tasks": 6,
+    "remaining_tasks": 5,
     "verification_record": "implementation-group-7.md",
     "verification_records": [
       "implementation-group-1.md",

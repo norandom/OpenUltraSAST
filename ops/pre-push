@@ -1,0 +1,17 @@
+#!/bin/sh
+# Explicitly copy using the non-overwriting recipe in ops/README.md.
+# A prior hook is chained only after you explicitly move it to this sibling path.
+artifact_dir=${OUSAST_ARTIFACT_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/openultrasast/push}
+prior="$0.before-ousast"
+if [ -e "$prior" ] || [ -L "$prior" ]; then
+    exec ousast pre-push . --artifact "$artifact_dir/push-$$.json" \
+        --deadline "${OUSAST_PUSH_DEADLINE:-30}" \
+        --mode "${OUSAST_PUSH_MODE:-advisory}" \
+        --incomplete-coverage "${OUSAST_INCOMPLETE_COVERAGE:-allow}" \
+        --prior-hook "$prior" --remote "$1" "$2"
+fi
+exec ousast pre-push . --artifact "$artifact_dir/push-$$.json" \
+    --deadline "${OUSAST_PUSH_DEADLINE:-30}" \
+    --mode "${OUSAST_PUSH_MODE:-advisory}" \
+    --incomplete-coverage "${OUSAST_INCOMPLETE_COVERAGE:-allow}" \
+    --remote "$1" "$2"

@@ -198,7 +198,7 @@ independent capability qualification. Groups 7–8 remain pending; rollout remai
   - _Boundary: CLI/config, Push runner and Result and Hook Adapter integration_
   - _Depends: 2.1, 4.2, 4.3, 6.4_
   - _Requirements: 1.1, 1.3, 1.4, 4.1, 5.1, 5.2, 5.3, 5.4, 5.5, 7.1_
-- [ ] 7.2 Provide non-destructive hook integration and removal
+- [x] 7.2 Provide non-destructive hook integration and removal
   - Supply an executable integration snippet/installation path with explicit invocation, preserving existing hooks, hook path configuration, remote arguments and stdin for other consumers.
   - Refuse automatic overwrite; retain an existing hook's nonzero result even when the Safety Net runs advisory. Include concrete integration/removal instructions with the delivered hook interface.
   - Done when a disposable Git remote accepts/rejects pushes correctly with an existing stdin-reading hook, and removal restores the preceding behavior without touching source or refs.

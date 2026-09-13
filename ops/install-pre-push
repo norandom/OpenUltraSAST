@@ -1,0 +1,25 @@
+#!/bin/sh
+# Explicit installation only. Never edit core.hooksPath or overwrite a hook.
+set -eu
+repo=${1:-.}
+source_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+hook_dir=$(git -C "$repo" rev-parse --path-format=absolute --git-path hooks)
+hook="$hook_dir/pre-push"
+mkdir -p -- "$(dirname -- "$hook")"
+# Resolve only the directory: Git canonicalizes a final hook symlink to its target.
+# O_EXCL refuses every pre-existing final path, including dangling symlinks.
+python3 - "$source_dir/pre-push" "$hook" <<'PY'
+import os
+import shutil
+import sys
+try:
+    with open(sys.argv[1], 'rb') as source:
+        fd = os.open(sys.argv[2], os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o755)
+        with os.fdopen(fd, 'wb') as target:
+            shutil.copyfileobj(source, target)
+            os.fchmod(target.fileno(), 0o755)
+except OSError:
+    print('Installation refused: hook exists or cannot be created. See ops/README.md.', file=sys.stderr)
+    sys.exit(1)
+PY
+printf 'Installed %s\n' "$hook"
