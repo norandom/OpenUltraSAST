@@ -956,6 +956,36 @@ def test_a_source_file_the_size_of_a_data_table_is_excluded_and_named(tmp_path: 
     assert [Path(name).name for name in result.unparsed] == ["profiles.php"], "and it is reported, not silently dropped"
 
 
+@pytest.mark.parametrize("shard_names", [("app.php",), ("app.php", "helper.php")])
+def test_shard_aggregation_preserves_complete_named_census(monkeypatch, shard_names):
+    from openultrasast.cpg.backend import JoernBackend
+
+    def batch(self, path, query, requests):
+        return {"__census__": [{"methods": "2", "files": "2", "file_names": ["<unknown>", path.name]}]}
+
+    monkeypatch.setattr(JoernBackend, "query_batch", batch)
+    result = JoernBackend().query_batch_across([Path(name) for name in shard_names], "taint", {})
+    assert result is not None
+    assert set(result["__census__"][0]["file_names"]) == {"<unknown>", *shard_names}
+    assert result["__census__"][0]["shards"] == str(len(shard_names))
+
+
+@pytest.mark.parametrize("missing", ["names", "census", "answer"])
+def test_shard_aggregation_does_not_invent_complete_named_census(monkeypatch, missing):
+    from openultrasast.cpg.backend import JoernBackend
+
+    def batch(self, path, query, requests):
+        if path.name == "missing":
+            return None if missing == "answer" else {} if missing == "census" else {"__census__": [{"methods": "2", "files": "2"}]}
+        return {"__census__": [{"methods": "2", "files": "2", "file_names": ["app.php", "<unknown>"]}]}
+
+    monkeypatch.setattr(JoernBackend, "query_batch", batch)
+    result = JoernBackend().query_batch_across([Path("app.php"), Path("missing")], "taint", {})
+    assert result is not None
+    assert "file_names" not in result["__census__"][0]
+    assert result["__census__"][0]["shards"] == "2"
+
+
 def test_a_clean_build_whose_census_cannot_be_taken_is_a_failed_build(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """`cpg query census failed: timeout` was logged as a warning during a build whose every later query
     then timed out too. A graph that cannot answer the census inside the query timeout cannot answer a taint

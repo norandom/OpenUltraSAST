@@ -394,7 +394,7 @@ def test_a_query_the_engine_could_not_answer_is_recorded_not_ignored() -> None:
     assert result.findings == ()
 
 
-def test_a_region_cap_that_hides_most_of_a_repository_is_reported() -> None:
+def test_a_region_cap_that_hides_most_of_a_repository_is_reported(tmp_path: Path) -> None:
     """Paid Memberships Pro yields 4,463 regions from 637 files. A default budget of 500 examines 11% of it,
     and a report that does not say so invites its silence to be read as a clean bill of health for the rest.
     """
@@ -414,14 +414,16 @@ def test_a_region_cap_that_hides_most_of_a_repository_is_reported() -> None:
         ScanRegion(path=f"f{n}.py", function="handler", language="python", families=("injection",), rank=0.5, source="entry_point")
         for n in range(30)
     ]
-    result = scan_repository(Path("."), regions, backend=_Backend(), budget=ScanBudget(max_model_calls=0, max_regions=10))
+    for region in regions:
+        (tmp_path / region.path).write_bytes(b"print(1)\n")
+    result = scan_repository(tmp_path, regions, backend=_Backend(), budget=ScanBudget(max_model_calls=0, max_regions=10))
 
     truncated = [d for d in result.degradations if d.get("reason") == "regions_truncated"]
     assert truncated, "the cap hid two thirds of the regions and said nothing"
     assert truncated[0]["examined"] == 10 and truncated[0]["total"] == 30
 
 
-def test_tier_zero_pairs_are_not_asked_and_nothing_else_is_skipped() -> None:
+def test_tier_zero_pairs_are_not_asked_and_nothing_else_is_skipped(tmp_path: Path) -> None:
     """Phase 1 of flow-aware-ranking. A pair with no sink of its family in reach cannot yield a flow, so its
     taint request is never issued -- and every other pair's request still is."""
     from openultrasast.model.regions import ScanRegion
@@ -466,7 +468,8 @@ def test_tier_zero_pairs_are_not_asked_and_nothing_else_is_skipped() -> None:
     region = ScanRegion(
         path="a.py", function="run", language="python", families=("injection", "path", "deserialization"), rank=0.9, source="entry_point"
     )
-    result = scan_repository(Path("."), [region], backend=_Backend(), budget=ScanBudget(max_model_calls=0))
+    (tmp_path / "a.py").write_bytes(b"print(1)\n")
+    result = scan_repository(tmp_path, [region], backend=_Backend(), budget=ScanBudget(max_model_calls=0))
 
     taint = next(i for i in issued if i["kind"] == "taint")
     assert taint["count"] == 1, "only the pair with a sink in reach is asked"
@@ -474,7 +477,7 @@ def test_tier_zero_pairs_are_not_asked_and_nothing_else_is_skipped() -> None:
     assert not any(d.get("reason") == "query_failed" for d in result.degradations)
 
 
-def test_the_budget_is_spent_by_evidence_when_asked() -> None:
+def test_the_budget_is_spent_by_evidence_when_asked(tmp_path: Path) -> None:
     """Phase 2 of flow-aware-ranking. With `order_by_evidence`, the evidence pass runs over every region and
     the region cap is cut from the (tier, score) order, so a low-ranked region with an open sink and a
     local source is examined before a top-ranked region with no sink in reach. Off, the static order holds."""
@@ -523,15 +526,17 @@ def test_the_budget_is_spent_by_evidence_when_asked() -> None:
     top = ScanRegion(path="top.py", function="handle", language="python", families=("injection",), rank=1.0, source="entry_point")
     low = ScanRegion(path="low.py", function="run", language="python", families=("injection",), rank=0.3, source="entry_point")
 
+    (tmp_path / "top.py").write_bytes(b"print(1)\n")
+    (tmp_path / "low.py").write_bytes(b"print(2)\n")
     static = _Backend()
-    scan_repository(Path("."), [top, low], backend=static, budget=ScanBudget(max_model_calls=0, max_regions=1))
+    scan_repository(tmp_path, [top, low], backend=static, budget=ScanBudget(max_model_calls=0, max_regions=1))
     assert static.evidence_sizes == [1] and static.taint_files == [], (
         "static order: the budget holds `top`, whose pair is tier 0 and pruned"
     )
 
     ordered = _Backend()
     result = scan_repository(
-        Path("."), [top, low], backend=ordered, budget=ScanBudget(max_model_calls=0, max_regions=1, order_by_evidence=True)
+        tmp_path, [top, low], backend=ordered, budget=ScanBudget(max_model_calls=0, max_regions=1, order_by_evidence=True)
     )
     assert ordered.evidence_sizes == [2], "the evidence pass covers every region, not only the budget"
     assert ordered.taint_files == [["low.py"]], "and the budget is spent on the region the evidence points at"

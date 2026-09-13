@@ -78,7 +78,7 @@
     // per-file warnings -- so "no rows" and "no graph" are indistinguishable to the driver without this.
     // It rides the batch rather than costing its own invocation, because JVM startup is what this whole
     // batching design exists to avoid.
-    val census = ujson.Arr(ujson.Obj("methods" -> cpg.method.size.toString, "files" -> cpg.file.size.toString))
+    val census = ujson.Arr(ujson.Obj("methods" -> cpg.method.size.toString, "files" -> cpg.file.size.toString, "file_names" -> ujson.Arr.from(cpg.file.name.l)))
     println(ujson.write(ujson.Obj.from(answers.toSeq :+ ("__census__" -> census))))
   } else {
     println(ujson.write(ujson.Arr(rowsFor(settings, function, file): _*)))

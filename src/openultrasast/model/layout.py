@@ -26,7 +26,12 @@ def _matches(relative: str, patterns: Iterable[str]) -> bool:
     parts = relative.split("/")
     for pattern in patterns:
         if pattern.endswith("/"):
-            if pattern.rstrip("/") in parts[:-1] or pattern.rstrip("/") in parts:
+            directory = pattern.rstrip("/")
+            if any(
+                fnmatch.fnmatch("/".join(parts[start:end]), directory)
+                for start in range(len(parts))
+                for end in range(start + 1, len(parts) + 1)
+            ):
                 return True
         elif fnmatch.fnmatch(relative, pattern) or fnmatch.fnmatch(parts[-1], pattern):
             return True

@@ -15,10 +15,10 @@ coverage limits.
 
 ## Verification state
 
-Tasks 3.1–3.3 are independently approved and verified (10/27 tasks overall).
-Task 3.4 is blocked on a confirmed frontend retention prerequisite; group 3 is
-not complete. The proposed foundation repair is in
-`../contributor-scan/frontend-retention-prerequisite.md`.
+Group 3 is independently approved and VERIFIED (TASK scope): tasks 3.1–3.4 are
+complete, bringing the pre-push spec to 11/27 tasks. The approved contributor-scan
+frontend-retention prerequisite 2.18 is also verified. Groups 4–8 remain pending;
+this is not feature GO, capability admission or a hook latency claim.
 
 ## Baseline
 
@@ -130,7 +130,7 @@ line enforced security, that the defect is new, or that a hook meets its latency
 
 Ten of 27 tasks are now complete; task 3.4 remains for this group.
 
-## Task 3.4 blocked verification
+## Historical task 3.4 blocker
 
 Claim type TASK; status NOT_VERIFIED. The implementer returned BLOCKED, and an
 independent fresh-context Kiro debug investigation returned STOP_FOR_HUMAN with
@@ -169,3 +169,44 @@ uncommitted pending the foundation repair, review and fresh runtime verification
 The packaged failure preceded a comment-only clarification in `cpg/backend.py`
 removing the disproven attribution to legacy frontend autodetection. No executable
 backend behavior changed after that measurement.
+
+## Task 3.4 final verification
+
+Status VERIFIED, claim type TASK; independent review APPROVED after two concrete
+error-path repairs. The final suite passed 1,151 tests with nine skipped in
+100.55 seconds. Ruff, formatting (230 files), mypy (109 source files), compileall,
+diff and all three regression gates passed.
+
+The approved foundation repair is committed as `51fabef`. Physically filtered
+frontend inputs retain original source paths and bytes; the existing layout facts
+mark JavaScript/TypeScript test conventions unshipped. One existing ranker decision
+and region/deadline budget cover supported partitions. Browser-path source remains
+available, while runtime origin stays unspecified without declarations. Vendor,
+cross-language, TypeScript-property and C-bounds limits remain explicit.
+
+Exact source names now travel in taint, dominance and configuration batch censuses.
+PHP aggregation preserves them only when every shard provides named evidence.
+Synthetic `<unknown>` nodes cannot mask missing real files. Unreadable unknown
+extensions produce `source_unreadable` coverage instead of raising PermissionError.
+Legacy callbacks that omit census entirely retain their existing compatibility
+behavior; production queries emit the named census, and unsupported/partial
+sharded evidence cannot establish a complete negative.
+
+`benchmarks/measurements/2026-09-13-partition-scope-smoke.json` records the final
+image and ten matching source/query/fact hashes. The real mixed graph retains
+seven JavaScript files (296 bytes), including tests and browser source, plus two
+PHP files (97 bytes), with vendor nodes absent. One question is selected and three
+deferred; unsupported Go is reported. No false empty/unavailable census remains.
+PHP and JavaScript change-context controls both complete with unchanged-helper
+witnesses, preserving dirty checkout/index state and cleaning snapshot scratch.
+
+A real Python graph supplies named census from all three production query kinds.
+Those unchanged Scala sources were verified before the separate PHP transport and
+discovery repairs; the artifact records that narrower provenance explicitly. A
+real filesystem permission probe verifies the repaired error path, using a clearly
+labeled synthetic graph callback.
+
+The mixed smoke took 197.76 seconds under a 900-second lab allowance; PHP/JavaScript
+context checks took 117.3/95.9 seconds. These manually declared controls do not
+establish automatic scope discovery, production hook latency or alert quality.
+Group 4 now owns novelty comparison, actionability admission and compact output.

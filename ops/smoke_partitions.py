@@ -39,6 +39,7 @@ def main() -> None:
         sources = {
             "src/api.php": "<?php\nfunction php_handler($req) { eval($req); }\n",
             "server/api.js": "function js_handler(req) { eval(req.query.code); }\n",
+            "browser/client.js": "function browser_marker() { return 42; }\n",
             "tests/probe.php": "<?php\nfunction php_test_marker() { return 42; }\n",
             "tests/probe.js": "function js_test_marker() { return 42; }\n",
             "vendor/library.php": "<?php\nfunction vendor_php_marker($req) { eval($req); }\n",
@@ -91,6 +92,8 @@ def main() -> None:
                         assert any(str(filename).endswith(path) for filename in files), witness
                         assert method in methods, witness
                     assert "php_handler" not in methods, witness
+                    assert any(str(path).endswith("browser/client.js") for path in files), witness
+                    assert "browser_marker" in methods, witness
                 else:
                     raise AssertionError(f"unexpected frontend: {language}")
                 records.append({"frontend": language, "input_root": str(root), "graph_witness": witness})
@@ -116,12 +119,20 @@ def main() -> None:
         )
         assert {record["frontend"] for record in records} == {"php", "javascript"}, records
         assert result.scope is not None
+        invalid_census = {"cpg_empty", "files_unparsed", "partition_file_census_unavailable", "partition_file_census_incomplete"}
+        assert not invalid_census.intersection(result.scope.unresolved_boundaries), result.scope
+        assert not any(d.get("reason") in invalid_census for d in result.degradations), result.degradations
         assert [q.identity.function for q in result.scope.selected] == ["php_handler"], result.scope
         assert {q.identity.function for q in result.scope.deferred} == {"js_handler", "php_test_marker", "js_test_marker"}, result.scope
         assert len(result.question_outcomes) == 1, result.question_outcomes
         assert result.question_outcomes[0].identity == result.scope.selected[0].identity
         assert all("vendor" not in q.identity.path and "node_modules" not in q.identity.path for q in result.scope.selected), result.scope
         assert any(p.language == "go" and p.status == "unsupported" for p in result.partitions), result.partitions
+        javascript = next(p for p in result.partitions if p.language == "javascript")
+        assert set(javascript.unshipped_paths) == {"tests/probe.js", *suffix_tests}, javascript
+        assert javascript.runtime == "unspecified", "runtime role needs declared evidence"
+        php = next(p for p in result.partitions if p.language == "php")
+        assert php.unshipped_paths == ("tests/probe.php",), php
         assert all(not Path(record["input_root"]).exists() for record in records), "partition scratch leaked"
         report = {
             "purpose": "Real mixed PHP/JavaScript graph census and one global ranker budget; no admission or latency claim",

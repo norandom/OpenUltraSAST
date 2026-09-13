@@ -97,7 +97,13 @@ def enumerate_source_files(root: Path) -> list[Path]:
     patterns = _load_ignore_patterns(root)
     paths: list[Path] = []
     for path in root.rglob("*"):
-        if not path.is_file() or _has_ignored_dir(root, path) or _is_ignored(root, path, patterns) or _is_vendored(root, path):
+        if (
+            path.is_symlink()
+            or not path.is_file()
+            or _has_ignored_dir(root, path)
+            or _is_ignored(root, path, patterns)
+            or _is_vendored(root, path)
+        ):
             continue
         if detect_language(path) != "unknown":
             paths.append(path)

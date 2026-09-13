@@ -43,7 +43,8 @@ from .contracts import (
 from .dominance import request_params as dominance_params
 from .evidence import TIER_EXCLUDE, Evidence, evidence_from_rows
 from .ladder import Rung
-from .layout import with_layout
+from .layout import is_vendored, layout_facts, with_layout
+from .partitions import PartitionCoverage, build_partitions
 from .pipeline import ModelFinding, scan_region
 from .regions import MODULE_SCOPE, ScanRegion, affected_context
 from .specs import ConfigSpec, DominanceSpec, TaintSpec, config_specs, dominance_specs, taint_specs
@@ -126,6 +127,7 @@ class ModelScanResult:
     # could have been found was skipped. Reported so the request count is legible.
     requests_pruned: int = 0
 
+    partitions: tuple[PartitionCoverage, ...] = ()
     change_context: ChangeContext | None = None
     scope: ScopeDecision | None = None
     question_outcomes: tuple[QuestionOutcome, ...] = ()
@@ -158,6 +160,8 @@ def scan_repository(
     if ranking_mode is not None:
         limits = replace(limits, order_by_evidence=ranking_mode == "evidence")
     mode = "evidence" if limits.order_by_evidence else "static"
+    layout = layout_facts()
+    regions = tuple(r for r in regions if not is_vendored(r.path, layout))
     # Reject duplicate canonical questions before any engine work or resource ownership.
     identities = [_identity(unit, r, f) for r in regions for f in r.families]
     if len(set(identities)) != len(identities):
@@ -223,13 +227,29 @@ def _scan_repository_impl(
     for region in regions:
         counts[region.language] = counts.get(region.language, 0) + 1
     dominant = max(counts, key=lambda name: (counts[name], name)) if counts else ""
-    cpg = _build(backend, root, dominant, execution_budget=execution_budget)
+    declarations: dict[str, set[str]] = {}
+    for region in regions:
+        declarations.setdefault(region.path, set()).add(region.language)
+    if root.is_dir():
+        cpg = build_partitions(
+            root,
+            lambda source, language: _build(backend, source, language, execution_budget=execution_budget),
+            execution_budget,
+            {path: tuple(sorted(languages)) for path, languages in declarations.items()},
+        )
+        degradations.extend({"stage": "model", "reason": reason} for reason in cpg.boundaries)
+    else:
+        cpg = _build(backend, root, dominant, execution_budget=execution_budget)
     build_seconds = round(time.monotonic() - build_started, 2)
-    if cpg is None:
+    if cpg is None or (hasattr(cpg, "graphs") and not cpg.graphs):
+        if cpg is not None:
+            owned.append(cpg)
         scope, _ = _scope_work(
             regions, {}, limits, unit, ranking_mode, population_complete, failure="cpg_build_failed", change_context=change_context
         )
+        scope = replace(scope, unresolved_boundaries=tuple(dict.fromkeys((*scope.unresolved_boundaries, *getattr(cpg, "boundaries", ())))))
         return ModelScanResult(
+            partitions=getattr(cpg, "partitions", ()),
             change_context=change_context,
             scope=scope,
             family_coverage=_family_coverage(scope, ()),
@@ -322,7 +342,22 @@ def _scan_repository_impl(
     # Stable question IDs are the IDs sent to every execution request below.
     scope_limits = (
         replace(limits, prune_tier0=False)
-        if any(d.get("reason") in {"files_unparsed", "cpg_empty", "cpg_sharded"} for d in degradations)
+        if any(
+            d.get("reason")
+            in {
+                "files_unparsed",
+                "cpg_empty",
+                "cpg_sharded",
+                "cross_partition_semantics_unresolved",
+                "vendor_semantics_unresolved",
+                "symlink_context_unresolved",
+                "frontend_unsupported",
+                "source_unreadable",
+                "ambiguous_frontend_path",
+                "typescript_property_support_unvalidated",
+            }
+            for d in degradations
+        )
         else limits
     )
     scope, work = _scope_work(
@@ -457,16 +492,32 @@ def _scan_repository_impl(
     if unasked:
         degradations.append({"stage": "model", "reason": "budget_exhausted", "regions_unasked": len(unasked)})
 
-    graph_gaps = tuple(str(d["reason"]) for d in degradations if d.get("reason") in {"files_unparsed", "cpg_empty", "cpg_sharded"})
+    graph_gaps = tuple(
+        str(d["reason"])
+        for d in degradations
+        if d.get("reason")
+        in {
+            "files_unparsed",
+            "cpg_empty",
+            "cpg_sharded",
+            "cross_partition_semantics_unresolved",
+            "vendor_semantics_unresolved",
+            "symlink_context_unresolved",
+            "frontend_unsupported",
+            "source_unreadable",
+            "ambiguous_frontend_path",
+            "typescript_property_support_unvalidated",
+        }
+    )
     for question in scope.selected:
         rid = question.identity.question_id
         if rid not in outcomes:
-            answered = rid in rows_by_id
+            has_answer = rid in rows_by_id
             outcomes[rid] = QuestionOutcome(
                 question.identity,
-                "not_arbitrated" if answered else "unanswered",
+                "not_arbitrated" if has_answer else "unanswered",
                 "deadline_exhausted" if not _within_deadline(execution_budget) else "query_unanswered",
-                _rows_json(rows_by_id[rid]) if answered else None,
+                _rows_json(rows_by_id[rid]) if has_answer else None,
             )
         if question.identity in context_gaps and outcomes[rid].status == "completed":
             outcomes[rid] = replace(outcomes[rid], status="unresolved", reason="change_context_incomplete")
@@ -480,6 +531,7 @@ def _scan_repository_impl(
     # The graph has answered everything it is going to. Its scratch tree holds the CPG, the request files and
     # joern's own working copy -- tens of megabytes per scan -- and nothing else reclaims it.
     return ModelScanResult(
+        partitions=getattr(cpg, "partitions", ()),
         findings=findings,
         by_rung=_tally(findings),
         regions_scanned=scanned,

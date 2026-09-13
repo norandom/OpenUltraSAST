@@ -95,6 +95,10 @@ def main() -> None:
                 enriched = result.change_context
                 assert enriched is not None and enriched.relationships, "changed context did not reach any question"
                 assert result.scope is not None and result.scope.selected
+                invalid_census = {"cpg_empty", "files_unparsed", "partition_file_census_unavailable", "partition_file_census_incomplete"}
+                assert not invalid_census.intersection(result.scope.unresolved_boundaries), result.scope
+                assert not any(d.get("reason") in invalid_census for d in result.degradations), result.degradations
+                assert result.question_outcomes and all(outcome.status == "completed" for outcome in result.question_outcomes), result
                 selected = {question.identity for question in result.scope.selected}
                 assert any(relation.target in selected for relation in enriched.relationships)
                 assert result.findings, "controlled unchanged sink has no witness"

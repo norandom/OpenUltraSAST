@@ -92,3 +92,18 @@ calls = ["path.normalize", "path.resolve"]
 # CWE-79. The standard encoders: the DOM/global URI encoders and the common escaping helpers.
 id = "html.escape"
 calls = ["encodeURIComponent", "encodeURI", "escapeHtml", "escape", "sanitizeHtml", "DOMPurify.sanitize"]
+
+
+[[layout]]
+# First-party test conventions are retained as graph context, ordered as unshipped.
+# These declarations cover JS module/JSX and TS/TSX filenames; they do not assert
+# TypeScript property support or a browser/server runtime classification.
+id = "javascript_first_party_tests"
+vendored = ["node_modules/"]
+tests = [
+  "tests/", "test/", "spec/", "__tests__/", "__mocks__/", "e2e/",
+  "*.test.js", "*.test.mjs", "*.test.cjs", "*.test.jsx", "*.test.ts", "*.test.mts", "*.test.cts", "*.test.tsx",
+  "*.spec.js", "*.spec.mjs", "*.spec.cjs", "*.spec.jsx", "*.spec.ts", "*.spec.mts", "*.spec.cts", "*.spec.tsx",
+  "*.mock.js", "*.mock.mjs", "*.mock.cjs", "*.mock.jsx", "*.mock.ts", "*.mock.mts", "*.mock.cts", "*.mock.tsx",
+  "*.e2e.js", "*.e2e.mjs", "*.e2e.cjs", "*.e2e.jsx", "*.e2e.ts", "*.e2e.mts", "*.e2e.cts", "*.e2e.tsx",
+]

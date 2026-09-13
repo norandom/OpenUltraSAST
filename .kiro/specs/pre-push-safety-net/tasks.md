@@ -1,7 +1,7 @@
 # Implementation Plan: pre-push-safety-net
 
-Status: task plan approved by the maintainer's "approve." on 2026-09-12. Groups 1 and 2 (tasks 1.1–2.3)
-are complete after independent review and fresh verification. Group 3 has 3.1–3.3 verified; 3.4 is blocked on frontend test retention. Groups 4–8 remain pending;
+Status: task plan approved by the maintainer's "approve." on 2026-09-12. Groups 1–3 (tasks 1.1–3.4)
+are complete after independent review and fresh verification (11/27 subtasks). Groups 4–8 remain pending;
 the hook and capability admission are not yet implemented. See `implementation-group-1.md` and `implementation-group-2.md`.
 
 ## Execution contract
@@ -78,7 +78,7 @@ the hook and capability admission are not yet implemented. See `implementation-g
   - _Requirements: 1.4, 2.1, 2.4, 3.4_
   - _Verified 2026-09-12:_ independent review APPROVED; fresh final suite 1,069 passed, 9 skipped; focused 148 passed. Global Ruff/format, touched mypy and regression gates passed. PHP/JavaScript fixtures retain removed spans and unchanged-operation anchors across declaration renames; uncertain moves, repeated lines, binary and unavailable inputs remain unresolved. Forty independent real-Git comparisons checked exact spans/anchors. Network-disabled image smoke preserved committed PHP/JavaScript bytes and dirty non-HEAD state, with cleanup verified; see `implementation-group-2.md`. Lexical anchors do not establish semantic impact or novelty.
 
-- [ ] 3. Integrate bounded execution and ranker scope with the existing engine
+- [x] 3. Integrate bounded execution and ranker scope with the existing engine
 - [x] 3.1 (P) Enforce one remaining-time budget in the backend
   - Thread the absolute deadline through readability probes, frontend builds, overlays, census, query batches, fallbacks and retries; no phase gets a fresh full budget.
   - Bound process-group termination and lease/scratch cleanup by the cancellation allowance, replacing any longer fixed cleanup waits on the push path.
@@ -103,13 +103,14 @@ the hook and capability admission are not yet implemented. See `implementation-g
   - _Depends: 2.3, 3.2_
   - _Requirements: 2.1, 2.2, 2.4, 8.1, 8.2_
   - _Verified 2026-09-13:_ independent review APPROVED after an unknown-call boundary repair; fresh suite 1,128 passed, nine skipped; global Ruff/format/mypy passed. Real PHP/JavaScript Git guard-removal snapshots reached unchanged helper-file witnesses with local dirty state preserved. Production negative regression reproduced then fixed unknown(req.body) being pruned as tier zero: modeled arguments no longer summarize unknown consumers. Existing ranking and detector semantics unchanged; unsupported projections remain explicit. Evidence: `benchmarks/measurements/2026-09-13-change-context-smoke.json`. Lexical attribution is not semantic novelty or alert admission.
-- [ ] 3.4 Apply vendor exclusion and explicit language partitions
-  - _Blocked:_ Joern 4.0.625/ASTGen 3.50.1 omit first-party JavaScript tests despite readable filtered inputs. Independent debug returned STOP_FOR_HUMAN; review the owning `contributor-scan/frontend-retention-prerequisite.md` before resuming. Implementation remains uncommitted and unapproved; runtime evidence: `benchmarks/measurements/2026-09-13-partition-retention-blocker.json`.
+- [x] 3.4 Apply vendor exclusion and explicit language partitions
+  - _Prerequisite resolved 2026-09-13:_ contributor-scan 2.18 independently approved and verified at `51fabef`; both JavaScript test filters repaired by explicit versioned input policy. Task 3.4 subsequently passed its own independent review.
   - Reuse declared layout exclusions before target enumeration and graph build; retain unshipped first-party tests and separate browser/server or language capability coverage.
   - Build supported frontend partitions explicitly; preserve unknown cross-language and vendor semantics without restoring excluded sources.
   - Done when PHP and Node graphs/targets contain no declared vendor code, first-party callers remain visible, and unsupported partitions appear as coverage limits rather than clean results.
   - _Boundary: Ranker Scope Contract, Cache and Engine Boundary integration_
   - _Requirements: 2.2, 2.3, 7.3, 8.2, 8.4_
+  - _Verified 2026-09-13:_ independent review APPROVED; 1,151 passed, nine skipped; Ruff/format/mypy pass. Real PHP/JavaScript graphs retain tests/browser source, omit vendor nodes and share one ranker limit. Named census survives PHP aggregation; missing source names and unreadable discovery inputs remain explicit. Python exercises all three batch census schemas. Evidence: `benchmarks/measurements/2026-09-13-partition-scope-smoke.json`. No hook capability or latency claim.
 
 - [ ] 4. Implement change attribution and actionable output
 - [ ] 4.1 Compare targeted base/head evidence for defect novelty

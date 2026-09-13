@@ -6,7 +6,7 @@
 - User direction: a scalable pre-push safety net as AI accelerates development; WordPress is one case.
 - Clarifications: advisory must be actionable, not SAST noise; the ranker is the scope mechanism;
   third-party vendor code must remain outside targets and graphs.
-- Requirements, design and tasks are now approved, and groups 1 and 2 plus tasks 3.1–3.3 are verified complete; task 3.4 is blocked on JavaScript frontend test retention; see
+- Requirements, design and tasks are now approved, and groups 1–3 are verified complete after the approved frontend-retention repair; see
   `tasks.md` for verified completion. The discovery log below preserves the earlier drafting state
   and measurements. No hook latency claim is made.
 
@@ -167,3 +167,14 @@ Direct frontend invocation reproduced the omission. Two unconditional upstream
 test filters require an owning foundation repair; see
 `../contributor-scan/frontend-retention-prerequisite.md`. The runtime failure is
 not overridden by passing mocks, static checks or a populated server graph.
+
+### Group 3 completed after frontend and coverage repairs
+
+The approved contributor-scan 2.18 adaptation preserves test directories and
+filename suffixes through both pinned JavaScript frontend filters. Task 3.4 then
+passed independent review with exact graph-path census, including PHP aggregation.
+Review also repaired unreadable discovery inputs throwing rather than reporting
+incomplete coverage. A synthetic graph file must never compensate for an omitted
+real source, and a wrapper must not discard evidence supplied by a frontend.
+See `implementation-group-3.md` for final evidence. Eleven of 27 tasks are complete;
+change attribution, actionability admission and compact output are next.

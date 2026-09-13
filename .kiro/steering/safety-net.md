@@ -79,8 +79,10 @@ updates as a shortcut to an unmeasured latency promise.
 The product direction above is user-requested. The amended requirements, design and initial
 evaluation profile in `pre-push-safety-net` were approved for task generation on 2026-09-12
 ("ok, next kiro phase"). The maintainer then approved the task plan and starting group 1
-("approve.") and then group 2 ("ok, next kiro phase, approved"). Groups 1 and 2 are now verified
-complete, as are group 3 tasks 3.1–3.3 (10/27 total). Task 3.4 is blocked on a
-confirmed frontend test-retention gap; review the proposed contributor-scan
-frontend-retention prerequisite before resuming it. Implementation is authorized under that plan; task completion still requires
-independent review and fresh evidence. Hook performance and capability admission remain unproven.
+("approve.") and then group 2 ("ok, next kiro phase, approved"). Groups 1–3 are now verified
+complete (11/27 total). The maintainer approved the frontend-retention prerequisite;
+contributor-scan 2.18 and pre-push task 3.4 have both passed independent review and
+fresh verification. Group 4 is next: novelty comparison, actionability admission and
+compact advisory output. Implementation is authorized under the approved plan;
+task completion still requires independent review and fresh evidence. Hook performance
+and capability admission remain unproven.

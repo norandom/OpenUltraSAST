@@ -697,9 +697,12 @@ class JoernBackend:
         methods = 0
         files = 0
         answered = 0
+        file_names: set[str] = set()
+        named_census = True
         for shard in shards:
             one = self.query_batch(shard, query, requests)
             if one is None:
+                named_census = False
                 if self.execution_budget is not None:
                     self._note("shard_query_incomplete")
                     return None
@@ -709,11 +712,21 @@ class JoernBackend:
             if census and isinstance(census[0], Mapping):
                 methods += int(str(census[0].get("methods", "0")) or 0)
                 files += int(str(census[0].get("files", "0")) or 0)
+                names = census[0].get("file_names")
+                if isinstance(names, list) and all(isinstance(name, str) for name in names):
+                    file_names.update(names)
+                else:
+                    named_census = False
+            else:
+                named_census = False
             for rid, rows in one.items():
                 merged.setdefault(rid, []).extend(rows)
         if not answered:
             return None
-        merged["__census__"] = [{"methods": str(methods), "files": str(files), "shards": str(len(shards))}]
+        total: dict[str, object] = {"methods": str(methods), "files": str(files), "shards": str(len(shards))}
+        if named_census:
+            total["file_names"] = sorted(file_names)
+        merged["__census__"] = [total]
         return merged
 
     def _apply_overlays(self, cpg_path: Path, scratch: Path) -> bool:

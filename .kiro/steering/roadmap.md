@@ -27,7 +27,7 @@ engine are out of scope.
 - Equal-score tie-breaking alone cannot bring PMPro or WP Statistics under 50. The existing
   ranker is useful, but its measured ordering is not enabled by the ordinary CLI caller.
 - Docker/Compose/ops now default to 4.0.625; task 1.1 passed local PHP/JavaScript image smoke and independent review. No host deployment or hook latency claim follows from that runtime evidence.
-- `contributor-scan` has 24/40 checked tasks; historical checkboxes are not rewritten by this review.
+- `contributor-scan` has 25/41 checked tasks, including the approved and verified frontend-retention prerequisite 2.18.
   `flow-aware-ranking` is still an unapproved brief despite implementation history.
 
 ## Existing Spec Updates
@@ -46,15 +46,16 @@ engine are out of scope.
 - [ ] pre-push-safety-net — Immutable pushed tips, existing-ranker integration, compatible artifact
   reuse, total deadline, change attribution, actionability admission and compact hook behavior.
   Dependencies: contributor-scan. Requirements/design approved 2026-09-12; tasks generated
-  (8 groups, 27 executable subtasks), independently reviewed and approved; groups 1 and 2 and tasks 3.1–3.3 are complete (10/27 tasks); 3.4 is blocked.
+  (8 groups, 27 executable subtasks), independently reviewed and approved; groups 1–3 are complete (11/27 tasks), including the resolved frontend-retention prerequisite.
 
 ### Next concrete step
 
-Groups 1 and 2 and tasks 3.1–3.3 have passed independent review: runtime, inputs,
-scoring, snapshots, shared deadline, exact ranker scope and change-context evidence.
-Task 3.4 is blocked: real Joern graphs omit first-party JavaScript tests even though
-filtered inputs contain them. Review `contributor-scan/frontend-retention-prerequisite.md`,
-repair that foundation contract, then rerun the partition census and independent review.
+Groups 1–3 have passed independent review: runtime, inputs, scoring, snapshots,
+shared deadline, exact ranker scope, change-context evidence and vendor-free language
+partitions. The approved contributor-scan prerequisite 2.18 (`51fabef`) repairs both
+JavaScript test filters; real graphs retain first-party tests and exclude vendor code.
+Task 3.4 also repairs unreadable-input handling and preserves named PHP census evidence.
+Group 4 is next: novelty comparison, actionability admission and compact advisory output.
 See `pre-push-safety-net/implementation-group-3.md` for evidence and limits.
 The first complete experiment is 5.2, before persistent caching and hook
 installation work. Keep PMPro as the primary core-optimization example, then freeze the core and

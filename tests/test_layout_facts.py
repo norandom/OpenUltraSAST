@@ -65,11 +65,13 @@ def test_test_regions_are_not_product_and_order_last() -> None:
     )
 
 
-def test_the_scan_hands_the_vendored_trees_to_the_build(tmp_path: Path) -> None:
+def test_the_scan_excludes_vendored_trees_before_the_build(tmp_path: Path) -> None:
     from openultrasast.model.regions import ScanRegion
     from openultrasast.model.scan import ScanBudget, scan_repository
 
     (tmp_path / "vendor").mkdir()
+    (tmp_path / "a.php").write_bytes(b"<?php echo 1;")
+    (tmp_path / "vendor/b.php").write_bytes(b"<?php vendor_secret();")
     seen: dict[str, object] = {}
 
     class _Backend:
@@ -80,8 +82,10 @@ def test_the_scan_hands_the_vendored_trees_to_the_build(tmp_path: Path) -> None:
             from openultrasast.cpg.backend import CpgResult
 
             seen["exclude"] = tuple(exclude)
+            seen["files"] = tuple(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file())
             return CpgResult(cpg_path=Path("cpg.bin"), run=lambda q, p: [], run_batch=lambda q, r: {rid: [] for rid in r})
 
     region = ScanRegion(path="a.php", function="f", language="php", families=("injection",), rank=0.5, source="x")
     scan_repository(tmp_path, [region], backend=_Backend(), budget=ScanBudget(max_model_calls=0))
-    assert seen["exclude"] == ("vendor",)
+    assert seen["exclude"] == ()
+    assert seen["files"] == ("a.php",)

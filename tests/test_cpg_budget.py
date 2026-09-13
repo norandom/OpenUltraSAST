@@ -261,6 +261,7 @@ def test_cleanup_does_not_follow_substituted_directory_links(tmp_path: Path) -> 
 
 
 def test_driver_propagates_budget_and_rejects_legacy_without_launch(tmp_path: Path) -> None:
+    (tmp_path / "input.py").write_bytes(b"print(1)\n")
     from openultrasast.cpg.backend import CpgResult
     from openultrasast.model.scan import scan_repository
 
@@ -296,6 +297,7 @@ def test_driver_propagates_budget_and_rejects_legacy_without_launch(tmp_path: Pa
 
 
 def test_budgeted_driver_does_not_retry_internal_typeerror(tmp_path: Path) -> None:
+    (tmp_path / "input.py").write_bytes(b"print(1)\n")
     from openultrasast.model.scan import scan_repository
 
     class Backend:
@@ -337,6 +339,7 @@ def test_cancelled_graph_session_does_not_poison_next_build(tmp_path: Path, monk
 
 
 def test_driver_cleans_graph_on_unexpected_exception(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "input.py").write_bytes(b"print(1)\n")
     from openultrasast.cpg.backend import CpgResult
     from openultrasast.model import scan
 

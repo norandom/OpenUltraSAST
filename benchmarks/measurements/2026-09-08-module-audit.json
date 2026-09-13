@@ -1,10 +1,10 @@
 {
   "counts": {
-    "load_bearing": 98,
+    "load_bearing": 99,
     "standalone_capability": 9
   },
-  "modules": 107,
-  "note": "Refreshed 2026-09-12 after pre-push-safety-net group 2: immutable comparison, materialization and lexical change context are spec-owned; ranker/runner integration remains pending.",
+  "modules": 108,
+  "note": "Refreshed after pre-push-safety-net task 3.4: first-party frontend partitions share the authoritative ranker and execution budget.",
   "orphaned": [],
   "rows": [
     {
@@ -129,6 +129,7 @@
         "model.config_value",
         "model.dominance",
         "model.judge",
+        "model.partitions",
         "model.pipeline",
         "model.scan",
         "model.taint"
@@ -149,6 +150,7 @@
         "model.config_value",
         "model.dominance",
         "model.judge",
+        "model.partitions",
         "model.pipeline",
         "model.scan",
         "model.taint"
@@ -338,12 +340,14 @@
       "classification": "load_bearing",
       "importers": [
         "cli",
+        "cpg.backend",
         "model.candidates",
         "model.config_value",
         "model.dominance",
         "model.execution",
         "model.judge",
         "model.layout",
+        "model.partitions",
         "model.pipeline",
         "model.regions",
         "model.report",
@@ -390,6 +394,10 @@
     {
       "classification": "load_bearing",
       "importers": [
+        "cpg.backend",
+        "model.partitions",
+        "model.regions",
+        "model.scan",
         "push.contracts",
         "push.snapshot"
       ],
@@ -450,10 +458,19 @@
     {
       "classification": "load_bearing",
       "importers": [
+        "model.partitions",
         "model.scan",
         "preprocess"
       ],
       "module": "model.layout",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [
+        "model.scan"
+      ],
+      "module": "model.partitions",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI"
     },
     {
@@ -596,6 +613,7 @@
         "map_gate",
         "mapping",
         "model.candidates",
+        "model.partitions",
         "model.scan",
         "pairs",
         "rank",

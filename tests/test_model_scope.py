@@ -23,7 +23,7 @@ class Backend:
 
     def build(self, root, **kwargs):
         # Prove these tests provide real readable source to the driver boundary.
-        assert any(p.read_bytes() for p in root.iterdir() if p.is_file())
+        assert any(p.read_bytes() for p in root.rglob("*") if p.is_file())
         if self.fail:
             return None
         return SimpleNamespace(cpg_path=Path("test.cpg"), run_batch=self.batch, cleanup=lambda: None)
@@ -162,7 +162,7 @@ def test_later_timeout_retains_raw_answer_without_claiming_arbitration(tmp_path)
         def batch(self, kind, requests):
             rows = super().batch(kind, requests)
             if kind == "taint" and not any(p.get("evidenceOnly") for p in requests.values()):
-                time.sleep(0.08)
+                time.sleep(0.3)
                 return {rid: [{"kind": "retained", "value": 42}] for rid in requests}
             return rows
 
@@ -171,7 +171,7 @@ def test_later_timeout_retains_raw_answer_without_claiming_arbitration(tmp_path)
         [region("a.py", families=("injection", "access_control"))],
         backend=Slow(),
         ranking_mode="static",
-        execution_budget=ExecutionBudget(time.monotonic() + 0.05, 0.2),
+        execution_budget=ExecutionBudget(time.monotonic() + 0.2, 0.2),
     )
     outcomes = {q.identity.family: q for q in result.question_outcomes}
     assert outcomes["injection"].status == "not_arbitrated"

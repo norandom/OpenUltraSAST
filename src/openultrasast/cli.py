@@ -4,7 +4,7 @@ import argparse
 import json
 import tempfile
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from time import perf_counter
 from typing import TYPE_CHECKING, Any
@@ -903,6 +903,7 @@ def _model_payload(
         "scope": scope.to_payload() if scope is not None else None,
         "question_outcomes": [q.to_payload() for q in outcomes],
         "family_coverage": [c.to_payload() for c in getattr(result, "family_coverage", ())],
+        "partitions": [asdict(p) for p in getattr(result, "partitions", ())],
         "by_rung": dict(getattr(result, "by_rung", {}) or {}),
         "regions_scanned": getattr(result, "regions_scanned", 0),
         "regions_unjudged": getattr(result, "regions_unjudged", 0),

@@ -181,8 +181,19 @@ unsupported Go partition is reported explicitly. One ranker decision and one reg
 limit cover both supported frontends. The shared 900-second budget is a lab allowance;
 this check establishes neither production hook latency nor framework admission.
 
-Current status (2026-09-13): this is a failing regression on Joern 4.0.625. The
-projected JavaScript test file is readable but absent from the resulting graph.
-See `benchmarks/measurements/2026-09-13-partition-retention-blocker.json` and the
-proposed contributor-scan frontend-retention prerequisite. An exit 1 is expected
-until that engine contract is repaired; do not treat it as a passing partition smoke.
+Stock Joern 4.0.625 fails the retention check: the projected test file is readable
+but absent from the graph. The approved source adaptation fixes both test filters;
+see `frontend-retention/README.md` for build pins and inclusion policy, and
+`benchmarks/measurements/2026-09-13-frontend-retention-smoke.json` for passing
+foundation verification. The earlier failing evidence remains in
+`benchmarks/measurements/2026-09-13-partition-retention-blocker.json`.
+
+Setting `OUSAST_SMOKE_INCLUDE_TESTS=0` in the container explicitly disables the
+backend inclusion policy; that negative control must fail the retention assertion.
+The expanded task 3.4 smoke also verifies first-party browser-path retention and
+unshipped test-path records. Runtime origin remains unspecified without declarations.
+
+`ops/smoke_partition_census.py`, using the same container invocation, builds a small
+readable Python graph and exercises the production taint, dominance and configuration
+batch queries. Each must return the actual source filename in its census. This
+checks query compilation and census transport, not security-property coverage.

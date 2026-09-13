@@ -1,0 +1,1026 @@
+{
+  "recorded_at": "2026-09-13T09:50:01.821464+00:00",
+  "task": "pre-push-safety-net 3.4",
+  "verification": "VERIFIED",
+  "claim_type": "TASK",
+  "independent_review": "APPROVED",
+  "image_id": "sha256:e38f06ef1bebaeaa72fa31fd95675aca2935de3b45cebe8147f92caeb98fc5a1",
+  "build_exit_code": 0,
+  "mixed_smoke_exit_code": 0,
+  "context_smoke_exit_code": 0,
+  "package": {
+    "hashes": {
+      "cpg/backend.py": "a18835af13d85238758b77cef7137b49154050a96b7f858b7e615d0ef9a90fe5",
+      "model/scan.py": "ad6f134c8fae43aa102b61d99f273b467415193d0b27fb634cae2586cb3c43ae",
+      "model/partitions.py": "82dae4769afab97f301fc28adea77d3ae83696e29dd9d83e883e66b1090d3796",
+      "model/layout.py": "50a1a163459f8802037faae750bc1f99a0ab81912b571b40303675590794d27c",
+      "preprocess.py": "0d0b1f22fd2024be3e50dc1a9ff947eed7f8f60f67644277e344b83697aaefc8",
+      "cli.py": "79608d4a74bcceb5bd41b149cf806d25c4f71d8b3201d710217395941169bdc2",
+      "cpg/queries/taint.sc": "dbc8e7c60463dc4b68db8e15537d2fafb7d429597a0c9789f4b95b0cfb0e14bb",
+      "cpg/queries/dominance.sc": "0623d84ee35d6dc06f577ebfc0bcfaa591dafe0287515b16c7d6b5c9a29ac290",
+      "cpg/queries/config.sc": "f0cd5519a6a246d4159d1141353c1a85a82b610c8c717f43132bc52d24818b0b",
+      "ruleset/semantic/javascript.toml": "574dd6b6313b3ca589c57285a6adae78339bb8168e199617d6e994f36b2d0c64"
+    },
+    "manifest": {
+      "revision": "ousast-frontend-retention-v1",
+      "builder_sha256": "21be57123922fa83ab3a4a3c684f7ddd8bf4ffc79dfb8379226ea72d2b1cac02",
+      "policy": "OUSAST_INCLUDE_TESTS=1",
+      "sources": {
+        "astgen.tar.gz": [
+          "https://codeload.github.com/joernio/astgen-monorepo/tar.gz/refs/tags/javascript-astgen/v3.50.1",
+          "8d9728dca8eab694a0f07bcd7a1c9a88368cb7bd354fc19c2ee8ca8611ff869a"
+        ],
+        "AstGenRunner.scala": [
+          "https://raw.githubusercontent.com/joernio/joern/v4.0.625/joern-cli/frontends/jssrc2cpg/src/main/scala/io/joern/jssrc2cpg/utils/AstGenRunner.scala",
+          "9963f949360d7e17baed1bd8875b717b2855745cf7260eef8a87d17533a54268"
+        ],
+        "bun.zip": [
+          "https://github.com/oven-sh/bun/releases/download/bun-v1.4.2/bun-linux-x64.zip",
+          "36368faef7527875d5ffa52e53cd48021741f2a83eb6208a8dd64068d422a913"
+        ]
+      },
+      "original_jar_sha256": "49fe488a79cc52b4e1d2e056143ec414f59e0007ed25f054c5fa7ae4aa34dff3",
+      "adapted_jar_sha256": "7b3a91a695abcd98652e83a4dfdbfd7c3be63b085e1bdfac0aae3139a714f1be",
+      "astgen_sha256": "eb1b01b2244e7dea4388716240bc0c1c1b66ff6de8cd1dfda30d3855627083e4",
+      "compiled_entries": [
+        "io/joern/jssrc2cpg/utils/AstGenRunner$$anon$1.class",
+        "io/joern/jssrc2cpg/utils/AstGenRunner$.class",
+        "io/joern/jssrc2cpg/utils/AstGenRunner$astGenMetaData$.class",
+        "io/joern/jssrc2cpg/utils/AstGenRunner.class",
+        "io/joern/jssrc2cpg/utils/AstGenRunner.tasty"
+      ]
+    }
+  },
+  "packaged_sources_match_workspace": true,
+  "script_hashes": {
+    "ops/smoke_partitions.py": "b616b88802c1bce12d4d68f2ae669becbc2db869ecb6ab85b65c6d8fd81f08ff",
+    "ops/smoke_context.py": "fb23c84638fbcca79017f69654b32e34b01ccda34f23ea7cc0e7d84191c9e2b9",
+    "ops/smoke_partition_census.py": "fe257ebbee3301bf1b4e7bb8af9ed95fd3850ef6cb16d255b6a7d7620a7173d1"
+  },
+  "mixed_runtime": {
+    "purpose": "Real mixed PHP/JavaScript graph census and one global ranker budget; no admission or latency claim",
+    "shared_budget_seconds": 900,
+    "include_tests": true,
+    "inputs": {
+      "src/api.php": {
+        "bytes": 49,
+        "sha256": "47ee82519e90f5ce2c845035f168bc4eaa4b0cc6e46cfc68626b8144e20b8f72"
+      },
+      "server/api.js": {
+        "bytes": 51,
+        "sha256": "a9f1b897b9361d0d30250f82aebec987cfd99e66308c9ea889d5b6211e3cad5e"
+      },
+      "browser/client.js": {
+        "bytes": 41,
+        "sha256": "42ef299a3c9a53f1ca77f9e4b027c8d6e854f69b7df765bdb833079198513fc4"
+      },
+      "tests/probe.php": {
+        "bytes": 48,
+        "sha256": "93c25992f2b709d4f222d88573a004dfb4e65239ce9a3afc2301f629b148c03d"
+      },
+      "tests/probe.js": {
+        "bytes": 41,
+        "sha256": "182f7cb37514b7fc6afbba045a9d1b3ca5dc297c35bb98b9f34c18cfd02864f5"
+      },
+      "vendor/library.php": {
+        "bytes": 55,
+        "sha256": "dd2aa2514d7c2dffdf4cfd238d7b795c2cd7bb6be086054b0b6d2278bd2c9599"
+      },
+      "node_modules/library.js": {
+        "bytes": 46,
+        "sha256": "5e42f2831e2e32d8c19df33ba98fbda879495b74bd6d7e0b6ff45a077674f398"
+      },
+      "unsupported.go": {
+        "bytes": 36,
+        "sha256": "ecf7a397251f1fea2e5992bdc3b0581274c20eb83f0ac403f6b7babe7d7b6b5b"
+      },
+      "checks/probe.test.js": {
+        "bytes": 41,
+        "sha256": "182f7cb37514b7fc6afbba045a9d1b3ca5dc297c35bb98b9f34c18cfd02864f5"
+      },
+      "checks/probe.spec.js": {
+        "bytes": 41,
+        "sha256": "a2677f51273a325b802a4a628ceb54f0bcea533a672c8997c0439d6ea206de37"
+      },
+      "checks/probe.mock.js": {
+        "bytes": 41,
+        "sha256": "bc14cd012a0d2c34a3605ce21a009b7fd335bdf248f81aec3462b506929eabd5"
+      },
+      "checks/probe.e2e.js": {
+        "bytes": 40,
+        "sha256": "14884e5a7d6c909f30addd8385bb82f6ea3751bb126192052dabe0eedfb42400"
+      }
+    },
+    "graph_witnesses": [
+      {
+        "frontend": "javascript",
+        "input_root": "/tmp/ousast-input-v8ria8_s",
+        "graph_witness": {
+          "files": [
+            "browser/client.js",
+            "checks/probe.e2e.js",
+            "checks/probe.mock.js",
+            "checks/probe.spec.js",
+            "checks/probe.test.js",
+            "server/api.js",
+            "tests/probe.js"
+          ],
+          "methods": [
+            "browser_marker",
+            ":program",
+            "js_e2e_marker",
+            ":program",
+            "js_mock_marker",
+            ":program",
+            "js_spec_marker",
+            ":program",
+            "js_test_marker",
+            ":program",
+            "js_handler",
+            ":program",
+            "js_test_marker",
+            ":program",
+            "<operator>.assignment",
+            "eval",
+            "<operator>.fieldAccess"
+          ]
+        }
+      },
+      {
+        "frontend": "php",
+        "input_root": "/tmp/ousast-input-71hph722",
+        "graph_witness": {
+          "files": [
+            "src/api.php",
+            "tests/probe.php",
+            "<unknown>"
+          ],
+          "methods": [
+            "<global>",
+            "php_handler",
+            "<global>",
+            "php_test_marker",
+            "eval"
+          ]
+        }
+      }
+    ],
+    "result": {
+      "findings": [
+        {
+          "site": "src/api.php:2:php_handler",
+          "family": "injection",
+          "rung": "model_entailed",
+          "witness": "$req -> eval($req) in src/api.php (line 2, 2 steps)",
+          "contradiction": "",
+          "reached_from": 1
+        }
+      ],
+      "by_rung": {
+        "suspicion": 0,
+        "model_corroborated": 0,
+        "model_entailed": 1,
+        "execution_confirmed": 0
+      },
+      "regions_scanned": 1,
+      "regions_unjudged": 3,
+      "regions_unasked": 0,
+      "model_calls": 0,
+      "cost_usd": 0.0,
+      "seconds": 197.76,
+      "build_seconds": 124.7,
+      "query_seconds": 40.89,
+      "query_seconds_by_kind": {
+        "evidence": 32.07,
+        "taint": 40.89
+      },
+      "degradations": [
+        {
+          "stage": "model",
+          "reason": "cross_partition_semantics_unresolved"
+        },
+        {
+          "stage": "model",
+          "reason": "frontend_unsupported"
+        },
+        {
+          "stage": "model",
+          "reason": "vendor_semantics_unresolved"
+        },
+        {
+          "stage": "model",
+          "reason": "regions_truncated",
+          "examined": 1,
+          "total": 4
+        }
+      ],
+      "tiers": [
+        [
+          "src/api.php",
+          "php_handler",
+          "injection",
+          4
+        ]
+      ],
+      "tier_counts": {
+        "4": 1
+      },
+      "requests_pruned": 0,
+      "partitions": [
+        {
+          "language": "go",
+          "frontend": null,
+          "paths": [
+            "unsupported.go"
+          ],
+          "source_bytes": 0,
+          "status": "unsupported",
+          "boundaries": [
+            "frontend_unsupported"
+          ],
+          "runtime": "unspecified",
+          "excluded_paths": [
+            "node_modules/",
+            "vendor/"
+          ],
+          "unshipped_paths": []
+        },
+        {
+          "language": "javascript",
+          "frontend": "javascript",
+          "paths": [
+            "browser/client.js",
+            "checks/probe.e2e.js",
+            "checks/probe.mock.js",
+            "checks/probe.spec.js",
+            "checks/probe.test.js",
+            "server/api.js",
+            "tests/probe.js"
+          ],
+          "source_bytes": 296,
+          "status": "built",
+          "boundaries": [
+            "runtime_unspecified"
+          ],
+          "runtime": "unspecified",
+          "excluded_paths": [
+            "node_modules/",
+            "vendor/"
+          ],
+          "unshipped_paths": [
+            "checks/probe.e2e.js",
+            "checks/probe.mock.js",
+            "checks/probe.spec.js",
+            "checks/probe.test.js",
+            "tests/probe.js"
+          ]
+        },
+        {
+          "language": "php",
+          "frontend": "php",
+          "paths": [
+            "src/api.php",
+            "tests/probe.php"
+          ],
+          "source_bytes": 97,
+          "status": "built",
+          "boundaries": [],
+          "runtime": "unspecified",
+          "excluded_paths": [
+            "node_modules/",
+            "vendor/"
+          ],
+          "unshipped_paths": [
+            "tests/probe.php"
+          ]
+        }
+      ],
+      "change_context": null,
+      "scope": {
+        "ranker_version": "existing-static-evidence-v1",
+        "ranking_mode": "static",
+        "population_complete": true,
+        "selected": [
+          {
+            "identity": {
+              "unit": "partition-smoke",
+              "language": "php",
+              "path": "src/api.php",
+              "function": "php_handler",
+              "family": "injection"
+            },
+            "priority": 0.0,
+            "evidence": [
+              "static_rank=10.0",
+              "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval($req)\",\"line\":2,\"method\":\"php_handler\"}],\"source_local\":false,\"source_near\":false}",
+              "tier=4",
+              "score=2.5"
+            ],
+            "tier": 4,
+            "score": 2.5
+          }
+        ],
+        "deferred": [
+          {
+            "identity": {
+              "unit": "partition-smoke",
+              "language": "javascript",
+              "path": "server/api.js",
+              "function": "js_handler",
+              "family": "injection"
+            },
+            "reason": "region_budget",
+            "evidence": [
+              "static_rank=9.0",
+              "evidence_unknown"
+            ]
+          },
+          {
+            "identity": {
+              "unit": "partition-smoke",
+              "language": "php",
+              "path": "tests/probe.php",
+              "function": "php_test_marker",
+              "family": "injection"
+            },
+            "reason": "region_budget",
+            "evidence": [
+              "static_rank=2.0",
+              "evidence_unknown"
+            ]
+          },
+          {
+            "identity": {
+              "unit": "partition-smoke",
+              "language": "javascript",
+              "path": "tests/probe.js",
+              "function": "js_test_marker",
+              "family": "injection"
+            },
+            "reason": "region_budget",
+            "evidence": [
+              "static_rank=1.0",
+              "evidence_unknown"
+            ]
+          }
+        ],
+        "unresolved_boundaries": [
+          "evidence_unknown:022bab405f3a4daa5ee1cbca6b54c24d052b3060f915b850bc1b592d2233999c",
+          "evidence_unknown:d867a0ae5d785b179a30fcef9efcdb8304281d53694a51c2da4180ef5069a53d",
+          "evidence_unknown:66aa438d134c37f7107503949179ce763fecaa08f0a1d00646ee8a5f446d88f7",
+          "cross_partition_semantics_unresolved",
+          "frontend_unsupported",
+          "vendor_semantics_unresolved"
+        ]
+      },
+      "question_outcomes": [
+        {
+          "identity": {
+            "unit": "partition-smoke",
+            "language": "php",
+            "path": "src/api.php",
+            "function": "php_handler",
+            "family": "injection"
+          },
+          "status": "unresolved",
+          "reason": "graph_incomplete",
+          "raw_rows_json": "[{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":2,\"paths\":1,\"sanitized\":false,\"sink\":\"eval($req)\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"src/api.php\",\"sinkLine\":\"2\",\"sinkMethod\":\"php_handler\",\"source\":\"$req\",\"sourceKind\":\"parameter\"}]"
+        }
+      ],
+      "family_coverage": [
+        {
+          "unit": "partition-smoke",
+          "language": "javascript",
+          "family": "injection",
+          "selected": 0,
+          "completed": 0,
+          "unanswered": 0,
+          "deferred": 2,
+          "unsupported": 0
+        },
+        {
+          "unit": "partition-smoke",
+          "language": "php",
+          "family": "injection",
+          "selected": 1,
+          "completed": 0,
+          "unanswered": 1,
+          "deferred": 1,
+          "unsupported": 0
+        }
+      ]
+    }
+  },
+  "context_runtime": {
+    "purpose": "Committed removed-guard context reaches real ranked questions; not semantic novelty or admission proof",
+    "shared_budget_seconds": 900,
+    "languages": {
+      "php": {
+        "base_revision": "a6b5ebf9bc3dbee298a268678f0cb48976d2c7ae",
+        "head_revision": "639e3754323993d0d9938882c1dcf85ed19d30cd",
+        "source_bytes": 124,
+        "source_sha256": "e41333ddd3e341d08603a5cc6a3a9faedb442e6ef3b14627cd00516cdf12cedb",
+        "helper_bytes": 48,
+        "helper_sha256": "4eb14937fd2b027cc11bd5a79c5de38f572d9a5af8ee36a46d4a0e499817ae76",
+        "input_context": {
+          "base_revision": "a6b5ebf9bc3dbee298a268678f0cb48976d2c7ae",
+          "head_revision": "639e3754323993d0d9938882c1dcf85ed19d30cd",
+          "changed_paths": [
+            "6170692e706870"
+          ],
+          "deleted_paths": [],
+          "spans": [
+            {
+              "path": "6170692e706870",
+              "start_line": 4,
+              "end_line": 4,
+              "side": "base"
+            }
+          ],
+          "renames": [],
+          "declaration_paths": [],
+          "relationships": [],
+          "unresolved_boundaries": [],
+          "path_encoding": "filesystem-bytes-hex",
+          "line_correspondences": [
+            {
+              "base_path": "6170692e706870",
+              "head_path": "6170692e706870",
+              "base_start_line": 1,
+              "base_end_line": 1,
+              "head_start_line": 1
+            },
+            {
+              "base_path": "6170692e706870",
+              "head_path": "6170692e706870",
+              "base_start_line": 2,
+              "base_end_line": 2,
+              "head_start_line": 2
+            },
+            {
+              "base_path": "6170692e706870",
+              "head_path": "6170692e706870",
+              "base_start_line": 3,
+              "base_end_line": 3,
+              "head_start_line": 3
+            },
+            {
+              "base_path": "6170692e706870",
+              "head_path": "6170692e706870",
+              "base_start_line": 5,
+              "base_end_line": 5,
+              "head_start_line": 4
+            },
+            {
+              "base_path": "6170692e706870",
+              "head_path": "6170692e706870",
+              "base_start_line": 6,
+              "base_end_line": 6,
+              "head_start_line": 5
+            }
+          ]
+        },
+        "result": {
+          "findings": [
+            {
+              "site": "helper.php:2:helper",
+              "family": "injection",
+              "rung": "model_entailed",
+              "witness": "$req -> eval($value) in helper.php (line 2, 4 steps)",
+              "contradiction": "",
+              "reached_from": 1
+            }
+          ],
+          "by_rung": {
+            "suspicion": 0,
+            "model_corroborated": 0,
+            "model_entailed": 1,
+            "execution_confirmed": 0
+          },
+          "regions_scanned": 1,
+          "regions_unjudged": 0,
+          "regions_unasked": 0,
+          "model_calls": 0,
+          "cost_usd": 0.0,
+          "seconds": 117.3,
+          "build_seconds": 51.92,
+          "query_seconds": 33.47,
+          "query_seconds_by_kind": {
+            "evidence": 31.85,
+            "taint": 33.47
+          },
+          "degradations": [],
+          "tiers": [
+            [
+              "api.php",
+              "handler",
+              "injection",
+              4
+            ]
+          ],
+          "tier_counts": {
+            "4": 1
+          },
+          "requests_pruned": 0,
+          "partitions": [
+            {
+              "language": "php",
+              "frontend": "php",
+              "paths": [
+                "api.php",
+                "helper.php"
+              ],
+              "source_bytes": 124,
+              "status": "built",
+              "boundaries": [],
+              "runtime": "unspecified",
+              "excluded_paths": [],
+              "unshipped_paths": []
+            }
+          ],
+          "change_context": {
+            "base_revision": "a6b5ebf9bc3dbee298a268678f0cb48976d2c7ae",
+            "head_revision": "639e3754323993d0d9938882c1dcf85ed19d30cd",
+            "changed_paths": [
+              "6170692e706870"
+            ],
+            "deleted_paths": [],
+            "spans": [
+              {
+                "path": "6170692e706870",
+                "start_line": 4,
+                "end_line": 4,
+                "side": "base"
+              }
+            ],
+            "renames": [],
+            "declaration_paths": [],
+            "relationships": [
+              {
+                "source": {
+                  "unit": "context-smoke",
+                  "language": "php",
+                  "path": "api.php",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "target": {
+                  "unit": "context-smoke",
+                  "language": "php",
+                  "path": "api.php",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "kind": "entry",
+                "evidence": [
+                  "base_span:api.php:4-4",
+                  "unchanged_line:3;lexical_only",
+                  "unchanged_line:4;lexical_only",
+                  "unchanged_line:5;lexical_only"
+                ]
+              }
+            ],
+            "unresolved_boundaries": [],
+            "path_encoding": "filesystem-bytes-hex",
+            "line_correspondences": [
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 1,
+                "base_end_line": 1,
+                "head_start_line": 1
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 2,
+                "base_end_line": 2,
+                "head_start_line": 2
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 3,
+                "base_end_line": 3,
+                "head_start_line": 3
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 5,
+                "base_end_line": 5,
+                "head_start_line": 4
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 6,
+                "base_end_line": 6,
+                "head_start_line": 5
+              }
+            ]
+          },
+          "scope": {
+            "ranker_version": "existing-static-evidence-v1",
+            "ranking_mode": "evidence",
+            "population_complete": true,
+            "selected": [
+              {
+                "identity": {
+                  "unit": "context-smoke",
+                  "language": "php",
+                  "path": "api.php",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "priority": 0.0,
+                "evidence": [
+                  "static_rank=1.0",
+                  "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval($value)\",\"line\":2,\"method\":\"helper\"}],\"source_local\":false,\"source_near\":false}",
+                  "tier=4",
+                  "score=2.5",
+                  "change_sites={\"base_revision\":\"a6b5ebf9bc3dbee298a268678f0cb48976d2c7ae\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"639e3754323993d0d9938882c1dcf85ed19d30cd\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                  "affected_relationship={\"evidence\":[\"base_span:api.php:4-4\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"context-smoke\"},\"target\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"context-smoke\"}}"
+                ],
+                "tier": 4,
+                "score": 2.5
+              }
+            ],
+            "deferred": [],
+            "unresolved_boundaries": []
+          },
+          "question_outcomes": [
+            {
+              "identity": {
+                "unit": "context-smoke",
+                "language": "php",
+                "path": "api.php",
+                "function": "handler",
+                "family": "injection"
+              },
+              "status": "completed",
+              "reason": "query_answered_and_arbitrated",
+              "raw_rows_json": "[{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":4,\"paths\":1,\"sanitized\":false,\"sink\":\"eval($value)\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"helper.php\",\"sinkLine\":\"2\",\"sinkMethod\":\"helper\",\"source\":\"$req\",\"sourceKind\":\"parameter\"}]"
+            }
+          ],
+          "family_coverage": [
+            {
+              "unit": "context-smoke",
+              "language": "php",
+              "family": "injection",
+              "selected": 1,
+              "completed": 1,
+              "unanswered": 0,
+              "deferred": 0,
+              "unsupported": 0
+            }
+          ]
+        }
+      },
+      "javascript": {
+        "base_revision": "14e9c2e283b5582031844e8aa119226d28e4b90a",
+        "head_revision": "0dab75fe2b6096f66b50eae27db92490f36e7443",
+        "source_bytes": 133,
+        "source_sha256": "ee6b40b0c84f84cda86b2f5d7d118f39504bc7237450d30e5c189f6b3517c965",
+        "helper_bytes": 47,
+        "helper_sha256": "173055ccb4d1b0cb76378bcb674ac9944bad02f848bf20139923775b57e7634d",
+        "input_context": {
+          "base_revision": "14e9c2e283b5582031844e8aa119226d28e4b90a",
+          "head_revision": "0dab75fe2b6096f66b50eae27db92490f36e7443",
+          "changed_paths": [
+            "6170692e6a73"
+          ],
+          "deleted_paths": [],
+          "spans": [
+            {
+              "path": "6170692e6a73",
+              "start_line": 3,
+              "end_line": 3,
+              "side": "base"
+            }
+          ],
+          "renames": [],
+          "declaration_paths": [],
+          "relationships": [],
+          "unresolved_boundaries": [],
+          "path_encoding": "filesystem-bytes-hex",
+          "line_correspondences": [
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 1,
+              "base_end_line": 1,
+              "head_start_line": 1
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 2,
+              "base_end_line": 2,
+              "head_start_line": 2
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 4,
+              "base_end_line": 4,
+              "head_start_line": 3
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 5,
+              "base_end_line": 5,
+              "head_start_line": 4
+            }
+          ]
+        },
+        "result": {
+          "findings": [
+            {
+              "site": "helper.js:1:helper",
+              "family": "injection",
+              "rung": "model_entailed",
+              "witness": "req -> eval(value) in helper.js (line 1, 4 steps)",
+              "contradiction": "",
+              "reached_from": 1
+            }
+          ],
+          "by_rung": {
+            "suspicion": 0,
+            "model_corroborated": 0,
+            "model_entailed": 1,
+            "execution_confirmed": 0
+          },
+          "regions_scanned": 1,
+          "regions_unjudged": 0,
+          "regions_unasked": 0,
+          "model_calls": 0,
+          "cost_usd": 0.0,
+          "seconds": 95.9,
+          "build_seconds": 29.66,
+          "query_seconds": 28.09,
+          "query_seconds_by_kind": {
+            "evidence": 38.12,
+            "taint": 28.09
+          },
+          "degradations": [],
+          "tiers": [
+            [
+              "api.js",
+              "handler",
+              "injection",
+              4
+            ]
+          ],
+          "tier_counts": {
+            "4": 1
+          },
+          "requests_pruned": 0,
+          "partitions": [
+            {
+              "language": "javascript",
+              "frontend": "javascript",
+              "paths": [
+                "api.js",
+                "helper.js"
+              ],
+              "source_bytes": 133,
+              "status": "built",
+              "boundaries": [
+                "runtime_unspecified"
+              ],
+              "runtime": "unspecified",
+              "excluded_paths": [],
+              "unshipped_paths": []
+            }
+          ],
+          "change_context": {
+            "base_revision": "14e9c2e283b5582031844e8aa119226d28e4b90a",
+            "head_revision": "0dab75fe2b6096f66b50eae27db92490f36e7443",
+            "changed_paths": [
+              "6170692e6a73"
+            ],
+            "deleted_paths": [],
+            "spans": [
+              {
+                "path": "6170692e6a73",
+                "start_line": 3,
+                "end_line": 3,
+                "side": "base"
+              }
+            ],
+            "renames": [],
+            "declaration_paths": [],
+            "relationships": [
+              {
+                "source": {
+                  "unit": "context-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "target": {
+                  "unit": "context-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "kind": "entry",
+                "evidence": [
+                  "base_span:api.js:3-3",
+                  "unchanged_line:2;lexical_only",
+                  "unchanged_line:3;lexical_only",
+                  "unchanged_line:4;lexical_only"
+                ]
+              }
+            ],
+            "unresolved_boundaries": [],
+            "path_encoding": "filesystem-bytes-hex",
+            "line_correspondences": [
+              {
+                "base_path": "6170692e6a73",
+                "head_path": "6170692e6a73",
+                "base_start_line": 1,
+                "base_end_line": 1,
+                "head_start_line": 1
+              },
+              {
+                "base_path": "6170692e6a73",
+                "head_path": "6170692e6a73",
+                "base_start_line": 2,
+                "base_end_line": 2,
+                "head_start_line": 2
+              },
+              {
+                "base_path": "6170692e6a73",
+                "head_path": "6170692e6a73",
+                "base_start_line": 4,
+                "base_end_line": 4,
+                "head_start_line": 3
+              },
+              {
+                "base_path": "6170692e6a73",
+                "head_path": "6170692e6a73",
+                "base_start_line": 5,
+                "base_end_line": 5,
+                "head_start_line": 4
+              }
+            ]
+          },
+          "scope": {
+            "ranker_version": "existing-static-evidence-v1",
+            "ranking_mode": "evidence",
+            "population_complete": true,
+            "selected": [
+              {
+                "identity": {
+                  "unit": "context-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "priority": 0.0,
+                "evidence": [
+                  "static_rank=1.0",
+                  "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval(value)\",\"line\":1,\"method\":\"helper\"}],\"source_local\":false,\"source_near\":false}",
+                  "tier=4",
+                  "score=2.5",
+                  "change_sites={\"base_revision\":\"14e9c2e283b5582031844e8aa119226d28e4b90a\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"0dab75fe2b6096f66b50eae27db92490f36e7443\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                  "affected_relationship={\"evidence\":[\"base_span:api.js:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-smoke\"},\"target\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-smoke\"}}"
+                ],
+                "tier": 4,
+                "score": 2.5
+              }
+            ],
+            "deferred": [],
+            "unresolved_boundaries": []
+          },
+          "question_outcomes": [
+            {
+              "identity": {
+                "unit": "context-smoke",
+                "language": "javascript",
+                "path": "api.js",
+                "function": "handler",
+                "family": "injection"
+              },
+              "status": "completed",
+              "reason": "query_answered_and_arbitrated",
+              "raw_rows_json": "[{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":4,\"paths\":1,\"sanitized\":false,\"sink\":\"eval(value)\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"helper.js\",\"sinkLine\":\"1\",\"sinkMethod\":\"helper\",\"source\":\"req\",\"sourceKind\":\"parameter\"}]"
+            }
+          ],
+          "family_coverage": [
+            {
+              "unit": "context-smoke",
+              "language": "javascript",
+              "family": "injection",
+              "selected": 1,
+              "completed": 1,
+              "unanswered": 0,
+              "deferred": 0,
+              "unsupported": 0
+            }
+          ]
+        }
+      }
+    }
+  },
+  "python_census_runtime": {
+    "purpose": "Real Python batch schema and query compilation; no security property admission claim",
+    "source_bytes": 37,
+    "source_sha256": "a1d637400a93a180d8fc1fc3a174ff5205cbc83fb0877ce68fcd28f25b9e5d88",
+    "shared_budget_seconds": 600,
+    "censuses": {
+      "taint": [
+        {
+          "methods": "3",
+          "files": "2",
+          "file_names": [
+            "probe.py",
+            "N/A"
+          ]
+        }
+      ],
+      "dominance": [
+        {
+          "methods": "3",
+          "files": "2",
+          "file_names": [
+            "probe.py",
+            "N/A"
+          ]
+        }
+      ],
+      "config": [
+        {
+          "methods": "3",
+          "files": "2",
+          "file_names": [
+            "probe.py",
+            "N/A"
+          ]
+        }
+      ]
+    }
+  },
+  "python_census_provenance": {
+    "image_id": "sha256:73d312065b9b47a2a50f94deb76b038150acd5db1dfb3ba2525a3e4a70106c31",
+    "query_hashes": {
+      "cpg/queries/taint.sc": "dbc8e7c60463dc4b68db8e15537d2fafb7d429597a0c9789f4b95b0cfb0e14bb",
+      "cpg/queries/dominance.sc": "0623d84ee35d6dc06f577ebfc0bcfaa591dafe0287515b16c7d6b5c9a29ac290",
+      "cpg/queries/config.sc": "f0cd5519a6a246d4159d1141353c1a85a82b610c8c717f43132bc52d24818b0b"
+    },
+    "query_sources_match_final": true,
+    "scope": "Python direct query path; unchanged Scala census scripts, before separate PHP aggregation and discovery-error repairs."
+  },
+  "permission_regression": {
+    "purpose": "Real filesystem permission/error-path check; graph callback is a synthetic control, not engine validation",
+    "source_bytes_read": [
+      42
+    ],
+    "unreadable_open_refused": true,
+    "outcome": "unresolved",
+    "boundaries": [
+      "population_not_asserted_complete",
+      "evidence_unknown:cb309657f3abedd2dc5989df224b8121797e6bfa57dd2e24b1e5f4a33b156f18",
+      "source_unreadable"
+    ]
+  },
+  "review_repairs": {
+    "unreadable_discovery_red": "F                                                                        [100%]\n=================================== FAILURES ===================================\n____ test_unreadable_unknown_extension_reports_incomplete_without_crashing _____\n\ntmp_path = PosixPath('/tmp/pytest-of-mc/pytest-1535/test_unreadable_unknown_extens0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7eae6eb96510>\n\n    def test_unreadable_unknown_extension_reports_incomplete_without_crashing(tmp_path, monkeypatch):\n        from openultrasast.model import partitions\n    \n        (tmp_path / \"app.js\").write_bytes(b\"function handler(value) { return value; }\\n\")\n        (tmp_path / \"README.md\").write_bytes(b\"unreadable declaration candidate\\n\")\n        original_open = partitions.os.open\n    \n        def unreadable_open(path, flags, *args, **kwargs):\n            if str(path) == \"README.md\":\n                raise PermissionError(\"controlled unreadable discovery input\")\n            return original_open(path, flags, *args, **kwargs)\n    \n        monkeypatch.setattr(partitions.os, \"open\", unreadable_open)\n    \n        class Backend:\n            def build(self, root, **kwargs):\n                assert (root / \"app.js\").read_bytes()\n                return CpgResult(Path(\"graph\"), lambda query, params: [])\n    \n        region = ScanRegion(\"app.js\", \"handler\", \"javascript\", (\"injection\",), 1.0, \"entry_point\")\n>       result = scan_repository(tmp_path, [region], backend=Backend(), budget=ScanBudget(tiering=False))\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\ntests/test_model_partitions.py:242: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \nsrc/openultrasast/model/scan.py:172: in scan_repository\n    result = _scan_repository_impl(\nsrc/openultrasast/model/scan.py:234: in _scan_repository_impl\n    cpg = build_partitions(\nsrc/openultrasast/model/partitions.py:184: in build_partitions\n    fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory_fd)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npath = 'README.md', flags = 133120, args = (), kwargs = {'dir_fd': 13}\n\n    def unreadable_open(path, flags, *args, **kwargs):\n        if str(path) == \"README.md\":\n>           raise PermissionError(\"controlled unreadable discovery input\")\nE           PermissionError: controlled unreadable discovery input\n\ntests/test_model_partitions.py:231: PermissionError\n=========================== short test summary info ============================\nFAILED tests/test_model_partitions.py::test_unreadable_unknown_extension_reports_incomplete_without_crashing\n1 failed, 13 deselected in 0.43s\n",
+    "census_transport_red": "FF...                                                                    [100%]\n=================================== FAILURES ===================================\n_____ test_shard_aggregation_preserves_complete_named_census[shard_names0] _____\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76f7e2cbe990>\nshard_names = ('app.php',)\n\n    @pytest.mark.parametrize(\"shard_names\", [(\"app.php\",), (\"app.php\", \"helper.php\")])\n    def test_shard_aggregation_preserves_complete_named_census(monkeypatch, shard_names):\n        from openultrasast.cpg.backend import JoernBackend\n    \n        def batch(self, path, query, requests):\n            return {\"__census__\": [{\"methods\": \"2\", \"files\": \"2\", \"file_names\": [\"<unknown>\", path.name]}]}\n    \n        monkeypatch.setattr(JoernBackend, \"query_batch\", batch)\n        result = JoernBackend().query_batch_across([Path(name) for name in shard_names], \"taint\", {})\n        assert result is not None\n>       assert set(result[\"__census__\"][0][\"file_names\"]) == {\"<unknown>\", *shard_names}\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       KeyError: 'file_names'\n\ntests/test_cpg_backend.py:969: KeyError\n_____ test_shard_aggregation_preserves_complete_named_census[shard_names1] _____\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76f7e2c938d0>\nshard_names = ('app.php', 'helper.php')\n\n    @pytest.mark.parametrize(\"shard_names\", [(\"app.php\",), (\"app.php\", \"helper.php\")])\n    def test_shard_aggregation_preserves_complete_named_census(monkeypatch, shard_names):\n        from openultrasast.cpg.backend import JoernBackend\n    \n        def batch(self, path, query, requests):\n            return {\"__census__\": [{\"methods\": \"2\", \"files\": \"2\", \"file_names\": [\"<unknown>\", path.name]}]}\n    \n        monkeypatch.setattr(JoernBackend, \"query_batch\", batch)\n        result = JoernBackend().query_batch_across([Path(name) for name in shard_names], \"taint\", {})\n        assert result is not None\n>       assert set(result[\"__census__\"][0][\"file_names\"]) == {\"<unknown>\", *shard_names}\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       KeyError: 'file_names'\n\ntests/test_cpg_backend.py:969: KeyError\n=========================== short test summary info ============================\nFAILED tests/test_cpg_backend.py::test_shard_aggregation_preserves_complete_named_census[shard_names0]\nFAILED tests/test_cpg_backend.py::test_shard_aggregation_preserves_complete_named_census[shard_names1]\n2 failed, 3 passed, 41 deselected in 0.33s\n",
+    "prior_transport_symptom": [
+      {
+        "stage": "model",
+        "reason": "cpg_empty"
+      },
+      {
+        "stage": "model",
+        "reason": "cpg_empty",
+        "files": 0
+      },
+      {
+        "stage": "model",
+        "reason": "partition_file_census_unavailable"
+      }
+    ]
+  },
+  "pytest": {
+    "passed": 1151,
+    "skipped": 9,
+    "seconds": 100.55,
+    "exit_code": 0
+  },
+  "static_checks": "Ruff,format230,mypy109,diffcheck pass",
+  "regression_gates": "detection44/47 FP0/44; split-sink map PASS; localpairs3/3 labeled28/28 fixleaks0",
+  "limits": [
+    "Declared entry regions; not automatic mapper discovery or admission proof.",
+    "Vendor and cross-partition semantics remain conservatively unresolved.",
+    "Runtime origin unspecified without declarations; TypeScript property and C bounds claims not admitted.",
+    "Lab budget and timings do not establish pre-push latency; no persistent graph reuse implemented."
+  ]
+}
