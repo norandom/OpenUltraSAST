@@ -90,3 +90,39 @@ This manually declared entry-region smoke does not validate mapper discovery,
 PMPro/NodeGoat replay, capability admission or hook latency.
 
 Nine of 27 tasks are now complete; tasks 3.3–3.4 remain for this group.
+
+## Task 3.3 evidence
+
+Independent review APPROVED after one required repair; verification status VERIFIED,
+claim type TASK. The fresh reviewer suite passed 1,128 tests, nine skipped, in
+105.95 seconds. Global Ruff, formatting (224 files), mypy (108 source files) and
+diff checks passed. The context suite contains 23 focused cases.
+
+The generic driver accepts `change_context` and retains its enriched form. Existing
+taint evidence optionally projects full first-party method paths/ranges for entry,
+callee, same-file field, known hook and sanitizer context. Decoded snapshot changes
+and lexical anchors attach to exact questions without changing ranking weights or
+introducing another scope selector. Missing base, locations, empty projections,
+dynamic/external/depth dependencies and unsupported configuration/deleted-dependency
+projections remain explicit gaps. Missing context prevents tier-zero pruning and
+complete-negative outcomes; raw answers remain available.
+
+Review found that broad source/sink/sanitizer text matching could mistakenly exempt
+an unknown consumer such as `unknown(req.body)` from missing-context reporting.
+The production-query regression reproduced exit 1 with that question incorrectly
+pruned as tier zero. The task-local repair restricts the exemption to directly
+invoked fact-modeled operations. Existing detector matchers are unchanged. After
+repair, consumers of a source, nested sink and sanitizer name all remain unresolved;
+a direct modeled sink completes, and the direct sanitizer retains tier zero without
+a false context gap.
+
+`benchmarks/measurements/2026-09-13-change-context-smoke.json` retains the final image
+and matching backend/driver/regions/snapshot/query hashes, plus both runtime checks.
+Real Git histories remove a caller guard while keeping helper code unchanged. PHP
+reads 124 source bytes and reaches `helper.php:2:helper` in 63.48 seconds; JavaScript
+reads 133 bytes and reaches `helper.js:1:helper` through an ES-module import in
+39.63 seconds. Both preserve the dirty checkout/index and remove snapshot scratch.
+These are controlled change-to-question/witness checks, not proof that the removed
+line enforced security, that the defect is new, or that a hook meets its latency bar.
+
+Ten of 27 tasks are now complete; task 3.4 remains for this group.

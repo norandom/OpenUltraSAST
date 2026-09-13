@@ -95,7 +95,8 @@
       evidenceS: String,
       fileS: String,
       depthS: String,
-      boundedS: String
+      boundedS: String,
+      contextS: String = ""
   ): List[ujson.Obj] = {
 
   // Word-boundary matching, never substring. `resolveUrl` contains `resolve`, so a bare-substring sanitizer
@@ -692,7 +693,51 @@
         "cleansedOnCall"  -> sink.argument.ast.l.exists(node => sanitizesHere(node))
       )
     }
-    return summary :: perSink
+    // Export locations already used by this query, for change attribution only. No new
+    // source/sink/guard inference and no change to the evidence vector or its weights.
+    val contextRows = if (contextS != "true") Nil else {
+      def location(m: io.shiftleft.codepropertygraph.generated.nodes.Method, kind: String): ujson.Obj =
+        ujson.Obj("kind" -> "context_method", "path" -> m.filename, "function" -> m.name,
+          "startLine" -> m.lineNumber.getOrElse(-1), "endLine" -> m.lineNumberEnd.getOrElse(-1),
+          "relationship" -> kind)
+      val scoped = cpg.method.filterNot(_.isExternal).filter(m => inScope(m)).l
+      val methods = scoped.map(m => location(m, if (labeledMethods.exists(_.id == m.id)) "entry" else "callee"))
+      // Field carrying is deliberately same-file in the existing abstraction. Retain
+      // its file context conservatively, never claim every method carries the value.
+      val fieldFiles = if (fieldCarriedKind.isEmpty) Set.empty[String] else
+        cpg.call.nameExact(FIELD_ACCESS).filter(c => inScope(c.method)).l.map(_.method.filename).toSet
+      val fields = fieldFiles.toList.flatMap(f => methodsIn(f).filterNot(_.isExternal).map(m => location(m, "field")))
+      val callbacks = if (hookApply.isEmpty) Nil else cpg.call.filter(c => hookApply.contains(c.name))
+        .filter(c => inScope(c.method)).l.flatMap { call =>
+          val hook = call.argument.l.headOption.map(a => unquote(a.code)).getOrElse("")
+          hookTable.getOrElse(hook, Nil).flatMap(name => cpg.method.nameExact(name).filterNot(_.isExternal).l)
+        }.distinct
+      val hooks = callbacks.map(m => location(m, "hook"))
+      // Export sanitizer locations as guard context, not proof of discharge. Removed
+      // guards are retained through base spans and unchanged-line correspondence.
+      val guards = scoped.filter(_.ast.l.exists(sanitizesHere)).map(m => location(m, "guard"))
+      // Reachability remains bounded. External/dynamic calls and calls outside the
+      // current reachability set cannot establish a complete negative for a change.
+      // A modeled argument does not summarize its consumer: unknown(req.body),
+      // unknown(eval(...)) and unknown("escape") all retain an external boundary.
+      // Only the directly invoked fact-named operation can use this exemption.
+      def directlyModeled(c: io.shiftleft.codepropertygraph.generated.nodes.Call): Boolean =
+        (sinkNames ++ sanitizerNames ++ sourcePatterns).exists { raw =>
+          val name = raw.stripSuffix("(")
+          c.name == name || c.code.startsWith(name + "(")
+        }
+      val missing = scoped.exists(m => m.ast.isCall.l.exists { c =>
+        !c.name.startsWith("<operator>") && !directlyModeled(c) && {
+          val destinations = c.callee.l
+          destinations.isEmpty || destinations.exists(d => d.isExternal || !inScope(d))
+        }
+      })
+      val boundaries = if (scoped.isEmpty) List(ujson.Obj("kind" -> "context_boundary",
+        "reason" -> "context_scope_empty:contributor-scan")) else if (missing) List(ujson.Obj("kind" -> "context_boundary",
+        "reason" -> "dynamic_external_or_depth_context_unresolved:contributor-scan")) else Nil
+      ujson.Obj("kind" -> "context_summary") :: (methods ++ fields ++ hooks ++ guards ++ boundaries)
+    }
+    return summary :: (perSink ++ contextRows)
   }
 
   val rows = sinkCalls.l.flatMap { sink =>
@@ -797,7 +842,8 @@
           evidence,
           field("file"),
           field("callDepth"),
-          field("boundedSinks")
+          field("boundedSinks"),
+          field("contextEvidence")
         ): _*
       )
     }

@@ -18,9 +18,12 @@ Two restraints are deliberate:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import time
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
+from pathlib import Path
 
+from .contracts import AffectedRelationship, ChangeContext, ExecutionBudget, QuestionIdentity
 from .specs import config_specs, dominance_specs, taint_specs
 
 # From `mapping.AccessLevel`. A publicly reachable handler at a trust boundary is where a missing check costs
@@ -174,3 +177,80 @@ def _families(language: str, *, has_handler: bool) -> tuple[str, ...]:
     if has_handler:
         families |= set(dominance_specs(language=language))
     return tuple(sorted(families))
+
+
+def affected_context(
+    context: ChangeContext,
+    questions: Sequence[QuestionIdentity],
+    rows_by_question: Mapping[QuestionIdentity, Sequence[Mapping[str, object]]],
+    root: Path,
+    execution_budget: ExecutionBudget | None = None,
+) -> tuple[ChangeContext, set[QuestionIdentity]]:
+    """Attach existing graph locations to changes; never select or reprioritize a question.
+
+    Base spans are file-level hints unless an unchanged line anchors them in the head.
+    A method relationship is context, not proof of taint, guard removal or novelty.
+    """
+
+    relationships = list(context.relationships)
+    gaps = list(context.unresolved_boundaries)
+    affected_gaps: set[QuestionIdentity] = set()
+    changed = {context.decode_path(p) for p in context.changed_paths}
+    if context.deleted_paths:
+        gaps.append("deleted_dependency_projection_unavailable:contributor-scan")
+    if changed.intersection(context.decode_path(p) for p in context.declaration_paths):
+        gaps.append("configuration_dependency_projection_unavailable:contributor-scan")
+    if context.base_revision is None:
+        gaps.append("comparison_base_unavailable")
+    inherited_gap = bool(gaps)
+    renamed = {context.decode_path(r.base_path): context.decode_path(r.head_path) for r in context.renames}
+    for identity in questions:
+        if execution_budget is not None and time.monotonic() >= execution_budget.deadline_monotonic:
+            gaps.append("change_context_deadline_exhausted")
+            affected_gaps.update(questions)
+            break
+        rows = rows_by_question.get(identity, ())
+        local_gaps = []
+        if not any(r.get("kind") == "context_summary" for r in rows):
+            local_gaps.append("context_projection_unavailable:contributor-scan")
+        elif not any(r.get("kind") == "context_method" for r in rows):
+            local_gaps.append("context_scope_empty:contributor-scan")
+        for row in rows:
+            if row.get("kind") == "context_boundary":
+                local_gaps.append(str(row.get("reason", "context_unresolved")))
+            if row.get("kind") != "context_method":
+                continue
+            path = Path(str(row.get("path", "")))
+            try:
+                absolute = path if path.is_absolute() else root / path
+                path_text = absolute.resolve().relative_to(root.resolve()).as_posix()
+                if not absolute.is_file():
+                    raise ValueError("missing context source")
+                start, end = int(str(row.get("startLine", 0))), int(str(row.get("endLine", 0)))
+                if start < 1 or end < start:
+                    raise ValueError("missing method extent")
+            except (ValueError, TypeError, OSError):
+                local_gaps.append("context_location_unavailable")
+                continue
+            evidence = []
+            for span in context.spans:
+                old_path = context.decode_path(span.path)
+                match_path = renamed.get(old_path, old_path) if span.side == "base" else old_path
+                if match_path != path_text:
+                    continue
+                if span.side == "base" or (span.start_line <= end and span.end_line >= start):
+                    evidence.append(f"{span.side}_span:{old_path}:{span.start_line}-{span.end_line}")
+            for anchor in context.line_correspondences:
+                if context.decode_path(anchor.head_path) == path_text and start <= anchor.head_start_line <= end:
+                    evidence.append(f"unchanged_line:{anchor.head_start_line};lexical_only")
+            if not evidence or path_text not in changed | set(renamed.values()):
+                continue
+            function = str(row.get("function", "")) or None
+            source = QuestionIdentity(identity.unit, identity.language, path_text, function, identity.family)
+            relation = AffectedRelationship(source, identity, str(row.get("relationship", "method")), tuple(evidence))
+            if relation not in relationships:
+                relationships.append(relation)
+        if local_gaps or inherited_gap:
+            affected_gaps.add(identity)
+        gaps.extend(reason + ":" + identity.question_id for reason in local_gaps)
+    return replace(context, relationships=tuple(relationships), unresolved_boundaries=tuple(dict.fromkeys(gaps))), affected_gaps

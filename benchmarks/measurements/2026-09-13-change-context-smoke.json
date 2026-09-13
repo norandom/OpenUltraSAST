@@ -1,0 +1,942 @@
+{
+  "recorded_at": "2026-09-13T08:40:22.821019+00:00",
+  "task": "3.3",
+  "image_id": "sha256:a30d41f7e0cde5d3c9b634889fef07f8c3aa089be176362f73645c3bda1e5953",
+  "build_exit_code": 0,
+  "cross_file_smoke_exit_code": 0,
+  "negative_regression_exit_code": 0,
+  "packaged_source_hashes": {
+    "openultrasast.cpg.backend": "2e327d26958efd592932bbe5a84aa122d969c0e49a1c13469a4d956b621a9a34",
+    "openultrasast.model.scan": "c803fa05a9f190b66df194616ed327043a592883c9f746a902768c89b253d36f",
+    "openultrasast.model.regions": "1ecafa9080ac537383d91d02147f204eadc72c5241618f357ed30c5a5ff79cc1",
+    "openultrasast.push.snapshot": "c6891f6de9221f63e534372c3009190d227172ca0b006bfb68bb6cffd7bf38f3",
+    "taint.sc": "d09b5608870571c57b5ec82b9e886943ad6df0fd2510a7c56cec4bcaa352d116"
+  },
+  "packaged_sources_match_workspace": true,
+  "supporting_script_hashes": {
+    "ops/smoke_context.py": "4d515258c01e44e2a30ee71f8de8de2df06c88dac2e0ded6f2904f7682e347d9",
+    "ops/smoke_context_boundaries.py": "35cc2cabbfbdfe843c3f82c776efe43dfd0db8418eda4ce6e045bd3269d4cb6e"
+  },
+  "cross_file_runtime": {
+    "purpose": "Committed removed-guard context reaches real ranked questions; not semantic novelty or admission proof",
+    "shared_budget_seconds": 900,
+    "languages": {
+      "php": {
+        "base_revision": "3d894f361e33b1801a770addb7e068f69dab7ee4",
+        "head_revision": "c6dee5e55aef86153a52e27835d51f8675eda0c8",
+        "source_bytes": 124,
+        "source_sha256": "e41333ddd3e341d08603a5cc6a3a9faedb442e6ef3b14627cd00516cdf12cedb",
+        "helper_bytes": 48,
+        "helper_sha256": "4eb14937fd2b027cc11bd5a79c5de38f572d9a5af8ee36a46d4a0e499817ae76",
+        "input_context": {
+          "base_revision": "3d894f361e33b1801a770addb7e068f69dab7ee4",
+          "head_revision": "c6dee5e55aef86153a52e27835d51f8675eda0c8",
+          "changed_paths": [
+            "6170692e706870"
+          ],
+          "deleted_paths": [],
+          "spans": [
+            {
+              "path": "6170692e706870",
+              "start_line": 4,
+              "end_line": 4,
+              "side": "base"
+            }
+          ],
+          "renames": [],
+          "declaration_paths": [],
+          "relationships": [],
+          "unresolved_boundaries": [],
+          "path_encoding": "filesystem-bytes-hex",
+          "line_correspondences": [
+            {
+              "base_path": "6170692e706870",
+              "head_path": "6170692e706870",
+              "base_start_line": 1,
+              "base_end_line": 1,
+              "head_start_line": 1
+            },
+            {
+              "base_path": "6170692e706870",
+              "head_path": "6170692e706870",
+              "base_start_line": 2,
+              "base_end_line": 2,
+              "head_start_line": 2
+            },
+            {
+              "base_path": "6170692e706870",
+              "head_path": "6170692e706870",
+              "base_start_line": 3,
+              "base_end_line": 3,
+              "head_start_line": 3
+            },
+            {
+              "base_path": "6170692e706870",
+              "head_path": "6170692e706870",
+              "base_start_line": 5,
+              "base_end_line": 5,
+              "head_start_line": 4
+            },
+            {
+              "base_path": "6170692e706870",
+              "head_path": "6170692e706870",
+              "base_start_line": 6,
+              "base_end_line": 6,
+              "head_start_line": 5
+            }
+          ]
+        },
+        "result": {
+          "findings": [
+            {
+              "site": "helper.php:2:helper",
+              "family": "injection",
+              "rung": "model_entailed",
+              "witness": "$req -> eval($value) in helper.php (line 2, 4 steps)",
+              "contradiction": "",
+              "reached_from": 1
+            }
+          ],
+          "by_rung": {
+            "suspicion": 0,
+            "model_corroborated": 0,
+            "model_entailed": 1,
+            "execution_confirmed": 0
+          },
+          "regions_scanned": 1,
+          "regions_unjudged": 0,
+          "regions_unasked": 0,
+          "model_calls": 0,
+          "cost_usd": 0.0,
+          "seconds": 63.48,
+          "build_seconds": 28.21,
+          "query_seconds": 18.0,
+          "query_seconds_by_kind": {
+            "evidence": 17.21,
+            "taint": 18.0
+          },
+          "degradations": [],
+          "tiers": [
+            [
+              "api.php",
+              "handler",
+              "injection",
+              4
+            ]
+          ],
+          "tier_counts": {
+            "4": 1
+          },
+          "requests_pruned": 0,
+          "change_context": {
+            "base_revision": "3d894f361e33b1801a770addb7e068f69dab7ee4",
+            "head_revision": "c6dee5e55aef86153a52e27835d51f8675eda0c8",
+            "changed_paths": [
+              "6170692e706870"
+            ],
+            "deleted_paths": [],
+            "spans": [
+              {
+                "path": "6170692e706870",
+                "start_line": 4,
+                "end_line": 4,
+                "side": "base"
+              }
+            ],
+            "renames": [],
+            "declaration_paths": [],
+            "relationships": [
+              {
+                "source": {
+                  "unit": "context-smoke",
+                  "language": "php",
+                  "path": "api.php",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "target": {
+                  "unit": "context-smoke",
+                  "language": "php",
+                  "path": "api.php",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "kind": "entry",
+                "evidence": [
+                  "base_span:api.php:4-4",
+                  "unchanged_line:3;lexical_only",
+                  "unchanged_line:4;lexical_only",
+                  "unchanged_line:5;lexical_only"
+                ]
+              }
+            ],
+            "unresolved_boundaries": [],
+            "path_encoding": "filesystem-bytes-hex",
+            "line_correspondences": [
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 1,
+                "base_end_line": 1,
+                "head_start_line": 1
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 2,
+                "base_end_line": 2,
+                "head_start_line": 2
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 3,
+                "base_end_line": 3,
+                "head_start_line": 3
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 5,
+                "base_end_line": 5,
+                "head_start_line": 4
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 6,
+                "base_end_line": 6,
+                "head_start_line": 5
+              }
+            ]
+          },
+          "scope": {
+            "ranker_version": "existing-static-evidence-v1",
+            "ranking_mode": "evidence",
+            "population_complete": true,
+            "selected": [
+              {
+                "identity": {
+                  "unit": "context-smoke",
+                  "language": "php",
+                  "path": "api.php",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "priority": 0.0,
+                "evidence": [
+                  "static_rank=1.0",
+                  "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval($value)\",\"line\":2,\"method\":\"helper\"}],\"source_local\":false,\"source_near\":false}",
+                  "tier=4",
+                  "score=2.5",
+                  "change_sites={\"base_revision\":\"3d894f361e33b1801a770addb7e068f69dab7ee4\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"c6dee5e55aef86153a52e27835d51f8675eda0c8\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                  "affected_relationship={\"evidence\":[\"base_span:api.php:4-4\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"context-smoke\"},\"target\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"context-smoke\"}}"
+                ],
+                "tier": 4,
+                "score": 2.5
+              }
+            ],
+            "deferred": [],
+            "unresolved_boundaries": []
+          },
+          "question_outcomes": [
+            {
+              "identity": {
+                "unit": "context-smoke",
+                "language": "php",
+                "path": "api.php",
+                "function": "handler",
+                "family": "injection"
+              },
+              "status": "completed",
+              "reason": "query_answered_and_arbitrated",
+              "raw_rows_json": "[{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":4,\"paths\":1,\"sanitized\":false,\"sink\":\"eval($value)\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"helper.php\",\"sinkLine\":\"2\",\"sinkMethod\":\"helper\",\"source\":\"$req\",\"sourceKind\":\"parameter\"}]"
+            }
+          ],
+          "family_coverage": [
+            {
+              "unit": "context-smoke",
+              "language": "php",
+              "family": "injection",
+              "selected": 1,
+              "completed": 1,
+              "unanswered": 0,
+              "deferred": 0,
+              "unsupported": 0
+            }
+          ]
+        }
+      },
+      "javascript": {
+        "base_revision": "2f8c5857f56009b1bf3cc7e56b3579fd87a90239",
+        "head_revision": "cbec42fd18a83f3a29943f7084760437fbe971f2",
+        "source_bytes": 133,
+        "source_sha256": "ee6b40b0c84f84cda86b2f5d7d118f39504bc7237450d30e5c189f6b3517c965",
+        "helper_bytes": 47,
+        "helper_sha256": "173055ccb4d1b0cb76378bcb674ac9944bad02f848bf20139923775b57e7634d",
+        "input_context": {
+          "base_revision": "2f8c5857f56009b1bf3cc7e56b3579fd87a90239",
+          "head_revision": "cbec42fd18a83f3a29943f7084760437fbe971f2",
+          "changed_paths": [
+            "6170692e6a73"
+          ],
+          "deleted_paths": [],
+          "spans": [
+            {
+              "path": "6170692e6a73",
+              "start_line": 3,
+              "end_line": 3,
+              "side": "base"
+            }
+          ],
+          "renames": [],
+          "declaration_paths": [],
+          "relationships": [],
+          "unresolved_boundaries": [],
+          "path_encoding": "filesystem-bytes-hex",
+          "line_correspondences": [
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 1,
+              "base_end_line": 1,
+              "head_start_line": 1
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 2,
+              "base_end_line": 2,
+              "head_start_line": 2
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 4,
+              "base_end_line": 4,
+              "head_start_line": 3
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 5,
+              "base_end_line": 5,
+              "head_start_line": 4
+            }
+          ]
+        },
+        "result": {
+          "findings": [
+            {
+              "site": "helper.js:1:helper",
+              "family": "injection",
+              "rung": "model_entailed",
+              "witness": "req -> eval(value) in helper.js (line 1, 4 steps)",
+              "contradiction": "",
+              "reached_from": 1
+            }
+          ],
+          "by_rung": {
+            "suspicion": 0,
+            "model_corroborated": 0,
+            "model_entailed": 1,
+            "execution_confirmed": 0
+          },
+          "regions_scanned": 1,
+          "regions_unjudged": 0,
+          "regions_unasked": 0,
+          "model_calls": 0,
+          "cost_usd": 0.0,
+          "seconds": 39.63,
+          "build_seconds": 5.76,
+          "query_seconds": 17.2,
+          "query_seconds_by_kind": {
+            "evidence": 16.65,
+            "taint": 17.2
+          },
+          "degradations": [],
+          "tiers": [
+            [
+              "api.js",
+              "handler",
+              "injection",
+              4
+            ]
+          ],
+          "tier_counts": {
+            "4": 1
+          },
+          "requests_pruned": 0,
+          "change_context": {
+            "base_revision": "2f8c5857f56009b1bf3cc7e56b3579fd87a90239",
+            "head_revision": "cbec42fd18a83f3a29943f7084760437fbe971f2",
+            "changed_paths": [
+              "6170692e6a73"
+            ],
+            "deleted_paths": [],
+            "spans": [
+              {
+                "path": "6170692e6a73",
+                "start_line": 3,
+                "end_line": 3,
+                "side": "base"
+              }
+            ],
+            "renames": [],
+            "declaration_paths": [],
+            "relationships": [
+              {
+                "source": {
+                  "unit": "context-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "target": {
+                  "unit": "context-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "kind": "entry",
+                "evidence": [
+                  "base_span:api.js:3-3",
+                  "unchanged_line:2;lexical_only",
+                  "unchanged_line:3;lexical_only",
+                  "unchanged_line:4;lexical_only"
+                ]
+              }
+            ],
+            "unresolved_boundaries": [],
+            "path_encoding": "filesystem-bytes-hex",
+            "line_correspondences": [
+              {
+                "base_path": "6170692e6a73",
+                "head_path": "6170692e6a73",
+                "base_start_line": 1,
+                "base_end_line": 1,
+                "head_start_line": 1
+              },
+              {
+                "base_path": "6170692e6a73",
+                "head_path": "6170692e6a73",
+                "base_start_line": 2,
+                "base_end_line": 2,
+                "head_start_line": 2
+              },
+              {
+                "base_path": "6170692e6a73",
+                "head_path": "6170692e6a73",
+                "base_start_line": 4,
+                "base_end_line": 4,
+                "head_start_line": 3
+              },
+              {
+                "base_path": "6170692e6a73",
+                "head_path": "6170692e6a73",
+                "base_start_line": 5,
+                "base_end_line": 5,
+                "head_start_line": 4
+              }
+            ]
+          },
+          "scope": {
+            "ranker_version": "existing-static-evidence-v1",
+            "ranking_mode": "evidence",
+            "population_complete": true,
+            "selected": [
+              {
+                "identity": {
+                  "unit": "context-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "priority": 0.0,
+                "evidence": [
+                  "static_rank=1.0",
+                  "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval(value)\",\"line\":1,\"method\":\"helper\"}],\"source_local\":false,\"source_near\":false}",
+                  "tier=4",
+                  "score=2.5",
+                  "change_sites={\"base_revision\":\"2f8c5857f56009b1bf3cc7e56b3579fd87a90239\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"cbec42fd18a83f3a29943f7084760437fbe971f2\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                  "affected_relationship={\"evidence\":[\"base_span:api.js:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-smoke\"},\"target\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-smoke\"}}"
+                ],
+                "tier": 4,
+                "score": 2.5
+              }
+            ],
+            "deferred": [],
+            "unresolved_boundaries": []
+          },
+          "question_outcomes": [
+            {
+              "identity": {
+                "unit": "context-smoke",
+                "language": "javascript",
+                "path": "api.js",
+                "function": "handler",
+                "family": "injection"
+              },
+              "status": "completed",
+              "reason": "query_answered_and_arbitrated",
+              "raw_rows_json": "[{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":4,\"paths\":1,\"sanitized\":false,\"sink\":\"eval(value)\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"helper.js\",\"sinkLine\":\"1\",\"sinkMethod\":\"helper\",\"source\":\"req\",\"sourceKind\":\"parameter\"}]"
+            }
+          ],
+          "family_coverage": [
+            {
+              "unit": "context-smoke",
+              "language": "javascript",
+              "family": "injection",
+              "selected": 1,
+              "completed": 1,
+              "unanswered": 0,
+              "deferred": 0,
+              "unsupported": 0
+            }
+          ]
+        }
+      }
+    }
+  },
+  "negative_runtime": {
+    "source_bytes": 255,
+    "source_sha256": "2460518ef54c6ae3a31007801a28fc75b0c374cdb579bfa31d3e425e48b6a9b4",
+    "result": {
+      "findings": [
+        {
+          "site": "api.js:2:unknownSink",
+          "family": "injection",
+          "rung": "model_entailed",
+          "witness": "eval(req.body) -> unknown(eval(req.body)) in api.js (line 2, 1 steps)",
+          "contradiction": "",
+          "reached_from": 1
+        },
+        {
+          "site": "api.js:4:knownSink",
+          "family": "injection",
+          "rung": "model_entailed",
+          "witness": "req.body -> eval(req.body) in api.js (line 4, 1 steps)",
+          "contradiction": "",
+          "reached_from": 1
+        }
+      ],
+      "by_rung": {
+        "suspicion": 0,
+        "model_corroborated": 0,
+        "model_entailed": 2,
+        "execution_confirmed": 0
+      },
+      "regions_scanned": 4,
+      "regions_unjudged": 1,
+      "regions_unasked": 0,
+      "model_calls": 0,
+      "cost_usd": 0.0,
+      "seconds": 58.88,
+      "build_seconds": 8.53,
+      "query_seconds": 24.91,
+      "query_seconds_by_kind": {
+        "evidence": 25.38,
+        "taint": 24.91
+      },
+      "degradations": [],
+      "tiers": [
+        [
+          "api.js",
+          "knownSanitizer",
+          "injection",
+          0
+        ],
+        [
+          "api.js",
+          "knownSink",
+          "injection",
+          4
+        ],
+        [
+          "api.js",
+          "unknownSanitizer",
+          "injection",
+          0
+        ],
+        [
+          "api.js",
+          "unknownSink",
+          "injection",
+          4
+        ],
+        [
+          "api.js",
+          "unknownSource",
+          "injection",
+          0
+        ]
+      ],
+      "tier_counts": {
+        "0": 3,
+        "4": 2
+      },
+      "requests_pruned": 1,
+      "change_context": {
+        "base_revision": "base",
+        "head_revision": "head",
+        "changed_paths": [
+          "api.js"
+        ],
+        "deleted_paths": [],
+        "spans": [
+          {
+            "path": "api.js",
+            "start_line": 1,
+            "end_line": 5,
+            "side": "head"
+          }
+        ],
+        "renames": [],
+        "declaration_paths": [],
+        "relationships": [
+          {
+            "source": {
+              "unit": "context-boundaries",
+              "language": "javascript",
+              "path": "api.js",
+              "function": "unknownSink",
+              "family": "injection"
+            },
+            "target": {
+              "unit": "context-boundaries",
+              "language": "javascript",
+              "path": "api.js",
+              "function": "unknownSink",
+              "family": "injection"
+            },
+            "kind": "entry",
+            "evidence": [
+              "head_span:api.js:1-5"
+            ]
+          },
+          {
+            "source": {
+              "unit": "context-boundaries",
+              "language": "javascript",
+              "path": "api.js",
+              "function": "knownSink",
+              "family": "injection"
+            },
+            "target": {
+              "unit": "context-boundaries",
+              "language": "javascript",
+              "path": "api.js",
+              "function": "knownSink",
+              "family": "injection"
+            },
+            "kind": "entry",
+            "evidence": [
+              "head_span:api.js:1-5"
+            ]
+          },
+          {
+            "source": {
+              "unit": "context-boundaries",
+              "language": "javascript",
+              "path": "api.js",
+              "function": "knownSanitizer",
+              "family": "injection"
+            },
+            "target": {
+              "unit": "context-boundaries",
+              "language": "javascript",
+              "path": "api.js",
+              "function": "knownSanitizer",
+              "family": "injection"
+            },
+            "kind": "entry",
+            "evidence": [
+              "head_span:api.js:1-5"
+            ]
+          },
+          {
+            "source": {
+              "unit": "context-boundaries",
+              "language": "javascript",
+              "path": "api.js",
+              "function": "knownSanitizer",
+              "family": "injection"
+            },
+            "target": {
+              "unit": "context-boundaries",
+              "language": "javascript",
+              "path": "api.js",
+              "function": "knownSanitizer",
+              "family": "injection"
+            },
+            "kind": "guard",
+            "evidence": [
+              "head_span:api.js:1-5"
+            ]
+          },
+          {
+            "source": {
+              "unit": "context-boundaries",
+              "language": "javascript",
+              "path": "api.js",
+              "function": "unknownSanitizer",
+              "family": "injection"
+            },
+            "target": {
+              "unit": "context-boundaries",
+              "language": "javascript",
+              "path": "api.js",
+              "function": "unknownSanitizer",
+              "family": "injection"
+            },
+            "kind": "entry",
+            "evidence": [
+              "head_span:api.js:1-5"
+            ]
+          },
+          {
+            "source": {
+              "unit": "context-boundaries",
+              "language": "javascript",
+              "path": "api.js",
+              "function": "unknownSanitizer",
+              "family": "injection"
+            },
+            "target": {
+              "unit": "context-boundaries",
+              "language": "javascript",
+              "path": "api.js",
+              "function": "unknownSanitizer",
+              "family": "injection"
+            },
+            "kind": "guard",
+            "evidence": [
+              "head_span:api.js:1-5"
+            ]
+          },
+          {
+            "source": {
+              "unit": "context-boundaries",
+              "language": "javascript",
+              "path": "api.js",
+              "function": "unknownSource",
+              "family": "injection"
+            },
+            "target": {
+              "unit": "context-boundaries",
+              "language": "javascript",
+              "path": "api.js",
+              "function": "unknownSource",
+              "family": "injection"
+            },
+            "kind": "entry",
+            "evidence": [
+              "head_span:api.js:1-5"
+            ]
+          }
+        ],
+        "unresolved_boundaries": [
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:71905af15166a20401cb2e53ffd500f3307c2a76da41017a64bc9ef47afce2e7",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:cb4c6cecef36f957c9646d31def81d962d9ff2d1d1455275a0a6e9b20b8ed0ea",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:460011e339d204cda534bca278ebc1936596121cec7924cc88a9c179c4d2c681"
+        ],
+        "path_encoding": "text",
+        "line_correspondences": []
+      },
+      "scope": {
+        "ranker_version": "existing-static-evidence-v1",
+        "ranking_mode": "evidence",
+        "population_complete": true,
+        "selected": [
+          {
+            "identity": {
+              "unit": "context-boundaries",
+              "language": "javascript",
+              "path": "api.js",
+              "function": "unknownSink",
+              "family": "injection"
+            },
+            "priority": 0.0,
+            "evidence": [
+              "static_rank=1.0",
+              "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"unknown(eval(req.body))\",\"line\":2,\"method\":\"unknownSink\"},{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval(req.body)\",\"line\":2,\"method\":\"unknownSink\"}],\"source_local\":true,\"source_near\":true}",
+              "tier=4",
+              "score=6.5",
+              "change_sites={\"base_revision\":\"base\",\"changed_paths\":[\"api.js\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"head\",\"path_encoding\":\"text\"}",
+              "affected_relationship={\"evidence\":[\"head_span:api.js:1-5\"],\"kind\":\"entry\",\"source\":{\"family\":\"injection\",\"function\":\"unknownSink\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-boundaries\"},\"target\":{\"family\":\"injection\",\"function\":\"unknownSink\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-boundaries\"}}",
+              "change_context_incomplete"
+            ],
+            "tier": 4,
+            "score": 6.5
+          },
+          {
+            "identity": {
+              "unit": "context-boundaries",
+              "language": "javascript",
+              "path": "api.js",
+              "function": "knownSink",
+              "family": "injection"
+            },
+            "priority": -1.0,
+            "evidence": [
+              "static_rank=1.0",
+              "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval(req.body)\",\"line\":4,\"method\":\"knownSink\"}],\"source_local\":true,\"source_near\":true}",
+              "tier=4",
+              "score=5.5",
+              "change_sites={\"base_revision\":\"base\",\"changed_paths\":[\"api.js\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"head\",\"path_encoding\":\"text\"}",
+              "affected_relationship={\"evidence\":[\"head_span:api.js:1-5\"],\"kind\":\"entry\",\"source\":{\"family\":\"injection\",\"function\":\"knownSink\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-boundaries\"},\"target\":{\"family\":\"injection\",\"function\":\"knownSink\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-boundaries\"}}"
+            ],
+            "tier": 4,
+            "score": 5.5
+          },
+          {
+            "identity": {
+              "unit": "context-boundaries",
+              "language": "javascript",
+              "path": "api.js",
+              "function": "unknownSanitizer",
+              "family": "injection"
+            },
+            "priority": -2.0,
+            "evidence": [
+              "static_rank=1.0",
+              "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+              "tier=0",
+              "score=0.0",
+              "change_sites={\"base_revision\":\"base\",\"changed_paths\":[\"api.js\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"head\",\"path_encoding\":\"text\"}",
+              "affected_relationship={\"evidence\":[\"head_span:api.js:1-5\"],\"kind\":\"entry\",\"source\":{\"family\":\"injection\",\"function\":\"unknownSanitizer\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-boundaries\"},\"target\":{\"family\":\"injection\",\"function\":\"unknownSanitizer\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-boundaries\"}}",
+              "affected_relationship={\"evidence\":[\"head_span:api.js:1-5\"],\"kind\":\"guard\",\"source\":{\"family\":\"injection\",\"function\":\"unknownSanitizer\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-boundaries\"},\"target\":{\"family\":\"injection\",\"function\":\"unknownSanitizer\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-boundaries\"}}",
+              "change_context_incomplete"
+            ],
+            "tier": 0,
+            "score": 0.0
+          },
+          {
+            "identity": {
+              "unit": "context-boundaries",
+              "language": "javascript",
+              "path": "api.js",
+              "function": "unknownSource",
+              "family": "injection"
+            },
+            "priority": -3.0,
+            "evidence": [
+              "static_rank=1.0",
+              "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+              "tier=0",
+              "score=0.0",
+              "change_sites={\"base_revision\":\"base\",\"changed_paths\":[\"api.js\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"head\",\"path_encoding\":\"text\"}",
+              "affected_relationship={\"evidence\":[\"head_span:api.js:1-5\"],\"kind\":\"entry\",\"source\":{\"family\":\"injection\",\"function\":\"unknownSource\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-boundaries\"},\"target\":{\"family\":\"injection\",\"function\":\"unknownSource\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-boundaries\"}}",
+              "change_context_incomplete"
+            ],
+            "tier": 0,
+            "score": 0.0
+          }
+        ],
+        "deferred": [
+          {
+            "identity": {
+              "unit": "context-boundaries",
+              "language": "javascript",
+              "path": "api.js",
+              "function": "knownSanitizer",
+              "family": "injection"
+            },
+            "reason": "tier_zero",
+            "evidence": [
+              "static_rank=1.0",
+              "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+              "tier=0",
+              "score=0.0",
+              "change_sites={\"base_revision\":\"base\",\"changed_paths\":[\"api.js\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"head\",\"path_encoding\":\"text\"}",
+              "affected_relationship={\"evidence\":[\"head_span:api.js:1-5\"],\"kind\":\"entry\",\"source\":{\"family\":\"injection\",\"function\":\"knownSanitizer\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-boundaries\"},\"target\":{\"family\":\"injection\",\"function\":\"knownSanitizer\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-boundaries\"}}",
+              "affected_relationship={\"evidence\":[\"head_span:api.js:1-5\"],\"kind\":\"guard\",\"source\":{\"family\":\"injection\",\"function\":\"knownSanitizer\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-boundaries\"},\"target\":{\"family\":\"injection\",\"function\":\"knownSanitizer\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-boundaries\"}}"
+            ]
+          }
+        ],
+        "unresolved_boundaries": [
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:71905af15166a20401cb2e53ffd500f3307c2a76da41017a64bc9ef47afce2e7",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:cb4c6cecef36f957c9646d31def81d962d9ff2d1d1455275a0a6e9b20b8ed0ea",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:460011e339d204cda534bca278ebc1936596121cec7924cc88a9c179c4d2c681"
+        ]
+      },
+      "question_outcomes": [
+        {
+          "identity": {
+            "unit": "context-boundaries",
+            "language": "javascript",
+            "path": "api.js",
+            "function": "unknownSink",
+            "family": "injection"
+          },
+          "status": "unresolved",
+          "reason": "change_context_incomplete",
+          "raw_rows_json": "[{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":1,\"paths\":2,\"sanitized\":false,\"sink\":\"unknown(eval(req.body))\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"api.js\",\"sinkLine\":\"2\",\"sinkMethod\":\"unknownSink\",\"source\":\"eval(req.body)\",\"sourceKind\":\"framework\"},{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":2,\"paths\":2,\"sanitized\":false,\"sink\":\"unknown(eval(req.body))\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"api.js\",\"sinkLine\":\"2\",\"sinkMethod\":\"unknownSink\",\"source\":\"req.body\",\"sourceKind\":\"framework\"},{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":3,\"paths\":2,\"sanitized\":false,\"sink\":\"unknown(eval(req.body))\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"api.js\",\"sinkLine\":\"2\",\"sinkMethod\":\"unknownSink\",\"source\":\"req\",\"sourceKind\":\"parameter\"},{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":1,\"paths\":1,\"sanitized\":false,\"sink\":\"eval(req.body)\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"api.js\",\"sinkLine\":\"2\",\"sinkMethod\":\"unknownSink\",\"source\":\"req.body\",\"sourceKind\":\"framework\"},{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":2,\"paths\":1,\"sanitized\":false,\"sink\":\"eval(req.body)\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"api.js\",\"sinkLine\":\"2\",\"sinkMethod\":\"unknownSink\",\"source\":\"req\",\"sourceKind\":\"parameter\"}]"
+        },
+        {
+          "identity": {
+            "unit": "context-boundaries",
+            "language": "javascript",
+            "path": "api.js",
+            "function": "knownSink",
+            "family": "injection"
+          },
+          "status": "completed",
+          "reason": "query_answered_and_arbitrated",
+          "raw_rows_json": "[{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":1,\"paths\":1,\"sanitized\":false,\"sink\":\"eval(req.body)\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"api.js\",\"sinkLine\":\"4\",\"sinkMethod\":\"knownSink\",\"source\":\"req.body\",\"sourceKind\":\"framework\"},{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":2,\"paths\":1,\"sanitized\":false,\"sink\":\"eval(req.body)\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"api.js\",\"sinkLine\":\"4\",\"sinkMethod\":\"knownSink\",\"source\":\"req\",\"sourceKind\":\"parameter\"}]"
+        },
+        {
+          "identity": {
+            "unit": "context-boundaries",
+            "language": "javascript",
+            "path": "api.js",
+            "function": "unknownSanitizer",
+            "family": "injection"
+          },
+          "status": "unresolved",
+          "reason": "change_context_incomplete",
+          "raw_rows_json": "[]"
+        },
+        {
+          "identity": {
+            "unit": "context-boundaries",
+            "language": "javascript",
+            "path": "api.js",
+            "function": "unknownSource",
+            "family": "injection"
+          },
+          "status": "unresolved",
+          "reason": "change_context_incomplete",
+          "raw_rows_json": "[]"
+        }
+      ],
+      "family_coverage": [
+        {
+          "unit": "context-boundaries",
+          "language": "javascript",
+          "family": "injection",
+          "selected": 4,
+          "completed": 1,
+          "unanswered": 3,
+          "deferred": 1,
+          "unsupported": 0
+        }
+      ]
+    }
+  },
+  "review_repair": {
+    "red_exit_code": 1,
+    "red_symptom": "unknownSource was excluded as tier_zero with no unresolved boundaries",
+    "repair": "Only directly invoked fact-modeled calls can exempt an external call; argument/subtree mentions cannot.",
+    "additional_parent_assertions": "Direct knownSanitizer remains tier_zero with no question context gap; verified against captured GREEN output."
+  },
+  "limits": [
+    "Controlled declared entry regions, not full mapper/workload replay.",
+    "Lexical change-to-question relationships do not prove semantic guard removal or novelty.",
+    "Current field/hook abstraction limits preserved; missing dominance/config/deleted dependencies remain explicit.",
+    "No hook latency, capability admission or broad Joern reliability claim."
+  ]
+}

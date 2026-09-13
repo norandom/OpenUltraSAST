@@ -97,6 +97,18 @@ that the lower static-ranked risky function is selected, that the harmless funct
 recorded as deferred, and that selected IDs match completed query outcomes and per-family
 coverage. It uses one 900-second lab budget; it is not a mapper or hook-quality evaluation.
 
+`ops/smoke_context.py` uses the same invocation with its own filename. It creates local
+PHP/JavaScript Git histories with a removed caller guard and an unchanged helper-file sink, then feeds
+immutable snapshot change evidence into the real driver. It checks affected-question
+relationships, a controlled witness and preservation of the dirty checkout. Its lexical
+change attribution does not prove that the removed guard enforced security or that the
+finding is new; comparison and admission are separate stages.
+
+`ops/smoke_context_boundaries.py` is the production-query negative regression using
+the same invocation. Unknown consumers of a framework source, nested sink, or sanitizer
+name must retain unresolved context rather than become tier-zero exclusions. Direct
+modeled sink and sanitizer calls remain positive controls for the boundary projection.
+
 Why this exists: Joern was first installed here by hand with `curl` and `unzip`, which is fine once and
 unreproducible thereafter. The engine decides whether a finding is a `suspicion` or a `model_entailed`, and
 every ceiling number in `benchmarks/measurements` is only comparable against a fixed version — so the version

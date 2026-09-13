@@ -1,7 +1,7 @@
 # Implementation Plan: pre-push-safety-net
 
 Status: task plan approved by the maintainer's "approve." on 2026-09-12. Groups 1 and 2 (tasks 1.1–2.3)
-are complete after independent review and fresh verification. Group 3 is in progress (3.1–3.2 verified); groups 4–8 remain pending;
+are complete after independent review and fresh verification. Group 3 is in progress (3.1–3.3 verified); groups 4–8 remain pending;
 the hook and capability admission are not yet implemented. See `implementation-group-1.md` and `implementation-group-2.md`.
 
 ## Execution contract
@@ -95,13 +95,14 @@ the hook and capability admission are not yet implemented. See `implementation-g
   - _Boundary: Ranker Scope Contract, generic driver integration_
   - _Requirements: 2.1, 2.2, 6.4, 7.3, 8.1, 8.2_
   - _Verified 2026-09-13:_ independent review APPROVED; 1,105 passed, nine skipped; global Ruff/format/mypy passed. Twenty-four independent order/budget/missing-family combinations retained all question identities. Packaged PHP/JavaScript smoke selected the same controlled risky operation at tier 4/score 2.5, with exact execution/outcome IDs and reconciled family coverage. Missing evidence, partial graphs and interrupted arbitration remain explicit; CLI consumes authoritative scope. Evidence: `benchmarks/measurements/2026-09-13-ranker-scope-smoke.json`. No new ranking weights or hook admission claim.
-- [ ] 3.3 Connect change context to supported first-party relationships
+- [x] 3.3 Connect change context to supported first-party relationships
   - Use existing entry/callee, field, hook and guard relationships to supply affected context to ranked questions, including unchanged sinks after source/guard changes.
   - Preserve current abstract semantics; absent dynamic or external relationships remain unresolved rather than guessed safe. A required new feature or fact is reported to its owning spec.
   - Done when controlled cross-file and removed-guard cases reach the relevant question/witness, while an unresolved boundary cannot produce a complete negative.
   - _Boundary: Ranker Scope Contract, Snapshot Adapter integration_
   - _Depends: 2.3, 3.2_
   - _Requirements: 2.1, 2.2, 2.4, 8.1, 8.2_
+  - _Verified 2026-09-13:_ independent review APPROVED after an unknown-call boundary repair; fresh suite 1,128 passed, nine skipped; global Ruff/format/mypy passed. Real PHP/JavaScript Git guard-removal snapshots reached unchanged helper-file witnesses with local dirty state preserved. Production negative regression reproduced then fixed unknown(req.body) being pruned as tier zero: modeled arguments no longer summarize unknown consumers. Existing ranking and detector semantics unchanged; unsupported projections remain explicit. Evidence: `benchmarks/measurements/2026-09-13-change-context-smoke.json`. Lexical attribution is not semantic novelty or alert admission.
 - [ ] 3.4 Apply vendor exclusion and explicit language partitions
   - Reuse declared layout exclusions before target enumeration and graph build; retain unshipped first-party tests and separate browser/server or language capability coverage.
   - Build supported frontend partitions explicitly; preserve unknown cross-language and vendor semantics without restoring excluded sources.
