@@ -1,7 +1,7 @@
 # Implementation Plan: pre-push-safety-net
 
 Status: task plan approved by the maintainer's "approve." on 2026-09-12. Groups 1–3 (tasks 1.1–3.4)
-are complete after independent review and fresh verification (12/27 subtasks, including task 4.1). Tasks 4.2–4.3 and groups 5–8 remain pending;
+are complete after independent review and fresh verification (13/27 subtasks, including tasks 4.1–4.2). Task 4.3 and groups 5–8 remain pending;
 the hook and capability admission are not yet implemented. See `implementation-group-1.md` and `implementation-group-2.md`.
 
 ## Execution contract
@@ -121,12 +121,13 @@ the hook and capability admission are not yet implemented. See `implementation-g
   - _Boundary: Delta and Actionability Policy, engine comparison integration_
   - _Depends: 2.3, 3.3, 3.4_
   - _Requirements: 2.4, 3.1, 3.4, 4.1_
-- [ ] 4.2 Enforce capability and actionability admission
+- [x] 4.2 Enforce capability and actionability admission
   - Require evaluated capability provenance, applicable semantics, a sufficient rung, exact witness/location, supported change attribution and a concrete repair direction.
   - Keep experimental, suspicious, wrongly sanitized and unknown-novelty candidates in diagnostic records; do not let model confidence, a sanitizer name or printed-before state admit/dismiss a defect.
   - Deduplicate by defect while retaining relevant witnesses and refs; distinguish experimental evaluation from normal hook eligibility.
   - Add equivalent PHP/JavaScript normalized claims with equally eligible capabilities and assert equal admission; add an unsupported-origin control whose coverage/eligibility differs without changing core scores.
   - Done when the policy rejects an entailed but unsupported claim and admits fully supported synthetic controls equivalently across origins and advisory/blocking modes; real capabilities remain disabled pending 8.3.
+  - _Verified 2026-09-13:_ independent review APPROVED after operation/context-binding repair; 1,207 tests passed, nine skipped; default real-evidence controls remain diagnostic and synthetic PHP/JavaScript admission is equivalent. See `implementation-group-4.md`.
   - _Boundary: Delta and Actionability Policy_
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 5.3, 5.4, 8.1_
 - [ ] 4.3 Render compact results and preserve complete artifacts

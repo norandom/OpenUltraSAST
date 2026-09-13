@@ -308,6 +308,16 @@ patch generation. Templates grounded in facts/witnesses are sufficient. Admissio
 "sanitize input" advice without a supported context/operation. An LLM explanation must cite the
 same witness and cannot raise the rung or invent exploitability.
 
+Task 4.2 binds each delta to its base revision, head revision and semantics identity;
+legacy unbound evidence remains readable but cannot be admitted. Eligibility declarations
+are trusted outputs of the later evaluation loader, with positive/reviewed populations,
+calibration and untouched-workload provenance. The default registry is empty. Each
+declaration narrows its semantic context to exact operation symbols, preserving receiver
+spelling; a broad family such as injection cannot select shell advice for a SQL operation.
+Unknown or dynamic spellings remain ineligible. This is admission over existing graph
+witnesses, not a new detector or an alias resolver. Per-candidate records retain the full
+matching evaluation declarations and exact comparison/ref ownership.
+
 ### Result and Hook Adapter
 
 `PushResult` separates `finding_status` (`actionable` / `none`), `coverage_status` (`complete_within_scope`

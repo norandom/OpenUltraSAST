@@ -39,3 +39,26 @@ limitation for the later replay integration. These controls use declared questio
 and Git context directly; no missing-coverage result was erased. Ambiguous source
 and identifier changes remain unknown. Task 4.1 brings progress to 12/27 tasks;
 admission and rendering remain pending within this authorized group.
+
+## Task 4.2 verification
+
+VERIFIED (TASK scope), independent review APPROVED. Full suite: 1,207 passed,
+nine skipped in 99.04 seconds; global Ruff/format (235 files), mypy (110 source
+files), detection/map/pair gates and diff checks passed. OFF admission controls
+failed before implementation. Review reproduced a SQL witness acquiring shell advice
+through a broad injection-family key; evaluated operation-symbol restrictions now
+reject that mismatch, missing bindings, receiver changes and embedded-name matches.
+
+Deltas bind exact base/head and semantics; unbound legacy records cannot be admitted.
+Evaluation declarations retain calibration and untouched-population provenance and
+must supply positive controls and reviewed alerts. Every disposition preserves its
+evidence and matching declarations. Deduplication retains witnesses, locations,
+refs and exact comparisons; unchanged debt on one comparison cannot erase a new
+claim on another. Advisory and blocking share admission; coverage policy is separate.
+
+`benchmarks/measurements/2026-09-13-admission-policy-smoke.json` records current
+policy against captured actual engine answers: all remain diagnostic with the empty
+default registry. Explicitly synthetic PHP/WordPress and JavaScript/Express controls
+receive equivalent admission and enforcement behavior. They do not qualify any
+real capability; task 8.3 still owns actual eligibility. Task 4.2 brings progress to
+13/27 tasks. Compact reporting remains in this authorized group.

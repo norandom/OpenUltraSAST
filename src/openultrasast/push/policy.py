@@ -1,4 +1,4 @@
-"""Compare arbiter-backed evidence from immutable revisions; this does not admit alerts."""
+"""Compare immutable revision evidence and apply evaluated capability admission."""
 
 from __future__ import annotations
 
@@ -7,9 +7,11 @@ import json
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from string import Formatter
 from typing import Any, Literal
 
+from openultrasast.config import PushConfig
 from openultrasast.contracts import Contract
 from openultrasast.cpg.backend import CpgResult
 from openultrasast.model.contracts import ChangeContext, ExecutionBudget, QuestionIdentity
@@ -18,6 +20,7 @@ from openultrasast.model.pipeline import ModelFinding, _arbitrate_all
 from openultrasast.model.regions import ScanRegion
 from openultrasast.model.scan import ModelScanResult, ScanBudget, _prefetched, _spec_for, scan_repository
 from openultrasast.model.specs import ConfigSpec, DominanceSpec, TaintSpec
+from openultrasast.push.contracts import ComparisonAnalysis, PushComparison, PushResult
 
 
 @dataclass(frozen=True)
@@ -44,6 +47,9 @@ class CandidateDelta(Contract):
     head_operation: EvidenceOperation | None
     base_operations: tuple[EvidenceOperation, ...]
     change_evidence: tuple[str, ...]
+    base_revision: str | None = None
+    head_revision: str | None = None
+    semantics: str | None = None
 
 
 @dataclass(frozen=True)
@@ -311,7 +317,15 @@ def compare_evidence(
                 ):
                     novelty, reason = "new", "source_connection_absent_from_comparable_base"
         results.append(_candidate(finding, op, old, novelty, reason, change, context))
-    return tuple(results)
+    return tuple(
+        replace(
+            candidate,
+            base_revision=context.base_revision,
+            head_revision=context.head_revision,
+            semantics=head_semantics if head_semantics == base_semantics else None,
+        )
+        for candidate in results
+    )
 
 
 def compare_targeted_base(
@@ -372,3 +386,236 @@ def compare_targeted_base(
     )
     reasons.extend(c.reason for c in candidates if c.novelty == "unknown")
     return DeltaComparison(candidates, base, head_semantics, tuple(dict.fromkeys(reasons)))
+
+
+@dataclass(frozen=True)
+class CapabilityKey(Contract):
+    language: str
+    runtime: str
+    framework: str
+    family: str
+    mechanism: Literal["taint", "dominance", "config"]
+    context: str
+    semantics: str
+
+
+@dataclass(frozen=True)
+class CapabilityAdmission(Contract):
+    """Evaluated declaration supplied by the eligibility loader (task 8.3).
+
+    This contract is not an evaluator or a signature verifier. No shipped declaration
+    is enabled; synthetic policy tests cannot qualify a real capability.
+    Templates belong to the evaluated declaration, never to model-generated prose.
+    """
+
+    key: CapabilityKey
+    evaluation_id: str
+    evaluation_artifact: str
+    verdict: Literal["PASS", "NO-GO", "experimental"]
+    consequence_template: str
+    repair_template: str
+    enabled: bool = False
+    positive_controls: int = 0
+    reviewed_alerts: int = 0
+    calibration_artifact: str | None = None
+    untouched_workload: str | None = None
+    # Exact operation symbols covered by this evaluated semantic context. Receiver
+    # spelling is preserved; unresolved/dynamic forms do not acquire eligibility.
+    operation_symbols: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class AdmissionCandidate(Contract):
+    delta: CandidateDelta
+    capability: CapabilityKey
+    comparison: PushComparison
+    dependency_gaps: tuple[str, ...] = ()
+    # Semantic contexts of sanitizer facts used in interpreting this witness. A
+    # name alone is not evidence that an HTML escape discharges a SQL obligation.
+    sanitizer_contexts: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class CandidateDisposition(Contract):
+    candidate: AdmissionCandidate
+    admitted: bool
+    reasons: tuple[str, ...]
+    evaluation_id: str | None
+    capability_evaluations: tuple[CapabilityAdmission, ...]
+
+
+@dataclass(frozen=True)
+class ActionableDefect(Contract):
+    defect_id: str
+    family: str
+    witnesses: tuple[str, ...]
+    locations: tuple[tuple[str, int], ...]
+    comparisons: tuple[PushComparison, ...]
+    refs: tuple[str, ...]
+    change_evidence: tuple[str, ...]
+    consequences: tuple[str, ...]
+    repairs: tuple[str, ...]
+    evaluation_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class AdmissionResult(Contract):
+    defects: tuple[ActionableDefect, ...]
+    dispositions: tuple[CandidateDisposition, ...]
+    coverage_reasons: tuple[str, ...]
+
+
+def _grounded_template(template: str, operation: EvidenceOperation, context: str) -> str | None:
+    try:
+        parts = tuple(Formatter().parse(template))
+        if {field for _, field, _, _ in parts if field is not None} != {"operation", "context"}:
+            return None
+        if any(spec or conversion for _, _, spec, conversion in parts):
+            return None
+        return template.format(operation=operation.operation, context=context)
+    except (ValueError, KeyError, IndexError):
+        return None
+
+
+def admit_candidates(candidates: Sequence[AdmissionCandidate], *, capabilities: Sequence[CapabilityAdmission] = ()) -> AdmissionResult:
+    """Apply one origin-agnostic evidence bar for both advisory and blocking.
+
+    Capabilities are trusted evaluated declarations, not user/model assertions.
+    Task 8.3 owns their generation/loading; the default registry is deliberately empty.
+    Unknown legacy delta provenance cannot acquire eligibility by being wrapped here.
+    """
+    defects: dict[str, ActionableDefect] = {}
+    dispositions = []
+    gaps: list[str] = []
+    for candidate in candidates:
+        delta, key, op = candidate.delta, candidate.capability, candidate.delta.head_operation
+        reasons = []
+        matching = [cap for cap in capabilities if cap.key == key]
+        cap = matching[0] if len(matching) == 1 else None
+        if not matching:
+            reasons.append("capability_unavailable")
+        elif len(matching) > 1:
+            reasons.append("capability_ambiguous")
+        elif cap is not None:
+            if not cap.enabled:
+                reasons.append("capability_disabled")
+            if (
+                cap.verdict != "PASS"
+                or cap.positive_controls < 1
+                or cap.reviewed_alerts < 1
+                or cap.calibration_artifact is None
+                or cap.untouched_workload is None
+            ):
+                reasons.append("capability_unevaluated")
+        if (
+            delta.base_revision is None
+            or delta.head_revision is None
+            or delta.semantics is None
+            or delta.base_revision != candidate.comparison.base_oid
+            or delta.head_revision != candidate.comparison.head_oid
+            or delta.semantics != key.semantics
+        ):
+            reasons.append("comparison_provenance_mismatch")
+        if delta.rung != Rung.ENTAILED.value:
+            # No production execution-confirmed producer exists. Do not accept a label
+            # in anticipation of one; a future producer needs an explicit protocol.
+            reasons.append("insufficient_rung")
+        if delta.novelty == "unknown":
+            reasons.append("comparison_unknown")
+        elif delta.novelty == "unchanged":
+            reasons.append("unchanged")
+        elif not delta.change_evidence or (delta.novelty, delta.reason) not in (
+            ("new", "source_connection_absent_from_comparable_base"),
+            ("worsened", "discharge_removed"),
+        ):
+            reasons.append("change_unsupported")
+        if op is None or delta.witness is None:
+            reasons.append("witness_unresolved")
+        consequence = repair = None
+        if op is not None:
+            path = PurePosixPath(op.path)
+            if op.line < 1 or path.is_absolute() or ".." in path.parts or not delta.site.startswith(f"{op.path}:{op.line}:"):
+                reasons.append("location_unresolved")
+            if (op.question.language, op.question.family, op.mechanism) != (
+                key.language,
+                key.family,
+                key.mechanism,
+            ) or delta.family != key.family:
+                reasons.append("family_semantics_mismatch")
+            if op.discharged:
+                reasons.append("claim_discharged")
+            if cap is not None:
+                # These are existing graph operation spellings, not source scanning.
+                # A declaration may narrow an entailed claim; it cannot create one.
+                symbol = op.operation.partition("(")[0].strip()
+                if symbol not in cap.operation_symbols:
+                    reasons.append("operation_semantics_mismatch")
+                consequence = _grounded_template(cap.consequence_template, op, key.context)
+                repair = _grounded_template(cap.repair_template, op, key.context)
+                if consequence is None:
+                    reasons.append("consequence_unsupported")
+                if repair is None:
+                    reasons.append("repair_unsupported")
+        if candidate.dependency_gaps:
+            reasons.append("dependency_unresolved")
+        if any(context != key.context for context in candidate.sanitizer_contexts):
+            reasons.append("sanitizer_semantics_mismatch")
+        previous = defects.get(delta.defect_id)
+        if previous is not None and previous.family != delta.family:
+            reasons.append("defect_identity_collision")
+        dispositions.append(
+            CandidateDisposition(candidate, not reasons, tuple(reasons), cap.evaluation_id if cap else None, tuple(matching))
+        )
+        gaps.extend(reason for reason in reasons if reason not in ("unchanged", "insufficient_rung", "claim_discharged"))
+        if reasons:
+            continue
+        assert op is not None and delta.witness is not None and consequence is not None and repair is not None and cap is not None
+        repair = f"{op.path}:{op.line}: {repair}"
+        if previous is None:
+            defects[delta.defect_id] = ActionableDefect(
+                delta.defect_id,
+                delta.family,
+                (delta.witness,),
+                ((op.path, op.line),),
+                (candidate.comparison,),
+                candidate.comparison.refs,
+                delta.change_evidence,
+                (consequence,),
+                (repair,),
+                (cap.evaluation_id,),
+            )
+        else:
+            defects[delta.defect_id] = replace(
+                previous,
+                witnesses=tuple(dict.fromkeys((*previous.witnesses, delta.witness))),
+                locations=tuple(dict.fromkeys((*previous.locations, (op.path, op.line)))),
+                comparisons=tuple(dict.fromkeys((*previous.comparisons, candidate.comparison))),
+                refs=tuple(dict.fromkeys((*previous.refs, *candidate.comparison.refs))),
+                change_evidence=tuple(dict.fromkeys((*previous.change_evidence, *delta.change_evidence))),
+                consequences=tuple(dict.fromkeys((*previous.consequences, consequence))),
+                repairs=tuple(dict.fromkeys((*previous.repairs, repair))),
+                evaluation_ids=tuple(dict.fromkeys((*previous.evaluation_ids, cap.evaluation_id))),
+            )
+    return AdmissionResult(tuple(defects.values()), tuple(dispositions), tuple(dict.fromkeys(gaps)))
+
+
+def admission_push_result(
+    admission: AdmissionResult, analyses: tuple[ComparisonAnalysis, ...], *, config: PushConfig | None = None
+) -> PushResult:
+    """Finding admission and coverage remain independent of push enforcement."""
+    config = config or PushConfig()
+    comparisons = {analysis.comparison for analysis in analyses}
+    if any(comparison not in comparisons for defect in admission.defects for comparison in defect.comparisons):
+        raise ValueError("admitted defect requires its exact comparison analysis")
+    coverage: Literal["complete_within_scope", "incomplete", "unavailable", "not_applicable"]
+    if not analyses or all(analysis.coverage_status == "unavailable" for analysis in analyses):
+        coverage = "unavailable"
+    elif admission.coverage_reasons or any(analysis.coverage_status != "complete_within_scope" for analysis in analyses):
+        coverage = "incomplete"
+    else:
+        coverage = "complete_within_scope"
+    ids = tuple(defect.defect_id for defect in admission.defects)
+    block = config.mode == "blocking" and (
+        bool(ids) or (coverage in ("incomplete", "unavailable") and config.incomplete_coverage_policy == "block")
+    )
+    return PushResult(analyses, "actionable" if ids else "none", coverage, "block" if block else "allow", ids)

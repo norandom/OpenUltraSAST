@@ -214,3 +214,9 @@ state survives. Output contains an evidence JSON object followed by a completion
 JSON object; success requires exit zero and `verified: true` in that final object.
 These declared regions exercise comparison mechanics; full replay, normal alert
 admission and hook latency are separate evaluation work.
+
+`python ops/smoke_admission.py` reads the committed comparison measurement and
+rechecks its actual engine answers through the current policy. With no evaluated
+capabilities supplied, every candidate stays diagnostic and the result separates
+`none` findings, `incomplete` coverage and `allow` disposition. This offline control
+executes no new graph query and does not qualify any capability for normal alerts.

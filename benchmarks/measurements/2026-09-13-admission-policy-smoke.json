@@ -1,0 +1,930 @@
+{
+  "status": "VERIFIED",
+  "task": "4.2",
+  "purpose": "Synthetic eligibility controls and current policy on captured actual evidence; no real capability enabled",
+  "source_hashes": {
+    "src/openultrasast/push/policy.py": "bbe1b5d0bd8a50473996ba2f0c25649b11b58c5daee02afd54bdd95b370f7be2",
+    "tests/test_push_admission.py": "6e96faa62b8838a8d2d85096f8e8740f570003be29ad0f0c144e4c7bea145c4d",
+    "ops/smoke_admission.py": "79b5270de654708cae6aa53f4c93038aed4e7c6a9a4451a9970d4f97e24cd766"
+  },
+  "default_registry_actual_evidence": {
+    "purpose": "Current policy applied to captured actual engine evidence; no new engine execution or evaluated capability",
+    "input_bytes": 44685,
+    "input_sha256": "40c99b72238526b34ca7dc78fcae74c88e05ed9aa6ea2c5e66cdb4be0d14cebd",
+    "cases": {
+      "guard": {
+        "admission": {
+          "defects": [],
+          "dispositions": [
+            {
+              "candidate": {
+                "delta": {
+                  "family": "access_control",
+                  "site": "api.js:2:handler",
+                  "rung": "model_entailed",
+                  "witness": "handler line 2: no discharging guard, while 1 sibling handler(s) are guarded (sibling)",
+                  "defect_id": "c3c274c9b04b03b2df9ef8090ab2ca7ecbaafeea1b2b5f353972cb2168e836fc",
+                  "novelty": "worsened",
+                  "reason": "discharge_removed",
+                  "head_operation": {
+                    "question": {
+                      "unit": "delta-smoke",
+                      "language": "javascript",
+                      "path": "api.js",
+                      "function": "handler",
+                      "family": "access_control"
+                    },
+                    "mechanism": "dominance",
+                    "path": "api.js",
+                    "line": 2,
+                    "operation": "deleteUser(req.params.id)",
+                    "source": "obligation",
+                    "discharged": false,
+                    "detail": "{\"dominatingGuards\": [], \"opFile\": \"api.js\", \"opLine\": \"2\", \"opMethod\": \"handler\", \"operation\": \"deleteUser(req.params.id)\"}"
+                  },
+                  "base_operations": [
+                    {
+                      "question": {
+                        "unit": "delta-smoke",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "access_control"
+                      },
+                      "mechanism": "dominance",
+                      "path": "api.js",
+                      "line": 3,
+                      "operation": "deleteUser(req.params.id)",
+                      "source": "obligation",
+                      "discharged": true,
+                      "detail": "{\"dominatingGuards\": [\"!authenticate(req)\", \"authenticate(req)\"], \"opFile\": \"api.js\", \"opLine\": \"3\", \"opMethod\": \"handler\", \"operation\": \"deleteUser(req.params.id)\"}"
+                    }
+                  ],
+                  "change_evidence": [
+                    "base:api.js:2-2"
+                  ],
+                  "base_revision": "50dd14003e143de73eceda7b45e91ef3490e8d19",
+                  "head_revision": "3c0c7367d68647862b77f7c5fd5a5b8a28ebfad7",
+                  "semantics": "2417155d31b4a5b3ea9ea282efedf23ab72fd382e757ea27e4dfa151195f6f3d"
+                },
+                "capability": {
+                  "language": "javascript",
+                  "runtime": "unspecified",
+                  "framework": "unspecified",
+                  "family": "access_control",
+                  "mechanism": "dominance",
+                  "context": "unreviewed",
+                  "semantics": "2417155d31b4a5b3ea9ea282efedf23ab72fd382e757ea27e4dfa151195f6f3d"
+                },
+                "comparison": {
+                  "head_oid": "3c0c7367d68647862b77f7c5fd5a5b8a28ebfad7",
+                  "base_oid": "50dd14003e143de73eceda7b45e91ef3490e8d19",
+                  "base_reason": "supplied_remote_tip",
+                  "refs": [
+                    "refs/heads/topic"
+                  ]
+                },
+                "dependency_gaps": [],
+                "sanitizer_contexts": []
+              },
+              "admitted": false,
+              "reasons": [
+                "capability_unavailable"
+              ],
+              "evaluation_id": null,
+              "capability_evaluations": []
+            }
+          ],
+          "coverage_reasons": [
+            "capability_unavailable"
+          ]
+        },
+        "result": {
+          "analyses": [
+            {
+              "comparison": {
+                "head_oid": "3c0c7367d68647862b77f7c5fd5a5b8a28ebfad7",
+                "base_oid": "50dd14003e143de73eceda7b45e91ef3490e8d19",
+                "base_reason": "supplied_remote_tip",
+                "refs": [
+                  "refs/heads/topic"
+                ]
+              },
+              "scopes": [
+                {
+                  "ranker_version": "existing-static-evidence-v1",
+                  "ranking_mode": "evidence",
+                  "population_complete": true,
+                  "selected": [
+                    {
+                      "identity": {
+                        "unit": "delta-smoke",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "access_control"
+                      },
+                      "priority": 0.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "taint_evidence_not_applicable"
+                      ],
+                      "tier": null,
+                      "score": null
+                    }
+                  ],
+                  "deferred": [],
+                  "unresolved_boundaries": []
+                }
+              ],
+              "completed_questions": [
+                {
+                  "unit": "delta-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "access_control"
+                }
+              ],
+              "coverage_status": "complete_within_scope"
+            }
+          ],
+          "finding_status": "none",
+          "coverage_status": "incomplete",
+          "push_disposition": "allow",
+          "actionable_defect_ids": []
+        }
+      },
+      "movement": {
+        "admission": {
+          "defects": [],
+          "dispositions": [
+            {
+              "candidate": {
+                "delta": {
+                  "family": "access_control",
+                  "site": "api.js:4:handler",
+                  "rung": "model_entailed",
+                  "witness": "handler line 4: no discharging guard, while 1 sibling handler(s) are guarded (sibling)",
+                  "defect_id": "dd03c2c56c9f9d19721a2caafd8879ab8174fd5078eaf1428ce484388f07675e",
+                  "novelty": "unchanged",
+                  "reason": "same_supported_mechanism",
+                  "head_operation": {
+                    "question": {
+                      "unit": "delta-smoke",
+                      "language": "javascript",
+                      "path": "api.js",
+                      "function": "handler",
+                      "family": "access_control"
+                    },
+                    "mechanism": "dominance",
+                    "path": "api.js",
+                    "line": 4,
+                    "operation": "deleteUser(req.params.id)",
+                    "source": "obligation",
+                    "discharged": false,
+                    "detail": "{\"dominatingGuards\": [], \"opFile\": \"api.js\", \"opLine\": \"4\", \"opMethod\": \"handler\", \"operation\": \"deleteUser(req.params.id)\"}"
+                  },
+                  "base_operations": [
+                    {
+                      "question": {
+                        "unit": "delta-smoke",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "access_control"
+                      },
+                      "mechanism": "dominance",
+                      "path": "api.js",
+                      "line": 2,
+                      "operation": "deleteUser(req.params.id)",
+                      "source": "obligation",
+                      "discharged": false,
+                      "detail": "{\"dominatingGuards\": [], \"opFile\": \"api.js\", \"opLine\": \"2\", \"opMethod\": \"handler\", \"operation\": \"deleteUser(req.params.id)\"}"
+                    }
+                  ],
+                  "change_evidence": [
+                    "head:api.js:1-2"
+                  ],
+                  "base_revision": "ec81bee36092a3fee9f6dab9ab52f2301672197f",
+                  "head_revision": "4b6ff24c4add7a4d5e61c852a8d5e6475734334b",
+                  "semantics": "2417155d31b4a5b3ea9ea282efedf23ab72fd382e757ea27e4dfa151195f6f3d"
+                },
+                "capability": {
+                  "language": "javascript",
+                  "runtime": "unspecified",
+                  "framework": "unspecified",
+                  "family": "access_control",
+                  "mechanism": "dominance",
+                  "context": "unreviewed",
+                  "semantics": "2417155d31b4a5b3ea9ea282efedf23ab72fd382e757ea27e4dfa151195f6f3d"
+                },
+                "comparison": {
+                  "head_oid": "4b6ff24c4add7a4d5e61c852a8d5e6475734334b",
+                  "base_oid": "ec81bee36092a3fee9f6dab9ab52f2301672197f",
+                  "base_reason": "supplied_remote_tip",
+                  "refs": [
+                    "refs/heads/topic"
+                  ]
+                },
+                "dependency_gaps": [],
+                "sanitizer_contexts": []
+              },
+              "admitted": false,
+              "reasons": [
+                "capability_unavailable",
+                "unchanged"
+              ],
+              "evaluation_id": null,
+              "capability_evaluations": []
+            }
+          ],
+          "coverage_reasons": [
+            "capability_unavailable"
+          ]
+        },
+        "result": {
+          "analyses": [
+            {
+              "comparison": {
+                "head_oid": "4b6ff24c4add7a4d5e61c852a8d5e6475734334b",
+                "base_oid": "ec81bee36092a3fee9f6dab9ab52f2301672197f",
+                "base_reason": "supplied_remote_tip",
+                "refs": [
+                  "refs/heads/topic"
+                ]
+              },
+              "scopes": [
+                {
+                  "ranker_version": "existing-static-evidence-v1",
+                  "ranking_mode": "evidence",
+                  "population_complete": true,
+                  "selected": [
+                    {
+                      "identity": {
+                        "unit": "delta-smoke",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "access_control"
+                      },
+                      "priority": 0.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "taint_evidence_not_applicable"
+                      ],
+                      "tier": null,
+                      "score": null
+                    }
+                  ],
+                  "deferred": [],
+                  "unresolved_boundaries": []
+                }
+              ],
+              "completed_questions": [
+                {
+                  "unit": "delta-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "access_control"
+                }
+              ],
+              "coverage_status": "complete_within_scope"
+            }
+          ],
+          "finding_status": "none",
+          "coverage_status": "incomplete",
+          "push_disposition": "allow",
+          "actionable_defect_ids": []
+        }
+      },
+      "connection": {
+        "admission": {
+          "defects": [],
+          "dispositions": [
+            {
+              "candidate": {
+                "delta": {
+                  "family": "injection",
+                  "site": "api.php:4:handler",
+                  "rung": "model_entailed",
+                  "witness": "$req -> eval($value) in api.php (line 4, 4 steps)",
+                  "defect_id": "126c32bef15eed9f5bdbb01c8c582ff03654ca835a61af4bc32b1b5904b7aa34",
+                  "novelty": "new",
+                  "reason": "source_connection_absent_from_comparable_base",
+                  "head_operation": {
+                    "question": {
+                      "unit": "delta-smoke",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "handler",
+                      "family": "injection"
+                    },
+                    "mechanism": "taint",
+                    "path": "api.php",
+                    "line": 4,
+                    "operation": "eval($value)",
+                    "source": "[\"parameter\",\"$req\"]",
+                    "discharged": false,
+                    "detail": "{\"bound\": \"\", \"bounded\": false, \"inLabeledScope\": true, \"length\": 4, \"paths\": 1, \"sanitized\": false, \"sink\": \"eval($value)\", \"sinkArg0Literal\": false, \"sinkArity\": 1, \"sinkFile\": \"api.php\", \"sinkLine\": \"4\", \"sinkMethod\": \"handler\", \"source\": \"$req\", \"sourceKind\": \"parameter\"}"
+                  },
+                  "base_operations": [],
+                  "change_evidence": [
+                    "base:api.php:3-3",
+                    "head:api.php:3-3"
+                  ],
+                  "base_revision": "761a1c9f1e891465ba4db952e975d4cc31d43674",
+                  "head_revision": "961b8f28da002916f02864f4d0dbe06af8ad6088",
+                  "semantics": "2417155d31b4a5b3ea9ea282efedf23ab72fd382e757ea27e4dfa151195f6f3d"
+                },
+                "capability": {
+                  "language": "php",
+                  "runtime": "unspecified",
+                  "framework": "unspecified",
+                  "family": "injection",
+                  "mechanism": "taint",
+                  "context": "unreviewed",
+                  "semantics": "2417155d31b4a5b3ea9ea282efedf23ab72fd382e757ea27e4dfa151195f6f3d"
+                },
+                "comparison": {
+                  "head_oid": "961b8f28da002916f02864f4d0dbe06af8ad6088",
+                  "base_oid": "761a1c9f1e891465ba4db952e975d4cc31d43674",
+                  "base_reason": "supplied_remote_tip",
+                  "refs": [
+                    "refs/heads/topic"
+                  ]
+                },
+                "dependency_gaps": [],
+                "sanitizer_contexts": []
+              },
+              "admitted": false,
+              "reasons": [
+                "capability_unavailable"
+              ],
+              "evaluation_id": null,
+              "capability_evaluations": []
+            }
+          ],
+          "coverage_reasons": [
+            "capability_unavailable"
+          ]
+        },
+        "result": {
+          "analyses": [
+            {
+              "comparison": {
+                "head_oid": "961b8f28da002916f02864f4d0dbe06af8ad6088",
+                "base_oid": "761a1c9f1e891465ba4db952e975d4cc31d43674",
+                "base_reason": "supplied_remote_tip",
+                "refs": [
+                  "refs/heads/topic"
+                ]
+              },
+              "scopes": [
+                {
+                  "ranker_version": "existing-static-evidence-v1",
+                  "ranking_mode": "evidence",
+                  "population_complete": true,
+                  "selected": [
+                    {
+                      "identity": {
+                        "unit": "delta-smoke",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "priority": 0.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval($value)\",\"line\":4,\"method\":\"handler\"}],\"source_local\":false,\"source_near\":false}",
+                        "tier=4",
+                        "score=2.5"
+                      ],
+                      "tier": 4,
+                      "score": 2.5
+                    }
+                  ],
+                  "deferred": [],
+                  "unresolved_boundaries": []
+                }
+              ],
+              "completed_questions": [
+                {
+                  "unit": "delta-smoke",
+                  "language": "php",
+                  "path": "api.php",
+                  "function": "handler",
+                  "family": "injection"
+                }
+              ],
+              "coverage_status": "complete_within_scope"
+            }
+          ],
+          "finding_status": "none",
+          "coverage_status": "incomplete",
+          "push_disposition": "allow",
+          "actionable_defect_ids": []
+        }
+      }
+    }
+  },
+  "synthetic_controls": {
+    "php": {
+      "label": "Synthetic normalized policy control; eligibility is supplied only for this isolated verification",
+      "admission": {
+        "defects": [
+          {
+            "defect_id": "defect",
+            "family": "injection",
+            "witnesses": [
+              "request.input -> exec(command)"
+            ],
+            "locations": [
+              [
+                "handler.src",
+                4
+              ]
+            ],
+            "comparisons": [
+              {
+                "head_oid": "head",
+                "base_oid": "base",
+                "base_reason": "remote",
+                "refs": [
+                  "refs/heads/main"
+                ]
+              }
+            ],
+            "refs": [
+              "refs/heads/main"
+            ],
+            "change_evidence": [
+              "head:handler.src:2-2"
+            ],
+            "consequences": [
+              "Untrusted input reaching exec(command) permits command execution in shell-command."
+            ],
+            "repairs": [
+              "handler.src:4: At exec(command), use an argument-vector process API without a shell for shell-command."
+            ],
+            "evaluation_ids": [
+              "synthetic-only-evaluation"
+            ]
+          }
+        ],
+        "dispositions": [
+          {
+            "candidate": {
+              "delta": {
+                "family": "injection",
+                "site": "handler.src:4:handler",
+                "rung": "model_entailed",
+                "witness": "request.input -> exec(command)",
+                "defect_id": "defect",
+                "novelty": "new",
+                "reason": "source_connection_absent_from_comparable_base",
+                "head_operation": {
+                  "question": {
+                    "unit": "repository",
+                    "language": "php",
+                    "path": "handler.src",
+                    "function": "handler",
+                    "family": "injection"
+                  },
+                  "mechanism": "taint",
+                  "path": "handler.src",
+                  "line": 4,
+                  "operation": "exec(command)",
+                  "source": "request.input",
+                  "discharged": false,
+                  "detail": "{}"
+                },
+                "base_operations": [],
+                "change_evidence": [
+                  "head:handler.src:2-2"
+                ],
+                "base_revision": "base",
+                "head_revision": "head",
+                "semantics": "synthetic-semantics-v1"
+              },
+              "capability": {
+                "language": "php",
+                "runtime": "server",
+                "framework": "wordpress",
+                "family": "injection",
+                "mechanism": "taint",
+                "context": "shell-command",
+                "semantics": "synthetic-semantics-v1"
+              },
+              "comparison": {
+                "head_oid": "head",
+                "base_oid": "base",
+                "base_reason": "remote",
+                "refs": [
+                  "refs/heads/main"
+                ]
+              },
+              "dependency_gaps": [],
+              "sanitizer_contexts": []
+            },
+            "admitted": true,
+            "reasons": [],
+            "evaluation_id": "synthetic-only-evaluation",
+            "capability_evaluations": [
+              {
+                "key": {
+                  "language": "php",
+                  "runtime": "server",
+                  "framework": "wordpress",
+                  "family": "injection",
+                  "mechanism": "taint",
+                  "context": "shell-command",
+                  "semantics": "synthetic-semantics-v1"
+                },
+                "evaluation_id": "synthetic-only-evaluation",
+                "evaluation_artifact": "synthetic://reviewed-controls",
+                "verdict": "PASS",
+                "consequence_template": "Untrusted input reaching {operation} permits command execution in {context}.",
+                "repair_template": "At {operation}, use an argument-vector process API without a shell for {context}.",
+                "enabled": true,
+                "positive_controls": 2,
+                "reviewed_alerts": 2,
+                "calibration_artifact": "synthetic://scorecard",
+                "untouched_workload": "synthetic-control-population",
+                "operation_symbols": [
+                  "exec"
+                ]
+              }
+            ]
+          }
+        ],
+        "coverage_reasons": []
+      },
+      "results": {
+        "advisory": {
+          "analyses": [
+            {
+              "comparison": {
+                "head_oid": "head",
+                "base_oid": "base",
+                "base_reason": "remote",
+                "refs": [
+                  "refs/heads/main"
+                ]
+              },
+              "scopes": [
+                {
+                  "ranker_version": "v1",
+                  "ranking_mode": "static",
+                  "population_complete": true,
+                  "selected": [
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "handler.src",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "priority": 1.0,
+                      "evidence": [],
+                      "tier": null,
+                      "score": null
+                    }
+                  ],
+                  "deferred": [],
+                  "unresolved_boundaries": []
+                }
+              ],
+              "completed_questions": [
+                {
+                  "unit": "repository",
+                  "language": "php",
+                  "path": "handler.src",
+                  "function": "handler",
+                  "family": "injection"
+                }
+              ],
+              "coverage_status": "complete_within_scope"
+            }
+          ],
+          "finding_status": "actionable",
+          "coverage_status": "complete_within_scope",
+          "push_disposition": "allow",
+          "actionable_defect_ids": [
+            "defect"
+          ]
+        },
+        "blocking": {
+          "analyses": [
+            {
+              "comparison": {
+                "head_oid": "head",
+                "base_oid": "base",
+                "base_reason": "remote",
+                "refs": [
+                  "refs/heads/main"
+                ]
+              },
+              "scopes": [
+                {
+                  "ranker_version": "v1",
+                  "ranking_mode": "static",
+                  "population_complete": true,
+                  "selected": [
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "handler.src",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "priority": 1.0,
+                      "evidence": [],
+                      "tier": null,
+                      "score": null
+                    }
+                  ],
+                  "deferred": [],
+                  "unresolved_boundaries": []
+                }
+              ],
+              "completed_questions": [
+                {
+                  "unit": "repository",
+                  "language": "php",
+                  "path": "handler.src",
+                  "function": "handler",
+                  "family": "injection"
+                }
+              ],
+              "coverage_status": "complete_within_scope"
+            }
+          ],
+          "finding_status": "actionable",
+          "coverage_status": "complete_within_scope",
+          "push_disposition": "block",
+          "actionable_defect_ids": [
+            "defect"
+          ]
+        }
+      }
+    },
+    "javascript": {
+      "label": "Synthetic normalized policy control; eligibility is supplied only for this isolated verification",
+      "admission": {
+        "defects": [
+          {
+            "defect_id": "defect",
+            "family": "injection",
+            "witnesses": [
+              "request.input -> exec(command)"
+            ],
+            "locations": [
+              [
+                "handler.src",
+                4
+              ]
+            ],
+            "comparisons": [
+              {
+                "head_oid": "head",
+                "base_oid": "base",
+                "base_reason": "remote",
+                "refs": [
+                  "refs/heads/main"
+                ]
+              }
+            ],
+            "refs": [
+              "refs/heads/main"
+            ],
+            "change_evidence": [
+              "head:handler.src:2-2"
+            ],
+            "consequences": [
+              "Untrusted input reaching exec(command) permits command execution in shell-command."
+            ],
+            "repairs": [
+              "handler.src:4: At exec(command), use an argument-vector process API without a shell for shell-command."
+            ],
+            "evaluation_ids": [
+              "synthetic-only-evaluation"
+            ]
+          }
+        ],
+        "dispositions": [
+          {
+            "candidate": {
+              "delta": {
+                "family": "injection",
+                "site": "handler.src:4:handler",
+                "rung": "model_entailed",
+                "witness": "request.input -> exec(command)",
+                "defect_id": "defect",
+                "novelty": "new",
+                "reason": "source_connection_absent_from_comparable_base",
+                "head_operation": {
+                  "question": {
+                    "unit": "repository",
+                    "language": "javascript",
+                    "path": "handler.src",
+                    "function": "handler",
+                    "family": "injection"
+                  },
+                  "mechanism": "taint",
+                  "path": "handler.src",
+                  "line": 4,
+                  "operation": "exec(command)",
+                  "source": "request.input",
+                  "discharged": false,
+                  "detail": "{}"
+                },
+                "base_operations": [],
+                "change_evidence": [
+                  "head:handler.src:2-2"
+                ],
+                "base_revision": "base",
+                "head_revision": "head",
+                "semantics": "synthetic-semantics-v1"
+              },
+              "capability": {
+                "language": "javascript",
+                "runtime": "server",
+                "framework": "express",
+                "family": "injection",
+                "mechanism": "taint",
+                "context": "shell-command",
+                "semantics": "synthetic-semantics-v1"
+              },
+              "comparison": {
+                "head_oid": "head",
+                "base_oid": "base",
+                "base_reason": "remote",
+                "refs": [
+                  "refs/heads/main"
+                ]
+              },
+              "dependency_gaps": [],
+              "sanitizer_contexts": []
+            },
+            "admitted": true,
+            "reasons": [],
+            "evaluation_id": "synthetic-only-evaluation",
+            "capability_evaluations": [
+              {
+                "key": {
+                  "language": "javascript",
+                  "runtime": "server",
+                  "framework": "express",
+                  "family": "injection",
+                  "mechanism": "taint",
+                  "context": "shell-command",
+                  "semantics": "synthetic-semantics-v1"
+                },
+                "evaluation_id": "synthetic-only-evaluation",
+                "evaluation_artifact": "synthetic://reviewed-controls",
+                "verdict": "PASS",
+                "consequence_template": "Untrusted input reaching {operation} permits command execution in {context}.",
+                "repair_template": "At {operation}, use an argument-vector process API without a shell for {context}.",
+                "enabled": true,
+                "positive_controls": 2,
+                "reviewed_alerts": 2,
+                "calibration_artifact": "synthetic://scorecard",
+                "untouched_workload": "synthetic-control-population",
+                "operation_symbols": [
+                  "exec"
+                ]
+              }
+            ]
+          }
+        ],
+        "coverage_reasons": []
+      },
+      "results": {
+        "advisory": {
+          "analyses": [
+            {
+              "comparison": {
+                "head_oid": "head",
+                "base_oid": "base",
+                "base_reason": "remote",
+                "refs": [
+                  "refs/heads/main"
+                ]
+              },
+              "scopes": [
+                {
+                  "ranker_version": "v1",
+                  "ranking_mode": "static",
+                  "population_complete": true,
+                  "selected": [
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "handler.src",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "priority": 1.0,
+                      "evidence": [],
+                      "tier": null,
+                      "score": null
+                    }
+                  ],
+                  "deferred": [],
+                  "unresolved_boundaries": []
+                }
+              ],
+              "completed_questions": [
+                {
+                  "unit": "repository",
+                  "language": "javascript",
+                  "path": "handler.src",
+                  "function": "handler",
+                  "family": "injection"
+                }
+              ],
+              "coverage_status": "complete_within_scope"
+            }
+          ],
+          "finding_status": "actionable",
+          "coverage_status": "complete_within_scope",
+          "push_disposition": "allow",
+          "actionable_defect_ids": [
+            "defect"
+          ]
+        },
+        "blocking": {
+          "analyses": [
+            {
+              "comparison": {
+                "head_oid": "head",
+                "base_oid": "base",
+                "base_reason": "remote",
+                "refs": [
+                  "refs/heads/main"
+                ]
+              },
+              "scopes": [
+                {
+                  "ranker_version": "v1",
+                  "ranking_mode": "static",
+                  "population_complete": true,
+                  "selected": [
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "handler.src",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "priority": 1.0,
+                      "evidence": [],
+                      "tier": null,
+                      "score": null
+                    }
+                  ],
+                  "deferred": [],
+                  "unresolved_boundaries": []
+                }
+              ],
+              "completed_questions": [
+                {
+                  "unit": "repository",
+                  "language": "javascript",
+                  "path": "handler.src",
+                  "function": "handler",
+                  "family": "injection"
+                }
+              ],
+              "coverage_status": "complete_within_scope"
+            }
+          ],
+          "finding_status": "actionable",
+          "coverage_status": "complete_within_scope",
+          "push_disposition": "block",
+          "actionable_defect_ids": [
+            "defect"
+          ]
+        }
+      }
+    }
+  },
+  "claim_type": "TASK",
+  "verification": {
+    "review": "APPROVED",
+    "tests_passed": 1207,
+    "tests_skipped": 9,
+    "seconds": 99.04,
+    "ruff": "PASS",
+    "format_files": 235,
+    "mypy_files": 110,
+    "regression_gates": "PASS"
+  }
+}

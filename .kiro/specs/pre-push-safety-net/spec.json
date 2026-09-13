@@ -84,9 +84,10 @@
       "3.2",
       "3.3",
       "3.4",
-      "4.1"
+      "4.1",
+      "4.2"
     ],
-    "remaining_tasks": 15,
+    "remaining_tasks": 14,
     "verification_record": "implementation-group-4.md",
     "verification_records": [
       "implementation-group-1.md",
