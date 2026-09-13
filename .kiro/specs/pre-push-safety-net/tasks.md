@@ -1,7 +1,7 @@
 # Implementation Plan: pre-push-safety-net
 
 Status: task plan approved by the maintainer's "approve." on 2026-09-12. Groups 1 and 2 (tasks 1.1–2.3)
-are complete after independent review and fresh verification. Group 3 is in progress (3.1 verified); groups 4–8 remain pending;
+are complete after independent review and fresh verification. Group 3 is in progress (3.1–3.2 verified); groups 4–8 remain pending;
 the hook and capability admission are not yet implemented. See `implementation-group-1.md` and `implementation-group-2.md`.
 
 ## Execution contract
@@ -87,13 +87,14 @@ the hook and capability admission are not yet implemented. See `implementation-g
   - _Depends: 1.4_
   - _Requirements: 4.1, 4.2, 7.3_
   - _Verified 2026-09-13:_ independent review APPROVED; fresh suite 1,089 passed, nine skipped; global Ruff/format and mypy (108 files) passed. Real hanging probe/frontend/overlay/census/query processes obey the shared deadline and cancellation allowance; retries do not reset it. Non-root packaged PHP/JavaScript graph/query smoke passed with matching source hashes under one 900-second lab budget. See `implementation-group-3.md` and `benchmarks/measurements/2026-09-13-engine-budget-smoke.json`. Runtime readiness only; no hook latency claim. Former three mypy errors resolved by a behavior-preserving variable rename.
-- [ ] 3.2 Return the ranker's exact selected and deferred work
+- [x] 3.2 Return the ranker's exact selected and deferred work
   - Integrate the existing ranker through explicit mode selection and shared question identity; record selected/deferred IDs, evidence and reasons directly from the final order.
   - Preserve unanswered evidence as unknown rather than tier zero; report per-family coverage so taint ranking cannot masquerade as authorization/configuration coverage.
   - Add paired PHP/JavaScript normalized-evidence contract tests asserting identical tier/score and selection decisions for equivalent input and budgets, without repository/language priority exceptions.
   - Done when changing order produces matching execution and manifest IDs, with no reconstruction from an earlier list, and normalized cross-language equivalence tests pass.
   - _Boundary: Ranker Scope Contract, generic driver integration_
   - _Requirements: 2.1, 2.2, 6.4, 7.3, 8.1, 8.2_
+  - _Verified 2026-09-13:_ independent review APPROVED; 1,105 passed, nine skipped; global Ruff/format/mypy passed. Twenty-four independent order/budget/missing-family combinations retained all question identities. Packaged PHP/JavaScript smoke selected the same controlled risky operation at tier 4/score 2.5, with exact execution/outcome IDs and reconciled family coverage. Missing evidence, partial graphs and interrupted arbitration remain explicit; CLI consumes authoritative scope. Evidence: `benchmarks/measurements/2026-09-13-ranker-scope-smoke.json`. No new ranking weights or hook admission claim.
 - [ ] 3.3 Connect change context to supported first-party relationships
   - Use existing entry/callee, field, hook and guard relationships to supply affected context to ranked questions, including unchanged sinks after source/guard changes.
   - Preserve current abstract semantics; absent dynamic or external relationships remain unresolved rather than guessed safe. A required new feature or fact is reported to its owning spec.

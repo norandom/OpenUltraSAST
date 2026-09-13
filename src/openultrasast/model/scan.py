@@ -19,17 +19,18 @@ the region's risk score said beforehand.
 from __future__ import annotations
 
 import inspect
+import json
 import logging
 import time
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field, replace
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
 from ..cpg.backend import CpgResult
 from .candidates import enumerate_candidates
 from .config_value import request_params as config_params
-from .contracts import ExecutionBudget
+from .contracts import DeferredQuestion, ExecutionBudget, FamilyCoverage, QuestionIdentity, QuestionOutcome, RankedQuestion, ScopeDecision
 from .dominance import request_params as dominance_params
 from .evidence import TIER_EXCLUDE, Evidence, evidence_from_rows
 from .ladder import Rung
@@ -58,6 +59,7 @@ ArbiterSpec = TaintSpec | DominanceSpec | ConfigSpec
 ENTRY_POINT_CALL_DEPTH = 3
 
 logger = logging.getLogger(__name__)
+
 
 _RUNG_ORDER = {Rung.ENTAILED: 0, Rung.CORROBORATED: 1, Rung.SUSPICION: 2, Rung.EXECUTION_CONFIRMED: -1}
 
@@ -115,6 +117,10 @@ class ModelScanResult:
     # could have been found was skipped. Reported so the request count is legible.
     requests_pruned: int = 0
 
+    scope: ScopeDecision | None = None
+    question_outcomes: tuple[QuestionOutcome, ...] = ()
+    family_coverage: tuple[FamilyCoverage, ...] = ()
+
     @property
     def arbitrate_seconds(self) -> float:
         """What is left once the CPG is built and queried: the judge calls and the arbiters themselves."""
@@ -130,8 +136,21 @@ def scan_repository(
     model: str = "",
     budget: ScanBudget | None = None,
     execution_budget: ExecutionBudget | None = None,
+    ranking_mode: str | None = None,
+    unit: str = "repository",
+    population_complete: bool = False,
 ) -> ModelScanResult:
     """Run with an optional transaction deadline; graph ownership ends on every exit."""
+    if ranking_mode not in (None, "static", "evidence"):
+        raise ValueError("ranking_mode must be static or evidence")
+    limits = budget if budget is not None else ScanBudget()
+    if ranking_mode is not None:
+        limits = replace(limits, order_by_evidence=ranking_mode == "evidence")
+    mode = "evidence" if limits.order_by_evidence else "static"
+    # Reject duplicate canonical questions before any engine work or resource ownership.
+    identities = [_identity(unit, r, f) for r in regions for f in r.families]
+    if len(set(identities)) != len(identities):
+        raise ValueError("duplicate question identity")
     started = time.monotonic()
     owned: list[Any] = []
     try:
@@ -141,7 +160,10 @@ def scan_repository(
             backend=backend,
             client=client if execution_budget is None else None,
             model=model,
-            budget=budget,
+            budget=limits,
+            ranking_mode=mode,
+            unit=unit,
+            population_complete=population_complete,
             execution_budget=execution_budget,
             owned=owned,
         )
@@ -172,6 +194,9 @@ def _scan_repository_impl(
     budget: ScanBudget | None = None,
     execution_budget: ExecutionBudget | None = None,
     owned: list[Any],
+    ranking_mode: str,
+    unit: str,
+    population_complete: bool,
 ) -> ModelScanResult:
     """Arbitrate a repository's regions under one CPG and one budget."""
     limits = budget if budget is not None else ScanBudget()
@@ -188,7 +213,10 @@ def _scan_repository_impl(
     cpg = _build(backend, root, dominant, execution_budget=execution_budget)
     build_seconds = round(time.monotonic() - build_started, 2)
     if cpg is None:
+        scope, _ = _scope_work(regions, {}, limits, unit, ranking_mode, population_complete, failure="cpg_build_failed")
         return ModelScanResult(
+            scope=scope,
+            family_coverage=_family_coverage(scope, ()),
             by_rung=_empty_tally(),
             regions_unjudged=len(regions),
             seconds=round(time.monotonic() - started, 2),
@@ -252,7 +280,7 @@ def _scan_repository_impl(
             else ordered_regions[: limits.max_regions]
         )
         tier_started = time.monotonic()
-        evidence_by_pair, failed = _evidence_pass(cpg, _collect(evidence_candidates), hooks)
+        evidence_by_pair, failed = _evidence_pass(cpg, _collect(evidence_candidates), hooks, degradations=degradations)
         per_kind["evidence"] = round(time.monotonic() - tier_started, 2)
         if failed:
             degradations.append({"stage": "model", "reason": "query_failed", "kind": "evidence", "requests": failed})
@@ -260,11 +288,15 @@ def _scan_repository_impl(
         if limits.order_by_evidence and evidence_by_pair:
             ordered_regions = order_by_evidence(ordered_regions, evidence_by_pair)
 
-    # Phase 1: collect the whole scan's questions, for at most `max_regions` regions. Nothing is asked yet.
-    work = _collect(ordered_regions[: limits.max_regions])
-    tier_by_rid = {
-        rid: evidence_by_pair[_pair_key(region, spec)].tier for rid, region, spec in work if _pair_key(region, spec) in evidence_by_pair
-    }
+    # Authoritative selection is made once, from the actual final ranker order.
+    # Stable question IDs are the IDs sent to every execution request below.
+    scope_limits = (
+        replace(limits, prune_tier0=False)
+        if any(d.get("reason") in {"files_unparsed", "cpg_empty", "cpg_sharded"} for d in degradations)
+        else limits
+    )
+    scope, work = _scope_work(ordered_regions, evidence_by_pair, scope_limits, unit, ranking_mode, population_complete)
+    outcomes: dict[str, QuestionOutcome] = {}
 
     # Phase 2: ONE invocation per query kind. JVM startup dominates a repository scan -- a call per region
     # per family put a ten-line file at four minutes and a thousand regions at roughly fifty hours -- while
@@ -272,19 +304,10 @@ def _scan_repository_impl(
     rows_by_id: dict[str, list[object]] = {}
     census_reported = False
     query_started = time.monotonic()
-    pruned = 0
+    pruned = sum(q.reason == "tier_zero" for q in scope.deferred)
     for kind, requests in _grouped(work, hook_callbacks=hooks).items():
         if not _within_deadline(execution_budget):
             break
-        if kind == "taint" and limits.prune_tier0 and tier_by_rid:
-            # Tier 0 is exact: a family with no sink in reach cannot yield a flow. Measured on a 637-file
-            # plugin, that is 2,161 of 2,500 requests -- 86% of a query that timed out at forty minutes.
-            keep = {rid: params for rid, params in requests.items() if tier_by_rid.get(rid, TIER_EXCLUDE + 1) != TIER_EXCLUDE}
-            pruned = len(requests) - len(keep)
-            requests = keep
-            if not requests:
-                per_kind[kind] = 0.0
-                continue
         kind_started = time.monotonic()
         batch = getattr(cpg, "run_batch", None)
         if callable(batch):
@@ -314,7 +337,11 @@ def _scan_repository_impl(
                     if shards > 1:
                         degradations.append({"stage": "model", "reason": "cpg_sharded", "shards": shards})
                     census_reported = True
-                rows_by_id.update(answered_batch)
+                valid = {rid: rows for rid, rows in answered_batch.items() if rid in requests and isinstance(rows, list)}
+                rows_by_id.update(valid)
+                missing = len(requests) - len(valid)
+                if missing:
+                    degradations.append({"stage": "model", "reason": "query_failed", "kind": kind, "requests": missing})
         else:  # a backend without batching still works, one call at a time
             for rid, params in requests.items():
                 if not _within_deadline(execution_budget):
@@ -322,8 +349,6 @@ def _scan_repository_impl(
                 answered = cpg.run(kind, params)
                 if isinstance(answered, list):
                     rows_by_id[rid] = list(answered)
-                elif execution_budget is None:
-                    rows_by_id[rid] = []
                 else:
                     degradations.append({"stage": "model", "reason": "query_failed", "kind": kind, "requests": 1})
         per_kind[kind] = round(time.monotonic() - kind_started, 2)
@@ -345,9 +370,8 @@ def _scan_repository_impl(
     for rid, region, spec in work:
         if not _within_deadline(execution_budget):
             break
-        # Unanswered requests are deferred on the bounded path, never adjudicated
-        # from an invented empty response. Exact identities are added in task 3.2.
-        if execution_budget is not None and rid not in rows_by_id:
+        # Unanswered requests are never adjudicated from invented empty responses.
+        if rid not in rows_by_id:
             continue
         exhausted = counted is not None and counted.calls >= limits.max_model_calls
         family = getattr(spec, "family", "")
@@ -379,7 +403,13 @@ def _scan_repository_impl(
         except Exception as exc:  # noqa: BLE001 -- one bad region must not end the scan
             logger.warning("model scan failed for %s: %s", region.path, exc)
             degradations.append({"stage": "model", "reason": "region_failed", "path": region.path})
+            outcomes[rid] = QuestionOutcome(
+                _identity(unit, region, family), "unresolved", "arbitration_failed", _rows_json(rows_by_id[rid])
+            )
             continue
+        outcomes[rid] = QuestionOutcome(
+            _identity(unit, region, family), "completed", "query_answered_and_arbitrated", _rows_json(rows_by_id[rid])
+        )
         judged.add((region.path, region.function))
         if exhausted:
             unasked.add((region.path, region.function))
@@ -388,6 +418,21 @@ def _scan_repository_impl(
     if unasked:
         degradations.append({"stage": "model", "reason": "budget_exhausted", "regions_unasked": len(unasked)})
 
+    graph_gaps = tuple(str(d["reason"]) for d in degradations if d.get("reason") in {"files_unparsed", "cpg_empty", "cpg_sharded"})
+    for question in scope.selected:
+        rid = question.identity.question_id
+        if rid not in outcomes:
+            answered = rid in rows_by_id
+            outcomes[rid] = QuestionOutcome(
+                question.identity,
+                "not_arbitrated" if answered else "unanswered",
+                "deadline_exhausted" if not _within_deadline(execution_budget) else "query_unanswered",
+                _rows_json(rows_by_id[rid]) if answered else None,
+            )
+        if graph_gaps and outcomes[rid].status == "completed":
+            outcomes[rid] = replace(outcomes[rid], status="unresolved", reason="graph_incomplete")
+    scope = replace(scope, unresolved_boundaries=tuple(dict.fromkeys((*scope.unresolved_boundaries, *graph_gaps))))
+    ordered_outcomes = tuple(outcomes[q.identity.question_id] for q in scope.selected)
     scanned = len(judged)
 
     findings = _ordered(_deduplicated(collected))
@@ -409,6 +454,100 @@ def _scan_repository_impl(
         tiers=tuple(tiers),
         tier_counts={tier: sum(1 for t in tiers if t[3] == tier) for tier in sorted({t[3] for t in tiers})},
         requests_pruned=pruned,
+        scope=scope,
+        question_outcomes=ordered_outcomes,
+        family_coverage=_family_coverage(scope, ordered_outcomes),
+    )
+
+
+def _identity(unit: str, region: ScanRegion, family: str) -> QuestionIdentity:
+    return QuestionIdentity(unit, region.language, region.path, region.function, family)
+
+
+def _rows_json(rows: object) -> str:
+    return json.dumps(rows, sort_keys=True, separators=(",", ":"))
+
+
+def _scope_work(
+    regions: Sequence[ScanRegion],
+    evidence: Mapping[tuple[str, str, str], Evidence],
+    limits: ScanBudget,
+    unit: str,
+    mode: str,
+    population_complete: bool,
+    *,
+    failure: str | None = None,
+) -> tuple[ScopeDecision, list[tuple[str, ScanRegion, ArbiterSpec]]]:
+    """Consume the ranker's final order once; the returned work IS selected scope."""
+    selected: list[RankedQuestion] = []
+    deferred: list[DeferredQuestion] = []
+    work: list[tuple[str, ScanRegion, ArbiterSpec]] = []
+    boundaries: list[str] = [] if population_complete else ["population_not_asserted_complete"]
+    if failure:
+        boundaries.append(failure)
+    for index, region in enumerate(regions):
+        for family in region.families:
+            identity = _identity(unit, region, family)
+            spec = _spec_for(family, region.language)
+            vector = evidence.get((region.path, region.function or "", family))
+            facts: tuple[str, ...] = ("static_rank=" + str(region.rank),)
+            if vector is not None:
+                facts += ("normalized_evidence=" + _rows_json(asdict(vector)), "tier=" + str(vector.tier), "score=" + str(vector.score))
+            elif isinstance(spec, TaintSpec):
+                facts += ("evidence_unknown",)
+                boundaries.append("evidence_unknown:" + identity.question_id)
+            else:
+                facts += ("taint_evidence_not_applicable",)
+            reason = (
+                "unsupported_family"
+                if spec is None
+                else failure
+                or (
+                    "region_budget"
+                    if index >= limits.max_regions
+                    else "tier_zero"
+                    if limits.prune_tier0 and isinstance(spec, TaintSpec) and vector is not None and vector.tier == TIER_EXCLUDE
+                    else None
+                )
+            )
+            if reason:
+                deferred.append(DeferredQuestion(identity, reason, facts))
+                if reason == "unsupported_family":
+                    boundaries.append("unsupported_family:" + identity.question_id)
+            else:
+                assert spec is not None
+                selected.append(
+                    RankedQuestion(
+                        identity,
+                        float(-len(selected)),
+                        facts,
+                        vector.tier if vector is not None else None,
+                        vector.score if vector is not None else None,
+                    )
+                )
+                work.append((identity.question_id, region, spec))
+    return ScopeDecision(
+        "existing-static-evidence-v1", mode, population_complete, tuple(selected), tuple(deferred), tuple(boundaries)
+    ), work
+
+
+def _family_coverage(scope: ScopeDecision, outcomes: tuple[QuestionOutcome, ...]) -> tuple[FamilyCoverage, ...]:
+    population: list[RankedQuestion | DeferredQuestion] = [*scope.selected, *scope.deferred]
+    keys = sorted({(q.identity.unit, q.identity.language, q.identity.family) for q in population})
+
+    def matches(identity: QuestionIdentity, key: tuple[str, str, str]) -> bool:
+        return (identity.unit, identity.language, identity.family) == key
+
+    return tuple(
+        FamilyCoverage(
+            *key,
+            selected=sum(matches(q.identity, key) for q in scope.selected),
+            completed=sum(matches(q.identity, key) and q.status == "completed" for q in outcomes),
+            unanswered=sum(matches(q.identity, key) and q.status != "completed" for q in outcomes),
+            deferred=sum(matches(q.identity, key) for q in scope.deferred),
+            unsupported=sum(matches(q.identity, key) and q.reason == "unsupported_family" for q in scope.deferred),
+        )
+        for key in keys
     )
 
 
@@ -429,7 +568,7 @@ def _collect(regions: Sequence[ScanRegion]) -> list[tuple[str, ScanRegion, Arbit
 
 
 def _evidence_pass(
-    cpg: Any, work: Sequence[tuple[str, ScanRegion, ArbiterSpec]], hooks: str
+    cpg: Any, work: Sequence[tuple[str, ScanRegion, ArbiterSpec]], hooks: str, *, degradations: list[Mapping[str, object]] | None = None
 ) -> tuple[dict[tuple[str, str, str], Evidence], int]:
     """The evidence vector of every taint pair in ``work``, keyed by (path, function, family).
 
@@ -443,12 +582,23 @@ def _evidence_pass(
     answered = cpg.run_batch("taint", requests)
     if answered is None:
         return {}, len(requests)
-    answered.pop("__census__", None)
+    census = answered.pop("__census__", None)
+    if census and degradations is not None:
+        entry = census[0] if isinstance(census[0], Mapping) else {}
+        try:
+            methods = int(str(entry.get("methods", "0")))
+            shards = int(str(entry.get("shards", "1")))
+        except ValueError:
+            methods, shards = 0, 1
+        if methods <= 0:
+            degradations.append({"stage": "model", "reason": "cpg_empty"})
+        if shards > 1:
+            degradations.append({"stage": "model", "reason": "cpg_sharded", "shards": shards})
     by_rid = {rid: (region, spec) for rid, region, spec in work}
     out: dict[tuple[str, str, str], Evidence] = {}
     for rid, rows in answered.items():
         pair = by_rid.get(rid)
-        if pair is None:
+        if pair is None or rid not in requests or not isinstance(rows, list):
             continue
         region, spec = pair
         evidence = evidence_from_rows(
@@ -463,7 +613,16 @@ def _evidence_pass(
         )
         if evidence is not None:
             out[_pair_key(region, spec)] = evidence
-    return out, 0
+    # Legacy ranker keys omit language. An overlapping frontend population cannot
+    # borrow another language's vector; partitioned callers retain distinct IDs.
+    languages_by_pair: dict[tuple[str, str, str], set[str]] = {}
+    for rid, region, spec in work:
+        if rid in requests:
+            languages_by_pair.setdefault(_pair_key(region, spec), set()).add(region.language)
+    for key, languages in languages_by_pair.items():
+        if len(languages) > 1:
+            out.pop(key, None)
+    return out, len(requests) - len(out)
 
 
 def order_by_evidence(regions: Sequence[ScanRegion], evidence: Mapping[tuple[str, str, str], Evidence]) -> list[ScanRegion]:

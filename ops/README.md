@@ -90,6 +90,13 @@ To exercise the same smoke through one shared backend deadline, add
 all census/witness queries consume that same budget. The generous smoke allowance verifies
 runtime integration; it does not represent the hook's target latency.
 
+`ops/smoke_scope.py` exercises the generic driver with real PHP and JavaScript graphs,
+explicit evidence ranking and two declared entry regions per language. Run it with the
+same Docker command, substituting `smoke_scope.py` for `smoke_engine.py`. It verifies
+that the lower static-ranked risky function is selected, that the harmless function is
+recorded as deferred, and that selected IDs match completed query outcomes and per-family
+coverage. It uses one 900-second lab budget; it is not a mapper or hook-quality evaluation.
+
 Why this exists: Joern was first installed here by hand with `curl` and `unzip`, which is fine once and
 unreproducible thereafter. The engine decides whether a finding is a `suspicion` or a `model_entailed`, and
 every ceiling number in `benchmarks/measurements` is only comparable against a fixed version — so the version

@@ -61,3 +61,32 @@ inside the driver; this does not change the ranker. Global mypy now checks all
 nine skipped, 96.85 seconds; global Ruff, formatting (219 files), mypy and diff
 checks passed. Verification status: VERIFIED, claim type TASK. This completes
 8/27 tasks; tasks 3.2–3.4 remain in progress for this group.
+
+## Task 3.2 evidence
+
+Independent review APPROVED; verification status VERIFIED, claim type TASK.
+The fresh reviewer suite passed 1,105 tests with nine skipped in 101.18 seconds.
+Global Ruff, formatting (221 files), mypy (108 source files) and diff checks passed.
+The reviewer also exercised 24 combinations of order, budget and failed query
+families, retaining all 12 declared questions and reconciling coverage totals.
+
+The driver accepts explicit `ranking_mode`, `unit` and `population_complete` while
+preserving ordinary defaults. Scope and execution requests are produced together
+from the existing ranker's final order. Selected/deferred identities, normalized
+evidence, unchanged tier/score, per-question outcomes and per-family completion
+travel to the CLI directly. Missing evidence stays unknown. Partial graphs cannot
+justify tier-zero pruning or completed coverage. Raw query answers survive a later
+timeout even when arbitration cannot complete. A completed outcome denotes query
+and arbitration completion within the modeled boundary, not a safety assertion.
+
+`benchmarks/measurements/2026-09-13-ranker-scope-smoke.json` records a rebuilt image
+whose backend, driver, contracts and CLI hashes match the source. Real PHP (78 bytes)
+and JavaScript (69 bytes) fixtures each selected `risky` over the initially higher
+static-ranked `safe`. Both selected questions had tier 4 and score 2.5; execution
+outcome IDs matched selection, and each family reported one selected/completed,
+one deferred and zero unanswered questions. Each produced one controlled finding.
+PHP took 61.57 seconds and JavaScript 51.27 seconds under one 900-second lab budget.
+This manually declared entry-region smoke does not validate mapper discovery,
+PMPro/NodeGoat replay, capability admission or hook latency.
+
+Nine of 27 tasks are now complete; tasks 3.3–3.4 remain for this group.

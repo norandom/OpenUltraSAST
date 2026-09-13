@@ -1,0 +1,294 @@
+{
+  "recorded_at": "2026-09-13T08:14:51.777108+00:00",
+  "task": "3.2",
+  "image_id": "sha256:0078b93b0caf7cb2587e47fa922225852bad2d42a594344a0de0161cf178b690",
+  "build_exit_code": 0,
+  "smoke_exit_code": 0,
+  "packaged_source_hashes": {
+    "openultrasast.cpg.backend": "2e327d26958efd592932bbe5a84aa122d969c0e49a1c13469a4d956b621a9a34",
+    "openultrasast.model.scan": "ceeb9aa2e1419565642ed11e5de6be6a80ca242f574eb533baa0b11aa79ff651",
+    "openultrasast.model.contracts": "0965fb3f0a365f91f2d0984666dc0fcf772344da51741367ea3b74fd7ed885d9",
+    "openultrasast.cli": "0a881f981d6a50d0c030ce75ddeb773a9434c6f93a9a4e059149d77f2c1f7736"
+  },
+  "packaged_sources_match_workspace": true,
+  "smoke_script_sha256": "5183231d42ae4acea57399bc4de3285f5510c0d95466bf8f289e35dd5289280d",
+  "runtime": {
+    "purpose": "Real PHP/JavaScript scope smoke; declared entry regions, no admission or latency claim",
+    "shared_budget_seconds": 900,
+    "languages": {
+      "php": {
+        "source_bytes": 78,
+        "source_sha256": "9f73839b8b5b3861611a4a627e7fb1e252e2450b861b187d43bd9e8bfd9a5f9a",
+        "selected_question_ids": [
+          "df64a78dd4ad131c49dd84b93e5371d01cbf9dd555c172d527f809b5ddebf474"
+        ],
+        "result": {
+          "findings": [
+            {
+              "site": "api.php:3:risky",
+              "family": "injection",
+              "rung": "model_entailed",
+              "witness": "$req -> eval($req) in api.php (line 3, 2 steps)",
+              "contradiction": "",
+              "reached_from": 1
+            }
+          ],
+          "by_rung": {
+            "suspicion": 0,
+            "model_corroborated": 0,
+            "model_entailed": 1,
+            "execution_confirmed": 0
+          },
+          "regions_scanned": 1,
+          "regions_unjudged": 1,
+          "regions_unasked": 0,
+          "model_calls": 0,
+          "cost_usd": 0.0,
+          "seconds": 61.57,
+          "build_seconds": 28.68,
+          "query_seconds": 16.09,
+          "query_seconds_by_kind": {
+            "evidence": 16.75,
+            "taint": 16.09
+          },
+          "degradations": [
+            {
+              "stage": "model",
+              "reason": "regions_truncated",
+              "examined": 1,
+              "total": 2
+            }
+          ],
+          "tiers": [
+            [
+              "api.php",
+              "safe",
+              "injection",
+              0
+            ],
+            [
+              "api.php",
+              "risky",
+              "injection",
+              4
+            ]
+          ],
+          "tier_counts": {
+            "0": 1,
+            "4": 1
+          },
+          "requests_pruned": 0,
+          "scope": {
+            "ranker_version": "existing-static-evidence-v1",
+            "ranking_mode": "evidence",
+            "population_complete": true,
+            "selected": [
+              {
+                "identity": {
+                  "unit": "scope-smoke",
+                  "language": "php",
+                  "path": "api.php",
+                  "function": "risky",
+                  "family": "injection"
+                },
+                "priority": 0.0,
+                "evidence": [
+                  "static_rank=1.0",
+                  "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval($req)\",\"line\":3,\"method\":\"risky\"}],\"source_local\":false,\"source_near\":false}",
+                  "tier=4",
+                  "score=2.5"
+                ],
+                "tier": 4,
+                "score": 2.5
+              }
+            ],
+            "deferred": [
+              {
+                "identity": {
+                  "unit": "scope-smoke",
+                  "language": "php",
+                  "path": "api.php",
+                  "function": "safe",
+                  "family": "injection"
+                },
+                "reason": "region_budget",
+                "evidence": [
+                  "static_rank=2.0",
+                  "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                  "tier=0",
+                  "score=0.0"
+                ]
+              }
+            ],
+            "unresolved_boundaries": []
+          },
+          "question_outcomes": [
+            {
+              "identity": {
+                "unit": "scope-smoke",
+                "language": "php",
+                "path": "api.php",
+                "function": "risky",
+                "family": "injection"
+              },
+              "status": "completed",
+              "reason": "query_answered_and_arbitrated",
+              "raw_rows_json": "[{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":2,\"paths\":1,\"sanitized\":false,\"sink\":\"eval($req)\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"api.php\",\"sinkLine\":\"3\",\"sinkMethod\":\"risky\",\"source\":\"$req\",\"sourceKind\":\"parameter\"}]"
+            }
+          ],
+          "family_coverage": [
+            {
+              "unit": "scope-smoke",
+              "language": "php",
+              "family": "injection",
+              "selected": 1,
+              "completed": 1,
+              "unanswered": 0,
+              "deferred": 1,
+              "unsupported": 0
+            }
+          ]
+        }
+      },
+      "javascript": {
+        "source_bytes": 69,
+        "source_sha256": "d3e956e2b4b4f29c51afb9c1ba45fe207dae93c11fd3b7d50171121a121c85c6",
+        "selected_question_ids": [
+          "f29db1d7c33c22f09e10d8915be1772af4d2ff7856807e59b85678306d5b1269"
+        ],
+        "result": {
+          "findings": [
+            {
+              "site": "api.js:2:risky",
+              "family": "injection",
+              "rung": "model_entailed",
+              "witness": "req -> eval(req) in api.js (line 2, 2 steps)",
+              "contradiction": "",
+              "reached_from": 1
+            }
+          ],
+          "by_rung": {
+            "suspicion": 0,
+            "model_corroborated": 0,
+            "model_entailed": 1,
+            "execution_confirmed": 0
+          },
+          "regions_scanned": 1,
+          "regions_unjudged": 1,
+          "regions_unasked": 0,
+          "model_calls": 0,
+          "cost_usd": 0.0,
+          "seconds": 51.27,
+          "build_seconds": 6.47,
+          "query_seconds": 23.0,
+          "query_seconds_by_kind": {
+            "evidence": 21.76,
+            "taint": 23.0
+          },
+          "degradations": [
+            {
+              "stage": "model",
+              "reason": "regions_truncated",
+              "examined": 1,
+              "total": 2
+            }
+          ],
+          "tiers": [
+            [
+              "api.js",
+              "safe",
+              "injection",
+              0
+            ],
+            [
+              "api.js",
+              "risky",
+              "injection",
+              4
+            ]
+          ],
+          "tier_counts": {
+            "0": 1,
+            "4": 1
+          },
+          "requests_pruned": 0,
+          "scope": {
+            "ranker_version": "existing-static-evidence-v1",
+            "ranking_mode": "evidence",
+            "population_complete": true,
+            "selected": [
+              {
+                "identity": {
+                  "unit": "scope-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "risky",
+                  "family": "injection"
+                },
+                "priority": 0.0,
+                "evidence": [
+                  "static_rank=1.0",
+                  "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval(req)\",\"line\":2,\"method\":\"risky\"}],\"source_local\":false,\"source_near\":false}",
+                  "tier=4",
+                  "score=2.5"
+                ],
+                "tier": 4,
+                "score": 2.5
+              }
+            ],
+            "deferred": [
+              {
+                "identity": {
+                  "unit": "scope-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "safe",
+                  "family": "injection"
+                },
+                "reason": "region_budget",
+                "evidence": [
+                  "static_rank=2.0",
+                  "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                  "tier=0",
+                  "score=0.0"
+                ]
+              }
+            ],
+            "unresolved_boundaries": []
+          },
+          "question_outcomes": [
+            {
+              "identity": {
+                "unit": "scope-smoke",
+                "language": "javascript",
+                "path": "api.js",
+                "function": "risky",
+                "family": "injection"
+              },
+              "status": "completed",
+              "reason": "query_answered_and_arbitrated",
+              "raw_rows_json": "[{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":2,\"paths\":1,\"sanitized\":false,\"sink\":\"eval(req)\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"api.js\",\"sinkLine\":\"2\",\"sinkMethod\":\"risky\",\"source\":\"req\",\"sourceKind\":\"parameter\"}]"
+            }
+          ],
+          "family_coverage": [
+            {
+              "unit": "scope-smoke",
+              "language": "javascript",
+              "family": "injection",
+              "selected": 1,
+              "completed": 1,
+              "unanswered": 0,
+              "deferred": 1,
+              "unsupported": 0
+            }
+          ]
+        }
+      }
+    }
+  },
+  "limits": [
+    "Manually declared controlled entry regions, not source-mapper validation.",
+    "Not PMPro/NodeGoat replay, detector admission, or hook latency.",
+    "Selected means scheduled; completed means answered and arbitrated, not safe or admitted."
+  ]
+}

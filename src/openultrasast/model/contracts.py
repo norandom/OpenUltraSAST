@@ -145,6 +145,8 @@ class RankedQuestion(Contract):
     identity: QuestionIdentity
     priority: float
     evidence: tuple[str, ...]
+    tier: int | None = None
+    score: float | None = None
 
 
 @dataclass(frozen=True)
@@ -169,3 +171,49 @@ class ScopeDecision(Contract):
         identities = [item.identity for item in self.selected] + [item.identity for item in self.deferred]
         if len(set(identities)) != len(identities):
             raise ValueError("question identities must be unique across selected and deferred scope")
+
+
+@dataclass(frozen=True)
+class QuestionOutcome(Contract):
+    """Execution, not vulnerability disposition; raw answers survive interrupted arbitration."""
+
+    identity: QuestionIdentity
+    status: Literal["completed", "unanswered", "unresolved", "not_arbitrated"]
+    reason: str
+    raw_rows_json: str | None = None
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.raw_rows_json is not None:
+            try:
+                rows = json.loads(self.raw_rows_json)
+            except (ValueError, TypeError) as error:
+                raise ValueError("raw_rows_json must contain a JSON row list") from error
+            if not isinstance(rows, list):
+                raise ValueError("raw_rows_json must contain a JSON row list")
+        if self.status in {"completed", "not_arbitrated"} and self.raw_rows_json is None:
+            raise ValueError("answered outcome requires raw rows")
+        if self.status == "unanswered" and self.raw_rows_json is not None:
+            raise ValueError("unanswered outcome cannot carry an answer")
+
+
+@dataclass(frozen=True)
+class FamilyCoverage(Contract):
+    """Counts over the supplied population; completed never means safe or admitted."""
+
+    unit: str
+    language: str
+    family: str
+    selected: int
+    completed: int
+    unanswered: int
+    deferred: int
+    unsupported: int
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        counts = (self.selected, self.completed, self.unanswered, self.deferred, self.unsupported)
+        if any(count < 0 for count in counts):
+            raise ValueError("coverage counts must be nonnegative")
+        if self.completed + self.unanswered != self.selected or self.unsupported > self.deferred:
+            raise ValueError("inconsistent family coverage counts")

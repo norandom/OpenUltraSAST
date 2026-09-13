@@ -890,7 +890,19 @@ def _model_payload(
     honesty requirement (Req 3.3); NAMING them is what makes an exclusion list for a large repository
     something a maintainer can write from evidence rather than guesswork.
     """
+    scope = getattr(result, "scope", None)
+    outcomes = getattr(result, "question_outcomes", ())
+    if scope is not None:
+        unjudged_paths = tuple(
+            dict.fromkeys(
+                [q.identity.path for q in scope.deferred if q.reason != "tier_zero"]
+                + [q.identity.path for q in outcomes if q.status != "completed"]
+            )
+        )[:10]
     return {
+        "scope": scope.to_payload() if scope is not None else None,
+        "question_outcomes": [q.to_payload() for q in outcomes],
+        "family_coverage": [c.to_payload() for c in getattr(result, "family_coverage", ())],
         "by_rung": dict(getattr(result, "by_rung", {}) or {}),
         "regions_scanned": getattr(result, "regions_scanned", 0),
         "regions_unjudged": getattr(result, "regions_unjudged", 0),
@@ -967,10 +979,8 @@ def _run_model_layer(
     for degradation in result.degradations:
         runtime.state["degradations"].append(dict(degradation))
 
-    # The regions the budget did not reach, weakest first -- the evidence an exclusion list is built from.
-    unjudged = tuple(region.path for region in regions[result.regions_scanned :][:10])
     findings = [_finding_from_model(item) for item in result.findings]
-    return findings, _model_payload(result, unjudged_paths=unjudged, coverage=coverage)
+    return findings, _model_payload(result, coverage=coverage)
 
 
 def _model_rationale(item: object, witness: str, family: str) -> str:
