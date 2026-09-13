@@ -69,3 +69,37 @@ No graph node mutation, executable deserialization or repository writes are intr
 - CLAIM: Task 6.2 bounded local artifact publication and eviction.
 - EVIDENCE: nine cache contract tests and full suite above; production cache implementation, not a mocked storage path.
 - GAPS: Semantic keys and live replay integration follow in 6.3 and 6.4; no warm-latency claim.
+
+## Task 6.3 brief
+
+Requirements 3.4, 4.3, 4.4, 6.4, 7.2 and 7.3; design: Cache and Engine Boundary
+and Admission Policy. Query keys include graph, actual question parameters/context/depth,
+facts/sanitizers, query versions and configuration. Comparison/final keys additionally bind
+ranking, admission, optional model/prompt, eligibility and mode; comparisons include both
+revisions and actual completed evidence. Ranking-only changes preserve query keys.
+
+Comparison reuse is integrated into the existing policy entry point. Only complete, comparable
+evidence can populate/look up comparisons. Unknown outcomes never qualify. Loaded CandidateDelta
+contracts must match revision and semantics ownership. Current admission still runs afterwards;
+the cache never confers eligibility. JSON decoding is non-executable and bounded to 32 MiB.
+
+## Status Report
+- STATUS: READY_FOR_REVIEW
+- TASK: 6.3
+- RED_PHASE_OUTPUT: `/tmp/group6-3-red.log`: two failing semantic-key tests with switch OFF; `/tmp/group6-3-policy-red.log`: missing policy cache integration failed. Enabled implementation passed; switch removed.
+- TESTS_RUN: 71 focused policy/admission/cache tests passed; full suite 1260 passed, 9 skipped in 103.17s. Final ruff, formatting and mypy passed.
+- EVIDENCE: real on-disk comparison hit returns identical supported delta; policy/revision changes miss; unanswered comparisons do not populate complete entries; exhaustive key-dimension and final-scope invalidation tests.
+
+## Review Verdict
+- VERDICT: APPROVED
+- TASK: 6.3
+- MECHANICAL_RESULTS: full regression suite, 71 focused tests, static checks and whitespace checks passed; no new placeholders or secrets.
+- FINDINGS: cache does not store or replay push permission. Comparison data remains separate from current admission. Query reuse deliberately ignores ranking-only/mode changes, whereas comparison/final keys include them. Decoder and deadline checks were tightened during review.
+- SUMMARY: Semantic identities preserve compatible evidence without transferring obsolete policy eligibility.
+
+## Verification Result
+- STATUS: VERIFIED
+- CLAIM_TYPE: TASK
+- CLAIM: Task 6.3 semantic keys and completed comparison evidence reuse.
+- EVIDENCE: production policy integration and cache key tests, 1260 passing suite tests and final static checks.
+- GAPS: Graph/query/preparation reuse must still be connected to replay under 6.4; no rollout claim.

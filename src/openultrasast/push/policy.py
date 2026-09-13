@@ -6,7 +6,7 @@ import hashlib
 import json
 import time
 from collections.abc import Sequence
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path, PurePosixPath
 from string import Formatter
 from typing import Any, Literal
@@ -20,6 +20,7 @@ from openultrasast.model.pipeline import ModelFinding, _arbitrate_all
 from openultrasast.model.regions import ScanRegion
 from openultrasast.model.scan import ModelScanResult, ScanBudget, _prefetched, _spec_for, scan_repository
 from openultrasast.model.specs import ConfigSpec, DominanceSpec, TaintSpec
+from openultrasast.push.cache import ArtifactCache, SemanticKeys
 from openultrasast.push.contracts import ComparisonAnalysis, PushComparison, PushResult
 
 
@@ -247,6 +248,92 @@ def compare_evidence(
     head_semantics: str,
     base_semantics: str,
     execution_budget: ExecutionBudget | None = None,
+    cache: ArtifactCache | None = None,
+    cache_semantics: SemanticKeys | None = None,
+) -> tuple[CandidateDelta, ...]:
+    """Reuse completed comparison evidence; alert eligibility is always applied later."""
+
+    def complete(scan: ModelScanResult | None) -> bool:
+        return bool(
+            scan
+            and scan.scope
+            and scan.scope.population_complete
+            and not scan.degradations
+            and not scan.scope.unresolved_boundaries
+            and all(item.reason == "tier_zero" for item in scan.scope.deferred)
+            and all(item.status == "completed" for item in scan.question_outcomes)
+            and {item.identity for item in scan.scope.selected} == {item.identity for item in scan.question_outcomes}
+        )
+
+    key = None
+    if (
+        cache is not None
+        and cache_semantics is not None
+        and execution_budget is not None
+        and time.monotonic() < execution_budget.deadline_monotonic
+        and context.base_revision is not None
+        and not context.unresolved_boundaries
+        and head_semantics == base_semantics
+        and complete(head)
+        and complete(base)
+    ):
+        from openultrasast.cpg.artifact import read_bytes
+
+        def evidence(scan: ModelScanResult) -> dict[str, object]:
+            return {
+                name: value
+                for name, value in asdict(scan).items()
+                if name not in {"seconds", "build_seconds", "query_seconds", "query_seconds_by_kind"}
+            }
+
+        assert base is not None
+        try:
+            key = cache_semantics.comparison(
+                base=context.base_revision,
+                head=context.head_revision,
+                context=context.to_payload(),
+                evidence={
+                    "head": evidence(head),
+                    "base": evidence(base),
+                    "semantics": head_semantics,
+                    "policy": hashlib.sha256(read_bytes(Path(__file__), execution_budget.deadline_monotonic)).hexdigest(),
+                },
+            )
+            raw = cache.get_json(key, kind="comparison", budget=execution_budget)
+            if isinstance(raw, list):
+                decoded = tuple(CandidateDelta.from_payload(item) for item in raw)
+                if time.monotonic() < execution_budget.deadline_monotonic and all(
+                    item.novelty != "unknown"
+                    and item.base_revision == context.base_revision
+                    and item.head_revision == context.head_revision
+                    and item.semantics == head_semantics
+                    for item in decoded
+                ):
+                    return decoded
+        except (OSError, ValueError, TimeoutError):
+            key = None
+    result = _compare_evidence(
+        head, base, context=context, head_semantics=head_semantics, base_semantics=base_semantics, execution_budget=execution_budget
+    )
+    if key is not None and cache is not None and execution_budget is not None:
+        cache.put_json(
+            key,
+            [item.to_payload() for item in result],
+            kind="comparison",
+            budget=execution_budget,
+            complete=all(item.novelty != "unknown" for item in result),
+        )
+    return result
+
+
+def _compare_evidence(
+    head: ModelScanResult,
+    base: ModelScanResult | None,
+    *,
+    context: ChangeContext,
+    head_semantics: str,
+    base_semantics: str,
+    execution_budget: ExecutionBudget | None = None,
 ) -> tuple[CandidateDelta, ...]:
     """Absence counts only in completed comparable scope, never from scan silence."""
     head_ops, base_ops = _operations(head, execution_budget), _operations(base, execution_budget) if base else ()
@@ -356,6 +443,8 @@ def compare_targeted_base(
     scan_budget: ScanBudget,
     head_semantics: str,
     base_semantics: str,
+    cache: ArtifactCache | None = None,
+    cache_semantics: SemanticKeys | None = None,
 ) -> DeltaComparison:
     """Re-run counterparts of the ranker's selected head questions through the existing driver.
 
@@ -398,7 +487,14 @@ def compare_targeted_base(
         except Exception as error:  # noqa: BLE001 -- comparison failure is coverage, not a new defect
             reasons.append(f"base_scan_failed:{type(error).__name__}")
     candidates = compare_evidence(
-        head, base, context=context, head_semantics=head_semantics, base_semantics=base_semantics, execution_budget=execution_budget
+        head,
+        base,
+        context=context,
+        head_semantics=head_semantics,
+        base_semantics=base_semantics,
+        execution_budget=execution_budget,
+        cache=cache,
+        cache_semantics=cache_semantics,
     )
     reasons.extend(c.reason for c in candidates if c.novelty == "unknown")
     return DeltaComparison(candidates, base, head_semantics, tuple(dict.fromkeys(reasons)))

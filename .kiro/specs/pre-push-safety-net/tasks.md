@@ -174,7 +174,7 @@ hook latency is admitted.
   - _Boundary: Cache and Engine Boundary, push cache integration_
   - _Depends: 6.1_
   - _Requirements: 4.1, 4.3, 4.4, 7.3_
-- [ ] 6.3 Key query and comparison results by all relevant semantics
+- [x] 6.3 Key query and comparison results by all relevant semantics
   - Include graph identity, question/context/depth, facts/sanitizers/query versions and configuration; include ranking/admission/model provenance for final results and both revision identities for comparisons.
   - Keep incomplete query/comparison results out of complete lookups; preserve current eligibility checks after reuse.
   - Done when source, context, fact, query, mode, policy and optional model changes invalidate the appropriate layer, while an identical compatible request returns the same evidence and provenance.

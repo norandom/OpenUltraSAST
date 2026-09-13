@@ -12,10 +12,11 @@ import tempfile
 import time
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from openultrasast.contracts import Contract
 from openultrasast.cpg.artifact import digest_value, graph_bytes, read_bytes
 from openultrasast.cpg.backend import _DeadlineExpired, _remove_owned_tree
 from openultrasast.model.contracts import ExecutionBudget
@@ -123,6 +124,24 @@ class ArtifactCache:
                 self.hits += 1
             yield entry
 
+    def get_json(self, key: str, *, kind: str, budget: ExecutionBudget) -> Any:
+        with self.lookup(key, budget) as entry:
+            if entry is None or entry.metadata != {"kind": kind} or entry.path.stat().st_size > 32 * 1024**2:
+                return None
+            try:
+                return json.loads(read_bytes(entry.path, budget.deadline_monotonic))
+            except (OSError, ValueError, TimeoutError):
+                return None
+
+    def put_json(self, key: str, payload: object, *, kind: str, budget: ExecutionBudget, complete: bool) -> bool:
+        if not complete or time.monotonic() >= budget.deadline_monotonic:
+            return False
+        try:
+            data = json.dumps(payload, sort_keys=True, allow_nan=False).encode()
+        except (TypeError, ValueError):
+            return False
+        return self.publish(key, data, {"kind": kind}, budget, complete=complete)
+
     def _remove(self, root: Path, budget: ExecutionBudget) -> None:
         _remove_owned_tree(root, budget.deadline_monotonic)
 
@@ -215,3 +234,37 @@ class ArtifactCache:
                     _remove_owned_tree(pending, budget.deadline_monotonic + budget.cancellation_allowance_seconds)
                 except (OSError, _DeadlineExpired):
                     self.last_reason = "cache_partial_cleanup_incomplete"
+
+
+@dataclass(frozen=True)
+class SemanticKeys(Contract):
+    facts: str
+    queries: str
+    configuration: str
+    ranking: str
+    admission: str
+    model: str
+    eligibility: str
+    mode: str
+
+    def query(self, *, graph: str, kind: str, request: object, context: object) -> str:
+        return digest_value(
+            {
+                "layer": "query-v1",
+                "graph": graph,
+                "kind": kind,
+                "request": request,
+                "context": context,
+                "facts": self.facts,
+                "queries": self.queries,
+                "configuration": self.configuration,
+            }
+        )
+
+    def comparison(self, *, base: str, head: str, context: object, evidence: object) -> str:
+        return digest_value(
+            {"layer": "comparison-v1", "base": base, "head": head, "context": context, "evidence": evidence, "semantics": asdict(self)}
+        )
+
+    def result(self, *, comparisons: object, scope: object) -> str:
+        return digest_value({"layer": "result-v1", "comparisons": comparisons, "scope": scope, "semantics": asdict(self)})

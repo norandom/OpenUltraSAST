@@ -238,3 +238,30 @@ def test_proven_tier_zero_other_families_do_not_invalidate_base_answer():
     assert delta(scan(), base).novelty == "new"
     base = replace(base, scope=replace(base.scope, deferred=(DeferredQuestion(other, "budget_exhausted", ()),)))
     assert delta(scan(), base).novelty == "unknown"
+
+
+def test_comparison_cache_reuses_only_completed_compatible_evidence(tmp_path, monkeypatch):
+    import openultrasast.push.policy as policy
+    from openultrasast.push.cache import ArtifactCache, SemanticKeys
+
+    cache = ArtifactCache(tmp_path / "cache", max_bytes=100000)
+    keys = SemanticKeys("facts", "queries", "config", "rank", "admission", "disabled", "empty", "advisory")
+    budget = ExecutionBudget(time.monotonic() + 10, 0.2)
+    args = dict(context=context(), head_semantics="same", base_semantics="same", execution_budget=budget, cache=cache, cache_semantics=keys)
+    expected = policy.compare_evidence(scan(), scan(line=5, sanitized=True, findings=False), **args)
+    assert expected[0].novelty == "worsened"
+    hits = cache.hits
+    assert policy.compare_evidence(scan(), scan(line=5, sanitized=True, findings=False), **args) == expected
+    assert cache.hits > hits
+    args["cache_semantics"] = replace(keys, admission="changed")
+    hits = cache.hits
+    policy.compare_evidence(scan(), scan(line=5, sanitized=True, findings=False), **args)
+    assert cache.hits == hits
+    args["context"] = replace(context(), base_revision="another-base")
+    changed = policy.compare_evidence(scan(), scan(line=5, sanitized=True, findings=False), **args)
+    assert changed[0].base_revision == "another-base"
+    incomplete = policy.compare_evidence(scan(), scan(status="unanswered"), **args)
+    assert incomplete[0].novelty == "unknown"
+    hits = cache.hits
+    policy.compare_evidence(scan(), scan(status="unanswered"), **args)
+    assert cache.hits == hits
