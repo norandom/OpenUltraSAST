@@ -65,6 +65,11 @@
       "at": "2026-09-13T12:40:57.961577+00:00",
       "source": "approved",
       "action": "Authorized group 5 after the group 4 completion summary: explicit transaction replay, then the first PMPro/frozen-core Node experiment. Review and fresh evidence remain required."
+    },
+    {
+      "at": "2026-09-13T13:58:52.336506+00:00",
+      "source": "continue with group 6 as a whole. do we need to amend the spec to get a go for the rollout",
+      "action": "Authorized group 6 (6.1\u20136.4). Clarified complete preparation/discovery reuse after measured group 5 bottleneck; rollout gates remain unchanged. Manual Kiro review fallback remains necessary after a fresh agent dispatch hit the thread limit."
     }
   ],
   "task_review": {

@@ -1,0 +1,59 @@
+{
+  "source_bytes": 45,
+  "artifact": {
+    "identity": {
+      "source_digest": "aab4a6878883db96c5eb1d0dd98e160e30d16fa2b215735bdac6ff5a41f9783d",
+      "declarations_digest": "none",
+      "exclusions_digest": "none",
+      "unit": "repository",
+      "language": "javascript",
+      "engine_version": "4.0.625",
+      "frontend": "jssrc2cpg",
+      "frontend_version": "4.0.625",
+      "overlay_semantics": [
+        "dataflowOss"
+      ],
+      "overlay_options": [
+        [
+          "implementation",
+          "96d0a93a3edb7e4a999a380b5823cd6d593ae2a49cf2a503f923483eda43989a"
+        ]
+      ],
+      "frontend_options": [
+        [
+          "include_tests",
+          "True"
+        ],
+        [
+          "java_options",
+          "default"
+        ]
+      ]
+    },
+    "graph_digest": "a02bef8f7d4d1f2c420cb9bb4c5cc9df2fe86d86ad4e429021c95ad76a996873",
+    "source_bytes": 45,
+    "census": {
+      "files": 1,
+      "methods": 4,
+      "calls": 3
+    },
+    "completeness": "complete",
+    "diagnostics": [],
+    "source_root": "/tmp/tmpb4ff84v8",
+    "source_paths": [
+      "a.js"
+    ]
+  },
+  "lease_census": {
+    "files": "1",
+    "methods": "4",
+    "calls": "3",
+    "file_names": [
+      "a.js"
+    ],
+    "overlays": "base,controlflow,typerel,callgraph,dataflowOss",
+    "maxHeapMB": "2048"
+  },
+  "original_unchanged": true,
+  "execution": "source-mounted openultrasast:dev image 7f71174daa9e; nonroot, network none, memory 3g; correctness control, not latency"
+}

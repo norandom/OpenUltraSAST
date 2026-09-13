@@ -32,9 +32,10 @@ import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from ..model.contracts import ExecutionBudget
+from .artifact import GraphArtifact, GraphCensus, GraphIdentity
 
 logger = logging.getLogger(__name__)
 
@@ -310,6 +311,118 @@ class JoernBackend:
                     session._cleanup(scratch, final=True)
             self.last_failure = session.last_failure
             self._diagnostics = list(session._diagnostics)
+
+    def graph_identity(
+        self,
+        root: Path,
+        *,
+        language: str,
+        declarations_digest: str,
+        exclusions_digest: str,
+        unit: str = "repository",
+        execution_budget: ExecutionBudget | None = None,
+    ) -> GraphIdentity:
+        from .artifact import digest_value, read_bytes, source_inventory
+
+        deadline = execution_budget.deadline_monotonic if execution_budget else float("inf")
+        version = joern_version()
+        if version is None:
+            raise ValueError("engine_identity_unknown")
+        engine = ".".join(map(str, version))
+        source, _, _ = source_inventory(root, deadline)
+        code = digest_value([read_bytes(Path(__file__), deadline).hex(), read_bytes(self.queries_dir / "overlay.sc", deadline).hex()])
+        return GraphIdentity(
+            source,
+            declarations_digest,
+            exclusions_digest,
+            unit,
+            language,
+            engine,
+            _FRONTENDS.get(language, "joern-parse"),
+            engine,
+            (DATAFLOW_OVERLAY,),
+            (("implementation", code),),
+            (("include_tests", str(self.include_tests)), ("java_options", os.environ.get("JAVA_TOOL_OPTIONS", "default") or "default")),
+        )
+
+    def describe_graph(
+        self, result: CpgResult, root: Path, identity: GraphIdentity, *, execution_budget: ExecutionBudget | None = None
+    ) -> GraphArtifact | None:
+        """Seal only a named, complete, single graph census bound to bytes after loading."""
+        from .artifact import graph_bytes, source_inventory
+
+        budget = execution_budget or self.execution_budget
+        deadline = budget.deadline_monotonic if budget else float("inf")
+        try:
+            digest, size, paths = source_inventory(root, deadline)
+            if digest != identity.source_digest or result.unparsed:
+                return None
+            census = result.run("census", {})
+            if not isinstance(census, Mapping) or DATAFLOW_OVERLAY not in str(census.get("overlays", "")).split(","):
+                return None
+            names = census.get("file_names")
+            if not isinstance(names, list) or not all(isinstance(p, str) for p in names):
+                return None
+            normalized = {p.removeprefix(str(root) + "/").removeprefix("./") for p in names}
+            if not set(paths) <= normalized or int(str(census.get("shards", 1))) != 1:
+                return None
+            counts = GraphCensus(*(int(str(census[k])) for k in ("files", "methods", "calls")))
+            if counts.files < len(paths) or counts.methods < 1:
+                return None
+            return GraphArtifact(identity, graph_bytes(result.cpg_path, deadline), size, counts, "complete", (), str(root), paths)
+        except (OSError, ValueError, KeyError, TimeoutError):
+            return None
+
+    def load_graph(
+        self,
+        path: Path,
+        artifact: GraphArtifact,
+        expected: GraphIdentity,
+        *,
+        execution_budget: ExecutionBudget | None = None,
+    ) -> CpgResult | None:
+        """Validate sealed bytes, then query only a disposable private copy."""
+        from .artifact import IsolatedGraphLease, graph_bytes
+
+        budget = execution_budget or self.execution_budget
+        deadline = budget.deadline_monotonic if budget else float("inf")
+        cleanup_deadline = deadline + budget.cancellation_allowance_seconds if budget else float("inf")
+        scratch = None
+        try:
+            if artifact.identity != expected or artifact.completeness != "complete" or not artifact.source_paths:
+                return None
+            if artifact.census.files < len(artifact.source_paths) or artifact.census.methods < 1:
+                return None
+            scratch = Path(tempfile.mkdtemp(prefix="ousast-lease-"))
+            working = scratch / "cpg.bin"
+            if graph_bytes(path, deadline, working) != artifact.graph_digest:
+                raise ValueError("graph_digest_mismatch")
+            session = replace(self, execution_budget=budget)
+            lease = IsolatedGraphLease(artifact, working)
+
+            def normalize(value: object) -> Any:
+                if isinstance(value, str):
+                    return value.replace(artifact.source_root + "/", "")
+                if isinstance(value, list):
+                    return [normalize(item) for item in value]
+                if isinstance(value, dict):
+                    return {key: normalize(item) for key, item in value.items()}
+                return value
+
+            return CpgResult(
+                working,
+                lambda kind, params: normalize(session.query(working, kind, params)),
+                lambda kind, requests: normalize(session.query_batch(working, kind, requests)),
+                cleanup=lambda: lease.close(deadline_monotonic=cleanup_deadline),
+                execution_diagnostics=lambda: tuple(session._diagnostics),
+            )
+        except (OSError, ValueError, TimeoutError):
+            if scratch is not None:
+                try:
+                    _remove_owned_tree(scratch, cleanup_deadline)
+                except (OSError, _DeadlineExpired):
+                    self._note("scratch_cleanup_incomplete")
+            return None
 
     def _build_impl(self, root: Path, *, language: str = "", exclude: Sequence[str] = ()) -> CpgResult | None:
         """Build a CPG for ``root``. ``None`` on any failure — the caller degrades, never guesses.
@@ -671,6 +784,8 @@ class JoernBackend:
 
     def query_across(self, shards: Sequence[Path], query: str, params: Mapping[str, object]) -> object | None:
         """One question over every shard, answers concatenated. ``None`` only when no shard could answer."""
+        if query == "census":
+            return self.query(shards[0], query, params) if len(shards) == 1 else None
         merged: list[object] = []
         answered = 0
         for shard in shards:

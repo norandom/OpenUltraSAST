@@ -265,6 +265,21 @@ results. A query/fact change invalidates its answers without automatically rebui
 input/frontend/overlay semantics are unchanged. This supports iteration on the core as well as
 repeated push checks; it does not authorize reusing stale evidence after a source change.
 
+Preparation is also a reusable artifact boundary. Task 5.2 measured PMPro exhausting
+30 seconds after materialization and before graph construction. Cache complete discovery
+by immutable source tree identity plus discovery code, shipping/layout facts and configuration;
+retain snapshot readability proofs and declaration/boundary records. Reuse must preserve
+repository-relative locations and must never deserialize repository-controlled executable objects.
+Measure preparation, graph and query hits separately. An identical-tip hit demonstrates reuse,
+not representative changed-code latency. Dependency/configuration changes invalidate affected
+preparation and graph/query context even when an individual source file is unchanged.
+
+Rollout approval remains an evidence decision under Requirement 6.5 and evaluation.md.
+Group 6 establishes correctness and bounded reuse; group 8 must still demonstrate the joint
+changed-code latency, completion, precision and recall gates on declared populations. Missing
+independent positive/fixed/benign populations or an empty capability registry cannot yield GO.
+No threshold, population denominator or alert eligibility rule is relaxed by this amendment.
+
 Only validated, complete artifacts can satisfy complete-result lookups. Partial artifacts may be
 retained for diagnostics but never promoted by cache presence. Publish atomically from private
 temporary paths under a per-key lock; another push may wait only within its deadline. Apply a

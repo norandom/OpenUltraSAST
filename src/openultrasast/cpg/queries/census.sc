@@ -23,6 +23,8 @@
       ujson.Obj(
         "files"     -> cpg.file.size.toString,
         "methods"   -> cpg.method.size.toString,
+        "calls" -> cpg.call.size.toString,
+        "file_names" -> ujson.Arr.from(cpg.file.name.l),
         "overlays"  -> cpg.metaData.overlays.l.mkString(","),
         "maxHeapMB" -> (Runtime.getRuntime.maxMemory / 1048576).toString
       )

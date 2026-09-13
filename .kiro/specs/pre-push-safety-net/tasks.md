@@ -161,7 +161,7 @@ hook latency is admitted.
   - _Requirements: 6.2, 6.3, 6.4, 6.5, 8.1, 8.2, 8.3, 8.4_
 
 - [ ] 6. Reuse valid graphs and results without stale conclusions
-- [ ] 6.1 Validate graph artifact identity and leases
+- [x] 6.1 Validate graph artifact identity and leases
   - Have the backend own source/declaration/exclusion digests, frontend/engine/overlay options, graph census and complete/partial identity.
   - Permit validated graph leases in the generic driver while preserving the fresh-build path; isolate potentially mutating loads and retain bounded cleanup.
   - Done when identical valid inputs can reuse a graph while any changed graph input or failed census rejects the lease; original cached artifacts survive query loading unchanged.
@@ -181,6 +181,7 @@ hook latency is admitted.
   - _Boundary: Push cache, policy integration_
   - _Requirements: 3.4, 4.3, 4.4, 6.4, 7.2, 7.3_
 - [ ] 6.4 Integrate cache reuse into the shared push deadline
+  - Reuse complete preparation/discovery by immutable tree and discovery/fact/configuration identity, retaining readable snapshot and declaration/boundary records; measure its costs and hits separately from graph/query reuse.
   - Reuse identical snapshots/unchanged declared units across refs without merging different comparisons; changed units rebuild and stale graph relationships remain hints only.
   - Account for lookup, lock wait, lease, build/query and result persistence in the same deadline; preserve completed outcomes on cancellation.
   - Done when cached and uncached replay produce equal evidence/admission for the same completed questions under compatible semantics, with full equivalence under a sufficiently large controlled budget. Under the hook deadline, verify truthful extra completion/deferred scope from cache reuse rather than requiring identical scope; no stale answer survives a dependency/configuration edit.
