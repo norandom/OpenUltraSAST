@@ -245,7 +245,15 @@ def _scan_repository_impl(
         if cpg is not None:
             owned.append(cpg)
         scope, _ = _scope_work(
-            regions, {}, limits, unit, ranking_mode, population_complete, failure="cpg_build_failed", change_context=change_context
+            regions,
+            {},
+            limits,
+            unit,
+            ranking_mode,
+            population_complete,
+            failure="cpg_build_failed",
+            change_context=change_context,
+            execution_budget=execution_budget,
         )
         scope = replace(scope, unresolved_boundaries=tuple(dict.fromkeys((*scope.unresolved_boundaries, *getattr(cpg, "boundaries", ())))))
         return ModelScanResult(
@@ -319,7 +327,7 @@ def _scan_repository_impl(
         tier_started = time.monotonic()
         evidence_by_pair, failed = _evidence_pass(
             cpg,
-            _collect(evidence_candidates),
+            _collect(evidence_candidates, execution_budget=execution_budget),
             hooks,
             degradations=degradations,
             context_rows=context_rows if change_context is not None else None,
@@ -369,6 +377,7 @@ def _scan_repository_impl(
         population_complete,
         change_context=change_context,
         context_gaps=context_gaps,
+        execution_budget=execution_budget,
     )
     outcomes: dict[str, QuestionOutcome] = {}
 
@@ -573,6 +582,7 @@ def _scope_work(
     failure: str | None = None,
     change_context: ChangeContext | None = None,
     context_gaps: set[QuestionIdentity] | None = None,
+    execution_budget: ExecutionBudget | None = None,
 ) -> tuple[ScopeDecision, list[tuple[str, ScanRegion, ArbiterSpec]]]:
     """Consume the ranker's final order once; the returned work IS selected scope."""
     selected: list[RankedQuestion] = []
@@ -586,10 +596,15 @@ def _scope_work(
     for index, region in enumerate(regions):
         for family in region.families:
             identity = _identity(unit, region, family)
-            spec = _spec_for(family, region.language)
+            if failure is None and not _within_deadline(execution_budget):
+                failure = "deadline_exhausted"
+                boundaries.append(failure)
+            spec = None if failure else _spec_for(family, region.language)
             vector = evidence.get((region.path, region.function or "", family))
             facts: tuple[str, ...] = ("static_rank=" + str(region.rank),)
-            if vector is not None:
+            if failure:
+                facts += ("analysis_not_started=" + failure,)
+            elif vector is not None:
                 facts += ("normalized_evidence=" + _rows_json(asdict(vector)), "tier=" + str(vector.tier), "score=" + str(vector.score))
             elif isinstance(spec, TaintSpec):
                 facts += ("evidence_unknown",)
@@ -616,7 +631,9 @@ def _scope_work(
                 if identity in (context_gaps or set()):
                     facts += ("change_context_incomplete",)
             reason = (
-                "unsupported_family"
+                failure
+                if failure
+                else "unsupported_family"
                 if spec is None
                 else failure
                 or (
@@ -676,11 +693,15 @@ def _pair_key(region: ScanRegion, spec: ArbiterSpec) -> tuple[str, str, str]:
     return (region.path, region.function or "", getattr(spec, "family", ""))
 
 
-def _collect(regions: Sequence[ScanRegion]) -> list[tuple[str, ScanRegion, ArbiterSpec]]:
+def _collect(
+    regions: Sequence[ScanRegion], *, execution_budget: ExecutionBudget | None = None
+) -> list[tuple[str, ScanRegion, ArbiterSpec]]:
     """Every (region, family) question with an arbiter, in the order given, with batch-local ids."""
     work: list[tuple[str, ScanRegion, ArbiterSpec]] = []
     for region in regions:
         for family in region.families:
+            if not _within_deadline(execution_budget):
+                return work
             spec = _spec_for(family, region.language)
             if spec is None:
                 continue

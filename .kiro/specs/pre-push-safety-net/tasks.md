@@ -149,6 +149,7 @@ Task 5.1 is also verified (15/27 total); task 5.2 and groups 6–8 remain pendin
   - _Depends: 1.3, 3.1, 3.4, 4.3_
   - _Requirements: 1.1, 2.1, 3.1, 3.4, 4.1, 4.2, 5.5, 7.1, 7.3_
 - [ ] 5.2 Measure PMPro and frozen-core Node transfer
+  - _Prerequisite repaired 2026-09-13:_ 3.1/5.1 deadline regression verified in the packaged Node replay; re-freeze the experiment after this core identity change.
   - Replay each prepared security/fixed/benign case, first using the declared hook deadline; record timeouts and stage costs. A separately named extended lab run may obtain witnesses but cannot satisfy the hook latency gate.
   - Freeze the core after PMPro, run Node with existing facts, and classify instrument, mapping, fact, scope and domain gaps without tuning on an untouched holdout.
   - Done when one joint artifact reports actual evidence and outcomes for both workloads, with unresolved cases retained and an explicit feasibility decision; no normal capability is enabled here.

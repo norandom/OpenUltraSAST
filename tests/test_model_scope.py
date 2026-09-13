@@ -271,3 +271,47 @@ def test_unbatched_failure_is_not_a_completed_empty_answer(tmp_path):
     assert result.question_outcomes[0].status == "unanswered"
     assert result.regions_scanned == 0
     assert result.family_coverage[0].completed == 0
+
+
+def test_failed_build_does_not_reload_facts_after_deadline(tmp_path, monkeypatch):
+    import time
+
+    import openultrasast.model.scan as driver
+    from openultrasast.model.contracts import ExecutionBudget
+
+    root = source(tmp_path, "api.py")
+
+    def forbidden_facts(*args, **kwargs):
+        raise AssertionError("failed build must not perform fresh semantic work")
+
+    monkeypatch.setattr(driver, "_spec_for", forbidden_facts)
+    regions = [ScanRegion("api.py", f"handler{i}", "python", ("injection", "access_control"), 1.0, "entry_point") for i in range(200)]
+    started = time.monotonic()
+    result = scan_repository(root, regions, backend=Backend(fail=True), execution_budget=ExecutionBudget(started + 0.01, 0.5))
+    assert time.monotonic() - started < 0.5
+    assert len(result.scope.deferred) == 400 and not result.scope.selected
+    assert all(q.reason == "cpg_build_failed" for q in result.scope.deferred)
+    assert not result.question_outcomes and "cpg_build_failed" in result.scope.unresolved_boundaries
+
+
+def test_expired_planning_keeps_census_without_more_fact_reads(tmp_path, monkeypatch):
+    import time
+
+    import openultrasast.model.scan as driver
+    from openultrasast.model.contracts import ExecutionBudget
+
+    root = source(tmp_path, "api.py")
+    original = driver._spec_for
+    deadline = time.monotonic() + 0.05
+
+    def checked_facts(*args, **kwargs):
+        assert time.monotonic() < deadline, "fact load started after the deadline"
+        time.sleep(0.015)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(driver, "_spec_for", checked_facts)
+    regions = [ScanRegion("api.py", f"handler{i}", "python", ("injection",), 1.0, "entry_point") for i in range(200)]
+    result = scan_repository(root, regions, backend=Backend(), execution_budget=ExecutionBudget(deadline, 0.5))
+    assert time.monotonic() < deadline + 0.5
+    assert len(result.scope.selected) + len(result.scope.deferred) == 200
+    assert "deadline_exhausted" in result.scope.unresolved_boundaries

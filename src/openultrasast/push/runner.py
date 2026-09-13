@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Literal, TypeVar, cast
 
 from openultrasast.config import PushConfig
-from openultrasast.cpg.backend import joern_version, resolve_cpg_backend
+from openultrasast.cpg.backend import JoernBackend, joern_version
 from openultrasast.mapping import analyze_entry_points
 from openultrasast.model.contracts import ExecutionBudget
 from openultrasast.model.regions import ScanRegion, regions_for
@@ -156,6 +156,8 @@ def replay(
     started = time.monotonic()
     budget = ExecutionBudget(started + config.deadline_seconds, config.cancellation_allowance_seconds)
     scan_budget = ScanBudget(max_model_calls=0, max_regions=max_regions, order_by_evidence=True)
+    if backend is None:
+        backend = JoernBackend()
     records: list[ScanRecord] = []
     manifests: list[SnapshotManifest] = []
     reasons: list[str] = []
@@ -195,7 +197,7 @@ def replay(
                 head_scan = scan_repository(
                     tip.root,
                     head_regions,
-                    backend=backend or resolve_cpg_backend(),
+                    backend=backend,
                     budget=scan_budget,
                     execution_budget=budget,
                     ranking_mode="evidence",
@@ -212,7 +214,7 @@ def replay(
                     head_regions=head_regions,
                     base_regions=base_regions,
                     context=context,
-                    backend=backend or resolve_cpg_backend(),
+                    backend=backend,
                     execution_budget=budget,
                     scan_budget=scan_budget,
                     head_semantics=provenance["semantics"],

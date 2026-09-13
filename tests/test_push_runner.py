@@ -196,3 +196,25 @@ def test_snapshot_boundaries_reach_engine_change_context(tmp_path):
     data = json.loads(artifact.read_text())
     assert result.result.coverage_status == "incomplete"
     assert "snapshot:symlink_not_materialized" in data["change_context"]["unresolved_boundaries"]
+
+
+def test_default_replay_does_not_launch_unbudgeted_availability_probe(tmp_path, monkeypatch):
+    from openultrasast.push import runner
+    from openultrasast.semantic import engines
+
+    root, base, head, _ = history(tmp_path)
+    builds = []
+
+    class Backend:
+        def build(self, root, **kwargs):
+            assert any(p.read_bytes() for p in root.rglob("*.js"))
+            builds.append(kwargs["execution_budget"])
+            return None
+
+    def forbidden_probe(*args, **kwargs):
+        raise AssertionError("availability probe has no shared deadline")
+
+    monkeypatch.setattr(engines, "joern_available", forbidden_probe)
+    monkeypatch.setattr(runner, "JoernBackend", Backend, raising=False)
+    result = replay(root, base=base, head=head, artifact=tmp_path / "probe.json")
+    assert builds and result.result.coverage_status == "incomplete"

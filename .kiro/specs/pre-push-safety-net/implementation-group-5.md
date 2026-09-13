@@ -64,3 +64,44 @@ RED evidence: `/tmp/ousast-replay-tierzero-red.log` and `/tmp/ousast-replay-snap
 - CLAIM: Explicit local replay traverses the production mapper/ranker/arbiter/comparison/report path and retains uncertainty and shared deadlines.
 - EVIDENCE: Final packaged controlled security change yields new/source_connection_absent_from_comparable_base. Fixed twin emits no modeled head finding. The packaged deadline control returns incomplete in 30.785 seconds, within 30 + 2 seconds. Exact final package policy/core/facts/query digests match the workspace. Complete commands and captured raw answers live in the measurement artifact.
 - GAPS: Aggregate coverage remains incomplete, real capabilities are disabled, and lab timings do not satisfy the latency gate. Source-mounted fixed and earlier packaged deadline provenance is explicitly separated in the artifact. PMPro/Node transfer is task 5.2, not inferred from a small PHP control.
+
+## Predecessor deadline regression discovered by task 5.2
+
+The first frozen trial completed six CLI invocations, retaining all 11 declared cases.
+All three PMPro cases timed out during preparation; both snapshots were fully materialized.
+Node hit the engine deadline but then took 34.6–37.4 seconds and could not publish its artifact.
+Task 5.2 is blocked pending the owning 3.1/5.1 deadline integration repair and a newly frozen run.
+The initial trial overlaps regression testing; it is diagnostic evidence, not the final latency sample.
+
+### Debug report
+- ROOT_CAUSE: After an engine timeout, the generic scan driver's failure census reloaded semantic facts and taxonomy for every question. The replay runner then launched an unbudgeted engine-availability subprocess before attempting base comparison. Main-thread stack samples at 30–34 seconds prove both paths.
+- CATEGORY: LOGIC_ERROR
+- FIX_PLAN: Route failure bookkeeping through the existing driver without loading new semantic facts after a failed build; instantiate the budget-aware Joern backend once rather than running legacy availability probes in replay. Preserve every declared question as deferred and keep ordinary backend selection unchanged outside replay.
+- VERIFICATION: Two failing regressions (including 400 declared failed questions), real Node deadline replay, full suite and packaged validation before re-freezing the experiment.
+- NEXT_ACTION: RETRY_TASK
+- CONFIDENCE: HIGH
+- NOTES: This repairs the already-approved generic deadline integration in task 3.1 and replay in 5.1. It changes no detector facts, ranking features or abstract capabilities. No workaround is hidden in the evaluation harness; task 5.2 stays blocked until this contract is repaired. Manual Kiro debug/review fallback applies after the recorded agent thread limit. Runtime trace proves a local logic error; no external dependency/version hypothesis is needed.
+
+RED: `/tmp/ousast-node-deadline-flag-red.log`, two failures with flags OFF. Flags were
+removed after GREEN; the focused scope/replay suite passed 30 tests.
+
+
+The first repair exposed the same repeated fact-read path after evidence planning rather than
+build failure. The absolute budget now also reaches `_collect` and `_scope_work`; planning
+stops loading facts when time expires but retains the entire question census. No ranking weights,
+facts or detector semantics changed. The additional regression failed before repair in
+`/tmp/ousast-node-planning-red.log` and then passed.
+
+### Predecessor repair review verdict
+- VERDICT: APPROVED
+- TASK: 3.1/5.1 deadline integration regression
+- MECHANICAL_RESULTS: Full current suite 1,242 passed, nine skipped (including three pending experiment-harness checks), exit 0; Ruff/format/mypy/compileall and all regression gates PASS; behavioral RED VERIFIED; no new placeholders/secrets; scope is the existing driver/deadline integration.
+- FINDINGS: Both measured post-deadline paths are repaired, including successful-build/evidence-planning cancellation; all declared questions remain recorded. No outstanding repair blocker.
+- SUMMARY: Manual review approves the predecessor repair; task5.2 may resume with a new frozen profile.
+
+### Predecessor repair verification
+- STATUS: VERIFIED
+- CLAIM_TYPE: FIX
+- CLAIM: The reproduced Node cancellation path retains diagnostics and returns within 30 + 2 seconds.
+- EVIDENCE: Final packaged real Node replay returned in 30.1255 seconds with one complete diagnostic artifact and incomplete coverage. Final policy/core/facts/query hashes match the workspace. See `benchmarks/measurements/2026-09-13-replay-deadline-repair.json` for initial/partial-repair traces and final raw artifact.
+- GAPS: This proves the reproduced cancellation path, not representative warm performance or security coverage. Normal capabilities remain disabled.
