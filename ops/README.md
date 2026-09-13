@@ -344,3 +344,28 @@ fi
 
 Neither installation nor removal modifies source, the index, refs, or hook-path
 configuration. Keep any prior hook backup until restoration is confirmed.
+
+Optional witness selection is enabled only with `--model-config /absolute/models.toml`.
+Use the existing `[models]` settings, with an explicit model and endpoint:
+
+```toml
+[models]
+hunter = "your-configured-model"
+chat_base_url = "https://your-configured-endpoint/v1"
+chat_api_key_env = "YOUR_MODEL_KEY"
+```
+
+The default hook never resolves a model endpoint. With explicit configuration it sends
+only redacted, already-admitted witness/consequence/repair summaries; it sends no
+unadmitted candidates or source tree. The model may select an existing witness index,
+not author claims or raise evidence strength. Invalid responses and timeouts retain
+the deterministic explanation. Requests use the remaining transaction deadline; the
+artifact records model, endpoint/prompt hashes, usage, elapsed time and recorded cost
+(or explicitly unknown cost when pricing/usage is unavailable or a call is interrupted).
+There is no call when no admitted witness exists, including with the current empty
+capability registry. Analysis caches remain deterministic; optional presentation is
+recomputed after admission and never reuses a cached model decision.
+
+Pre-push does not implicitly read the working tree's `.env`. Supply any configured
+credential variable in the Git process environment. Explicit model configuration is
+read under the same analysis deadline.

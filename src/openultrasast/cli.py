@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import time
 from collections.abc import Mapping, Sequence
@@ -109,7 +110,8 @@ if TYPE_CHECKING:
 
 
 def main(argv: list[str] | None = None) -> int:
-    load_dotenv()
+    if (argv if argv is not None else sys.argv[1:])[:1] != ["pre-push"]:
+        load_dotenv()
     parser = argparse.ArgumentParser(prog="ousast")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -119,6 +121,7 @@ def main(argv: list[str] | None = None) -> int:
     replay_parser.add_argument("--head")
     replay_parser.add_argument("--remote", nargs=2, metavar=("NAME", "URL"))
     replay_parser.add_argument("--comparison-base")
+    replay_parser.add_argument("--model-config", type=Path, help="explicit optional witness selection endpoint configuration")
     replay_parser.add_argument("--prior-hook", type=Path, help="explicitly chain an existing hook with the same input and arguments")
     replay_parser.add_argument("--artifact", type=Path, required=True)
     replay_parser.add_argument(
@@ -223,7 +226,13 @@ def main(argv: list[str] | None = None) -> int:
                 mode=args.mode,
                 incomplete_coverage_policy=args.incomplete_coverage,
             )
-            options: dict[str, Any] = dict(artifact=args.artifact, config=settings, max_regions=args.max_regions, cache_dir=args.cache_dir)
+            options: dict[str, Any] = dict(
+                artifact=args.artifact,
+                config=settings,
+                max_regions=args.max_regions,
+                cache_dir=args.cache_dir,
+                model_config=args.model_config,
+            )
             if args.base and args.prior_hook:
                 parser.error("--prior-hook requires Git stdin mode")
             prior_data = None

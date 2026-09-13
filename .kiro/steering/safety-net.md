@@ -79,9 +79,9 @@ updates as a shortcut to an unmeasured latency promise.
 The product direction above is user-requested. The amended requirements, design and initial
 evaluation profile in `pre-push-safety-net` were approved for task generation on 2026-09-12
 ("ok, next kiro phase"). The maintainer then approved the task plan and starting group 1
-("approve.") and then group 2 ("ok, next kiro phase, approved"). Groups 1–6 are now
-implemented, reviewed and verified (20/27), including the frontend-retention prerequisite
-and the deadline regression exposed by full Node replay. Tasks 4.3 and groups 5–6 used the
+("approve.") and then group 2 ("ok, next kiro phase, approved"). Groups 1–7 are now
+implemented, reviewed and verified (23/27), including the frontend-retention prerequisite
+and the deadline regression exposed by full Node replay. Tasks 4.3 and groups 5–7 used the
 explicit Kiro manual review fallback after the agent thread limit.
 
 The first newly frozen PMPro/Node experiment is measured **NO-GO**: all six cold cases
@@ -96,4 +96,6 @@ dominance context projection remain unproven; the default capability registry is
 Group 6 verified equal cached/uncached evidence and current admission in a packaged authored
 JavaScript control. Source/declaration edits invalidate affected units. Identical-revision
 latency does not qualify representative changed-code performance. Requirements and rollout
-thresholds remain unchanged; groups 7–8 and independent capability admission remain pending.
+thresholds remain unchanged; group 8 and independent capability admission remain pending. Group 7 adds exact multi-ref
+transactions, explicit non-overwriting hook integration and bounded optional witness
+selection. No model output can create evidence, raise a rung or bypass admission.

@@ -413,3 +413,21 @@ admit passing capabilities in advisory mode; consider opt-in blocking only after
 LLM ranking is a later experiment, not a prerequisite. If realistic changed-unit rebuilds cannot
 meet the deadline/coverage gates, keep the hook experimental and revisit the graph strategy with
 measurements; do not solve the miss by silently shrinking context or lowering alert standards.
+
+### Group 7 integration decisions
+
+The Git interface produces one aggregate report, retaining all resolved updates and
+per-comparison change contexts. Deletions/no-work are not applicable; unresolved
+updates remain gaps. The hook installer resolves only the effective hook directory
+before exclusively creating the final filename, so final symlinks cannot redirect an
+installation. Explicit prior hooks retain their original input, arguments and exit
+behavior; their own runtime is separate from the Safety Net analysis deadline.
+
+Optional model assistance is presentation-only witness selection after admission.
+Only an existing admitted witness index can be selected. No generated prose becomes
+an alert, and no model response changes scope, evidence strength, novelty, admission
+or enforcement. A model/prompt-specific response is not cached; deterministic analysis
+artifacts still use their existing semantic identities. Configuration, prompt
+preparation and HTTP calls share the transaction deadline. Pre-push never implicitly
+loads the working tree's `.env`; explicit model configuration uses the existing loader
+with that behavior disabled. Unknown price or missing usage is an unknown cost, not zero.

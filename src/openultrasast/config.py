@@ -210,8 +210,9 @@ class ResolvedConfig:
     runs_dir: str = ".openultrasast/runs"
 
 
-def load_config(config_path: Path | None = None) -> ResolvedConfig:
-    load_dotenv()
+def load_config(config_path: Path | None = None, *, dotenv: bool = True) -> ResolvedConfig:
+    if dotenv:
+        load_dotenv()
     data: dict[str, object] = {}
     if config_path is not None and config_path.exists():
         with config_path.open("rb") as handle:

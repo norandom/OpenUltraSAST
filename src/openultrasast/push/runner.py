@@ -44,10 +44,10 @@ _T = TypeVar("_T")
 
 
 def _prepare(function: Callable[[], _T], budget: ExecutionBudget) -> _T:
-    """Bound pure local discovery/metadata work, including serialization, on Linux.
+    """Bound owned discovery/metadata or explicit HTTP assistance on Linux.
 
     Read incrementally while the child writes; no pipe-buffer deadlock or unbounded
-    blocking recv. The child never launches engines or project code.
+    blocking recv. The child never launches engines, subprocesses or project code.
     """
     if time.monotonic() >= budget.deadline_monotonic:
         raise TimeoutError("deadline_exhausted")
@@ -377,6 +377,7 @@ def replay(
     backend: Any = None,
     max_regions: int = 500,
     cache_dir: Path | None = None,
+    model_config: Path | None = None,
 ) -> ReportDelivery:
     config = config or PushConfig()
     budget = ExecutionBudget(time.monotonic() + config.deadline_seconds, config.cancellation_allowance_seconds)
@@ -391,6 +392,9 @@ def replay(
         cache_dir=cache_dir,
         execution_budget=budget,
     )
+    from openultrasast.push.assistance import assist
+
+    report = assist(report, config=model_config, budget=budget)
     return _deliver(repository, report, artifact, budget)
 
 
@@ -405,6 +409,7 @@ def push(
     backend: Any = None,
     max_regions: int = 500,
     cache_dir: Path | None = None,
+    model_config: Path | None = None,
     execution_budget: ExecutionBudget | None = None,
 ) -> ReportDelivery:
     """Consume one Git transaction. Resolution, every comparison and reporting share a deadline."""
@@ -493,4 +498,7 @@ def push(
         snapshots=tuple(s for r in reports for s in r.snapshots),
         change_contexts=tuple(r.change_context for r in reports if r.change_context is not None),
     )
+    from openultrasast.push.assistance import assist
+
+    report = assist(report, config=model_config, budget=budget)
     return _deliver(repository, report, artifact, budget)

@@ -46,7 +46,7 @@ engine are out of scope.
 - [ ] pre-push-safety-net — Immutable pushed tips, existing-ranker integration, compatible artifact
   reuse, total deadline, change attribution, actionability admission and compact hook behavior.
   Dependencies: contributor-scan. Requirements/design approved 2026-09-12; tasks generated
-  (8 groups, 27 executable subtasks), independently reviewed and approved; groups 1–6 are implemented and verified (20/27 tasks), including the resolved frontend-retention prerequisite.
+  (8 groups, 27 executable subtasks), independently reviewed and approved; groups 1–7 are implemented and verified (23/27 tasks), including the resolved frontend-retention prerequisite.
 
 ### Next concrete step
 
@@ -66,7 +66,8 @@ replay took 2.00s. Source/declaration changes invalidate affected units. This co
 control does not establish representative changed-code p95, independent alert precision or
 eligibility. Rollout remains NO-GO and normal capabilities remain disabled.
 
-Group 7 is next for the real multi-ref push interface and opt-in hook integration. Group 8
+Group 7 now provides the real multi-ref push interface, opt-in hook integration and bounded
+optional selection among already-admitted witnesses. Group 8 is next and
 must still pass the joint gates on declared populations. Keep the existing thresholds and
 profile preparation, graph construction and queries separately when investigating misses;
 do not substitute identical-tip hits for warm changed-code performance.

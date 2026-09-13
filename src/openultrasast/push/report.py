@@ -9,7 +9,7 @@ import os
 import time
 import uuid
 from collections.abc import Mapping
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from multiprocessing.connection import Connection
 from pathlib import Path
 from types import MappingProxyType
@@ -19,6 +19,7 @@ from openultrasast.model.contracts import ChangeContext, ExecutionBudget
 from openultrasast.model.scan import ModelScanResult
 from openultrasast.push.contracts import PushComparison, PushResolution, PushResult, SnapshotManifest
 from openultrasast.push.policy import AdmissionResult, _context_boundaries
+from openultrasast.redaction import redact_secrets
 
 
 @dataclass(frozen=True)
@@ -39,8 +40,10 @@ class PushReport:
     snapshots: tuple[SnapshotManifest, ...] = ()
     change_context: ChangeContext | None = None
     change_contexts: tuple[ChangeContext, ...] = ()
+    model_assistance: Mapping[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "model_assistance", MappingProxyType(dict(self.model_assistance)))
         object.__setattr__(self, "provenance", MappingProxyType(dict(self.provenance)))
         object.__setattr__(self, "timings", MappingProxyType(dict(self.timings)))
         ids = tuple(defect.defect_id for defect in self.admission.defects)
@@ -112,6 +115,7 @@ def _write_artifact(report: PushReport, target: Path, temporary: Path, connectio
             with os.fdopen(fd, "w", encoding="utf-8") as stream:
                 payload = {
                     "schema_version": 1,
+                    "model_assistance": dict(report.model_assistance),
                     "change_contexts": [item.to_payload() for item in report.change_contexts],
                     "snapshots": [item.to_payload() for item in report.snapshots],
                     "change_context": report.change_context.to_payload() if report.change_context else None,
@@ -188,11 +192,22 @@ def render_report(report: PushReport, *, artifact: Path | None, error: str | Non
     defects = report.admission.defects
     for defect in defects[:3]:
         path, line = defect.locations[0]
-        delta = next(
+        choices = report.model_assistance.get("selections", {})
+        index = choices.get(defect.defect_id, 0) if isinstance(choices, dict) else 0
+        if type(index) is not int or not 0 <= index < len(defect.witnesses):
+            index = 0
+        witness = defect.witnesses[index]
+        supported = [
             disposition.candidate.delta
             for disposition in report.admission.dispositions
             if disposition.admitted and disposition.candidate.delta.defect_id == defect.defect_id
-        )
+        ]
+        delta = next((candidate for candidate in supported if candidate.witness == witness), supported[0])
+        # Keep the displayed location/change bound to the chosen admitted witness,
+        # including when a defect was deduplicated across revisions or locations.
+        witness = delta.witness or defect.witnesses[0]
+        if delta.head_operation is not None:
+            path, line = delta.head_operation.path, delta.head_operation.line
         change = (
             "A protection present in the base is missing here."
             if delta.reason == "discharge_removed"
@@ -201,7 +216,7 @@ def render_report(report: PushReport, *, artifact: Path | None, error: str | Non
         lines.extend(
             (
                 f"- {_short(defect.family)} at {_short(path, 4096)}:{line}: {_short(defect.consequences[0])}",
-                f"  Evidence: {_short(defect.witnesses[0])}; Change: {change} ({_short(defect.change_evidence[0])})",
+                f"  Evidence: {_short(redact_secrets(witness))}; Change: {change} ({_short(defect.change_evidence[0])})",
                 f"  Fix: {_short(defect.repairs[0])}",
             )
         )

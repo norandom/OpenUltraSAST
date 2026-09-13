@@ -75,3 +75,45 @@ Verify with disposable repositories and a local bare remote, never this project'
 - CLAIM: Task 7.2 non-destructive hook integration delivered.
 - EVIDENCE: `/tmp/group7-2-full.log`, `/tmp/group7-2-final-focused.log`; static checks and shell/CLI smoke exit 0.
 - GAPS: No hook installed in this project's actual repository; rollout remains NO-GO.
+
+## Task 7.3 brief
+
+Requirements 3.5, 4.1, 4.2 and 7.1–7.3; design: Delta and Actionability Policy,
+Push runner and existing endpoint/redaction integration. Explicit endpoint/model only,
+one remaining deadline, no-model identity preserved. Assistance selects existing
+admitted witness indices and cannot contribute prose, evidence, a rung or a finding.
+Record prompt/model/usage/cost provenance and retain deterministic fallback. Verify
+misleading/delayed replies, outbound redaction, no unadmitted input, and an actual
+loopback HTTP request through the existing endpoint adapter. No external provider used.
+
+## Status Report
+- STATUS: READY_FOR_REVIEW
+- TASK: 7.3
+- RED_PHASE_OUTPUT: `/tmp/group7-3-red.log`: six failures with the feature OFF, default no-model identity passes. ON: seven passed; switch removed. Final assistance/report suite: 27 passed, including endpoint receipts, delayed/misleading replies, redaction, dotenv isolation and witness/location binding.
+- TESTS_RUN: full suite 1295 passed, 9 skipped in 149.70s; final 27 focused tests validate the subsequent renderer binding refinement. Ruff, formatting (254 files), mypy (115 source files), compileall and diff checks pass.
+- CONCERNS: cost is explicitly unknown when receipt/pricing is missing; cancelled remote requests may still incur provider cost. All provider tests use synthetic clients or loopback HTTP. No normal capability enabled.
+
+## Review Verdict
+- VERDICT: APPROVED
+- TASK: 7.3
+- MECHANICAL_RESULTS: actual code/diff reviewed against requirements 3.5, 4.1, 4.2 and 7.1–7.3. Regression/static checks pass. No new placeholders, hardcoded credentials or scope/ranking/admission changes. Synthetic key strings occur only in redaction controls.
+- FINDINGS: repaired implicit pre-deadline dotenv loading; explicit configuration reuses the existing loader with dotenv disabled. Model-selected witness location and change explanation remain bound to that witness's admitted disposition. Incomplete usage is never priced as zero. Unknown/extra model response fields cannot create claims.
+- RED phase: VERIFIED.
+- SUMMARY: Optional assistance is bounded presentation selection over existing admitted evidence, with deterministic fallback.
+
+## Verification Result
+- STATUS: VERIFIED
+- CLAIM_TYPE: TASK
+- CLAIM: Task 7.3 and group 7 integration are implemented and locally verified.
+- EVIDENCE: `/tmp/group7-final-suite.log` (1295 passed, 9 skipped), `/tmp/group7-3-final-assistance-report.log` (27 passed), `/tmp/group7-3-final-focused.log` (34 passed). Detection gate 44/47, FP 0/44; map gate PASS; pair gate 3/3, labeled 28/28, zero fix leaks. Ruff, mypy, formatting, compileall and shell syntax pass. Docker build exit 0; image `sha256:af5b896b406fe98acb3d00bb2180a7549febd6dd285f0b63087538118e52e1f4`. Network-disabled packaged CLI help and real empty Git-stdin transaction both exit 0 as UID 1000; readable 1085-byte artifact records `not_applicable`, model disabled, no scans.
+- GAPS: Packaged smoke verifies liveness and input/report integration, not detection performance or alert eligibility. Main-context review fallback is not independent review. Group 8 remains pending and rollout remains NO-GO.
+
+## Current specification status
+
+Requirements, design and tasks remain approved. Implementation: 23/27 executable
+subtasks complete (85.2%); groups 1–7 complete, group 8 has four pending tasks.
+No new implementation blocker. Upstream contributor-scan contracts and existing ranker
+remain unchanged. Revalidate multi-ref deadline/cancellation, hook failures and model
+fallback in group 8.1, representative changed-code performance in 8.2, independent
+capability admission in 8.3, and packaged end-to-end usefulness in 8.4. The accepted
+rollout gates are unchanged; zero enabled capabilities cannot satisfy them.

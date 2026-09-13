@@ -1,10 +1,10 @@
 {
   "counts": {
-    "load_bearing": 104,
+    "load_bearing": 105,
     "standalone_capability": 9
   },
-  "modules": 113,
-  "note": "Refreshed for group 6: replay reaches compatible graph, query, discovery and comparison reuse.",
+  "modules": 114,
+  "note": "Refreshed for group 7: push runner reaches optional bounded witness selection; registry remains empty.",
   "orphaned": [],
   "rows": [
     {
@@ -103,6 +103,7 @@
         "hunter_tools",
         "model.endpoint",
         "pairs",
+        "push.assistance",
         "push.policy",
         "push.runner",
         "regress.candidate",
@@ -376,6 +377,7 @@
         "model.specs",
         "model.taint",
         "preprocess",
+        "push.assistance",
         "push.cache",
         "push.contracts",
         "push.policy",
@@ -420,10 +422,12 @@
     {
       "classification": "load_bearing",
       "importers": [
+        "cli",
         "cpg.backend",
         "model.partitions",
         "model.regions",
         "model.scan",
+        "push.assistance",
         "push.cache",
         "push.contracts",
         "push.policy",
@@ -447,7 +451,8 @@
     {
       "classification": "load_bearing",
       "importers": [
-        "cli"
+        "cli",
+        "push.assistance"
       ],
       "module": "model.endpoint",
       "reason": "model-grounded-detection Req 8: the judge client, wired by model/judge.py in group 3"
@@ -698,6 +703,7 @@
       "classification": "load_bearing",
       "importers": [
         "cli",
+        "push.assistance",
         "push.policy",
         "push.report",
         "push.reuse",
@@ -706,6 +712,14 @@
       ],
       "module": "push",
       "reason": "pre-push-safety-net Req 5.5/7.3: experimental push contract package; no hook installed"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [
+        "push.runner"
+      ],
+      "module": "push.assistance",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
     },
     {
       "classification": "load_bearing",
@@ -741,6 +755,7 @@
     {
       "classification": "load_bearing",
       "importers": [
+        "push.assistance",
         "push.runner"
       ],
       "module": "push.report",
@@ -757,7 +772,8 @@
     {
       "classification": "load_bearing",
       "importers": [
-        "cli"
+        "cli",
+        "push.assistance"
       ],
       "module": "push.runner",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI"
@@ -806,6 +822,8 @@
         "harness",
         "model.judge",
         "model.pipeline",
+        "push.assistance",
+        "push.report",
         "reports",
         "semantic.obligations.intent"
       ],

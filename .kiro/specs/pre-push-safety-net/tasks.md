@@ -190,7 +190,7 @@ independent capability qualification. Groups 7–8 remain pending; rollout remai
   - _Depends: 5.1, 6.2, 6.3_
   - _Requirements: 1.1, 2.2, 4.1, 4.2, 4.3, 4.4, 7.3_
 
-- [ ] 7. Connect the real push interface without adding noise
+- [x] 7. Connect the real push interface without adding noise
 - [x] 7.1 Execute Git's full push input and enforcement policy
   - Extend the replay command to consume all update lines and remote arguments, aggregating per-ref comparisons under one deadline and preserving independent coverage and finding statuses.
   - Apply advisory, opt-in blocking and separate incomplete-coverage policy; keep external services disabled by default and normal alerts limited to admitted capabilities.
@@ -204,7 +204,7 @@ independent capability qualification. Groups 7–8 remain pending; rollout remai
   - Done when a disposable Git remote accepts/rejects pushes correctly with an existing stdin-reading hook, and removal restores the preceding behavior without touching source or refs.
   - _Boundary: Result and Hook Adapter, CLI integration_
   - _Requirements: 1.2, 5.3, 5.4, 7.4_
-- [ ] 7.3 Keep optional model assistance within existing evidence rules
+- [x] 7.3 Keep optional model assistance within existing evidence rules
   - Reuse explicit endpoint configuration and redaction only when enabled; propagate the remaining deadline to model calls and record model/prompt/cost provenance.
   - Restrict explanations to existing witnesses and preserve deterministic no-model behavior; do not implement a new learned ranker or prompt optimizer in this task.
   - Done when a delayed or misleading model cannot extend the push budget, leak unredacted input in the tested path, raise a rung or bypass actionability admission.

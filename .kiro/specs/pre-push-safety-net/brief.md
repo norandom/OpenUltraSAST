@@ -1,6 +1,6 @@
 # Brief: pre-push-safety-net
 
-Status: requirements, design and tasks approved; groups 1–6 implemented and verified (20/27 subtasks). Compatible preparation/graph/query reuse is demonstrated, including packaged JavaScript evidence equivalence. Groups 7–8 pending. Rollout remains NO-GO: changed-code feasibility and independent capability qualification are not established; normal capabilities remain disabled. Language: English.
+Status: requirements, design and tasks approved; groups 1–7 implemented and verified (23/27 subtasks). Compatible preparation/graph/query reuse is demonstrated, including packaged JavaScript evidence equivalence. Group 7 adds multi-ref Git input, non-destructive opt-in hook integration and bounded optional witness selection. Group 8 pending. Rollout remains NO-GO: changed-code feasibility and independent capability qualification are not established; normal capabilities remain disabled. Language: English.
 
 ## Problem
 
