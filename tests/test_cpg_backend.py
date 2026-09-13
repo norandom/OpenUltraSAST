@@ -1103,3 +1103,29 @@ def test_the_interpreter_must_read_the_frontend_parser_too(tmp_path: Path, monke
     backend = JoernBackend(runner=runner)
     assert backend.build(tmp_path / "repo", language="php") is None
     assert "php-parser.php" in backend.last_failure and "mounts the repository but not this install" in backend.last_failure
+
+
+def test_javascript_partition_uses_declared_frontend_not_legacy_autodetection(tmp_path, monkeypatch):
+    from openultrasast.cpg.backend import JoernBackend
+
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests/probe.js").write_bytes(b"function first_party_test(x) { return x; }")
+    commands = []
+
+    def runner(command, **kwargs):
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
+        commands.append(command)
+        assert Path(command[0]).name == "jssrc2cpg"
+        Path(command[command.index("-o") + 1]).write_bytes(b"graph")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/joern/{name}")
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    result = JoernBackend(runner=runner).build(tmp_path, language="javascript")
+    try:
+        assert result is not None
+        assert len(commands) == 1
+    finally:
+        if result is not None:
+            result.cleanup()

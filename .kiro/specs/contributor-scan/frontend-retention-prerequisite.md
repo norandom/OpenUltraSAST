@@ -1,6 +1,6 @@
 # Frontend input retention prerequisite
 
-Date: 2026-09-13. Status: proposed prerequisite, awaiting maintainer review.
+Date: 2026-09-13. Status: approved by the maintainer ("approved"); task 2.18 verified complete after independent review.
 Owner: contributor-scan. Blocks pre-push-safety-net task 3.4.
 
 ## Confirmed problem
@@ -26,7 +26,7 @@ Failure evidence is retained in
 An independent Kiro debug investigation returned `STOP_FOR_HUMAN`: a foundation
 prerequisite is missing from the approved downstream implementation sequence.
 
-## Proposed prerequisite for approval
+## Approved prerequisite
 
 Establish a reproducible frontend input policy that retains explicitly supplied
 first-party JavaScript source, including test directories and filename patterns.
@@ -52,5 +52,6 @@ ranker candidates. Report actual frontend omissions as incomplete coverage.
 4. Rebuild the image and rerun `ops/smoke_partitions.py`, then independently review
    and verify pre-push task 3.4 before checking it off or starting dependent work.
 
-This proposal changes the dependency work required before task 3.4 can complete.
-It does not approve a new engine version, a dependency patch or capability admission.
+The maintainer approved this prerequisite and its dependency adaptation on 2026-09-13.
+Task 2.18 owns reproducible implementation and verification; downstream task 3.4
+remains incomplete until its own review passes. Capability admission remains later work.

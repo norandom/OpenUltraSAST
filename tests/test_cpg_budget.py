@@ -168,6 +168,8 @@ def test_explicit_build_budget_is_retained_without_mutating_backend(tmp_path: Pa
         calls.append(kwargs["timeout"])
         if "--output" in command:
             Path(command[command.index("--output") + 1]).write_bytes(b"graph fixture")
+        elif "-o" in command:
+            Path(command[command.index("-o") + 1]).write_bytes(b"graph fixture")
         return subprocess.CompletedProcess(command, 0, f'{BEGIN}\n{{"r":[]}}\n{END}', "")
 
     monkeypatch.setattr(module.shutil, "which", lambda name: name)

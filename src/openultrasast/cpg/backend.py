@@ -270,6 +270,7 @@ class JoernBackend:
     """``joern-parse`` then ``joern --script``, both out of process and both timeout-bounded."""
 
     runner: Runner | None = None
+    include_tests: bool = True  # Explicit input policy for the versioned frontend adaptation.
     build_timeout: int = BUILD_TIMEOUT_SECONDS
     query_timeout: int = field(default_factory=lambda: _configured_timeout())
     heap_mb: int = 0  # 0 means read the environment, then fall back to CPG_HEAP_MB
@@ -367,18 +368,28 @@ class JoernBackend:
                     cleanup=dispose,
                     execution_diagnostics=lambda: tuple(self._diagnostics),
                 )
-        command = [parse or "joern-parse", self._heap_flag(), str(root), "--output", str(cpg_path)]
-        completed = self._run(command, timeout=self.build_timeout, cwd=scratch)
-        unparsed = _unparsed_files(completed)
-        if completed is None or completed.returncode != 0 or not cpg_path.is_file():
-            detail = (completed.stderr or completed.stdout or "")[-400:] if completed is not None else "timeout"
-            logger.warning("cpg build failed for %s: %s", root, detail)
-            retried = self._build_with_frontend(root, cpg_path, scratch, language)
-            if retried is None:
-                dispose()  # a failed build's scratch is nobody's to sweep six hours later
+        if language.lower() in {"javascript", "typescript"}:
+            # Use the declared frontend rather than language autodetection. The versioned
+            # retention adaptation consumes the explicit include_tests subprocess policy.
+            direct = self._build_with_frontend(root, cpg_path, scratch, language, exclude)
+            if direct is None:
+                dispose()
                 return None
             self._apply_overlays(cpg_path, scratch)
-            unparsed = retried
+            unparsed = direct
+        else:
+            command = [parse or "joern-parse", self._heap_flag(), str(root), "--output", str(cpg_path)]
+            completed = self._run(command, timeout=self.build_timeout, cwd=scratch)
+            unparsed = _unparsed_files(completed)
+            if completed is None or completed.returncode != 0 or not cpg_path.is_file():
+                detail = (completed.stderr or completed.stdout or "")[-400:] if completed is not None else "timeout"
+                logger.warning("cpg build failed for %s: %s", root, detail)
+                retried = self._build_with_frontend(root, cpg_path, scratch, language)
+                if retried is None:
+                    dispose()  # a failed build's scratch is nobody's to sweep six hours later
+                    return None
+                self._apply_overlays(cpg_path, scratch)
+                unparsed = retried
         if unparsed:
             logger.warning("the frontend could not parse %d file(s) under %s: %s", len(unparsed), root, ", ".join(unparsed[:5]))
         return CpgResult(
@@ -1004,6 +1015,7 @@ class JoernBackend:
         options survive.
         """
         env = dict(os.environ)
+        env["OUSAST_INCLUDE_TESTS"] = "1" if self.include_tests else "0"
         env["JAVA_TOOL_OPTIONS"] = f"{env.get('JAVA_TOOL_OPTIONS', '').strip()} -Xmx{self._heap_mb()}m".strip()
         return env
 

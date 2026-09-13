@@ -1,0 +1,942 @@
+{
+  "recorded_at": "2026-09-13T09:29:15.806475+00:00",
+  "task": "contributor-scan 2.18",
+  "verification": "VERIFIED",
+  "claim_type": "TASK",
+  "image_id": "sha256:85647aff62d771b22c2541895b780e0b0d6666bd0701ad0e6c518a5c6e1f64fe",
+  "build_exit_code": 0,
+  "mixed_smoke_exit_code": 0,
+  "context_smoke_exit_code": 0,
+  "disabled_control_exit_code": 1,
+  "disabled_control_expected": true,
+  "package": {
+    "hashes": {
+      "openultrasast.cpg.backend": "a53dc5f1170327a09f5501bef9a9b9c15c02e3efde9a352a15ec8fc147cb94bf",
+      "openultrasast.model.scan": "ad6f134c8fae43aa102b61d99f273b467415193d0b27fb634cae2586cb3c43ae",
+      "openultrasast.model.partitions": "c91970dbf536d4811e1980415a37e80348f38fbf9284ba469dfbac41c8215ac6",
+      "openultrasast.model.layout": "50a1a163459f8802037faae750bc1f99a0ab81912b571b40303675590794d27c",
+      "openultrasast.preprocess": "0d0b1f22fd2024be3e50dc1a9ff947eed7f8f60f67644277e344b83697aaefc8",
+      "openultrasast.cli": "79608d4a74bcceb5bd41b149cf806d25c4f71d8b3201d710217395941169bdc2"
+    },
+    "manifest": {
+      "revision": "ousast-frontend-retention-v1",
+      "builder_sha256": "21be57123922fa83ab3a4a3c684f7ddd8bf4ffc79dfb8379226ea72d2b1cac02",
+      "policy": "OUSAST_INCLUDE_TESTS=1",
+      "sources": {
+        "astgen.tar.gz": [
+          "https://codeload.github.com/joernio/astgen-monorepo/tar.gz/refs/tags/javascript-astgen/v3.50.1",
+          "8d9728dca8eab694a0f07bcd7a1c9a88368cb7bd354fc19c2ee8ca8611ff869a"
+        ],
+        "AstGenRunner.scala": [
+          "https://raw.githubusercontent.com/joernio/joern/v4.0.625/joern-cli/frontends/jssrc2cpg/src/main/scala/io/joern/jssrc2cpg/utils/AstGenRunner.scala",
+          "9963f949360d7e17baed1bd8875b717b2855745cf7260eef8a87d17533a54268"
+        ],
+        "bun.zip": [
+          "https://github.com/oven-sh/bun/releases/download/bun-v1.4.2/bun-linux-x64.zip",
+          "36368faef7527875d5ffa52e53cd48021741f2a83eb6208a8dd64068d422a913"
+        ]
+      },
+      "original_jar_sha256": "49fe488a79cc52b4e1d2e056143ec414f59e0007ed25f054c5fa7ae4aa34dff3",
+      "adapted_jar_sha256": "7b3a91a695abcd98652e83a4dfdbfd7c3be63b085e1bdfac0aae3139a714f1be",
+      "astgen_sha256": "eb1b01b2244e7dea4388716240bc0c1c1b66ff6de8cd1dfda30d3855627083e4",
+      "compiled_entries": [
+        "io/joern/jssrc2cpg/utils/AstGenRunner$$anon$1.class",
+        "io/joern/jssrc2cpg/utils/AstGenRunner$.class",
+        "io/joern/jssrc2cpg/utils/AstGenRunner$astGenMetaData$.class",
+        "io/joern/jssrc2cpg/utils/AstGenRunner.class",
+        "io/joern/jssrc2cpg/utils/AstGenRunner.tasty"
+      ]
+    }
+  },
+  "integrity": {
+    "manifest_outputs_verified": true,
+    "backend_ast_sha256": "0e3ebe0a1de7d45bbec5bf1e86904c9365a9e87dcfc07ea3c9da9fa7e3e40b8c",
+    "same_parser_backend_ast_equal": true
+  },
+  "current_source_hashes": {
+    "openultrasast.cpg.backend": "f321ae8f6d3fbf5efc37a5de31453db0bb183a2651fe4650720f28f986a1dd78",
+    "openultrasast.model.scan": "ad6f134c8fae43aa102b61d99f273b467415193d0b27fb634cae2586cb3c43ae",
+    "openultrasast.model.partitions": "c91970dbf536d4811e1980415a37e80348f38fbf9284ba469dfbac41c8215ac6",
+    "openultrasast.model.layout": "50a1a163459f8802037faae750bc1f99a0ab81912b571b40303675590794d27c",
+    "openultrasast.preprocess": "0d0b1f22fd2024be3e50dc1a9ff947eed7f8f60f67644277e344b83697aaefc8",
+    "openultrasast.cli": "79608d4a74bcceb5bd41b149cf806d25c4f71d8b3201d710217395941169bdc2"
+  },
+  "source_difference": "Backend comment-only clarification after image build; Python AST verified identical using the same local parser for both files. Other listed modules match byte-for-byte.",
+  "script_hashes": {
+    "ops/smoke_partitions.py": "113d1fe5b129506b80f445b17d44d7348f2dac0e11e11b569835ded5efbd309a",
+    "ops/smoke_context.py": "4d515258c01e44e2a30ee71f8de8de2df06c88dac2e0ded6f2904f7682e347d9"
+  },
+  "mixed_runtime": {
+    "purpose": "Real mixed PHP/JavaScript graph census and one global ranker budget; no admission or latency claim",
+    "shared_budget_seconds": 900,
+    "include_tests": true,
+    "inputs": {
+      "src/api.php": {
+        "bytes": 49,
+        "sha256": "47ee82519e90f5ce2c845035f168bc4eaa4b0cc6e46cfc68626b8144e20b8f72"
+      },
+      "server/api.js": {
+        "bytes": 51,
+        "sha256": "a9f1b897b9361d0d30250f82aebec987cfd99e66308c9ea889d5b6211e3cad5e"
+      },
+      "tests/probe.php": {
+        "bytes": 48,
+        "sha256": "93c25992f2b709d4f222d88573a004dfb4e65239ce9a3afc2301f629b148c03d"
+      },
+      "tests/probe.js": {
+        "bytes": 41,
+        "sha256": "182f7cb37514b7fc6afbba045a9d1b3ca5dc297c35bb98b9f34c18cfd02864f5"
+      },
+      "vendor/library.php": {
+        "bytes": 55,
+        "sha256": "dd2aa2514d7c2dffdf4cfd238d7b795c2cd7bb6be086054b0b6d2278bd2c9599"
+      },
+      "node_modules/library.js": {
+        "bytes": 46,
+        "sha256": "5e42f2831e2e32d8c19df33ba98fbda879495b74bd6d7e0b6ff45a077674f398"
+      },
+      "unsupported.go": {
+        "bytes": 36,
+        "sha256": "ecf7a397251f1fea2e5992bdc3b0581274c20eb83f0ac403f6b7babe7d7b6b5b"
+      },
+      "checks/probe.test.js": {
+        "bytes": 41,
+        "sha256": "182f7cb37514b7fc6afbba045a9d1b3ca5dc297c35bb98b9f34c18cfd02864f5"
+      },
+      "checks/probe.spec.js": {
+        "bytes": 41,
+        "sha256": "a2677f51273a325b802a4a628ceb54f0bcea533a672c8997c0439d6ea206de37"
+      },
+      "checks/probe.mock.js": {
+        "bytes": 41,
+        "sha256": "bc14cd012a0d2c34a3605ce21a009b7fd335bdf248f81aec3462b506929eabd5"
+      },
+      "checks/probe.e2e.js": {
+        "bytes": 40,
+        "sha256": "14884e5a7d6c909f30addd8385bb82f6ea3751bb126192052dabe0eedfb42400"
+      }
+    },
+    "graph_witnesses": [
+      {
+        "frontend": "javascript",
+        "input_root": "/tmp/ousast-input-j_va8nqm",
+        "graph_witness": {
+          "files": [
+            "checks/probe.e2e.js",
+            "checks/probe.mock.js",
+            "checks/probe.spec.js",
+            "checks/probe.test.js",
+            "server/api.js",
+            "tests/probe.js"
+          ],
+          "methods": [
+            "js_e2e_marker",
+            ":program",
+            "js_mock_marker",
+            ":program",
+            "js_spec_marker",
+            ":program",
+            "js_test_marker",
+            ":program",
+            "js_handler",
+            ":program",
+            "js_test_marker",
+            ":program",
+            "<operator>.assignment",
+            "eval",
+            "<operator>.fieldAccess"
+          ]
+        }
+      },
+      {
+        "frontend": "php",
+        "input_root": "/tmp/ousast-input-jr3nb1ie",
+        "graph_witness": {
+          "files": [
+            "src/api.php",
+            "tests/probe.php",
+            "<unknown>"
+          ],
+          "methods": [
+            "<global>",
+            "php_handler",
+            "<global>",
+            "php_test_marker",
+            "eval"
+          ]
+        }
+      }
+    ],
+    "result": {
+      "findings": [
+        {
+          "site": "src/api.php:2:php_handler",
+          "family": "injection",
+          "rung": "model_entailed",
+          "witness": "$req -> eval($req) in src/api.php (line 2, 2 steps)",
+          "contradiction": "",
+          "reached_from": 1
+        }
+      ],
+      "by_rung": {
+        "suspicion": 0,
+        "model_corroborated": 0,
+        "model_entailed": 1,
+        "execution_confirmed": 0
+      },
+      "regions_scanned": 1,
+      "regions_unjudged": 3,
+      "regions_unasked": 0,
+      "model_calls": 0,
+      "cost_usd": 0.0,
+      "seconds": 260.93,
+      "build_seconds": 173.97,
+      "query_seconds": 43.9,
+      "query_seconds_by_kind": {
+        "evidence": 42.96,
+        "taint": 43.9
+      },
+      "degradations": [
+        {
+          "stage": "model",
+          "reason": "cross_partition_semantics_unresolved"
+        },
+        {
+          "stage": "model",
+          "reason": "frontend_unsupported"
+        },
+        {
+          "stage": "model",
+          "reason": "vendor_semantics_unresolved"
+        },
+        {
+          "stage": "model",
+          "reason": "regions_truncated",
+          "examined": 1,
+          "total": 4
+        }
+      ],
+      "tiers": [
+        [
+          "src/api.php",
+          "php_handler",
+          "injection",
+          4
+        ]
+      ],
+      "tier_counts": {
+        "4": 1
+      },
+      "requests_pruned": 0,
+      "partitions": [
+        {
+          "language": "go",
+          "frontend": null,
+          "paths": [
+            "unsupported.go"
+          ],
+          "source_bytes": 0,
+          "status": "unsupported",
+          "boundaries": [
+            "frontend_unsupported"
+          ],
+          "runtime": "unspecified",
+          "excluded_paths": [
+            "node_modules/",
+            "vendor/"
+          ],
+          "unshipped_paths": []
+        },
+        {
+          "language": "javascript",
+          "frontend": "javascript",
+          "paths": [
+            "checks/probe.e2e.js",
+            "checks/probe.mock.js",
+            "checks/probe.spec.js",
+            "checks/probe.test.js",
+            "server/api.js",
+            "tests/probe.js"
+          ],
+          "source_bytes": 255,
+          "status": "built",
+          "boundaries": [
+            "runtime_unspecified"
+          ],
+          "runtime": "unspecified",
+          "excluded_paths": [
+            "node_modules/",
+            "vendor/"
+          ],
+          "unshipped_paths": [
+            "tests/probe.js"
+          ]
+        },
+        {
+          "language": "php",
+          "frontend": "php",
+          "paths": [
+            "src/api.php",
+            "tests/probe.php"
+          ],
+          "source_bytes": 97,
+          "status": "built",
+          "boundaries": [],
+          "runtime": "unspecified",
+          "excluded_paths": [
+            "node_modules/",
+            "vendor/"
+          ],
+          "unshipped_paths": [
+            "tests/probe.php"
+          ]
+        }
+      ],
+      "change_context": null,
+      "scope": {
+        "ranker_version": "existing-static-evidence-v1",
+        "ranking_mode": "static",
+        "population_complete": true,
+        "selected": [
+          {
+            "identity": {
+              "unit": "partition-smoke",
+              "language": "php",
+              "path": "src/api.php",
+              "function": "php_handler",
+              "family": "injection"
+            },
+            "priority": 0.0,
+            "evidence": [
+              "static_rank=10.0",
+              "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval($req)\",\"line\":2,\"method\":\"php_handler\"}],\"source_local\":false,\"source_near\":false}",
+              "tier=4",
+              "score=2.5"
+            ],
+            "tier": 4,
+            "score": 2.5
+          }
+        ],
+        "deferred": [
+          {
+            "identity": {
+              "unit": "partition-smoke",
+              "language": "javascript",
+              "path": "server/api.js",
+              "function": "js_handler",
+              "family": "injection"
+            },
+            "reason": "region_budget",
+            "evidence": [
+              "static_rank=9.0",
+              "evidence_unknown"
+            ]
+          },
+          {
+            "identity": {
+              "unit": "partition-smoke",
+              "language": "php",
+              "path": "tests/probe.php",
+              "function": "php_test_marker",
+              "family": "injection"
+            },
+            "reason": "region_budget",
+            "evidence": [
+              "static_rank=2.0",
+              "evidence_unknown"
+            ]
+          },
+          {
+            "identity": {
+              "unit": "partition-smoke",
+              "language": "javascript",
+              "path": "tests/probe.js",
+              "function": "js_test_marker",
+              "family": "injection"
+            },
+            "reason": "region_budget",
+            "evidence": [
+              "static_rank=1.0",
+              "evidence_unknown"
+            ]
+          }
+        ],
+        "unresolved_boundaries": [
+          "evidence_unknown:022bab405f3a4daa5ee1cbca6b54c24d052b3060f915b850bc1b592d2233999c",
+          "evidence_unknown:d867a0ae5d785b179a30fcef9efcdb8304281d53694a51c2da4180ef5069a53d",
+          "evidence_unknown:66aa438d134c37f7107503949179ce763fecaa08f0a1d00646ee8a5f446d88f7",
+          "cross_partition_semantics_unresolved",
+          "frontend_unsupported",
+          "vendor_semantics_unresolved"
+        ]
+      },
+      "question_outcomes": [
+        {
+          "identity": {
+            "unit": "partition-smoke",
+            "language": "php",
+            "path": "src/api.php",
+            "function": "php_handler",
+            "family": "injection"
+          },
+          "status": "unresolved",
+          "reason": "graph_incomplete",
+          "raw_rows_json": "[{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":2,\"paths\":1,\"sanitized\":false,\"sink\":\"eval($req)\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"src/api.php\",\"sinkLine\":\"2\",\"sinkMethod\":\"php_handler\",\"source\":\"$req\",\"sourceKind\":\"parameter\"}]"
+        }
+      ],
+      "family_coverage": [
+        {
+          "unit": "partition-smoke",
+          "language": "javascript",
+          "family": "injection",
+          "selected": 0,
+          "completed": 0,
+          "unanswered": 0,
+          "deferred": 2,
+          "unsupported": 0
+        },
+        {
+          "unit": "partition-smoke",
+          "language": "php",
+          "family": "injection",
+          "selected": 1,
+          "completed": 0,
+          "unanswered": 1,
+          "deferred": 1,
+          "unsupported": 0
+        }
+      ]
+    }
+  },
+  "context_runtime": {
+    "purpose": "Committed removed-guard context reaches real ranked questions; not semantic novelty or admission proof",
+    "shared_budget_seconds": 900,
+    "languages": {
+      "php": {
+        "base_revision": "4932fac446d4bca0642694e9a89cffaa739a31d5",
+        "head_revision": "32b5ef5ffe6a64bb4924fc7006273b0b2cc5a805",
+        "source_bytes": 124,
+        "source_sha256": "e41333ddd3e341d08603a5cc6a3a9faedb442e6ef3b14627cd00516cdf12cedb",
+        "helper_bytes": 48,
+        "helper_sha256": "4eb14937fd2b027cc11bd5a79c5de38f572d9a5af8ee36a46d4a0e499817ae76",
+        "input_context": {
+          "base_revision": "4932fac446d4bca0642694e9a89cffaa739a31d5",
+          "head_revision": "32b5ef5ffe6a64bb4924fc7006273b0b2cc5a805",
+          "changed_paths": [
+            "6170692e706870"
+          ],
+          "deleted_paths": [],
+          "spans": [
+            {
+              "path": "6170692e706870",
+              "start_line": 4,
+              "end_line": 4,
+              "side": "base"
+            }
+          ],
+          "renames": [],
+          "declaration_paths": [],
+          "relationships": [],
+          "unresolved_boundaries": [],
+          "path_encoding": "filesystem-bytes-hex",
+          "line_correspondences": [
+            {
+              "base_path": "6170692e706870",
+              "head_path": "6170692e706870",
+              "base_start_line": 1,
+              "base_end_line": 1,
+              "head_start_line": 1
+            },
+            {
+              "base_path": "6170692e706870",
+              "head_path": "6170692e706870",
+              "base_start_line": 2,
+              "base_end_line": 2,
+              "head_start_line": 2
+            },
+            {
+              "base_path": "6170692e706870",
+              "head_path": "6170692e706870",
+              "base_start_line": 3,
+              "base_end_line": 3,
+              "head_start_line": 3
+            },
+            {
+              "base_path": "6170692e706870",
+              "head_path": "6170692e706870",
+              "base_start_line": 5,
+              "base_end_line": 5,
+              "head_start_line": 4
+            },
+            {
+              "base_path": "6170692e706870",
+              "head_path": "6170692e706870",
+              "base_start_line": 6,
+              "base_end_line": 6,
+              "head_start_line": 5
+            }
+          ]
+        },
+        "result": {
+          "findings": [
+            {
+              "site": "helper.php:2:helper",
+              "family": "injection",
+              "rung": "model_entailed",
+              "witness": "$req -> eval($value) in helper.php (line 2, 4 steps)",
+              "contradiction": "",
+              "reached_from": 1
+            }
+          ],
+          "by_rung": {
+            "suspicion": 0,
+            "model_corroborated": 0,
+            "model_entailed": 1,
+            "execution_confirmed": 0
+          },
+          "regions_scanned": 1,
+          "regions_unjudged": 0,
+          "regions_unasked": 0,
+          "model_calls": 0,
+          "cost_usd": 0.0,
+          "seconds": 170.02,
+          "build_seconds": 66.97,
+          "query_seconds": 58.08,
+          "query_seconds_by_kind": {
+            "evidence": 44.86,
+            "taint": 58.08
+          },
+          "degradations": [],
+          "tiers": [
+            [
+              "api.php",
+              "handler",
+              "injection",
+              4
+            ]
+          ],
+          "tier_counts": {
+            "4": 1
+          },
+          "requests_pruned": 0,
+          "partitions": [
+            {
+              "language": "php",
+              "frontend": "php",
+              "paths": [
+                "api.php",
+                "helper.php"
+              ],
+              "source_bytes": 124,
+              "status": "built",
+              "boundaries": [],
+              "runtime": "unspecified",
+              "excluded_paths": [],
+              "unshipped_paths": []
+            }
+          ],
+          "change_context": {
+            "base_revision": "4932fac446d4bca0642694e9a89cffaa739a31d5",
+            "head_revision": "32b5ef5ffe6a64bb4924fc7006273b0b2cc5a805",
+            "changed_paths": [
+              "6170692e706870"
+            ],
+            "deleted_paths": [],
+            "spans": [
+              {
+                "path": "6170692e706870",
+                "start_line": 4,
+                "end_line": 4,
+                "side": "base"
+              }
+            ],
+            "renames": [],
+            "declaration_paths": [],
+            "relationships": [
+              {
+                "source": {
+                  "unit": "context-smoke",
+                  "language": "php",
+                  "path": "api.php",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "target": {
+                  "unit": "context-smoke",
+                  "language": "php",
+                  "path": "api.php",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "kind": "entry",
+                "evidence": [
+                  "base_span:api.php:4-4",
+                  "unchanged_line:3;lexical_only",
+                  "unchanged_line:4;lexical_only",
+                  "unchanged_line:5;lexical_only"
+                ]
+              }
+            ],
+            "unresolved_boundaries": [],
+            "path_encoding": "filesystem-bytes-hex",
+            "line_correspondences": [
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 1,
+                "base_end_line": 1,
+                "head_start_line": 1
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 2,
+                "base_end_line": 2,
+                "head_start_line": 2
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 3,
+                "base_end_line": 3,
+                "head_start_line": 3
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 5,
+                "base_end_line": 5,
+                "head_start_line": 4
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 6,
+                "base_end_line": 6,
+                "head_start_line": 5
+              }
+            ]
+          },
+          "scope": {
+            "ranker_version": "existing-static-evidence-v1",
+            "ranking_mode": "evidence",
+            "population_complete": true,
+            "selected": [
+              {
+                "identity": {
+                  "unit": "context-smoke",
+                  "language": "php",
+                  "path": "api.php",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "priority": 0.0,
+                "evidence": [
+                  "static_rank=1.0",
+                  "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval($value)\",\"line\":2,\"method\":\"helper\"}],\"source_local\":false,\"source_near\":false}",
+                  "tier=4",
+                  "score=2.5",
+                  "change_sites={\"base_revision\":\"4932fac446d4bca0642694e9a89cffaa739a31d5\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"32b5ef5ffe6a64bb4924fc7006273b0b2cc5a805\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                  "affected_relationship={\"evidence\":[\"base_span:api.php:4-4\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"context-smoke\"},\"target\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"context-smoke\"}}"
+                ],
+                "tier": 4,
+                "score": 2.5
+              }
+            ],
+            "deferred": [],
+            "unresolved_boundaries": []
+          },
+          "question_outcomes": [
+            {
+              "identity": {
+                "unit": "context-smoke",
+                "language": "php",
+                "path": "api.php",
+                "function": "handler",
+                "family": "injection"
+              },
+              "status": "completed",
+              "reason": "query_answered_and_arbitrated",
+              "raw_rows_json": "[{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":4,\"paths\":1,\"sanitized\":false,\"sink\":\"eval($value)\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"helper.php\",\"sinkLine\":\"2\",\"sinkMethod\":\"helper\",\"source\":\"$req\",\"sourceKind\":\"parameter\"}]"
+            }
+          ],
+          "family_coverage": [
+            {
+              "unit": "context-smoke",
+              "language": "php",
+              "family": "injection",
+              "selected": 1,
+              "completed": 1,
+              "unanswered": 0,
+              "deferred": 0,
+              "unsupported": 0
+            }
+          ]
+        }
+      },
+      "javascript": {
+        "base_revision": "94507460b2d291e67648c1431971864b379614e2",
+        "head_revision": "0900dcb2aaf4f82b134080247493a2b418c5d14f",
+        "source_bytes": 133,
+        "source_sha256": "ee6b40b0c84f84cda86b2f5d7d118f39504bc7237450d30e5c189f6b3517c965",
+        "helper_bytes": 47,
+        "helper_sha256": "173055ccb4d1b0cb76378bcb674ac9944bad02f848bf20139923775b57e7634d",
+        "input_context": {
+          "base_revision": "94507460b2d291e67648c1431971864b379614e2",
+          "head_revision": "0900dcb2aaf4f82b134080247493a2b418c5d14f",
+          "changed_paths": [
+            "6170692e6a73"
+          ],
+          "deleted_paths": [],
+          "spans": [
+            {
+              "path": "6170692e6a73",
+              "start_line": 3,
+              "end_line": 3,
+              "side": "base"
+            }
+          ],
+          "renames": [],
+          "declaration_paths": [],
+          "relationships": [],
+          "unresolved_boundaries": [],
+          "path_encoding": "filesystem-bytes-hex",
+          "line_correspondences": [
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 1,
+              "base_end_line": 1,
+              "head_start_line": 1
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 2,
+              "base_end_line": 2,
+              "head_start_line": 2
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 4,
+              "base_end_line": 4,
+              "head_start_line": 3
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 5,
+              "base_end_line": 5,
+              "head_start_line": 4
+            }
+          ]
+        },
+        "result": {
+          "findings": [
+            {
+              "site": "helper.js:1:helper",
+              "family": "injection",
+              "rung": "model_entailed",
+              "witness": "req -> eval(value) in helper.js (line 1, 4 steps)",
+              "contradiction": "",
+              "reached_from": 1
+            }
+          ],
+          "by_rung": {
+            "suspicion": 0,
+            "model_corroborated": 0,
+            "model_entailed": 1,
+            "execution_confirmed": 0
+          },
+          "regions_scanned": 1,
+          "regions_unjudged": 0,
+          "regions_unasked": 0,
+          "model_calls": 0,
+          "cost_usd": 0.0,
+          "seconds": 106.45,
+          "build_seconds": 37.91,
+          "query_seconds": 24.29,
+          "query_seconds_by_kind": {
+            "evidence": 44.23,
+            "taint": 24.29
+          },
+          "degradations": [],
+          "tiers": [
+            [
+              "api.js",
+              "handler",
+              "injection",
+              4
+            ]
+          ],
+          "tier_counts": {
+            "4": 1
+          },
+          "requests_pruned": 0,
+          "partitions": [
+            {
+              "language": "javascript",
+              "frontend": "javascript",
+              "paths": [
+                "api.js",
+                "helper.js"
+              ],
+              "source_bytes": 133,
+              "status": "built",
+              "boundaries": [
+                "runtime_unspecified"
+              ],
+              "runtime": "unspecified",
+              "excluded_paths": [],
+              "unshipped_paths": []
+            }
+          ],
+          "change_context": {
+            "base_revision": "94507460b2d291e67648c1431971864b379614e2",
+            "head_revision": "0900dcb2aaf4f82b134080247493a2b418c5d14f",
+            "changed_paths": [
+              "6170692e6a73"
+            ],
+            "deleted_paths": [],
+            "spans": [
+              {
+                "path": "6170692e6a73",
+                "start_line": 3,
+                "end_line": 3,
+                "side": "base"
+              }
+            ],
+            "renames": [],
+            "declaration_paths": [],
+            "relationships": [
+              {
+                "source": {
+                  "unit": "context-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "target": {
+                  "unit": "context-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "kind": "entry",
+                "evidence": [
+                  "base_span:api.js:3-3",
+                  "unchanged_line:2;lexical_only",
+                  "unchanged_line:3;lexical_only",
+                  "unchanged_line:4;lexical_only"
+                ]
+              }
+            ],
+            "unresolved_boundaries": [],
+            "path_encoding": "filesystem-bytes-hex",
+            "line_correspondences": [
+              {
+                "base_path": "6170692e6a73",
+                "head_path": "6170692e6a73",
+                "base_start_line": 1,
+                "base_end_line": 1,
+                "head_start_line": 1
+              },
+              {
+                "base_path": "6170692e6a73",
+                "head_path": "6170692e6a73",
+                "base_start_line": 2,
+                "base_end_line": 2,
+                "head_start_line": 2
+              },
+              {
+                "base_path": "6170692e6a73",
+                "head_path": "6170692e6a73",
+                "base_start_line": 4,
+                "base_end_line": 4,
+                "head_start_line": 3
+              },
+              {
+                "base_path": "6170692e6a73",
+                "head_path": "6170692e6a73",
+                "base_start_line": 5,
+                "base_end_line": 5,
+                "head_start_line": 4
+              }
+            ]
+          },
+          "scope": {
+            "ranker_version": "existing-static-evidence-v1",
+            "ranking_mode": "evidence",
+            "population_complete": true,
+            "selected": [
+              {
+                "identity": {
+                  "unit": "context-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "priority": 0.0,
+                "evidence": [
+                  "static_rank=1.0",
+                  "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval(value)\",\"line\":1,\"method\":\"helper\"}],\"source_local\":false,\"source_near\":false}",
+                  "tier=4",
+                  "score=2.5",
+                  "change_sites={\"base_revision\":\"94507460b2d291e67648c1431971864b379614e2\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"0900dcb2aaf4f82b134080247493a2b418c5d14f\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                  "affected_relationship={\"evidence\":[\"base_span:api.js:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-smoke\"},\"target\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"context-smoke\"}}"
+                ],
+                "tier": 4,
+                "score": 2.5
+              }
+            ],
+            "deferred": [],
+            "unresolved_boundaries": []
+          },
+          "question_outcomes": [
+            {
+              "identity": {
+                "unit": "context-smoke",
+                "language": "javascript",
+                "path": "api.js",
+                "function": "handler",
+                "family": "injection"
+              },
+              "status": "completed",
+              "reason": "query_answered_and_arbitrated",
+              "raw_rows_json": "[{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":4,\"paths\":1,\"sanitized\":false,\"sink\":\"eval(value)\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"helper.js\",\"sinkLine\":\"1\",\"sinkMethod\":\"helper\",\"source\":\"req\",\"sourceKind\":\"parameter\"}]"
+            }
+          ],
+          "family_coverage": [
+            {
+              "unit": "context-smoke",
+              "language": "javascript",
+              "family": "injection",
+              "selected": 1,
+              "completed": 1,
+              "unanswered": 0,
+              "deferred": 0,
+              "unsupported": 0
+            }
+          ]
+        }
+      }
+    }
+  },
+  "disabled_control_log": "{\"frontend\": \"javascript\", \"projected_inputs\": {\"tests/probe.js\": {\"bytes\": 41, \"sha256\": \"182f7cb37514b7fc6afbba045a9d1b3ca5dc297c35bb98b9f34c18cfd02864f5\"}, \"server/api.js\": {\"bytes\": 51, \"sha256\": \"a9f1b897b9361d0d30250f82aebec987cfd99e66308c9ea889d5b6211e3cad5e\"}, \"checks/probe.spec.js\": {\"bytes\": 41, \"sha256\": \"a2677f51273a325b802a4a628ceb54f0bcea533a672c8997c0439d6ea206de37\"}, \"checks/probe.e2e.js\": {\"bytes\": 40, \"sha256\": \"14884e5a7d6c909f30addd8385bb82f6ea3751bb126192052dabe0eedfb42400\"}, \"checks/probe.test.js\": {\"bytes\": 41, \"sha256\": \"182f7cb37514b7fc6afbba045a9d1b3ca5dc297c35bb98b9f34c18cfd02864f5\"}, \"checks/probe.mock.js\": {\"bytes\": 41, \"sha256\": \"bc14cd012a0d2c34a3605ce21a009b7fd335bdf248f81aec3462b506929eabd5\"}}}\n{\"frontend\": \"javascript\", \"graph_witness\": {\"files\": [\"server/api.js\"], \"methods\": [\"js_handler\", \":program\", \"eval\", \"<operator>.fieldAccess\", \"<operator>.assignment\"]}}\nTraceback (most recent call last):\n  File \"<stdin>\", line 138, in <module>\n  File \"<stdin>\", line 107, in main\n  File \"/app/src/openultrasast/model/scan.py\", line 172, in scan_repository\n    result = _scan_repository_impl(\n             ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/app/src/openultrasast/model/scan.py\", line 234, in _scan_repository_impl\n    cpg = build_partitions(\n          ^^^^^^^^^^^^^^^^^\n  File \"/app/src/openultrasast/model/partitions.py\", line 222, in build_partitions\n    built = build(scratch, frontend) if complete else None\n            ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/app/src/openultrasast/model/scan.py\", line 236, in <lambda>\n    lambda source, language: _build(backend, source, language, execution_budget=execution_budget),\n                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/app/src/openultrasast/model/scan.py\", line 815, in _build\n    return backend.build(root, language=language, exclude=excluded, execution_budget=execution_budget)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<stdin>\", line 88, in build\nAssertionError: {'files': ['server/api.js'], 'methods': ['js_handler', ':program', 'eval', '<operator>.fieldAccess', '<operator>.assignment']}\n",
+  "astgen_control_log": "{'api.js': 26, 'tests/probe.js': 36, 'probe.test.js': 33, 'vendor/probe.js': 35}\nConverted AST for api.js to /tmp/tmpxfnr1il2/0/api.js.json\nConverted types for api.js to /tmp/tmpxfnr1il2/0/api.js.typemap\nConverted AST for probe.test.js to /tmp/tmpxfnr1il2/1/probe.test.js.json\nConverted AST for tests/probe.js to /tmp/tmpxfnr1il2/1/tests/probe.js.json\nConverted AST for api.js to /tmp/tmpxfnr1il2/1/api.js.json\nConverted types for api.js to /tmp/tmpxfnr1il2/1/api.js.typemap\nConverted types for probe.test.js to /tmp/tmpxfnr1il2/1/probe.test.js.typemap\nConverted types for tests/probe.js to /tmp/tmpxfnr1il2/1/tests/probe.js.typemap\n{\"0\": [\"api.js.json\"], \"1\": [\"api.js.json\", \"probe.test.js.json\", \"tests/probe.js.json\"]}\n",
+  "red_reproduction": "FF.                                                                      [100%]\n=================================== FAILURES ===================================\n__________________ test_first_party_tests_enabled_by_backend ___________________\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7044587f6cd0>\n\n    def test_first_party_tests_enabled_by_backend(monkeypatch):\n        monkeypatch.setenv(\"OUSAST_INCLUDE_TESTS\", \"0\")\n>       assert JoernBackend()._jvm_env()[\"OUSAST_INCLUDE_TESTS\"] == \"1\"\nE       AssertionError: assert '0' == '1'\nE         \nE         - 1\nE         + 0\n\ntests/test_frontend_retention.py:8: AssertionError\n__________________ test_retention_can_be_disabled_explicitly ___________________\n\n    def test_retention_can_be_disabled_explicitly():\n>       assert JoernBackend(include_tests=False)._jvm_env()[\"OUSAST_INCLUDE_TESTS\"] == \"0\"\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       TypeError: JoernBackend.__init__() got an unexpected keyword argument 'include_tests'\n\ntests/test_frontend_retention.py:12: TypeError\n=========================== short test summary info ============================\nFAILED tests/test_frontend_retention.py::test_first_party_tests_enabled_by_backend\nFAILED tests/test_frontend_retention.py::test_retention_can_be_disabled_explicitly\n2 failed, 1 passed in 1.16s\n",
+  "red_reproduction_note": "Postimplementation reproduction against original committed backend; matches implementer-reported initial RED.",
+  "independent_review": "APPROVED",
+  "pytest": {
+    "passed": 1141,
+    "skipped": 9,
+    "seconds": 125.68,
+    "exit_code": 0
+  },
+  "static_checks": "Ruff,format229,mypy109,diffcheck pass",
+  "limits": "Prerequisite retention and controlled runtime verification; not hook latency, general detection quality or capability admission."
+}

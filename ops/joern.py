@@ -40,7 +40,7 @@ STAMP = f"{PREFIX}/.joern-version"
 # PHP-Parser), so without `php` on PATH a PHP tree fails to build with an opaque "Process exited with code 1"
 # -- measured on this machine before the package was added. `php_frontend` is opt-in because most targets do
 # not need it and it pulls a second runtime.
-PACKAGES = ["openjdk-21-jre-headless", "unzip"]
+PACKAGES = ["openjdk-21-jre-headless", "unzip", "python3", "curl", "ca-certificates"]
 if host.data.get("php_frontend", False):
     PACKAGES.append("php-cli")
 
@@ -100,4 +100,20 @@ server.shell(
 server.shell(
     name="Verify joern-parse runs",
     commands=[f"{PREFIX}/joern-cli/joern-parse --help > /dev/null"],
+)
+
+# The same checksum-pinned source adaptation as the packaged image. Installing it is
+# explicit and fails on an unexpected engine; stock versions do not claim parity.
+files.put(
+    name="Upload the versioned frontend-retention builder",
+    src="ops/frontend-retention/install.py",
+    dest=f"{PREFIX}/frontend-retention-install.py",
+    _sudo=True,
+)
+server.shell(
+    name="Build the approved frontend-retention adaptation",
+    commands=[
+        f"python3 {PREFIX}/frontend-retention-install.py {PREFIX}/joern-cli",
+    ],
+    _sudo=True,
 )

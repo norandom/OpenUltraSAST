@@ -38,6 +38,10 @@ RUN if [ ! -e /opt/joern-cli/jssrc2cpg ] && [ -x /opt/joern-cli/jssrc2cpg.sh ]; 
       ln -s jssrc2cpg.sh /opt/joern-cli/jssrc2cpg; \
     fi
 
+COPY ops/frontend-retention/install.py /tmp/frontend-retention-install.py
+RUN python3 /tmp/frontend-retention-install.py /opt/joern-cli \
+ && rm /tmp/frontend-retention-install.py
+
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src

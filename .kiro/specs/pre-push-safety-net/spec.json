@@ -1,7 +1,7 @@
 {
   "feature_name": "pre-push-safety-net",
   "created_at": "2026-09-12T15:35:00Z",
-  "updated_at": "2026-09-13T09:04:09.984662+00:00",
+  "updated_at": "2026-09-13T09:17:01.788332+00:00",
   "language": "en",
   "phase": "implementation",
   "approvals": {
@@ -50,6 +50,11 @@
       "at": "2026-09-13T07:48:02.155687Z",
       "source": "continue with the task",
       "action": "Authorized continuing group 3 (3.1\u20133.4) after the group 3 next-step summary. Independent task review and fresh verification remain required."
+    },
+    {
+      "at": "2026-09-13T09:17:01.788332+00:00",
+      "source": "approved",
+      "action": "Approved contributor-scan frontend retention prerequisite; implement it and resume task 3.4 review and verification."
     }
   ],
   "task_review": {
@@ -87,7 +92,7 @@
         "task": "3.4",
         "reason": "Pinned JavaScript frontend silently excludes first-party tests; missing contributor-scan prerequisite.",
         "record": "../contributor-scan/frontend-retention-prerequisite.md",
-        "next_action": "review_prerequisite"
+        "next_action": "implement_approved_contributor_scan_2.18"
       }
     ]
   }

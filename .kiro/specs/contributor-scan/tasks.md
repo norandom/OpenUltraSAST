@@ -333,6 +333,15 @@
   - _Requirements: 5.1, 5.2, 5.5_
   - _Depends: 2.11_
 
+- [x] 2.18 Retain declared first-party JavaScript source through the frontend
+  - Implement the approved `frontend-retention-prerequisite.md` with versioned source/checksum pins and a reproducible dependency adaptation across ASTGen and jssrc2cpg.
+  - Preserve source paths, bytes and imports; keep declared vendor sources excluded and tests unshipped. Report frontend omissions explicitly.
+  - Done when packaged file/method census retains test directories and filename suffixes, vendor witnesses remain absent, and existing native PHP/JavaScript/context/deadline regressions pass.
+  - _Boundary:_ contributor-scan engine integration and packaging; no new ranker, source IR or detector semantics.
+  - _Acceptance:_ approved frontend-retention-prerequisite.md acceptance 1–4; supports pre-push-safety-net requirements 2.2, 2.3, 7.3, 8.2, 8.4.
+  - _Approval:_ maintainer "approved", 2026-09-13; prerequisite for pre-push-safety-net task 3.4.
+  - _Verified:_ independent review APPROVED; 1,141 tests passed, nine skipped, static checks clean; real PHP/JavaScript test nodes retained and disabled-policy control reproduces omission. See `frontend-retention-verification.md`.
+
 ## Group 3 — Ship it
 
 - [ ] 3.1 Contributor output
@@ -1186,10 +1195,9 @@ Three requirements amendments this group argues for are drafted at the end of `r
 unapproved: what a report may repeat, a family stating a class it cannot decide, and Req 4.1 requiring a
 checkout that can actually demonstrate detection.
 
-## Proposed prerequisite awaiting review — 2026-09-13
+## Approved frontend prerequisite — 2026-09-13
 
 `frontend-retention-prerequisite.md` records a confirmed dependency gap blocking
 pre-push-safety-net task 3.4: pinned JavaScript frontend filters remove declared
-first-party tests. Its dependency adaptation and acceptance checks are proposed,
-not added to the approved executable task list. Review this prerequisite before
-resuming downstream partition completion.
+first-party tests. The maintainer approved its dependency adaptation and acceptance checks;
+task 2.18 now implements it before downstream partition completion.

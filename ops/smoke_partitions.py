@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 import tempfile
 import time
@@ -17,6 +18,7 @@ from openultrasast.model.scan import ScanBudget, scan_repository
 
 
 def main() -> None:
+    include_tests = os.environ.get("OUSAST_SMOKE_INCLUDE_TESTS", "1") == "1"
     deadline = ExecutionBudget(time.monotonic() + 900, 2.0)
     records: list[dict[str, object]] = []
     with tempfile.TemporaryDirectory(prefix="ousast-partitions-smoke-") as temporary:
@@ -43,6 +45,8 @@ def main() -> None:
             "node_modules/library.js": "function vendor_js_marker(req) { eval(req); }\n",
             "unsupported.go": "package example\nfunc Unmodeled() {}\n",
         }
+        suffix_tests = {f"checks/probe.{suffix}.js": f"js_{suffix}_marker" for suffix in ("test", "spec", "mock", "e2e")}
+        sources.update({path: f"function {method}() {{ return 42; }}\n" for path, method in suffix_tests.items()})
         inputs = {}
         for filename, content in sources.items():
             path = root / filename
@@ -83,6 +87,9 @@ def main() -> None:
                     assert any(str(path).endswith("server/api.js") for path in files), witness
                     assert any(str(path).endswith("tests/probe.js") for path in files), witness
                     assert "js_handler" in methods and "js_test_marker" in methods, witness
+                    for path, method in suffix_tests.items():
+                        assert any(str(filename).endswith(path) for filename in files), witness
+                        assert method in methods, witness
                     assert "php_handler" not in methods, witness
                 else:
                     raise AssertionError(f"unexpected frontend: {language}")
@@ -100,7 +107,7 @@ def main() -> None:
         result = scan_repository(
             root,
             regions,
-            backend=RecordingBackend(heap_mb=1024),
+            backend=RecordingBackend(heap_mb=1024, include_tests=include_tests),
             budget=ScanBudget(max_regions=1),
             execution_budget=deadline,
             ranking_mode="static",
@@ -119,6 +126,7 @@ def main() -> None:
         report = {
             "purpose": "Real mixed PHP/JavaScript graph census and one global ranker budget; no admission or latency claim",
             "shared_budget_seconds": 900,
+            "include_tests": include_tests,
             "inputs": inputs,
             "graph_witnesses": records,
             "result": asdict(result),
