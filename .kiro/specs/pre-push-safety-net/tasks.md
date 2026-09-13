@@ -1,7 +1,7 @@
 # Implementation Plan: pre-push-safety-net
 
 Status: task plan approved by the maintainer's "approve." on 2026-09-12. Groups 1 and 2 (tasks 1.1–2.3)
-are complete after independent review and fresh verification. Group 3 is in progress (3.1–3.3 verified); groups 4–8 remain pending;
+are complete after independent review and fresh verification. Group 3 has 3.1–3.3 verified; 3.4 is blocked on frontend test retention. Groups 4–8 remain pending;
 the hook and capability admission are not yet implemented. See `implementation-group-1.md` and `implementation-group-2.md`.
 
 ## Execution contract
@@ -104,6 +104,7 @@ the hook and capability admission are not yet implemented. See `implementation-g
   - _Requirements: 2.1, 2.2, 2.4, 8.1, 8.2_
   - _Verified 2026-09-13:_ independent review APPROVED after an unknown-call boundary repair; fresh suite 1,128 passed, nine skipped; global Ruff/format/mypy passed. Real PHP/JavaScript Git guard-removal snapshots reached unchanged helper-file witnesses with local dirty state preserved. Production negative regression reproduced then fixed unknown(req.body) being pruned as tier zero: modeled arguments no longer summarize unknown consumers. Existing ranking and detector semantics unchanged; unsupported projections remain explicit. Evidence: `benchmarks/measurements/2026-09-13-change-context-smoke.json`. Lexical attribution is not semantic novelty or alert admission.
 - [ ] 3.4 Apply vendor exclusion and explicit language partitions
+  - _Blocked:_ Joern 4.0.625/ASTGen 3.50.1 omit first-party JavaScript tests despite readable filtered inputs. Independent debug returned STOP_FOR_HUMAN; review the owning `contributor-scan/frontend-retention-prerequisite.md` before resuming. Implementation remains uncommitted and unapproved; runtime evidence: `benchmarks/measurements/2026-09-13-partition-retention-blocker.json`.
   - Reuse declared layout exclusions before target enumeration and graph build; retain unshipped first-party tests and separate browser/server or language capability coverage.
   - Build supported frontend partitions explicitly; preserve unknown cross-language and vendor semantics without restoring excluded sources.
   - Done when PHP and Node graphs/targets contain no declared vendor code, first-party callers remain visible, and unsupported partitions appear as coverage limits rather than clean results.

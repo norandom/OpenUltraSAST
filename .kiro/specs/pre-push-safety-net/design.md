@@ -241,6 +241,18 @@ modeled graph/facts/scope; unanswered evidence is never tier 0.
 
 ### Cache and Engine Boundary
 
+The initial driver uses a generic `model/partitions.py` graph handle to route existing
+question requests to physically filtered frontend inputs. It does not select questions:
+one existing ranker order, region budget and `ScopeDecision` cover all partitions.
+`PartitionCoverage` records language, frontend, input paths and byte count, excluded
+paths, unshipped test paths, build status and capability boundaries. Query locations
+return to repository-relative paths before change-context matching. Projection and
+cleanup consume the same execution deadline and cancellation allowance as the backend.
+Runtime origin is `unspecified` when no declaration establishes browser/server scope;
+JavaScript presence alone does not admit an Express capability. TypeScript and C/C++
+retain explicit capability limits. These records prepare later artifact manifests;
+they do not implement persistent graph storage.
+
 Graph key: digest of every included blob/path and applicable declarations, frontend/engine version,
 overlay semantics/options, language, and exclusions. Query key additionally includes graph key,
 question/context/depth, facts/sanitizers, query code and relevant analysis configuration. Result key

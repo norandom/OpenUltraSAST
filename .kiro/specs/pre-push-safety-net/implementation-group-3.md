@@ -15,7 +15,10 @@ coverage limits.
 
 ## Verification state
 
-Implementation is in progress. No group-level completion claim is made yet.
+Tasks 3.1–3.3 are independently approved and verified (10/27 tasks overall).
+Task 3.4 is blocked on a confirmed frontend retention prerequisite; group 3 is
+not complete. The proposed foundation repair is in
+`../contributor-scan/frontend-retention-prerequisite.md`.
 
 ## Baseline
 
@@ -126,3 +129,43 @@ These are controlled change-to-question/witness checks, not proof that the remov
 line enforced security, that the defect is new, or that a hook meets its latency bar.
 
 Ten of 27 tasks are now complete; task 3.4 remains for this group.
+
+## Task 3.4 blocked verification
+
+Claim type TASK; status NOT_VERIFIED. The implementer returned BLOCKED, and an
+independent fresh-context Kiro debug investigation returned STOP_FOR_HUMAN with
+high confidence: the approved sequence lacks a contributor-scan frontend input
+retention prerequisite. There is no task completion or reviewer approval claim.
+
+The work in progress physically filters declared vendor inputs, routes explicit
+language partitions through one existing ranker and deadline, and reports input,
+excluded/test paths and unsupported coverage. Tests cover stale region paths,
+symlink substitution, shared limits, partial census, normalized witness paths and
+CLI propagation. Direct JavaScript frontend invocation establishes which engine
+is called, but does not override its built-in input filters.
+
+The fresh full suite passed 1,138 tests with nine skipped in 106.05 seconds. Global
+Ruff, formatting (227 files), mypy (109 source files), compileall and diff checks
+passed. Detection (44/47, zero false positives in 44 controls), split-sink map and
+local pair gates passed. The final direct frontend change required adapting one
+budget-test runner to recognize its `-o` output argument; the test still verifies
+deadline retention. Unit success does not override the failing real graph check.
+
+`benchmarks/measurements/2026-09-13-partition-retention-blocker.json` records exact
+packaged source hashes, readable input witnesses, frontend help and failures. The
+direct frontend input contained `server/api.js` (51 bytes) and `tests/probe.js`
+(41 bytes), with original hashes verified. The graph contained only the server
+file and handler. Both autodetection and direct `jssrc2cpg` probes exited 1 on the
+retention assertion. The instrument correctly refused to report a passing smoke.
+PHP and remaining end-of-scan assertions were not reached in this failing run.
+
+Pinned ASTGen 3.50.1 unconditionally excludes test directories; Joern 4.0.625 also
+filters test filename suffixes. Installed/versioned options provide no supported
+inclusion override. The upstream sources and concrete repair acceptance checks
+are linked in the proposed prerequisite. Do not mark task 3.4 complete by moving
+test files or declaring frontend omission acceptable. Its implementation remains
+uncommitted pending the foundation repair, review and fresh runtime verification.
+
+The packaged failure preceded a comment-only clarification in `cpg/backend.py`
+removing the disproven attribution to legacy frontend autodetection. No executable
+backend behavior changed after that measurement.

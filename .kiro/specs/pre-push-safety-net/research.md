@@ -6,7 +6,7 @@
 - User direction: a scalable pre-push safety net as AI accelerates development; WordPress is one case.
 - Clarifications: advisory must be actionable, not SAST noise; the ranker is the scope mechanism;
   third-party vendor code must remain outside targets and graphs.
-- Requirements, design and tasks are now approved, and groups 1 and 2 are verified complete; see
+- Requirements, design and tasks are now approved, and groups 1 and 2 plus tasks 3.1–3.3 are verified complete; task 3.4 is blocked on JavaScript frontend test retention; see
   `tasks.md` for verified completion. The discovery log below preserves the earlier drafting state
   and measurements. No hook latency claim is made.
 
@@ -157,3 +157,13 @@ setting environment variables alone is not evidence of either property.
 The snapshot adapter provides change evidence, not a second region selector. Source
 materialization, changed spans, and correspondence must remain language agnostic;
 unknown parser or correspondence boundaries cannot become a successful negative.
+
+### Group 3: frontend census invalidates completion
+
+Tasks 3.1–3.3 passed independent review and real engine checks. Task 3.4 passed
+projection/ranking unit checks but failed a packaged graph census: 92 readable
+JavaScript source bytes included a 41-byte test file that never reached the graph.
+Direct frontend invocation reproduced the omission. Two unconditional upstream
+test filters require an owning foundation repair; see
+`../contributor-scan/frontend-retention-prerequisite.md`. The runtime failure is
+not overridden by passing mocks, static checks or a populated server graph.

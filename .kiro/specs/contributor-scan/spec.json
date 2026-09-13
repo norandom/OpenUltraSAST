@@ -1,7 +1,7 @@
 {
   "feature_name": "contributor-scan",
   "created_at": "2026-09-08T20:00:00Z",
-  "updated_at": "2026-09-12T15:35:00Z",
+  "updated_at": "2026-09-13T09:04:09.994054+00:00",
   "language": "en",
   "phase": "implementation",
   "approvals": {
@@ -28,6 +28,13 @@
       "date": "2026-09-12",
       "document": "design.md",
       "topic": "Pre-push integration: shared deadline, reusable graph lease, exact ranker scope and provenance; preserve vendor exclusion.",
+      "approved": false,
+      "ready_for_implementation": false
+    },
+    {
+      "date": "2026-09-13",
+      "document": "frontend-retention-prerequisite.md",
+      "topic": "Retain declared first-party JavaScript tests through ASTGen and jssrc2cpg; prerequisite for pre-push-safety-net 3.4.",
       "approved": false,
       "ready_for_implementation": false
     }

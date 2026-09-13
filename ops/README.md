@@ -165,3 +165,24 @@ The smoke reads committed PHP/JavaScript bytes from a dirty, non-HEAD checkout,
 checks rename/deletion and declared configuration context, and verifies scratch
 cleanup and unchanged live state. Its JSON reports snapshot preparation only;
 it does not run the detector, install a hook, or establish hook latency.
+
+## Vendor and frontend partition smoke
+
+After rebuilding the image, inspect real PHP and JavaScript graphs from one mixed
+source tree:
+
+```bash
+docker run --rm -i --network none --entrypoint python openultrasast:dev - < ops/smoke_partitions.py
+```
+
+The script reads each fixture before measurement, then checks graph file and method
+nodes: declared vendor code is absent, first-party source and tests remain, and an
+unsupported Go partition is reported explicitly. One ranker decision and one region
+limit cover both supported frontends. The shared 900-second budget is a lab allowance;
+this check establishes neither production hook latency nor framework admission.
+
+Current status (2026-09-13): this is a failing regression on Joern 4.0.625. The
+projected JavaScript test file is readable but absent from the resulting graph.
+See `benchmarks/measurements/2026-09-13-partition-retention-blocker.json` and the
+proposed contributor-scan frontend-retention prerequisite. An exit 1 is expected
+until that engine contract is repaired; do not treat it as a passing partition smoke.

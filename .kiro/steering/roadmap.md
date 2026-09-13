@@ -46,14 +46,16 @@ engine are out of scope.
 - [ ] pre-push-safety-net — Immutable pushed tips, existing-ranker integration, compatible artifact
   reuse, total deadline, change attribution, actionability admission and compact hook behavior.
   Dependencies: contributor-scan. Requirements/design approved 2026-09-12; tasks generated
-  (8 groups, 27 executable subtasks), independently reviewed and approved; groups 1 and 2 are complete (7/27 tasks).
+  (8 groups, 27 executable subtasks), independently reviewed and approved; groups 1 and 2 and tasks 3.1–3.3 are complete (10/27 tasks); 3.4 is blocked.
 
 ### Next concrete step
 
-Groups 1 and 2 have passed independent review: reproducible runtime, pinned inputs, honest scoring,
-shared contracts, immutable push snapshots and lexical change context. Continue with group 3: one
-execution budget, exact ranker scope, affected relationships and vendor/language partitions. See
-`pre-push-safety-net/implementation-group-2.md` for evidence and limits.
+Groups 1 and 2 and tasks 3.1–3.3 have passed independent review: runtime, inputs,
+scoring, snapshots, shared deadline, exact ranker scope and change-context evidence.
+Task 3.4 is blocked: real Joern graphs omit first-party JavaScript tests even though
+filtered inputs contain them. Review `contributor-scan/frontend-retention-prerequisite.md`,
+repair that foundation contract, then rerun the partition census and independent review.
+See `pre-push-safety-net/implementation-group-3.md` for evidence and limits.
 The first complete experiment is 5.2, before persistent caching and hook
 installation work. Keep PMPro as the primary core-optimization example, then freeze the core and
 prove a changed security flow and its fixed twin on a JavaScript/Express Node API workload through

@@ -1185,3 +1185,11 @@ integration. They now live in `.kiro/specs/finding-feedback-loop/`, at brief, un
 Three requirements amendments this group argues for are drafted at the end of `requirements.md`, also
 unapproved: what a report may repeat, a family stating a class it cannot decide, and Req 4.1 requiring a
 checkout that can actually demonstrate detection.
+
+## Proposed prerequisite awaiting review — 2026-09-13
+
+`frontend-retention-prerequisite.md` records a confirmed dependency gap blocking
+pre-push-safety-net task 3.4: pinned JavaScript frontend filters remove declared
+first-party tests. Its dependency adaptation and acceptance checks are proposed,
+not added to the approved executable task list. Review this prerequisite before
+resuming downstream partition completion.

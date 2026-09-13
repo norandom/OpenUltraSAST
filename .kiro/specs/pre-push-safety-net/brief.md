@@ -1,6 +1,6 @@
 # Brief: pre-push-safety-net
 
-Status: requirements, design and tasks approved on 2026-09-12; groups 1 and 2 verified complete (7/27 subtasks); groups 3–8 pending. Language: English.
+Status: requirements, design and tasks approved on 2026-09-12; groups 1 and 2 plus tasks 3.1–3.3 verified complete (10/27 subtasks); task 3.4 blocked on frontend test retention; groups 4–8 pending. Language: English.
 
 ## Problem
 

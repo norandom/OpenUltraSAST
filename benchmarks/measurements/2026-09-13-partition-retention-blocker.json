@@ -1,0 +1,74 @@
+{
+  "recorded_at": "2026-09-13T09:02:43.918546+00:00",
+  "task": "3.4",
+  "verification": "NOT_VERIFIED",
+  "image_id": "sha256:81ba1ecb10a822ee5b7248573901529da55ae81ccc3ba642b69cec3ca751b941",
+  "build_exit_code": 0,
+  "runtime_smoke_exit_code": 1,
+  "packaged_source_hashes": {
+    "openultrasast.cpg.backend": "65c771a7f1218cbad37860dc1f8946c5dbf7df675720da9f64d027e546ff9a91",
+    "openultrasast.model.scan": "ad6f134c8fae43aa102b61d99f273b467415193d0b27fb634cae2586cb3c43ae",
+    "openultrasast.model.partitions": "c91970dbf536d4811e1980415a37e80348f38fbf9284ba469dfbac41c8215ac6",
+    "openultrasast.model.layout": "50a1a163459f8802037faae750bc1f99a0ab81912b571b40303675590794d27c",
+    "openultrasast.preprocess": "0d0b1f22fd2024be3e50dc1a9ff947eed7f8f60f67644277e344b83697aaefc8",
+    "openultrasast.cli": "79608d4a74bcceb5bd41b149cf806d25c4f71d8b3201d710217395941169bdc2"
+  },
+  "script_sha256": "f42ca8ff8cc2c108eff69878a3bb9f4803493bc777e37c4f146db8378b8d1bab",
+  "runtime_read_and_graph_witnesses": [
+    {
+      "frontend": "javascript",
+      "projected_inputs": {
+        "tests/probe.js": {
+          "bytes": 41,
+          "sha256": "182f7cb37514b7fc6afbba045a9d1b3ca5dc297c35bb98b9f34c18cfd02864f5"
+        },
+        "server/api.js": {
+          "bytes": 51,
+          "sha256": "a9f1b897b9361d0d30250f82aebec987cfd99e66308c9ea889d5b6211e3cad5e"
+        }
+      }
+    },
+    {
+      "frontend": "javascript",
+      "graph_witness": {
+        "files": [
+          "server/api.js"
+        ],
+        "methods": [
+          "js_handler",
+          ":program",
+          "eval",
+          "<operator>.fieldAccess",
+          "<operator>.assignment"
+        ]
+      }
+    }
+  ],
+  "runtime_failure": "{\"frontend\": \"javascript\", \"projected_inputs\": {\"tests/probe.js\": {\"bytes\": 41, \"sha256\": \"182f7cb37514b7fc6afbba045a9d1b3ca5dc297c35bb98b9f34c18cfd02864f5\"}, \"server/api.js\": {\"bytes\": 51, \"sha256\": \"a9f1b897b9361d0d30250f82aebec987cfd99e66308c9ea889d5b6211e3cad5e\"}}}\n{\"frontend\": \"javascript\", \"graph_witness\": {\"files\": [\"server/api.js\"], \"methods\": [\"js_handler\", \":program\", \"eval\", \"<operator>.fieldAccess\", \"<operator>.assignment\"]}}\nTraceback (most recent call last):\n  File \"<stdin>\", line 130, in <module>\n  File \"<stdin>\", line 100, in main\n  File \"/app/src/openultrasast/model/scan.py\", line 172, in scan_repository\n    result = _scan_repository_impl(\n             ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/app/src/openultrasast/model/scan.py\", line 234, in _scan_repository_impl\n    cpg = build_partitions(\n          ^^^^^^^^^^^^^^^^^\n  File \"/app/src/openultrasast/model/partitions.py\", line 222, in build_partitions\n    built = build(scratch, frontend) if complete else None\n            ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/app/src/openultrasast/model/scan.py\", line 236, in <lambda>\n    lambda source, language: _build(backend, source, language, execution_budget=execution_budget),\n                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/app/src/openultrasast/model/scan.py\", line 815, in _build\n    return backend.build(root, language=language, exclude=excluded, execution_budget=execution_budget)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<stdin>\", line 84, in build\nAssertionError: {'files': ['server/api.js'], 'methods': ['js_handler', ':program', 'eval', '<operator>.fieldAccess', '<operator>.assignment']}\n",
+  "installed_frontend_help": "ERROR StatusConsoleListener Could not determine local host name\n java.net.UnknownHostException: 85973dc1b7a6: 85973dc1b7a6: Temporary failure in name resolution\n\tat java.base/java.net.InetAddress.getLocalHost(Unknown Source)\n\tat org.apache.logging.log4j.core.util.NetUtils.getLocalHostname(NetUtils.java:56)\n\tat org.apache.logging.log4j.core.LoggerContext.lambda$setConfiguration$0(LoggerContext.java:615)\n\tat java.base/java.util.concurrent.ConcurrentHashMap.computeIfAbsent(Unknown Source)\n\tat org.apache.logging.log4j.core.LoggerContext.setConfiguration(LoggerContext.java:615)\n\tat org.apache.logging.log4j.core.LoggerContext.reconfigure(LoggerContext.java:694)\n\tat org.apache.logging.log4j.core.LoggerContext.reconfigure(LoggerContext.java:711)\n\tat org.apache.logging.log4j.core.LoggerContext.start(LoggerContext.java:253)\n\tat org.apache.logging.log4j.core.impl.Log4jContextFactory.getContext(Log4jContextFactory.java:155)\n\tat org.apache.logging.log4j.core.impl.Log4jContextFactory.getContext(Log4jContextFactory.java:47)\n\tat org.apache.logging.log4j.LogManager.getContext(LogManager.java:196)\n\tat org.apache.logging.log4j.spi.AbstractLoggerAdapter.getContext(AbstractLoggerAdapter.java:137)\n\tat org.apache.logging.slf4j.Log4jLoggerFactory.getContext(Log4jLoggerFactory.java:61)\n\tat org.apache.logging.log4j.spi.AbstractLoggerAdapter.getLogger(AbstractLoggerAdapter.java:47)\n\tat org.apache.logging.slf4j.Log4jLoggerFactory.getLogger(Log4jLoggerFactory.java:33)\n\tat org.slf4j.LoggerFactory.getLogger(LoggerFactory.java:447)\n\tat org.slf4j.LoggerFactory.getLogger(LoggerFactory.java:472)\n\tat io.joern.x2cpg.passes.frontend.XTypeRecoveryConfig$.<clinit>(XTypeRecovery.scala:28)\n\tat io.joern.jssrc2cpg.Frontend$.<clinit>(Main.scala:41)\n\tat io.joern.jssrc2cpg.Main$.<init>(Main.scala:47)\n\tat io.joern.jssrc2cpg.Main$.<clinit>(Main.scala:47)\n\tat io.joern.jssrc2cpg.Main.main(Main.scala)\nCaused by: java.net.UnknownHostException: 85973dc1b7a6: Temporary failure in name resolution\n\tat java.base/java.net.Inet6AddressImpl.lookupAllHostAddr(Native Method)\n\tat java.base/java.net.Inet6AddressImpl.lookupAllHostAddr(Unknown Source)\n\tat java.base/java.net.InetAddress$PlatformResolver.lookupByName(Unknown Source)\n\tat java.base/java.net.InetAddress.getAddressesFromNameService(Unknown Source)\n\tat java.base/java.net.InetAddress$NameServiceAddresses.get(Unknown Source)\n\tat java.base/java.net.InetAddress.getAllByName0(Unknown Source)\n\t... 22 more\nUsage: jssrc2cpg [options] input-dir\n\n  input-dir                source directory\n  -o, --output <value>     output filename\n  --exclude <file1>        files or folders to exclude during CPG generation (paths relative to <input-dir> or absolute paths)\n  --exclude-regex <value>  a regex specifying files to exclude during CPG generation (paths relative to <input-dir> are matched)\n  --enable-early-schema-checking\n                           enables early schema validation during AST creation (disabled by default)\n  --enable-file-content    add the raw source code to the content field of FILE nodes to allow for method source retrieval via offset fields (disabled by default)\n  --help                   display this help message\n",
+  "prior_autodetection_failure": "Traceback (most recent call last):\n  File \"<stdin>\", line 120, in <module>\n  File \"<stdin>\", line 90, in main\n  File \"/app/src/openultrasast/model/scan.py\", line 172, in scan_repository\n    result = _scan_repository_impl(\n             ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/app/src/openultrasast/model/scan.py\", line 234, in _scan_repository_impl\n    cpg = build_partitions(\n          ^^^^^^^^^^^^^^^^^\n  File \"/app/src/openultrasast/model/partitions.py\", line 222, in build_partitions\n    built = build(scratch, frontend) if complete else None\n            ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/app/src/openultrasast/model/scan.py\", line 236, in <lambda>\n    lambda source, language: _build(backend, source, language, execution_budget=execution_budget),\n                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/app/src/openultrasast/model/scan.py\", line 815, in _build\n    return backend.build(root, language=language, exclude=excluded, execution_budget=execution_budget)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<stdin>\", line 74, in build\nAssertionError: {'files': ['server/api.js'], 'methods': ['js_handler', ':program', 'eval', '<operator>.fieldAccess', '<operator>.assignment']}\n",
+  "blocked_claim": "Declared first-party JavaScript tests remain in frontend graphs.",
+  "unreached_checks": [
+    "PHP partition census",
+    "whole mixed-language scan result and global region limit",
+    "unsupported partition output"
+  ],
+  "limits": "Failure evidence, not a passing partition smoke, detection score, actionability result or latency measurement.",
+  "sources": [
+    "https://raw.githubusercontent.com/joernio/joern/v4.0.625/joern-cli/frontends/jssrc2cpg/src/main/scala/io/joern/jssrc2cpg/utils/AstGenRunner.scala",
+    "https://raw.githubusercontent.com/joernio/astgen-monorepo/javascript-astgen/v3.50.1/javascript-astgen/src/Defaults.ts",
+    "https://raw.githubusercontent.com/joernio/astgen-monorepo/javascript-astgen/v3.50.1/javascript-astgen/src/FileUtils.ts"
+  ],
+  "packaged_sources_match_workspace_at_measurement": true,
+  "post_measurement_changes": [
+    "Comment-only backend clarification: direct frontend routing does not override built-in test filters."
+  ],
+  "local_verification": {
+    "pytest": "1138 passed, 9 skipped in 106.05s",
+    "exit_code": 0,
+    "ruff": "PASS",
+    "format": "227 files",
+    "mypy": "109 source files PASS",
+    "task_completion": "NOT_VERIFIED"
+  }
+}
