@@ -1,7 +1,7 @@
 # Implementation Plan: pre-push-safety-net
 
 Status: task plan approved by the maintainer's "approve." on 2026-09-12. Groups 1–3 (tasks 1.1–3.4)
-are complete after independent review and fresh verification (11/27 subtasks). Groups 4–8 remain pending;
+are complete after independent review and fresh verification (12/27 subtasks, including task 4.1). Tasks 4.2–4.3 and groups 5–8 remain pending;
 the hook and capability admission are not yet implemented. See `implementation-group-1.md` and `implementation-group-2.md`.
 
 ## Execution contract
@@ -113,10 +113,11 @@ the hook and capability admission are not yet implemented. See `implementation-g
   - _Verified 2026-09-13:_ independent review APPROVED; 1,151 passed, nine skipped; Ruff/format/mypy pass. Real PHP/JavaScript graphs retain tests/browser source, omit vendor nodes and share one ranker limit. Named census survives PHP aggregation; missing source names and unreadable discovery inputs remain explicit. Python exercises all three batch census schemas. Evidence: `benchmarks/measurements/2026-09-13-partition-scope-smoke.json`. No hook capability or latency claim.
 
 - [ ] 4. Implement change attribution and actionable output
-- [ ] 4.1 Compare targeted base/head evidence for defect novelty
+- [x] 4.1 Compare targeted base/head evidence for defect novelty
   - Establish stable mechanism/operation identity with rename/span mapping and collect comparable base evidence under the same semantics and remaining deadline.
   - Distinguish new, worsened, unchanged and unknown; an absent finding from a failed/truncated base is unknown. Support removed guards and new source connections at unchanged sinks.
   - Done when benign movement and unchanged backlog do not become new defects, while a supported removed-guard case has a concrete change-to-witness relationship.
+  - _Verified 2026-09-13:_ independent review APPROVED; 1,167 tests passed, nine skipped; real JavaScript guard/movement and PHP connection controls passed. Final policy rechecked against captured actual answers after malformed-schema repair. See `implementation-group-4.md`.
   - _Boundary: Delta and Actionability Policy, engine comparison integration_
   - _Depends: 2.3, 3.3, 3.4_
   - _Requirements: 2.4, 3.1, 3.4, 4.1_

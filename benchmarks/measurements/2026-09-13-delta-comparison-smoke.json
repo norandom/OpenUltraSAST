@@ -1,0 +1,1238 @@
+{
+  "status": "VERIFIED",
+  "claim_type": "TASK",
+  "task": "4.1",
+  "boundary": "Declared questions and immutable Git snapshots through existing driver and targeted comparator; not full runner or capability admission",
+  "runtime": {
+    "image": "sha256:e38f06ef1bebaeaa72fa31fd95675aca2935de3b45cebe8147f92caeb98fc5a1",
+    "source_mount": "src mounted read-only at /app/src; runtime uses workspace code over the pinned engine image",
+    "launch_hashes": {
+      "src/openultrasast/push/policy.py": "4177a356ee489fb6d772718c7b9b9a955a38d77c1adef24926e469028679acef",
+      "ops/smoke_delta.py": "9fbd60740c4afcb6d367c2625c5703f9781b9ad08d94e0f80cdfff525fb45b30"
+    },
+    "provenance": "After launch, comparison schema validation was tightened and harness string formatting changed. Engine/query code unchanged. Current reviewed comparator independently rechecked against all actual captured answers below. Concurrent timings are lab costs, not hook latency."
+  },
+  "cases": {
+    "guard": {
+      "exit_code": 0,
+      "evidence": {
+        "case": "guard",
+        "purpose": "Real targeted comparison with declared regions and Git context; no automatic context projection, full replay or admission",
+        "shared_budget_seconds": 900,
+        "comparison": {
+          "head_oid": "3c0c7367d68647862b77f7c5fd5a5b8a28ebfad7",
+          "base_oid": "50dd14003e143de73eceda7b45e91ef3490e8d19",
+          "base_reason": "supplied_remote_tip",
+          "refs": [
+            "refs/heads/topic"
+          ]
+        },
+        "context": {
+          "base_revision": "50dd14003e143de73eceda7b45e91ef3490e8d19",
+          "head_revision": "3c0c7367d68647862b77f7c5fd5a5b8a28ebfad7",
+          "changed_paths": [
+            "6170692e6a73"
+          ],
+          "deleted_paths": [],
+          "spans": [
+            {
+              "path": "6170692e6a73",
+              "start_line": 2,
+              "end_line": 2,
+              "side": "base"
+            }
+          ],
+          "renames": [],
+          "declaration_paths": [],
+          "relationships": [],
+          "unresolved_boundaries": [],
+          "path_encoding": "filesystem-bytes-hex",
+          "line_correspondences": [
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 1,
+              "base_end_line": 1,
+              "head_start_line": 1
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 3,
+              "base_end_line": 3,
+              "head_start_line": 2
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 4,
+              "base_end_line": 4,
+              "head_start_line": 3
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 5,
+              "base_end_line": 5,
+              "head_start_line": 4
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 6,
+              "base_end_line": 6,
+              "head_start_line": 5
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 7,
+              "base_end_line": 7,
+              "head_start_line": 6
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 8,
+              "base_end_line": 8,
+              "head_start_line": 7
+            }
+          ]
+        },
+        "base_input": {
+          "bytes": 220,
+          "sha256": "e5ed465c7f5667a43057fa9bda12b84c8fd64404a4a94211f3a4788846858b2f"
+        },
+        "head_input": {
+          "bytes": 186,
+          "sha256": "6af54b119bd77f2f6d9c1dedb2d53939333371f015d473fd981edb5a47c31361"
+        },
+        "head": {
+          "findings": [
+            {
+              "site": "api.js:2:handler",
+              "family": "access_control",
+              "rung": "model_entailed",
+              "witness": "handler line 2: no discharging guard, while 1 sibling handler(s) are guarded (sibling)",
+              "contradiction": "",
+              "reached_from": 1
+            }
+          ],
+          "by_rung": {
+            "suspicion": 0,
+            "model_corroborated": 0,
+            "model_entailed": 1,
+            "execution_confirmed": 0
+          },
+          "regions_scanned": 1,
+          "regions_unjudged": 0,
+          "regions_unasked": 0,
+          "model_calls": 0,
+          "cost_usd": 0.0,
+          "seconds": 99.94,
+          "build_seconds": 56.43,
+          "query_seconds": 43.47,
+          "query_seconds_by_kind": {
+            "evidence": 0.01,
+            "dominance": 43.47
+          },
+          "degradations": [],
+          "tiers": [],
+          "tier_counts": {},
+          "requests_pruned": 0,
+          "partitions": [
+            {
+              "language": "javascript",
+              "frontend": "javascript",
+              "paths": [
+                "api.js"
+              ],
+              "source_bytes": 186,
+              "status": "built",
+              "boundaries": [
+                "runtime_unspecified"
+              ],
+              "runtime": "unspecified",
+              "excluded_paths": [],
+              "unshipped_paths": []
+            }
+          ],
+          "change_context": null,
+          "scope": {
+            "ranker_version": "existing-static-evidence-v1",
+            "ranking_mode": "evidence",
+            "population_complete": true,
+            "selected": [
+              {
+                "identity": {
+                  "unit": "delta-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "access_control"
+                },
+                "priority": 0.0,
+                "evidence": [
+                  "static_rank=1.0",
+                  "taint_evidence_not_applicable"
+                ],
+                "tier": null,
+                "score": null
+              }
+            ],
+            "deferred": [],
+            "unresolved_boundaries": []
+          },
+          "question_outcomes": [
+            {
+              "identity": {
+                "unit": "delta-smoke",
+                "language": "javascript",
+                "path": "api.js",
+                "function": "handler",
+                "family": "access_control"
+              },
+              "status": "completed",
+              "reason": "query_answered_and_arbitrated",
+              "raw_rows_json": "[{\"dominatingGuards\":[],\"opFile\":\"api.js\",\"opLine\":\"2\",\"opMethod\":\"handler\",\"operation\":\"deleteUser(req.params.id)\"},{\"dominatingGuards\":[\"!authenticate(other)\",\"authenticate(other)\"],\"opFile\":\"api.js\",\"opLine\":\"6\",\"opMethod\":\"sibling\",\"operation\":\"deleteUser(other.params.id)\"}]"
+            }
+          ],
+          "family_coverage": [
+            {
+              "unit": "delta-smoke",
+              "language": "javascript",
+              "family": "access_control",
+              "selected": 1,
+              "completed": 1,
+              "unanswered": 0,
+              "deferred": 0,
+              "unsupported": 0
+            }
+          ]
+        },
+        "delta": {
+          "candidates": [
+            {
+              "family": "access_control",
+              "site": "api.js:2:handler",
+              "rung": "model_entailed",
+              "witness": "handler line 2: no discharging guard, while 1 sibling handler(s) are guarded (sibling)",
+              "defect_id": "c3c274c9b04b03b2df9ef8090ab2ca7ecbaafeea1b2b5f353972cb2168e836fc",
+              "novelty": "worsened",
+              "reason": "discharge_removed",
+              "head_operation": {
+                "question": {
+                  "unit": "delta-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "access_control"
+                },
+                "mechanism": "dominance",
+                "path": "api.js",
+                "line": 2,
+                "operation": "deleteUser(req.params.id)",
+                "source": "obligation",
+                "discharged": false,
+                "detail": "{\"dominatingGuards\": [], \"opFile\": \"api.js\", \"opLine\": \"2\", \"opMethod\": \"handler\", \"operation\": \"deleteUser(req.params.id)\"}"
+              },
+              "base_operations": [
+                {
+                  "question": {
+                    "unit": "delta-smoke",
+                    "language": "javascript",
+                    "path": "api.js",
+                    "function": "handler",
+                    "family": "access_control"
+                  },
+                  "mechanism": "dominance",
+                  "path": "api.js",
+                  "line": 3,
+                  "operation": "deleteUser(req.params.id)",
+                  "source": "obligation",
+                  "discharged": true,
+                  "detail": "{\"dominatingGuards\": [\"!authenticate(req)\", \"authenticate(req)\"], \"opFile\": \"api.js\", \"opLine\": \"3\", \"opMethod\": \"handler\", \"operation\": \"deleteUser(req.params.id)\"}"
+                }
+              ],
+              "change_evidence": [
+                "base:api.js:2-2"
+              ]
+            }
+          ],
+          "base_scan": {
+            "findings": [],
+            "by_rung": {
+              "suspicion": 0,
+              "model_corroborated": 0,
+              "model_entailed": 0,
+              "execution_confirmed": 0
+            },
+            "regions_scanned": 1,
+            "regions_unjudged": 0,
+            "regions_unasked": 0,
+            "model_calls": 0,
+            "cost_usd": 0.0,
+            "seconds": 114.64,
+            "build_seconds": 56.39,
+            "query_seconds": 58.19,
+            "query_seconds_by_kind": {
+              "evidence": 0.01,
+              "dominance": 58.19
+            },
+            "degradations": [],
+            "tiers": [],
+            "tier_counts": {},
+            "requests_pruned": 0,
+            "partitions": [
+              {
+                "language": "javascript",
+                "frontend": "javascript",
+                "paths": [
+                  "api.js"
+                ],
+                "source_bytes": 220,
+                "status": "built",
+                "boundaries": [
+                  "runtime_unspecified"
+                ],
+                "runtime": "unspecified",
+                "excluded_paths": [],
+                "unshipped_paths": []
+              }
+            ],
+            "change_context": null,
+            "scope": {
+              "ranker_version": "existing-static-evidence-v1",
+              "ranking_mode": "evidence",
+              "population_complete": true,
+              "selected": [
+                {
+                  "identity": {
+                    "unit": "delta-smoke",
+                    "language": "javascript",
+                    "path": "api.js",
+                    "function": "handler",
+                    "family": "access_control"
+                  },
+                  "priority": 0.0,
+                  "evidence": [
+                    "static_rank=1.0",
+                    "taint_evidence_not_applicable"
+                  ],
+                  "tier": null,
+                  "score": null
+                }
+              ],
+              "deferred": [],
+              "unresolved_boundaries": []
+            },
+            "question_outcomes": [
+              {
+                "identity": {
+                  "unit": "delta-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "access_control"
+                },
+                "status": "completed",
+                "reason": "query_answered_and_arbitrated",
+                "raw_rows_json": "[{\"dominatingGuards\":[\"!authenticate(req)\",\"authenticate(req)\"],\"opFile\":\"api.js\",\"opLine\":\"3\",\"opMethod\":\"handler\",\"operation\":\"deleteUser(req.params.id)\"},{\"dominatingGuards\":[\"!authenticate(other)\",\"authenticate(other)\"],\"opFile\":\"api.js\",\"opLine\":\"7\",\"opMethod\":\"sibling\",\"operation\":\"deleteUser(other.params.id)\"}]"
+              }
+            ],
+            "family_coverage": [
+              {
+                "unit": "delta-smoke",
+                "language": "javascript",
+                "family": "access_control",
+                "selected": 1,
+                "completed": 1,
+                "unanswered": 0,
+                "deferred": 0,
+                "unsupported": 0
+              }
+            ]
+          },
+          "semantics": "2417155d31b4a5b3ea9ea282efedf23ab72fd382e757ea27e4dfa151195f6f3d",
+          "coverage_reasons": []
+        },
+        "expected_novelty": "worsened"
+      },
+      "completion": {
+        "verified": true,
+        "case": "guard",
+        "elapsed_seconds": 214.81
+      }
+    },
+    "movement": {
+      "exit_code": 0,
+      "evidence": {
+        "case": "movement",
+        "purpose": "Real targeted comparison with declared regions and Git context; no automatic context projection, full replay or admission",
+        "shared_budget_seconds": 900,
+        "comparison": {
+          "head_oid": "4b6ff24c4add7a4d5e61c852a8d5e6475734334b",
+          "base_oid": "ec81bee36092a3fee9f6dab9ab52f2301672197f",
+          "base_reason": "supplied_remote_tip",
+          "refs": [
+            "refs/heads/topic"
+          ]
+        },
+        "context": {
+          "base_revision": "ec81bee36092a3fee9f6dab9ab52f2301672197f",
+          "head_revision": "4b6ff24c4add7a4d5e61c852a8d5e6475734334b",
+          "changed_paths": [
+            "6170692e6a73"
+          ],
+          "deleted_paths": [],
+          "spans": [
+            {
+              "path": "6170692e6a73",
+              "start_line": 1,
+              "end_line": 2,
+              "side": "head"
+            }
+          ],
+          "renames": [],
+          "declaration_paths": [],
+          "relationships": [],
+          "unresolved_boundaries": [],
+          "path_encoding": "filesystem-bytes-hex",
+          "line_correspondences": [
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 1,
+              "base_end_line": 1,
+              "head_start_line": 3
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 2,
+              "base_end_line": 2,
+              "head_start_line": 4
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 3,
+              "base_end_line": 3,
+              "head_start_line": 5
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 4,
+              "base_end_line": 4,
+              "head_start_line": 6
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 5,
+              "base_end_line": 5,
+              "head_start_line": 7
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 6,
+              "base_end_line": 6,
+              "head_start_line": 8
+            },
+            {
+              "base_path": "6170692e6a73",
+              "head_path": "6170692e6a73",
+              "base_start_line": 7,
+              "base_end_line": 7,
+              "head_start_line": 9
+            }
+          ]
+        },
+        "base_input": {
+          "bytes": 186,
+          "sha256": "6af54b119bd77f2f6d9c1dedb2d53939333371f015d473fd981edb5a47c31361"
+        },
+        "head_input": {
+          "bytes": 234,
+          "sha256": "1d7ff70744b1c3acac9c323ba7f416a1ab8c6be296b456d57fa6db8e2a1e7d4a"
+        },
+        "head": {
+          "findings": [
+            {
+              "site": "api.js:4:handler",
+              "family": "access_control",
+              "rung": "model_entailed",
+              "witness": "handler line 4: no discharging guard, while 1 sibling handler(s) are guarded (sibling)",
+              "contradiction": "",
+              "reached_from": 1
+            }
+          ],
+          "by_rung": {
+            "suspicion": 0,
+            "model_corroborated": 0,
+            "model_entailed": 1,
+            "execution_confirmed": 0
+          },
+          "regions_scanned": 1,
+          "regions_unjudged": 0,
+          "regions_unasked": 0,
+          "model_calls": 0,
+          "cost_usd": 0.0,
+          "seconds": 97.77,
+          "build_seconds": 56.75,
+          "query_seconds": 40.98,
+          "query_seconds_by_kind": {
+            "evidence": 0.01,
+            "dominance": 40.98
+          },
+          "degradations": [],
+          "tiers": [],
+          "tier_counts": {},
+          "requests_pruned": 0,
+          "partitions": [
+            {
+              "language": "javascript",
+              "frontend": "javascript",
+              "paths": [
+                "api.js"
+              ],
+              "source_bytes": 234,
+              "status": "built",
+              "boundaries": [
+                "runtime_unspecified"
+              ],
+              "runtime": "unspecified",
+              "excluded_paths": [],
+              "unshipped_paths": []
+            }
+          ],
+          "change_context": null,
+          "scope": {
+            "ranker_version": "existing-static-evidence-v1",
+            "ranking_mode": "evidence",
+            "population_complete": true,
+            "selected": [
+              {
+                "identity": {
+                  "unit": "delta-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "access_control"
+                },
+                "priority": 0.0,
+                "evidence": [
+                  "static_rank=1.0",
+                  "taint_evidence_not_applicable"
+                ],
+                "tier": null,
+                "score": null
+              }
+            ],
+            "deferred": [],
+            "unresolved_boundaries": []
+          },
+          "question_outcomes": [
+            {
+              "identity": {
+                "unit": "delta-smoke",
+                "language": "javascript",
+                "path": "api.js",
+                "function": "handler",
+                "family": "access_control"
+              },
+              "status": "completed",
+              "reason": "query_answered_and_arbitrated",
+              "raw_rows_json": "[{\"dominatingGuards\":[],\"opFile\":\"api.js\",\"opLine\":\"4\",\"opMethod\":\"handler\",\"operation\":\"deleteUser(req.params.id)\"},{\"dominatingGuards\":[\"!authenticate(other)\",\"authenticate(other)\"],\"opFile\":\"api.js\",\"opLine\":\"8\",\"opMethod\":\"sibling\",\"operation\":\"deleteUser(other.params.id)\"}]"
+            }
+          ],
+          "family_coverage": [
+            {
+              "unit": "delta-smoke",
+              "language": "javascript",
+              "family": "access_control",
+              "selected": 1,
+              "completed": 1,
+              "unanswered": 0,
+              "deferred": 0,
+              "unsupported": 0
+            }
+          ]
+        },
+        "delta": {
+          "candidates": [
+            {
+              "family": "access_control",
+              "site": "api.js:4:handler",
+              "rung": "model_entailed",
+              "witness": "handler line 4: no discharging guard, while 1 sibling handler(s) are guarded (sibling)",
+              "defect_id": "dd03c2c56c9f9d19721a2caafd8879ab8174fd5078eaf1428ce484388f07675e",
+              "novelty": "unchanged",
+              "reason": "same_supported_mechanism",
+              "head_operation": {
+                "question": {
+                  "unit": "delta-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "access_control"
+                },
+                "mechanism": "dominance",
+                "path": "api.js",
+                "line": 4,
+                "operation": "deleteUser(req.params.id)",
+                "source": "obligation",
+                "discharged": false,
+                "detail": "{\"dominatingGuards\": [], \"opFile\": \"api.js\", \"opLine\": \"4\", \"opMethod\": \"handler\", \"operation\": \"deleteUser(req.params.id)\"}"
+              },
+              "base_operations": [
+                {
+                  "question": {
+                    "unit": "delta-smoke",
+                    "language": "javascript",
+                    "path": "api.js",
+                    "function": "handler",
+                    "family": "access_control"
+                  },
+                  "mechanism": "dominance",
+                  "path": "api.js",
+                  "line": 2,
+                  "operation": "deleteUser(req.params.id)",
+                  "source": "obligation",
+                  "discharged": false,
+                  "detail": "{\"dominatingGuards\": [], \"opFile\": \"api.js\", \"opLine\": \"2\", \"opMethod\": \"handler\", \"operation\": \"deleteUser(req.params.id)\"}"
+                }
+              ],
+              "change_evidence": [
+                "head:api.js:1-2"
+              ]
+            }
+          ],
+          "base_scan": {
+            "findings": [
+              {
+                "site": "api.js:2:handler",
+                "family": "access_control",
+                "rung": "model_entailed",
+                "witness": "handler line 2: no discharging guard, while 1 sibling handler(s) are guarded (sibling)",
+                "contradiction": "",
+                "reached_from": 1
+              }
+            ],
+            "by_rung": {
+              "suspicion": 0,
+              "model_corroborated": 0,
+              "model_entailed": 1,
+              "execution_confirmed": 0
+            },
+            "regions_scanned": 1,
+            "regions_unjudged": 0,
+            "regions_unasked": 0,
+            "model_calls": 0,
+            "cost_usd": 0.0,
+            "seconds": 116.49,
+            "build_seconds": 56.17,
+            "query_seconds": 60.28,
+            "query_seconds_by_kind": {
+              "evidence": 0.01,
+              "dominance": 60.28
+            },
+            "degradations": [],
+            "tiers": [],
+            "tier_counts": {},
+            "requests_pruned": 0,
+            "partitions": [
+              {
+                "language": "javascript",
+                "frontend": "javascript",
+                "paths": [
+                  "api.js"
+                ],
+                "source_bytes": 186,
+                "status": "built",
+                "boundaries": [
+                  "runtime_unspecified"
+                ],
+                "runtime": "unspecified",
+                "excluded_paths": [],
+                "unshipped_paths": []
+              }
+            ],
+            "change_context": null,
+            "scope": {
+              "ranker_version": "existing-static-evidence-v1",
+              "ranking_mode": "evidence",
+              "population_complete": true,
+              "selected": [
+                {
+                  "identity": {
+                    "unit": "delta-smoke",
+                    "language": "javascript",
+                    "path": "api.js",
+                    "function": "handler",
+                    "family": "access_control"
+                  },
+                  "priority": 0.0,
+                  "evidence": [
+                    "static_rank=1.0",
+                    "taint_evidence_not_applicable"
+                  ],
+                  "tier": null,
+                  "score": null
+                }
+              ],
+              "deferred": [],
+              "unresolved_boundaries": []
+            },
+            "question_outcomes": [
+              {
+                "identity": {
+                  "unit": "delta-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "access_control"
+                },
+                "status": "completed",
+                "reason": "query_answered_and_arbitrated",
+                "raw_rows_json": "[{\"dominatingGuards\":[],\"opFile\":\"api.js\",\"opLine\":\"2\",\"opMethod\":\"handler\",\"operation\":\"deleteUser(req.params.id)\"},{\"dominatingGuards\":[\"!authenticate(other)\",\"authenticate(other)\"],\"opFile\":\"api.js\",\"opLine\":\"6\",\"opMethod\":\"sibling\",\"operation\":\"deleteUser(other.params.id)\"}]"
+              }
+            ],
+            "family_coverage": [
+              {
+                "unit": "delta-smoke",
+                "language": "javascript",
+                "family": "access_control",
+                "selected": 1,
+                "completed": 1,
+                "unanswered": 0,
+                "deferred": 0,
+                "unsupported": 0
+              }
+            ]
+          },
+          "semantics": "2417155d31b4a5b3ea9ea282efedf23ab72fd382e757ea27e4dfa151195f6f3d",
+          "coverage_reasons": []
+        },
+        "expected_novelty": "unchanged"
+      },
+      "completion": {
+        "verified": true,
+        "case": "movement",
+        "elapsed_seconds": 214.52
+      }
+    },
+    "connection": {
+      "exit_code": 0,
+      "evidence": {
+        "case": "connection",
+        "purpose": "Real targeted comparison with declared regions and Git context; no automatic context projection, full replay or admission",
+        "shared_budget_seconds": 900,
+        "comparison": {
+          "head_oid": "961b8f28da002916f02864f4d0dbe06af8ad6088",
+          "base_oid": "761a1c9f1e891465ba4db952e975d4cc31d43674",
+          "base_reason": "supplied_remote_tip",
+          "refs": [
+            "refs/heads/topic"
+          ]
+        },
+        "context": {
+          "base_revision": "761a1c9f1e891465ba4db952e975d4cc31d43674",
+          "head_revision": "961b8f28da002916f02864f4d0dbe06af8ad6088",
+          "changed_paths": [
+            "6170692e706870"
+          ],
+          "deleted_paths": [],
+          "spans": [
+            {
+              "path": "6170692e706870",
+              "start_line": 3,
+              "end_line": 3,
+              "side": "base"
+            },
+            {
+              "path": "6170692e706870",
+              "start_line": 3,
+              "end_line": 3,
+              "side": "head"
+            }
+          ],
+          "renames": [],
+          "declaration_paths": [],
+          "relationships": [],
+          "unresolved_boundaries": [],
+          "path_encoding": "filesystem-bytes-hex",
+          "line_correspondences": [
+            {
+              "base_path": "6170692e706870",
+              "head_path": "6170692e706870",
+              "base_start_line": 1,
+              "base_end_line": 1,
+              "head_start_line": 1
+            },
+            {
+              "base_path": "6170692e706870",
+              "head_path": "6170692e706870",
+              "base_start_line": 2,
+              "base_end_line": 2,
+              "head_start_line": 2
+            },
+            {
+              "base_path": "6170692e706870",
+              "head_path": "6170692e706870",
+              "base_start_line": 4,
+              "base_end_line": 4,
+              "head_start_line": 4
+            },
+            {
+              "base_path": "6170692e706870",
+              "head_path": "6170692e706870",
+              "base_start_line": 5,
+              "base_end_line": 5,
+              "head_start_line": 5
+            }
+          ]
+        },
+        "base_input": {
+          "bytes": 69,
+          "sha256": "ee5ced2ce020e2bd8173bd60fb5ea371855db1d54362c412e0199378de557795"
+        },
+        "head_input": {
+          "bytes": 66,
+          "sha256": "18570760acc3a0dcb790ae0445f59c67dac84e760f8a382d12ca94c89d006bf2"
+        },
+        "head": {
+          "findings": [
+            {
+              "site": "api.php:4:handler",
+              "family": "injection",
+              "rung": "model_entailed",
+              "witness": "$req -> eval($value) in api.php (line 4, 4 steps)",
+              "contradiction": "",
+              "reached_from": 1
+            }
+          ],
+          "by_rung": {
+            "suspicion": 0,
+            "model_corroborated": 0,
+            "model_entailed": 1,
+            "execution_confirmed": 0
+          },
+          "regions_scanned": 1,
+          "regions_unjudged": 0,
+          "regions_unasked": 0,
+          "model_calls": 0,
+          "cost_usd": 0.0,
+          "seconds": 220.15,
+          "build_seconds": 93.05,
+          "query_seconds": 63.59,
+          "query_seconds_by_kind": {
+            "evidence": 63.38,
+            "taint": 63.59
+          },
+          "degradations": [],
+          "tiers": [
+            [
+              "api.php",
+              "handler",
+              "injection",
+              4
+            ]
+          ],
+          "tier_counts": {
+            "4": 1
+          },
+          "requests_pruned": 0,
+          "partitions": [
+            {
+              "language": "php",
+              "frontend": "php",
+              "paths": [
+                "api.php"
+              ],
+              "source_bytes": 66,
+              "status": "built",
+              "boundaries": [],
+              "runtime": "unspecified",
+              "excluded_paths": [],
+              "unshipped_paths": []
+            }
+          ],
+          "change_context": null,
+          "scope": {
+            "ranker_version": "existing-static-evidence-v1",
+            "ranking_mode": "evidence",
+            "population_complete": true,
+            "selected": [
+              {
+                "identity": {
+                  "unit": "delta-smoke",
+                  "language": "php",
+                  "path": "api.php",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "priority": 0.0,
+                "evidence": [
+                  "static_rank=1.0",
+                  "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval($value)\",\"line\":4,\"method\":\"handler\"}],\"source_local\":false,\"source_near\":false}",
+                  "tier=4",
+                  "score=2.5"
+                ],
+                "tier": 4,
+                "score": 2.5
+              }
+            ],
+            "deferred": [],
+            "unresolved_boundaries": []
+          },
+          "question_outcomes": [
+            {
+              "identity": {
+                "unit": "delta-smoke",
+                "language": "php",
+                "path": "api.php",
+                "function": "handler",
+                "family": "injection"
+              },
+              "status": "completed",
+              "reason": "query_answered_and_arbitrated",
+              "raw_rows_json": "[{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":4,\"paths\":1,\"sanitized\":false,\"sink\":\"eval($value)\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"api.php\",\"sinkLine\":\"4\",\"sinkMethod\":\"handler\",\"source\":\"$req\",\"sourceKind\":\"parameter\"}]"
+            }
+          ],
+          "family_coverage": [
+            {
+              "unit": "delta-smoke",
+              "language": "php",
+              "family": "injection",
+              "selected": 1,
+              "completed": 1,
+              "unanswered": 0,
+              "deferred": 0,
+              "unsupported": 0
+            }
+          ]
+        },
+        "delta": {
+          "candidates": [
+            {
+              "family": "injection",
+              "site": "api.php:4:handler",
+              "rung": "model_entailed",
+              "witness": "$req -> eval($value) in api.php (line 4, 4 steps)",
+              "defect_id": "126c32bef15eed9f5bdbb01c8c582ff03654ca835a61af4bc32b1b5904b7aa34",
+              "novelty": "new",
+              "reason": "source_connection_absent_from_comparable_base",
+              "head_operation": {
+                "question": {
+                  "unit": "delta-smoke",
+                  "language": "php",
+                  "path": "api.php",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "mechanism": "taint",
+                "path": "api.php",
+                "line": 4,
+                "operation": "eval($value)",
+                "source": "[\"parameter\",\"$req\"]",
+                "discharged": false,
+                "detail": "{\"bound\": \"\", \"bounded\": false, \"inLabeledScope\": true, \"length\": 4, \"paths\": 1, \"sanitized\": false, \"sink\": \"eval($value)\", \"sinkArg0Literal\": false, \"sinkArity\": 1, \"sinkFile\": \"api.php\", \"sinkLine\": \"4\", \"sinkMethod\": \"handler\", \"source\": \"$req\", \"sourceKind\": \"parameter\"}"
+              },
+              "base_operations": [],
+              "change_evidence": [
+                "base:api.php:3-3",
+                "head:api.php:3-3"
+              ]
+            }
+          ],
+          "base_scan": {
+            "findings": [],
+            "by_rung": {
+              "suspicion": 0,
+              "model_corroborated": 0,
+              "model_entailed": 0,
+              "execution_confirmed": 0
+            },
+            "regions_scanned": 1,
+            "regions_unjudged": 0,
+            "regions_unasked": 0,
+            "model_calls": 0,
+            "cost_usd": 0.0,
+            "seconds": 70.64,
+            "build_seconds": 33.84,
+            "query_seconds": 17.91,
+            "query_seconds_by_kind": {
+              "evidence": 18.86,
+              "taint": 17.91
+            },
+            "degradations": [],
+            "tiers": [
+              [
+                "api.php",
+                "handler",
+                "injection",
+                4
+              ]
+            ],
+            "tier_counts": {
+              "4": 1
+            },
+            "requests_pruned": 0,
+            "partitions": [
+              {
+                "language": "php",
+                "frontend": "php",
+                "paths": [
+                  "api.php"
+                ],
+                "source_bytes": 69,
+                "status": "built",
+                "boundaries": [],
+                "runtime": "unspecified",
+                "excluded_paths": [],
+                "unshipped_paths": []
+              }
+            ],
+            "change_context": null,
+            "scope": {
+              "ranker_version": "existing-static-evidence-v1",
+              "ranking_mode": "evidence",
+              "population_complete": true,
+              "selected": [
+                {
+                  "identity": {
+                    "unit": "delta-smoke",
+                    "language": "php",
+                    "path": "api.php",
+                    "function": "handler",
+                    "family": "injection"
+                  },
+                  "priority": 0.0,
+                  "evidence": [
+                    "static_rank=1.0",
+                    "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval($value)\",\"line\":4,\"method\":\"handler\"}],\"source_local\":false,\"source_near\":false}",
+                    "tier=4",
+                    "score=2.5"
+                  ],
+                  "tier": 4,
+                  "score": 2.5
+                }
+              ],
+              "deferred": [],
+              "unresolved_boundaries": []
+            },
+            "question_outcomes": [
+              {
+                "identity": {
+                  "unit": "delta-smoke",
+                  "language": "php",
+                  "path": "api.php",
+                  "function": "handler",
+                  "family": "injection"
+                },
+                "status": "completed",
+                "reason": "query_answered_and_arbitrated",
+                "raw_rows_json": "[]"
+              }
+            ],
+            "family_coverage": [
+              {
+                "unit": "delta-smoke",
+                "language": "php",
+                "family": "injection",
+                "selected": 1,
+                "completed": 1,
+                "unanswered": 0,
+                "deferred": 0,
+                "unsupported": 0
+              }
+            ]
+          },
+          "semantics": "2417155d31b4a5b3ea9ea282efedf23ab72fd382e757ea27e4dfa151195f6f3d",
+          "coverage_reasons": []
+        },
+        "expected_novelty": "new"
+      },
+      "completion": {
+        "verified": true,
+        "case": "connection",
+        "elapsed_seconds": 291.01
+      }
+    }
+  },
+  "reviewed_policy_recheck": {
+    "purpose": "Current reviewed comparator on actual immutable-snapshot engine answers; engine not rerun for schema-only repair",
+    "policy_sha256": "294da440805352c511f9c1691792f65f60d30cb9effb49f59f33856f41fed874",
+    "cases": {
+      "guard": {
+        "completion": {
+          "verified": true,
+          "case": "guard",
+          "elapsed_seconds": 214.81
+        },
+        "candidates": [
+          {
+            "family": "access_control",
+            "site": "api.js:2:handler",
+            "rung": "model_entailed",
+            "witness": "handler line 2: no discharging guard, while 1 sibling handler(s) are guarded (sibling)",
+            "defect_id": "c3c274c9b04b03b2df9ef8090ab2ca7ecbaafeea1b2b5f353972cb2168e836fc",
+            "novelty": "worsened",
+            "reason": "discharge_removed",
+            "head_operation": {
+              "question": {
+                "unit": "delta-smoke",
+                "language": "javascript",
+                "path": "api.js",
+                "function": "handler",
+                "family": "access_control"
+              },
+              "mechanism": "dominance",
+              "path": "api.js",
+              "line": 2,
+              "operation": "deleteUser(req.params.id)",
+              "source": "obligation",
+              "discharged": false,
+              "detail": "{\"dominatingGuards\": [], \"opFile\": \"api.js\", \"opLine\": \"2\", \"opMethod\": \"handler\", \"operation\": \"deleteUser(req.params.id)\"}"
+            },
+            "base_operations": [
+              {
+                "question": {
+                  "unit": "delta-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "access_control"
+                },
+                "mechanism": "dominance",
+                "path": "api.js",
+                "line": 3,
+                "operation": "deleteUser(req.params.id)",
+                "source": "obligation",
+                "discharged": true,
+                "detail": "{\"dominatingGuards\": [\"!authenticate(req)\", \"authenticate(req)\"], \"opFile\": \"api.js\", \"opLine\": \"3\", \"opMethod\": \"handler\", \"operation\": \"deleteUser(req.params.id)\"}"
+              }
+            ],
+            "change_evidence": [
+              "base:api.js:2-2"
+            ]
+          }
+        ]
+      },
+      "movement": {
+        "completion": {
+          "verified": true,
+          "case": "movement",
+          "elapsed_seconds": 214.52
+        },
+        "candidates": [
+          {
+            "family": "access_control",
+            "site": "api.js:4:handler",
+            "rung": "model_entailed",
+            "witness": "handler line 4: no discharging guard, while 1 sibling handler(s) are guarded (sibling)",
+            "defect_id": "dd03c2c56c9f9d19721a2caafd8879ab8174fd5078eaf1428ce484388f07675e",
+            "novelty": "unchanged",
+            "reason": "same_supported_mechanism",
+            "head_operation": {
+              "question": {
+                "unit": "delta-smoke",
+                "language": "javascript",
+                "path": "api.js",
+                "function": "handler",
+                "family": "access_control"
+              },
+              "mechanism": "dominance",
+              "path": "api.js",
+              "line": 4,
+              "operation": "deleteUser(req.params.id)",
+              "source": "obligation",
+              "discharged": false,
+              "detail": "{\"dominatingGuards\": [], \"opFile\": \"api.js\", \"opLine\": \"4\", \"opMethod\": \"handler\", \"operation\": \"deleteUser(req.params.id)\"}"
+            },
+            "base_operations": [
+              {
+                "question": {
+                  "unit": "delta-smoke",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "access_control"
+                },
+                "mechanism": "dominance",
+                "path": "api.js",
+                "line": 2,
+                "operation": "deleteUser(req.params.id)",
+                "source": "obligation",
+                "discharged": false,
+                "detail": "{\"dominatingGuards\": [], \"opFile\": \"api.js\", \"opLine\": \"2\", \"opMethod\": \"handler\", \"operation\": \"deleteUser(req.params.id)\"}"
+              }
+            ],
+            "change_evidence": [
+              "head:api.js:1-2"
+            ]
+          }
+        ]
+      },
+      "connection": {
+        "completion": {
+          "verified": true,
+          "case": "connection",
+          "elapsed_seconds": 291.01
+        },
+        "candidates": [
+          {
+            "family": "injection",
+            "site": "api.php:4:handler",
+            "rung": "model_entailed",
+            "witness": "$req -> eval($value) in api.php (line 4, 4 steps)",
+            "defect_id": "126c32bef15eed9f5bdbb01c8c582ff03654ca835a61af4bc32b1b5904b7aa34",
+            "novelty": "new",
+            "reason": "source_connection_absent_from_comparable_base",
+            "head_operation": {
+              "question": {
+                "unit": "delta-smoke",
+                "language": "php",
+                "path": "api.php",
+                "function": "handler",
+                "family": "injection"
+              },
+              "mechanism": "taint",
+              "path": "api.php",
+              "line": 4,
+              "operation": "eval($value)",
+              "source": "[\"parameter\",\"$req\"]",
+              "discharged": false,
+              "detail": "{\"bound\": \"\", \"bounded\": false, \"inLabeledScope\": true, \"length\": 4, \"paths\": 1, \"sanitized\": false, \"sink\": \"eval($value)\", \"sinkArg0Literal\": false, \"sinkArity\": 1, \"sinkFile\": \"api.php\", \"sinkLine\": \"4\", \"sinkMethod\": \"handler\", \"source\": \"$req\", \"sourceKind\": \"parameter\"}"
+            },
+            "base_operations": [],
+            "change_evidence": [
+              "base:api.php:3-3",
+              "head:api.php:3-3"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "verification": {
+    "tests_passed": 1167,
+    "tests_skipped": 9,
+    "suite_seconds": 122.44,
+    "ruff": "PASS",
+    "format_files": 233,
+    "mypy_files": 110,
+    "detection_gate": "44/47; FP0/44; PASS",
+    "map_gate": "PASS",
+    "pair_gate": "3/3; local28/28; fixleaks0; PASS"
+  },
+  "limits": [
+    "Automatic change-context projection for dominance-only questions remains unavailable in contributor-scan. Direct comparator controls deliberately supply declared regions and Git context; no failure field is cleared.",
+    "Ambiguous line/function/source identities remain unknown.",
+    "All production capabilities remain disabled pending evaluation.",
+    "No full replay, hook installation, caching or latency admission is implemented."
+  ]
+}

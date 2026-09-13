@@ -197,3 +197,20 @@ unshipped test-path records. Runtime origin remains unspecified without declarat
 readable Python graph and exercises the production taint, dominance and configuration
 batch queries. Each must return the actual source filename in its census. This
 checks query compilation and census transport, not security-property coverage.
+
+## Targeted novelty comparison smoke
+
+After rebuilding the image, run a declared JavaScript guard-removal comparison:
+
+```bash
+docker run --rm -i --network none --entrypoint python openultrasast:dev - --case guard < ops/smoke_delta.py
+```
+
+Use `--case movement` for unchanged JavaScript backlog shifted by comments, or
+`--case connection` for a PHP input newly reaching an unchanged operation. Every
+case verifies immutable base/head bytes, runs the existing driver and targeted
+comparison under one 900-second lab budget, and checks that dirty checkout/index
+state survives. Output contains an evidence JSON object followed by a completion
+JSON object; success requires exit zero and `verified: true` in that final object.
+These declared regions exercise comparison mechanics; full replay, normal alert
+admission and hook latency are separate evaluation work.

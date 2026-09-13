@@ -178,3 +178,22 @@ incomplete coverage. A synthetic graph file must never compensate for an omitted
 real source, and a wrapper must not discard evidence supplied by a frontend.
 See `implementation-group-3.md` for final evidence. Eleven of 27 tasks are complete;
 change attribution, actionability admission and compact output are next.
+
+## Group 4 comparison controls (2026-09-13)
+
+Real JavaScript dominance rows distinguish a guarded base operation from an
+unguarded head operation while retaining a guarded sibling. The direct task 4.1
+comparator can consume these answers with declared questions and immutable Git
+span correspondence. This does not establish automatic context projection for
+that family: the existing driver's change-context evidence pass currently projects
+taint questions, and a dominance-only scan with `change_context` reports
+`context_projection_unavailable:contributor-scan`. Preserve that limitation in the
+full replay integration at 5.1; any extension belongs to the contributor-scan
+context contract, not a hook-specific graph or detector workaround.
+
+Duplicate identical source lines also remain ambiguous to the snapshot adapter.
+Controls with unique lines prove the narrow supported correspondence path; they
+do not establish general identity across arbitrary refactoring. Changed source
+text alone is insufficient to distinguish a new source from a benign identifier
+rename. Those comparisons remain unknown. A completed comparable base with no flow
+to an unchanged mapped sink supplies a supported new-connection control instead.
