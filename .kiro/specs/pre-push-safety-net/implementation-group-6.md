@@ -37,3 +37,35 @@ graphs cannot qualify. Query locations normalize to repository-relative paths.
 - CLAIM: Task 6.1 identity and lease behavior, not persistent runner reuse or rollout readiness.
 - EVIDENCE: tests/test_graph_reuse.py, 105 focused passing tests, full suite and real Joern control above; measurement JSON retained in benchmarks/measurements/2026-09-13-graph-lease-control.json.
 - GAPS: Warm push feasibility and independent capability eligibility remain unproven.
+
+## Task 6.2 brief and review
+
+Requirements 4.1, 4.3, 4.4 and 7.3; design: Cache and Engine Boundary. Private
+0700 cache roots, 0600 files, fixed lock stripes plus a publication lock, streamed payload
+digests, manifest receipts, atomic completed directory publication and size accounting
+(payload plus manifests) implement local storage. Incomplete data is never published as
+complete. A lookup holds a shared lease; eviction requires an exclusive lock and skips
+leased entries. Abandoned private partials count toward the limit and can be reclaimed.
+All lock waits and copying check the caller's absolute deadline; cleanup uses its allowance.
+No graph node mutation, executable deserialization or repository writes are introduced.
+
+## Status Report
+- STATUS: READY_FOR_REVIEW
+- TASK: 6.2
+- RED_PHASE_OUTPUT: `/tmp/group6-2-red.log`: seven tests failed with the temporary cache switch OFF. ON passed; switch removed; nine final cache tests passed.
+- TESTS_RUN: 13 cache/audit tests passed, full suite 1256 passed and 9 skipped (104.11s); ruff and mypy passed. Final receipt-validation repair was followed by the 13-test focused rerun.
+- EVIDENCE: concurrent subprocess writers, corrupted payload/manifest, interrupted atomic replace, abandoned partial files, bounded lock contention, leased eviction, unsafe paths and preservation of consumer exceptions.
+
+## Review Verdict
+- VERDICT: APPROVED
+- TASK: 6.2
+- MECHANICAL_RESULTS: canonical suite and final focused regression passed; static checks and diff whitespace passed; no new placeholders or secrets.
+- FINDINGS: review added metadata receipt validation and fixed contextmanager exception ownership; lock inodes are retained in 64 bounded stripes to avoid unlink/recreate races. Storage size means bytes of payloads/manifests, not filesystem allocation overhead.
+- SUMMARY: Complete publication or explicit miss is preserved through tested concurrency, corruption and interruption paths.
+
+## Verification Result
+- STATUS: VERIFIED
+- CLAIM_TYPE: TASK
+- CLAIM: Task 6.2 bounded local artifact publication and eviction.
+- EVIDENCE: nine cache contract tests and full suite above; production cache implementation, not a mocked storage path.
+- GAPS: Semantic keys and live replay integration follow in 6.3 and 6.4; no warm-latency claim.

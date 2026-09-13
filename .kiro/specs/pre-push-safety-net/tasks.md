@@ -167,7 +167,7 @@ hook latency is admitted.
   - Done when identical valid inputs can reuse a graph while any changed graph input or failed census rejects the lease; original cached artifacts survive query loading unchanged.
   - _Boundary: Cache and Engine Boundary, generic driver integration_
   - _Requirements: 4.2, 4.3, 4.4, 7.3_
-- [ ] 6.2 Publish and evict local artifacts safely
+- [x] 6.2 Publish and evict local artifacts safely
   - Add private temporary publication, per-key bounded locking, atomic completed manifests, cache size enforcement and unleased eviction.
   - Retain partial records only as diagnostics; never interpret a directory or failed write as a complete result. Do not rebuild graphs incrementally by mutating old node identities.
   - Done when concurrent writers, corrupt entries and interrupted publication yield either a validated complete artifact or an explicit miss without exceeding the remaining lock budget.

@@ -1,10 +1,10 @@
 {
   "counts": {
-    "load_bearing": 102,
+    "load_bearing": 103,
     "standalone_capability": 9
   },
-  "modules": 111,
-  "note": "Refreshed for task 5.1: explicit local replay integrates the existing ranker and comparison policy.",
+  "modules": 112,
+  "note": "Refreshed for task 6.2: bounded local artifact storage, integrated by task 6.4.",
   "orphaned": [],
   "rows": [
     {
@@ -128,6 +128,7 @@
       "classification": "load_bearing",
       "importers": [
         "cli",
+        "cpg.artifact",
         "cpg.backend",
         "model.config_value",
         "model.dominance",
@@ -136,6 +137,7 @@
         "model.pipeline",
         "model.scan",
         "model.taint",
+        "push.cache",
         "push.policy",
         "push.runner"
       ],
@@ -144,7 +146,10 @@
     },
     {
       "classification": "load_bearing",
-      "importers": [],
+      "importers": [
+        "cpg.backend",
+        "push.cache"
+      ],
       "module": "cpg.artifact",
       "reason": "pre-push-safety-net Req 4.3/7.3: backend graph identity and live lease contract; validation integration pending"
     },
@@ -152,6 +157,7 @@
       "classification": "load_bearing",
       "importers": [
         "cli",
+        "cpg.artifact",
         "model.config_value",
         "model.dominance",
         "model.judge",
@@ -159,6 +165,7 @@
         "model.pipeline",
         "model.scan",
         "model.taint",
+        "push.cache",
         "push.policy",
         "push.runner"
       ],
@@ -363,6 +370,7 @@
         "model.specs",
         "model.taint",
         "preprocess",
+        "push.cache",
         "push.contracts",
         "push.policy",
         "push.report",
@@ -409,6 +417,7 @@
         "model.partitions",
         "model.regions",
         "model.scan",
+        "push.cache",
         "push.contracts",
         "push.policy",
         "push.report",
@@ -686,6 +695,12 @@
       ],
       "module": "push",
       "reason": "pre-push-safety-net Req 5.5/7.3: experimental push contract package; no hook installed"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [],
+      "module": "push.cache",
+      "reason": "pre-push-safety-net task 6.2: bounded artifact publication and leased eviction; runner integration in 6.4"
     },
     {
       "classification": "load_bearing",
