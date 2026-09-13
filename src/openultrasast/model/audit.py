@@ -28,6 +28,7 @@ ROOTS = ("gate", "map_gate", "pair_gate", "cli", "__main__")
 
 # Modules that stand alone: their own CLI subcommand or external protocol, deliberately off the scan path.
 SPEC_OWNED = {
+    "push.report": "pre-push-safety-net Req 5.1/5.2/5.5/7.3: compact output and complete artifacts; runner integration pending",
     "push.policy": "pre-push-safety-net Req 2.4/3.1/3.4/4.1: targeted same-semantics base comparison; replay integration pending",
     "push.snapshot": "pre-push-safety-net Req 1.1/1.3/1.4/7.1: local immutable ref resolution; runner integration pending",
     "contracts": "pre-push-safety-net Req 7.3: strict shared manifest serialization, independent of push",

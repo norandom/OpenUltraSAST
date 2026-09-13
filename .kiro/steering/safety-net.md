@@ -79,10 +79,11 @@ updates as a shortcut to an unmeasured latency promise.
 The product direction above is user-requested. The amended requirements, design and initial
 evaluation profile in `pre-push-safety-net` were approved for task generation on 2026-09-12
 ("ok, next kiro phase"). The maintainer then approved the task plan and starting group 1
-("approve.") and then group 2 ("ok, next kiro phase, approved"). Groups 1–3 are now verified
-complete (11/27 total). The maintainer approved the frontend-retention prerequisite;
-contributor-scan 2.18 and pre-push task 3.4 have both passed independent review and
-fresh verification. Group 4 is next: novelty comparison, actionability admission and
-compact advisory output. Implementation is authorized under the approved plan;
-task completion still requires independent review and fresh evidence. Hook performance
-and capability admission remain unproven.
+("approve.") and then group 2 ("ok, next kiro phase, approved"). Groups 1–4 are now verified
+complete (14/27 total), including the approved frontend-retention prerequisite.
+Group 4 adds bound novelty, operation-specific admission and compact artifacts;
+4.1/4.2 passed independent review and 4.3 used the documented Kiro manual fallback
+after agent dispatch became unavailable. Group 5 is next for full replay and the
+first bounded experiment. Task completion still requires review and fresh evidence.
+Real capability eligibility, automatic dominance context projection and hook
+performance remain unproven; the default capability registry is empty.

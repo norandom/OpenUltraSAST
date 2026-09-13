@@ -46,17 +46,19 @@ engine are out of scope.
 - [ ] pre-push-safety-net — Immutable pushed tips, existing-ranker integration, compatible artifact
   reuse, total deadline, change attribution, actionability admission and compact hook behavior.
   Dependencies: contributor-scan. Requirements/design approved 2026-09-12; tasks generated
-  (8 groups, 27 executable subtasks), independently reviewed and approved; groups 1–3 are complete (11/27 tasks), including the resolved frontend-retention prerequisite.
+  (8 groups, 27 executable subtasks), independently reviewed and approved; groups 1–4 are complete (14/27 tasks), including the resolved frontend-retention prerequisite.
 
 ### Next concrete step
 
-Groups 1–3 have passed independent review: runtime, inputs, scoring, snapshots,
-shared deadline, exact ranker scope, change-context evidence and vendor-free language
-partitions. The approved contributor-scan prerequisite 2.18 (`51fabef`) repairs both
-JavaScript test filters; real graphs retain first-party tests and exclude vendor code.
-Task 3.4 also repairs unreadable-input handling and preserves named PHP census evidence.
-Group 4 is next: novelty comparison, actionability admission and compact advisory output.
-See `pre-push-safety-net/implementation-group-3.md` for evidence and limits.
+Groups 1–4 are verified: runtime, inputs, scoring, snapshots, shared deadline,
+ranker scope, change context, vendor-free partitions, novelty comparison, actionability
+admission and compact reporting. Tasks 4.1/4.2 passed independent review; 4.3 used the
+Kiro manual review fallback after the agent service reached its thread limit.
+Group 5 is next: wire explicit full transaction replay, then run the first bounded
+experiment. Real capabilities remain disabled pending independent evaluation.
+Automatic dominance-only change-context projection remains an upstream limit to
+retain during replay integration. See `pre-push-safety-net/implementation-group-4.md`
+for verification and scope limits.
 The first complete experiment is 5.2, before persistent caching and hook
 installation work. Keep PMPro as the primary core-optimization example, then freeze the core and
 prove a changed security flow and its fixed twin on a JavaScript/Express Node API workload through

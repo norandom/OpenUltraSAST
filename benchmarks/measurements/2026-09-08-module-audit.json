@@ -1,10 +1,10 @@
 {
   "counts": {
-    "load_bearing": 100,
+    "load_bearing": 101,
     "standalone_capability": 9
   },
-  "modules": 109,
-  "note": "Refreshed after pre-push-safety-net task 4.1: targeted base comparison reuses existing arbiters and shared execution budget; replay integration remains task 5.1.",
+  "modules": 110,
+  "note": "Refreshed after pre-push-safety-net task 4.3: compact reporting preserves full evidence and decisions; transaction replay remains task 5.1.",
   "orphaned": [],
   "rows": [
     {
@@ -103,6 +103,7 @@
         "hunter_tools",
         "model.endpoint",
         "pairs",
+        "push.policy",
         "regress.candidate",
         "regress.recipes",
         "run"
@@ -360,6 +361,7 @@
         "preprocess",
         "push.contracts",
         "push.policy",
+        "push.report",
         "push.snapshot"
       ],
       "module": "model",
@@ -404,6 +406,7 @@
         "model.scan",
         "push.contracts",
         "push.policy",
+        "push.report",
         "push.snapshot"
       ],
       "module": "model.contracts",
@@ -511,7 +514,8 @@
       "classification": "load_bearing",
       "importers": [
         "cli",
-        "push.policy"
+        "push.policy",
+        "push.report"
       ],
       "module": "model.scan",
       "reason": "contributor-scan Req 3: the repository driver -- one CPG, one budget, ranked spend"
@@ -534,7 +538,8 @@
         "model.regions",
         "model.report",
         "model.scan",
-        "model.taint"
+        "model.taint",
+        "push.policy"
       ],
       "module": "model.specs",
       "reason": "model-grounded-detection Req 7.2-7.4: the security vocabularies the CPG queries are parameterised by"
@@ -663,6 +668,8 @@
     {
       "classification": "load_bearing",
       "importers": [
+        "push.policy",
+        "push.report",
         "push.snapshot"
       ],
       "module": "push",
@@ -671,6 +678,8 @@
     {
       "classification": "load_bearing",
       "importers": [
+        "push.policy",
+        "push.report",
         "push.snapshot"
       ],
       "module": "push.contracts",
@@ -678,9 +687,17 @@
     },
     {
       "classification": "load_bearing",
-      "importers": [],
+      "importers": [
+        "push.report"
+      ],
       "module": "push.policy",
       "reason": "pre-push-safety-net Req 2.4/3.1/3.4/4.1: targeted same-semantics base comparison; replay integration pending"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [],
+      "module": "push.report",
+      "reason": "pre-push-safety-net Req 5.1/5.2/5.5/7.3: compact output and complete artifacts; runner integration pending"
     },
     {
       "classification": "load_bearing",

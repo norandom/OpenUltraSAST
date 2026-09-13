@@ -1,6 +1,6 @@
 # Brief: pre-push-safety-net
 
-Status: requirements, design and tasks approved on 2026-09-12; groups 1–3 verified complete (11/27 subtasks), including the approved contributor-scan frontend-retention prerequisite; groups 4–8 pending. Language: English.
+Status: requirements, design and tasks approved; groups 1–4 verified complete (14/27 subtasks). Groups 5–8 pending; real capability eligibility and hook latency remain unproven. Language: English.
 
 ## Problem
 

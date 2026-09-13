@@ -1,8 +1,9 @@
 # Implementation Plan: pre-push-safety-net
 
-Status: task plan approved by the maintainer's "approve." on 2026-09-12. Groups 1–3 (tasks 1.1–3.4)
-are complete after independent review and fresh verification (13/27 subtasks, including tasks 4.1–4.2). Task 4.3 and groups 5–8 remain pending;
-the hook and capability admission are not yet implemented. See `implementation-group-1.md` and `implementation-group-2.md`.
+Status: task plan approved by the maintainer on 2026-09-12. Groups 1–4 (tasks 1.1–4.3)
+are complete after task reviews and fresh verification (14/27 subtasks). Task 4.3 used
+the documented manual review fallback after agent dispatch became unavailable.
+Groups 5–8 remain pending; no production capability or hook latency is admitted.
 
 ## Execution contract
 
@@ -112,7 +113,7 @@ the hook and capability admission are not yet implemented. See `implementation-g
   - _Requirements: 2.2, 2.3, 7.3, 8.2, 8.4_
   - _Verified 2026-09-13:_ independent review APPROVED; 1,151 passed, nine skipped; Ruff/format/mypy pass. Real PHP/JavaScript graphs retain tests/browser source, omit vendor nodes and share one ranker limit. Named census survives PHP aggregation; missing source names and unreadable discovery inputs remain explicit. Python exercises all three batch census schemas. Evidence: `benchmarks/measurements/2026-09-13-partition-scope-smoke.json`. No hook capability or latency claim.
 
-- [ ] 4. Implement change attribution and actionable output
+- [x] 4. Implement change attribution and actionable output
 - [x] 4.1 Compare targeted base/head evidence for defect novelty
   - Establish stable mechanism/operation identity with rename/span mapping and collect comparable base evidence under the same semantics and remaining deadline.
   - Distinguish new, worsened, unchanged and unknown; an absent finding from a failed/truncated base is unknown. Support removed guards and new source connections at unchanged sinks.
@@ -130,10 +131,11 @@ the hook and capability admission are not yet implemented. See `implementation-g
   - _Verified 2026-09-13:_ independent review APPROVED after operation/context-binding repair; 1,207 tests passed, nine skipped; default real-evidence controls remain diagnostic and synthetic PHP/JavaScript admission is equivalent. See `implementation-group-4.md`.
   - _Boundary: Delta and Actionability Policy_
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 5.3, 5.4, 8.1_
-- [ ] 4.3 Render compact results and preserve complete artifacts
+- [x] 4.3 Render compact results and preserve complete artifacts
   - Render up to three actionable summaries plus remaining count; emit at most one no-finding status and one aggregated incomplete notice with a useful next action.
   - Persist all defects, candidate dispositions, exact scope, identities, capability/ranker provenance and timings with separate finding/coverage/push status.
   - Done when the display cap does not change the push decision, incomplete analysis cannot read as secure, and artifact-write failure produces a bounded notice while retaining the real decision.
+  - _Verified 2026-09-13:_ manual Kiro review fallback APPROVED after dispatch thread limit; 1,222 tests passed, nine skipped. Packaged comparison/admission/report smoke and CLI boot passed; full records retained with bounded output/write failure handling. See `implementation-group-4.md`.
   - _Boundary: Result and Hook Adapter_
   - _Requirements: 3.1, 3.2, 3.3, 5.1, 5.2, 5.5, 7.3_
 

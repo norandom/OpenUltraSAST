@@ -220,3 +220,25 @@ rechecks its actual engine answers through the current policy. With no evaluated
 capabilities supplied, every candidate stays diagnostic and the result separates
 `none` findings, `incomplete` coverage and `allow` disposition. This offline control
 executes no new graph query and does not qualify any capability for normal alerts.
+
+## Compact reporting integration
+
+After rebuilding the image, exercise comparison → admission → artifact/report
+using captured actual engine answers and explicitly synthetic eligibility controls:
+
+```bash
+docker run --rm -i --network none --entrypoint python openultrasast:dev - < ops/smoke_report.py
+```
+
+The control verifies full scan-record preservation, default diagnostic-only behavior,
+a three-summary display cap that retains all five synthetic defects, and a write
+failure that preserves blocking. It runs no new Joern query and admits no real
+capability. The receipt records reporting duration separately from the captured
+analysis timings.
+
+Artifacts publish atomically from mode-0600 temporary files. The Linux writer runs
+in a separate process bounded by the transaction deadline and its remaining report
+allowance; a stalled writer is killed. A hard cancellation can leave a private
+`.partial-` file, which is never the published artifact and cannot establish a
+completed result. Serialization/write failure emits one notice without replacing
+the finding, coverage or push decision.
