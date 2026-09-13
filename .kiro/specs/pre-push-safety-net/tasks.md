@@ -1,7 +1,7 @@
 # Implementation Plan: pre-push-safety-net
 
 Status: task plan approved by the maintainer's "approve." on 2026-09-12. Groups 1 and 2 (tasks 1.1–2.3)
-are complete after independent review and fresh verification. Groups 3–8 remain pending;
+are complete after independent review and fresh verification. Group 3 is in progress (3.1 verified); groups 4–8 remain pending;
 the hook and capability admission are not yet implemented. See `implementation-group-1.md` and `implementation-group-2.md`.
 
 ## Execution contract
@@ -79,13 +79,14 @@ the hook and capability admission are not yet implemented. See `implementation-g
   - _Verified 2026-09-12:_ independent review APPROVED; fresh final suite 1,069 passed, 9 skipped; focused 148 passed. Global Ruff/format, touched mypy and regression gates passed. PHP/JavaScript fixtures retain removed spans and unchanged-operation anchors across declaration renames; uncertain moves, repeated lines, binary and unavailable inputs remain unresolved. Forty independent real-Git comparisons checked exact spans/anchors. Network-disabled image smoke preserved committed PHP/JavaScript bytes and dirty non-HEAD state, with cleanup verified; see `implementation-group-2.md`. Lexical anchors do not establish semantic impact or novelty.
 
 - [ ] 3. Integrate bounded execution and ranker scope with the existing engine
-- [ ] 3.1 (P) Enforce one remaining-time budget in the backend
+- [x] 3.1 (P) Enforce one remaining-time budget in the backend
   - Thread the absolute deadline through readability probes, frontend builds, overlays, census, query batches, fallbacks and retries; no phase gets a fresh full budget.
   - Bound process-group termination and lease/scratch cleanup by the cancellation allowance, replacing any longer fixed cleanup waits on the push path.
   - Done when controlled hanging subprocesses at build/overlay/query stages terminate without orphan children inside the declared allowance, while ordinary scans preserve their prior behavior.
   - _Boundary: Cache and Engine Boundary, generic driver integration_
   - _Depends: 1.4_
   - _Requirements: 4.1, 4.2, 7.3_
+  - _Verified 2026-09-13:_ independent review APPROVED; fresh suite 1,089 passed, nine skipped; global Ruff/format and mypy (108 files) passed. Real hanging probe/frontend/overlay/census/query processes obey the shared deadline and cancellation allowance; retries do not reset it. Non-root packaged PHP/JavaScript graph/query smoke passed with matching source hashes under one 900-second lab budget. See `implementation-group-3.md` and `benchmarks/measurements/2026-09-13-engine-budget-smoke.json`. Runtime readiness only; no hook latency claim. Former three mypy errors resolved by a behavior-preserving variable rename.
 - [ ] 3.2 Return the ranker's exact selected and deferred work
   - Integrate the existing ranker through explicit mode selection and shared question identity; record selected/deferred IDs, evidence and reasons directly from the final order.
   - Preserve unanswered evidence as unknown rather than tier zero; report per-family coverage so taint ranking cannot masquerade as authorization/configuration coverage.

@@ -1,0 +1,85 @@
+{
+  "recorded_at": "2026-09-13T08:00:44.226437+00:00",
+  "task": "3.1",
+  "image_id": "sha256:f422c603db9f3a1f5e33f255b36157ac0d660b05a3845eb8b7bb87f1fb265ce7",
+  "build_exit_code": 0,
+  "smoke_exit_code": 0,
+  "packaged_source_hashes": {
+    "openultrasast.cpg.backend": "2e327d26958efd592932bbe5a84aa122d969c0e49a1c13469a4d956b621a9a34",
+    "openultrasast.model.scan": "3ceed02c315893c5e54b1e175faaf261eee3883fd20ca85a013ffc9d9a6650f2"
+  },
+  "packaged_sources_match_workspace": true,
+  "smoke_script_sha256": "710a54e2a208bb71263771192d67a82e934526632e88f6aa626de9950fa80128",
+  "runtime": {
+    "joern_version": "4.0.625",
+    "php_version": "PHP 8.3.6 (cli) (built: Sep  2 2026 12:56:02) (NTS)",
+    "php_parser_bytes": 43,
+    "purpose": "runtime and query smoke; does not qualify vulnerability detection or hook latency",
+    "shared_budget_seconds": 900.0,
+    "languages": {
+      "php": {
+        "frontend": "php2cpg",
+        "source_bytes": 45,
+        "source_sha256": "f744d636071c3e5a8e72ef33fa746db22e705dfdc66dba98b5238875054d801a",
+        "graph_bytes": 49509,
+        "census": {
+          "files": "2",
+          "methods": "3",
+          "overlays": "base,controlflow,typerel,callgraph,dataflowOss",
+          "maxHeapMB": "1024"
+        },
+        "source_witness": {
+          "files": [
+            "probe.php",
+            "<unknown>"
+          ],
+          "handlers": 1,
+          "evalCalls": 1
+        },
+        "elapsed_seconds": 73.62
+      },
+      "javascript": {
+        "frontend": "jssrc2cpg",
+        "source_bytes": 48,
+        "source_sha256": "10c0c21a6e2f988119f305809af1f98e1ff39fecb9f40d6cd3dfa05301e0015b",
+        "graph_bytes": 71165,
+        "census": {
+          "files": "1",
+          "methods": "5",
+          "overlays": "base,controlflow,typerel,callgraph,dataflowOss",
+          "maxHeapMB": "1024"
+        },
+        "source_witness": {
+          "files": [
+            "probe.js"
+          ],
+          "handlers": 1,
+          "evalCalls": 1
+        },
+        "elapsed_seconds": 34.756
+      }
+    },
+    "unreadable_source": {
+      "status": "explicit_failure",
+      "reason": "the php interpreter cannot read /tmp/ousast-engine-smoke-npgsdp9_/php/probe.php, so the frontend would parse nothing and write an empty graph. Check that php is a real interpreter with access to this tree -- a container or wrapper without the right mount fails exactly this way."
+    }
+  },
+  "controlled_process_probe": {
+    "source_bytes": 241,
+    "source_sha256": "a7c6471185a8a05a8b812fa8dfb878dde321aefca03ad046d3bc5465d2cf4c14",
+    "deadline_seconds": 0.8,
+    "cancellation_allowance_seconds": 0.8,
+    "elapsed_seconds": 0.8036922400351614,
+    "process_states": [
+      "absent",
+      "Z"
+    ],
+    "result": "explicit_failure",
+    "purpose": "controlled subprocess termination; not Joern detection or hook latency"
+  },
+  "limits": [
+    "Small runtime fixtures, not full-workload detection or hook latency.",
+    "Terminated zombie processes are not running descendants; no claim of reaping grandchildren.",
+    "900-second lab budget, not the 30-second hook acceptance target."
+  ]
+}

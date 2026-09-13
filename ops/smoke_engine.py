@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 
 from openultrasast.cpg.backend import DATAFLOW_OVERLAY, JoernBackend, joern_version
+from openultrasast.model.contracts import ExecutionBudget
 
 
 def require(condition: object, message: str) -> None:
@@ -22,6 +23,8 @@ def require(condition: object, message: str) -> None:
 
 def main() -> None:
     require(os.getuid() != 0, "run as the image's non-root user so unreadable-file checks are meaningful")
+    budget_seconds = float(os.environ.get("OUSAST_ENGINE_SMOKE_BUDGET_SECONDS", "0"))
+    execution_budget = ExecutionBudget(time.monotonic() + budget_seconds, 2.0) if budget_seconds > 0 else None
     version = joern_version()
     require(version, "installed Joern version is unknown")
     php = Path(shutil.which("php") or "/missing-php").resolve()
@@ -39,6 +42,7 @@ def main() -> None:
         "php_version": subprocess.run([str(php), "-v"], check=True, capture_output=True, text=True, timeout=15).stdout.splitlines()[0],
         "php_parser_bytes": php_bytes(parser),
         "purpose": "runtime and query smoke; does not qualify vulnerability detection or hook latency",
+        "shared_budget_seconds": budget_seconds or None,
         "languages": {},
     }
     languages = report["languages"]
@@ -72,7 +76,7 @@ def main() -> None:
             if language == "php":
                 require(php_bytes(source) == len(data), "PHP and host source byte counts differ")
             print(f"{language}: opened {filename}, {len(data)} bytes; building graph", file=sys.stderr, flush=True)
-            backend = JoernBackend(build_timeout=180, query_timeout=180, heap_mb=1024)
+            backend = JoernBackend(build_timeout=180, query_timeout=180, heap_mb=1024, execution_budget=execution_budget)
             started = time.monotonic()
             graph = backend.build(source_root, language=language)
             require(graph, f"{language} graph build failed: {backend.last_failure}")
@@ -84,7 +88,9 @@ def main() -> None:
                 assert isinstance(census, dict)
                 require(int(census["files"]) > 0 and int(census["methods"]) > 0, f"empty {language} census")
                 require(DATAFLOW_OVERLAY in str(census["overlays"]).split(","), f"{language} missing dataflow overlay: {census}")
-                witness = JoernBackend(queries_dir=queries, query_timeout=180, heap_mb=1024).query(graph.cpg_path, "source_witness", {})
+                witness = JoernBackend(queries_dir=queries, query_timeout=180, heap_mb=1024, execution_budget=execution_budget).query(
+                    graph.cpg_path, "source_witness", {}
+                )
                 require(isinstance(witness, dict), f"{language} source witness unanswered")
                 assert isinstance(witness, dict)
                 require(any(str(path).endswith(filename) for path in witness["files"]), f"{language} source absent from graph")

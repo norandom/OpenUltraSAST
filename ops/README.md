@@ -85,6 +85,11 @@ PHP file. It prints JSON only after all checks pass; a failed build/query raises
 exit. Versions, source hashes/byte counts and timings describe this small runtime smoke, not detection
 quality or a pre-push latency guarantee. Keep the image's default non-root user for the permission test.
 
+To exercise the same smoke through one shared backend deadline, add
+`-e OUSAST_ENGINE_SMOKE_BUDGET_SECONDS=900` to the Docker command. Both language builds and
+all census/witness queries consume that same budget. The generous smoke allowance verifies
+runtime integration; it does not represent the hook's target latency.
+
 Why this exists: Joern was first installed here by hand with `curl` and `unzip`, which is fine once and
 unreproducible thereafter. The engine decides whether a finding is a `suspicion` or a `model_entailed`, and
 every ceiling number in `benchmarks/measurements` is only comparable against a fixed version — so the version

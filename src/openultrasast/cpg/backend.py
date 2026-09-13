@@ -25,13 +25,16 @@ import os
 import re
 import shutil
 import signal
+import stat
 import subprocess
 import tempfile
 import time
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Protocol
+
+from ..model.contracts import ExecutionBudget
 
 logger = logging.getLogger(__name__)
 
@@ -239,6 +242,7 @@ class CpgResult:
     # request files and joern's own workspace copy; nothing reclaimed it, and a day of scanning left 1,055
     # directories and 355MB behind on a disk that was already at 95%. The driver disposes in a `finally`.
     cleanup: Callable[[], None] | None = None
+    execution_diagnostics: Callable[[], tuple[str, ...]] | None = None
 
 
 class CpgBackend(Protocol):
@@ -272,13 +276,41 @@ class JoernBackend:
     queries_dir: Path = field(default_factory=lambda: QUERIES_DIR)
     # Why the last build refused, so the driver can name it instead of reporting a bare `cpg_build_failed`.
     last_failure: str = ""
+    execution_budget: ExecutionBudget | None = None
+    _diagnostics: list[str] = field(default_factory=list, init=False, repr=False)
+    _scratch: list[Path] = field(default_factory=list, init=False, repr=False)
+    _cancel_deadline: float | None = field(default=None, init=False, repr=False)
 
     def available(self) -> bool:
         from .capability import has_cpg
 
         return has_cpg()
 
-    def build(self, root: Path, *, language: str = "", exclude: Sequence[str] = ()) -> CpgResult | None:
+    def build(
+        self, root: Path, *, language: str = "", exclude: Sequence[str] = (), execution_budget: ExecutionBudget | None = None
+    ) -> CpgResult | None:
+        """Bind an independent graph session to the caller's absolute transaction deadline."""
+        budget = execution_budget if execution_budget is not None else self.execution_budget
+        if budget is None:
+            return self._build_impl(root, language=language, exclude=exclude)
+        session = replace(self, execution_budget=budget, last_failure="")
+        result = None
+        try:
+            session._checkpoint()
+            result = session._build_impl(root, language=language, exclude=exclude)
+            session._checkpoint()
+            return result
+        except _DeadlineExpired:
+            result = None
+            return None
+        finally:
+            if result is None:
+                for scratch in session._scratch:
+                    session._cleanup(scratch, final=True)
+            self.last_failure = session.last_failure
+            self._diagnostics = list(session._diagnostics)
+
+    def _build_impl(self, root: Path, *, language: str = "", exclude: Sequence[str] = ()) -> CpgResult | None:
         """Build a CPG for ``root``. ``None`` on any failure — the caller degrades, never guesses.
 
         ``language`` lets a failed ``joern-parse`` retry through the frontend directly, which is what Joern
@@ -287,10 +319,13 @@ class JoernBackend:
         parse = shutil.which("joern-parse")
         if parse is None and os.environ.get("OPENULTRASAST_JOERN_PROBE", "").strip().lower() not in {"1", "on", "true", "yes"}:
             return None
-        _sweep_stale_scratch()
+        if self.execution_budget is None:
+            _sweep_stale_scratch()
         scratch = Path(tempfile.mkdtemp(prefix=SCRATCH_PREFIX))
+        if self.execution_budget is not None:
+            self._scratch.append(scratch)
         cpg_path = scratch / "cpg.bin"
-        dispose = lambda: shutil.rmtree(scratch, ignore_errors=True)  # noqa: E731 -- one expression, named
+        dispose = lambda: self._cleanup(scratch, final=True)  # noqa: E731 -- one expression, named
 
         # THE PRECONDITION. Before anything is built, make the toolchain open one file from the tree and say
         # how big it is. Every instrument failure this project has had takes the same shape -- the input was
@@ -307,6 +342,7 @@ class JoernBackend:
         if unreadable:
             logger.error("cpg build refused for %s: %s", root, unreadable)
             self.last_failure = unreadable
+            dispose()
             return None
 
         # A frontend whose failures are visible and retryable is worth more than one whose are not.
@@ -329,6 +365,7 @@ class JoernBackend:
                     run_batch=lambda query, requests: self.query_batch_across(shards, query, requests),
                     unparsed=unparsed,
                     cleanup=dispose,
+                    execution_diagnostics=lambda: tuple(self._diagnostics),
                 )
         command = [parse or "joern-parse", self._heap_flag(), str(root), "--output", str(cpg_path)]
         completed = self._run(command, timeout=self.build_timeout, cwd=scratch)
@@ -350,6 +387,7 @@ class JoernBackend:
             run_batch=lambda query, requests: self.query_batch(cpg_path, query, requests),
             unparsed=unparsed,
             cleanup=dispose,
+            execution_diagnostics=lambda: tuple(self._diagnostics),
         )
 
     def _files_too_large_to_flow(self, root: Path, language: str) -> tuple[str, ...]:
@@ -358,7 +396,7 @@ class JoernBackend:
         if not extensions:
             return ()
         found: list[str] = []
-        for path in sorted(root.rglob("*")):
+        for path in self._paths(root, "*"):
             if path.suffix.lower() not in extensions or not path.is_file():
                 continue
             try:
@@ -381,7 +419,7 @@ class JoernBackend:
         if version is not None and version >= CLOSURE_DEFECT_FIXED_IN:
             return ()  # fixed upstream; nothing to exclude and every file to keep
         found: list[str] = []
-        for path in sorted(root.rglob("*.php")):
+        for path in self._paths(root, "*.php"):
             if not path.is_file():
                 continue
             try:
@@ -394,6 +432,8 @@ class JoernBackend:
                     continue
                 depth, index = 0, opening
                 while index < len(text):
+                    if index % 4096 == 0:
+                        self._checkpoint()
                     if text[index] == "{":
                         depth += 1
                     elif text[index] == "}":
@@ -421,7 +461,7 @@ class JoernBackend:
         binary = shutil.which(interpreter)
         if binary is None:
             return ""  # absent is a different failure, and the frontend reports it plainly
-        sample = next((path for path in sorted(root.rglob("*")) if path.suffix.lower() in extensions and path.is_file()), None)
+        sample = next((path for path in self._paths(root, "*") if path.suffix.lower() in extensions and path.is_file()), None)
         if sample is None:
             return ""  # nothing of this language to read; not the interpreter's fault
         probe = "$f = $argv[1]; if (!is_readable($f) || filesize($f) < 1) { exit(3); } exit(0);"
@@ -545,7 +585,7 @@ class JoernBackend:
         extensions = _LANGUAGE_EXTENSIONS.get(language.lower())
         if not extensions:
             return None
-        expected = sum(1 for path in root.rglob("*") if path.suffix.lower() in extensions and path.is_file())
+        expected = sum(1 for path in self._paths(root, "*") if path.suffix.lower() in extensions and path.is_file())
         if not expected:
             return (0, 0)  # nothing to count is not a failed count: an empty tree's graph is complete
         payload = self.query(cpg_path, "census", {})
@@ -598,6 +638,7 @@ class JoernBackend:
         island = scratch / "excluded-root"
         made = 0
         for name in files:
+            self._checkpoint()
             source = Path(name)
             if not source.is_absolute():
                 source = root / name
@@ -624,6 +665,9 @@ class JoernBackend:
         for shard in shards:
             rows = self.query(shard, query, params)
             if rows is None:
+                if self.execution_budget is not None:
+                    self._note("shard_query_incomplete")
+                    return None
                 continue
             answered += 1
             if isinstance(rows, list):
@@ -645,6 +689,9 @@ class JoernBackend:
         for shard in shards:
             one = self.query_batch(shard, query, requests)
             if one is None:
+                if self.execution_budget is not None:
+                    self._note("shard_query_incomplete")
+                    return None
                 continue
             answered += 1
             census = one.pop("__census__", None)
@@ -692,7 +739,7 @@ class JoernBackend:
             saved.replace(cpg_path)
             return True
         finally:
-            shutil.rmtree(workspace, ignore_errors=True)
+            self._cleanup(workspace)
 
     def _build_with_retries(
         self, root: Path, cpg_path: Path, scratch: Path, language: str, exclude: Sequence[str] = ()
@@ -716,6 +763,7 @@ class JoernBackend:
         """
         best: tuple[str, ...] | None = None
         for attempt in range(FRONTEND_BUILD_ATTEMPTS):
+            self._checkpoint()
             unparsed = self._build_with_frontend(root, cpg_path, scratch, language, exclude)
             if unparsed is None:
                 return best  # the frontend is missing or failed outright; keep any earlier partial build
@@ -773,6 +821,8 @@ class JoernBackend:
         point -- "no rows" and "could not ask" look identical to a caller that only sees a dict, and a
         117k-line PHP CPG that threw while loading turned a failed scan into a clean bill of health.
         """
+        if not self._time_available():
+            return None
         script = self.queries_dir / f"{query}.sc"
         if not script.is_file():
             logger.warning("no such cpg query: %s", script)
@@ -786,6 +836,8 @@ class JoernBackend:
         # {} -- and {} reads as "no rows found". The scan reported 500 regions examined and nothing found, in
         # 0.05 seconds of taint query, which is a quiet failure of exactly the kind the rung ladder cannot
         # catch because no verdict was ever produced to label.
+        if not self._time_available():
+            return None
         requests_file = cpg_path.parent / f"{query}-requests.json"
         try:
             requests_file.write_text(payload)
@@ -810,6 +862,8 @@ class JoernBackend:
             logger.warning("cpg batch %s failed: %s", query, detail)
             return None
         parsed = extract_payload(completed.stdout or "")
+        if not self._time_available():
+            return None
         if not isinstance(parsed, Mapping):
             # Unparseable output is a failure, not an empty answer. A 117k-line PHP CPG that throws while
             # loading printed a stack trace and no payload, and returning {} made the whole scan read as a
@@ -821,6 +875,8 @@ class JoernBackend:
 
     def query(self, cpg_path: Path, query: str, params: Mapping[str, object]) -> object | None:
         """Run a shipped CPGQL script against a built CPG and return its fenced JSON payload."""
+        if not self._time_available():
+            return None
         script = self.queries_dir / f"{query}.sc"
         if not script.is_file():
             logger.warning("no such cpg query: %s", script)
@@ -835,7 +891,96 @@ class JoernBackend:
             detail = (completed.stderr or "")[-400:] if completed is not None else "timeout"
             logger.warning("cpg query %s failed: %s", query, detail)
             return None
-        return extract_payload(completed.stdout or "")
+        parsed = extract_payload(completed.stdout or "")
+        return parsed if self._time_available() else None
+
+    def _note(self, reason: str) -> None:
+        if reason not in self._diagnostics:
+            self._diagnostics.append(reason)
+        self.last_failure = reason
+
+    def _time_available(self) -> bool:
+        if self._cancel_deadline is not None:
+            return False
+        if self.execution_budget is not None and time.monotonic() >= self.execution_budget.deadline_monotonic:
+            self._note("deadline_exhausted")
+            return False
+        return True
+
+    def _checkpoint(self) -> None:
+        if not self._time_available():
+            raise _DeadlineExpired
+
+    def _paths(self, root: Path, pattern: str):  # type: ignore[no-untyped-def]
+        paths = root.rglob(pattern)
+        if self.execution_budget is None:
+            yield from sorted(paths)
+        else:
+            self._checkpoint()
+            for path in paths:
+                self._checkpoint()
+                yield path
+
+    def _cleanup_limit(self) -> float:
+        assert self.execution_budget is not None
+        ceiling = self.execution_budget.deadline_monotonic + self.execution_budget.cancellation_allowance_seconds
+        return min(ceiling, self._cancel_deadline) if self._cancel_deadline is not None else ceiling
+
+    def _cleanup(self, root: Path, *, final: bool = False) -> None:
+        if self.execution_budget is None:
+            shutil.rmtree(root, ignore_errors=True)
+            return
+        deadline = self._cleanup_limit() if final or self._cancel_deadline is not None else self.execution_budget.deadline_monotonic
+        try:
+            _remove_owned_tree(root, deadline)
+        except (OSError, _DeadlineExpired):
+            self._note("scratch_cleanup_incomplete")
+
+    def _run_bounded(self, command: list[str], *, timeout: float, cwd: Path | None) -> subprocess.CompletedProcess[str] | None:
+        assert self.execution_budget is not None
+        if not self._time_available():
+            return None
+        remaining = min(timeout, self.execution_budget.deadline_monotonic - time.monotonic())
+        if remaining <= 0:
+            self._note("deadline_exhausted")
+            return None
+        process = None
+        try:
+            if self.runner is not None:
+                result = self.runner(command, capture_output=True, text=True, timeout=remaining, check=False, cwd=str(cwd) if cwd else None)
+            else:
+                process = subprocess.Popen(  # noqa: S603 -- internal argument array
+                    command,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    cwd=str(cwd) if cwd else None,
+                    env=self._jvm_env(),
+                    start_new_session=True,
+                )
+                remaining = min(remaining, max(0.0, self.execution_budget.deadline_monotonic - time.monotonic()))
+                stdout, stderr = process.communicate(timeout=remaining)
+                result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+            if not self._time_available():
+                return None
+            return result
+        except subprocess.TimeoutExpired:
+            self._cancel_deadline = min(self._cleanup_limit(), time.monotonic() + self.execution_budget.cancellation_allowance_seconds)
+            self._note("deadline_exhausted" if time.monotonic() >= self.execution_budget.deadline_monotonic else "process_timeout")
+            return None
+        except (OSError, subprocess.SubprocessError):
+            self._note("process_failed")
+            return None
+        finally:
+            if process is not None:
+                # No Popen context manager: its implicit wait has no timeout. Always signal
+                # the original group ID, even if the launcher already exited, so descendants
+                # retaining pipes (or closing them) cannot survive it.
+                if not _terminate_bounded_group(process, self._cleanup_limit()):
+                    self._note("process_cleanup_incomplete")
+                for stream in (process.stdout, process.stderr):
+                    if stream is not None:
+                        stream.close()
 
     def _heap_mb(self) -> int:
         if self.heap_mb > 0:
@@ -874,6 +1019,8 @@ class JoernBackend:
         row it would OOM rather than merely degrade -- and it would look like the SCAN needing more memory,
         which is the wrong lesson entirely.
         """
+        if self.execution_budget is not None:
+            return self._run_bounded(command, timeout=timeout, cwd=cwd)
         run = self.runner if self.runner is not None else subprocess.run
         if self.runner is not None:  # tests inject a fake runner and never spawn anything
             try:
@@ -898,6 +1045,64 @@ class JoernBackend:
                 return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
         except (OSError, subprocess.SubprocessError):
             return None
+
+
+class _DeadlineExpired(Exception):
+    """Internal cooperative boundary; public builds/queries retain failure semantics."""
+
+
+def _terminate_bounded_group(process: subprocess.Popen[str], deadline: float) -> bool:
+    # SIGKILL immediately leaves the shared allowance for reaping and scratch cleanup.
+    # Unlike the legacy TERM/wait loop this also kills grandchildren after leader exit.
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    except OSError:
+        return False
+    try:
+        process.wait(timeout=max(0.0, deadline - time.monotonic()))
+    except subprocess.TimeoutExpired:
+        return False
+    return True
+
+
+def _remove_owned_tree(root: Path, deadline: float) -> None:
+    """Bounded Linux dirfd cleanup, never following substituted directory links."""
+
+    def check() -> None:
+        if time.monotonic() >= deadline:
+            raise _DeadlineExpired
+
+    def contents(fd: int) -> None:
+        with os.scandir(fd) as entries:
+            for entry in entries:
+                check()
+                info = os.stat(entry.name, dir_fd=fd, follow_symlinks=False)
+                if stat.S_ISDIR(info.st_mode):
+                    child = os.open(entry.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+                    try:
+                        contents(child)
+                    finally:
+                        os.close(child)
+                    check()
+                    os.rmdir(entry.name, dir_fd=fd)
+                else:
+                    os.unlink(entry.name, dir_fd=fd)
+
+    if not root.exists() and not root.is_symlink():
+        return
+    check()
+    if root.is_symlink():
+        root.unlink()
+        return
+    fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        contents(fd)
+    finally:
+        os.close(fd)
+    check()
+    root.rmdir()
 
 
 SCRATCH_PREFIX = "ousast-cpg-"

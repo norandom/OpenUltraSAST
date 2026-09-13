@@ -75,6 +75,7 @@ def test_the_seam_imports_nothing_outside_the_standard_library() -> None:
         "re",
         "shutil",
         "signal",
+        "stat",
         "subprocess",
         "tempfile",
         "time",

@@ -18,6 +18,7 @@ the region's risk score said beforehand.
 
 from __future__ import annotations
 
+import inspect
 import logging
 import time
 from collections.abc import Mapping, Sequence
@@ -28,6 +29,7 @@ from typing import Any
 from ..cpg.backend import CpgResult
 from .candidates import enumerate_candidates
 from .config_value import request_params as config_params
+from .contracts import ExecutionBudget
 from .dominance import request_params as dominance_params
 from .evidence import TIER_EXCLUDE, Evidence, evidence_from_rows
 from .ladder import Rung
@@ -127,6 +129,49 @@ def scan_repository(
     client: Any | None = None,
     model: str = "",
     budget: ScanBudget | None = None,
+    execution_budget: ExecutionBudget | None = None,
+) -> ModelScanResult:
+    """Run with an optional transaction deadline; graph ownership ends on every exit."""
+    started = time.monotonic()
+    owned: list[Any] = []
+    try:
+        result = _scan_repository_impl(
+            root,
+            regions,
+            backend=backend,
+            client=client if execution_budget is None else None,
+            model=model,
+            budget=budget,
+            execution_budget=execution_budget,
+            owned=owned,
+        )
+    finally:
+        for cpg in owned:
+            _dispose(cpg)
+    diagnostics = list(result.degradations)
+    if execution_budget is not None:
+        if client is not None:
+            diagnostics.append({"stage": "model", "reason": "model_withheld_execution_budget"})
+        reasons = ["deadline_exhausted"] if time.monotonic() >= execution_budget.deadline_monotonic else []
+        for cpg in owned:
+            read_diagnostics = getattr(cpg, "execution_diagnostics", None)
+            if callable(read_diagnostics):
+                reasons.extend(read_diagnostics())
+        for reason in dict.fromkeys(reasons):
+            diagnostics.append({"stage": "model", "reason": reason})
+    return replace(result, degradations=tuple(diagnostics), seconds=round(time.monotonic() - started, 2))
+
+
+def _scan_repository_impl(
+    root: Path,
+    regions: Sequence[ScanRegion],
+    *,
+    backend: Any,
+    client: Any | None = None,
+    model: str = "",
+    budget: ScanBudget | None = None,
+    execution_budget: ExecutionBudget | None = None,
+    owned: list[Any],
 ) -> ModelScanResult:
     """Arbitrate a repository's regions under one CPG and one budget."""
     limits = budget if budget is not None else ScanBudget()
@@ -140,7 +185,7 @@ def scan_repository(
     for region in regions:
         counts[region.language] = counts.get(region.language, 0) + 1
     dominant = max(counts, key=lambda name: (counts[name], name)) if counts else ""
-    cpg = _build(backend, root, dominant)
+    cpg = _build(backend, root, dominant, execution_budget=execution_budget)
     build_seconds = round(time.monotonic() - build_started, 2)
     if cpg is None:
         return ModelScanResult(
@@ -150,6 +195,8 @@ def scan_repository(
             build_seconds=build_seconds,
             degradations=({"stage": "model", "reason": "cpg_build_failed", "detail": getattr(backend, "last_failure", "")},),
         )
+
+    owned.append(cpg)
 
     # A CPG the frontend built with files missing is not the repository the caller asked about, and no
     # verdict over it can say anything about the code that was dropped. There is no rung for that, because
@@ -198,14 +245,14 @@ def scan_repository(
     tiers: list[tuple[str, str, str, int]] = []
     per_kind: dict[str, float] = {}
     evidence_by_pair: dict[tuple[str, str, str], Evidence] = {}
-    if limits.tiering and callable(getattr(cpg, "run_batch", None)):
-        candidates = (
+    if _within_deadline(execution_budget) and limits.tiering and callable(getattr(cpg, "run_batch", None)):
+        evidence_candidates = (
             ordered_regions[: (limits.evidence_regions or len(ordered_regions))]
             if limits.order_by_evidence
             else ordered_regions[: limits.max_regions]
         )
         tier_started = time.monotonic()
-        evidence_by_pair, failed = _evidence_pass(cpg, _collect(candidates), hooks)
+        evidence_by_pair, failed = _evidence_pass(cpg, _collect(evidence_candidates), hooks)
         per_kind["evidence"] = round(time.monotonic() - tier_started, 2)
         if failed:
             degradations.append({"stage": "model", "reason": "query_failed", "kind": "evidence", "requests": failed})
@@ -227,6 +274,8 @@ def scan_repository(
     query_started = time.monotonic()
     pruned = 0
     for kind, requests in _grouped(work, hook_callbacks=hooks).items():
+        if not _within_deadline(execution_budget):
+            break
         if kind == "taint" and limits.prune_tier0 and tier_by_rid:
             # Tier 0 is exact: a family with no sink in reach cannot yield a flow. Measured on a 637-file
             # plugin, that is 2,161 of 2,500 requests -- 86% of a query that timed out at forty minutes.
@@ -268,8 +317,15 @@ def scan_repository(
                 rows_by_id.update(answered_batch)
         else:  # a backend without batching still works, one call at a time
             for rid, params in requests.items():
+                if not _within_deadline(execution_budget):
+                    break
                 answered = cpg.run(kind, params)
-                rows_by_id[rid] = list(answered) if isinstance(answered, list) else []
+                if isinstance(answered, list):
+                    rows_by_id[rid] = list(answered)
+                elif execution_budget is None:
+                    rows_by_id[rid] = []
+                else:
+                    degradations.append({"stage": "model", "reason": "query_failed", "kind": kind, "requests": 1})
         per_kind[kind] = round(time.monotonic() - kind_started, 2)
     query_seconds = round(time.monotonic() - query_started, 2)
 
@@ -287,6 +343,12 @@ def scan_repository(
     judged: set[tuple[str, str | None]] = set()
     unasked: set[tuple[str, str | None]] = set()
     for rid, region, spec in work:
+        if not _within_deadline(execution_budget):
+            break
+        # Unanswered requests are deferred on the bounded path, never adjudicated
+        # from an invented empty response. Exact identities are added in task 3.2.
+        if execution_budget is not None and rid not in rows_by_id:
+            continue
         exhausted = counted is not None and counted.calls >= limits.max_model_calls
         family = getattr(spec, "family", "")
         prefetched = CpgResult(cpg_path=cpg.cpg_path, run=_prefetched(rows_by_id.get(rid, [])))
@@ -331,7 +393,6 @@ def scan_repository(
     findings = _ordered(_deduplicated(collected))
     # The graph has answered everything it is going to. Its scratch tree holds the CPG, the request files and
     # joern's own working copy -- tens of megabytes per scan -- and nothing else reclaims it.
-    _dispose(cpg)
     return ModelScanResult(
         findings=findings,
         by_rung=_tally(findings),
@@ -441,11 +502,26 @@ def _dispose(cpg: object) -> None:
             logger.warning("could not remove the cpg scratch directory: %s", exc)
 
 
-def _build(backend: Any, root: Path, language: str) -> Any:
+def _within_deadline(budget: ExecutionBudget | None) -> bool:
+    return budget is None or time.monotonic() < budget.deadline_monotonic
+
+
+def _build(backend: Any, root: Path, language: str, *, execution_budget: ExecutionBudget | None = None) -> Any:
     """Build through the backend, passing the language and the vendored trees when the backend can use them."""
     from .layout import vendored_directories
 
+    if not _within_deadline(execution_budget):
+        return None
     excluded = vendored_directories(root) if root.is_dir() else ()
+    if execution_budget is not None:
+        try:
+            inspect.signature(backend.build).bind(root, language=language, exclude=excluded, execution_budget=execution_budget)
+        except (TypeError, ValueError):
+            # An old backend cannot silently turn a bounded push into an ordinary scan.
+            return None
+        if not _within_deadline(execution_budget):
+            return None
+        return backend.build(root, language=language, exclude=excluded, execution_budget=execution_budget)
     try:
         return backend.build(root, language=language, exclude=excluded)
     except TypeError:  # a backend from before the retry existed, including every test double
