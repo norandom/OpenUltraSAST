@@ -79,11 +79,16 @@ updates as a shortcut to an unmeasured latency promise.
 The product direction above is user-requested. The amended requirements, design and initial
 evaluation profile in `pre-push-safety-net` were approved for task generation on 2026-09-12
 ("ok, next kiro phase"). The maintainer then approved the task plan and starting group 1
-("approve.") and then group 2 ("ok, next kiro phase, approved"). Groups 1–4 are now verified
-complete (14/27 total), including the approved frontend-retention prerequisite.
-Group 4 adds bound novelty, operation-specific admission and compact artifacts;
-4.1/4.2 passed independent review and 4.3 used the documented Kiro manual fallback
-after agent dispatch became unavailable. Group 5 is next for full replay and the
-first bounded experiment. Task completion still requires review and fresh evidence.
-Real capability eligibility, automatic dominance context projection and hook
-performance remain unproven; the default capability registry is empty.
+("approve.") and then group 2 ("ok, next kiro phase, approved"). Groups 1–5 are now
+implemented, reviewed and verified (16/27), including the frontend-retention prerequisite
+and the deadline regression exposed by full Node replay. Tasks 4.3 and group 5 used the
+explicit Kiro manual review fallback after the agent thread limit.
+
+The first newly frozen PMPro/Node experiment is measured **NO-GO**: all six cold cases
+timed out without completed supported target checks, while retaining all 11 declared cases.
+The repaired CLI saved all artifacts and returned in 30.55–30.64 seconds. PMPro exhausted
+the deadline in preparation/discovery before graph analysis, so compatible preparation
+reuse matters alongside graph persistence. Group 6 is next; warm changed-code performance
+and useful coverage remain mandatory later gates. No ranking/fact adaptation or holdout
+inspection occurred in the final transfer run. Real capability eligibility and automatic
+dominance context projection remain unproven; the default capability registry is empty.

@@ -1,9 +1,11 @@
 # Implementation Plan: pre-push-safety-net
 
-Status: task plan approved by the maintainer on 2026-09-12. Groups 1–4 (tasks 1.1–4.3)
-are complete after task reviews and fresh verification (14/27 subtasks). Task 4.3 used
-the documented manual review fallback after agent dispatch became unavailable.
-Task 5.1 is also verified (15/27 total); task 5.2 and groups 6–8 remain pending; no production capability or hook latency is admitted.
+Status: task plan approved by the maintainer on 2026-09-12. Groups 1–5 (tasks 1.1–5.2)
+are implemented, reviewed and verified (16/27 subtasks). Tasks 4.3 and group 5 used the
+documented Kiro manual review fallback after agent dispatch reached its thread limit.
+The first experiment is measured NO-GO: all six cold PMPro/Node cases timed out without
+completed target checks. Groups 6–8 remain pending; no production capability or warm
+hook latency is admitted.
 
 ## Execution contract
 
@@ -139,7 +141,7 @@ Task 5.1 is also verified (15/27 total); task 5.2 and groups 6–8 remain pendin
   - _Boundary: Result and Hook Adapter_
   - _Requirements: 3.1, 3.2, 3.3, 5.1, 5.2, 5.5, 7.3_
 
-- [ ] 5. Prove the first end-to-end experiment before cache optimization
+- [x] 5. Prove the first end-to-end experiment before cache optimization
 - [x] 5.1 Wire explicit base/head replay through the full transaction
   - Connect immutable snapshots, ranker decisions, existing arbiter, targeted comparison, admission diagnostics and compact artifacts through an explicit local replay command.
   - Apply the shared budget to preparation and both revisions; no model/service or installed hook is required. All runtime errors preserve coverage state.
@@ -148,11 +150,12 @@ Task 5.1 is also verified (15/27 total); task 5.2 and groups 6–8 remain pendin
   - _Boundary: Push runner, CLI, Snapshot Adapter, engine and policy integration_
   - _Depends: 1.3, 3.1, 3.4, 4.3_
   - _Requirements: 1.1, 2.1, 3.1, 3.4, 4.1, 4.2, 5.5, 7.1, 7.3_
-- [ ] 5.2 Measure PMPro and frozen-core Node transfer
+- [x] 5.2 Measure PMPro and frozen-core Node transfer
   - _Prerequisite repaired 2026-09-13:_ 3.1/5.1 deadline regression verified in the packaged Node replay; re-freeze the experiment after this core identity change.
   - Replay each prepared security/fixed/benign case, first using the declared hook deadline; record timeouts and stage costs. A separately named extended lab run may obtain witnesses but cannot satisfy the hook latency gate.
   - Freeze the core after PMPro, run Node with existing facts, and classify instrument, mapping, fact, scope and domain gaps without tuning on an untouched holdout.
   - Done when one joint artifact reports actual evidence and outcomes for both workloads, with unresolved cases retained and an explicit feasibility decision; no normal capability is enabled here.
+  - _Verified 2026-09-13:_ manual Kiro review APPROVED; six final CLI cases measured under unchanged core, all timed out in 30.55–30.64 seconds with artifacts retained. Full 11-case population retained; feasibility NO-GO, no eligibility enabled. 1,242 tests passed, nine skipped. See `implementation-group-5.md`.
   - _Boundary: Evaluation harness, full-run integration_
   - _Depends: 1.2, 1.3, 5.1_
   - _Requirements: 6.2, 6.3, 6.4, 6.5, 8.1, 8.2, 8.3, 8.4_
@@ -234,3 +237,9 @@ Task 5.1 is also verified (15/27 total); task 5.2 and groups 6–8 remain pendin
   - Done when a reproducible validation artifact states GO only with all mandatory integration and joint quality/latency gates satisfied; otherwise it names the remaining NO-GO conditions without marking the feature complete.
   - _Boundary: Packaged runtime, full feature validation integration_
   - _Requirements: 3.1, 3.4, 5.1, 5.2, 5.3, 5.4, 5.5, 6.5, 7.1, 7.3, 7.4, 8.3, 8.4_
+
+
+## Implementation Notes
+
+- Task5.2 measured PMPro timing out after both snapshots were materialized but before change context/graph analysis. Group6 must account for compatible snapshot/discovery reuse as well as graph reuse; identical-tip hits cannot substitute for the later representative changed-code latency gate. No new detector, scope heuristic or incremental CPG mutation is implied.
+- Cancellation must cover semantic planning and reporting, not only engine subprocesses: `_collect` and `_scope_work` now consume the shared deadline, and replay instantiates the budget-aware backend once. Preserve the 400-question failure-census and real Node artifact-retention regressions.

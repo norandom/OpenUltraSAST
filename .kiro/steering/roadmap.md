@@ -46,28 +46,33 @@ engine are out of scope.
 - [ ] pre-push-safety-net — Immutable pushed tips, existing-ranker integration, compatible artifact
   reuse, total deadline, change attribution, actionability admission and compact hook behavior.
   Dependencies: contributor-scan. Requirements/design approved 2026-09-12; tasks generated
-  (8 groups, 27 executable subtasks), independently reviewed and approved; groups 1–4 are complete (14/27 tasks), including the resolved frontend-retention prerequisite.
+  (8 groups, 27 executable subtasks), independently reviewed and approved; groups 1–5 are implemented and verified (16/27 tasks), including the resolved frontend-retention prerequisite.
 
 ### Next concrete step
 
-Groups 1–4 are verified: runtime, inputs, scoring, snapshots, shared deadline,
-ranker scope, change context, vendor-free partitions, novelty comparison, actionability
-admission and compact reporting. Tasks 4.1/4.2 passed independent review; 4.3 used the
-Kiro manual review fallback after the agent service reached its thread limit.
-Group 5 is next: wire explicit full transaction replay, then run the first bounded
-experiment. Real capabilities remain disabled pending independent evaluation.
-Automatic dominance-only change-context projection remains an upstream limit to
-retain during replay integration. See `pre-push-safety-net/implementation-group-4.md`
-for verification and scope limits.
-The first complete experiment is 5.2, before persistent caching and hook
-installation work. Keep PMPro as the primary core-optimization example, then freeze the core and
-prove a changed security flow and its fixed twin on a JavaScript/Express Node API workload through
-the same ranker, with a real deadline and vendor-free graph. Include benign pushes and retain Python
-regressions. `pre-push-safety-net/evaluation.md` proposes NodeGoat for integration, a separate untouched
-Node API repository for generalization, and libpng for C envelope/abstraction-limit evidence. Shared
-abstract evidence and decisions are mandatory; framework facts/adaptations are reported separately.
-Measure realistic changed-code cache behavior before more ranker tuning. Broader runtime and
-capability admission follow that result; an LLM ranker is optional.
+Groups 1–5 now connect immutable replay to the existing ranker, detector, comparison,
+admission and compact artifacts. The first frozen PMPro/Node experiment is **NO-GO**:
+all six cold security/fixed/benign cases timed out without completed target checks.
+After repairing post-deadline semantic planning and a repeated availability probe,
+every final CLI run saved its artifact and returned in 30.55–30.64 seconds. PMPro spent
+its deadline in preparation/discovery after materializing both trees; Node reached the
+driver but did not complete checks. The exact 11-case population remains unresolved.
+No normal capability is enabled and these six cold samples establish no warm p95 claim.
+
+Group 6 is next for valid graph/result identity, leases and reuse. Account for snapshot
+and discovery costs before treating graph persistence as the sole optimization; record
+compatible preparation reuse alongside graph reuse. Representative changed-code warm
+latency and coverage must still be measured later, without substituting identical-tip hits.
+Do not change ranking weights, add a second source-slicer or assume incremental Joern
+mutation from this negative performance evidence.
+
+Tasks 4.3 and group 5 used the documented Kiro manual review fallback after the agent
+thread limit; this is not independent review. See `pre-push-safety-net/implementation-group-5.md`
+and `benchmarks/measurements/2026-09-13-first-replay-experiment.json` for provenance,
+initial instrument failures, their repairs and the newly frozen final trial. The NodeGoat
+teaching workload did not cause a framework/fact adaptation or ranking retune. Ghost remains
+untouched; independent PHP/Python eligibility populations and C/C++ property support remain
+separate gaps. Automatic dominance-only context projection is still an upstream limit.
 
 ## Historical roadmap narrative — September 9–11
 

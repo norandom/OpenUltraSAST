@@ -1,6 +1,6 @@
 # Brief: pre-push-safety-net
 
-Status: requirements, design and tasks approved; groups 1–4 verified complete (14/27 subtasks). Groups 5–8 pending; real capability eligibility and hook latency remain unproven. Language: English.
+Status: requirements, design and tasks approved; groups 1–5 implemented and verified (16/27 subtasks). The first PMPro/Node experiment is measured NO-GO: six cold timeouts, no completed target checks. Groups 6–8 pending; normal capabilities remain disabled and warm hook latency unproven. Language: English.
 
 ## Problem
 

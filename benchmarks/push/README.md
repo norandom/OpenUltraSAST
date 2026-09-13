@@ -89,3 +89,51 @@ results, per-capability metrics, coverage and cold/warm latency. Missing benign 
 have unknown interruption rate. VAmPI's readable regression may be measured while
 independent admission prerequisites remain missing. Unsupported/unreviewed populations
 stay visible. All results remain experimental pending the later joint admission gate.
+
+## First full replay experiment (task 5.2)
+
+`measure.py` runs the six prepared PMPro/NodeGoat security, fixed and benign cases
+through the production `ousast pre-push` CLI. It does not supply a hand-selected
+source slice or regions. The complete 11-case population remains in the scorer;
+Ghost is not scanned, and the separate VAmPI/libpng populations are retained as
+unexecuted regression/envelope evidence rather than being silently dropped.
+
+Build the local image first, then run with a writable output parent and the existing
+repository-object cache mounted read-only:
+
+```sh
+docker run --rm --network none --memory 3g --entrypoint python \
+  -v "$PWD:/context:ro" \
+  -v "$HOME/.cache/openultrasast/repos:/cache:ro" \
+  -v /path/to/output-parent:/results \
+  openultrasast:dev /context/benchmarks/push/measure.py \
+  --manifest /context/benchmarks/push/inputs.json --cache /cache --out /results/new-run
+```
+
+The output directory must not already exist. Input validation opens and verifies
+pinned source/license blobs before any measurement. A private bare Git repository
+reads the existing objects and creates reproducible authored commits using only the
+specified edits. Every other tracked blob remains in the tree; the cache's files,
+index and refs are unchanged. No project code, package installation or network is used.
+
+`profile.json` is written before the first replay. PMPro runs first, followed by an
+explicit `freeze-after-pmpro.json` checkpoint and Node with identical installed core,
+facts, queries and policy. Both analysis and cancellation allowances stay 30 and 2
+seconds. Whole CLI elapsed time, separate available stage costs, exact input pins,
+source byte counts, selected/deferred identities, raw artifacts, process exits and
+terminal output remain available. `rank` denotes an observed selected-question position;
+an unlocated/unselected target retains null. A completed empty query cannot earn a
+witnessed negative or fixed-side silence. No transitive path is fabricated from rank.
+
+`scorecard.json` uses the existing frozen-population scorer. `decision.json` explicitly
+returns NO-GO because this initial cold diagnostic does not qualify independent
+capabilities or prove joint quality and warm latency. Exit **1** with a completed
+`decision.json` means measured NO-GO; a traceback without that completion record is a
+failed instrument. Zero CLI exit means advisory allow, never complete analysis.
+Missing artifacts and unanswered questions remain errors/unresolved, not clean results.
+
+Cold here means no persisted graph/query/comparison reuse; filesystem caches are not
+flushed. Six one-shot runs are diagnostic samples, not representative warm p95 evidence.
+Normal capabilities remain disabled, so zero alerts do not establish precision or useful
+recall. A separately named longer lab run may obtain witnesses, but cannot replace the
+30-second measurements or satisfy the hook's latency gate.

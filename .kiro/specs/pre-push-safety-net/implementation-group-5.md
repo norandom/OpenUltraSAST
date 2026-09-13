@@ -1,7 +1,7 @@
 # Implementation verification: group 5
 
 Group 5 was authorized by the maintainer's “approved” after group 4 completion.
-Task 5.1 is verified complete (15/27 total); task 5.2 is next.
+Tasks 5.1–5.2 are implemented and verified (16/27 total); the measured feasibility decision is NO-GO.
 Real capability eligibility and rollout readiness remain unproven.
 
 ## Execution and review mode
@@ -105,3 +105,80 @@ facts or detector semantics changed. The additional regression failed before rep
 - CLAIM: The reproduced Node cancellation path retains diagnostics and returns within 30 + 2 seconds.
 - EVIDENCE: Final packaged real Node replay returned in 30.1255 seconds with one complete diagnostic artifact and incomplete coverage. Final policy/core/facts/query hashes match the workspace. See `benchmarks/measurements/2026-09-13-replay-deadline-repair.json` for initial/partial-repair traces and final raw artifact.
 - GAPS: This proves the reproduced cancellation path, not representative warm performance or security coverage. Normal capabilities remain disabled.
+
+## Task 5.2 brief and measurement method
+
+Requirements 6.2–6.5 and 8.1–8.4: execute the prepared PMPro and Node security/fixed/benign
+changes through full replay, freeze the core before transfer, retain unresolved populations,
+and make an explicit feasibility decision. This task owns the evaluation harness, not new
+engine abstractions, framework facts, ranking weights or normal alert eligibility.
+
+The harness freezes the full input population and runtime profile before invoking the CLI.
+Authored variants are reproducible commits in a private Git object store, with byte/hash
+checks and the rest of each tree retained. The original cache is mounted read-only. All six
+cases run under 30 seconds plus a 2-second cancellation/report allowance, with complete CLI
+elapsed time measured. Exact artifacts/process exits remain separate from the scorer's
+witness association. Empty completed rows cannot manufacture a witnessed negative.
+
+Initial OFF-state evidence: `/tmp/ousast-experiment-red.log`, three failed acceptance tests.
+After implementation and flag removal, the same three tests pass, including whole-tree
+retention, unchanged source/index, reproducible authored identity, bad-hash refusal,
+timeout accounting and absence of fabricated negative evidence.
+
+The first v1 trial is retained as diagnostic history. Its Node post-deadline failures
+triggered the predecessor repair above; PMPro measurements overlapped regression tests.
+The v2 profile is frozen anew after repair; final timed runs have no competing test/build
+workload from this session. Both profiles and their distinct core/policy hashes are retained.
+The reserved Ghost workload remains untouched. No framework/fact adaptation or ranking
+retune is made from these Node results.
+
+## Final experiment: measured NO-GO
+
+[Joint scorecard](../../../benchmarks/measurements/2026-09-13-first-replay-experiment.json)
+records the final v2 profile, all metrics, hardware, exact case identities, initial trial
+and final-trial bundle hashes. The two gzip bundles are JSON mappings from each original
+filename to its exact UTF-8 contents; decompression was checked against every original file.
+They preserve all detailed CLI artifacts, stdout/stderr, pins, profiles and scorer inputs.
+
+| Workload | Cases | Whole CLI elapsed | Reached analysis | Result |
+|---|---:|---|---|---|
+| PMPro | 3 | 30.61–30.64 s | No; both trees materialized, discovery/preparation expired before change context | Timeout, no completed target check |
+| NodeGoat | 3 | 30.55–30.58 s | Driver reached after 7.78–7.96 s preparation; deadline consumed in head analysis/planning | Timeout, 436 deferred questions per case |
+
+All six processes exited 0 (advisory allow), saved artifacts and explicitly reported
+incomplete analysis. The harness exited **1 with a completed NO-GO decision**, distinct
+from an instrument crash. Both the initial and post-PMPro freeze match each final runtime
+and the current workspace's core/facts/query/policy hashes. CPU: Intel Core i7-8700,
+four exposed CPUs, 3 GiB container memory limit, network disabled. Tests/builds were not
+running during these final measurements. Filesystem caches were not flushed.
+
+The scorer retains all 11 unresolved cases; six were executed and the regression,
+unsupported-envelope and reserved populations were not scanned. No security change was
+recovered within budget, no witnessed fixed-side negative was established, and no normal
+alert was admitted. Precision has denominator zero and is undefined. The two benign
+pushes emitted no alert, but an empty registry cannot establish product usefulness.
+There are no warm-changed or identical-tip samples. Cold sample p50 is 30.58 s and p95
+30.64 s for six one-shot deadline-limited runs; these are not warm latency acceptance evidence.
+
+The negative result points first to preparation/discovery cost for PMPro, before graph
+persistence can help that path. Group6 can implement valid reuse, including compatible
+preparation work, but must not claim scale from identical-tip hits or bypass the ranker
+with another slicer. No new abstract capability or incremental graph mutation is justified
+by this measurement. Normal capability qualification remains task8.3.
+
+## Task 5.2 review verdict
+- VERDICT: APPROVED
+- TASK: 5.2
+- MECHANICAL_RESULTS: Full suite 1,242 passed, nine skipped, exit 0; Ruff/format (243 files), mypy (112 source files), compileall and detection/map/pair gates PASS; three behavioral OFF-state failures reproduced before implementation; no new placeholder markers/secrets; evaluation boundary respected.
+- FINDINGS: Initial instrument failures repaired in their owning driver/replay integration before the final freeze. All six final runtime provenance records match the frozen profile; scorer replay and complete compressed-artifact round trips reproduce exactly. No outstanding implementation blocker.
+- SUMMARY: Manual review approves the executed diagnostic experiment and truthful NO-GO assessment; it does not approve usefulness, warm latency or capability admission.
+
+## Group 5 verification and integration assessment
+- STATUS: VERIFIED
+- CLAIM_TYPE: TASK
+- CLAIM: Tasks5.1–5.2 implement full local replay and execute the first frozen PMPro/Node experiment with truthful evidence, failures, deadline accounting and an explicit feasibility decision.
+- EVIDENCE: Controlled security/fixed replay, packaged deadline repair, 1,242 passing tests, fresh static/regression checks, six final real CLI replays, exact frozen runtime hashes and reproducible 11-case scorecard. Task5.2 acceptance requires publishing the actual decision; this decision is NO-GO.
+- GAPS: No completed target checks in the 30-second cold workload, no warm measurements, no independent eligibility, and remaining groups6–8. The first usefulness/quality/latency milestone has not passed; the feature is not complete.
+
+Implementation and measurement integration: GO for the scoped work in group5.
+Product feasibility and rollout: **NO-GO**. Kiro state is 16/27 tasks verified; group6 next.
