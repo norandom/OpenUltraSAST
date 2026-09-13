@@ -132,7 +132,10 @@
       "implementation-group-8.md"
     ],
     "next_group": 8,
-    "blocked_tasks": [],
-    "feasibility": "NO-GO: all 21 frozen NodeGoat transactions timed out; 0/24 declared target checks completed. Cancellation/reporting remained below 2 seconds. Priming did not qualify graph reuse; named census and engine lifecycle work routed to contributor-scan."
+    "blocked_tasks": [
+      "8.3"
+    ],
+    "feasibility": "NO-GO: all 21 frozen NodeGoat transactions timed out; 0/24 declared target checks completed. Cancellation/reporting remained below 2 seconds. Priming did not qualify graph reuse; named census and engine lifecycle work routed to contributor-scan.",
+    "qualification": "NO-GO: eligibility implementation and evidence delivered; required independent populations and verified VAmPI transitive witness remain missing. Zero capabilities enabled."
   }
 }

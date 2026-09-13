@@ -41,3 +41,26 @@ and its compressed full evidence bundle. All 21 deadline-bound transactions time
 Every measured artifact matches the frozen installed semantics. No source, engine,
 query, fact or ranking change was made during this run. The follow-up remains necessary
 before rollout; the evaluation task does not authorize weakening its gates.
+
+## VAmPI qualification follow-up, 2026-09-13
+
+Task 8.3's packaged frozen regression (139,164 total snapshot bytes read per replay)
+retains raw findings at `models/user_model.py:73:get_user`,
+`api_views/users.py:187:update_password`, and `api_views/books.py:51:get_by_title`.
+The SQLI target has no selected exact function question; the two authorization target
+questions are selected at positions 93 and 63 but have `change_context_incomplete`.
+Head scope retains 138 selected and 20 deferred questions. Raw findings do not prove
+completed target questions or a transitive source-to-target witness.
+
+The first lab run took 112.415s; same-snapshot cached replays took 6.816s and 6.684s,
+all incomplete. This is diagnostic reuse, not changed-code performance qualification.
+The 600-second budget is distinct from the hook acceptance profile. Full artifacts are
+in `2026-09-13-push-qualification.json.gz` under the regression population.
+
+Reconcile evidence normalization and the unsupported context projection at the shared
+scan boundary before downstream admission: retain the actual query-origin/path witness
+when available, resolve supported first-party context, and keep unresolved dynamic/vendor
+boundaries explicit. Do not fabricate transitivity from a raw finding at the target.
+Revalidate ordinary VAmPI scan, exact question accounting, push regressions and independent
+qualification after an approved owner fix. This note records the prerequisite; it does
+not silently approve an upstream implementation or change detector semantics.

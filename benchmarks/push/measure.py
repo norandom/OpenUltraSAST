@@ -163,31 +163,44 @@ def main() -> int:
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--cache", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--selection", choices=("development", "regression", "envelope"), default="development")
+    parser.add_argument("--deadline", type=float, default=30)
+    parser.add_argument("--cache-dir", type=Path)
     args = parser.parse_args()
+    if args.deadline <= 0:
+        parser.error("deadline must be positive")
     args.out.mkdir(parents=True, exist_ok=False)
     manifest = json.loads(args.manifest.read_bytes())
     validation = validate_manifest(args.manifest, cache_root=args.cache, fetch=False)
     write(args.out / "input-validation.json", validation)
     settings = ScanBudget(max_model_calls=0, max_regions=500, order_by_evidence=True)
     initial = _provenance(args.manifest.parent, settings)
-    keys = ("ranking_mode", "engine", "facts", "queries", "policy", "core")
+    keys = ("ranking_mode", "engine", "engine_runtime", "facts", "queries", "policy", "core", "semantics")
     config = {key: initial[key] for key in keys}
     config.update(
-        version="first-replay-v2-2026-09-13",
+        version="qualification-replay-v1-" + args.selection,
         scope="full tracked tree; declared first-party graph/target exclusions; evidence ranker",
         hardware=platform.platform(),
-        budget_seconds=30,
+        budget_seconds=args.deadline,
         targets=json.loads((args.manifest.parent / "diagnostic-config-v1.json").read_text())["targets"],
     )
     profile = freeze_profile(args.manifest.read_bytes(), config)
     write(args.out / "profile.json", profile)  # Freeze on disk BEFORE any measurement.
     run = {"profile_sha256": profile["profile_sha256"], "context": dict(config), "records": []}
     evidence = {"cases": [], "core_changes": [], "adapter_changes": [], "freeze_after_pmpro": None}
-    ready = {c["id"]: c["status"] == "ready" for c in validation["cases"]}
+    valid_snapshots = {s["id"] for s in validation["snapshots"] if s["status"] == "ready"}
+    ready = {
+        c["id"]: c["status"] == "ready" or (c["label"] == "regression" and c["base"] in valid_snapshots and c["tip"] in valid_snapshots)
+        for c in validation["cases"]
+    }
     snapshots = {s["id"]: s for s in manifest["snapshots"]}
     # Fixed declared order; reserved, regression and unsupported populations stay
     # in the joint scorer without scanning or tuning on the holdout.
     cases = [c for prefix in ("pmpro-", "nodegoat-") for c in manifest["cases"] if c["id"].startswith(prefix)]
+    if args.selection == "regression":
+        cases = [c for c in manifest["cases"] if c["label"] == "regression"]
+    elif args.selection == "envelope":
+        cases = [c for c in manifest["cases"] if c["label"] == "unsupported"]
     with tempfile.TemporaryDirectory(prefix="ousast-experiment-") as temporary:
         bare = Path(temporary) / "objects.git"
         bare.mkdir()
@@ -209,6 +222,7 @@ def main() -> int:
             args.out / "replay-pins.json",
             {"snapshots": pins, "provenance": "Full upstream trees; declared authored edits in a private bare Git repository."},
         )
+        seen_comparisons = set()
         for case in cases:
             if not ready[case["id"]]:
                 evidence["cases"].append({"case_id": case["id"], "status": "missing_input_prerequisite"})
@@ -231,14 +245,16 @@ def main() -> int:
                 "--artifact",
                 str(artifact_path),
                 "--deadline",
-                "30",
+                str(args.deadline),
                 "--cancellation-allowance",
                 "2",
                 "--max-regions",
                 "500",
             ]
+            if args.cache_dir is not None:
+                command += ["--cache-dir", str(args.cache_dir)]
             start = time.monotonic()
-            process = subprocess.run(command, capture_output=True, text=True, timeout=62)
+            process = subprocess.run(command, capture_output=True, text=True, timeout=args.deadline + 5)
             elapsed = time.monotonic() - start
             (args.out / (case["id"] + ".stdout")).write_text(process.stdout)
             (args.out / (case["id"] + ".stderr")).write_text(process.stderr)
@@ -257,7 +273,11 @@ def main() -> int:
                 # Unmeasured provenance caused by preparation timeout is explicit;
                 # never replace it with a fictitious runtime measurement.
                 entry["runtime_provenance_available"] = all(artifact["provenance"].get(key) == initial[key] for key in keys)
-                record = execution_record(case["id"], artifact, elapsed=elapsed, target=config["targets"][case["id"]])
+                record = execution_record(case["id"], artifact, elapsed=elapsed, target=config["targets"].get(case["id"]))
+                comparison = (pins[case["base"]], pins[case["tip"]])
+                if args.cache_dir is not None and comparison in seen_comparisons and artifact["timings"].get("graph_hits", 0) >= 2:
+                    record["cache_state"] = "identical_tip"
+                seen_comparisons.add(comparison)
                 entry["coverage_reasons"] = artifact["admission"]["coverage_reasons"]
                 entry["stage_timings"] = artifact["timings"]
                 entry["snapshot_bytes_read"] = sum(s["bytes_read"] for s in artifact["snapshots"])
@@ -291,13 +311,15 @@ def main() -> int:
         "decision": "NO-GO",
         "capabilities_enabled": False,
         "scorecard": "scorecard.json",
-        "reason": "First cold diagnostic experiment; independent eligibility and joint quality/warm-latency gates remain unmet.",
+        "reason": "Qualification evidence run; independent eligibility and joint quality/warm-latency gates remain unmet.",
+        "selection": args.selection,
+        "analysis_deadline_seconds": args.deadline,
         "recorded_cases": len(run["records"]),
         "declared_population": len(manifest["cases"]),
         "core_unchanged": True,
         "adapter_changes": [],
         "limits": [
-            "No warm-cache measurements",
+            "No representative warm changed-code measurements; identical-comparison reuse is reported separately",
             "Untouched Ghost population not scanned",
             "PHP/Python admission populations missing",
             "libpng retained as unsupported envelope; no C/C++ detection claim",

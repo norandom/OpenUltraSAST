@@ -188,3 +188,27 @@ reports nearest-rank p50/p95 with sample counts, and never treats no answers as 
 Exit 1 with a complete scorecard is measured NO-GO; a missing scorecard is an instrument
 failure. Three samples per workload on development NodeGoat cannot independently qualify
 a production language/framework/family or establish broad multi-project performance.
+
+### Capability qualification (task 8.3)
+
+The same `measure.py` replay instrument accepts `--selection development` (the
+six PMPro/NodeGoat changes), `--selection regression` (three VAmPI targets), or
+`--selection envelope` (libpng). Each profile retains the full declared population.
+Readable regression snapshots may execute while their missing independent evaluation
+prerequisites remain unresolved. `--deadline 600 --cache-dir /results/lab-cache`
+is a separately frozen laboratory experiment, never a replacement for the 30-second
+hook profile. A ranked or directly detected VAmPI target does not prove a transitive path.
+
+`qualify_registry.py --evidence DIR --runtime SCORECARD --out NEW_FILE` recomputes
+eligibility from the frozen profile, validated inputs, actual run and runtime scorecard.
+Without `--declarations` it creates explicitly unreviewed, experimental declarations.
+A reviewed declaration must match its frozen capability key, operation symbols, advice,
+review identity, untouched workload and exact installed analysis semantics; all quality,
+completion and runtime gates must pass. Synthetic positive controls in the unit suite
+verify this contract and do not qualify real capabilities.
+
+The installed `openultrasast/push/eligibility.json` is a trusted release input, not
+repository configuration. The runner recomputes its decision and rejects stale or
+modified evidence. This integrity check is not a cryptographic reviewer signature.
+The versioned NO-GO registry enables no capability. Regenerate evidence after changes
+to core, engine, facts, queries, policy or semantics; do not relabel old measurements.

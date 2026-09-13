@@ -26,6 +26,7 @@ from openultrasast.model.shipped import declared_sources
 from openultrasast.preprocess import build_file_target, enumerate_source_files
 from openultrasast.push.cache import ArtifactCache, SemanticKeys
 from openultrasast.push.contracts import ComparisonAnalysis, PushComparison, PushResult, SnapshotManifest
+from openultrasast.push.eligibility import fingerprint, load_registry
 from openultrasast.push.policy import (
     ActionableDefect,
     AdmissionCandidate,
@@ -151,9 +152,20 @@ def _provenance(repository: Path, scan_budget: ScanBudget) -> dict[str, str]:
         ),
         "ranking_mode": "evidence",
         "model": "disabled",
-        "capabilities": "empty_registry_pending_task_8.3",
+        "capabilities": fingerprint(),
         "cache": "cold_no_reuse",
     }
+
+
+def _admit(candidates: tuple[AdmissionCandidate, ...], provenance: dict[str, str]) -> AdmissionResult:
+    registry = load_registry(current=provenance)
+    result = admit_candidates(candidates, capabilities=registry.capabilities)
+    if candidates and registry.reasons:
+        result = replace(
+            result,
+            coverage_reasons=tuple(dict.fromkeys((*result.coverage_reasons, *("eligibility:" + reason for reason in registry.reasons)))),
+        )
+    return result
 
 
 def _discovery_identity() -> str:
@@ -326,7 +338,7 @@ def _analyze(
                     )
                     for c in delta.candidates
                 )
-                admission = _prepare(lambda: admit_candidates(candidates), budget)
+                admission = _prepare(lambda: _admit(candidates, provenance), budget)
                 timings[stage + "_seconds"] = time.monotonic() - stage_started
                 stage, stage_started = "cleanup", time.monotonic()
         timings[stage + "_seconds"] = time.monotonic() - stage_started

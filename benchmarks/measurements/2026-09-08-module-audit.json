@@ -1,10 +1,10 @@
 {
   "counts": {
-    "load_bearing": 105,
+    "load_bearing": 106,
     "standalone_capability": 9
   },
-  "modules": 114,
-  "note": "Refreshed for group 7: push runner reaches optional bounded witness selection; registry remains empty.",
+  "modules": 115,
+  "note": "Group 8: runner reaches recomputed versioned eligibility and its frozen scorer.",
   "orphaned": [],
   "rows": [
     {
@@ -140,6 +140,7 @@
         "model.scan",
         "model.taint",
         "push.cache",
+        "push.eligibility",
         "push.policy",
         "push.reuse",
         "push.runner"
@@ -152,6 +153,7 @@
       "importers": [
         "cpg.backend",
         "push.cache",
+        "push.eligibility",
         "push.policy",
         "push.reuse",
         "push.runner"
@@ -704,6 +706,7 @@
       "importers": [
         "cli",
         "push.assistance",
+        "push.eligibility",
         "push.policy",
         "push.report",
         "push.reuse",
@@ -746,6 +749,15 @@
     {
       "classification": "load_bearing",
       "importers": [
+        "push.runner"
+      ],
+      "module": "push.eligibility",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [
+        "push.eligibility",
         "push.report",
         "push.runner"
       ],
@@ -794,7 +806,9 @@
     },
     {
       "classification": "standalone_capability",
-      "importers": [],
+      "importers": [
+        "push.eligibility"
+      ],
       "module": "push_scoring",
       "reason": "pre-push-safety-net task 1.3: frozen-profile diagnostic outcome scorer; python -m openultrasast.push_scoring"
     },

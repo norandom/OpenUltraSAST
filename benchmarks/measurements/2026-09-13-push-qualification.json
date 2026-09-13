@@ -1,0 +1,3388 @@
+{
+  "schema_version": 1,
+  "verdict": "NO-GO",
+  "feature_complete": false,
+  "capabilities_enabled": 0,
+  "image": "sha256:9464e229ccfdc873a02e3a0db7c1e83a6d6ec6d3e8234ae7b97677b4aed836fd",
+  "bundle": {
+    "path": "2026-09-13-push-qualification.json.gz",
+    "sha256": "79226b4e54042559ba5cc2b94b69b1dcddb550872fd0783b2380368be72f90bd",
+    "size": 1208658,
+    "files": 59
+  },
+  "populations": {
+    "qualification-development-v1": {
+      "decision": {
+        "decision": "NO-GO",
+        "capabilities_enabled": false,
+        "scorecard": "scorecard.json",
+        "reason": "Qualification evidence run; independent eligibility and joint quality/warm-latency gates remain unmet.",
+        "selection": "development",
+        "analysis_deadline_seconds": 30,
+        "recorded_cases": 6,
+        "declared_population": 11,
+        "core_unchanged": true,
+        "adapter_changes": [],
+        "limits": [
+          "No warm-cache measurements",
+          "Untouched Ghost population not scanned",
+          "PHP/Python admission populations missing",
+          "libpng retained as unsupported envelope; no C/C++ detection claim",
+          "Zero normal alerts from an empty registry cannot establish precision or useful recall"
+        ]
+      },
+      "metrics": {
+        "schema_version": 1,
+        "profile_sha256": "5afd697cdd378917d08d84f51f3657e71013ec90ffb17804ab661e9df951bea2",
+        "population": 11,
+        "recorded_cases": 6,
+        "measurement_status": "recorded",
+        "metrics": {
+          "recall": {
+            "numerator": 0,
+            "denominator": 2,
+            "value": 0.0,
+            "wilson95": [
+              0.0,
+              0.6576197724933469
+            ]
+          },
+          "precision": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "wilson95": null
+          },
+          "fixed_side_silence": {
+            "numerator": 0,
+            "denominator": 2,
+            "value": 0.0,
+            "wilson95": [
+              0.0,
+              0.6576197724933469
+            ]
+          },
+          "benign_interruption": {
+            "numerator": 0,
+            "denominator": 2,
+            "value": 0.0,
+            "wilson95": [
+              0.0,
+              0.6576197724933469
+            ],
+            "unobserved": 0
+          },
+          "completion": {
+            "numerator": 0,
+            "denominator": 9,
+            "value": 0.0,
+            "wilson95": [
+              0.0,
+              0.2991450484195441
+            ]
+          },
+          "regression_detection": {
+            "numerator": 0,
+            "denominator": 3,
+            "value": 0.0,
+            "wilson95": [
+              5.551115123125783e-17,
+              0.5614970317550454
+            ]
+          },
+          "actionable_recall": {
+            "numerator": 0,
+            "denominator": 2,
+            "value": 0.0,
+            "wilson95": [
+              0.0,
+              0.6576197724933469
+            ]
+          },
+          "query_completion": {
+            "numerator": 0,
+            "denominator": 1308,
+            "value": null,
+            "wilson95": null,
+            "unmeasured_cases": 3
+          },
+          "latency": {
+            "cold": {
+              "samples": 6,
+              "p50": 30.606516609084792,
+              "p95": 30.678011666052043
+            },
+            "warm_changed": {
+              "samples": 0,
+              "p50": null,
+              "p95": null
+            },
+            "identical_tip": {
+              "samples": 0,
+              "p50": null,
+              "p95": null
+            }
+          },
+          "unresolved": 11,
+          "timeouts": 6
+        },
+        "by_capability": {
+          "c/libpng/memory_safety": {
+            "recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "fixed_side_silence": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "benign_interruption": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unobserved": 0
+            },
+            "completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "regression_detection": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "actionable_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "query_completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unmeasured_cases": 0
+            },
+            "latency": {
+              "cold": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "warm_changed": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "identical_tip": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              }
+            },
+            "unresolved": 1,
+            "timeouts": 0
+          },
+          "javascript/express/injection": {
+            "recall": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "fixed_side_silence": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "benign_interruption": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ],
+              "unobserved": 0
+            },
+            "completion": {
+              "numerator": 0,
+              "denominator": 3,
+              "value": 0.0,
+              "wilson95": [
+                5.551115123125783e-17,
+                0.5614970317550454
+              ]
+            },
+            "regression_detection": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "actionable_recall": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "query_completion": {
+              "numerator": 0,
+              "denominator": 1308,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.002928295027470378
+              ],
+              "unmeasured_cases": 0
+            },
+            "latency": {
+              "cold": {
+                "samples": 3,
+                "p50": 30.56611180899199,
+                "p95": 30.606516609084792
+              },
+              "warm_changed": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "identical_tip": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              }
+            },
+            "unresolved": 3,
+            "timeouts": 3
+          },
+          "javascript/express/unreviewed": {
+            "recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "fixed_side_silence": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "benign_interruption": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unobserved": 0
+            },
+            "completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "regression_detection": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "actionable_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "query_completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unmeasured_cases": 0
+            },
+            "latency": {
+              "cold": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "warm_changed": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "identical_tip": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              }
+            },
+            "unresolved": 1,
+            "timeouts": 0
+          },
+          "php/wordpress/injection": {
+            "recall": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "fixed_side_silence": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "benign_interruption": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ],
+              "unobserved": 0
+            },
+            "completion": {
+              "numerator": 0,
+              "denominator": 3,
+              "value": 0.0,
+              "wilson95": [
+                5.551115123125783e-17,
+                0.5614970317550454
+              ]
+            },
+            "regression_detection": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "actionable_recall": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "query_completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unmeasured_cases": 0
+            },
+            "latency": {
+              "cold": {
+                "samples": 3,
+                "p50": 30.645914101973176,
+                "p95": 30.678011666052043
+              },
+              "warm_changed": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "identical_tip": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              }
+            },
+            "unresolved": 3,
+            "timeouts": 3
+          },
+          "python/flask/access_control": {
+            "recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "fixed_side_silence": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "benign_interruption": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unobserved": 0
+            },
+            "completion": {
+              "numerator": 0,
+              "denominator": 2,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.6576197724933469
+              ]
+            },
+            "regression_detection": {
+              "numerator": 0,
+              "denominator": 2,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.6576197724933469
+              ]
+            },
+            "actionable_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "query_completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unmeasured_cases": 2
+            },
+            "latency": {
+              "cold": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "warm_changed": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "identical_tip": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              }
+            },
+            "unresolved": 2,
+            "timeouts": 0
+          },
+          "python/flask/injection": {
+            "recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "fixed_side_silence": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "benign_interruption": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unobserved": 0
+            },
+            "completion": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "regression_detection": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "actionable_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "query_completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unmeasured_cases": 1
+            },
+            "latency": {
+              "cold": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "warm_changed": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "identical_tip": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              }
+            },
+            "unresolved": 1,
+            "timeouts": 0
+          }
+        },
+        "admission": "experimental",
+        "gates_passed": false,
+        "note": "Diagnostic instrument only. No admission without independent capability evaluation. Missing runs contribute only conservative full-population bounds, not observed detector performance. Witness association is checked; semantic/actionability review is supplied evidence, not inferred from rank."
+      },
+      "cases": [
+        {
+          "id": "pmpro-introduce",
+          "base": "pmpro-fixed",
+          "tip": "pmpro-vulnerable",
+          "label": "vulnerable",
+          "role": "development",
+          "capability": "php/wordpress/injection",
+          "provenance": "Authored replay direction reintroducing the reviewed operation; not a claim about the historical introducing commit.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "target unmatched, unanswered, or lacks exact witnessed answer",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "pmpro-repair",
+          "base": "pmpro-vulnerable",
+          "tip": "pmpro-fixed",
+          "label": "fixed",
+          "role": "development",
+          "capability": "php/wordpress/injection",
+          "provenance": "PMPro upstream2.9.7 to2.9.8 parameter binding fix for CVE-2023-23488.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "target unmatched, unanswered, or lacks exact witnessed answer",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "pmpro-benign",
+          "base": "pmpro-vulnerable",
+          "tip": "pmpro-benign",
+          "label": "benign",
+          "role": "development",
+          "capability": "php/wordpress/injection",
+          "provenance": "Authored comment-only change: no new defect; vulnerable backlog remains. This label does not mean repository-clean.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "target unmatched, unanswered, or lacks exact witnessed answer",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "nodegoat-introduce",
+          "base": "nodegoat-fixed",
+          "tip": "nodegoat-vulnerable",
+          "label": "vulnerable",
+          "role": "transfer",
+          "capability": "javascript/express/injection",
+          "provenance": "Authored replay direction reintroducing the reviewed operation; not a claim about the historical introducing commit.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "target unmatched, unanswered, or lacks exact witnessed answer",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "nodegoat-repair",
+          "base": "nodegoat-vulnerable",
+          "tip": "nodegoat-fixed",
+          "label": "fixed",
+          "role": "transfer",
+          "capability": "javascript/express/injection",
+          "provenance": "Authored replacement of three eval calls with Number conversion; source tutorial also documents alternate numeric parsing.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "target unmatched, unanswered, or lacks exact witnessed answer",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "nodegoat-benign",
+          "base": "nodegoat-vulnerable",
+          "tip": "nodegoat-benign",
+          "label": "benign",
+          "role": "transfer",
+          "capability": "javascript/express/injection",
+          "provenance": "Authored comment-only change: no new defect; vulnerable backlog remains. This label does not mean repository-clean.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "target unmatched, unanswered, or lacks exact witnessed answer",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "VAmPI-SQLI",
+          "base": "vampi-regression",
+          "tip": "vampi-regression",
+          "label": "regression",
+          "role": "regression",
+          "capability": "python/flask/injection",
+          "provenance": "Existing recipe known target, full target population retained; environment vulnerable=1. Snapshot regression, not an introducing push.",
+          "prerequisites": [
+            "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+          ],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "missing_prerequisite",
+          "input_problem": "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+        },
+        {
+          "id": "VAmPI-BOLA",
+          "base": "vampi-regression",
+          "tip": "vampi-regression",
+          "label": "regression",
+          "role": "regression",
+          "capability": "python/flask/access_control",
+          "provenance": "Existing recipe known target, full target population retained; environment vulnerable=1. Snapshot regression, not an introducing push.",
+          "prerequisites": [
+            "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+          ],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "missing_prerequisite",
+          "input_problem": "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+        },
+        {
+          "id": "VAmPI-BOLA-BOOKS",
+          "base": "vampi-regression",
+          "tip": "vampi-regression",
+          "label": "regression",
+          "role": "regression",
+          "capability": "python/flask/access_control",
+          "provenance": "Existing recipe known target, full target population retained; environment vulnerable=1. Snapshot regression, not an introducing push.",
+          "prerequisites": [
+            "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+          ],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "missing_prerequisite",
+          "input_problem": "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+        },
+        {
+          "id": "libpng-CVE-2025-66293",
+          "base": "libpng-envelope",
+          "tip": "libpng-envelope",
+          "label": "unsupported",
+          "role": "envelope",
+          "capability": "c/libpng/memory_safety",
+          "provenance": "Arithmetic/bounds is outside the current abstract domain; measures graph/cost envelope only.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "ghost-reserved-population",
+          "base": "ghost-reserved",
+          "tip": "ghost-reserved",
+          "label": "unreviewed",
+          "role": "reserved_holdout",
+          "capability": "javascript/express/unreviewed",
+          "provenance": "Reserved from production API/module/async shape and public security-fix history before scanner results. Manifest6.64.0-rc.0, Express4.22.2. Not an ESM or Express5 coverage claim.",
+          "prerequisites": [
+            "Review and freeze supported positive/fixed/benign changes from independent history; select family before scanning.",
+            "Freeze core and existing facts after development; preserve reservation and record any contamination."
+          ],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "missing_prerequisite",
+          "input_problem": "ghost-reserved: pinned checkout 07671c072c5a5e0538cbe44d9d4ca66111751535 unavailable; rerun this validator with --fetch to fetch it; ghost-reserved: pinned checkout 07671c072c5a5e0538cbe44d9d4ca66111751535 unavailable; rerun this validator with --fetch to fetch it; Review and freeze supported positive/fixed/benign changes from independent history; select family before scanning.; Freeze core and existing facts after development; preserve reservation and record any contamination."
+        }
+      ],
+      "execution": {
+        "cases": [
+          {
+            "case_id": "pmpro-introduce",
+            "command": [
+              "ousast",
+              "pre-push",
+              "/tmp/ousast-experiment-szibj420/objects.git",
+              "--base",
+              "2f65530f9442b4d7ccfb56821836b056217358c1",
+              "--head",
+              "1a900be3f09f243876150fc3c04a97bcb24ef84b",
+              "--artifact",
+              "/results/qualification-development-v1/pmpro-introduce.json",
+              "--deadline",
+              "30",
+              "--cancellation-allowance",
+              "2",
+              "--max-regions",
+              "500"
+            ],
+            "process_exit_code": 0,
+            "elapsed_seconds": 30.678011666052043,
+            "artifact": "pmpro-introduce.json",
+            "terminal": "No analysis result is available.\nNotice: Analysis did not finish. Rerun with a longer analysis deadline.\nDetails: /results/qualification-development-v1/pmpro-introduce.json\n",
+            "core_unchanged": true,
+            "input_pins": {
+              "base": "2f65530f9442b4d7ccfb56821836b056217358c1",
+              "head": "1a900be3f09f243876150fc3c04a97bcb24ef84b"
+            },
+            "runtime_provenance_available": true,
+            "coverage_reasons": [
+              "preparation_failed:TimeoutError",
+              "deadline_exhausted",
+              "analysis_incomplete",
+              "base_comparison_unavailable"
+            ],
+            "stage_timings": {
+              "deadline_seconds": 30.0,
+              "cancellation_allowance_seconds": 2.0,
+              "resolution_seconds": 0.02946803206577897,
+              "provenance_seconds": 0.4109192460309714,
+              "snapshot_seconds": 12.56004240596667,
+              "snapshot_reuses": 0,
+              "preparation_seconds": 29.629872135003097,
+              "graph_hits": 0,
+              "query_hits": 0,
+              "total_seconds": 30.096643798053265
+            },
+            "snapshot_bytes_read": 58067472,
+            "classification": "scope/deadline"
+          },
+          {
+            "case_id": "pmpro-repair",
+            "command": [
+              "ousast",
+              "pre-push",
+              "/tmp/ousast-experiment-szibj420/objects.git",
+              "--base",
+              "1a900be3f09f243876150fc3c04a97bcb24ef84b",
+              "--head",
+              "2f65530f9442b4d7ccfb56821836b056217358c1",
+              "--artifact",
+              "/results/qualification-development-v1/pmpro-repair.json",
+              "--deadline",
+              "30",
+              "--cancellation-allowance",
+              "2",
+              "--max-regions",
+              "500"
+            ],
+            "process_exit_code": 0,
+            "elapsed_seconds": 30.63855000003241,
+            "artifact": "pmpro-repair.json",
+            "terminal": "No analysis result is available.\nNotice: Analysis did not finish. Rerun with a longer analysis deadline.\nDetails: /results/qualification-development-v1/pmpro-repair.json\n",
+            "core_unchanged": true,
+            "input_pins": {
+              "base": "1a900be3f09f243876150fc3c04a97bcb24ef84b",
+              "head": "2f65530f9442b4d7ccfb56821836b056217358c1"
+            },
+            "runtime_provenance_available": true,
+            "coverage_reasons": [
+              "preparation_failed:TimeoutError",
+              "deadline_exhausted",
+              "analysis_incomplete",
+              "base_comparison_unavailable"
+            ],
+            "stage_timings": {
+              "deadline_seconds": 30.0,
+              "cancellation_allowance_seconds": 2.0,
+              "resolution_seconds": 0.021197271067649126,
+              "provenance_seconds": 0.34009084198623896,
+              "snapshot_seconds": 12.467126300907694,
+              "snapshot_reuses": 0,
+              "preparation_seconds": 29.707301164977252,
+              "graph_hits": 0,
+              "query_hits": 0,
+              "total_seconds": 30.095304238027893
+            },
+            "snapshot_bytes_read": 58067472,
+            "classification": "scope/deadline"
+          },
+          {
+            "case_id": "pmpro-benign",
+            "command": [
+              "ousast",
+              "pre-push",
+              "/tmp/ousast-experiment-szibj420/objects.git",
+              "--base",
+              "1a900be3f09f243876150fc3c04a97bcb24ef84b",
+              "--head",
+              "f6b615ed11733e8975bdff087d2028b5a5bac9f7",
+              "--artifact",
+              "/results/qualification-development-v1/pmpro-benign.json",
+              "--deadline",
+              "30",
+              "--cancellation-allowance",
+              "2",
+              "--max-regions",
+              "500"
+            ],
+            "process_exit_code": 0,
+            "elapsed_seconds": 30.645914101973176,
+            "artifact": "pmpro-benign.json",
+            "terminal": "No analysis result is available.\nNotice: Analysis did not finish. Rerun with a longer analysis deadline.\nDetails: /results/qualification-development-v1/pmpro-benign.json\n",
+            "core_unchanged": true,
+            "input_pins": {
+              "base": "1a900be3f09f243876150fc3c04a97bcb24ef84b",
+              "head": "f6b615ed11733e8975bdff087d2028b5a5bac9f7"
+            },
+            "runtime_provenance_available": true,
+            "coverage_reasons": [
+              "preparation_failed:TimeoutError",
+              "deadline_exhausted",
+              "analysis_incomplete",
+              "base_comparison_unavailable"
+            ],
+            "stage_timings": {
+              "deadline_seconds": 30.0,
+              "cancellation_allowance_seconds": 2.0,
+              "resolution_seconds": 0.0197974459733814,
+              "provenance_seconds": 0.2962435589870438,
+              "snapshot_seconds": 11.787582749966532,
+              "snapshot_reuses": 0,
+              "preparation_seconds": 29.754213382024318,
+              "graph_hits": 0,
+              "query_hits": 0,
+              "total_seconds": 30.09343235695269
+            },
+            "snapshot_bytes_read": 57924614,
+            "classification": "scope/deadline"
+          },
+          {
+            "case_id": "nodegoat-introduce",
+            "command": [
+              "ousast",
+              "pre-push",
+              "/tmp/ousast-experiment-szibj420/objects.git",
+              "--base",
+              "0b453d5abc38f1a970d4771ebe6c5413f8c3b0a4",
+              "--head",
+              "c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
+              "--artifact",
+              "/results/qualification-development-v1/nodegoat-introduce.json",
+              "--deadline",
+              "30",
+              "--cancellation-allowance",
+              "2",
+              "--max-regions",
+              "500"
+            ],
+            "process_exit_code": 0,
+            "elapsed_seconds": 30.559429201995954,
+            "artifact": "nodegoat-introduce.json",
+            "terminal": "No actionable defects reported; analysis is incomplete.\nNotice: Analysis did not finish. Rerun with a longer analysis deadline.\nDetails: /results/qualification-development-v1/nodegoat-introduce.json\n",
+            "core_unchanged": true,
+            "input_pins": {
+              "base": "0b453d5abc38f1a970d4771ebe6c5413f8c3b0a4",
+              "head": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8"
+            },
+            "runtime_provenance_available": true,
+            "coverage_reasons": [
+              "6170702f726f757465732f636f6e747269627574696f6e732e6a73:ambiguous_line_correspondence",
+              "deadline_exhausted",
+              "admission_failed:TimeoutError",
+              "change_context_deadline_exhausted",
+              "vendor_semantics_unresolved",
+              "analysis_incomplete",
+              "base_comparison_unavailable"
+            ],
+            "stage_timings": {
+              "deadline_seconds": 30.0,
+              "cancellation_allowance_seconds": 2.0,
+              "resolution_seconds": 0.019262752030044794,
+              "provenance_seconds": 0.30368757899850607,
+              "snapshot_seconds": 0.9765457049943507,
+              "snapshot_reuses": 0,
+              "discovery_seconds": 6.643150272080675,
+              "discovery_hits": 0,
+              "preparation_seconds": 7.640034031006508,
+              "head_seconds": 22.062753806007095,
+              "base_seconds": 0.00027251499705016613,
+              "admission_seconds": 0.007778907078318298,
+              "graph_hits": 0,
+              "query_hits": 0,
+              "total_seconds": 30.058397019049153
+            },
+            "snapshot_bytes_read": 5952014,
+            "classification": "scope/deadline"
+          },
+          {
+            "case_id": "nodegoat-repair",
+            "command": [
+              "ousast",
+              "pre-push",
+              "/tmp/ousast-experiment-szibj420/objects.git",
+              "--base",
+              "c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
+              "--head",
+              "0b453d5abc38f1a970d4771ebe6c5413f8c3b0a4",
+              "--artifact",
+              "/results/qualification-development-v1/nodegoat-repair.json",
+              "--deadline",
+              "30",
+              "--cancellation-allowance",
+              "2",
+              "--max-regions",
+              "500"
+            ],
+            "process_exit_code": 0,
+            "elapsed_seconds": 30.606516609084792,
+            "artifact": "nodegoat-repair.json",
+            "terminal": "No actionable defects reported; analysis is incomplete.\nNotice: Analysis did not finish. Rerun with a longer analysis deadline.\nDetails: /results/qualification-development-v1/nodegoat-repair.json\n",
+            "core_unchanged": true,
+            "input_pins": {
+              "base": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
+              "head": "0b453d5abc38f1a970d4771ebe6c5413f8c3b0a4"
+            },
+            "runtime_provenance_available": true,
+            "coverage_reasons": [
+              "6170702f726f757465732f636f6e747269627574696f6e732e6a73:ambiguous_line_correspondence",
+              "deadline_exhausted",
+              "admission_failed:TimeoutError",
+              "change_context_deadline_exhausted",
+              "vendor_semantics_unresolved",
+              "analysis_incomplete",
+              "base_comparison_unavailable"
+            ],
+            "stage_timings": {
+              "deadline_seconds": 30.0,
+              "cancellation_allowance_seconds": 2.0,
+              "resolution_seconds": 0.018091536010615528,
+              "provenance_seconds": 0.3024843540042639,
+              "snapshot_seconds": 0.959272945066914,
+              "snapshot_reuses": 0,
+              "discovery_seconds": 6.849736295989715,
+              "discovery_hits": 0,
+              "preparation_seconds": 7.827876616036519,
+              "head_seconds": 21.870985461049713,
+              "base_seconds": 0.0002911860356107354,
+              "admission_seconds": 0.009124082047492266,
+              "graph_hits": 0,
+              "query_hits": 0,
+              "total_seconds": 30.05339005496353
+            },
+            "snapshot_bytes_read": 5952014,
+            "classification": "scope/deadline"
+          },
+          {
+            "case_id": "nodegoat-benign",
+            "command": [
+              "ousast",
+              "pre-push",
+              "/tmp/ousast-experiment-szibj420/objects.git",
+              "--base",
+              "c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
+              "--head",
+              "f772c59e5964c77812a6a89737eb54ed5371d30c",
+              "--artifact",
+              "/results/qualification-development-v1/nodegoat-benign.json",
+              "--deadline",
+              "30",
+              "--cancellation-allowance",
+              "2",
+              "--max-regions",
+              "500"
+            ],
+            "process_exit_code": 0,
+            "elapsed_seconds": 30.56611180899199,
+            "artifact": "nodegoat-benign.json",
+            "terminal": "No actionable defects reported; analysis is incomplete.\nNotice: Analysis did not finish. Rerun with a longer analysis deadline.\nDetails: /results/qualification-development-v1/nodegoat-benign.json\n",
+            "core_unchanged": true,
+            "input_pins": {
+              "base": "c5cb68a7084e4ae7dcc60e6a98768720a81841e8",
+              "head": "f772c59e5964c77812a6a89737eb54ed5371d30c"
+            },
+            "runtime_provenance_available": true,
+            "coverage_reasons": [
+              "6170702f726f757465732f636f6e747269627574696f6e732e6a73:ambiguous_line_correspondence",
+              "deadline_exhausted",
+              "admission_failed:TimeoutError",
+              "change_context_deadline_exhausted",
+              "vendor_semantics_unresolved",
+              "analysis_incomplete",
+              "base_comparison_unavailable"
+            ],
+            "stage_timings": {
+              "deadline_seconds": 30.0,
+              "cancellation_allowance_seconds": 2.0,
+              "resolution_seconds": 0.017291492084041238,
+              "provenance_seconds": 0.2788600909989327,
+              "snapshot_seconds": 0.9446105420356616,
+              "snapshot_reuses": 0,
+              "discovery_seconds": 6.772797371027991,
+              "discovery_hits": 0,
+              "preparation_seconds": 7.735924498992972,
+              "head_seconds": 21.987020123982802,
+              "base_seconds": 0.00029614497907459736,
+              "admission_seconds": 0.007813613046891987,
+              "graph_hits": 0,
+              "query_hits": 0,
+              "total_seconds": 30.051670238026418
+            },
+            "snapshot_bytes_read": 5952021,
+            "classification": "scope/deadline"
+          }
+        ],
+        "core_changes": [],
+        "adapter_changes": [],
+        "freeze_after_pmpro": {
+          "ranking_mode": "evidence",
+          "engine": "joern-4.0.625",
+          "engine_runtime": "2b415139532d8d3a0c6e46ecdac26cd3d792efc2bae441f0b7e39bb28ec5d16e",
+          "facts": "32edb6e1a78f1afb08ac4248cd436be16663e0d90dc1b3aaf948f2ce49a5a8f0",
+          "queries": "7bf090e053331f03d04c9290c8a593d00efd4d390f4b77b8382c2befc47996cc",
+          "policy": "6fc8e3cf0d3a4f45dd882e37a753e34bc0cd187295cfbd3cbb6fc36ecf9cea20",
+          "core": "36ac9a045b8b8ad943eea1f511924caae54750a9d5d45da776ebefc460f08eab",
+          "semantics": "f652da2ca5891b6e86a242318357a36f4e3b95529fea596f7d064ef35b2d6cd2"
+        }
+      }
+    },
+    "qualification-regression-v1": {
+      "decision": {
+        "decision": "NO-GO",
+        "capabilities_enabled": false,
+        "scorecard": "scorecard.json",
+        "reason": "Qualification evidence run; independent eligibility and joint quality/warm-latency gates remain unmet.",
+        "selection": "regression",
+        "analysis_deadline_seconds": 600.0,
+        "recorded_cases": 3,
+        "declared_population": 11,
+        "core_unchanged": true,
+        "adapter_changes": [],
+        "limits": [
+          "No warm-cache measurements",
+          "Untouched Ghost population not scanned",
+          "PHP/Python admission populations missing",
+          "libpng retained as unsupported envelope; no C/C++ detection claim",
+          "Zero normal alerts from an empty registry cannot establish precision or useful recall"
+        ]
+      },
+      "metrics": {
+        "schema_version": 1,
+        "profile_sha256": "4c58aa2a064b2f897996b3d34d8363ac1ca08b14f4cda5699e6885fdce91fbc5",
+        "population": 11,
+        "recorded_cases": 3,
+        "measurement_status": "recorded",
+        "metrics": {
+          "recall": {
+            "numerator": 0,
+            "denominator": 2,
+            "value": 0.0,
+            "wilson95": [
+              0.0,
+              0.6576197724933469
+            ]
+          },
+          "precision": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "wilson95": null
+          },
+          "fixed_side_silence": {
+            "numerator": 0,
+            "denominator": 2,
+            "value": 0.0,
+            "wilson95": [
+              0.0,
+              0.6576197724933469
+            ]
+          },
+          "benign_interruption": {
+            "numerator": 0,
+            "denominator": 2,
+            "value": null,
+            "wilson95": null,
+            "unobserved": 2
+          },
+          "completion": {
+            "numerator": 0,
+            "denominator": 9,
+            "value": 0.0,
+            "wilson95": [
+              0.0,
+              0.2991450484195441
+            ]
+          },
+          "regression_detection": {
+            "numerator": 0,
+            "denominator": 3,
+            "value": 0.0,
+            "wilson95": [
+              5.551115123125783e-17,
+              0.5614970317550454
+            ]
+          },
+          "actionable_recall": {
+            "numerator": 0,
+            "denominator": 2,
+            "value": 0.0,
+            "wilson95": [
+              0.0,
+              0.6576197724933469
+            ]
+          },
+          "query_completion": {
+            "numerator": 0,
+            "denominator": 474,
+            "value": null,
+            "wilson95": null,
+            "unmeasured_cases": 6
+          },
+          "latency": {
+            "cold": {
+              "samples": 1,
+              "p50": 112.41530801192857,
+              "p95": 112.41530801192857
+            },
+            "warm_changed": {
+              "samples": 0,
+              "p50": null,
+              "p95": null
+            },
+            "identical_tip": {
+              "samples": 2,
+              "p50": 6.684015898965299,
+              "p95": 6.816393535002135
+            }
+          },
+          "unresolved": 11,
+          "timeouts": 0
+        },
+        "by_capability": {
+          "c/libpng/memory_safety": {
+            "recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "fixed_side_silence": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "benign_interruption": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unobserved": 0
+            },
+            "completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "regression_detection": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "actionable_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "query_completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unmeasured_cases": 0
+            },
+            "latency": {
+              "cold": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "warm_changed": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "identical_tip": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              }
+            },
+            "unresolved": 1,
+            "timeouts": 0
+          },
+          "javascript/express/injection": {
+            "recall": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "fixed_side_silence": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "benign_interruption": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": null,
+              "wilson95": null,
+              "unobserved": 1
+            },
+            "completion": {
+              "numerator": 0,
+              "denominator": 3,
+              "value": 0.0,
+              "wilson95": [
+                5.551115123125783e-17,
+                0.5614970317550454
+              ]
+            },
+            "regression_detection": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "actionable_recall": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "query_completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unmeasured_cases": 3
+            },
+            "latency": {
+              "cold": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "warm_changed": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "identical_tip": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              }
+            },
+            "unresolved": 3,
+            "timeouts": 0
+          },
+          "javascript/express/unreviewed": {
+            "recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "fixed_side_silence": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "benign_interruption": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unobserved": 0
+            },
+            "completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "regression_detection": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "actionable_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "query_completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unmeasured_cases": 0
+            },
+            "latency": {
+              "cold": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "warm_changed": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "identical_tip": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              }
+            },
+            "unresolved": 1,
+            "timeouts": 0
+          },
+          "php/wordpress/injection": {
+            "recall": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "fixed_side_silence": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "benign_interruption": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": null,
+              "wilson95": null,
+              "unobserved": 1
+            },
+            "completion": {
+              "numerator": 0,
+              "denominator": 3,
+              "value": 0.0,
+              "wilson95": [
+                5.551115123125783e-17,
+                0.5614970317550454
+              ]
+            },
+            "regression_detection": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "actionable_recall": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "query_completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unmeasured_cases": 3
+            },
+            "latency": {
+              "cold": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "warm_changed": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "identical_tip": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              }
+            },
+            "unresolved": 3,
+            "timeouts": 0
+          },
+          "python/flask/access_control": {
+            "recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "fixed_side_silence": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "benign_interruption": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unobserved": 0
+            },
+            "completion": {
+              "numerator": 0,
+              "denominator": 2,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.6576197724933469
+              ]
+            },
+            "regression_detection": {
+              "numerator": 0,
+              "denominator": 2,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.6576197724933469
+              ]
+            },
+            "actionable_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "query_completion": {
+              "numerator": 0,
+              "denominator": 316,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.012010509315640912
+              ],
+              "unmeasured_cases": 0
+            },
+            "latency": {
+              "cold": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "warm_changed": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "identical_tip": {
+                "samples": 2,
+                "p50": 6.684015898965299,
+                "p95": 6.816393535002135
+              }
+            },
+            "unresolved": 2,
+            "timeouts": 0
+          },
+          "python/flask/injection": {
+            "recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "fixed_side_silence": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "benign_interruption": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unobserved": 0
+            },
+            "completion": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "regression_detection": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "actionable_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "query_completion": {
+              "numerator": 0,
+              "denominator": 158,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.023735937927685878
+              ],
+              "unmeasured_cases": 0
+            },
+            "latency": {
+              "cold": {
+                "samples": 1,
+                "p50": 112.41530801192857,
+                "p95": 112.41530801192857
+              },
+              "warm_changed": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "identical_tip": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              }
+            },
+            "unresolved": 1,
+            "timeouts": 0
+          }
+        },
+        "admission": "experimental",
+        "gates_passed": false,
+        "note": "Diagnostic instrument only. No admission without independent capability evaluation. Missing runs contribute only conservative full-population bounds, not observed detector performance. Witness association is checked; semantic/actionability review is supplied evidence, not inferred from rank."
+      },
+      "cases": [
+        {
+          "id": "pmpro-introduce",
+          "base": "pmpro-fixed",
+          "tip": "pmpro-vulnerable",
+          "label": "vulnerable",
+          "role": "development",
+          "capability": "php/wordpress/injection",
+          "provenance": "Authored replay direction reintroducing the reviewed operation; not a claim about the historical introducing commit.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "pmpro-repair",
+          "base": "pmpro-vulnerable",
+          "tip": "pmpro-fixed",
+          "label": "fixed",
+          "role": "development",
+          "capability": "php/wordpress/injection",
+          "provenance": "PMPro upstream2.9.7 to2.9.8 parameter binding fix for CVE-2023-23488.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "pmpro-benign",
+          "base": "pmpro-vulnerable",
+          "tip": "pmpro-benign",
+          "label": "benign",
+          "role": "development",
+          "capability": "php/wordpress/injection",
+          "provenance": "Authored comment-only change: no new defect; vulnerable backlog remains. This label does not mean repository-clean.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "nodegoat-introduce",
+          "base": "nodegoat-fixed",
+          "tip": "nodegoat-vulnerable",
+          "label": "vulnerable",
+          "role": "transfer",
+          "capability": "javascript/express/injection",
+          "provenance": "Authored replay direction reintroducing the reviewed operation; not a claim about the historical introducing commit.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "nodegoat-repair",
+          "base": "nodegoat-vulnerable",
+          "tip": "nodegoat-fixed",
+          "label": "fixed",
+          "role": "transfer",
+          "capability": "javascript/express/injection",
+          "provenance": "Authored replacement of three eval calls with Number conversion; source tutorial also documents alternate numeric parsing.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "nodegoat-benign",
+          "base": "nodegoat-vulnerable",
+          "tip": "nodegoat-benign",
+          "label": "benign",
+          "role": "transfer",
+          "capability": "javascript/express/injection",
+          "provenance": "Authored comment-only change: no new defect; vulnerable backlog remains. This label does not mean repository-clean.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "VAmPI-SQLI",
+          "base": "vampi-regression",
+          "tip": "vampi-regression",
+          "label": "regression",
+          "role": "regression",
+          "capability": "python/flask/injection",
+          "provenance": "Existing recipe known target, full target population retained; environment vulnerable=1. Snapshot regression, not an introducing push.",
+          "prerequisites": [
+            "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+          ],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "target unmatched, unanswered, or lacks exact witnessed answer",
+          "input_status": "missing_prerequisite",
+          "input_problem": "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+        },
+        {
+          "id": "VAmPI-BOLA",
+          "base": "vampi-regression",
+          "tip": "vampi-regression",
+          "label": "regression",
+          "role": "regression",
+          "capability": "python/flask/access_control",
+          "provenance": "Existing recipe known target, full target population retained; environment vulnerable=1. Snapshot regression, not an introducing push.",
+          "prerequisites": [
+            "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+          ],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "target unmatched, unanswered, or lacks exact witnessed answer",
+          "input_status": "missing_prerequisite",
+          "input_problem": "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+        },
+        {
+          "id": "VAmPI-BOLA-BOOKS",
+          "base": "vampi-regression",
+          "tip": "vampi-regression",
+          "label": "regression",
+          "role": "regression",
+          "capability": "python/flask/access_control",
+          "provenance": "Existing recipe known target, full target population retained; environment vulnerable=1. Snapshot regression, not an introducing push.",
+          "prerequisites": [
+            "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+          ],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "target unmatched, unanswered, or lacks exact witnessed answer",
+          "input_status": "missing_prerequisite",
+          "input_problem": "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+        },
+        {
+          "id": "libpng-CVE-2025-66293",
+          "base": "libpng-envelope",
+          "tip": "libpng-envelope",
+          "label": "unsupported",
+          "role": "envelope",
+          "capability": "c/libpng/memory_safety",
+          "provenance": "Arithmetic/bounds is outside the current abstract domain; measures graph/cost envelope only.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "ghost-reserved-population",
+          "base": "ghost-reserved",
+          "tip": "ghost-reserved",
+          "label": "unreviewed",
+          "role": "reserved_holdout",
+          "capability": "javascript/express/unreviewed",
+          "provenance": "Reserved from production API/module/async shape and public security-fix history before scanner results. Manifest6.64.0-rc.0, Express4.22.2. Not an ESM or Express5 coverage claim.",
+          "prerequisites": [
+            "Review and freeze supported positive/fixed/benign changes from independent history; select family before scanning.",
+            "Freeze core and existing facts after development; preserve reservation and record any contamination."
+          ],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "missing_prerequisite",
+          "input_problem": "ghost-reserved: pinned checkout 07671c072c5a5e0538cbe44d9d4ca66111751535 unavailable; rerun this validator with --fetch to fetch it; ghost-reserved: pinned checkout 07671c072c5a5e0538cbe44d9d4ca66111751535 unavailable; rerun this validator with --fetch to fetch it; Review and freeze supported positive/fixed/benign changes from independent history; select family before scanning.; Freeze core and existing facts after development; preserve reservation and record any contamination."
+        }
+      ],
+      "execution": {
+        "cases": [
+          {
+            "case_id": "VAmPI-SQLI",
+            "command": [
+              "ousast",
+              "pre-push",
+              "/tmp/ousast-experiment-kyvk9pk7/objects.git",
+              "--base",
+              "f16052dce83f05847133ec98f01c5193a41de7d8",
+              "--head",
+              "f16052dce83f05847133ec98f01c5193a41de7d8",
+              "--artifact",
+              "/results/qualification-regression-v1/VAmPI-SQLI.json",
+              "--deadline",
+              "600.0",
+              "--cancellation-allowance",
+              "2",
+              "--max-regions",
+              "500",
+              "--cache-dir",
+              "/results/vampi-cache"
+            ],
+            "process_exit_code": 0,
+            "elapsed_seconds": 112.41530801192857,
+            "artifact": "VAmPI-SQLI.json",
+            "terminal": "No actionable defects reported; analysis is incomplete.\nNotice: Some checks are not enabled for normal alerts. Review capability coverage in the details.\nDetails: /results/qualification-regression-v1/VAmPI-SQLI.json\n",
+            "core_unchanged": true,
+            "input_pins": {
+              "base": "f16052dce83f05847133ec98f01c5193a41de7d8",
+              "head": "f16052dce83f05847133ec98f01c5193a41de7d8"
+            },
+            "runtime_provenance_available": true,
+            "coverage_reasons": [
+              "capability_unavailable",
+              "comparison_unknown",
+              "witness_unresolved",
+              "dependency_unresolved",
+              "eligibility:eligibility_invalid_or_unavailable",
+              "witness_identity_unresolved",
+              "context_projection_unavailable:contributor-scan:b6e6786dce09d848d3bb498c168c49dda5c474537892ef6f9c7df68ebabdf550",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:5fd8c7c2cb3416fe25b4c1437ea95ffba902e60407139a6b5d5c9d0a898beb17",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:d3df6b543c4f932ffc44880f53a20d8e2a39b01aaed423c81c06fe8dff906acb",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:98d5d6114cd938cf0b0a384d35d279d5754c2aea55804b3dbb24a915753924b2",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:3aabf2177b0762d91115354177297f9b7fe6f3452c9c17ca2ff5a2cb03ecf98c",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:68865c15daec49375f4bfb2f0acf7e48f45fd56909f137b1574b5ebf09d01095",
+              "context_projection_unavailable:contributor-scan:befb0ba6eeb35a1c34fbb30181339acb1c2b66c1ab373ef428b86208752dbd39",
+              "context_projection_unavailable:contributor-scan:7ac7cf444129e4df728e3ccf3f87cda6df1f45166d5f31acaa05c3bbf62f43ce",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:72b8e224c83e4e007aa6cab72f158df9b99f892db8994c65407e16ca4c929401",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:b61225a697d36ca5907ae4c3100b8f155ec5a24c9039353d0688d37797cb5806",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:65d6f3f5eda2624c775b024e33bce4ca6cd7efa48b7a9060a2e9ecac2cb168d7",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:14a40f1cf8dd2eb92a31924cefc194cb364ee5e1c0f250740cdaaeaa45f7e222",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:6d9cd82ed2b32c3d3d1852c65ac45a216f6e52e9a07bfab2501efbbeacd27a3e",
+              "context_projection_unavailable:contributor-scan:cdfa7ab2ac8e36fdd45cc472a83490c2fbd8b8ee141f08a82c0e4969c2c381c3",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:7856547fcb5c892066df29acbb3ef7da66b6179a92ae7aad8d8155ef3e48149b",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:abd418304da4d1034dbdc261664c3cf83c35328940519ff14224fd69e5e4ee0f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:14536e658fd2e034c24c93c37b4cca1c8111c8e41831015e1212f2941f9b394f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:7d88eb9dfc8a80dce0a81bb67cc62be8d246092b161ba2b136172c52c179e907",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:f415798635a4f6e8b6d851f2c2123c498cb25e078462c3c0a1004082cff7bbd0",
+              "context_projection_unavailable:contributor-scan:3ab7facfaa4cd10ca16053ec306e6962888b747fe49ef89ff79bcadcf5e3bb70",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:ecc120f59e4f660cc723642b5e95001e4d0344f4e6b9be804ccfcea1e8c660a2",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:a69d683cb98ef2c861dd4c41f7c692f60153562a91e9b01c2ee6f35b0e20dae1",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:14e8cc89dd56f4c0651ab6ad6e332e10af11f958cc7c103a039e3c72252289f1",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:9f07bb8ccd55cdb216b8f60548c9781a9ee0eefe8c8e4c05b4388b190745531f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:dbf6f3e212c4b2978a52079885d98a4085275273389c741897ef21458f1b3f11",
+              "context_projection_unavailable:contributor-scan:6492afb1fb02c240530975a55c518a53b874fa0aabc294f34d766a2124d39e0f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:52cce51367f7ee0cc67daabca3ec34f87aa9b653b1e83ac2ebc7e705df9a5e43",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:34889859c8fb27953e98d05f38bb1a6463a9fa951170f5f15bca1965798b5324",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:0ca24fd76494492c540dec50731e1f3f2fad7b12ad179b290c5058d848888551",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:ffc4d0bb86bb420656808a48618b5436bece843489d784b7f86787346adafbc0",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:11e7093ae7653371060c145b0d781632c41caffbf08c223629ee3cc4a391529e",
+              "context_projection_unavailable:contributor-scan:c651657e8974f950dc3d6e581195e8cfe57a399258f6f1f82d7f7d876dce8dff",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:23b88aa03880ab3162024b9becea54938f0d90e4972002fd62b8f591bc42d9e0",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:3ed3a12d8909a3317b353f99f7d88c5cbbc0b58b710ae43a390e7feef7a80eb8",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:d9ad4ca3f1702e8707ab0eeda5897b99cdf582757b95c910c05ce554ba203a26",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:521b70aff590509d84e870cb73bf6755e626496c8155bdabe7cadf0eb103272c",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:646259d5f7a2e4744a268bfa8cfa6f91698858b879148283a6869a7157278be1",
+              "context_projection_unavailable:contributor-scan:eef1eb61b520cc3f89e01099d4d70a163f5a52ef84c2e6c5e3e573c78f97f2d4",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:de0deac1ceafe5571dfca090d72816404ea28ef882c6e0e6c42f983a9a74e921",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:d126db9758e81e18bd72391c67aab4b2d298df91b4b20208a5b16612cb881c09",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:78381d168f3b08ce93ea86c44b812ef484bcdaf41348a9f806611a158e1cb811",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:0fdaa18aee2b3260606b389c233c5b7270d99bacd7bcf2f71e23618c3d0b8cdf",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:354de5136d9efdb05ec889dfe6b202206aa274d1a51df3d6eb16279de09fbab5",
+              "context_projection_unavailable:contributor-scan:622ee10de5cd3c1e160b3fa1f65a75ea4a07d78e5a2a396990a773f7e99146e3",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:c131cba624d6d54312acd6b399f0064ca2ea93fe46530c8ff4cafb6224a8b20c",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:b872b5963d5de7e8b661764dde7d18d485795102bdd21dbf3507e7413a2f7d8e",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:0ed7bef715318c8c7db340d2f3746763249d15046958cb3138f55509ec9c4f51",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:3c2853baff5fef2f99377fe725da6449fdb9e46742733d4f7be2d230113a06a9",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:584de909c4ed4d95cc3e488899673272438b79fc331ba8748e1dd57bf89667c8",
+              "context_projection_unavailable:contributor-scan:94ebde87ff4a01c118d2999be9c3b98989ade91d8b5440aa8888a42e2799c289",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:e5b3fc3f6ffb3373bf6e6b1933090a12b5da87e616bf6e35f852e96d46435dff",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:e189489e75ef2d51bfa86559788d694573bc08345b1a8678696850cece928576",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:c053886de917306d7fbbce0cb345004c7c10989e5c4d6926edf4c81c81a4ef3c",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:e27fa218577b8e6546fb431dea7b9a841976c42a329fbad9ab9158ecebb1b7c6",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:bc93a6c420b2ae4796c808e67dde3f2effdaa3d6f20a2e38a96a318d99db070f",
+              "context_projection_unavailable:contributor-scan:513e2533c2c4bbca895209b0b1ebef24639bace7828a8679cc75726345ac78b9",
+              "context_projection_unavailable:contributor-scan:3510d0582f1e0af080a2ef700cfd9c5397e998263aeac009069d30f61dce7ad1",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:bcbc3f5da3e44a7969a0c750e6cf96d6075b7f169847f3ece87055e09aeb1d5f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:c247c69a3d908f310267fb1c77dcd0f20d31ab1a00aa778ed235da5dfc987b62",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:dae128866dd12dbec7d928626bd9582d2f9b78ab06ccf6ac3fc12cae7b1ec698",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:fa1c65c1da178f489e1cd8d8589c2271864a95cdff1f10322b06801bda604dd6",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:47eac5955f39bb0c4a533cd0095c5b2223b2aeca77bdb33baac04627b3cd12e6",
+              "context_projection_unavailable:contributor-scan:98c1e285b388077dc4d32fe7ae3cff0e540bc016607f20e643d3d073620f99e0",
+              "context_projection_unavailable:contributor-scan:31f5d8fd9b099334dd540e6aac7b70fab1e81c25fbb731054500f291cb8c0603",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:d805d371b44b17806699d9cb3d8bd7d8d2d22067f2e4d7fba061427ce564c6ad",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:4eebbb6c1f6210f428a3d423e401d370b16b2afed603b569ef10536658e6dae4",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:25d5cc67b28aaf9814d125fbf4fb98fd90f55ac5fe3918ebd0249ae835b33d1f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:303416318ab062a2b1c59020a63e8efbc4af4a1e949b465f44a241d351e5eec4",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:1e3f98f5df0de5761a5a9258164cc22835c61968f96355a4bb10081cd313269d",
+              "context_projection_unavailable:contributor-scan:2123b018bfe6dbb0dc3167db7da9e1a4f98a7f908094a37fd5c5d6b5269b08f2",
+              "context_projection_unavailable:contributor-scan:c5263033b79994e87f2a96eeedc1ffe891856cf008559d73de7c274498558204",
+              "context_projection_unavailable:contributor-scan:62c16e0c95e86a4b54b7390504cd23bebad7856f7304e9511802eb685198deb1",
+              "context_projection_unavailable:contributor-scan:63c1e59b1b3c3291f49bf6d172b032b6bf26fd5371d664ff263cf8d6867f6cb2",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:1957f95e46512d48b6d0115e628559af3c05dc637f47f659d11ebdd02aa161f0",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:f540d752aebf4f24a7a77ad21a646b97d48264ea5f2a9d11a6299909bdc9cf99",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:4748964f12387843e2cdda59c64e76a9e74d67cb61fa1af6df7a939a316ffd7d",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:3350c29581fb963c6a675573d9dc052e76994e62643377aefb1b2ee1a58f8df1",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:cf360556e591dffb5974c831c03f70f1281e69c98380b105ca8188c5f4d767dd",
+              "context_projection_unavailable:contributor-scan:06cef66cfe5e051dfca120f248201c33073d945d0205420eb09c521e06abbc7d",
+              "context_projection_unavailable:contributor-scan:af8584f0cf4fb1d014a1104acbbd17f62472bf1fad9452ca73e3baa304885721",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:27df8ddb8606a1cfdd09175c32246362b7ffa123b9df2ecd7ffcdaab62a6ad36",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:4180a34b6b8ccdf598eb3fd98828a5ba1d442d9e2e7c232321f730e268723d5f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:e249dd6972493deca73abb3109dc0ad1bfdb2b047ff9c04543664ccb1da27f79",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:9bd191e88c8374e208a561659abe57f49a3c5bf27d6999064aa140d58935e00d",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:fbb50391449bb115384267947fd3baa34e4d6180d9d1bb3d8de5e9359ba09694",
+              "context_projection_unavailable:contributor-scan:ef3ba2bedf28f2c95f9ac176c3cb8245d16c26866dc36ecc69ded3db641202a5",
+              "context_projection_unavailable:contributor-scan:bcdf6aa6bf04f6bc147520c9337cd0db4b9f79a2c285649c3ab90d9fea82a638",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:919c40c0b3e55b97b571f0ba23620c4a6d4d44be705b9724941e65ad737b9863",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:9dc32d66da54ff8cd80cead3e23aa1d5a93c414501be789ff55589e4232ee2b5",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:7496541451be3c3dc3bc29233e93b2a1a3c0a0e7b35ac8e1f2f486996db69f69",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:bdda0a24ccbfc31edae593bd1841e2badcd60c0f79a5c4f8244e9f1c2e1cac44",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:693467e9cb111e528b6bd901514e6656b210242d29ba0617577ee39cf653e7c4",
+              "context_projection_unavailable:contributor-scan:7b0896c2c356bdb439faf4ea8cdf81c8e9c87ef92860b629ca2da0e80a89e275",
+              "context_projection_unavailable:contributor-scan:b7afb181de2d3a5b6a45252c630f7a96638535b619611fa5b85f649590848051",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:efee23d66d1b9936dfec2a24ebe73f3fd90327b7a80de9085006dc6559b8d4e7",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:80867748e8fdd10aa5f62e6401ff0b987cc7ffbde5099393573eaff7c097f37f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:832a954864c99a67d8abd16df26677c13df04d748688fb3c48c927229faacad4",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:2ccf2b3af79ebcecda03456468e367867cbf114f1726276bf9cac0ee495a8e55",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:7a6b32f2f167580649ff65a70b3e535dd4fe73a32f1cea91ec559a430c324884",
+              "context_projection_unavailable:contributor-scan:92b827aa15f8e2c1ef7b6c13d6b896ad1ac1bc25b7ba3b83bec87ed615ad631f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:6454d100ccd5bed945f73029a8ea4475a8412f70a070cce125255da0dbf8bd91",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:784d747b13e9de6f9f70ee5d83445a8f5baac18e08b0a855eb85e069335405c7",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:20e7fbf2d2242fd9d4e8fe5c6091544754d400655fdde69d394b5e2f736d589d",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:bb40f4beb2d3697ec775bb15465535eb3b724e893c0915ce2c1b8c2a9ff29c6d",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:b6bdbebfdc621c6c4fbd3cc6724f2c3b296b7c8a546ac7d1ed9daefae3507fec",
+              "context_projection_unavailable:contributor-scan:aa970f38bd46b99a481c8eaebcfd33a3bcd42f9c31666ec458a040542bfaea98",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:1fa33c0cdff45776c710359a83282613898a10e5c71d3cbb465aead01e58fd2b",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:ad6e2417d62b70bad2bcb105c4d8f8d17d7d1571195daf920b00779f2ea4d215",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:cb423a2f845a6b28d38d805c1f09707937cc4374fc579c0f7b8de705049e1adc",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:a10e29aaab6144d3a0d715a2e98693730a9193c9fee19f3e44acf7229443f94e",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:edfb8de993bed2b323de921deb9be5536f0458544d0cc852fb715d9cec8104dd",
+              "context_projection_unavailable:contributor-scan:4f2246b0f6f70dd4c31cb1845f69f30143eaefe29b2abe5d2be58534d36ee6e2",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:f736c36848da99f8030dff35e2ff2027031292dc0aaa6b361330d6cdd33af8fe",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:aa8f3529c611bee3cdbf773af97f749765f600d2f8a2f1f1fabdee3b06f9c4f9",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:62731b08944f863a2c1e5057553d675ecd923999636bb98110c2ea091005cd37",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:9f05bb1d81abbc24542d18c458d651dc030a18c68c3b80c00c5b0b71514277a8",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:67b6471513e533f04498690e250b7d2c8d89f486287bb49285bbd60f26ecca6c",
+              "context_projection_unavailable:contributor-scan:1c5807271d348c25b20cc8e19261b725bfd6fe0201dfe2b59044566350aa01e2",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:86a9ebca54a92176dd0fadee7b171947eeddf72d1310c466becc2e98f1673b4b",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:5a857670d7d03dce6c50cba855a4018d22ea2dba9cef04231267bbac1e03e804",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:4c3c322d7326ee46c43c2d7843f7be9dd4476cc42181a40b3113a374b5778c7d",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:3ade8bad6c32e72ce012d122c5ceb214720ac61701cfcf36585ab6fadee7f107",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:ca1c3c566a0e0e25bda0e169e538629a628e69b05a9bd2bd6cb753726cc80f57",
+              "context_projection_unavailable:contributor-scan:82e0b710acb65d4bbcc79353bfee54d763e49d9936ad487e084eca188c18f3a4",
+              "context_projection_unavailable:contributor-scan:ec8fe6b8dd810451dc1b92970a23cb143eded7f93bd52bac6916db36af54ee14",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:92996194ab1a9b118bf50c494d94ee303a1c23919acea58f7b08e8e2c371931b",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:dd5375b8f5e47521bf03fd6390665fdf6e4de076a7fc3ac3fc16e1fe612e0628",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:20f104d4519dfdf01bcdedf88e71c6bd66e425a63afe6c3534b3e039aa783cf1",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:a3d7b5ccb217d7470e6396fe1c094fde5081da30994ceaa62451a481f67fc351",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:6ddff25ea01d52157b4d85f5f00246f86a66bb612fb976f0658e36bf2c98dbf2",
+              "context_projection_unavailable:contributor-scan:85b73d3a32e7962065be097c10c094d8f056ca1ceebadfbaaac240c923f1f745",
+              "context_projection_unavailable:contributor-scan:16028241773f90d6fc51cbbc844a6e134f576cc39191b47f6ce271314b62aa56",
+              "context_projection_unavailable:contributor-scan:c11140abfbdf2c84fa6b95cef075c03948de173780fba684d84d8068a5b6b4c7",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:1cde41b32d7f94d9c80627b9d828506d47b60cd00ee7ed19cbd93953bcc4105b",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:228e10358a44c1f1300b270ca1afc59fcda11da8ee6ffb29118395b6c1e605de",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:dc51479873a7bd0c22e45a5999621450c29eddd251bdd9951c3983e6bde27c59",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:1e022b60204ac9d7b2eacc7631ac6597976ead5f133d8bb222ce0a45da120323",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:b76d80c14c51dda075f7b5ea0a5f3ef7fc1caaa832b596822a15fd95f857536a",
+              "analysis_incomplete"
+            ],
+            "stage_timings": {
+              "deadline_seconds": 600.0,
+              "cancellation_allowance_seconds": 2.0,
+              "resolution_seconds": 0.02336603298317641,
+              "provenance_seconds": 0.33120052504818887,
+              "snapshot_seconds": 0.10249989398289472,
+              "snapshot_reuses": 1,
+              "discovery_seconds": 0.9137105030240491,
+              "discovery_hits": 1,
+              "preparation_seconds": 1.0230771290371194,
+              "head_seconds": 87.43725184199866,
+              "base_seconds": 23.020315301953815,
+              "admission_seconds": 0.005260498030111194,
+              "cleanup_seconds": 0.0009351769695058465,
+              "graph_hits": 1,
+              "query_hits": 35,
+              "total_seconds": 111.87052142398898
+            },
+            "snapshot_bytes_read": 139164,
+            "classification": "recorded context/capability limits"
+          },
+          {
+            "case_id": "VAmPI-BOLA",
+            "command": [
+              "ousast",
+              "pre-push",
+              "/tmp/ousast-experiment-kyvk9pk7/objects.git",
+              "--base",
+              "f16052dce83f05847133ec98f01c5193a41de7d8",
+              "--head",
+              "f16052dce83f05847133ec98f01c5193a41de7d8",
+              "--artifact",
+              "/results/qualification-regression-v1/VAmPI-BOLA.json",
+              "--deadline",
+              "600.0",
+              "--cancellation-allowance",
+              "2",
+              "--max-regions",
+              "500",
+              "--cache-dir",
+              "/results/vampi-cache"
+            ],
+            "process_exit_code": 0,
+            "elapsed_seconds": 6.816393535002135,
+            "artifact": "VAmPI-BOLA.json",
+            "terminal": "No actionable defects reported; analysis is incomplete.\nNotice: Some checks are not enabled for normal alerts. Review capability coverage in the details.\nDetails: /results/qualification-regression-v1/VAmPI-BOLA.json\n",
+            "core_unchanged": true,
+            "input_pins": {
+              "base": "f16052dce83f05847133ec98f01c5193a41de7d8",
+              "head": "f16052dce83f05847133ec98f01c5193a41de7d8"
+            },
+            "runtime_provenance_available": true,
+            "coverage_reasons": [
+              "capability_unavailable",
+              "comparison_unknown",
+              "witness_unresolved",
+              "dependency_unresolved",
+              "eligibility:eligibility_invalid_or_unavailable",
+              "witness_identity_unresolved",
+              "context_projection_unavailable:contributor-scan:b6e6786dce09d848d3bb498c168c49dda5c474537892ef6f9c7df68ebabdf550",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:5fd8c7c2cb3416fe25b4c1437ea95ffba902e60407139a6b5d5c9d0a898beb17",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:d3df6b543c4f932ffc44880f53a20d8e2a39b01aaed423c81c06fe8dff906acb",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:98d5d6114cd938cf0b0a384d35d279d5754c2aea55804b3dbb24a915753924b2",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:3aabf2177b0762d91115354177297f9b7fe6f3452c9c17ca2ff5a2cb03ecf98c",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:68865c15daec49375f4bfb2f0acf7e48f45fd56909f137b1574b5ebf09d01095",
+              "context_projection_unavailable:contributor-scan:befb0ba6eeb35a1c34fbb30181339acb1c2b66c1ab373ef428b86208752dbd39",
+              "context_projection_unavailable:contributor-scan:7ac7cf444129e4df728e3ccf3f87cda6df1f45166d5f31acaa05c3bbf62f43ce",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:72b8e224c83e4e007aa6cab72f158df9b99f892db8994c65407e16ca4c929401",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:b61225a697d36ca5907ae4c3100b8f155ec5a24c9039353d0688d37797cb5806",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:65d6f3f5eda2624c775b024e33bce4ca6cd7efa48b7a9060a2e9ecac2cb168d7",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:14a40f1cf8dd2eb92a31924cefc194cb364ee5e1c0f250740cdaaeaa45f7e222",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:6d9cd82ed2b32c3d3d1852c65ac45a216f6e52e9a07bfab2501efbbeacd27a3e",
+              "context_projection_unavailable:contributor-scan:cdfa7ab2ac8e36fdd45cc472a83490c2fbd8b8ee141f08a82c0e4969c2c381c3",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:7856547fcb5c892066df29acbb3ef7da66b6179a92ae7aad8d8155ef3e48149b",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:abd418304da4d1034dbdc261664c3cf83c35328940519ff14224fd69e5e4ee0f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:14536e658fd2e034c24c93c37b4cca1c8111c8e41831015e1212f2941f9b394f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:7d88eb9dfc8a80dce0a81bb67cc62be8d246092b161ba2b136172c52c179e907",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:f415798635a4f6e8b6d851f2c2123c498cb25e078462c3c0a1004082cff7bbd0",
+              "context_projection_unavailable:contributor-scan:3ab7facfaa4cd10ca16053ec306e6962888b747fe49ef89ff79bcadcf5e3bb70",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:ecc120f59e4f660cc723642b5e95001e4d0344f4e6b9be804ccfcea1e8c660a2",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:a69d683cb98ef2c861dd4c41f7c692f60153562a91e9b01c2ee6f35b0e20dae1",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:14e8cc89dd56f4c0651ab6ad6e332e10af11f958cc7c103a039e3c72252289f1",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:9f07bb8ccd55cdb216b8f60548c9781a9ee0eefe8c8e4c05b4388b190745531f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:dbf6f3e212c4b2978a52079885d98a4085275273389c741897ef21458f1b3f11",
+              "context_projection_unavailable:contributor-scan:6492afb1fb02c240530975a55c518a53b874fa0aabc294f34d766a2124d39e0f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:52cce51367f7ee0cc67daabca3ec34f87aa9b653b1e83ac2ebc7e705df9a5e43",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:34889859c8fb27953e98d05f38bb1a6463a9fa951170f5f15bca1965798b5324",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:0ca24fd76494492c540dec50731e1f3f2fad7b12ad179b290c5058d848888551",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:ffc4d0bb86bb420656808a48618b5436bece843489d784b7f86787346adafbc0",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:11e7093ae7653371060c145b0d781632c41caffbf08c223629ee3cc4a391529e",
+              "context_projection_unavailable:contributor-scan:c651657e8974f950dc3d6e581195e8cfe57a399258f6f1f82d7f7d876dce8dff",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:23b88aa03880ab3162024b9becea54938f0d90e4972002fd62b8f591bc42d9e0",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:3ed3a12d8909a3317b353f99f7d88c5cbbc0b58b710ae43a390e7feef7a80eb8",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:d9ad4ca3f1702e8707ab0eeda5897b99cdf582757b95c910c05ce554ba203a26",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:521b70aff590509d84e870cb73bf6755e626496c8155bdabe7cadf0eb103272c",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:646259d5f7a2e4744a268bfa8cfa6f91698858b879148283a6869a7157278be1",
+              "context_projection_unavailable:contributor-scan:eef1eb61b520cc3f89e01099d4d70a163f5a52ef84c2e6c5e3e573c78f97f2d4",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:de0deac1ceafe5571dfca090d72816404ea28ef882c6e0e6c42f983a9a74e921",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:d126db9758e81e18bd72391c67aab4b2d298df91b4b20208a5b16612cb881c09",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:78381d168f3b08ce93ea86c44b812ef484bcdaf41348a9f806611a158e1cb811",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:0fdaa18aee2b3260606b389c233c5b7270d99bacd7bcf2f71e23618c3d0b8cdf",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:354de5136d9efdb05ec889dfe6b202206aa274d1a51df3d6eb16279de09fbab5",
+              "context_projection_unavailable:contributor-scan:622ee10de5cd3c1e160b3fa1f65a75ea4a07d78e5a2a396990a773f7e99146e3",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:c131cba624d6d54312acd6b399f0064ca2ea93fe46530c8ff4cafb6224a8b20c",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:b872b5963d5de7e8b661764dde7d18d485795102bdd21dbf3507e7413a2f7d8e",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:0ed7bef715318c8c7db340d2f3746763249d15046958cb3138f55509ec9c4f51",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:3c2853baff5fef2f99377fe725da6449fdb9e46742733d4f7be2d230113a06a9",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:584de909c4ed4d95cc3e488899673272438b79fc331ba8748e1dd57bf89667c8",
+              "context_projection_unavailable:contributor-scan:94ebde87ff4a01c118d2999be9c3b98989ade91d8b5440aa8888a42e2799c289",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:e5b3fc3f6ffb3373bf6e6b1933090a12b5da87e616bf6e35f852e96d46435dff",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:e189489e75ef2d51bfa86559788d694573bc08345b1a8678696850cece928576",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:c053886de917306d7fbbce0cb345004c7c10989e5c4d6926edf4c81c81a4ef3c",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:e27fa218577b8e6546fb431dea7b9a841976c42a329fbad9ab9158ecebb1b7c6",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:bc93a6c420b2ae4796c808e67dde3f2effdaa3d6f20a2e38a96a318d99db070f",
+              "context_projection_unavailable:contributor-scan:513e2533c2c4bbca895209b0b1ebef24639bace7828a8679cc75726345ac78b9",
+              "context_projection_unavailable:contributor-scan:3510d0582f1e0af080a2ef700cfd9c5397e998263aeac009069d30f61dce7ad1",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:bcbc3f5da3e44a7969a0c750e6cf96d6075b7f169847f3ece87055e09aeb1d5f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:c247c69a3d908f310267fb1c77dcd0f20d31ab1a00aa778ed235da5dfc987b62",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:dae128866dd12dbec7d928626bd9582d2f9b78ab06ccf6ac3fc12cae7b1ec698",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:fa1c65c1da178f489e1cd8d8589c2271864a95cdff1f10322b06801bda604dd6",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:47eac5955f39bb0c4a533cd0095c5b2223b2aeca77bdb33baac04627b3cd12e6",
+              "context_projection_unavailable:contributor-scan:98c1e285b388077dc4d32fe7ae3cff0e540bc016607f20e643d3d073620f99e0",
+              "context_projection_unavailable:contributor-scan:31f5d8fd9b099334dd540e6aac7b70fab1e81c25fbb731054500f291cb8c0603",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:d805d371b44b17806699d9cb3d8bd7d8d2d22067f2e4d7fba061427ce564c6ad",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:4eebbb6c1f6210f428a3d423e401d370b16b2afed603b569ef10536658e6dae4",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:25d5cc67b28aaf9814d125fbf4fb98fd90f55ac5fe3918ebd0249ae835b33d1f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:303416318ab062a2b1c59020a63e8efbc4af4a1e949b465f44a241d351e5eec4",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:1e3f98f5df0de5761a5a9258164cc22835c61968f96355a4bb10081cd313269d",
+              "context_projection_unavailable:contributor-scan:2123b018bfe6dbb0dc3167db7da9e1a4f98a7f908094a37fd5c5d6b5269b08f2",
+              "context_projection_unavailable:contributor-scan:c5263033b79994e87f2a96eeedc1ffe891856cf008559d73de7c274498558204",
+              "context_projection_unavailable:contributor-scan:62c16e0c95e86a4b54b7390504cd23bebad7856f7304e9511802eb685198deb1",
+              "context_projection_unavailable:contributor-scan:63c1e59b1b3c3291f49bf6d172b032b6bf26fd5371d664ff263cf8d6867f6cb2",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:1957f95e46512d48b6d0115e628559af3c05dc637f47f659d11ebdd02aa161f0",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:f540d752aebf4f24a7a77ad21a646b97d48264ea5f2a9d11a6299909bdc9cf99",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:4748964f12387843e2cdda59c64e76a9e74d67cb61fa1af6df7a939a316ffd7d",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:3350c29581fb963c6a675573d9dc052e76994e62643377aefb1b2ee1a58f8df1",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:cf360556e591dffb5974c831c03f70f1281e69c98380b105ca8188c5f4d767dd",
+              "context_projection_unavailable:contributor-scan:06cef66cfe5e051dfca120f248201c33073d945d0205420eb09c521e06abbc7d",
+              "context_projection_unavailable:contributor-scan:af8584f0cf4fb1d014a1104acbbd17f62472bf1fad9452ca73e3baa304885721",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:27df8ddb8606a1cfdd09175c32246362b7ffa123b9df2ecd7ffcdaab62a6ad36",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:4180a34b6b8ccdf598eb3fd98828a5ba1d442d9e2e7c232321f730e268723d5f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:e249dd6972493deca73abb3109dc0ad1bfdb2b047ff9c04543664ccb1da27f79",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:9bd191e88c8374e208a561659abe57f49a3c5bf27d6999064aa140d58935e00d",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:fbb50391449bb115384267947fd3baa34e4d6180d9d1bb3d8de5e9359ba09694",
+              "context_projection_unavailable:contributor-scan:ef3ba2bedf28f2c95f9ac176c3cb8245d16c26866dc36ecc69ded3db641202a5",
+              "context_projection_unavailable:contributor-scan:bcdf6aa6bf04f6bc147520c9337cd0db4b9f79a2c285649c3ab90d9fea82a638",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:919c40c0b3e55b97b571f0ba23620c4a6d4d44be705b9724941e65ad737b9863",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:9dc32d66da54ff8cd80cead3e23aa1d5a93c414501be789ff55589e4232ee2b5",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:7496541451be3c3dc3bc29233e93b2a1a3c0a0e7b35ac8e1f2f486996db69f69",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:bdda0a24ccbfc31edae593bd1841e2badcd60c0f79a5c4f8244e9f1c2e1cac44",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:693467e9cb111e528b6bd901514e6656b210242d29ba0617577ee39cf653e7c4",
+              "context_projection_unavailable:contributor-scan:7b0896c2c356bdb439faf4ea8cdf81c8e9c87ef92860b629ca2da0e80a89e275",
+              "context_projection_unavailable:contributor-scan:b7afb181de2d3a5b6a45252c630f7a96638535b619611fa5b85f649590848051",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:efee23d66d1b9936dfec2a24ebe73f3fd90327b7a80de9085006dc6559b8d4e7",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:80867748e8fdd10aa5f62e6401ff0b987cc7ffbde5099393573eaff7c097f37f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:832a954864c99a67d8abd16df26677c13df04d748688fb3c48c927229faacad4",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:2ccf2b3af79ebcecda03456468e367867cbf114f1726276bf9cac0ee495a8e55",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:7a6b32f2f167580649ff65a70b3e535dd4fe73a32f1cea91ec559a430c324884",
+              "context_projection_unavailable:contributor-scan:92b827aa15f8e2c1ef7b6c13d6b896ad1ac1bc25b7ba3b83bec87ed615ad631f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:6454d100ccd5bed945f73029a8ea4475a8412f70a070cce125255da0dbf8bd91",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:784d747b13e9de6f9f70ee5d83445a8f5baac18e08b0a855eb85e069335405c7",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:20e7fbf2d2242fd9d4e8fe5c6091544754d400655fdde69d394b5e2f736d589d",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:bb40f4beb2d3697ec775bb15465535eb3b724e893c0915ce2c1b8c2a9ff29c6d",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:b6bdbebfdc621c6c4fbd3cc6724f2c3b296b7c8a546ac7d1ed9daefae3507fec",
+              "context_projection_unavailable:contributor-scan:aa970f38bd46b99a481c8eaebcfd33a3bcd42f9c31666ec458a040542bfaea98",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:1fa33c0cdff45776c710359a83282613898a10e5c71d3cbb465aead01e58fd2b",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:ad6e2417d62b70bad2bcb105c4d8f8d17d7d1571195daf920b00779f2ea4d215",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:cb423a2f845a6b28d38d805c1f09707937cc4374fc579c0f7b8de705049e1adc",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:a10e29aaab6144d3a0d715a2e98693730a9193c9fee19f3e44acf7229443f94e",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:edfb8de993bed2b323de921deb9be5536f0458544d0cc852fb715d9cec8104dd",
+              "context_projection_unavailable:contributor-scan:4f2246b0f6f70dd4c31cb1845f69f30143eaefe29b2abe5d2be58534d36ee6e2",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:f736c36848da99f8030dff35e2ff2027031292dc0aaa6b361330d6cdd33af8fe",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:aa8f3529c611bee3cdbf773af97f749765f600d2f8a2f1f1fabdee3b06f9c4f9",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:62731b08944f863a2c1e5057553d675ecd923999636bb98110c2ea091005cd37",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:9f05bb1d81abbc24542d18c458d651dc030a18c68c3b80c00c5b0b71514277a8",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:67b6471513e533f04498690e250b7d2c8d89f486287bb49285bbd60f26ecca6c",
+              "context_projection_unavailable:contributor-scan:1c5807271d348c25b20cc8e19261b725bfd6fe0201dfe2b59044566350aa01e2",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:86a9ebca54a92176dd0fadee7b171947eeddf72d1310c466becc2e98f1673b4b",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:5a857670d7d03dce6c50cba855a4018d22ea2dba9cef04231267bbac1e03e804",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:4c3c322d7326ee46c43c2d7843f7be9dd4476cc42181a40b3113a374b5778c7d",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:3ade8bad6c32e72ce012d122c5ceb214720ac61701cfcf36585ab6fadee7f107",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:ca1c3c566a0e0e25bda0e169e538629a628e69b05a9bd2bd6cb753726cc80f57",
+              "context_projection_unavailable:contributor-scan:82e0b710acb65d4bbcc79353bfee54d763e49d9936ad487e084eca188c18f3a4",
+              "context_projection_unavailable:contributor-scan:ec8fe6b8dd810451dc1b92970a23cb143eded7f93bd52bac6916db36af54ee14",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:92996194ab1a9b118bf50c494d94ee303a1c23919acea58f7b08e8e2c371931b",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:dd5375b8f5e47521bf03fd6390665fdf6e4de076a7fc3ac3fc16e1fe612e0628",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:20f104d4519dfdf01bcdedf88e71c6bd66e425a63afe6c3534b3e039aa783cf1",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:a3d7b5ccb217d7470e6396fe1c094fde5081da30994ceaa62451a481f67fc351",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:6ddff25ea01d52157b4d85f5f00246f86a66bb612fb976f0658e36bf2c98dbf2",
+              "context_projection_unavailable:contributor-scan:85b73d3a32e7962065be097c10c094d8f056ca1ceebadfbaaac240c923f1f745",
+              "context_projection_unavailable:contributor-scan:16028241773f90d6fc51cbbc844a6e134f576cc39191b47f6ce271314b62aa56",
+              "context_projection_unavailable:contributor-scan:c11140abfbdf2c84fa6b95cef075c03948de173780fba684d84d8068a5b6b4c7",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:1cde41b32d7f94d9c80627b9d828506d47b60cd00ee7ed19cbd93953bcc4105b",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:228e10358a44c1f1300b270ca1afc59fcda11da8ee6ffb29118395b6c1e605de",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:dc51479873a7bd0c22e45a5999621450c29eddd251bdd9951c3983e6bde27c59",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:1e022b60204ac9d7b2eacc7631ac6597976ead5f133d8bb222ce0a45da120323",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:b76d80c14c51dda075f7b5ea0a5f3ef7fc1caaa832b596822a15fd95f857536a",
+              "analysis_incomplete"
+            ],
+            "stage_timings": {
+              "deadline_seconds": 600.0,
+              "cancellation_allowance_seconds": 2.0,
+              "resolution_seconds": 0.01800786389503628,
+              "provenance_seconds": 0.2893215729855001,
+              "snapshot_seconds": 0.08405834203585982,
+              "snapshot_reuses": 1,
+              "discovery_seconds": 0.010119087994098663,
+              "discovery_hits": 2,
+              "preparation_seconds": 0.10081518208608031,
+              "head_seconds": 2.9955809990642592,
+              "base_seconds": 2.8868500230601057,
+              "admission_seconds": 0.00875066895969212,
+              "cleanup_seconds": 0.0011947620660066605,
+              "graph_hits": 2,
+              "query_hits": 403,
+              "total_seconds": 6.324697738979012
+            },
+            "snapshot_bytes_read": 139164,
+            "classification": "recorded context/capability limits"
+          },
+          {
+            "case_id": "VAmPI-BOLA-BOOKS",
+            "command": [
+              "ousast",
+              "pre-push",
+              "/tmp/ousast-experiment-kyvk9pk7/objects.git",
+              "--base",
+              "f16052dce83f05847133ec98f01c5193a41de7d8",
+              "--head",
+              "f16052dce83f05847133ec98f01c5193a41de7d8",
+              "--artifact",
+              "/results/qualification-regression-v1/VAmPI-BOLA-BOOKS.json",
+              "--deadline",
+              "600.0",
+              "--cancellation-allowance",
+              "2",
+              "--max-regions",
+              "500",
+              "--cache-dir",
+              "/results/vampi-cache"
+            ],
+            "process_exit_code": 0,
+            "elapsed_seconds": 6.684015898965299,
+            "artifact": "VAmPI-BOLA-BOOKS.json",
+            "terminal": "No actionable defects reported; analysis is incomplete.\nNotice: Some checks are not enabled for normal alerts. Review capability coverage in the details.\nDetails: /results/qualification-regression-v1/VAmPI-BOLA-BOOKS.json\n",
+            "core_unchanged": true,
+            "input_pins": {
+              "base": "f16052dce83f05847133ec98f01c5193a41de7d8",
+              "head": "f16052dce83f05847133ec98f01c5193a41de7d8"
+            },
+            "runtime_provenance_available": true,
+            "coverage_reasons": [
+              "capability_unavailable",
+              "comparison_unknown",
+              "witness_unresolved",
+              "dependency_unresolved",
+              "eligibility:eligibility_invalid_or_unavailable",
+              "witness_identity_unresolved",
+              "context_projection_unavailable:contributor-scan:b6e6786dce09d848d3bb498c168c49dda5c474537892ef6f9c7df68ebabdf550",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:5fd8c7c2cb3416fe25b4c1437ea95ffba902e60407139a6b5d5c9d0a898beb17",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:d3df6b543c4f932ffc44880f53a20d8e2a39b01aaed423c81c06fe8dff906acb",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:98d5d6114cd938cf0b0a384d35d279d5754c2aea55804b3dbb24a915753924b2",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:3aabf2177b0762d91115354177297f9b7fe6f3452c9c17ca2ff5a2cb03ecf98c",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:68865c15daec49375f4bfb2f0acf7e48f45fd56909f137b1574b5ebf09d01095",
+              "context_projection_unavailable:contributor-scan:befb0ba6eeb35a1c34fbb30181339acb1c2b66c1ab373ef428b86208752dbd39",
+              "context_projection_unavailable:contributor-scan:7ac7cf444129e4df728e3ccf3f87cda6df1f45166d5f31acaa05c3bbf62f43ce",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:72b8e224c83e4e007aa6cab72f158df9b99f892db8994c65407e16ca4c929401",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:b61225a697d36ca5907ae4c3100b8f155ec5a24c9039353d0688d37797cb5806",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:65d6f3f5eda2624c775b024e33bce4ca6cd7efa48b7a9060a2e9ecac2cb168d7",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:14a40f1cf8dd2eb92a31924cefc194cb364ee5e1c0f250740cdaaeaa45f7e222",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:6d9cd82ed2b32c3d3d1852c65ac45a216f6e52e9a07bfab2501efbbeacd27a3e",
+              "context_projection_unavailable:contributor-scan:cdfa7ab2ac8e36fdd45cc472a83490c2fbd8b8ee141f08a82c0e4969c2c381c3",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:7856547fcb5c892066df29acbb3ef7da66b6179a92ae7aad8d8155ef3e48149b",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:abd418304da4d1034dbdc261664c3cf83c35328940519ff14224fd69e5e4ee0f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:14536e658fd2e034c24c93c37b4cca1c8111c8e41831015e1212f2941f9b394f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:7d88eb9dfc8a80dce0a81bb67cc62be8d246092b161ba2b136172c52c179e907",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:f415798635a4f6e8b6d851f2c2123c498cb25e078462c3c0a1004082cff7bbd0",
+              "context_projection_unavailable:contributor-scan:3ab7facfaa4cd10ca16053ec306e6962888b747fe49ef89ff79bcadcf5e3bb70",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:ecc120f59e4f660cc723642b5e95001e4d0344f4e6b9be804ccfcea1e8c660a2",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:a69d683cb98ef2c861dd4c41f7c692f60153562a91e9b01c2ee6f35b0e20dae1",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:14e8cc89dd56f4c0651ab6ad6e332e10af11f958cc7c103a039e3c72252289f1",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:9f07bb8ccd55cdb216b8f60548c9781a9ee0eefe8c8e4c05b4388b190745531f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:dbf6f3e212c4b2978a52079885d98a4085275273389c741897ef21458f1b3f11",
+              "context_projection_unavailable:contributor-scan:6492afb1fb02c240530975a55c518a53b874fa0aabc294f34d766a2124d39e0f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:52cce51367f7ee0cc67daabca3ec34f87aa9b653b1e83ac2ebc7e705df9a5e43",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:34889859c8fb27953e98d05f38bb1a6463a9fa951170f5f15bca1965798b5324",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:0ca24fd76494492c540dec50731e1f3f2fad7b12ad179b290c5058d848888551",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:ffc4d0bb86bb420656808a48618b5436bece843489d784b7f86787346adafbc0",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:11e7093ae7653371060c145b0d781632c41caffbf08c223629ee3cc4a391529e",
+              "context_projection_unavailable:contributor-scan:c651657e8974f950dc3d6e581195e8cfe57a399258f6f1f82d7f7d876dce8dff",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:23b88aa03880ab3162024b9becea54938f0d90e4972002fd62b8f591bc42d9e0",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:3ed3a12d8909a3317b353f99f7d88c5cbbc0b58b710ae43a390e7feef7a80eb8",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:d9ad4ca3f1702e8707ab0eeda5897b99cdf582757b95c910c05ce554ba203a26",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:521b70aff590509d84e870cb73bf6755e626496c8155bdabe7cadf0eb103272c",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:646259d5f7a2e4744a268bfa8cfa6f91698858b879148283a6869a7157278be1",
+              "context_projection_unavailable:contributor-scan:eef1eb61b520cc3f89e01099d4d70a163f5a52ef84c2e6c5e3e573c78f97f2d4",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:de0deac1ceafe5571dfca090d72816404ea28ef882c6e0e6c42f983a9a74e921",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:d126db9758e81e18bd72391c67aab4b2d298df91b4b20208a5b16612cb881c09",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:78381d168f3b08ce93ea86c44b812ef484bcdaf41348a9f806611a158e1cb811",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:0fdaa18aee2b3260606b389c233c5b7270d99bacd7bcf2f71e23618c3d0b8cdf",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:354de5136d9efdb05ec889dfe6b202206aa274d1a51df3d6eb16279de09fbab5",
+              "context_projection_unavailable:contributor-scan:622ee10de5cd3c1e160b3fa1f65a75ea4a07d78e5a2a396990a773f7e99146e3",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:c131cba624d6d54312acd6b399f0064ca2ea93fe46530c8ff4cafb6224a8b20c",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:b872b5963d5de7e8b661764dde7d18d485795102bdd21dbf3507e7413a2f7d8e",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:0ed7bef715318c8c7db340d2f3746763249d15046958cb3138f55509ec9c4f51",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:3c2853baff5fef2f99377fe725da6449fdb9e46742733d4f7be2d230113a06a9",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:584de909c4ed4d95cc3e488899673272438b79fc331ba8748e1dd57bf89667c8",
+              "context_projection_unavailable:contributor-scan:94ebde87ff4a01c118d2999be9c3b98989ade91d8b5440aa8888a42e2799c289",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:e5b3fc3f6ffb3373bf6e6b1933090a12b5da87e616bf6e35f852e96d46435dff",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:e189489e75ef2d51bfa86559788d694573bc08345b1a8678696850cece928576",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:c053886de917306d7fbbce0cb345004c7c10989e5c4d6926edf4c81c81a4ef3c",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:e27fa218577b8e6546fb431dea7b9a841976c42a329fbad9ab9158ecebb1b7c6",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:bc93a6c420b2ae4796c808e67dde3f2effdaa3d6f20a2e38a96a318d99db070f",
+              "context_projection_unavailable:contributor-scan:513e2533c2c4bbca895209b0b1ebef24639bace7828a8679cc75726345ac78b9",
+              "context_projection_unavailable:contributor-scan:3510d0582f1e0af080a2ef700cfd9c5397e998263aeac009069d30f61dce7ad1",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:bcbc3f5da3e44a7969a0c750e6cf96d6075b7f169847f3ece87055e09aeb1d5f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:c247c69a3d908f310267fb1c77dcd0f20d31ab1a00aa778ed235da5dfc987b62",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:dae128866dd12dbec7d928626bd9582d2f9b78ab06ccf6ac3fc12cae7b1ec698",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:fa1c65c1da178f489e1cd8d8589c2271864a95cdff1f10322b06801bda604dd6",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:47eac5955f39bb0c4a533cd0095c5b2223b2aeca77bdb33baac04627b3cd12e6",
+              "context_projection_unavailable:contributor-scan:98c1e285b388077dc4d32fe7ae3cff0e540bc016607f20e643d3d073620f99e0",
+              "context_projection_unavailable:contributor-scan:31f5d8fd9b099334dd540e6aac7b70fab1e81c25fbb731054500f291cb8c0603",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:d805d371b44b17806699d9cb3d8bd7d8d2d22067f2e4d7fba061427ce564c6ad",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:4eebbb6c1f6210f428a3d423e401d370b16b2afed603b569ef10536658e6dae4",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:25d5cc67b28aaf9814d125fbf4fb98fd90f55ac5fe3918ebd0249ae835b33d1f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:303416318ab062a2b1c59020a63e8efbc4af4a1e949b465f44a241d351e5eec4",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:1e3f98f5df0de5761a5a9258164cc22835c61968f96355a4bb10081cd313269d",
+              "context_projection_unavailable:contributor-scan:2123b018bfe6dbb0dc3167db7da9e1a4f98a7f908094a37fd5c5d6b5269b08f2",
+              "context_projection_unavailable:contributor-scan:c5263033b79994e87f2a96eeedc1ffe891856cf008559d73de7c274498558204",
+              "context_projection_unavailable:contributor-scan:62c16e0c95e86a4b54b7390504cd23bebad7856f7304e9511802eb685198deb1",
+              "context_projection_unavailable:contributor-scan:63c1e59b1b3c3291f49bf6d172b032b6bf26fd5371d664ff263cf8d6867f6cb2",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:1957f95e46512d48b6d0115e628559af3c05dc637f47f659d11ebdd02aa161f0",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:f540d752aebf4f24a7a77ad21a646b97d48264ea5f2a9d11a6299909bdc9cf99",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:4748964f12387843e2cdda59c64e76a9e74d67cb61fa1af6df7a939a316ffd7d",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:3350c29581fb963c6a675573d9dc052e76994e62643377aefb1b2ee1a58f8df1",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:cf360556e591dffb5974c831c03f70f1281e69c98380b105ca8188c5f4d767dd",
+              "context_projection_unavailable:contributor-scan:06cef66cfe5e051dfca120f248201c33073d945d0205420eb09c521e06abbc7d",
+              "context_projection_unavailable:contributor-scan:af8584f0cf4fb1d014a1104acbbd17f62472bf1fad9452ca73e3baa304885721",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:27df8ddb8606a1cfdd09175c32246362b7ffa123b9df2ecd7ffcdaab62a6ad36",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:4180a34b6b8ccdf598eb3fd98828a5ba1d442d9e2e7c232321f730e268723d5f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:e249dd6972493deca73abb3109dc0ad1bfdb2b047ff9c04543664ccb1da27f79",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:9bd191e88c8374e208a561659abe57f49a3c5bf27d6999064aa140d58935e00d",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:fbb50391449bb115384267947fd3baa34e4d6180d9d1bb3d8de5e9359ba09694",
+              "context_projection_unavailable:contributor-scan:ef3ba2bedf28f2c95f9ac176c3cb8245d16c26866dc36ecc69ded3db641202a5",
+              "context_projection_unavailable:contributor-scan:bcdf6aa6bf04f6bc147520c9337cd0db4b9f79a2c285649c3ab90d9fea82a638",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:919c40c0b3e55b97b571f0ba23620c4a6d4d44be705b9724941e65ad737b9863",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:9dc32d66da54ff8cd80cead3e23aa1d5a93c414501be789ff55589e4232ee2b5",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:7496541451be3c3dc3bc29233e93b2a1a3c0a0e7b35ac8e1f2f486996db69f69",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:bdda0a24ccbfc31edae593bd1841e2badcd60c0f79a5c4f8244e9f1c2e1cac44",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:693467e9cb111e528b6bd901514e6656b210242d29ba0617577ee39cf653e7c4",
+              "context_projection_unavailable:contributor-scan:7b0896c2c356bdb439faf4ea8cdf81c8e9c87ef92860b629ca2da0e80a89e275",
+              "context_projection_unavailable:contributor-scan:b7afb181de2d3a5b6a45252c630f7a96638535b619611fa5b85f649590848051",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:efee23d66d1b9936dfec2a24ebe73f3fd90327b7a80de9085006dc6559b8d4e7",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:80867748e8fdd10aa5f62e6401ff0b987cc7ffbde5099393573eaff7c097f37f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:832a954864c99a67d8abd16df26677c13df04d748688fb3c48c927229faacad4",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:2ccf2b3af79ebcecda03456468e367867cbf114f1726276bf9cac0ee495a8e55",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:7a6b32f2f167580649ff65a70b3e535dd4fe73a32f1cea91ec559a430c324884",
+              "context_projection_unavailable:contributor-scan:92b827aa15f8e2c1ef7b6c13d6b896ad1ac1bc25b7ba3b83bec87ed615ad631f",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:6454d100ccd5bed945f73029a8ea4475a8412f70a070cce125255da0dbf8bd91",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:784d747b13e9de6f9f70ee5d83445a8f5baac18e08b0a855eb85e069335405c7",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:20e7fbf2d2242fd9d4e8fe5c6091544754d400655fdde69d394b5e2f736d589d",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:bb40f4beb2d3697ec775bb15465535eb3b724e893c0915ce2c1b8c2a9ff29c6d",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:b6bdbebfdc621c6c4fbd3cc6724f2c3b296b7c8a546ac7d1ed9daefae3507fec",
+              "context_projection_unavailable:contributor-scan:aa970f38bd46b99a481c8eaebcfd33a3bcd42f9c31666ec458a040542bfaea98",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:1fa33c0cdff45776c710359a83282613898a10e5c71d3cbb465aead01e58fd2b",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:ad6e2417d62b70bad2bcb105c4d8f8d17d7d1571195daf920b00779f2ea4d215",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:cb423a2f845a6b28d38d805c1f09707937cc4374fc579c0f7b8de705049e1adc",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:a10e29aaab6144d3a0d715a2e98693730a9193c9fee19f3e44acf7229443f94e",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:edfb8de993bed2b323de921deb9be5536f0458544d0cc852fb715d9cec8104dd",
+              "context_projection_unavailable:contributor-scan:4f2246b0f6f70dd4c31cb1845f69f30143eaefe29b2abe5d2be58534d36ee6e2",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:f736c36848da99f8030dff35e2ff2027031292dc0aaa6b361330d6cdd33af8fe",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:aa8f3529c611bee3cdbf773af97f749765f600d2f8a2f1f1fabdee3b06f9c4f9",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:62731b08944f863a2c1e5057553d675ecd923999636bb98110c2ea091005cd37",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:9f05bb1d81abbc24542d18c458d651dc030a18c68c3b80c00c5b0b71514277a8",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:67b6471513e533f04498690e250b7d2c8d89f486287bb49285bbd60f26ecca6c",
+              "context_projection_unavailable:contributor-scan:1c5807271d348c25b20cc8e19261b725bfd6fe0201dfe2b59044566350aa01e2",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:86a9ebca54a92176dd0fadee7b171947eeddf72d1310c466becc2e98f1673b4b",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:5a857670d7d03dce6c50cba855a4018d22ea2dba9cef04231267bbac1e03e804",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:4c3c322d7326ee46c43c2d7843f7be9dd4476cc42181a40b3113a374b5778c7d",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:3ade8bad6c32e72ce012d122c5ceb214720ac61701cfcf36585ab6fadee7f107",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:ca1c3c566a0e0e25bda0e169e538629a628e69b05a9bd2bd6cb753726cc80f57",
+              "context_projection_unavailable:contributor-scan:82e0b710acb65d4bbcc79353bfee54d763e49d9936ad487e084eca188c18f3a4",
+              "context_projection_unavailable:contributor-scan:ec8fe6b8dd810451dc1b92970a23cb143eded7f93bd52bac6916db36af54ee14",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:92996194ab1a9b118bf50c494d94ee303a1c23919acea58f7b08e8e2c371931b",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:dd5375b8f5e47521bf03fd6390665fdf6e4de076a7fc3ac3fc16e1fe612e0628",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:20f104d4519dfdf01bcdedf88e71c6bd66e425a63afe6c3534b3e039aa783cf1",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:a3d7b5ccb217d7470e6396fe1c094fde5081da30994ceaa62451a481f67fc351",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:6ddff25ea01d52157b4d85f5f00246f86a66bb612fb976f0658e36bf2c98dbf2",
+              "context_projection_unavailable:contributor-scan:85b73d3a32e7962065be097c10c094d8f056ca1ceebadfbaaac240c923f1f745",
+              "context_projection_unavailable:contributor-scan:16028241773f90d6fc51cbbc844a6e134f576cc39191b47f6ce271314b62aa56",
+              "context_projection_unavailable:contributor-scan:c11140abfbdf2c84fa6b95cef075c03948de173780fba684d84d8068a5b6b4c7",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:1cde41b32d7f94d9c80627b9d828506d47b60cd00ee7ed19cbd93953bcc4105b",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:228e10358a44c1f1300b270ca1afc59fcda11da8ee6ffb29118395b6c1e605de",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:dc51479873a7bd0c22e45a5999621450c29eddd251bdd9951c3983e6bde27c59",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:1e022b60204ac9d7b2eacc7631ac6597976ead5f133d8bb222ce0a45da120323",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:b76d80c14c51dda075f7b5ea0a5f3ef7fc1caaa832b596822a15fd95f857536a",
+              "analysis_incomplete"
+            ],
+            "stage_timings": {
+              "deadline_seconds": 600.0,
+              "cancellation_allowance_seconds": 2.0,
+              "resolution_seconds": 0.017163134994916618,
+              "provenance_seconds": 0.27999858604744077,
+              "snapshot_seconds": 0.07985386403743178,
+              "snapshot_reuses": 1,
+              "discovery_seconds": 0.010372382937930524,
+              "discovery_hits": 2,
+              "preparation_seconds": 0.09698529110755771,
+              "head_seconds": 2.9751758010825142,
+              "base_seconds": 2.7918961899122223,
+              "admission_seconds": 0.005823700921609998,
+              "cleanup_seconds": 0.0009863880695775151,
+              "graph_hits": 2,
+              "query_hits": 403,
+              "total_seconds": 6.191919289063662
+            },
+            "snapshot_bytes_read": 139164,
+            "classification": "recorded context/capability limits"
+          }
+        ],
+        "core_changes": [],
+        "adapter_changes": [],
+        "freeze_after_pmpro": null
+      }
+    },
+    "qualification-envelope-v1": {
+      "decision": {
+        "decision": "NO-GO",
+        "capabilities_enabled": false,
+        "scorecard": "scorecard.json",
+        "reason": "Qualification evidence run; independent eligibility and joint quality/warm-latency gates remain unmet.",
+        "selection": "envelope",
+        "analysis_deadline_seconds": 30,
+        "recorded_cases": 1,
+        "declared_population": 11,
+        "core_unchanged": true,
+        "adapter_changes": [],
+        "limits": [
+          "No warm-cache measurements",
+          "Untouched Ghost population not scanned",
+          "PHP/Python admission populations missing",
+          "libpng retained as unsupported envelope; no C/C++ detection claim",
+          "Zero normal alerts from an empty registry cannot establish precision or useful recall"
+        ]
+      },
+      "metrics": {
+        "schema_version": 1,
+        "profile_sha256": "0617fe024d11816568cc77c078b22c3f59b272125d4f4688b8e31b1ec8c9a854",
+        "population": 11,
+        "recorded_cases": 1,
+        "measurement_status": "recorded",
+        "metrics": {
+          "recall": {
+            "numerator": 0,
+            "denominator": 2,
+            "value": 0.0,
+            "wilson95": [
+              0.0,
+              0.6576197724933469
+            ]
+          },
+          "precision": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "wilson95": null
+          },
+          "fixed_side_silence": {
+            "numerator": 0,
+            "denominator": 2,
+            "value": 0.0,
+            "wilson95": [
+              0.0,
+              0.6576197724933469
+            ]
+          },
+          "benign_interruption": {
+            "numerator": 0,
+            "denominator": 2,
+            "value": null,
+            "wilson95": null,
+            "unobserved": 2
+          },
+          "completion": {
+            "numerator": 0,
+            "denominator": 9,
+            "value": 0.0,
+            "wilson95": [
+              0.0,
+              0.2991450484195441
+            ]
+          },
+          "regression_detection": {
+            "numerator": 0,
+            "denominator": 3,
+            "value": 0.0,
+            "wilson95": [
+              5.551115123125783e-17,
+              0.5614970317550454
+            ]
+          },
+          "actionable_recall": {
+            "numerator": 0,
+            "denominator": 2,
+            "value": 0.0,
+            "wilson95": [
+              0.0,
+              0.6576197724933469
+            ]
+          },
+          "query_completion": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "wilson95": null,
+            "unmeasured_cases": 9
+          },
+          "latency": {
+            "cold": {
+              "samples": 1,
+              "p50": 30.589514696970582,
+              "p95": 30.589514696970582
+            },
+            "warm_changed": {
+              "samples": 0,
+              "p50": null,
+              "p95": null
+            },
+            "identical_tip": {
+              "samples": 0,
+              "p50": null,
+              "p95": null
+            }
+          },
+          "unresolved": 11,
+          "timeouts": 1
+        },
+        "by_capability": {
+          "c/libpng/memory_safety": {
+            "recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "fixed_side_silence": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "benign_interruption": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unobserved": 0
+            },
+            "completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "regression_detection": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "actionable_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "query_completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unmeasured_cases": 0
+            },
+            "latency": {
+              "cold": {
+                "samples": 1,
+                "p50": 30.589514696970582,
+                "p95": 30.589514696970582
+              },
+              "warm_changed": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "identical_tip": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              }
+            },
+            "unresolved": 1,
+            "timeouts": 1
+          },
+          "javascript/express/injection": {
+            "recall": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "fixed_side_silence": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "benign_interruption": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": null,
+              "wilson95": null,
+              "unobserved": 1
+            },
+            "completion": {
+              "numerator": 0,
+              "denominator": 3,
+              "value": 0.0,
+              "wilson95": [
+                5.551115123125783e-17,
+                0.5614970317550454
+              ]
+            },
+            "regression_detection": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "actionable_recall": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "query_completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unmeasured_cases": 3
+            },
+            "latency": {
+              "cold": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "warm_changed": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "identical_tip": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              }
+            },
+            "unresolved": 3,
+            "timeouts": 0
+          },
+          "javascript/express/unreviewed": {
+            "recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "fixed_side_silence": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "benign_interruption": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unobserved": 0
+            },
+            "completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "regression_detection": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "actionable_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "query_completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unmeasured_cases": 0
+            },
+            "latency": {
+              "cold": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "warm_changed": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "identical_tip": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              }
+            },
+            "unresolved": 1,
+            "timeouts": 0
+          },
+          "php/wordpress/injection": {
+            "recall": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "fixed_side_silence": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "benign_interruption": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": null,
+              "wilson95": null,
+              "unobserved": 1
+            },
+            "completion": {
+              "numerator": 0,
+              "denominator": 3,
+              "value": 0.0,
+              "wilson95": [
+                5.551115123125783e-17,
+                0.5614970317550454
+              ]
+            },
+            "regression_detection": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "actionable_recall": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "query_completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unmeasured_cases": 3
+            },
+            "latency": {
+              "cold": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "warm_changed": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "identical_tip": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              }
+            },
+            "unresolved": 3,
+            "timeouts": 0
+          },
+          "python/flask/access_control": {
+            "recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "fixed_side_silence": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "benign_interruption": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unobserved": 0
+            },
+            "completion": {
+              "numerator": 0,
+              "denominator": 2,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.6576197724933469
+              ]
+            },
+            "regression_detection": {
+              "numerator": 0,
+              "denominator": 2,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.6576197724933469
+              ]
+            },
+            "actionable_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "query_completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unmeasured_cases": 2
+            },
+            "latency": {
+              "cold": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "warm_changed": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "identical_tip": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              }
+            },
+            "unresolved": 2,
+            "timeouts": 0
+          },
+          "python/flask/injection": {
+            "recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "fixed_side_silence": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "benign_interruption": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unobserved": 0
+            },
+            "completion": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "regression_detection": {
+              "numerator": 0,
+              "denominator": 1,
+              "value": 0.0,
+              "wilson95": [
+                0.0,
+                0.7934506856227626
+              ]
+            },
+            "actionable_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null
+            },
+            "query_completion": {
+              "numerator": 0,
+              "denominator": 0,
+              "value": null,
+              "wilson95": null,
+              "unmeasured_cases": 1
+            },
+            "latency": {
+              "cold": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "warm_changed": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              },
+              "identical_tip": {
+                "samples": 0,
+                "p50": null,
+                "p95": null
+              }
+            },
+            "unresolved": 1,
+            "timeouts": 0
+          }
+        },
+        "admission": "experimental",
+        "gates_passed": false,
+        "note": "Diagnostic instrument only. No admission without independent capability evaluation. Missing runs contribute only conservative full-population bounds, not observed detector performance. Witness association is checked; semantic/actionability review is supplied evidence, not inferred from rank."
+      },
+      "cases": [
+        {
+          "id": "pmpro-introduce",
+          "base": "pmpro-fixed",
+          "tip": "pmpro-vulnerable",
+          "label": "vulnerable",
+          "role": "development",
+          "capability": "php/wordpress/injection",
+          "provenance": "Authored replay direction reintroducing the reviewed operation; not a claim about the historical introducing commit.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "pmpro-repair",
+          "base": "pmpro-vulnerable",
+          "tip": "pmpro-fixed",
+          "label": "fixed",
+          "role": "development",
+          "capability": "php/wordpress/injection",
+          "provenance": "PMPro upstream2.9.7 to2.9.8 parameter binding fix for CVE-2023-23488.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "pmpro-benign",
+          "base": "pmpro-vulnerable",
+          "tip": "pmpro-benign",
+          "label": "benign",
+          "role": "development",
+          "capability": "php/wordpress/injection",
+          "provenance": "Authored comment-only change: no new defect; vulnerable backlog remains. This label does not mean repository-clean.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "nodegoat-introduce",
+          "base": "nodegoat-fixed",
+          "tip": "nodegoat-vulnerable",
+          "label": "vulnerable",
+          "role": "transfer",
+          "capability": "javascript/express/injection",
+          "provenance": "Authored replay direction reintroducing the reviewed operation; not a claim about the historical introducing commit.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "nodegoat-repair",
+          "base": "nodegoat-vulnerable",
+          "tip": "nodegoat-fixed",
+          "label": "fixed",
+          "role": "transfer",
+          "capability": "javascript/express/injection",
+          "provenance": "Authored replacement of three eval calls with Number conversion; source tutorial also documents alternate numeric parsing.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "nodegoat-benign",
+          "base": "nodegoat-vulnerable",
+          "tip": "nodegoat-benign",
+          "label": "benign",
+          "role": "transfer",
+          "capability": "javascript/express/injection",
+          "provenance": "Authored comment-only change: no new defect; vulnerable backlog remains. This label does not mean repository-clean.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "VAmPI-SQLI",
+          "base": "vampi-regression",
+          "tip": "vampi-regression",
+          "label": "regression",
+          "role": "regression",
+          "capability": "python/flask/injection",
+          "provenance": "Existing recipe known target, full target population retained; environment vulnerable=1. Snapshot regression, not an introducing push.",
+          "prerequisites": [
+            "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+          ],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "missing_prerequisite",
+          "input_problem": "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+        },
+        {
+          "id": "VAmPI-BOLA",
+          "base": "vampi-regression",
+          "tip": "vampi-regression",
+          "label": "regression",
+          "role": "regression",
+          "capability": "python/flask/access_control",
+          "provenance": "Existing recipe known target, full target population retained; environment vulnerable=1. Snapshot regression, not an introducing push.",
+          "prerequisites": [
+            "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+          ],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "missing_prerequisite",
+          "input_problem": "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+        },
+        {
+          "id": "VAmPI-BOLA-BOOKS",
+          "base": "vampi-regression",
+          "tip": "vampi-regression",
+          "label": "regression",
+          "role": "regression",
+          "capability": "python/flask/access_control",
+          "provenance": "Existing recipe known target, full target population retained; environment vulnerable=1. Snapshot regression, not an introducing push.",
+          "prerequisites": [
+            "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+          ],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "missing_prerequisite",
+          "input_problem": "Reviewed independent vulnerable/fixed/benign push pair required before hook admission."
+        },
+        {
+          "id": "libpng-CVE-2025-66293",
+          "base": "libpng-envelope",
+          "tip": "libpng-envelope",
+          "label": "unsupported",
+          "role": "envelope",
+          "capability": "c/libpng/memory_safety",
+          "provenance": "Arithmetic/bounds is outside the current abstract domain; measures graph/cost envelope only.",
+          "prerequisites": [],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "unsupported population; no detection claim",
+          "input_status": "ready",
+          "input_problem": null
+        },
+        {
+          "id": "ghost-reserved-population",
+          "base": "ghost-reserved",
+          "tip": "ghost-reserved",
+          "label": "unreviewed",
+          "role": "reserved_holdout",
+          "capability": "javascript/express/unreviewed",
+          "provenance": "Reserved from production API/module/async shape and public security-fix history before scanner results. Manifest6.64.0-rc.0, Express4.22.2. Not an ESM or Express5 coverage claim.",
+          "prerequisites": [
+            "Review and freeze supported positive/fixed/benign changes from independent history; select family before scanning.",
+            "Freeze core and existing facts after development; preserve reservation and record any contamination."
+          ],
+          "outcome": "unresolved",
+          "reached_transitively": false,
+          "witnesses": [],
+          "complete": false,
+          "problem": "no recorded execution",
+          "input_status": "missing_prerequisite",
+          "input_problem": "ghost-reserved: pinned checkout 07671c072c5a5e0538cbe44d9d4ca66111751535 unavailable; rerun this validator with --fetch to fetch it; ghost-reserved: pinned checkout 07671c072c5a5e0538cbe44d9d4ca66111751535 unavailable; rerun this validator with --fetch to fetch it; Review and freeze supported positive/fixed/benign changes from independent history; select family before scanning.; Freeze core and existing facts after development; preserve reservation and record any contamination."
+        }
+      ],
+      "execution": {
+        "cases": [
+          {
+            "case_id": "libpng-CVE-2025-66293",
+            "command": [
+              "ousast",
+              "pre-push",
+              "/tmp/ousast-experiment-sh9w12sd/objects.git",
+              "--base",
+              "cf53e54ccf631d8de68a30ebb3b8eeed1d6f1a08",
+              "--head",
+              "cf53e54ccf631d8de68a30ebb3b8eeed1d6f1a08",
+              "--artifact",
+              "/results/qualification-envelope-v1/libpng-CVE-2025-66293.json",
+              "--deadline",
+              "30",
+              "--cancellation-allowance",
+              "2",
+              "--max-regions",
+              "500"
+            ],
+            "process_exit_code": 0,
+            "elapsed_seconds": 30.589514696970582,
+            "artifact": "libpng-CVE-2025-66293.json",
+            "terminal": "No actionable defects reported; analysis is incomplete.\nNotice: Analysis did not finish. Rerun with a longer analysis deadline.\nDetails: /results/qualification-envelope-v1/libpng-CVE-2025-66293.json\n",
+            "core_unchanged": true,
+            "input_pins": {
+              "base": "cf53e54ccf631d8de68a30ebb3b8eeed1d6f1a08",
+              "head": "cf53e54ccf631d8de68a30ebb3b8eeed1d6f1a08"
+            },
+            "runtime_provenance_available": true,
+            "coverage_reasons": [
+              "deadline_exhausted",
+              "admission_failed:TimeoutError",
+              "cpg_build_failed",
+              "cross_partition_semantics_unresolved",
+              "analysis_incomplete",
+              "base_comparison_unavailable"
+            ],
+            "stage_timings": {
+              "deadline_seconds": 30.0,
+              "cancellation_allowance_seconds": 2.0,
+              "resolution_seconds": 0.015835126978345215,
+              "provenance_seconds": 0.2793400720693171,
+              "snapshot_seconds": 2.2742549009853974,
+              "snapshot_reuses": 1,
+              "discovery_seconds": 18.499541006982327,
+              "discovery_hits": 0,
+              "preparation_seconds": 20.78126169706229,
+              "head_seconds": 8.948544265003875,
+              "base_seconds": 0.0002519360277801752,
+              "admission_seconds": 0.018592773005366325,
+              "graph_hits": 0,
+              "query_hits": 0,
+              "total_seconds": 30.06640503089875
+            },
+            "snapshot_bytes_read": 12546454,
+            "classification": "scope/deadline"
+          }
+        ],
+        "core_changes": [],
+        "adapter_changes": [],
+        "freeze_after_pmpro": null
+      }
+    }
+  },
+  "limitations": [
+    "Ghost reviewed independent population and local checkout missing; not scanned.",
+    "PHP/Python independent qualification populations missing.",
+    "No reviewed emitted alerts: precision undefined, no admission.",
+    "VAmPI lab budget 600s cannot qualify 30s hook latency; same-snapshot regression is not a security-change pair.",
+    "No transitive detection claimed unless associated query carries the path witness.",
+    "libpng arithmetic/bounds remains unsupported; no C/C++ detection claim.",
+    "Registry-generation provenance probe overlapped the start of the VAmPI lab run; lab timings are diagnostic, not runtime-gate samples.",
+    "8.2 runtime evidence predates the eligibility-policy addition and remains failed/stale for admission; never relabeled."
+  ]
+}
