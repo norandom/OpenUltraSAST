@@ -1,10 +1,10 @@
 {
   "counts": {
-    "load_bearing": 101,
+    "load_bearing": 102,
     "standalone_capability": 9
   },
-  "modules": 110,
-  "note": "Refreshed after pre-push-safety-net task 4.3: compact reporting preserves full evidence and decisions; transaction replay remains task 5.1.",
+  "modules": 111,
+  "note": "Refreshed for task 5.1: explicit local replay integrates the existing ranker and comparison policy.",
   "orphaned": [],
   "rows": [
     {
@@ -104,6 +104,7 @@
         "model.endpoint",
         "pairs",
         "push.policy",
+        "push.runner",
         "regress.candidate",
         "regress.recipes",
         "run"
@@ -135,7 +136,8 @@
         "model.pipeline",
         "model.scan",
         "model.taint",
-        "push.policy"
+        "push.policy",
+        "push.runner"
       ],
       "module": "cpg",
       "reason": "model-grounded-detection Req 4: the CPG seam package"
@@ -157,7 +159,8 @@
         "model.pipeline",
         "model.scan",
         "model.taint",
-        "push.policy"
+        "push.policy",
+        "push.runner"
       ],
       "module": "cpg.backend",
       "reason": "model-grounded-detection Req 4.1/4.5: the single Joern subprocess boundary"
@@ -327,6 +330,7 @@
         "model.scan",
         "pairs",
         "preprocess",
+        "push.runner",
         "stage_processors"
       ],
       "module": "mapping",
@@ -362,6 +366,7 @@
         "push.contracts",
         "push.policy",
         "push.report",
+        "push.runner",
         "push.snapshot"
       ],
       "module": "model",
@@ -407,6 +412,7 @@
         "push.contracts",
         "push.policy",
         "push.report",
+        "push.runner",
         "push.snapshot"
       ],
       "module": "model.contracts",
@@ -497,7 +503,8 @@
         "cli",
         "model.layout",
         "model.scan",
-        "push.policy"
+        "push.policy",
+        "push.runner"
       ],
       "module": "model.regions",
       "reason": "contributor-scan Req 2: regions from entry points, with the families each admits"
@@ -515,7 +522,8 @@
       "importers": [
         "cli",
         "push.policy",
-        "push.report"
+        "push.report",
+        "push.runner"
       ],
       "module": "model.scan",
       "reason": "contributor-scan Req 3: the repository driver -- one CPG, one budget, ranked spend"
@@ -523,7 +531,8 @@
     {
       "classification": "load_bearing",
       "importers": [
-        "cli"
+        "cli",
+        "push.runner"
       ],
       "module": "model.shipped",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI"
@@ -630,6 +639,7 @@
         "model.partitions",
         "model.scan",
         "pairs",
+        "push.runner",
         "rank",
         "regress.candidate",
         "semantic.overlay",
@@ -668,8 +678,10 @@
     {
       "classification": "load_bearing",
       "importers": [
+        "cli",
         "push.policy",
         "push.report",
+        "push.runner",
         "push.snapshot"
       ],
       "module": "push",
@@ -680,6 +692,7 @@
       "importers": [
         "push.policy",
         "push.report",
+        "push.runner",
         "push.snapshot"
       ],
       "module": "push.contracts",
@@ -688,20 +701,33 @@
     {
       "classification": "load_bearing",
       "importers": [
-        "push.report"
+        "push.report",
+        "push.runner"
       ],
       "module": "push.policy",
       "reason": "pre-push-safety-net Req 2.4/3.1/3.4/4.1: targeted same-semantics base comparison; replay integration pending"
     },
     {
       "classification": "load_bearing",
-      "importers": [],
+      "importers": [
+        "push.runner"
+      ],
       "module": "push.report",
       "reason": "pre-push-safety-net Req 5.1/5.2/5.5/7.3: compact output and complete artifacts; runner integration pending"
     },
     {
       "classification": "load_bearing",
-      "importers": [],
+      "importers": [
+        "cli"
+      ],
+      "module": "push.runner",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [
+        "push.runner"
+      ],
       "module": "push.snapshot",
       "reason": "pre-push-safety-net Req 1.1/1.3/1.4/7.1: local immutable ref resolution; runner integration pending"
     },

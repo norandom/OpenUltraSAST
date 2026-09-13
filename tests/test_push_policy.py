@@ -206,3 +206,35 @@ def test_non_string_operation_cannot_prove_base_absence():
     row = json.loads(scan(line=5).question_outcomes[0].raw_rows_json)[0]
     row["sink"] = 42
     assert delta(scan(), scan(line=5, rows=[row])).novelty == "unknown"
+
+
+def test_unrelated_question_context_gap_does_not_poison_completed_comparison():
+    head = scan()
+    other = replace(head.scope.selected[0].identity, family="path")
+    gap = "dynamic_external_or_depth_context_unresolved:contributor-scan:" + other.question_id
+    head = replace(
+        head,
+        scope=replace(head.scope, selected=(*head.scope.selected, RankedQuestion(other, 0.0, ())), unresolved_boundaries=(gap,)),
+        question_outcomes=(*head.question_outcomes, QuestionOutcome(other, "unresolved", "change_context_incomplete", "[]")),
+    )
+    assert delta(head, scan(rows=[], findings=False)).novelty == "new"
+    own_gap = gap.rsplit(":", 1)[0] + ":" + head.scope.selected[0].identity.question_id
+    assert (
+        delta(replace(head, scope=replace(head.scope, unresolved_boundaries=(own_gap,))), scan(rows=[], findings=False)).novelty
+        == "unknown"
+    )
+    assert (
+        delta(replace(head, scope=replace(head.scope, unresolved_boundaries=("graph_incomplete",))), scan(rows=[], findings=False)).novelty
+        == "unknown"
+    )
+
+
+def test_proven_tier_zero_other_families_do_not_invalidate_base_answer():
+    from openultrasast.model.contracts import DeferredQuestion
+
+    base = scan(rows=[], findings=False)
+    other = replace(base.scope.selected[0].identity, family="path")
+    base = replace(base, scope=replace(base.scope, deferred=(DeferredQuestion(other, "tier_zero", ()),)))
+    assert delta(scan(), base).novelty == "new"
+    base = replace(base, scope=replace(base.scope, deferred=(DeferredQuestion(other, "budget_exhausted", ()),)))
+    assert delta(scan(), base).novelty == "unknown"

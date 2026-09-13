@@ -195,9 +195,25 @@ def _valid_answer(scan: ModelScanResult, question: QuestionIdentity, operations:
     return len(rows) == sum(op.question == question for op in operations)
 
 
-def _context_boundaries(scan: ModelScanResult) -> tuple[str, ...]:
-    # A missing scheduling vector is not missing arbiter evidence after its question completed.
-    return tuple(b for b in scan.scope.unresolved_boundaries if not b.startswith("evidence_unknown:")) if scan.scope else ("scope_missing",)
+def _context_boundaries(scan: ModelScanResult, question: QuestionIdentity | None = None) -> tuple[str, ...]:
+    # Aggregate coverage keeps every gap. A candidate may ignore only a recognized
+    # question-owned boundary attached to a different, recorded question. Unknown
+    # ownership and graph/declaration gaps remain global.
+    if scan.scope is None:
+        return ("scope_missing",)
+    owned_prefixes = (
+        "context_projection_unavailable:contributor-scan:",
+        "context_scope_empty:contributor-scan:",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:",
+    )
+    others = {q.identity.question_id for q in scan.scope.selected if q.identity != question}
+    others.update(q.identity.question_id for q in scan.scope.deferred if q.identity != question)
+    return tuple(
+        boundary
+        for boundary in scan.scope.unresolved_boundaries
+        if not boundary.startswith("evidence_unknown:")
+        and not (question is not None and boundary.startswith(owned_prefixes) and boundary.rsplit(":", 1)[-1] in others)
+    )
 
 
 def _counterpart(question: QuestionIdentity, context: ChangeContext) -> QuestionIdentity:
@@ -268,7 +284,7 @@ def compare_evidence(
                 base
                 and base.scope
                 and base.scope.population_complete
-                and not base.scope.deferred
+                and all(question.reason == "tier_zero" for question in base.scope.deferred)
                 and not _context_boundaries(base)
                 and not base.degradations
                 and _valid_answer(base, counterpart, base_ops)
@@ -285,7 +301,7 @@ def compare_evidence(
                 reason = "change_context_unresolved"
             elif (
                 not head.scope
-                or _context_boundaries(head)
+                or _context_boundaries(head, op.question)
                 or head.degradations
                 or not _valid_answer(head, op.question, head_ops)
                 or op.question not in {q.identity for q in head.scope.selected}

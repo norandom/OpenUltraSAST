@@ -242,3 +242,27 @@ allowance; a stalled writer is killed. A hard cancellation can leave a private
 `.partial-` file, which is never the published artifact and cannot establish a
 completed result. Serialization/write failure emits one notice without replacing
 the finding, coverage or push decision.
+
+## Explicit local replay
+
+Task 5.1 adds `ousast pre-push REPOSITORY --base BASE --head HEAD --artifact OUTSIDE_REPOSITORY.json`.
+Both revisions must already exist locally. The command records their resolved commit identities,
+materializes tracked object bytes in private scratch storage, discovers regions through the existing
+mapper, and runs the existing evidence ranker, arbiter, targeted base comparison and admission policy.
+It installs no hook and requires no model endpoint. All real capabilities remain experimental and
+ineligible for normal alerts until task 8.3; diagnostic candidates remain in the JSON artifact.
+
+`--deadline` defaults to 30 seconds, `--cancellation-allowance` to 2 seconds, and `--max-regions`
+to 500. Preparation, both revisions and reporting share that elapsed budget. `--mode blocking`
+and `--incomplete-coverage block` explicitly select enforcement; default advisory exit zero means
+allow, never complete analysis. This initial replay interface requires the artifact outside the
+analyzed repository, including resolved symlink destinations, to preserve the live source and index.
+Artifact failure cannot change the actual allow/block decision.
+
+`ops/smoke_replay.py --case security|fixed` exercises a real controlled PHP change through this
+production runner, without supplying hand-selected regions. Its default 900-second budget is a
+separately labeled runtime laboratory check, not hook latency. `--deadline 30` exercises cancellation;
+it does not demand a positive after an interrupted query. Run with the network-disabled packaged
+image, mounting the smoke script read-only as for the other smoke scripts. Snapshot manifests
+record verified immutable source bytes; full scan records retain exact selected/deferred questions,
+raw answers, per-question gaps, change context and candidate dispositions.

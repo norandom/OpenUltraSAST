@@ -15,9 +15,9 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Literal
 
-from openultrasast.model.contracts import ExecutionBudget
+from openultrasast.model.contracts import ChangeContext, ExecutionBudget
 from openultrasast.model.scan import ModelScanResult
-from openultrasast.push.contracts import PushComparison, PushResolution, PushResult
+from openultrasast.push.contracts import PushComparison, PushResolution, PushResult, SnapshotManifest
 from openultrasast.push.policy import AdmissionResult, _context_boundaries
 
 
@@ -36,6 +36,8 @@ class PushReport:
     provenance: Mapping[str, str]
     timings: Mapping[str, float]
     resolution: PushResolution | None = None
+    snapshots: tuple[SnapshotManifest, ...] = ()
+    change_context: ChangeContext | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "provenance", MappingProxyType(dict(self.provenance)))
@@ -109,6 +111,8 @@ def _write_artifact(report: PushReport, target: Path, temporary: Path, connectio
             with os.fdopen(fd, "w", encoding="utf-8") as stream:
                 payload = {
                     "schema_version": 1,
+                    "snapshots": [item.to_payload() for item in report.snapshots],
+                    "change_context": report.change_context.to_payload() if report.change_context else None,
                     "result": report.result.to_payload(),
                     "admission": report.admission.to_payload(),
                     "scans": [asdict(record) for record in report.scans],
@@ -223,7 +227,9 @@ def render_report(report: PushReport, *, artifact: Path | None, error: str | Non
             notices.append(
                 "Some checks could not be completed. Review the comparison details and resolve the recorded gaps before retrying."
             )
-    if error:
+    if error == "artifact_inside_repository":
+        notices.append("Details could not be saved. Choose an artifact path outside the analyzed repository.")
+    elif error:
         notices.append("Details could not be saved. Retry with a writable artifact path and available reporting time.")
     if notices:
         lines.append("Notice: " + " ".join(notices))

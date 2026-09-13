@@ -44,7 +44,8 @@ class SnapshotInputError(ValueError):
 
 
 class SnapshotAdapter:
-    def __init__(self, repository: Path, *, comparison_base: str | None = None) -> None:
+    def __init__(self, repository: Path, *, comparison_base: str | None = None, execution_budget: ExecutionBudget | None = None) -> None:
+        self.execution_budget = execution_budget
         self.repository = repository.resolve()
         self.comparison_base = comparison_base
         # Hook-inherited Git variables may redirect objects or worktrees elsewhere.
@@ -72,10 +73,22 @@ class SnapshotAdapter:
 
     def _repository_path(self, *args: str) -> Path:
         # Binary framing also matters for the repository's own whitespace/non-UTF8 name.
-        raw = self._bounded_git(("rev-parse", *args), 65536, ExecutionBudget(time.monotonic() + 10.0, 2.0), None, [])
+        raw = self._bounded_git(
+            ("rev-parse", *args), 65536, self.execution_budget or ExecutionBudget(time.monotonic() + 10.0, 2.0), None, []
+        )
         return Path(os.fsdecode(raw.removesuffix(b"\n"))).resolve()
 
     def _git(self, *args: str, input: str | None = None) -> subprocess.CompletedProcess[str]:
+        if self.execution_budget is not None:
+            if input not in (None, ""):
+                raise SnapshotInputError("bounded_resolution_requires_empty_stdin")
+            try:
+                raw = self._bounded_git(tuple(args), 16 * 1024**2, self.execution_budget, None, [])
+                return subprocess.CompletedProcess(args, 0, raw.decode("utf-8", "surrogateescape"), "")
+            except SnapshotInputError as error:
+                if str(error).startswith("local_git_") and "_failed_exit_" in str(error):
+                    return subprocess.CompletedProcess(args, 1, "", "")
+                raise
         try:
             return subprocess.run(
                 ["git", "-c", "protocol.allow=never", "-c", "core.hooksPath=" + os.devnull, "-C", str(self.repository), *args],
@@ -96,6 +109,17 @@ class SnapshotAdapter:
         if result.returncode:
             raise SnapshotInputError(f"local Git {args[0]} failed (exit {result.returncode})")
         return result.stdout.strip()
+
+    def resolve_replay(self, base: str, head: str) -> PushComparison:
+        """Resolve explicitly supplied local revisions without inferred baselines or fetching."""
+        resolved = []
+        for revision in (base, head):
+            oid = self._required("rev-parse", "--verify", "--end-of-options", revision)
+            commit, kind = self._commit(oid)
+            if commit is None:
+                raise SnapshotInputError("replay_revision_" + kind)
+            resolved.append(commit)
+        return PushComparison(resolved[1], resolved[0], "explicit_local_replay", ("refs/heads/replay",))
 
     def parse_updates(self, data: str) -> tuple[PushUpdate, ...]:
         """Validate every record before attempting resolution; malformed input fails closed."""

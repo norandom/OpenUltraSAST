@@ -1,0 +1,3763 @@
+{
+  "status": "VERIFIED",
+  "task": "5.1",
+  "review_mode": "manual Kiro fallback after agent thread limit",
+  "image": "sha256:dd9933e2a4021ab28f9302cbff82d9823d16e622fa60b27199ad8aa08c2fabbe",
+  "controls": [
+    {
+      "name": "security",
+      "data": {
+        "case": "security",
+        "source_bytes": 82,
+        "elapsed_seconds": 146.80912487697788,
+        "exit_code": 0,
+        "report_error": null,
+        "reporting_seconds": 0.02684599393978715,
+        "text": "No actionable defects reported; analysis is incomplete.\nNotice: Some checks are not enabled for normal alerts. Review capability coverage in the details.\nDetails: /tmp/ousast-replay-smoke-0p2xuvac/replay.json\n",
+        "artifact": {
+          "schema_version": 1,
+          "snapshots": [
+            {
+              "commit_oid": "11bb29e44eaa453a74c8cc115093aee25f2c5430",
+              "object_format": "sha1",
+              "files": [
+                {
+                  "path_hex": "6170692e706870",
+                  "blob_oid": "d9b631a6b465a68a7ddfbcfc289eb8cf4124e00b",
+                  "mode": "100644",
+                  "size_bytes": 83,
+                  "sha256": "fd919c616a59d10a6a71383ac0d5228ed2fc0eb6c90461dd3ef5dfeab835abf8"
+                }
+              ],
+              "boundaries": [],
+              "tree_complete": true,
+              "bytes_read": 83
+            },
+            {
+              "commit_oid": "f73ce23fa3a3dff278161652471571d230a26f5d",
+              "object_format": "sha1",
+              "files": [
+                {
+                  "path_hex": "6170692e706870",
+                  "blob_oid": "7e99786afe2b66f90af1abd3effc99327fcb2e55",
+                  "mode": "100644",
+                  "size_bytes": 76,
+                  "sha256": "ce927591f5ff35a4c3ca38de4cdce9e9310d5fc176e7e2feecd2e309f6388c6a"
+                }
+              ],
+              "boundaries": [],
+              "tree_complete": true,
+              "bytes_read": 76
+            }
+          ],
+          "change_context": {
+            "base_revision": "f73ce23fa3a3dff278161652471571d230a26f5d",
+            "head_revision": "11bb29e44eaa453a74c8cc115093aee25f2c5430",
+            "changed_paths": [
+              "6170692e706870"
+            ],
+            "deleted_paths": [],
+            "spans": [
+              {
+                "path": "6170692e706870",
+                "start_line": 3,
+                "end_line": 3,
+                "side": "base"
+              },
+              {
+                "path": "6170692e706870",
+                "start_line": 3,
+                "end_line": 3,
+                "side": "head"
+              }
+            ],
+            "renames": [],
+            "declaration_paths": [],
+            "relationships": [],
+            "unresolved_boundaries": [],
+            "path_encoding": "filesystem-bytes-hex",
+            "line_correspondences": [
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 1,
+                "base_end_line": 1,
+                "head_start_line": 1
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 2,
+                "base_end_line": 2,
+                "head_start_line": 2
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 4,
+                "base_end_line": 4,
+                "head_start_line": 4
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 5,
+                "base_end_line": 5,
+                "head_start_line": 5
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 6,
+                "base_end_line": 6,
+                "head_start_line": 6
+              }
+            ]
+          },
+          "result": {
+            "analyses": [
+              {
+                "comparison": {
+                  "head_oid": "11bb29e44eaa453a74c8cc115093aee25f2c5430",
+                  "base_oid": "f73ce23fa3a3dff278161652471571d230a26f5d",
+                  "base_reason": "explicit_local_replay",
+                  "refs": [
+                    "refs/heads/replay"
+                  ]
+                },
+                "scopes": [
+                  {
+                    "ranker_version": "existing-static-evidence-v1",
+                    "ranking_mode": "evidence",
+                    "population_complete": true,
+                    "selected": [
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "handler",
+                          "family": "deserialization"
+                        },
+                        "priority": 0.0,
+                        "evidence": [
+                          "static_rank=0.3",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                          "tier=0",
+                          "score=0.0",
+                          "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"deserialization\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"deserialization\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}",
+                          "change_context_incomplete"
+                        ],
+                        "tier": 0,
+                        "score": 0.0
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "handler",
+                          "family": "injection"
+                        },
+                        "priority": -1.0,
+                        "evidence": [
+                          "static_rank=0.3",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval($value)\",\"line\":4,\"method\":\"handler\"}],\"source_local\":true,\"source_near\":true}",
+                          "tier=4",
+                          "score=4.5",
+                          "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}"
+                        ],
+                        "tier": 4,
+                        "score": 4.5
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "handler",
+                          "family": "output_encoding"
+                        },
+                        "priority": -2.0,
+                        "evidence": [
+                          "static_rank=0.3",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                          "tier=0",
+                          "score=0.0",
+                          "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"output_encoding\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"output_encoding\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}",
+                          "change_context_incomplete"
+                        ],
+                        "tier": 0,
+                        "score": 0.0
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "handler",
+                          "family": "path"
+                        },
+                        "priority": -3.0,
+                        "evidence": [
+                          "static_rank=0.3",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                          "tier=0",
+                          "score=0.0",
+                          "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"path\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"path\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}",
+                          "change_context_incomplete"
+                        ],
+                        "tier": 0,
+                        "score": 0.0
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "handler",
+                          "family": "untrusted_destination"
+                        },
+                        "priority": -4.0,
+                        "evidence": [
+                          "static_rank=0.3",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                          "tier=0",
+                          "score=0.0",
+                          "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"untrusted_destination\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"untrusted_destination\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}",
+                          "change_context_incomplete"
+                        ],
+                        "tier": 0,
+                        "score": 0.0
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "<module>",
+                          "family": "deserialization"
+                        },
+                        "priority": -5.0,
+                        "evidence": [
+                          "static_rank=0.15",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                          "tier=0",
+                          "score=0.0",
+                          "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "change_context_incomplete"
+                        ],
+                        "tier": 0,
+                        "score": 0.0
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "<module>",
+                          "family": "injection"
+                        },
+                        "priority": -6.0,
+                        "evidence": [
+                          "static_rank=0.15",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                          "tier=0",
+                          "score=0.0",
+                          "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "change_context_incomplete"
+                        ],
+                        "tier": 0,
+                        "score": 0.0
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "<module>",
+                          "family": "output_encoding"
+                        },
+                        "priority": -7.0,
+                        "evidence": [
+                          "static_rank=0.15",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                          "tier=0",
+                          "score=0.0",
+                          "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "change_context_incomplete"
+                        ],
+                        "tier": 0,
+                        "score": 0.0
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "<module>",
+                          "family": "path"
+                        },
+                        "priority": -8.0,
+                        "evidence": [
+                          "static_rank=0.15",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                          "tier=0",
+                          "score=0.0",
+                          "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "change_context_incomplete"
+                        ],
+                        "tier": 0,
+                        "score": 0.0
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "<module>",
+                          "family": "untrusted_destination"
+                        },
+                        "priority": -9.0,
+                        "evidence": [
+                          "static_rank=0.15",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                          "tier=0",
+                          "score=0.0",
+                          "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "change_context_incomplete"
+                        ],
+                        "tier": 0,
+                        "score": 0.0
+                      }
+                    ],
+                    "deferred": [],
+                    "unresolved_boundaries": [
+                      "dynamic_external_or_depth_context_unresolved:contributor-scan:2f5748a12b3473830320bffc27c1a027f00e2ded7f566c36dc6b4ff582d50515",
+                      "dynamic_external_or_depth_context_unresolved:contributor-scan:afb3c1cd783e7ae870337b2c0552a8e092e4a449cb8ca40196e61d1d3bbf50fa",
+                      "dynamic_external_or_depth_context_unresolved:contributor-scan:2043d2eebfa4d6ea02585e295eb8affadd90eabaaaf08e539957b21052e05eaa",
+                      "dynamic_external_or_depth_context_unresolved:contributor-scan:712848f58bfd6a7239d201d5e6755f7de6cf388b92b4dfda4ce66ee2631c9ecb",
+                      "context_scope_empty:contributor-scan:7ed88d7a34033f61c83c828fb6ca95ae05c8c797c76fb4fee35852d265e1e666",
+                      "context_scope_empty:contributor-scan:8e7574a0b3fcef6a6627442cd7b7205805935f23a050eeb0f7758894e834237d",
+                      "context_scope_empty:contributor-scan:fac7db8a574a34a5941cf25877730e995a95110300f9ef51ed625ed8c0d6bc51",
+                      "context_scope_empty:contributor-scan:bcb76ec6c388629c6ac547120d2d4ee9fec811bbb8bcbfd532c6b6a0d23ab6d4",
+                      "context_scope_empty:contributor-scan:78d518c4f4c4af4ecce78989b9365f38be6c0373bb903c24f218c83ba6cdfeed"
+                    ]
+                  }
+                ],
+                "completed_questions": [
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "path": "api.php",
+                    "function": "handler",
+                    "family": "injection"
+                  }
+                ],
+                "coverage_status": "incomplete"
+              }
+            ],
+            "finding_status": "none",
+            "coverage_status": "incomplete",
+            "push_disposition": "allow",
+            "actionable_defect_ids": []
+          },
+          "admission": {
+            "defects": [],
+            "dispositions": [
+              {
+                "candidate": {
+                  "delta": {
+                    "family": "injection",
+                    "site": "api.php:4:handler",
+                    "rung": "model_entailed",
+                    "witness": "$_GET[\"value\"] -> eval($value) in api.php (line 4, 3 steps)",
+                    "defect_id": "cce8d260cefb7a2720b428758263715e5b021fc0d560b3a93948cb3ef9e068f2",
+                    "novelty": "new",
+                    "reason": "source_connection_absent_from_comparable_base",
+                    "head_operation": {
+                      "question": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "mechanism": "taint",
+                      "path": "api.php",
+                      "line": 4,
+                      "operation": "eval($value)",
+                      "source": "[\"framework\",\"$_GET[\\\"value\\\"]\"]",
+                      "discharged": false,
+                      "detail": "{\"bound\": \"\", \"bounded\": false, \"inLabeledScope\": true, \"length\": 3, \"paths\": 1, \"sanitized\": false, \"sink\": \"eval($value)\", \"sinkArg0Literal\": false, \"sinkArity\": 1, \"sinkFile\": \"api.php\", \"sinkLine\": \"4\", \"sinkMethod\": \"handler\", \"source\": \"$_GET[\\\"value\\\"]\", \"sourceKind\": \"framework\"}"
+                    },
+                    "base_operations": [],
+                    "change_evidence": [
+                      "base:api.php:3-3",
+                      "head:api.php:3-3"
+                    ],
+                    "base_revision": "f73ce23fa3a3dff278161652471571d230a26f5d",
+                    "head_revision": "11bb29e44eaa453a74c8cc115093aee25f2c5430",
+                    "semantics": "1e36ea1ba503218899c49bdd58f04a01f35d17b2a83bb3e433e5088624489e3a"
+                  },
+                  "capability": {
+                    "language": "php",
+                    "runtime": "unspecified",
+                    "framework": "unspecified",
+                    "family": "injection",
+                    "mechanism": "taint",
+                    "context": "unreviewed",
+                    "semantics": "1e36ea1ba503218899c49bdd58f04a01f35d17b2a83bb3e433e5088624489e3a"
+                  },
+                  "comparison": {
+                    "head_oid": "11bb29e44eaa453a74c8cc115093aee25f2c5430",
+                    "base_oid": "f73ce23fa3a3dff278161652471571d230a26f5d",
+                    "base_reason": "explicit_local_replay",
+                    "refs": [
+                      "refs/heads/replay"
+                    ]
+                  },
+                  "dependency_gaps": [],
+                  "sanitizer_contexts": []
+                },
+                "admitted": false,
+                "reasons": [
+                  "capability_unavailable"
+                ],
+                "evaluation_id": null,
+                "capability_evaluations": []
+              }
+            ],
+            "coverage_reasons": [
+              "capability_unavailable",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:2f5748a12b3473830320bffc27c1a027f00e2ded7f566c36dc6b4ff582d50515",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:afb3c1cd783e7ae870337b2c0552a8e092e4a449cb8ca40196e61d1d3bbf50fa",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:2043d2eebfa4d6ea02585e295eb8affadd90eabaaaf08e539957b21052e05eaa",
+              "dynamic_external_or_depth_context_unresolved:contributor-scan:712848f58bfd6a7239d201d5e6755f7de6cf388b92b4dfda4ce66ee2631c9ecb",
+              "context_scope_empty:contributor-scan:7ed88d7a34033f61c83c828fb6ca95ae05c8c797c76fb4fee35852d265e1e666",
+              "context_scope_empty:contributor-scan:8e7574a0b3fcef6a6627442cd7b7205805935f23a050eeb0f7758894e834237d",
+              "context_scope_empty:contributor-scan:fac7db8a574a34a5941cf25877730e995a95110300f9ef51ed625ed8c0d6bc51",
+              "context_scope_empty:contributor-scan:bcb76ec6c388629c6ac547120d2d4ee9fec811bbb8bcbfd532c6b6a0d23ab6d4",
+              "context_scope_empty:contributor-scan:78d518c4f4c4af4ecce78989b9365f38be6c0373bb903c24f218c83ba6cdfeed",
+              "analysis_incomplete"
+            ]
+          },
+          "scans": [
+            {
+              "comparison": {
+                "head_oid": "11bb29e44eaa453a74c8cc115093aee25f2c5430",
+                "base_oid": "f73ce23fa3a3dff278161652471571d230a26f5d",
+                "base_reason": "explicit_local_replay",
+                "refs": [
+                  "refs/heads/replay"
+                ]
+              },
+              "side": "head",
+              "scan": {
+                "findings": [
+                  {
+                    "site": "api.php:4:handler",
+                    "family": "injection",
+                    "rung": "model_entailed",
+                    "witness": "$_GET[\"value\"] -> eval($value) in api.php (line 4, 3 steps)",
+                    "contradiction": "",
+                    "reached_from": 1
+                  }
+                ],
+                "by_rung": {
+                  "suspicion": 0,
+                  "model_corroborated": 0,
+                  "model_entailed": 1,
+                  "execution_confirmed": 0
+                },
+                "regions_scanned": 2,
+                "regions_unjudged": 0,
+                "regions_unasked": 0,
+                "model_calls": 0,
+                "cost_usd": 0.0,
+                "seconds": 78.61,
+                "build_seconds": 33.49,
+                "query_seconds": 21.26,
+                "query_seconds_by_kind": {
+                  "evidence": 23.75,
+                  "taint": 21.26
+                },
+                "degradations": [],
+                "tiers": [
+                  [
+                    "api.php",
+                    "handler",
+                    "deserialization",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "handler",
+                    "injection",
+                    4
+                  ],
+                  [
+                    "api.php",
+                    "handler",
+                    "output_encoding",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "handler",
+                    "path",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "handler",
+                    "untrusted_destination",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "deserialization",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "injection",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "output_encoding",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "path",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "untrusted_destination",
+                    0
+                  ]
+                ],
+                "tier_counts": {
+                  "0": 9,
+                  "4": 1
+                },
+                "requests_pruned": 0,
+                "partitions": [
+                  {
+                    "language": "php",
+                    "frontend": "php",
+                    "paths": [
+                      "api.php"
+                    ],
+                    "source_bytes": 83,
+                    "status": "built",
+                    "boundaries": [],
+                    "runtime": "unspecified",
+                    "excluded_paths": [],
+                    "unshipped_paths": []
+                  }
+                ],
+                "change_context": {
+                  "base_revision": "f73ce23fa3a3dff278161652471571d230a26f5d",
+                  "head_revision": "11bb29e44eaa453a74c8cc115093aee25f2c5430",
+                  "changed_paths": [
+                    "6170692e706870"
+                  ],
+                  "deleted_paths": [],
+                  "spans": [
+                    {
+                      "path": "6170692e706870",
+                      "start_line": 3,
+                      "end_line": 3,
+                      "side": "base"
+                    },
+                    {
+                      "path": "6170692e706870",
+                      "start_line": 3,
+                      "end_line": 3,
+                      "side": "head"
+                    }
+                  ],
+                  "renames": [],
+                  "declaration_paths": [],
+                  "relationships": [
+                    {
+                      "source": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "deserialization"
+                      },
+                      "target": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "deserialization"
+                      },
+                      "kind": "entry",
+                      "evidence": [
+                        "base_span:api.php:3-3",
+                        "head_span:api.php:3-3",
+                        "unchanged_line:2;lexical_only",
+                        "unchanged_line:4;lexical_only",
+                        "unchanged_line:5;lexical_only"
+                      ]
+                    },
+                    {
+                      "source": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "target": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "kind": "entry",
+                      "evidence": [
+                        "base_span:api.php:3-3",
+                        "head_span:api.php:3-3",
+                        "unchanged_line:2;lexical_only",
+                        "unchanged_line:4;lexical_only",
+                        "unchanged_line:5;lexical_only"
+                      ]
+                    },
+                    {
+                      "source": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "output_encoding"
+                      },
+                      "target": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "output_encoding"
+                      },
+                      "kind": "entry",
+                      "evidence": [
+                        "base_span:api.php:3-3",
+                        "head_span:api.php:3-3",
+                        "unchanged_line:2;lexical_only",
+                        "unchanged_line:4;lexical_only",
+                        "unchanged_line:5;lexical_only"
+                      ]
+                    },
+                    {
+                      "source": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "path"
+                      },
+                      "target": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "path"
+                      },
+                      "kind": "entry",
+                      "evidence": [
+                        "base_span:api.php:3-3",
+                        "head_span:api.php:3-3",
+                        "unchanged_line:2;lexical_only",
+                        "unchanged_line:4;lexical_only",
+                        "unchanged_line:5;lexical_only"
+                      ]
+                    },
+                    {
+                      "source": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "untrusted_destination"
+                      },
+                      "target": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "untrusted_destination"
+                      },
+                      "kind": "entry",
+                      "evidence": [
+                        "base_span:api.php:3-3",
+                        "head_span:api.php:3-3",
+                        "unchanged_line:2;lexical_only",
+                        "unchanged_line:4;lexical_only",
+                        "unchanged_line:5;lexical_only"
+                      ]
+                    }
+                  ],
+                  "unresolved_boundaries": [
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:2f5748a12b3473830320bffc27c1a027f00e2ded7f566c36dc6b4ff582d50515",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:afb3c1cd783e7ae870337b2c0552a8e092e4a449cb8ca40196e61d1d3bbf50fa",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:2043d2eebfa4d6ea02585e295eb8affadd90eabaaaf08e539957b21052e05eaa",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:712848f58bfd6a7239d201d5e6755f7de6cf388b92b4dfda4ce66ee2631c9ecb",
+                    "context_scope_empty:contributor-scan:7ed88d7a34033f61c83c828fb6ca95ae05c8c797c76fb4fee35852d265e1e666",
+                    "context_scope_empty:contributor-scan:8e7574a0b3fcef6a6627442cd7b7205805935f23a050eeb0f7758894e834237d",
+                    "context_scope_empty:contributor-scan:fac7db8a574a34a5941cf25877730e995a95110300f9ef51ed625ed8c0d6bc51",
+                    "context_scope_empty:contributor-scan:bcb76ec6c388629c6ac547120d2d4ee9fec811bbb8bcbfd532c6b6a0d23ab6d4",
+                    "context_scope_empty:contributor-scan:78d518c4f4c4af4ecce78989b9365f38be6c0373bb903c24f218c83ba6cdfeed"
+                  ],
+                  "path_encoding": "filesystem-bytes-hex",
+                  "line_correspondences": [
+                    {
+                      "base_path": "6170692e706870",
+                      "head_path": "6170692e706870",
+                      "base_start_line": 1,
+                      "base_end_line": 1,
+                      "head_start_line": 1
+                    },
+                    {
+                      "base_path": "6170692e706870",
+                      "head_path": "6170692e706870",
+                      "base_start_line": 2,
+                      "base_end_line": 2,
+                      "head_start_line": 2
+                    },
+                    {
+                      "base_path": "6170692e706870",
+                      "head_path": "6170692e706870",
+                      "base_start_line": 4,
+                      "base_end_line": 4,
+                      "head_start_line": 4
+                    },
+                    {
+                      "base_path": "6170692e706870",
+                      "head_path": "6170692e706870",
+                      "base_start_line": 5,
+                      "base_end_line": 5,
+                      "head_start_line": 5
+                    },
+                    {
+                      "base_path": "6170692e706870",
+                      "head_path": "6170692e706870",
+                      "base_start_line": 6,
+                      "base_end_line": 6,
+                      "head_start_line": 6
+                    }
+                  ]
+                },
+                "scope": {
+                  "ranker_version": "existing-static-evidence-v1",
+                  "ranking_mode": "evidence",
+                  "population_complete": true,
+                  "selected": [
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "deserialization"
+                      },
+                      "priority": 0.0,
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"deserialization\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"deserialization\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "priority": -1.0,
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval($value)\",\"line\":4,\"method\":\"handler\"}],\"source_local\":true,\"source_near\":true}",
+                        "tier=4",
+                        "score=4.5",
+                        "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}"
+                      ],
+                      "tier": 4,
+                      "score": 4.5
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "output_encoding"
+                      },
+                      "priority": -2.0,
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"output_encoding\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"output_encoding\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "path"
+                      },
+                      "priority": -3.0,
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"path\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"path\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "untrusted_destination"
+                      },
+                      "priority": -4.0,
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"untrusted_destination\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"untrusted_destination\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "deserialization"
+                      },
+                      "priority": -5.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "injection"
+                      },
+                      "priority": -6.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "output_encoding"
+                      },
+                      "priority": -7.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "path"
+                      },
+                      "priority": -8.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "untrusted_destination"
+                      },
+                      "priority": -9.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"f73ce23fa3a3dff278161652471571d230a26f5d\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"11bb29e44eaa453a74c8cc115093aee25f2c5430\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    }
+                  ],
+                  "deferred": [],
+                  "unresolved_boundaries": [
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:2f5748a12b3473830320bffc27c1a027f00e2ded7f566c36dc6b4ff582d50515",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:afb3c1cd783e7ae870337b2c0552a8e092e4a449cb8ca40196e61d1d3bbf50fa",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:2043d2eebfa4d6ea02585e295eb8affadd90eabaaaf08e539957b21052e05eaa",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:712848f58bfd6a7239d201d5e6755f7de6cf388b92b4dfda4ce66ee2631c9ecb",
+                    "context_scope_empty:contributor-scan:7ed88d7a34033f61c83c828fb6ca95ae05c8c797c76fb4fee35852d265e1e666",
+                    "context_scope_empty:contributor-scan:8e7574a0b3fcef6a6627442cd7b7205805935f23a050eeb0f7758894e834237d",
+                    "context_scope_empty:contributor-scan:fac7db8a574a34a5941cf25877730e995a95110300f9ef51ed625ed8c0d6bc51",
+                    "context_scope_empty:contributor-scan:bcb76ec6c388629c6ac547120d2d4ee9fec811bbb8bcbfd532c6b6a0d23ab6d4",
+                    "context_scope_empty:contributor-scan:78d518c4f4c4af4ecce78989b9365f38be6c0373bb903c24f218c83ba6cdfeed"
+                  ]
+                },
+                "question_outcomes": [
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "handler",
+                      "family": "deserialization"
+                    },
+                    "status": "unresolved",
+                    "reason": "change_context_incomplete",
+                    "raw_rows_json": "[]"
+                  },
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "handler",
+                      "family": "injection"
+                    },
+                    "status": "completed",
+                    "reason": "query_answered_and_arbitrated",
+                    "raw_rows_json": "[{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":3,\"paths\":1,\"sanitized\":false,\"sink\":\"eval($value)\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"api.php\",\"sinkLine\":\"4\",\"sinkMethod\":\"handler\",\"source\":\"$_GET[\\\"value\\\"]\",\"sourceKind\":\"framework\"}]"
+                  },
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "handler",
+                      "family": "output_encoding"
+                    },
+                    "status": "unresolved",
+                    "reason": "change_context_incomplete",
+                    "raw_rows_json": "[]"
+                  },
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "handler",
+                      "family": "path"
+                    },
+                    "status": "unresolved",
+                    "reason": "change_context_incomplete",
+                    "raw_rows_json": "[]"
+                  },
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "handler",
+                      "family": "untrusted_destination"
+                    },
+                    "status": "unresolved",
+                    "reason": "change_context_incomplete",
+                    "raw_rows_json": "[]"
+                  },
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "<module>",
+                      "family": "deserialization"
+                    },
+                    "status": "unresolved",
+                    "reason": "change_context_incomplete",
+                    "raw_rows_json": "[]"
+                  },
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "<module>",
+                      "family": "injection"
+                    },
+                    "status": "unresolved",
+                    "reason": "change_context_incomplete",
+                    "raw_rows_json": "[]"
+                  },
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "<module>",
+                      "family": "output_encoding"
+                    },
+                    "status": "unresolved",
+                    "reason": "change_context_incomplete",
+                    "raw_rows_json": "[]"
+                  },
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "<module>",
+                      "family": "path"
+                    },
+                    "status": "unresolved",
+                    "reason": "change_context_incomplete",
+                    "raw_rows_json": "[]"
+                  },
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "<module>",
+                      "family": "untrusted_destination"
+                    },
+                    "status": "unresolved",
+                    "reason": "change_context_incomplete",
+                    "raw_rows_json": "[]"
+                  }
+                ],
+                "family_coverage": [
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "deserialization",
+                    "selected": 2,
+                    "completed": 0,
+                    "unanswered": 2,
+                    "deferred": 0,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "injection",
+                    "selected": 2,
+                    "completed": 1,
+                    "unanswered": 1,
+                    "deferred": 0,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "output_encoding",
+                    "selected": 2,
+                    "completed": 0,
+                    "unanswered": 2,
+                    "deferred": 0,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "path",
+                    "selected": 2,
+                    "completed": 0,
+                    "unanswered": 2,
+                    "deferred": 0,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "untrusted_destination",
+                    "selected": 2,
+                    "completed": 0,
+                    "unanswered": 2,
+                    "deferred": 0,
+                    "unsupported": 0
+                  }
+                ]
+              }
+            },
+            {
+              "comparison": {
+                "head_oid": "11bb29e44eaa453a74c8cc115093aee25f2c5430",
+                "base_oid": "f73ce23fa3a3dff278161652471571d230a26f5d",
+                "base_reason": "explicit_local_replay",
+                "refs": [
+                  "refs/heads/replay"
+                ]
+              },
+              "side": "base",
+              "scan": {
+                "findings": [],
+                "by_rung": {
+                  "suspicion": 0,
+                  "model_corroborated": 0,
+                  "model_entailed": 0,
+                  "execution_confirmed": 0
+                },
+                "regions_scanned": 1,
+                "regions_unjudged": 1,
+                "regions_unasked": 0,
+                "model_calls": 0,
+                "cost_usd": 0.0,
+                "seconds": 66.68,
+                "build_seconds": 27.76,
+                "query_seconds": 19.2,
+                "query_seconds_by_kind": {
+                  "evidence": 19.62,
+                  "taint": 19.2
+                },
+                "degradations": [],
+                "tiers": [
+                  [
+                    "api.php",
+                    "handler",
+                    "deserialization",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "handler",
+                    "injection",
+                    3
+                  ],
+                  [
+                    "api.php",
+                    "handler",
+                    "output_encoding",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "handler",
+                    "path",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "handler",
+                    "untrusted_destination",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "deserialization",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "injection",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "output_encoding",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "path",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "untrusted_destination",
+                    0
+                  ]
+                ],
+                "tier_counts": {
+                  "0": 9,
+                  "3": 1
+                },
+                "requests_pruned": 9,
+                "partitions": [
+                  {
+                    "language": "php",
+                    "frontend": "php",
+                    "paths": [
+                      "api.php"
+                    ],
+                    "source_bytes": 76,
+                    "status": "built",
+                    "boundaries": [],
+                    "runtime": "unspecified",
+                    "excluded_paths": [],
+                    "unshipped_paths": []
+                  }
+                ],
+                "change_context": null,
+                "scope": {
+                  "ranker_version": "existing-static-evidence-v1",
+                  "ranking_mode": "evidence",
+                  "population_complete": true,
+                  "selected": [
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "priority": 0.0,
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval($value)\",\"line\":4,\"method\":\"handler\"}],\"source_local\":false,\"source_near\":false}",
+                        "tier=3",
+                        "score=1.5"
+                      ],
+                      "tier": 3,
+                      "score": 1.5
+                    }
+                  ],
+                  "deferred": [
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "deserialization"
+                      },
+                      "reason": "tier_zero",
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "output_encoding"
+                      },
+                      "reason": "tier_zero",
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "path"
+                      },
+                      "reason": "tier_zero",
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "untrusted_destination"
+                      },
+                      "reason": "tier_zero",
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "deserialization"
+                      },
+                      "reason": "tier_zero",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "injection"
+                      },
+                      "reason": "tier_zero",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "output_encoding"
+                      },
+                      "reason": "tier_zero",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "path"
+                      },
+                      "reason": "tier_zero",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "untrusted_destination"
+                      },
+                      "reason": "tier_zero",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0"
+                      ]
+                    }
+                  ],
+                  "unresolved_boundaries": []
+                },
+                "question_outcomes": [
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "handler",
+                      "family": "injection"
+                    },
+                    "status": "completed",
+                    "reason": "query_answered_and_arbitrated",
+                    "raw_rows_json": "[]"
+                  }
+                ],
+                "family_coverage": [
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "deserialization",
+                    "selected": 0,
+                    "completed": 0,
+                    "unanswered": 0,
+                    "deferred": 2,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "injection",
+                    "selected": 1,
+                    "completed": 1,
+                    "unanswered": 0,
+                    "deferred": 1,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "output_encoding",
+                    "selected": 0,
+                    "completed": 0,
+                    "unanswered": 0,
+                    "deferred": 2,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "path",
+                    "selected": 0,
+                    "completed": 0,
+                    "unanswered": 0,
+                    "deferred": 2,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "untrusted_destination",
+                    "selected": 0,
+                    "completed": 0,
+                    "unanswered": 0,
+                    "deferred": 2,
+                    "unsupported": 0
+                  }
+                ]
+              }
+            }
+          ],
+          "provenance": {
+            "engine": "joern-4.0.625",
+            "facts": "32edb6e1a78f1afb08ac4248cd436be16663e0d90dc1b3aaf948f2ce49a5a8f0",
+            "queries": "cdd625fc9013f43452a76ec727282cbf82374f3604be36648b6dbbd6aebf1535",
+            "policy": "b0b41d4a151a06b05c659208416f936f237a5dc3a16cfe588bbf723140f754e4",
+            "repository": "/tmp/ousast-replay-smoke-0p2xuvac/repo",
+            "model": "disabled",
+            "requested_base": "f73ce23fa3a3dff278161652471571d230a26f5d",
+            "requested_head": "11bb29e44eaa453a74c8cc115093aee25f2c5430",
+            "core": "29df707d0b3c5abf2eb3da9cd84580f6d48abc236dcb9b5b6378c5ee27957fdf",
+            "semantics": "1e36ea1ba503218899c49bdd58f04a01f35d17b2a83bb3e433e5088624489e3a",
+            "ranking_mode": "evidence",
+            "capabilities": "empty_registry_pending_task_8.3",
+            "cache": "cold_no_reuse"
+          },
+          "timings": {
+            "deadline_seconds": 900,
+            "cancellation_allowance_seconds": 2.0,
+            "resolution_seconds": 0.028142574010416865,
+            "provenance_seconds": 0.023446628008969128,
+            "preparation_seconds": 0.1673227440332994,
+            "head_seconds": 79.27245896309614,
+            "base_seconds": 67.28292583802249,
+            "admission_seconds": 0.00491544499527663,
+            "cleanup_seconds": 0.00042137003038078547,
+            "total_seconds": 146.78073913499247
+          },
+          "timing_scope": "Caller stage measurements; publication and rendering duration is returned in ReportDelivery.",
+          "resolution": null
+        }
+      },
+      "completion": {
+        "verified": true,
+        "case": "security"
+      },
+      "process_exit_code": 0
+    },
+    {
+      "name": "fixed",
+      "data": {
+        "case": "fixed",
+        "source_bytes": 75,
+        "elapsed_seconds": 316.24181448004674,
+        "exit_code": 0,
+        "report_error": null,
+        "reporting_seconds": 0.024129868019372225,
+        "text": "No actionable defects reported; analysis is incomplete.\nNotice: Some checks could not be completed. Review the comparison details and resolve the recorded gaps before retrying.\nDetails: /tmp/ousast-replay-smoke-_54qgzaj/replay.json\n",
+        "artifact": {
+          "schema_version": 1,
+          "snapshots": [
+            {
+              "commit_oid": "57fd3f7c18b660b4ac2def8584e661d8589e6f26",
+              "object_format": "sha1",
+              "files": [
+                {
+                  "path_hex": "6170692e706870",
+                  "blob_oid": "7e99786afe2b66f90af1abd3effc99327fcb2e55",
+                  "mode": "100644",
+                  "size_bytes": 76,
+                  "sha256": "ce927591f5ff35a4c3ca38de4cdce9e9310d5fc176e7e2feecd2e309f6388c6a"
+                }
+              ],
+              "boundaries": [],
+              "tree_complete": true,
+              "bytes_read": 76
+            },
+            {
+              "commit_oid": "cf488a02cdea77b0a383f2cb9c63f05ca90b7390",
+              "object_format": "sha1",
+              "files": [
+                {
+                  "path_hex": "6170692e706870",
+                  "blob_oid": "d9b631a6b465a68a7ddfbcfc289eb8cf4124e00b",
+                  "mode": "100644",
+                  "size_bytes": 83,
+                  "sha256": "fd919c616a59d10a6a71383ac0d5228ed2fc0eb6c90461dd3ef5dfeab835abf8"
+                }
+              ],
+              "boundaries": [],
+              "tree_complete": true,
+              "bytes_read": 83
+            }
+          ],
+          "change_context": {
+            "base_revision": "cf488a02cdea77b0a383f2cb9c63f05ca90b7390",
+            "head_revision": "57fd3f7c18b660b4ac2def8584e661d8589e6f26",
+            "changed_paths": [
+              "6170692e706870"
+            ],
+            "deleted_paths": [],
+            "spans": [
+              {
+                "path": "6170692e706870",
+                "start_line": 3,
+                "end_line": 3,
+                "side": "base"
+              },
+              {
+                "path": "6170692e706870",
+                "start_line": 3,
+                "end_line": 3,
+                "side": "head"
+              }
+            ],
+            "renames": [],
+            "declaration_paths": [],
+            "relationships": [],
+            "unresolved_boundaries": [],
+            "path_encoding": "filesystem-bytes-hex",
+            "line_correspondences": [
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 1,
+                "base_end_line": 1,
+                "head_start_line": 1
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 2,
+                "base_end_line": 2,
+                "head_start_line": 2
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 4,
+                "base_end_line": 4,
+                "head_start_line": 4
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 5,
+                "base_end_line": 5,
+                "head_start_line": 5
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 6,
+                "base_end_line": 6,
+                "head_start_line": 6
+              }
+            ]
+          },
+          "result": {
+            "analyses": [
+              {
+                "comparison": {
+                  "head_oid": "57fd3f7c18b660b4ac2def8584e661d8589e6f26",
+                  "base_oid": "cf488a02cdea77b0a383f2cb9c63f05ca90b7390",
+                  "base_reason": "explicit_local_replay",
+                  "refs": [
+                    "refs/heads/replay"
+                  ]
+                },
+                "scopes": [
+                  {
+                    "ranker_version": "existing-static-evidence-v1",
+                    "ranking_mode": "evidence",
+                    "population_complete": true,
+                    "selected": [
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "handler",
+                          "family": "deserialization"
+                        },
+                        "priority": 0.0,
+                        "evidence": [
+                          "static_rank=0.3",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                          "tier=0",
+                          "score=0.0",
+                          "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"deserialization\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"deserialization\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}",
+                          "change_context_incomplete"
+                        ],
+                        "tier": 0,
+                        "score": 0.0
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "handler",
+                          "family": "injection"
+                        },
+                        "priority": -1.0,
+                        "evidence": [
+                          "static_rank=0.3",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval($value)\",\"line\":4,\"method\":\"handler\"}],\"source_local\":false,\"source_near\":false}",
+                          "tier=3",
+                          "score=1.5",
+                          "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}"
+                        ],
+                        "tier": 3,
+                        "score": 1.5
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "handler",
+                          "family": "output_encoding"
+                        },
+                        "priority": -2.0,
+                        "evidence": [
+                          "static_rank=0.3",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                          "tier=0",
+                          "score=0.0",
+                          "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"output_encoding\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"output_encoding\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}",
+                          "change_context_incomplete"
+                        ],
+                        "tier": 0,
+                        "score": 0.0
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "handler",
+                          "family": "path"
+                        },
+                        "priority": -3.0,
+                        "evidence": [
+                          "static_rank=0.3",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                          "tier=0",
+                          "score=0.0",
+                          "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"path\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"path\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}",
+                          "change_context_incomplete"
+                        ],
+                        "tier": 0,
+                        "score": 0.0
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "handler",
+                          "family": "untrusted_destination"
+                        },
+                        "priority": -4.0,
+                        "evidence": [
+                          "static_rank=0.3",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                          "tier=0",
+                          "score=0.0",
+                          "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"untrusted_destination\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"untrusted_destination\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}",
+                          "change_context_incomplete"
+                        ],
+                        "tier": 0,
+                        "score": 0.0
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "<module>",
+                          "family": "deserialization"
+                        },
+                        "priority": -5.0,
+                        "evidence": [
+                          "static_rank=0.15",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                          "tier=0",
+                          "score=0.0",
+                          "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "change_context_incomplete"
+                        ],
+                        "tier": 0,
+                        "score": 0.0
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "<module>",
+                          "family": "injection"
+                        },
+                        "priority": -6.0,
+                        "evidence": [
+                          "static_rank=0.15",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                          "tier=0",
+                          "score=0.0",
+                          "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "change_context_incomplete"
+                        ],
+                        "tier": 0,
+                        "score": 0.0
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "<module>",
+                          "family": "output_encoding"
+                        },
+                        "priority": -7.0,
+                        "evidence": [
+                          "static_rank=0.15",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                          "tier=0",
+                          "score=0.0",
+                          "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "change_context_incomplete"
+                        ],
+                        "tier": 0,
+                        "score": 0.0
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "<module>",
+                          "family": "path"
+                        },
+                        "priority": -8.0,
+                        "evidence": [
+                          "static_rank=0.15",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                          "tier=0",
+                          "score=0.0",
+                          "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "change_context_incomplete"
+                        ],
+                        "tier": 0,
+                        "score": 0.0
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "<module>",
+                          "family": "untrusted_destination"
+                        },
+                        "priority": -9.0,
+                        "evidence": [
+                          "static_rank=0.15",
+                          "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                          "tier=0",
+                          "score=0.0",
+                          "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                          "change_context_incomplete"
+                        ],
+                        "tier": 0,
+                        "score": 0.0
+                      }
+                    ],
+                    "deferred": [],
+                    "unresolved_boundaries": [
+                      "dynamic_external_or_depth_context_unresolved:contributor-scan:2f5748a12b3473830320bffc27c1a027f00e2ded7f566c36dc6b4ff582d50515",
+                      "dynamic_external_or_depth_context_unresolved:contributor-scan:afb3c1cd783e7ae870337b2c0552a8e092e4a449cb8ca40196e61d1d3bbf50fa",
+                      "dynamic_external_or_depth_context_unresolved:contributor-scan:2043d2eebfa4d6ea02585e295eb8affadd90eabaaaf08e539957b21052e05eaa",
+                      "dynamic_external_or_depth_context_unresolved:contributor-scan:712848f58bfd6a7239d201d5e6755f7de6cf388b92b4dfda4ce66ee2631c9ecb",
+                      "context_scope_empty:contributor-scan:7ed88d7a34033f61c83c828fb6ca95ae05c8c797c76fb4fee35852d265e1e666",
+                      "context_scope_empty:contributor-scan:8e7574a0b3fcef6a6627442cd7b7205805935f23a050eeb0f7758894e834237d",
+                      "context_scope_empty:contributor-scan:fac7db8a574a34a5941cf25877730e995a95110300f9ef51ed625ed8c0d6bc51",
+                      "context_scope_empty:contributor-scan:bcb76ec6c388629c6ac547120d2d4ee9fec811bbb8bcbfd532c6b6a0d23ab6d4",
+                      "context_scope_empty:contributor-scan:78d518c4f4c4af4ecce78989b9365f38be6c0373bb903c24f218c83ba6cdfeed"
+                    ]
+                  }
+                ],
+                "completed_questions": [
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "path": "api.php",
+                    "function": "handler",
+                    "family": "injection"
+                  }
+                ],
+                "coverage_status": "incomplete"
+              }
+            ],
+            "finding_status": "none",
+            "coverage_status": "incomplete",
+            "push_disposition": "allow",
+            "actionable_defect_ids": []
+          },
+          "admission": {
+            "defects": [],
+            "dispositions": [],
+            "coverage_reasons": [
+              "analysis_incomplete"
+            ]
+          },
+          "scans": [
+            {
+              "comparison": {
+                "head_oid": "57fd3f7c18b660b4ac2def8584e661d8589e6f26",
+                "base_oid": "cf488a02cdea77b0a383f2cb9c63f05ca90b7390",
+                "base_reason": "explicit_local_replay",
+                "refs": [
+                  "refs/heads/replay"
+                ]
+              },
+              "side": "head",
+              "scan": {
+                "findings": [],
+                "by_rung": {
+                  "suspicion": 0,
+                  "model_corroborated": 0,
+                  "model_entailed": 0,
+                  "execution_confirmed": 0
+                },
+                "regions_scanned": 2,
+                "regions_unjudged": 0,
+                "regions_unasked": 0,
+                "model_calls": 0,
+                "cost_usd": 0.0,
+                "seconds": 171.86,
+                "build_seconds": 55.47,
+                "query_seconds": 63.69,
+                "query_seconds_by_kind": {
+                  "evidence": 52.47,
+                  "taint": 63.69
+                },
+                "degradations": [],
+                "tiers": [
+                  [
+                    "api.php",
+                    "handler",
+                    "deserialization",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "handler",
+                    "injection",
+                    3
+                  ],
+                  [
+                    "api.php",
+                    "handler",
+                    "output_encoding",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "handler",
+                    "path",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "handler",
+                    "untrusted_destination",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "deserialization",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "injection",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "output_encoding",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "path",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "untrusted_destination",
+                    0
+                  ]
+                ],
+                "tier_counts": {
+                  "0": 9,
+                  "3": 1
+                },
+                "requests_pruned": 0,
+                "partitions": [
+                  {
+                    "language": "php",
+                    "frontend": "php",
+                    "paths": [
+                      "api.php"
+                    ],
+                    "source_bytes": 76,
+                    "status": "built",
+                    "boundaries": [],
+                    "runtime": "unspecified",
+                    "excluded_paths": [],
+                    "unshipped_paths": []
+                  }
+                ],
+                "change_context": {
+                  "base_revision": "cf488a02cdea77b0a383f2cb9c63f05ca90b7390",
+                  "head_revision": "57fd3f7c18b660b4ac2def8584e661d8589e6f26",
+                  "changed_paths": [
+                    "6170692e706870"
+                  ],
+                  "deleted_paths": [],
+                  "spans": [
+                    {
+                      "path": "6170692e706870",
+                      "start_line": 3,
+                      "end_line": 3,
+                      "side": "base"
+                    },
+                    {
+                      "path": "6170692e706870",
+                      "start_line": 3,
+                      "end_line": 3,
+                      "side": "head"
+                    }
+                  ],
+                  "renames": [],
+                  "declaration_paths": [],
+                  "relationships": [
+                    {
+                      "source": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "deserialization"
+                      },
+                      "target": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "deserialization"
+                      },
+                      "kind": "entry",
+                      "evidence": [
+                        "base_span:api.php:3-3",
+                        "head_span:api.php:3-3",
+                        "unchanged_line:2;lexical_only",
+                        "unchanged_line:4;lexical_only",
+                        "unchanged_line:5;lexical_only"
+                      ]
+                    },
+                    {
+                      "source": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "target": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "kind": "entry",
+                      "evidence": [
+                        "base_span:api.php:3-3",
+                        "head_span:api.php:3-3",
+                        "unchanged_line:2;lexical_only",
+                        "unchanged_line:4;lexical_only",
+                        "unchanged_line:5;lexical_only"
+                      ]
+                    },
+                    {
+                      "source": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "output_encoding"
+                      },
+                      "target": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "output_encoding"
+                      },
+                      "kind": "entry",
+                      "evidence": [
+                        "base_span:api.php:3-3",
+                        "head_span:api.php:3-3",
+                        "unchanged_line:2;lexical_only",
+                        "unchanged_line:4;lexical_only",
+                        "unchanged_line:5;lexical_only"
+                      ]
+                    },
+                    {
+                      "source": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "path"
+                      },
+                      "target": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "path"
+                      },
+                      "kind": "entry",
+                      "evidence": [
+                        "base_span:api.php:3-3",
+                        "head_span:api.php:3-3",
+                        "unchanged_line:2;lexical_only",
+                        "unchanged_line:4;lexical_only",
+                        "unchanged_line:5;lexical_only"
+                      ]
+                    },
+                    {
+                      "source": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "untrusted_destination"
+                      },
+                      "target": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "untrusted_destination"
+                      },
+                      "kind": "entry",
+                      "evidence": [
+                        "base_span:api.php:3-3",
+                        "head_span:api.php:3-3",
+                        "unchanged_line:2;lexical_only",
+                        "unchanged_line:4;lexical_only",
+                        "unchanged_line:5;lexical_only"
+                      ]
+                    }
+                  ],
+                  "unresolved_boundaries": [
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:2f5748a12b3473830320bffc27c1a027f00e2ded7f566c36dc6b4ff582d50515",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:afb3c1cd783e7ae870337b2c0552a8e092e4a449cb8ca40196e61d1d3bbf50fa",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:2043d2eebfa4d6ea02585e295eb8affadd90eabaaaf08e539957b21052e05eaa",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:712848f58bfd6a7239d201d5e6755f7de6cf388b92b4dfda4ce66ee2631c9ecb",
+                    "context_scope_empty:contributor-scan:7ed88d7a34033f61c83c828fb6ca95ae05c8c797c76fb4fee35852d265e1e666",
+                    "context_scope_empty:contributor-scan:8e7574a0b3fcef6a6627442cd7b7205805935f23a050eeb0f7758894e834237d",
+                    "context_scope_empty:contributor-scan:fac7db8a574a34a5941cf25877730e995a95110300f9ef51ed625ed8c0d6bc51",
+                    "context_scope_empty:contributor-scan:bcb76ec6c388629c6ac547120d2d4ee9fec811bbb8bcbfd532c6b6a0d23ab6d4",
+                    "context_scope_empty:contributor-scan:78d518c4f4c4af4ecce78989b9365f38be6c0373bb903c24f218c83ba6cdfeed"
+                  ],
+                  "path_encoding": "filesystem-bytes-hex",
+                  "line_correspondences": [
+                    {
+                      "base_path": "6170692e706870",
+                      "head_path": "6170692e706870",
+                      "base_start_line": 1,
+                      "base_end_line": 1,
+                      "head_start_line": 1
+                    },
+                    {
+                      "base_path": "6170692e706870",
+                      "head_path": "6170692e706870",
+                      "base_start_line": 2,
+                      "base_end_line": 2,
+                      "head_start_line": 2
+                    },
+                    {
+                      "base_path": "6170692e706870",
+                      "head_path": "6170692e706870",
+                      "base_start_line": 4,
+                      "base_end_line": 4,
+                      "head_start_line": 4
+                    },
+                    {
+                      "base_path": "6170692e706870",
+                      "head_path": "6170692e706870",
+                      "base_start_line": 5,
+                      "base_end_line": 5,
+                      "head_start_line": 5
+                    },
+                    {
+                      "base_path": "6170692e706870",
+                      "head_path": "6170692e706870",
+                      "base_start_line": 6,
+                      "base_end_line": 6,
+                      "head_start_line": 6
+                    }
+                  ]
+                },
+                "scope": {
+                  "ranker_version": "existing-static-evidence-v1",
+                  "ranking_mode": "evidence",
+                  "population_complete": true,
+                  "selected": [
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "deserialization"
+                      },
+                      "priority": 0.0,
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"deserialization\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"deserialization\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "priority": -1.0,
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval($value)\",\"line\":4,\"method\":\"handler\"}],\"source_local\":false,\"source_near\":false}",
+                        "tier=3",
+                        "score=1.5",
+                        "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}"
+                      ],
+                      "tier": 3,
+                      "score": 1.5
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "output_encoding"
+                      },
+                      "priority": -2.0,
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"output_encoding\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"output_encoding\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "path"
+                      },
+                      "priority": -3.0,
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"path\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"path\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "untrusted_destination"
+                      },
+                      "priority": -4.0,
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.php:3-3\",\"head_span:api.php:3-3\",\"unchanged_line:2;lexical_only\",\"unchanged_line:4;lexical_only\",\"unchanged_line:5;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"untrusted_destination\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"},\"target\":{\"family\":\"untrusted_destination\",\"function\":\"handler\",\"language\":\"php\",\"path\":\"api.php\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "deserialization"
+                      },
+                      "priority": -5.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "injection"
+                      },
+                      "priority": -6.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "output_encoding"
+                      },
+                      "priority": -7.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "path"
+                      },
+                      "priority": -8.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "untrusted_destination"
+                      },
+                      "priority": -9.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"cf488a02cdea77b0a383f2cb9c63f05ca90b7390\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"57fd3f7c18b660b4ac2def8584e661d8589e6f26\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    }
+                  ],
+                  "deferred": [],
+                  "unresolved_boundaries": [
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:2f5748a12b3473830320bffc27c1a027f00e2ded7f566c36dc6b4ff582d50515",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:afb3c1cd783e7ae870337b2c0552a8e092e4a449cb8ca40196e61d1d3bbf50fa",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:2043d2eebfa4d6ea02585e295eb8affadd90eabaaaf08e539957b21052e05eaa",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:712848f58bfd6a7239d201d5e6755f7de6cf388b92b4dfda4ce66ee2631c9ecb",
+                    "context_scope_empty:contributor-scan:7ed88d7a34033f61c83c828fb6ca95ae05c8c797c76fb4fee35852d265e1e666",
+                    "context_scope_empty:contributor-scan:8e7574a0b3fcef6a6627442cd7b7205805935f23a050eeb0f7758894e834237d",
+                    "context_scope_empty:contributor-scan:fac7db8a574a34a5941cf25877730e995a95110300f9ef51ed625ed8c0d6bc51",
+                    "context_scope_empty:contributor-scan:bcb76ec6c388629c6ac547120d2d4ee9fec811bbb8bcbfd532c6b6a0d23ab6d4",
+                    "context_scope_empty:contributor-scan:78d518c4f4c4af4ecce78989b9365f38be6c0373bb903c24f218c83ba6cdfeed"
+                  ]
+                },
+                "question_outcomes": [
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "handler",
+                      "family": "deserialization"
+                    },
+                    "status": "unresolved",
+                    "reason": "change_context_incomplete",
+                    "raw_rows_json": "[]"
+                  },
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "handler",
+                      "family": "injection"
+                    },
+                    "status": "completed",
+                    "reason": "query_answered_and_arbitrated",
+                    "raw_rows_json": "[]"
+                  },
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "handler",
+                      "family": "output_encoding"
+                    },
+                    "status": "unresolved",
+                    "reason": "change_context_incomplete",
+                    "raw_rows_json": "[]"
+                  },
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "handler",
+                      "family": "path"
+                    },
+                    "status": "unresolved",
+                    "reason": "change_context_incomplete",
+                    "raw_rows_json": "[]"
+                  },
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "handler",
+                      "family": "untrusted_destination"
+                    },
+                    "status": "unresolved",
+                    "reason": "change_context_incomplete",
+                    "raw_rows_json": "[]"
+                  },
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "<module>",
+                      "family": "deserialization"
+                    },
+                    "status": "unresolved",
+                    "reason": "change_context_incomplete",
+                    "raw_rows_json": "[]"
+                  },
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "<module>",
+                      "family": "injection"
+                    },
+                    "status": "unresolved",
+                    "reason": "change_context_incomplete",
+                    "raw_rows_json": "[]"
+                  },
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "<module>",
+                      "family": "output_encoding"
+                    },
+                    "status": "unresolved",
+                    "reason": "change_context_incomplete",
+                    "raw_rows_json": "[]"
+                  },
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "<module>",
+                      "family": "path"
+                    },
+                    "status": "unresolved",
+                    "reason": "change_context_incomplete",
+                    "raw_rows_json": "[]"
+                  },
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "<module>",
+                      "family": "untrusted_destination"
+                    },
+                    "status": "unresolved",
+                    "reason": "change_context_incomplete",
+                    "raw_rows_json": "[]"
+                  }
+                ],
+                "family_coverage": [
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "deserialization",
+                    "selected": 2,
+                    "completed": 0,
+                    "unanswered": 2,
+                    "deferred": 0,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "injection",
+                    "selected": 2,
+                    "completed": 1,
+                    "unanswered": 1,
+                    "deferred": 0,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "output_encoding",
+                    "selected": 2,
+                    "completed": 0,
+                    "unanswered": 2,
+                    "deferred": 0,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "path",
+                    "selected": 2,
+                    "completed": 0,
+                    "unanswered": 2,
+                    "deferred": 0,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "untrusted_destination",
+                    "selected": 2,
+                    "completed": 0,
+                    "unanswered": 2,
+                    "deferred": 0,
+                    "unsupported": 0
+                  }
+                ]
+              }
+            },
+            {
+              "comparison": {
+                "head_oid": "57fd3f7c18b660b4ac2def8584e661d8589e6f26",
+                "base_oid": "cf488a02cdea77b0a383f2cb9c63f05ca90b7390",
+                "base_reason": "explicit_local_replay",
+                "refs": [
+                  "refs/heads/replay"
+                ]
+              },
+              "side": "base",
+              "scan": {
+                "findings": [
+                  {
+                    "site": "api.php:4:handler",
+                    "family": "injection",
+                    "rung": "model_entailed",
+                    "witness": "$_GET[\"value\"] -> eval($value) in api.php (line 4, 3 steps)",
+                    "contradiction": "",
+                    "reached_from": 1
+                  }
+                ],
+                "by_rung": {
+                  "suspicion": 0,
+                  "model_corroborated": 0,
+                  "model_entailed": 1,
+                  "execution_confirmed": 0
+                },
+                "regions_scanned": 1,
+                "regions_unjudged": 1,
+                "regions_unasked": 0,
+                "model_calls": 0,
+                "cost_usd": 0.0,
+                "seconds": 141.37,
+                "build_seconds": 73.99,
+                "query_seconds": 24.1,
+                "query_seconds_by_kind": {
+                  "evidence": 43.16,
+                  "taint": 24.1
+                },
+                "degradations": [],
+                "tiers": [
+                  [
+                    "api.php",
+                    "handler",
+                    "deserialization",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "handler",
+                    "injection",
+                    4
+                  ],
+                  [
+                    "api.php",
+                    "handler",
+                    "output_encoding",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "handler",
+                    "path",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "handler",
+                    "untrusted_destination",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "deserialization",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "injection",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "output_encoding",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "path",
+                    0
+                  ],
+                  [
+                    "api.php",
+                    "<module>",
+                    "untrusted_destination",
+                    0
+                  ]
+                ],
+                "tier_counts": {
+                  "0": 9,
+                  "4": 1
+                },
+                "requests_pruned": 9,
+                "partitions": [
+                  {
+                    "language": "php",
+                    "frontend": "php",
+                    "paths": [
+                      "api.php"
+                    ],
+                    "source_bytes": 83,
+                    "status": "built",
+                    "boundaries": [],
+                    "runtime": "unspecified",
+                    "excluded_paths": [],
+                    "unshipped_paths": []
+                  }
+                ],
+                "change_context": null,
+                "scope": {
+                  "ranker_version": "existing-static-evidence-v1",
+                  "ranking_mode": "evidence",
+                  "population_complete": true,
+                  "selected": [
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "priority": 0.0,
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval($value)\",\"line\":4,\"method\":\"handler\"}],\"source_local\":true,\"source_near\":true}",
+                        "tier=4",
+                        "score=4.5"
+                      ],
+                      "tier": 4,
+                      "score": 4.5
+                    }
+                  ],
+                  "deferred": [
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "deserialization"
+                      },
+                      "reason": "tier_zero",
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "output_encoding"
+                      },
+                      "reason": "tier_zero",
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "path"
+                      },
+                      "reason": "tier_zero",
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "untrusted_destination"
+                      },
+                      "reason": "tier_zero",
+                      "evidence": [
+                        "static_rank=0.3",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "deserialization"
+                      },
+                      "reason": "tier_zero",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "injection"
+                      },
+                      "reason": "tier_zero",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "output_encoding"
+                      },
+                      "reason": "tier_zero",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "path"
+                      },
+                      "reason": "tier_zero",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "untrusted_destination"
+                      },
+                      "reason": "tier_zero",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"mysqli_prepare\",\"mysqli_stmt_bind_param\",\"pg_execute\",\"pg_prepare\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0"
+                      ]
+                    }
+                  ],
+                  "unresolved_boundaries": []
+                },
+                "question_outcomes": [
+                  {
+                    "identity": {
+                      "unit": "repository",
+                      "language": "php",
+                      "path": "api.php",
+                      "function": "handler",
+                      "family": "injection"
+                    },
+                    "status": "completed",
+                    "reason": "query_answered_and_arbitrated",
+                    "raw_rows_json": "[{\"bound\":\"\",\"bounded\":false,\"inLabeledScope\":true,\"length\":3,\"paths\":1,\"sanitized\":false,\"sink\":\"eval($value)\",\"sinkArg0Literal\":false,\"sinkArity\":1,\"sinkFile\":\"api.php\",\"sinkLine\":\"4\",\"sinkMethod\":\"handler\",\"source\":\"$_GET[\\\"value\\\"]\",\"sourceKind\":\"framework\"}]"
+                  }
+                ],
+                "family_coverage": [
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "deserialization",
+                    "selected": 0,
+                    "completed": 0,
+                    "unanswered": 0,
+                    "deferred": 2,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "injection",
+                    "selected": 1,
+                    "completed": 1,
+                    "unanswered": 0,
+                    "deferred": 1,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "output_encoding",
+                    "selected": 0,
+                    "completed": 0,
+                    "unanswered": 0,
+                    "deferred": 2,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "path",
+                    "selected": 0,
+                    "completed": 0,
+                    "unanswered": 0,
+                    "deferred": 2,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "untrusted_destination",
+                    "selected": 0,
+                    "completed": 0,
+                    "unanswered": 0,
+                    "deferred": 2,
+                    "unsupported": 0
+                  }
+                ]
+              }
+            }
+          ],
+          "provenance": {
+            "engine": "joern-4.0.625",
+            "facts": "32edb6e1a78f1afb08ac4248cd436be16663e0d90dc1b3aaf948f2ce49a5a8f0",
+            "queries": "cdd625fc9013f43452a76ec727282cbf82374f3604be36648b6dbbd6aebf1535",
+            "policy": "fc76ffdafe8a6c63d477ef32910d2c236354b3eda9ef92da0ad913ee952a9069",
+            "repository": "/tmp/ousast-replay-smoke-_54qgzaj/repo",
+            "model": "disabled",
+            "requested_base": "cf488a02cdea77b0a383f2cb9c63f05ca90b7390",
+            "requested_head": "57fd3f7c18b660b4ac2def8584e661d8589e6f26",
+            "core": "29df707d0b3c5abf2eb3da9cd84580f6d48abc236dcb9b5b6378c5ee27957fdf",
+            "semantics": "1e36ea1ba503218899c49bdd58f04a01f35d17b2a83bb3e433e5088624489e3a",
+            "ranking_mode": "evidence",
+            "capabilities": "empty_registry_pending_task_8.3",
+            "cache": "cold_no_reuse"
+          },
+          "timings": {
+            "deadline_seconds": 900,
+            "cancellation_allowance_seconds": 2.0,
+            "resolution_seconds": 0.039656939916312695,
+            "provenance_seconds": 0.038474444998428226,
+            "preparation_seconds": 0.1858093859627843,
+            "head_seconds": 172.74959687201772,
+            "base_seconds": 143.2016130099073,
+            "admission_seconds": 2.7002068236470222e-05,
+            "cleanup_seconds": 0.0002769129350781441,
+            "total_seconds": 316.2162177239079
+          },
+          "timing_scope": "Caller stage measurements; publication and rendering duration is returned in ReportDelivery.",
+          "resolution": null
+        }
+      },
+      "completion": {
+        "verified": true,
+        "case": "fixed"
+      },
+      "process_exit_code": 0
+    },
+    {
+      "name": "deadline",
+      "data": {
+        "case": "security",
+        "source_bytes": 82,
+        "elapsed_seconds": 30.784966182080097,
+        "exit_code": 0,
+        "report_error": null,
+        "reporting_seconds": 0.04128431505523622,
+        "text": "No actionable defects reported; analysis is incomplete.\nNotice: Analysis did not finish. Rerun with a longer analysis deadline.\nDetails: /tmp/ousast-replay-smoke-26ew3d4f/replay.json\n",
+        "artifact": {
+          "schema_version": 1,
+          "snapshots": [
+            {
+              "commit_oid": "9dc048607d6dfca40d6637543ba9ddd2a75df759",
+              "object_format": "sha1",
+              "files": [
+                {
+                  "path_hex": "6170692e706870",
+                  "blob_oid": "d9b631a6b465a68a7ddfbcfc289eb8cf4124e00b",
+                  "mode": "100644",
+                  "size_bytes": 83,
+                  "sha256": "fd919c616a59d10a6a71383ac0d5228ed2fc0eb6c90461dd3ef5dfeab835abf8"
+                }
+              ],
+              "boundaries": [],
+              "tree_complete": true,
+              "bytes_read": 83
+            },
+            {
+              "commit_oid": "8ab18f5ac06f56c98527816befb8a2a2e9b61f6a",
+              "object_format": "sha1",
+              "files": [
+                {
+                  "path_hex": "6170692e706870",
+                  "blob_oid": "7e99786afe2b66f90af1abd3effc99327fcb2e55",
+                  "mode": "100644",
+                  "size_bytes": 76,
+                  "sha256": "ce927591f5ff35a4c3ca38de4cdce9e9310d5fc176e7e2feecd2e309f6388c6a"
+                }
+              ],
+              "boundaries": [],
+              "tree_complete": true,
+              "bytes_read": 76
+            }
+          ],
+          "change_context": {
+            "base_revision": "8ab18f5ac06f56c98527816befb8a2a2e9b61f6a",
+            "head_revision": "9dc048607d6dfca40d6637543ba9ddd2a75df759",
+            "changed_paths": [
+              "6170692e706870"
+            ],
+            "deleted_paths": [],
+            "spans": [
+              {
+                "path": "6170692e706870",
+                "start_line": 3,
+                "end_line": 3,
+                "side": "base"
+              },
+              {
+                "path": "6170692e706870",
+                "start_line": 3,
+                "end_line": 3,
+                "side": "head"
+              }
+            ],
+            "renames": [],
+            "declaration_paths": [],
+            "relationships": [],
+            "unresolved_boundaries": [],
+            "path_encoding": "filesystem-bytes-hex",
+            "line_correspondences": [
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 1,
+                "base_end_line": 1,
+                "head_start_line": 1
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 2,
+                "base_end_line": 2,
+                "head_start_line": 2
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 4,
+                "base_end_line": 4,
+                "head_start_line": 4
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 5,
+                "base_end_line": 5,
+                "head_start_line": 5
+              },
+              {
+                "base_path": "6170692e706870",
+                "head_path": "6170692e706870",
+                "base_start_line": 6,
+                "base_end_line": 6,
+                "head_start_line": 6
+              }
+            ]
+          },
+          "result": {
+            "analyses": [
+              {
+                "comparison": {
+                  "head_oid": "9dc048607d6dfca40d6637543ba9ddd2a75df759",
+                  "base_oid": "8ab18f5ac06f56c98527816befb8a2a2e9b61f6a",
+                  "base_reason": "explicit_local_replay",
+                  "refs": [
+                    "refs/heads/replay"
+                  ]
+                },
+                "scopes": [
+                  {
+                    "ranker_version": "existing-static-evidence-v1",
+                    "ranking_mode": "evidence",
+                    "population_complete": true,
+                    "selected": [],
+                    "deferred": [
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "handler",
+                          "family": "deserialization"
+                        },
+                        "reason": "cpg_build_failed",
+                        "evidence": [
+                          "static_rank=0.3",
+                          "evidence_unknown",
+                          "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                        ]
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "handler",
+                          "family": "injection"
+                        },
+                        "reason": "cpg_build_failed",
+                        "evidence": [
+                          "static_rank=0.3",
+                          "evidence_unknown",
+                          "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                        ]
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "handler",
+                          "family": "output_encoding"
+                        },
+                        "reason": "cpg_build_failed",
+                        "evidence": [
+                          "static_rank=0.3",
+                          "evidence_unknown",
+                          "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                        ]
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "handler",
+                          "family": "path"
+                        },
+                        "reason": "cpg_build_failed",
+                        "evidence": [
+                          "static_rank=0.3",
+                          "evidence_unknown",
+                          "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                        ]
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "handler",
+                          "family": "untrusted_destination"
+                        },
+                        "reason": "cpg_build_failed",
+                        "evidence": [
+                          "static_rank=0.3",
+                          "evidence_unknown",
+                          "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                        ]
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "<module>",
+                          "family": "deserialization"
+                        },
+                        "reason": "cpg_build_failed",
+                        "evidence": [
+                          "static_rank=0.15",
+                          "evidence_unknown",
+                          "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                        ]
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "<module>",
+                          "family": "injection"
+                        },
+                        "reason": "cpg_build_failed",
+                        "evidence": [
+                          "static_rank=0.15",
+                          "evidence_unknown",
+                          "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                        ]
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "<module>",
+                          "family": "output_encoding"
+                        },
+                        "reason": "cpg_build_failed",
+                        "evidence": [
+                          "static_rank=0.15",
+                          "evidence_unknown",
+                          "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                        ]
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "<module>",
+                          "family": "path"
+                        },
+                        "reason": "cpg_build_failed",
+                        "evidence": [
+                          "static_rank=0.15",
+                          "evidence_unknown",
+                          "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                        ]
+                      },
+                      {
+                        "identity": {
+                          "unit": "repository",
+                          "language": "php",
+                          "path": "api.php",
+                          "function": "<module>",
+                          "family": "untrusted_destination"
+                        },
+                        "reason": "cpg_build_failed",
+                        "evidence": [
+                          "static_rank=0.15",
+                          "evidence_unknown",
+                          "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                        ]
+                      }
+                    ],
+                    "unresolved_boundaries": [
+                      "cpg_build_failed",
+                      "evidence_unknown:2f5748a12b3473830320bffc27c1a027f00e2ded7f566c36dc6b4ff582d50515",
+                      "evidence_unknown:904570982387a4ceec809e9d755043d2cd3faac4ec7ccec0b2003098aef966c7",
+                      "evidence_unknown:afb3c1cd783e7ae870337b2c0552a8e092e4a449cb8ca40196e61d1d3bbf50fa",
+                      "evidence_unknown:2043d2eebfa4d6ea02585e295eb8affadd90eabaaaf08e539957b21052e05eaa",
+                      "evidence_unknown:712848f58bfd6a7239d201d5e6755f7de6cf388b92b4dfda4ce66ee2631c9ecb",
+                      "evidence_unknown:7ed88d7a34033f61c83c828fb6ca95ae05c8c797c76fb4fee35852d265e1e666",
+                      "evidence_unknown:8e7574a0b3fcef6a6627442cd7b7205805935f23a050eeb0f7758894e834237d",
+                      "evidence_unknown:fac7db8a574a34a5941cf25877730e995a95110300f9ef51ed625ed8c0d6bc51",
+                      "evidence_unknown:bcb76ec6c388629c6ac547120d2d4ee9fec811bbb8bcbfd532c6b6a0d23ab6d4",
+                      "evidence_unknown:78d518c4f4c4af4ecce78989b9365f38be6c0373bb903c24f218c83ba6cdfeed"
+                    ]
+                  }
+                ],
+                "completed_questions": [],
+                "coverage_status": "incomplete"
+              }
+            ],
+            "finding_status": "none",
+            "coverage_status": "incomplete",
+            "push_disposition": "allow",
+            "actionable_defect_ids": []
+          },
+          "admission": {
+            "defects": [],
+            "dispositions": [],
+            "coverage_reasons": [
+              "deadline_exhausted",
+              "admission_failed:TimeoutError",
+              "cpg_build_failed",
+              "evidence_unknown:2f5748a12b3473830320bffc27c1a027f00e2ded7f566c36dc6b4ff582d50515",
+              "evidence_unknown:904570982387a4ceec809e9d755043d2cd3faac4ec7ccec0b2003098aef966c7",
+              "evidence_unknown:afb3c1cd783e7ae870337b2c0552a8e092e4a449cb8ca40196e61d1d3bbf50fa",
+              "evidence_unknown:2043d2eebfa4d6ea02585e295eb8affadd90eabaaaf08e539957b21052e05eaa",
+              "evidence_unknown:712848f58bfd6a7239d201d5e6755f7de6cf388b92b4dfda4ce66ee2631c9ecb",
+              "evidence_unknown:7ed88d7a34033f61c83c828fb6ca95ae05c8c797c76fb4fee35852d265e1e666",
+              "evidence_unknown:8e7574a0b3fcef6a6627442cd7b7205805935f23a050eeb0f7758894e834237d",
+              "evidence_unknown:fac7db8a574a34a5941cf25877730e995a95110300f9ef51ed625ed8c0d6bc51",
+              "evidence_unknown:bcb76ec6c388629c6ac547120d2d4ee9fec811bbb8bcbfd532c6b6a0d23ab6d4",
+              "evidence_unknown:78d518c4f4c4af4ecce78989b9365f38be6c0373bb903c24f218c83ba6cdfeed",
+              "analysis_incomplete",
+              "base_comparison_unavailable"
+            ]
+          },
+          "scans": [
+            {
+              "comparison": {
+                "head_oid": "9dc048607d6dfca40d6637543ba9ddd2a75df759",
+                "base_oid": "8ab18f5ac06f56c98527816befb8a2a2e9b61f6a",
+                "base_reason": "explicit_local_replay",
+                "refs": [
+                  "refs/heads/replay"
+                ]
+              },
+              "side": "head",
+              "scan": {
+                "findings": [],
+                "by_rung": {
+                  "suspicion": 0,
+                  "model_corroborated": 0,
+                  "model_entailed": 0,
+                  "execution_confirmed": 0
+                },
+                "regions_scanned": 0,
+                "regions_unjudged": 2,
+                "regions_unasked": 0,
+                "model_calls": 0,
+                "cost_usd": 0.0,
+                "seconds": 29.38,
+                "build_seconds": 29.28,
+                "query_seconds": 0.0,
+                "query_seconds_by_kind": {},
+                "degradations": [
+                  {
+                    "stage": "model",
+                    "reason": "cpg_build_failed",
+                    "detail": "the graph could not answer the census (timeout or no payload), so no query would be answered either"
+                  },
+                  {
+                    "stage": "model",
+                    "reason": "deadline_exhausted"
+                  }
+                ],
+                "tiers": [],
+                "tier_counts": {},
+                "requests_pruned": 0,
+                "partitions": [
+                  {
+                    "language": "php",
+                    "frontend": "php",
+                    "paths": [
+                      "api.php"
+                    ],
+                    "source_bytes": 83,
+                    "status": "build_failed",
+                    "boundaries": [],
+                    "runtime": "unspecified",
+                    "excluded_paths": [],
+                    "unshipped_paths": []
+                  }
+                ],
+                "change_context": {
+                  "base_revision": "8ab18f5ac06f56c98527816befb8a2a2e9b61f6a",
+                  "head_revision": "9dc048607d6dfca40d6637543ba9ddd2a75df759",
+                  "changed_paths": [
+                    "6170692e706870"
+                  ],
+                  "deleted_paths": [],
+                  "spans": [
+                    {
+                      "path": "6170692e706870",
+                      "start_line": 3,
+                      "end_line": 3,
+                      "side": "base"
+                    },
+                    {
+                      "path": "6170692e706870",
+                      "start_line": 3,
+                      "end_line": 3,
+                      "side": "head"
+                    }
+                  ],
+                  "renames": [],
+                  "declaration_paths": [],
+                  "relationships": [],
+                  "unresolved_boundaries": [],
+                  "path_encoding": "filesystem-bytes-hex",
+                  "line_correspondences": [
+                    {
+                      "base_path": "6170692e706870",
+                      "head_path": "6170692e706870",
+                      "base_start_line": 1,
+                      "base_end_line": 1,
+                      "head_start_line": 1
+                    },
+                    {
+                      "base_path": "6170692e706870",
+                      "head_path": "6170692e706870",
+                      "base_start_line": 2,
+                      "base_end_line": 2,
+                      "head_start_line": 2
+                    },
+                    {
+                      "base_path": "6170692e706870",
+                      "head_path": "6170692e706870",
+                      "base_start_line": 4,
+                      "base_end_line": 4,
+                      "head_start_line": 4
+                    },
+                    {
+                      "base_path": "6170692e706870",
+                      "head_path": "6170692e706870",
+                      "base_start_line": 5,
+                      "base_end_line": 5,
+                      "head_start_line": 5
+                    },
+                    {
+                      "base_path": "6170692e706870",
+                      "head_path": "6170692e706870",
+                      "base_start_line": 6,
+                      "base_end_line": 6,
+                      "head_start_line": 6
+                    }
+                  ]
+                },
+                "scope": {
+                  "ranker_version": "existing-static-evidence-v1",
+                  "ranking_mode": "evidence",
+                  "population_complete": true,
+                  "selected": [],
+                  "deferred": [
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "deserialization"
+                      },
+                      "reason": "cpg_build_failed",
+                      "evidence": [
+                        "static_rank=0.3",
+                        "evidence_unknown",
+                        "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "reason": "cpg_build_failed",
+                      "evidence": [
+                        "static_rank=0.3",
+                        "evidence_unknown",
+                        "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "output_encoding"
+                      },
+                      "reason": "cpg_build_failed",
+                      "evidence": [
+                        "static_rank=0.3",
+                        "evidence_unknown",
+                        "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "path"
+                      },
+                      "reason": "cpg_build_failed",
+                      "evidence": [
+                        "static_rank=0.3",
+                        "evidence_unknown",
+                        "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "handler",
+                        "family": "untrusted_destination"
+                      },
+                      "reason": "cpg_build_failed",
+                      "evidence": [
+                        "static_rank=0.3",
+                        "evidence_unknown",
+                        "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "deserialization"
+                      },
+                      "reason": "cpg_build_failed",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "evidence_unknown",
+                        "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "injection"
+                      },
+                      "reason": "cpg_build_failed",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "evidence_unknown",
+                        "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "output_encoding"
+                      },
+                      "reason": "cpg_build_failed",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "evidence_unknown",
+                        "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "path"
+                      },
+                      "reason": "cpg_build_failed",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "evidence_unknown",
+                        "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "php",
+                        "path": "api.php",
+                        "function": "<module>",
+                        "family": "untrusted_destination"
+                      },
+                      "reason": "cpg_build_failed",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "evidence_unknown",
+                        "change_sites={\"base_revision\":\"8ab18f5ac06f56c98527816befb8a2a2e9b61f6a\",\"changed_paths\":[\"6170692e706870\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"9dc048607d6dfca40d6637543ba9ddd2a75df759\",\"path_encoding\":\"filesystem-bytes-hex\"}"
+                      ]
+                    }
+                  ],
+                  "unresolved_boundaries": [
+                    "cpg_build_failed",
+                    "evidence_unknown:2f5748a12b3473830320bffc27c1a027f00e2ded7f566c36dc6b4ff582d50515",
+                    "evidence_unknown:904570982387a4ceec809e9d755043d2cd3faac4ec7ccec0b2003098aef966c7",
+                    "evidence_unknown:afb3c1cd783e7ae870337b2c0552a8e092e4a449cb8ca40196e61d1d3bbf50fa",
+                    "evidence_unknown:2043d2eebfa4d6ea02585e295eb8affadd90eabaaaf08e539957b21052e05eaa",
+                    "evidence_unknown:712848f58bfd6a7239d201d5e6755f7de6cf388b92b4dfda4ce66ee2631c9ecb",
+                    "evidence_unknown:7ed88d7a34033f61c83c828fb6ca95ae05c8c797c76fb4fee35852d265e1e666",
+                    "evidence_unknown:8e7574a0b3fcef6a6627442cd7b7205805935f23a050eeb0f7758894e834237d",
+                    "evidence_unknown:fac7db8a574a34a5941cf25877730e995a95110300f9ef51ed625ed8c0d6bc51",
+                    "evidence_unknown:bcb76ec6c388629c6ac547120d2d4ee9fec811bbb8bcbfd532c6b6a0d23ab6d4",
+                    "evidence_unknown:78d518c4f4c4af4ecce78989b9365f38be6c0373bb903c24f218c83ba6cdfeed"
+                  ]
+                },
+                "question_outcomes": [],
+                "family_coverage": [
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "deserialization",
+                    "selected": 0,
+                    "completed": 0,
+                    "unanswered": 0,
+                    "deferred": 2,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "injection",
+                    "selected": 0,
+                    "completed": 0,
+                    "unanswered": 0,
+                    "deferred": 2,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "output_encoding",
+                    "selected": 0,
+                    "completed": 0,
+                    "unanswered": 0,
+                    "deferred": 2,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "path",
+                    "selected": 0,
+                    "completed": 0,
+                    "unanswered": 0,
+                    "deferred": 2,
+                    "unsupported": 0
+                  },
+                  {
+                    "unit": "repository",
+                    "language": "php",
+                    "family": "untrusted_destination",
+                    "selected": 0,
+                    "completed": 0,
+                    "unanswered": 0,
+                    "deferred": 2,
+                    "unsupported": 0
+                  }
+                ]
+              }
+            }
+          ],
+          "provenance": {
+            "engine": "joern-4.0.625",
+            "facts": "32edb6e1a78f1afb08ac4248cd436be16663e0d90dc1b3aaf948f2ce49a5a8f0",
+            "queries": "cdd625fc9013f43452a76ec727282cbf82374f3604be36648b6dbbd6aebf1535",
+            "policy": "2ed1f678cd11f6ef060561935cd0aaae92ed009c6e1e802e39f1b239597aa765",
+            "repository": "/tmp/ousast-replay-smoke-26ew3d4f/repo",
+            "model": "disabled",
+            "requested_base": "8ab18f5ac06f56c98527816befb8a2a2e9b61f6a",
+            "requested_head": "9dc048607d6dfca40d6637543ba9ddd2a75df759",
+            "core": "29df707d0b3c5abf2eb3da9cd84580f6d48abc236dcb9b5b6378c5ee27957fdf",
+            "semantics": "1e36ea1ba503218899c49bdd58f04a01f35d17b2a83bb3e433e5088624489e3a",
+            "ranking_mode": "evidence",
+            "capabilities": "empty_registry_pending_task_8.3",
+            "cache": "cold_no_reuse"
+          },
+          "timings": {
+            "deadline_seconds": 30.0,
+            "cancellation_allowance_seconds": 2.0,
+            "resolution_seconds": 0.031065345974639058,
+            "provenance_seconds": 0.02125667594373226,
+            "preparation_seconds": 0.15581317408941686,
+            "head_seconds": 29.903724926989526,
+            "base_seconds": 0.6298638089792803,
+            "admission_seconds": 0.0002758160699158907,
+            "total_seconds": 30.74270467297174
+          },
+          "timing_scope": "Caller stage measurements; publication and rendering duration is returned in ReportDelivery.",
+          "resolution": null
+        }
+      },
+      "completion": {
+        "verified": true,
+        "case": "security"
+      },
+      "process_exit_code": 0
+    }
+  ],
+  "validation": {
+    "tests_passed": 1236,
+    "tests_skipped": 9,
+    "test_exit_code": 0,
+    "build_exit_code": 0,
+    "cli_help_exit_code": 0,
+    "static_checks": "PASS",
+    "regression_gates": "PASS"
+  },
+  "provenance_note": "Security control ran from final packaged image with matching policy/core/facts/query hashes. Fixed control used the production runner with source-mounted code before narrow comparison and snapshot-boundary repairs; it emitted no head finding. Deadline control used the packaged runner before final policy/snapshot-boundary repairs; deadline code was unchanged. No complete coverage or capability qualification follows.",
+  "limits": [
+    "real capability registry empty",
+    "automatic unrelated context gaps retained",
+    "900-second controls are lab runs, not hook latency",
+    "full PMPro and frozen-core Node experiment remains task5.2"
+  ]
+}

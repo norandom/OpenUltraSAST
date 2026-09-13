@@ -110,6 +110,17 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="ousast")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    replay_parser = subparsers.add_parser("pre-push", help="replay explicit local base/head revisions (experimental)")
+    replay_parser.add_argument("path", type=Path)
+    replay_parser.add_argument("--base", required=True)
+    replay_parser.add_argument("--head", required=True)
+    replay_parser.add_argument("--artifact", type=Path, required=True)
+    replay_parser.add_argument("--deadline", type=float, default=30.0)
+    replay_parser.add_argument("--cancellation-allowance", type=float, default=2.0)
+    replay_parser.add_argument("--max-regions", type=int, default=500)
+    replay_parser.add_argument("--mode", choices=("advisory", "blocking"), default="advisory")
+    replay_parser.add_argument("--incomplete-coverage", choices=("allow", "block"), default="allow")
+
     scan = subparsers.add_parser("scan", help="scan a local repository")
     scan.add_argument("path", type=Path)
     scan.add_argument("--mode", choices=("quick", "standard", "deep"), default="quick")
@@ -189,6 +200,24 @@ def main(argv: list[str] | None = None) -> int:
     candidates.add_argument("--json", action="store_true")
 
     args = parser.parse_args(argv)
+    if args.command == "pre-push":
+        from .config import PushConfig
+        from .push.runner import replay
+
+        try:
+            settings = PushConfig(
+                deadline_seconds=args.deadline,
+                cancellation_allowance_seconds=args.cancellation_allowance,
+                mode=args.mode,
+                incomplete_coverage_policy=args.incomplete_coverage,
+            )
+            delivery = replay(
+                args.path, base=args.base, head=args.head, artifact=args.artifact, config=settings, max_regions=args.max_regions
+            )
+        except ValueError as error:
+            parser.error(str(error))
+        print(delivery.text, end="")
+        return delivery.exit_code
     if args.command == "scan":
         return _scan(args.path, args.config, args.mode, args.fail_on)
     if args.command == "index":

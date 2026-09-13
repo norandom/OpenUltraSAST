@@ -3,7 +3,7 @@
 Status: task plan approved by the maintainer on 2026-09-12. Groups 1–4 (tasks 1.1–4.3)
 are complete after task reviews and fresh verification (14/27 subtasks). Task 4.3 used
 the documented manual review fallback after agent dispatch became unavailable.
-Groups 5–8 remain pending; no production capability or hook latency is admitted.
+Task 5.1 is also verified (15/27 total); task 5.2 and groups 6–8 remain pending; no production capability or hook latency is admitted.
 
 ## Execution contract
 
@@ -140,10 +140,11 @@ Groups 5–8 remain pending; no production capability or hook latency is admitte
   - _Requirements: 3.1, 3.2, 3.3, 5.1, 5.2, 5.5, 7.3_
 
 - [ ] 5. Prove the first end-to-end experiment before cache optimization
-- [ ] 5.1 Wire explicit base/head replay through the full transaction
+- [x] 5.1 Wire explicit base/head replay through the full transaction
   - Connect immutable snapshots, ranker decisions, existing arbiter, targeted comparison, admission diagnostics and compact artifacts through an explicit local replay command.
   - Apply the shared budget to preparation and both revisions; no model/service or installed hook is required. All runtime errors preserve coverage state.
   - Done when a controlled security change and fixed twin traverse the production runner through the existing ranker and produce replayable results with truthful deadlines.
+  - _Verified 2026-09-13:_ manual Kiro fallback review APPROVED; 1,236 tests passed, nine skipped; final packaged security replay and fixed/deadline controls verified. See `implementation-group-5.md`.
   - _Boundary: Push runner, CLI, Snapshot Adapter, engine and policy integration_
   - _Depends: 1.3, 3.1, 3.4, 4.3_
   - _Requirements: 1.1, 2.1, 3.1, 3.4, 4.1, 4.2, 5.5, 7.1, 7.3_
