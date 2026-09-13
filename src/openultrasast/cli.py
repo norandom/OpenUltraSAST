@@ -115,6 +115,9 @@ def main(argv: list[str] | None = None) -> int:
     replay_parser.add_argument("--base", required=True)
     replay_parser.add_argument("--head", required=True)
     replay_parser.add_argument("--artifact", type=Path, required=True)
+    replay_parser.add_argument(
+        "--cache-dir", type=Path, help="reuse compatible local artifacts in a private directory outside the repository"
+    )
     replay_parser.add_argument("--deadline", type=float, default=30.0)
     replay_parser.add_argument("--cancellation-allowance", type=float, default=2.0)
     replay_parser.add_argument("--max-regions", type=int, default=500)
@@ -212,7 +215,13 @@ def main(argv: list[str] | None = None) -> int:
                 incomplete_coverage_policy=args.incomplete_coverage,
             )
             delivery = replay(
-                args.path, base=args.base, head=args.head, artifact=args.artifact, config=settings, max_regions=args.max_regions
+                args.path,
+                base=args.base,
+                head=args.head,
+                artifact=args.artifact,
+                config=settings,
+                max_regions=args.max_regions,
+                cache_dir=args.cache_dir,
             )
         except ValueError as error:
             parser.error(str(error))

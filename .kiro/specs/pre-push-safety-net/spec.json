@@ -1,7 +1,7 @@
 {
   "feature_name": "pre-push-safety-net",
   "created_at": "2026-09-12T15:35:00Z",
-  "updated_at": "2026-09-13T13:22:55.634332+00:00",
+  "updated_at": "2026-09-13T15:06:56.856952+00:00",
   "language": "en",
   "phase": "implementation",
   "approvals": {
@@ -19,7 +19,7 @@
     }
   },
   "ready_for_implementation": true,
-  "implementation_approval_note": "Groups1\u20135 implemented and verified (16/27). Group5 used manual Kiro fallback review, repaired observed predecessor deadline bugs, and executed a newly frozen PMPro/Node experiment. Measured feasibility NO-GO; real capabilities remain disabled. Groups6\u20138 pending.",
+  "implementation_approval_note": "Groups 1\u20136 implemented and verified (20/27); group 6 authorized as a whole. Main-context Kiro review fallback after fresh dispatch thread limit. Valid reuse is demonstrated; real capability registry remains empty and rollout gates remain unmet. Groups 7\u20138 pending.",
   "depends_on": [
     "contributor-scan"
   ],
@@ -98,19 +98,24 @@
       "4.2",
       "4.3",
       "5.1",
-      "5.2"
+      "5.2",
+      "6.1",
+      "6.2",
+      "6.3",
+      "6.4"
     ],
-    "remaining_tasks": 11,
-    "verification_record": "implementation-group-5.md",
+    "remaining_tasks": 7,
+    "verification_record": "implementation-group-6.md",
     "verification_records": [
       "implementation-group-1.md",
       "implementation-group-2.md",
       "implementation-group-3.md",
       "implementation-group-4.md",
-      "implementation-group-5.md"
+      "implementation-group-5.md",
+      "implementation-group-6.md"
     ],
-    "next_group": 6,
+    "next_group": 7,
     "blocked_tasks": [],
-    "feasibility": "NO-GO: six cold replay timeouts; no completed supported target checks; warm performance and eligibility unproven"
+    "feasibility": "NO-GO for rollout: compatible identical-revision reuse verified; representative changed-code p95/completion and independent alert eligibility remain unmet."
   }
 }

@@ -218,3 +218,84 @@ def test_default_replay_does_not_launch_unbudgeted_availability_probe(tmp_path, 
     monkeypatch.setattr(runner, "JoernBackend", Backend, raising=False)
     result = replay(root, base=base, head=head, artifact=tmp_path / "probe.json")
     assert builds and result.result.coverage_status == "incomplete"
+
+
+def test_replay_persists_discovery_without_skipping_readable_snapshots(tmp_path, monkeypatch):
+    from openultrasast.push import runner
+
+    root, base, head, _ = history(tmp_path)
+    cache = tmp_path / "cache"
+    cold = tmp_path / "cold.json"
+    warm = tmp_path / "warm.json"
+    replay(root, base=base, head=head, artifact=cold, backend=NullBackend(), cache_dir=cache)
+
+    def should_reuse(*args):
+        raise AssertionError("discovery should be cached")
+
+    monkeypatch.setattr(runner, "_discover", should_reuse)
+    replay(root, base=base, head=head, artifact=warm, backend=NullBackend(), cache_dir=cache)
+    a, b = json.loads(cold.read_text()), json.loads(warm.read_text())
+    assert a["result"] == b["result"]
+    assert a["snapshots"] == b["snapshots"]
+    assert b["timings"]["discovery_hits"] == 2
+    assert b["snapshots"][0]["bytes_read"] > 0
+
+
+def test_cache_cannot_write_inside_repository(tmp_path):
+    root, base, head, git = history(tmp_path)
+    before = git("status", "--porcelain")
+    with pytest.raises(ValueError, match="cache.*outside"):
+        replay(root, base=base, head=head, artifact=tmp_path / "out.json", cache_dir=root / "cache")
+    assert git("status", "--porcelain") == before
+
+
+def test_cached_discovery_invalidates_source_and_dependency_edits(tmp_path):
+    root, base, head, git = history(tmp_path)
+    cache = tmp_path / "cache"
+    replay(root, base=base, head=head, artifact=tmp_path / "initial.json", backend=NullBackend(), cache_dir=cache)
+    (root / "api.js").write_text("function replacement(req) { eval(req.body.other); }")
+    git("add", "api.js")
+    git("commit", "-m", "change source")
+    edited = git("rev-parse", "HEAD")
+    replay(root, base=base, head=edited, artifact=tmp_path / "edited.json", backend=NullBackend(), cache_dir=cache)
+    data = json.loads((tmp_path / "edited.json").read_text())
+    assert data["timings"]["discovery_hits"] == 1
+    (root / "package.json").write_text('{"dependencies":{"express":"5"}}')
+    git("add", "package.json")
+    git("commit", "-m", "change dependencies")
+    dependency = git("rev-parse", "HEAD")
+    replay(root, base=base, head=dependency, artifact=tmp_path / "dependency.json", backend=NullBackend(), cache_dir=cache)
+    data = json.loads((tmp_path / "dependency.json").read_text())
+    assert data["timings"]["discovery_hits"] == 1
+    assert data["change_context"]["head_revision"] == dependency
+
+
+def test_identical_revision_materializes_once_and_reuses_discovery(tmp_path, monkeypatch):
+    from openultrasast.push.snapshot import SnapshotAdapter
+
+    root, base, _, _ = history(tmp_path)
+    original = SnapshotAdapter.materialize
+    calls = []
+
+    def counted(self, oid, **kwargs):
+        calls.append(oid)
+        return original(self, oid, **kwargs)
+
+    monkeypatch.setattr(SnapshotAdapter, "materialize", counted)
+    replay(root, base=base, head=base, artifact=tmp_path / "same.json", backend=NullBackend(), cache_dir=tmp_path / "cache")
+    data = json.loads((tmp_path / "same.json").read_text())
+    assert calls == [base]
+    assert data["timings"]["discovery_hits"] == 1
+    assert len(data["snapshots"]) == 2
+
+
+def test_admission_provenance_invalidates_when_installed_runtime_changes(tmp_path, monkeypatch):
+    from openultrasast.model.scan import ScanBudget
+    from openultrasast.push import runner
+
+    monkeypatch.setattr(runner, "engine_runtime_identity", lambda: "first-installation")
+    first = runner._provenance(tmp_path, ScanBudget())
+    monkeypatch.setattr(runner, "engine_runtime_identity", lambda: "second-installation")
+    second = runner._provenance(tmp_path, ScanBudget())
+    assert first["semantics"] != second["semantics"]
+    assert first["facts"] == second["facts"] and first["graph_layout"] == second["graph_layout"]

@@ -1,10 +1,10 @@
 {
   "counts": {
-    "load_bearing": 103,
+    "load_bearing": 104,
     "standalone_capability": 9
   },
-  "modules": 112,
-  "note": "Refreshed for task 6.2: bounded local artifact storage, integrated by task 6.4.",
+  "modules": 113,
+  "note": "Refreshed for group 6: replay reaches compatible graph, query, discovery and comparison reuse.",
   "orphaned": [],
   "rows": [
     {
@@ -118,6 +118,7 @@
         "config",
         "cpg.artifact",
         "model.contracts",
+        "push.cache",
         "push.contracts",
         "push.policy"
       ],
@@ -139,6 +140,7 @@
         "model.taint",
         "push.cache",
         "push.policy",
+        "push.reuse",
         "push.runner"
       ],
       "module": "cpg",
@@ -148,7 +150,10 @@
       "classification": "load_bearing",
       "importers": [
         "cpg.backend",
-        "push.cache"
+        "push.cache",
+        "push.policy",
+        "push.reuse",
+        "push.runner"
       ],
       "module": "cpg.artifact",
       "reason": "pre-push-safety-net Req 4.3/7.3: backend graph identity and live lease contract; validation integration pending"
@@ -167,6 +172,7 @@
         "model.taint",
         "push.cache",
         "push.policy",
+        "push.reuse",
         "push.runner"
       ],
       "module": "cpg.backend",
@@ -374,6 +380,7 @@
         "push.contracts",
         "push.policy",
         "push.report",
+        "push.reuse",
         "push.runner",
         "push.snapshot"
       ],
@@ -421,6 +428,7 @@
         "push.contracts",
         "push.policy",
         "push.report",
+        "push.reuse",
         "push.runner",
         "push.snapshot"
       ],
@@ -484,7 +492,8 @@
       "importers": [
         "model.partitions",
         "model.scan",
-        "preprocess"
+        "preprocess",
+        "push.runner"
       ],
       "module": "model.layout",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI"
@@ -513,6 +522,7 @@
         "model.layout",
         "model.scan",
         "push.policy",
+        "push.reuse",
         "push.runner"
       ],
       "module": "model.regions",
@@ -690,6 +700,7 @@
         "cli",
         "push.policy",
         "push.report",
+        "push.reuse",
         "push.runner",
         "push.snapshot"
       ],
@@ -698,7 +709,11 @@
     },
     {
       "classification": "load_bearing",
-      "importers": [],
+      "importers": [
+        "push.policy",
+        "push.reuse",
+        "push.runner"
+      ],
       "module": "push.cache",
       "reason": "pre-push-safety-net task 6.2: bounded artifact publication and leased eviction; runner integration in 6.4"
     },
@@ -707,6 +722,7 @@
       "importers": [
         "push.policy",
         "push.report",
+        "push.reuse",
         "push.runner",
         "push.snapshot"
       ],
@@ -729,6 +745,14 @@
       ],
       "module": "push.report",
       "reason": "pre-push-safety-net Req 5.1/5.2/5.5/7.3: compact output and complete artifacts; runner integration pending"
+    },
+    {
+      "classification": "load_bearing",
+      "importers": [
+        "push.runner"
+      ],
+      "module": "push.reuse",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI"
     },
     {
       "classification": "load_bearing",

@@ -1,11 +1,12 @@
 # Implementation Plan: pre-push-safety-net
 
-Status: task plan approved by the maintainer on 2026-09-12. Groups 1–5 (tasks 1.1–5.2)
-are implemented, reviewed and verified (16/27 subtasks). Tasks 4.3 and group 5 used the
-documented Kiro manual review fallback after agent dispatch reached its thread limit.
-The first experiment is measured NO-GO: all six cold PMPro/Node cases timed out without
-completed target checks. Groups 6–8 remain pending; no production capability or warm
-hook latency is admitted.
+Status: task plan approved by the maintainer on 2026-09-12. Groups 1–6 (tasks 1.1–6.4)
+are implemented, reviewed and verified (20/27 subtasks). Tasks 4.3 and groups 5–6 used the
+explicit Kiro manual review fallback after fresh agent dispatch reached its thread limit.
+Group 5's six cold PMPro/Node timeouts remain historical NO-GO evidence. Group 6 verifies
+compatible reuse with equal evidence/admission in a packaged authored JavaScript control;
+its identical-revision run completed in 2.00s. This is not representative warm p95 or
+independent capability qualification. Groups 7–8 remain pending; rollout remains NO-GO.
 
 ## Execution contract
 
@@ -160,7 +161,7 @@ hook latency is admitted.
   - _Depends: 1.2, 1.3, 5.1_
   - _Requirements: 6.2, 6.3, 6.4, 6.5, 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 6. Reuse valid graphs and results without stale conclusions
+- [x] 6. Reuse valid graphs and results without stale conclusions
 - [x] 6.1 Validate graph artifact identity and leases
   - Have the backend own source/declaration/exclusion digests, frontend/engine/overlay options, graph census and complete/partial identity.
   - Permit validated graph leases in the generic driver while preserving the fresh-build path; isolate potentially mutating loads and retain bounded cleanup.
@@ -180,7 +181,7 @@ hook latency is admitted.
   - Done when source, context, fact, query, mode, policy and optional model changes invalidate the appropriate layer, while an identical compatible request returns the same evidence and provenance.
   - _Boundary: Push cache, policy integration_
   - _Requirements: 3.4, 4.3, 4.4, 6.4, 7.2, 7.3_
-- [ ] 6.4 Integrate cache reuse into the shared push deadline
+- [x] 6.4 Integrate cache reuse into the shared push deadline
   - Reuse complete preparation/discovery by immutable tree and discovery/fact/configuration identity, retaining readable snapshot and declaration/boundary records; measure its costs and hits separately from graph/query reuse.
   - Reuse identical snapshots/unchanged declared units across refs without merging different comparisons; changed units rebuild and stale graph relationships remain hints only.
   - Account for lookup, lock wait, lease, build/query and result persistence in the same deadline; preserve completed outcomes on cancellation.
@@ -219,6 +220,7 @@ hook latency is admitted.
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.2, 2.3, 4.2, 4.4, 5.2, 5.5, 7.1, 7.4, 8.2_
 - [ ] 8.2 Measure realistic cache and deadline feasibility
   - Measure identical-tip reuse, a warm one-function edit, dependency/configuration edits, cold starts, repository growth and multi-ref workloads on declared hardware.
+  - If reuse correctness passes but changed-code checks time out, identify preparation, frontend/overlay/census and query costs separately and route the remaining optimization to its owning boundary before rollout GO. Preserve the declared gates and do not substitute identical-tip latency.
   - Publish p50/p95, timeouts, cancellation allowance, completed/deferred population and stage costs; the denominator is fixed before ranker selection.
   - Done when the versioned scorecard evaluates the accepted latency/coverage gates without hiding timeouts or calling repeated-identical-tip hits representative warm edits; a failed gate remains NO-GO for rollout.
   - _Boundary: Evaluation harness, runtime integration_
@@ -244,3 +246,5 @@ hook latency is admitted.
 
 - Task5.2 measured PMPro timing out after both snapshots were materialized but before change context/graph analysis. Group6 must account for compatible snapshot/discovery reuse as well as graph reuse; identical-tip hits cannot substitute for the later representative changed-code latency gate. No new detector, scope heuristic or incremental CPG mutation is implied.
 - Cancellation must cover semantic planning and reporting, not only engine subprocesses: `_collect` and `_scope_work` now consume the shared deadline, and replay instantiates the budget-aware backend once. Preserve the 400-question failure-census and real Node artifact-retention regressions.
+
+- Group 6: complete discovery/graph/query reuse is explicit via `--cache-dir`; source/declaration edits invalidate affected units. Installed frontend/adaptation bytes now bind graph and admission provenance. A valid cached census cannot qualify a fresh answer that omitted its own census. Identical-revision timing is not the changed-code rollout gate.

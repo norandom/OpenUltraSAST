@@ -1,0 +1,1627 @@
+{
+  "purpose": "Group 6 authored JavaScript reuse correctness and invalidation control; not independent capability qualification",
+  "image": "sha256:6622b846996989a321d81bfa6c25e792e3f217984d7ede66f830cff1206a634c",
+  "environment": {
+    "network": "none",
+    "memory_limit_bytes": 3221225472,
+    "user": "image nonroot ousast",
+    "filesystem_cache": "uncontrolled",
+    "workloads": "serial; no concurrent tests/builds during final timed controls"
+  },
+  "harness": "benchmarks/push/reuse_control.py mounted read-only; additional same-revision 30-second uncached CLI command retained in bundle",
+  "harness_sha256": "900393eb6cc614162136f5a70b6be13fa34cff2e3a80824e69d8a4ccf8c77cf2",
+  "final_summary": {
+    "cold_populated_evidence_equal": true,
+    "cold_warm_evidence_equal": true,
+    "admission_equal": true,
+    "runs": [
+      {
+        "name": "populate",
+        "elapsed_seconds": 154.84820935002062,
+        "exit_code": 0,
+        "timings": {
+          "deadline_seconds": 600.0,
+          "cancellation_allowance_seconds": 2.0,
+          "resolution_seconds": 0.01658846205100417,
+          "provenance_seconds": 0.3594230430899188,
+          "snapshot_seconds": 0.016923974035307765,
+          "snapshot_reuses": 0,
+          "discovery_seconds": 0.15945994993671775,
+          "discovery_hits": 0,
+          "preparation_seconds": 0.20162996603175998,
+          "head_seconds": 78.34064441197552,
+          "base_seconds": 75.3250151189277,
+          "admission_seconds": 0.006018119980581105,
+          "cleanup_seconds": 0.0003920870367437601,
+          "graph_hits": 0,
+          "query_hits": 0,
+          "total_seconds": 154.2775415830547
+        },
+        "result": {
+          "analyses": [
+            {
+              "comparison": {
+                "head_oid": "458817181ffff46da686825cdea0e27189fb447d",
+                "base_oid": "54b3130ca5354201a00bbd841640f6cb8651aaf8",
+                "base_reason": "explicit_local_replay",
+                "refs": [
+                  "refs/heads/replay"
+                ]
+              },
+              "scopes": [
+                {
+                  "ranker_version": "existing-static-evidence-v1",
+                  "ranking_mode": "evidence",
+                  "population_complete": true,
+                  "selected": [
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "access_control"
+                      },
+                      "priority": 0.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "taint_evidence_not_applicable",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": null,
+                      "score": null
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "config_secrets"
+                      },
+                      "priority": -1.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "taint_evidence_not_applicable",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": null,
+                      "score": null
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "priority": -2.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval(value)\",\"line\":3,\"method\":\"handler\"}],\"source_local\":true,\"source_near\":true}",
+                        "tier=4",
+                        "score=5.5",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.js:2-2\",\"head_span:api.js:2-2\",\"unchanged_line:1;lexical_only\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"},\"target\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"}}"
+                      ],
+                      "tier": 4,
+                      "score": 5.5
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "output_encoding"
+                      },
+                      "priority": -3.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.js:2-2\",\"head_span:api.js:2-2\",\"unchanged_line:1;lexical_only\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"output_encoding\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"},\"target\":{\"family\":\"output_encoding\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "path"
+                      },
+                      "priority": -4.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.js:2-2\",\"head_span:api.js:2-2\",\"unchanged_line:1;lexical_only\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"path\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"},\"target\":{\"family\":\"path\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "prototype"
+                      },
+                      "priority": -5.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.js:2-2\",\"head_span:api.js:2-2\",\"unchanged_line:1;lexical_only\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"prototype\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"},\"target\":{\"family\":\"prototype\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "untrusted_destination"
+                      },
+                      "priority": -6.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.js:2-2\",\"head_span:api.js:2-2\",\"unchanged_line:1;lexical_only\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"untrusted_destination\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"},\"target\":{\"family\":\"untrusted_destination\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "config_secrets"
+                      },
+                      "priority": -7.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "taint_evidence_not_applicable",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": null,
+                      "score": null
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "injection"
+                      },
+                      "priority": -8.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "output_encoding"
+                      },
+                      "priority": -9.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "path"
+                      },
+                      "priority": -10.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "prototype"
+                      },
+                      "priority": -11.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "untrusted_destination"
+                      },
+                      "priority": -12.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    }
+                  ],
+                  "deferred": [],
+                  "unresolved_boundaries": [
+                    "context_projection_unavailable:contributor-scan:7ad5ff7dd4882f08a395c2c0f55de6f6a3ddb9f9db1536b207572a65485776ac",
+                    "context_projection_unavailable:contributor-scan:010672f395d61fff5ca6acb6e5fb3e3aae4dcf9c30887240b985e705b656717a",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:e3453476e53cbccfd684460af10a161bb890fc026f3d10e18b30405d62a3d6cd",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:7a8bdefd0721637c5f48e97e26439ce8b329b293d8f6e65367e9e0c362f27b1d",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:1f94e3ba635eccd3f41986a6d98fc72c3f80358fe857e753b320e35cf6b73d64",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:3e5e7ffa9d58f7410260699db0971f16db0f439393765944fe1fb80eadda97e8",
+                    "context_projection_unavailable:contributor-scan:1354f0d585180f0836d0688fa02f6e277e23082a8586e943e6d14a6b6c674937",
+                    "context_scope_empty:contributor-scan:a707b5a8dd0057e55f54f4a8920d895cebf04fa14b9a7464a40ac60b9ba5002f",
+                    "context_scope_empty:contributor-scan:915e4a4f1f95ecd70094688f73feb49a8be41d7a7a151d8e35f2d42035cecdf0",
+                    "context_scope_empty:contributor-scan:f73e64bc02e13221cf6c8e8ae697e1ba2857957157a9b2fd216e556bd8d57a1a",
+                    "context_scope_empty:contributor-scan:66f58a5dc208fab2d2634273b2f4b4048e593b4933ccfb1093baf39c04027ab5",
+                    "context_scope_empty:contributor-scan:1c1ec68dedd385fa5c98bd93ae642d8384a6fa384470cd8290623842d921bfa2"
+                  ]
+                }
+              ],
+              "completed_questions": [
+                {
+                  "unit": "repository",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "injection"
+                }
+              ],
+              "coverage_status": "incomplete"
+            }
+          ],
+          "finding_status": "none",
+          "coverage_status": "incomplete",
+          "push_disposition": "allow",
+          "actionable_defect_ids": []
+        },
+        "artifact": "/results/populate.json"
+      },
+      {
+        "name": "warm-identical",
+        "elapsed_seconds": 2.002456544083543,
+        "exit_code": 0,
+        "timings": {
+          "deadline_seconds": 30.0,
+          "cancellation_allowance_seconds": 2.0,
+          "resolution_seconds": 0.01683276705443859,
+          "provenance_seconds": 0.3089857939630747,
+          "snapshot_seconds": 0.0196256039198488,
+          "snapshot_reuses": 0,
+          "discovery_seconds": 0.010183473001234233,
+          "discovery_hits": 2,
+          "preparation_seconds": 0.05007663299329579,
+          "head_seconds": 0.5239870100049302,
+          "base_seconds": 0.5983346940483898,
+          "admission_seconds": 0.0056962770177051425,
+          "cleanup_seconds": 0.00035001395735889673,
+          "graph_hits": 2,
+          "query_hits": 37,
+          "total_seconds": 1.5298795499838889
+        },
+        "result": {
+          "analyses": [
+            {
+              "comparison": {
+                "head_oid": "458817181ffff46da686825cdea0e27189fb447d",
+                "base_oid": "54b3130ca5354201a00bbd841640f6cb8651aaf8",
+                "base_reason": "explicit_local_replay",
+                "refs": [
+                  "refs/heads/replay"
+                ]
+              },
+              "scopes": [
+                {
+                  "ranker_version": "existing-static-evidence-v1",
+                  "ranking_mode": "evidence",
+                  "population_complete": true,
+                  "selected": [
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "access_control"
+                      },
+                      "priority": 0.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "taint_evidence_not_applicable",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": null,
+                      "score": null
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "config_secrets"
+                      },
+                      "priority": -1.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "taint_evidence_not_applicable",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": null,
+                      "score": null
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "priority": -2.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval(value)\",\"line\":3,\"method\":\"handler\"}],\"source_local\":true,\"source_near\":true}",
+                        "tier=4",
+                        "score=5.5",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.js:2-2\",\"head_span:api.js:2-2\",\"unchanged_line:1;lexical_only\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"},\"target\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"}}"
+                      ],
+                      "tier": 4,
+                      "score": 5.5
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "output_encoding"
+                      },
+                      "priority": -3.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.js:2-2\",\"head_span:api.js:2-2\",\"unchanged_line:1;lexical_only\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"output_encoding\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"},\"target\":{\"family\":\"output_encoding\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "path"
+                      },
+                      "priority": -4.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.js:2-2\",\"head_span:api.js:2-2\",\"unchanged_line:1;lexical_only\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"path\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"},\"target\":{\"family\":\"path\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "prototype"
+                      },
+                      "priority": -5.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.js:2-2\",\"head_span:api.js:2-2\",\"unchanged_line:1;lexical_only\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"prototype\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"},\"target\":{\"family\":\"prototype\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "untrusted_destination"
+                      },
+                      "priority": -6.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.js:2-2\",\"head_span:api.js:2-2\",\"unchanged_line:1;lexical_only\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"untrusted_destination\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"},\"target\":{\"family\":\"untrusted_destination\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "config_secrets"
+                      },
+                      "priority": -7.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "taint_evidence_not_applicable",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": null,
+                      "score": null
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "injection"
+                      },
+                      "priority": -8.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "output_encoding"
+                      },
+                      "priority": -9.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "path"
+                      },
+                      "priority": -10.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "prototype"
+                      },
+                      "priority": -11.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "untrusted_destination"
+                      },
+                      "priority": -12.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    }
+                  ],
+                  "deferred": [],
+                  "unresolved_boundaries": [
+                    "context_projection_unavailable:contributor-scan:7ad5ff7dd4882f08a395c2c0f55de6f6a3ddb9f9db1536b207572a65485776ac",
+                    "context_projection_unavailable:contributor-scan:010672f395d61fff5ca6acb6e5fb3e3aae4dcf9c30887240b985e705b656717a",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:e3453476e53cbccfd684460af10a161bb890fc026f3d10e18b30405d62a3d6cd",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:7a8bdefd0721637c5f48e97e26439ce8b329b293d8f6e65367e9e0c362f27b1d",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:1f94e3ba635eccd3f41986a6d98fc72c3f80358fe857e753b320e35cf6b73d64",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:3e5e7ffa9d58f7410260699db0971f16db0f439393765944fe1fb80eadda97e8",
+                    "context_projection_unavailable:contributor-scan:1354f0d585180f0836d0688fa02f6e277e23082a8586e943e6d14a6b6c674937",
+                    "context_scope_empty:contributor-scan:a707b5a8dd0057e55f54f4a8920d895cebf04fa14b9a7464a40ac60b9ba5002f",
+                    "context_scope_empty:contributor-scan:915e4a4f1f95ecd70094688f73feb49a8be41d7a7a151d8e35f2d42035cecdf0",
+                    "context_scope_empty:contributor-scan:f73e64bc02e13221cf6c8e8ae697e1ba2857957157a9b2fd216e556bd8d57a1a",
+                    "context_scope_empty:contributor-scan:66f58a5dc208fab2d2634273b2f4b4048e593b4933ccfb1093baf39c04027ab5",
+                    "context_scope_empty:contributor-scan:1c1ec68dedd385fa5c98bd93ae642d8384a6fa384470cd8290623842d921bfa2"
+                  ]
+                }
+              ],
+              "completed_questions": [
+                {
+                  "unit": "repository",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "injection"
+                }
+              ],
+              "coverage_status": "incomplete"
+            }
+          ],
+          "finding_status": "none",
+          "coverage_status": "incomplete",
+          "push_disposition": "allow",
+          "actionable_defect_ids": []
+        },
+        "artifact": "/results/warm-identical.json"
+      },
+      {
+        "name": "uncached",
+        "elapsed_seconds": 130.4318098879885,
+        "exit_code": 0,
+        "timings": {
+          "deadline_seconds": 600.0,
+          "cancellation_allowance_seconds": 2.0,
+          "resolution_seconds": 0.01867874909657985,
+          "provenance_seconds": 0.28871102491393685,
+          "snapshot_seconds": 0.018826198996976018,
+          "snapshot_reuses": 0,
+          "discovery_seconds": 0.11859792796894908,
+          "discovery_hits": 0,
+          "preparation_seconds": 0.15741463494487107,
+          "head_seconds": 64.25150758202653,
+          "base_seconds": 65.24028130201623,
+          "admission_seconds": 0.005215354030951858,
+          "cleanup_seconds": 0.00034814607352018356,
+          "graph_hits": 0,
+          "query_hits": 0,
+          "total_seconds": 129.98746631806716
+        },
+        "result": {
+          "analyses": [
+            {
+              "comparison": {
+                "head_oid": "458817181ffff46da686825cdea0e27189fb447d",
+                "base_oid": "54b3130ca5354201a00bbd841640f6cb8651aaf8",
+                "base_reason": "explicit_local_replay",
+                "refs": [
+                  "refs/heads/replay"
+                ]
+              },
+              "scopes": [
+                {
+                  "ranker_version": "existing-static-evidence-v1",
+                  "ranking_mode": "evidence",
+                  "population_complete": true,
+                  "selected": [
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "access_control"
+                      },
+                      "priority": 0.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "taint_evidence_not_applicable",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": null,
+                      "score": null
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "config_secrets"
+                      },
+                      "priority": -1.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "taint_evidence_not_applicable",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": null,
+                      "score": null
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "priority": -2.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[{\"arg0_literal\":false,\"arity\":1,\"cleansed_on_call\":false,\"code\":\"eval(value)\",\"line\":3,\"method\":\"handler\"}],\"source_local\":true,\"source_near\":true}",
+                        "tier=4",
+                        "score=5.5",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.js:2-2\",\"head_span:api.js:2-2\",\"unchanged_line:1;lexical_only\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"},\"target\":{\"family\":\"injection\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"}}"
+                      ],
+                      "tier": 4,
+                      "score": 5.5
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "output_encoding"
+                      },
+                      "priority": -3.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.js:2-2\",\"head_span:api.js:2-2\",\"unchanged_line:1;lexical_only\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"output_encoding\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"},\"target\":{\"family\":\"output_encoding\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "path"
+                      },
+                      "priority": -4.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.js:2-2\",\"head_span:api.js:2-2\",\"unchanged_line:1;lexical_only\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"path\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"},\"target\":{\"family\":\"path\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "prototype"
+                      },
+                      "priority": -5.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.js:2-2\",\"head_span:api.js:2-2\",\"unchanged_line:1;lexical_only\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"prototype\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"},\"target\":{\"family\":\"prototype\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "untrusted_destination"
+                      },
+                      "priority": -6.0,
+                      "evidence": [
+                        "static_rank=1.0",
+                        "normalized_evidence={\"access_declared_public\":true,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":true,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":true,\"source_near\":true}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "affected_relationship={\"evidence\":[\"base_span:api.js:2-2\",\"head_span:api.js:2-2\",\"unchanged_line:1;lexical_only\",\"unchanged_line:3;lexical_only\",\"unchanged_line:4;lexical_only\"],\"kind\":\"entry\",\"source\":{\"family\":\"untrusted_destination\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"},\"target\":{\"family\":\"untrusted_destination\",\"function\":\"handler\",\"language\":\"javascript\",\"path\":\"api.js\",\"unit\":\"repository\"}}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "config_secrets"
+                      },
+                      "priority": -7.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "taint_evidence_not_applicable",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": null,
+                      "score": null
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "injection"
+                      },
+                      "priority": -8.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":true,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "output_encoding"
+                      },
+                      "priority": -9.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "path"
+                      },
+                      "priority": -10.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "prototype"
+                      },
+                      "priority": -11.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "untrusted_destination"
+                      },
+                      "priority": -12.0,
+                      "evidence": [
+                        "static_rank=0.15",
+                        "normalized_evidence={\"access_declared_public\":false,\"bound_names\":[\"execute\",\"query\"],\"carried\":false,\"carried_weak\":false,\"entry\":false,\"family_in_repo\":false,\"shipped\":true,\"sinks\":[],\"source_local\":false,\"source_near\":false}",
+                        "tier=0",
+                        "score=0.0",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"458817181ffff46da686825cdea0e27189fb447d\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ],
+                      "tier": 0,
+                      "score": 0.0
+                    }
+                  ],
+                  "deferred": [],
+                  "unresolved_boundaries": [
+                    "context_projection_unavailable:contributor-scan:7ad5ff7dd4882f08a395c2c0f55de6f6a3ddb9f9db1536b207572a65485776ac",
+                    "context_projection_unavailable:contributor-scan:010672f395d61fff5ca6acb6e5fb3e3aae4dcf9c30887240b985e705b656717a",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:e3453476e53cbccfd684460af10a161bb890fc026f3d10e18b30405d62a3d6cd",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:7a8bdefd0721637c5f48e97e26439ce8b329b293d8f6e65367e9e0c362f27b1d",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:1f94e3ba635eccd3f41986a6d98fc72c3f80358fe857e753b320e35cf6b73d64",
+                    "dynamic_external_or_depth_context_unresolved:contributor-scan:3e5e7ffa9d58f7410260699db0971f16db0f439393765944fe1fb80eadda97e8",
+                    "context_projection_unavailable:contributor-scan:1354f0d585180f0836d0688fa02f6e277e23082a8586e943e6d14a6b6c674937",
+                    "context_scope_empty:contributor-scan:a707b5a8dd0057e55f54f4a8920d895cebf04fa14b9a7464a40ac60b9ba5002f",
+                    "context_scope_empty:contributor-scan:915e4a4f1f95ecd70094688f73feb49a8be41d7a7a151d8e35f2d42035cecdf0",
+                    "context_scope_empty:contributor-scan:f73e64bc02e13221cf6c8e8ae697e1ba2857957157a9b2fd216e556bd8d57a1a",
+                    "context_scope_empty:contributor-scan:66f58a5dc208fab2d2634273b2f4b4048e593b4933ccfb1093baf39c04027ab5",
+                    "context_scope_empty:contributor-scan:1c1ec68dedd385fa5c98bd93ae642d8384a6fa384470cd8290623842d921bfa2"
+                  ]
+                }
+              ],
+              "completed_questions": [
+                {
+                  "unit": "repository",
+                  "language": "javascript",
+                  "path": "api.js",
+                  "function": "handler",
+                  "family": "injection"
+                }
+              ],
+              "coverage_status": "incomplete"
+            }
+          ],
+          "finding_status": "none",
+          "coverage_status": "incomplete",
+          "push_disposition": "allow",
+          "actionable_defect_ids": []
+        },
+        "artifact": "/results/uncached.json"
+      },
+      {
+        "name": "dependency-edit",
+        "elapsed_seconds": 30.458495798055083,
+        "exit_code": 0,
+        "timings": {
+          "deadline_seconds": 30.0,
+          "cancellation_allowance_seconds": 2.0,
+          "resolution_seconds": 0.015588726033456624,
+          "provenance_seconds": 0.2984913958935067,
+          "snapshot_seconds": 0.021403303020633757,
+          "snapshot_reuses": 0,
+          "discovery_seconds": 0.10751347593031824,
+          "discovery_hits": 1,
+          "preparation_seconds": 0.14761024806648493,
+          "head_seconds": 29.52236297901254,
+          "base_seconds": 5.339505150914192e-05,
+          "admission_seconds": 0.0002843959955498576,
+          "graph_hits": 0,
+          "query_hits": 0,
+          "total_seconds": 30.008655319106765
+        },
+        "result": {
+          "analyses": [
+            {
+              "comparison": {
+                "head_oid": "1dfa34ea3bbf2d7850d4dd7ab533a911885b2ae8",
+                "base_oid": "54b3130ca5354201a00bbd841640f6cb8651aaf8",
+                "base_reason": "explicit_local_replay",
+                "refs": [
+                  "refs/heads/replay"
+                ]
+              },
+              "scopes": [
+                {
+                  "ranker_version": "existing-static-evidence-v1",
+                  "ranking_mode": "evidence",
+                  "population_complete": true,
+                  "selected": [],
+                  "deferred": [
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "access_control"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=1.0",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\",\"7061636b6167652e6a736f6e\"],\"declaration_paths\":[\"7061636b6167652e6a736f6e\"],\"deleted_paths\":[],\"head_revision\":\"1dfa34ea3bbf2d7850d4dd7ab533a911885b2ae8\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "config_secrets"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=1.0",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\",\"7061636b6167652e6a736f6e\"],\"declaration_paths\":[\"7061636b6167652e6a736f6e\"],\"deleted_paths\":[],\"head_revision\":\"1dfa34ea3bbf2d7850d4dd7ab533a911885b2ae8\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=1.0",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\",\"7061636b6167652e6a736f6e\"],\"declaration_paths\":[\"7061636b6167652e6a736f6e\"],\"deleted_paths\":[],\"head_revision\":\"1dfa34ea3bbf2d7850d4dd7ab533a911885b2ae8\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "output_encoding"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=1.0",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\",\"7061636b6167652e6a736f6e\"],\"declaration_paths\":[\"7061636b6167652e6a736f6e\"],\"deleted_paths\":[],\"head_revision\":\"1dfa34ea3bbf2d7850d4dd7ab533a911885b2ae8\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "path"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=1.0",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\",\"7061636b6167652e6a736f6e\"],\"declaration_paths\":[\"7061636b6167652e6a736f6e\"],\"deleted_paths\":[],\"head_revision\":\"1dfa34ea3bbf2d7850d4dd7ab533a911885b2ae8\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "prototype"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=1.0",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\",\"7061636b6167652e6a736f6e\"],\"declaration_paths\":[\"7061636b6167652e6a736f6e\"],\"deleted_paths\":[],\"head_revision\":\"1dfa34ea3bbf2d7850d4dd7ab533a911885b2ae8\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "untrusted_destination"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=1.0",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\",\"7061636b6167652e6a736f6e\"],\"declaration_paths\":[\"7061636b6167652e6a736f6e\"],\"deleted_paths\":[],\"head_revision\":\"1dfa34ea3bbf2d7850d4dd7ab533a911885b2ae8\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "config_secrets"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\",\"7061636b6167652e6a736f6e\"],\"declaration_paths\":[\"7061636b6167652e6a736f6e\"],\"deleted_paths\":[],\"head_revision\":\"1dfa34ea3bbf2d7850d4dd7ab533a911885b2ae8\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "injection"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\",\"7061636b6167652e6a736f6e\"],\"declaration_paths\":[\"7061636b6167652e6a736f6e\"],\"deleted_paths\":[],\"head_revision\":\"1dfa34ea3bbf2d7850d4dd7ab533a911885b2ae8\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "output_encoding"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\",\"7061636b6167652e6a736f6e\"],\"declaration_paths\":[\"7061636b6167652e6a736f6e\"],\"deleted_paths\":[],\"head_revision\":\"1dfa34ea3bbf2d7850d4dd7ab533a911885b2ae8\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "path"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\",\"7061636b6167652e6a736f6e\"],\"declaration_paths\":[\"7061636b6167652e6a736f6e\"],\"deleted_paths\":[],\"head_revision\":\"1dfa34ea3bbf2d7850d4dd7ab533a911885b2ae8\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "prototype"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\",\"7061636b6167652e6a736f6e\"],\"declaration_paths\":[\"7061636b6167652e6a736f6e\"],\"deleted_paths\":[],\"head_revision\":\"1dfa34ea3bbf2d7850d4dd7ab533a911885b2ae8\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "untrusted_destination"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\",\"7061636b6167652e6a736f6e\"],\"declaration_paths\":[\"7061636b6167652e6a736f6e\"],\"deleted_paths\":[],\"head_revision\":\"1dfa34ea3bbf2d7850d4dd7ab533a911885b2ae8\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    }
+                  ],
+                  "unresolved_boundaries": [
+                    "configuration_dependency_projection_unavailable:contributor-scan",
+                    "change_context_deadline_exhausted",
+                    "deadline_exhausted"
+                  ]
+                }
+              ],
+              "completed_questions": [],
+              "coverage_status": "incomplete"
+            }
+          ],
+          "finding_status": "none",
+          "coverage_status": "incomplete",
+          "push_disposition": "allow",
+          "actionable_defect_ids": []
+        },
+        "artifact": "/results/dependency-edit.json"
+      },
+      {
+        "name": "one-function-edit",
+        "elapsed_seconds": 30.47911988804117,
+        "exit_code": 0,
+        "timings": {
+          "deadline_seconds": 30.0,
+          "cancellation_allowance_seconds": 2.0,
+          "resolution_seconds": 0.0180521160364151,
+          "provenance_seconds": 0.3072873749770224,
+          "snapshot_seconds": 0.01567274401895702,
+          "snapshot_reuses": 0,
+          "discovery_seconds": 0.09289419103879482,
+          "discovery_hits": 1,
+          "preparation_seconds": 0.12448294495698065,
+          "head_seconds": 29.538544582901523,
+          "base_seconds": 8.924305438995361e-05,
+          "admission_seconds": 0.0003181110369041562,
+          "graph_hits": 0,
+          "query_hits": 0,
+          "total_seconds": 30.013175226049498
+        },
+        "result": {
+          "analyses": [
+            {
+              "comparison": {
+                "head_oid": "55267520b163df2b09174a99caa3932e716cd68e",
+                "base_oid": "54b3130ca5354201a00bbd841640f6cb8651aaf8",
+                "base_reason": "explicit_local_replay",
+                "refs": [
+                  "refs/heads/replay"
+                ]
+              },
+              "scopes": [
+                {
+                  "ranker_version": "existing-static-evidence-v1",
+                  "ranking_mode": "evidence",
+                  "population_complete": true,
+                  "selected": [],
+                  "deferred": [
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "access_control"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=1.0",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"55267520b163df2b09174a99caa3932e716cd68e\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "config_secrets"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=1.0",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"55267520b163df2b09174a99caa3932e716cd68e\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "injection"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=1.0",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"55267520b163df2b09174a99caa3932e716cd68e\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "output_encoding"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=1.0",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"55267520b163df2b09174a99caa3932e716cd68e\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "path"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=1.0",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"55267520b163df2b09174a99caa3932e716cd68e\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "prototype"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=1.0",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"55267520b163df2b09174a99caa3932e716cd68e\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "handler",
+                        "family": "untrusted_destination"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=1.0",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"55267520b163df2b09174a99caa3932e716cd68e\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "config_secrets"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"55267520b163df2b09174a99caa3932e716cd68e\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "injection"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"55267520b163df2b09174a99caa3932e716cd68e\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "output_encoding"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"55267520b163df2b09174a99caa3932e716cd68e\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "path"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"55267520b163df2b09174a99caa3932e716cd68e\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "prototype"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"55267520b163df2b09174a99caa3932e716cd68e\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    },
+                    {
+                      "identity": {
+                        "unit": "repository",
+                        "language": "javascript",
+                        "path": "api.js",
+                        "function": "<module>",
+                        "family": "untrusted_destination"
+                      },
+                      "reason": "deadline_exhausted",
+                      "evidence": [
+                        "static_rank=0.15",
+                        "analysis_not_started=deadline_exhausted",
+                        "change_sites={\"base_revision\":\"54b3130ca5354201a00bbd841640f6cb8651aaf8\",\"changed_paths\":[\"6170692e6a73\"],\"declaration_paths\":[],\"deleted_paths\":[],\"head_revision\":\"55267520b163df2b09174a99caa3932e716cd68e\",\"path_encoding\":\"filesystem-bytes-hex\"}",
+                        "change_context_incomplete"
+                      ]
+                    }
+                  ],
+                  "unresolved_boundaries": [
+                    "change_context_deadline_exhausted",
+                    "deadline_exhausted"
+                  ]
+                }
+              ],
+              "completed_questions": [],
+              "coverage_status": "incomplete"
+            }
+          ],
+          "finding_status": "none",
+          "coverage_status": "incomplete",
+          "push_disposition": "allow",
+          "actionable_defect_ids": []
+        },
+        "artifact": "/results/one-function-edit.json"
+      }
+    ],
+    "source_bytes": 109,
+    "rollout": "not qualified; authored development control only"
+  },
+  "same_revision_uncached_hook": {
+    "command": [
+      "python",
+      "-m",
+      "openultrasast.cli",
+      "pre-push",
+      "/results/repo",
+      "--base",
+      "54b3130ca5354201a00bbd841640f6cb8651aaf8",
+      "--head",
+      "458817181ffff46da686825cdea0e27189fb447d",
+      "--artifact",
+      "/results/uncached-hook.json",
+      "--deadline",
+      "30",
+      "--max-regions",
+      "20"
+    ],
+    "exit_code": 0,
+    "elapsed_seconds": 30.606204619980417
+  },
+  "completed_question_controls": {
+    "warm_identical_30_seconds": 5,
+    "uncached_same_revisions_30_seconds": 0,
+    "head_supported_injection": 1,
+    "base_comparison_checks": 4
+  },
+  "normal_alerts": 0,
+  "registry": "empty; new diagnostic injection denied admission for capability_unavailable",
+  "provenance": {
+    "engine": "joern-4.0.625",
+    "facts": "32edb6e1a78f1afb08ac4248cd436be16663e0d90dc1b3aaf948f2ce49a5a8f0",
+    "queries": "7bf090e053331f03d04c9290c8a593d00efd4d390f4b77b8382c2befc47996cc",
+    "policy": "b0ad9ee436fb4a71e3ff3d40f7be604c780562859cfcee491f4d201ec45cba04",
+    "repository": "/results/repo",
+    "model": "disabled",
+    "requested_base": "54b3130ca5354201a00bbd841640f6cb8651aaf8",
+    "requested_head": "458817181ffff46da686825cdea0e27189fb447d",
+    "engine_runtime": "2b415139532d8d3a0c6e46ecdac26cd3d792efc2bae441f0b7e39bb28ec5d16e",
+    "graph_layout": "060428173f47cf33bdf5e532d4069feb598ba0e8c7ea30a60888c8e4cfb37a42",
+    "core": "36ac9a045b8b8ad943eea1f511924caae54750a9d5d45da776ebefc460f08eab",
+    "semantics": "4558faecc3f33aaab98a65672550c3acb4e142689a827c696fd29a9bdd1bf78c",
+    "ranking_mode": "evidence",
+    "capabilities": "empty_registry_pending_task_8.3",
+    "cache": "validated_local_reuse"
+  },
+  "validation": {
+    "pytest": "1268 passed, 9 skipped in 108.74s",
+    "ruff": "PASS",
+    "format": "PASS (250 files)",
+    "mypy": "PASS (114 source files)",
+    "compileall": "PASS",
+    "detection_gate": "PASS 44/47, FP 0/44",
+    "map_gate": "PASS",
+    "pair_gate": "PASS local 3/3; labeled 28/28; fix leaks 0",
+    "docker_build": "PASS",
+    "packaged_cli_smoke": "PASS",
+    "manual_review_fallback": true
+  },
+  "bundles": [
+    {
+      "path": "2026-09-13-reuse-final-control.json.gz",
+      "sha256": "c8a4306450166a74f590e8f23018df5a6c333d05f8f3a5924b729c4e5206a111",
+      "format": "gzip JSON object mapping original filenames to exact UTF-8 content"
+    },
+    {
+      "path": "2026-09-13-reuse-initial-control.json.gz",
+      "sha256": "20fd916aed04c9ca829e1ecbc149720335587e7245ec2289e8c5c9be8743995c",
+      "format": "gzip JSON object mapping original filenames to exact UTF-8 content"
+    }
+  ],
+  "decision": "Group 6 reuse correctness PASS; rollout NO-GO. Source/dependency edits exhaust the 30-second deadline, representative p95/completion and independent precision/recall populations remain unqualified."
+}

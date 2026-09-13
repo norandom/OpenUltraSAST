@@ -46,7 +46,7 @@ engine are out of scope.
 - [ ] pre-push-safety-net — Immutable pushed tips, existing-ranker integration, compatible artifact
   reuse, total deadline, change attribution, actionability admission and compact hook behavior.
   Dependencies: contributor-scan. Requirements/design approved 2026-09-12; tasks generated
-  (8 groups, 27 executable subtasks), independently reviewed and approved; groups 1–5 are implemented and verified (16/27 tasks), including the resolved frontend-retention prerequisite.
+  (8 groups, 27 executable subtasks), independently reviewed and approved; groups 1–6 are implemented and verified (20/27 tasks), including the resolved frontend-retention prerequisite.
 
 ### Next concrete step
 
@@ -59,14 +59,19 @@ its deadline in preparation/discovery after materializing both trees; Node reach
 driver but did not complete checks. The exact 11-case population remains unresolved.
 No normal capability is enabled and these six cold samples establish no warm p95 claim.
 
-Group 6 is next for valid graph/result identity, leases and reuse. Account for snapshot
-and discovery costs before treating graph persistence as the sole optimization; record
-compatible preparation reuse alongside graph reuse. Representative changed-code warm
-latency and coverage must still be measured later, without substituting identical-tip hits.
-Do not change ranking weights, add a second source-slicer or assume incremental Joern
-mutation from this negative performance evidence.
+Group 6 now provides complete preparation/discovery, graph and query reuse through explicit
+`--cache-dir`, bounded publication and isolated graph leases. A packaged authored JavaScript
+control preserved the same evidence/admission as an uncached run; its identical-revision
+replay took 2.00s. Source/declaration changes invalidate affected units. This correctness
+control does not establish representative changed-code p95, independent alert precision or
+eligibility. Rollout remains NO-GO and normal capabilities remain disabled.
 
-Tasks 4.3 and group 5 used the documented Kiro manual review fallback after the agent
+Group 7 is next for the real multi-ref push interface and opt-in hook integration. Group 8
+must still pass the joint gates on declared populations. Keep the existing thresholds and
+profile preparation, graph construction and queries separately when investigating misses;
+do not substitute identical-tip hits for warm changed-code performance.
+
+Tasks 4.3 and groups 5–6 used the documented Kiro manual review fallback after the agent
 thread limit; this is not independent review. See `pre-push-safety-net/implementation-group-5.md`
 and `benchmarks/measurements/2026-09-13-first-replay-experiment.json` for provenance,
 initial instrument failures, their repairs and the newly frozen final trial. The NodeGoat

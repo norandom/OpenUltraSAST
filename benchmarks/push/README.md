@@ -137,3 +137,24 @@ flushed. Six one-shot runs are diagnostic samples, not representative warm p95 e
 Normal capabilities remain disabled, so zero alerts do not establish precision or useful
 recall. A separately named longer lab run may obtain witnesses, but cannot replace the
 30-second measurements or satisfy the hook's latency gate.
+
+### Group 6 reuse correctness control
+
+`reuse_control.py` creates an isolated, authored JavaScript history and invokes the packaged
+replay command for a cache-populating run, a 30-second identical-revision run, an uncached
+control, and dependency/one-function edits. It retains every artifact and checks equal evidence
+and current admission for compatible completed questions. This is development control data,
+not the untouched eligibility population or the representative warm p95 gate.
+
+```sh
+docker run --rm --network none --memory 3g \
+  -v /path/to/empty/results:/results \
+  -v "$PWD/benchmarks/push/reuse_control.py:/control.py:ro" \
+  --entrypoint python openultrasast:dev /control.py --out /results
+```
+
+The output directory must be empty and writable by the image's nonroot user. Cold runs use a
+600-second laboratory budget; the identical-revision and changed-code controls retain the
+30-second deadline and 2-second cancellation allowance. Default normal capabilities remain
+empty. A passing reuse control cannot authorize rollout or turn unresolved coverage into clean
+analysis; groups 7–8 still own the real interface and joint evaluation.

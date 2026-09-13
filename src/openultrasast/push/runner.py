@@ -9,18 +9,22 @@ import pickle
 import selectors
 import time
 from collections.abc import Callable
+from contextlib import nullcontext
 from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any, Literal, TypeVar, cast
 
 from openultrasast.config import PushConfig
-from openultrasast.cpg.backend import JoernBackend, joern_version
+from openultrasast.cpg.artifact import digest_value
+from openultrasast.cpg.backend import JoernBackend, engine_runtime_identity, joern_version
 from openultrasast.mapping import analyze_entry_points
 from openultrasast.model.contracts import ExecutionBudget
+from openultrasast.model.layout import layout_facts
 from openultrasast.model.regions import ScanRegion, regions_for
 from openultrasast.model.scan import ScanBudget, scan_repository
 from openultrasast.model.shipped import declared_sources
 from openultrasast.preprocess import build_file_target, enumerate_source_files
+from openultrasast.push.cache import ArtifactCache, SemanticKeys
 from openultrasast.push.contracts import ComparisonAnalysis, SnapshotManifest
 from openultrasast.push.policy import (
     AdmissionCandidate,
@@ -32,6 +36,7 @@ from openultrasast.push.policy import (
     semantics_digest,
 )
 from openultrasast.push.report import PushReport, ReportDelivery, ScanRecord, _completed_scan, deliver_report, render_report
+from openultrasast.push.reuse import ReusingBackend, declaration_identity, discovery
 from openultrasast.push.snapshot import SnapshotAdapter
 
 _T = TypeVar("_T")
@@ -124,19 +129,37 @@ def _provenance(repository: Path, scan_budget: ScanBudget) -> dict[str, str]:
 
     version = joern_version()
     engine = "joern-" + (".".join(map(str, version)) if version else "unavailable_or_unidentified")
+    runtime = engine_runtime_identity()
+    integration = digest(list((root / "cpg").glob("*.py")))
     return {
         "repository": str(repository.absolute()),
+        "engine_runtime": runtime,
         "engine": engine,
         "facts": digest(list((root / "ruleset").rglob("*.toml"))),
+        "graph_layout": digest_value(
+            {
+                "facts": [asdict(row) for row in layout_facts()],
+                "implementation": digest([root / "model/layout.py", root / "model/partitions.py"]),
+            }
+        ),
         "queries": digest(list((root / "cpg/queries").glob("*.sc"))),
         "policy": digest(list((root / "push").glob("*.py"))),
         "core": digest(list((root / "model").glob("*.py")) + list((root / "cpg").glob("*.py"))),
-        "semantics": semantics_digest(engine_identity=engine, options=asdict(scan_budget)),
+        "semantics": semantics_digest(
+            engine_identity=engine, options={**asdict(scan_budget), "engine_runtime": runtime, "engine_integration": integration}
+        ),
         "ranking_mode": "evidence",
         "model": "disabled",
         "capabilities": "empty_registry_pending_task_8.3",
         "cache": "cold_no_reuse",
     }
+
+
+def _discovery_identity() -> str:
+    root = Path(__file__).resolve().parents[1]
+    # Discovery invokes the shipped mapper, preprocessing, layout and family specs.
+    # Hash code bytes, never a mutable import name or a repository-provided version.
+    return digest_value([(p.relative_to(root).as_posix(), hashlib.sha256(p.read_bytes()).hexdigest()) for p in sorted(root.rglob("*.py"))])
 
 
 def replay(
@@ -148,16 +171,22 @@ def replay(
     config: PushConfig | None = None,
     backend: Any = None,
     max_regions: int = 500,
+    cache_dir: Path | None = None,
 ) -> ReportDelivery:
     """Run a single explicit comparison; exit policy never stands for coverage."""
     config = config or PushConfig()
     if max_regions < 1:
         raise ValueError("max_regions must be positive")
+    if cache_dir is not None and cache_dir.resolve().is_relative_to(repository.resolve()):
+        raise ValueError("cache directory must be outside the analyzed repository")
     started = time.monotonic()
     budget = ExecutionBudget(started + config.deadline_seconds, config.cancellation_allowance_seconds)
     scan_budget = ScanBudget(max_model_calls=0, max_regions=max_regions, order_by_evidence=True)
     if backend is None:
         backend = JoernBackend()
+    cache = None
+    cache_semantics = None
+    reused: list[ReusingBackend] = []
     records: list[ScanRecord] = []
     manifests: list[SnapshotManifest] = []
     reasons: list[str] = []
@@ -179,16 +208,66 @@ def replay(
         stage, stage_started = "provenance", time.monotonic()
         provenance.update(_prepare(lambda: _provenance(repository, scan_budget), budget))
         timings[stage + "_seconds"] = time.monotonic() - stage_started
+        if cache_dir is not None:
+            cache = ArtifactCache(cache_dir, max_bytes=config.cache_max_bytes)
+            cache_semantics = SemanticKeys(
+                provenance["facts"],
+                provenance["queries"],
+                digest_value({"query_parameters": "complete-joern-request-v1"}),
+                digest_value({"ranking_mode": "evidence", "options": asdict(scan_budget)}),
+                provenance["policy"],
+                provenance["model"],
+                provenance["capabilities"],
+                config.mode,
+            )
+            provenance["cache"] = "validated_local_reuse"
+        discovery_identity = digest_value({"code": _prepare(lambda: _discovery_identity(), budget), "facts": provenance["facts"]})
         stage, stage_started = "preparation", time.monotonic()
         with adapter.materialize(comparison.head_oid, budget=budget) as tip:
             manifests.append(tip.manifest)
             assert comparison.base_oid is not None
-            with adapter.materialize(comparison.base_oid, budget=budget) as old:
+            old_context = (
+                nullcontext(tip) if comparison.base_oid == comparison.head_oid else adapter.materialize(comparison.base_oid, budget=budget)
+            )
+            with old_context as old:
                 manifests.append(old.manifest)
                 for manifest in manifests:
                     reasons.extend("snapshot:" + boundary.reason for boundary in manifest.boundaries)
-                head_regions, head_declarations = _prepare(lambda: _discover(tip.root), budget)
-                base_regions, base_declarations = _prepare(lambda: _discover(old.root), budget)
+                timings["snapshot_seconds"] = time.monotonic() - stage_started
+                timings["snapshot_reuses"] = int(comparison.base_oid == comparison.head_oid)
+                discovery_started = time.monotonic()
+                head_regions, head_declarations, head_hit = _prepare(
+                    lambda: discovery(tip.root, tip.manifest, cache=cache, identity=discovery_identity, budget=budget, discover=_discover),
+                    budget,
+                )
+                base_regions, base_declarations, base_hit = _prepare(
+                    lambda: discovery(old.root, old.manifest, cache=cache, identity=discovery_identity, budget=budget, discover=_discover),
+                    budget,
+                )
+                timings["discovery_seconds"] = time.monotonic() - discovery_started
+                timings["discovery_hits"] = int(head_hit) + int(base_hit)
+                head_backend = base_backend = backend
+                if (
+                    cache is not None
+                    and cache_semantics is not None
+                    and isinstance(backend, JoernBackend)
+                    and all(m.complete for m in manifests)
+                ):
+                    head_backend = ReusingBackend(
+                        backend,
+                        cache,
+                        cache_semantics,
+                        declarations=declaration_identity(tip.manifest, head_declarations),
+                        exclusions=provenance["graph_layout"],
+                    )
+                    base_backend = ReusingBackend(
+                        backend,
+                        cache,
+                        cache_semantics,
+                        declarations=declaration_identity(old.manifest, base_declarations),
+                        exclusions=provenance["graph_layout"],
+                    )
+                    reused.extend((head_backend, base_backend))
                 context = adapter.compare(comparison, declaration_paths=tuple(set(head_declarations + base_declarations)), budget=budget)
                 context = replace(context, unresolved_boundaries=tuple(dict.fromkeys((*context.unresolved_boundaries, *reasons))))
                 reasons.extend(context.unresolved_boundaries)
@@ -197,7 +276,7 @@ def replay(
                 head_scan = scan_repository(
                     tip.root,
                     head_regions,
-                    backend=backend,
+                    backend=head_backend,
                     budget=scan_budget,
                     execution_budget=budget,
                     ranking_mode="evidence",
@@ -214,11 +293,13 @@ def replay(
                     head_regions=head_regions,
                     base_regions=base_regions,
                     context=context,
-                    backend=backend,
+                    backend=base_backend,
                     execution_budget=budget,
                     scan_budget=scan_budget,
                     head_semantics=provenance["semantics"],
                     base_semantics=provenance["semantics"],
+                    cache=cache,
+                    cache_semantics=cache_semantics,
                 )
                 if delta.base_scan is not None:
                     records.append(ScanRecord(comparison, "base", delta.base_scan))
@@ -251,6 +332,8 @@ def replay(
         timings[stage + "_seconds"] = time.monotonic() - stage_started
     if time.monotonic() >= budget.deadline_monotonic:
         reasons.append("deadline_exhausted")
+    timings["graph_hits"] = sum(item.graph_hits for item in reused)
+    timings["query_hits"] = sum(item.query_hits for item in reused)
     head_records = [r.scan for r in records if r.side == "head"]
     for record in records:
         if record.scan.scope is not None:

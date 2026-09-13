@@ -88,3 +88,21 @@ def test_generic_driver_accepts_backend_validated_lease(tmp_path, monkeypatch):
     assert result.run("census", {})["file_names"] == ["a.js"]
     _dispose(result)
     assert graph.read_bytes() == b"graph original"
+
+
+def test_installed_frontend_adaptation_changes_graph_identity(tmp_path, monkeypatch):
+    import openultrasast.cpg.backend as module
+
+    backend, root, _, identity, _ = prepared(tmp_path, monkeypatch)
+    home = tmp_path / "engine"
+    home.mkdir()
+    launcher = home / "joern"
+    launcher.write_text("launcher")
+    jar = home / "frontends/jssrc2cpg/lib/io.joern.jssrc2cpg-4.0.625.jar"
+    jar.parent.mkdir(parents=True)
+    jar.write_bytes(b"frontend-one")
+    monkeypatch.setattr(module.shutil, "which", lambda name: str(launcher) if name == "joern" else None)
+    first = backend.graph_identity(root, language="javascript", declarations_digest="d", exclusions_digest="e")
+    jar.write_bytes(b"frontend-two")
+    second = backend.graph_identity(root, language="javascript", declarations_digest="d", exclusions_digest="e")
+    assert first != second

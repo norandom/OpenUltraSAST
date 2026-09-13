@@ -147,6 +147,7 @@ New files (proposed, not created by this documentation change):
 | `src/openultrasast/push/contracts.py` | Immutable ref/comparison identities and comparison-owned completion/status records |
 | `src/openultrasast/push/snapshot.py` | Parse ref updates, resolve bases, materialize blobs, produce change context |
 | `src/openultrasast/push/cache.py` | Artifact keys, validity, atomic publication and eviction |
+| `src/openultrasast/push/reuse.py` | Complete discovery reuse and backend graph/query reuse through the existing driver |
 | `src/openultrasast/push/policy.py` | Delta identity, actionability admission and push disposition |
 | `src/openultrasast/push/runner.py` | Shared deadline, ranker/engine orchestration, per-ref result aggregation |
 | `src/openultrasast/push/report.py` | Compact terminal result and reproducible push manifest |
@@ -157,8 +158,9 @@ Contract configuration (task 1.4) uses `[push]`: optional `comparison_base`, pos
 `deadline_seconds` (30), positive `cancellation_allowance_seconds` (2), positive integer
 `cache_max_bytes` (2 GiB), `mode` (`advisory` by default, or `blocking`) and independent
 `incomplete_coverage_policy` (`allow` by default, or `block`). Unknown keys, malformed
-sections and coerced/nonfinite numeric values are rejected. These settings are inert until
-runner integration; they do not enable a hook or admit experimental capabilities. The cache
+sections and coerced/nonfinite numeric values are rejected. Experimental replay consumes the deadline, mode, coverage policy and optional cache budget.
+An explicit `--cache-dir` enables local reuse; omission retains a cold control. These settings
+do not install a hook or admit experimental capabilities. The cache
 limit is a local storage budget, not a latency claim. Completion records are owned by an
 exact comparison so reused head graphs cannot merge evidence from different bases. Live
 leases have no JSON constructor; only the backend can validate and issue them in task 6.1.
@@ -251,7 +253,7 @@ cleanup consume the same execution deadline and cancellation allowance as the ba
 Runtime origin is `unspecified` when no declaration establishes browser/server scope;
 JavaScript presence alone does not admit an Express capability. TypeScript and C/C++
 retain explicit capability limits. These records prepare later artifact manifests;
-they do not implement persistent graph storage.
+task 6 now binds them to backend-owned persistent graph manifests and isolated leases.
 
 Graph key: digest of every included blob/path and applicable declarations, frontend/engine version,
 overlay semantics/options, language, and exclusions. Query key additionally includes graph key,

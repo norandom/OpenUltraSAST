@@ -1,6 +1,6 @@
 # Brief: pre-push-safety-net
 
-Status: requirements, design and tasks approved; groups 1–5 implemented and verified (16/27 subtasks). The first PMPro/Node experiment is measured NO-GO: six cold timeouts, no completed target checks. Groups 6–8 pending; normal capabilities remain disabled and warm hook latency unproven. Language: English.
+Status: requirements, design and tasks approved; groups 1–6 implemented and verified (20/27 subtasks). Compatible preparation/graph/query reuse is demonstrated, including packaged JavaScript evidence equivalence. Groups 7–8 pending. Rollout remains NO-GO: changed-code feasibility and independent capability qualification are not established; normal capabilities remain disabled. Language: English.
 
 ## Problem
 
@@ -10,12 +10,18 @@ maintainer explicitly rejects noisy advisory output as well as noisy blocking ou
 
 ## Current State
 
-The scan driver and Joern arbiters exist, with demonstrated PHP/Python cases. Immutable push-tip
-resolution, isolated source materialization and lexical change context are implemented and verified.
-Ranker integration, persistent graph caching and an end-to-end deadline remain pending.
-The driver builds a whole-root graph before cutting the region budget. The latest PMPro ranking
-experiment alone spends about 130 seconds building and 296 seconds extracting evidence. A manually
-selected two-file slice finding a CVE does not demonstrate automatic incremental analysis.
+The existing ranker, Joern arbiters, immutable replay, change comparison, actionability policy
+and absolute deadline are integrated. Vendor code is physically excluded from frontend graphs
+and targets. Explicit local caching reuses complete discovery, validated isolated graph copies
+and compatible query evidence while reapplying current admission. Changed source/declarations
+invalidate affected graph units; no incremental Joern mutation is implemented.
+
+Group 5's PMPro/Node cold experiment remains NO-GO. Group 6 adds a packaged JavaScript
+correctness control with equal cached/uncached evidence and admission; an identical-revision
+hit is fast, while the changed-code deadline remains a separate unmet gate. Automatic
+context projection and independent capability eligibility remain explicit limits. See
+implementation-group-6.md and the committed reuse control evidence. Historical whole-PMPro
+ranking costs and manually selected CVE slices do not establish automatic push latency.
 
 ## Desired Outcome
 

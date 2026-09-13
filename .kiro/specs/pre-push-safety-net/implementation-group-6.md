@@ -103,3 +103,96 @@ the cache never confers eligibility. JSON decoding is non-executable and bounded
 - CLAIM: Task 6.3 semantic keys and completed comparison evidence reuse.
 - EVIDENCE: production policy integration and cache key tests, 1260 passing suite tests and final static checks.
 - GAPS: Graph/query/preparation reuse must still be connected to replay under 6.4; no rollout claim.
+
+## Task 6.4 brief
+
+Requirements 1.1, 2.2, 4.1, 4.2, 4.3, 4.4 and 7.3; design: Push Runner and
+Cache and Engine Boundary. Explicit `--cache-dir` integrates the three cache layers;
+omitting it preserves a cold replay control. Complete immutable snapshots are still read
+and verified by the adapter before persisted discovery can be used. Equal base/head revisions
+share one live materialization. Discovery keys include exact file identities and shipped code/facts;
+dependency/declaration changes invalidate them. Graph units remain the existing physical frontend
+partitions. Source changes rebuild the affected unit; all declaration and exclusion context is
+bound. There is no incremental graph mutation or changed-file scope selector.
+
+The runner uses backend-issued copies and per-question cached raw answers, then runs the existing
+ranker, arbiter, comparison and current admission. Partial answers are not promoted to complete
+lookups. Complete answers already returned by the engine remain available when persistence cannot
+finish. Query keys include actual parameters and graph bytes; graph keys do not include unrelated
+ranking/security-fact versions. Layout/exclusion facts and frontend adaptation bytes do affect them.
+Integration review repaired the task 6.1 identity to include installed frontend/adaptation bytes,
+rather than relying only on Joern's release label. This is an owning-contract repair, not a new
+frontend or a detector change.
+
+The first source-mounted/package integration trial is retained separately from the final
+frozen image run. It showed equal cached/uncached evidence and admission (including one
+new JavaScript injection candidate), a 1.23-second identical-revision hit, and a 30.48-second
+dependency-edit timeout. Those numbers are preliminary control evidence, not the final image
+or rollout measurements. Final review also binds installed runtime identity into admission
+semantics, while avoiding a second backend instance or an unbudgeted availability probe.
+
+The cache entry lease ends after its validated bytes are copied into the backend's independent
+working lease. The working copy remains valid if storage later evicts the original entry;
+queries never operate on the stored original. Partial fresh answers cannot borrow a cached
+answer's census. Pure discovery remains in the existing bounded child process; persisted
+JSON is decoded as data, never executable objects.
+
+## Status Report
+- STATUS: READY_FOR_REVIEW
+- TASK: 6.4
+- RED_PHASE_OUTPUT: `/tmp/group6-4-red.log`: graph/query reuse and replay discovery/cache-location tests failed before integration (temporary switch OFF). Enabled implementation passed; switch removed. Additional regressions cover mixed cached/fresh census failure and installed runtime provenance.
+- TESTS_RUN: 89 final focused tests passed; full suite 1268 passed, 9 skipped in 108.74s. Ruff, formatting, mypy (114 source files), compileall, detection/map/pair gates and Docker build/packaged CLI smoke passed.
+- EVIDENCE: final packaged JavaScript control exited 0 with exact cached/uncached scope, question outcomes, findings and admission equality. One new injection is retained as diagnostic evidence and denied normal admission by the empty registry. Source/dependency edits invalidate graph reuse and retain timed-out coverage artifacts.
+- CONCERNS: identical-revision hits are development correctness controls, not representative warm p95 or capability qualification. Main-context review fallback remains explicit.
+
+## Review Verdict
+- VERDICT: APPROVED
+- TASK: 6.4
+- MECHANICAL_RESULTS: canonical tests and regression gates passed; final image reached the usable CLI and completed real replay controls. No introduced placeholders, secrets or boundary violations found.
+- FINDINGS: installation-byte identity now also binds comparison/admission provenance. The predecessor no-unbudgeted-probe regression caught an unnecessary backend instance in provenance; the repair uses a pure runtime-identity function and the final regression passes. Mixed fresh/cached answers require the fresh query's own valid census before being retained as complete. Snapshot reads, discovery, ranker/driver selection, vendor boundary and independent push/coverage status remain intact.
+- SUMMARY: Task 6.4 integrates valid local reuse and truthful misses under the existing transaction deadline without changing detection or admission rules.
+
+## Verification Result
+- STATUS: VERIFIED
+- CLAIM_TYPE: TASK
+- CLAIM: Group 6 implementation (6.1–6.4), with compatible replay evidence and admission equivalence.
+- EVIDENCE: final tests/static checks, native packaged Joern controls, and committed measurement record below.
+- GAPS: Rollout remains NO-GO. Groups 7–8, representative changed-code completion/p95 and independent capability qualification remain pending. Automatic projection limitations are unchanged.
+
+## Final packaged evidence
+
+Image: `sha256:6622b846996989a321d81bfa6c25e792e3f217984d7ede66f830cff1206a634c`.
+Nonroot, network disabled, 3 GiB memory; controls ran serially without concurrent
+tests/builds. Filesystem cache was not flushed. Each case is one development control,
+not a representative p95 population.
+
+| Run | Full CLI seconds | Graph hits | Query-answer hits |
+|---|---:|---:|---:|
+| populate | 154.848 | 0 | 0 |
+| warm-identical | 2.002 | 2 | 37 |
+| uncached | 130.432 | 0 | 0 |
+| dependency-edit | 30.458 | 0 | 0 |
+| one-function-edit | 30.479 | 0 | 0 |
+| uncached, same revisions, 30s budget | 30.606 | 0 | 0 |
+
+Cached and uncached laboratory runs have **equal scope, question outcomes, findings and
+admission**, including the known introduced JavaScript injection. The 30-second identical
+cached run retains that same evidence: one completed supported head injection check plus
+four base comparison checks. The same revisions without caching complete zero checks in
+the 30-second control. All six CLI artifacts were retained, including timed-out edits.
+Warm source/dependency edits correctly invalidate the affected graph and produce incomplete
+coverage; they do not replay the old answer. The empty normal capability registry denies the
+new diagnostic candidate for `capability_unavailable`; this is not a clean repository verdict.
+
+The manifest, full artifacts and stdout/stderr are retained in
+`benchmarks/measurements/2026-09-13-reuse-control.json` and the associated final/initial
+compressed bundles. Each bundle maps original filenames to exact UTF-8 content; decompression
+was compared with the original files and SHA-256 hashes recorded. The committed reusable
+harness is `benchmarks/push/reuse_control.py`; the extra same-revision 30-second uncached
+command is recorded in the final bundle.
+
+**Group 6 implementation: verified. Rollout: NO-GO.** Changed-code feasibility remains
+unmet in these controls, and independent precision/recall/capability populations have not
+qualified. The spec now explicitly requires stage-level investigation of remaining timeouts
+under task 8.2, retaining its original thresholds and population rules. Group 7 is next;
+no hook has been installed and no normal capability enabled.

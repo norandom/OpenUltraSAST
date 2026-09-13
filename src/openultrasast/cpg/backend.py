@@ -266,6 +266,41 @@ class NullBackend:
         return None
 
 
+def engine_runtime_identity(
+    *, include_tests: bool = True, language: str | None = None, execution_budget: ExecutionBudget | None = None
+) -> str:
+    """Installed frontend/adaptation bytes, also used by comparison eligibility provenance."""
+    from .artifact import digest_value, graph_bytes
+
+    budget = execution_budget
+    deadline = budget.deadline_monotonic if budget else float("inf")
+    launcher = shutil.which("joern")
+    version = joern_version()
+    installation = []
+    if launcher is not None and version is not None:
+        home = Path(launcher).resolve().parent
+        engine = ".".join(map(str, version))
+        frontends = {_FRONTENDS.get(language, "joern-parse")} if language else set(_FRONTENDS.values())
+        candidates = {home / f"lib/io.joern.joern-cli-{engine}.jar", Path(launcher).resolve()}
+        for frontend in frontends:
+            candidates.add(home / f"frontends/{frontend}/lib/io.joern.{frontend}-{engine}.jar")
+            frontend_launcher = shutil.which(frontend)
+            if frontend_launcher is not None:
+                candidates.add(Path(frontend_launcher).resolve())
+        if "jssrc2cpg" in frontends:
+            candidates.update({home / "ousast-frontend-retention-v1/manifest.json", home / "frontends/jssrc2cpg/bin/astgen/astgen-linux"})
+        for candidate in sorted(candidates):
+            installation.append((candidate.name, graph_bytes(candidate, deadline) if candidate.is_file() else "absent"))
+    return digest_value(
+        {
+            "version": version,
+            "files": installation,
+            "include_tests": include_tests,
+            "java_options": os.environ.get("JAVA_TOOL_OPTIONS", ""),
+        }
+    )
+
+
 @dataclass
 class JoernBackend:
     """``joern-parse`` then ``joern --script``, both out of process and both timeout-bounded."""
@@ -324,7 +359,8 @@ class JoernBackend:
     ) -> GraphIdentity:
         from .artifact import digest_value, read_bytes, source_inventory
 
-        deadline = execution_budget.deadline_monotonic if execution_budget else float("inf")
+        budget = execution_budget or self.execution_budget
+        deadline = budget.deadline_monotonic if budget else float("inf")
         version = joern_version()
         if version is None:
             raise ValueError("engine_identity_unknown")
@@ -342,7 +378,16 @@ class JoernBackend:
             engine,
             (DATAFLOW_OVERLAY,),
             (("implementation", code),),
-            (("include_tests", str(self.include_tests)), ("java_options", os.environ.get("JAVA_TOOL_OPTIONS", "default") or "default")),
+            (
+                ("include_tests", str(self.include_tests)),
+                (
+                    "installation",
+                    engine_runtime_identity(
+                        include_tests=self.include_tests, language=language, execution_budget=execution_budget or self.execution_budget
+                    ),
+                ),
+                ("java_options", os.environ.get("JAVA_TOOL_OPTIONS", "default") or "default"),
+            ),
         )
 
     def describe_graph(

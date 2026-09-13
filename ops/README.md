@@ -266,3 +266,19 @@ it does not demand a positive after an interrupted query. Run with the network-d
 image, mounting the smoke script read-only as for the other smoke scripts. Snapshot manifests
 record verified immutable source bytes; full scan records retain exact selected/deferred questions,
 raw answers, per-question gaps, change context and candidate dispositions.
+
+Experimental replay can reuse compatible local preparation, graphs and query evidence:
+
+```sh
+ousast pre-push /path/to/repo --base BASE --head HEAD \
+  --artifact /path/outside/repo/result.json \
+  --cache-dir /path/outside/repo/private-cache
+```
+
+Omit `--cache-dir` for a cold control. The cache directory must be owned by the current
+user, private (0700), and outside the analyzed repository. Its default payload/manifest
+budget is 2 GiB (`PushConfig.cache_max_bytes` for API callers). Cache permission to reuse
+is separate from alert eligibility: current admission is always applied. No hook is installed
+by replay. Artifact timings record discovery, graph and query hits; identical-tip hits do
+not establish representative changed-code latency. Corrupt, partial or incompatible entries
+are misses, with remaining work constrained by the same push deadline.
