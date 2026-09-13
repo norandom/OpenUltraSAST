@@ -212,7 +212,7 @@ independent capability qualification. Groups 7–8 remain pending; rollout remai
   - _Requirements: 3.5, 4.1, 4.2, 7.1, 7.2, 7.3_
 
 - [ ] 8. Validate usefulness, runtime and cross-language admission
-- [ ] 8.1 Exercise complete push failure and regression paths
+- [x] 8.1 Exercise complete push failure and regression paths
   - Combine dirty/non-HEAD/multi-ref/new-branch/force/tag/deletion pushes with unusual paths, external content boundaries, failed census, missing comparisons and interrupted persistence.
   - Verify no orphan children, no overwritten live state, no vendor code in graphs, exact scope reports and no false clean result from skipped work.
   - Done when the integration suite covers the critical flows through the real CLI/backend seams and preserves ordinary scan behavior.

@@ -1,7 +1,7 @@
 {
   "feature_name": "pre-push-safety-net",
   "created_at": "2026-09-12T15:35:00Z",
-  "updated_at": "2026-09-13T16:03:14.583834+00:00",
+  "updated_at": "2026-09-13T16:41:21.889949+00:00",
   "language": "en",
   "phase": "implementation",
   "approvals": {
@@ -19,7 +19,7 @@
     }
   },
   "ready_for_implementation": true,
-  "implementation_approval_note": "Groups 1\u20137 implemented and verified (23/27). Group 7 authorized as a whole; manual Kiro review fallback after fresh dispatch thread limit. Multi-ref input, explicit hook integration and optional bounded witness selection verified. Default capability registry remains empty and rollout remains NO-GO; group 8 pending.",
+  "implementation_approval_note": "Group 8 authorized and in progress; groups 1\u20137 verified. Capability admission and rollout remain NO-GO until the declared evidence passes.",
   "depends_on": [
     "contributor-scan"
   ],
@@ -75,6 +75,11 @@
       "at": "2026-09-13T15:45:15.902603+00:00",
       "source": "ok, continue with group 7 as a whole",
       "action": "Authorized tasks 7.1\u20137.3; manual Kiro fallback after fresh dispatch hit thread limit. Group 8 and rollout remain pending."
+    },
+    {
+      "at": "2026-09-13T16:41:21.889949+00:00",
+      "source": "move on to group 8",
+      "action": "Authorized tasks 8.1\u20138.4 and their qualification work; preserve joint gates and record NO-GO wherever prerequisites or measurements do not pass. Fresh dispatch hit thread limit; manual Kiro fallback."
     }
   ],
   "task_review": {
@@ -110,10 +115,11 @@
       "6.4",
       "7.1",
       "7.2",
-      "7.3"
+      "7.3",
+      "8.1"
     ],
-    "remaining_tasks": 4,
-    "verification_record": "implementation-group-7.md",
+    "remaining_tasks": 3,
+    "verification_record": "implementation-group-8.md",
     "verification_records": [
       "implementation-group-1.md",
       "implementation-group-2.md",
@@ -121,7 +127,8 @@
       "implementation-group-4.md",
       "implementation-group-5.md",
       "implementation-group-6.md",
-      "implementation-group-7.md"
+      "implementation-group-7.md",
+      "implementation-group-8.md"
     ],
     "next_group": 8,
     "blocked_tasks": [],
