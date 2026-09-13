@@ -158,3 +158,33 @@ The output directory must be empty and writable by the image's nonroot user. Col
 30-second deadline and 2-second cancellation allowance. Default normal capabilities remain
 empty. A passing reuse control cannot authorize rollout or turn unresolved coverage into clean
 analysis; groups 7–8 still own the real interface and joint evaluation.
+
+### Frozen runtime feasibility (task 8.2)
+
+`feasibility.py` prepares a full pinned NodeGoat history in a private bare repository,
+verifies the declared source/license blobs, and freezes 21 transactions before any
+scanner invocation: three each of identical-tip, function edit, dependency edit,
+configuration edit, cold, 100-module growth and multi-ref workloads. Each changed-code
+repetition has distinct content. It invokes the production CLI through `trace_cli.py`,
+which records engine-process durations and exit receipts without changing analysis.
+Frontend, overlay, census and query costs remain separate. A 600-second priming attempt
+is outside the gate population; each measured transaction retains the 30+2-second
+budget. An incomplete priming run does not establish warm graph reuse.
+
+```sh
+docker run --rm --network none --memory 3g --entrypoint python \
+  -v "$PWD:/context:ro" \
+  -v "$HOME/.cache/openultrasast/repos:/cache:ro" \
+  -v /absolute/writable/results:/results \
+  openultrasast:dev /context/benchmarks/push/feasibility.py \
+  --manifest /context/benchmarks/push/inputs.json --cache /cache --out /results/new-feasibility
+```
+
+The output directory must not exist. `profile.json` records the planned commits,
+source byte receipt, installed semantics, CPU information/affinity and container memory
+limit. Every run retains the full artifact, stdout/stderr, process-stage receipts and
+measurement. `scorecard.json` retains missing runs and timeouts in the declared population,
+reports nearest-rank p50/p95 with sample counts, and never treats no answers as complete.
+Exit 1 with a complete scorecard is measured NO-GO; a missing scorecard is an instrument
+failure. Three samples per workload on development NodeGoat cannot independently qualify
+a production language/framework/family or establish broad multi-project performance.

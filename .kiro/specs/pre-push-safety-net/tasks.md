@@ -218,7 +218,7 @@ independent capability qualification. Groups 7–8 remain pending; rollout remai
   - Done when the integration suite covers the critical flows through the real CLI/backend seams and preserves ordinary scan behavior.
   - _Boundary: Push runner integration tests_
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.2, 2.3, 4.2, 4.4, 5.2, 5.5, 7.1, 7.4, 8.2_
-- [ ] 8.2 Measure realistic cache and deadline feasibility
+- [x] 8.2 Measure realistic cache and deadline feasibility
   - Measure identical-tip reuse, a warm one-function edit, dependency/configuration edits, cold starts, repository growth and multi-ref workloads on declared hardware.
   - If reuse correctness passes but changed-code checks time out, identify preparation, frontend/overlay/census and query costs separately and route the remaining optimization to its owning boundary before rollout GO. Preserve the declared gates and do not substitute identical-tip latency.
   - Publish p50/p95, timeouts, cancellation allowance, completed/deferred population and stage costs; the denominator is fixed before ranker selection.

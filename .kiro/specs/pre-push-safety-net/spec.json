@@ -116,9 +116,10 @@
       "7.1",
       "7.2",
       "7.3",
-      "8.1"
+      "8.1",
+      "8.2"
     ],
-    "remaining_tasks": 3,
+    "remaining_tasks": 2,
     "verification_record": "implementation-group-8.md",
     "verification_records": [
       "implementation-group-1.md",
@@ -132,6 +133,6 @@
     ],
     "next_group": 8,
     "blocked_tasks": [],
-    "feasibility": "NO-GO for rollout: compatible identical-revision reuse verified; representative changed-code p95/completion and independent alert eligibility remain unmet."
+    "feasibility": "NO-GO: all 21 frozen NodeGoat transactions timed out; 0/24 declared target checks completed. Cancellation/reporting remained below 2 seconds. Priming did not qualify graph reuse; named census and engine lifecycle work routed to contributor-scan."
   }
 }

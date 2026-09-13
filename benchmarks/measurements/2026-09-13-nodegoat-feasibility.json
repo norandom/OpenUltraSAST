@@ -1,0 +1,395 @@
+{
+  "workloads": {
+    "identical-tip": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 30.634708732017316,
+      "p95_seconds": 30.644362346967682,
+      "timeouts": 3,
+      "completed_targets": 0,
+      "expected_targets": 3,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0.6443623469676822,
+      "pass": false
+    },
+    "function-edit": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 30.610851514036767,
+      "p95_seconds": 30.663211637060158,
+      "timeouts": 3,
+      "completed_targets": 0,
+      "expected_targets": 3,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0.663211637060158,
+      "pass": false
+    },
+    "dependency-edit": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 30.6267360819038,
+      "p95_seconds": 30.712326238048263,
+      "timeouts": 3,
+      "completed_targets": 0,
+      "expected_targets": 3,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0.7123262380482629,
+      "pass": false
+    },
+    "configuration-edit": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 30.606312285992317,
+      "p95_seconds": 30.72775209392421,
+      "timeouts": 3,
+      "completed_targets": 0,
+      "expected_targets": 3,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0.7277520939242095,
+      "pass": false
+    },
+    "cold": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 30.608712024986744,
+      "p95_seconds": 30.63113492797129,
+      "timeouts": 3,
+      "completed_targets": 0,
+      "expected_targets": 3,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0.6311349279712886,
+      "pass": false
+    },
+    "growth": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 30.893849348067306,
+      "p95_seconds": 30.912386535899714,
+      "timeouts": 3,
+      "completed_targets": 0,
+      "expected_targets": 3,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0.9123865358997136,
+      "pass": false
+    },
+    "multi-ref": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 30.65246668900363,
+      "p95_seconds": 30.691843352047727,
+      "timeouts": 3,
+      "completed_targets": 0,
+      "expected_targets": 6,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0.6918433520477265,
+      "pass": false
+    }
+  },
+  "runtime_verdict": "NO-GO",
+  "rollout": "NO-GO",
+  "qualification_limit": "Development NodeGoat, n=3 per workload; independent quality and multi-project performance not established.",
+  "missing_workloads": [],
+  "schema_version": 1,
+  "experiment": "group8-nodegoat-runtime-v1",
+  "image": "sha256:af5b896b406fe98acb3d00bb2180a7549febd6dd285f0b63087538118e52e1f4",
+  "profile_sha256": "488232afd5e67e92ab9407980a0f905cbcc0c6e28182e947956b6b6cf0666be5",
+  "provenance": {
+    "repository": "/results/nodegoat-v1/objects.git",
+    "engine_runtime": "2b415139532d8d3a0c6e46ecdac26cd3d792efc2bae441f0b7e39bb28ec5d16e",
+    "engine": "joern-4.0.625",
+    "facts": "32edb6e1a78f1afb08ac4248cd436be16663e0d90dc1b3aaf948f2ce49a5a8f0",
+    "graph_layout": "060428173f47cf33bdf5e532d4069feb598ba0e8c7ea30a60888c8e4cfb37a42",
+    "queries": "7bf090e053331f03d04c9290c8a593d00efd4d390f4b77b8382c2befc47996cc",
+    "policy": "5ea302fdc605e23676e09765890c7b491c89a69c2797feb0a5aa3346ddce81ef",
+    "core": "36ac9a045b8b8ad943eea1f511924caae54750a9d5d45da776ebefc460f08eab",
+    "semantics": "f652da2ca5891b6e86a242318357a36f4e3b95529fea596f7d064ef35b2d6cd2",
+    "ranking_mode": "evidence",
+    "model": "disabled",
+    "capabilities": "empty_registry_pending_task_8.3",
+    "cache": "cold_no_reuse"
+  },
+  "hardware": {
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+    "cpu_affinity": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "cpuinfo": "processor\t: 0\nvendor_id\t: GenuineIntel\ncpu family\t: 6\nmodel\t\t: 158\nmodel name\t: Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz\nstepping\t: 10\nmicrocode\t: 0xfa\ncpu MHz\t\t: 3192.000\ncache size\t: 16384 KB\nphysical id\t: 0\nsiblings\t: 1\ncore id\t\t: 0\ncpu cores\t: 1\napicid\t\t: 0\ninitial apicid\t: 0\nfpu\t\t: yes\nfpu_exception\t: yes\ncpuid level\t: 22\nwp\t\t: yes\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon rep_good nopl xtopology cpuid tsc_known_freq pni pclmulqdq vmx ssse3 fma cx16 pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch cpuid_fault ssbd ibrs ibpb stibp tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt xsaveopt xsavec xgetbv1 xsaves arat vnmi umip md_clear flush_l1d arch_capabilities\nvmx flags\t: vnmi preemption_timer invvpid ept_x_only ept_ad ept_1gb flexpriority tsc_offset vtpr mtf vapic ept vpid unrestricted_guest shadow_vmcs pml\nbugs\t\t: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds swapgs srbds mmio_stale_data retbleed bhi ibpb_no_ret its\nbogomips\t: 6384.00\nclflush size\t: 64\ncache_alignment\t: 64\naddress sizes\t: 39 bits physical, 48 bits virtual\npower management:\n\nprocessor\t: 1\nvendor_id\t: GenuineIntel\ncpu family\t: 6\nmodel\t\t: 158\nmodel name\t: Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz\nstepping\t: 10\nmicrocode\t: 0xfa\ncpu MHz\t\t: 3192.000\ncache size\t: 16384 KB\nphysical id\t: 1\nsiblings\t: 1\ncore id\t\t: 0\ncpu cores\t: 1\napicid\t\t: 1\ninitial apicid\t: 1\nfpu\t\t: yes\nfpu_exception\t: yes\ncpuid level\t: 22\nwp\t\t: yes\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon rep_good nopl xtopology cpuid tsc_known_freq pni pclmulqdq vmx ssse3 fma cx16 pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch cpuid_fault ssbd ibrs ibpb stibp tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt xsaveopt xsavec xgetbv1 xsaves arat vnmi umip md_clear flush_l1d arch_capabilities\nvmx flags\t: vnmi preemption_timer invvpid ept_x_only ept_ad ept_1gb flexpriority tsc_offset vtpr mtf vapic ept vpid unrestricted_guest shadow_vmcs pml\nbugs\t\t: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds swapgs srbds mmio_stale_data retbleed bhi ibpb_no_ret its\nbogomips\t: 6384.00\nclflush size\t: 64\ncache_alignment\t: 64\naddress sizes\t: 39 bits physical, 48 bits virtual\npower management:\n\nprocessor\t: 2\nvendor_id\t: GenuineIntel\ncpu family\t: 6\nmodel\t\t: 158\nmodel name\t: Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz\nstepping\t: 10\nmicrocode\t: 0xfa\ncpu MHz\t\t: 3192.000\ncache size\t: 16384 KB\nphysical id\t: 2\nsiblings\t: 1\ncore id\t\t: 0\ncpu cores\t: 1\napicid\t\t: 2\ninitial apicid\t: 2\nfpu\t\t: yes\nfpu_exception\t: yes\ncpuid level\t: 22\nwp\t\t: yes\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon rep_good nopl xtopology cpuid tsc_known_freq pni pclmulqdq vmx ssse3 fma cx16 pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch cpuid_fault ssbd ibrs ibpb stibp tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt xsaveopt xsavec xgetbv1 xsaves arat vnmi umip md_clear flush_l1d arch_capabilities\nvmx flags\t: vnmi preemption_timer invvpid ept_x_only ept_ad ept_1gb flexpriority tsc_offset vtpr mtf vapic ept vpid unrestricted_guest shadow_vmcs pml\nbugs\t\t: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds swapgs srbds mmio_stale_data retbleed bhi ibpb_no_ret its\nbogomips\t: 6384.00\nclflush size\t: 64\ncache_alignment\t: 64\naddress sizes\t: 39 bits physical, 48 bits virtual\npower management:\n\nprocessor\t: 3\nvendor_id\t: GenuineIntel\ncpu family\t: 6\nmodel\t\t: 158\nmodel name\t: Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz\nstepping\t: 10\nmicrocode\t: 0xfa\ncpu MHz\t\t: 3192.000\ncache size\t: 16384 KB\nphysical id\t: 3\nsiblings\t: 1\ncore id\t\t: 0\ncpu cores\t: 1\napicid\t\t: 3\ninitial apicid\t: 3\nfpu\t\t: yes\nfpu_exception\t: yes\ncpuid level\t: 22\nwp\t\t: yes\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon rep_good nopl xtopology cpuid tsc_known_freq pni pclmulqdq vmx ssse3 fma cx16 pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch cpuid_fault ssbd ibrs ibpb stibp tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt xsaveopt xsavec xgetbv1 xsaves arat vnmi umip md_clear flush_l1d arch_capabilities\nvmx flags\t: vnmi preemption_timer invvpid ept_x_only ept_ad ept_1gb flexpriority tsc_offset vtpr mtf vapic ept vpid unrestricted_guest shadow_vmcs pml\nbugs\t\t: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds swapgs srbds mmio_stale_data retbleed bhi ibpb_no_ret its\nbogomips\t: 6384.00\nclflush size\t: 64\ncache_alignment\t: 64\naddress sizes\t: 39 bits physical, 48 bits virtual\npower management:\n\n",
+    "memory_limit": "3221225472"
+  },
+  "input_probe": {
+    "path": "app/routes/contributions.js",
+    "bytes": 2485,
+    "sha256": "196bdeaa22da4cfe8a851b1b932710b2fcedd21f14ed75d70b739ba759a01003"
+  },
+  "sample_count": 21,
+  "expected_target_checks": 24,
+  "complete_target_checks": 0,
+  "priming": {
+    "id": "lab-prime",
+    "elapsed_seconds": 224.47236027393956,
+    "exit_code": 0,
+    "instrument_error": null,
+    "timed_out": false,
+    "target_completed": false,
+    "completed_targets": 0,
+    "expected_targets": 1,
+    "coverage": "incomplete",
+    "timings": {
+      "comparison_0_deadline_seconds": 600.0,
+      "comparison_0_cancellation_allowance_seconds": 2.0,
+      "comparison_0_resolution_seconds": 0.00692109193187207,
+      "comparison_0_provenance_seconds": 0.2868837690912187,
+      "comparison_0_snapshot_seconds": 0.8197841900400817,
+      "comparison_0_snapshot_reuses": 0,
+      "comparison_0_discovery_seconds": 6.712452265899628,
+      "comparison_0_discovery_hits": 0,
+      "comparison_0_preparation_seconds": 7.551641582977027,
+      "comparison_0_head_seconds": 102.4524846150307,
+      "comparison_0_base_seconds": 113.50927831302397,
+      "comparison_0_admission_seconds": 0.006122270948253572,
+      "comparison_0_cleanup_seconds": 0.011785765993408859,
+      "comparison_0_graph_hits": 0,
+      "comparison_0_query_hits": 0,
+      "comparison_0_total_seconds": 223.85807027190458,
+      "total_seconds": 223.87894638301805,
+      "deadline_seconds": 600.0,
+      "cancellation_allowance_seconds": 2.0
+    },
+    "selected": 436,
+    "deferred": 0,
+    "stages": [
+      {
+        "stage": "frontend",
+        "seconds": 4.982722881948575,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "jssrc2cpg",
+        "scripts": []
+      },
+      {
+        "stage": "overlay",
+        "seconds": 13.621651508961804,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "overlay.sc"
+        ]
+      },
+      {
+        "stage": "census",
+        "seconds": 12.337514301994815,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "census.sc"
+        ]
+      },
+      {
+        "stage": "query",
+        "seconds": 18.39221175899729,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "taint.sc"
+        ]
+      },
+      {
+        "stage": "query",
+        "seconds": 13.111017563031055,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "dominance.sc"
+        ]
+      },
+      {
+        "stage": "query",
+        "seconds": 12.429657276021317,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "config.sc"
+        ]
+      },
+      {
+        "stage": "query",
+        "seconds": 19.411302927066572,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "taint.sc"
+        ]
+      },
+      {
+        "stage": "frontend",
+        "seconds": 5.707860570051707,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "jssrc2cpg",
+        "scripts": []
+      },
+      {
+        "stage": "overlay",
+        "seconds": 15.832738576922566,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "overlay.sc"
+        ]
+      },
+      {
+        "stage": "census",
+        "seconds": 13.896116655902006,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "census.sc"
+        ]
+      },
+      {
+        "stage": "query",
+        "seconds": 18.60998445993755,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "taint.sc"
+        ]
+      },
+      {
+        "stage": "query",
+        "seconds": 14.474358166917227,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "dominance.sc"
+        ]
+      },
+      {
+        "stage": "query",
+        "seconds": 14.400734664988704,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "config.sc"
+        ]
+      },
+      {
+        "stage": "query",
+        "seconds": 22.831895098090172,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "taint.sc"
+        ]
+      }
+    ]
+  },
+  "bundle": {
+    "path": "2026-09-13-nodegoat-feasibility.json.gz",
+    "sha256": "3174bfc0bd39e10b685d06d8bc28ab39450368f1a441e64bbb5a27a256bf13c6",
+    "bytes": 1254241,
+    "files": 116
+  },
+  "instrument_sha256": "89667b2821bea8d5437a01df1a52e17b596c6b66c132db83e828e444feeabbb8",
+  "stages_by_workload": {
+    "identical-tip": {
+      "frontend": 16.57258843292948,
+      "overlay": 46.36333934101276,
+      "census": 21.44899461104069,
+      "query": 0,
+      "input_probe": 0
+    },
+    "function-edit": {
+      "frontend": 17.311220249161124,
+      "overlay": 46.13778600492515,
+      "census": 10.856501498026773,
+      "query": 0,
+      "input_probe": 0
+    },
+    "dependency-edit": {
+      "frontend": 17.487801696988754,
+      "overlay": 45.022392168990336,
+      "census": 11.75914374506101,
+      "query": 0,
+      "input_probe": 0
+    },
+    "configuration-edit": {
+      "frontend": 17.555444408091716,
+      "overlay": 46.67416559392586,
+      "census": 10.313088580965996,
+      "query": 0,
+      "input_probe": 0
+    },
+    "cold": {
+      "frontend": 16.713468418922275,
+      "overlay": 45.5736131190788,
+      "census": 0,
+      "query": 0,
+      "input_probe": 0
+    },
+    "growth": {
+      "frontend": 19.406804273021407,
+      "overlay": 42.605494707939215,
+      "census": 0,
+      "query": 0,
+      "input_probe": 0
+    },
+    "multi-ref": {
+      "frontend": 18.01197422691621,
+      "overlay": 46.99900957697537,
+      "census": 19.20424186089076,
+      "query": 0,
+      "input_probe": 0
+    }
+  },
+  "limitations": [
+    "n=3 per development workload; no independent detector qualification",
+    "Incomplete priming did not qualify graph/answer reuse; discovery cache is the only established reuse here",
+    "All timeout samples retained; no warm graph performance established",
+    "All 21 raw artifact core/fact/query/policy/runtime/semantics identities match the frozen profile",
+    "Scorer hardened after run to reject invalid samples, missing workload classes and preserve multi-ref target denominators; raw profile, instrument and original scorecard retained unchanged"
+  ]
+}
