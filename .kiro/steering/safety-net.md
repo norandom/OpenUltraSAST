@@ -91,11 +91,23 @@ the deadline in preparation/discovery before graph analysis, so compatible prepa
 reuse matters alongside graph persistence. Group 6 now provides compatible local reuse; warm changed-code performance
 and useful coverage remain mandatory later gates. No ranking/fact adaptation or holdout
 inspection occurred in the final transfer run. Real capability eligibility and automatic
-dominance context projection remain unproven; the default capability registry is empty.
+dominance context projection remain unproven; the installed capability registry is NO-GO with no enabled capabilities.
 
 Group 6 verified equal cached/uncached evidence and current admission in a packaged authored
 JavaScript control. Source/declaration edits invalidate affected units. Identical-revision
 latency does not qualify representative changed-code performance. Requirements and rollout
-thresholds remain unchanged; group 8 and independent capability admission remain pending. Group 7 adds exact multi-ref
+thresholds remain unchanged; independent capability admission remains blocked in group 8. Group 7 adds exact multi-ref
 transactions, explicit non-overwriting hook integration and bounded optional witness
 selection. No model output can create evidence, raise a rung or bypass admission.
+
+
+Group 8 validation (2026-09-13) is **NO-GO**. Tasks 8.1, 8.2 and 8.4 are verified;
+26/27 tasks are complete. Task 8.3 remains blocked despite delivered eligibility
+implementation and a reproducible installed NO-GO resource. All 21 representative
+Node runtime transactions timed out (0/24 declared target checks complete); final
+packaged PHP/Node security/fixed/benign replays likewise time out. VAmPI preserves
+raw known findings and valid identical-comparison reuse, but exact target question
+context/transitive evidence remains unresolved. Independent reviewed Node/PHP/Python
+populations are missing; libpng arithmetic/bounds remains unsupported. No real capability
+is enabled. Engine/census/context prerequisites route to contributor-scan before another
+frozen qualification attempt. See `pre-push-safety-net/validation-group-8.md`.

@@ -1,7 +1,7 @@
 {
   "feature_name": "pre-push-safety-net",
   "created_at": "2026-09-12T15:35:00Z",
-  "updated_at": "2026-09-13T16:41:21.889949+00:00",
+  "updated_at": "2026-09-13T17:38:57.553583+00:00",
   "language": "en",
   "phase": "implementation",
   "approvals": {
@@ -19,7 +19,7 @@
     }
   },
   "ready_for_implementation": true,
-  "implementation_approval_note": "Group 8 authorized and in progress; groups 1\u20137 verified. Capability admission and rollout remain NO-GO until the declared evidence passes.",
+  "implementation_approval_note": "Group 8 authorized: 8.1, 8.2 and 8.4 verified; 8.3 implementation/evidence delivered but qualification blocked. Feature rollout remains NO-GO, no capabilities enabled.",
   "depends_on": [
     "contributor-scan"
   ],
@@ -117,9 +117,10 @@
       "7.2",
       "7.3",
       "8.1",
-      "8.2"
+      "8.2",
+      "8.4"
     ],
-    "remaining_tasks": 2,
+    "remaining_tasks": 1,
     "verification_record": "implementation-group-8.md",
     "verification_records": [
       "implementation-group-1.md",
@@ -136,6 +137,12 @@
       "8.3"
     ],
     "feasibility": "NO-GO: all 21 frozen NodeGoat transactions timed out; 0/24 declared target checks completed. Cancellation/reporting remained below 2 seconds. Priming did not qualify graph reuse; named census and engine lifecycle work routed to contributor-scan.",
-    "qualification": "NO-GO: eligibility implementation and evidence delivered; required independent populations and verified VAmPI transitive witness remain missing. Zero capabilities enabled."
+    "qualification": "NO-GO: eligibility implementation and evidence delivered; required independent populations and verified VAmPI transitive witness remain missing. Zero capabilities enabled.",
+    "validation": {
+      "decision": "NO-GO",
+      "feature_complete": false,
+      "record": "validation-group-8.md",
+      "capabilities_enabled": 0
+    }
   }
 }

@@ -201,3 +201,48 @@ Task 8.3 implementation verification: full suite **1317 passed, 9 skipped in 115
 14 focused eligibility/replay-instrument tests passed in 0.95s. Ruff, format, mypy
 (116 source files) and diff checks pass. These verify the delivered code and recorded
 NO-GO behavior, not the rejected full qualification claim above.
+
+## Task 8.4 brief
+
+Requirements 3.1, 3.4, 5.1–5.5, 6.5, 7.1, 7.3, 7.4, 8.3 and 8.4;
+packaging and full-feature validation boundary. The explicit task definition allows
+NO-GO validation while qualification remains blocked. Rebuild with installed eligibility,
+exercise the real local Git interface and final supported security/fixed/benign inputs,
+run canonical regression/static gates, and map all 35 acceptance criteria. No new
+production behavior; feature flag protocol is not applicable to validation artifacts.
+
+The final image is `4cca6d20c5c9bfdbfa60c4e8fc991e096bc9b2f35096bb92cc92440e99f946d4`.
+The offline UID-1000 smoke imports and recomputes the installed resource as NO-GO,
+starts the CLI without model configuration, and exercises real local pushes in two
+disposable repositories. Prior exits 0 and 7 produce accepted/rejected Git pushes;
+Git's own rejection exit is 1. Exact stdin and remote arguments, source/index/HEAD,
+custom hooksPath, refused overwrite and byte-identical removal restoration all pass.
+The 0.1-second control truthfully reports unavailable coverage. It is not a detector
+positive control and does not install a hook into this project.
+
+The final packaged six-case PMPro/Node replay also timed out in 30.560–30.614s,
+retaining all artifacts and input-byte receipts. No real alert or completed target is
+qualified. The instrument exits 1 with a completed NO-GO decision; the underlying
+advisory CLI exits 0, which means allow rather than complete or clean. The 38-file
+final verification bundle and all-35-criteria reconciliation are linked from
+`validation-group-8.md`.
+
+## Status Report
+- STATUS: READY_FOR_REVIEW
+- TASK: 8.4
+- RED_PHASE_OUTPUT: N/A: validation harness and records, no production behavior change.
+- TESTS_RUN: Full suite 1317 passed, 9 skipped; current code unchanged since that run. Detection/map/local-pair gates exit 0. Ruff, format, mypy, compileall and diff checks pass. Final image builds and packaged hook smoke exits 0. Real security/fixed/benign replay completes with measured NO-GO.
+
+## Review Verdict
+- VERDICT: APPROVED
+- TASK: 8.4
+- MECHANICAL_RESULTS: Actual validation harness and evidence inspected; all 35 original criterion numbers mapped, input reads verified, exact installed eligibility recomputed, prior hook behavior preserved. No new runtime imports or detector changes. Main-context Kiro fallback, not independent review.
+- FINDINGS: Task 8.4 explicitly requires an honest NO-GO artifact when joint gates fail. Task 8.3 remains unchecked and blocked; feature phase stays implementation. No threshold, label, population or ownership workaround used to claim rollout.
+- SUMMARY: Packaged acceptance validation delivered with reproducible NO-GO and concrete owner follow-up.
+
+## Verification Result
+- STATUS: VERIFIED
+- CLAIM_TYPE: TASK
+- CLAIM: Task 8.4 validation and acceptance reconciliation completed with NO-GO.
+- EVIDENCE: `validation-group-8.md`, versioned packaged validation JSON and verified 38-file bundle; all commands and limitations recorded there.
+- GAPS: Feature-level readiness is not verified. Task 8.3 and its owner/evaluation prerequisites remain open.

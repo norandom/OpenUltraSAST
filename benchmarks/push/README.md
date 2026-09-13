@@ -212,3 +212,23 @@ repository configuration. The runner recomputes its decision and rejects stale o
 modified evidence. This integrity check is not a cryptographic reviewer signature.
 The versioned NO-GO registry enables no capability. Regenerate evidence after changes
 to core, engine, facts, queries, policy or semantics; do not relabel old measurements.
+
+### Packaged acceptance smoke (task 8.4)
+
+After rebuilding the image with its installed eligibility resource, run:
+
+```sh
+docker run --rm --network none --entrypoint python \
+  -v "$PWD:/context:ro" -v /absolute/writable/results:/results \
+  openultrasast:dev /context/benchmarks/push/package_smoke.py \
+  --out /results/new-package-smoke --ops /context/ops
+```
+
+This smoke verifies packaged CLI startup, the installed reproducible NO-GO registry,
+non-overwriting installation, exact prior-hook stdin/remote arguments, accept/reject
+behavior and explicit removal in disposable Git repositories. Its 0.1-second deadline
+intentionally exercises unavailable coverage, not vulnerability detection. No hook is
+installed in this project. Run `measure.py` separately on the final image for the full
+supported security/fixed/benign workload, preserving its real partial outcomes.
+The artifact and `.kiro/specs/pre-push-safety-net/validation-group-8.md` distinguish
+working integration from the remaining NO-GO quality/runtime prerequisites.

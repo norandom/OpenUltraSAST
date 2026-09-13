@@ -235,7 +235,7 @@ independent capability qualification. Groups 7–8 remain pending; rollout remai
   - _Depends: 1.2, 1.3, 5.2, 7.3, 8.2_
   - _Requirements: 3.1, 3.2, 6.1, 6.2, 6.3, 6.4, 6.5, 8.1, 8.2, 8.3, 8.4_
   - _Blocked 2026-09-13:_ Eligibility implementation and reproducible NO-GO artifact delivered; independent reviewed Node/PHP/Python populations and verified VAmPI transitive witness remain missing. Runtime/coverage gates fail. See `implementation-group-8.md` and contributor-scan owner follow-up.
-- [ ] 8.4 Verify the packaged end-to-end outcome and acceptance coverage
+- [x] 8.4 Verify the packaged end-to-end outcome and acceptance coverage
   - Run the required regression checks and a local packaged smoke over supported security/fixed/benign pushes; verify no-model startup, preservation of hook behavior and truthful partial results.
   - Reconcile every acceptance criterion with fresh evidence and record unresolved capability/performance blockers separately from completed plumbing.
   - Done when a reproducible validation artifact states GO only with all mandatory integration and joint quality/latency gates satisfied; otherwise it names the remaining NO-GO conditions without marking the feature complete.
