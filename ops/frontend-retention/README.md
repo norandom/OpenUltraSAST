@@ -34,3 +34,12 @@ the upstream version string alone cannot distinguish these graphs.
 After building the image, run `ops/smoke_partitions.py` as described in `ops/README.md`.
 Its off control uses `OUSAST_SMOKE_INCLUDE_TESTS=0` and must fail the test-retention
 assertion. First-party test retention does not imply security capability admission.
+
+The 2026-09-14 retention correction adds `OUSAST_INCLUDE_BUILD_CONFIGS=1` for
+`Gruntfile.js`, which Joern otherwise filters even after test retention is enabled.
+`JoernBackend(include_build_configs=True)` sets this explicit default; false restores
+that upstream exclusion. Other configuration/minification filters are unchanged.
+The option is part of graph/runtime identity. Source paths and bytes are preserved,
+and the configuration is parsed, never executed. Real NodeGoat census and the packaged
+PHP/JavaScript partition smoke verify this input-retention correction separately from
+hook latency, actionable detection and capability admission.

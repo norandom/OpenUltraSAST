@@ -111,3 +111,12 @@ context/transitive evidence remains unresolved. Independent reviewed Node/PHP/Py
 populations are missing; libpng arithmetic/bounds remains unsupported. No real capability
 is enabled. Engine/census/context prerequisites route to contributor-scan before another
 frozen qualification attempt. See `pre-push-safety-net/validation-group-8.md`.
+
+
+On 2026-09-14, contributor-scan task 2.19 repaired the confirmed Gruntfile frontend
+omission (real Node census 43/44 → 44/44) and the misleading empty-graph diagnostic.
+Incomplete or unavailable census retains explicit coverage gaps and cannot complete
+questions. Native PHP/JavaScript partition smoke and 1321 tests pass. Runtime/core
+identity changed, so prior eligibility is stale and remains disabled. This repairs one
+shared prerequisite; pre-push 8.3, runtime amortization, VAmPI context/transitive
+evidence and independent qualification remain open. No ranker retune or rollout GO.

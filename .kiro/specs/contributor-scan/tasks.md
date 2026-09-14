@@ -342,6 +342,15 @@
   - _Approval:_ maintainer "approved", 2026-09-13; prerequisite for pre-push-safety-net task 3.4.
   - _Verified:_ independent review APPROVED; 1,141 tests passed, nine skipped, static checks clean; real PHP/JavaScript test nodes retained and disabled-policy control reproduces omission. See `frontend-retention-verification.md`.
 
+- [x] 2.19 Repair the measured Node input census and preserve honest completeness diagnostics
+  - Retain the declared original `Gruntfile.js` through the versioned frontend adaptation; bind the explicit policy to runtime/cache identity.
+  - Preserve observed file/method counts and missing names when census is incomplete; missing, empty or malformed census must not complete questions or become a false clean result.
+  - Verify the exact 44-file NodeGoat input, native PHP/JavaScript partition smoke, and ordinary scan/hook regressions. Do not infer latency or capability admission from retention.
+  - _Boundary: existing frontend adaptation, partition census and scan completeness integration._
+  - _Requirements: contributor-scan 4.3, 5.6, 6.1; pre-push 2.3, 4.3, 8.2._
+  - _Approval: maintainer accepted contributor-scan remediation with "ok" on 2026-09-14; no rollout approval._
+  - _Verified: 1321 tests passed, 9 skipped; real 44/44 Node census and packaged native PHP/JavaScript smoke. See `census-repair-verification.md`._
+
 ## Group 3 — Ship it
 
 - [ ] 3.1 Contributor output

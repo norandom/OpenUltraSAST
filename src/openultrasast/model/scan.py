@@ -355,6 +355,8 @@ def _scan_repository_impl(
             in {
                 "files_unparsed",
                 "cpg_empty",
+                "partition_file_census_incomplete",
+                "partition_file_census_unavailable",
                 "cpg_sharded",
                 "cross_partition_semantics_unresolved",
                 "vendor_semantics_unresolved",
@@ -410,8 +412,14 @@ def _scan_repository_impl(
                 if census and not census_reported:
                     entry = census[0] if isinstance(census[0], Mapping) else {}
                     methods = int(str(entry.get("methods", "0")) or 0)
-                    if methods == 0:
-                        degradations.append({"stage": "model", "reason": "cpg_empty", "files": int(str(entry.get("files", "0")) or 0)})
+                    if methods == 0 or entry.get("census_failure"):
+                        degradations.append(
+                            {
+                                "stage": "model",
+                                "reason": "cpg_empty" if "methods" in entry and methods == 0 else entry.get("census_failure", "cpg_empty"),
+                                **{k: entry[k] for k in ("methods", "files", "missing_file_names") if k in entry},
+                            }
+                        )
                     # More than one graph means some files could only be built apart from the rest, and a
                     # flow whose source is in one shard and whose sink is in another does not exist for any
                     # question we can ask. Reporting the split is the difference between a partial answer and
@@ -508,6 +516,8 @@ def _scan_repository_impl(
         in {
             "files_unparsed",
             "cpg_empty",
+            "partition_file_census_incomplete",
+            "partition_file_census_unavailable",
             "cpg_sharded",
             "cross_partition_semantics_unresolved",
             "vendor_semantics_unresolved",
@@ -741,8 +751,14 @@ def _evidence_pass(
             shards = int(str(entry.get("shards", "1")))
         except ValueError:
             methods, shards = 0, 1
-        if methods <= 0:
-            degradations.append({"stage": "model", "reason": "cpg_empty"})
+        if methods <= 0 or entry.get("census_failure"):
+            degradations.append(
+                {
+                    "stage": "model",
+                    "reason": "cpg_empty" if "methods" in entry and methods <= 0 else entry.get("census_failure", "cpg_empty"),
+                    **{k: entry[k] for k in ("methods", "files", "missing_file_names") if k in entry},
+                }
+            )
         if shards > 1:
             degradations.append({"stage": "model", "reason": "cpg_sharded", "shards": shards})
     by_rid = {rid: (region, spec) for rid, region, spec in work}

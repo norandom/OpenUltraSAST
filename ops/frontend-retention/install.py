@@ -97,6 +97,14 @@ const IGNORE_FILE_PATTERN = INCLUDE_TESTS
             "lazy val isIgnoredTest = IgnoredTestsRegex.exists(_.matches(filePath))",
             'lazy val isIgnoredTest = !sys.env.get("OUSAST_INCLUDE_TESTS").contains("1") && IgnoredTestsRegex.exists(_.matches(filePath))',
         )
+        # Keep the original Gruntfile path and bytes. Other default filters remain intact.
+        replace_once(
+            scala,
+            "lazy val isIgnored     = IgnoredFilesRegex.exists(_.matches(filePath))",
+            "lazy val isIgnored = IgnoredFilesRegex.exists(_.matches(filePath)) && "
+            '!(sys.env.get("OUSAST_INCLUDE_BUILD_CONFIGS").contains("1") && '
+            'Paths.get(filePath).getFileName.toString == "Gruntfile.js")',
+        )
         # Upstream stages embedded TS standard-library assets; retain that build recipe,
         # selecting just the supported Linux x64 target instead of all release platforms.
         script = astgen / "scripts/build-binaries.ts"
@@ -135,7 +143,7 @@ const IGNORE_FILE_PATTERN = INCLUDE_TESTS
         manifest = {
             "revision": "ousast-frontend-retention-v1",
             "builder_sha256": digest(Path(__file__)),
-            "policy": "OUSAST_INCLUDE_TESTS=1",
+            "policy": "OUSAST_INCLUDE_TESTS=1; OUSAST_INCLUDE_BUILD_CONFIGS=1 retains Gruntfile.js",
             "sources": PINS,
             "original_jar_sha256": JAR_SHA256,
             "adapted_jar_sha256": digest(adapted),

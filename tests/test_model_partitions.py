@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from openultrasast.cpg.backend import CpgResult
 from openultrasast.model.regions import ScanRegion
 from openultrasast.model.scan import ScanBudget, scan_repository
@@ -153,7 +155,8 @@ def test_unsupported_only_population_is_named(tmp_path):
     assert "frontend_unsupported" in result.scope.unresolved_boundaries
 
 
-def test_partial_partition_census_never_completes_questions(tmp_path):
+@pytest.mark.parametrize("census", [[{"methods": 2, "files": 1}], [], ["invalid"], None])
+def test_partial_partition_census_never_completes_questions(tmp_path, census):
     for name in ("a.py", "b.py"):
         (tmp_path / name).write_text("print('readable')")
 
@@ -162,13 +165,14 @@ def test_partial_partition_census_never_completes_questions(tmp_path):
             return CpgResult(
                 Path("graph"),
                 lambda q, p: [],
-                run_batch=lambda q, reqs: {**{rid: [] for rid in reqs}, "__census__": [{"methods": 2, "files": 1}]},
+                run_batch=lambda q, reqs: {**{rid: [] for rid in reqs}, **({"__census__": census} if census is not None else {})},
             )
 
     region = ScanRegion(path="a.py", function="f", language="python", families=("injection",), rank=1.0, source="entry_point")
     result = scan_repository(tmp_path, [region], backend=Backend(), budget=ScanBudget(tiering=False))
     assert result.question_outcomes[0].status == "unresolved"
-    assert "cpg_empty" in result.scope.unresolved_boundaries
+    assert "partition_file_census_unavailable" in result.scope.unresolved_boundaries
+    assert "cpg_empty" not in result.scope.unresolved_boundaries
 
 
 def test_projection_refuses_substituted_ancestor(tmp_path):
@@ -286,7 +290,9 @@ def test_synthetic_census_node_cannot_mask_missing_source(tmp_path):
     graph = build_partitions(tmp_path, build, None)
     try:
         result = graph.run_batch("taint", {"q": {"file": "a.php"}})
-        assert result["__census__"][0]["files"] == 0
+        assert result["__census__"][0]["files"] == 2
+        assert result["__census__"][0]["methods"] == 3
+        assert result["__census__"][0]["missing_file_names"] == ["b.php"]
         assert "partition_file_census_incomplete" in graph.execution_diagnostics()
     finally:
         graph.cleanup()
@@ -331,7 +337,10 @@ def test_unnamed_sharded_census_remains_explicitly_incomplete(tmp_path):
     )
     try:
         result = graph.run_batch("taint", {"q": {"file": "app.php"}})
-        assert result["__census__"] == [{"methods": 0, "files": 0, "shards": 2}]
+        assert result["__census__"][0]["methods"] == 20
+        assert result["__census__"][0]["files"] == 20
+        assert result["__census__"][0]["shards"] == 2
+        assert result["__census__"][0]["census_failure"] == "partition_file_census_unavailable"
         assert "partition_file_census_unavailable" in graph.execution_diagnostics()
     finally:
         graph.cleanup()

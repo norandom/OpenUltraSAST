@@ -26,7 +26,12 @@ class Backend:
         assert any(p.read_bytes() for p in root.rglob("*") if p.is_file())
         if self.fail:
             return None
-        return SimpleNamespace(cpg_path=Path("test.cpg"), run_batch=self.batch, cleanup=lambda: None)
+        names = [str(p) for p in root.rglob("*") if p.is_file()]
+
+        def batch(kind, requests):
+            return {"__census__": [{"methods": len(names), "files": len(names), "file_names": names}], **self.batch(kind, requests)}
+
+        return SimpleNamespace(cpg_path=Path("test.cpg"), run_batch=batch, cleanup=lambda: None)
 
     def batch(self, kind, requests):
         if any(p.get("evidenceOnly") == "true" for p in requests.values()):

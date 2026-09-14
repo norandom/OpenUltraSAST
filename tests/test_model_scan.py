@@ -463,7 +463,15 @@ def test_tier_zero_pairs_are_not_asked_and_nothing_else_is_skipped(tmp_path: Pat
                 issued.append({"kind": kind, "count": len(requests)})
                 return {rid: [] for rid in requests}
 
-            return CpgResult(cpg_path=Path("cpg.bin"), run=lambda q, p: [], run_batch=batch)
+            names = [str(p) for p in root.rglob("*.py")]
+            return CpgResult(
+                cpg_path=Path("cpg.bin"),
+                run=lambda q, p: [],
+                run_batch=lambda kind, requests: {
+                    "__census__": [{"methods": len(names), "files": len(names), "file_names": names}],
+                    **batch(kind, requests),
+                },
+            )
 
     region = ScanRegion(
         path="a.py", function="run", language="python", families=("injection", "path", "deserialization"), rank=0.9, source="entry_point"
@@ -521,7 +529,15 @@ def test_the_budget_is_spent_by_evidence_when_asked(tmp_path: Path) -> None:
                     self.taint_files.append(sorted({str(p.get("file", "")) for p in requests.values()}))
                 return {rid: [] for rid in requests}
 
-            return CpgResult(cpg_path=Path("cpg.bin"), run=lambda q, p: [], run_batch=batch)
+            names = [str(p) for p in root.rglob("*.py")]
+            return CpgResult(
+                cpg_path=Path("cpg.bin"),
+                run=lambda q, p: [],
+                run_batch=lambda kind, requests: {
+                    "__census__": [{"methods": len(names), "files": len(names), "file_names": names}],
+                    **batch(kind, requests),
+                },
+            )
 
     top = ScanRegion(path="top.py", function="handle", language="python", families=("injection",), rank=1.0, source="entry_point")
     low = ScanRegion(path="low.py", function="run", language="python", families=("injection",), rank=0.3, source="entry_point")

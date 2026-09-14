@@ -106,6 +106,9 @@ class PartitionGraph:
             raw = batch(kind, selected) if callable(batch) else {rid: graph.run(kind, params) for rid, params in selected.items()}
             if not isinstance(raw, Mapping):
                 continue
+            raw = dict(raw)
+            if not isinstance(raw.get("__census__"), list):
+                raw["__census__"] = []
             for rid, rows in raw.items():
                 if rid in selected and isinstance(rows, list):
                     answers[rid] = self._normalize(rows)
@@ -117,17 +120,18 @@ class PartitionGraph:
                     observed = {p.removeprefix("./") for n in names if isinstance(n, list) for p in n if isinstance(p, str)}
                     if not named or not expected <= observed:
                         self.diagnostics.append("partition_file_census_incomplete" if named else "partition_file_census_unavailable")
+                        reason = "partition_file_census_incomplete" if named else "partition_file_census_unavailable"
                         rows = [
-                            {
-                                "methods": 0,
-                                "files": 0,
-                                "shards": max((int(str(r.get("shards", 1))) for r in rows if isinstance(r, Mapping)), default=1),
-                            }
-                        ]
+                            dict(r, census_failure=reason, missing_file_names=sorted(expected - observed) if named else [])
+                            for r in normalized
+                            if isinstance(r, Mapping)
+                        ] or [{"census_failure": reason, "missing_file_names": []}]
                     # Preserve any individual empty or sharded graph's degradation.
                     previous = answers.get(rid, [])
                     if not previous or any(
-                        isinstance(r, Mapping) and (int(str(r.get("methods", 0))) == 0 or int(str(r.get("shards", 1))) > 1) for r in rows
+                        isinstance(r, Mapping)
+                        and (r.get("census_failure") or int(str(r.get("methods", 0))) == 0 or int(str(r.get("shards", 1))) > 1)
+                        for r in rows
                     ):
                         answers[rid] = rows
         return answers

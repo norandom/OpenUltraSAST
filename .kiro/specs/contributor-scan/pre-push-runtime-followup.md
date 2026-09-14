@@ -64,3 +64,28 @@ boundaries explicit. Do not fabricate transitivity from a raw finding at the tar
 Revalidate ordinary VAmPI scan, exact question accounting, push regressions and independent
 qualification after an approved owner fix. This note records the prerequisite; it does
 not silently approve an upstream implementation or change detector semantics.
+
+## 2026-09-14 census diagnosis and targeted retention repair
+
+The maintainer accepted the proposed contributor-scan follow-up with "ok" after
+group 8's NO-GO report. This authorizes the targeted shared-boundary fixes and their
+validation; independent qualification and rollout still require their existing gates.
+
+A fresh offline packaged probe copied and reopened all 44 exact NodeGoat first-party
+JavaScript inputs (95,411 bytes), built a graph and inspected its raw named census.
+Result: 43 files, 564 methods, 3,750 calls; only `Gruntfile.js` was missing. Build took
+21.708s and census 14.990s. Tests were retained. The pinned frontend's
+`IgnoredFilesRegex` explicitly drops `Gruntfile.js`; the partition adapter then replaced
+the partial census with zero counts, producing the misleading `cpg_empty` diagnosis.
+
+The first repair narrowly extends the existing versioned frontend adaptation to retain
+`Gruntfile.js` under explicit `OUSAST_INCLUDE_BUILD_CONFIGS=1`. It changes neither its
+path nor bytes and leaves all other defaults, vendor exclusion and test retention
+intact. The backend owns the option and binds it to graph/runtime identity, so old
+artifacts cannot silently qualify under the new retention policy. It does not execute
+the build configuration. This format-level input repair is not NodeGoat-specific scope
+selection or a claim that every possible JavaScript configuration file is now supported.
+The partial-census correction now preserves actual counts and missing filenames,
+with missing/empty/malformed census still preventing completed questions. Runtime amortization and VAmPI context/witness evidence remain open.
+
+Source: [Joern 4.0.625 AstGenRunner](https://raw.githubusercontent.com/joernio/joern/v4.0.625/joern-cli/frontends/jssrc2cpg/src/main/scala/io/joern/jssrc2cpg/utils/AstGenRunner.scala).

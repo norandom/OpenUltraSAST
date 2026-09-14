@@ -117,7 +117,14 @@ def test_targeted_base_uses_real_driver_same_deadline(tmp_path):
             assert (root / "a.js").read_bytes()
             seen.append(execution_budget)
             rows = json.loads(scan(line=5, sanitized=True).question_outcomes[0].raw_rows_json)
-            return CpgResult(Path("graph"), lambda kind, params: rows)
+            return CpgResult(
+                Path("graph"),
+                lambda kind, params: rows,
+                run_batch=lambda kind, requests: {
+                    **{rid: rows for rid in requests},
+                    "__census__": [{"methods": 1, "files": 1, "file_names": [str(root / "a.js")]}],
+                },
+            )
 
     region = ScanRegion("a.js", "handler", "javascript", ("injection",), 1.0, "entry_point")
     budget = ExecutionBudget(time.monotonic() + 30, 1.0)

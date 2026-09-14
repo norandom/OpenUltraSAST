@@ -29,3 +29,9 @@ def test_builder_rejects_unrecognized_dependency_before_download(tmp_path):
         builder.build(tmp_path)
     assert jar.read_bytes() == b"different dependency"
     assert not (tmp_path / "ousast-frontend-retention-v1").exists()
+
+
+def test_build_config_retention_is_explicit_and_overrides_ambient_policy(monkeypatch):
+    monkeypatch.setenv("OUSAST_INCLUDE_BUILD_CONFIGS", "0")
+    assert JoernBackend()._jvm_env()["OUSAST_INCLUDE_BUILD_CONFIGS"] == "1"
+    assert JoernBackend(include_build_configs=False)._jvm_env()["OUSAST_INCLUDE_BUILD_CONFIGS"] == "0"

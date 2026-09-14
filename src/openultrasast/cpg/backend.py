@@ -267,7 +267,11 @@ class NullBackend:
 
 
 def engine_runtime_identity(
-    *, include_tests: bool = True, language: str | None = None, execution_budget: ExecutionBudget | None = None
+    *,
+    include_tests: bool = True,
+    include_build_configs: bool = True,
+    language: str | None = None,
+    execution_budget: ExecutionBudget | None = None,
 ) -> str:
     """Installed frontend/adaptation bytes, also used by comparison eligibility provenance."""
     from .artifact import digest_value, graph_bytes
@@ -296,6 +300,7 @@ def engine_runtime_identity(
             "version": version,
             "files": installation,
             "include_tests": include_tests,
+            "include_build_configs": include_build_configs,
             "java_options": os.environ.get("JAVA_TOOL_OPTIONS", ""),
         }
     )
@@ -307,6 +312,7 @@ class JoernBackend:
 
     runner: Runner | None = None
     include_tests: bool = True  # Explicit input policy for the versioned frontend adaptation.
+    include_build_configs: bool = True  # Explicit retention of supported build configuration source.
     build_timeout: int = BUILD_TIMEOUT_SECONDS
     query_timeout: int = field(default_factory=lambda: _configured_timeout())
     heap_mb: int = 0  # 0 means read the environment, then fall back to CPG_HEAP_MB
@@ -380,10 +386,14 @@ class JoernBackend:
             (("implementation", code),),
             (
                 ("include_tests", str(self.include_tests)),
+                ("include_build_configs", str(self.include_build_configs)),
                 (
                     "installation",
                     engine_runtime_identity(
-                        include_tests=self.include_tests, language=language, execution_budget=execution_budget or self.execution_budget
+                        include_tests=self.include_tests,
+                        include_build_configs=self.include_build_configs,
+                        language=language,
+                        execution_budget=execution_budget or self.execution_budget,
                     ),
                 ),
                 ("java_options", os.environ.get("JAVA_TOOL_OPTIONS", "default") or "default"),
@@ -1189,6 +1199,7 @@ class JoernBackend:
         """
         env = dict(os.environ)
         env["OUSAST_INCLUDE_TESTS"] = "1" if self.include_tests else "0"
+        env["OUSAST_INCLUDE_BUILD_CONFIGS"] = "1" if self.include_build_configs else "0"
         env["JAVA_TOOL_OPTIONS"] = f"{env.get('JAVA_TOOL_OPTIONS', '').strip()} -Xmx{self._heap_mb()}m".strip()
         return env
 

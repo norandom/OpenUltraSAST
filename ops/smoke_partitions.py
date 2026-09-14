@@ -37,6 +37,7 @@ def main() -> None:
 }
 """)
         sources = {
+            "Gruntfile.js": "function build_config_marker() { return 42; }\n",
             "src/api.php": "<?php\nfunction php_handler($req) { eval($req); }\n",
             "server/api.js": "function js_handler(req) { eval(req.query.code); }\n",
             "browser/client.js": "function browser_marker() { return 42; }\n",
@@ -88,6 +89,8 @@ def main() -> None:
                     assert any(str(path).endswith("server/api.js") for path in files), witness
                     assert any(str(path).endswith("tests/probe.js") for path in files), witness
                     assert "js_handler" in methods and "js_test_marker" in methods, witness
+                    assert any(str(path).endswith("Gruntfile.js") for path in files), witness
+                    assert "build_config_marker" in methods, witness
                     for path, method in suffix_tests.items():
                         assert any(str(filename).endswith(path) for filename in files), witness
                         assert method in methods, witness
