@@ -1,7 +1,7 @@
 {
   "feature_name": "pre-push-safety-net",
   "created_at": "2026-09-12T15:35:00Z",
-  "updated_at": "2026-09-14T11:13:56.805180+00:00",
+  "updated_at": "2026-09-14T11:34:19.788221+00:00",
   "language": "en",
   "phase": "implementation",
   "approvals": {
@@ -158,5 +158,22 @@
     "channel": "alpha",
     "rollout_decision": "NO-GO",
     "status_record": "status.md"
+  },
+  "release_milestones": {
+    "record": "release-milestones.md",
+    "direction_approved": true,
+    "approval_source": "I agree. please note this into the raodmap as a spec",
+    "current": "M1a",
+    "verified": [],
+    "sequence": [
+      "M1a: NodeGoat detection with admission vetoes recorded, not applied (one-week box)",
+      "M1b: repair only the vetoes M1a showed to matter; rerun through production rules",
+      "M2: equivalent bounded runtime",
+      "M3: shared-language transfer",
+      "M4: independent qualification",
+      "M5: narrow advisory rollout"
+    ],
+    "implementation_design_approval": "Existing approvals preserved; this records milestone order and exit criteria, not blanket approval of future design changes.",
+    "m1_split_accepted": "2026-09-14: maintainer asked to split M1 into M1a/M1b after review"
   }
 }

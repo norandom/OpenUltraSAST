@@ -1,84 +1,76 @@
 # Roadmap
 
-## Current direction and next review — 2026-09-12
+## Current release path — 2026-09-14
 
-The product is an **actionable pre-push security safety net for AI-accelerated development**, across
-supported languages/frameworks. WordPress is one regression workload. Advisory must be useful and
-low noise; moving speculative SAST output into a nonblocking hook does not meet the goal. See
-`safety-net.md` for current steering. The earlier narrative below is retained as dated history and
-does not override this direction or the latest measurements.
+Build an actionable pre-push security safety net for AI-accelerated development.
+The maintainer accepted the following order: **prove one useful detection, make it
+fast, prove cross-language transfer, qualify independently, then enable narrow advisory
+rollout**. The executable outcome contract lives in the existing
+[pre-push-safety-net release milestone spec](../specs/pre-push-safety-net/release-milestones.md).
 
-### Approach decision
+**We are at M1a. None of the five release milestones is verified yet.** The published
+`v1.2.0-alpha.1` and 26/27 completed implementation tasks describe delivered machinery,
+not a demonstrated useful safety net. Task 8.3 and rollout remain NO-GO.
 
-Keep the existing ranker as the scope mechanism. Supply it with pushed-change and affected
-first-party context. Third-party vendor code remains outside both targets and graphs. Reuse
-compatible graph/results artifacts and apply a total deadline; treat unknown external semantics
-as a coverage boundary. Require change attribution, witness and repair direction before a finding
-earns normal hook visibility. A second heuristic scope selector and an assumed incremental Joern
-engine are out of scope.
+| Order | Milestone | Observable exit | Current state |
+|---|---|---|---|
+| M1a | Show the NodeGoat detection with every admission veto recorded, not applied | Raw finding with witness on the vulnerable revision; analyzed fixed twin and unchanged control quiet; per-finding veto list. One-week time box | NEXT |
+| M1b | Repair only the vetoes M1a showed to matter | Supported evaluation finding through production rules, exact change/base evidence and repair direction; fixed twin and unchanged control stay quiet | Pending M1a |
+| M2 | Make that same analysis fast | Equivalent evidence; representative warm changed-code p95 <=30s, cancellation/report <=2s, >=95% supported completion | Pending M1 |
+| M3 | Prove the shared design transfers | PMPro/PHP and VAmPI/Python vulnerable/fixed evidence; unchanged core rules; Node replay after any PMPro core change | Pending M2 |
+| M4 | Qualify on independent cases | Reviewed untouched vulnerable/fixed/benign populations pass joint quality, coverage and latency gates per capability | Pending M3 |
+| M5 | Enable a narrow advisory rollout | Exact passing eligibility and packaged acceptance; only qualified capabilities enabled | Pending M4 |
 
-### Current evidence and limitations
+### Immediate next action
 
-- Whole-PMPro analysis has completed with its known CVE; the earlier "does not finish" diagnosis
-  is superseded. The recorded 72-minute scan is not a pre-push performance result.
-- Historical Joern 4.0.625 + layout position budgets are PMPro 82, WP Statistics 91, MW WP Form 54.
-  `<50` remains unmet. VAmPI's old 16 omitted SQLI; the corrected instrument retains the unmatched
-  target and reports no full-target budget or detection recall without the required evidence.
-- Equal-score tie-breaking alone cannot bring PMPro or WP Statistics under 50. The existing
-  ranker is useful, but its measured ordering is not enabled by the ordinary CLI caller.
-- Docker/Compose/ops now default to 4.0.625; task 1.1 passed local PHP/JavaScript image smoke and independent review. No host deployment or hook latency claim follows from that runtime evidence.
-- `contributor-scan` has 25/41 checked tasks, including the approved and verified frontend-retention prerequisite 2.18.
-  `flow-aware-ranking` is still an unapproved brief despite implementation history.
+Add a task-local recorded-veto experimental flag and run the pinned NodeGoat
+vulnerable, fixed and unchanged revisions under it (M1a). The raw `<lambda>2` witness
+already exists; the deliverable is that witness plus the exact list of admission vetoes
+that discard it. Then repair only those vetoes and rerun through production rules (M1b).
+Normal hook eligibility stays disabled during this experiment.
+Do not start another broad speed campaign before this outcome exists. See the
+[owner diagnosis](../specs/contributor-scan/release-remediation-research.md).
+
+### Approach and boundaries
+
+The existing ranker owns scope. Vendor code stays out of targets and graphs. Framework
+facts and frontends supply evidence to a language-agnostic core. Unknown dependencies
+remain explicit; removing global completeness vetoes requires question-owned evidence,
+not dropped safety checks. Advisory and blocking share the same actionability bar.
+
+Graph persistence now works: identical-tip replays take 18.5–18.9s. All 18 other measured
+transactions still time out and 0/24 target checks complete. A local Joern session census
+probe is promising, but full-query equivalence and hook performance are unverified.
+These findings inform M2; they do not complete M1. No second IR/engine, new heuristic
+scope selector, differential graph mutation or unrelated backlog is part of this path.
 
 ## Existing Spec Updates
 
-- [ ] `contributor-scan` — review the draft driver/backend integration amendment; reconcile packaging
-  pins, family-specific sanitizer task 5.6, exact scope reporting and repository baseline honesty.
-  Preserve previously approved work; the new amendment is not implicitly approved.
-- [ ] `flow-aware-ranking` — review the amended experiment contract: ranker owns scope, vendor
-  boundary preserved, missing targets stay unresolved, actual detection and cost accompany rank,
-  untouched evaluation and exploration precede learned-ranking claims.
-- [ ] `zero-with-a-reason` — reconcile the broader funnel proposal with the hook's consumed coverage
-  contract; it is adjacent work, not a requirement to finish every diagnostics mechanism first.
+- [ ] pre-push-safety-net — Execute the accepted M1–M5 release milestone amendment.
+  Owns immutable replay, comparison, admission, evaluation and reporting. Preserve the
+  existing completed tasks; task 8.3 remains blocked until qualification passes.
+- [ ] contributor-scan — Supply the required query/operation/context fixes for M1,
+  followed by equivalent bounded session execution for M2 and shared transfer evidence.
+  Frontend retention 2.18 and named census repair 2.19 are already verified.
+- [ ] flow-aware-ranking — Preserve ranker-owned scope and normalized cross-language
+  behavior. New ranking research is not a prerequisite for the first useful comparison.
+- [ ] zero-with-a-reason — Adjacent diagnostics work; finishing its whole backlog is
+  not required before M1.
 
 ## Specs (dependency order)
 
-- [ ] pre-push-safety-net — Immutable pushed tips, existing-ranker integration, compatible artifact
-  reuse, total deadline, change attribution, actionability admission and compact hook behavior.
-  Dependencies: contributor-scan. Requirements/design approved 2026-09-12; tasks generated
-  (8 groups, 27 executable subtasks), independently reviewed and approved; groups 1–7 are implemented and verified (23/27 tasks), including the resolved frontend-retention prerequisite.
+- [ ] pre-push-safety-net — Existing approved implementation, dependent on contributor-scan.
+  Groups 1–7 and tasks 8.1, 8.2, 8.4 are verified; 26/27 executable tasks complete.
+  Remaining release work follows [M1–M5](../specs/pre-push-safety-net/release-milestones.md).
+  This amendment creates no duplicate implementation spec and resets no prior approvals.
 
-### Next concrete step
+### Progress reporting
 
-Groups 1–5 now connect immutable replay to the existing ranker, detector, comparison,
-admission and compact artifacts. The first frozen PMPro/Node experiment is **NO-GO**:
-all six cold security/fixed/benign cases timed out without completed target checks.
-After repairing post-deadline semantic planning and a repeated availability probe,
-every final CLI run saved its artifact and returned in 30.55–30.64 seconds. PMPro spent
-its deadline in preparation/discovery after materializing both trees; Node reached the
-driver but did not complete checks. The exact 11-case population remains unresolved.
-No normal capability is enabled and these six cold samples establish no warm p95 claim.
-
-Group 6 now provides complete preparation/discovery, graph and query reuse through explicit
-`--cache-dir`, bounded publication and isolated graph leases. A packaged authored JavaScript
-control preserved the same evidence/admission as an uncached run; its identical-revision
-replay took 2.00s. Source/declaration changes invalidate affected units. This correctness
-control does not establish representative changed-code p95, independent alert precision or
-eligibility. Rollout remains NO-GO and normal capabilities remain disabled.
-
-Group 7 now provides the real multi-ref push interface, opt-in hook integration and bounded
-optional selection among already-admitted witnesses. Group 8 is next and
-must still pass the joint gates on declared populations. Keep the existing thresholds and
-profile preparation, graph construction and queries separately when investigating misses;
-do not substitute identical-tip hits for warm changed-code performance.
-
-Tasks 4.3 and groups 5–6 used the documented Kiro manual review fallback after the agent
-thread limit; this is not independent review. See `pre-push-safety-net/implementation-group-5.md`
-and `benchmarks/measurements/2026-09-13-first-replay-experiment.json` for provenance,
-initial instrument failures, their repairs and the newly frozen final trial. The NodeGoat
-teaching workload did not cause a framework/fact adaptation or ranking retune. Ghost remains
-untouched; independent PHP/Python eligibility populations and C/C++ property support remain
-separate gaps. Automatic dominance-only context projection is still an upstream limit.
+Lead with the current milestone, the demonstrated developer outcome, the blocker and
+the next action. Keep implementation counts separate from release readiness. Preserve
+prior evidence and review limits in the [implementation records](../specs/pre-push-safety-net/status.md).
+The earlier PHP-first and runtime-first narrative below is historical and does not
+supersede this accepted sequence. Blocking deployment follows a later explicit decision.
 
 ## Historical roadmap narrative — September 9–11
 

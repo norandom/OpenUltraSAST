@@ -2,6 +2,11 @@
 
 Status: approved for task generation on 2026-09-12 following the maintainer's "ok, next kiro phase". The acceptance profile defines evaluation targets, not measured achievements.
 
+Release sequencing amendment accepted 2026-09-14: [release milestones](release-milestones.md)
+defines M1 usefulness → M2 speed → M3 shared-language transfer → M4 independent qualification
+→ M5 narrow advisory rollout, with observable exit evidence. The requirements and numerical
+acceptance thresholds below remain unchanged.
+
 ## Introduction and Boundary
 
 OpenUltraSAST helps developers catch concrete security regressions in the resulting commits they

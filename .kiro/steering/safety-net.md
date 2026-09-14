@@ -3,6 +3,15 @@
 Updated 2026-09-12 from the maintainer's explicit direction. This direction supersedes the
 WordPress-first release framing in older steering; historical measurements remain historical.
 
+Release order accepted 2026-09-14: first prove one useful Node changed-code comparison
+with an analyzed quiet fixed twin, then make the same analysis fast, verify PHP/Python
+transfer, qualify independently, and enable only passing advisory capabilities. See
+[the milestone spec](../specs/pre-push-safety-net/release-milestones.md). We are at M1a
+(show the detection with vetoes recorded, one-week box), then M1b (repair only what fired);
+task counts and an experimental alpha tag do not establish release readiness. PMPro
+remains a core regression/development case; any PMPro core retune still requires frozen
+Node transfer evidence. This sequence supersedes older runtime-first next-step wording.
+
 ## Purpose
 
 AI accelerates code production. OpenUltraSAST should help developers catch concrete security

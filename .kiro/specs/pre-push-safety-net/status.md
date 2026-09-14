@@ -5,6 +5,16 @@ approved. **26/27 executable tasks complete; task 8.3 remains blocked.**
 Rollout: **NO-GO**. The alpha tag publishes experimental implementation and evidence;
 it does not approve normal hook capabilities or production enforcement.
 
+## Next release milestone
+
+**M1a: show the NodeGoat detection with every admission veto recorded rather than
+applied, fixed twin analyzed and quiet, one-week time box. Then M1b: repair only the
+vetoes that fired and rerun through production rules.** None of the five release
+milestones is verified yet.
+The 26/27 task count is implementation progress, not proximity to rollout. Follow the
+accepted [release milestone spec](release-milestones.md): usefulness → speed → shared
+PHP/Python transfer → independent qualification → narrow advisory rollout.
+
 ## Verified
 
 Immutable pushed snapshots, shared multi-ref deadlines, ranker-owned scope, physical
@@ -25,8 +35,8 @@ gates and a packaged native PHP/JavaScript partition smoke. See
    completed all 21 measurements: all 18 changed/cold/growth/multi-ref transactions timed
    out; the three identical-tip replays took 18.521–18.874s with valid graph/query reuse.
    Still 0/24 declared target checks completed. Maximum observed cancellation/report
-   overrun was 0.874s, below the two-second allowance. Amortize engine startup/loading work and rerun the
-   frozen seven-class profile; require warm p95 <=30s and >=95% completed supported checks.
+   overrun was 0.874s, below the two-second allowance. After M1 establishes the useful
+   comparison, amortize engine startup/loading and rerun the frozen seven-class profile; require warm p95 <=30s and >=95% completed supported checks.
 2. **Target and change-context evidence remains incomplete.** VAmPI preserves raw findings
    at all three known sites, but the exact SQLI function question/transitive witness and
    supported authorization context are unresolved. Raw findings or rank positions cannot

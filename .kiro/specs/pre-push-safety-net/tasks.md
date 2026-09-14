@@ -1,12 +1,14 @@
 # Implementation Plan: pre-push-safety-net
 
-Status: task plan approved by the maintainer on 2026-09-12. Groups 1–6 (tasks 1.1–6.4)
-are implemented, reviewed and verified (20/27 subtasks). Tasks 4.3 and groups 5–6 used the
-explicit Kiro manual review fallback after fresh agent dispatch reached its thread limit.
-Group 5's six cold PMPro/Node timeouts remain historical NO-GO evidence. Group 6 verifies
-compatible reuse with equal evidence/admission in a packaged authored JavaScript control;
-its identical-revision run completed in 2.00s. This is not representative warm p95 or
-independent capability qualification. Groups 7–8 remain pending; rollout remains NO-GO.
+Status: the existing task plan remains approved. Groups 1–7 and tasks 8.1, 8.2 and 8.4
+are verified (26/27 executable subtasks); task 8.3 and rollout remain NO-GO. Later work
+used the documented manual review fallback where agent dispatch reached its limit.
+
+The accepted [release milestone spec](release-milestones.md) now orders remaining work:
+M1 useful Node comparison → M2 speed → M3 shared-language transfer → M4 independent
+qualification → M5 narrow advisory rollout. All five milestones remain unverified.
+These are release outcomes, not additional checked implementation tasks. Prepare bounded
+owner design/task amendments as needed; preserve all completed task evidence below.
 
 ## Execution contract
 
