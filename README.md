@@ -1,5 +1,10 @@
 # OpenUltraSAST
 
+**v1.2.0-alpha.1:** experimental pre-push safety net. Integration and census repairs are
+verified; useful hook coverage, latency and independent capability qualification remain
+**NO-GO**. No real hook capability is enabled. See [release notes](RELEASE_NOTES.md) and
+[spec status](.kiro/specs/pre-push-safety-net/status.md).
+
 OpenUltraSAST is a command-line security analysis harness built around one
 goal: eliminating false positives by turning a suspicion into an
 evidence-backed finding, and learning from the claims that were rejected. A

@@ -1,7 +1,7 @@
 {
   "feature_name": "contributor-scan",
   "created_at": "2026-09-08T20:00:00Z",
-  "updated_at": "2026-09-14T06:06:32.633059+00:00",
+  "updated_at": "2026-09-14T06:10:56.975614+00:00",
   "language": "en",
   "phase": "implementation",
   "approvals": {
@@ -65,5 +65,12 @@
       "independent": false,
       "record": "census-repair-verification.md"
     }
+  },
+  "release": {
+    "tag": "v1.2.0-alpha.1",
+    "package_version": "1.2.0a1",
+    "channel": "alpha",
+    "rollout_decision": "NO-GO",
+    "status_record": "census-repair-verification.md"
   }
 }
