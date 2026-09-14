@@ -89,3 +89,19 @@ The partial-census correction now preserves actual counts and missing filenames,
 with missing/empty/malformed census still preventing completed questions. Runtime amortization and VAmPI context/witness evidence remain open.
 
 Source: [Joern 4.0.625 AstGenRunner](https://raw.githubusercontent.com/joernio/joern/v4.0.625/joern-cli/frontends/jssrc2cpg/src/main/scala/io/joern/jssrc2cpg/utils/AstGenRunner.scala).
+
+## 2026-09-14 post-census measurement and lifecycle experiment
+
+The full new profile establishes compatible graph/query reuse on identical tips
+(18.521–18.874s), but all 18 other transactions time out and 0/24 target checks complete.
+The isolated local-session census probe is promising: four warm requests take 0.221–0.467s
+versus 14.292s for disposable execution, with confirmed hanging-operation cancellation
+and process-group reaping in 0.043s. Startup and load still cost 12.805s and 3.636s.
+The first transport attempt correctly failed on HTTP success without a response payload;
+all attempts are retained. No production session integration or query equivalence is claimed.
+
+[Remediation research](release-remediation-research.md) records the exact results and
+the shared context-contract gaps: missing non-taint family producers, global vendor and
+line-correspondence vetoes, and unresolved query-to-operation identity. Preserve the gaps
+until actual question-owned dependency/correspondence evidence can resolve them. Task 8.3
+and independent qualification remain blocked; the alpha's eligibility remains disabled.

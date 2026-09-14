@@ -21,11 +21,11 @@ gates and a packaged native PHP/JavaScript partition smoke. See
 
 ## Rollout blockers
 
-1. **Useful checks within the deadline are unproven.** The last full representative
-   runtime profile timed out on all 21 Node transactions, completing 0/24 declared target
-   checks. Cancellation/reporting stayed below the two-second allowance. The subsequent
-   census repair is verified, but the full changed-code runtime/coverage profile has not
-   passed under its new identities. Amortize engine startup/loading work and rerun the
+1. **Useful checks within the deadline are unproven.** The fresh post-census profile
+   completed all 21 measurements: all 18 changed/cold/growth/multi-ref transactions timed
+   out; the three identical-tip replays took 18.521–18.874s with valid graph/query reuse.
+   Still 0/24 declared target checks completed. Maximum observed cancellation/report
+   overrun was 0.874s, below the two-second allowance. Amortize engine startup/loading work and rerun the
    frozen seven-class profile; require warm p95 <=30s and >=95% completed supported checks.
 2. **Target and change-context evidence remains incomplete.** VAmPI preserves raw findings
    at all three known sites, but the exact SQLI function question/transitive witness and
@@ -60,5 +60,14 @@ quality evaluation and packaged hook validation. Keep task 8.3 unchecked and the
 in implementation until those mandatory results are established.
 
 Evidence: [group 8 validation](validation-group-8.md),
-[runtime scorecard](../../../benchmarks/measurements/2026-09-13-nodegoat-feasibility.json),
+[post-census runtime scorecard](../../../benchmarks/measurements/2026-09-14-nodegoat-post-census-feasibility.json),
 [census repair](../../../benchmarks/measurements/2026-09-14-node-census-repair.json).
+
+The owner investigation now distinguishes missing family context producers, globally
+propagated vendor/correspondence gaps, and query-to-operation identity. See
+[remediation research](../contributor-scan/release-remediation-research.md). These are
+next implementation prerequisites, not completed fixes or changed acceptance gates.
+
+An isolated Joern session probe matched the full Node census with four warm requests in
+0.221–0.467s and verified cancellation/reaping in 0.043s. It identifies a promising engine
+lifecycle change; full-query equivalence and changed-code performance remain unverified.

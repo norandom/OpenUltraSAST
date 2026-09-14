@@ -120,3 +120,12 @@ questions. Native PHP/JavaScript partition smoke and 1321 tests pass. Runtime/co
 identity changed, so prior eligibility is stale and remains disabled. This repairs one
 shared prerequisite; pre-push 8.3, runtime amortization, VAmPI context/transitive
 evidence and independent qualification remain open. No ranker retune or rollout GO.
+
+The 2026-09-14 post-census profile now verifies identical-tip reuse (18.521–18.874s,
+two graph hits and 1,512 query hits per repeat), while all 18 other transactions time
+out and 0/24 target checks complete. The separate local-session census experiment is
+promising but does not qualify security queries or hook latency. The contributor-scan
+`release-remediation-research.md` records missing family context producers, global
+vendor/correspondence completeness vetoes, and query-to-operation identity as the next
+shared-contract work. Resolving a boundary requires evidence of its relevance and scope;
+do not simply drop completeness checks to increase admissions. Rollout remains NO-GO.

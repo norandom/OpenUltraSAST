@@ -1,0 +1,933 @@
+{
+  "workloads": {
+    "identical-tip": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 18.683484157081693,
+      "p95_seconds": 18.87442348897457,
+      "timeouts": 0,
+      "completed_targets": 0,
+      "expected_targets": 3,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0,
+      "pass": false
+    },
+    "function-edit": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 30.599056344944984,
+      "p95_seconds": 30.63944144092966,
+      "timeouts": 3,
+      "completed_targets": 0,
+      "expected_targets": 3,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0.6394414409296587,
+      "pass": false
+    },
+    "dependency-edit": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 30.618500820943154,
+      "p95_seconds": 30.62463433505036,
+      "timeouts": 3,
+      "completed_targets": 0,
+      "expected_targets": 3,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0.6246343350503594,
+      "pass": false
+    },
+    "configuration-edit": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 30.60899081302341,
+      "p95_seconds": 30.620318321045488,
+      "timeouts": 3,
+      "completed_targets": 0,
+      "expected_targets": 3,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0.6203183210454881,
+      "pass": false
+    },
+    "cold": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 30.597664796048775,
+      "p95_seconds": 30.642004502937198,
+      "timeouts": 3,
+      "completed_targets": 0,
+      "expected_targets": 3,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0.6420045029371977,
+      "pass": false
+    },
+    "growth": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 30.854041778016835,
+      "p95_seconds": 30.873181788949296,
+      "timeouts": 3,
+      "completed_targets": 0,
+      "expected_targets": 3,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0.8731817889492959,
+      "pass": false
+    },
+    "multi-ref": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 30.620603621937335,
+      "p95_seconds": 30.667265709955245,
+      "timeouts": 3,
+      "completed_targets": 0,
+      "expected_targets": 6,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0.6672657099552453,
+      "pass": false
+    }
+  },
+  "runtime_verdict": "NO-GO",
+  "rollout": "NO-GO",
+  "qualification_limit": "Development NodeGoat, n=3 per workload; independent quality and multi-project performance not established.",
+  "missing_workloads": [],
+  "profile_sha256": "a64e8ed3b3f833e4295edab3ccda09bf2446b173c57c99c3dd5defce5f6af201",
+  "priming_completed": false,
+  "schema_version": 1,
+  "experiment": "nodegoat-post-census-v1",
+  "candidate_commit": "04f888019b4549853efb949c26adc7b0a24aadab",
+  "image": "sha256:e6f8dc6cc7547f7118bd058687de676e0fcf741799d1d3839b3e8648ce190fbb",
+  "provenance": {
+    "repository": "/results/post-census-runtime-v1/objects.git",
+    "engine_runtime": "7213365694f836758cb5fe2b05504cbbb735b8c2f0dea5d5dd19546a1f5fd43d",
+    "engine": "joern-4.0.625",
+    "facts": "32edb6e1a78f1afb08ac4248cd436be16663e0d90dc1b3aaf948f2ce49a5a8f0",
+    "graph_layout": "403dda8d804c6109800ab95677f1c9a7c6158b9c83e58a65e2e6baa5132eefa8",
+    "queries": "7bf090e053331f03d04c9290c8a593d00efd4d390f4b77b8382c2befc47996cc",
+    "policy": "6fc8e3cf0d3a4f45dd882e37a753e34bc0cd187295cfbd3cbb6fc36ecf9cea20",
+    "core": "78716c62112f9aafb120f6c0547208f60216a2ef46f689cd4e81f5d63702db82",
+    "semantics": "2edd13e1582b9a1d5d611b01f9862fafcb8220dcc07838fe42f56e53be00c7f1",
+    "ranking_mode": "evidence",
+    "model": "disabled",
+    "capabilities": "9f0d85961ed49526a3131e71ec3f7e01aeca752da74ba7d74650168853781c9c",
+    "cache": "cold_no_reuse"
+  },
+  "hardware": {
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+    "cpu_affinity": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "cpuinfo": "processor\t: 0\nvendor_id\t: GenuineIntel\ncpu family\t: 6\nmodel\t\t: 158\nmodel name\t: Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz\nstepping\t: 10\nmicrocode\t: 0xfa\ncpu MHz\t\t: 3192.000\ncache size\t: 16384 KB\nphysical id\t: 0\nsiblings\t: 1\ncore id\t\t: 0\ncpu cores\t: 1\napicid\t\t: 0\ninitial apicid\t: 0\nfpu\t\t: yes\nfpu_exception\t: yes\ncpuid level\t: 22\nwp\t\t: yes\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon rep_good nopl xtopology cpuid tsc_known_freq pni pclmulqdq vmx ssse3 fma cx16 pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch cpuid_fault ssbd ibrs ibpb stibp tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt xsaveopt xsavec xgetbv1 xsaves arat vnmi umip md_clear flush_l1d arch_capabilities\nvmx flags\t: vnmi preemption_timer invvpid ept_x_only ept_ad ept_1gb flexpriority tsc_offset vtpr mtf vapic ept vpid unrestricted_guest shadow_vmcs pml\nbugs\t\t: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds swapgs srbds mmio_stale_data retbleed bhi ibpb_no_ret its\nbogomips\t: 6384.00\nclflush size\t: 64\ncache_alignment\t: 64\naddress sizes\t: 39 bits physical, 48 bits virtual\npower management:\n\nprocessor\t: 1\nvendor_id\t: GenuineIntel\ncpu family\t: 6\nmodel\t\t: 158\nmodel name\t: Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz\nstepping\t: 10\nmicrocode\t: 0xfa\ncpu MHz\t\t: 3192.000\ncache size\t: 16384 KB\nphysical id\t: 1\nsiblings\t: 1\ncore id\t\t: 0\ncpu cores\t: 1\napicid\t\t: 1\ninitial apicid\t: 1\nfpu\t\t: yes\nfpu_exception\t: yes\ncpuid level\t: 22\nwp\t\t: yes\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon rep_good nopl xtopology cpuid tsc_known_freq pni pclmulqdq vmx ssse3 fma cx16 pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch cpuid_fault ssbd ibrs ibpb stibp tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt xsaveopt xsavec xgetbv1 xsaves arat vnmi umip md_clear flush_l1d arch_capabilities\nvmx flags\t: vnmi preemption_timer invvpid ept_x_only ept_ad ept_1gb flexpriority tsc_offset vtpr mtf vapic ept vpid unrestricted_guest shadow_vmcs pml\nbugs\t\t: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds swapgs srbds mmio_stale_data retbleed bhi ibpb_no_ret its\nbogomips\t: 6384.00\nclflush size\t: 64\ncache_alignment\t: 64\naddress sizes\t: 39 bits physical, 48 bits virtual\npower management:\n\nprocessor\t: 2\nvendor_id\t: GenuineIntel\ncpu family\t: 6\nmodel\t\t: 158\nmodel name\t: Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz\nstepping\t: 10\nmicrocode\t: 0xfa\ncpu MHz\t\t: 3192.000\ncache size\t: 16384 KB\nphysical id\t: 2\nsiblings\t: 1\ncore id\t\t: 0\ncpu cores\t: 1\napicid\t\t: 2\ninitial apicid\t: 2\nfpu\t\t: yes\nfpu_exception\t: yes\ncpuid level\t: 22\nwp\t\t: yes\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon rep_good nopl xtopology cpuid tsc_known_freq pni pclmulqdq vmx ssse3 fma cx16 pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch cpuid_fault ssbd ibrs ibpb stibp tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt xsaveopt xsavec xgetbv1 xsaves arat vnmi umip md_clear flush_l1d arch_capabilities\nvmx flags\t: vnmi preemption_timer invvpid ept_x_only ept_ad ept_1gb flexpriority tsc_offset vtpr mtf vapic ept vpid unrestricted_guest shadow_vmcs pml\nbugs\t\t: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds swapgs srbds mmio_stale_data retbleed bhi ibpb_no_ret its\nbogomips\t: 6384.00\nclflush size\t: 64\ncache_alignment\t: 64\naddress sizes\t: 39 bits physical, 48 bits virtual\npower management:\n\nprocessor\t: 3\nvendor_id\t: GenuineIntel\ncpu family\t: 6\nmodel\t\t: 158\nmodel name\t: Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz\nstepping\t: 10\nmicrocode\t: 0xfa\ncpu MHz\t\t: 3192.000\ncache size\t: 16384 KB\nphysical id\t: 3\nsiblings\t: 1\ncore id\t\t: 0\ncpu cores\t: 1\napicid\t\t: 3\ninitial apicid\t: 3\nfpu\t\t: yes\nfpu_exception\t: yes\ncpuid level\t: 22\nwp\t\t: yes\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss syscall nx pdpe1gb rdtscp lm constant_tsc arch_perfmon rep_good nopl xtopology cpuid tsc_known_freq pni pclmulqdq vmx ssse3 fma cx16 pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch cpuid_fault ssbd ibrs ibpb stibp tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt xsaveopt xsavec xgetbv1 xsaves arat vnmi umip md_clear flush_l1d arch_capabilities\nvmx flags\t: vnmi preemption_timer invvpid ept_x_only ept_ad ept_1gb flexpriority tsc_offset vtpr mtf vapic ept vpid unrestricted_guest shadow_vmcs pml\nbugs\t\t: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds swapgs srbds mmio_stale_data retbleed bhi ibpb_no_ret its\nbogomips\t: 6384.00\nclflush size\t: 64\ncache_alignment\t: 64\naddress sizes\t: 39 bits physical, 48 bits virtual\npower management:\n\n",
+    "memory_limit": "3221225472"
+  },
+  "input_probe": {
+    "path": "app/routes/contributions.js",
+    "bytes": 2485,
+    "sha256": "196bdeaa22da4cfe8a851b1b932710b2fcedd21f14ed75d70b739ba759a01003"
+  },
+  "sample_count": 21,
+  "expected_target_checks": 24,
+  "complete_target_checks": 0,
+  "priming": {
+    "id": "lab-prime",
+    "elapsed_seconds": 338.1572693360504,
+    "exit_code": 0,
+    "instrument_error": null,
+    "timed_out": false,
+    "target_completed": false,
+    "completed_targets": 0,
+    "expected_targets": 1,
+    "coverage": "incomplete",
+    "timings": {
+      "comparison_0_deadline_seconds": 600.0,
+      "comparison_0_cancellation_allowance_seconds": 2.0,
+      "comparison_0_resolution_seconds": 0.008752948022447526,
+      "comparison_0_provenance_seconds": 0.3383526810212061,
+      "comparison_0_snapshot_seconds": 0.9428770090453327,
+      "comparison_0_snapshot_reuses": 0,
+      "comparison_0_discovery_seconds": 6.683045504032634,
+      "comparison_0_discovery_hits": 0,
+      "comparison_0_preparation_seconds": 7.646575673948973,
+      "comparison_0_head_seconds": 146.00156515697017,
+      "comparison_0_base_seconds": 183.43556397303473,
+      "comparison_0_admission_seconds": 0.01180072093848139,
+      "comparison_0_cleanup_seconds": 0.008542353054508567,
+      "comparison_0_graph_hits": 0,
+      "comparison_0_query_hits": 0,
+      "comparison_0_total_seconds": 337.48494182899594,
+      "total_seconds": 337.51618365803733,
+      "deadline_seconds": 600.0,
+      "cancellation_allowance_seconds": 2.0
+    },
+    "selected": 436,
+    "deferred": 0,
+    "stages": [
+      {
+        "stage": "frontend",
+        "seconds": 5.535995051963255,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "jssrc2cpg",
+        "scripts": []
+      },
+      {
+        "stage": "overlay",
+        "seconds": 15.779466217034496,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "overlay.sc"
+        ]
+      },
+      {
+        "stage": "census",
+        "seconds": 13.715866276063025,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "census.sc"
+        ]
+      },
+      {
+        "stage": "query",
+        "seconds": 20.49011949193664,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "taint.sc"
+        ]
+      },
+      {
+        "stage": "query",
+        "seconds": 15.058013109955937,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "dominance.sc"
+        ]
+      },
+      {
+        "stage": "query",
+        "seconds": 13.264211339992471,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "config.sc"
+        ]
+      },
+      {
+        "stage": "query",
+        "seconds": 20.799062896054238,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "taint.sc"
+        ]
+      },
+      {
+        "stage": "frontend",
+        "seconds": 5.451101527083665,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "jssrc2cpg",
+        "scripts": []
+      },
+      {
+        "stage": "overlay",
+        "seconds": 15.23851044406183,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "overlay.sc"
+        ]
+      },
+      {
+        "stage": "census",
+        "seconds": 13.708493661950342,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "census.sc"
+        ]
+      },
+      {
+        "stage": "query",
+        "seconds": 21.02365942695178,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "taint.sc"
+        ]
+      },
+      {
+        "stage": "query",
+        "seconds": 16.209100450971164,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "dominance.sc"
+        ]
+      },
+      {
+        "stage": "query",
+        "seconds": 15.529665985959582,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "config.sc"
+        ]
+      },
+      {
+        "stage": "query",
+        "seconds": 22.782978054019623,
+        "exit_code": 0,
+        "receipt": true,
+        "executable": "joern",
+        "scripts": [
+          "taint.sc"
+        ]
+      }
+    ]
+  },
+  "bundle": {
+    "path": "2026-09-14-nodegoat-post-census-feasibility.json.gz",
+    "sha256": "84e46c08500b28b6fec940ae7d92ef7e9773ae46222eb409e81e2dc4dfc68c72",
+    "files": 115
+  },
+  "verification": {
+    "provenance_matched_artifacts": [
+      "lab-prime",
+      "identical-tip-1",
+      "function-edit-1",
+      "dependency-edit-1",
+      "configuration-edit-1",
+      "cold-1",
+      "growth-1",
+      "multi-ref-1",
+      "identical-tip-2",
+      "function-edit-2",
+      "dependency-edit-2",
+      "configuration-edit-2",
+      "cold-2",
+      "growth-2",
+      "multi-ref-2",
+      "identical-tip-3",
+      "function-edit-3",
+      "dependency-edit-3",
+      "configuration-edit-3",
+      "cold-3",
+      "growth-3",
+      "multi-ref-3"
+    ],
+    "scorecard_recomputed": true,
+    "instrument_unchanged": true
+  },
+  "stages_by_workload": {
+    "identical-tip": [
+      {
+        "id": "identical-tip-1",
+        "stages": []
+      },
+      {
+        "id": "identical-tip-2",
+        "stages": []
+      },
+      {
+        "id": "identical-tip-3",
+        "stages": []
+      }
+    ],
+    "function-edit": [
+      {
+        "id": "function-edit-1",
+        "stages": [
+          {
+            "stage": "frontend",
+            "seconds": 5.127652005990967,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "jssrc2cpg",
+            "scripts": []
+          },
+          {
+            "stage": "overlay",
+            "seconds": 14.303520950954407,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "joern",
+            "scripts": [
+              "overlay.sc"
+            ]
+          },
+          {
+            "stage": "census",
+            "seconds": 5.399453875026666,
+            "exit_code": null,
+            "receipt": false,
+            "executable": "joern",
+            "scripts": [
+              "census.sc"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "function-edit-2",
+        "stages": [
+          {
+            "stage": "frontend",
+            "seconds": 5.848279949044809,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "jssrc2cpg",
+            "scripts": []
+          },
+          {
+            "stage": "overlay",
+            "seconds": 17.40009404893499,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "joern",
+            "scripts": [
+              "overlay.sc"
+            ]
+          },
+          {
+            "stage": "census",
+            "seconds": 1.5109580610878766,
+            "exit_code": null,
+            "receipt": false,
+            "executable": "joern",
+            "scripts": [
+              "census.sc"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "function-edit-3",
+        "stages": [
+          {
+            "stage": "frontend",
+            "seconds": 6.614455893984996,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "jssrc2cpg",
+            "scripts": []
+          },
+          {
+            "stage": "overlay",
+            "seconds": 16.355191554059274,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "joern",
+            "scripts": [
+              "overlay.sc"
+            ]
+          },
+          {
+            "stage": "census",
+            "seconds": 1.761953916051425,
+            "exit_code": null,
+            "receipt": false,
+            "executable": "joern",
+            "scripts": [
+              "census.sc"
+            ]
+          }
+        ]
+      }
+    ],
+    "dependency-edit": [
+      {
+        "id": "dependency-edit-1",
+        "stages": [
+          {
+            "stage": "frontend",
+            "seconds": 5.052323147072457,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "jssrc2cpg",
+            "scripts": []
+          },
+          {
+            "stage": "overlay",
+            "seconds": 15.059278422035277,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "joern",
+            "scripts": [
+              "overlay.sc"
+            ]
+          },
+          {
+            "stage": "census",
+            "seconds": 4.709083469002508,
+            "exit_code": null,
+            "receipt": false,
+            "executable": "joern",
+            "scripts": [
+              "census.sc"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "dependency-edit-2",
+        "stages": [
+          {
+            "stage": "frontend",
+            "seconds": 6.081233968958259,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "jssrc2cpg",
+            "scripts": []
+          },
+          {
+            "stage": "overlay",
+            "seconds": 17.401100196992047,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "joern",
+            "scripts": [
+              "overlay.sc"
+            ]
+          },
+          {
+            "stage": "census",
+            "seconds": 1.3855223159771413,
+            "exit_code": null,
+            "receipt": false,
+            "executable": "joern",
+            "scripts": [
+              "census.sc"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "dependency-edit-3",
+        "stages": [
+          {
+            "stage": "frontend",
+            "seconds": 5.76444402791094,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "jssrc2cpg",
+            "scripts": []
+          },
+          {
+            "stage": "overlay",
+            "seconds": 16.388202232075855,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "joern",
+            "scripts": [
+              "overlay.sc"
+            ]
+          },
+          {
+            "stage": "census",
+            "seconds": 2.5608381970087066,
+            "exit_code": null,
+            "receipt": false,
+            "executable": "joern",
+            "scripts": [
+              "census.sc"
+            ]
+          }
+        ]
+      }
+    ],
+    "configuration-edit": [
+      {
+        "id": "configuration-edit-1",
+        "stages": [
+          {
+            "stage": "frontend",
+            "seconds": 5.414422817993909,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "jssrc2cpg",
+            "scripts": []
+          },
+          {
+            "stage": "overlay",
+            "seconds": 14.533493454917334,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "joern",
+            "scripts": [
+              "overlay.sc"
+            ]
+          },
+          {
+            "stage": "census",
+            "seconds": 4.903721723938361,
+            "exit_code": null,
+            "receipt": false,
+            "executable": "joern",
+            "scripts": [
+              "census.sc"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "configuration-edit-2",
+        "stages": [
+          {
+            "stage": "frontend",
+            "seconds": 6.269063726998866,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "jssrc2cpg",
+            "scripts": []
+          },
+          {
+            "stage": "overlay",
+            "seconds": 17.50103864702396,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "joern",
+            "scripts": [
+              "overlay.sc"
+            ]
+          },
+          {
+            "stage": "census",
+            "seconds": 0.7454411250073463,
+            "exit_code": null,
+            "receipt": false,
+            "executable": "joern",
+            "scripts": [
+              "census.sc"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "configuration-edit-3",
+        "stages": [
+          {
+            "stage": "frontend",
+            "seconds": 5.795736771076918,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "jssrc2cpg",
+            "scripts": []
+          },
+          {
+            "stage": "overlay",
+            "seconds": 16.085061569930986,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "joern",
+            "scripts": [
+              "overlay.sc"
+            ]
+          },
+          {
+            "stage": "census",
+            "seconds": 2.824299877975136,
+            "exit_code": null,
+            "receipt": false,
+            "executable": "joern",
+            "scripts": [
+              "census.sc"
+            ]
+          }
+        ]
+      }
+    ],
+    "cold": [
+      {
+        "id": "cold-1",
+        "stages": [
+          {
+            "stage": "frontend",
+            "seconds": 5.790730625973083,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "jssrc2cpg",
+            "scripts": []
+          },
+          {
+            "stage": "overlay",
+            "seconds": 14.96458409796469,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "joern",
+            "scripts": [
+              "overlay.sc"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "cold-2",
+        "stages": [
+          {
+            "stage": "frontend",
+            "seconds": 6.379741131910123,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "jssrc2cpg",
+            "scripts": []
+          },
+          {
+            "stage": "overlay",
+            "seconds": 15.270657810033299,
+            "exit_code": null,
+            "receipt": false,
+            "executable": "joern",
+            "scripts": [
+              "overlay.sc"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "cold-3",
+        "stages": [
+          {
+            "stage": "frontend",
+            "seconds": 5.886531041003764,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "jssrc2cpg",
+            "scripts": []
+          },
+          {
+            "stage": "overlay",
+            "seconds": 15.618147548986599,
+            "exit_code": null,
+            "receipt": false,
+            "executable": "joern",
+            "scripts": [
+              "overlay.sc"
+            ]
+          }
+        ]
+      }
+    ],
+    "growth": [
+      {
+        "id": "growth-1",
+        "stages": [
+          {
+            "stage": "frontend",
+            "seconds": 6.169782203971408,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "jssrc2cpg",
+            "scripts": []
+          },
+          {
+            "stage": "overlay",
+            "seconds": 14.672080870019272,
+            "exit_code": null,
+            "receipt": false,
+            "executable": "joern",
+            "scripts": [
+              "overlay.sc"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "growth-2",
+        "stages": [
+          {
+            "stage": "frontend",
+            "seconds": 7.3367347629973665,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "jssrc2cpg",
+            "scripts": []
+          },
+          {
+            "stage": "overlay",
+            "seconds": 13.551422085962258,
+            "exit_code": null,
+            "receipt": false,
+            "executable": "joern",
+            "scripts": [
+              "overlay.sc"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "growth-3",
+        "stages": [
+          {
+            "stage": "frontend",
+            "seconds": 6.850248332950287,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "jssrc2cpg",
+            "scripts": []
+          },
+          {
+            "stage": "overlay",
+            "seconds": 13.980043021030724,
+            "exit_code": null,
+            "receipt": false,
+            "executable": "joern",
+            "scripts": [
+              "overlay.sc"
+            ]
+          }
+        ]
+      }
+    ],
+    "multi-ref": [
+      {
+        "id": "multi-ref-1",
+        "stages": [
+          {
+            "stage": "frontend",
+            "seconds": 5.759595423936844,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "jssrc2cpg",
+            "scripts": []
+          },
+          {
+            "stage": "overlay",
+            "seconds": 15.383583186077885,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "joern",
+            "scripts": [
+              "overlay.sc"
+            ]
+          },
+          {
+            "stage": "census",
+            "seconds": 7.119807181996293,
+            "exit_code": null,
+            "receipt": false,
+            "executable": "joern",
+            "scripts": [
+              "census.sc"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "multi-ref-2",
+        "stages": [
+          {
+            "stage": "frontend",
+            "seconds": 5.810313349007629,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "jssrc2cpg",
+            "scripts": []
+          },
+          {
+            "stage": "overlay",
+            "seconds": 16.645539265009575,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "joern",
+            "scripts": [
+              "overlay.sc"
+            ]
+          },
+          {
+            "stage": "census",
+            "seconds": 5.790726013015956,
+            "exit_code": null,
+            "receipt": false,
+            "executable": "joern",
+            "scripts": [
+              "census.sc"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "multi-ref-3",
+        "stages": [
+          {
+            "stage": "frontend",
+            "seconds": 6.108872640994377,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "jssrc2cpg",
+            "scripts": []
+          },
+          {
+            "stage": "overlay",
+            "seconds": 16.804343194002286,
+            "exit_code": 0,
+            "receipt": true,
+            "executable": "joern",
+            "scripts": [
+              "overlay.sc"
+            ]
+          },
+          {
+            "stage": "census",
+            "seconds": 5.258675410063006,
+            "exit_code": null,
+            "receipt": false,
+            "executable": "joern",
+            "scripts": [
+              "census.sc"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "limitations": [
+    "NodeGoat is development data; no independent capability qualification.",
+    "Identical-tip reuse is not warm changed-code performance.",
+    "All exact target checks remain unresolved; raw findings do not qualify completion.",
+    "No production engine, query, ranker or admission semantics changed during this experiment."
+  ]
+}
