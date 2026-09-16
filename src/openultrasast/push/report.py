@@ -41,9 +41,15 @@ class PushReport:
     change_context: ChangeContext | None = None
     change_contexts: tuple[ChangeContext, ...] = ()
     model_assistance: Mapping[str, object] = field(default_factory=dict)
+    # Labeled M1a recorded-veto evaluation. Present only under the explicit replay flag;
+    # it is retained beside the decision and never feeds admission or enforcement.
+    experimental: Mapping[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "model_assistance", MappingProxyType(dict(self.model_assistance)))
+        object.__setattr__(self, "experimental", MappingProxyType(dict(self.experimental)))
+        if self.experimental and not str(self.experimental.get("label", "")).startswith("EXPERIMENTAL"):
+            raise ValueError("experimental evaluation output must carry its experimental label")
         object.__setattr__(self, "provenance", MappingProxyType(dict(self.provenance)))
         object.__setattr__(self, "timings", MappingProxyType(dict(self.timings)))
         ids = tuple(defect.defect_id for defect in self.admission.defects)
@@ -126,6 +132,7 @@ def _write_artifact(report: PushReport, target: Path, temporary: Path, connectio
                     "timings": dict(report.timings),
                     "timing_scope": "Caller stage measurements; publication and rendering duration is returned in ReportDelivery.",
                     "resolution": report.resolution.to_payload() if report.resolution else None,
+                    "experimental": dict(report.experimental),
                 }
                 json.dump(payload, stream, ensure_ascii=True, allow_nan=False, indent=2)
                 stream.write("\n")
@@ -185,6 +192,20 @@ def _short(value: str, limit: int = 180) -> str:
     # or terminal escapes. Full spelling and every witness remain in the artifact.
     clipped = value if len(value) <= limit else value[: limit // 2] + "..." + value[-limit // 2 :]
     return json.dumps(clipped, ensure_ascii=True)[1:-1]
+
+
+def _experimental_line(experimental: Mapping[str, object]) -> str:
+    if experimental.get("status") != "evaluated":
+        return f"recorded-veto evaluation was not produced ({_short(str(experimental.get('reason', 'not_evaluated')))}); not an alert."
+    findings = experimental.get("findings")
+    count = len(findings) if isinstance(findings, list) else 0
+    vetoes = sum(len(f.get("vetoes", [])) for f in findings if isinstance(f, dict)) if isinstance(findings, list) else 0
+    base = experimental.get("base_only_findings")
+    quiet = len(base) if isinstance(base, list) else 0
+    return (
+        f"recorded-veto evaluation retained {count} raw finding(s) with {vetoes} recorded veto(es) and "
+        f"{quiet} base-only finding(s) in the detailed result; recorded, not applied; not an alert."
+    )
 
 
 def render_report(report: PushReport, *, artifact: Path | None, error: str | None = None) -> str:
@@ -250,6 +271,8 @@ def render_report(report: PushReport, *, artifact: Path | None, error: str | Non
         notices.append("Details could not be saved. Retry with a writable artifact path and available reporting time.")
     if notices:
         lines.append("Notice: " + " ".join(notices))
+    if report.experimental:
+        lines.append("Experimental: " + _experimental_line(report.experimental))
     if artifact is not None:
         lines.append("Details: " + _short(str(artifact), 4096))
     if report.result.push_disposition == "block":

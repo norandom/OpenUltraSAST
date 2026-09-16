@@ -189,6 +189,39 @@ Exit 1 with a complete scorecard is measured NO-GO; a missing scorecard is an in
 failure. Three samples per workload on development NodeGoat cannot independently qualify
 a production language/framework/family or establish broad multi-project performance.
 
+### M1a recorded-veto diagnosis (task 9.2)
+
+`m1a_record_vetoes.py` replays the pinned NodeGoat vulnerable, fixed and unchanged
+revisions through the production `ousast pre-push --base/--head` command under
+`--experimental-record-vetoes`. The flag records each comparison and admission veto per
+raw finding instead of applying it; it is off by default, refused in Git stdin mode, and
+enables no hook capability. Expected operation and outcome for all three comparisons are
+written to `m1a-record.json` before the first scan.
+
+```sh
+docker run --rm --network none --memory 3g --entrypoint python \
+  -v "$PWD:/context:ro" \
+  -v "$HOME/.cache/openultrasast/repos:/cache:ro" \
+  -v /absolute/writable/results:/results \
+  openultrasast:dev /context/benchmarks/push/m1a_record_vetoes.py \
+  --manifest /context/benchmarks/push/inputs.json --cache /cache \
+  --out /results/new-m1a --deadline 900
+```
+
+The output directory must not exist. `--deadline` is an explicitly named development
+budget: it obtains witnesses and cannot satisfy or measure the 30-second hook latency
+gate. Each case retains the full artifact, stdout/stderr, exact base/head pins, source
+byte receipts and the partition census. The record states, per case, the expectation
+declared beforehand against the observed outcome, and for every finding the exact list of
+vetoes that fired with whether each was recorded or still applied.
+
+Exit **0** requires the raw witness present on the vulnerable revision, the fixed twin
+genuinely analyzed and quiet, the unchanged revision analyzed and not reported as a new
+regression, and a recorded evaluation for all three. A timed-out or unanalyzed fixed twin
+fails M1a and triggers the milestone's kill criterion; silence is never a pass. Lifted
+vetoes are diagnostic only. This run admits no defect, enables no capability, and cannot
+qualify Node, PHP or Python.
+
 ### Capability qualification (task 8.3)
 
 The same `measure.py` replay instrument accepts `--selection development` (the

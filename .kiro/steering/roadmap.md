@@ -8,14 +8,14 @@ fast, prove cross-language transfer, qualify independently, then enable narrow a
 rollout**. The executable outcome contract lives in the existing
 [pre-push-safety-net release milestone spec](../specs/pre-push-safety-net/release-milestones.md).
 
-**We are at M1a. None of the five release milestones is verified yet.** The published
-`v1.2.0-alpha.1` and 26/27 completed implementation tasks describe delivered machinery,
+**We are at M1b. M1a is met; no other release milestone is verified yet.** The published
+`v1.2.0-alpha.1` and 28/29 completed implementation tasks describe delivered machinery,
 not a demonstrated useful safety net. Task 8.3 and rollout remain NO-GO.
 
 | Order | Milestone | Observable exit | Current state |
 |---|---|---|---|
-| M1a | Show the NodeGoat detection with every admission veto recorded, not applied | Raw finding with witness on the vulnerable revision; analyzed fixed twin and unchanged control quiet; per-finding veto list. One-week time box | NEXT |
-| M1b | Repair only the vetoes M1a showed to matter | Supported evaluation finding through production rules, exact change/base evidence and repair direction; fixed twin and unchanged control stay quiet | Pending M1a |
+| M1a | Show the NodeGoat detection with every admission veto recorded, not applied | Raw finding with witness on the vulnerable revision; analyzed fixed twin and unchanged control quiet; per-finding veto list. One-week time box | MET 2026-09-16 |
+| M1b | Repair only the vetoes M1a showed to matter | Supported evaluation finding through production rules, exact change/base evidence and repair direction; fixed twin and unchanged control stay quiet | NEXT |
 | M2 | Make that same analysis fast | Equivalent evidence; representative warm changed-code p95 <=30s, cancellation/report <=2s, >=95% supported completion | Pending M1 |
 | M3 | Prove the shared design transfers | PMPro/PHP and VAmPI/Python vulnerable/fixed evidence; unchanged core rules; Node replay after any PMPro core change | Pending M2 |
 | M4 | Qualify on independent cases | Reviewed untouched vulnerable/fixed/benign populations pass joint quality, coverage and latency gates per capability | Pending M3 |
@@ -23,12 +23,15 @@ not a demonstrated useful safety net. Task 8.3 and rollout remain NO-GO.
 
 ### Immediate next action
 
-Add a task-local recorded-veto experimental flag and run the pinned NodeGoat
-vulnerable, fixed and unchanged revisions under it (M1a). The raw `<lambda>2` witness
-already exists; the deliverable is that witness plus the exact list of admission vetoes
-that discard it. Then repair only those vetoes and rerun through production rules (M1b).
-Normal hook eligibility stays disabled during this experiment.
+Repair the five vetoes M1a recorded, then rerun the same three NodeGoat revisions without
+the flag through the production rules (M1b). Start with operation correspondence for an
+operation on a changed line: M1a measured that this one survives every other repair, and it
+was not in the earlier four-veto diagnosis. The others are per-family change context,
+question-owned vendor relevance, file-wide correspondence ambiguity scope and
+query-to-operation provenance. Vetoes that did not fire stay unchanged and their families
+stay experimental. Normal hook eligibility stays disabled.
 Do not start another broad speed campaign before this outcome exists. See the
+[M1a evidence](../specs/pre-push-safety-net/m1a-recorded-vetoes.md) and the
 [owner diagnosis](../specs/contributor-scan/release-remediation-research.md).
 
 ### Approach and boundaries

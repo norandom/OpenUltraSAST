@@ -1,17 +1,24 @@
 # Pre-push safety net status — v1.2.0-alpha.1
 
-Updated 2026-09-14. Phase: **implementation**. Requirements, design and tasks are
-approved. **26/27 executable tasks complete; task 8.3 remains blocked.**
+Updated 2026-09-16. Phase: **implementation**. Requirements, design and tasks are
+approved. **28/29 executable tasks complete; task 8.3 remains blocked.**
 Rollout: **NO-GO**. The alpha tag publishes experimental implementation and evidence;
 it does not approve normal hook capabilities or production enforcement.
 
 ## Next release milestone
 
-**M1a: show the NodeGoat detection with every admission veto recorded rather than
-applied, fixed twin analyzed and quiet, one-week time box. Then M1b: repair only the
-vetoes that fired and rerun through production rules.** None of the five release
-milestones is verified yet.
-The 26/27 task count is implementation progress, not proximity to rollout. Follow the
+**M1a is met. M1b is next: repair only the vetoes M1a showed to matter, then rerun the
+three revisions through the production rules.** The other four milestones remain unverified.
+
+M1a ran on 2026-09-16 within its one-week box. The raw `<lambda>2` witnesses are present at
+contributions.js lines 32–34, the fixed twin was genuinely analyzed and quiet, and the
+unchanged revision was not reported as a new regression, so the kill criterion did not
+trigger. Five vetoes fired and were recorded; with all five lifted the detection still stops
+at `operation_correspondence_unresolved`, because a newly introduced operation sits on a
+changed line and has no base anchor. That fifth veto was not in the earlier diagnosis and is
+now M1b's central repair. See [M1a evidence](m1a-recorded-vetoes.md).
+
+The 28/29 task count is implementation progress, not proximity to rollout. Follow the
 accepted [release milestone spec](release-milestones.md): usefulness → speed → shared
 PHP/Python transfer → independent qualification → narrow advisory rollout.
 
@@ -37,7 +44,10 @@ gates and a packaged native PHP/JavaScript partition smoke. See
    Still 0/24 declared target checks completed. Maximum observed cancellation/report
    overrun was 0.874s, below the two-second allowance. After M1 establishes the useful
    comparison, amortize engine startup/loading and rerun the frozen seven-class profile; require warm p95 <=30s and >=95% completed supported checks.
-2. **Target and change-context evidence remains incomplete.** VAmPI preserves raw findings
+2. **Target and change-context evidence remains incomplete.** M1a measured exactly which
+   contracts fail on the Node case: per-family change context, question-owned vendor
+   relevance, operation correspondence for changed lines, file-wide correspondence ambiguity
+   and query-to-operation provenance. VAmPI preserves raw findings
    at all three known sites, but the exact SQLI function question/transitive witness and
    supported authorization context are unresolved. Raw findings or rank positions cannot
    establish an actionable new regression. Repair this in the shared scan boundary and

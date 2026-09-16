@@ -1,14 +1,16 @@
 # Implementation Plan: pre-push-safety-net
 
 Status: the existing task plan remains approved. Groups 1–7 and tasks 8.1, 8.2 and 8.4
-are verified (26/27 executable subtasks); task 8.3 and rollout remain NO-GO. Later work
+are verified (28/29 executable subtasks, including group 9); task 8.3 and rollout remain NO-GO. Later work
 used the documented manual review fallback where agent dispatch reached its limit.
 
 The accepted [release milestone spec](release-milestones.md) now orders remaining work:
-M1 useful Node comparison → M2 speed → M3 shared-language transfer → M4 independent
-qualification → M5 narrow advisory rollout. All five milestones remain unverified.
-These are release outcomes, not additional checked implementation tasks. Prepare bounded
-owner design/task amendments as needed; preserve all completed task evidence below.
+M1a diagnose → M1b repair → M2 speed → M3 shared-language transfer → M4 independent
+qualification → M5 narrow advisory rollout. All milestones remain unverified.
+Milestones are release outcomes, not checked implementation tasks. Group 9 below is the
+bounded owner amendment M1a requires; it adds the task-local recorded-veto evaluation and
+its three-revision development run. It enables no capability and changes no gate.
+Preserve all completed task evidence below.
 
 ## Execution contract
 
@@ -245,9 +247,30 @@ owner design/task amendments as needed; preserve all completed task evidence bel
   - _Requirements: 3.1, 3.4, 5.1, 5.2, 5.3, 5.4, 5.5, 6.5, 7.1, 7.3, 7.4, 8.3, 8.4_
 
 
+- [x] 9. Diagnose the first useful detection with vetoes recorded (release milestone M1a)
+- [x] 9.1 Add the task-local recorded-veto evaluation flag
+  - Add an explicit experimental evaluation path that **records** each comparison and admission veto per raw finding instead of applying it. Keep it task-local, off by default, and available only on explicit `--base`/`--head` replay; refuse it on the Git stdin path so it can never become a hook capability.
+  - Lift only recognized completeness vetoes over a copy of the evidence: answered-then-demoted question outcomes, the vendor exclusion completion veto, and the diagnosed context/correspondence boundary kinds. Never lift failures: deadline exhaustion, unanswered questions, unreadable input, empty graphs and unparsed files stay applied, because silence from failure is not a quiet fixed twin.
+  - Retain the production novelty, reason and admission reasons beside the recorded ones for every finding, plus the query-to-witness identity difference, base-only findings and readable census receipts. Every payload carries an explicit experimental label; the recorded path admits no defect and enables no capability.
+  - Done when the flag is off by default, produces a labeled artifact section and terminal line under explicit replay, is refused in Git stdin mode, and unit controls prove recognized vetoes are recorded while failures and unrecognized boundaries remain applied.
+  - _Boundary: Delta and Actionability Policy, Push runner, Result and Hook Adapter, CLI integration_
+  - _Requirements: 3.1, 3.4, 5.5, 6.3, 7.3_
+  - _Verified 2026-09-16:_ 1,330 tests passed, nine skipped; global Ruff/format and touched mypy passed. Flag off by default, refused in Git stdin mode, labeled artifact section and terminal line under explicit replay. Controls prove recognized vetoes are recorded while deadline exhaustion, unanswered questions, empty graphs and unrecognized boundaries stay applied, and that the recorded path emits no defect even when a lifted candidate would otherwise admit. Regenerated the committed module audit for the added module.
+- [x] 9.2 Run the three NodeGoat revisions and produce the per-finding veto list
+  - Record exact base/head revisions, expected operation and expected outcome before running. Exercise the shipped replay path, existing ranker and physically vendor-free graph; do not substitute a hand-selected slice or hard-coded target function.
+  - Replay the pinned vulnerable, fixed and unchanged revisions under the flag with an explicitly named development budget. That budget cannot satisfy or measure the hook latency gate.
+  - Deliverable: the raw finding on the vulnerable revision with location and witness, the fixed twin genuinely analyzed and quiet, the unchanged revision not reported as a new regression, and for every finding the exact list of vetoes that fired and why, with source and census receipts.
+  - Done when one replayable three-revision record states each expectation against its observed outcome and names the vetoes that actually fired. A fixed twin that timed out or was not analyzed fails M1a and blocks M1b until diagnosed.
+  - _Boundary: Evaluation harness, full-run integration_
+  - _Depends: 9.1_
+  - _Requirements: 1.1, 2.1, 2.4, 3.4, 6.3, 7.1, 7.3_
+  - _Verified 2026-09-16:_ all three pinned revisions replayed through the production CLI under a named 900-second development budget; expectations frozen on disk first. Raw `<lambda>2` witnesses present at lines 32–34; fixed twin analyzed and quiet (target question answered with zero rows, no deadline reason, three base-only findings); unchanged revision analyzed and recorded `unchanged`. Five vetoes fired and were recorded; the remaining blocker is `operation_correspondence_unresolved` for an operation on a changed line. Zero admitted defects. Evidence: [M1a record](m1a-recorded-vetoes.md) and `benchmarks/measurements/2026-09-16-nodegoat-m1a-recorded-vetoes.json`. Diagnosis only; no capability enabled and no latency claim.
+
 ## Implementation Notes
 
 - Task5.2 measured PMPro timing out after both snapshots were materialized but before change context/graph analysis. Group6 must account for compatible snapshot/discovery reuse as well as graph reuse; identical-tip hits cannot substitute for the later representative changed-code latency gate. No new detector, scope heuristic or incremental CPG mutation is implied.
 - Cancellation must cover semantic planning and reporting, not only engine subprocesses: `_collect` and `_scope_work` now consume the shared deadline, and replay instantiates the budget-aware backend once. Preserve the 400-question failure-census and real Node artifact-retention regressions.
+
+- Group 9 (M1a) corrected the owner diagnosis: all four named vetoes fire on the NodeGoat case, and a fifth, `operation_correspondence_unresolved`, is the actual remaining blocker because a newly introduced operation sits on a changed line and has no base anchor. The unchanged revision resolves its base location on the same lines and is classified `unchanged`, which isolates correspondence as the mechanism. M1b repairs context producers, question-owned vendor relevance, operation correspondence, file-wide ambiguity scope and query-to-operation provenance; vetoes that did not fire stay unchanged.
 
 - Group 6: complete discovery/graph/query reuse is explicit via `--cache-dir`; source/declaration edits invalidate affected units. Installed frontend/adaptation bytes now bind graph and admission provenance. A valid cached census cannot qualify a fresh answer that omitted its own census. Identical-revision timing is not the changed-code rollout gate.

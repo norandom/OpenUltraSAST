@@ -8,8 +8,8 @@ It does not approve an unreviewed implementation design or enable any capability
 
 ## Current position
 
-**Next milestone: M1a. None of M1–M5 is verified yet.** The 26/27 completed executable
-tasks measure implementation progress, not release readiness. Task 8.3 remains blocked.
+**Next milestone: M1b. M1a is met; none of M1–M5 is verified yet.** The 28/29 completed
+executable tasks measure implementation progress, not release readiness. Task 8.3 remains blocked.
 The published `v1.2.0-alpha.1` is an experimental implementation release, not a qualified
 advisory rollout. See [current status](status.md) for measured evidence and limitations.
 
@@ -37,8 +37,14 @@ result is a full production pass, not one detection.
 
 ### M1a — Show the detection with every veto recorded
 
-Status: **NEXT — not verified**. Time box: one week of maintainer effort from the first
-M1a run. Missing the box is a finding, not a reason to extend silently.
+Status: **MET 2026-09-16**, inside its one-week box. Evidence:
+[M1a record](m1a-recorded-vetoes.md) and
+[measurement](../../../benchmarks/measurements/2026-09-16-nodegoat-m1a-recorded-vetoes.json).
+Raw witnesses present at contributions.js lines 32–34; fixed twin analyzed and quiet with
+zero rows and no deadline reason; unchanged revision analyzed and recorded `unchanged`. The
+kill criterion did not trigger. Five vetoes fired and were recorded, and M1a corrected the
+diagnosis: with all five lifted the detection stops at `operation_correspondence_unresolved`,
+a fifth veto that was not previously named. No defect was admitted and no capability enabled.
 
 - Use the pinned NodeGoat contribution injection case, its fixed twin and an unchanged
   vulnerable revision as development data. Record exact base/head revisions, expected
@@ -63,7 +69,11 @@ diagnosed and recorded.
 
 ### M1b — Repair only the vetoes M1a showed to matter
 
-Status: **PENDING M1a**.
+Status: **NEXT — not verified**. M1a supplied the veto list: per-family change context,
+question-owned vendor relevance, operation correspondence for an operation on a changed line,
+file-wide correspondence ambiguity scope, and query-to-operation provenance. The owner
+diagnosis expected the first and the last two; operation correspondence is the addition M1a
+measured and is the blocker that survives every other repair.
 
 - From the M1a veto list, repair only the context/family/identity contracts this case
   actually needs. The owner diagnosis expects query-to-operation provenance and question-
@@ -192,9 +202,10 @@ remaining blocker and next concrete action. Report implementation task counts se
 Change a milestone to verified only with linked evidence; do not infer progress from
 elapsed effort or a completed experimental release tag.
 
-Immediate next action (M1a): add the task-local recorded-veto experimental flag, run the
-NodeGoat vulnerable, fixed and unchanged revisions under it, and produce the per-finding
-veto list alongside the `<lambda>2` witness. Then trace that witness into the declared
-contribution handler and turn the vetoes that actually fired into the smallest owner fix
-(M1b). Use [remediation research](../contributor-scan/release-remediation-research.md) as
-the starting record; do not begin another broad timing campaign before the M1 outcome exists.
+Immediate next action (M1b): repair the five vetoes M1a recorded, smallest first, starting
+with operation correspondence for an operation on a changed line, since that one survives
+every other repair. Then rerun the same three revisions without the flag through the
+production evidence and comparison rules. Use
+[M1a evidence](m1a-recorded-vetoes.md) and
+[remediation research](../contributor-scan/release-remediation-research.md) as the starting
+record; do not begin another broad timing campaign before the M1 outcome exists.

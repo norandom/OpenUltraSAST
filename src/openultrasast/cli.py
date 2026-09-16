@@ -132,6 +132,12 @@ def main(argv: list[str] | None = None) -> int:
     replay_parser.add_argument("--max-regions", type=int, default=500)
     replay_parser.add_argument("--mode", choices=("advisory", "blocking"), default="advisory")
     replay_parser.add_argument("--incomplete-coverage", choices=("allow", "block"), default="allow")
+    replay_parser.add_argument(
+        "--experimental-record-vetoes",
+        action="store_true",
+        help="explicit --base/--head replay only: record each comparison and admission veto per raw finding instead of "
+        "applying it; output is labeled experimental, changes no result and enables no hook capability",
+    )
 
     scan = subparsers.add_parser("scan", help="scan a local repository")
     scan.add_argument("path", type=Path)
@@ -235,9 +241,11 @@ def main(argv: list[str] | None = None) -> int:
             )
             if args.base and args.prior_hook:
                 parser.error("--prior-hook requires Git stdin mode")
+            if args.experimental_record_vetoes and not args.base:
+                parser.error("--experimental-record-vetoes requires explicit --base/--head replay; it is never a hook capability")
             prior_data = None
             if args.base:
-                delivery = replay(args.path, base=args.base, head=args.head, **options)
+                delivery = replay(args.path, base=args.base, head=args.head, record_vetoes=args.experimental_record_vetoes, **options)
             else:
                 # multiprocessing closes sys.stdin in its child; duplicate the Git pipe first.
                 with os.fdopen(os.dup(0), "rb") as stream:

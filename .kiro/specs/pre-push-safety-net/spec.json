@@ -1,7 +1,7 @@
 {
   "feature_name": "pre-push-safety-net",
   "created_at": "2026-09-12T15:35:00Z",
-  "updated_at": "2026-09-14T11:34:19.788221+00:00",
+  "updated_at": "2026-09-16T13:30:00+00:00",
   "language": "en",
   "phase": "implementation",
   "approvals": {
@@ -39,17 +39,17 @@
     {
       "at": "2026-09-12T16:20:40.814596Z",
       "source": "approve.",
-      "action": "Accepted the generated task plan and authorized starting group 1 (1.1\u20131.4). Implementation started; tasks require independent review and fresh verification before completion."
+      "action": "Accepted the generated task plan and authorized starting group 1 (1.1–1.4). Implementation started; tasks require independent review and fresh verification before completion."
     },
     {
       "at": "2026-09-12T18:32:19.033933Z",
       "source": "ok, next kiro phase, approved; correct. we can continue with the spec",
-      "action": "Authorized group 2 (2.1\u20132.3), resumed after local Claude Mem repair. Independent review and fresh verification remain required."
+      "action": "Authorized group 2 (2.1–2.3), resumed after local Claude Mem repair. Independent review and fresh verification remain required."
     },
     {
       "at": "2026-09-13T07:48:02.155687Z",
       "source": "continue with the task",
-      "action": "Authorized continuing group 3 (3.1\u20133.4) after the group 3 next-step summary. Independent task review and fresh verification remain required."
+      "action": "Authorized continuing group 3 (3.1–3.4) after the group 3 next-step summary. Independent task review and fresh verification remain required."
     },
     {
       "at": "2026-09-13T09:17:01.788332+00:00",
@@ -59,7 +59,7 @@
     {
       "at": "2026-09-13T10:26:47.307154+00:00",
       "source": "move on to group 4 as a whole",
-      "action": "Authorized all of group 4 (4.1\u20134.3), sequential implementation, independent task review and fresh verification. Groups 5\u20138 remain pending."
+      "action": "Authorized all of group 4 (4.1–4.3), sequential implementation, independent task review and fresh verification. Groups 5–8 remain pending."
     },
     {
       "at": "2026-09-13T12:40:57.961577+00:00",
@@ -69,17 +69,22 @@
     {
       "at": "2026-09-13T13:58:52.336506+00:00",
       "source": "continue with group 6 as a whole. do we need to amend the spec to get a go for the rollout",
-      "action": "Authorized group 6 (6.1\u20136.4). Clarified complete preparation/discovery reuse after measured group 5 bottleneck; rollout gates remain unchanged. Manual Kiro review fallback remains necessary after a fresh agent dispatch hit the thread limit."
+      "action": "Authorized group 6 (6.1–6.4). Clarified complete preparation/discovery reuse after measured group 5 bottleneck; rollout gates remain unchanged. Manual Kiro review fallback remains necessary after a fresh agent dispatch hit the thread limit."
     },
     {
       "at": "2026-09-13T15:45:15.902603+00:00",
       "source": "ok, continue with group 7 as a whole",
-      "action": "Authorized tasks 7.1\u20137.3; manual Kiro fallback after fresh dispatch hit thread limit. Group 8 and rollout remain pending."
+      "action": "Authorized tasks 7.1–7.3; manual Kiro fallback after fresh dispatch hit thread limit. Group 8 and rollout remain pending."
     },
     {
       "at": "2026-09-13T16:41:21.889949+00:00",
       "source": "move on to group 8",
-      "action": "Authorized tasks 8.1\u20138.4 and their qualification work; preserve joint gates and record NO-GO wherever prerequisites or measurements do not pass. Fresh dispatch hit thread limit; manual Kiro fallback."
+      "action": "Authorized tasks 8.1–8.4 and their qualification work; preserve joint gates and record NO-GO wherever prerequisites or measurements do not pass. Fresh dispatch hit thread limit; manual Kiro fallback."
+    },
+    {
+      "at": "2026-09-16T13:30:00+00:00",
+      "source": "add the M1a task to tasks.md and start it; continue with the plan",
+      "action": "Added group 9 (M1a) to the approved task plan as the bounded owner amendment the milestone requires, implemented the task-local recorded-veto flag (9.1) and ran the three NodeGoat revisions (9.2). Diagnosis only: no capability enabled, no gate changed, rollout remains NO-GO."
     }
   ],
   "task_review": {
@@ -118,7 +123,9 @@
       "7.3",
       "8.1",
       "8.2",
-      "8.4"
+      "8.4",
+      "9.1",
+      "9.2"
     ],
     "remaining_tasks": 1,
     "verification_record": "implementation-group-8.md",
@@ -132,11 +139,11 @@
       "implementation-group-7.md",
       "implementation-group-8.md"
     ],
-    "next_group": 8,
+    "next_group": 9,
     "blocked_tasks": [
       "8.3"
     ],
-    "feasibility": "NO-GO: post-census profile measured all 21 cases; 18 timed out, three identical-tip replays completed in 18.521\u201318.874s with valid reuse; 0/24 target checks completed. Maximum cancellation/report overrun 0.874s. See 2026-09-14-nodegoat-post-census-feasibility.json.",
+    "feasibility": "NO-GO: post-census profile measured all 21 cases; 18 timed out, three identical-tip replays completed in 18.521–18.874s with valid reuse; 0/24 target checks completed. Maximum cancellation/report overrun 0.874s. See 2026-09-14-nodegoat-post-census-feasibility.json.",
     "qualification": "NO-GO: eligibility implementation and evidence delivered; required independent populations and verified VAmPI transitive witness remain missing. Zero capabilities enabled.",
     "validation": {
       "decision": "NO-GO",
@@ -150,7 +157,15 @@
       "record": "../contributor-scan/census-repair-verification.md",
       "effect": "Node 44/44 input census restored; partial/missing census remains explicitly unresolved. Existing eligibility stale; runtime/context/independent qualification remain NO-GO."
     },
-    "remediation_research": "../contributor-scan/release-remediation-research.md"
+    "remediation_research": "../contributor-scan/release-remediation-research.md",
+    "m1a": {
+      "status": "MET",
+      "date": "2026-09-16",
+      "record": "m1a-recorded-vetoes.md",
+      "measurement": "../../../benchmarks/measurements/2026-09-16-nodegoat-m1a-recorded-vetoes.json",
+      "kill_criterion_triggered": false,
+      "result": "Raw <lambda>2 witnesses present at contributions.js 32-34; fixed twin analyzed and quiet (target question answered with zero rows, no deadline reason); unchanged revision recorded 'unchanged'. Five vetoes fired and were recorded. With all five lifted the detection stops at operation_correspondence_unresolved, a fifth veto not previously named. No defect admitted, no capability enabled."
+    }
   },
   "release": {
     "tag": "v1.2.0-alpha.1",
@@ -163,10 +178,12 @@
     "record": "release-milestones.md",
     "direction_approved": true,
     "approval_source": "I agree. please note this into the raodmap as a spec",
-    "current": "M1a",
-    "verified": [],
+    "current": "M1b",
+    "verified": [
+      "M1a"
+    ],
     "sequence": [
-      "M1a: NodeGoat detection with admission vetoes recorded, not applied (one-week box)",
+      "M1a: NodeGoat detection with admission vetoes recorded, not applied (MET 2026-09-16)",
       "M1b: repair only the vetoes M1a showed to matter; rerun through production rules",
       "M2: equivalent bounded runtime",
       "M3: shared-language transfer",
@@ -174,6 +191,7 @@
       "M5: narrow advisory rollout"
     ],
     "implementation_design_approval": "Existing approvals preserved; this records milestone order and exit criteria, not blanket approval of future design changes.",
-    "m1_split_accepted": "2026-09-14: maintainer asked to split M1 into M1a/M1b after review"
+    "m1_split_accepted": "2026-09-14: maintainer asked to split M1 into M1a/M1b after review",
+    "m1a_outcome": "Met inside the one-week box. Corrected the owner diagnosis: all four named vetoes fire, and operation correspondence for an operation on a changed line is the blocker that survives every other repair."
   }
 }

@@ -8,7 +8,7 @@ import os
 import pickle
 import selectors
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from contextlib import nullcontext
 from dataclasses import asdict, replace
 from pathlib import Path
@@ -18,10 +18,10 @@ from openultrasast.config import PushConfig
 from openultrasast.cpg.artifact import digest_value
 from openultrasast.cpg.backend import JoernBackend, engine_runtime_identity, joern_version
 from openultrasast.mapping import analyze_entry_points
-from openultrasast.model.contracts import ExecutionBudget
+from openultrasast.model.contracts import ChangeContext, ExecutionBudget
 from openultrasast.model.layout import layout_facts
 from openultrasast.model.regions import ScanRegion, regions_for
-from openultrasast.model.scan import ScanBudget, scan_repository
+from openultrasast.model.scan import ModelScanResult, ScanBudget, scan_repository
 from openultrasast.model.shipped import declared_sources
 from openultrasast.preprocess import build_file_target, enumerate_source_files
 from openultrasast.push.cache import ArtifactCache, SemanticKeys
@@ -32,6 +32,7 @@ from openultrasast.push.policy import (
     AdmissionCandidate,
     AdmissionResult,
     CapabilityKey,
+    DeltaComparison,
     admission_push_result,
     admit_candidates,
     compare_targeted_base,
@@ -40,6 +41,7 @@ from openultrasast.push.policy import (
 from openultrasast.push.report import PushReport, ReportDelivery, ScanRecord, _completed_scan, deliver_report, render_report
 from openultrasast.push.reuse import ReusingBackend, declaration_identity, discovery
 from openultrasast.push.snapshot import SnapshotAdapter
+from openultrasast.push.vetoes import FLAG, LABEL, record_vetoes
 
 _T = TypeVar("_T")
 
@@ -168,6 +170,31 @@ def _admit(candidates: tuple[AdmissionCandidate, ...], provenance: dict[str, str
     return result
 
 
+def _record(
+    head: ModelScanResult,
+    delta: DeltaComparison,
+    context: ChangeContext,
+    comparison: PushComparison,
+    reasons: Sequence[str],
+    admission: AdmissionResult,
+    provenance: dict[str, str],
+) -> dict[str, object]:
+    """Experimental M1a: the same policy over lifted evidence, reported only, never admitted."""
+    registry = load_registry(current=provenance)
+    report = record_vetoes(
+        head=head,
+        base=delta.base_scan,
+        context=context,
+        comparison=comparison,
+        semantics=delta.semantics,
+        production=delta.candidates,
+        production_admission={d.candidate.delta.defect_id: d.reasons for d in admission.dispositions},
+        coverage_reasons=tuple(dict.fromkeys(reasons)),
+        capabilities=registry.capabilities,
+    )
+    return report.to_payload()
+
+
 def _discovery_identity() -> str:
     root = Path(__file__).resolve().parents[1]
     # Discovery invokes the shipped mapper, preprocessing, layout and family specs.
@@ -187,8 +214,15 @@ def _analyze(
     cache_dir: Path | None = None,
     execution_budget: ExecutionBudget,
     resolved: PushComparison | None = None,
+    record_vetoes: bool = False,
 ) -> PushReport:
-    """Run a single explicit comparison; exit policy never stands for coverage."""
+    """Run a single explicit comparison; exit policy never stands for coverage.
+
+    `record_vetoes` is the task-local M1a evaluation flag: after the production result is
+    decided, the same policy is rerun over lifted evidence and every veto is recorded in
+    the artifact's labeled `experimental` section. It changes no result, admission or
+    eligibility, and the runner rejects it outside explicit replay.
+    """
     config = config or PushConfig()
     if max_regions < 1:
         raise ValueError("max_regions must be positive")
@@ -208,6 +242,7 @@ def _analyze(
     admission = AdmissionResult((), (), ())
     comparison = resolved
     context = None
+    experimental: dict[str, object] = {"label": LABEL, "flag": FLAG, "status": "not_evaluated"} if record_vetoes else {}
     timings: dict[str, float] = {
         "deadline_seconds": config.deadline_seconds,
         "cancellation_allowance_seconds": config.cancellation_allowance_seconds,
@@ -340,13 +375,25 @@ def _analyze(
                 )
                 admission = _prepare(lambda: _admit(candidates, provenance), budget)
                 timings[stage + "_seconds"] = time.monotonic() - stage_started
+                if record_vetoes:
+                    stage, stage_started = "recorded_vetoes", time.monotonic()
+                    assert context is not None
+                    recorded = _prepare(
+                        lambda: _record(head_scan, delta, context, comparison, tuple(reasons), admission, provenance), budget
+                    )
+                    experimental = {**recorded, "status": "evaluated"}
+                    timings[stage + "_seconds"] = time.monotonic() - stage_started
                 stage, stage_started = "cleanup", time.monotonic()
         timings[stage + "_seconds"] = time.monotonic() - stage_started
     except Exception as error:
         reasons.append(stage + "_failed:" + type(error).__name__)
         timings[stage + "_seconds"] = time.monotonic() - stage_started
+        if experimental.get("status") == "not_evaluated":
+            experimental["reason"] = reasons[-1]
     if time.monotonic() >= budget.deadline_monotonic:
         reasons.append("deadline_exhausted")
+        if experimental.get("status") == "not_evaluated":
+            experimental.setdefault("reason", "deadline_exhausted")
     timings["graph_hits"] = sum(item.graph_hits for item in reused)
     timings["query_hits"] = sum(item.query_hits for item in reused)
     head_records = [r.scan for r in records if r.side == "head"]
@@ -368,8 +415,16 @@ def _analyze(
         analyses = (ComparisonAnalysis(comparison, scopes, completed, coverage),)
     result = admission_push_result(admission, analyses, config=config)
     timings["total_seconds"] = time.monotonic() - started
-    report = PushReport(result, admission, tuple(records), provenance, timings, snapshots=tuple(manifests), change_context=context)
-    return report
+    return PushReport(
+        result,
+        admission,
+        tuple(records),
+        provenance,
+        timings,
+        snapshots=tuple(manifests),
+        change_context=context,
+        experimental=experimental,
+    )
 
 
 def _deliver(repository: Path, report: PushReport, artifact: Path, budget: ExecutionBudget) -> ReportDelivery:
@@ -390,6 +445,7 @@ def replay(
     max_regions: int = 500,
     cache_dir: Path | None = None,
     model_config: Path | None = None,
+    record_vetoes: bool = False,
 ) -> ReportDelivery:
     config = config or PushConfig()
     budget = ExecutionBudget(time.monotonic() + config.deadline_seconds, config.cancellation_allowance_seconds)
@@ -403,6 +459,7 @@ def replay(
         max_regions=max_regions,
         cache_dir=cache_dir,
         execution_budget=budget,
+        record_vetoes=record_vetoes,
     )
     from openultrasast.push.assistance import assist
 
