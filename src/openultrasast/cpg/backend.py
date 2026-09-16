@@ -923,24 +923,42 @@ class JoernBackend:
         A failure here is logged and the raw graph kept, so the scan degrades to the old cost rather than
         losing its graph.
         """
-        joern = shutil.which("joern")
-        if joern is None:
-            return False
-        script = self.queries_dir / "overlay.sc"
-        command = [joern, self._heap_flag(), "--script", str(script), "--param", f"cpgFile={cpg_path}"]
-        completed = self._run(command, timeout=self.build_timeout, cwd=scratch)
-        workspace = scratch / "workspace"
-        saved = workspace / cpg_path.name / "cpg.bin"
-        try:
+        # M2 11.4: the overlay is a whole JVM start, 15.8 s in the measured Node runs, and it is the
+        # last fixed cost that bypassed the session. `save` writes under the PROCESS working
+        # directory, which for a session is its own scratch and not this one, so the saved graph is
+        # looked for in both. Finding neither keeps the raw graph rather than reporting success:
+        # a graph without its dataflow layer has that layer recomputed by every later batch, 54 s
+        # each on a 637-file plugin, and nothing would otherwise say so.
+        session = self._session_for(cpg_path)
+        workspaces = [scratch / "workspace"]
+        answered = False
+        if session is not None:
+            workspaces.insert(0, session.scratch / "workspace")
+            body = self._session_payload(cpg_path, "overlay", {"cpgFile": str(cpg_path)})
+            answered = body is not None and extract_payload(body) is not None
+        if not answered:
+            joern = shutil.which("joern")
+            if joern is None:
+                return False
+            script = self.queries_dir / "overlay.sc"
+            command = [joern, self._heap_flag(), "--script", str(script), "--param", f"cpgFile={cpg_path}"]
+            completed = self._run(command, timeout=self.build_timeout, cwd=scratch)
             answered = completed is not None and completed.returncode == 0 and extract_payload(completed.stdout or "") is not None
-            if not answered or not saved.is_file():
+            if not answered:
                 detail = (completed.stderr or completed.stdout or "")[-400:] if completed is not None else "timeout"
                 logger.warning("overlays could not be applied to %s, keeping the raw graph: %s", cpg_path, detail)
+        saved = next((w / cpg_path.name / "cpg.bin" for w in workspaces if (w / cpg_path.name / "cpg.bin").is_file()), None)
+        try:
+            if not answered or saved is None:
+                if answered:
+                    self._note("overlay_saved_graph_missing")
+                    logger.warning("overlays reported success but saved no graph for %s, keeping the raw graph", cpg_path)
                 return False
             saved.replace(cpg_path)
             return True
         finally:
-            self._cleanup(workspace)
+            for workspace in workspaces:
+                self._cleanup(workspace)
 
     def _build_with_retries(
         self, root: Path, cpg_path: Path, scratch: Path, language: str, exclude: Sequence[str] = ()

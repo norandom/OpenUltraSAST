@@ -218,3 +218,48 @@ def test_a_session_that_cannot_start_falls_back_rather_than_answering(tmp_path):
     assert backend._session_payload(tmp_path / "cpg.bin", "census", {"cpgFile": "x"}) is None
     assert any("session_unavailable" in note or "session" in note for note in backend._diagnostics) or backend._diagnostics == []
     backend.close_session()
+
+
+def test_an_overlay_that_saves_no_graph_keeps_the_raw_one(tmp_path, monkeypatch):
+    """M2 11.4: reported success with no saved graph must not read as an applied overlay."""
+    from openultrasast.cpg.backend import JoernBackend
+
+    backend = JoernBackend(execution_budget=ExecutionBudget(time.monotonic() + 30, 1.0))
+    graph = tmp_path / "cpg.bin"
+    graph.write_bytes(b"raw")
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    # The engine answers, but nothing lands in any workspace.
+    monkeypatch.setattr("openultrasast.cpg.backend.shutil.which", lambda name: "/usr/bin/" + name)
+    monkeypatch.setattr(JoernBackend, "_run", lambda *a, **k: _completed('---OUSAST-CPG-BEGIN---\n{"files":"1"}\n---OUSAST-CPG-END---'))
+    assert backend._apply_overlays(graph, scratch) is False
+    assert graph.read_bytes() == b"raw"
+    assert "overlay_saved_graph_missing" in backend._diagnostics
+
+
+def test_an_overlay_saved_under_the_session_workspace_is_found(tmp_path, monkeypatch):
+    from openultrasast.cpg.backend import JoernBackend
+    from openultrasast.cpg.session import EngineSession
+
+    backend = JoernBackend(session_transport=True, execution_budget=ExecutionBudget(time.monotonic() + 30, 1.0))
+    graph = tmp_path / "cpg.bin"
+    graph.write_bytes(b"raw")
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    session_scratch = tmp_path / "session"
+    saved = session_scratch / "workspace" / graph.name
+    saved.mkdir(parents=True)
+    (saved / "cpg.bin").write_bytes(b"overlaid")
+    live = EngineSession(session_scratch, ExecutionBudget(time.monotonic() + 30, 1.0), {})
+    monkeypatch.setattr(JoernBackend, "_session_for", lambda self, path: live)
+    monkeypatch.setattr(
+        JoernBackend, "_session_payload", lambda self, path, query, params: '---OUSAST-CPG-BEGIN---\n{"files":"1"}\n---OUSAST-CPG-END---'
+    )
+    assert backend._apply_overlays(graph, scratch) is True
+    assert graph.read_bytes() == b"overlaid"
+
+
+def _completed(stdout):
+    import subprocess
+
+    return subprocess.CompletedProcess(["joern"], 0, stdout, "")
