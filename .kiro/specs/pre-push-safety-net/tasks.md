@@ -353,7 +353,7 @@ Preserve all completed task evidence below.
 
 
 - [ ] 11. Fit the same useful analysis into the push budget (release milestone M2)
-- [ ] 11.1 Give the backend a transaction-owned engine session
+- [x] 11.1 Give the backend a transaction-owned engine session
   - The measured cost is JVM startup, not analysis. In the M1b runs each disposable `joern --script` invocation cost 13 to 23 seconds while the work itself took under a second, and the 2026-09-14 lifecycle probe measured one session at 12.8 s to start, 3.6 s to load a graph and 0.22 to 0.47 s per warm request.
   - Own the session inside the existing backend for the length of one transaction: loopback only on an ephemeral port with no published port, a private working directory, one shared deadline, serialized requests, explicit graph identity and epoch, and kill-and-reap of the whole process group on cancellation, failure or exit.
   - An HTTP status is not an answer contract. Require a per-request receipt written to a fresh private file and verified before the answer is accepted, the way the probe's repaired instrument did after its first attempt read an empty stdout as a census.
@@ -361,13 +361,15 @@ Preserve all completed task evidence below.
   - Done when a controlled hanging in-session request is cancelled inside the allowance with no surviving process group, a crashed session answers nothing afterwards, and the disposable path still works unchanged.
   - _Boundary: contributor-scan runtime, Cache and Engine Boundary_
   - _Requirements: 4.1, 4.2, 7.3_
-- [ ] 11.2 Prove every shipped query kind answers identically through both transports
+  - _Verified 2026-09-16:_ 1,391 tests passed, nine skipped; Ruff/format/mypy passed. Sixteen session tests drive a real fake-server process: receipt verified before an answer is accepted, a mismatched receipt or crash poisons the session so nothing answers afterwards, an empty body with its receipt is a valid empty answer, a hanging request is cancelled and the process group is gone inside the allowance, and a launch failure is recorded rather than raised. The probe took four iterations, each failing loudly: `runScript` is absent from the server REPL; the server answers success even for a compile error, so the receipt is the only proof; a shipped `@main` script cannot be nested in a block, so definitions go to the top level unwrapped; and the REPL shadows `Console`, so capture must qualify `scala.Console.withOut`. Evidence: `benchmarks/measurements/2026-09-16-session-script-execution.json`.
+- [x] 11.2 Prove every shipped query kind answers identically through both transports
   - Run taint, dominance, configuration and census over the same graph through the session and through the disposable path and require identical payloads, including empty answers and the distinction between an empty answer and an unavailable one.
   - Cover a malformed or absent response, a switched graph, a second graph loaded in the same session, and a request arriving after cancellation. Equivalence on a census alone does not establish equivalence for security queries.
   - Done when every shipped query kind matches byte for byte on a real graph, and every failure shape is reported as unavailable rather than empty.
   - _Boundary: contributor-scan runtime, engine integration tests_
   - _Depends: 11.1_
   - _Requirements: 4.1, 4.2, 6.4, 7.3_
+  - _Verified 2026-09-16:_ taint, dominance and configuration all return byte-identical payloads through both transports on a real NodeGoat graph, with parameters built by each arbiter's own request function through the driver's family lookup. Failure shapes are correct: an empty answer stays present and distinguishable from an unavailable one, an unknown query and an absent graph are both unavailable, and two graphs in one session each answer about the graph the request names. Amortized over five taint requests the session took 22.48 s against 71.96 s disposable, all answered and identical; a single request per session is its worst case and is recorded as such. Evidence: `benchmarks/measurements/2026-09-16-session-transport-equivalence.json`.
 - [ ] 11.3 Route the batch path through the session behind an explicit setting
   - Consume the session from the existing batch and census paths, keeping the disposable path as the default and as the fallback. No capability, ranking decision or evidence semantics changes; only the transport does.
   - Account for session startup, load, requests and teardown inside the one shared deadline, and record them as separate stage costs so the next decision is made on measurements rather than estimates.

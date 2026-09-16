@@ -1,0 +1,245 @@
+{
+  "schema_version": 1,
+  "experiment": "session-transport-equivalence-v1",
+  "milestone": "M2 task 11.2",
+  "purpose": "Identical payloads from both transports for every shipped query kind",
+  "comparisons": [
+    {
+      "kind": "config",
+      "identical": true,
+      "disposable_seconds": 10.961318581947125,
+      "session_seconds": 13.480387849966064,
+      "disposable_rows": {
+        "r1": 0,
+        "__census__": 1
+      },
+      "session_rows": {
+        "r1": 0,
+        "__census__": 1
+      },
+      "disposable_unavailable": false,
+      "session_notes": []
+    },
+    {
+      "kind": "dominance",
+      "identical": true,
+      "disposable_seconds": 10.712132197921164,
+      "session_seconds": 13.892842576024123,
+      "disposable_rows": {
+        "r1": 1,
+        "__census__": 1
+      },
+      "session_rows": {
+        "r1": 1,
+        "__census__": 1
+      },
+      "disposable_unavailable": false,
+      "session_notes": []
+    },
+    {
+      "kind": "taint",
+      "identical": true,
+      "disposable_seconds": 13.876073300023563,
+      "session_seconds": 15.962363548926078,
+      "disposable_rows": {
+        "r1": 1,
+        "__census__": 1
+      },
+      "session_rows": {
+        "r1": 1,
+        "__census__": 1
+      },
+      "disposable_unavailable": false,
+      "session_notes": []
+    }
+  ],
+  "failure_shapes": [
+    {
+      "shape": "empty_answer_is_not_unavailable",
+      "answer_present": true,
+      "rows": 2
+    },
+    {
+      "shape": "unknown_query_is_unavailable",
+      "unavailable": true
+    },
+    {
+      "shape": "absent_graph_is_unavailable",
+      "unavailable": true
+    },
+    {
+      "shape": "switched_graph_answers_the_named_graph",
+      "correct": true
+    }
+  ],
+  "verdict": {
+    "status": "PASS",
+    "payloads_identical": true,
+    "failure_shapes_correct": true,
+    "amortized_speedup": 3.2,
+    "note": "Equivalence on one JavaScript graph for the shipped query kinds available to it. It is not a latency gate and qualifies no capability."
+  },
+  "source": {
+    "root": "/cache/nodegoat/c5cb68a7084e/app",
+    "files": 25,
+    "bytes": 318000,
+    "sha256": "459f6fd19c7d4700094f0b834eb5474ff94923014055c22385de9de3332c9d53"
+  },
+  "graph": {
+    "path": "/results/session-equivalence/scratch/cpg.bin",
+    "bytes": 425754
+  },
+  "requests": {
+    "taint": {
+      "sources": [
+        "parsedUrl",
+        "req.body",
+        "req.cookies",
+        "req.headers",
+        "req.params",
+        "req.query",
+        "req.rawHeaders",
+        "req.url",
+        "request.query",
+        "request.url",
+        "url.parse"
+      ],
+      "sinks": [
+        "eval",
+        "exec",
+        "execSync",
+        "execute",
+        "query"
+      ],
+      "sanitizers": [
+        "DOMPurify.sanitize",
+        "encodeURI",
+        "encodeURIComponent",
+        "escape",
+        "escapeHtml",
+        "path.normalize",
+        "path.resolve",
+        "sanitizeHtml"
+      ],
+      "function": "",
+      "file": "data/contributions-dao.js",
+      "parameterSources": "true",
+      "callDepth": "0",
+      "boundedSinks": [],
+      "hookCallbacks": "",
+      "dispatchApply": []
+    },
+    "dominance": {
+      "operations": [
+        "aggregate",
+        "deleteMany",
+        "deleteOne",
+        "deleteUser",
+        "execute",
+        "findAll",
+        "findById",
+        "findByIdAndDelete",
+        "findByIdAndUpdate",
+        "findByPk",
+        "findFirst",
+        "findMany",
+        "findOne",
+        "findUnique",
+        "grant",
+        "insertMany",
+        "insertOne",
+        "payout",
+        "prisma.create",
+        "prisma.delete",
+        "prisma.update",
+        "promote",
+        "query",
+        "raw",
+        "resetPassword",
+        "revoke",
+        "rm",
+        "run",
+        "setRole",
+        "transfer",
+        "unlink",
+        "updateMany",
+        "updateOne",
+        "upsert",
+        "where"
+      ],
+      "dischargers": [
+        "Authorized",
+        "Roles",
+        "UseGuards",
+        "assertOwner",
+        "assertUser",
+        "auth",
+        "auth().userId",
+        "auth.uid",
+        "authenticate",
+        "authorize",
+        "can",
+        "canAccess",
+        "checkAuth",
+        "checkOwner",
+        "ctx.user",
+        "currentUser",
+        "decoded.sub",
+        "ensureAuthenticated",
+        "getServerSession",
+        "getServerSession(",
+        "hasPermission",
+        "isAuthenticated",
+        "isOwner",
+        "jwt.verify",
+        "locals.user",
+        "ownsResource",
+        "passport.authenticate",
+        "protect",
+        "req.user",
+        "request.user",
+        "requireAuth",
+        "requireUser",
+        "session.user",
+        "session.userId",
+        "token.sub",
+        "user.id",
+        "verifyToken",
+        "withAuth"
+      ],
+      "function": "",
+      "file": "data/contributions-dao.js",
+      "operationRequires": "{\"aggregate\": [\"identity_constraint\", \"ownership_check\"], \"deleteMany\": [\"identity_constraint\", \"ownership_check\"], \"deleteOne\": [\"identity_constraint\", \"ownership_check\"], \"deleteUser\": [\"ownership_check\", \"path_guard\"], \"execute\": [\"identity_constraint\"], \"findAll\": [\"identity_constraint\", \"ownership_check\"], \"findById\": [\"identity_constraint\", \"ownership_check\"], \"findByIdAndDelete\": [\"identity_constraint\", \"ownership_check\"], \"findByIdAndUpdate\": [\"identity_constraint\", \"ownership_check\"], \"findByPk\": [\"identity_constraint\", \"ownership_check\"], \"findFirst\": [\"identity_constraint\", \"ownership_check\"], \"findMany\": [\"identity_constraint\", \"ownership_check\"], \"findOne\": [\"identity_constraint\", \"ownership_check\"], \"findUnique\": [\"identity_constraint\", \"ownership_check\"], \"grant\": [\"ownership_check\", \"path_guard\"], \"insertMany\": [\"identity_constraint\", \"ownership_check\"], \"insertOne\": [\"identity_constraint\", \"ownership_check\"], \"payout\": [\"ownership_check\", \"path_guard\"], \"prisma.create\": [\"identity_constraint\", \"ownership_check\"], \"prisma.delete\": [\"identity_constraint\", \"ownership_check\"], \"prisma.update\": [\"identity_constraint\", \"ownership_check\"], \"promote\": [\"ownership_check\", \"path_guard\"], \"query\": [\"identity_constraint\"], \"raw\": [\"identity_constraint\"], \"resetPassword\": [\"ownership_check\", \"path_guard\"], \"revoke\": [\"ownership_check\", \"path_guard\"], \"rm\": [\"ownership_check\", \"path_guard\"], \"run\": [\"identity_constraint\"], \"setRole\": [\"ownership_check\", \"path_guard\"], \"transfer\": [\"ownership_check\", \"path_guard\"], \"unlink\": [\"ownership_check\", \"path_guard\"], \"updateMany\": [\"identity_constraint\", \"ownership_check\"], \"updateOne\": [\"identity_constraint\", \"ownership_check\"], \"upsert\": [\"identity_constraint\", \"ownership_check\"], \"where\": [\"identity_constraint\", \"ownership_check\"]}",
+      "dischargersByKind": "{\"identity_constraint\": [\"auth().userId\", \"auth.uid\", \"ctx.user\", \"currentUser\", \"decoded.sub\", \"getServerSession(\", \"locals.user\", \"req.user\", \"request.user\", \"session.user\", \"session.userId\", \"token.sub\", \"user.id\"], \"ownership_check\": [\"assertOwner\", \"assertUser\", \"can\", \"canAccess\", \"checkOwner\", \"hasPermission\", \"isOwner\", \"ownsResource\"], \"path_guard\": [\"Authorized\", \"Roles\", \"UseGuards\", \"auth\", \"authenticate\", \"authorize\", \"checkAuth\", \"ensureAuthenticated\", \"getServerSession\", \"isAuthenticated\", \"jwt.verify\", \"passport.authenticate\", \"protect\", \"requireAuth\", \"requireUser\", \"verifyToken\", \"withAuth\"]}"
+    },
+    "config": {
+      "settings": [
+        "app.listen",
+        "cookie",
+        "cors",
+        "createClient",
+        "helmet",
+        "session",
+        "setHeader"
+      ],
+      "function": "",
+      "file": "data/contributions-dao.js"
+    }
+  },
+  "amortized": {
+    "requests": 5,
+    "disposable_seconds": 71.96347303909715,
+    "session_seconds": 22.476699194987305,
+    "session_all_answered": true,
+    "session_answers_identical": true
+  },
+  "limits": [
+    "One JavaScript graph from the pinned NodeGoat tree; PHP and Python transports are unproven.",
+    "Timings are orientation, not the hook latency gate: task 11.5 measures against the frozen profile.",
+    "A single request per session is the session's worst case and is recorded as such."
+  ],
+  "instrument_notes": [
+    "The first run created a fresh backend per comparison, so each session served one request and paid full startup. That measured the worst case and is why the amortized comparison exists.",
+    "The switched-graph check initially crashed on a scratch directory it never created."
+  ]
+}
