@@ -1163,7 +1163,11 @@ class JoernBackend:
         arguments = ", ".join(f"{name} = {json.dumps(_render(value))}" for name, value in sorted(params.items()))
         answer = session.evaluate(f"{symbol}({arguments})", timeout=self.query_timeout)
         if answer is None:
+            # Carry the engine's own account, not just our label: a bare `session_request_failed`
+            # cannot distinguish a timeout from a crash from an out-of-memory kill.
+            detail = (session.last_body or session.log_tail())[-500:].replace("\n", " ")
             self._note("session_query_failed:" + query + ":" + (session.failure or "unknown"))
+            logger.warning("session query %s failed (exit=%s): %s", query, session.exit_code(), detail)
             return None
         return answer.stdout
 

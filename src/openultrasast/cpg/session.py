@@ -87,6 +87,17 @@ class EngineSession:
     def alive(self) -> bool:
         return not self.failure and self._process is not None and self._process.poll() is None
 
+    def log_tail(self, limit: int = 2000) -> str:
+        """The end of the server's own log, which is where a crash or an OOM kill is recorded."""
+        try:
+            data = (self.scratch / "session.log").read_bytes()
+        except OSError:
+            return ""
+        return data[-limit:].decode("utf-8", "replace")
+
+    def exit_code(self) -> int | None:
+        return self._process.poll() if self._process is not None else None
+
     def _poison(self, reason: str) -> None:
         if not self.failure:
             self.failure = reason
@@ -143,8 +154,11 @@ class EngineSession:
         try:
             with urllib.request.urlopen(call, timeout=timeout) as response:  # noqa: S310 -- fixed loopback URL
                 body = json.load(response)
-        except (urllib.error.URLError, TimeoutError, OSError, ValueError):
-            self.last_body = ""
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError) as error:
+            # A transport failure usually means the server is gone, and the only account of why is
+            # in its own log. Without this the caller sees `session_request_failed` and nothing else,
+            # which is indistinguishable from a timeout, a crash and an out-of-memory kill.
+            self.last_body = f"{type(error).__name__}: {error}\n{self.log_tail()}"
             return None
         if not isinstance(body, dict):
             self.last_body = ""

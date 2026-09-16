@@ -278,3 +278,15 @@ def test_the_session_switch_is_explicit_and_defaults_off(monkeypatch):
     assert JoernBackend().session_transport is True
     # An explicit argument still wins over the environment in both directions.
     assert JoernBackend(session_transport=False).session_transport is False
+
+
+def test_a_transport_failure_carries_the_server_log(tmp_path, fake):
+    """M2: `session_request_failed` alone cannot tell a crash from an OOM kill."""
+    with session(tmp_path, fake) as live:
+        assert live.start()
+        (tmp_path / "scratch" / "session.log").write_text("java.lang.OutOfMemoryError: Java heap space\n")
+        live._port = 1  # nothing is listening there
+        assert live.evaluate("cpg.file.size", timeout=2) is None
+        assert live.failure == "session_request_failed"
+        assert "OutOfMemoryError" in live.last_body
+        assert "OutOfMemoryError" in live.log_tail()
