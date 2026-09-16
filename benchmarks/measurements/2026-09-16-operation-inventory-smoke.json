@@ -82,5 +82,42 @@
   "degradations_by_side": {
     "head": [],
     "base": []
+  },
+  "after_task_10_5": {
+    "purpose": "Same control after binding the reachability boundary to what it limits.",
+    "provenance": {
+      "engine": "joern-4.0.625",
+      "queries": "c170a0d445b9bf2af2dc5ffedfbf276e89887cff963fc99cd737506a840341e2",
+      "policy": "422ed83b1ea418a692c722554f728b843bb34e611686a8c60de393d76c8bce46",
+      "core": "002f0901a9f6b27d56afa6b9e6e9db83ee5d1fed5a49a7280525f53aaa9f585f",
+      "semantics": "21e6641c98406181446cce13b23cd52f7b3f5196d361368e0e19dbeaae0dd581"
+    },
+    "handler_injection_status": {
+      "head": [
+        "completed",
+        "query_answered_and_arbitrated"
+      ],
+      "base": [
+        "completed",
+        "query_answered_and_arbitrated"
+      ]
+    },
+    "candidates": [
+      {
+        "site": "app/api.js:5:handler",
+        "novelty": "new",
+        "reason": "source_connection_absent_from_comparable_base",
+        "witness": "req.body.value -> eval(safe) in app/api.js (line 5, 3 steps)",
+        "admitted": false,
+        "admission_reasons": [
+          "capability_unavailable"
+        ]
+      }
+    ],
+    "result": {
+      "finding_status": "none",
+      "coverage_status": "incomplete"
+    },
+    "note": "Both target questions now complete and the production comparison reaches a new verdict with an exact witness. The single remaining admission reason is capability_unavailable, which is the deliberate eligibility gate: no capability is qualified, so no alert is emitted. This is an authored one-file control, not a real vulnerability, and it qualifies nothing."
   }
 }

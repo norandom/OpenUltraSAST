@@ -509,25 +509,11 @@ def _scan_repository_impl(
     if unasked:
         degradations.append({"stage": "model", "reason": "budget_exhausted", "regions_unasked": len(unasked)})
 
-    graph_gaps = tuple(
-        str(d["reason"])
-        for d in degradations
-        if d.get("reason")
-        in {
-            "files_unparsed",
-            "cpg_empty",
-            "partition_file_census_incomplete",
-            "partition_file_census_unavailable",
-            "cpg_sharded",
-            "cross_partition_semantics_unresolved",
-            "vendor_semantics_unresolved",
-            "symlink_context_unresolved",
-            "frontend_unsupported",
-            "source_unreadable",
-            "ambiguous_frontend_path",
-            "typescript_property_support_unvalidated",
-        }
-    )
+    graph_gaps = tuple(str(d["reason"]) for d in degradations if d.get("reason") in GRAPH_INTEGRITY_GAPS)
+    # A declared exclusion is a deliberate scope choice, not a failure to read the graph. It stays
+    # in coverage, and whether a particular answer needed the excluded semantics is carried by that
+    # question's own unresolved call destinations, not assumed for every answer in the repository.
+    declared_gaps = tuple(str(d["reason"]) for d in degradations if d.get("reason") in DECLARED_EXCLUSION_GAPS)
     for question in scope.selected:
         rid = question.identity.question_id
         if rid not in outcomes:
@@ -542,7 +528,7 @@ def _scan_repository_impl(
             outcomes[rid] = replace(outcomes[rid], status="unresolved", reason="change_context_incomplete")
         if graph_gaps and outcomes[rid].status == "completed":
             outcomes[rid] = replace(outcomes[rid], status="unresolved", reason="graph_incomplete")
-    scope = replace(scope, unresolved_boundaries=tuple(dict.fromkeys((*scope.unresolved_boundaries, *graph_gaps))))
+    scope = replace(scope, unresolved_boundaries=tuple(dict.fromkeys((*scope.unresolved_boundaries, *graph_gaps, *declared_gaps))))
     ordered_outcomes = tuple(outcomes[q.identity.question_id] for q in scope.selected)
     scanned = len(judged)
 
@@ -571,6 +557,29 @@ def _scan_repository_impl(
         family_coverage=_family_coverage(scope, ordered_outcomes),
         change_context=change_context,
     )
+
+
+# Reading the graph failed or produced something incomplete. An answer drawn from it cannot be
+# trusted, so a completed outcome is demoted.
+GRAPH_INTEGRITY_GAPS = frozenset(
+    {
+        "files_unparsed",
+        "cpg_empty",
+        "partition_file_census_incomplete",
+        "partition_file_census_unavailable",
+        "cpg_sharded",
+        "cross_partition_semantics_unresolved",
+        "symlink_context_unresolved",
+        "frontend_unsupported",
+        "source_unreadable",
+        "ambiguous_frontend_path",
+        "typescript_property_support_unvalidated",
+    }
+)
+# Declared, intentional exclusions. The exclusion stays physical and stays reported; it is not
+# evidence that any particular first-party answer is wrong. Treating it as one demoted every
+# answer on every real repository, because every real repository excludes its dependencies.
+DECLARED_EXCLUSION_GAPS = frozenset({"vendor_semantics_unresolved"})
 
 
 def _identity(unit: str, region: ScanRegion, family: str) -> QuestionIdentity:

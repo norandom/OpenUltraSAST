@@ -231,3 +231,40 @@ def test_an_unresolved_context_projection_still_demotes_the_question(tmp_path):
     )
     assert result.question_outcomes[0].status == "unresolved"
     assert result.question_outcomes[0].reason == "change_context_incomplete"
+
+
+def scan_with_layout(tmp_path, *, vendor=False, symlink=False):
+    """Exercise the real partition boundaries rather than injecting a reason."""
+    (tmp_path / "source.php").write_text("readable\n")
+    if vendor:
+        (tmp_path / "vendor").mkdir()
+        (tmp_path / "vendor" / "lib.php").write_text("third party\n")
+    if symlink:
+        (tmp_path / "linked.php").symlink_to(tmp_path / "source.php")
+    rows = vector() + [row("source.php"), {"kind": "context_summary"}]
+    return scan_repository(
+        tmp_path,
+        [region("source.php", "php")],
+        backend=Backend({"source.php": rows}),
+        change_context=context(),
+    )
+
+
+def test_a_declared_vendor_exclusion_does_not_invalidate_a_first_party_answer(tmp_path):
+    """M1b 10.6: every real repository excludes its dependencies; that is a scope choice."""
+    result = scan_with_layout(tmp_path, vendor=True)
+    assert "vendor_semantics_unresolved" in result.scope.unresolved_boundaries
+    assert result.question_outcomes[0].status == "completed"
+
+
+def test_an_unresolved_symlink_still_demotes_the_answer(tmp_path):
+    result = scan_with_layout(tmp_path, symlink=True)
+    assert "symlink_context_unresolved" in result.scope.unresolved_boundaries
+    assert result.question_outcomes[0].status == "unresolved"
+    assert result.question_outcomes[0].reason == "graph_incomplete"
+
+
+def test_a_declared_exclusion_beside_an_integrity_failure_still_demotes(tmp_path):
+    result = scan_with_layout(tmp_path, vendor=True, symlink=True)
+    assert {"vendor_semantics_unresolved", "symlink_context_unresolved"} <= set(result.scope.unresolved_boundaries)
+    assert result.question_outcomes[0].status == "unresolved"

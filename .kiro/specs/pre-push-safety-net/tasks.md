@@ -308,13 +308,14 @@ Preserve all completed task evidence below.
   - _Depends: 10.4_
   - _Requirements: 2.1, 2.2, 8.1, 8.2_
   - _Verified 2026-09-16:_ 1,362 tests passed, nine skipped; Ruff/format/mypy passed. The boundary is now bound to what it limits. At scan level it is recorded against its owning question without demoting that question's answer, while an unavailable projection, an empty scope and an unreadable extent still demote. In comparison it no longer blocks the head's own traced flow, and no longer blocks an absence read off a structural enumeration, but still blocks every claim resting on a flow not having been traced. The query declares its enumeration basis, because a scope followed through the call graph can be shrunk by the same unresolved destination; such an inventory cannot establish absence while reachability is bounded. Controls cover both directions and both bases; every other gap kind still blocks.
-- [ ] 10.6 Stop vendor exclusion acting as a global completion veto
+- [x] 10.6 Stop vendor exclusion acting as a global completion veto
   - `vendor_semantics_unresolved` degrades every otherwise complete outcome to `graph_incomplete`, including on a complete 44-file first-party census with successful query receipts.
   - Keep the exclusion physical and keep the coverage note. Let the inventory and reachability evidence from 10.4 and 10.5 carry whether a specific answer needed excluded semantics; a recorded dependency on an excluded path still blocks that question.
   - Done when an unrelated vendor exclusion no longer invalidates a first-party answer, while a question with evidence of dependency on excluded code remains unresolved and the exclusion stays out of targets and graphs.
   - _Boundary: contributor-scan graph/scope evidence, Cache and Engine Boundary_
   - _Depends: 10.5_
   - _Requirements: 2.2, 2.3, 8.2, 8.4_
+  - _Verified 2026-09-16:_ 1,365 tests passed, nine skipped; Ruff/format/mypy passed. Graph boundaries are split into integrity failures, which still demote a completed answer, and declared exclusions, which do not. Whether a particular answer needed the excluded semantics is carried by that question's own unresolved call destinations from 10.5, not assumed for every answer. Controls exercise the real partition logic rather than an injected reason: a vendored directory leaves the answer completed with the exclusion still reported, an unresolved symlink still demotes, and the two together still demote. The exclusion stays physical and out of targets and graphs.
 - [ ] 10.7 Carry query-to-operation provenance into the reported evidence
   - The target is selected through a file-fallback question with `function=None` while rows report method `<lambda>2`. M1a showed this did not block the comparison once the question completed, so it is provenance quality rather than the blocker.
   - Record verified query-to-operation provenance on the evidence; do not inject benchmark function names into regions or count coincident sites.
