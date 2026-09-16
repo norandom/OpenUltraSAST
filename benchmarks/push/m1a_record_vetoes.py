@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from measure import git, pin_snapshot  # noqa: E402
 
 from openultrasast.model.scan import ScanBudget  # noqa: E402
+from openultrasast.push.policy import CapabilityAdmission, CapabilityKey  # noqa: E402
 from openultrasast.push.runner import _provenance  # noqa: E402
 from openultrasast.push.vetoes import FLAG, LABEL  # noqa: E402
 from openultrasast.push_inputs import validate_manifest  # noqa: E402
@@ -59,6 +60,42 @@ PLAN: tuple[dict[str, Any], ...] = (
         "expected_head_findings_at_target": len(WITNESS_LINES),
     },
 )
+
+
+# Unreviewed evaluation input for the M1b explanation rendering. It is bound to the run's own
+# analysis semantics, marked experimental and never enabled, so it cannot qualify a capability or
+# emit an alert: the runner keeps it out of admission entirely. The wording describes exactly the
+# mechanism the graph established, evaluation of a request field as JavaScript, and the repair the
+# pinned source documents immediately below the eval calls.
+DECLARATION = {
+    "evaluation_id": "unreviewed-m1b-demonstration-v1",
+    "evaluation_artifact": "experimental://m1b-recorded-vetoes",
+    "verdict": "experimental",
+    "consequence_template": (
+        "A request field reaches {operation}, where it is evaluated as JavaScript, so an attacker "
+        "controlling that field can execute arbitrary code in the server process ({context} capability)."
+    ),
+    "repair_template": (
+        "Replace the evaluation at {operation} with a numeric conversion such as Number(...) or "
+        "parseInt(...), then validate the result before use ({context} capability)."
+    ),
+    "operation_symbols": ("eval", "const preTax = eval", "const afterTax = eval", "const roth = eval"),
+}
+
+
+def declarations_for(semantics: str) -> list[dict[str, Any]]:
+    key = CapabilityKey("javascript", "unspecified", "unspecified", "injection", "taint", "unreviewed", semantics)
+    declaration = CapabilityAdmission(
+        key,
+        DECLARATION["evaluation_id"],
+        DECLARATION["evaluation_artifact"],
+        "experimental",
+        DECLARATION["consequence_template"],
+        DECLARATION["repair_template"],
+        operation_symbols=tuple(DECLARATION["operation_symbols"]),
+    )
+    assert not declaration.enabled and declaration.verdict != "PASS", "the demonstration declaration must stay unqualified"
+    return [declaration.to_payload()]
 
 
 def write(path: Path, data: object) -> None:
@@ -108,6 +145,7 @@ def summarize(case: dict[str, Any], artifact: dict[str, Any]) -> dict[str, Any]:
         "production_finding_status": artifact["result"]["finding_status"],
         "production_coverage_status": artifact["result"]["coverage_status"],
         "recorded_status": experimental.get("status"),
+        "evaluation": experimental.get("evaluation", []),
         "recorded_target_findings": [
             {
                 "site": f["site"],
@@ -169,9 +207,16 @@ def main() -> int:
     pins = {sid: pin_snapshot(bare, recipe.commit, snapshots[sid]) for sid in needed}
     settings = ScanBudget(max_model_calls=0, max_regions=500, order_by_evidence=True)
     installed = _provenance(bare, settings)
+    declarations_path = out / "experimental-declarations.json"
+    write(declarations_path, declarations_for(installed["semantics"]))
     record: dict[str, Any] = {
         "schema_version": 1,
         "label": LABEL,
+        "declarations": declarations_path.name,
+        "declaration_note": (
+            "Unreviewed experimental declaration, bound to this run's semantics, used only to render the "
+            "evaluation explanation. It is not enabled and not PASS, and the runner keeps it out of admission."
+        ),
         "milestone": "M1a",
         "flag": FLAG,
         "development_budget_seconds": args.deadline,
@@ -212,6 +257,8 @@ def main() -> int:
             "--cache-dir",
             str(out / "cache"),
             FLAG,
+            "--experimental-declarations",
+            str(declarations_path),
         ]
         started = time.monotonic()
         process = subprocess.run(command, capture_output=True, text=True, timeout=args.deadline + 30)

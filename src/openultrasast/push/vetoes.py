@@ -18,6 +18,7 @@ import json
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
+from pathlib import Path
 
 from openultrasast.contracts import Contract
 from openultrasast.model.contracts import ChangeContext, ExecutionBudget, QuestionIdentity
@@ -33,6 +34,7 @@ from openultrasast.push.policy import (
     _compare_evidence,
     _context_boundaries,
     _counterpart,
+    _grounded_template,
     admit_candidates,
     operation_provenance,
 )
@@ -135,6 +137,36 @@ class BaseOnlyFinding(Contract):
 
 
 @dataclass(frozen=True)
+class EvaluationFinding(Contract):
+    """A developer-readable rendering of one evaluation finding, for reading, never for alerting.
+
+    Consequence and repair come from a supplied declaration's templates through the same
+    grounded-template path the admitted case uses, so no prose is invented here. When no
+    declaration matches, both are absent with the reason stated. This record is produced outside
+    admission and cannot become an alert.
+    """
+
+    family: str
+    path: str
+    line: int
+    novelty: str
+    reason: str
+    witness: str
+    change_evidence: str
+    provenance: str
+    question_function: str | None
+    engine_method: str | None
+    operation: str
+    operation_symbol: str
+    consequence: str | None
+    repair: str | None
+    unavailable: tuple[str, ...]
+    declaration: str | None
+    declaration_verdict: str | None
+    declaration_enabled: bool
+
+
+@dataclass(frozen=True)
 class RecordedVetoReport(Contract):
     label: str
     flag: str
@@ -145,6 +177,7 @@ class RecordedVetoReport(Contract):
     base_only_findings: tuple[BaseOnlyFinding, ...]
     lifted_coverage_reasons: tuple[str, ...]
     remaining_coverage_reasons: tuple[str, ...]
+    evaluation: tuple[EvaluationFinding, ...] = ()
 
 
 def boundary_kind(boundary: str) -> str | None:
@@ -314,6 +347,67 @@ def _finding_vetoes(
     return tuple(vetoes)
 
 
+def load_declarations(path: Path) -> tuple[CapabilityAdmission, ...]:
+    """Read experimental declarations for the evaluation rendering only.
+
+    These never reach admission. The installed registry remains the sole source of eligibility,
+    so a declaration read here cannot enable a capability or emit an alert however it is written.
+    """
+    content = path.read_bytes()[: 1024**2 + 1]
+    if len(content) > 1024**2:
+        raise ValueError("declaration_size_limit")
+    payload = json.loads(content)
+    if not isinstance(payload, list):
+        raise ValueError("declarations must be a list")
+    return tuple(CapabilityAdmission.from_payload(item) for item in payload)
+
+
+def _evaluation(delta: CandidateDelta, declarations: Sequence[CapabilityAdmission], semantics: str) -> EvaluationFinding | None:
+    """Render one established finding. Returns None for anything not attributed to the change."""
+    op = delta.head_operation
+    if op is None or delta.novelty not in ("new", "worsened") or delta.witness is None or not delta.change_evidence:
+        return None
+    key = CapabilityKey(op.question.language, "unspecified", "unspecified", delta.family, op.mechanism, "unreviewed", semantics)
+    matching = [declaration for declaration in declarations if declaration.key == key]
+    symbol = op.operation.partition("(")[0].strip()
+    unavailable: list[str] = []
+    consequence = repair = None
+    declaration = matching[0] if len(matching) == 1 else None
+    if not matching:
+        unavailable.append("no_matching_declaration")
+    elif len(matching) > 1:
+        unavailable.append("ambiguous_declaration")
+    if declaration is not None:
+        consequence = _grounded_template(declaration.consequence_template, op, key.context)
+        repair = _grounded_template(declaration.repair_template, op, key.context)
+        if consequence is None:
+            unavailable.append("consequence_template_ungrounded")
+        if repair is None:
+            unavailable.append("repair_template_ungrounded")
+        if symbol not in declaration.operation_symbols:
+            unavailable.append("declaration_does_not_cover_operation_symbol")
+    return EvaluationFinding(
+        delta.family,
+        op.path,
+        op.line,
+        delta.novelty,
+        delta.reason,
+        delta.witness,
+        delta.change_evidence[0],
+        operation_provenance(op),
+        op.question.function,
+        op.method,
+        op.operation,
+        symbol,
+        consequence,
+        repair,
+        tuple(unavailable),
+        declaration.evaluation_id if declaration else None,
+        declaration.verdict if declaration else None,
+        bool(declaration.enabled) if declaration else False,
+    )
+
+
 def record_vetoes(
     *,
     head: ModelScanResult,
@@ -325,6 +419,7 @@ def record_vetoes(
     production_admission: dict[str, tuple[str, ...]],
     coverage_reasons: Sequence[str],
     capabilities: Sequence[CapabilityAdmission] = (),
+    declarations: Sequence[CapabilityAdmission] = (),
     execution_budget: ExecutionBudget | None = None,
 ) -> RecordedVetoReport:
     """Re-run the production comparison and admission over lifted evidence and list what was lifted.
@@ -431,4 +526,7 @@ def record_vetoes(
         tuple(base_only),
         tuple(dict.fromkeys((*lifted_reasons, *lifted_boundaries))),
         remaining,
+        # Rendered from the PRODUCTION comparison, so the demonstration shows what the production
+        # rules established, not what the lifted view would have.
+        tuple(item for delta in production for item in (_evaluation(delta, declarations, semantics),) if item is not None),
     )

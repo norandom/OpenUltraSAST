@@ -202,9 +202,12 @@ def _experimental_line(experimental: Mapping[str, object]) -> str:
     vetoes = sum(len(f.get("vetoes", [])) for f in findings if isinstance(f, dict)) if isinstance(findings, list) else 0
     base = experimental.get("base_only_findings")
     quiet = len(base) if isinstance(base, list) else 0
+    evaluation = experimental.get("evaluation")
+    explained = len(evaluation) if isinstance(evaluation, list) else 0
     return (
-        f"recorded-veto evaluation retained {count} raw finding(s) with {vetoes} recorded veto(es) and "
-        f"{quiet} base-only finding(s) in the detailed result; recorded, not applied; not an alert."
+        f"recorded-veto evaluation retained {count} raw finding(s) with {vetoes} recorded veto(es), "
+        f"{quiet} base-only finding(s) and {explained} change-attributed evaluation finding(s) in the detailed "
+        f"result; recorded, not applied; not an alert."
     )
 
 

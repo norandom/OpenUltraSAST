@@ -42,7 +42,7 @@ from openultrasast.push.policy import (
 from openultrasast.push.report import PushReport, ReportDelivery, ScanRecord, _completed_scan, deliver_report, render_report
 from openultrasast.push.reuse import ReusingBackend, declaration_identity, discovery
 from openultrasast.push.snapshot import SnapshotAdapter
-from openultrasast.push.vetoes import FLAG, LABEL, record_vetoes
+from openultrasast.push.vetoes import FLAG, LABEL, load_declarations, record_vetoes
 
 _T = TypeVar("_T")
 
@@ -179,9 +179,15 @@ def _record(
     reasons: Sequence[str],
     admission: AdmissionResult,
     provenance: dict[str, str],
+    declarations: Path | None = None,
 ) -> dict[str, object]:
-    """Experimental M1a: the same policy over lifted evidence, reported only, never admitted."""
+    """Experimental M1a: the same policy over lifted evidence, reported only, never admitted.
+
+    `declarations` supplies templates for the experimental evaluation rendering ONLY. They are
+    never passed to admission, so nothing read from that file can enable a capability.
+    """
     registry = load_registry(current=provenance)
+    supplied = load_declarations(declarations) if declarations is not None else ()
     report = record_vetoes(
         head=head,
         base=delta.base_scan,
@@ -192,6 +198,7 @@ def _record(
         production_admission={d.candidate.delta.defect_id: d.reasons for d in admission.dispositions},
         coverage_reasons=tuple(dict.fromkeys(reasons)),
         capabilities=registry.capabilities,
+        declarations=supplied,
     )
     return report.to_payload()
 
@@ -216,6 +223,7 @@ def _analyze(
     execution_budget: ExecutionBudget,
     resolved: PushComparison | None = None,
     record_vetoes: bool = False,
+    declarations: Path | None = None,
 ) -> PushReport:
     """Run a single explicit comparison; exit policy never stands for coverage.
 
@@ -380,7 +388,8 @@ def _analyze(
                     stage, stage_started = "recorded_vetoes", time.monotonic()
                     assert context is not None
                     recorded = _prepare(
-                        lambda: _record(head_scan, delta, context, comparison, tuple(reasons), admission, provenance), budget
+                        lambda: _record(head_scan, delta, context, comparison, tuple(reasons), admission, provenance, declarations),
+                        budget,
                     )
                     experimental = {**recorded, "status": "evaluated"}
                     timings[stage + "_seconds"] = time.monotonic() - stage_started
@@ -447,8 +456,11 @@ def replay(
     cache_dir: Path | None = None,
     model_config: Path | None = None,
     record_vetoes: bool = False,
+    declarations: Path | None = None,
 ) -> ReportDelivery:
     config = config or PushConfig()
+    if declarations is not None and not record_vetoes:
+        raise ValueError("experimental declarations require the recorded-veto evaluation flag")
     budget = ExecutionBudget(time.monotonic() + config.deadline_seconds, config.cancellation_allowance_seconds)
     report = _analyze(
         repository,
@@ -461,6 +473,7 @@ def replay(
         cache_dir=cache_dir,
         execution_budget=budget,
         record_vetoes=record_vetoes,
+        declarations=declarations,
     )
     from openultrasast.push.assistance import assist
 

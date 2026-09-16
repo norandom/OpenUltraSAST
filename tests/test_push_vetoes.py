@@ -211,9 +211,11 @@ def test_report_requires_label_and_renders_experimental_line(tmp_path):
     base = report_with()
     with pytest.raises(ValueError, match="experimental label"):
         replace(base, experimental={"status": "evaluated"})
-    labeled = replace(base, experimental={"label": LABEL, "flag": FLAG, "status": "evaluated", "findings": [{"vetoes": [{}, {}]}]})
+    section = {"label": LABEL, "flag": FLAG, "status": "evaluated", "findings": [{"vetoes": [{}, {}]}], "evaluation": [{}]}
+    labeled = replace(base, experimental=section)
     text = render_report(labeled, artifact=None)
     assert "Experimental: recorded-veto evaluation retained 1 raw finding(s) with 2 recorded veto(es)" in text
+    assert "1 change-attributed evaluation finding(s)" in text
     assert "not an alert" in text
     pending = replace(base, experimental={"label": LABEL, "flag": FLAG, "status": "not_evaluated", "reason": "head_failed:TimeoutError"})
     assert "was not produced (head_failed:TimeoutError)" in render_report(pending, artifact=None)
@@ -264,3 +266,84 @@ def test_cli_refuses_the_flag_outside_explicit_replay(tmp_path, capsys):
         ]
     )
     assert code == 0 and "Experimental:" in capsys.readouterr().out
+
+
+def declaration(*, symbols=("eval",), consequence="Input reaching {operation} is evaluated in {context}.", verdict="experimental"):
+    from openultrasast.push.policy import CapabilityAdmission, CapabilityKey
+
+    key = CapabilityKey("javascript", "unspecified", "unspecified", "injection", "taint", "unreviewed", "same")
+    return CapabilityAdmission(
+        key,
+        "unreviewed-demonstration-v1",
+        "experimental://unreviewed",
+        verdict,
+        consequence,
+        "At {operation}, convert the value before use in {context}.",
+        operation_symbols=symbols,
+    )
+
+
+def rendered(*, declarations=(), base=None):
+    head = scan()
+    base = base if base is not None else scan(rows=[], findings=False)
+    applied, admission = production(head, base, context())
+    return record_vetoes(
+        head=head,
+        base=base,
+        context=context(),
+        comparison=COMPARISON,
+        semantics="same",
+        production=applied,
+        production_admission=admission,
+        coverage_reasons=(),
+        declarations=declarations,
+    )
+
+
+def test_evaluation_renders_consequence_and_repair_from_a_declaration():
+    """M1b 10.10: the explanation comes from a declaration's templates, never from invented prose."""
+    report = rendered(declarations=(declaration(),))
+    item = report.evaluation[0]
+    assert item.novelty == "new" and item.family == "injection" and (item.path, item.line) == ("a.js", 4)
+    assert item.witness == "req.body -> exec(cmd) in a.js (line 4, 2 steps)"
+    assert item.change_evidence and item.provenance == "exact" and item.engine_method == "handler"
+    assert item.consequence == "Input reaching exec(cmd) is evaluated in unreviewed."
+    assert item.repair == "At exec(cmd), convert the value before use in unreviewed."
+    assert item.declaration == "unreviewed-demonstration-v1"
+    assert item.declaration_verdict == "experimental" and item.declaration_enabled is False
+
+
+def test_evaluation_states_why_an_explanation_is_unavailable():
+    report = rendered()
+    item = report.evaluation[0]
+    assert item.consequence is None and item.repair is None
+    assert item.unavailable == ("no_matching_declaration",)
+
+
+def test_an_ungrounded_template_is_refused_rather_than_rendered():
+    report = rendered(declarations=(declaration(consequence="Sanitize your input."),))
+    item = report.evaluation[0]
+    assert item.consequence is None and "consequence_template_ungrounded" in item.unavailable
+    assert item.repair is not None
+
+
+def test_a_declaration_not_covering_the_operation_symbol_says_so():
+    report = rendered(declarations=(declaration(symbols=("query",)),))
+    assert "declaration_does_not_cover_operation_symbol" in report.evaluation[0].unavailable
+    assert report.evaluation[0].operation_symbol == "exec"
+
+
+def test_only_a_change_attributed_finding_is_rendered():
+    # The anchor maps head line 4 to base line 5, so this base carries the same operation.
+    unchanged = rendered(declarations=(declaration(),), base=scan(line=5))
+    assert unchanged.findings[0].production_novelty == "unchanged"
+    assert unchanged.evaluation == ()
+
+
+def test_an_enabled_passing_declaration_here_still_admits_nothing():
+    """The rendering path is outside admission, so no supplied declaration can emit an alert."""
+    report = rendered(declarations=(declaration(verdict="PASS"),))
+    assert report.evaluation[0].declaration_verdict == "PASS"
+    payload = report.to_payload()
+    assert "defects" not in payload
+    assert all("admitted" not in item for item in payload["evaluation"])
