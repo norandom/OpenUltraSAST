@@ -221,3 +221,13 @@ def test_evaluated_operation_matching_preserves_receiver_and_symbol_boundaries(o
         candidate, delta=replace(candidate.delta, head_operation=replace(candidate.delta.head_operation, operation=operation))
     )
     assert not admit_candidates((candidate,), capabilities=(capability,)).defects
+
+
+def test_an_operation_the_change_introduced_is_a_supported_change_basis():
+    """M1b 10.1: the new novelty reason must reach admission, not be rejected as unsupported."""
+    candidate, capability, _ = control()
+    introduced = replace(candidate, delta=replace(candidate.delta, reason="operation_absent_from_comparable_base"))
+    assert admit_candidates((introduced,), capabilities=(capability,)).defects
+    invented = replace(candidate, delta=replace(candidate.delta, reason="operation_moved_within_change"))
+    disposition = admit_candidates((invented,), capabilities=(capability,)).dispositions[0]
+    assert not disposition.admitted and "change_unsupported" in disposition.reasons

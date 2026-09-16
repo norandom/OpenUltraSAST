@@ -114,3 +114,56 @@ data; it cannot qualify production Node support, and Node evidence cannot qualif
 The lifted view is a diagnostic reconstruction, not a comparison result: it shows what the
 existing evidence would support if those vetoes were repaired, and no repair has been made.
 Runtime, independent qualification and rollout all remain NO-GO.
+
+## M1b step 1: what the first three repairs changed
+
+Rerun 2026-09-16 after tasks 10.1–10.3, same instrument, same pins, same budget.
+Evidence: [summary](../../../benchmarks/measurements/2026-09-16-nodegoat-m1b-step1.json)
+and its [bundle](../../../benchmarks/measurements/2026-09-16-nodegoat-m1b-step1.json.gz).
+
+The recorded view now classifies the case correctly. The vulnerable revision reaches
+`new` / `operation_absent_from_comparable_base`, and the unchanged revision reaches
+`unchanged` / `same_supported_mechanism` with its base location resolved to the same lines.
+Before the repairs both stopped at `operation_correspondence_unresolved` and
+`witness_identity_unresolved`.
+
+| Revision | Before 10.1–10.3 | After 10.1–10.3 |
+|---|---|---|
+| vulnerable | unknown, `operation_correspondence_unresolved` | new, `operation_absent_from_comparable_base` |
+| unchanged | unknown, `witness_identity_unresolved` | unchanged, `same_supported_mechanism` |
+
+The rerun also caught a defect in the repair itself: the new novelty reason was missing from
+the admission allowlist, so admission rejected the candidate as `change_unsupported`. Fixed
+with a control.
+
+The production path is unchanged so far, because two vetoes still demote the target
+questions: `change_context_incomplete` on the head from the question's own
+`dynamic_external_or_depth_context_unresolved`, and `graph_incomplete` on the base from the
+vendor exclusion.
+
+## Why the last two vetoes need new query evidence
+
+Neither remaining veto can be scoped or relaxed soundly as the plan originally described,
+and the rerun is what showed it.
+
+A taint answer reports traced flows. An absent row therefore means either that the operation
+does not exist in the base, or that it exists and no traced flow reached it.
+`dynamic_external_or_depth_context_unresolved` exists precisely to stop the second being read
+as the first. Removing or narrowing it would let an unreached operation look absent, which
+turns a wrong absence into a wrong new finding: the false-positive direction this project
+cannot afford.
+
+At the same time the flag carries no discrimination. It is computed over every in-scope
+method, and on any real Express application ordinary framework and dependency calls have
+unresolved destinations, so it is always true and can never be discharged. A veto that is
+always on and can never be lifted is why the tool reports nothing on real projects.
+
+The resolution is neither to keep it nor to drop it, but to supply the evidence that makes
+absence provable independently of reachability: export the operations the query actually
+enumerated in the question's scope, separately from the flows it traced. Absence is then
+established from the inventory, while a traced-flow claim still requires complete
+reachability. Vendor exclusion can then stop acting as a global completion veto for the same
+reason, since dependency on excluded code becomes visible in the evidence rather than assumed.
+
+That prerequisite is now task 10.4, ahead of the two vetoes it unblocks. It adds no detector,
+alias resolver or second source IR.

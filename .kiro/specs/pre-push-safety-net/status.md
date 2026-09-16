@@ -7,8 +7,16 @@ it does not approve normal hook capabilities or production enforcement.
 
 ## Next release milestone
 
-**M1a is met. M1b is next: repair only the vetoes M1a showed to matter, then rerun the
-three revisions through the production rules.** The other four milestones remain unverified.
+**M1a is met. M1b is in progress: three of its repairs are verified, and the remaining two
+are blocked on one new piece of query evidence.** The other four milestones remain unverified.
+
+M1b tasks 10.1 to 10.3 are done and measured. The recorded view of the NodeGoat case now
+reaches `new` on the vulnerable revision and `unchanged` on the unchanged revision. The
+production path is still blocked by the last two vetoes, and the rerun showed neither can be
+scoped or relaxed soundly: a taint answer reports flows, so an absent row means either that
+the operation does not exist or that no traced flow reached it. Establishing absence needs the
+enumerated operation inventory exported separately from traced flows, which is now task 10.4
+ahead of the two vetoes it unblocks. See [M1a evidence](m1a-recorded-vetoes.md).
 
 M1a ran on 2026-09-16 within its one-week box. The raw `<lambda>2` witnesses are present at
 contributions.js lines 32–34, the fixed twin was genuinely analyzed and quiet, and the

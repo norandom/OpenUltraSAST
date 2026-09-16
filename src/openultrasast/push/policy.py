@@ -696,6 +696,7 @@ def admit_candidates(candidates: Sequence[AdmissionCandidate], *, capabilities: 
             reasons.append("unchanged")
         elif not delta.change_evidence or (delta.novelty, delta.reason) not in (
             ("new", "source_connection_absent_from_comparable_base"),
+            ("new", "operation_absent_from_comparable_base"),
             ("worsened", "discharge_removed"),
         ):
             reasons.append("change_unsupported")

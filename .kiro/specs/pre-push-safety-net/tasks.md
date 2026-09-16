@@ -292,31 +292,39 @@ Preserve all completed task evidence below.
   - _Depends: 10.2_
   - _Requirements: 2.4, 3.4_
   - _Verified 2026-09-16:_ 1,347 tests passed, nine skipped; Ruff/format/mypy passed. Ambiguity is no longer inherited as a context gap by every question, and no longer blocks the transaction comparison; it is decided per operation by the correspondence classifier. Controls prove a uniquely mapped or newly introduced operation stays comparable in a file with repeated unchanged lines, an operation needing an ambiguous anchor stays unresolved, and any other transaction gap still blocks. The mapping is still withheld and still reported in aggregate coverage.
-- [ ] 10.4 Make the external and dynamic context boundary question-owned
-  - M1a recorded `dynamic_external_or_depth_context_unresolved` on the target's own question. The flag is computed over every in-scope method, so one unresolved call anywhere vetoes every question, including those whose relevant methods are fully resolved.
-  - Report the boundary with the methods whose destinations are unresolved, and inherit it into a question only when such a method participates in that question's change relationships. Unknown ownership remains a blocker; absent evidence of independence is not proof of independence.
-  - Done when a question whose relevant methods resolve completely is not vetoed by an unrelated external call, while a question that depends on an unresolved destination stays unresolved.
+- [ ] 10.4 Export the enumerated operation inventory so absence is provable
+  - **Prerequisite discovered 2026-09-16, not in the original plan.** The 10.1-10.3 rerun showed the remaining two vetoes cannot be scoped or relaxed soundly as written. A taint answer reports flows, so an absent row means either that the operation does not exist in the base or that no traced flow reached it. `dynamic_external_or_depth_context_unresolved` exists precisely to stop the second being read as the first, and on a real Express application it is always true, because ordinary framework and dependency calls have unresolved destinations. It therefore carries no discrimination and can never be discharged, while removing it would make an unreached operation look absent.
+  - Export the operations the query actually enumerated in the question's scope, separately from the flows it traced, so absence of an operation is established by the inventory rather than by the absence of a flow. Sanitizer and source facts are unchanged; this adds no detector, alias resolver or second IR.
+  - Done when a base answer distinguishes "this operation does not exist here" from "no traced flow reached it", with an unenumerated scope remaining explicitly unresolved.
+  - _Boundary: contributor-scan query/evidence contract, Delta and Actionability Policy_
+  - _Depends: 10.1_
+  - _Requirements: 2.1, 2.2, 3.4, 8.1, 8.2_
+- [ ] 10.5 Make the external and dynamic context boundary question-owned
+  - M1a recorded `dynamic_external_or_depth_context_unresolved` on the target's own question. The flag is computed over every in-scope method, so one unresolved call anywhere vetoes every question.
+  - With 10.4 supplying inventory evidence, bind the boundary to what it actually limits: reachability, not enumeration. A question establishing absence from the inventory no longer needs complete reachability; a question asserting a traced flow still does. Unknown ownership remains a blocker; absent evidence of independence is not proof of independence.
+  - Done when an absence established from the inventory survives an unrelated unresolved destination, while a reachability claim under a bounded scope stays unresolved.
   - _Boundary: contributor-scan query/context evidence, Ranker Scope Contract_
+  - _Depends: 10.4_
   - _Requirements: 2.1, 2.2, 8.1, 8.2_
-- [ ] 10.5 Stop vendor exclusion acting as a global completion veto
-  - `vendor_semantics_unresolved` currently degrades every otherwise complete outcome to `graph_incomplete`, including on a complete 44-file first-party census with successful query receipts.
-  - Keep the exclusion physical and keep the coverage note. Let the question-owned dependency evidence from 10.3 carry whether a specific answer needed excluded semantics; a recorded dependency on an excluded path still blocks that question.
+- [ ] 10.6 Stop vendor exclusion acting as a global completion veto
+  - `vendor_semantics_unresolved` degrades every otherwise complete outcome to `graph_incomplete`, including on a complete 44-file first-party census with successful query receipts.
+  - Keep the exclusion physical and keep the coverage note. Let the inventory and reachability evidence from 10.4 and 10.5 carry whether a specific answer needed excluded semantics; a recorded dependency on an excluded path still blocks that question.
   - Done when an unrelated vendor exclusion no longer invalidates a first-party answer, while a question with evidence of dependency on excluded code remains unresolved and the exclusion stays out of targets and graphs.
   - _Boundary: contributor-scan graph/scope evidence, Cache and Engine Boundary_
-  - _Depends: 10.4_
+  - _Depends: 10.5_
   - _Requirements: 2.2, 2.3, 8.2, 8.4_
-- [ ] 10.6 Carry query-to-operation provenance into the reported evidence
+- [ ] 10.7 Carry query-to-operation provenance into the reported evidence
   - The target is selected through a file-fallback question with `function=None` while rows report method `<lambda>2`. M1a showed this did not block the comparison once the question completed, so it is provenance quality rather than the blocker.
   - Record verified query-to-operation provenance on the evidence; do not inject benchmark function names into regions or count coincident sites.
   - Done when a reported operation names the question that produced it and the method the engine reported, with unresolved provenance explicit.
   - _Boundary: Delta and Actionability Policy, contributor-scan normalization_
   - _Requirements: 3.1, 3.4, 6.3_
-- [ ] 10.7 Rerun the three revisions through the production rules
+- [ ] 10.8 Rerun the three revisions through the production rules
   - Replay the same pinned vulnerable, fixed and unchanged revisions **without** the recorded-veto flag under the named development budget. Demonstrate a developer-readable evaluation finding with a supported consequence, exact location, witness, change attribution and repair direction.
   - Verify the fixed twin is analyzed and produces no actionable defect and the unchanged revision is not reported as a new regression. Keep qualification eligibility disabled; experimental evaluation output cannot advertise an unqualified hook alert.
   - Done when one replayable record states which vetoes were repaired and which remain, with completed required checks and readable source and census receipts.
   - _Boundary: Evaluation harness, full-run integration_
-  - _Depends: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6_
+  - _Depends: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7_
   - _Requirements: 1.1, 2.1, 2.4, 3.1, 3.4, 6.3, 7.1, 7.3_
 
 ## Implementation Notes

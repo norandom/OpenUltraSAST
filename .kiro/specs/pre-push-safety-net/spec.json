@@ -1,7 +1,7 @@
 {
   "feature_name": "pre-push-safety-net",
   "created_at": "2026-09-12T15:35:00Z",
-  "updated_at": "2026-09-16T13:30:00+00:00",
+  "updated_at": "2026-09-16T14:05:00+00:00",
   "language": "en",
   "phase": "implementation",
   "approvals": {
@@ -125,7 +125,10 @@
       "8.2",
       "8.4",
       "9.1",
-      "9.2"
+      "9.2",
+      "10.1",
+      "10.2",
+      "10.3"
     ],
     "remaining_tasks": 1,
     "verification_record": "implementation-group-8.md",
@@ -139,7 +142,7 @@
       "implementation-group-7.md",
       "implementation-group-8.md"
     ],
-    "next_group": 9,
+    "next_group": 10,
     "blocked_tasks": [
       "8.3"
     ],
@@ -165,6 +168,17 @@
       "measurement": "../../../benchmarks/measurements/2026-09-16-nodegoat-m1a-recorded-vetoes.json",
       "kill_criterion_triggered": false,
       "result": "Raw <lambda>2 witnesses present at contributions.js 32-34; fixed twin analyzed and quiet (target question answered with zero rows, no deadline reason); unchanged revision recorded 'unchanged'. Five vetoes fired and were recorded. With all five lifted the detection stops at operation_correspondence_unresolved, a fifth veto not previously named. No defect admitted, no capability enabled."
+    },
+    "m1b": {
+      "status": "IN_PROGRESS",
+      "verified": [
+        "10.1",
+        "10.2",
+        "10.3"
+      ],
+      "blocked_on": "10.4",
+      "measurement": "../../../benchmarks/measurements/2026-09-16-nodegoat-m1b-step1.json",
+      "finding": "The recorded view now reaches new on the vulnerable revision and unchanged on the unchanged revision. The last two vetoes cannot be scoped or relaxed soundly: a taint answer reports traced flows, so an absent row means either the operation does not exist or no flow reached it. The veto preventing that confusion is computed over every in-scope method and is always true on a real Express application, so it can neither be discharged nor safely removed. Task 10.4 exports the enumerated operation inventory separately from traced flows so absence is provable, and now precedes the two vetoes it unblocks."
     }
   },
   "release": {
@@ -192,6 +206,7 @@
     ],
     "implementation_design_approval": "Existing approvals preserved; this records milestone order and exit criteria, not blanket approval of future design changes.",
     "m1_split_accepted": "2026-09-14: maintainer asked to split M1 into M1a/M1b after review",
-    "m1a_outcome": "Met inside the one-week box. Corrected the owner diagnosis: all four named vetoes fire, and operation correspondence for an operation on a changed line is the blocker that survives every other repair."
+    "m1a_outcome": "Met inside the one-week box. Corrected the owner diagnosis: all four named vetoes fire, and operation correspondence for an operation on a changed line is the blocker that survives every other repair.",
+    "m1b_position": "10.1-10.3 verified and measured; 10.4 operation inventory is the new prerequisite for 10.5 and 10.6."
   }
 }

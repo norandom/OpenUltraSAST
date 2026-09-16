@@ -15,7 +15,7 @@ not a demonstrated useful safety net. Task 8.3 and rollout remain NO-GO.
 | Order | Milestone | Observable exit | Current state |
 |---|---|---|---|
 | M1a | Show the NodeGoat detection with every admission veto recorded, not applied | Raw finding with witness on the vulnerable revision; analyzed fixed twin and unchanged control quiet; per-finding veto list. One-week time box | MET 2026-09-16 |
-| M1b | Repair only the vetoes M1a showed to matter | Supported evaluation finding through production rules, exact change/base evidence and repair direction; fixed twin and unchanged control stay quiet | NEXT |
+| M1b | Repair only the vetoes M1a showed to matter | Supported evaluation finding through production rules, exact change/base evidence and repair direction; fixed twin and unchanged control stay quiet | IN PROGRESS: 10.1-10.3 verified; 10.4 operation inventory now blocks the rest |
 | M2 | Make that same analysis fast | Equivalent evidence; representative warm changed-code p95 <=30s, cancellation/report <=2s, >=95% supported completion | Pending M1 |
 | M3 | Prove the shared design transfers | PMPro/PHP and VAmPI/Python vulnerable/fixed evidence; unchanged core rules; Node replay after any PMPro core change | Pending M2 |
 | M4 | Qualify on independent cases | Reviewed untouched vulnerable/fixed/benign populations pass joint quality, coverage and latency gates per capability | Pending M3 |
@@ -23,13 +23,14 @@ not a demonstrated useful safety net. Task 8.3 and rollout remain NO-GO.
 
 ### Immediate next action
 
-Repair the five vetoes M1a recorded, then rerun the same three NodeGoat revisions without
-the flag through the production rules (M1b). Start with operation correspondence for an
-operation on a changed line: M1a measured that this one survives every other repair, and it
-was not in the earlier four-veto diagnosis. The others are per-family change context,
-question-owned vendor relevance, file-wide correspondence ambiguity scope and
-query-to-operation provenance. Vetoes that did not fire stay unchanged and their families
-stay experimental. Normal hook eligibility stays disabled.
+Export the enumerated operation inventory separately from traced flows (task 10.4), then
+finish the last two vetoes it unblocks and rerun the three NodeGoat revisions through the
+production rules. Operation correspondence, required comparison scope and ambiguity scoping
+are already verified and measured. The inventory is needed because a taint answer reports
+flows: an absent row means either that the operation does not exist or that no traced flow
+reached it, and the veto that stops those being confused is always true on a real Express
+application, so it can neither be discharged nor safely removed. Vetoes that did not fire
+stay unchanged and their families stay experimental. Normal hook eligibility stays disabled.
 Do not start another broad speed campaign before this outcome exists. See the
 [M1a evidence](../specs/pre-push-safety-net/m1a-recorded-vetoes.md) and the
 [owner diagnosis](../specs/contributor-scan/release-remediation-research.md).
