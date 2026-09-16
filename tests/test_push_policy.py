@@ -151,8 +151,11 @@ def test_new_source_at_unchanged_operation_needs_complete_base_answer():
 
 
 def test_changed_new_operation_in_comparable_existing_file():
+    # M1b 10.1 changed the first case: an operation the edit introduced has no base line to
+    # map to, so a complete counterpart answer containing no such operation now establishes
+    # absence. Before that repair this stayed unknown and no introduced flow could be seen.
     ctx = replace(context(), spans=(ChangedSpan("a.js", 4, 4, "head"),), line_correspondences=())
-    assert delta(scan(), scan(rows=[], findings=False), ctx).novelty == "unknown"
+    assert delta(scan(), scan(rows=[], findings=False), ctx).novelty == "new"
     assert delta(scan(), scan(line=6), ctx).novelty == "unknown"  # movement is not new
 
 
@@ -272,3 +275,70 @@ def test_comparison_cache_reuses_only_completed_compatible_evidence(tmp_path, mo
     hits = cache.hits
     policy.compare_evidence(scan(), scan(status="unanswered"), **args)
     assert cache.hits == hits
+
+
+def changed_line_context(*, ambiguous=False, head_line=4):
+    """The head edit covers the operation's line, so no base line can correspond to it."""
+    return ChangeContext(
+        "base",
+        "head",
+        ("a.js",),
+        (),
+        (ChangedSpan("a.js", 2, 2, "base"), ChangedSpan("a.js", head_line, head_line, "head")),
+        (),
+        (),
+        (),
+        (),
+        line_correspondences=(
+            (LineCorrespondence("a.js", "a.js", 9, 9, head_line), LineCorrespondence("a.js", "a.js", 11, 11, head_line))
+            if ambiguous
+            else ()
+        ),
+    )
+
+
+def test_operation_introduced_on_a_changed_line_is_new_against_a_complete_base():
+    """M1b 10.1: absence is established over the counterpart answer, not over a line anchor."""
+    candidate = delta(scan(), scan(rows=[], findings=False), changed_line_context())
+    assert (candidate.novelty, candidate.reason) == ("new", "operation_absent_from_comparable_base")
+
+
+def test_moved_identical_operation_on_a_changed_line_is_not_new():
+    moved = scan(line=9)  # same operation and source, different line in the base
+    candidate = delta(scan(), moved, changed_line_context())
+    assert candidate.novelty == "unknown" and candidate.reason == "operation_moved_within_change"
+
+
+def test_changed_line_novelty_still_requires_a_complete_base():
+    empty = scan(rows=[], findings=False)
+    for base in (scan(rows=[], status="unanswered", findings=False), replace(empty, degradations=({"reason": "cpg_empty"},))):
+        assert delta(scan(), base, changed_line_context()).novelty == "unknown"
+    assert delta(scan(), None, changed_line_context()).novelty == "unknown"
+
+
+def test_ambiguous_correspondence_on_a_changed_line_is_never_new():
+    candidate = delta(scan(), scan(rows=[], findings=False), changed_line_context(ambiguous=True))
+    assert candidate.novelty == "unknown" and candidate.reason != "operation_absent_from_comparable_base"
+
+
+def test_operation_outside_any_recorded_head_span_is_not_new():
+    """An unmapped operation in a changed file is unresolved, not introduced."""
+    candidate = delta(scan(), scan(rows=[], findings=False), changed_line_context(head_line=99))
+    assert candidate.novelty == "unknown" and candidate.reason == "operation_correspondence_unresolved"
+
+
+def test_discharged_or_unentailed_operation_on_a_changed_line_is_not_new():
+    from openultrasast.model.pipeline import ModelFinding
+
+    assert delta(scan(sanitized=True), scan(rows=[], findings=False), changed_line_context()).novelty != "new"
+    weak = scan()
+    weak = replace(weak, findings=(replace(weak.findings[0], rung=Rung.CORROBORATED),))
+    assert delta(weak, scan(rows=[], findings=False), changed_line_context()).novelty != "new"
+    assert isinstance(weak.findings[0], ModelFinding)
+
+
+def test_renamed_file_keeps_operation_identity_across_a_changed_line():
+    spans = (ChangedSpan("old.js", 2, 2, "base"), ChangedSpan("a.js", 4, 4, "head"))
+    ctx = replace(changed_line_context(), renames=(PathRename("old.js", "a.js"),), spans=spans)
+    # Identical operation carried across the rename is movement, never novelty.
+    assert delta(scan(), scan(path="old.js"), ctx).novelty == "unknown"

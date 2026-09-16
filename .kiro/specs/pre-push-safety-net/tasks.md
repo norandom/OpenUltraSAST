@@ -266,6 +266,48 @@ Preserve all completed task evidence below.
   - _Requirements: 1.1, 2.1, 2.4, 3.4, 6.3, 7.1, 7.3_
   - _Verified 2026-09-16:_ all three pinned revisions replayed through the production CLI under a named 900-second development budget; expectations frozen on disk first. Raw `<lambda>2` witnesses present at lines 32–34; fixed twin analyzed and quiet (target question answered with zero rows, no deadline reason, three base-only findings); unchanged revision analyzed and recorded `unchanged`. Five vetoes fired and were recorded; the remaining blocker is `operation_correspondence_unresolved` for an operation on a changed line. Zero admitted defects. Evidence: [M1a record](m1a-recorded-vetoes.md) and `benchmarks/measurements/2026-09-16-nodegoat-m1a-recorded-vetoes.json`. Diagnosis only; no capability enabled and no latency claim.
 
+- [ ] 10. Repair only the vetoes M1a recorded (release milestone M1b)
+- [ ] 10.1 Establish operation correspondence for an operation on a changed line
+  - M1a measured this as the blocker that survives every other repair: a newly introduced operation sits on a changed line, has no base line anchor, and therefore cannot be classified even when every completeness veto is lifted.
+  - Bind the required base/head correspondence to the specific operation identity rather than to a line anchor. A complete base answer for the counterpart question that contains no operation with the same operation and source establishes absence; a matching operation elsewhere in that answer is movement, not novelty.
+  - Keep the existing conservative rules: an incomplete or failed base stays unknown, benign movement and renames stay unchanged, and lexical alignment is never semantic proof.
+  - Add absent, renamed, removed-guard, moved-operation and repeated-identical-operation controls. Done when a newly introduced operation on a changed line is classified new, while movement, renames and an incomplete base remain unchanged or unknown.
+  - _Boundary: Delta and Actionability Policy_
+  - _Requirements: 2.4, 3.1, 3.4_
+- [ ] 10.2 Scope correspondence ambiguity to the operations it actually affects
+  - `ambiguous_line_correspondence` is recorded file-wide and inherited by every question, so repeated unchanged lines invalidate distinct, uniquely mapped operations elsewhere.
+  - Retain ambiguous mappings as unavailable and record which regions are ambiguous, so only an operation whose required correspondence needs an ambiguous line is vetoed. Do not delete the ambiguity check.
+  - Done when a uniquely mapped operation is comparable in a file that also contains repeated unchanged lines, while an operation needing an ambiguous line stays unresolved.
+  - _Boundary: Snapshot Adapter, Delta and Actionability Policy_
+  - _Depends: 10.1_
+  - _Requirements: 2.4, 3.4_
+- [ ] 10.3 Make the external and dynamic context boundary question-owned
+  - M1a recorded `dynamic_external_or_depth_context_unresolved` on the target's own question. The flag is computed over every in-scope method, so one unresolved call anywhere vetoes every question, including those whose relevant methods are fully resolved.
+  - Report the boundary with the methods whose destinations are unresolved, and inherit it into a question only when such a method participates in that question's change relationships. Unknown ownership remains a blocker; absent evidence of independence is not proof of independence.
+  - Done when a question whose relevant methods resolve completely is not vetoed by an unrelated external call, while a question that depends on an unresolved destination stays unresolved.
+  - _Boundary: contributor-scan query/context evidence, Ranker Scope Contract_
+  - _Requirements: 2.1, 2.2, 8.1, 8.2_
+- [ ] 10.4 Stop vendor exclusion acting as a global completion veto
+  - `vendor_semantics_unresolved` currently degrades every otherwise complete outcome to `graph_incomplete`, including on a complete 44-file first-party census with successful query receipts.
+  - Keep the exclusion physical and keep the coverage note. Let the question-owned dependency evidence from 10.3 carry whether a specific answer needed excluded semantics; a recorded dependency on an excluded path still blocks that question.
+  - Done when an unrelated vendor exclusion no longer invalidates a first-party answer, while a question with evidence of dependency on excluded code remains unresolved and the exclusion stays out of targets and graphs.
+  - _Boundary: contributor-scan graph/scope evidence, Cache and Engine Boundary_
+  - _Depends: 10.3_
+  - _Requirements: 2.2, 2.3, 8.2, 8.4_
+- [ ] 10.5 Carry query-to-operation provenance into the reported evidence
+  - The target is selected through a file-fallback question with `function=None` while rows report method `<lambda>2`. M1a showed this did not block the comparison once the question completed, so it is provenance quality rather than the blocker.
+  - Record verified query-to-operation provenance on the evidence; do not inject benchmark function names into regions or count coincident sites.
+  - Done when a reported operation names the question that produced it and the method the engine reported, with unresolved provenance explicit.
+  - _Boundary: Delta and Actionability Policy, contributor-scan normalization_
+  - _Requirements: 3.1, 3.4, 6.3_
+- [ ] 10.6 Rerun the three revisions through the production rules
+  - Replay the same pinned vulnerable, fixed and unchanged revisions **without** the recorded-veto flag under the named development budget. Demonstrate a developer-readable evaluation finding with a supported consequence, exact location, witness, change attribution and repair direction.
+  - Verify the fixed twin is analyzed and produces no actionable defect and the unchanged revision is not reported as a new regression. Keep qualification eligibility disabled; experimental evaluation output cannot advertise an unqualified hook alert.
+  - Done when one replayable record states which vetoes were repaired and which remain, with completed required checks and readable source and census receipts.
+  - _Boundary: Evaluation harness, full-run integration_
+  - _Depends: 10.1, 10.2, 10.3, 10.4, 10.5_
+  - _Requirements: 1.1, 2.1, 2.4, 3.1, 3.4, 6.3, 7.1, 7.3_
+
 ## Implementation Notes
 
 - Task5.2 measured PMPro timing out after both snapshots were materialized but before change context/graph analysis. Group6 must account for compatible snapshot/discovery reuse as well as graph reuse; identical-tip hits cannot substitute for the later representative changed-code latency gate. No new detector, scope heuristic or incremental CPG mutation is implied.

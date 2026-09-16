@@ -136,18 +136,33 @@ def _operations(scan: ModelScanResult, budget: ExecutionBudget | None = None) ->
     return tuple(result)
 
 
-def _base_location(op: EvidenceOperation, context: ChangeContext) -> tuple[str, int] | None:
+def _correspondence(op: EvidenceOperation, context: ChangeContext) -> tuple[tuple[str, int] | None, str]:
+    """Where this head operation maps in the base, and when it does not, why.
+
+    `changed_line` means the operation lies inside a recorded head edit, so no base line
+    can correspond to it. That is a different fact from `ambiguous`, where several base
+    lines could correspond, and from `unmapped`, where no anchor was recorded at all.
+    Only the first supports reasoning about an operation the change introduced.
+    """
     matches = []
     for anchor in context.line_correspondences:
         size = anchor.base_end_line - anchor.base_start_line
         if context.decode_path(anchor.head_path) == op.path and anchor.head_start_line <= op.line <= anchor.head_start_line + size:
             matches.append((context.decode_path(anchor.base_path), anchor.base_start_line + op.line - anchor.head_start_line))
     if matches:
-        return matches[0] if len(set(matches)) == 1 else None
+        return (matches[0], "anchored") if len(set(matches)) == 1 else (None, "ambiguous")
     changed = {context.decode_path(p) for p in context.changed_paths}
     if op.path not in changed:
-        return op.path, op.line
-    return None
+        return (op.path, op.line), "unchanged_path"
+    introduced = any(
+        span.side == "head" and context.decode_path(span.path) == op.path and span.start_line <= op.line <= span.end_line
+        for span in context.spans
+    )
+    return None, ("changed_line" if introduced else "unmapped")
+
+
+def _base_location(op: EvidenceOperation, context: ChangeContext) -> tuple[str, int] | None:
+    return _correspondence(op, context)[0]
 
 
 def _change_evidence(op: EvidenceOperation, context: ChangeContext) -> tuple[str, ...]:
@@ -361,10 +376,15 @@ def _compare_evidence(
         old: tuple[EvidenceOperation, ...] = ()
         change: tuple[str, ...] = ()
         if op is not None:
-            location = _base_location(op, context)
+            location, correspondence = _correspondence(op, context)
             counterpart = _counterpart(op.question, context)
             contextual = tuple(b for b in base_ops if b.question == counterpart and b.mechanism == op.mechanism)
             old = tuple(b for b in contextual if (b.path, b.line) == location and b.operation == op.operation)
+            # Identity, not position. An operation the change introduced has no base line to
+            # map to, so absence must be established over the complete counterpart answer.
+            # Match on the operation spelling alone: a benign identifier rename changes the
+            # source text without introducing anything, and must read as movement.
+            identical = tuple(b for b in contextual if b.operation == op.operation)
             change = _change_evidence(op, context)
             reason = "base_incomplete"
             complete = bool(
@@ -419,6 +439,14 @@ def _compare_evidence(
                     and not op.discharged
                 ):
                     novelty, reason = "new", "source_connection_absent_from_comparable_base"
+                elif correspondence == "changed_line" and change and op.mechanism == "taint":
+                    # The edit introduced these lines. A complete counterpart answer that
+                    # contains this operation elsewhere is movement, never novelty; only its
+                    # total absence establishes that the change introduced the flow.
+                    if identical:
+                        reason = "operation_moved_within_change"
+                    elif finding.rung == Rung.ENTAILED and not op.discharged:
+                        novelty, reason = "new", "operation_absent_from_comparable_base"
         results.append(_candidate(finding, op, old, novelty, reason, change, context))
     return tuple(
         replace(
