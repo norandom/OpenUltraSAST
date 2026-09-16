@@ -525,3 +525,27 @@ def test_a_non_reachability_base_gap_still_blocks_an_enumerated_absence():
 def test_a_present_operation_still_refuses_novelty_under_bounded_reachability():
     candidate = delta(scan(), bounded_base("exec(cmd)"), changed_line_context())
     assert candidate.reason == "operation_present_in_base_without_traced_flow"
+
+
+def degraded(result, *reasons):
+    return replace(result, degradations=tuple({"stage": "cpg", "reason": r} for r in reasons))
+
+
+def test_a_declared_exclusion_does_not_block_a_comparison_on_either_side():
+    """M1b 10.6 in comparison: the exclusion is a scope choice, not a failed read."""
+    head = degraded(scan(), "vendor_semantics_unresolved")
+    base = degraded(scan(rows=inventory_rows(), findings=False), "vendor_semantics_unresolved")
+    assert delta(head, base, changed_line_context()).novelty == "new"
+
+
+def test_an_integrity_degradation_still_blocks_a_comparison():
+    head = degraded(scan(), "vendor_semantics_unresolved", "cpg_empty")
+    base = scan(rows=inventory_rows(), findings=False)
+    assert delta(head, base, changed_line_context()).reason == "head_context_incomplete"
+    assert delta(scan(), degraded(base, "cpg_empty"), changed_line_context()).novelty == "unknown"
+
+
+def test_a_declared_exclusion_boundary_does_not_block_either():
+    base = scan(rows=inventory_rows(), findings=False)
+    base = replace(base, scope=replace(base.scope, unresolved_boundaries=("vendor_semantics_unresolved",)))
+    assert delta(scan(), base, changed_line_context()).novelty == "new"

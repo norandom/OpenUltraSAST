@@ -18,7 +18,7 @@ from openultrasast.model.contracts import ChangeContext, ExecutionBudget, Questi
 from openultrasast.model.ladder import Rung
 from openultrasast.model.pipeline import ModelFinding, _arbitrate_all
 from openultrasast.model.regions import AMBIGUOUS_CORRESPONDENCE, ScanRegion
-from openultrasast.model.scan import ModelScanResult, ScanBudget, _prefetched, _spec_for, scan_repository
+from openultrasast.model.scan import DECLARED_EXCLUSION_GAPS, ModelScanResult, ScanBudget, _prefetched, _spec_for, scan_repository
 from openultrasast.model.specs import ConfigSpec, DominanceSpec, TaintSpec
 from openultrasast.push.cache import ArtifactCache, SemanticKeys
 from openultrasast.push.contracts import ComparisonAnalysis, PushComparison, PushResult
@@ -310,6 +310,26 @@ def _blocking_context(context: ChangeContext) -> tuple[str, ...]:
     return tuple(gap for gap in context.unresolved_boundaries if not gap.endswith(":" + AMBIGUOUS_CORRESPONDENCE))
 
 
+def _blocking_gaps(scan: ModelScanResult, *questions: QuestionIdentity) -> tuple[str, ...]:
+    """Scan gaps that can block a comparison claim.
+
+    Correspondence ambiguity is decided per operation, and a declared exclusion is a scope
+    choice rather than a failure to read the graph, so neither belongs here. Both remain in
+    aggregate coverage. Bounded reachability is kept and filtered by the caller, because it
+    blocks only the claims that rest on a flow not having been traced.
+    """
+    return tuple(
+        gap
+        for gap in _context_boundaries(scan, *questions)
+        if not gap.endswith(":" + AMBIGUOUS_CORRESPONDENCE) and gap.split(":")[0] not in DECLARED_EXCLUSION_GAPS
+    )
+
+
+def _blocking_degradations(scan: ModelScanResult) -> tuple[str, ...]:
+    """Degradations that undermine an answer. A declared exclusion is not one of them."""
+    return tuple(str(d.get("reason")) for d in scan.degradations if str(d.get("reason")) not in DECLARED_EXCLUSION_GAPS)
+
+
 def _required_scope(question: QuestionIdentity, context: ChangeContext) -> set[QuestionIdentity]:
     """Base questions this comparison requires: the counterpart and its recorded dependencies.
 
@@ -483,7 +503,7 @@ def _compare_evidence(
             required = _required_scope(op.question, context)
             selected = {q.identity for q in base.scope.selected} if base is not None and base.scope is not None else set()
             answered = {q.identity for q in base.question_outcomes if q.status == "completed"} if base is not None else set()
-            boundaries = _context_boundaries(base, *required) if base is not None else ("base_unavailable",)
+            boundaries = _blocking_gaps(base, *required) if base is not None else ("base_unavailable",)
             # Everything a base answer needs except its reachability, which limits only claims
             # that rest on a flow not having been traced.
             established = bool(
@@ -492,7 +512,7 @@ def _compare_evidence(
                 and base.scope.population_complete
                 # A truncated base scan cannot establish absence, wherever it was truncated.
                 and all(question.reason == "tier_zero" for question in base.scope.deferred)
-                and not base.degradations
+                and not _blocking_degradations(base)
                 and required <= selected
                 and required <= answered
                 and {q.identity for q in base.question_outcomes} <= selected
@@ -512,8 +532,8 @@ def _compare_evidence(
                 not head.scope
                 # A bounded reachability on the head can hide further flows; it cannot invalidate
                 # the flow this finding was traced from, so it does not block the head's own claim.
-                or [gap for gap in _context_boundaries(head, op.question) if not gap.startswith(REACHABILITY_BOUNDED)]
-                or head.degradations
+                or [gap for gap in _blocking_gaps(head, op.question) if not gap.startswith(REACHABILITY_BOUNDED)]
+                or _blocking_degradations(head)
                 or not _valid_answer(head, op.question, head_ops)
                 or op.question not in {q.identity for q in head.scope.selected}
             ):
