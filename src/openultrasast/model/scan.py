@@ -186,6 +186,15 @@ def scan_repository(
     finally:
         for cpg in owned:
             _dispose(cpg)
+        # An engine session belongs to the transaction, so it ends with the transaction. Leaving it
+        # open leaks a JVM holding the configured heap, which is how the first session-enabled run
+        # exhausted its container and made every later request fail.
+        close = getattr(backend, "close_session", None)
+        if callable(close):
+            try:
+                close()
+            except Exception as error:  # noqa: BLE001 -- tidying up must not fail a completed scan
+                logger.warning("could not end the engine session: %s", error)
     diagnostics = list(result.degradations)
     if execution_budget is not None:
         if client is not None:

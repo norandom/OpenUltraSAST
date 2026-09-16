@@ -290,3 +290,30 @@ def test_a_transport_failure_carries_the_server_log(tmp_path, fake):
         assert live.failure == "session_request_failed"
         assert "OutOfMemoryError" in live.last_body
         assert "OutOfMemoryError" in live.log_tail()
+
+
+def test_a_build_closes_the_session_it_started(tmp_path, fake, monkeypatch):
+    """M2: an unclosed session leaks a JVM holding the configured heap for the whole process."""
+    from openultrasast.cpg.backend import JoernBackend
+
+    closed: list[str] = []
+    monkeypatch.setattr(EngineSession, "start", lambda self: True)
+    monkeypatch.setattr(EngineSession, "close", lambda self: closed.append(str(self.scratch)))
+    backend = JoernBackend(session_transport=True)
+    # The build runs on a copy, so the session it starts is the copy's to close.
+    monkeypatch.setattr(JoernBackend, "_build_impl", lambda self, root, **k: self._session_for(tmp_path / "cpg.bin"))
+    backend.build(tmp_path, execution_budget=ExecutionBudget(time.monotonic() + 20, 1.0))
+    assert closed, "the build copy left its session open, which leaks a JVM holding the heap"
+    assert backend._session is None
+
+
+def test_the_driver_ends_the_session_with_the_transaction(tmp_path):
+    from openultrasast.cpg.backend import JoernBackend
+    from openultrasast.model.scan import scan_repository
+
+    backend = JoernBackend()
+    closed: list[bool] = []
+    backend.close_session = lambda: closed.append(True)  # type: ignore[method-assign]
+    (tmp_path / "a.js").write_text("const x = 1;\n")
+    scan_repository(tmp_path, [], backend=backend)
+    assert closed == [True]

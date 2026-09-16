@@ -361,6 +361,10 @@ class JoernBackend:
             if result is None:
                 for scratch in session._scratch:
                     session._cleanup(scratch, final=True)
+            # This copy owns any engine session it started. Leaving it open leaks a JVM holding the
+            # configured heap for the life of the process, and two builds per transaction meant two
+            # of them: enough to exhaust a 3 GB container and make every later request fail.
+            session.close_session()
             self.last_failure = session.last_failure
             self._diagnostics = list(session._diagnostics)
 
@@ -1165,7 +1169,9 @@ class JoernBackend:
         if answer is None:
             # Carry the engine's own account, not just our label: a bare `session_request_failed`
             # cannot distinguish a timeout from a crash from an out-of-memory kill.
-            detail = (session.last_body or session.log_tail())[-500:].replace("\n", " ")
+            # 500 characters was not enough: a Scala stack trace is longer than that, so the window
+            # showed only frames and cut off the exception that names the cause.
+            detail = (session.last_body or session.log_tail())[-2000:].replace("\n", " ")
             self._note("session_query_failed:" + query + ":" + (session.failure or "unknown"))
             logger.warning("session query %s failed (exit=%s): %s", query, session.exit_code(), detail)
             return None
