@@ -169,3 +169,31 @@ def test_missing_base_without_adapter_diagnostic_stays_incomplete(tmp_path):
     )
     assert result.question_outcomes[0].status == "unresolved"
     assert "comparison_base_unavailable" in result.scope.unresolved_boundaries
+
+
+def test_correspondence_ambiguity_alone_does_not_make_every_question_incomplete(tmp_path):
+    """M1b 10.3: repeated unchanged lines in one file no longer invalidate every question."""
+    (tmp_path / "source.php").write_text("readable\n")
+    ambiguous = replace(context(), unresolved_boundaries=(b"source.php".hex() + ":ambiguous_line_correspondence",))
+    result = scan_repository(
+        tmp_path,
+        [region("source.php", "php")],
+        backend=Backend({"source.php": vector() + [row("source.php"), {"kind": "context_summary"}]}),
+        change_context=ambiguous,
+    )
+    assert result.question_outcomes[0].status == "completed"
+    # The mapping itself is still withheld and still reported in aggregate coverage.
+    assert any("ambiguous_line_correspondence" in gap for gap in result.change_context.unresolved_boundaries)
+
+
+def test_any_other_inherited_transaction_gap_still_marks_questions_incomplete(tmp_path):
+    (tmp_path / "source.php").write_text("readable\n")
+    blocked = replace(context(), unresolved_boundaries=("snapshot:lfs_blob_unavailable",))
+    result = scan_repository(
+        tmp_path,
+        [region("source.php", "php")],
+        backend=Backend({"source.php": vector() + [row("source.php"), {"kind": "context_summary"}]}),
+        change_context=blocked,
+    )
+    assert result.question_outcomes[0].status == "unresolved"
+    assert result.question_outcomes[0].reason == "change_context_incomplete"

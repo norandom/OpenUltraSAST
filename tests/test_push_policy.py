@@ -342,3 +342,85 @@ def test_renamed_file_keeps_operation_identity_across_a_changed_line():
     ctx = replace(changed_line_context(), renames=(PathRename("old.js", "a.js"),), spans=spans)
     # Identical operation carried across the rename is movement, never novelty.
     assert delta(scan(), scan(path="old.js"), ctx).novelty == "unknown"
+
+
+def with_extra_question(result, *, status="completed", reason="answered", rows="[]", family="config_secrets", deferred=None):
+    """Add an unrelated question to a scan, optionally unresolved or deferred."""
+    from openultrasast.model.contracts import DeferredQuestion
+
+    other = replace(result.scope.selected[0].identity, family=family)
+    scope = replace(
+        result.scope,
+        selected=(*result.scope.selected, RankedQuestion(other, 0.0, ())) if deferred is None else result.scope.selected,
+        deferred=(DeferredQuestion(other, deferred, ()),) if deferred is not None else result.scope.deferred,
+    )
+    added = QuestionOutcome(other, status, reason, rows)
+    outcomes = result.question_outcomes if deferred is not None else (*result.question_outcomes, added)
+    return replace(result, scope=scope, question_outcomes=outcomes), other
+
+
+def test_unrelated_unsupported_family_no_longer_blocks_a_complete_target_comparison():
+    """M1b 10.2: completeness is demanded over the required scope, not the whole repository."""
+    base, other = with_extra_question(scan(rows=[], findings=False), status="unresolved", reason="unsupported_family", rows="[]")
+    owned = "context_projection_unavailable:contributor-scan:" + other.question_id
+    base = replace(base, scope=replace(base.scope, unresolved_boundaries=(owned,)))
+    assert delta(scan(), base).novelty == "new"
+
+
+def test_incomplete_counterpart_still_blocks():
+    base = scan(rows=[], status="unanswered", findings=False)
+    assert delta(scan(), base).novelty == "unknown"
+    own = scan(rows=[], findings=False)
+    owned = "context_projection_unavailable:contributor-scan:" + own.scope.selected[0].identity.question_id
+    own = replace(own, scope=replace(own.scope, unresolved_boundaries=(owned,)))
+    assert delta(scan(), own).novelty == "unknown"
+
+
+def test_unknown_ownership_boundary_stays_inside_the_required_scope():
+    base, _ = with_extra_question(scan(rows=[], findings=False))
+    base = replace(base, scope=replace(base.scope, unresolved_boundaries=("graph_incomplete",)))
+    assert delta(scan(), base).novelty == "unknown"
+
+
+def test_truncated_base_cannot_establish_absence_wherever_it_was_truncated():
+    base, _ = with_extra_question(scan(rows=[], findings=False), deferred="budget_exhausted")
+    assert delta(scan(), base).novelty == "unknown"
+    base, _ = with_extra_question(scan(rows=[], findings=False), deferred="tier_zero")
+    assert delta(scan(), base).novelty == "new"
+
+
+def test_a_recorded_dependency_of_the_counterpart_must_also_be_complete():
+    from openultrasast.model.contracts import AffectedRelationship
+
+    head = scan()
+    target = head.scope.selected[0].identity
+    helper = replace(target, path="helper.js", function="carry")
+    ctx = replace(context(), relationships=(AffectedRelationship(helper, target, "callee", ("head_span:a.js:4-4",)),))
+    base = scan(rows=[], findings=False)
+    # The dependency is not answered in the base, so the required scope is incomplete.
+    assert delta(head, base, ctx).novelty == "unknown"
+    extended = replace(
+        base,
+        scope=replace(base.scope, selected=(*base.scope.selected, RankedQuestion(helper, 0.0, ()))),
+        question_outcomes=(*base.question_outcomes, QuestionOutcome(helper, "completed", "answered", "[]")),
+    )
+    assert delta(head, extended, ctx).novelty == "new"
+
+
+def test_repeated_unchanged_lines_do_not_invalidate_a_distinct_operation():
+    """M1b 10.3: file-wide ambiguity is scoped to the operations whose anchor needs it."""
+    ambiguous = "612e6a73:" + "ambiguous_line_correspondence"
+    ctx = replace(changed_line_context(), unresolved_boundaries=(ambiguous,))
+    assert delta(scan(), scan(rows=[], findings=False), ctx).novelty == "new"
+
+
+def test_an_operation_needing_an_ambiguous_anchor_is_still_uncomparable():
+    ambiguous = "612e6a73:" + "ambiguous_line_correspondence"
+    ctx = replace(changed_line_context(ambiguous=True), unresolved_boundaries=(ambiguous,))
+    assert delta(scan(), scan(rows=[], findings=False), ctx).novelty == "unknown"
+
+
+def test_any_other_transaction_context_gap_still_blocks():
+    ctx = replace(changed_line_context(), unresolved_boundaries=("snapshot:lfs_blob_unavailable",))
+    candidate = delta(scan(), scan(rows=[], findings=False), ctx)
+    assert (candidate.novelty, candidate.reason) == ("unknown", "change_context_unresolved")

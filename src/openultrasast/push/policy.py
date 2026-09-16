@@ -17,7 +17,7 @@ from openultrasast.cpg.backend import CpgResult
 from openultrasast.model.contracts import ChangeContext, ExecutionBudget, QuestionIdentity
 from openultrasast.model.ladder import Rung
 from openultrasast.model.pipeline import ModelFinding, _arbitrate_all
-from openultrasast.model.regions import ScanRegion
+from openultrasast.model.regions import AMBIGUOUS_CORRESPONDENCE, ScanRegion
 from openultrasast.model.scan import ModelScanResult, ScanBudget, _prefetched, _spec_for, scan_repository
 from openultrasast.model.specs import ConfigSpec, DominanceSpec, TaintSpec
 from openultrasast.push.cache import ArtifactCache, SemanticKeys
@@ -211,7 +211,7 @@ def _valid_answer(scan: ModelScanResult, question: QuestionIdentity, operations:
     return len(rows) == sum(op.question == question for op in operations)
 
 
-def _context_boundaries(scan: ModelScanResult, question: QuestionIdentity | None = None) -> tuple[str, ...]:
+def _context_boundaries(scan: ModelScanResult, *questions: QuestionIdentity) -> tuple[str, ...]:
     # Aggregate coverage keeps every gap. A candidate may ignore only a recognized
     # question-owned boundary attached to a different, recorded question. Unknown
     # ownership and graph/declaration gaps remain global.
@@ -222,14 +222,41 @@ def _context_boundaries(scan: ModelScanResult, question: QuestionIdentity | None
         "context_scope_empty:contributor-scan:",
         "dynamic_external_or_depth_context_unresolved:contributor-scan:",
     )
-    others = {q.identity.question_id for q in scan.scope.selected if q.identity != question}
-    others.update(q.identity.question_id for q in scan.scope.deferred if q.identity != question)
+    retained = set(questions)
+    others = {q.identity.question_id for q in scan.scope.selected if q.identity not in retained}
+    others.update(q.identity.question_id for q in scan.scope.deferred if q.identity not in retained)
     return tuple(
         boundary
         for boundary in scan.scope.unresolved_boundaries
         if not boundary.startswith("evidence_unknown:")
-        and not (question is not None and boundary.startswith(owned_prefixes) and boundary.rsplit(":", 1)[-1] in others)
+        and not (questions and boundary.startswith(owned_prefixes) and boundary.rsplit(":", 1)[-1] in others)
     )
+
+
+def _blocking_context(context: ChangeContext) -> tuple[str, ...]:
+    """Transaction context gaps that block any comparison.
+
+    Correspondence ambiguity is excluded because it is now decided per operation: an
+    operation needing an ambiguous anchor is reported `ambiguous` and stays uncomparable,
+    while a uniquely mapped or newly introduced operation elsewhere in the same file is
+    unaffected. Every other gap still blocks and is still reported.
+    """
+    return tuple(gap for gap in context.unresolved_boundaries if not gap.endswith(":" + AMBIGUOUS_CORRESPONDENCE))
+
+
+def _required_scope(question: QuestionIdentity, context: ChangeContext) -> set[QuestionIdentity]:
+    """Base questions this comparison requires: the counterpart and its recorded dependencies.
+
+    Completeness is demanded over exactly this scope. Every other gap stays in aggregate
+    coverage and is still reported; it is never discharged. An unrelated unsupported family
+    no longer prevents an otherwise complete target comparison, and unknown dependency
+    ownership remains inside the scope because it is not attributed to another question.
+    """
+    required = {_counterpart(question, context)}
+    for relation in context.relationships:
+        if relation.target == question and relation.evidence:
+            required.add(_counterpart(relation.source, context))
+    return required
 
 
 def _counterpart(question: QuestionIdentity, context: ChangeContext) -> QuestionIdentity:
@@ -287,7 +314,7 @@ def compare_evidence(
         and execution_budget is not None
         and time.monotonic() < execution_budget.deadline_monotonic
         and context.base_revision is not None
-        and not context.unresolved_boundaries
+        and not _blocking_context(context)
         and head_semantics == base_semantics
         and complete(head)
         and complete(base)
@@ -387,24 +414,27 @@ def _compare_evidence(
             identical = tuple(b for b in contextual if b.operation == op.operation)
             change = _change_evidence(op, context)
             reason = "base_incomplete"
+            required = _required_scope(op.question, context)
+            selected = {q.identity for q in base.scope.selected} if base is not None and base.scope is not None else set()
+            answered = {q.identity for q in base.question_outcomes if q.status == "completed"} if base is not None else set()
             complete = bool(
                 base
                 and base.scope
                 and base.scope.population_complete
+                # A truncated base scan cannot establish absence, wherever it was truncated.
                 and all(question.reason == "tier_zero" for question in base.scope.deferred)
-                and not _context_boundaries(base)
+                and not _context_boundaries(base, *required)
                 and not base.degradations
-                and _valid_answer(base, counterpart, base_ops)
-                and counterpart in {q.identity for q in base.scope.selected}
-                and counterpart in {q.identity for q in base.question_outcomes if q.status == "completed"}
-                and {q.identity for q in base.scope.selected} == {q.identity for q in base.question_outcomes}
-                and all(q.status == "completed" for q in base.question_outcomes)
+                and required <= selected
+                and required <= answered
+                and {q.identity for q in base.question_outcomes} <= selected
+                and all(_valid_answer(base, question, base_ops) for question in required)
             )
             if head_semantics != base_semantics:
                 reason = "semantics_mismatch"
             elif context.base_revision is None:
                 reason = "base_unavailable"
-            elif context.unresolved_boundaries:
+            elif _blocking_context(context):
                 reason = "change_context_unresolved"
             elif (
                 not head.scope

@@ -179,6 +179,9 @@ def _families(language: str, *, has_handler: bool) -> tuple[str, ...]:
     return tuple(sorted(families))
 
 
+AMBIGUOUS_CORRESPONDENCE = "ambiguous_line_correspondence"
+
+
 def affected_context(
     context: ChangeContext,
     questions: Sequence[QuestionIdentity],
@@ -202,7 +205,12 @@ def affected_context(
         gaps.append("configuration_dependency_projection_unavailable:contributor-scan")
     if context.base_revision is None:
         gaps.append("comparison_base_unavailable")
-    inherited_gap = bool(gaps)
+    # Line-correspondence ambiguity is not a context gap: it says which base lines a head
+    # line could map to, which only the later per-operation comparison consumes. Inheriting
+    # it here made one file with repeated unchanged lines invalidate every question in the
+    # repository. The mapping itself is still withheld, so an operation that needs an
+    # ambiguous anchor remains uncomparable.
+    inherited_gap = any(not gap.endswith(":" + AMBIGUOUS_CORRESPONDENCE) for gap in gaps)
     renamed = {context.decode_path(r.base_path): context.decode_path(r.head_path) for r in context.renames}
     for identity in questions:
         if execution_budget is not None and time.monotonic() >= execution_budget.deadline_monotonic:
