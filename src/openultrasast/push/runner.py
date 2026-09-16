@@ -36,6 +36,7 @@ from openultrasast.push.policy import (
     admission_push_result,
     admit_candidates,
     compare_targeted_base,
+    dependency_gaps,
     semantics_digest,
 )
 from openultrasast.push.report import PushReport, ReportDelivery, ScanRecord, _completed_scan, deliver_report, render_report
@@ -369,7 +370,7 @@ def _analyze(
                             delta.semantics,
                         ),
                         comparison,
-                        tuple(reasons),
+                        dependency_gaps(c, context=context, head=head_scan, base=delta.base_scan),
                     )
                     for c in delta.candidates
                 )

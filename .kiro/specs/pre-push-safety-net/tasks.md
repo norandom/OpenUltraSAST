@@ -316,7 +316,7 @@ Preserve all completed task evidence below.
   - _Depends: 10.5_
   - _Requirements: 2.2, 2.3, 8.2, 8.4_
   - _Verified 2026-09-16:_ 1,365 tests passed, nine skipped; Ruff/format/mypy passed. Graph boundaries are split into integrity failures, which still demote a completed answer, and declared exclusions, which do not. Whether a particular answer needed the excluded semantics is carried by that question's own unresolved call destinations from 10.5, not assumed for every answer. Controls exercise the real partition logic rather than an injected reason: a vendored directory leaves the answer completed with the exclusion still reported, an unresolved symlink still demotes, and the two together still demote. The exclusion stays physical and out of targets and graphs. The NodeGoat rerun showed the same distinction was still missing inside comparison, where any degradation and any boundary blocked: comparison now filters declared exclusions and correspondence ambiguity on both sides, keeping integrity degradations and every other boundary blocking.
-- [ ] 10.7 Bind candidate dependency gaps to the candidate
+- [x] 10.7 Bind candidate dependency gaps to the candidate
   - **Discovered 2026-09-16 in the M1b production rerun.** The runner passes every coverage reason as every candidate's `dependency_gaps`, so admission always answers `dependency_unresolved`. That is not "an unresolved dependency that undermines the claim"; it is every gap anywhere in the transaction.
   - Supply the gaps that pertain to this candidate's required comparison scope, the same scope 10.2 established. Unknown ownership still counts against the candidate.
   - Not an M1b exit blocker, since eligibility stays disabled and no alert is emitted either way. It would prevent admission from ever passing after qualification, so it belongs before M4.
@@ -324,6 +324,7 @@ Preserve all completed task evidence below.
   - _Boundary: Push runner, Delta and Actionability Policy_
   - _Depends: 10.2_
   - _Requirements: 3.1, 3.3, 3.4_
+  - _Verified 2026-09-16:_ 1,371 tests passed, nine skipped; Ruff/format/mypy passed. Gaps are now attributed: a boundary carrying a question id counts only when that question is in this candidate's required scope, an unattributed gap always counts because unknown ownership is not evidence of independence, and integrity degradations count. A declared exclusion, correspondence ambiguity and bounded reachability do not, because each was already weighed against this specific claim. The runner no longer hands every candidate the whole transaction's reason list, which had included other candidates' comparison outcomes.
 - [ ] 10.8 Carry query-to-operation provenance into the reported evidence
   - The target is selected through a file-fallback question with `function=None` while rows report method `<lambda>2`. M1a showed this did not block the comparison once the question completed, so it is provenance quality rather than the blocker.
   - Record verified query-to-operation provenance on the evidence; do not inject benchmark function names into regions or count coincident sites.

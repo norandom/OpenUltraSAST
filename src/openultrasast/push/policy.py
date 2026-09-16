@@ -330,6 +330,46 @@ def _blocking_degradations(scan: ModelScanResult) -> tuple[str, ...]:
     return tuple(str(d.get("reason")) for d in scan.degradations if str(d.get("reason")) not in DECLARED_EXCLUSION_GAPS)
 
 
+def _owning_question(gap: str) -> str | None:
+    """The question id a gap is attributed to, or None when nothing attributed it."""
+    tail = gap.rsplit(":", 1)[-1]
+    return tail if len(tail) == 64 and all(character in "0123456789abcdef" for character in tail) else None
+
+
+def dependency_gaps(
+    delta: CandidateDelta, *, context: ChangeContext, head: ModelScanResult, base: ModelScanResult | None = None
+) -> tuple[str, ...]:
+    """Unresolved dependencies of THIS claim, not every gap anywhere in the transaction.
+
+    A gap attributed to an unrelated question is another question's problem. A declared
+    exclusion is a scope choice, correspondence ambiguity is decided per operation, and bounded
+    reachability was already weighed against this specific claim by the comparison, so none of
+    them is an unresolved dependency here. Everything else in this candidate's required scope
+    counts, and so does a gap nothing attributed to any question, because unknown ownership is
+    not evidence of independence.
+    """
+    op = delta.head_operation
+    if op is None:
+        return ()
+    required = {question.question_id for question in _required_scope(op.question, context)} | {op.question.question_id}
+
+    def pertains(gap: str) -> bool:
+        if gap.endswith(":" + AMBIGUOUS_CORRESPONDENCE) or gap.startswith(REACHABILITY_BOUNDED):
+            return False
+        if gap.split(":")[0] in DECLARED_EXCLUSION_GAPS:
+            return False
+        owner = _owning_question(gap)
+        return owner is None or owner in required
+
+    gaps = [gap for gap in context.unresolved_boundaries if pertains(gap)]
+    for scan in (head, base):
+        if scan is None:
+            continue
+        gaps.extend(gap for gap in (scan.scope.unresolved_boundaries if scan.scope else ()) if pertains(gap))
+        gaps.extend(_blocking_degradations(scan))
+    return tuple(dict.fromkeys(gaps))
+
+
 def _required_scope(question: QuestionIdentity, context: ChangeContext) -> set[QuestionIdentity]:
     """Base questions this comparison requires: the counterpart and its recorded dependencies.
 

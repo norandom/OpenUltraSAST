@@ -549,3 +549,54 @@ def test_a_declared_exclusion_boundary_does_not_block_either():
     base = scan(rows=inventory_rows(), findings=False)
     base = replace(base, scope=replace(base.scope, unresolved_boundaries=("vendor_semantics_unresolved",)))
     assert delta(scan(), base, changed_line_context()).novelty == "new"
+
+
+def test_dependency_gaps_are_bound_to_the_candidate():
+    """M1b 10.7: an unrelated question's gap is not this claim's unresolved dependency."""
+    from openultrasast.push.policy import dependency_gaps
+
+    head = scan()
+    mine = head.scope.selected[0].identity
+    other = replace(mine, family="path")
+    head = replace(
+        head,
+        scope=replace(
+            head.scope,
+            selected=(*head.scope.selected, RankedQuestion(other, 0.0, ())),
+            unresolved_boundaries=(
+                "context_projection_unavailable:contributor-scan:" + other.question_id,
+                "context_projection_unavailable:contributor-scan:" + mine.question_id,
+                "dynamic_external_or_depth_context_unresolved:contributor-scan:" + mine.question_id,
+                "vendor_semantics_unresolved",
+                "612e6a73:ambiguous_line_correspondence",
+                "snapshot:lfs_blob_unavailable",
+            ),
+        ),
+        question_outcomes=(*head.question_outcomes, QuestionOutcome(other, "unresolved", "unsupported_family", "[]")),
+    )
+    candidate = delta(head, scan(rows=inventory_rows(), findings=False), changed_line_context())
+    gaps = dependency_gaps(candidate, context=changed_line_context(), head=head)
+    assert "context_projection_unavailable:contributor-scan:" + mine.question_id in gaps
+    assert "snapshot:lfs_blob_unavailable" in gaps
+    # Another question's problem, a scope choice, a per-operation decision and a weighed bound.
+    assert "context_projection_unavailable:contributor-scan:" + other.question_id not in gaps
+    assert "vendor_semantics_unresolved" not in gaps
+    assert not any(g.endswith("ambiguous_line_correspondence") for g in gaps)
+    assert not any(g.startswith("dynamic_external_or_depth") for g in gaps)
+
+
+def test_an_integrity_degradation_is_this_candidate_s_dependency():
+    from openultrasast.push.policy import dependency_gaps
+
+    head = degraded(scan(), "cpg_sharded", "vendor_semantics_unresolved")
+    candidate = delta(scan(), scan(rows=inventory_rows(), findings=False), changed_line_context())
+    gaps = dependency_gaps(candidate, context=changed_line_context(), head=head)
+    assert "cpg_sharded" in gaps and "vendor_semantics_unresolved" not in gaps
+
+
+def test_a_candidate_without_an_operation_reports_no_dependency_gaps():
+    """Witness resolution is its own admission reason; this one has nothing to attribute gaps to."""
+    from openultrasast.push.policy import dependency_gaps
+
+    candidate = replace(delta(scan(), scan(rows=inventory_rows(), findings=False), changed_line_context()), head_operation=None)
+    assert dependency_gaps(candidate, context=changed_line_context(), head=scan()) == ()
