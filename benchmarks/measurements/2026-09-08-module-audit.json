@@ -1,7 +1,7 @@
 {
-  "modules": 116,
+  "modules": 117,
   "counts": {
-    "load_bearing": 107,
+    "load_bearing": 108,
     "standalone_capability": 9
   },
   "orphaned": [],
@@ -201,6 +201,14 @@
       ]
     },
     {
+      "module": "cpg.session",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
+        "cpg.backend"
+      ]
+    },
+    {
       "module": "findings",
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
@@ -378,6 +386,7 @@
       "importers": [
         "cli",
         "cpg.backend",
+        "cpg.session",
         "model.candidates",
         "model.config_value",
         "model.dominance",
@@ -440,6 +449,7 @@
       "importers": [
         "cli",
         "cpg.backend",
+        "cpg.session",
         "model.partitions",
         "model.regions",
         "model.scan",

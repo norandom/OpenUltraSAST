@@ -266,7 +266,7 @@ Preserve all completed task evidence below.
   - _Requirements: 1.1, 2.1, 2.4, 3.4, 6.3, 7.1, 7.3_
   - _Verified 2026-09-16:_ all three pinned revisions replayed through the production CLI under a named 900-second development budget; expectations frozen on disk first. Raw `<lambda>2` witnesses present at lines 32–34; fixed twin analyzed and quiet (target question answered with zero rows, no deadline reason, three base-only findings); unchanged revision analyzed and recorded `unchanged`. Five vetoes fired and were recorded; the remaining blocker is `operation_correspondence_unresolved` for an operation on a changed line. Zero admitted defects. Evidence: [M1a record](m1a-recorded-vetoes.md) and `benchmarks/measurements/2026-09-16-nodegoat-m1a-recorded-vetoes.json`. Diagnosis only; no capability enabled and no latency claim.
 
-- [ ] 10. Repair only the vetoes M1a recorded (release milestone M1b)
+- [x] 10. Repair only the vetoes M1a recorded (release milestone M1b)
 - [x] 10.1 Establish operation correspondence for an operation on a changed line
   - M1a measured this as the blocker that survives every other repair: a newly introduced operation sits on a changed line, has no base line anchor, and therefore cannot be classified even when every completeness veto is lifted.
   - Bind the required base/head correspondence to the specific operation identity rather than to a line anchor. A complete base answer for the counterpart question that contains no operation with the same operation and source establishes absence; a matching operation elsewhere in that answer is movement, not novelty.
@@ -341,7 +341,7 @@ Preserve all completed task evidence below.
   - _Requirements: 1.1, 2.1, 2.4, 3.1, 3.4, 6.3, 7.1, 7.3_
   - _Verified 2026-09-16 with one named exception:_ all three revisions replayed through the production rules with exact pins and reopened source receipts. Vulnerable: three sites new with `operation_absent_from_comparable_base`, admission rejecting on `capability_unavailable` alone. Fixed twin: analyzed and quiet with three base-only findings. Unchanged: three sites `unchanged` with base locations resolved to the same lines. Every finding carries its question, the engine-reported method and its witness; the head census is the complete 44 files; all 436 base questions complete. Zero admitted defects. The repaired and remaining veto lists are in [the M1b record](m1a-recorded-vetoes.md). **Exception:** the supported security consequence and concrete repair direction are not demonstrated, because both are owned by an evaluated capability declaration and the registry is deliberately empty. M1b's comparison half is verified; its explanation half waits on M4.
 
-- [ ] 10.10 Render the experimental evaluation finding with its consequence and repair
+- [x] 10.10 Render the experimental evaluation finding with its consequence and repair
   - **The remaining half of M1b's exit, named by the 10.9 run.** The comparison is verified, but the milestone also asks for a developer-readable finding carrying a supported security consequence and a concrete repair direction. Both come from an evaluated capability declaration and the registry is deliberately empty, so nothing renders them.
   - Generate an explicitly unreviewed, experimental declaration for this capability with the existing registry tool, and render the finding through the same grounded-template path the admitted case uses. Keep eligibility disabled: an experimental declaration is not enabled and not PASS, so admission must still reject it and no normal hook alert may be advertised.
   - Do not write consequence or repair text that no declaration supports. Refusing generic advice without a supported context and operation is the rule admission exists to enforce, and the experimental path must not become a way around it.
@@ -349,6 +349,61 @@ Preserve all completed task evidence below.
   - _Boundary: Result and Hook Adapter, Delta and Actionability Policy, Evaluation harness_
   - _Depends: 10.9_
   - _Requirements: 3.1, 3.2, 3.3, 5.1, 5.5, 6.3_
+  - _Verified 2026-09-16:_ 1,386 tests passed, nine skipped; Ruff/format/mypy passed. Three evaluation findings rendered on the vulnerable revision with exact location, witness, change attribution, provenance, consequence and repair, all from the declaration's templates through the grounded-template path. The declaration reports verdict experimental and enabled false, the production result still reports no actionable defect, and all three artifacts carry zero admitted defects. Controls prove an ungrounded template is refused, an uncovered operation symbol is stated, no matching declaration leaves both sentences absent with the reason, and a declaration claiming PASS still admits nothing because the rendering path is outside admission. Evidence: `benchmarks/measurements/2026-09-16-nodegoat-m1b-explained.json`.
+
+
+- [ ] 11. Fit the same useful analysis into the push budget (release milestone M2)
+- [ ] 11.1 Give the backend a transaction-owned engine session
+  - The measured cost is JVM startup, not analysis. In the M1b runs each disposable `joern --script` invocation cost 13 to 23 seconds while the work itself took under a second, and the 2026-09-14 lifecycle probe measured one session at 12.8 s to start, 3.6 s to load a graph and 0.22 to 0.47 s per warm request.
+  - Own the session inside the existing backend for the length of one transaction: loopback only on an ephemeral port with no published port, a private working directory, one shared deadline, serialized requests, explicit graph identity and epoch, and kill-and-reap of the whole process group on cancellation, failure or exit.
+  - An HTTP status is not an answer contract. Require a per-request receipt written to a fresh private file and verified before the answer is accepted, the way the probe's repaired instrument did after its first attempt read an empty stdout as a census.
+  - Poison the session on any crash or malformed response so a failed session can never answer a later request, and fall back to the disposable path rather than reporting a zero.
+  - Done when a controlled hanging in-session request is cancelled inside the allowance with no surviving process group, a crashed session answers nothing afterwards, and the disposable path still works unchanged.
+  - _Boundary: contributor-scan runtime, Cache and Engine Boundary_
+  - _Requirements: 4.1, 4.2, 7.3_
+- [ ] 11.2 Prove every shipped query kind answers identically through both transports
+  - Run taint, dominance, configuration and census over the same graph through the session and through the disposable path and require identical payloads, including empty answers and the distinction between an empty answer and an unavailable one.
+  - Cover a malformed or absent response, a switched graph, a second graph loaded in the same session, and a request arriving after cancellation. Equivalence on a census alone does not establish equivalence for security queries.
+  - Done when every shipped query kind matches byte for byte on a real graph, and every failure shape is reported as unavailable rather than empty.
+  - _Boundary: contributor-scan runtime, engine integration tests_
+  - _Depends: 11.1_
+  - _Requirements: 4.1, 4.2, 6.4, 7.3_
+- [ ] 11.3 Route the batch path through the session behind an explicit setting
+  - Consume the session from the existing batch and census paths, keeping the disposable path as the default and as the fallback. No capability, ranking decision or evidence semantics changes; only the transport does.
+  - Account for session startup, load, requests and teardown inside the one shared deadline, and record them as separate stage costs so the next decision is made on measurements rather than estimates.
+  - Done when a replay produces the same evidence and admission through either transport under a sufficient budget, with per-stage costs recorded for both.
+  - _Boundary: Cache and Engine Boundary, Push runner_
+  - _Depends: 11.2_
+  - _Requirements: 4.1, 4.3, 6.4, 7.3_
+- [ ] 11.4 Remove the startup cost from the critical path where the measurement says it pays
+  - With 11.3's stage costs in hand, decide what else to change. The candidates the M1b runs point at are the overlay pass, 15.8 s in a separate invocation, and session startup, 12.8 s, which may overlap the frontend build rather than follow it.
+  - Change only what the measurement implicates, and keep each change's correctness evidence separate from its timing evidence. Do not substitute a faster census for a completed security check.
+  - Done when the recorded stage costs after the change are compared against the same profile before it, with any regression in completed checks reported rather than traded away.
+  - _Boundary: contributor-scan runtime_
+  - _Depends: 11.3_
+  - _Requirements: 4.1, 4.2, 6.2, 6.5_
+- [ ] 11.5 Rerun the frozen seven-class runtime profile and decide
+  - Rerun the unchanged seven-class profile: identical-tip, function edit, dependency edit, configuration edit, cold, growth and multi-ref, three samples each, retaining every timeout and unresolved check. Identical-tip reuse cannot substitute for warm changed-code work.
+  - Verify the M1 outcome still holds on the same three revisions through the production rules, so speed is not bought with a lost detection.
+  - Apply the existing gates without alteration: representative warm changed-code p95 at most 30 s, cancellation and reporting at most 2 s, supported-check completion at least 95%. A failed gate stays NO-GO and names the dominant remaining cost.
+  - Done when one versioned scorecard reports p50 and p95 with sample counts beside the M1 correctness outcome, and states GO or NO-GO against the unchanged gates.
+  - _Boundary: Evaluation harness, runtime integration_
+  - _Depends: 11.4_
+  - _Requirements: 4.1, 4.2, 6.2, 6.3, 6.5, 7.3_
+
+- [ ] 12. Prerequisites for independent qualification found during M1a and M1b
+- [ ] 12.1 Extract the operation symbol from the operation, not from the statement
+  - **Found 2026-09-16 in the M1b explanation run.** Admission takes the text before the first parenthesis as the operation symbol, so `const preTax = eval(req.body.preTax)` yields `const preTax = eval`. The demonstration declaration had to enumerate each assignment spelling for its coverage check to pass.
+  - A qualified declaration cannot enumerate every assignment a codebase might write, so admission would reject genuine findings on `operation_semantics_mismatch`. Take the symbol from the called operation the engine reported, preserving receiver spelling, and leave an unresolved or dynamic spelling ineligible as it is today.
+  - Done when the symbol for an assigned call is the call's own name, a receiver-qualified call keeps its receiver, a dynamic spelling stays ineligible, and a declaration naming the plain symbol covers the assigned form.
+  - _Boundary: Delta and Actionability Policy_
+  - _Requirements: 3.1, 3.2, 3.4_
+- [ ] 12.2 Supply per-family context producers for dominance and configuration
+  - The M1b exit run left 231 of 436 head questions reporting `change_context_incomplete` from `context_projection_unavailable` and `context_scope_empty`, because those families' queries export no context. They did not block the Node injection case, so M1b correctly left them alone, but their families stay experimental until they can answer.
+  - Give dominance and configuration their own context producers describing the actual scope of the query they accompany. Do not copy taint context into them: dominance evaluates sibling operations across a file and configuration has different scope and obligations.
+  - Done when a dominance and a configuration question complete their change context on a real repository, with missing extents and unsupported reasoning still explicit.
+  - _Boundary: contributor-scan query/context evidence_
+  - _Requirements: 2.1, 2.2, 8.1, 8.2_
 
 ## Implementation Notes
 

@@ -36,6 +36,7 @@ from typing import Any, Protocol
 
 from ..model.contracts import ExecutionBudget
 from .artifact import GraphArtifact, GraphCensus, GraphIdentity
+from .session import EngineSession
 
 logger = logging.getLogger(__name__)
 
@@ -320,9 +321,15 @@ class JoernBackend:
     # Why the last build refused, so the driver can name it instead of reporting a bare `cpg_build_failed`.
     last_failure: str = ""
     execution_budget: ExecutionBudget | None = None
+    # M2 11.3: opt-in transport. Off by default, so shipped behaviour stays the disposable
+    # invocation this project has measured. A session that cannot answer falls back to it rather
+    # than reporting a zero, and what a session returns is the same payload or nothing at all.
+    session_transport: bool = False
     _diagnostics: list[str] = field(default_factory=list, init=False, repr=False)
     _scratch: list[Path] = field(default_factory=list, init=False, repr=False)
     _cancel_deadline: float | None = field(default=None, init=False, repr=False)
+    _session: EngineSession | None = field(default=None, init=False, repr=False)
+    _defined: set[str] = field(default_factory=set, init=False, repr=False)
 
     def available(self) -> bool:
         from .capability import has_cpg
@@ -1038,24 +1045,29 @@ class JoernBackend:
         except OSError as exc:
             logger.warning("could not stage cpg batch %s: %s", query, exc)
             return None
-        command = [
-            shutil.which("joern") or "joern",
-            self._heap_flag(),
-            "--script",
-            str(script),
-            "--param",
-            f"cpgFile={cpg_path}",
-            "--param",
-            f"requestsFile={requests_file}",
-        ]
-        for name, value in shared.items():
-            command += ["--param", f"{name}={value}"]
-        completed = self._run(command, timeout=self.query_timeout, cwd=cpg_path.parent)
-        if completed is None or completed.returncode != 0:
-            detail = (completed.stderr or "")[-400:] if completed is not None else "timeout"
-            logger.warning("cpg batch %s failed: %s", query, detail)
-            return None
-        parsed = extract_payload(completed.stdout or "")
+        # The session answers the same script with the same parameters, or nothing; nothing means
+        # the disposable invocation below runs exactly as it always has.
+        body = self._session_payload(cpg_path, query, {"cpgFile": str(cpg_path), "requestsFile": str(requests_file), **shared})
+        if body is None:
+            command = [
+                shutil.which("joern") or "joern",
+                self._heap_flag(),
+                "--script",
+                str(script),
+                "--param",
+                f"cpgFile={cpg_path}",
+                "--param",
+                f"requestsFile={requests_file}",
+            ]
+            for name, value in shared.items():
+                command += ["--param", f"{name}={value}"]
+            completed = self._run(command, timeout=self.query_timeout, cwd=cpg_path.parent)
+            if completed is None or completed.returncode != 0:
+                detail = (completed.stderr or "")[-400:] if completed is not None else "timeout"
+                logger.warning("cpg batch %s failed: %s", query, detail)
+                return None
+            body = completed.stdout or ""
+        parsed = extract_payload(body)
         if not self._time_available():
             return None
         if not isinstance(parsed, Mapping):
@@ -1075,18 +1087,70 @@ class JoernBackend:
         if not script.is_file():
             logger.warning("no such cpg query: %s", script)
             return None
-        command = [shutil.which("joern") or "joern", self._heap_flag(), "--script", str(script), "--param", f"cpgFile={cpg_path}"]
-        for key, value in sorted(params.items()):
-            command += ["--param", f"{key}={_render(value)}"]
-        # Joern writes a `workspace/` beside the working directory; run it inside the CPG's own scratch dir so
-        # it can never land in the repository being analysed.
-        completed = self._run(command, timeout=self.query_timeout, cwd=cpg_path.parent)
-        if completed is None or completed.returncode != 0:
-            detail = (completed.stderr or "")[-400:] if completed is not None else "timeout"
-            logger.warning("cpg query %s failed: %s", query, detail)
-            return None
-        parsed = extract_payload(completed.stdout or "")
+        body = self._session_payload(cpg_path, query, {"cpgFile": str(cpg_path), **params})
+        if body is None:
+            command = [shutil.which("joern") or "joern", self._heap_flag(), "--script", str(script), "--param", f"cpgFile={cpg_path}"]
+            for key, value in sorted(params.items()):
+                command += ["--param", f"{key}={_render(value)}"]
+            # Joern writes a `workspace/` beside the working directory; run it inside the CPG's own scratch dir so
+            # it can never land in the repository being analysed.
+            completed = self._run(command, timeout=self.query_timeout, cwd=cpg_path.parent)
+            if completed is None or completed.returncode != 0:
+                detail = (completed.stderr or "")[-400:] if completed is not None else "timeout"
+                logger.warning("cpg query %s failed: %s", query, detail)
+                return None
+            body = completed.stdout or ""
+        parsed = extract_payload(body)
         return parsed if self._time_available() else None
+
+    def _session_for(self, cpg_path: Path) -> EngineSession | None:
+        """The transaction's session, started on first use. None means use the disposable path."""
+        if not self.session_transport or self.execution_budget is None:
+            return None
+        if self._session is not None:
+            return self._session if self._session.alive else None
+        session = EngineSession(cpg_path.parent / "engine-session", self.execution_budget, self._jvm_env())
+        if not session.start():
+            self._note("session_unavailable:" + (session.failure or "unknown"))
+            session.close()
+            self._session = session
+            return None
+        self._session = session
+        return session
+
+    def _session_payload(self, cpg_path: Path, query: str, params: Mapping[str, object]) -> str | None:
+        """Run one shipped script in-session and return what it printed, or None to fall back.
+
+        The script is defined under a name of its own because every script declares `exec`, and a
+        second definition would shadow the first. Defining proves nothing: the receipt on the call
+        is the only proof, which is why any failure here simply falls back to the disposable path.
+        """
+        session = self._session_for(cpg_path)
+        if session is None:
+            return None
+        try:
+            source = (self.queries_dir / f"{query}.sc").read_text()
+        except OSError:
+            return None
+        symbol = f"ousast_{query}"
+        if query not in self._defined:
+            if session.define(source.replace("@main def exec(", f"def {symbol}(", 1), timeout=self.query_timeout) is None:
+                self._note("session_define_failed:" + query)
+                return None
+            self._defined.add(query)
+        arguments = ", ".join(f"{name} = {json.dumps(_render(value))}" for name, value in sorted(params.items()))
+        answer = session.evaluate(f"{symbol}({arguments})", timeout=self.query_timeout)
+        if answer is None:
+            self._note("session_query_failed:" + query + ":" + (session.failure or "unknown"))
+            return None
+        return answer.stdout
+
+    def close_session(self) -> None:
+        """End the transaction's session and reap its process group."""
+        if self._session is not None:
+            self._session.close()
+            self._session = None
+            self._defined.clear()
 
     def _note(self, reason: str) -> None:
         if reason not in self._diagnostics:

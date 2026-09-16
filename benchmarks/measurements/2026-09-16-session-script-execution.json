@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "experiment": "session-script-execution-v2",
+  "purpose": "Which in-session mechanism runs a shipped @main script with parameters",
+  "scope": "One JavaScript graph, census script; no security-query equivalence and no latency claim",
+  "instrument_note": "v1 of this probe sent two candidates as Scala string literals instead of code and reported NO_MECHANISM_FOUND. It did establish that runScript is absent from the server REPL.",
+  "attempts": [
+    {
+      "mechanism": "main_annotation_kept",
+      "definition_sent": true,
+      "definition_output": "def exec(cpgFile: String): Unit\n",
+      "call_seconds": 2.0279543119249865,
+      "payload": {
+        "files": "19",
+        "methods": "229",
+        "calls": "1683",
+        "file_names": [
+          "assets/js/chart/chart-data-morris.js",
+          "assets/js/tour/redirects-steps.js",
+          "data/allocations-dao.js",
+          "data/benefits-dao.js",
+          "data/contributions-dao.js",
+          "data/memos-dao.js",
+          "data/profile-dao.js",
+          "data/research-dao.js",
+          "data/user-dao.js",
+          "routes/allocations.js",
+          "routes/benefits.js",
+          "routes/contributions.js",
+          "routes/error.js",
+          "routes/index.js",
+          "routes/memos.js",
+          "routes/profile.js",
+          "routes/research.js",
+          "routes/session.js",
+          "routes/tutorial.js"
+        ],
+        "overlays": "base,controlflow,typerel,callgraph,dataflowOss",
+        "maxHeapMB": "1536"
+      },
+      "stdout_tail": "llocations.js\",\"routes/benefits.js\",\"routes/contributions.js\",\"routes/error.js\",\"routes/index.js\",\"routes/memos.js\",\"routes/profile.js\",\"routes/research.js\",\"routes/session.js\",\"routes/tutorial.js\"],\"overlays\":\"base,controlflow,typerel,callgraph,dataflowOss\",\"maxHeapMB\":\"1536\"}\n---OUSAST-CPG-END---\n",
+      "payload_matches_disposable": true,
+      "seconds": 3.2417371519841254
+    },
+    {
+      "mechanism": "main_annotation_stripped",
+      "definition_sent": true,
+      "definition_output": "def ousastCensus(cpgFile: String): Unit\n",
+      "call_seconds": 0.7982574889902025,
+      "payload": {
+        "files": "19",
+        "methods": "229",
+        "calls": "1683",
+        "file_names": [
+          "assets/js/chart/chart-data-morris.js",
+          "assets/js/tour/redirects-steps.js",
+          "data/allocations-dao.js",
+          "data/benefits-dao.js",
+          "data/contributions-dao.js",
+          "data/memos-dao.js",
+          "data/profile-dao.js",
+          "data/research-dao.js",
+          "data/user-dao.js",
+          "routes/allocations.js",
+          "routes/benefits.js",
+          "routes/contributions.js",
+          "routes/error.js",
+          "routes/index.js",
+          "routes/memos.js",
+          "routes/profile.js",
+          "routes/research.js",
+          "routes/session.js",
+          "routes/tutorial.js"
+        ],
+        "overlays": "base,controlflow,typerel,callgraph,dataflowOss",
+        "maxHeapMB": "1536"
+      },
+      "stdout_tail": "llocations.js\",\"routes/benefits.js\",\"routes/contributions.js\",\"routes/error.js\",\"routes/index.js\",\"routes/memos.js\",\"routes/profile.js\",\"routes/research.js\",\"routes/session.js\",\"routes/tutorial.js\"],\"overlays\":\"base,controlflow,typerel,callgraph,dataflowOss\",\"maxHeapMB\":\"1536\"}\n---OUSAST-CPG-END---\n",
+      "payload_matches_disposable": true,
+      "seconds": 1.0805925760651007
+    }
+  ],
+  "verdict": {
+    "status": "PASS",
+    "working": [
+      "main_annotation_kept",
+      "main_annotation_stripped"
+    ],
+    "warm_call_seconds": [
+      2.0279543119249865,
+      0.7982574889902025
+    ],
+    "disposable_seconds": 9.838564986013807,
+    "note": "Census only. A working mechanism must still be proven equivalent for taint, dominance and configuration before any production switch, which is task 11.2."
+  },
+  "source": {
+    "root": "/cache/nodegoat/c5cb68a7084e/app",
+    "files": 25,
+    "bytes": 318000,
+    "sha256": "459f6fd19c7d4700094f0b834eb5474ff94923014055c22385de9de3332c9d53"
+  },
+  "build": {
+    "exit_code": 0,
+    "graph_bytes": 425453,
+    "stderr": "Picked up JAVA_TOOL_OPTIONS: -Xmx1536m\n"
+  },
+  "disposable": {
+    "seconds": 9.838564986013807,
+    "exit_code": 0,
+    "payload": {
+      "files": "19",
+      "methods": "229",
+      "calls": "1683",
+      "file_names": [
+        "assets/js/chart/chart-data-morris.js",
+        "assets/js/tour/redirects-steps.js",
+        "data/allocations-dao.js",
+        "data/benefits-dao.js",
+        "data/contributions-dao.js",
+        "data/memos-dao.js",
+        "data/profile-dao.js",
+        "data/research-dao.js",
+        "data/user-dao.js",
+        "routes/allocations.js",
+        "routes/benefits.js",
+        "routes/contributions.js",
+        "routes/error.js",
+        "routes/index.js",
+        "routes/memos.js",
+        "routes/profile.js",
+        "routes/research.js",
+        "routes/session.js",
+        "routes/tutorial.js"
+      ],
+      "overlays": "base,controlflow,typerel,callgraph,dataflowOss",
+      "maxHeapMB": "1536"
+    }
+  },
+  "session_startup_seconds": 9.547755968989804,
+  "milestone": "M2 task 11.1",
+  "engine_findings": [
+    "runScript is absent from the server REPL, so a script cannot be invoked by name.",
+    "The server answers success even for a compile error and returns the diagnostic in its body, so an HTTP status is worthless as an error signal and the receipt file is the only proof.",
+    "A shipped @main script cannot be nested inside a block expression; definitions must go to the top level unwrapped, with or without the annotation.",
+    "The Joern REPL shadows Console with io.joern.console.Console, which has no withOut, so output capture must fully qualify scala.Console.withOut."
+  ],
+  "limits": [
+    "Census script on one JavaScript graph. Taint, dominance and configuration equivalence is task 11.2.",
+    "Timings are from one machine under no controlled load; they are not the hook latency gate."
+  ]
+}
