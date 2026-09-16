@@ -7,9 +7,11 @@ Release order accepted 2026-09-14: first prove one useful Node changed-code comp
 with an analyzed quiet fixed twin, then make the same analysis fast, verify PHP/Python
 transfer, qualify independently, and enable only passing advisory capabilities. See
 [the milestone spec](../specs/pre-push-safety-net/release-milestones.md). M1a is met
-(2026-09-16: witness shown, fixed twin analyzed and quiet, five vetoes recorded); we are at
-M1b, repairing only what fired. M1a added a fifth veto the earlier diagnosis missed:
-operation correspondence for an operation on a changed line.
+(2026-09-16: witness shown, fixed twin analyzed and quiet, five vetoes recorded), and the M1b
+comparison now classifies all three NodeGoat revisions through the production rules with no
+lifting. M1a added a fifth veto the earlier diagnosis missed, operation correspondence for an
+operation on a changed line, and M1b added a prerequisite it did not anticipate: absence must
+be provable from an enumerated operation inventory, not from the absence of a traced flow.
 Task counts and an experimental alpha tag do not establish release readiness. PMPro
 remains a core regression/development case; any PMPro core retune still requires frozen
 Node transfer evidence. This sequence supersedes older runtime-first next-step wording.

@@ -167,3 +167,61 @@ reason, since dependency on excluded code becomes visible in the evidence rather
 
 That prerequisite is now task 10.4, ahead of the two vetoes it unblocks. It adds no detector,
 alias resolver or second source IR.
+
+## M1b outcome: the same case through the production rules
+
+Rerun 2026-09-16 after tasks 10.1 to 10.6, same instrument, same pins, same budget.
+Evidence: [summary](../../../benchmarks/measurements/2026-09-16-nodegoat-m1b-production.json)
+and its [bundle](../../../benchmarks/measurements/2026-09-16-nodegoat-m1b-production.json.gz).
+
+The production comparison now classifies all three revisions without any lifting, and its
+verdicts match the recorded view exactly. That match is the point: the vetoes M1a recorded
+were repaired rather than bypassed.
+
+| Revision | Production verdict | Recorded verdict |
+|---|---|---|
+| vulnerable | new, `operation_absent_from_comparable_base` | identical |
+| fixed twin | quiet, analyzed, three base-only findings | identical |
+| unchanged | unchanged, `same_supported_mechanism` | identical |
+
+Compared with M1a, where production reported `witness_identity_unresolved` on every finding
+and every one of the 436 questions was demoted on both sides.
+
+The head target questions now complete, the base scan completes all 436 questions, and the
+three `eval` witnesses at contributions.js lines 32 to 34 are attributed to the change that
+introduced them. Timings were 325.7 s, 158.9 s and 260.3 s under the named 900-second
+development budget, which measures nothing about the hook gate.
+
+All three artifacts still report `finding_status: none` with zero admitted defects. Admission
+rejects on `capability_unavailable`, which is the deliberate eligibility gate, and on
+`dependency_unresolved`, which is a coarse plumbing defect recorded as its own task: the runner
+passes every coverage reason as every candidate's dependency gaps rather than the gaps that
+pertain to that candidate. Neither is a comparison failure.
+
+### What each repair contributed, measured
+
+1. **10.1 operation correspondence.** Moved the vulnerable revision from
+   `operation_correspondence_unresolved` to a classifiable operation.
+2. **10.2 required comparison scope.** Stopped unrelated unsupported families from blocking a
+   complete target comparison.
+3. **10.3 ambiguity scoping.** Stopped one file's repeated unchanged lines invalidating every
+   question in the repository.
+4. **10.4 operation inventory.** Made absence provable from enumeration rather than from the
+   absence of a traced flow, which is what let 10.5 and 10.6 be done soundly.
+5. **10.5 reachability binding.** Let the head questions complete, since bounded reachability
+   cannot invalidate a flow that was traced.
+6. **10.6 declared exclusion.** Let the base scan's 436 answers stand, since excluding
+   dependencies is a scope choice rather than a failed read.
+
+A seventh change was needed after the first rerun: the same exclusion and ambiguity distinction
+was still missing inside the comparison's own degradation and boundary checks, so the verdict
+stayed at `head_context_incomplete` even once both scans completed. The rerun is what surfaced
+it, not the unit suite.
+
+### Limits
+
+Three comparisons on one inspected teaching repository, under a development budget. NodeGoat is
+development and transfer data: it cannot qualify production Node support, and Node evidence
+cannot qualify PHP or Python. No capability is enabled, no defect is admitted, no alert is
+emitted, and no latency claim is made. Runtime, independent qualification and rollout all
+remain NO-GO.

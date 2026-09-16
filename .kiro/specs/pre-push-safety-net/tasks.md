@@ -316,18 +316,26 @@ Preserve all completed task evidence below.
   - _Depends: 10.5_
   - _Requirements: 2.2, 2.3, 8.2, 8.4_
   - _Verified 2026-09-16:_ 1,365 tests passed, nine skipped; Ruff/format/mypy passed. Graph boundaries are split into integrity failures, which still demote a completed answer, and declared exclusions, which do not. Whether a particular answer needed the excluded semantics is carried by that question's own unresolved call destinations from 10.5, not assumed for every answer. Controls exercise the real partition logic rather than an injected reason: a vendored directory leaves the answer completed with the exclusion still reported, an unresolved symlink still demotes, and the two together still demote. The exclusion stays physical and out of targets and graphs. The NodeGoat rerun showed the same distinction was still missing inside comparison, where any degradation and any boundary blocked: comparison now filters declared exclusions and correspondence ambiguity on both sides, keeping integrity degradations and every other boundary blocking.
-- [ ] 10.7 Carry query-to-operation provenance into the reported evidence
+- [ ] 10.7 Bind candidate dependency gaps to the candidate
+  - **Discovered 2026-09-16 in the M1b production rerun.** The runner passes every coverage reason as every candidate's `dependency_gaps`, so admission always answers `dependency_unresolved`. That is not "an unresolved dependency that undermines the claim"; it is every gap anywhere in the transaction.
+  - Supply the gaps that pertain to this candidate's required comparison scope, the same scope 10.2 established. Unknown ownership still counts against the candidate.
+  - Not an M1b exit blocker, since eligibility stays disabled and no alert is emitted either way. It would prevent admission from ever passing after qualification, so it belongs before M4.
+  - Done when an unrelated transaction gap no longer appears as this candidate's unresolved dependency, while a gap in its required scope still does.
+  - _Boundary: Push runner, Delta and Actionability Policy_
+  - _Depends: 10.2_
+  - _Requirements: 3.1, 3.3, 3.4_
+- [ ] 10.8 Carry query-to-operation provenance into the reported evidence
   - The target is selected through a file-fallback question with `function=None` while rows report method `<lambda>2`. M1a showed this did not block the comparison once the question completed, so it is provenance quality rather than the blocker.
   - Record verified query-to-operation provenance on the evidence; do not inject benchmark function names into regions or count coincident sites.
   - Done when a reported operation names the question that produced it and the method the engine reported, with unresolved provenance explicit.
   - _Boundary: Delta and Actionability Policy, contributor-scan normalization_
   - _Requirements: 3.1, 3.4, 6.3_
-- [ ] 10.8 Rerun the three revisions through the production rules
+- [ ] 10.9 Rerun the three revisions through the production rules
   - Replay the same pinned vulnerable, fixed and unchanged revisions **without** the recorded-veto flag under the named development budget. Demonstrate a developer-readable evaluation finding with a supported consequence, exact location, witness, change attribution and repair direction.
   - Verify the fixed twin is analyzed and produces no actionable defect and the unchanged revision is not reported as a new regression. Keep qualification eligibility disabled; experimental evaluation output cannot advertise an unqualified hook alert.
   - Done when one replayable record states which vetoes were repaired and which remain, with completed required checks and readable source and census receipts.
   - _Boundary: Evaluation harness, full-run integration_
-  - _Depends: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7_
+  - _Depends: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8_
   - _Requirements: 1.1, 2.1, 2.4, 3.1, 3.4, 6.3, 7.1, 7.3_
 
 ## Implementation Notes

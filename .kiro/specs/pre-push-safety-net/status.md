@@ -7,16 +7,21 @@ it does not approve normal hook capabilities or production enforcement.
 
 ## Next release milestone
 
-**M1a is met. M1b is in progress: three of its repairs are verified, and the remaining two
-are blocked on one new piece of query evidence.** The other four milestones remain unverified.
+**M1a is met and the M1b comparison now works through the production rules.** The other four
+milestones remain unverified, and rollout remains NO-GO.
 
-M1b tasks 10.1 to 10.3 are done and measured. The recorded view of the NodeGoat case now
-reaches `new` on the vulnerable revision and `unchanged` on the unchanged revision. The
-production path is still blocked by the last two vetoes, and the rerun showed neither can be
-scoped or relaxed soundly: a taint answer reports flows, so an absent row means either that
-the operation does not exist or that no traced flow reached it. Establishing absence needs the
-enumerated operation inventory exported separately from traced flows, which is now task 10.4
-ahead of the two vetoes it unblocks. See [M1a evidence](m1a-recorded-vetoes.md).
+Every veto M1a recorded has been repaired. On 2026-09-16 the production comparison classified
+the pinned NodeGoat revisions without any lifting: the vulnerable revision is `new` with the
+three `eval` witnesses attributed to the change that introduced them, the fixed twin is
+analyzed and quiet, and the unchanged revision is `unchanged`. Production and the recorded view
+agree exactly, which is how we know the vetoes were repaired rather than bypassed. No capability
+is enabled, no defect is admitted and no alert is emitted. See
+[M1a and M1b evidence](m1a-recorded-vetoes.md).
+
+Two tasks remain before M1b is verified: binding candidate dependency gaps to the candidate,
+which the rerun exposed as coarse plumbing that would block admission forever after
+qualification, and carrying query-to-operation provenance. Then the run is repeated and
+recorded as the milestone's exit evidence.
 
 M1a ran on 2026-09-16 within its one-week box. The raw `<lambda>2` witnesses are present at
 contributions.js lines 32–34, the fixed twin was genuinely analyzed and quiet, and the

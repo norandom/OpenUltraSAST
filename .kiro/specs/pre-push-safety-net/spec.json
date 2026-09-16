@@ -1,7 +1,7 @@
 {
   "feature_name": "pre-push-safety-net",
   "created_at": "2026-09-12T15:35:00Z",
-  "updated_at": "2026-09-16T14:05:00+00:00",
+  "updated_at": "2026-09-16T16:00:00+00:00",
   "language": "en",
   "phase": "implementation",
   "approvals": {
@@ -128,7 +128,10 @@
       "9.2",
       "10.1",
       "10.2",
-      "10.3"
+      "10.3",
+      "10.4",
+      "10.5",
+      "10.6"
     ],
     "remaining_tasks": 1,
     "verification_record": "implementation-group-8.md",
@@ -174,11 +177,18 @@
       "verified": [
         "10.1",
         "10.2",
-        "10.3"
+        "10.3",
+        "10.4",
+        "10.5",
+        "10.6"
       ],
-      "blocked_on": "10.4",
-      "measurement": "../../../benchmarks/measurements/2026-09-16-nodegoat-m1b-step1.json",
-      "finding": "The recorded view now reaches new on the vulnerable revision and unchanged on the unchanged revision. The last two vetoes cannot be scoped or relaxed soundly: a taint answer reports traced flows, so an absent row means either the operation does not exist or no flow reached it. The veto preventing that confusion is computed over every in-scope method and is always true on a real Express application, so it can neither be discharged nor safely removed. Task 10.4 exports the enumerated operation inventory separately from traced flows so absence is provable, and now precedes the two vetoes it unblocks."
+      "remaining": [
+        "10.7",
+        "10.8",
+        "10.9"
+      ],
+      "measurement": "../../../benchmarks/measurements/2026-09-16-nodegoat-m1b-production.json",
+      "result": "Every veto M1a recorded is repaired. The production comparison classifies all three pinned NodeGoat revisions with no lifting: vulnerable new with the three eval witnesses attributed to the change, fixed twin analyzed and quiet with three base-only findings, unchanged recorded unchanged. Production and the recorded view agree exactly. Zero admitted defects; admission rejects on capability_unavailable, the deliberate eligibility gate, and dependency_unresolved, recorded as task 10.7."
     }
   },
   "release": {
@@ -207,6 +217,6 @@
     "implementation_design_approval": "Existing approvals preserved; this records milestone order and exit criteria, not blanket approval of future design changes.",
     "m1_split_accepted": "2026-09-14: maintainer asked to split M1 into M1a/M1b after review",
     "m1a_outcome": "Met inside the one-week box. Corrected the owner diagnosis: all four named vetoes fire, and operation correspondence for an operation on a changed line is the blocker that survives every other repair.",
-    "m1b_position": "10.1-10.3 verified and measured; 10.4 operation inventory is the new prerequisite for 10.5 and 10.6."
+    "m1b_position": "Comparison verified through production rules on NodeGoat; 10.7 dependency-gap binding, 10.8 provenance and 10.9 the recorded rerun remain before M1b is verified."
   }
 }
