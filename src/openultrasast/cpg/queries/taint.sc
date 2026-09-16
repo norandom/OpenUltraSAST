@@ -832,7 +832,15 @@
       )
     }
 
-    rows ++ inventory ++ List(ujson.Obj("kind" -> "operation_inventory_complete", "operations" -> inventory.size))
+    // The enumeration's own basis, because a consumer cannot infer it. A file- or nesting-scoped
+    // question walks calls structurally, so an unresolved call destination cannot remove one from
+    // the scope and the inventory is complete regardless of reachability. Following the call graph
+    // makes the reachable set the scope, so the same unresolved destination can shrink what was
+    // enumerated. Only the first kind can support absence under bounded reachability.
+    val inventoryScope = if (function.nonEmpty && depth > 0) "reachability" else "structural"
+    rows ++ inventory ++ List(
+      ujson.Obj("kind" -> "operation_inventory_complete", "operations" -> inventory.size, "scope" -> inventoryScope)
+    )
   }
 
   println("---OUSAST-CPG-BEGIN---")

@@ -180,6 +180,11 @@ def _families(language: str, *, has_handler: bool) -> tuple[str, ...]:
 
 
 AMBIGUOUS_CORRESPONDENCE = "ambiguous_line_correspondence"
+# Reachability from or through the scoped methods was bounded. It limits which further flows
+# could be seen; it does not make this question's own answer or context ownership unknown, so
+# it is recorded as a boundary without marking the question's context incomplete. The later
+# comparison consults it for exactly the claims that rest on a flow not having been traced.
+REACHABILITY_BOUNDED = "dynamic_external_or_depth_context_unresolved"
 
 
 def affected_context(
@@ -223,9 +228,11 @@ def affected_context(
             local_gaps.append("context_projection_unavailable:contributor-scan")
         elif not any(r.get("kind") == "context_method" for r in rows):
             local_gaps.append("context_scope_empty:contributor-scan")
+        recorded_only: list[str] = []
         for row in rows:
             if row.get("kind") == "context_boundary":
-                local_gaps.append(str(row.get("reason", "context_unresolved")))
+                reason = str(row.get("reason", "context_unresolved"))
+                (recorded_only if reason.startswith(REACHABILITY_BOUNDED) else local_gaps).append(reason)
             if row.get("kind") != "context_method":
                 continue
             path = Path(str(row.get("path", "")))
@@ -260,5 +267,5 @@ def affected_context(
                 relationships.append(relation)
         if local_gaps or inherited_gap:
             affected_gaps.add(identity)
-        gaps.extend(reason + ":" + identity.question_id for reason in local_gaps)
+        gaps.extend(reason + ":" + identity.question_id for reason in (*local_gaps, *recorded_only))
     return replace(context, relationships=tuple(relationships), unresolved_boundaries=tuple(dict.fromkeys(gaps))), affected_gaps

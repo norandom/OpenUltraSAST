@@ -197,3 +197,37 @@ def test_any_other_inherited_transaction_gap_still_marks_questions_incomplete(tm
     )
     assert result.question_outcomes[0].status == "unresolved"
     assert result.question_outcomes[0].reason == "change_context_incomplete"
+
+
+def boundary(reason):
+    return {"kind": "context_boundary", "reason": reason}
+
+
+def test_bounded_reachability_is_recorded_without_demoting_an_answered_question(tmp_path):
+    """M1b 10.5: the boundary limits which further flows could be seen, not this answer."""
+    (tmp_path / "source.php").write_text("readable\n")
+    bounded = boundary("dynamic_external_or_depth_context_unresolved:contributor-scan")
+    rows = vector() + [row("source.php"), {"kind": "context_summary"}, bounded]
+    result = scan_repository(
+        tmp_path,
+        [region("source.php", "php")],
+        backend=Backend({"source.php": rows}),
+        change_context=context(),
+    )
+    assert result.question_outcomes[0].status == "completed"
+    # Still reported, bound to the question that owns it, so comparison can consult it.
+    owned = [g for g in result.scope.unresolved_boundaries if g.startswith("dynamic_external_or_depth_context_unresolved")]
+    assert owned and owned[0].endswith(result.question_outcomes[0].identity.question_id)
+
+
+def test_an_unresolved_context_projection_still_demotes_the_question(tmp_path):
+    (tmp_path / "source.php").write_text("readable\n")
+    rows = vector() + [row("source.php"), {"kind": "context_summary"}, boundary("context_location_unavailable")]
+    result = scan_repository(
+        tmp_path,
+        [region("source.php", "php")],
+        backend=Backend({"source.php": rows}),
+        change_context=context(),
+    )
+    assert result.question_outcomes[0].status == "unresolved"
+    assert result.question_outcomes[0].reason == "change_context_incomplete"

@@ -138,6 +138,10 @@ def _operations(scan: ModelScanResult, budget: ExecutionBudget | None = None) ->
 
 INVENTORY_ROW = "operation_inventory"
 INVENTORY_COMPLETE = "operation_inventory_complete"
+# Reachability from or through the scoped methods was bounded. It can hide further flows; it
+# cannot invalidate a flow that was traced, and it cannot remove a call from a structurally
+# scoped enumeration.
+REACHABILITY_BOUNDED = "dynamic_external_or_depth_context_unresolved"
 
 
 @dataclass(frozen=True)
@@ -150,7 +154,20 @@ class OperationSite(Contract):
     operation: str
 
 
-def _inventory(scan: ModelScanResult, question: QuestionIdentity) -> tuple[OperationSite, ...] | None:
+@dataclass(frozen=True)
+class OperationInventory(Contract):
+    """What a question enumerated, and on what basis it selected the scope it enumerated.
+
+    `structural` scopes are file- or nesting-based, so an unresolved call destination cannot
+    remove a call from them. A reachability-derived scope can be shrunk by exactly that, so its
+    inventory cannot establish absence while reachability is bounded.
+    """
+
+    sites: tuple[OperationSite, ...]
+    structural: bool
+
+
+def _inventory(scan: ModelScanResult, question: QuestionIdentity) -> OperationInventory | None:
     """Operations enumerated for this question, or None when the scope was not enumerated.
 
     None is the honest answer for an answer that carries no completion marker, including every
@@ -162,12 +179,15 @@ def _inventory(scan: ModelScanResult, question: QuestionIdentity) -> tuple[Opera
     if answer is None or answer.raw_rows_json is None:
         return None
     sites: list[OperationSite] = []
-    complete = False
+    basis: str | None = None
     for row in json.loads(answer.raw_rows_json):
         if not isinstance(row, dict):
             continue
         if row.get("kind") == INVENTORY_COMPLETE:
-            complete = True
+            scope = row.get("scope")
+            if scope not in ("structural", "reachability"):
+                return None
+            basis = str(scope)
             continue
         if row.get("kind") != INVENTORY_ROW:
             continue
@@ -177,7 +197,7 @@ def _inventory(scan: ModelScanResult, question: QuestionIdentity) -> tuple[Opera
         if not str(line).isdigit() or int(str(line)) < 1:
             return None
         sites.append(OperationSite(question, path, int(str(line)), operation))
-    return tuple(sites) if complete else None
+    return OperationInventory(tuple(sites), basis == "structural") if basis is not None else None
 
 
 def _correspondence(op: EvidenceOperation, context: ChangeContext) -> tuple[tuple[str, int] | None, str]:
@@ -463,19 +483,25 @@ def _compare_evidence(
             required = _required_scope(op.question, context)
             selected = {q.identity for q in base.scope.selected} if base is not None and base.scope is not None else set()
             answered = {q.identity for q in base.question_outcomes if q.status == "completed"} if base is not None else set()
-            complete = bool(
+            boundaries = _context_boundaries(base, *required) if base is not None else ("base_unavailable",)
+            # Everything a base answer needs except its reachability, which limits only claims
+            # that rest on a flow not having been traced.
+            established = bool(
                 base
                 and base.scope
                 and base.scope.population_complete
                 # A truncated base scan cannot establish absence, wherever it was truncated.
                 and all(question.reason == "tier_zero" for question in base.scope.deferred)
-                and not _context_boundaries(base, *required)
                 and not base.degradations
                 and required <= selected
                 and required <= answered
                 and {q.identity for q in base.question_outcomes} <= selected
                 and all(_valid_answer(base, question, base_ops) for question in required)
             )
+            complete = established and not boundaries
+            # An absence read off a structural enumeration survives bounded reachability; every
+            # other kind of gap still blocks.
+            enumerated = established and all(boundary.startswith(REACHABILITY_BOUNDED) for boundary in boundaries)
             if head_semantics != base_semantics:
                 reason = "semantics_mismatch"
             elif context.base_revision is None:
@@ -484,7 +510,9 @@ def _compare_evidence(
                 reason = "change_context_unresolved"
             elif (
                 not head.scope
-                or _context_boundaries(head, op.question)
+                # A bounded reachability on the head can hide further flows; it cannot invalidate
+                # the flow this finding was traced from, so it does not block the head's own claim.
+                or [gap for gap in _context_boundaries(head, op.question) if not gap.startswith(REACHABILITY_BOUNDED)]
                 or head.degradations
                 or not _valid_answer(head, op.question, head_ops)
                 or op.question not in {q.identity for q in head.scope.selected}
@@ -492,33 +520,35 @@ def _compare_evidence(
                 reason = "head_context_incomplete"
             elif execution_budget is not None and time.monotonic() >= execution_budget.deadline_monotonic:
                 reason = "deadline_exhausted"
-            elif complete:
+            elif enumerated:
                 same = tuple(b for b in old if b.source == op.source)
                 reason = "operation_correspondence_unresolved"
-                if any(
+                if complete and any(
                     b.discharged == op.discharged
                     and (op.mechanism != "config" or json.loads(b.detail).get("literalArgs") == json.loads(op.detail).get("literalArgs"))
                     for b in same
                 ):
                     novelty, reason = "unchanged", "same_supported_mechanism"
-                elif old and change and finding.rung == Rung.ENTAILED and not op.discharged:
+                elif complete and old and change and finding.rung == Rung.ENTAILED and not op.discharged:
                     if same and all(b.discharged for b in same):
                         novelty, reason = "worsened", "discharge_removed"
                     elif not same and op.mechanism == "taint":
                         reason = "source_correspondence_unresolved"
                 elif (
-                    location is not None
+                    complete
+                    and location is not None
                     and not old
                     and change
                     and op.mechanism == "taint"
                     and finding.rung == Rung.ENTAILED
                     and not op.discharged
                 ):
+                    # This absence is the absence of a traced flow, so it needs complete reachability.
                     novelty, reason = "new", "source_connection_absent_from_comparable_base"
                 elif correspondence == "changed_line" and change and op.mechanism == "taint":
-                    # The edit introduced these lines. A complete counterpart answer that
-                    # contains this operation elsewhere is movement, never novelty; only its
-                    # total absence establishes that the change introduced the flow.
+                    # The edit introduced these lines. A counterpart answer that contains this
+                    # operation elsewhere is movement, never novelty; only its total absence from
+                    # the enumeration establishes that the change introduced the flow.
                     inventory = _inventory(base, counterpart) if base is not None else None
                     if identical:
                         reason = "operation_moved_within_change"
@@ -526,12 +556,18 @@ def _compare_evidence(
                         # The base scope was never enumerated, so absence cannot be established
                         # from the absence of a traced flow.
                         reason = "base_operation_inventory_unavailable"
-                    elif any(site.operation == op.operation for site in inventory):
+                    elif not inventory.structural and not complete:
+                        # The enumeration followed the call graph, so the same bounded reachability
+                        # that is unresolved here could have shrunk what was enumerated.
+                        reason = "base_enumeration_scope_reachability_derived"
+                    elif any(site.operation == op.operation for site in inventory.sites):
                         # The operation is in the base. No traced flow reached it there, which is
                         # a reachability statement, not evidence that the change introduced it.
                         reason = "operation_present_in_base_without_traced_flow"
                     elif finding.rung == Rung.ENTAILED and not op.discharged:
                         novelty, reason = "new", "operation_absent_from_comparable_base"
+                elif not complete:
+                    reason = "base_reachability_bounded"
         results.append(_candidate(finding, op, old, novelty, reason, change, context))
     return tuple(
         replace(

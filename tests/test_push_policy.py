@@ -228,9 +228,18 @@ def test_unrelated_question_context_gap_does_not_poison_completed_comparison():
         question_outcomes=(*head.question_outcomes, QuestionOutcome(other, "unresolved", "change_context_incomplete", "[]")),
     )
     assert delta(head, scan(rows=[], findings=False)).novelty == "new"
-    own_gap = gap.rsplit(":", 1)[0] + ":" + head.scope.selected[0].identity.question_id
+    mine = head.scope.selected[0].identity.question_id
+    # M1b 10.5: the question's own bounded reachability can hide further flows, but it cannot
+    # invalidate the flow this finding was traced from, so it no longer blocks its own claim.
+    own_reachability = gap.rsplit(":", 1)[0] + ":" + mine
     assert (
-        delta(replace(head, scope=replace(head.scope, unresolved_boundaries=(own_gap,))), scan(rows=[], findings=False)).novelty
+        delta(replace(head, scope=replace(head.scope, unresolved_boundaries=(own_reachability,))), scan(rows=[], findings=False)).novelty
+        == "new"
+    )
+    # An unavailable context projection is unknown ownership, not bounded reachability, and still blocks.
+    own_projection = "context_projection_unavailable:contributor-scan:" + mine
+    assert (
+        delta(replace(head, scope=replace(head.scope, unresolved_boundaries=(own_projection,))), scan(rows=[], findings=False)).novelty
         == "unknown"
     )
     assert (
@@ -426,12 +435,13 @@ def test_any_other_transaction_context_gap_still_blocks():
     assert (candidate.novelty, candidate.reason) == ("unknown", "change_context_unresolved")
 
 
-def inventory_rows(*operations, complete=True, path="a.js", line=4):
+def inventory_rows(*operations, complete=True, path="a.js", line=4, scope="structural"):
     rows = [
         {"kind": "operation_inventory", "inventory": op, "inventoryFile": path, "inventoryLine": line, "inventoryMethod": "handler"}
         for op in operations
     ]
-    return rows + ([{"kind": "operation_inventory_complete", "operations": len(rows)}] if complete else [])
+    marker = {"kind": "operation_inventory_complete", "operations": len(rows), "scope": scope}
+    return rows + ([marker] if complete else [])
 
 
 def test_an_operation_present_in_the_base_inventory_is_not_new():
@@ -473,3 +483,45 @@ def test_inventory_rows_do_not_count_as_unparsed_answer_body():
     rows = json.loads(head.question_outcomes[0].raw_rows_json) + inventory_rows("exec(cmd)")
     head = replace(head, question_outcomes=(replace(head.question_outcomes[0], raw_rows_json=json.dumps(rows)),))
     assert delta(head, scan(rows=inventory_rows("query(sql, params)"), findings=False), changed_line_context()).novelty == "new"
+
+
+def bounded_base(*operations, own_question=True, scope="structural"):
+    """A base whose only gap is its own bounded reachability."""
+    base = scan(rows=inventory_rows(*operations, scope=scope), findings=False)
+    owner = base.scope.selected[0].identity if own_question else replace(base.scope.selected[0].identity, family="path")
+    gap = "dynamic_external_or_depth_context_unresolved:contributor-scan:" + owner.question_id
+    return replace(base, scope=replace(base.scope, unresolved_boundaries=(gap,)))
+
+
+def test_absence_from_a_structural_enumeration_survives_bounded_reachability():
+    """M1b 10.5: enumeration is structural, so an unresolved destination cannot remove a call."""
+    candidate = delta(scan(), bounded_base(), changed_line_context())
+    assert (candidate.novelty, candidate.reason) == ("new", "operation_absent_from_comparable_base")
+
+
+def test_a_traced_flow_absence_still_requires_complete_reachability():
+    """The anchored branch rests on no flow having been traced, so the bound still blocks."""
+    candidate = delta(scan(), bounded_base(), context())
+    assert candidate.novelty == "unknown" and candidate.reason == "base_reachability_bounded"
+
+
+def test_a_reachability_derived_enumeration_cannot_establish_absence_while_bounded():
+    candidate = delta(scan(), bounded_base(scope="reachability"), changed_line_context())
+    assert candidate.novelty == "unknown"
+    assert candidate.reason == "base_enumeration_scope_reachability_derived"
+
+
+def test_a_reachability_derived_enumeration_is_usable_when_reachability_is_complete():
+    base = scan(rows=inventory_rows(scope="reachability"), findings=False)
+    assert delta(scan(), base, changed_line_context()).novelty == "new"
+
+
+def test_a_non_reachability_base_gap_still_blocks_an_enumerated_absence():
+    base = scan(rows=inventory_rows(), findings=False)
+    base = replace(base, scope=replace(base.scope, unresolved_boundaries=("graph_incomplete",)))
+    assert delta(scan(), base, changed_line_context()).novelty == "unknown"
+
+
+def test_a_present_operation_still_refuses_novelty_under_bounded_reachability():
+    candidate = delta(scan(), bounded_base("exec(cmd)"), changed_line_context())
+    assert candidate.reason == "operation_present_in_base_without_traced_flow"
