@@ -34,6 +34,26 @@ class EvidenceOperation(Contract):
     source: str
     discharged: bool
     detail: str
+    # The method the engine reported this operation in. It need not equal the question's
+    # function: a file-scoped question names none, and the engine may report a synthetic
+    # name such as a lambda. Recorded so the link from question to operation is inspectable
+    # rather than inferred, and left None when the engine reported no method.
+    method: str | None = None
+
+
+def operation_provenance(op: EvidenceOperation) -> str:
+    """How the question that was asked relates to the operation that was reported.
+
+    `exact` when the question named this method, `file_scope` when the question named no
+    function and the engine supplied one, `method_unreported` when the engine named none, and
+    `unresolved` when the two disagree. Only a recorded state; it invents no correspondence
+    and never renames a region.
+    """
+    if op.method is None:
+        return "method_unreported"
+    if op.question.function is None:
+        return "file_scope"
+    return "exact" if op.question.function == op.method else "unresolved"
 
 
 @dataclass(frozen=True)
@@ -100,8 +120,10 @@ def _operations(scan: ModelScanResult, budget: ExecutionBudget | None = None) ->
             kind: Literal["taint", "dominance", "config"]
             if not isinstance(row, dict):
                 continue
+            method = None
             if "sink" in row:
                 kind, path, line, op = "taint", row.get("sinkFile"), row.get("sinkLine"), row.get("sink")
+                method = row.get("sinkMethod")
                 if not isinstance(row.get("source"), str) or not row["source"].strip():
                     continue
                 if type(row.get("sanitized")) is not bool or type(row.get("bounded")) is not bool:
@@ -110,6 +132,7 @@ def _operations(scan: ModelScanResult, budget: ExecutionBudget | None = None) ->
                 discharged = row["sanitized"] or row["bounded"]
             elif "operation" in row:
                 kind, path, line, op = "dominance", row.get("opFile"), row.get("opLine"), row.get("operation")
+                method = row.get("opMethod")
                 source = "obligation"
                 if not isinstance(row.get("dominatingGuards"), list) or not all(isinstance(g, str) for g in row["dominatingGuards"]):
                     continue
@@ -131,7 +154,17 @@ def _operations(scan: ModelScanResult, budget: ExecutionBudget | None = None) ->
             ):
                 continue
             result.append(
-                EvidenceOperation(answer.identity, kind, path, int(str(line)), str(op), source, discharged, json.dumps(row, sort_keys=True))
+                EvidenceOperation(
+                    answer.identity,
+                    kind,
+                    path,
+                    int(str(line)),
+                    str(op),
+                    source,
+                    discharged,
+                    json.dumps(row, sort_keys=True),
+                    str(method) if isinstance(method, str) and method.strip() else None,
+                )
             )
     return tuple(result)
 

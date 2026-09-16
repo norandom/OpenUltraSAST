@@ -325,12 +325,13 @@ Preserve all completed task evidence below.
   - _Depends: 10.2_
   - _Requirements: 3.1, 3.3, 3.4_
   - _Verified 2026-09-16:_ 1,371 tests passed, nine skipped; Ruff/format/mypy passed. Gaps are now attributed: a boundary carrying a question id counts only when that question is in this candidate's required scope, an unattributed gap always counts because unknown ownership is not evidence of independence, and integrity degradations count. A declared exclusion, correspondence ambiguity and bounded reachability do not, because each was already weighed against this specific claim. The runner no longer hands every candidate the whole transaction's reason list, which had included other candidates' comparison outcomes.
-- [ ] 10.8 Carry query-to-operation provenance into the reported evidence
+- [x] 10.8 Carry query-to-operation provenance into the reported evidence
   - The target is selected through a file-fallback question with `function=None` while rows report method `<lambda>2`. M1a showed this did not block the comparison once the question completed, so it is provenance quality rather than the blocker.
   - Record verified query-to-operation provenance on the evidence; do not inject benchmark function names into regions or count coincident sites.
   - Done when a reported operation names the question that produced it and the method the engine reported, with unresolved provenance explicit.
   - _Boundary: Delta and Actionability Policy, contributor-scan normalization_
   - _Requirements: 3.1, 3.4, 6.3_
+  - _Verified 2026-09-16:_ 1,371 tests passed, nine skipped; Ruff/format/mypy passed. Evidence now carries the method the engine reported beside the question that produced it, so the link is inspectable rather than inferred or dug out of a detail blob. Provenance is recorded as `exact`, `file_scope` when the question named no function and the engine supplied one, `unresolved` when the two disagree, and `method_unreported` when the engine named none. Controls cover all four. No region is renamed, no benchmark function name is injected and no coincident site is counted; the state is recorded, not applied.
 - [ ] 10.9 Rerun the three revisions through the production rules
   - Replay the same pinned vulnerable, fixed and unchanged revisions **without** the recorded-veto flag under the named development budget. Demonstrate a developer-readable evaluation finding with a supported consequence, exact location, witness, change attribution and repair direction.
   - Verify the fixed twin is analyzed and produces no actionable defect and the unchanged revision is not reported as a new regression. Keep qualification eligibility disabled; experimental evaluation output cannot advertise an unqualified hook alert.

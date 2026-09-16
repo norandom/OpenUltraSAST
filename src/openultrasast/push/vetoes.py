@@ -34,6 +34,7 @@ from openultrasast.push.policy import (
     _context_boundaries,
     _counterpart,
     admit_candidates,
+    operation_provenance,
 )
 
 FLAG = "--experimental-record-vetoes"
@@ -227,9 +228,7 @@ def _summary(scan: ModelScanResult, lifted: ModelScanResult, counts: Counter[str
 
 
 def _method(op: EvidenceOperation) -> str | None:
-    row = json.loads(op.detail)
-    value = row.get("sinkMethod") if op.mechanism == "taint" else row.get("opMethod") if op.mechanism == "dominance" else None
-    return value if isinstance(value, str) and value.strip() else None
+    return op.method
 
 
 def _boundary_vetoes(stage: str, boundaries: Sequence[str]) -> list[RecordedVeto]:
@@ -277,12 +276,13 @@ def _finding_vetoes(
         vetoes.extend(_boundary_vetoes("head_scan", _context_boundaries(head, question)))
         vetoes.extend(_degradation_vetoes("head_scan", head))
         method = _method(op)
-        if question.function is None or (method is not None and question.function != method):
+        provenance = operation_provenance(op)
+        if provenance != "exact":
             vetoes.append(
                 RecordedVeto(
                     "identity",
                     "query_identity_differs_from_witness",
-                    f"question function={question.function!r}; witness method={method!r}; recorded, not a policy veto",
+                    f"provenance={provenance}; question function={question.function!r}; engine method={method!r}",
                     False,
                 )
             )
