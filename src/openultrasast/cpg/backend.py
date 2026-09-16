@@ -58,6 +58,8 @@ QUERY_TIMEOUT_ENV = "OPENULTRASAST_CPG_QUERY_TIMEOUT"
 # first repository measurements unreproducible: runs were killed under memory pressure at different
 # points, so the numbers described the host, not the engine. Bound it, and let the operator raise it.
 CPG_HEAP_MB = 2048
+# Explicit opt-in for the transaction-owned engine session (M2). Unset means the disposable path.
+SESSION_ENV = "OUSAST_ENGINE_SESSION"
 HEAP_ENV = "OPENULTRASAST_CPG_HEAP_MB"
 
 # `joern-parse` detects the language and then shells out to a frontend, and on a large tree it can fail where
@@ -324,7 +326,9 @@ class JoernBackend:
     # M2 11.3: opt-in transport. Off by default, so shipped behaviour stays the disposable
     # invocation this project has measured. A session that cannot answer falls back to it rather
     # than reporting a zero, and what a session returns is the same payload or nothing at all.
-    session_transport: bool = False
+    # The environment switch exists so a measured run can enable it without changing any default;
+    # anything other than "1" leaves it off.
+    session_transport: bool = field(default_factory=lambda: os.environ.get(SESSION_ENV, "").strip() == "1")
     _diagnostics: list[str] = field(default_factory=list, init=False, repr=False)
     _scratch: list[Path] = field(default_factory=list, init=False, repr=False)
     _cancel_deadline: float | None = field(default=None, init=False, repr=False)

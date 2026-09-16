@@ -263,3 +263,18 @@ def _completed(stdout):
     import subprocess
 
     return subprocess.CompletedProcess(["joern"], 0, stdout, "")
+
+
+def test_the_session_switch_is_explicit_and_defaults_off(monkeypatch):
+    """M2 11.3: a measured run can enable the transport without changing any default."""
+    from openultrasast.cpg.backend import SESSION_ENV, JoernBackend
+
+    monkeypatch.delenv(SESSION_ENV, raising=False)
+    assert JoernBackend().session_transport is False
+    for value in ("", "0", "true", "yes", "2"):
+        monkeypatch.setenv(SESSION_ENV, value)
+        assert JoernBackend().session_transport is False, value
+    monkeypatch.setenv(SESSION_ENV, "1")
+    assert JoernBackend().session_transport is True
+    # An explicit argument still wins over the environment in both directions.
+    assert JoernBackend(session_transport=False).session_transport is False
