@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "experiment": "operation-inventory-engine-smoke-v1",
+  "milestone": "M1b task 10.4",
+  "purpose": "Verify on the real engine that the taint query emits the enumerated operation inventory separately from traced flows, and that adding it does not disturb answers or the arbiter.",
+  "provenance": {
+    "engine": "joern-4.0.625",
+    "engine_runtime": "7213365694f836758cb5fe2b05504cbbb735b8c2f0dea5d5dd19546a1f5fd43d",
+    "facts": "32edb6e1a78f1afb08ac4248cd436be16663e0d90dc1b3aaf948f2ce49a5a8f0",
+    "queries": "9e1f00272daec14cf9a4632a763fba9e5e629bf6a851f3fff81e60d665734932",
+    "policy": "a641f6d1241702b4290574dd70e825176fbf0f8b03517d92f4051bac1b59dc92",
+    "core": "5de41aaa2e7b8706fae265b7ba1a0aad724395ee05cb2bf99edcd8391b5aa48f",
+    "semantics": "b08156ca261c602c6626fa10546d3ae926bdfa11324a1a2d5dcbce5ca0bd70f4"
+  },
+  "source": {
+    "path": "app/api.js",
+    "base_change": "const safe = \"fixed\" -> req.body.value",
+    "note": "authored two-revision control, not a security claim"
+  },
+  "observations": [
+    {
+      "side": "head",
+      "question": {
+        "path": "app/api.js",
+        "function": "handler",
+        "family": "injection"
+      },
+      "status": "unresolved",
+      "reason": "change_context_incomplete",
+      "flow_rows": 1,
+      "inventory_operations": [
+        "eval(safe) at app/api.js:5"
+      ],
+      "inventory_complete_marker": {
+        "kind": "operation_inventory_complete",
+        "operations": 1
+      }
+    },
+    {
+      "side": "head",
+      "question": {
+        "path": "app/api.js",
+        "function": "<module>",
+        "family": "injection"
+      },
+      "status": "unresolved",
+      "reason": "change_context_incomplete",
+      "flow_rows": 0,
+      "inventory_operations": [],
+      "inventory_complete_marker": {
+        "kind": "operation_inventory_complete",
+        "operations": 0
+      }
+    },
+    {
+      "side": "base",
+      "question": {
+        "path": "app/api.js",
+        "function": "handler",
+        "family": "injection"
+      },
+      "status": "completed",
+      "reason": "query_answered_and_arbitrated",
+      "flow_rows": 0,
+      "inventory_operations": [
+        "eval(safe) at app/api.js:5"
+      ],
+      "inventory_complete_marker": {
+        "kind": "operation_inventory_complete",
+        "operations": 1
+      }
+    }
+  ],
+  "limits": [
+    "One authored two-revision JavaScript control; no detection, precision, recall or latency claim.",
+    "Exercises inventory emission and answer integrity, not the changed-line novelty branch."
+  ],
+  "findings_by_side": {
+    "head": 1,
+    "base": 0
+  },
+  "degradations_by_side": {
+    "head": [],
+    "base": []
+  }
+}

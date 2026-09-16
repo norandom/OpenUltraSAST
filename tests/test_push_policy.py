@@ -155,7 +155,7 @@ def test_changed_new_operation_in_comparable_existing_file():
     # map to, so a complete counterpart answer containing no such operation now establishes
     # absence. Before that repair this stayed unknown and no introduced flow could be seen.
     ctx = replace(context(), spans=(ChangedSpan("a.js", 4, 4, "head"),), line_correspondences=())
-    assert delta(scan(), scan(rows=[], findings=False), ctx).novelty == "new"
+    assert delta(scan(), scan(rows=inventory_rows(), findings=False), ctx).novelty == "new"
     assert delta(scan(), scan(line=6), ctx).novelty == "unknown"  # movement is not new
 
 
@@ -299,7 +299,7 @@ def changed_line_context(*, ambiguous=False, head_line=4):
 
 def test_operation_introduced_on_a_changed_line_is_new_against_a_complete_base():
     """M1b 10.1: absence is established over the counterpart answer, not over a line anchor."""
-    candidate = delta(scan(), scan(rows=[], findings=False), changed_line_context())
+    candidate = delta(scan(), scan(rows=inventory_rows(), findings=False), changed_line_context())
     assert (candidate.novelty, candidate.reason) == ("new", "operation_absent_from_comparable_base")
 
 
@@ -411,16 +411,65 @@ def test_repeated_unchanged_lines_do_not_invalidate_a_distinct_operation():
     """M1b 10.3: file-wide ambiguity is scoped to the operations whose anchor needs it."""
     ambiguous = "612e6a73:" + "ambiguous_line_correspondence"
     ctx = replace(changed_line_context(), unresolved_boundaries=(ambiguous,))
-    assert delta(scan(), scan(rows=[], findings=False), ctx).novelty == "new"
+    assert delta(scan(), scan(rows=inventory_rows(), findings=False), ctx).novelty == "new"
 
 
 def test_an_operation_needing_an_ambiguous_anchor_is_still_uncomparable():
     ambiguous = "612e6a73:" + "ambiguous_line_correspondence"
     ctx = replace(changed_line_context(ambiguous=True), unresolved_boundaries=(ambiguous,))
-    assert delta(scan(), scan(rows=[], findings=False), ctx).novelty == "unknown"
+    assert delta(scan(), scan(rows=inventory_rows(), findings=False), ctx).novelty == "unknown"
 
 
 def test_any_other_transaction_context_gap_still_blocks():
     ctx = replace(changed_line_context(), unresolved_boundaries=("snapshot:lfs_blob_unavailable",))
     candidate = delta(scan(), scan(rows=[], findings=False), ctx)
     assert (candidate.novelty, candidate.reason) == ("unknown", "change_context_unresolved")
+
+
+def inventory_rows(*operations, complete=True, path="a.js", line=4):
+    rows = [
+        {"kind": "operation_inventory", "inventory": op, "inventoryFile": path, "inventoryLine": line, "inventoryMethod": "handler"}
+        for op in operations
+    ]
+    return rows + ([{"kind": "operation_inventory_complete", "operations": len(rows)}] if complete else [])
+
+
+def test_an_operation_present_in_the_base_inventory_is_not_new():
+    """M1b 10.4: no traced flow is a reachability statement, not absence of the operation."""
+    base = scan(rows=inventory_rows("exec(cmd)"), findings=False)
+    candidate = delta(scan(), base, changed_line_context())
+    assert candidate.novelty == "unknown"
+    assert candidate.reason == "operation_present_in_base_without_traced_flow"
+
+
+def test_an_enumerated_base_without_the_operation_establishes_absence():
+    base = scan(rows=inventory_rows("query(sql, params)"), findings=False)
+    candidate = delta(scan(), base, changed_line_context())
+    assert (candidate.novelty, candidate.reason) == ("new", "operation_absent_from_comparable_base")
+
+
+def test_an_empty_but_enumerated_scope_establishes_absence():
+    base = scan(rows=inventory_rows(), findings=False)
+    assert delta(scan(), base, changed_line_context()).novelty == "new"
+
+
+def test_an_unenumerated_base_scope_stays_unresolved():
+    base = scan(rows=[], findings=False)
+    candidate = delta(scan(), base, changed_line_context())
+    assert candidate.novelty == "unknown"
+    assert candidate.reason == "base_operation_inventory_unavailable"
+
+
+def test_a_malformed_inventory_row_is_not_an_empty_inventory():
+    broken = [{"kind": "operation_inventory", "inventory": "exec(cmd)", "inventoryFile": "a.js", "inventoryLine": "0"}]
+    broken.append({"kind": "operation_inventory_complete", "operations": 1})
+    candidate = delta(scan(), scan(rows=broken, findings=False), changed_line_context())
+    assert candidate.reason == "base_operation_inventory_unavailable"
+
+
+def test_inventory_rows_do_not_count_as_unparsed_answer_body():
+    """A completed answer carrying an inventory is still a valid answer, not a malformed one."""
+    head = scan()
+    rows = json.loads(head.question_outcomes[0].raw_rows_json) + inventory_rows("exec(cmd)")
+    head = replace(head, question_outcomes=(replace(head.question_outcomes[0], raw_rows_json=json.dumps(rows)),))
+    assert delta(head, scan(rows=inventory_rows("query(sql, params)"), findings=False), changed_line_context()).novelty == "new"

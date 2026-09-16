@@ -815,7 +815,24 @@
       }
   }
 
-    rows
+    // What this question ENUMERATED in scope, independent of what it traced. A flow row proves a
+    // path exists; the absence of one cannot distinguish an operation that is not present from an
+    // operation no traced path reached. Change comparison needs that distinction to establish that
+    // a change introduced an operation, and reachability is deliberately bounded, so the two can
+    // never be separated from flow rows alone. The completion marker is what makes an EMPTY
+    // inventory meaningful: without it, a scope that was never enumerated and a scope with no such
+    // operation look identical. No new sink inference, alias resolution or fact is introduced here.
+    val inventory = sinkCalls.l.map { sink =>
+      ujson.Obj(
+        "kind"            -> "operation_inventory",
+        "inventory"       -> sink.code.take(200),
+        "inventoryFile"   -> sink.method.filename,
+        "inventoryLine"   -> sink.lineNumber.getOrElse(-1).toString,
+        "inventoryMethod" -> sink.method.name
+      )
+    }
+
+    rows ++ inventory ++ List(ujson.Obj("kind" -> "operation_inventory_complete", "operations" -> inventory.size))
   }
 
   println("---OUSAST-CPG-BEGIN---")

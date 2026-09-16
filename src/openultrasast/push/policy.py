@@ -136,6 +136,50 @@ def _operations(scan: ModelScanResult, budget: ExecutionBudget | None = None) ->
     return tuple(result)
 
 
+INVENTORY_ROW = "operation_inventory"
+INVENTORY_COMPLETE = "operation_inventory_complete"
+
+
+@dataclass(frozen=True)
+class OperationSite(Contract):
+    """One operation the query enumerated in a question's scope, traced or not."""
+
+    question: QuestionIdentity
+    path: str
+    line: int
+    operation: str
+
+
+def _inventory(scan: ModelScanResult, question: QuestionIdentity) -> tuple[OperationSite, ...] | None:
+    """Operations enumerated for this question, or None when the scope was not enumerated.
+
+    None is the honest answer for an answer that carries no completion marker, including every
+    artifact produced before the inventory existed. An unenumerated scope stays unresolved: the
+    absence of a traced flow is not the absence of the operation. A malformed inventory row is
+    likewise not an empty inventory.
+    """
+    answer = next((q for q in scan.question_outcomes if q.identity == question), None)
+    if answer is None or answer.raw_rows_json is None:
+        return None
+    sites: list[OperationSite] = []
+    complete = False
+    for row in json.loads(answer.raw_rows_json):
+        if not isinstance(row, dict):
+            continue
+        if row.get("kind") == INVENTORY_COMPLETE:
+            complete = True
+            continue
+        if row.get("kind") != INVENTORY_ROW:
+            continue
+        path, line, operation = row.get("inventoryFile"), row.get("inventoryLine"), row.get("inventory")
+        if not isinstance(path, str) or not path or not isinstance(operation, str) or not operation.strip():
+            return None
+        if not str(line).isdigit() or int(str(line)) < 1:
+            return None
+        sites.append(OperationSite(question, path, int(str(line)), operation))
+    return tuple(sites) if complete else None
+
+
 def _correspondence(op: EvidenceOperation, context: ChangeContext) -> tuple[tuple[str, int] | None, str]:
     """Where this head operation maps in the base, and when it does not, why.
 
@@ -208,7 +252,9 @@ def _valid_answer(scan: ModelScanResult, question: QuestionIdentity, operations:
         return False
     rows = json.loads(answer.raw_rows_json)
     # Query bodies are operation rows. An unrecognized/malformed row is not an empty answer.
-    return len(rows) == sum(op.question == question for op in operations)
+    # The enumerated inventory is a separate export and is counted by `_inventory`, not here.
+    body = [row for row in rows if not (isinstance(row, dict) and str(row.get("kind", "")).startswith(INVENTORY_ROW))]
+    return len(body) == sum(op.question == question for op in operations)
 
 
 def _context_boundaries(scan: ModelScanResult, *questions: QuestionIdentity) -> tuple[str, ...]:
@@ -473,8 +519,17 @@ def _compare_evidence(
                     # The edit introduced these lines. A complete counterpart answer that
                     # contains this operation elsewhere is movement, never novelty; only its
                     # total absence establishes that the change introduced the flow.
+                    inventory = _inventory(base, counterpart) if base is not None else None
                     if identical:
                         reason = "operation_moved_within_change"
+                    elif inventory is None:
+                        # The base scope was never enumerated, so absence cannot be established
+                        # from the absence of a traced flow.
+                        reason = "base_operation_inventory_unavailable"
+                    elif any(site.operation == op.operation for site in inventory):
+                        # The operation is in the base. No traced flow reached it there, which is
+                        # a reachability statement, not evidence that the change introduced it.
+                        reason = "operation_present_in_base_without_traced_flow"
                     elif finding.rung == Rung.ENTAILED and not op.discharged:
                         novelty, reason = "new", "operation_absent_from_comparable_base"
         results.append(_candidate(finding, op, old, novelty, reason, change, context))

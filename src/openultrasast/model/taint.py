@@ -171,6 +171,11 @@ def _flows(rows: object, *, function: str) -> list[dict[str, object]]:
     for row in rows:
         if not isinstance(row, Mapping):
             continue
+        # Answer rows carry no `kind`. Anything that names one is a separate export -- the
+        # operation inventory, an evidence vector, a context location -- and normalizing it
+        # here would manufacture a flow with an empty source that names no attacker input.
+        if "kind" in row:
+            continue
         if function and not _in_scope(row, function):
             continue
         kept.append(
