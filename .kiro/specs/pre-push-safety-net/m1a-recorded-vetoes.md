@@ -225,3 +225,67 @@ development and transfer data: it cannot qualify production Node support, and No
 cannot qualify PHP or Python. No capability is enabled, no defect is admitted, no alert is
 emitted, and no latency claim is made. Runtime, independent qualification and rollout all
 remain NO-GO.
+
+## M1b exit run (tasks 10.1 to 10.8)
+
+Rerun 2026-09-16 after every repair, same instrument, same pins, same 900-second development
+budget. Evidence: [summary](../../../benchmarks/measurements/2026-09-16-nodegoat-m1b-exit.json)
+and its [bundle](../../../benchmarks/measurements/2026-09-16-nodegoat-m1b-exit.json.gz).
+
+| Revision | Verdict | Admission | Elapsed |
+|---|---|---|---:|
+| vulnerable | all three sites new, `operation_absent_from_comparable_base` | `capability_unavailable` only | 326.4 s |
+| fixed twin | analyzed and quiet, three base-only findings | none to admit | 157.8 s |
+| unchanged | all three sites `unchanged`, `same_supported_mechanism` | `capability_unavailable`, `unchanged` | 256.8 s |
+
+The vulnerable revision's only remaining admission reason is the deliberate eligibility gate.
+`dependency_unresolved` is gone, which verifies task 10.7 on real data: those gaps belonged to
+unrelated questions.
+
+Each finding now carries its provenance explicitly: question function `None`, engine method
+`<lambda>2`, witness `eval(req.body.preTax) -> const preTax = eval(req.body.preTax)` at
+contributions.js line 32, and likewise for lines 33 and 34. The unchanged revision resolves each
+base location to the same line, which is why it reads `unchanged` rather than new.
+
+Source receipts were reopened before the run, and the head census is the complete 44 files.
+
+### Which vetoes were repaired and which remain
+
+All five vetoes M1a recorded are repaired, plus two the repairs exposed:
+
+| Veto | State |
+|---|---|
+| `change_context_incomplete` on the target question | repaired, question completes |
+| `graph_incomplete` on the base from vendor exclusion | repaired, all 436 base questions complete |
+| `ambiguous_line_correspondence` inherited repository-wide | repaired, decided per operation |
+| `dynamic_external_or_depth_context_unresolved` as a blanket veto | repaired, bound to reachability claims |
+| `operation_correspondence_unresolved` on a changed line | repaired via the enumerated inventory |
+| comparison's own degradation and boundary checks | repaired after the first rerun exposed them |
+| `dependency_unresolved` on every candidate | repaired, gaps attributed per candidate |
+
+What remains, recorded rather than repaired, because each is outside this case or a later
+milestone:
+
+- 231 of 436 head questions still report `change_context_incomplete`, from
+  `context_projection_unavailable` and `context_scope_empty` on families whose queries export no
+  context. Those are dominance and configuration questions. They did not block this case and
+  their families stay experimental, so per the milestone they stay as they are.
+- The vendor exclusion and the file's correspondence ambiguity remain reported in coverage. That
+  is intended: they are recorded limits, not repaired absences.
+
+### What M1b has not yet demonstrated
+
+The milestone also asks for a developer-readable evaluation finding carrying a supported
+security consequence and a concrete repair direction. Those two come from an evaluated
+capability declaration, and the registry is deliberately empty, so nothing renders them today.
+Writing that text without a declaration is precisely what admission exists to prevent, so it is
+not something to work around here. The comparison half of M1b is verified; the explanation half
+waits on a declaration, which is M4's subject.
+
+### Limits
+
+Three comparisons on one inspected teaching repository under a development budget. NodeGoat is
+development and transfer data: it cannot qualify production Node support, and Node evidence
+cannot qualify PHP or Python. No capability is enabled, no defect is admitted, no alert is
+emitted and no latency claim is made. Runtime, independent qualification and rollout all remain
+NO-GO.

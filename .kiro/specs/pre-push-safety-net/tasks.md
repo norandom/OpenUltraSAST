@@ -332,13 +332,23 @@ Preserve all completed task evidence below.
   - _Boundary: Delta and Actionability Policy, contributor-scan normalization_
   - _Requirements: 3.1, 3.4, 6.3_
   - _Verified 2026-09-16:_ 1,371 tests passed, nine skipped; Ruff/format/mypy passed. Evidence now carries the method the engine reported beside the question that produced it, so the link is inspectable rather than inferred or dug out of a detail blob. Provenance is recorded as `exact`, `file_scope` when the question named no function and the engine supplied one, `unresolved` when the two disagree, and `method_unreported` when the engine named none. Controls cover all four. No region is renamed, no benchmark function name is injected and no coincident site is counted; the state is recorded, not applied.
-- [ ] 10.9 Rerun the three revisions through the production rules
+- [x] 10.9 Rerun the three revisions through the production rules
   - Replay the same pinned vulnerable, fixed and unchanged revisions **without** the recorded-veto flag under the named development budget. Demonstrate a developer-readable evaluation finding with a supported consequence, exact location, witness, change attribution and repair direction.
   - Verify the fixed twin is analyzed and produces no actionable defect and the unchanged revision is not reported as a new regression. Keep qualification eligibility disabled; experimental evaluation output cannot advertise an unqualified hook alert.
   - Done when one replayable record states which vetoes were repaired and which remain, with completed required checks and readable source and census receipts.
   - _Boundary: Evaluation harness, full-run integration_
   - _Depends: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8_
   - _Requirements: 1.1, 2.1, 2.4, 3.1, 3.4, 6.3, 7.1, 7.3_
+  - _Verified 2026-09-16 with one named exception:_ all three revisions replayed through the production rules with exact pins and reopened source receipts. Vulnerable: three sites new with `operation_absent_from_comparable_base`, admission rejecting on `capability_unavailable` alone. Fixed twin: analyzed and quiet with three base-only findings. Unchanged: three sites `unchanged` with base locations resolved to the same lines. Every finding carries its question, the engine-reported method and its witness; the head census is the complete 44 files; all 436 base questions complete. Zero admitted defects. The repaired and remaining veto lists are in [the M1b record](m1a-recorded-vetoes.md). **Exception:** the supported security consequence and concrete repair direction are not demonstrated, because both are owned by an evaluated capability declaration and the registry is deliberately empty. M1b's comparison half is verified; its explanation half waits on M4.
+
+- [ ] 10.10 Render the experimental evaluation finding with its consequence and repair
+  - **The remaining half of M1b's exit, named by the 10.9 run.** The comparison is verified, but the milestone also asks for a developer-readable finding carrying a supported security consequence and a concrete repair direction. Both come from an evaluated capability declaration and the registry is deliberately empty, so nothing renders them.
+  - Generate an explicitly unreviewed, experimental declaration for this capability with the existing registry tool, and render the finding through the same grounded-template path the admitted case uses. Keep eligibility disabled: an experimental declaration is not enabled and not PASS, so admission must still reject it and no normal hook alert may be advertised.
+  - Do not write consequence or repair text that no declaration supports. Refusing generic advice without a supported context and operation is the rule admission exists to enforce, and the experimental path must not become a way around it.
+  - Done when the experimental output shows family, exact location, witness, change attribution, consequence and repair direction for the vulnerable revision, is labeled experimental throughout, and the production result still reports no actionable defect with zero admitted defects.
+  - _Boundary: Result and Hook Adapter, Delta and Actionability Policy, Evaluation harness_
+  - _Depends: 10.9_
+  - _Requirements: 3.1, 3.2, 3.3, 5.1, 5.5, 6.3_
 
 ## Implementation Notes
 

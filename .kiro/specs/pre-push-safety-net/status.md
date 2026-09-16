@@ -18,10 +18,17 @@ agree exactly, which is how we know the vetoes were repaired rather than bypasse
 is enabled, no defect is admitted and no alert is emitted. See
 [M1a and M1b evidence](m1a-recorded-vetoes.md).
 
-Two tasks remain before M1b is verified: binding candidate dependency gaps to the candidate,
-which the rerun exposed as coarse plumbing that would block admission forever after
-qualification, and carrying query-to-operation provenance. Then the run is repeated and
-recorded as the milestone's exit evidence.
+The exit run is recorded. Every veto M1a listed is repaired, plus two the repairs exposed: the
+comparison's own degradation and boundary checks, and the runner handing every candidate the
+whole transaction's gaps. On the vulnerable revision admission now rejects on
+`capability_unavailable` alone.
+
+One half of M1b remains. The milestone also asks for a developer-readable finding carrying a
+supported security consequence and a concrete repair direction. Both are owned by an evaluated
+capability declaration and the registry is deliberately empty, so nothing renders them. Writing
+that text without a declaration is what admission exists to prevent, so it is not worked around.
+Task 10.10 renders it through an explicitly experimental declaration with eligibility still
+disabled.
 
 M1a ran on 2026-09-16 within its one-week box. The raw `<lambda>2` witnesses are present at
 contributions.js lines 32–34, the fixed twin was genuinely analyzed and quiet, and the

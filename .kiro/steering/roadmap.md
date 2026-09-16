@@ -15,7 +15,7 @@ not a demonstrated useful safety net. Task 8.3 and rollout remain NO-GO.
 | Order | Milestone | Observable exit | Current state |
 |---|---|---|---|
 | M1a | Show the NodeGoat detection with every admission veto recorded, not applied | Raw finding with witness on the vulnerable revision; analyzed fixed twin and unchanged control quiet; per-finding veto list. One-week time box | MET 2026-09-16 |
-| M1b | Repair only the vetoes M1a showed to matter | Supported evaluation finding through production rules, exact change/base evidence and repair direction; fixed twin and unchanged control stay quiet | IN PROGRESS: every recorded veto repaired and the production comparison classifies all three revisions; 10.7-10.9 remain |
+| M1b | Repair only the vetoes M1a showed to matter | Supported evaluation finding through production rules, exact change/base evidence and repair direction; fixed twin and unchanged control stay quiet | IN PROGRESS: comparison half verified on all three revisions; the consequence and repair rendering (10.10) remains |
 | M2 | Make that same analysis fast | Equivalent evidence; representative warm changed-code p95 <=30s, cancellation/report <=2s, >=95% supported completion | Pending M1 |
 | M3 | Prove the shared design transfers | PMPro/PHP and VAmPI/Python vulnerable/fixed evidence; unchanged core rules; Node replay after any PMPro core change | Pending M2 |
 | M4 | Qualify on independent cases | Reviewed untouched vulnerable/fixed/benign populations pass joint quality, coverage and latency gates per capability | Pending M3 |
@@ -23,13 +23,12 @@ not a demonstrated useful safety net. Task 8.3 and rollout remain NO-GO.
 
 ### Immediate next action
 
-Finish M1b: bind candidate dependency gaps to the candidate (10.7), carry query-to-operation
-provenance (10.8), then rerun and record the three NodeGoat revisions as the milestone's exit
-evidence (10.9). Every veto M1a recorded is repaired and the production comparison already
-classifies all three revisions correctly, with production and the recorded view agreeing. The
-dependency-gap defect is coarse plumbing rather than a comparison failure, but it would block
-admission forever once capabilities qualify, so it belongs before M4. Normal hook eligibility
-stays disabled and no capability is enabled by any of this.
+Finish M1b by rendering the experimental evaluation finding with its consequence and repair
+direction (10.10), through an explicitly unreviewed declaration and with eligibility still
+disabled. The comparison half is verified: the production rules classify the vulnerable, fixed
+and unchanged NodeGoat revisions correctly, and admission rejects the vulnerable one on the
+eligibility gate alone. What is missing is the explanation, which no declaration currently
+supports, and inventing it is exactly what admission exists to prevent. Then M2 runtime.
 Do not start another broad speed campaign before this outcome exists. See the
 [M1a evidence](../specs/pre-push-safety-net/m1a-recorded-vetoes.md) and the
 [owner diagnosis](../specs/contributor-scan/release-remediation-research.md).
