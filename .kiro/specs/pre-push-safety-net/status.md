@@ -42,6 +42,25 @@ The 28/29 task count is implementation progress, not proximity to rollout. Follo
 accepted [release milestone spec](release-milestones.md): usefulness → speed → shared
 PHP/Python transfer → independent qualification → narrow advisory rollout.
 
+## Security capability, 2026-09-17
+
+Group 12 closed three defects that limited what the tool can establish, each measured on the
+pinned NodeGoat revisions with detections unchanged throughout.
+
+- **Access control could not answer anywhere.** Dominance and configuration were never asked for
+  change context, because the evidence pass dispatches taint only. Each family now describes its
+  own scope. Head completion rose from 205 to 298 of 436, `context_projection_unavailable` fell to
+  zero, and access control went from 0 to 52 completed questions.
+- **Admission rejected genuine findings.** The operation symbol was the text before the first
+  parenthesis, so `const preTax = eval(...)` was the operation `const preTax = eval`, which no
+  qualified declaration could ever name. It is now the trailing qualified callee, with receiver
+  spelling preserved.
+- **Unresolved questions now say why.** The remaining 138 all report
+  `context_function_unresolved`, each naming a function its file does not define, which is a
+  region-attribution question for the ranker rather than a limit of the engine.
+
+Evidence: [group 12 final](../../../benchmarks/measurements/2026-09-17-group-12-final.json).
+
 ## Verified
 
 Immutable pushed snapshots, shared multi-ref deadlines, ranker-owned scope, physical
