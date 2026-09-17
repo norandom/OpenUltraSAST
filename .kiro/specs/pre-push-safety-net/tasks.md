@@ -442,6 +442,7 @@ Preserve all completed task evidence below.
 
 
 - [ ] 13. Show the shared design transfers across languages (release milestone M3)
+  - Status 2026-09-17: Python established, PHP blocked by runtime on a large repository. M3 is not met. Its exit asks for Node, PHP and Python together, and two of the three are in hand.
 - [x] 13.1 Replay the declared Python family through the shared core
   - Generalize the replay instrument so a case family is an argument rather than a hard-coded target: a harness that only knows one language cannot say whether the design transfers. Targets, pins and expectations come from the committed inputs.
   - VAmPI is a regression snapshot with the same revision on both sides, so it can establish detection and completion but never novelty. The mode asserts that too: with nothing changed, a target reported new would be a comparison defect rather than a finding.
@@ -453,6 +454,8 @@ Preserve all completed task evidence below.
   - PMPro 2.9.7 against 2.9.8 with its upstream prepare fix, plus a comment-only benign variant. A different language, a different mechanism and a fix this project did not author.
   - The first attempt selected one case of three, because the manifest labels a case by what it is while the case id says what the comparison does; the harness now maps label to role explicitly. That run also exhausted a 900-second budget on the single case it ran.
   - Done when all three comparisons complete with their declared target evidence recorded, or the budget they need is stated as a finding rather than reported as a pass.
+  - _Measured 2026-09-17, PHP transfer NOT established._ All three comparisons exhausted a 3000-second deadline with a 1200-second query ceiling and produced no artifact, so there is no target evidence at all. The engine reports `cpg batch taint failed` twice per case on the 1,274-file PMPro tree: first an exception whose trace runs through ujson array transformation, then a timeout on the retry. Budgets tried: 900 s, 1200 s and 3000 s deadlines against 300 s and 1200 s query ceilings. Pins, source receipts and the declared target are all correct, so the question was asked properly and the engine could not answer it. This is a runtime blocker on a large repository, not evidence about whether the design transfers to PHP. Evidence: `benchmarks/measurements/2026-09-17-m3-php-transfer.json`.
+  - _Two harness defects found and fixed on the way, each of which had made an earlier run look like a transfer failure:_ the manifest labels a case by what it is while the id says what the comparison does, and filtering on one while keying expectations by the other ran a single case; and the per-query ceiling is taken as the minimum with the remaining transaction time, so raising only the deadline could never have helped.
   - _Boundary: Evaluation harness, full-run integration_
   - _Depends: 13.1_
   - _Requirements: 6.2, 6.3, 8.1, 8.2_

@@ -136,7 +136,21 @@ Requirements: 4.1–4.4, 6.2–6.5, 7.3.
 
 ## M3 — The shared design transfers across languages
 
-Status: **PENDING M2**.
+Status: **PARTIAL, 2026-09-17. Not met.** Python is established and PHP is blocked by runtime.
+
+Python: all three declared VAmPI targets detected at their declared lines with their questions
+answered, 35 of 35 questions complete on every case, nothing reported new on identical revisions,
+zero admitted defects. That includes the SQL injection this spec names as previously unresolved,
+and both broken-object-level-authorization targets, which is the first time access control has
+answered on Python at all.
+
+PHP: not established. All three PMPro comparisons exhausted a 3000-second deadline with a
+1200-second query ceiling and produced no artifact, so there is no target evidence. The taint
+batch fails on the 1,274-file tree, first with an engine exception and then by timeout. The pins,
+receipts and declared target are correct, so this is a runtime blocker on a large repository
+rather than evidence about whether the design transfers.
+
+The exit asks for Node, PHP and Python together. Two of three are in hand.
 
 - Repeat the useful vulnerable/fixed comparisons with PMPro/PHP and VAmPI/Python,
   including the previously unresolved VAmPI SQLI query/path evidence. Preserve explicit

@@ -1,0 +1,170 @@
+{
+  "schema_version": 1,
+  "label": "EXPERIMENTAL recorded-veto evaluation (release milestone M1a). Listed vetoes were recorded, not applied. Nothing in this section is an alert, an admitted defect, a capability or a comparison result; the production result and admission above remain authoritative.",
+  "milestone": "M3",
+  "family": "pmpro",
+  "language": "php",
+  "flag": "--experimental-record-vetoes",
+  "development_budget_seconds": 3000.0,
+  "budget_note": "Explicitly named development budget; this run cannot satisfy or measure the hook latency gate.",
+  "expectations": {
+    "introduce": "raw finding at the declared target lines; recorded novelty new",
+    "repair": "fixed twin analyzed and quiet at the target; base-only findings retained",
+    "benign": "backlog unchanged at the target; never new or worsened",
+    "regression": "declared target still detected and its question answered; never new, because nothing changed"
+  },
+  "pins": {
+    "pmpro-fixed": "2f65530f9442b4d7ccfb56821836b056217358c1",
+    "pmpro-vulnerable": "1a900be3f09f243876150fc3c04a97bcb24ef84b",
+    "pmpro-benign": "f6b615ed11733e8975bdff087d2028b5a5bac9f7"
+  },
+  "targets": {
+    "pmpro-introduce": {
+      "path": "classes/class.memberorder.php",
+      "function": "getMemberOrderByCode",
+      "family": "injection",
+      "lines": [
+        936
+      ]
+    },
+    "pmpro-repair": {
+      "path": "classes/class.memberorder.php",
+      "function": "getMemberOrderByCode",
+      "family": "injection",
+      "lines": [
+        937
+      ]
+    },
+    "pmpro-benign": {
+      "path": "classes/class.memberorder.php",
+      "function": "getMemberOrderByCode",
+      "family": "injection",
+      "lines": [
+        937
+      ]
+    }
+  },
+  "source_receipts": {
+    "pmpro-fixed": {
+      "path": "classes/class.memberorder.php",
+      "bytes": 56202,
+      "sha256": "6877bdc6f9322fe990be8aedfd1778718fc3e06b67c96eff47be16824eb9b312"
+    },
+    "pmpro-vulnerable": {
+      "path": "classes/class.memberorder.php",
+      "bytes": 55918,
+      "sha256": "3d32b8414eb9a6bfe8962aafa8ab2caf826d2816811caf51d299db3398f54c26"
+    },
+    "pmpro-benign": {
+      "path": "classes/class.memberorder.php",
+      "bytes": 55962,
+      "sha256": "457cfa61eddb5d339502143ab59fd93db93d577a1557f6552081c6a6fc2ebf8b"
+    }
+  },
+  "provenance": {
+    "repository": "/results/m3-php3/objects.git",
+    "engine_runtime": "7213365694f836758cb5fe2b05504cbbb735b8c2f0dea5d5dd19546a1f5fd43d",
+    "engine": "joern-4.0.625",
+    "facts": "32edb6e1a78f1afb08ac4248cd436be16663e0d90dc1b3aaf948f2ce49a5a8f0",
+    "graph_layout": "403dda8d804c6109800ab95677f1c9a7c6158b9c83e58a65e2e6baa5132eefa8",
+    "queries": "deab634299983517c7e31903ed152f42345bb33e19841b4be86e3707a5372dcc",
+    "policy": "638f149e8d1e7e2f3a221f9a0b5cd5a70acee7954671f1fde94f4d30dd2b2b0b",
+    "core": "04ebc048a81554f16cdedcade0b055836bf44b6ded49e2491e12684bfc6d69fb",
+    "semantics": "4e2f7d24c98742124b4ea655c376e36c6af7fa0937d0e98fde81983b1e8dddb4",
+    "ranking_mode": "evidence",
+    "model": "disabled",
+    "capabilities": "9f0d85961ed49526a3131e71ec3f7e01aeca752da74ba7d74650168853781c9c",
+    "cache": "cold_no_reuse"
+  },
+  "hardware": {
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+    "cpu_affinity": [
+      0,
+      1,
+      2,
+      3
+    ]
+  },
+  "instrument_sha256": "aa615f9184a997c764148b2f0742b69fd09e3c9142e15a1e2a493ff75203e179",
+  "cases": [
+    {
+      "case_id": "pmpro-introduce",
+      "label": "vulnerable",
+      "role": "introduce",
+      "base_oid": "2f65530f9442b4d7ccfb56821836b056217358c1",
+      "head_oid": "1a900be3f09f243876150fc3c04a97bcb24ef84b",
+      "exit_code": 0,
+      "elapsed_seconds": 3002.55949227605,
+      "terminal": "No actionable defects reported; analysis is incomplete.\nNotice: Analysis did not finish. Rerun with a longer analysis deadline. Details could not be saved. Retry with a writable artifact path and available reporting time.\nExperimental: recorded-veto evaluation was not produced (admission_failed:TimeoutError); not an alert.\n",
+      "outcome": {
+        "instrument_error": "missing_artifact"
+      }
+    },
+    {
+      "case_id": "pmpro-repair",
+      "label": "fixed",
+      "role": "repair",
+      "base_oid": "1a900be3f09f243876150fc3c04a97bcb24ef84b",
+      "head_oid": "2f65530f9442b4d7ccfb56821836b056217358c1",
+      "exit_code": 0,
+      "elapsed_seconds": 3002.6489515509456,
+      "terminal": "No actionable defects reported; analysis is incomplete.\nNotice: Analysis did not finish. Rerun with a longer analysis deadline. Details could not be saved. Retry with a writable artifact path and available reporting time.\nExperimental: recorded-veto evaluation was not produced (admission_failed:TimeoutError); not an alert.\n",
+      "outcome": {
+        "instrument_error": "missing_artifact"
+      }
+    },
+    {
+      "case_id": "pmpro-benign",
+      "label": "benign",
+      "role": "benign",
+      "base_oid": "1a900be3f09f243876150fc3c04a97bcb24ef84b",
+      "head_oid": "f6b615ed11733e8975bdff087d2028b5a5bac9f7",
+      "exit_code": 0,
+      "elapsed_seconds": 3002.5430921390653,
+      "terminal": "No actionable defects reported; analysis is incomplete.\nNotice: Analysis did not finish. Rerun with a longer analysis deadline. Details could not be saved. Retry with a writable artifact path and available reporting time.\nExperimental: recorded-veto evaluation was not produced (admission_failed:TimeoutError); not an alert.\n",
+      "outcome": {
+        "instrument_error": "missing_artifact"
+      }
+    }
+  ],
+  "verdict": {
+    "raw_witness_present": false,
+    "fixed_twin_quiet": false,
+    "unchanged_not_new_regression": false,
+    "all_recorded": false,
+    "no_admitted_defects": false,
+    "note": "Development transfer evidence. Silence from a failure is not a pass; an unanalyzed fixed twin fails."
+  },
+  "bundle": {
+    "path": "2026-09-17-m3-php-transfer.json.gz",
+    "sha256": "6753e7e53695016da04f0092ad54fea5c5fc7470d4de0c5e284721d68ca22337",
+    "files": 10
+  },
+  "outcome": "PHP TRANSFER NOT ESTABLISHED",
+  "what_failed": "All three comparisons exhausted a 3000-second deadline and produced no artifact, so there is no target evidence at all. The engine reports `cpg batch taint failed` twice per case on the 1,274-file PMPro tree: first with an exception whose trace runs through ujson array transformation, then by timeout on the retry.",
+  "budgets_tried": [
+    {
+      "deadline_seconds": 900,
+      "query_timeout_seconds": 300,
+      "result": "timeout, no artifact"
+    },
+    {
+      "deadline_seconds": 1200,
+      "query_timeout_seconds": 300,
+      "result": "timeout, no artifact"
+    },
+    {
+      "deadline_seconds": 3000,
+      "query_timeout_seconds": 1200,
+      "result": "timeout, no artifact"
+    }
+  ],
+  "harness_defects_found": [
+    "The first run selected one case of three: the manifest labels a case by what it is (vulnerable, fixed, benign) while the id says what the comparison does (introduce, repair, benign), and the harness filtered on one while keying expectations by the other. Its all-false verdict was a harness defect, not a transfer result.",
+    "The second run's timeout was a per-query ceiling of 300 seconds, which the runner takes as the minimum with the remaining transaction time. Raising only the deadline could never have helped, and did not."
+  ],
+  "reading": "This is a runtime blocker on a large repository, not evidence about whether the design transfers to PHP. The pins, source receipts and declared target are all correct, so the question was asked properly and the engine could not answer it within any budget tried. PHP transfer stays unestablished and M3 stays unmet.",
+  "limits": [
+    "No detection, precision or admission claim for PHP: nothing completed to claim anything about."
+  ]
+}
