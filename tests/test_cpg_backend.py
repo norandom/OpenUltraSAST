@@ -1135,27 +1135,41 @@ def test_the_interpreter_must_read_the_frontend_parser_too(tmp_path: Path, monke
     assert "php-parser.php" in backend.last_failure and "mounts the repository but not this install" in backend.last_failure
 
 
-def test_javascript_partition_uses_declared_frontend_not_legacy_autodetection(tmp_path, monkeypatch):
+def test_javascript_falls_back_to_the_declared_frontend_when_the_census_is_short(tmp_path, monkeypatch):
+    """M2 11.6: one engine start is allowed only while the graph still holds every declared file.
+
+    The retention adaptation runs through the declared frontend, and it is what took the Node census
+    from 43 files to 44. So an incomplete graph from the faster path is rebuilt rather than trusted.
+    """
     from openultrasast.cpg.backend import JoernBackend
 
     (tmp_path / "tests").mkdir()
     (tmp_path / "tests/probe.js").write_bytes(b"function first_party_test(x) { return x; }")
+    (tmp_path / "app.js").write_bytes(b"function handler(x) { return x; }")
     commands = []
 
     def runner(command, **kwargs):
         if _is_overlay(command):
             return _overlaid(command, kwargs.get("cwd"))
-        commands.append(command)
-        assert Path(command[0]).name == "jssrc2cpg"
-        Path(command[command.index("-o") + 1]).write_bytes(b"graph")
+        commands.append(Path(command[0]).name)
+        if command[0].endswith("census.sc") or "census" in " ".join(command):
+            # One file short of the two on disk: the faster path must not be trusted.
+            body = '{"files":"1","methods":"1","overlays":"base,dataflowOss","maxHeapMB":"2048"}'
+            payload = "---OUSAST-CPG-BEGIN---\n" + body + "\n---OUSAST-CPG-END---"
+            return subprocess.CompletedProcess(command, 0, payload, "")
+        target = command[command.index("-o") + 1] if "-o" in command else command[command.index("--output") + 1]
+        Path(target).write_bytes(b"graph")
         return subprocess.CompletedProcess(command, 0, "", "")
 
     monkeypatch.setattr("shutil.which", lambda name: f"/opt/joern/{name}")
     monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
-    result = JoernBackend(runner=runner).build(tmp_path, language="javascript")
+    backend = JoernBackend(runner=runner)
+    result = backend.build(tmp_path, language="javascript")
     try:
         assert result is not None
-        assert len(commands) == 1
+        assert "joern-parse" in commands, "the one-start path should be tried first"
+        assert "jssrc2cpg" in commands, "a short census must rebuild through the declared frontend"
+        assert "joern_parse_census_incomplete" in backend._diagnostics
     finally:
         if result is not None:
             result.cleanup()
