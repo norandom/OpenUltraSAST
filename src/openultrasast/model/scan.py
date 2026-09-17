@@ -809,7 +809,44 @@ def _evidence_pass(
     for key, languages in languages_by_pair.items():
         if len(languages) > 1:
             out.pop(key, None)
+    if context_rows is not None:
+        _context_pass(cpg, work, context_rows, unit=unit)
     return out, len(requests) - len(out)
+
+
+def _context_pass(
+    cpg: Any,
+    work: Sequence[tuple[str, ScanRegion, ArbiterSpec]],
+    context_rows: dict[QuestionIdentity, list[Mapping[str, object]]],
+    *,
+    unit: str,
+) -> None:
+    """Collect change context for the families the evidence pass does not ask.
+
+    The evidence pass dispatches taint only, because only taint has an evidence vector to rank by.
+    Change context is a different question and every family needs its own: without this, dominance
+    and configuration questions reported `context_projection_unavailable` on every repository and
+    could never complete, which left 231 of 436 questions unresolved on the measured Node case.
+
+    Each family's own query supplies its own scope. A failure here leaves the family's context
+    absent, which the caller already treats as unresolved, so it degrades exactly as before.
+    """
+    grouped = _grouped(list(work))
+    by_rid = {rid: (region, spec) for rid, region, spec in work}
+    for kind in ("dominance", "config"):
+        requests = {rid: {**dict(params), "contextEvidence": "true"} for rid, params in grouped.get(kind, {}).items()}
+        if not requests:
+            continue
+        answered = cpg.run_batch(kind, requests)
+        if answered is None:
+            continue
+        answered.pop("__census__", None)
+        for rid, rows in answered.items():
+            pair = by_rid.get(rid)
+            if pair is None or not isinstance(rows, list):
+                continue
+            region, spec = pair
+            context_rows[_identity(unit, region, spec.family)] = [r for r in rows if isinstance(r, Mapping)]
 
 
 def order_by_evidence(regions: Sequence[ScanRegion], evidence: Mapping[tuple[str, str, str], Evidence]) -> list[ScanRegion]:

@@ -20,7 +20,8 @@
     function: String = "",
     file: String = "",
     requests: String = "",
-    requestsFile: String = ""
+    requestsFile: String = "",
+    contextEvidence: String = ""
 ) = {
   importCpg(cpgFile)
 
@@ -33,7 +34,7 @@
 
   def split(raw: String): List[String] = raw.split(",").map(_.trim).filter(_.nonEmpty).toList
 
-  def rowsFor(settingsS: String, functionS: String, fileS: String): List[ujson.Obj] = {
+  def rowsFor(settingsS: String, functionS: String, fileS: String, contextS: String = ""): List[ujson.Obj] = {
   val names = split(settingsS)
   val function = functionS
 
@@ -63,7 +64,30 @@
     )
   }
 
-    rows
+    // Change-attribution context for THIS family, describing the scope this query actually used.
+    // Configuration asks which settings a file declares, so the scope is that file's own methods,
+    // and the ones holding a matched setting are what the claim is about. It is not taint's
+    // reachability projection and not dominance's sibling comparison; each family's context has to
+    // describe its own query or it is describing work nobody did.
+    def contextRowsFor(): List[ujson.Obj] = {
+      def location(m: io.shiftleft.codepropertygraph.generated.nodes.Method, kind: String): ujson.Obj =
+        ujson.Obj("kind" -> "context_method", "path" -> m.filename, "function" -> m.name,
+          "startLine" -> m.lineNumber.getOrElse(-1), "endLine" -> m.lineNumberEnd.getOrElse(-1),
+          "relationship" -> kind)
+      val scoped = {
+        val all = cpg.method.filterNot(_.isExternal).l
+        val inFile = if (fileS.isEmpty) all else all.filter(_.filename.endsWith(fileS))
+        if (function.isEmpty) inFile else inFile.filter(_.name == function)
+      }
+      val settingIds = calls.map(_.method.id).toSet
+      val located = scoped.map(m => location(m, if (settingIds.contains(m.id)) "setting" else "sibling"))
+      val boundaries =
+        if (scoped.isEmpty) List(ujson.Obj("kind" -> "context_boundary", "reason" -> "context_scope_empty:contributor-scan"))
+        else Nil
+      ujson.Obj("kind" -> "context_summary") :: (located ++ boundaries)
+    }
+
+    if (contextS == "true") rows ++ contextRowsFor() else rows
   }
 
   println("---OUSAST-CPG-BEGIN---")
@@ -71,7 +95,7 @@
     val parsed = ujson.read(requestsJson).obj
     val answers = parsed.map { case (id, req) =>
       def field(name: String): String = req.obj.get(name).map(_.str).getOrElse("")
-      id -> ujson.Arr(rowsFor(field("settings"), field("function"), field("file")): _*)
+      id -> ujson.Arr(rowsFor(field("settings"), field("function"), field("file"), field("contextEvidence")): _*)
     }
     // A census of the graph, under a key no request id can collide with (ids are numbers). A frontend can
     // fail every file and STILL exit 0 with a valid, empty CPG -- `joern-parse` does not even propagate the
@@ -81,7 +105,7 @@
     val census = ujson.Arr(ujson.Obj("methods" -> cpg.method.size.toString, "files" -> cpg.file.size.toString, "file_names" -> ujson.Arr.from(cpg.file.name.l)))
     println(ujson.write(ujson.Obj.from(answers.toSeq :+ ("__census__" -> census))))
   } else {
-    println(ujson.write(ujson.Arr(rowsFor(settings, function, file): _*)))
+    println(ujson.write(ujson.Arr(rowsFor(settings, function, file, contextEvidence): _*)))
   }
   println("---OUSAST-CPG-END---")
 }

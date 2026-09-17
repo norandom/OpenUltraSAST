@@ -1,0 +1,59 @@
+{
+  "experiment": "per-family-context-v1",
+  "families": [
+    {
+      "query": "taint",
+      "seconds": 15.17,
+      "answered": true,
+      "row_kinds": {
+        "answer": 11,
+        "operation_inventory": 8,
+        "operation_inventory_complete": 1
+      },
+      "has_context_summary": false,
+      "context_methods": 0,
+      "relationships": {},
+      "boundaries": []
+    },
+    {
+      "query": "dominance",
+      "seconds": 11.87,
+      "answered": true,
+      "row_kinds": {
+        "context_summary": 1,
+        "context_method": 7
+      },
+      "has_context_summary": true,
+      "context_methods": 7,
+      "relationships": {
+        "sibling": 7
+      },
+      "boundaries": []
+    },
+    {
+      "query": "config",
+      "seconds": 10.96,
+      "answered": true,
+      "row_kinds": {
+        "context_summary": 1,
+        "context_method": 7
+      },
+      "has_context_summary": true,
+      "context_methods": 7,
+      "relationships": {
+        "sibling": 7
+      },
+      "boundaries": []
+    }
+  ],
+  "build": {
+    "exit": 0,
+    "bytes": 883113
+  },
+  "milestone": "M1b task 12.2",
+  "finding": "Dominance and configuration now produce their own change context on a real graph: a context summary plus seven context methods each, scoped to the file the question is about. Taint shows no context here because its producer runs in the evidence pass, which this probe does not use; that is unchanged.",
+  "note_on_relationships": "All seven are 'sibling' because contributions.js declares no access-control operation and no matched configuration setting. That is the honest answer for that file, not an empty projection: the scope was described, and nothing in it is an operation of those families.",
+  "limits": [
+    "One file of one JavaScript tree; the end-to-end effect is measured by the replay, not here."
+  ]
+}

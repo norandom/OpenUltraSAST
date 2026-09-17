@@ -268,3 +268,63 @@ def test_a_declared_exclusion_beside_an_integrity_failure_still_demotes(tmp_path
     result = scan_with_layout(tmp_path, vendor=True, symlink=True)
     assert {"vendor_semantics_unresolved", "symlink_context_unresolved"} <= set(result.scope.unresolved_boundaries)
     assert result.question_outcomes[0].status == "unresolved"
+
+
+class FamilyBackend(Backend):
+    """A backend that answers each family's own batch, recording what was asked."""
+
+    def __init__(self, evidence, per_kind):
+        super().__init__(evidence)
+        self.per_kind = per_kind
+        self.asked = []
+
+    def build(self, root, **kwargs):
+        graph = super().build(root, **kwargs)
+        outer = self
+
+        def batch(kind, requests):
+            outer.asked.append((kind, tuple(sorted(p.get("contextEvidence", "") for p in requests.values()))))
+            if any(p.get("evidenceOnly") == "true" for p in requests.values()):
+                return {rid: outer.evidence.get(p["file"], []) for rid, p in requests.items()}
+            rows = outer.per_kind.get(kind, [])
+            return {"__census__": [{"methods": 1, "files": 1, "file_names": ["source.php"]}], **{rid: list(rows) for rid in requests}}
+
+        graph.run_batch = batch
+        return graph
+
+
+def test_dominance_and_config_questions_get_their_own_change_context(tmp_path):
+    """M1b 12.2: the evidence pass asks taint only, so these families never had context at all."""
+    from dataclasses import replace as _replace
+
+    (tmp_path / "source.js").write_text("readable\n")
+    produced = [row("source.js", kind="operation"), {"kind": "context_summary"}]
+    backend = FamilyBackend(
+        {"source.js": vector() + [row("source.js"), {"kind": "context_summary"}]},
+        {"dominance": produced, "config": produced},
+    )
+    target = _replace(region("source.js", "javascript"), families=("injection", "access_control", "config_secrets"))
+    result = scan_repository(tmp_path, [target], backend=backend, change_context=context("source.js"), population_complete=True)
+    asked = {kind for kind, _ in backend.asked}
+    assert {"dominance", "config"} <= asked, "both families must be asked for their own context"
+    # Each family is asked twice: once for context, once to execute. The context ask must set the flag.
+    for family in ("dominance", "config"):
+        assert ("true",) in [flags for kind, flags in backend.asked if kind == family], family
+    outcomes = {o.identity.family: o for o in result.question_outcomes}
+    for family in ("access_control", "config_secrets"):
+        assert family in outcomes, family
+        assert outcomes[family].reason != "change_context_incomplete", family
+    assert not any("context_projection_unavailable" in gap for gap in result.scope.unresolved_boundaries)
+
+
+def test_a_family_whose_context_query_answers_nothing_stays_unresolved(tmp_path):
+    """A family that cannot describe its own scope must not complete on somebody else's context."""
+    from dataclasses import replace as _replace
+
+    (tmp_path / "source.js").write_text("readable\n")
+    backend = FamilyBackend({"source.js": vector() + [row("source.js"), {"kind": "context_summary"}]}, {})
+    target = _replace(region("source.js", "javascript"), families=("injection", "access_control"))
+    result = scan_repository(tmp_path, [target], backend=backend, change_context=context("source.js"), population_complete=True)
+    outcomes = {o.identity.family: o for o in result.question_outcomes}
+    assert "access_control" in outcomes
+    assert any("context_projection_unavailable" in gap for gap in result.scope.unresolved_boundaries)

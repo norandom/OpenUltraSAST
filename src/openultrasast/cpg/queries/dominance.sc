@@ -43,7 +43,8 @@
     operationRequires: String = "",
     dischargersByKind: String = "",
     requests: String = "",
-    requestsFile: String = ""
+    requestsFile: String = "",
+    contextEvidence: String = ""
 ) = {
   importCpg(cpgFile)
 
@@ -66,7 +67,8 @@
       functionS: String,
       fileS: String,
       requiresS: String,
-      byKindS: String
+      byKindS: String,
+      contextS: String = ""
   ): List[ujson.Obj] = {
 
   val opNames     = split(operationsS)
@@ -138,6 +140,34 @@
     if (fileS.isEmpty) all else all.filter(_.method.filename.endsWith(fileS))
   }
 
+  // Change-attribution context for THIS family, describing the scope this query actually used.
+  // It is deliberately not taint's projection: dominance compares sibling operations across a
+  // file, so the file's own methods are the scope, the methods holding a matched operation are
+  // what the claim is about, and the methods holding an applicable discharger are what could
+  // discharge it. Exporting an entry/callee reachability walk here would describe work this
+  // query never performs.
+  def contextRowsFor(): List[ujson.Obj] = {
+    def location(m: io.shiftleft.codepropertygraph.generated.nodes.Method, kind: String): ujson.Obj =
+      ujson.Obj("kind" -> "context_method", "path" -> m.filename, "function" -> m.name,
+        "startLine" -> m.lineNumber.getOrElse(-1), "endLine" -> m.lineNumberEnd.getOrElse(-1),
+        "relationship" -> kind)
+    val scoped =
+      if (fileS.isEmpty) cpg.method.filterNot(_.isExternal).l
+      else cpg.method.filterNot(_.isExternal).filter(_.filename.endsWith(fileS)).l
+    val operationIds = opCalls.map(_.method.id).toSet
+    val guardIds = scoped.filter(m => m.ast.isCall.code.l.exists(code => mentionsGuard(code))).map(_.id).toSet -- operationIds
+    val rows = scoped.map { m =>
+      val kind = if (operationIds.contains(m.id)) "operation" else if (guardIds.contains(m.id)) "guard" else "sibling"
+      location(m, kind)
+    }
+    // An empty scope is reported, never implied: a file the frontend produced no methods for
+    // cannot support a statement about that file contradicting itself.
+    val boundaries =
+      if (scoped.isEmpty) List(ujson.Obj("kind" -> "context_boundary", "reason" -> "context_scope_empty:contributor-scan"))
+      else Nil
+    ujson.Obj("kind" -> "context_summary") :: (rows ++ boundaries)
+  }
+
   val rows = opCalls.map { op =>
     val method = op.method
 
@@ -166,7 +196,7 @@
     )
   }
 
-    rows
+    if (contextS == "true") rows ++ contextRowsFor() else rows
   }
 
   println("---OUSAST-CPG-BEGIN---")
@@ -181,7 +211,8 @@
           field("function"),
           field("file"),
           field("operationRequires"),
-          field("dischargersByKind")
+          field("dischargersByKind"),
+          field("contextEvidence")
         ): _*
       )
     }
@@ -193,7 +224,7 @@
     val census = ujson.Arr(ujson.Obj("methods" -> cpg.method.size.toString, "files" -> cpg.file.size.toString, "file_names" -> ujson.Arr.from(cpg.file.name.l)))
     println(ujson.write(ujson.Obj.from(answers.toSeq :+ ("__census__" -> census))))
   } else {
-    println(ujson.write(ujson.Arr(rowsFor(operations, dischargers, function, file, operationRequires, dischargersByKind): _*)))
+    println(ujson.write(ujson.Arr(rowsFor(operations, dischargers, function, file, operationRequires, dischargersByKind, contextEvidence): _*)))
   }
   println("---OUSAST-CPG-END---")
 }
