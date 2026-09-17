@@ -732,9 +732,19 @@
           destinations.isEmpty || destinations.exists(d => d.isExternal || !inScope(d))
         }
       })
-      val boundaries = if (scoped.isEmpty) List(ujson.Obj("kind" -> "context_boundary",
-        "reason" -> "context_scope_empty:contributor-scan")) else if (missing) List(ujson.Obj("kind" -> "context_boundary",
-        "reason" -> "dynamic_external_or_depth_context_unresolved:contributor-scan")) else Nil
+      // An empty scope has two different causes and they are not interchangeable. A file the
+      // frontend produced no methods for is one thing; a question naming a function this file does
+      // not define is another, and it is the common one: a route-registration module names handlers
+      // that live in other files, so the graph rightly holds no such method here. Reporting both as
+      // "scope empty" hides which is which, and only the second names something a reader can act on.
+      val boundaries =
+        if (function.nonEmpty && scoped.isEmpty)
+          List(ujson.Obj("kind" -> "context_boundary", "reason" -> "context_function_unresolved:contributor-scan", "function" -> function))
+        else if (scoped.isEmpty)
+          List(ujson.Obj("kind" -> "context_boundary", "reason" -> "context_scope_empty:contributor-scan"))
+        else if (missing)
+          List(ujson.Obj("kind" -> "context_boundary", "reason" -> "dynamic_external_or_depth_context_unresolved:contributor-scan"))
+        else Nil
       ujson.Obj("kind" -> "context_summary") :: (methods ++ fields ++ hooks ++ guards ++ boundaries)
     }
     return summary :: (perSink ++ contextRows)

@@ -328,3 +328,22 @@ def test_a_family_whose_context_query_answers_nothing_stays_unresolved(tmp_path)
     outcomes = {o.identity.family: o for o in result.question_outcomes}
     assert "access_control" in outcomes
     assert any("context_projection_unavailable" in gap for gap in result.scope.unresolved_boundaries)
+
+
+def test_a_question_naming_a_function_the_file_does_not_define_says_so(tmp_path):
+    """M1b 12.3: a route-registration file names handlers defined elsewhere; that is not an empty file."""
+    from dataclasses import replace as _replace
+
+    (tmp_path / "source.js").write_text("readable\n")
+    boundary = {"kind": "context_boundary", "reason": "context_function_unresolved:contributor-scan", "function": "handleUpdate"}
+    unresolved = [{"kind": "context_summary"}, boundary]
+    backend = FamilyBackend({"source.js": vector() + unresolved}, {"dominance": [], "config": unresolved})
+    target = _replace(region("source.js", "javascript"), function="handleUpdate", families=("injection",))
+    result = scan_repository(tmp_path, [target], backend=backend, change_context=context("source.js"), population_complete=True)
+    outcome = result.question_outcomes[0]
+    assert outcome.status == "unresolved" and outcome.reason == "change_context_incomplete"
+    gaps = [g for g in result.scope.unresolved_boundaries if "context_function_unresolved" in g]
+    assert gaps, "the unresolvable function must be named, not reported as an empty scope"
+    # The gap is owned by the question that asked it, so it cannot block another question.
+    assert gaps[0].endswith(outcome.identity.question_id)
+    assert not any("context_scope_empty" in g for g in result.scope.unresolved_boundaries)

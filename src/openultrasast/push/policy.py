@@ -320,6 +320,7 @@ def _context_boundaries(scan: ModelScanResult, *questions: QuestionIdentity) -> 
     owned_prefixes = (
         "context_projection_unavailable:contributor-scan:",
         "context_scope_empty:contributor-scan:",
+        "context_function_unresolved:contributor-scan:",
         "dynamic_external_or_depth_context_unresolved:contributor-scan:",
     )
     retained = set(questions)

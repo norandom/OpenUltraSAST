@@ -226,7 +226,10 @@ def affected_context(
         local_gaps = []
         if not any(r.get("kind") == "context_summary" for r in rows):
             local_gaps.append("context_projection_unavailable:contributor-scan")
-        elif not any(r.get("kind") == "context_method" for r in rows):
+        elif not any(r.get("kind") == "context_method" for r in rows) and not any(r.get("kind") == "context_boundary" for r in rows):
+            # Only when the query offered no account of its own. A query that already said why its
+            # scope is empty -- a named function this file does not define, most often -- has given
+            # the specific reason, and adding a generic one on top buries it.
             local_gaps.append("context_scope_empty:contributor-scan")
         recorded_only: list[str] = []
         for row in rows:

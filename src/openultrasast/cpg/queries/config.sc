@@ -81,8 +81,14 @@
       }
       val settingIds = calls.map(_.method.id).toSet
       val located = scoped.map(m => location(m, if (settingIds.contains(m.id)) "setting" else "sibling"))
+      // A question naming a function this file does not define is not the same as a file with no
+      // methods at all, and saying so is the difference between a reader knowing what to look at
+      // and reading "scope empty".
       val boundaries =
-        if (scoped.isEmpty) List(ujson.Obj("kind" -> "context_boundary", "reason" -> "context_scope_empty:contributor-scan"))
+        if (function.nonEmpty && scoped.isEmpty)
+          List(ujson.Obj("kind" -> "context_boundary", "reason" -> "context_function_unresolved:contributor-scan", "function" -> function))
+        else if (scoped.isEmpty)
+          List(ujson.Obj("kind" -> "context_boundary", "reason" -> "context_scope_empty:contributor-scan"))
         else Nil
       ujson.Obj("kind" -> "context_summary") :: (located ++ boundaries)
     }
