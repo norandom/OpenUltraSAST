@@ -231,3 +231,35 @@ def test_an_operation_the_change_introduced_is_a_supported_change_basis():
     invented = replace(candidate, delta=replace(candidate.delta, reason="operation_moved_within_change"))
     disposition = admit_candidates((invented,), capabilities=(capability,)).dispositions[0]
     assert not disposition.admitted and "change_unsupported" in disposition.reasons
+
+
+def test_the_operation_symbol_comes_from_the_call_not_the_statement():
+    """M1b 12.1: a declaration cannot enumerate every assignment a codebase might write."""
+    from openultrasast.push.policy import operation_symbol
+
+    assert operation_symbol("eval(req.body.preTax)") == "eval"
+    assert operation_symbol("const preTax = eval(req.body.preTax)") == "eval"
+    assert operation_symbol("return os.system(full)") == "os.system"
+    # Receiver spelling is part of the symbol: these are different operations.
+    assert operation_symbol("$result = $wpdb->query($sql)") == "$wpdb->query"
+    assert operation_symbol("$wpdb->prepare($sql)") != operation_symbol("prepare($sql)")
+    # A spelling that is not a qualified name matches no declaration and stays ineligible.
+    assert operation_symbol("handlers[name](x)") == "handlers[name]"
+
+
+def test_a_declaration_naming_the_call_now_covers_an_assigned_call():
+    candidate, capability, _ = control()
+    assigned = replace(
+        candidate,
+        delta=replace(
+            candidate.delta,
+            head_operation=replace(candidate.delta.head_operation, operation="const out = exec(command)"),
+            site="handler.src:4:handler",
+        ),
+    )
+    covered = replace(capability, operation_symbols=("exec",))
+    disposition = admit_candidates((assigned,), capabilities=(covered,)).dispositions[0]
+    assert "operation_semantics_mismatch" not in disposition.reasons
+    # A declaration for a different operation still does not cover it.
+    other = replace(capability, operation_symbols=("query",))
+    assert "operation_semantics_mismatch" in admit_candidates((assigned,), capabilities=(other,)).dispositions[0].reasons

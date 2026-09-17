@@ -397,12 +397,13 @@ Preserve all completed task evidence below.
 
 - [ ] 12. Security capability work found during M1a and M1b
   - Group 11 established that M2 needs graph reuse rather than more runtime tuning, and that decision is recorded there. This group returns to what the tool can actually establish about a codebase, which is where the remaining release risk sits: two of the three shipped families cannot complete their change context at all, and admission rejects genuine findings on a mis-extracted operation symbol.
-- [ ] 12.1 Extract the operation symbol from the operation, not from the statement
+- [x] 12.1 Extract the operation symbol from the operation, not from the statement
   - **Found 2026-09-16 in the M1b explanation run.** Admission takes the text before the first parenthesis as the operation symbol, so `const preTax = eval(req.body.preTax)` yields `const preTax = eval`. The demonstration declaration had to enumerate each assignment spelling for its coverage check to pass.
   - A qualified declaration cannot enumerate every assignment a codebase might write, so admission would reject genuine findings on `operation_semantics_mismatch`. Take the symbol from the called operation the engine reported, preserving receiver spelling, and leave an unresolved or dynamic spelling ineligible as it is today.
   - Done when the symbol for an assigned call is the call's own name, a receiver-qualified call keeps its receiver, a dynamic spelling stays ineligible, and a declaration naming the plain symbol covers the assigned form.
   - _Boundary: Delta and Actionability Policy_
   - _Requirements: 3.1, 3.2, 3.4_
+  - _Verified 2026-09-17:_ 1,403 tests passed, nine skipped; Ruff/format/mypy passed. The symbol is now the trailing qualified callee rather than everything before the first parenthesis, so `const preTax = eval(...)` yields `eval` and a declaration naming the call covers the assigned form. Receiver spelling is preserved, so `$wpdb->prepare` and `prepare` remain different operations. A spelling that is not a qualified name, such as a dynamic `handlers[name](x)`, yields the statement text, matches no declaration and stays ineligible exactly as before. The recorded-veto report reads the same helper rather than repeating the extraction.
 - [ ] 12.2 Supply per-family context producers for dominance and configuration
   - The M1b exit run left 231 of 436 head questions reporting `change_context_incomplete` from `context_projection_unavailable` and `context_scope_empty`, because those families' queries export no context. They did not block the Node injection case, so M1b correctly left them alone, but their families stay experimental until they can answer.
   - Give dominance and configuration their own context producers describing the actual scope of the query they accompany. Do not copy taint context into them: dominance evaluates sibling operations across a file and configuration has different scope and obligations.

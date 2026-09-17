@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, replace
@@ -361,6 +362,30 @@ def _blocking_gaps(scan: ModelScanResult, *questions: QuestionIdentity) -> tuple
 def _blocking_degradations(scan: ModelScanResult) -> tuple[str, ...]:
     """Degradations that undermine an answer. A declared exclusion is not one of them."""
     return tuple(str(d.get("reason")) for d in scan.degradations if str(d.get("reason")) not in DECLARED_EXCLUSION_GAPS)
+
+
+# A qualified callee: an identifier, optionally reached through `.`, `->` or `::`. Receiver
+# spelling is part of the symbol, so `$wpdb->prepare` and `prepare` stay different operations.
+_CALLEE = re.compile(r"[A-Za-z_$\\][\w$\\]*(?:\s*(?:\.|->|::)\s*[A-Za-z_$\\][\w$\\]*)*\s*$")
+
+
+def operation_symbol(operation: str) -> str:
+    """The operation a declaration can name, taken from the call rather than the statement.
+
+    Everything before the first parenthesis is the statement, not the operation: for
+    `const preTax = eval(req.body.preTax)` that is `const preTax = eval`, and a declaration
+    naming `eval` would not match it. No real declaration can enumerate every assignment a
+    codebase might write, so admission rejected genuine findings on `operation_semantics_mismatch`.
+
+    Only the trailing qualified callee is the symbol. A spelling that is not a qualified name,
+    such as a dynamic `handlers[name](x)`, yields the statement text unchanged, which matches no
+    declaration and so stays ineligible exactly as it did before.
+    """
+    prefix = operation.partition("(")[0].strip()
+    found = _CALLEE.search(prefix)
+    if found is None:
+        return prefix
+    return re.sub(r"\s*(\.|->|::)\s*", r"\1", found.group(0).strip())
 
 
 def _owning_question(gap: str) -> str | None:
@@ -902,7 +927,7 @@ def admit_candidates(candidates: Sequence[AdmissionCandidate], *, capabilities: 
             if cap is not None:
                 # These are existing graph operation spellings, not source scanning.
                 # A declaration may narrow an entailed claim; it cannot create one.
-                symbol = op.operation.partition("(")[0].strip()
+                symbol = operation_symbol(op.operation)
                 if symbol not in cap.operation_symbols:
                     reasons.append("operation_semantics_mismatch")
                 consequence = _grounded_template(cap.consequence_template, op, key.context)

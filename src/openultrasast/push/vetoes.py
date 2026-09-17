@@ -37,6 +37,7 @@ from openultrasast.push.policy import (
     _grounded_template,
     admit_candidates,
     operation_provenance,
+    operation_symbol,
 )
 
 FLAG = "--experimental-record-vetoes"
@@ -369,7 +370,7 @@ def _evaluation(delta: CandidateDelta, declarations: Sequence[CapabilityAdmissio
         return None
     key = CapabilityKey(op.question.language, "unspecified", "unspecified", delta.family, op.mechanism, "unreviewed", semantics)
     matching = [declaration for declaration in declarations if declaration.key == key]
-    symbol = op.operation.partition("(")[0].strip()
+    symbol = operation_symbol(op.operation)
     unavailable: list[str] = []
     consequence = repair = None
     declaration = matching[0] if len(matching) == 1 else None
