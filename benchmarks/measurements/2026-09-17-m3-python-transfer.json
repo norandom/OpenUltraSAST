@@ -1,0 +1,477 @@
+{
+  "schema_version": 1,
+  "label": "EXPERIMENTAL recorded-veto evaluation (release milestone M1a). Listed vetoes were recorded, not applied. Nothing in this section is an alert, an admitted defect, a capability or a comparison result; the production result and admission above remain authoritative.",
+  "milestone": "M3",
+  "family": "VAmPI",
+  "language": "python",
+  "flag": "--experimental-record-vetoes",
+  "development_budget_seconds": 900.0,
+  "budget_note": "Explicitly named development budget; this run cannot satisfy or measure the hook latency gate.",
+  "expectations": {
+    "introduce": "raw finding at the declared target lines; recorded novelty new",
+    "repair": "fixed twin analyzed and quiet at the target; base-only findings retained",
+    "benign": "backlog unchanged at the target; never new or worsened",
+    "regression": "declared target still detected and its question answered; never new, because nothing changed"
+  },
+  "pins": {
+    "vampi-regression": "f16052dce83f05847133ec98f01c5193a41de7d8"
+  },
+  "targets": {
+    "VAmPI-SQLI": {
+      "path": "models/user_model.py",
+      "function": "get_user",
+      "family": "injection",
+      "lines": [
+        73
+      ]
+    },
+    "VAmPI-BOLA": {
+      "path": "api_views/users.py",
+      "function": "update_password",
+      "family": "access_control",
+      "lines": [
+        187
+      ]
+    },
+    "VAmPI-BOLA-BOOKS": {
+      "path": "api_views/books.py",
+      "function": "get_by_title",
+      "family": "access_control",
+      "lines": [
+        51
+      ]
+    }
+  },
+  "source_receipts": {
+    "vampi-regression": {
+      "path": "models/user_model.py",
+      "bytes": 3642,
+      "sha256": "4ce47b9850812e47140b2d2f2e20c08ae4b5338d168ce72f23e3127986ef6e1b"
+    }
+  },
+  "provenance": {
+    "repository": "/results/m3-python/objects.git",
+    "engine_runtime": "7213365694f836758cb5fe2b05504cbbb735b8c2f0dea5d5dd19546a1f5fd43d",
+    "engine": "joern-4.0.625",
+    "facts": "32edb6e1a78f1afb08ac4248cd436be16663e0d90dc1b3aaf948f2ce49a5a8f0",
+    "graph_layout": "403dda8d804c6109800ab95677f1c9a7c6158b9c83e58a65e2e6baa5132eefa8",
+    "queries": "deab634299983517c7e31903ed152f42345bb33e19841b4be86e3707a5372dcc",
+    "policy": "638f149e8d1e7e2f3a221f9a0b5cd5a70acee7954671f1fde94f4d30dd2b2b0b",
+    "core": "04ebc048a81554f16cdedcade0b055836bf44b6ded49e2491e12684bfc6d69fb",
+    "semantics": "4e2f7d24c98742124b4ea655c376e36c6af7fa0937d0e98fde81983b1e8dddb4",
+    "ranking_mode": "evidence",
+    "model": "disabled",
+    "capabilities": "9f0d85961ed49526a3131e71ec3f7e01aeca752da74ba7d74650168853781c9c",
+    "cache": "cold_no_reuse"
+  },
+  "hardware": {
+    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+    "cpu_affinity": [
+      0,
+      1,
+      2,
+      3
+    ]
+  },
+  "instrument_sha256": "aa615f9184a997c764148b2f0742b69fd09e3c9142e15a1e2a493ff75203e179",
+  "cases": [
+    {
+      "case_id": "VAmPI-SQLI",
+      "label": "regression",
+      "role": "regression",
+      "base_oid": "f16052dce83f05847133ec98f01c5193a41de7d8",
+      "head_oid": "f16052dce83f05847133ec98f01c5193a41de7d8",
+      "exit_code": 0,
+      "elapsed_seconds": 130.73618572601117,
+      "terminal": "No actionable defects reported; analysis is incomplete.\nNotice: Some checks are not enabled for normal alerts. Review capability coverage in the details.\nExperimental: recorded-veto evaluation retained 4 raw finding(s) with 16 recorded veto(es), 0 base-only finding(s) and 0 change-attributed evaluation finding(s) in the detailed result; recorded, not applied; not an alert.\nDetails: /results/m3-python/VAmPI-SQLI.json\n",
+      "provenance_matches": true,
+      "outcome": {
+        "expected": "declared target still detected and its question answered; never new, because nothing changed",
+        "identical_revisions": true,
+        "declared_target": {
+          "path": "models/user_model.py",
+          "function": "get_user",
+          "family": "injection",
+          "lines": [
+            73
+          ]
+        },
+        "findings_at_target": 1,
+        "finding_sites": [
+          "models/user_model.py:73:get_user"
+        ],
+        "target_lines_hit": [
+          73
+        ],
+        "target_questions": [
+          {
+            "function": null,
+            "status": "completed",
+            "reason": "query_answered_and_arbitrated"
+          }
+        ],
+        "target_questions_answered": true,
+        "questions_completed": 35,
+        "questions_total": 35,
+        "base_questions_completed": 35,
+        "census": [
+          {
+            "language": "python",
+            "files": 11
+          }
+        ],
+        "production_result": [
+          "none",
+          "incomplete"
+        ],
+        "recorded_status": "evaluated",
+        "recorded_at_target": [
+          {
+            "site": "models/user_model.py:73:get_user",
+            "production": [
+              "unknown",
+              "witness_identity_unresolved"
+            ],
+            "recorded": [
+              "unknown",
+              "witness_identity_unresolved"
+            ],
+            "admission": [
+              "capability_unavailable",
+              "comparison_unknown",
+              "witness_unresolved"
+            ],
+            "unlifted_vetoes": [
+              [
+                "comparison",
+                "witness_identity_unresolved"
+              ],
+              [
+                "admission",
+                "capability_unavailable"
+              ],
+              [
+                "admission",
+                "comparison_unknown"
+              ],
+              [
+                "admission",
+                "witness_unresolved"
+              ],
+              [
+                "admission",
+                "dependency_unresolved"
+              ]
+            ]
+          }
+        ],
+        "evaluation": [],
+        "base_only_findings": 0,
+        "coverage_reasons": [
+          "capability_unavailable",
+          "comparison_unknown",
+          "witness_unresolved",
+          "eligibility:eligibility_provenance_mismatch",
+          "witness_identity_unresolved",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:5fd8c7c2cb3416fe25b4c1437ea95ffba902e60407139a6b5d5c9d0a898beb17",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:d3df6b543c4f932ffc44880f53a20d8e2a39b01aaed423c81c06fe8dff906acb",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:98d5d6114cd938cf0b0a384d35d279d5754c2aea55804b3dbb24a915753924b2",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:3aabf2177b0762d91115354177297f9b7fe6f3452c9c17ca2ff5a2cb03ecf98c",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:68865c15daec49375f4bfb2f0acf7e48f45fd56909f137b1574b5ebf09d01095",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:72b8e224c83e4e007aa6cab72f158df9b99f892db8994c65407e16ca4c929401",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:b61225a697d36ca5907ae4c3100b8f155ec5a24c9039353d0688d37797cb5806"
+        ],
+        "admitted_defects": 0,
+        "timings": {
+          "deadline_seconds": 900.0,
+          "cancellation_allowance_seconds": 2.0,
+          "resolution_seconds": 0.020111914025619626,
+          "provenance_seconds": 0.3533190260641277,
+          "snapshot_seconds": 0.10452717612497509,
+          "discovery_seconds": 0.8253818270750344,
+          "preparation_seconds": 0.9375425560865551,
+          "head_seconds": 110.84975008293986,
+          "base_seconds": 17.11559215700254,
+          "admission_seconds": 0.008097915910184383,
+          "recorded_vetoes_seconds": 0.769000818952918,
+          "cleanup_seconds": 0.0012579129543155432,
+          "total_seconds": 130.09027444501407
+        }
+      }
+    },
+    {
+      "case_id": "VAmPI-BOLA",
+      "label": "regression",
+      "role": "regression",
+      "base_oid": "f16052dce83f05847133ec98f01c5193a41de7d8",
+      "head_oid": "f16052dce83f05847133ec98f01c5193a41de7d8",
+      "exit_code": 0,
+      "elapsed_seconds": 6.416815093019977,
+      "terminal": "No actionable defects reported; analysis is incomplete.\nNotice: Some checks are not enabled for normal alerts. Review capability coverage in the details.\nExperimental: recorded-veto evaluation retained 4 raw finding(s) with 16 recorded veto(es), 0 base-only finding(s) and 0 change-attributed evaluation finding(s) in the detailed result; recorded, not applied; not an alert.\nDetails: /results/m3-python/VAmPI-BOLA.json\n",
+      "provenance_matches": true,
+      "outcome": {
+        "expected": "declared target still detected and its question answered; never new, because nothing changed",
+        "identical_revisions": true,
+        "declared_target": {
+          "path": "api_views/users.py",
+          "function": "update_password",
+          "family": "access_control",
+          "lines": [
+            187
+          ]
+        },
+        "findings_at_target": 1,
+        "finding_sites": [
+          "api_views/users.py:187:update_password"
+        ],
+        "target_lines_hit": [
+          187
+        ],
+        "target_questions": [
+          {
+            "function": "delete_user",
+            "status": "completed",
+            "reason": "query_answered_and_arbitrated"
+          },
+          {
+            "function": "me",
+            "status": "completed",
+            "reason": "query_answered_and_arbitrated"
+          },
+          {
+            "function": "update_email",
+            "status": "completed",
+            "reason": "query_answered_and_arbitrated"
+          },
+          {
+            "function": "update_password",
+            "status": "completed",
+            "reason": "query_answered_and_arbitrated"
+          }
+        ],
+        "target_questions_answered": true,
+        "questions_completed": 35,
+        "questions_total": 35,
+        "base_questions_completed": 35,
+        "census": [
+          {
+            "language": "python",
+            "files": 11
+          }
+        ],
+        "production_result": [
+          "none",
+          "incomplete"
+        ],
+        "recorded_status": "evaluated",
+        "recorded_at_target": [
+          {
+            "site": "api_views/users.py:187:update_password",
+            "production": [
+              "unchanged",
+              "same_supported_mechanism"
+            ],
+            "recorded": [
+              "unchanged",
+              "same_supported_mechanism"
+            ],
+            "admission": [
+              "capability_unavailable",
+              "unchanged"
+            ],
+            "unlifted_vetoes": [
+              [
+                "admission",
+                "capability_unavailable"
+              ],
+              [
+                "admission",
+                "unchanged"
+              ],
+              [
+                "admission",
+                "dependency_unresolved"
+              ]
+            ]
+          }
+        ],
+        "evaluation": [],
+        "base_only_findings": 0,
+        "coverage_reasons": [
+          "capability_unavailable",
+          "comparison_unknown",
+          "witness_unresolved",
+          "eligibility:eligibility_provenance_mismatch",
+          "witness_identity_unresolved",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:5fd8c7c2cb3416fe25b4c1437ea95ffba902e60407139a6b5d5c9d0a898beb17",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:d3df6b543c4f932ffc44880f53a20d8e2a39b01aaed423c81c06fe8dff906acb",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:98d5d6114cd938cf0b0a384d35d279d5754c2aea55804b3dbb24a915753924b2",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:3aabf2177b0762d91115354177297f9b7fe6f3452c9c17ca2ff5a2cb03ecf98c",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:68865c15daec49375f4bfb2f0acf7e48f45fd56909f137b1574b5ebf09d01095",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:72b8e224c83e4e007aa6cab72f158df9b99f892db8994c65407e16ca4c929401",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:b61225a697d36ca5907ae4c3100b8f155ec5a24c9039353d0688d37797cb5806"
+        ],
+        "admitted_defects": 0,
+        "timings": {
+          "deadline_seconds": 900.0,
+          "cancellation_allowance_seconds": 2.0,
+          "resolution_seconds": 0.01914159976877272,
+          "provenance_seconds": 0.294802316930145,
+          "snapshot_seconds": 0.09776705387048423,
+          "discovery_seconds": 0.01528664818033576,
+          "preparation_seconds": 0.120669448049739,
+          "head_seconds": 3.001164474990219,
+          "base_seconds": 1.547726898919791,
+          "admission_seconds": 0.00981250498443842,
+          "recorded_vetoes_seconds": 0.7769495439715683,
+          "cleanup_seconds": 0.0011470450554043055,
+          "total_seconds": 5.799134210916236
+        }
+      }
+    },
+    {
+      "case_id": "VAmPI-BOLA-BOOKS",
+      "label": "regression",
+      "role": "regression",
+      "base_oid": "f16052dce83f05847133ec98f01c5193a41de7d8",
+      "head_oid": "f16052dce83f05847133ec98f01c5193a41de7d8",
+      "exit_code": 0,
+      "elapsed_seconds": 6.3836759477853775,
+      "terminal": "No actionable defects reported; analysis is incomplete.\nNotice: Some checks are not enabled for normal alerts. Review capability coverage in the details.\nExperimental: recorded-veto evaluation retained 4 raw finding(s) with 16 recorded veto(es), 0 base-only finding(s) and 0 change-attributed evaluation finding(s) in the detailed result; recorded, not applied; not an alert.\nDetails: /results/m3-python/VAmPI-BOLA-BOOKS.json\n",
+      "provenance_matches": true,
+      "outcome": {
+        "expected": "declared target still detected and its question answered; never new, because nothing changed",
+        "identical_revisions": true,
+        "declared_target": {
+          "path": "api_views/books.py",
+          "function": "get_by_title",
+          "family": "access_control",
+          "lines": [
+            51
+          ]
+        },
+        "findings_at_target": 1,
+        "finding_sites": [
+          "api_views/books.py:51:get_by_title"
+        ],
+        "target_lines_hit": [
+          51
+        ],
+        "target_questions": [
+          {
+            "function": "add_new_book",
+            "status": "completed",
+            "reason": "query_answered_and_arbitrated"
+          },
+          {
+            "function": "get_by_title",
+            "status": "completed",
+            "reason": "query_answered_and_arbitrated"
+          }
+        ],
+        "target_questions_answered": true,
+        "questions_completed": 35,
+        "questions_total": 35,
+        "base_questions_completed": 35,
+        "census": [
+          {
+            "language": "python",
+            "files": 11
+          }
+        ],
+        "production_result": [
+          "none",
+          "incomplete"
+        ],
+        "recorded_status": "evaluated",
+        "recorded_at_target": [
+          {
+            "site": "api_views/books.py:51:get_by_title",
+            "production": [
+              "unchanged",
+              "same_supported_mechanism"
+            ],
+            "recorded": [
+              "unchanged",
+              "same_supported_mechanism"
+            ],
+            "admission": [
+              "capability_unavailable",
+              "unchanged"
+            ],
+            "unlifted_vetoes": [
+              [
+                "admission",
+                "capability_unavailable"
+              ],
+              [
+                "admission",
+                "unchanged"
+              ],
+              [
+                "admission",
+                "dependency_unresolved"
+              ]
+            ]
+          }
+        ],
+        "evaluation": [],
+        "base_only_findings": 0,
+        "coverage_reasons": [
+          "capability_unavailable",
+          "comparison_unknown",
+          "witness_unresolved",
+          "eligibility:eligibility_provenance_mismatch",
+          "witness_identity_unresolved",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:5fd8c7c2cb3416fe25b4c1437ea95ffba902e60407139a6b5d5c9d0a898beb17",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:d3df6b543c4f932ffc44880f53a20d8e2a39b01aaed423c81c06fe8dff906acb",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:98d5d6114cd938cf0b0a384d35d279d5754c2aea55804b3dbb24a915753924b2",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:3aabf2177b0762d91115354177297f9b7fe6f3452c9c17ca2ff5a2cb03ecf98c",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:68865c15daec49375f4bfb2f0acf7e48f45fd56909f137b1574b5ebf09d01095",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:72b8e224c83e4e007aa6cab72f158df9b99f892db8994c65407e16ca4c929401",
+          "dynamic_external_or_depth_context_unresolved:contributor-scan:b61225a697d36ca5907ae4c3100b8f155ec5a24c9039353d0688d37797cb5806"
+        ],
+        "admitted_defects": 0,
+        "timings": {
+          "deadline_seconds": 900.0,
+          "cancellation_allowance_seconds": 2.0,
+          "resolution_seconds": 0.017571233911439776,
+          "provenance_seconds": 0.28969555580988526,
+          "snapshot_seconds": 0.09667836595326662,
+          "discovery_seconds": 0.013358874013647437,
+          "preparation_seconds": 0.11729397182352841,
+          "head_seconds": 3.0182085398118943,
+          "base_seconds": 1.5452590121421963,
+          "admission_seconds": 0.010044088121503592,
+          "recorded_vetoes_seconds": 0.7472286818083376,
+          "cleanup_seconds": 0.0009872759692370892,
+          "total_seconds": 5.772516693919897
+        }
+      }
+    }
+  ],
+  "verdict": {
+    "targets_detected": {
+      "VAmPI-SQLI": 1,
+      "VAmPI-BOLA": 1,
+      "VAmPI-BOLA-BOOKS": 1
+    },
+    "all_targets_detected": true,
+    "all_target_questions_answered": true,
+    "nothing_reported_new": true,
+    "all_recorded": true,
+    "no_admitted_defects": true,
+    "note": "Identical revisions on both sides: this establishes detection and completion, not novelty. A target reported new here would be a comparison defect."
+  },
+  "bundle": {
+    "path": "2026-09-17-m3-python-transfer.json.gz",
+    "sha256": "b027bd653d33a2bcc760d02f57746f3a06cf76cd348b049a4c189e8dfcacfe20",
+    "files": 12
+  },
+  "finding": "All three declared Python targets are detected at their declared lines with their questions answered, and 35 of 35 questions complete on every case. Two of the three are access control, the family that could not complete a question anywhere before group 12, so this is the first time it has answered on Python. The SQL injection at models/user_model.py:73 is the VAmPI evidence the milestone spec names as previously unresolved.",
+  "limits": [
+    "Identical revisions on both sides, so this establishes detection and completion, never novelty.",
+    "VAmPI is an inspected teaching application and cannot qualify production Python support.",
+    "No capability enabled, no admitted defect, no latency claim."
+  ]
+}

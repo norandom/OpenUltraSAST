@@ -440,6 +440,23 @@ Preserve all completed task evidence below.
   - _Depends: 12.3_
   - _Requirements: 2.1, 2.2, 8.1_
 
+
+- [ ] 13. Show the shared design transfers across languages (release milestone M3)
+- [x] 13.1 Replay the declared Python family through the shared core
+  - Generalize the replay instrument so a case family is an argument rather than a hard-coded target: a harness that only knows one language cannot say whether the design transfers. Targets, pins and expectations come from the committed inputs.
+  - VAmPI is a regression snapshot with the same revision on both sides, so it can establish detection and completion but never novelty. The mode asserts that too: with nothing changed, a target reported new would be a comparison defect rather than a finding.
+  - _Verified 2026-09-17:_ all three declared targets detected at their declared lines with their questions answered, 35 of 35 questions complete on every case, nothing reported new, zero admitted defects. The SQL injection at `models/user_model.py:73` is the evidence the milestone names as previously unresolved. Two of the three are access control, the family that could not complete a question anywhere before group 12, so this is the first time broken object-level authorization has been asked on Python. Evidence: `benchmarks/measurements/2026-09-17-m3-python-transfer.json`.
+  - _Limits:_ identical revisions establish detection, not novelty; VAmPI is inspected teaching data and cannot qualify production Python support.
+  - _Boundary: Evaluation harness, full-run integration_
+  - _Requirements: 6.2, 6.3, 8.1, 8.2_
+- [ ] 13.2 Replay the declared PHP pair through the shared core
+  - PMPro 2.9.7 against 2.9.8 with its upstream prepare fix, plus a comment-only benign variant. A different language, a different mechanism and a fix this project did not author.
+  - The first attempt selected one case of three, because the manifest labels a case by what it is while the case id says what the comparison does; the harness now maps label to role explicitly. That run also exhausted a 900-second budget on the single case it ran.
+  - Done when all three comparisons complete with their declared target evidence recorded, or the budget they need is stated as a finding rather than reported as a pass.
+  - _Boundary: Evaluation harness, full-run integration_
+  - _Depends: 13.1_
+  - _Requirements: 6.2, 6.3, 8.1, 8.2_
+
 ## Implementation Notes
 
 - Task5.2 measured PMPro timing out after both snapshots were materialized but before change context/graph analysis. Group6 must account for compatible snapshot/discovery reuse as well as graph reuse; identical-tip hits cannot substitute for the later representative changed-code latency gate. No new detector, scope heuristic or incremental CPG mutation is implied.
