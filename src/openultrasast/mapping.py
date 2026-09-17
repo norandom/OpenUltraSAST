@@ -74,6 +74,15 @@ class EntryPointRecord:
     conditions: list[str]
     provenance: str
     rationale: str
+    # Does the file this record belongs to actually DEFINE the handler it names?
+    #
+    # A route-registration module registers handlers that live elsewhere: NodeGoat's `index.js`
+    # requires seven handler modules and defines none. The record still names the handler, because
+    # the authorization question is about which middleware guards which handler and that is
+    # inherently cross-file. But a REGION scoped to a function its file does not hold is a question
+    # the graph cannot answer, and 138 questions across six families were unresolvable for exactly
+    # that reason on one repository. The region builder uses this to scope such an entry to the file.
+    defines_handler: bool = True
     # Did the access level come from a DECLARATION, or from the absence of one?
     #
     # The distinction decides whether "public" can be trusted. An OpenAPI operation with no `security` block
@@ -424,18 +433,20 @@ def _js_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
             handler, middleware = _js_registration(stripped, bounds)
             access, evidence = _js_route_access(middleware, stripped)
             start, end = bounds.get(handler or "", (number, number))
+            named = handler or _js_handler_name(stripped)
             records.append(
                 _entry(
                     target,
                     start,
                     end,
-                    handler or _js_handler_name(stripped),
+                    named,
                     "http_handler",
                     "route",
                     access,
                     "http_request",
                     evidence,
                     _line_conditions(stripped),
+                    defines_handler=bool(named) and named in bounds,
                 )
             )
         if "process.argv" in stripped:
@@ -762,6 +773,7 @@ def _entry(
     access_evidence: list[str],
     conditions: list[str],
     access_declared: bool = False,
+    defines_handler: bool = True,
 ) -> EntryPointRecord:
     return EntryPointRecord(
         path=target.path,
@@ -773,6 +785,7 @@ def _entry(
         access_level=access_level,
         trust_boundary=trust_boundary,
         access_evidence=access_evidence,
+        defines_handler=defines_handler,
         conditions=conditions,
         provenance=f"entrypoint:{kind}:{access_level}",
         rationale=f"{kind} surface classified as {access_level} at {trust_boundary}",

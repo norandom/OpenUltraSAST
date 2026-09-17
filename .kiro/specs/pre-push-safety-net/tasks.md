@@ -432,6 +432,14 @@ Preserve all completed task evidence below.
   - _Requirements: 2.1, 2.2, 6.3, 8.1_
   - _Verified 2026-09-17:_ 1,406 tests passed, nine skipped; Ruff/format/mypy passed. The cause is recorded rather than guessed: `app/routes/index.js` requires seven handler modules and defines none of them, so a question naming `handleContributionsUpdate` there names a function that file genuinely does not hold and the empty scope is correct. Taint and configuration now separate the two causes, reporting `context_function_unresolved` with the name when a question names a function the file does not define, and `context_scope_empty` only when the file has no methods at all. The driver no longer adds its generic empty-scope gap on top of a query that already explained itself, and the new gap is question-owned so it cannot block another question's comparison. Completion is unchanged by design: a question whose function the graph does not hold stays unresolved, and nothing completes by widening its scope to the whole file.
 
+- [x] 12.4 Attribute a region to the file that defines its handler
+  - **The region-attribution half of 12.3.** A route-registration module registers handlers other modules define. `app/routes/index.js` requires seven handler modules and defines none, yet regions there were scoped to `handleContributionsUpdate` and its siblings, so the graph rightly held no such method and every question in those regions was unresolvable: 138 across six families.
+  - The entry record still names the handler, because the authorization question is which middleware guards which handler and that is cross-file by nature. It now also records whether the file defines what it names, and a region built from an entry that does not is scoped to the file rather than to a method the file lacks.
+  - _Verified 2026-09-17:_ 1,407 tests passed, nine skipped; Ruff/format/mypy passed. A first attempt changed the mapper to stop naming cross-file handlers and was reverted: an existing control proved the name carries the authorization attribution, so the fix belongs in region construction, not in the mapper. Controls assert the registering file asks about itself with no function-scoped region, while the defining module keeps its function-scoped region.
+  - _Boundary: Ranker Scope Contract, contributor-scan entry mapping_
+  - _Depends: 12.3_
+  - _Requirements: 2.1, 2.2, 8.1_
+
 ## Implementation Notes
 
 - Task5.2 measured PMPro timing out after both snapshots were materialized but before change context/graph analysis. Group6 must account for compatible snapshot/discovery reuse as well as graph reuse; identical-tip hits cannot substitute for the later representative changed-code latency gate. No new detector, scope heuristic or incremental CPG mutation is implied.

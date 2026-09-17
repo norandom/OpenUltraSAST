@@ -99,6 +99,13 @@ def regions_for(entries: Sequence[object], targets: Sequence[object], *, shipped
         if not families:
             continue
         function = getattr(entry, "function_name", None) or None
+        if function is not None and not getattr(entry, "defines_handler", True):
+            # The entry names a handler this file registers but does not define, which is what a
+            # route-registration module does. Scoping a region to it asks the graph about a method
+            # the file does not hold, and every question in that region is then unresolvable. The
+            # handler's own module gets its own regions, so the route is scoped to the file here and
+            # the record keeps the name for the authorization question, which is cross-file by nature.
+            function = None
         module_body = function in _MODULE_MARKERS
         if module_body:
             # A module body is not a handler, whatever the mapper called it, so it is offered the families a

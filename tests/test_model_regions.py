@@ -272,3 +272,31 @@ def test_an_inferred_public_endpoint_keeps_the_obligation() -> None:
     handler = next(r for r in regions if r.function == "handler")
 
     assert "access_control" in handler.families
+
+
+def test_a_route_registered_but_not_defined_here_is_scoped_to_its_file():
+    """12.4: a registration module names handlers other modules define; the graph holds none of them."""
+    from types import SimpleNamespace
+
+    from openultrasast.model.regions import regions_for
+
+    target = SimpleNamespace(path="app/routes/index.js", language="javascript")
+    registered = SimpleNamespace(
+        path="app/routes/index.js",
+        function_name="handleContributionsUpdate",
+        access_level="public",
+        defines_handler=False,
+    )
+    defined = SimpleNamespace(
+        path="app/routes/contributions.js",
+        function_name="handleContributionsUpdate",
+        access_level="public",
+        defines_handler=True,
+    )
+    other = SimpleNamespace(path="app/routes/contributions.js", language="javascript")
+    scoped = {(region.path, region.function) for region in regions_for([registered, defined], [target, other])}
+    # The registering file asks about itself, not about a method it does not hold.
+    assert ("app/routes/index.js", None) in scoped
+    assert not any(path == "app/routes/index.js" and function for path, function in scoped)
+    # The module that defines it still gets the function-scoped region.
+    assert ("app/routes/contributions.js", "handleContributionsUpdate") in scoped
