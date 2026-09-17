@@ -377,13 +377,14 @@ Preserve all completed task evidence below.
   - _Boundary: Cache and Engine Boundary, Push runner_
   - _Depends: 11.2_
   - _Requirements: 4.1, 4.3, 6.4, 7.3_
-- [ ] 11.4 Remove the startup cost from the critical path where the measurement says it pays
+- [x] 11.4 Remove the startup cost from the critical path where the measurement says it pays
   - With 11.3's stage costs in hand, decide what else to change. The candidates the M1b runs point at are the overlay pass, 15.8 s in a separate invocation, and session startup, 12.8 s, which may overlap the frontend build rather than follow it.
   - Change only what the measurement implicates, and keep each change's correctness evidence separate from its timing evidence. Do not substitute a faster census for a completed security check.
   - Done when the recorded stage costs after the change are compared against the same profile before it, with any regression in completed checks reported rather than traded away.
   - _Boundary: contributor-scan runtime_
   - _Depends: 11.3_
   - _Requirements: 4.1, 4.2, 6.2, 6.5_
+  - _Verified 2026-09-17:_ 1,399 tests passed, nine skipped; Ruff/format/mypy passed. The overlay, the last fixed cost bypassing the session, now runs in-session and the saved graph is verified rather than assumed. The first session-enabled replay then showed correct detections and no speedup, and a targeted probe disproved the sequence hypothesis before finding the real defect: a build runs on a copy of the backend, so the session it started was never closed, leaking a JVM holding the configured heap, twice per transaction, enough to exhaust the container. With that fixed the session stays alive for the whole transaction and no `session_query_failed` appears. Measured on the same pins and budget, the vulnerable revision went from 326.4 s to 243.3 s, head query time from 63.6 s to 32.0 s and base from 85.1 s to 51.2 s, with dominance and configuration each falling from about 14 s to about 4 s. Detections unchanged. Evidence: `benchmarks/measurements/2026-09-17-nodegoat-session-transport.json`.
 - [ ] 11.5 Rerun the frozen seven-class runtime profile and decide
   - Rerun the unchanged seven-class profile: identical-tip, function edit, dependency edit, configuration edit, cold, growth and multi-ref, three samples each, retaining every timeout and unresolved check. Identical-tip reuse cannot substitute for warm changed-code work.
   - Verify the M1 outcome still holds on the same three revisions through the production rules, so speed is not bought with a lost detection.
