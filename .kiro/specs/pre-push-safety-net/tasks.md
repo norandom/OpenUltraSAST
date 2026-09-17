@@ -352,7 +352,7 @@ Preserve all completed task evidence below.
   - _Verified 2026-09-16:_ 1,386 tests passed, nine skipped; Ruff/format/mypy passed. Three evaluation findings rendered on the vulnerable revision with exact location, witness, change attribution, provenance, consequence and repair, all from the declaration's templates through the grounded-template path. The declaration reports verdict experimental and enabled false, the production result still reports no actionable defect, and all three artifacts carry zero admitted defects. Controls prove an ungrounded template is refused, an uncovered operation symbol is stated, no matching declaration leaves both sentences absent with the reason, and a declaration claiming PASS still admits nothing because the rendering path is outside admission. Evidence: `benchmarks/measurements/2026-09-16-nodegoat-m1b-explained.json`.
 
 
-- [ ] 11. Fit the same useful analysis into the push budget (release milestone M2)
+- [x] 11. Fit the same useful analysis into the push budget (release milestone M2)
 - [x] 11.1 Give the backend a transaction-owned engine session
   - The measured cost is JVM startup, not analysis. In the M1b runs each disposable `joern --script` invocation cost 13 to 23 seconds while the work itself took under a second, and the 2026-09-14 lifecycle probe measured one session at 12.8 s to start, 3.6 s to load a graph and 0.22 to 0.47 s per warm request.
   - Own the session inside the existing backend for the length of one transaction: loopback only on an ephemeral port with no published port, a private working directory, one shared deadline, serialized requests, explicit graph identity and epoch, and kill-and-reap of the whole process group on cancellation, failure or exit.
@@ -395,7 +395,8 @@ Preserve all completed task evidence below.
   - _Requirements: 4.1, 4.2, 6.2, 6.3, 6.5, 7.3_
   - _Measured 2026-09-17, verdict NO-GO:_ the unchanged seven-class profile, three samples each, session enabled. Every changed-code workload still times out at the 30-second deadline, and identical-tip got worse, p50 rising from 18.5 s to 24.2 s. The cause is recorded in the artifacts rather than inferred: 13 transactions report `session_unavailable:session_startup_timeout`, so under the real deadline the session usually never starts and everything falls back. Startup is 9 to 13 seconds, about a third of the whole budget, spent before any analysis. Where a session did start, on cached-graph transactions with little remaining work, it cost more than it saved. Correctness is unchanged: the same three revisions through the production rules with the session on reproduce the M1 verdict. Evidence: `benchmarks/measurements/2026-09-17-session-runtime-profile.json`. **Dominant remaining cost: engine startup itself, which a transaction-owned session relocates but cannot remove.**
 
-- [ ] 12. Prerequisites for independent qualification found during M1a and M1b
+- [ ] 12. Security capability work found during M1a and M1b
+  - Group 11 established that M2 needs graph reuse rather than more runtime tuning, and that decision is recorded there. This group returns to what the tool can actually establish about a codebase, which is where the remaining release risk sits: two of the three shipped families cannot complete their change context at all, and admission rejects genuine findings on a mis-extracted operation symbol.
 - [ ] 12.1 Extract the operation symbol from the operation, not from the statement
   - **Found 2026-09-16 in the M1b explanation run.** Admission takes the text before the first parenthesis as the operation symbol, so `const preTax = eval(req.body.preTax)` yields `const preTax = eval`. The demonstration declaration had to enumerate each assignment spelling for its coverage check to pass.
   - A qualified declaration cannot enumerate every assignment a codebase might write, so admission would reject genuine findings on `operation_semantics_mismatch`. Take the symbol from the called operation the engine reported, preserving receiver spelling, and leave an unresolved or dynamic spelling ineligible as it is today.
@@ -409,7 +410,7 @@ Preserve all completed task evidence below.
   - _Boundary: contributor-scan query/context evidence_
   - _Requirements: 2.1, 2.2, 8.1, 8.2_
 
-- [ ] 11.6 Decide what to do about engine startup, which the session cannot remove
+- [x] 11.6 Decide what to do about engine startup, which the session cannot remove
   - **Named by the 11.5 measurement.** A transaction-owned session amortizes engine startup across the invocations inside one transaction, and a warm changed-code push does not have enough of them: startup is 9 to 13 seconds of a 30-second budget, so the session either fails to start or costs more than it saves. Group 11 as designed cannot reach the gate.
   - The options are a decision for the maintainer, not an implementation detail, because two of them change the product's shape. A session shared across transactions is a resident local service, which the accepted milestone spec explicitly does not imply. A smaller budget for what a push analyses is a scope change, not a speed change. A faster cold path would mean attacking the frontend and overlay costs directly, which the session does not touch.
   - Record the measured cost of each candidate before choosing, and keep the 30-second and 2-second gates unchanged; a gate met by analysing less is not the same result.
@@ -417,6 +418,7 @@ Preserve all completed task evidence below.
   - _Boundary: contributor-scan runtime, release direction_
   - _Depends: 11.5_
   - _Requirements: 4.1, 4.2, 6.5_
+  - _Decided 2026-09-17 by the maintainer: do not rebuild a whole graph per push._ Both startup attacks were measured and neither reaches the gate. The session helps a long transaction, 326 s to 243 s, and cannot help a 30-second one: startup is 9 to 13 seconds of the budget, so it usually declines. Removing JavaScript's second engine start is real, 11.0 s against 21.0 s on identical graphs, but its census gate was asymmetric and it was reverted after costing two engine starts on 12 profile transactions. What the profile names is not startup at all: a changed-code transaction reaches its deadline during the build, head build 25.2 s of 30 s with query time 0.0 s. The remaining cost is building a fresh whole-repository graph for every pushed revision. **Direction: reuse the graph across revisions instead of rebuilding it, rather than further optimising the rebuild.** Not scheduled here; M2 stays unmet and the 30-second and 2-second gates stay unchanged.
 
 ## Implementation Notes
 

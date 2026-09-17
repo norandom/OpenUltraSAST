@@ -101,7 +101,21 @@ comparison, admission, the recorded-veto flag and reporting. Requirements: 1.1â€
 
 ## M2 â€” The same useful analysis fits the push budget
 
-Status: **PENDING M1**.
+Status: **MEASURED AND UNMET, 2026-09-17.** Two attacks on engine startup were measured and
+neither reaches the gate. A transaction-owned session is implemented and proven equivalent for
+every shipped query kind, and it amortizes startup only across a long transaction: 326 s to 243 s
+under a development budget, while under the 30-second deadline its own 9 to 13 second startup
+means it usually declines to start. Removing JavaScript's redundant second engine start is a real
+11.0 s against 21.0 s on identical graphs, but the attempt was reverted for an asymmetric census
+gate that made 12 profile transactions pay two engine starts.
+
+The profile names the actual cost: a changed-code transaction reaches its deadline inside the
+build, head build 25.2 s of 30 s with query time 0.0 s. It is building a fresh whole-repository
+graph for every pushed revision.
+
+**Direction accepted 2026-09-17: do not rebuild a whole graph per push. Reuse the graph across
+revisions instead of further optimising the rebuild.** The 30-second and 2-second gates are
+unchanged; this milestone is not met, and the work is not scheduled here.
 
 - Use the successful M1 case as a correctness baseline for a transaction-owned Joern
   session within the existing backend. The measured census probe supports investigating
