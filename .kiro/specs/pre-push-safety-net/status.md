@@ -55,11 +55,15 @@ pinned NodeGoat revisions with detections unchanged throughout.
   parenthesis, so `const preTax = eval(...)` was the operation `const preTax = eval`, which no
   qualified declaration could ever name. It is now the trailing qualified callee, with receiver
   spelling preserved.
-- **Unresolved questions now say why.** The remaining 138 all report
-  `context_function_unresolved`, each naming a function its file does not define, which is a
-  region-attribution question for the ranker rather than a limit of the engine.
+- **Unresolved questions said why, and then there were none.** The remaining 138 each named a
+  function its file does not define. A route-registration module registers handlers other modules
+  define, and regions were scoped to methods those files do not hold. The entry record keeps the
+  handler name, because the authorization question is cross-file by nature, and the region is now
+  scoped to the file instead. **Every question the scan asks now completes on both revisions,
+  299 of 299**, with detections unchanged.
 
-Evidence: [group 12 final](../../../benchmarks/measurements/2026-09-17-group-12-final.json).
+Evidence: [group 12 final](../../../benchmarks/measurements/2026-09-17-group-12-final.json) and
+[region attribution](../../../benchmarks/measurements/2026-09-17-region-attribution.json).
 
 ## Verified
 
