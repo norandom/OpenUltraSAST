@@ -552,36 +552,14 @@ class JoernBackend:
                     execution_diagnostics=lambda: tuple(self._diagnostics),
                 )
         if language.lower() in {"javascript", "typescript"}:
-            # M2 11.6: `joern-parse` applies the overlays itself, so it is ONE engine start where the
-            # frontend plus a separate overlay pass is two. On the pinned Node tree that is 11.0 s
-            # against 21.0 s, and JavaScript was the only language paying twice.
-            #
-            # The declared frontend stays, because it is what the versioned retention adaptation and
-            # the explicit exclusion policy run through, and a build nine seconds faster that quietly
-            # drops a file is worse rather than better. Measured under the production retention
-            # environment both paths hold the same 44 files and 579 methods, the same file names, the
-            # same overlays, the Gruntfile and all eighteen first-party test files. That is why this
-            # is allowed at all, and the census still decides per build: an incomplete graph is
-            # rebuilt through the frontend rather than trusted.
-            parsed_unparsed: tuple[str, ...] | None = None
-            if not exclude and parse is not None:
-                command = [parse, self._heap_flag(), str(root), "--output", str(cpg_path)]
-                completed = self._run(command, timeout=self.build_timeout, cwd=scratch)
-                if completed is not None and completed.returncode == 0 and cpg_path.is_file():
-                    if self._graph_is_complete(cpg_path, root, language):
-                        parsed_unparsed = _unparsed_files(completed)
-                    else:
-                        self._note("joern_parse_census_incomplete")
-                        logger.info("joern-parse produced an incomplete graph for %s; rebuilding through the frontend", root)
-            if parsed_unparsed is not None:
-                unparsed = parsed_unparsed
-            else:
-                direct = self._build_with_frontend(root, cpg_path, scratch, language, exclude)
-                if direct is None:
-                    dispose()
-                    return None
-                self._apply_overlays(cpg_path, scratch)
-                unparsed = direct
+            # Use the declared frontend rather than language autodetection. The versioned
+            # retention adaptation consumes the explicit include_tests subprocess policy.
+            direct = self._build_with_frontend(root, cpg_path, scratch, language, exclude)
+            if direct is None:
+                dispose()
+                return None
+            self._apply_overlays(cpg_path, scratch)
+            unparsed = direct
         else:
             command = [parse or "joern-parse", self._heap_flag(), str(root), "--output", str(cpg_path)]
             completed = self._run(command, timeout=self.build_timeout, cwd=scratch)

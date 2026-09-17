@@ -146,5 +146,9 @@
   "limits": [
     "One pinned JavaScript tree. PHP keeps the frontend path, which it needs for exclusions and retries.",
     "A build saving is not the latency gate: the profile rerun decides that."
-  ]
+  ],
+  "outcome": "REVERTED",
+  "why_reverted": "Measured in the real push path the change did not deliver and cost an extra engine start. The seven-class profile rerun recorded joern_parse_census_incomplete on 12 transactions, so the faster path was rejected by its own census gate and the frontend plus overlay pass ran as well. Every workload stayed at the same p50 and the verdict stayed NO-GO.",
+  "root_cause_of_the_failed_gate": "The gate is asymmetric. The frontend path is not census-gated at build time, so whatever it produces is accepted; the joern-parse path was gated, so the same shortfall rejected it. Holding the new path to a standard the old path never has to meet guarantees the fallback fires. The probe tree and the materialized push snapshot also differ, so equivalence on the checkout did not transfer.",
+  "what_still_stands": "The timing difference is real and unexplained by anything else: 11.0 s against 21.0 s for identical graphs under the production retention environment, same 44 files, 579 methods, file names, overlays, Gruntfile and eighteen test files. JavaScript genuinely pays two engine starts where other languages pay one. A future attempt needs a gate both paths are held to, or a comparison against what the frontend would produce."
 }
