@@ -67,7 +67,8 @@ def fake(tmp_path):
     return script
 
 
-def session(tmp_path, fake, *, mode="ok", seconds=30.0, allowance=2.0):
+def session(tmp_path, fake, *, mode="ok", seconds=120.0, allowance=2.0):
+    """A budget comfortably above the session's startup allowance plus work reserve."""
     return EngineSession(
         tmp_path / "scratch",
         ExecutionBudget(time.monotonic() + seconds, allowance),
@@ -120,7 +121,8 @@ def test_a_crashed_session_answers_nothing_afterwards(tmp_path, fake):
 
 
 def test_cancellation_kills_the_process_group(tmp_path, fake):
-    live = session(tmp_path, fake, mode="hang", seconds=3.0)
+    live = session(tmp_path, fake, mode="hang", seconds=40.0)
+    live.work_reserve_seconds = 1.0
     assert live.start()
     pid = live._process.pid
     started = time.monotonic()
@@ -160,7 +162,7 @@ def test_the_wrapper_writes_its_receipt_before_running_the_body():
 
 
 def test_a_launch_failure_is_recorded_not_raised(tmp_path):
-    live = EngineSession(tmp_path / "s", ExecutionBudget(time.monotonic() + 10, 1.0), dict(os.environ), joern=str(tmp_path / "absent"))
+    live = EngineSession(tmp_path / "s", ExecutionBudget(time.monotonic() + 120, 1.0), dict(os.environ), joern=str(tmp_path / "absent"))
     assert live.start() is False and live.failure.startswith("session_launch_failed")
     live.close()
 
@@ -317,3 +319,27 @@ def test_the_driver_ends_the_session_with_the_transaction(tmp_path):
     (tmp_path / "a.js").write_text("const x = 1;\n")
     scan_repository(tmp_path, [], backend=backend)
     assert closed == [True]
+
+
+def test_a_session_refuses_to_start_when_the_budget_cannot_afford_it(tmp_path, fake):
+    """M2 11.6: a failed start must not consume the budget the fallback needs."""
+    live = session(tmp_path, fake, seconds=25.0)  # below allowance plus reserve
+    started = time.monotonic()
+    assert live.start() is False
+    assert live.failure == "session_budget_insufficient"
+    assert time.monotonic() - started < 1.0, "refusing must be immediate, not a wait"
+    assert live._process is None
+    live.close()
+
+
+def test_a_startup_wait_is_bounded_by_its_allowance_not_the_deadline(tmp_path, fake, monkeypatch):
+    live = session(tmp_path, fake, seconds=600.0)
+    live.startup_allowance_seconds = 1.0
+    live.work_reserve_seconds = 1.0
+    monkeypatch.setattr(EngineSession, "_post", lambda self, code, timeout: None)
+    started = time.monotonic()
+    assert live.start() is False
+    assert live.failure == "session_startup_timeout"
+    # Bounded by the allowance, nowhere near the 600-second deadline.
+    assert time.monotonic() - started < 10.0
+    live.close()

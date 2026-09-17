@@ -71,6 +71,13 @@ class EngineSession:
     env: dict[str, str]
     joern: str = "joern"
     startup_timeout_seconds: float = 180.0
+    # Startup measured 9 to 13 seconds. Waiting for it out of the transaction's own budget is only
+    # worth doing when enough budget survives to run the work the session exists to serve, and the
+    # wait itself must be bounded by an allowance rather than by the whole deadline. Without both,
+    # a session that cannot start in time consumes every second that was left and the fallback runs
+    # with nothing: measured as a 25.3 s "build" of which only 4.5 s was the frontend.
+    startup_allowance_seconds: float = 20.0
+    work_reserve_seconds: float = 10.0
     failure: str = ""
     startup_seconds: float = 0.0
     loaded_graph: str = ""
@@ -113,6 +120,11 @@ class EngineSession:
         if self._remaining(self.startup_timeout_seconds) <= 0:
             self._poison("deadline_exhausted")
             return False
+        available = self.budget.deadline_monotonic - time.monotonic()
+        if available < self.startup_allowance_seconds + self.work_reserve_seconds:
+            # Refuse rather than spend the caller's remaining budget discovering this.
+            self._poison("session_budget_insufficient")
+            return False
         self.scratch.mkdir(parents=True, exist_ok=True)
         self._port = _free_port()
         started = time.monotonic()
@@ -134,7 +146,8 @@ class EngineSession:
             if self._process.poll() is not None:
                 self._poison("session_exited_during_startup")
                 return False
-            remaining = self._remaining(self.startup_timeout_seconds - (time.monotonic() - started))
+            allowance = min(self.startup_timeout_seconds, self.startup_allowance_seconds)
+            remaining = self._remaining(allowance - (time.monotonic() - started))
             if remaining <= 0:
                 self._poison("session_startup_timeout")
                 return False
