@@ -385,7 +385,7 @@ Preserve all completed task evidence below.
   - _Depends: 11.3_
   - _Requirements: 4.1, 4.2, 6.2, 6.5_
   - _Verified 2026-09-17:_ 1,399 tests passed, nine skipped; Ruff/format/mypy passed. The overlay, the last fixed cost bypassing the session, now runs in-session and the saved graph is verified rather than assumed. The first session-enabled replay then showed correct detections and no speedup, and a targeted probe disproved the sequence hypothesis before finding the real defect: a build runs on a copy of the backend, so the session it started was never closed, leaking a JVM holding the configured heap, twice per transaction, enough to exhaust the container. With that fixed the session stays alive for the whole transaction and no `session_query_failed` appears. Measured on the same pins and budget, the vulnerable revision went from 326.4 s to 243.3 s, head query time from 63.6 s to 32.0 s and base from 85.1 s to 51.2 s, with dominance and configuration each falling from about 14 s to about 4 s. Detections unchanged. Evidence: `benchmarks/measurements/2026-09-17-nodegoat-session-transport.json`.
-- [ ] 11.5 Rerun the frozen seven-class runtime profile and decide
+- [x] 11.5 Rerun the frozen seven-class runtime profile and decide
   - Rerun the unchanged seven-class profile: identical-tip, function edit, dependency edit, configuration edit, cold, growth and multi-ref, three samples each, retaining every timeout and unresolved check. Identical-tip reuse cannot substitute for warm changed-code work.
   - Verify the M1 outcome still holds on the same three revisions through the production rules, so speed is not bought with a lost detection.
   - Apply the existing gates without alteration: representative warm changed-code p95 at most 30 s, cancellation and reporting at most 2 s, supported-check completion at least 95%. A failed gate stays NO-GO and names the dominant remaining cost.
@@ -393,6 +393,7 @@ Preserve all completed task evidence below.
   - _Boundary: Evaluation harness, runtime integration_
   - _Depends: 11.4_
   - _Requirements: 4.1, 4.2, 6.2, 6.3, 6.5, 7.3_
+  - _Measured 2026-09-17, verdict NO-GO:_ the unchanged seven-class profile, three samples each, session enabled. Every changed-code workload still times out at the 30-second deadline, and identical-tip got worse, p50 rising from 18.5 s to 24.2 s. The cause is recorded in the artifacts rather than inferred: 13 transactions report `session_unavailable:session_startup_timeout`, so under the real deadline the session usually never starts and everything falls back. Startup is 9 to 13 seconds, about a third of the whole budget, spent before any analysis. Where a session did start, on cached-graph transactions with little remaining work, it cost more than it saved. Correctness is unchanged: the same three revisions through the production rules with the session on reproduce the M1 verdict. Evidence: `benchmarks/measurements/2026-09-17-session-runtime-profile.json`. **Dominant remaining cost: engine startup itself, which a transaction-owned session relocates but cannot remove.**
 
 - [ ] 12. Prerequisites for independent qualification found during M1a and M1b
 - [ ] 12.1 Extract the operation symbol from the operation, not from the statement
@@ -407,6 +408,15 @@ Preserve all completed task evidence below.
   - Done when a dominance and a configuration question complete their change context on a real repository, with missing extents and unsupported reasoning still explicit.
   - _Boundary: contributor-scan query/context evidence_
   - _Requirements: 2.1, 2.2, 8.1, 8.2_
+
+- [ ] 11.6 Decide what to do about engine startup, which the session cannot remove
+  - **Named by the 11.5 measurement.** A transaction-owned session amortizes engine startup across the invocations inside one transaction, and a warm changed-code push does not have enough of them: startup is 9 to 13 seconds of a 30-second budget, so the session either fails to start or costs more than it saves. Group 11 as designed cannot reach the gate.
+  - The options are a decision for the maintainer, not an implementation detail, because two of them change the product's shape. A session shared across transactions is a resident local service, which the accepted milestone spec explicitly does not imply. A smaller budget for what a push analyses is a scope change, not a speed change. A faster cold path would mean attacking the frontend and overlay costs directly, which the session does not touch.
+  - Record the measured cost of each candidate before choosing, and keep the 30-second and 2-second gates unchanged; a gate met by analysing less is not the same result.
+  - Done when one record states the candidates, their measured or estimated costs, their effect on the product's shape, and the maintainer's choice.
+  - _Boundary: contributor-scan runtime, release direction_
+  - _Depends: 11.5_
+  - _Requirements: 4.1, 4.2, 6.5_
 
 ## Implementation Notes
 

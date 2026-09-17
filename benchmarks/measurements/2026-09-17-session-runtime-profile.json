@@ -1,0 +1,147 @@
+{
+  "workloads": {
+    "identical-tip": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 24.163701707031578,
+      "p95_seconds": 24.394183435942978,
+      "timeouts": 0,
+      "completed_targets": 0,
+      "expected_targets": 3,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0,
+      "pass": false
+    },
+    "function-edit": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 30.771415333962068,
+      "p95_seconds": 30.935717942891642,
+      "timeouts": 3,
+      "completed_targets": 0,
+      "expected_targets": 3,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0.9357179428916425,
+      "pass": false
+    },
+    "dependency-edit": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 30.8792759970529,
+      "p95_seconds": 30.88528792699799,
+      "timeouts": 3,
+      "completed_targets": 0,
+      "expected_targets": 3,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0.8852879269979894,
+      "pass": false
+    },
+    "configuration-edit": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 30.830487370025367,
+      "p95_seconds": 30.94464882405009,
+      "timeouts": 3,
+      "completed_targets": 0,
+      "expected_targets": 3,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0.9446488240500912,
+      "pass": false
+    },
+    "cold": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 30.70144796196837,
+      "p95_seconds": 30.723933225031942,
+      "timeouts": 3,
+      "completed_targets": 0,
+      "expected_targets": 3,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0.7239332250319421,
+      "pass": false
+    },
+    "growth": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 31.13915658602491,
+      "p95_seconds": 31.186890079989098,
+      "timeouts": 3,
+      "completed_targets": 0,
+      "expected_targets": 3,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 1.186890079989098,
+      "pass": false
+    },
+    "multi-ref": {
+      "population": 3,
+      "observed": 3,
+      "missing": 0,
+      "latency_samples": 3,
+      "p50_seconds": 30.744394473033026,
+      "p95_seconds": 30.833070866996422,
+      "timeouts": 3,
+      "completed_targets": 0,
+      "expected_targets": 6,
+      "complete_target_cases": 0,
+      "completion": 0.0,
+      "complete_coverage_cases": 0,
+      "cancellation_overrun_seconds": 0.8330708669964224,
+      "pass": false
+    }
+  },
+  "runtime_verdict": "NO-GO",
+  "rollout": "NO-GO",
+  "qualification_limit": "Development NodeGoat, n=3 per workload; independent quality and multi-project performance not established.",
+  "missing_workloads": [],
+  "profile_sha256": "077254b581db671f6732f72bf15efc7f12d3b3c72d9de16be3033624860a2989",
+  "priming_completed": false,
+  "bundle": {
+    "path": "2026-09-17-session-runtime-profile.json.gz",
+    "sha256": "34d0b23e5abd052bdd060a2db922f8ad2eb21d0229f81368c8205842e0934ced",
+    "files": 108
+  },
+  "experiment": "session-runtime-profile-v1",
+  "milestone": "M2 task 11.5",
+  "transport": "engine session enabled via OUSAST_ENGINE_SESSION=1",
+  "session_outcomes": {
+    "session_unavailable:session_startup_timeout": 13,
+    "session_define_failed:census": 1
+  },
+  "finding": "Under the real 30-second deadline the session almost never starts: 13 transactions recorded session_startup_timeout and fell back to the disposable path. Session startup measured 9 to 13 seconds, roughly a third of the whole budget, and it is spent before any analysis. Where a session did start, on identical-tip transactions whose graphs are cached and whose remaining work is small, it made things worse: p50 rose from 18.5 s in the pre-session profile to 24.2 s. A transaction-owned session relocates engine startup rather than removing it, and it can only amortize that cost across many engine invocations, which a warm changed-code transaction does not have.",
+  "comparison_with_pre_session_profile": {
+    "identical-tip p50": {
+      "before": 18.5,
+      "after": 24.2
+    },
+    "changed-code workloads": "all still time out at the 30-second deadline, before and after"
+  },
+  "correctness": "Unchanged. The same three pinned revisions through the production rules with the session enabled reproduce the M1 verdict exactly: benchmarks/measurements/2026-09-17-nodegoat-session-transport.json.",
+  "limits": [
+    "Development NodeGoat, three samples per workload; not independent qualification.",
+    "Priming completed in 236 s without completing its target, so warm graph reuse is partial."
+  ]
+}
