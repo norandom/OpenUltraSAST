@@ -422,6 +422,15 @@ Preserve all completed task evidence below.
   - _Requirements: 4.1, 4.2, 6.5_
   - _Decided 2026-09-17 by the maintainer: do not rebuild a whole graph per push._ Both startup attacks were measured and neither reaches the gate. The session helps a long transaction, 326 s to 243 s, and cannot help a 30-second one: startup is 9 to 13 seconds of the budget, so it usually declines. Removing JavaScript's second engine start is real, 11.0 s against 21.0 s on identical graphs, but its census gate was asymmetric and it was reverted after costing two engine starts on 12 profile transactions. What the profile names is not startup at all: a changed-code transaction reaches its deadline during the build, head build 25.2 s of 30 s with query time 0.0 s. The remaining cost is building a fresh whole-repository graph for every pushed revision. **Direction: reuse the graph across revisions instead of rebuilding it, rather than further optimising the rebuild.** Not scheduled here; M2 stays unmet and the 30-second and 2-second gates stay unchanged.
 
+- [ ] 12.3 Resolve function-scoped questions whose function the query cannot locate
+  - **Named by the 12.2 measurement.** With per-family context in place, head completion rose from 205 to 298 of 436 and `context_projection_unavailable` fell to zero. Every remaining unresolved question reports `context_scope_empty`, and they sit in three files: `app/routes/index.js` (114), `app/routes/tutorial.js` (12) and `server.js` (12). None is access control.
+  - These are function-scoped questions whose named function the query cannot locate in the graph, so the scope it describes is honestly empty. It is the same query-to-operation identity problem M1a recorded at the witness end, appearing at the scope end.
+  - Carry verified provenance from the region's declared function to the method the engine actually holds, and leave an unresolvable name explicit. Do not widen a question to the whole file to make it complete, and do not inject a declared name into a region.
+  - Done when a question whose function the graph holds completes, a question whose function it does not hold stays unresolved with the name recorded, and no question completes by widening its scope.
+  - _Boundary: contributor-scan query/context evidence, Ranker Scope Contract_
+  - _Depends: 12.2_
+  - _Requirements: 2.1, 2.2, 6.3, 8.1_
+
 ## Implementation Notes
 
 - Task5.2 measured PMPro timing out after both snapshots were materialized but before change context/graph analysis. Group6 must account for compatible snapshot/discovery reuse as well as graph reuse; identical-tip hits cannot substitute for the later representative changed-code latency gate. No new detector, scope heuristic or incremental CPG mutation is implied.
