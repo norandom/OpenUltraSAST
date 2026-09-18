@@ -144,11 +144,15 @@ zero admitted defects. That includes the SQL injection this spec names as previo
 and both broken-object-level-authorization targets, which is the first time access control has
 answered on Python at all.
 
-PHP: not established. All three PMPro comparisons exhausted a 3000-second deadline with a
-1200-second query ceiling and produced no artifact, so there is no target evidence. The taint
-batch fails on the 1,274-file tree, first with an engine exception and then by timeout. The pins,
-receipts and declared target are correct, so this is a runtime blocker on a large repository
-rather than evidence about whether the design transfers.
+PHP: not established, and the blocker is now named. All PMPro comparisons exhausted every budget
+tried, up to a 4500-second deadline with a 900-second query ceiling, and produced no artifact, so
+there is no target evidence. Splitting a failed batch into parts did not rescue it.
+
+A probe narrowed the cause: the evidence pass answers all 4,425 PMPro regions in one batch in
+29.7 seconds with a 681 KB response, and its cost is fixed rather than per request. Neither
+request count nor response size is anywhere near a limit. What fails is the execution pass, which
+runs `reachableByFlows` per candidate. The pins, receipts and declared target are correct, so the
+question is being asked properly and the dataflow work is what cannot finish.
 
 The exit asks for Node, PHP and Python together. Two of three are in hand.
 

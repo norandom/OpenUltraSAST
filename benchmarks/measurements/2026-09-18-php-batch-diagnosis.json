@@ -1,0 +1,72 @@
+{
+  "experiment": "php-taint-batch-v1",
+  "root": "/cache/pmpro/1a900be3f09f",
+  "attempts": [
+    {
+      "requests": 1,
+      "seconds": 40.16467795101926,
+      "exit": 0,
+      "stdout_bytes": 36400,
+      "answered": true,
+      "answer_keys": 2,
+      "stderr_head": "Picked up JAVA_TOOL_OPTIONS: -Xmx2048m\nPicked up JAVA_TOOL_OPTIONS: -Xmx2048m\nexecuting /app/src/openultrasast/cpg/queries/taint.sc with params=Map(cpgFile -> /results/php-probe/cpg.bin, requestsFile -> /results/php-probe/requests-1.json)\nCreating project `cpg.bin` for CPG at `/results/php-probe/cpg.bin`\nCreating working copy of CPG to be safe\nLoading base CPG from: /results/php-probe/workspace/cpg.bin/cpg.bin.tmp\nOverlay dataflowOss already exists - skipping\nThe graph has been modified. You may want to use the `save` command to persist changes to disk.  All changes will also be saved collectively on exit\nclosing/saving project `cpg.bin`\n",
+      "stderr_bytes": 646
+    },
+    {
+      "requests": 10,
+      "seconds": 39.16813864791766,
+      "exit": 0,
+      "stdout_bytes": 37689,
+      "answered": true,
+      "answer_keys": 11,
+      "stderr_head": "Picked up JAVA_TOOL_OPTIONS: -Xmx2048m\nPicked up JAVA_TOOL_OPTIONS: -Xmx2048m\nexecuting /app/src/openultrasast/cpg/queries/taint.sc with params=Map(cpgFile -> /results/php-probe/cpg.bin, requestsFile -> /results/php-probe/requests-10.json)\nCreating project `cpg.bin` for CPG at `/results/php-probe/cpg.bin`\nProject with name cpg.bin already exists - overwriting\nCreating working copy of CPG to be safe\nLoading base CPG from: /results/php-probe/workspace/cpg.bin/cpg.bin.tmp\nOverlay dataflowOss already exists - skipping\nThe graph has been modified. You may want to use the `save` command to persist changes to disk.  All changes will also be saved collectively on exit\nclosing/saving project `cpg.bin`\n",
+      "stderr_bytes": 702
+    },
+    {
+      "requests": 50,
+      "seconds": 30.821678715990856,
+      "exit": 0,
+      "stdout_bytes": 43445,
+      "answered": true,
+      "answer_keys": 51,
+      "stderr_head": "Picked up JAVA_TOOL_OPTIONS: -Xmx2048m\nPicked up JAVA_TOOL_OPTIONS: -Xmx2048m\nexecuting /app/src/openultrasast/cpg/queries/taint.sc with params=Map(cpgFile -> /results/php-probe/cpg.bin, requestsFile -> /results/php-probe/requests-50.json)\nCreating project `cpg.bin` for CPG at `/results/php-probe/cpg.bin`\nProject with name cpg.bin already exists - overwriting\nCreating working copy of CPG to be safe\nLoading base CPG from: /results/php-probe/workspace/cpg.bin/cpg.bin.tmp\nOverlay dataflowOss already exists - skipping\nThe graph has been modified. You may want to use the `save` command to persist changes to disk.  All changes will also be saved collectively on exit\nclosing/saving project `cpg.bin`\n",
+      "stderr_bytes": 702
+    },
+    {
+      "requests": 200,
+      "seconds": 31.992039224831387,
+      "exit": 0,
+      "stdout_bytes": 65147,
+      "answered": true,
+      "answer_keys": 201,
+      "stderr_head": "Picked up JAVA_TOOL_OPTIONS: -Xmx2048m\nPicked up JAVA_TOOL_OPTIONS: -Xmx2048m\nexecuting /app/src/openultrasast/cpg/queries/taint.sc with params=Map(cpgFile -> /results/php-probe/cpg.bin, requestsFile -> /results/php-probe/requests-200.json)\nCreating project `cpg.bin` for CPG at `/results/php-probe/cpg.bin`\nProject with name cpg.bin already exists - overwriting\nCreating working copy of CPG to be safe\nLoading base CPG from: /results/php-probe/workspace/cpg.bin/cpg.bin.tmp\nOverlay dataflowOss already exists - skipping\nThe graph has been modified. You may want to use the `save` command to persist changes to disk.  All changes will also be saved collectively on exit\nclosing/saving project `cpg.bin`\n",
+      "stderr_bytes": 703
+    },
+    {
+      "requests": 4425,
+      "seconds": 29.67125784815289,
+      "exit": 0,
+      "stdout_bytes": 681199,
+      "answered": true,
+      "answer_keys": 4426,
+      "stderr_head": "Picked up JAVA_TOOL_OPTIONS: -Xmx2048m\nPicked up JAVA_TOOL_OPTIONS: -Xmx2048m\nexecuting /app/src/openultrasast/cpg/queries/taint.sc with params=Map(cpgFile -> /results/php-probe/cpg.bin, requestsFile -> /results/php-probe/requests-4425.json)\nCreating project `cpg.bin` for CPG at `/results/php-probe/cpg.bin`\nProject with name cpg.bin already exists - overwriting\nCreating working copy of CPG to be safe\nLoading base CPG from: /results/php-probe/workspace/cpg.bin/cpg.bin.tmp\nOverlay dataflowOss already exists - skipping\nThe graph has been modified. You may want to use the `save` command to persist changes to disk.  All changes will also be saved collectively on exit\nclosing/saving project `cpg.bin`\n",
+      "stderr_bytes": 704
+    }
+  ],
+  "build": {
+    "seconds": 51.444085616152734,
+    "exit": 0,
+    "bytes": 12062695
+  },
+  "regions": {
+    "total": 4461,
+    "php": 4425
+  },
+  "milestone": "M3 PHP diagnosis",
+  "instrument_scope": "This probe sent evidenceOnly=true, so it measured the EVIDENCE pass, which is structural and does no dataflow. That is not the pass that fails in production. Stating it plainly because the numbers would otherwise read as evidence that PMPro's taint work is cheap, which they are not.",
+  "what_it_establishes": "The evidence pass scales on PMPro without difficulty: all 4,425 PHP regions answered in one batch in 29.7 seconds with a 681 KB response, exit 0. Cost is fixed overhead, not per request: one request took 40.2 s and 4,425 took 29.7 s. So neither request count nor response size is near any limit in that mode.",
+  "what_it_narrows": "The production failure is therefore specific to the EXECUTION pass, which runs reachableByFlows per candidate. Batch size and serialization are not the cause on their own; the dataflow work is.",
+  "limits": [
+    "Evidence mode only, one PHP repository, one machine. No detection or latency claim."
+  ]
+}
