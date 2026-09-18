@@ -52,6 +52,9 @@ BUILD_TIMEOUT_SECONDS = 900  # a large tree takes minutes; the go/no-go records 
 # The constant was chosen when a "scan" meant an excerpt, and a repository scan is not a slower slice -- it
 # is a different order of question, so the ceiling is configurable rather than a number to keep raising.
 QUERY_TIMEOUT_SECONDS = 300
+# How many parts a failed batch is retried in. Small enough that a response the engine could not
+# serialize becomes several it can, large enough that recovery is not one invocation per request.
+_BATCH_SPLITS = 8
 QUERY_TIMEOUT_ENV = "OPENULTRASAST_CPG_QUERY_TIMEOUT"
 # A JVM with no -Xmx takes a quarter of physical RAM for its heap. On a contributor's laptop that is the
 # difference between a scan running in the background and a scan the machine notices, and it made the
@@ -1035,6 +1038,43 @@ class JoernBackend:
         return _unparsed_files(completed)
 
     def query_batch(self, cpg_path: Path, query: str, requests: Mapping[str, Mapping[str, object]]) -> dict[str, list[object]] | None:
+        """Answer many requests, as one invocation where that works and in parts where it does not.
+
+        One invocation is the whole point of batching, so it stays the first thing tried and the cost
+        of a working scan is unchanged. But a batch is all-or-nothing: PMPro's 1,274 PHP files
+        produced a response the engine could not serialize, failing inside ujson while building its
+        own answer array, and every question in that batch was lost with it. Three budgets from 900
+        to 3000 seconds made no difference, because the size of the answer was the problem.
+
+        Each request in a batch is independent, so a batch that fails as a whole can still answer in
+        parts. On failure the requests are split and retried, and a part that fails leaves its own
+        requests unanswered instead of discarding every answer beside them. Only a batch where no
+        part answered is reported as unavailable.
+        """
+        if not requests:
+            return self._batch_once(cpg_path, query, requests)
+        answered = self._batch_once(cpg_path, query, requests)
+        if answered is not None or len(requests) <= 1:
+            return answered
+        size = max(1, len(requests) // _BATCH_SPLITS)
+        ids = list(requests)
+        merged: dict[str, list[object]] = {}
+        recovered = False
+        for start in range(0, len(ids), size):
+            if not self._time_available():
+                break
+            part = self._batch_once(cpg_path, query, {rid: requests[rid] for rid in ids[start : start + size]})
+            if part is None:
+                continue
+            recovered = True
+            for rid, rows in part.items():
+                merged.setdefault(rid, rows)
+        if recovered:
+            self._note("batch_split_after_failure:" + query)
+            logger.warning("cpg batch %s failed whole; %d of %d requests answered in parts", query, len(merged), len(requests))
+        return merged if recovered else None
+
+    def _batch_once(self, cpg_path: Path, query: str, requests: Mapping[str, Mapping[str, object]]) -> dict[str, list[object]] | None:
         """Run ONE script invocation carrying many requests, keyed back to their ids.
 
         JVM startup, not CPG construction, is what dominates a repository scan: every ``joern --script`` call
@@ -1065,7 +1105,7 @@ class JoernBackend:
         # catch because no verdict was ever produced to label.
         if not self._time_available():
             return None
-        requests_file = cpg_path.parent / f"{query}-requests.json"
+        requests_file = cpg_path.parent / f"{query}-requests-{len(rendered)}-{abs(hash(tuple(sorted(rendered)))) % 10**8}.json"
         try:
             requests_file.write_text(payload)
         except OSError as exc:

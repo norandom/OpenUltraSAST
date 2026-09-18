@@ -1159,3 +1159,61 @@ def test_javascript_partition_uses_declared_frontend_not_legacy_autodetection(tm
     finally:
         if result is not None:
             result.cleanup()
+
+
+def test_a_batch_that_fails_whole_is_answered_in_parts(tmp_path, monkeypatch):
+    """M3: PMPro's batch failed inside the engine's own serialization and lost every answer with it."""
+    from openultrasast.cpg.backend import JoernBackend
+
+    seen = []
+
+    def runner(command, **kwargs):
+        payload = Path(command[command.index("--param") + 3].split("=", 1)[1])
+        requests = json.loads(payload.read_text())
+        seen.append(len(requests))
+        if len(requests) > 4:  # the whole batch is more than this engine can answer
+            return subprocess.CompletedProcess(command, 1, "", "ujson serialization failed")
+        rows = {rid: [{"sink": "q(" + rid + ")"}] for rid in requests}
+        body = "---OUSAST-CPG-BEGIN---\n" + json.dumps(rows) + "\n---OUSAST-CPG-END---"
+        return subprocess.CompletedProcess(command, 0, body, "")
+
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/joern/{name}")
+    backend = JoernBackend(runner=runner)
+    graph = tmp_path / "cpg.bin"
+    graph.write_bytes(b"graph")
+    answered = backend.query_batch(graph, "taint", {str(i): {"file": f"f{i}.php"} for i in range(16)})
+    assert answered is not None and len(answered) == 16, "every independent request should still be answered"
+    assert seen[0] == 16 and max(seen[1:]) <= 4, "the whole batch is tried first, then parts"
+    assert any("batch_split_after_failure" in note for note in backend._diagnostics)
+
+
+def test_a_part_that_fails_leaves_only_its_own_requests_unanswered(tmp_path, monkeypatch):
+    from openultrasast.cpg.backend import JoernBackend
+
+    def runner(command, **kwargs):
+        payload = Path(command[command.index("--param") + 3].split("=", 1)[1])
+        requests = json.loads(payload.read_text())
+        if len(requests) > 4 or "0" in requests:  # whole batch, and one part, cannot answer
+            return subprocess.CompletedProcess(command, 1, "", "engine failure")
+        rows = {rid: [] for rid in requests}
+        body = "---OUSAST-CPG-BEGIN---\n" + json.dumps(rows) + "\n---OUSAST-CPG-END---"
+        return subprocess.CompletedProcess(command, 0, body, "")
+
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/joern/{name}")
+    backend = JoernBackend(runner=runner)
+    graph = tmp_path / "cpg.bin"
+    graph.write_bytes(b"graph")
+    answered = backend.query_batch(graph, "taint", {str(i): {"file": f"f{i}.php"} for i in range(16)})
+    assert answered is not None and "0" not in answered, "a failed part stays unanswered, not empty"
+    assert len(answered) == 14, "the parts that answered are kept"
+
+
+def test_a_batch_no_part_can_answer_is_still_unavailable(tmp_path, monkeypatch):
+    from openultrasast.cpg.backend import JoernBackend
+
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/joern/{name}")
+    backend = JoernBackend(runner=lambda command, **k: subprocess.CompletedProcess(command, 1, "", "dead"))
+    graph = tmp_path / "cpg.bin"
+    graph.write_bytes(b"graph")
+    # None means "could not ask", which must never become an empty answer.
+    assert backend.query_batch(graph, "taint", {str(i): {"file": f"f{i}.php"} for i in range(8)}) is None
