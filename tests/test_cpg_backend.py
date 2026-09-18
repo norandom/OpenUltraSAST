@@ -1217,3 +1217,16 @@ def test_a_batch_no_part_can_answer_is_still_unavailable(tmp_path, monkeypatch):
     graph.write_bytes(b"graph")
     # None means "could not ask", which must never become an empty answer.
     assert backend.query_batch(graph, "taint", {str(i): {"file": f"f{i}.php"} for i in range(8)}) is None
+
+
+def test_an_engine_failure_reports_the_line_that_names_the_cause(tmp_path, monkeypatch):
+    """A stack trace's exception is on its first line; logging the tail reports frames only."""
+    from openultrasast.cpg.backend import JoernBackend, _engine_failure
+
+    trace = "java.lang.OutOfMemoryError: Java heap space\n\tat foo.Bar.baz(Bar.java:10)\n\tat x.Procedure1.java:10)"
+    named = _engine_failure(subprocess.CompletedProcess(["joern"], 1, "", trace))
+    assert "OutOfMemoryError" in named and "Java heap space" in named
+    assert "Bar.java:10" not in named, "frames are noise; the cause is not"
+    assert _engine_failure(None) == "timeout"
+    assert "no output" in _engine_failure(subprocess.CompletedProcess(["joern"], 3, "", ""))
+    assert isinstance(JoernBackend(), JoernBackend)

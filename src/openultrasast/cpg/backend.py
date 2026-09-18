@@ -1129,7 +1129,7 @@ class JoernBackend:
                 command += ["--param", f"{name}={value}"]
             completed = self._run(command, timeout=self.query_timeout, cwd=cpg_path.parent)
             if completed is None or completed.returncode != 0:
-                detail = (completed.stderr or "")[-400:] if completed is not None else "timeout"
+                detail = _engine_failure(completed)
                 logger.warning("cpg batch %s failed: %s", query, detail)
                 return None
             body = completed.stdout or ""
@@ -1162,7 +1162,7 @@ class JoernBackend:
             # it can never land in the repository being analysed.
             completed = self._run(command, timeout=self.query_timeout, cwd=cpg_path.parent)
             if completed is None or completed.returncode != 0:
-                detail = (completed.stderr or "")[-400:] if completed is not None else "timeout"
+                detail = _engine_failure(completed)
                 logger.warning("cpg query %s failed: %s", query, detail)
                 return None
             body = completed.stdout or ""
@@ -1539,6 +1539,23 @@ def _configured_timeout() -> int:
     if raw.isdigit() and int(raw) > 0:
         return int(raw)
     return QUERY_TIMEOUT_SECONDS
+
+
+def _engine_failure(completed: subprocess.CompletedProcess[str] | None) -> str:
+    """What the engine said, keeping the line that names the cause.
+
+    A stack trace's exception is on its FIRST line and its frames follow, so logging only the tail
+    reports frames and discards the cause. Four PHP investigations were spent on `cpg batch taint
+    failed: dure1.java:10)`, which is the middle of a frame and says nothing at all.
+    """
+    if completed is None:
+        return "timeout"
+    text = (completed.stderr or completed.stdout or "").strip()
+    if not text:
+        return f"exit {completed.returncode} with no output"
+    lines = [line for line in text.splitlines() if line.strip() and not line.strip().startswith("at ")]
+    head = " | ".join(lines[:4])[:600]
+    return head or text[:300]
 
 
 def _render(value: object) -> str:
