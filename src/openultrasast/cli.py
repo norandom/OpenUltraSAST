@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -107,6 +108,19 @@ class ScanOutcome:
 
 if TYPE_CHECKING:
     pass
+
+
+def _configure_logging() -> None:
+    """Send logs to stderr at the level the environment asks for; quiet by default."""
+    level = os.environ.get("OUSAST_LOG_LEVEL", "").strip().upper()
+    if level not in {"DEBUG", "INFO", "WARNING", "ERROR"}:
+        return
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(levelname)s %(name)s %(message)s"))
+    root = logging.getLogger("openultrasast")
+    root.handlers = [handler]
+    root.setLevel(getattr(logging, level))
+    root.propagate = False
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -224,6 +238,11 @@ def main(argv: list[str] | None = None) -> int:
     candidates.add_argument("--json", action="store_true")
 
     args = parser.parse_args(argv)
+    # Diagnosis needs the stage costs, and nothing configures logging, so the default root level of
+    # WARNING silently dropped every informational line. A run that reports nothing is
+    # indistinguishable from a run with nothing to report, which is how four PHP investigations were
+    # spent reading a later stage's timeout as the cause.
+    _configure_logging()
     if args.command == "pre-push":
         from .config import PushConfig
         from .push.runner import push, replay
