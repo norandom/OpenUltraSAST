@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import multiprocessing
 import os
 import pickle
@@ -43,6 +44,8 @@ from openultrasast.push.report import PushReport, ReportDelivery, ScanRecord, _c
 from openultrasast.push.reuse import ReusingBackend, declaration_identity, discovery
 from openultrasast.push.snapshot import SnapshotAdapter
 from openultrasast.push.vetoes import FLAG, LABEL, load_declarations, record_vetoes
+
+logger = logging.getLogger(__name__)
 
 _T = TypeVar("_T")
 
@@ -210,6 +213,20 @@ def _discovery_identity() -> str:
     return digest_value([(p.relative_to(root).as_posix(), hashlib.sha256(p.read_bytes()).hexdigest()) for p in sorted(root.rglob("*.py"))])
 
 
+def _stage(timings: dict[str, float], stage: str, started: float) -> float:
+    """Close one stage, record its cost and say so.
+
+    A run that is killed, or that reports a later stage's timeout, otherwise leaves no account of
+    where its budget went. Three PHP investigations were spent reading `cpg batch taint failed:
+    timeout` as a slow query when the query answers 20 requests in 24 seconds, because nothing said
+    what had already consumed the transaction.
+    """
+    now = time.monotonic()
+    timings[stage + "_seconds"] = now - started
+    logger.info("push stage %s finished in %.1fs", stage, now - started)
+    return now
+
+
 def _analyze(
     repository: Path,
     *,
@@ -263,10 +280,10 @@ def _analyze(
     try:
         adapter = SnapshotAdapter(repository, execution_budget=budget)
         comparison = resolved or adapter.resolve_replay(base, head)
-        timings[stage + "_seconds"] = time.monotonic() - stage_started
-        stage, stage_started = "provenance", time.monotonic()
+        stage_started = _stage(timings, stage, stage_started)
+        stage = "provenance"
         provenance.update(_prepare(lambda: _provenance(repository, scan_budget), budget))
-        timings[stage + "_seconds"] = time.monotonic() - stage_started
+        stage_started = _stage(timings, stage, stage_started)
         if cache_dir is not None:
             cache = ArtifactCache(cache_dir, max_bytes=config.cache_max_bytes)
             cache_semantics = SemanticKeys(
@@ -330,8 +347,8 @@ def _analyze(
                 context = adapter.compare(comparison, declaration_paths=tuple(set(head_declarations + base_declarations)), budget=budget)
                 context = replace(context, unresolved_boundaries=tuple(dict.fromkeys((*context.unresolved_boundaries, *reasons))))
                 reasons.extend(context.unresolved_boundaries)
-                timings[stage + "_seconds"] = time.monotonic() - stage_started
-                stage, stage_started = "head", time.monotonic()
+                stage_started = _stage(timings, stage, stage_started)
+                stage = "head"
                 head_scan = scan_repository(
                     tip.root,
                     head_regions,
@@ -344,8 +361,8 @@ def _analyze(
                     change_context=context,
                 )
                 records.append(ScanRecord(comparison, "head", head_scan))
-                timings[stage + "_seconds"] = time.monotonic() - stage_started
-                stage, stage_started = "base", time.monotonic()
+                stage_started = _stage(timings, stage, stage_started)
+                stage = "base"
                 delta = compare_targeted_base(
                     old.root,
                     head=head_scan,
@@ -363,8 +380,8 @@ def _analyze(
                 if delta.base_scan is not None:
                     records.append(ScanRecord(comparison, "base", delta.base_scan))
                 reasons.extend(delta.coverage_reasons)
-                timings[stage + "_seconds"] = time.monotonic() - stage_started
-                stage, stage_started = "admission", time.monotonic()
+                stage_started = _stage(timings, stage, stage_started)
+                stage = "admission"
                 candidates = tuple(
                     AdmissionCandidate(
                         c,
@@ -383,7 +400,7 @@ def _analyze(
                     for c in delta.candidates
                 )
                 admission = _prepare(lambda: _admit(candidates, provenance), budget)
-                timings[stage + "_seconds"] = time.monotonic() - stage_started
+                stage_started = _stage(timings, stage, stage_started)
                 if record_vetoes:
                     stage, stage_started = "recorded_vetoes", time.monotonic()
                     assert context is not None
@@ -392,8 +409,8 @@ def _analyze(
                         budget,
                     )
                     experimental = {**recorded, "status": "evaluated"}
-                    timings[stage + "_seconds"] = time.monotonic() - stage_started
-                stage, stage_started = "cleanup", time.monotonic()
+                    stage_started = _stage(timings, stage, stage_started)
+                stage = "cleanup"
         timings[stage + "_seconds"] = time.monotonic() - stage_started
     except Exception as error:
         reasons.append(stage + "_failed:" + type(error).__name__)
