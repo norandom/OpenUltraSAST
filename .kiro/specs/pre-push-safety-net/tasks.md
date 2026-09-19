@@ -462,6 +462,45 @@ Preserve all completed task evidence below.
   - _Depends: 13.1_
   - _Requirements: 6.2, 6.3, 8.1, 8.2_
 
+- [ ] 14. Ask every declared family whether it establishes anything (precondition for M4)
+  - Seven families are declared and two were proven end to end. A declared family that has never been asked whether it finds anything is advertised coverage, and M4 cannot qualify a capability that establishes nothing.
+- [x] 14.1 Census the seven declared families on NodeGoat and VAmPI
+  - Run production discovery and scan over each whole checkout and report, per family, the regions that offered it, the questions asked, the questions completed, and what was found with the witness and rung. No comparison, no novelty, no admission: detection only.
+  - A family that answered and found nothing must be reported differently from one that was never asked, and neither may read as clean.
+  - _Verified 2026-09-19:_ 1,411 tests passed, ten skipped; the six Joern-gated query tests pass in the image. Four families establish findings across the two subjects: injection (three `eval` flows on NodeGoat, one SQL flow on VAmPI), access_control (two sibling contradictions on VAmPI), config_secrets (one on each) and untrusted_destination (one open redirect on NodeGoat). All 299 NodeGoat and 35 VAmPI questions completed. Evidence: `benchmarks/measurements/2026-09-19-family-detection-census.json`.
+  - _The census found one false positive and it is fixed._ NodeGoat's only prototype report was the word `set` inside the comment `// set these up in case we have an error case`: the matched node is the `<operator>.assignment` holding the whole 1,000-character signup handler, and its text was searched entire. `sinkMatches` now confines its text clause to the callee and excludes operator nodes, which is the fourth instance of this bug class after `fgets`/`gets`, `resolve`/`resolveUrl` and `user`/`users`. Measured on NodeGoat's non-vendor calls: injection sinks 28 to 3, prototype 13 to 2, untrusted_destination 26 to 7, with no true positive lost. `req.query` had been an injection sink, because `query` is word-bounded inside it.
+  - _Boundary: contributor-scan detection, Evaluation harness_
+  - _Requirements: 6.2, 6.3, 8.1_
+- [ ] 14.2 Give untrusted destination the sinks a Node server actually calls
+  - **Named by the 14.1 census.** NodeGoat's documented SSRF is `needle.get(req.query.url + req.query.symbol)` at `app/routes/research.js:16`, and `needle.get` is absent from a vocabulary holding axios, fetch, got, `http.get` and request. The family works and found the open redirect in the same repository; it could not ask about the request.
+  - This is a vocabulary gap, so fix it as data rather than as a query change, and state which client libraries the declared set now covers.
+  - Done when the research handler's request is asked about, with a witness naming the call, and no benign client call is reported.
+  - _Boundary: shipped semantic facts_
+  - _Depends: 14.1_
+  - _Requirements: 6.2, 8.1_
+- [ ] 14.3 Decide what output encoding claims for server-rendered JavaScript
+  - **Named by the 14.1 census.** All six declared JavaScript sinks are DOM sinks. NodeGoat's XSS is server-side, rendered into Swig templates and written with `res.write`, so the 44 questions this family completed could not have found it whatever the code did.
+  - Either the family gains server-side sinks and template-rendering sinks, or it declares itself client-side only. Both are honest; silence while declaring XSS coverage is not.
+  - Done when one record states the decision, and the family either asks about `res.write` and template rendering or says in its declaration what it does not cover.
+  - _Boundary: shipped semantic facts, family taxonomy_
+  - _Depends: 14.1_
+  - _Requirements: 6.2, 8.1_
+- [ ] 14.4 Raise the access-control obligation where the application splits route from query
+  - **Named by the 14.1 census and measured with the real dominance query.** Every modelled data operation in NodeGoat lives in `app/data/*-dao.js`; none lives in a route handler file. Operations are scoped to the region's own file and access_control regions are the handler files, so no obligation is raised where the question is asked, and inside the DAO files every operation is equally unguarded so the sibling rung has nothing to contradict. The family answers correctly on VAmPI, which keeps handler and query in one file.
+  - The file scope was chosen deliberately, because unscoped rows attributed a model's unguarded query to a handler of the same name. Widening it is not the fix; carrying the obligation along the call the handler actually makes might be.
+  - NodeGoat's two documented defects are also outside what the model can claim: an authenticated handler reading `userId` from `req.params` (`app/routes/allocations.js:17`), and a commented-out `isAdmin` in the route table (`app/routes/index.js:58`). Record which of the two this task is for, and do not silently widen the claim to the other.
+  - Done when a route-and-DAO split raises the obligation at the handler with a witness naming both sites, and a same-name model function is still not attributed to a handler.
+  - _Boundary: contributor-scan dominance, Ranker Scope Contract_
+  - _Depends: 14.1_
+  - _Requirements: 6.2, 6.3, 8.1_
+- [ ] 14.5 Ask the prototype and deserialization families somewhere they can answer
+  - **Named by the 14.1 census.** Prototype pollution has been asked on one repository and its only report was a false positive; deserialization was never asked at all, because VAmPI holds no such sink and NodeGoat is not a language where the family is declared. Neither has established anything anywhere.
+  - Find or record a subject where the family has a sink, and report what it does. A negative on a subject that contains the mechanism is a result; silence on a subject that does not contain it is not.
+  - _Boundary: Evaluation harness_
+  - _Depends: 14.1_
+  - _Requirements: 6.2, 8.1_
+
+
 ## Implementation Notes
 
 - Task5.2 measured PMPro timing out after both snapshots were materialized but before change context/graph analysis. Group6 must account for compatible snapshot/discovery reuse as well as graph reuse; identical-tip hits cannot substitute for the later representative changed-code latency gate. No new detector, scope heuristic or incremental CPG mutation is implied.

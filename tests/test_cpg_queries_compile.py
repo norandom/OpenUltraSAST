@@ -6,6 +6,15 @@ project keeps having: the thing that was never checked reported nothing, and not
 
 These tests need a real Joern, so they skip where it is absent. Skipping is honest here in a way it is not
 elsewhere: the suite still runs everywhere, and the check runs wherever the engine it checks exists.
+
+In practice that is nowhere by default, which the family census exposed: the image has Joern and no pytest,
+the host has pytest and no Joern, so these six tests had never run on either. They run in the image with the
+host's pytest mounted in, which needs no network and installs nothing:
+
+    docker run --rm --init --network none --memory 4g --entrypoint bash \
+      -v "$PWD/src:/app/src:ro" -v "$PWD/tests:/app/tests:ro" -v "$PWD/pyproject.toml:/app/pyproject.toml:ro" \
+      -v "$PWD/.venv/lib/python3.11/site-packages:/hostsp:ro" -e PYTHONPATH=/hostsp -e TMPDIR=/tmp \
+      openultrasast:dev -lc 'cd /app && python -m pytest tests/test_cpg_queries_compile.py -q'
 """
 
 from __future__ import annotations
@@ -65,3 +74,62 @@ def test_each_query_compiles_and_answers(name: str, tmp_path: Path) -> None:
         overlays = str(payload.get("overlays", "")).split(",")
         assert "dataflowOss" in overlays, f"census reports overlays {overlays!r}, which is not a list of layer names"
         assert str(payload.get("maxHeapMB", "")).isdigit()
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_a_sink_word_in_a_comment_is_not_a_sink(tmp_path: Path) -> None:
+    """A handler that mentions a sink word in prose must not report that sink.
+
+    The first family census ran this exact shape: NodeGoat's signup handler is one assignment node whose code
+    is the whole arrow function, a comment inside it reads `// set these up in case we have an error case`,
+    and `set` is a prototype-pollution sink. The word is bounded and the match was real, so the census
+    reported a prototype finding for a handler that calls no `set`. The witness printed the function header,
+    because there was no sink call to print.
+    """
+    from openultrasast.cpg.backend import extract_payload
+
+    frontend = __import__("shutil").which("jssrc2cpg")
+    if frontend is None:
+        pytest.skip("jssrc2cpg is not installed")
+    source = tmp_path / "handler.js"
+    source.write_text(
+        "function handler(req, res) {\n"
+        "    const data = req.body;\n"
+        "    // set these up in case we have an error case\n"
+        "    return res.end(String(data));\n"
+        "}\n"
+    )
+    cpg = tmp_path / "cpg.bin"
+    built = subprocess.run([frontend, str(tmp_path), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
+    if not cpg.is_file():
+        pytest.skip(f"could not build a sample cpg: {(built.stderr or '')[-200:]}")
+
+    requests = tmp_path / "requests.json"
+    requests.write_text(json.dumps({"0": {"sources": "req.body", "sinks": "set", "function": "handler"}}))
+    done = subprocess.run(
+        [
+            _joern() or "joern",
+            "--script",
+            str((QUERIES / "taint.sc").resolve()),
+            "--param",
+            f"cpgFile={cpg}",
+            "--param",
+            f"requestsFile={requests}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
+        cwd=str(tmp_path),
+    )
+    assert done.returncode == 0, f"taint.sc did not run: {(done.stderr or done.stdout or '')[-500:]}"
+    payload = extract_payload(done.stdout or "")
+    assert payload is not None, "taint.sc produced no parseable payload"
+    rows = payload.get("0") or []
+    # The inventory row is the right answer and must survive: "zero operations in scope" is a statement, and
+    # the point of the census was that it differs from "the query found nothing to say".
+    flows = [row for row in rows if row.get("sink")]
+    assert flows == [], f"a commented sink word produced {len(flows)} flow row(s): {flows[:2]}"
+    inventory = [row for row in rows if row.get("kind") == "operation_inventory_complete"]
+    assert inventory, f"taint.sc reported no inventory row: {rows[:3]}"
+    assert all(int(row.get("operations", 0)) == 0 for row in inventory), f"a commented sink word was counted as an operation: {inventory}"

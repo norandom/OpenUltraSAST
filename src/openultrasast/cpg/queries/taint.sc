@@ -499,8 +499,24 @@
   // which is the safe API being reported as the dangerous one. Third instance of this bug class here, after
   // the sanitizer that matched `resolve` inside `resolveUrl` and the discharger that matched `user` inside
   // `users`; the sink matcher had simply never been given the same treatment.
-  def sinkMatches(c: io.shiftleft.codepropertygraph.generated.nodes.Call, n: String): Boolean =
-    c.name == n || c.code.startsWith(n + "(") || mentionsToken(c.code, List(n)) || mentionsToken(c.methodFullName, List(n))
+  // Fourth instance of the same bug class, and this one word-bounding did not catch. NodeGoat's signup handler
+  // is one `<operator>.assignment` node whose code is the entire 1,000-character arrow function, and inside it
+  // a comment reads `// set these up in case we have an error case`. `set` is a prototype-pollution sink, the
+  // word is bounded, and the match was reported as a prototype finding on a handler that calls no `set` at
+  // all. Searching a node's whole text asks "is this word anywhere near here", which is not the question.
+  //
+  // So the text clause is confined to the CALLEE -- everything before the first argument -- which is the only
+  // part of a call that names what is being called, and operators are excluded from it entirely: an
+  // assignment is not a call to a library function, whatever its right-hand side happens to spell.
+  def calleeText(code: String): String = {
+    val open = code.indexOf('(')
+    if (open < 0) code else code.substring(0, open)
+  }
+
+  def sinkMatches(c: io.shiftleft.codepropertygraph.generated.nodes.Call, n: String): Boolean = {
+    val operator = c.name.startsWith("<operator")
+    c.name == n || (!operator && (mentionsToken(calleeText(c.code), List(n)) || mentionsToken(c.methodFullName, List(n))))
+  }
 
   // Does THIS path element cleanse the value flowing through it?
   //

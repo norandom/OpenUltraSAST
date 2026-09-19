@@ -134,3 +134,22 @@ next implementation prerequisites, not completed fixes or changed acceptance gat
 An isolated Joern session probe matched the full Node census with four warm requests in
 0.221–0.467s and verified cancellation/reaping in 0.043s. It identifies a promising engine
 lifecycle change; full-query equivalence and changed-code performance remain unverified.
+
+## Family detection census, 2026-09-19
+
+Four of seven declared families establish findings on the two development subjects:
+injection, access_control, config_secrets and untrusted_destination. Output encoding, path,
+prototype and deserialization have established nothing anywhere. Every question completed on
+both subjects, 299 of 299 on NodeGoat and 35 of 35 on VAmPI, so the silences are answers
+rather than failures — but three of them are diagnosed gaps rather than clean code:
+NodeGoat's documented SSRF is invisible because `needle.get` is not in the sink vocabulary,
+its XSS is invisible because output encoding declares only DOM sinks, and its two
+access-control defects raise no obligation because the modelled data operations live in DAO
+files while the family's scope is the handler's own file.
+
+The census also found and fixed one false positive: NodeGoat's only prototype report was
+the word `set` in a code comment, matched because the sink text clause searched a whole
+assignment node. Nothing about this changes the release gates. No capability is qualified by
+these subjects.
+
+Evidence: [family detection census](../../../benchmarks/measurements/2026-09-19-family-detection-census.json).

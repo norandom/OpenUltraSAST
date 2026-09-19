@@ -1,0 +1,363 @@
+{
+  "schema_version": 1,
+  "experiment": "family-detection-census-v1",
+  "date": "2026-09-19",
+  "harness": "benchmarks/push/family_census.py",
+  "claim_scope": "Detection only, on two inspected teaching repositories. No comparison, no novelty, no admission, no capability qualified. These subjects developed the analyser and cannot qualify it.",
+  "question": "Which of the seven declared vulnerability families establish a finding on real code, and what does each silent family mean?",
+  "subjects": {
+    "nodegoat": {
+      "schema_version": 1,
+      "experiment": "family-detection-census-v1",
+      "subject": "nodegoat",
+      "root": "/cache/nodegoat/c5cb68a7084e",
+      "claim_scope": "Detection only. No comparison, no novelty, no admission, no capability enabled.",
+      "inputs": {
+        "files": 44,
+        "bytes": 95411,
+        "regions": 44
+      },
+      "regions_by_family": {
+        "access_control": 35,
+        "config_secrets": 44,
+        "injection": 44,
+        "output_encoding": 44,
+        "path": 44,
+        "prototype": 44,
+        "untrusted_destination": 44
+      },
+      "languages": {
+        "javascript": 44
+      },
+      "scan": {
+        "seconds": 137.3,
+        "build_seconds": 28.66,
+        "query_seconds": 74.48,
+        "hook_table_hooks": 0,
+        "degradations": [
+          "vendor_semantics_unresolved"
+        ],
+        "questions_total": 299,
+        "questions_completed": 299
+      },
+      "families": {
+        "access_control": {
+          "regions_offering": 35,
+          "questions_asked": 35,
+          "questions_completed": 35,
+          "findings": 0,
+          "rungs": {},
+          "examples": [],
+          "verdict": "answered, nothing found"
+        },
+        "config_secrets": {
+          "regions_offering": 44,
+          "questions_asked": 44,
+          "questions_completed": 44,
+          "findings": 1,
+          "rungs": {
+            "model_entailed": 1
+          },
+          "examples": [
+            {
+              "site": "server.js:78:?",
+              "rung": "model_entailed",
+              "witness": "session({\n        // genid: (req) => {\n        //    return genuuid() // use UUIDs for session IDs\n        //},\n        secret: cookieSecret,\n        // Both mandatory in Express v4\n        saveUninit",
+              "reached_from": 1
+            }
+          ],
+          "verdict": "establishes findings"
+        },
+        "injection": {
+          "regions_offering": 44,
+          "questions_asked": 44,
+          "questions_completed": 44,
+          "findings": 3,
+          "rungs": {
+            "model_entailed": 3
+          },
+          "examples": [
+            {
+              "site": "app/routes/contributions.js:32:<lambda>2",
+              "rung": "model_entailed",
+              "witness": "req.body.preTax -> eval(req.body.preTax) in app/routes/contributions.js (line 32, 1 steps)",
+              "reached_from": 1
+            },
+            {
+              "site": "app/routes/contributions.js:33:<lambda>2",
+              "rung": "model_entailed",
+              "witness": "req.body.afterTax -> eval(req.body.afterTax) in app/routes/contributions.js (line 33, 1 steps)",
+              "reached_from": 1
+            },
+            {
+              "site": "app/routes/contributions.js:34:<lambda>2",
+              "rung": "model_entailed",
+              "witness": "req.body.roth -> eval(req.body.roth) in app/routes/contributions.js (line 34, 1 steps)",
+              "reached_from": 1
+            }
+          ],
+          "verdict": "establishes findings"
+        },
+        "output_encoding": {
+          "regions_offering": 44,
+          "questions_asked": 44,
+          "questions_completed": 44,
+          "findings": 0,
+          "rungs": {},
+          "examples": [],
+          "verdict": "answered, nothing found"
+        },
+        "path": {
+          "regions_offering": 44,
+          "questions_asked": 44,
+          "questions_completed": 44,
+          "findings": 0,
+          "rungs": {},
+          "examples": [],
+          "verdict": "answered, nothing found"
+        },
+        "prototype": {
+          "regions_offering": 44,
+          "questions_asked": 44,
+          "questions_completed": 44,
+          "findings": 0,
+          "rungs": {},
+          "examples": [],
+          "verdict": "answered, nothing found"
+        },
+        "untrusted_destination": {
+          "regions_offering": 44,
+          "questions_asked": 44,
+          "questions_completed": 44,
+          "findings": 1,
+          "rungs": {
+            "model_entailed": 1
+          },
+          "examples": [
+            {
+              "site": "app/routes/index.js:72:<lambda>1",
+              "rung": "model_entailed",
+              "witness": "req.query.url -> res.redirect(req.query.url) in app/routes/index.js (line 72, 1 steps)",
+              "reached_from": 1
+            }
+          ],
+          "verdict": "establishes findings"
+        }
+      },
+      "summary": {
+        "answered, nothing found": 4,
+        "establishes findings": 3
+      }
+    },
+    "vampi": {
+      "schema_version": 1,
+      "experiment": "family-detection-census-v1",
+      "subject": "vampi",
+      "root": "/cache/vampi/f16052dce83f",
+      "claim_scope": "Detection only. No comparison, no novelty, no admission, no capability enabled.",
+      "inputs": {
+        "files": 11,
+        "bytes": 19907,
+        "regions": 25
+      },
+      "regions_by_family": {
+        "config_secrets": 25,
+        "deserialization": 25,
+        "injection": 25,
+        "output_encoding": 25,
+        "path": 25,
+        "untrusted_destination": 25,
+        "access_control": 8
+      },
+      "languages": {
+        "python": 25
+      },
+      "scan": {
+        "seconds": 85.3,
+        "build_seconds": 8.82,
+        "query_seconds": 52.26,
+        "hook_table_hooks": 0,
+        "degradations": [],
+        "questions_total": 35,
+        "questions_completed": 35
+      },
+      "families": {
+        "access_control": {
+          "regions_offering": 8,
+          "questions_asked": 8,
+          "questions_completed": 8,
+          "findings": 2,
+          "rungs": {
+            "model_entailed": 2
+          },
+          "examples": [
+            {
+              "site": "api_views/books.py:51:get_by_title",
+              "rung": "model_entailed",
+              "witness": "get_by_title line 51: no discharging guard, while 1 sibling handler(s) are guarded (add_new_book)",
+              "reached_from": 1
+            },
+            {
+              "site": "api_views/users.py:187:update_password",
+              "rung": "model_entailed",
+              "witness": "update_password line 187: no discharging guard, while 3 sibling handler(s) are guarded (delete_user, me, update_email)",
+              "reached_from": 1
+            }
+          ],
+          "verdict": "establishes findings"
+        },
+        "config_secrets": {
+          "regions_offering": 25,
+          "questions_asked": 25,
+          "questions_completed": 25,
+          "findings": 1,
+          "rungs": {
+            "model_entailed": 1
+          },
+          "examples": [
+            {
+              "site": "app.py:17:<module>",
+              "rung": "model_entailed",
+              "witness": "vuln_app.run(host = '0.0.0.0', port = 5000, debug = True) (line 17): permissive literal '0.0.0.0'",
+              "reached_from": 1
+            }
+          ],
+          "verdict": "establishes findings"
+        },
+        "deserialization": {
+          "regions_offering": 25,
+          "questions_asked": 0,
+          "questions_completed": 0,
+          "findings": 0,
+          "rungs": {},
+          "examples": [],
+          "verdict": "region offered, no question asked"
+        },
+        "injection": {
+          "regions_offering": 25,
+          "questions_asked": 2,
+          "questions_completed": 2,
+          "findings": 1,
+          "rungs": {
+            "model_entailed": 1
+          },
+          "examples": [
+            {
+              "site": "models/user_model.py:73:get_user",
+              "rung": "model_entailed",
+              "witness": "username -> text(user_query) in models/user_model.py (line 73, 13 steps)",
+              "reached_from": 1
+            }
+          ],
+          "verdict": "establishes findings"
+        },
+        "output_encoding": {
+          "regions_offering": 25,
+          "questions_asked": 0,
+          "questions_completed": 0,
+          "findings": 0,
+          "rungs": {},
+          "examples": [],
+          "verdict": "region offered, no question asked"
+        },
+        "path": {
+          "regions_offering": 25,
+          "questions_asked": 0,
+          "questions_completed": 0,
+          "findings": 0,
+          "rungs": {},
+          "examples": [],
+          "verdict": "region offered, no question asked"
+        },
+        "untrusted_destination": {
+          "regions_offering": 25,
+          "questions_asked": 0,
+          "questions_completed": 0,
+          "findings": 0,
+          "rungs": {},
+          "examples": [],
+          "verdict": "region offered, no question asked"
+        }
+      },
+      "summary": {
+        "establishes findings": 3,
+        "region offered, no question asked": 4
+      }
+    }
+  },
+  "verdict": {
+    "establish_findings": [
+      "injection",
+      "access_control",
+      "config_secrets",
+      "untrusted_destination"
+    ],
+    "answered_nothing_found": {
+      "nodegoat": [
+        "access_control",
+        "output_encoding",
+        "path",
+        "prototype"
+      ],
+      "vampi": []
+    },
+    "region_offered_no_question_asked": {
+      "nodegoat": [],
+      "vampi": [
+        "deserialization",
+        "output_encoding",
+        "path",
+        "untrusted_destination"
+      ]
+    },
+    "never_established_anywhere": [
+      "output_encoding",
+      "path",
+      "prototype",
+      "deserialization"
+    ]
+  },
+  "false_positive_found_and_fixed": {
+    "family": "prototype",
+    "site": "app/routes/session.js:189",
+    "reported_witness": "req.body -> this.handleSignup = (req, res, next) => { ...",
+    "measured_cause": "The matched node is <operator>.assignment whose code is the entire 1,000-character arrow function. The prototype sink 'set' matched the English word in the comment '// set these up in case we have an error case'. The handler calls no set.",
+    "fix": "taint.sc sinkMatches confines its text clause to the callee and excludes operator nodes",
+    "measured_effect_on_nodegoat_non_vendor_calls": {
+      "injection": {
+        "old": 28,
+        "new": 3
+      },
+      "output_encoding": {
+        "old": 3,
+        "new": 0
+      },
+      "path": {
+        "old": 0,
+        "new": 0
+      },
+      "prototype": {
+        "old": 13,
+        "new": 2
+      },
+      "untrusted_destination": {
+        "old": 26,
+        "new": 7
+      }
+    },
+    "true_positives_lost": 0,
+    "note": "Every dropped match is an operator node or an enclosing call whose body merely spells the word. req.query was an injection sink under the old rule, because 'query' is word-bounded inside it. The three eval calls and the res.redirect survive, and their witnesses now name the sink call rather than the assignment that contained it."
+  },
+  "silent_families_diagnosed": {
+    "untrusted_destination_on_nodegoat": "NodeGoat's documented SSRF is needle.get(req.query.url + req.query.symbol) at app/routes/research.js:16. needle.get is absent from the sink vocabulary, which holds axios/fetch/got/http.get/request. The family works; its vocabulary is thin. Recall gap.",
+    "output_encoding_on_nodegoat": "All six declared sinks are DOM sinks (innerHTML, document.write, dangerouslySetInnerHTML, insertAdjacentHTML, outerHTML, v-html). NodeGoat's XSS is server-side, rendered into Swig templates and written with res.write, so no question the family can ask could have found it. Structural gap: server-rendered output has no sink vocabulary in JavaScript.",
+    "access_control_on_nodegoat": "Measured with the real dominance query: every modelled data operation in NodeGoat lives in app/data/*-dao.js or artifacts/db-reset.js, and none in a route handler file. Operations are scoped to the region's own file, and access_control regions are the handler files, so no obligation is ever raised where the question is asked. In the DAO files every operation is equally unguarded, so the sibling-contradiction rung has nothing to contradict. The two documented defects are also outside the model's expressible claims: an IDOR that reads userId from req.params on an authenticated route (app/routes/allocations.js:17), and a commented-out isAdmin in the route table (app/routes/index.js:58). Structural gap: the model asks about one file, and this application splits route from query.",
+    "four_families_on_vampi": "deserialization, output_encoding, path and untrusted_destination asked nothing because VAmPI's eleven Python files contain no sink for any of them; the only match of any such token is os.path.join in config.py. Correct silence, not a gap.",
+    "prototype": "Never established anywhere. Its only report was the false positive above. VAmPI is Python and the family is JavaScript-only, so it has been asked on one repository."
+  },
+  "limits": [
+    "Two repositories, both used to develop the analyser. Nothing here qualifies a capability.",
+    "Findings are counted at the rung the scan reached, all model_entailed; no execution confirmation.",
+    "A family silent on two repositories is untested, not absent."
+  ]
+}
