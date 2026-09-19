@@ -152,4 +152,11 @@ the word `set` in a code comment, matched because the sink text clause searched 
 assignment node. Nothing about this changes the release gates. No capability is qualified by
 these subjects.
 
-Evidence: [family detection census](../../../benchmarks/measurements/2026-09-19-family-detection-census.json).
+The first of the three gaps is closed. The untrusted-destination vocabulary now holds the
+client surface a Node server actually calls, and NodeGoat's SSRF is reported at
+`app/routes/research.js:16` with a witness naming the call. One data change, no query change,
+every other family unchanged. Output encoding and access control remain open as tasks 14.3
+and 14.4.
+
+Evidence: [family detection census](../../../benchmarks/measurements/2026-09-19-family-detection-census.json),
+[untrusted destination vocabulary](../../../benchmarks/measurements/2026-09-19-untrusted-destination-vocabulary.json).

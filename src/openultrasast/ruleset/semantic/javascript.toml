@@ -66,9 +66,37 @@ rule_ids = []
 
 [[sink]]
 # CWE-918 / CWE-601: outbound requests and redirects to a caller-supplied destination.
+#
+# The set shipped with five clients and missed the one the measured repository calls. NodeGoat's documented
+# SSRF is `needle.get(req.query.url + req.query.symbol)` at `app/routes/research.js:16`, and the 2026-09-19
+# family census recorded this family completing 44 questions there, finding the open redirect two files away,
+# and having no way to ask about the request. A thin vocabulary is a silent false negative, so what follows is
+# the client surface a Node server actually calls.
+#
+# Bare where the module ITSELF is the request function, which is the documented call form for all of these
+# (`axios(config)`, `got(url)`, `needle('get', url)`, `request(opts)`), and which also covers every verb
+# method through it: a token is matched word-bounded against the callee, and `axios` is bounded inside
+# `axios.get`. Dotted for `http` and `https`, whose namespace also holds `createServer` -- a server is not an
+# outbound request, and the bare form would have claimed every one of them.
+#
+# Measured on NodeGoat: `needle` matches exactly the research handler's request and nothing else; none of the
+# other clients appears in that repository, in first-party code or vendored.
 id = "outbound.request"
 cwe = "CWE-918"
-calls = ["axios.get", "axios.post", "fetch", "request", "got", "http.get", "https.get"]
+calls = [
+  "axios",      # axios, and axios.get/.post/.put/.patch/.delete/.head/.request through it
+  "got",        # got
+  "needle",     # needle
+  "request",    # request / request-promise
+  "superagent", # superagent
+  "unirest",    # unirest
+  "undici",     # undici, and undici.fetch/.request through it
+  "fetch",      # global fetch, node-fetch, cross-fetch
+  "http.get",
+  "http.request",
+  "https.get",
+  "https.request",
+]
 rule_ids = []
 
 [[sink]]

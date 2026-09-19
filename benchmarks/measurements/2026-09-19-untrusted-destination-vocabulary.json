@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "experiment": "untrusted-destination-vocabulary-v1",
+  "date": "2026-09-19",
+  "task": "pre-push-safety-net 14.2",
+  "claim_scope": "One data change to the shipped JavaScript sink vocabulary, measured on NodeGoat. Detection only. No capability qualified: NodeGoat developed this analyser.",
+  "question": "Does the untrusted-destination family ask about the outbound request a Node server actually makes?",
+  "before": [
+    "axios.get",
+    "axios.post",
+    "fetch",
+    "request",
+    "got",
+    "http.get",
+    "https.get"
+  ],
+  "after": [
+    "axios",
+    "got",
+    "needle",
+    "request",
+    "superagent",
+    "unirest",
+    "undici",
+    "fetch",
+    "http.get",
+    "http.request",
+    "https.get",
+    "https.request"
+  ],
+  "design": {
+    "bare_module_names": "axios, got, needle, request, superagent, unirest, undici and fetch are the documented call form of their own module, and a bare token also covers every verb method through it: tokens match word-bounded against the callee, and axios is bounded inside axios.get. So axios.get and axios.post were dropped as subsumed, not as unwanted.",
+    "dotted_node_core": "http and https stay dotted. Their namespace also holds createServer, and a bare token would have claimed every server a repository starts as an outbound request.",
+    "redirect_unchanged": "The CWE-601 entry is untouched. res.writeHead with a Location header is a value-shaped redirect this arbiter cannot decide, and widening to writeHead would claim every response."
+  },
+  "measured_on_nodegoat": {
+    "token_matches_first_party": {
+      "needle": 1,
+      "redirect": 7,
+      "axios": 0,
+      "got": 0,
+      "request": 0,
+      "superagent": 0,
+      "unirest": 0,
+      "undici": 0,
+      "fetch": 0,
+      "http.get": 0,
+      "http.request": 0,
+      "https.get": 0,
+      "https.request": 0,
+      "location.assign": 0,
+      "location.replace": 0
+    },
+    "token_matches_vendored": "zero for every candidate, including the 13 vendored bundles under app/assets",
+    "note": "needle matches exactly one call, the research handler's request. redirect matches seven, of which six take a literal destination and are correctly not reported. The other clients do not appear in this repository at all, so NodeGoat shows the gap closing and cannot show these clients' noise."
+  },
+  "census_effect": {
+    "family": "untrusted_destination",
+    "questions_asked": 44,
+    "findings_before": 1,
+    "findings_after": 2,
+    "new_finding": {
+      "site": "app/routes/research.js:16:<lambda>0",
+      "rung": "model_entailed",
+      "witness": "req.query.url + req.query.symbol -> needle.get(url, (error, newResponse, body) => {..."
+    },
+    "other_families_unchanged": true,
+    "all_questions_completed": "299 of 299"
+  },
+  "control": "tests/test_cpg_queries_compile.py::test_a_literal_destination_is_not_an_untrusted_destination builds a handler that calls axios.get with a literal and needle.get with req.query.url, and asserts the flow is reported for the tainted client only. It reads the shipped vocabulary rather than a copy, so removing the client fails the control. Seven Joern-gated query tests pass in the image.",
+  "limits": [
+    "NodeGoat contains only one of the twelve clients, so eleven are declared on documentation, not measured.",
+    "A bare module token matches any call whose callee spells that module, including a same-named local variable.",
+    "Server-side redirects written as a Location header are still outside what this family asks."
+  ],
+  "full_census_after": {
+    "access_control": {
+      "regions_offering": 35,
+      "questions_asked": 35,
+      "questions_completed": 35,
+      "findings": 0,
+      "rungs": {},
+      "examples": [],
+      "verdict": "answered, nothing found"
+    },
+    "config_secrets": {
+      "regions_offering": 44,
+      "questions_asked": 44,
+      "questions_completed": 44,
+      "findings": 1,
+      "rungs": {
+        "model_entailed": 1
+      },
+      "examples": [
+        {
+          "site": "server.js:78:?",
+          "rung": "model_entailed",
+          "witness": "session({\n        // genid: (req) => {\n        //    return genuuid() // use UUIDs for session IDs\n        //},\n        secret: cookieSecret,\n        // Both mandatory in Express v4\n        saveUninit",
+          "reached_from": 1
+        }
+      ],
+      "verdict": "establishes findings"
+    },
+    "injection": {
+      "regions_offering": 44,
+      "questions_asked": 44,
+      "questions_completed": 44,
+      "findings": 3,
+      "rungs": {
+        "model_entailed": 3
+      },
+      "examples": [
+        {
+          "site": "app/routes/contributions.js:32:<lambda>2",
+          "rung": "model_entailed",
+          "witness": "req.body.preTax -> eval(req.body.preTax) in app/routes/contributions.js (line 32, 1 steps)",
+          "reached_from": 1
+        },
+        {
+          "site": "app/routes/contributions.js:33:<lambda>2",
+          "rung": "model_entailed",
+          "witness": "req.body.afterTax -> eval(req.body.afterTax) in app/routes/contributions.js (line 33, 1 steps)",
+          "reached_from": 1
+        },
+        {
+          "site": "app/routes/contributions.js:34:<lambda>2",
+          "rung": "model_entailed",
+          "witness": "req.body.roth -> eval(req.body.roth) in app/routes/contributions.js (line 34, 1 steps)",
+          "reached_from": 1
+        }
+      ],
+      "verdict": "establishes findings"
+    },
+    "output_encoding": {
+      "regions_offering": 44,
+      "questions_asked": 44,
+      "questions_completed": 44,
+      "findings": 0,
+      "rungs": {},
+      "examples": [],
+      "verdict": "answered, nothing found"
+    },
+    "path": {
+      "regions_offering": 44,
+      "questions_asked": 44,
+      "questions_completed": 44,
+      "findings": 0,
+      "rungs": {},
+      "examples": [],
+      "verdict": "answered, nothing found"
+    },
+    "prototype": {
+      "regions_offering": 44,
+      "questions_asked": 44,
+      "questions_completed": 44,
+      "findings": 0,
+      "rungs": {},
+      "examples": [],
+      "verdict": "answered, nothing found"
+    },
+    "untrusted_destination": {
+      "regions_offering": 44,
+      "questions_asked": 44,
+      "questions_completed": 44,
+      "findings": 2,
+      "rungs": {
+        "model_entailed": 2
+      },
+      "examples": [
+        {
+          "site": "app/routes/index.js:72:<lambda>1",
+          "rung": "model_entailed",
+          "witness": "req.query.url -> res.redirect(req.query.url) in app/routes/index.js (line 72, 1 steps)",
+          "reached_from": 1
+        },
+        {
+          "site": "app/routes/research.js:16:<lambda>0",
+          "rung": "model_entailed",
+          "witness": "req.query.url + req.query.symbol -> needle.get(url, (error, newResponse, body) => {\n                if (!error && newResponse.statusCode === 200) {\n                    res.writeHead(200, {\n           ",
+          "reached_from": 1
+        }
+      ],
+      "verdict": "establishes findings"
+    }
+  }
+}

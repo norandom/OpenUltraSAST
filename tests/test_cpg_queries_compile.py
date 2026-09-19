@@ -133,3 +133,61 @@ def test_a_sink_word_in_a_comment_is_not_a_sink(tmp_path: Path) -> None:
     inventory = [row for row in rows if row.get("kind") == "operation_inventory_complete"]
     assert inventory, f"taint.sc reported no inventory row: {rows[:3]}"
     assert all(int(row.get("operations", 0)) == 0 for row in inventory), f"a commented sink word was counted as an operation: {inventory}"
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_a_literal_destination_is_not_an_untrusted_destination(tmp_path: Path) -> None:
+    """The client the request flows into is reported; the client called with a literal is not.
+
+    The family census found this family answering 44 questions on NodeGoat while unable to ask about its
+    documented SSRF, because `needle` was absent from a vocabulary holding axios, fetch, got and request.
+    Widening a vocabulary is how a recall gap is closed and also how a false positive is created, so both
+    halves are asserted here against the shipped token set rather than a copy of it.
+    """
+    from openultrasast.cpg.backend import extract_payload
+    from openultrasast.model.specs import taint_specs
+
+    frontend = __import__("shutil").which("jssrc2cpg")
+    if frontend is None:
+        pytest.skip("jssrc2cpg is not installed")
+    sinks = taint_specs(language="javascript")["untrusted_destination"].sinks
+    assert "needle" in sinks, "the shipped vocabulary no longer holds the client this control is about"
+
+    source = tmp_path / "research.js"
+    source.write_text(
+        'const axios = require("axios");\n'
+        'const needle = require("needle");\n'
+        "\n"
+        "function handler(req, res) {\n"
+        '    axios.get("https://api.example.com/health");\n'
+        "    return needle.get(req.query.url, (error, response, body) => res.end(body));\n"
+        "}\n"
+    )
+    cpg = tmp_path / "cpg.bin"
+    built = subprocess.run([frontend, str(tmp_path), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
+    if not cpg.is_file():
+        pytest.skip(f"could not build a sample cpg: {(built.stderr or '')[-200:]}")
+
+    requests = tmp_path / "requests.json"
+    requests.write_text(json.dumps({"0": {"sources": "req.query", "sinks": ",".join(sinks), "function": "handler"}}))
+    done = subprocess.run(
+        [
+            _joern() or "joern",
+            "--script",
+            str((QUERIES / "taint.sc").resolve()),
+            "--param",
+            f"cpgFile={cpg}",
+            "--param",
+            f"requestsFile={requests}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
+    )
+    assert done.returncode == 0, f"taint.sc did not run: {(done.stderr or done.stdout or '')[-500:]}"
+    payload = extract_payload(done.stdout or "")
+    assert payload is not None, "taint.sc produced no parseable payload"
+    flows = [row for row in (payload.get("0") or []) if row.get("sink")]
+    assert flows, "the request flowing into the client was not reported at all"
+    assert all("needle" in str(row["sink"]) for row in flows), f"a client called with a literal was reported: {flows}"
