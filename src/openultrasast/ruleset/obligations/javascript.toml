@@ -38,6 +38,20 @@ resource_arg = 0
 requires = ["non_permissive_value"]
 sensitivity = "medium"
 
+[[operation]]
+# Template auto-escaping, which is the setting NodeGoat's cross-site scripting actually turns off:
+# `swig.setDefaults({ autoescape: false })` at server.js:135, with `autoescape: true` sitting commented out
+# directly beneath it. The 2026-09-19 family census recorded output encoding completing 44 questions on that
+# repository and finding nothing, because escaping there is a property of the engine's configuration rather
+# than of any call a value flows into. It is a value-shaped defect, so it is claimed here rather than by a
+# flow, and `output_encoding` states this limit in its own declaration.
+id = "template-escaping"
+kind = "security_setting"
+calls = ["swig.setDefaults", "nunjucks.configure", "marked.setOptions"]
+resource_arg = 0
+requires = ["non_permissive_value"]
+sensitivity = "medium"
+
 [[discharger]]
 id = "route-guard"
 kind = "path_guard"
@@ -61,6 +75,16 @@ id = "safe-setting"
 kind = "non_permissive_value"
 calls = ["cors", "cookie", "session", "helmet", "setHeader"]
 permissive_values = ["'*'", "\"*\"", "true", "0.0.0.0", "null", "false", "origin: true", "secure: false", "httpOnly: false"]
+
+[[discharger]]
+# The polarity of a boolean belongs to the setting, not to the language. `true` leaves the door open in
+# `cors({origin: true})` and closes it in `swig.setDefaults({autoescape: true})`, so these settings carry
+# their OWN permissive value rather than sharing the general one -- which holds both `true` and `false`, and
+# would have reported NodeGoat's commented-out fix as the defect.
+id = "safe-template-escaping"
+kind = "non_permissive_value"
+calls = ["swig.setDefaults", "nunjucks.configure", "marked.setOptions"]
+permissive_values = ["false"]
 
 [[discharger]]
 id = "validated-input"

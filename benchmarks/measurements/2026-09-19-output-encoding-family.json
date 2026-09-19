@@ -1,0 +1,276 @@
+{
+  "schema_version": 1,
+  "experiment": "output-encoding-family-v1",
+  "date": "2026-09-19",
+  "task": "pre-push-safety-net 14.3",
+  "claim_scope": "What the output-encoding family claims for server-rendered JavaScript, decided and measured on NodeGoat. Detection only. No capability qualified: NodeGoat developed this analyser.",
+  "decision": "The family asks about a value reaching a rendering call, and says in its own declaration that it cannot decide template-mediated escaping. Whether res.render is safe depends on the engine's autoescape setting and on the template's markup, neither of which is at the call, so res.render is not a sink. That setting is claimed instead where its evidence is, as a configuration defect.",
+  "changes": {
+    "semantic_facts": "New CWE-79 sink html.response: res.write, res.end, res.send and the response.* spellings. Every sink this family shipped with was a DOM sink, so on a Node application it could complete every question and find nothing. res.json is excluded: an application/json body is not a document.",
+    "obligation_facts": "New security_setting template-escaping: swig.setDefaults, nunjucks.configure, marked.setOptions, with a discharger of their own whose permissive value is false.",
+    "permissive_polarity": "ConfigSpec gained permissive_by_setting and the arbiter consults it. A boolean's meaning belongs to the setting: true leaves the door open in cors({origin: true}) and closes it in swig.setDefaults({autoescape: true}). The shared set holds both true and false, so without this the template engines would have reported the fix as the defect. Jinja2's Environment was moved out of Python's shared list for the same reason, where it had the same latent false positive.",
+    "config_query_receiver": "config.sc matched a dotted setting on its trailing segment alone, so marked.setOptions would have claimed an editor's setOptions. It now requires the qualifier, which dominance.sc already did.",
+    "taint_query_receiver": "taint.sc asked reachableByFlows of every argument including the receiver at index 0. On a response sink the receiver is the response object, so res.end() -- which takes no data at all -- was reported exactly like the res.write(body) two lines above it. Flows are now asked of the real arguments, as arity already was.",
+    "settings_order": "The arbiter returns one verdict per question and sorted its rows by line number as TEXT, so line 126 preceded line 78 and which setting a file reported depended on the spelling of its line numbers. Now numeric."
+  },
+  "measured_on_nodegoat": {
+    "output_encoding_before": {
+      "questions_asked": 44,
+      "findings": 0,
+      "verdict": "answered, nothing found"
+    },
+    "output_encoding_after": {
+      "questions_asked": 44,
+      "findings": 1,
+      "verdict": "establishes findings",
+      "finding": {
+        "site": "app/routes/research.js:25:<lambda>1",
+        "rung": "model_entailed",
+        "witness": "req.query.url + req.query.symbol -> res.write(body) in app/routes/research.js (line 25, 6 steps)",
+        "why_it_is_real": "The handler fetches a URL the caller chooses and writes the response body into a text/html response. The attacker picks the origin, so the document served from this application's origin is theirs.",
+        "how_coarse_the_step_is": "The path from url to body runs through the HTTP client's callback parameter, which the graph treats as reachable from the call's arguments. That is an over-approximation rather than a proof that body derives from url. The conclusion holds on the semantics of the call; the graph did not establish it."
+      },
+      "not_reported": "res.write with a literal heading on lines 22 and 24, and res.end() on line 27"
+    },
+    "template_escaping_setting": {
+      "site": "server.js:135",
+      "call": "swig.setDefaults({ autoescape: false })",
+      "arbitrated": "model_entailed, measured directly against the real config query and the real arbiter",
+      "reported_by_the_census": false,
+      "why_not": "The arbiter returns ONE verdict per question, and server.js holds a permissive session at line 78 in the same function. The first setting in the file wins, so the escaping defect is detected and masked. Task 14.6 carries that."
+    },
+    "fixed_line_stays_silent": "marked.setOptions({ sanitize: true }) at server.js:126 is NodeGoat's applied A9 fix and yields no finding. Under the shared permissive set it would have fired on true."
+  },
+  "census_after": {
+    "nodegoat": {
+      "access_control": {
+        "regions_offering": 35,
+        "questions_asked": 35,
+        "questions_completed": 35,
+        "findings": 0,
+        "rungs": {},
+        "examples": [],
+        "verdict": "answered, nothing found"
+      },
+      "config_secrets": {
+        "regions_offering": 44,
+        "questions_asked": 44,
+        "questions_completed": 44,
+        "findings": 1,
+        "rungs": {
+          "model_entailed": 1
+        },
+        "examples": [
+          {
+            "site": "server.js:78:?",
+            "rung": "model_entailed",
+            "witness": "session({\n        // genid: (req) => {\n        //    return genuuid() // use UUIDs for session IDs\n        //},\n        secret: cookieSecret,\n        // Both mandatory in Express v4\n        saveUninit",
+            "reached_from": 1
+          }
+        ],
+        "verdict": "establishes findings"
+      },
+      "injection": {
+        "regions_offering": 44,
+        "questions_asked": 44,
+        "questions_completed": 44,
+        "findings": 3,
+        "rungs": {
+          "model_entailed": 3
+        },
+        "examples": [
+          {
+            "site": "app/routes/contributions.js:32:<lambda>2",
+            "rung": "model_entailed",
+            "witness": "req.body.preTax -> eval(req.body.preTax) in app/routes/contributions.js (line 32, 1 steps)",
+            "reached_from": 1
+          },
+          {
+            "site": "app/routes/contributions.js:33:<lambda>2",
+            "rung": "model_entailed",
+            "witness": "req.body.afterTax -> eval(req.body.afterTax) in app/routes/contributions.js (line 33, 1 steps)",
+            "reached_from": 1
+          },
+          {
+            "site": "app/routes/contributions.js:34:<lambda>2",
+            "rung": "model_entailed",
+            "witness": "req.body.roth -> eval(req.body.roth) in app/routes/contributions.js (line 34, 1 steps)",
+            "reached_from": 1
+          }
+        ],
+        "verdict": "establishes findings"
+      },
+      "output_encoding": {
+        "regions_offering": 44,
+        "questions_asked": 44,
+        "questions_completed": 44,
+        "findings": 1,
+        "rungs": {
+          "model_entailed": 1
+        },
+        "examples": [
+          {
+            "site": "app/routes/research.js:25:<lambda>1",
+            "rung": "model_entailed",
+            "witness": "req.query.url + req.query.symbol -> res.write(body) in app/routes/research.js (line 25, 6 steps)",
+            "reached_from": 1
+          }
+        ],
+        "verdict": "establishes findings"
+      },
+      "path": {
+        "regions_offering": 44,
+        "questions_asked": 44,
+        "questions_completed": 44,
+        "findings": 0,
+        "rungs": {},
+        "examples": [],
+        "verdict": "answered, nothing found"
+      },
+      "prototype": {
+        "regions_offering": 44,
+        "questions_asked": 44,
+        "questions_completed": 44,
+        "findings": 0,
+        "rungs": {},
+        "examples": [],
+        "verdict": "answered, nothing found"
+      },
+      "untrusted_destination": {
+        "regions_offering": 44,
+        "questions_asked": 44,
+        "questions_completed": 44,
+        "findings": 2,
+        "rungs": {
+          "model_entailed": 2
+        },
+        "examples": [
+          {
+            "site": "app/routes/index.js:72:<lambda>1",
+            "rung": "model_entailed",
+            "witness": "req.query.url -> res.redirect(req.query.url) in app/routes/index.js (line 72, 1 steps)",
+            "reached_from": 1
+          },
+          {
+            "site": "app/routes/research.js:16:<lambda>0",
+            "rung": "model_entailed",
+            "witness": "req.query.url + req.query.symbol -> needle.get(url, (error, newResponse, body) => {\n                if (!error && newResponse.statusCode === 200) {\n                    res.writeHead(200, {\n           ",
+            "reached_from": 1
+          }
+        ],
+        "verdict": "establishes findings"
+      }
+    },
+    "vampi": {
+      "access_control": {
+        "regions_offering": 8,
+        "questions_asked": 8,
+        "questions_completed": 8,
+        "findings": 2,
+        "rungs": {
+          "model_entailed": 2
+        },
+        "examples": [
+          {
+            "site": "api_views/books.py:51:get_by_title",
+            "rung": "model_entailed",
+            "witness": "get_by_title line 51: no discharging guard, while 1 sibling handler(s) are guarded (add_new_book)",
+            "reached_from": 1
+          },
+          {
+            "site": "api_views/users.py:187:update_password",
+            "rung": "model_entailed",
+            "witness": "update_password line 187: no discharging guard, while 3 sibling handler(s) are guarded (delete_user, me, update_email)",
+            "reached_from": 1
+          }
+        ],
+        "verdict": "establishes findings"
+      },
+      "config_secrets": {
+        "regions_offering": 25,
+        "questions_asked": 25,
+        "questions_completed": 25,
+        "findings": 1,
+        "rungs": {
+          "model_entailed": 1
+        },
+        "examples": [
+          {
+            "site": "app.py:17:<module>",
+            "rung": "model_entailed",
+            "witness": "vuln_app.run(host = '0.0.0.0', port = 5000, debug = True) (line 17): permissive literal '0.0.0.0'",
+            "reached_from": 1
+          }
+        ],
+        "verdict": "establishes findings"
+      },
+      "deserialization": {
+        "regions_offering": 25,
+        "questions_asked": 0,
+        "questions_completed": 0,
+        "findings": 0,
+        "rungs": {},
+        "examples": [],
+        "verdict": "region offered, no question asked"
+      },
+      "injection": {
+        "regions_offering": 25,
+        "questions_asked": 2,
+        "questions_completed": 2,
+        "findings": 1,
+        "rungs": {
+          "model_entailed": 1
+        },
+        "examples": [
+          {
+            "site": "models/user_model.py:73:get_user",
+            "rung": "model_entailed",
+            "witness": "username -> text(user_query) in models/user_model.py (line 73, 13 steps)",
+            "reached_from": 1
+          }
+        ],
+        "verdict": "establishes findings"
+      },
+      "output_encoding": {
+        "regions_offering": 25,
+        "questions_asked": 0,
+        "questions_completed": 0,
+        "findings": 0,
+        "rungs": {},
+        "examples": [],
+        "verdict": "region offered, no question asked"
+      },
+      "path": {
+        "regions_offering": 25,
+        "questions_asked": 0,
+        "questions_completed": 0,
+        "findings": 0,
+        "rungs": {},
+        "examples": [],
+        "verdict": "region offered, no question asked"
+      },
+      "untrusted_destination": {
+        "regions_offering": 25,
+        "questions_asked": 0,
+        "questions_completed": 0,
+        "findings": 0,
+        "rungs": {},
+        "examples": [],
+        "verdict": "region offered, no question asked"
+      }
+    }
+  },
+  "families_establishing_findings": [
+    "injection",
+    "access_control",
+    "config_secrets",
+    "untrusted_destination",
+    "output_encoding"
+  ],
+  "limits": [
+    "Template-mediated escaping is never decided by flow; a scan of a server-rendered application reporting nothing from this family has established only that no tainted value reached a modelled rendering call.",
+    "Response splitting (CWE-113) is claimed by no sink: modern Node rejects a newline in a header value, and the claim would be about an engine this project does not model.",
+    "res.send cannot be distinguished from its JSON-serialising form at the call, so a tainted object reaching it is reported like a tainted string.",
+    "One subject exercises these sinks. NodeGoat developed this analyser and qualifies nothing."
+  ]
+}

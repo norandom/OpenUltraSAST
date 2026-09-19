@@ -191,3 +191,108 @@ def test_a_literal_destination_is_not_an_untrusted_destination(tmp_path: Path) -
     flows = [row for row in (payload.get("0") or []) if row.get("sink")]
     assert flows, "the request flowing into the client was not reported at all"
     assert all("needle" in str(row["sink"]) for row in flows), f"a client called with a literal was reported: {flows}"
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_a_response_body_write_is_an_output_encoding_sink(tmp_path: Path) -> None:
+    """A request value written straight into a response body is reported; the JSON form is not.
+
+    Every sink this family shipped with was a DOM sink, so on a Node application it completed its questions
+    and could not have found anything: the census measured that on NodeGoat, 44 questions and no findings.
+    `res.json` stays out because it sets an application/json content type, and that exclusion is asserted here
+    rather than left to the reader of the fact table.
+    """
+    from openultrasast.cpg.backend import extract_payload
+    from openultrasast.model.specs import taint_specs
+
+    frontend = __import__("shutil").which("jssrc2cpg")
+    if frontend is None:
+        pytest.skip("jssrc2cpg is not installed")
+    sinks = taint_specs(language="javascript")["output_encoding"].sinks
+    assert "res.write" in sinks, "the shipped vocabulary no longer holds the sink this control is about"
+    assert "res.json" not in sinks, "res.json is a JSON content type, not a rendered document"
+
+    source = tmp_path / "render.js"
+    source.write_text(
+        "function handler(req, res) {\n"
+        "    const name = req.query.name;\n"
+        "    res.json({ echoed: name });\n"
+        '    res.write("<h1>" + name + "</h1>");\n'
+        "    return res.end();\n"
+        "}\n"
+    )
+    cpg = tmp_path / "cpg.bin"
+    built = subprocess.run([frontend, str(tmp_path), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
+    if not cpg.is_file():
+        pytest.skip(f"could not build a sample cpg: {(built.stderr or '')[-200:]}")
+
+    requests = tmp_path / "requests.json"
+    requests.write_text(json.dumps({"0": {"sources": "req.query", "sinks": ",".join(sinks), "function": "handler"}}))
+    done = subprocess.run(
+        [
+            _joern() or "joern",
+            "--script",
+            str((QUERIES / "taint.sc").resolve()),
+            "--param",
+            f"cpgFile={cpg}",
+            "--param",
+            f"requestsFile={requests}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
+    )
+    assert done.returncode == 0, f"taint.sc did not run: {(done.stderr or done.stdout or '')[-500:]}"
+    payload = extract_payload(done.stdout or "")
+    assert payload is not None, "taint.sc produced no parseable payload"
+    flows = [row for row in (payload.get("0") or []) if row.get("sink")]
+    assert flows, "a request value written into the response body was not reported"
+    assert all("res.json" not in str(row["sink"]) for row in flows), f"the JSON form was reported: {flows}"
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_a_qualified_setting_needs_its_receiver(tmp_path: Path) -> None:
+    """`marked.setOptions` must not be answered by an unrelated `setOptions`.
+
+    The setting matcher accepted a dotted spec's trailing segment alone, which was harmless while every
+    shipped setting was a bare name and became load-bearing when the template engines joined the table: an
+    editor's `setOptions` would have been read as a template engine's.
+    """
+    from openultrasast.cpg.backend import extract_payload
+
+    frontend = __import__("shutil").which("jssrc2cpg")
+    if frontend is None:
+        pytest.skip("jssrc2cpg is not installed")
+    source = tmp_path / "setup.js"
+    source.write_text(
+        "function configure(editor) {\n    editor.setOptions({ readOnly: false });\n    marked.setOptions({ sanitize: false });\n}\n"
+    )
+    cpg = tmp_path / "cpg.bin"
+    built = subprocess.run([frontend, str(tmp_path), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
+    if not cpg.is_file():
+        pytest.skip(f"could not build a sample cpg: {(built.stderr or '')[-200:]}")
+
+    requests = tmp_path / "requests.json"
+    requests.write_text(json.dumps({"0": {"settings": "marked.setOptions", "function": "configure"}}))
+    done = subprocess.run(
+        [
+            _joern() or "joern",
+            "--script",
+            str((QUERIES / "config.sc").resolve()),
+            "--param",
+            f"cpgFile={cpg}",
+            "--param",
+            f"requestsFile={requests}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
+    )
+    assert done.returncode == 0, f"config.sc did not run: {(done.stderr or done.stdout or '')[-500:]}"
+    payload = extract_payload(done.stdout or "")
+    assert payload is not None, "config.sc produced no parseable payload"
+    settings = [str(row.get("setting", "")) for row in (payload.get("0") or []) if row.get("setting")]
+    assert any("marked.setOptions" in row for row in settings), f"the template engine's setting was missed: {settings}"
+    assert all("editor.setOptions" not in row for row in settings), f"an unrelated setOptions was claimed: {settings}"

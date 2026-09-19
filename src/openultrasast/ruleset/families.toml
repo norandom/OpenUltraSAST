@@ -46,6 +46,7 @@ description = "Untrusted data reaches a rendered document or a header without en
 cwes = ["CWE-79", "CWE-80", "CWE-83", "CWE-113", "CWE-116"]
 mechanisms = []
 verifier = "none"
+limits = """Models a value reaching a rendering CALL -- a DOM sink, or a response body written directly. It cannot decide template-mediated escaping, which is the commonest shape a server-rendered application has: whether `res.render` is safe depends on the template engine's autoescape configuration and on the template's own markup, neither of which is at the call. That setting is claimed instead as a configuration defect, where a permissive literal can be read: `swig.setDefaults`, `nunjucks.configure` and Jinja2's `Environment` are security settings in the obligation facts, and turning escaping off is reported by config_secrets. Response splitting (CWE-113) is claimed by no sink here at all, because modern Node rejects a newline in a header value and the claim would be about an engine this project does not model. A scan of a server-rendered application that reports nothing from this family has established that no tainted value reached a modelled rendering call, and nothing about whether its templates escape."""
 
 [[family]]
 id = "untrusted_destination"

@@ -131,3 +131,86 @@ def test_a_strong_algorithm_yields_no_finding() -> None:
     spec = config_specs(language="python")["config_secrets"]
     rows = [{"setting": 'hashlib.new("sha256")', "line": "4", "method": "digest", "literalArgs": ['"sha256"'], "args": ['"sha256"']}]
     assert verdict(_cpg(rows), spec, function="digest") is None
+
+
+def _javascript_spec():  # type: ignore[no-untyped-def]
+    """The SHIPPED JavaScript spec, so these read the facts rather than a copy of them."""
+    from openultrasast.model.specs import config_specs
+
+    return config_specs(language="javascript")["config_secrets"]
+
+
+def test_disabling_template_escaping_is_entailed() -> None:
+    """The setting NodeGoat's cross-site scripting turns off, claimed where the evidence is: the value."""
+    from openultrasast.model.config_value import verdict
+    from openultrasast.model.ladder import Rung
+
+    rows = [
+        {
+            "setting": "swig.setDefaults({ autoescape: false })",
+            "line": "135",
+            "method": "<module>",
+            "literalArgs": ["false"],
+            "args": ["{ autoescape: false }"],
+        }
+    ]
+    answer = verdict(_cpg(rows), _javascript_spec(), function="<module>")
+    assert answer is not None and answer.rung is Rung.ENTAILED
+    assert "swig.setDefaults" in answer.witness and "false" in answer.witness
+
+
+def test_enabling_template_escaping_is_not_a_finding() -> None:
+    """The fix must not be the defect.
+
+    `true` is in the general permissive set, because `cors({origin: true})` is how a permissive CORS policy is
+    written. Escaping reverses that polarity, and with one shared set this repaired line would have been
+    reported on exactly the code that repairs it -- the commented-out `autoescape: true` two lines below
+    NodeGoat's defect.
+    """
+    from openultrasast.model.config_value import verdict
+
+    rows = [
+        {
+            "setting": "swig.setDefaults({ autoescape: true })",
+            "line": "135",
+            "method": "<module>",
+            "literalArgs": ["true"],
+            "args": ["{ autoescape: true }"],
+        }
+    ]
+    assert verdict(_cpg(rows), _javascript_spec(), function="<module>") is None
+
+
+def test_a_setting_whose_polarity_is_unchanged_still_reports_true() -> None:
+    """The control for the other direction: scoping must not quiet the settings it was not about."""
+    from openultrasast.model.config_value import verdict
+    from openultrasast.model.ladder import Rung
+
+    rows = [
+        {
+            "setting": "cors({ origin: true })",
+            "line": "12",
+            "method": "createApp",
+            "literalArgs": ["true"],
+            "args": ["{ origin: true }"],
+        }
+    ]
+    answer = verdict(_cpg(rows), _javascript_spec(), function="createApp")
+    assert answer is not None and answer.rung is Rung.ENTAILED
+
+
+def test_the_first_setting_in_a_file_is_the_one_reported() -> None:
+    """One verdict is returned per question, so which row comes first decides what a file reports.
+
+    The line sorted as TEXT, so line 126 came before line 78 and a file's reported setting depended on the
+    spelling of its line numbers. NodeGoat has a permissive session at line 78 and template escaping disabled
+    at line 135, and which one surfaced flipped on that comparison.
+    """
+    from openultrasast.model.config_value import verdict
+
+    rows = [
+        {"setting": "swig.setDefaults({ autoescape: false })", "line": "135", "method": "m", "literalArgs": ["false"], "args": []},
+        {"setting": "cors({ origin: true })", "line": "78", "method": "m", "literalArgs": ["true"], "args": []},
+    ]
+    answer = verdict(_cpg(rows), _javascript_spec(), function="m")
+    assert answer is not None and "line 78" in answer.witness, answer.witness

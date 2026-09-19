@@ -772,7 +772,12 @@
     // makes a one-argument interpolated call look like a two-argument bound one -- the exact inversion of the
     // test. Real arguments start at index 1.
     val realArgs = sink.argument.argumentIndexGt(0).l
-    val flows    = if (hasSources) sink.argument.reachableByFlows(sourceNodes).l else Nil
+    // Asked of the REAL arguments, for the same reason arity is counted over them. `call.argument` carries the
+    // receiver at index 0, and on a response sink the receiver is the response object itself: `res.end()` takes
+    // no data at all, yet `res` is reachable from the request in any handler that captures it, so the flow
+    // query answered yes about a call that receives nothing. Measured on NodeGoat, where `res.write(body)` is a
+    // real finding and `res.end()` two lines below it was reported identically.
+    val flows = if (hasSources) sink.argument.argumentIndexGt(0).reachableByFlows(sourceNodes).l else Nil
 
     // The SHAPE of the sink call, which is what distinguishes a fix from a bug when the fix is a safe form
     // rather than a sanitizing call: `execute(sql, params)` binds where `execute(sql + x)` interpolates, and

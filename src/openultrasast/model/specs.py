@@ -173,6 +173,13 @@ class ConfigSpec:
     # algorithm NAMED, not a setting left open. The data has been on the sink facts (`weak_literals`) since
     # before this feature and nothing read it.
     weak_algorithms: tuple[str, ...] = ()
+    # Which values are permissive FOR WHICH setting, as (setting, values) pairs. A flat set cannot hold the
+    # answer, because the polarity of a boolean is per setting: `true` leaves the door open in
+    # `cors({origin: true})` and closes it in `swig.setDefaults({autoescape: true})`. With one shared set,
+    # adding a template engine would have reported the fix as the defect on exactly the line whose comment
+    # offers it. A setting a discharger names uses that discharger's values; a setting no discharger names
+    # falls back to `permissive`, which is the committed behaviour for `app.listen` and `createClient`.
+    permissive_by_setting: tuple[tuple[str, tuple[str, ...]], ...] = ()
 
 
 def config_specs(
@@ -194,6 +201,12 @@ def config_specs(
     weak_calls = tuple(sorted({call for sink in flow.sinks if sink.weak_literals for call in sink.calls}))
     if not settings or not permissive:
         return {}
+    scoped_values: dict[str, set[str]] = {}
+    for fact in scoped.dischargers:
+        if fact.kind != "non_permissive_value" or not fact.permissive_values:
+            continue
+        for call in fact.calls:
+            scoped_values.setdefault(call, set()).update(fact.permissive_values)
     return {
         "config_secrets": ConfigSpec(
             family="config_secrets",
@@ -201,6 +214,7 @@ def config_specs(
             settings=tuple(sorted(set(settings) | set(weak_calls))),
             permissive=permissive,
             weak_algorithms=weak,
+            permissive_by_setting=tuple((call, tuple(sorted(values))) for call, values in sorted(scoped_values.items())),
         )
     }
 

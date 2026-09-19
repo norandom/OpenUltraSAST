@@ -38,10 +38,22 @@
   val names = split(settingsS)
   val function = functionS
 
-  def matches(name: String): Boolean = names.exists(n => name == n || name == n.split("\\.").last)
+  // A dotted spec matches on its trailing segment, which is how the call is named in the graph -- but the
+  // qualification has to matter, or the segment alone claims every unrelated call that ends the same way.
+  // `marked.setOptions` would otherwise match an editor's `setOptions` and `nunjucks.configure` any
+  // `configure` at all. dominance.sc carries this fix and the reason for it; the setting matcher had never
+  // been given the same treatment, and it became load-bearing when the template engines joined the table.
+  def matches(name: String, code: String): Boolean =
+    names.exists { n =>
+      if (name == n) true
+      else {
+        val parts = n.split("\\.")
+        parts.length > 1 && name == parts.last && parts.init.forall(q => code.contains(q))
+      }
+    }
 
   val calls = {
-    val all = cpg.call.filter(c => matches(c.name)).l
+    val all = cpg.call.filter(c => matches(c.name, c.code)).l
     val inFile = if (fileS.isEmpty) all else all.filter(_.method.filename.endsWith(fileS))
     if (function.isEmpty) inFile else inFile.filter(_.method.name == function)
   }

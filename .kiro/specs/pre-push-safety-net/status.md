@@ -152,11 +152,21 @@ the word `set` in a code comment, matched because the sink text clause searched 
 assignment node. Nothing about this changes the release gates. No capability is qualified by
 these subjects.
 
-The first of the three gaps is closed. The untrusted-destination vocabulary now holds the
-client surface a Node server actually calls, and NodeGoat's SSRF is reported at
-`app/routes/research.js:16` with a witness naming the call. One data change, no query change,
-every other family unchanged. Output encoding and access control remain open as tasks 14.3
-and 14.4.
+Two of the three gaps are closed. The untrusted-destination vocabulary now holds the client
+surface a Node server actually calls, and NodeGoat's SSRF is reported at
+`app/routes/research.js:16` with a witness naming the call. Output encoding now asks about the
+server half of its own family and establishes a finding at `app/routes/research.js:25`, and it
+states in its declaration that template-mediated escaping is not something it can decide. Five
+of seven families now establish findings; access control remains open as task 14.4.
+
+Closing the second gap surfaced four defects, three of which were false positives it would
+otherwise have shipped: a permissive-value set shared across settings whose booleans have
+opposite polarity, a dotted setting matched on its trailing segment alone, a flow query asked of
+a call's receiver as well as its arguments, and a file's settings ordered by the spelling of
+their line numbers. Template auto-escaping disabled at `server.js:135` is detected and still not
+reported, because the arbiter returns one verdict per question and that file has an earlier
+permissive setting; task 14.6 carries it.
 
 Evidence: [family detection census](../../../benchmarks/measurements/2026-09-19-family-detection-census.json),
-[untrusted destination vocabulary](../../../benchmarks/measurements/2026-09-19-untrusted-destination-vocabulary.json).
+[untrusted destination vocabulary](../../../benchmarks/measurements/2026-09-19-untrusted-destination-vocabulary.json),
+[output encoding family](../../../benchmarks/measurements/2026-09-19-output-encoding-family.json).

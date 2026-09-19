@@ -68,8 +68,17 @@ id = "safe-setting"
 kind = "non_permissive_value"
 calls = ["CORS", "cross_origin", "set_cookie", "app.run", "config.update", "add_middleware",
          "session_setup", "SimpleCookieStorage", "setup_session", "set_secure_cookie",
-         "Application", "RedisStorage", "Environment"]
+         "Application", "RedisStorage"]
 permissive_values = ["'*'", "\"*\"", "True", "0.0.0.0", "None", "False", "allow_all", "disable"]
+
+[[discharger]]
+# Jinja2's `Environment(autoescape=...)`, moved out of the general list because `True` is in it and `True` is
+# the SAFE value here. Sharing one permissive set made the correct configuration indistinguishable from the
+# dangerous one, which is the same defect the JavaScript template engines would have introduced.
+id = "safe-template-escaping"
+kind = "non_permissive_value"
+calls = ["Environment", "select_autoescape"]
+permissive_values = ["False"]
 
 [[discharger]]
 id = "validated-input"

@@ -58,6 +58,22 @@ calls = ["innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "dang
 rule_ids = []
 
 [[sink]]
+# CWE-79, the SERVER half. Every sink above is a DOM sink, so this family could only ever ask about code
+# running in a browser -- and the 2026-09-19 family census recorded it completing 44 questions on a Node
+# application and finding nothing, which is exactly what a client-only vocabulary must do there. These are the
+# documented ways an Express or raw-Node handler puts bytes in a response body without an encoder in between.
+#
+# `res.json` is deliberately absent: it sets an application/json content type, so a value reaching it is not
+# a script in a document. `res.render` is deliberately absent too, and for a different reason -- whether a
+# template escapes is a property of the engine's configuration rather than of the call, so it is claimed as a
+# configuration defect (`swig.setDefaults`, `nunjucks.configure` in the obligation facts) and stated as a
+# limit on this family rather than guessed at here.
+id = "html.response"
+cwe = "CWE-79"
+calls = ["res.write", "res.end", "res.send", "response.write", "response.end", "response.send"]
+rule_ids = []
+
+[[sink]]
 # CWE-22. Node filesystem entry points that accept a caller-supplied path.
 id = "path.open"
 cwe = "CWE-22"
