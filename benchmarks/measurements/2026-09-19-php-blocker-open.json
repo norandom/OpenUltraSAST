@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "experiment": "php-blocker-investigation",
+  "status": "OPEN, investigation paused by the maintainer to return to vulnerability work",
+  "what_is_measured": {
+    "preparation_stage": "273.5 s, snapshot materialization of both revisions plus region discovery over 637 PHP files twice",
+    "production_build": "78.8 s, no sharding, 638 files, 7,339 methods, 106,112 calls",
+    "census": "18.2 s",
+    "evidence_batch_at_production_size": "17,700 requests answered in 43.8 s, 2.6 MB response, exit 0",
+    "same_batch_with_the_233_hook_table": "44.9 s, answered, no exception",
+    "execution_pass": "50 dataflow requests in 23.9 s",
+    "entry_point_shape": "20 requests at call depth 3 with parameter sources in 24.7 s"
+  },
+  "hypotheses_eliminated": [
+    "Batch too large to serialize: 17,700 requests answer in 44 s with a 2.6 MB response.",
+    "Dataflow too slow: 50 execution requests in 24 s.",
+    "Call depth 3 explodes: 24.7 s for 20 entry-point requests.",
+    "Argument length: the hook table is 16 KB against a 128 KB single-argument cap.",
+    "Hook callback resolution: the same batch with 233 hooks costs 1 s more.",
+    "Build or sharding: 79 s, no shards."
+  ],
+  "what_remains_unknown": "Production reports `cpg batch taint failed` on a 22,125-request batch inside the head stage, and every reproduction of that batch outside the push path answers in under a minute. The difference between the reproduction and the production invocation has not been identified. The exception itself has never been read: the backend logged the last 400 characters of a stack trace, which is frames, and the corrected extractor now reports the first non-frame lines, which on this engine are JVM startup noise.",
+  "instrument_defects_found_and_fixed": [
+    "Failure detail logged the tail of a stack trace, so the exception that names the cause was discarded.",
+    "No stage reported its cost, so a killed run left no account of where the budget went.",
+    "Nothing configured logging, so the stage lines added for this investigation could not emit at all.",
+    "The transfer harness buffers each case's stderr until the case ends, so nothing is visible during a long run."
+  ],
+  "next_step_when_resumed": "Read the actual exception. Extract the line matching an exception pattern anywhere in stderr rather than assuming it comes first or last, then reproduce the exact production invocation including its hoisted shared parameters."
+}
