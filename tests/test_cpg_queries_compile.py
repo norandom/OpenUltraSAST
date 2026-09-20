@@ -516,3 +516,62 @@ def test_a_destructured_identity_discharges_what_it_reaches(tmp_path: Path) -> N
     leaked = answer("displayEverything")
     assert leaked is not None, "a query that reads the whole collection was not reported"
     assert leaked.rung is Rung.CORROBORATED, f"{leaked.rung} from {leaked.witness}"
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_prototype_pollution_is_established_on_the_shape_it_declares(tmp_path: Path) -> None:
+    """The family had never established anything, on any subject, so this is what it can do.
+
+    The 2026-09-19 census recorded prototype pollution asked on one repository, where its only report was the
+    word `set` inside a comment. No repository available to this project contains the mechanism: the only
+    first-party matches on the Node subject are `app.set("view engine", "html")` and its sibling, which are
+    Express settings whose arguments are literals. So the family's ability to answer is demonstrated here, on
+    a merge of the request body into an object, and the Express setting is asserted alongside it.
+    """
+    from openultrasast.cpg.backend import extract_payload
+    from openultrasast.model.specs import taint_specs
+
+    frontend = __import__("shutil").which("jssrc2cpg")
+    if frontend is None:
+        pytest.skip("jssrc2cpg is not installed")
+    sinks = taint_specs(language="javascript")["prototype"].sinks
+
+    source = tmp_path / "merge.js"
+    source.write_text(
+        'const _ = require("lodash");\n'
+        "\n"
+        "function handler(req, res, app) {\n"
+        '    app.set("view engine", "html");\n'
+        "    const options = {};\n"
+        "    _.merge(options, req.body);\n"
+        "    return res.end();\n"
+        "}\n"
+    )
+    cpg = tmp_path / "cpg.bin"
+    built = subprocess.run([frontend, str(tmp_path), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
+    if not cpg.is_file():
+        pytest.skip(f"could not build a sample cpg: {(built.stderr or '')[-200:]}")
+
+    requests = tmp_path / "requests.json"
+    requests.write_text(json.dumps({"0": {"sources": "req.body", "sinks": ",".join(sinks), "function": "handler"}}))
+    done = subprocess.run(
+        [
+            _joern() or "joern",
+            "--script",
+            str((QUERIES / "taint.sc").resolve()),
+            "--param",
+            f"cpgFile={cpg}",
+            "--param",
+            f"requestsFile={requests}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
+    )
+    assert done.returncode == 0, f"taint.sc did not run: {(done.stderr or done.stdout or '')[-500:]}"
+    payload = extract_payload(done.stdout or "")
+    assert payload is not None, "taint.sc produced no parseable payload"
+    flows = [row for row in (payload.get("0") or []) if row.get("sink")]
+    assert flows, "a request body merged into an object was not reported"
+    assert all("merge" in str(row["sink"]) for row in flows), f"the Express setting was reported: {flows}"

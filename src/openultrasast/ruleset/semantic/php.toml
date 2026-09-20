@@ -125,9 +125,17 @@ rule_ids = []
 # --- deserialization ---------------------------------------------------------------------------------
 
 [[sink]]
+# `maybe_unserialize` is WordPress's own wrapper and the form every plugin in this project's corpus actually
+# writes: across four plugins and 1,164 PHP files there is exactly one deserialization site, and it is spelled
+# that way. It is not reached by the bare token, and correctly so -- the matcher is word-bounded, and the
+# character before `unserialize` inside `maybe_unserialize` is a word character. A token that a repository
+# never spells is a family that can never answer, which is what the 2026-09-19 census recorded for this one.
+#
+# It is a real entry point rather than a safe wrapper: `maybe_unserialize` calls `unserialize` whenever the
+# string looks serialized, and only returns the value untouched when it does not.
 id = "unserialize"
 cwe = "CWE-502"
-calls = ["unserialize"]
+calls = ["unserialize", "maybe_unserialize"]
 rule_ids = []
 
 # --- untrusted destination ---------------------------------------------------------------------------
