@@ -174,6 +174,15 @@ of a query document. Measured on a plugin that ships jQuery, all 88 of its `find
 unclaimed. Seven NodeGoat handlers now reach a verdict, all corroborated; the census is
 unchanged, because the corroborated band needs a judge it does not configure.
 
+What a session read discharges is now decided by where its value goes. A destructuring spells
+`session.userId` away, so the arbiter walks back from the names the query is given; two NodeGoat
+handlers that were correct code stop being asked about, while the memo page that reads every memo
+and merely renders the session's user stays reported. The sibling scope was decided by
+measurement and left at the file: on this subject the file scope entails two handlers, both
+public routes and both wrong, and an application-wide scope entails four true defects and the
+same two wrong ones. Neither scope can tell a public route from a protected one, so the carried
+rung stays capped and that question stays with the judge.
+
 Closing the second gap surfaced four defects, three of which were false positives it would
 otherwise have shipped: a permissive-value set shared across settings whose booleans have
 opposite polarity, a dotted setting matched on its trailing segment alone, a flow query asked of
@@ -186,4 +195,5 @@ Evidence: [family detection census](../../../benchmarks/measurements/2026-09-19-
 [untrusted destination vocabulary](../../../benchmarks/measurements/2026-09-19-untrusted-destination-vocabulary.json),
 [output encoding family](../../../benchmarks/measurements/2026-09-19-output-encoding-family.json),
 [access control across the module split](../../../benchmarks/measurements/2026-09-20-access-control-module-split.json),
-[collection read obligation](../../../benchmarks/measurements/2026-09-20-collection-read-obligation.json).
+[collection read obligation](../../../benchmarks/measurements/2026-09-20-collection-read-obligation.json),
+[sibling scope and identity](../../../benchmarks/measurements/2026-09-20-sibling-scope-and-identity.json).

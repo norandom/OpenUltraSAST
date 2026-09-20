@@ -324,6 +324,16 @@ def _route_and_dao(tmp_path: Path) -> Path:
         "    this.displayMine = (req, res) => {\n"
         "        return notesDAO.getOwned(req.user.id, (err, notes) => res.json(notes));\n"
         "    };\n"
+        "\n"
+        "    this.displayDestructured = (req, res) => {\n"
+        "        const { userId } = req.session;\n"
+        "        return notesDAO.getOwned(userId, (err, notes) => res.json(notes));\n"
+        "    };\n"
+        "\n"
+        "    this.displayEverything = (req, res) => {\n"
+        "        const { userId } = req.session;\n"
+        "        return notesDAO.getAll((err, notes) => res.json({ userId, notes }));\n"
+        "    };\n"
         "}\n"
         "\n"
         "module.exports = NotesHandler;\n"
@@ -338,6 +348,10 @@ def _route_and_dao(tmp_path: Path) -> Path:
         "\n"
         "    this.getOwned = (userId, callback) => {\n"
         "        notes.findOne({ owner: userId }, callback);\n"
+        "    };\n"
+        "\n"
+        "    this.getAll = (callback) => {\n"
+        "        notes.find({}).toArray(callback);\n"
         "    };\n"
         "}\n"
         "\n"
@@ -471,3 +485,34 @@ def test_only_a_collection_read_is_an_obligated_find(tmp_path: Path) -> None:
     lines = sorted(int(str(row["opLine"])) for row in rows)
     # 3 the object literal, 4 the whole collection, 5 the builder call.
     assert lines == [3, 4, 5], f"the wrong find shapes were claimed: {[(r['opLine'], r['operation']) for r in rows]}"
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_a_destructured_identity_discharges_what_it_reaches(tmp_path: Path) -> None:
+    """Reading the session discharges the query it constrains, and nothing else.
+
+    `const { userId } = req.session` lowers to a temporary, so nothing in the graph spells `session.userId` by
+    the time the value reaches the query, and two of NodeGoat's corroborated claims were correct code put to a
+    judge for that reason. The second half is the measurement that keeps it honest: NodeGoat's memo listing
+    reads the same session and RENDERS it while its query reads every memo in the collection, which is the leak
+    that page exists to demonstrate. So the value has to reach the operation's own arguments.
+    """
+    from openultrasast.cpg.backend import CpgResult
+    from openultrasast.model.dominance import verdict
+    from openultrasast.model.ladder import Rung
+    from openultrasast.model.specs import dominance_specs
+
+    root = _route_and_dao(tmp_path)
+    spec = dominance_specs(language="javascript")["access_control"]
+
+    def answer(function: str):  # type: ignore[no-untyped-def]
+        rows = _dominance_rows(root, function=function, file="app/routes/notes.js")
+        cpg = CpgResult(cpg_path=tmp_path / "cpg.bin", run=lambda q, p: rows)
+        return verdict(cpg, spec, function=function, file="app/routes/notes.js")
+
+    constrained = answer("displayDestructured")
+    assert constrained is None, f"a query constrained by the session's own user was reported: {constrained}"
+
+    leaked = answer("displayEverything")
+    assert leaked is not None, "a query that reads the whole collection was not reported"
+    assert leaked.rung is Rung.CORROBORATED, f"{leaked.rung} from {leaked.witness}"

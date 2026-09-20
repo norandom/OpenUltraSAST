@@ -75,10 +75,15 @@ kind = "path_guard"
 calls = ["authenticate", "requireAuth", "ensureAuthenticated", "isAuthenticated", "verifyToken", "checkAuth", "protect", "authorize", "requireUser", "getServerSession", "auth", "withAuth", "jwt.verify", "passport.authenticate"]
 decorators = ["UseGuards", "Authorized", "Roles"]
 
+# `req.session` is the authenticated context itself, and it is listed because a destructuring spells the
+# dotted forms away: `const { userId } = req.session` lowers to a temporary, so nothing in the graph says
+# `session.userId` by the time the value reaches the query. The token is only safe because the arbiter
+# requires the value to REACH the operation's arguments -- a handler that reads the session for logging and
+# keys its query on a path parameter is the bug this family exists for, and it stays unguarded.
 [[discharger]]
 id = "identity-from-context"
 kind = "identity_constraint"
-identity_sources = ["req.user", "request.user", "ctx.user", "session.user", "locals.user", "auth.uid", "auth().userId", "currentUser", "user.id", "token.sub", "decoded.sub", "session.userId", "getServerSession("]
+identity_sources = ["req.user", "request.user", "ctx.user", "session.user", "locals.user", "auth.uid", "auth().userId", "currentUser", "user.id", "token.sub", "decoded.sub", "session.userId", "req.session", "request.session", "getServerSession("]
 constraint_params = ["userId", "user_id", "ownerId", "owner_id", "authorId", "author_id", "accountId", "tenantId", "createdBy", "user", "owner"]
 request_sources = ["req.body", "req.query", "req.params", "request.body", "request.query", "req.headers", "req.cookies", "searchParams", "formData("]
 

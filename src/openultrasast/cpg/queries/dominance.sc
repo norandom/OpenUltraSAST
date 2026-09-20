@@ -285,6 +285,39 @@
     ujson.Obj("kind" -> "context_summary") :: (rows ++ carriedRows ++ boundaries)
   }
 
+  // ---- The identity a destructuring spelled away -------------------------------------------------------
+  //
+  // `const { userId } = req.session` lowers to `_tmp_1 = req.session` and then `userId = _tmp_1.userId`, so by
+  // the time the value reaches `dao.getByUserId(userId, ...)` nothing in the graph spells `session.userId` and
+  // the constraint the handler really applies is invisible. Measured on NodeGoat: two of three corroborated
+  // claims were this, which is correct code being put to a judge.
+  //
+  // Resolved by walking the method's OWN assignments back from the names the operation is given, rather than
+  // by accepting the token anywhere in the handler. What discharges an object-level obligation is that the
+  // value PASSED to the operation comes from the authenticated context; a handler that reads the session for
+  // logging and keys its query on a path parameter is the bug this family exists for, and it stays unguarded.
+  // Bounded at three hops, which is two more than the lowering needs and far short of a dataflow query.
+  def definingText(
+      method: io.shiftleft.codepropertygraph.generated.nodes.Method,
+      names: Set[String],
+      hops: Int
+  ): List[String] = {
+    val assignments = method.ast.isCall.nameExact("<operator>.assignment").l
+    var seen = names
+    var frontier = names
+    var texts = List.empty[String]
+    var level = 0
+    while (level < hops && frontier.nonEmpty) {
+      val defining = assignments.filter(a => frontier.exists(n => a.code.startsWith(n + " =")))
+      texts = texts ++ defining.map(_.code)
+      val next = defining.flatMap(_.argument.argumentIndexGt(1).ast.isIdentifier.name.l).toSet -- seen
+      seen = seen ++ next
+      frontier = next
+      level += 1
+    }
+    texts.distinct
+  }
+
   // `via` is the call that carried the obligation here, absent when the operation is in the region's own file.
   def rowFor(op: io.shiftleft.codepropertygraph.generated.nodes.Call, via: Option[io.shiftleft.codepropertygraph.generated.nodes.Call]): ujson.Obj = {
     val method = op.method
@@ -299,7 +332,14 @@
     val inCondition = method.controlStructure.condition.code.l.filter(c => mentions(c, applicable))
 
     // 3. dominating guard: a call naming a discharger that actually dominates the operation.
-    val dominating = op.dominatedBy.isCall.code.l.filter(c => mentions(c, applicable))
+    //
+    // A CALL, so operators are excluded, and that exclusion is load-bearing rather than tidy. `const { userId }
+    // = req.session` lowers to an assignment, and an assignment that dominates the query is a READ of the
+    // authenticated context, not a check applied to it. Counting it discharged NodeGoat's memo listing, which
+    // reads every memo in the collection and only renders the session's user -- the leak that page exists to
+    // demonstrate. What a session read does discharge is decided by clause 5, where the value has to reach the
+    // operation's own arguments.
+    val dominating = op.dominatedBy.isCall.filterNot(_.name.startsWith("<operator")).code.l.filter(c => mentions(c, applicable))
 
     // 4. a guard at the CARRIER. When the obligation crossed a module boundary the check that discharges it is
     //    overwhelmingly on this side of it: the handler establishes who is asking and passes the result down.
@@ -307,10 +347,20 @@
     val atCarrier = via.toList.flatMap { call =>
       call.argument.code.l.filter(c => mentions(c, applicable)) ++
         call.method.controlStructure.condition.code.l.filter(c => mentions(c, applicable)) ++
-        call.dominatedBy.isCall.code.l.filter(c => mentions(c, applicable))
+        call.dominatedBy.isCall.filterNot(_.name.startsWith("<operator")).code.l.filter(c => mentions(c, applicable))
     }
 
-    val guards = (inArguments ++ inCondition ++ dominating ++ atCarrier).distinct.map(_.take(120))
+    // 5. identity that reaches the operation's arguments through a local, which is the shape a destructuring
+    //    leaves behind. Asked at the site the arguments are written: the carrier when there is one.
+    val site = via.getOrElse(op)
+    // A CALLBACK is not a constraint, so its body's names are not the operation's arguments. NodeGoat's memo
+    // listing is the measurement: `memosDAO.getAllMemos((err, docs) => ... userId ...)` reads every memo in the
+    // collection and only RENDERS the session's user, and taking identifiers from the whole argument subtree
+    // credited that render with discharging the obligation. The leak is the point of that page.
+    val argumentNames = site.argument.argumentIndexGt(0).filterNot(_.label == "METHOD_REF").ast.isIdentifier.name.l.toSet
+    val throughLocals = definingText(site.method, argumentNames, 3).filter(c => mentions(c, applicable))
+
+    val guards = (inArguments ++ inCondition ++ dominating ++ atCarrier ++ throughLocals).distinct.map(_.take(120))
     val attributed = via.map(call => attributedName(call.method)).getOrElse(attributedName(method))
 
     ujson.Obj(

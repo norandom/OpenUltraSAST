@@ -1,0 +1,172 @@
+{
+  "schema_version": 1,
+  "experiment": "sibling-scope-and-destructured-identity-v1",
+  "date": "2026-09-20",
+  "task": "pre-push-safety-net 14.7",
+  "claim_scope": "A decision about the sibling scope, and one repair to what counts as an identity constraint. Measured on NodeGoat and VAmPI. Detection only. No capability qualified.",
+  "part_one_identity_through_destructuring": {
+    "problem": "`const { userId } = req.session` lowers to `_tmp_1 = req.session` then `userId = _tmp_1.userId`, so nothing in the graph spells `session.userId` by the time the value reaches `dao.getByUserId(userId, ...)`. Two of NodeGoat's three corroborated claims were correct code.",
+    "repair": "A bounded walk, three hops, back over the method's own assignments from the names the operation is GIVEN. What discharges an object-level obligation is that the value passed to the operation comes from the authenticated context, not that the session is mentioned nearby. `req.session` joins the identity sources, and is only safe because of that requirement.",
+    "two_exclusions_the_measurement_forced": {
+      "a_callback_is_not_a_constraint": "Taking identifiers from the whole argument subtree credited NodeGoat's memo listing with a discharge: `memosDAO.getAllMemos((err, docs) => ... userId ...)` reads every memo in the collection and only RENDERS the session's user. That leak is the point of the page. Argument names now exclude method references.",
+      "an_assignment_is_not_a_dominating_guard": "The session read dominates the query, so the dominating-guard clause credited it and the memo listing went quiet again. An assignment is a READ of the authenticated context, not a check applied to it, so operator calls are excluded from that clause -- the same exclusion the sink matcher needed. What a session read does discharge is decided by the walk alone."
+    },
+    "measured_on_nodegoat": {
+      "handlers_asked": 15,
+      "handlers_with_an_obligation": 9,
+      "corroborated_before": 7,
+      "corroborated_after": 6,
+      "now_silent_and_correct": {
+        "displayContributions": "destructures req.session and passes it to the query",
+        "displayProfile": "same, through parseInt"
+      },
+      "still_reported_and_genuine": {
+        "displayAllocations": "the documented insecure direct object reference, userId from req.params",
+        "displayBenefits and updateBenefits": "the admin pages whose isAdmin guard is commented out",
+        "displayMemos": "reads every memo in the collection and renders the session's user"
+      },
+      "newly_corroborated_and_honest": {
+        "handleLoginRequest": "was quiet only because a callback's text matched a discharger token; login is public by design and is now an open question rather than an accidental pass",
+        "handleSignup": "public by design, the same open question"
+      },
+      "per_handler": {
+        "app/routes/benefits.js:displayBenefits": {
+          "rows": 2,
+          "verdict": "model_corroborated",
+          "witness": "displayBenefits line 15 calls benefitsDAO.getAllNonAdminUsers((error, users) => {              if (error) return next(error);              return res., whose operation at app/data/benefits-dao.js:16: obligated operation with no discharging guard, and no guarded sibling",
+          "before_identity_walk": "model_corroborated"
+        },
+        "app/routes/benefits.js:updateBenefits": {
+          "rows": 2,
+          "verdict": "model_corroborated",
+          "witness": "updateBenefits line 39 calls benefitsDAO.getAllNonAdminUsers((error, users) => {                 if (error) return next(error);                  cons, whose operation at app/data/benefits-dao.js:16: obligated operation with no discharging guard, and no guarded sibling",
+          "before_identity_walk": "model_corroborated"
+        },
+        "app/routes/allocations.js:displayAllocations": {
+          "rows": 1,
+          "verdict": "model_corroborated",
+          "witness": "displayAllocations line 23 calls allocationsDAO.getByUserIdAndThreshold(userId, threshold, (err, allocations) => {             if (err) return next(err);, whose operation at app/data/allocations-dao.js:86: obligated operation with no discharging guard, and no guarded sibling",
+          "before_identity_walk": "model_corroborated"
+        },
+        "app/routes/memos.js:addMemos": {
+          "rows": 1,
+          "verdict": "none",
+          "witness": "",
+          "before_identity_walk": "none"
+        },
+        "app/routes/memos.js:displayMemos": {
+          "rows": 1,
+          "verdict": "model_corroborated",
+          "witness": "displayMemos line 25 calls memosDAO.getAllMemos((err, docs) => {             if (err) return next(err);             return res.render(\"memos\", {, whose operation at app/data/memos-dao.js:28: obligated operation with no discharging guard, and no guarded sibling",
+          "before_identity_walk": "model_corroborated"
+        },
+        "app/routes/research.js:displayResearch": {
+          "rows": 0,
+          "verdict": "none",
+          "witness": "",
+          "before_identity_walk": "none"
+        },
+        "app/routes/contributions.js:displayContributions": {
+          "rows": 1,
+          "verdict": "none",
+          "witness": "",
+          "before_identity_walk": "model_corroborated"
+        },
+        "app/routes/contributions.js:handleContributionsUpdate": {
+          "rows": 1,
+          "verdict": "none",
+          "witness": "",
+          "before_identity_walk": "none"
+        },
+        "app/routes/session.js:displayLoginPage": {
+          "rows": 4,
+          "verdict": "none",
+          "witness": "",
+          "before_identity_walk": "none"
+        },
+        "app/routes/session.js:handleLoginRequest": {
+          "rows": 4,
+          "verdict": "model_corroborated",
+          "witness": "handleLoginRequest line 58 calls userDAO.validateLogin(userName, password, (err, user) => {             const errorMessage = \"Invalid username and/or pas, whose operation at app/data/user-dao.js:91: no discharging guard, while 2 sibling handler(s) reaching the same module are guarded (<lambda>16, <lambda>2); the obligation was carried across a module boundary, so those siblings need not share this route's trust context",
+          "before_identity_walk": "none"
+        },
+        "app/routes/session.js:displaySignupPage": {
+          "rows": 4,
+          "verdict": "none",
+          "witness": "",
+          "before_identity_walk": "none"
+        },
+        "app/routes/session.js:handleSignup": {
+          "rows": 4,
+          "verdict": "model_corroborated",
+          "witness": "handleSignup line 208 calls userDAO.getUserByUserName(userName, (err, user) => {                  if (err) return next(err);                  if (us, whose operation at app/data/user-dao.js:104: no discharging guard, while 2 sibling handler(s) reaching the same module are guarded (<lambda>16, <lambda>2); the obligation was carried across a module boundary, so those siblings need not share this route's trust context",
+          "before_identity_walk": "model_corroborated"
+        },
+        "app/routes/session.js:displayWelcomePage": {
+          "rows": 4,
+          "verdict": "none",
+          "witness": "",
+          "before_identity_walk": "none"
+        },
+        "app/routes/profile.js:displayProfile": {
+          "rows": 1,
+          "verdict": "none",
+          "witness": "",
+          "before_identity_walk": "model_corroborated"
+        },
+        "app/routes/profile.js:handleProfileUpdate": {
+          "rows": 1,
+          "verdict": "none",
+          "witness": "",
+          "before_identity_walk": "none"
+        }
+      }
+    },
+    "measured_on_vampi": {
+      "access_control_findings": 2,
+      "unchanged": true
+    }
+  },
+  "part_two_the_sibling_scope_decision": {
+    "question": "Should a carried obligation compare against siblings beyond the region's own file?",
+    "candidates_measured_on_nodegoat": [
+      {
+        "id": "a",
+        "scope": "the region's own file (committed)",
+        "entailed": 2,
+        "true_defects": 0,
+        "public_route_false_positives": 2,
+        "which": [
+          "handleLoginRequest",
+          "handleSignup"
+        ]
+      },
+      {
+        "id": "b",
+        "scope": "every handler in the application",
+        "entailed": 6,
+        "true_defects": 4,
+        "public_route_false_positives": 2,
+        "which_true": [
+          "displayAllocations",
+          "displayBenefits",
+          "updateBenefits",
+          "displayMemos"
+        ],
+        "which_false": [
+          "handleLoginRequest",
+          "handleSignup"
+        ]
+      }
+    ],
+    "decision": "Keep the region's own file, and keep the rung capped at corroborated for a carried obligation. Both scopes carry the SAME two public-route false positives, because neither can tell a public route from a protected one -- that is a semantic question and it is already the corroborated band's residual. With the cap in place the scope changes no verdict at all, only the witness text, so widening it would buy a repository-wide walk per question and no precision.",
+    "what_would_change_the_decision": "A discriminator for a public route. With one, scope (b) is worth four true entailments on this subject; without one it reports every login and signup handler there is. The file scope on its own entails nothing true, so it is not the thing holding the family back.",
+    "note_on_the_file_scope_being_kept": "It is kept because widening buys nothing today, not because it is right. It entails only the two false positives, which is the clearest argument yet for the cap that suppresses them."
+  },
+  "limits": [
+    "The walk is three hops over one method's assignments, not a dataflow query: a value that reaches the operation through a helper is not followed.",
+    "`req.session` as an identity source is only sound because the value must reach the operation's arguments; loosening that would clear every handler that touches a session.",
+    "Public versus protected is not decided here and cannot be, which is why the corroborated band keeps it.",
+    "One application shape, on a subject used to develop this analyser."
+  ]
+}
