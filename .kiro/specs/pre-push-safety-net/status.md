@@ -167,6 +167,13 @@ corroborated and none is reported without a judge, which is the honest rung: ent
 obligation reported a signup handler that is public by design, because its authenticated
 siblings share the same data module. VAmPI is unchanged.
 
+The commonest collection read now carries the obligation too, so NodeGoat's documented insecure
+direct object reference raises one where it never had. `find` had been left out because the name
+is shared with array searches and jQuery selectors, so it is claimed only in the argument shape
+of a query document. Measured on a plugin that ships jQuery, all 88 of its `find` calls stay
+unclaimed. Seven NodeGoat handlers now reach a verdict, all corroborated; the census is
+unchanged, because the corroborated band needs a judge it does not configure.
+
 Closing the second gap surfaced four defects, three of which were false positives it would
 otherwise have shipped: a permissive-value set shared across settings whose booleans have
 opposite polarity, a dotted setting matched on its trailing segment alone, a flow query asked of
@@ -178,4 +185,5 @@ permissive setting; task 14.6 carries it.
 Evidence: [family detection census](../../../benchmarks/measurements/2026-09-19-family-detection-census.json),
 [untrusted destination vocabulary](../../../benchmarks/measurements/2026-09-19-untrusted-destination-vocabulary.json),
 [output encoding family](../../../benchmarks/measurements/2026-09-19-output-encoding-family.json),
-[access control across the module split](../../../benchmarks/measurements/2026-09-20-access-control-module-split.json).
+[access control across the module split](../../../benchmarks/measurements/2026-09-20-access-control-module-split.json),
+[collection read obligation](../../../benchmarks/measurements/2026-09-20-collection-read-obligation.json).

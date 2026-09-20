@@ -154,6 +154,10 @@ class DominanceSpec:
     dischargers: tuple[str, ...]
     requirements: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
     dischargers_by_kind: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    # Operations whose obligation depends on the ARGUMENT, not only the name. `find` is a collection read, an
+    # array search and a jQuery selector, and only the first is obligated; the facts say which argument has to
+    # look like a query document and the query decides whether it does.
+    document_shape: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -318,6 +322,7 @@ def dominance_specs(*, language: str, facts: ObligationFacts | None = None) -> M
             dischargers=dischargers,
             requirements=requirements,
             dischargers_by_kind=by_kind,
+            document_shape=tuple(sorted({call for fact in guarded if fact.query_document_arg for call in fact.calls})),
         )
     }
 

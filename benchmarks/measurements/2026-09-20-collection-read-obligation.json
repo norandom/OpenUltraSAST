@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "experiment": "collection-read-obligation-v1",
+  "date": "2026-09-20",
+  "task": "pre-push-safety-net 14.8",
+  "claim_scope": "One operation added to the shipped obligation vocabulary, with an argument-shape condition, measured on two repositories. Detection only. No capability qualified.",
+  "question": "Can the commonest collection read carry the access-control obligation without claiming every array search and jQuery selector?",
+  "why_it_was_missing": "`find` was absent from a table holding findOne, findById, findAll and findByPk, so NodeGoat's documented insecure direct object reference raised no obligation at all: its module reads with allocationsCol.find(searchCriteria()). The name is shared with Array.prototype.find and jQuery's `.find`, so the name alone cannot carry an obligation.",
+  "discriminator": {
+    "rule": "the obligation is claimed only where the first argument has the shape of a query document",
+    "claimed": {
+      "no arguments": "col.find() reads the whole collection, the obligation at its widest",
+      "BLOCK": "an object literal, which is how jssrc2cpg gives { owner: 1 }",
+      "CALL that is not an operator": "a builder, col.find(searchCriteria())"
+    },
+    "not_claimed": {
+      "METHOD_REF": "a predicate passed to an array search, inline or a function expression",
+      "LITERAL": "a jQuery selector",
+      "CALL that is an operator": "a selector built at run time, <operator>.formatString or <operator>.addition",
+      "IDENTIFIER": "deliberately not claimed. col.find(query) and arr.find(pred) are the same shape, and neither repository measured has one, so this is a stated false negative rather than an unmeasured risk."
+    },
+    "where_it_is_declared": "query_document_arg on the operation fact; the arbiter that can see argument shapes decides it"
+  },
+  "false_positive_measurement": {
+    "subject": "wp-statistics assets, a WordPress plugin that ships jQuery",
+    "graph": {
+      "files": 60,
+      "methods": 4552
+    },
+    "find_calls": 88,
+    "by_shape": {
+      "LITERAL": 70,
+      "METHOD_REF": 13,
+      "CALL (operator, a run-time selector)": 5,
+      "BLOCK": 0,
+      "no-args": 0
+    },
+    "operations_matched_in_the_whole_graph": 0,
+    "note": "Zero is a measured zero, not an empty graph: the census on the same run reports 60 files and 4,552 methods, and the files holding those 88 calls are in it."
+  },
+  "recall_measurement": {
+    "subject": "NodeGoat",
+    "find_calls": 3,
+    "by_shape": {
+      "BLOCK": 2,
+      "CALL (a builder)": 1
+    },
+    "operations_matched": 3,
+    "handlers_now_raising_an_obligation": 14,
+    "handlers_reaching_a_verdict": 7,
+    "newly_raised": {
+      "app/routes/allocations.js:displayAllocations": "The documented insecure direct object reference. It takes userId from req.params on an authenticated route, with the fix commented out, and raised nothing before this change at any point in the pipeline.",
+      "app/routes/benefits.js:displayBenefits and updateBenefits": "the admin page whose isAdmin guard is commented out in the route table",
+      "app/routes/memos.js:displayMemos": "reads every memo in the collection"
+    },
+    "verdicts": {
+      "none": 8,
+      "model_corroborated": 7
+    },
+    "reported_without_a_judge": 0,
+    "per_handler": {
+      "app/routes/benefits.js:displayBenefits": {
+        "rows": 2,
+        "carried": 2,
+        "verdict": "model_corroborated",
+        "witness": "displayBenefits line 15 calls benefitsDAO.getAllNonAdminUsers((error, users) => {              if (error) return next(error);              return res., whose operation at app/data/benefits-dao.js:16: obligated operation with no discharging guard, and no guarded sibling"
+      },
+      "app/routes/benefits.js:updateBenefits": {
+        "rows": 2,
+        "carried": 2,
+        "verdict": "model_corroborated",
+        "witness": "updateBenefits line 39 calls benefitsDAO.getAllNonAdminUsers((error, users) => {                 if (error) return next(error);                  cons, whose operation at app/data/benefits-dao.js:16: obligated operation with no discharging guard, and no guarded sibling"
+      },
+      "app/routes/allocations.js:displayAllocations": {
+        "rows": 1,
+        "carried": 1,
+        "verdict": "model_corroborated",
+        "witness": "displayAllocations line 23 calls allocationsDAO.getByUserIdAndThreshold(userId, threshold, (err, allocations) => {             if (err) return next(err);, whose operation at app/data/allocations-dao.js:86: obligated operation with no discharging guard, and no guarded sibling"
+      },
+      "app/routes/memos.js:addMemos": {
+        "rows": 1,
+        "carried": 1,
+        "verdict": "none",
+        "witness": ""
+      },
+      "app/routes/memos.js:displayMemos": {
+        "rows": 1,
+        "carried": 1,
+        "verdict": "model_corroborated",
+        "witness": "displayMemos line 25 calls memosDAO.getAllMemos((err, docs) => {             if (err) return next(err);             return res.render(\"memos\", {, whose operation at app/data/memos-dao.js:28: obligated operation with no discharging guard, and no guarded sibling"
+      },
+      "app/routes/research.js:displayResearch": {
+        "rows": 0,
+        "carried": 0,
+        "verdict": "none",
+        "witness": ""
+      },
+      "app/routes/contributions.js:displayContributions": {
+        "rows": 1,
+        "carried": 1,
+        "verdict": "model_corroborated",
+        "witness": "displayContributions line 17 calls contributionsDAO.getByUserId(userId, (error, contrib) => {             if (error) return next(error);              contr, whose operation at app/data/contributions-dao.js:57: obligated operation with no discharging guard, and no guarded sibling"
+      },
+      "app/routes/contributions.js:handleContributionsUpdate": {
+        "rows": 1,
+        "carried": 1,
+        "verdict": "none",
+        "witness": ""
+      },
+      "app/routes/session.js:displayLoginPage": {
+        "rows": 4,
+        "carried": 4,
+        "verdict": "none",
+        "witness": ""
+      },
+      "app/routes/session.js:handleLoginRequest": {
+        "rows": 4,
+        "carried": 4,
+        "verdict": "none",
+        "witness": ""
+      },
+      "app/routes/session.js:displaySignupPage": {
+        "rows": 4,
+        "carried": 4,
+        "verdict": "none",
+        "witness": ""
+      },
+      "app/routes/session.js:handleSignup": {
+        "rows": 4,
+        "carried": 4,
+        "verdict": "model_corroborated",
+        "witness": "handleSignup line 208 calls userDAO.getUserByUserName(userName, (err, user) => {                  if (err) return next(err);                  if (us, whose operation at app/data/user-dao.js:104: no discharging guard, while 3 sibling handler(s) reaching the same module are guarded (<lambda>16, <lambda>2, <lambda>6); the obligation was carried across a module boundary, so those siblings need not share this route's trust context"
+      },
+      "app/routes/session.js:displayWelcomePage": {
+        "rows": 4,
+        "carried": 4,
+        "verdict": "none",
+        "witness": ""
+      },
+      "app/routes/profile.js:displayProfile": {
+        "rows": 1,
+        "carried": 1,
+        "verdict": "model_corroborated",
+        "witness": "displayProfile line 20 calls profile.getByUserId(parseInt(userId), (err, doc) => {             if (err) return next(err);             doc.userId = us, whose operation at app/data/profile-dao.js:95: obligated operation with no discharging guard, and no guarded sibling"
+      },
+      "app/routes/profile.js:handleProfileUpdate": {
+        "rows": 1,
+        "carried": 1,
+        "verdict": "none",
+        "witness": ""
+      }
+    }
+  },
+  "census_after": {
+    "nodegoat": {
+      "access_control": 0,
+      "config_secrets": 1,
+      "injection": 3,
+      "output_encoding": 1,
+      "path": 0,
+      "prototype": 0,
+      "untrusted_destination": 2
+    },
+    "vampi": {
+      "access_control": 2,
+      "config_secrets": 1,
+      "deserialization": 0,
+      "injection": 1,
+      "output_encoding": 0,
+      "path": 0,
+      "untrusted_destination": 0
+    },
+    "note": "Unchanged on both. Every new obligation is corroborated, and the corroborated band needs a judge the census does not configure."
+  },
+  "limits": [
+    "A query document passed as a bare variable is not claimed, which is a false negative this change chooses over an unmeasured false positive.",
+    "One jQuery repository measured. A bundle that calls find with an object literal for something other than a collection would be claimed.",
+    "The obligation being raised is not a finding: all seven NodeGoat verdicts are corroborated and none is reported without a judge.",
+    "NodeGoat and wp-statistics were both used to develop this analyser."
+  ]
+}

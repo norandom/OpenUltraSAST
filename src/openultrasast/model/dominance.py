@@ -40,6 +40,8 @@ def request_params(spec: DominanceSpec, *, function: str = "", file: str = "") -
         "dischargers": spec.dischargers,
         "function": function,
         "file": file,
+        # The calls whose obligation depends on the argument's shape rather than on the name alone.
+        "documentShape": ",".join(spec.document_shape),
         "operationRequires": json.dumps({k: list(v) for k, v in spec.requirements.items()}, sort_keys=True) if spec.requirements else "",
         "dischargersByKind": json.dumps({k: list(v) for k, v in spec.dischargers_by_kind.items()}, sort_keys=True)
         if spec.dischargers_by_kind

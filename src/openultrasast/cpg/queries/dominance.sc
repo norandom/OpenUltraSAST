@@ -42,6 +42,7 @@
     file: String = "",
     operationRequires: String = "",
     dischargersByKind: String = "",
+    documentShape: String = "",
     requests: String = "",
     requestsFile: String = "",
     contextEvidence: String = ""
@@ -68,6 +69,7 @@
       fileS: String,
       requiresS: String,
       byKindS: String,
+      shapeS: String,
       contextS: String = ""
   ): List[ujson.Obj] = {
 
@@ -122,6 +124,38 @@
   // first repository measured came from exactly that, including three handlers that do call an
   // authorization guard. A qualified token means the qualification matters, so the receiver must appear
   // too; the desugared chain still carries it.
+  // Calls whose obligation depends on the ARGUMENT rather than the name. `find` is the commonest collection
+  // read there is, and also `Array.prototype.find` and jQuery's `.find`, so the name alone cannot carry it.
+  //
+  // Measured on one WordPress plugin's shipped assets, where 88 calls are named `find`:
+  //
+  //   70  a jQuery selector          `this.notice.find('.processed')`            LITERAL
+  //   13  an array predicate         `datasets.find(ds => ds.label === x)`       METHOD_REF
+  //    5  a selector built at run time  ``el.find(`option[value="${v}"]`)``      CALL, an operator
+  //    0  a collection read
+  //
+  // and on NodeGoat, where all three `find` calls are collection reads: two object literals and one builder
+  // call. So the shapes separate cleanly, and each exclusion is a measured class rather than a guess:
+  // a method reference is a predicate, a literal is a selector, and an operator call is a string being built.
+  // A bare IDENTIFIER is deliberately NOT claimed -- `col.find(query)` and `arr.find(pred)` are the same shape
+  // and neither repository measured has one, so it is a stated false negative rather than an unmeasured risk.
+  val shapeNames = split(shapeS)
+
+  def isQueryDocument(c: io.shiftleft.codepropertygraph.generated.nodes.Call): Boolean = {
+    val real = c.argument.argumentIndexGt(0).l
+    real.headOption match {
+      case None       => true // `col.find()` reads the whole collection, which is the obligation at its widest
+      case Some(node) =>
+        node.label match {
+          case "METHOD_REF" => false
+          case "LITERAL"    => false
+          case "IDENTIFIER" => false
+          case "CALL"       => !node.asInstanceOf[io.shiftleft.codepropertygraph.generated.nodes.Call].name.startsWith("<operator")
+          case _            => true // an object literal, which jssrc2cpg gives as a BLOCK
+        }
+    }
+  }
+
   def matchesOperation(name: String, code: String): Boolean =
     opNames.exists { n =>
       if (name == n) true
@@ -131,11 +165,14 @@
       }
     }
 
+  def isOperation(c: io.shiftleft.codepropertygraph.generated.nodes.Call): Boolean =
+    matchesOperation(c.name, c.code) && (!shapeNames.contains(c.name) || isQueryDocument(c))
+
   // Scoped to the region's own file. `delete_user` exists in both the API handler and the model of the
   // repository this was measured on, and unscoped rows attributed the model's unguarded query to the
   // handler. The sibling comparison is a statement about a FILE contradicting itself, which is what the
   // rung's justification says, so the file is also the right scope for it.
-  val allOperations = cpg.call.filter(c => matchesOperation(c.name, c.code)).l
+  val allOperations = cpg.call.filter(isOperation).l
   val opCalls = if (fileS.isEmpty) allOperations else allOperations.filter(_.method.filename.endsWith(fileS))
 
   // ---- The module boundary an application puts between its route and its query --------------------------
@@ -310,6 +347,7 @@
           field("file"),
           field("operationRequires"),
           field("dischargersByKind"),
+          if (field("documentShape").nonEmpty) field("documentShape") else documentShape,
           field("contextEvidence")
         ): _*
       )
@@ -322,7 +360,7 @@
     val census = ujson.Arr(ujson.Obj("methods" -> cpg.method.size.toString, "files" -> cpg.file.size.toString, "file_names" -> ujson.Arr.from(cpg.file.name.l)))
     println(ujson.write(ujson.Obj.from(answers.toSeq :+ ("__census__" -> census))))
   } else {
-    println(ujson.write(ujson.Arr(rowsFor(operations, dischargers, function, file, operationRequires, dischargersByKind, contextEvidence): _*)))
+    println(ujson.write(ujson.Arr(rowsFor(operations, dischargers, function, file, operationRequires, dischargersByKind, documentShape, contextEvidence): _*)))
   }
   println("---OUSAST-CPG-END---")
 }

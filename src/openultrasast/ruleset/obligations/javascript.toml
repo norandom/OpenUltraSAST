@@ -10,6 +10,23 @@ requires = ["identity_constraint", "ownership_check"]
 sensitivity = "high"
 
 [[operation]]
+# CWE-639's commonest read, and the one the family was missing. NodeGoat's insecure direct object reference
+# reads with `allocationsCol.find(searchCriteria())`, and `find` was absent from a table holding `findOne`,
+# `findById` and `findAll` -- the obligation missing at exactly the shape it exists for.
+#
+# It was absent for a reason, and the reason is the argument, not the name. Measured on one WordPress plugin's
+# shipped assets, 88 calls are named `find`: 70 pass a jQuery selector, 13 pass a predicate to
+# `Array.prototype.find`, and 5 pass a template literal or a concatenation, which is a selector built at
+# runtime. None is a collection read. So this operation is claimed only where the first argument has the shape
+# of a query document, which `query_document_arg` says and the arbiter decides.
+id = "collection-read"
+kind = "protected_read"
+calls = ["find"]
+query_document_arg = 1
+requires = ["identity_constraint", "ownership_check"]
+sensitivity = "high"
+
+[[operation]]
 id = "orm-write"
 kind = "protected_write"
 calls = ["updateOne", "updateMany", "deleteOne", "deleteMany", "findByIdAndUpdate", "findByIdAndDelete", "upsert", "insertOne", "insertMany", "prisma.update", "prisma.delete", "prisma.create"]

@@ -518,10 +518,14 @@ Preserve all completed task evidence below.
   - _Boundary: contributor-scan dominance, shipped obligation facts_
   - _Depends: 14.4_
   - _Requirements: 6.2, 6.3, 8.1_
-- [ ] 14.8 Model the collection read an application actually writes
+- [x] 14.8 Model the collection read an application actually writes
   - **Named by the 14.4 measurement.** NodeGoat's documented insecure direct object reference reads with `allocationsCol.find(searchCriteria())`, and `find` is absent from an operation vocabulary holding `findOne`, `findAll` and `findById`. It is the commonest read there is, so the family's obligation is missing at exactly the shape it exists for.
   - It is absent for a reason: `Array.prototype.find` is everywhere in JavaScript and jQuery's `.find` is everywhere in a vendored bundle. A collection read takes a query document where those take a closure or a selector, so the discriminator is the argument's shape rather than the name.
   - Done when a collection read raises the obligation, an array search and a selector do not, and the false-positive count is measured on a repository with vendored bundles rather than argued from the shape alone.
+  - _Verified 2026-09-20:_ 1,415 tests passed, sixteen skipped; twelve Joern-gated query tests pass in the image; Ruff/format/mypy passed. The obligation is claimed where the first argument has the shape of a query document, which the operation fact states as `query_document_arg` and the arbiter decides: no arguments at all, an object literal, or a builder call. Not claimed: a method reference, a literal, an operator call, and a bare identifier.
+  - _The false-positive count is measured, on wp-statistics, a WordPress plugin that ships jQuery._ Its assets hold 88 calls named `find` — 70 jQuery selectors, 13 array predicates and 5 selectors built at run time by a template literal or a concatenation, and no collection read at all. Zero became an obligated operation. The zero is a measured one and not an empty graph: the same run's census reports 60 files and 4,552 methods, and the files holding those 88 calls are in it.
+  - On NodeGoat all three `find` calls are collection reads and all three are claimed, which raises the obligation at four more handlers including `app/routes/allocations.js:displayAllocations` — the documented insecure direct object reference, which had raised nothing at any point in the pipeline before. Seven of fifteen handlers now reach a verdict, all corroborated, none reported without a judge, and the census is unchanged on both subjects. Evidence: `benchmarks/measurements/2026-09-20-collection-read-obligation.json`.
+  - _A bare identifier is deliberately not claimed._ `col.find(query)` and `arr.find(pred)` are the same shape and neither repository measured holds one, so this is a stated false negative rather than an unmeasured false-positive risk.
   - _Boundary: shipped obligation facts, contributor-scan dominance_
   - _Depends: 14.4_
   - _Requirements: 6.2, 8.1_

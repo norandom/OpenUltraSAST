@@ -18,7 +18,7 @@ SENSITIVITIES = ("low", "medium", "high")
 DEFAULT_OBLIGATION_FACTS_DIR = Path(__file__).resolve().parents[2] / "ruleset" / "obligations"
 _LANGUAGE_ALIASES = {"c_cpp": "c", "cpp": "c", "python_web": "python", "node": "javascript", "ts": "typescript"}
 
-_OPERATION_FIELDS = frozenset({"id", "kind", "calls", "resource_arg", "requires", "sensitivity"})
+_OPERATION_FIELDS = frozenset({"id", "kind", "calls", "resource_arg", "requires", "sensitivity", "query_document_arg"})
 _DISCHARGER_FIELDS = frozenset(
     {"id", "kind", "calls", "decorators", "identity_sources", "constraint_params", "request_sources", "permissive_values"}
 )
@@ -37,6 +37,12 @@ class OperationFact:
     resource_arg: int | None  # argument or receiver position naming the resource (model, table, path); None = receiver
     requires: tuple[str, ...]  # DISCHARGER_KINDS that discharge this operation
     sensitivity: str  # SENSITIVITIES
+    # A call whose NAME is shared with something ordinary, obligated only in the argument shape of a data
+    # operation. `find` is the commonest collection read there is and also `Array.prototype.find` and jQuery's
+    # `.find`, so the name alone cannot carry the obligation: measured on one plugin's assets, 83 of 88 `find`
+    # calls were a selector or a predicate. The position is 1-based over the real arguments; the arbiter that
+    # can see argument shapes decides it, and a language whose calls are unambiguous never sets this.
+    query_document_arg: int | None = None
 
 
 @dataclass(frozen=True)
@@ -96,6 +102,9 @@ def load_obligation_facts(directory: Path | None = None) -> ObligationFacts:
             resource_arg = row.get("resource_arg")
             if resource_arg is not None and not isinstance(resource_arg, int):
                 raise ObligationFactsError(f"{path}: operation {row.get('id')!r} resource_arg must be an integer")
+            document_arg = row.get("query_document_arg")
+            if document_arg is not None and (not isinstance(document_arg, int) or document_arg < 1):
+                raise ObligationFactsError(f"{path}: operation {row.get('id')!r} query_document_arg must be a positive integer")
             operations.append(
                 OperationFact(
                     id=str(row["id"]),
@@ -105,6 +114,7 @@ def load_obligation_facts(directory: Path | None = None) -> ObligationFacts:
                     resource_arg=resource_arg,
                     requires=requires,
                     sensitivity=sensitivity,
+                    query_document_arg=document_arg,
                 )
             )
         for row in _rows(payload.get("discharger"), path):

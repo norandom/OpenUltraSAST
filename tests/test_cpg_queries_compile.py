@@ -436,3 +436,38 @@ def test_an_identity_constrained_handler_is_not_reported(tmp_path: Path) -> None
     cpg = CpgResult(cpg_path=tmp_path / "cpg.bin", run=lambda q, p: rows)
     answer = verdict(cpg, spec, function="displayMine", file="app/routes/notes.js")
     assert answer is None, f"a handler that passes the caller's own identity was reported: {answer}"
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_only_a_collection_read_is_an_obligated_find(tmp_path: Path) -> None:
+    """`find` is a collection read, an array search and a jQuery selector. Only the first is obligated.
+
+    The name was absent from the operation table for that reason, which left the family's obligation missing at
+    the commonest read there is: NodeGoat's documented insecure direct object reference reads with
+    `allocationsCol.find(searchCriteria())`. Measured on one WordPress plugin's shipped assets, 83 of 88 calls
+    named `find` pass a selector or a predicate, and five pass a selector built at run time. Each exclusion
+    below is one of those measured classes.
+    """
+    from openultrasast.model.specs import dominance_specs
+
+    spec = dominance_specs(language="javascript")["access_control"]
+    assert "find" in spec.document_shape, "the shape requirement is no longer declared for this call"
+
+    source = tmp_path / "shapes.js"
+    source.write_text(
+        "function shapes(db, arr, $el, pred, query) {\n"
+        '    const col = db.collection("notes");\n'
+        "    const read = col.find({ owner: 1 });\n"
+        "    const wide = col.find();\n"
+        "    const built = col.find(criteria());\n"
+        "    const search = arr.find(x => x.id === 1);\n"
+        '    const selector = $el.find(".cls");\n'
+        '    const interpolated = $el.find(`li[data-key="${pred}"]`);\n'
+        "    const concatenated = $el.find('li[data-key=\"' + pred + '\"]');\n"
+        "    return [read, wide, built, search, selector, interpolated, concatenated];\n"
+        "}\n"
+    )
+    rows = _dominance_rows(tmp_path, function="shapes", file="shapes.js")
+    lines = sorted(int(str(row["opLine"])) for row in rows)
+    # 3 the object literal, 4 the whole collection, 5 the builder call.
+    assert lines == [3, 4, 5], f"the wrong find shapes were claimed: {[(r['opLine'], r['operation']) for r in rows]}"
