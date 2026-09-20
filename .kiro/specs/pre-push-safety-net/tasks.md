@@ -491,10 +491,13 @@ Preserve all completed task evidence below.
   - _Boundary: shipped semantic facts, family taxonomy_
   - _Depends: 14.1_
   - _Requirements: 6.2, 8.1_
-- [ ] 14.6 Report every permissive setting in a file, not the first one
+- [x] 14.6 Report every permissive setting in a file, not the first one
   - **Named by the 14.3 measurement.** The configuration arbiter returns one verdict per question. NodeGoat's `server.js` holds a permissive session at line 78 and template auto-escaping disabled at line 135 in the same function, so the escaping defect is detected — measured model_entailed against the real query and the real arbiter — and never reported. A contributor is shown one of two defects and told nothing about the other.
   - This is the arbiter's contract, not a data gap: `verdict()` returns `Verdict | None` and the scan collects one per question. Changing it touches every family that returns a verdict, so it is scheduled rather than folded into a vocabulary change.
   - Done when a file with two permissive settings reports both, with their own sites and witnesses, and no family reports a defect twice.
+  - _Verified 2026-09-20:_ 1,417 tests passed, seventeen skipped; thirteen Joern-gated query tests pass in the image; Ruff/format/mypy passed. Configuration now returns one verdict per setting whose value the model could read. The pipeline already emitted one finding per entailed answer, so only this arbiter was still folding them to one. NodeGoat's `server.js` reports both defects with their own sites, `server.js:78` for the permissive session and `server.js:135` for the disabled template auto-escaping, which is the defect task 14.3 could detect and never report. Its applied fix at line 126 stays silent. VAmPI is unchanged and no other family moved. Evidence: `benchmarks/measurements/2026-09-20-every-permissive-setting.json`.
+  - _Three boundaries drawn rather than assumed._ A setting whose value is COMPUTED stays one verdict per region: that band is a question for the judge, and returning every undecided setting would multiply model calls for claims the graph did not establish. A call carrying two permissive literals is one finding, because `cors({origin: true, credentials: true})` is one misconfiguration. And config verdicts now carry a `path:line:function` location, without which the plural answer collapsed straight back to one in the deduplicator, which is the same gap dominance carried until its findings stopped arriving with no line.
+  - _Dominance is left answering once per region, and that is settled rather than pending._ Its claim is that a region contradicts itself, so the region is the unit and a second verdict would restate the same inconsistency. The pipeline says so where it used to call this a known gap.
   - _Boundary: contributor-scan arbitration, Rung ladder_
   - _Depends: 14.3_
   - _Requirements: 6.3, 8.1_

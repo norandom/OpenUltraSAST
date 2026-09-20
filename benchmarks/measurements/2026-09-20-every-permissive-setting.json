@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "experiment": "every-permissive-setting-v1",
+  "date": "2026-09-20",
+  "task": "pre-push-safety-net 14.6",
+  "claim_scope": "One change to the configuration arbiter's contract, measured on two subjects. Detection only. No capability qualified.",
+  "problem": "The arbiter returned one verdict per question. NodeGoat's server.js configures a permissive session at line 78 and disables template auto-escaping at line 135, both inside the same function, so the escaping defect that task 14.3 added was detected on every run and reported on none. Which of two real defects a contributor saw depended on where in the file it sat.",
+  "change": {
+    "plural_where_the_graph_decided": "config_value.verdicts returns one verdict per setting whose value the model could read. The pipeline already emitted one finding per entailed answer; only configuration was still folding them to one.",
+    "singular_where_it_did_not": "A setting whose value is COMPUTED stays one verdict per region. That band is a question for the judge rather than a finding, and returning every undecided setting would multiply model calls for claims the graph did not establish.",
+    "one_defect_per_setting": "A call with two permissive literals is one finding, not two. `cors({origin: true, credentials: true})` is one misconfiguration.",
+    "sites": "Config verdicts now carry a location, path:line:function. Without one they shared the region's identity and the deduplicator kept a single finding, so the plural answer would have collapsed back to one. The same gap dominance carried until its findings stopped arriving with no line.",
+    "dominance_left_alone": "Its claim is that a region CONTRADICTS ITSELF, so the region is the unit and a second verdict would restate the same inconsistency. Recorded in the pipeline as settled rather than pending."
+  },
+  "measured": {
+    "nodegoat": {
+      "config_secrets_before": 1,
+      "config_secrets_after": 2,
+      "now_reported": [
+        {
+          "site": "server.js:78:<lambda>0",
+          "witness": "session({...}): permissive literal true"
+        },
+        {
+          "site": "server.js:135:<lambda>0",
+          "witness": "swig.setDefaults({ autoescape: false }): permissive literal false",
+          "note": "the template auto-escaping defect task 14.3 could detect and never report"
+        }
+      ],
+      "still_silent": "marked.setOptions({ sanitize: true }) at line 126, the applied fix between the two",
+      "other_families": {
+        "access_control": 0,
+        "injection": 3,
+        "output_encoding": 1,
+        "path": 0,
+        "prototype": 0,
+        "untrusted_destination": 2
+      }
+    },
+    "vampi": {
+      "config_secrets": 1,
+      "unchanged": true
+    },
+    "sites_are_distinct": true
+  },
+  "limits": [
+    "Only the decided band is plural; a file with two computed settings still asks one question.",
+    "The location uses the region's file, which is correct because this arbiter never leaves the file it was asked about.",
+    "Two subjects, both used to develop this analyser."
+  ]
+}

@@ -30,6 +30,7 @@ from typing import Any
 from ..cpg.backend import CpgResult
 from ..redaction import redact_secrets
 from .config_value import verdict as config_verdict
+from .config_value import verdicts as config_verdicts
 from .dominance import verdict as dominance_verdict
 from .ladder import Rung, Verdict
 from .specs import ConfigSpec, DominanceSpec, TaintSpec
@@ -83,11 +84,15 @@ def _arbitrate_all(
     One verdict per region was the right answer for a pair -- one labelled function, one bug -- and the wrong
     one for a region that spans a file. A PHP file with an SQL injection on line 6 and a command injection on
     line 13 produced ONE injection verdict, and `system` won it on flow length, so the SQL injection went
-    unreported by construction. Only taint can report several sites today; dominance and config still answer
-    once per region, which is correct for dominance (its claim is about the region's consistency) and a
-    known gap for config.
+    unreported by construction.
+
+    Taint and configuration report every site they decide. Dominance still answers once per region, and that
+    is correct rather than pending: its claim is that a region CONTRADICTS ITSELF, so the region is the unit
+    and a second verdict would be the same statement about the same inconsistency.
     """
-    if isinstance(spec, (DominanceSpec, ConfigSpec)):
+    if isinstance(spec, ConfigSpec):
+        return config_verdicts(cpg, spec, function=function, file=path)
+    if isinstance(spec, DominanceSpec):
         answer = _arbitrate(cpg, spec, path=path, function=function, parameter_sources=parameter_sources, call_depth=call_depth)
         return [answer] if answer is not None else []
     return taint_verdicts(cpg, spec, function=function, file=path, parameter_sources=parameter_sources, call_depth=call_depth)

@@ -183,6 +183,11 @@ public routes and both wrong, and an application-wide scope entails four true de
 same two wrong ones. Neither scope can tell a public route from a protected one, so the carried
 rung stays capped and that question stays with the judge.
 
+Configuration reports every setting it decides, not the first one in the file. NodeGoat's
+server.js now carries both its permissive session and its disabled template auto-escaping, each
+with its own site; the escaping defect had been detected on every run since task 14.3 and
+reported on none, because an earlier setting in the same function won the single verdict.
+
 Closing the second gap surfaced four defects, three of which were false positives it would
 otherwise have shipped: a permissive-value set shared across settings whose booleans have
 opposite polarity, a dotted setting matched on its trailing segment alone, a flow query asked of
@@ -196,4 +201,5 @@ Evidence: [family detection census](../../../benchmarks/measurements/2026-09-19-
 [output encoding family](../../../benchmarks/measurements/2026-09-19-output-encoding-family.json),
 [access control across the module split](../../../benchmarks/measurements/2026-09-20-access-control-module-split.json),
 [collection read obligation](../../../benchmarks/measurements/2026-09-20-collection-read-obligation.json),
-[sibling scope and identity](../../../benchmarks/measurements/2026-09-20-sibling-scope-and-identity.json).
+[sibling scope and identity](../../../benchmarks/measurements/2026-09-20-sibling-scope-and-identity.json),
+[every permissive setting](../../../benchmarks/measurements/2026-09-20-every-permissive-setting.json).

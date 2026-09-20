@@ -214,3 +214,44 @@ def test_the_first_setting_in_a_file_is_the_one_reported() -> None:
     ]
     answer = verdict(_cpg(rows), _javascript_spec(), function="m")
     assert answer is not None and "line 78" in answer.witness, answer.witness
+
+
+def test_a_file_reports_every_permissive_setting_not_the_first() -> None:
+    """Two defects in one file are two findings, with their own sites.
+
+    Measured on NodeGoat: `server.js` configures a permissive session at line 78 and disables template
+    auto-escaping at line 135, both inside the same function. One verdict per region reported the session and
+    the escaping defect was detected on every run and reported on none, so which of two real defects a
+    contributor saw depended on where in the file it sat.
+    """
+    from openultrasast.model.config_value import verdicts
+    from openultrasast.model.ladder import Rung
+
+    rows = [
+        {"setting": "session({ resave: true })", "line": "78", "method": "<lambda>0", "literalArgs": ["true"], "args": []},
+        {"setting": "marked.setOptions({ sanitize: true })", "line": "126", "method": "<lambda>0", "literalArgs": ["true"], "args": []},
+        {"setting": "swig.setDefaults({ autoescape: false })", "line": "135", "method": "<lambda>0", "literalArgs": ["false"], "args": []},
+    ]
+    answers = verdicts(_cpg(rows), _javascript_spec(), function="<lambda>0", file="server.js")
+    assert len(answers) == 2, [a.witness for a in answers]
+    assert all(a.rung is Rung.ENTAILED for a in answers)
+    assert [a.location for a in answers] == ["server.js:78:<lambda>0", "server.js:135:<lambda>0"]
+    # The applied fix in between stays silent, which is what the per-setting polarity is for.
+    assert all("marked" not in a.witness for a in answers)
+
+
+def test_one_setting_with_two_permissive_literals_is_one_finding() -> None:
+    """A call is a defect once, however many of its values are open. No family reports a defect twice."""
+    from openultrasast.model.config_value import verdicts
+
+    rows = [
+        {
+            "setting": "cors({ origin: true, credentials: true })",
+            "line": "9",
+            "method": "app",
+            "literalArgs": ["true", "true"],
+            "args": [],
+        }
+    ]
+    answers = verdicts(_cpg(rows), _javascript_spec(), function="app", file="server.js")
+    assert len(answers) == 1, [a.witness for a in answers]

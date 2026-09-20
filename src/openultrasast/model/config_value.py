@@ -30,17 +30,29 @@ def request_params(spec: ConfigSpec, *, function: str = "", file: str = "") -> d
     return {"settings": spec.settings, "function": function, "file": file}
 
 
-def verdict(cpg: CpgResult, spec: ConfigSpec, *, function: str = "", file: str = "") -> Verdict | None:
-    """The verdict for a security setting in ``function``, or ``None`` when nothing is established."""
+def verdicts(cpg: CpgResult, spec: ConfigSpec, *, function: str = "", file: str = "") -> list[Verdict]:
+    """Every configuration defect this region establishes, one per setting, strongest first.
+
+    A file configures many things, and one verdict per region reported the first of them. Measured on
+    NodeGoat: `server.js` disables template auto-escaping at line 135 and configures a permissive session at
+    line 78, both inside the same function, so the escaping defect was detected on every run and reported on
+    none. A contributor was shown one of two defects and told nothing about the other, and which one depended
+    on where in the file it sat.
+
+    Only the decided band is plural. A setting whose value the model could not READ is a question for the
+    judge rather than a finding, and asking it once per region is what that band has always cost; returning
+    every undecided setting would multiply model calls for claims none of which the graph established.
+    """
     rows = cpg.run("config", request_params(spec, function=function, file=file))
     settings = _settings(rows, spec, function=function)
     if not settings:
-        return None
+        return []
 
     # Both abstractions read the same literal: a permissive flag ("*", True) and a weak algorithm ("md5").
     permissive = {value.strip().strip("'\"").lower() for value in spec.permissive}
     permissive |= {value.strip().strip("'\"").lower() for value in spec.weak_algorithms}
     scoped = {setting: {value.strip().strip("'\"").lower() for value in values} for setting, values in spec.permissive_by_setting}
+    found: list[Verdict] = []
     for row in settings:
         literals = row["literals"]
         if not isinstance(literals, list):
@@ -48,22 +60,51 @@ def verdict(cpg: CpgResult, spec: ConfigSpec, *, function: str = "", file: str =
         allowed = _permissive_for(str(row["setting"]), scoped) or permissive
         for literal in literals:
             if str(literal).strip().strip("'\"").lower() in allowed:
-                return Verdict(
-                    rung=Rung.ENTAILED,
-                    family=spec.family,
-                    witness=f"{row['setting']} (line {row['line']}): permissive literal {literal}",
+                found.append(
+                    Verdict(
+                        rung=Rung.ENTAILED,
+                        family=spec.family,
+                        witness=f"{row['setting']} (line {row['line']}): permissive literal {literal}",
+                        location=_location(row, file),
+                    )
                 )
+                break  # one verdict per setting: a call with two permissive literals is one defect
+    if found:
+        return found
 
     # A setting whose value the model could not read. Not safe, not decided.
     computed = [row for row in settings if not row["literals"]]  # type: ignore[truthy-iterable]
     if computed:
         row = computed[0]
-        return Verdict(
-            rung=Rung.CORROBORATED,
-            family=spec.family,
-            witness=f"{row['setting']} (line {row['line']}): value is computed, not a literal the model can evaluate",
-        )
-    return None
+        return [
+            Verdict(
+                rung=Rung.CORROBORATED,
+                family=spec.family,
+                witness=f"{row['setting']} (line {row['line']}): value is computed, not a literal the model can evaluate",
+                location=_location(row, file),
+            )
+        ]
+    return []
+
+
+def verdict(cpg: CpgResult, spec: ConfigSpec, *, function: str = "", file: str = "") -> Verdict | None:
+    """The strongest single verdict, kept for callers that ask one question and want one answer."""
+    answers = verdicts(cpg, spec, function=function, file=file)
+    return answers[0] if answers else None
+
+
+def _location(row: Mapping[str, object], file: str) -> str:
+    """``path:line:function`` of the setting, when the region named a file.
+
+    Two settings in one file are two findings only if they are two SITES. Without this they shared the
+    region's own identity and the deduplicator kept one, which is the same defect dominance carried until its
+    findings stopped arriving as `api_views/users.py:?:update_password`. The config query reports no file of
+    its own, so the region's is used -- correct because this arbiter never leaves the file it was asked about.
+    """
+    line = str(row.get("line") or "")
+    if not file or not line.lstrip("-").isdigit() or int(line) < 0:
+        return ""
+    return f"{file}:{line}:{row.get('method') or '?'}"
 
 
 def _permissive_for(setting: str, scoped: Mapping[str, set[str]]) -> set[str]:
@@ -115,4 +156,4 @@ def _settings(rows: object, spec: ConfigSpec, *, function: str) -> list[dict[str
     return sorted(kept, key=lambda row: (str(row["method"]), _line(row), str(row["setting"])))
 
 
-__all__ = ["request_params", "verdict"]
+__all__ = ["request_params", "verdict", "verdicts"]
