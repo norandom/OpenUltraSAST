@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "experiment": "php-runtime-after-the-graph-fix-v1",
+  "date": "2026-09-20",
+  "task": "pre-push-safety-net 13.2",
+  "claim_scope": "What remains of the PHP blocker once the malformed-CPG bug is excluded. Measured on Paid Memberships Pro, 673 files.",
+  "the_graph_bug_is_fixed": {
+    "issue": "joernio/joern#6281, this project's own report",
+    "defect": "a PHP `global` inside a closure gave a node two AST parents, so the dataflow overlay threw and one file cost the whole graph",
+    "filed_against": "4.0.623",
+    "fixed_in": "4.0.625, by joernio/joern#6270",
+    "the_image_pins": "4.0.625, since before any measurement recorded under this task",
+    "verified_today": "Not on a transcription of the repro, which does not reproduce, but on the real trigger: PMPro's includes/fields.php, the file the original bisection found, whose add_filter callback carries a `global $submenu_file`. It builds and applies the default overlays cleanly on BOTH 4.0.625 and 4.0.631: files=2, methods=158, no ReachingDefPass assertion.",
+    "consequence": "What remains under this task is a runtime failure and must not be re-diagnosed as the graph bug."
+  },
+  "what_remains_is_runtime": {
+    "subject": {
+      "files": 673,
+      "regions": 4461,
+      "php_regions": 4425,
+      "questions_asked": 2526
+    },
+    "runs": {
+      "pmpro": {
+        "questions_total": 2526,
+        "questions_completed": 0,
+        "seconds": 627.7,
+        "build_seconds": 144.04,
+        "query_seconds": 363.41,
+        "degradations": [
+          "cross_partition_semantics_unresolved",
+          "partition_file_census_incomplete",
+          "process_timeout",
+          "query_failed",
+          "scratch_cleanup_incomplete",
+          "shard_query_incomplete"
+        ]
+      },
+      "pmpro-joern631": {
+        "questions_total": 2526,
+        "questions_completed": 0,
+        "seconds": 619.1,
+        "build_seconds": 134.54,
+        "query_seconds": 367.32,
+        "degradations": [
+          "cross_partition_semantics_unresolved",
+          "partition_file_census_incomplete",
+          "process_timeout",
+          "query_failed",
+          "scratch_cleanup_incomplete",
+          "shard_query_incomplete"
+        ]
+      },
+      "pmpro-631-longceiling": {
+        "questions_total": 2526,
+        "questions_completed": 0,
+        "seconds": 2096.5,
+        "build_seconds": 113.24,
+        "query_seconds": 1874.15,
+        "degradations": [
+          "cross_partition_semantics_unresolved",
+          "partition_file_census_incomplete",
+          "process_timeout",
+          "query_failed",
+          "scratch_cleanup_incomplete",
+          "shard_query_incomplete"
+        ]
+      }
+    },
+    "reading": "A taint batch of 2,526 questions over a 673-file PHP graph does not complete in thirty minutes. Raising the ceiling six-fold, from 300 to 1,800 seconds, changed nothing except how long the failure took: 363 seconds of query time became 1,874, and zero questions completed in both. The eight-way split retry did not rescue it either, finishing its parts in about three minutes against a deadline with 3,300 seconds still on it, which is worth a look on its own.",
+    "engine_comparison": "4.0.625 and 4.0.631 are indistinguishable on this subject: 627.7s against 619.1s, 363.4s against 367.3s of query time, zero completed in both. The six releases between them change nothing here."
+  },
+  "on_the_engine_pin": {
+    "decision": "leave the image pinned at 4.0.625",
+    "why": "4.0.631 was built and measured and is equivalent on this subject, so there is no demonstrated benefit to weigh against re-verifying every JavaScript and Python measurement on a new engine.",
+    "what_a_bump_would_cost": "Three values in ops/frontend-retention/install.py, not a port. The upstream AstGenRunner.scala is byte-identical in 4.0.631, sha256 9963f949360d7e17baed1bd8875b717b2855745cf7260eef8a87d17533a54268, and its patch anchor still appears exactly once. Only the jar path, the jar checksum (f770d929d192a7da40932ee8c22df76ca635af216f643acf2f46a0fbe5747ef1 for io.joern.jssrc2cpg-4.0.631.jar) and the source URL tag need changing."
+  },
+  "limits": [
+    "One PHP subject. The other three plugins available hold no deserialization site and were not run.",
+    "The split retry's fast failure is unexplained and may be hiding a second cause.",
+    "Both engines were measured with the same region budget, 500, and the same driver."
+  ]
+}

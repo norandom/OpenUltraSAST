@@ -188,6 +188,14 @@ server.js now carries both its permissive session and its disabled template auto
 with its own site; the escaping defect had been detected on every run since task 14.3 and
 reported on none, because an earlier setting in the same function won the single verdict.
 
+The PHP record is corrected. The malformed-CPG bug this project reported upstream, a `global`
+inside a closure giving a node two AST parents, was fixed in Joern 4.0.625 and the image has
+pinned that version throughout; it is verified today on the real trigger file, on 4.0.625 and
+4.0.631 alike. What remains under task 13.2 is runtime alone: a 2,526-question batch over a
+673-file plugin does not finish in thirty minutes, and a six-fold larger ceiling only made the
+failure take longer. The engine pin stays where it is, because the newer release measures the
+same here.
+
 Closing the second gap surfaced four defects, three of which were false positives it would
 otherwise have shipped: a permissive-value set shared across settings whose booleans have
 opposite polarity, a dotted setting matched on its trailing segment alone, a flow query asked of
@@ -202,4 +210,5 @@ Evidence: [family detection census](../../../benchmarks/measurements/2026-09-19-
 [access control across the module split](../../../benchmarks/measurements/2026-09-20-access-control-module-split.json),
 [collection read obligation](../../../benchmarks/measurements/2026-09-20-collection-read-obligation.json),
 [sibling scope and identity](../../../benchmarks/measurements/2026-09-20-sibling-scope-and-identity.json),
-[every permissive setting](../../../benchmarks/measurements/2026-09-20-every-permissive-setting.json).
+[every permissive setting](../../../benchmarks/measurements/2026-09-20-every-permissive-setting.json),
+[PHP runtime after the graph fix](../../../benchmarks/measurements/2026-09-20-php-runtime-after-graph-fix.json).
