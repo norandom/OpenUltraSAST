@@ -71,16 +71,52 @@ def verdict(cpg: CpgResult, spec: DominanceSpec, *, function: str = "", file: st
     guarded_methods = sorted({str(row["opMethod"]) for row in siblings if row["guards"]})
     target = min(unguarded, key=lambda row: (row["opMethod"], row["opLine"]))
 
-    if guarded_methods:
+    where = _where(target)
+    # A carried obligation does not ENTAIL, however clean the asymmetry looks.
+    #
+    # The rung's justification is that one FILE contradicts itself: same file, same trust context, so an
+    # unguarded operation beside a guarded one is evidence. Once the obligation is carried across a module
+    # boundary, the operations being compared live in a data-access module that handlers of DIFFERENT trust
+    # contexts share, and a route file mixing public with authenticated handlers is the normal shape -- so the
+    # asymmetry stops implying inconsistency.
+    #
+    # Measured on NodeGoat, where this was not hypothetical: `handleSignup` looks a user up by name to check
+    # the name is free, which is public by design, and two authenticated siblings in the same file pass
+    # `req.session.userId` into the same module. The asymmetry is real and the defect is not. That question --
+    # does this operation require a check, or is the route legitimately public? -- is exactly what the
+    # corroborated band's residual asks, so a carried row is capped there and the judge decides it.
+    if guarded_methods and not target.get("viaLine"):
         witness = (
-            f"{target['opMethod']} line {target['opLine']}: no discharging guard, "
-            f"while {len(guarded_methods)} sibling handler(s) are guarded "
-            f"({', '.join(guarded_methods[:3])})"
+            f"{where}: no discharging guard, while {len(guarded_methods)} sibling handler(s) are guarded ({', '.join(guarded_methods[:3])})"
         )
         return Verdict(rung=Rung.ENTAILED, family=spec.family, witness=witness, location=_location(target))
 
-    witness = f"{target['opMethod']} line {target['opLine']}: obligated operation with no discharging guard, and no guarded sibling"
+    if guarded_methods:
+        witness = (
+            f"{where}: no discharging guard, while {len(guarded_methods)} sibling handler(s) reaching the same "
+            f"module are guarded ({', '.join(guarded_methods[:3])}); the obligation was carried across a module "
+            f"boundary, so those siblings need not share this route's trust context"
+        )
+        return Verdict(rung=Rung.CORROBORATED, family=spec.family, witness=witness, location=_location(target))
+
+    witness = f"{where}: obligated operation with no discharging guard, and no guarded sibling"
     return Verdict(rung=Rung.CORROBORATED, family=spec.family, witness=witness, location=_location(target))
+
+
+def _where(row: Mapping[str, object]) -> str:
+    """The sites a reader has to open. Two of them when the obligation crossed a module boundary.
+
+    An application that puts its route in one file and its query in another raised no obligation at all until
+    the query followed the call, and a witness that named only the operation would send a contributor to a
+    data-access module that is not where the decision was made. Naming only the handler would hide what the
+    claim is about. So a carried row names both, in the order a reader needs them.
+    """
+    method = str(row["opMethod"])
+    via_line = str(row.get("viaLine") or "")
+    if not via_line:
+        return f"{method} line {row['opLine']}"
+    call = str(row.get("viaCall") or "").strip()
+    return f"{method} line {via_line} calls {call}, whose operation at {row.get('opFile')}:{row['opLine']}"
 
 
 def _location(row: Mapping[str, object]) -> str:
@@ -90,6 +126,12 @@ def _location(row: Mapping[str, object]) -> str:
     reached a contributor as `api_views/users.py:?:update_password` -- the right file by accident, because
     the region was asked about that file, and no line at all.
     """
+    # A carried obligation is located at the CALL, not at the operation: that is the line the contributor
+    # changed and the line an admission decision has to be attributable to. The operation's own site travels
+    # in the witness.
+    carried_line = str(row.get("viaLine") or "")
+    if carried_line.lstrip("-").isdigit() and int(carried_line) >= 0 and row.get("viaFile"):
+        return f"{row['viaFile']}:{carried_line}:{row.get('opMethod') or '?'}"
     where = str(row.get("opFile") or "")
     line = str(row.get("opLine") or "")
     if not where or not line.lstrip("-").isdigit() or int(line) < 0:
@@ -112,6 +154,9 @@ def _operations(rows: object) -> list[dict[str, object]]:
                 "opLine": str(row.get("opLine", "")),
                 "opMethod": str(row.get("opMethod", "")),
                 "opFile": str(row.get("opFile", "")),
+                "viaCall": str(row.get("viaCall", "")),
+                "viaLine": str(row.get("viaLine", "")),
+                "viaFile": str(row.get("viaFile", "")),
                 "guards": [str(g) for g in guards] if isinstance(guards, Sequence) and not isinstance(guards, str) else [],
             }
         )

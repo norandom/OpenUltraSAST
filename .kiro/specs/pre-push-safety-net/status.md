@@ -157,7 +157,15 @@ surface a Node server actually calls, and NodeGoat's SSRF is reported at
 `app/routes/research.js:16` with a witness naming the call. Output encoding now asks about the
 server half of its own family and establishes a finding at `app/routes/research.js:25`, and it
 states in its declaration that template-mediated escaping is not something it can decide. Five
-of seven families now establish findings; access control remains open as task 14.4.
+of seven families now establish findings.
+
+Access control was the third gap and its structural half is closed. The obligation now follows
+the one named call a handler writes into its data-access module, attributed by the graph's own
+provenance rather than by name, and located at the call a contributor changed. On NodeGoat it is
+raised at six handlers where it was raised nowhere, and three reach a verdict. All three are
+corroborated and none is reported without a judge, which is the honest rung: entailing a carried
+obligation reported a signup handler that is public by design, because its authenticated
+siblings share the same data module. VAmPI is unchanged.
 
 Closing the second gap surfaced four defects, three of which were false positives it would
 otherwise have shipped: a permissive-value set shared across settings whose booleans have
@@ -169,4 +177,5 @@ permissive setting; task 14.6 carries it.
 
 Evidence: [family detection census](../../../benchmarks/measurements/2026-09-19-family-detection-census.json),
 [untrusted destination vocabulary](../../../benchmarks/measurements/2026-09-19-untrusted-destination-vocabulary.json),
-[output encoding family](../../../benchmarks/measurements/2026-09-19-output-encoding-family.json).
+[output encoding family](../../../benchmarks/measurements/2026-09-19-output-encoding-family.json),
+[access control across the module split](../../../benchmarks/measurements/2026-09-20-access-control-module-split.json).

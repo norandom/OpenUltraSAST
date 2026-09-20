@@ -135,10 +135,86 @@
   // repository this was measured on, and unscoped rows attributed the model's unguarded query to the
   // handler. The sibling comparison is a statement about a FILE contradicting itself, which is what the
   // rung's justification says, so the file is also the right scope for it.
-  val opCalls = {
-    val all = cpg.call.filter(c => matchesOperation(c.name, c.code)).l
-    if (fileS.isEmpty) all else all.filter(_.method.filename.endsWith(fileS))
+  val allOperations = cpg.call.filter(c => matchesOperation(c.name, c.code)).l
+  val opCalls = if (fileS.isEmpty) allOperations else allOperations.filter(_.method.filename.endsWith(fileS))
+
+  // ---- The module boundary an application puts between its route and its query --------------------------
+  //
+  // Measured on NodeGoat: every modelled data operation lives in `app/data/*-dao.js`, none in a route handler
+  // file, and the family answered 35 questions there with nothing to say -- the obligation was never raised
+  // anywhere the question was asked. Widening the file scope is not the fix, because an unscoped row is
+  // exactly what attributed a model's unguarded query to a handler of the same name. The obligation is
+  // carried along the call the handler actually writes.
+  //
+  // How it is followed matters. jssrc2cpg does not resolve `allocationsDAO.getByUserIdAndThreshold(...)` to
+  // the DAO's body: the callee is an EXTERNAL stub with no code and no filename. But the stub's fullName
+  // records where the member was written -- `app/data/allocations-dao.js::program:AllocationsDAO:getByUser...`
+  // -- so the implementation is reached by the graph's own provenance rather than by guessing a name across
+  // the repository, which is the false positive this scope was closed to avoid.
+  def stubTarget(fullName: String): Option[(String, String)] = {
+    val idx = fullName.indexOf("::program:")
+    val member = fullName.substring(fullName.lastIndexOf(':') + 1)
+    if (idx <= 0 || member.isEmpty) None else Some((fullName.substring(0, idx), member))
   }
+
+  def spans(outer: io.shiftleft.codepropertygraph.generated.nodes.Method, inner: io.shiftleft.codepropertygraph.generated.nodes.Method): Boolean =
+    outer.filename == inner.filename &&
+      inner.lineNumber.getOrElse(-1) >= outer.lineNumber.getOrElse(0) &&
+      inner.lineNumberEnd.getOrElse(-1) <= outer.lineNumberEnd.getOrElse(Int.MaxValue)
+
+  // The method a MEMBER NAME is written as, in one file. A handler or a DAO method written
+  // `this.getUserById = (userId, callback) => {}` is a `<lambda>` in the graph, and the assignment puts the
+  // lambda's first line on itself -- which is how the written name and the graph's method are joined without
+  // a repository-wide name lookup. A language that gives its functions real names (every Python handler this
+  // family already answers) matches on the first branch and never needs the second.
+  val methodsByFile = scala.collection.mutable.Map.empty[String, List[io.shiftleft.codepropertygraph.generated.nodes.Method]]
+  def fileMethods(path: String): List[io.shiftleft.codepropertygraph.generated.nodes.Method] =
+    methodsByFile.getOrElseUpdate(path, cpg.method.filterNot(_.isExternal).filter(_.filename.endsWith(path)).l)
+
+  def writtenAs(path: String, member: String): List[io.shiftleft.codepropertygraph.generated.nodes.Method] = {
+    val inFile = fileMethods(path)
+    val named = inFile.filter(_.name == member)
+    if (named.nonEmpty) named
+    else {
+      val prefixes = List("this." + member, member, "const " + member, "let " + member, "var " + member)
+      val lines = inFile
+        .flatMap(_.ast.isCall.nameExact("<operator>.assignment").l)
+        .filter(a => prefixes.exists(p => a.code.startsWith(p + " =") || a.code.startsWith(p + "=")))
+        .flatMap(_.lineNumber)
+        .toSet
+      inFile.filter(m => m.lineNumber.exists(lines.contains))
+    }
+  }
+
+  def operationsWithin(path: String, member: String): List[io.shiftleft.codepropertygraph.generated.nodes.Call] = {
+    val holders = writtenAs(path, member)
+    if (holders.isEmpty) Nil
+    else allOperations.filter(op => op.method.filename.endsWith(path) && holders.exists(h => h.id == op.method.id || spans(h, op.method)))
+  }
+
+  // One named call out of the scoped file, not a transitive walk. The claim is about the call this handler
+  // WRITES: a deeper walk would attribute a helper's helper's query to a handler that never mentions it, and
+  // the witness could no longer name the two sites a reader has to open.
+  val carried: List[(io.shiftleft.codepropertygraph.generated.nodes.Call, io.shiftleft.codepropertygraph.generated.nodes.Call)] =
+    if (fileS.isEmpty) Nil
+    else
+      fileMethods(fileS).flatMap { m =>
+        m.call.l.flatMap { via =>
+          via.callee.l
+            .filter(_.isExternal)
+            .flatMap(stub => stubTarget(stub.fullName))
+            .distinct
+            .filterNot { case (path, _) => path.endsWith(fileS) }
+            .flatMap { case (path, member) => operationsWithin(path, member).map(op => (op, via)) }
+        }
+      }.distinctBy { case (op, via) => (op.id, via.id) }
+
+  // The region asks about a declared function; the graph may hold it as a lambda. Attributing a row to the
+  // declared name is what lets the arbiter match at all -- the same query-to-operation identity problem task
+  // 12.3 fixed at the scope end, appearing here at the attribution end.
+  val labelled = if (function.isEmpty || fileS.isEmpty) Nil else writtenAs(fileS, function)
+  def attributedName(m: io.shiftleft.codepropertygraph.generated.nodes.Method): String =
+    if (labelled.exists(l => l.id == m.id || spans(l, m))) function else m.name
 
   // Change-attribution context for THIS family, describing the scope this query actually used.
   // It is deliberately not taint's projection: dominance compares sibling operations across a
@@ -154,21 +230,26 @@
     val scoped =
       if (fileS.isEmpty) cpg.method.filterNot(_.isExternal).l
       else cpg.method.filterNot(_.isExternal).filter(_.filename.endsWith(fileS)).l
-    val operationIds = opCalls.map(_.method.id).toSet
+    val operationIds = opCalls.map(_.method.id).toSet ++ carried.map { case (_, via) => via.method.id }.toSet
     val guardIds = scoped.filter(m => m.ast.isCall.code.l.exists(code => mentionsGuard(code))).map(_.id).toSet -- operationIds
     val rows = scoped.map { m =>
       val kind = if (operationIds.contains(m.id)) "operation" else if (guardIds.contains(m.id)) "guard" else "sibling"
       location(m, kind)
     }
+    // A carried obligation makes the claim span two files, so the method holding the operation is part of this
+    // question's scope even though it is not in the region's file. Leaving it out would let the module that
+    // holds the query change under a claim that depends on it without the change being attributed.
+    val carriedRows = carried.map { case (op, _) => location(op.method, "carried_operation") }.distinctBy(row => row.value.toString)
     // An empty scope is reported, never implied: a file the frontend produced no methods for
     // cannot support a statement about that file contradicting itself.
     val boundaries =
       if (scoped.isEmpty) List(ujson.Obj("kind" -> "context_boundary", "reason" -> "context_scope_empty:contributor-scan"))
       else Nil
-    ujson.Obj("kind" -> "context_summary") :: (rows ++ boundaries)
+    ujson.Obj("kind" -> "context_summary") :: (rows ++ carriedRows ++ boundaries)
   }
 
-  val rows = opCalls.map { op =>
+  // `via` is the call that carried the obligation here, absent when the operation is in the region's own file.
+  def rowFor(op: io.shiftleft.codepropertygraph.generated.nodes.Call, via: Option[io.shiftleft.codepropertygraph.generated.nodes.Call]): ujson.Obj = {
     val method = op.method
 
     val applicable = guardsFor(op.name, op.code)
@@ -183,18 +264,35 @@
     // 3. dominating guard: a call naming a discharger that actually dominates the operation.
     val dominating = op.dominatedBy.isCall.code.l.filter(c => mentions(c, applicable))
 
-    val guards = (inArguments ++ inCondition ++ dominating).distinct.map(_.take(120))
+    // 4. a guard at the CARRIER. When the obligation crossed a module boundary the check that discharges it is
+    //    overwhelmingly on this side of it: the handler establishes who is asking and passes the result down.
+    //    Reading only the operation's own site would report every correctly guarded handler in the repository.
+    val atCarrier = via.toList.flatMap { call =>
+      call.argument.code.l.filter(c => mentions(c, applicable)) ++
+        call.method.controlStructure.condition.code.l.filter(c => mentions(c, applicable)) ++
+        call.dominatedBy.isCall.code.l.filter(c => mentions(c, applicable))
+    }
+
+    val guards = (inArguments ++ inCondition ++ dominating ++ atCarrier).distinct.map(_.take(120))
+    val attributed = via.map(call => attributedName(call.method)).getOrElse(attributedName(method))
 
     ujson.Obj(
       "operation"        -> op.code.take(200),
       "opLine"           -> op.lineNumber.getOrElse(-1).toString,
-      "opMethod"         -> method.name,
+      "opMethod"         -> attributed,
       // Where the operation is. Without it an access-control finding reaches a contributor as
       // `api_views/users.py:?:update_password` -- a location no editor can open.
       "opFile"           -> method.filename,
+      // The two sites of a carried obligation: the call a reader would open first, and the operation it
+      // reaches. Empty for an operation the region's own file holds, which is the committed shape.
+      "viaCall"          -> via.map(_.code.take(120).replace("\n", " ")).getOrElse(""),
+      "viaLine"          -> via.flatMap(_.lineNumber).map(_.toString).getOrElse(""),
+      "viaFile"          -> via.map(_.method.filename).getOrElse(""),
       "dominatingGuards" -> ujson.Arr(guards.map(ujson.Str(_)): _*)
     )
   }
+
+  val rows = opCalls.map(op => rowFor(op, None)) ++ carried.map { case (op, via) => rowFor(op, Some(via)) }
 
     if (contextS == "true") rows ++ contextRowsFor() else rows
   }

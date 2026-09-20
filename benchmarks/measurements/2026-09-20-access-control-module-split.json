@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "experiment": "access-control-across-the-module-split-v1",
+  "date": "2026-09-20",
+  "task": "pre-push-safety-net 14.4",
+  "claim_scope": "Whether the access-control obligation is raised where an application puts its route in one file and its query in another. Detection only, on two development subjects. No capability qualified.",
+  "before": "Measured 2026-09-19: every modelled data operation in NodeGoat lives in app/data/*-dao.js or artifacts/db-reset.js, none in a route handler file. Operations were scoped to the region's own file and access_control regions are the handler files, so 35 questions completed with no obligation raised anywhere, and the family had nothing to be right or wrong about.",
+  "change": {
+    "carrying": "The obligation follows the call the handler writes, one named call out of the region's file. jssrc2cpg does not resolve allocationsDAO.getByUserIdAndThreshold(...) to the DAO body: the callee is an external stub with no code. The stub's fullName records where the member was written (app/data/allocations-dao.js::program:AllocationsDAO:getByUserIdAndThreshold), so the implementation is reached by the graph's own provenance rather than by a repository-wide name guess, which is the false positive the file scope was closed against.",
+    "attribution": "A row is attributed to the region's DECLARED function. A handler written this.displayAllocations = (req, res) => {} is a <lambda> in the graph, and a row naming the lambda could never match a question asking about displayAllocations. Same query-to-operation identity problem task 12.3 fixed at the scope end, appearing at the attribution end.",
+    "guard_at_the_carrier": "A carried obligation is also checked for a guard at the CALL, not only at the operation. When the obligation crosses a module boundary the check that discharges it is overwhelmingly on the handler's side: measured, userDAO.getUserById(req.session.userId, ...) discharges there and nowhere else.",
+    "witness_names_both_sites": "displayContributions line 17 calls contributionsDAO.getByUserId(...), whose operation at app/data/contributions-dao.js:57 has no discharging guard. The finding is located at the CALL, which is the line a contributor changed and an admission decision can attribute.",
+    "change_context": "The method holding a carried operation joins the question's context scope, so the module that holds the query cannot change under a claim that depends on it without the change being attributed.",
+    "rung_cap": "A carried obligation corroborates, it does not entail. The entailed rung's justification is that one FILE contradicts itself: same file, same trust context. Carried, the compared operations live in a data-access module shared by handlers of different trust contexts, and a route file mixing public with authenticated handlers is the normal shape."
+  },
+  "why_the_rung_cap_is_not_a_fudge": {
+    "measured_false_positive_without_it": {
+      "site": "app/routes/session.js handleSignup line 208",
+      "rung_without_the_cap": "model_entailed",
+      "witness": "calls userDAO.getUserByUserName(userName, ...), whose operation at app/data/user-dao.js:104 has no discharging guard, while 2 siblings are guarded",
+      "why_it_is_wrong": "The handler looks a user up by name to check the name is free during registration. The route is public by design. The two guarded siblings in the same file pass req.session.userId into the same module, so the asymmetry is real and the defect is not."
+    },
+    "what_the_band_asks_instead": "Does this operation require an authorization check, or is the route legitimately public? That is already the corroborated residual this family sends to the judge."
+  },
+  "measured_on_nodegoat": {
+    "handlers_asked": 15,
+    "obligations_raised_before": 0,
+    "handlers_with_a_carried_obligation": 9,
+    "verdicts": {
+      "none": 12,
+      "model_corroborated": 3
+    },
+    "reported_without_a_judge": 0,
+    "per_handler": {
+      "app/routes/benefits.js:displayBenefits": {
+        "rows": 0,
+        "carried": 0,
+        "verdict": "none",
+        "witness": "",
+        "reported_without_a_judge": false
+      },
+      "app/routes/benefits.js:updateBenefits": {
+        "rows": 0,
+        "carried": 0,
+        "verdict": "none",
+        "witness": "",
+        "reported_without_a_judge": false
+      },
+      "app/routes/allocations.js:displayAllocations": {
+        "rows": 0,
+        "carried": 0,
+        "verdict": "none",
+        "witness": "",
+        "reported_without_a_judge": false
+      },
+      "app/routes/memos.js:addMemos": {
+        "rows": 0,
+        "carried": 0,
+        "verdict": "none",
+        "witness": "",
+        "reported_without_a_judge": false
+      },
+      "app/routes/memos.js:displayMemos": {
+        "rows": 0,
+        "carried": 0,
+        "verdict": "none",
+        "witness": "",
+        "reported_without_a_judge": false
+      },
+      "app/routes/research.js:displayResearch": {
+        "rows": 0,
+        "carried": 0,
+        "verdict": "none",
+        "witness": "",
+        "reported_without_a_judge": false
+      },
+      "app/routes/contributions.js:displayContributions": {
+        "rows": 1,
+        "carried": 1,
+        "verdict": "model_corroborated",
+        "witness": "displayContributions line 17 calls contributionsDAO.getByUserId(userId, (error, contrib) => {             if (error) return next(error);              contr, whose operation at app/data/contributions-dao.js:57: obligated operation with no discharging guard, and no guarded sibling",
+        "reported_without_a_judge": false
+      },
+      "app/routes/contributions.js:handleContributionsUpdate": {
+        "rows": 1,
+        "carried": 1,
+        "verdict": "none",
+        "witness": "",
+        "reported_without_a_judge": false
+      },
+      "app/routes/session.js:displayLoginPage": {
+        "rows": 4,
+        "carried": 4,
+        "verdict": "none",
+        "witness": "",
+        "reported_without_a_judge": false
+      },
+      "app/routes/session.js:handleLoginRequest": {
+        "rows": 4,
+        "carried": 4,
+        "verdict": "none",
+        "witness": "",
+        "reported_without_a_judge": false
+      },
+      "app/routes/session.js:displaySignupPage": {
+        "rows": 4,
+        "carried": 4,
+        "verdict": "none",
+        "witness": "",
+        "reported_without_a_judge": false
+      },
+      "app/routes/session.js:handleSignup": {
+        "rows": 4,
+        "carried": 4,
+        "verdict": "model_corroborated",
+        "witness": "handleSignup line 208 calls userDAO.getUserByUserName(userName, (err, user) => {                  if (err) return next(err);                  if (us, whose operation at app/data/user-dao.js:104: no discharging guard, while 3 sibling handler(s) reaching the same module are guarded (<lambda>16, <lambda>2, <lambda>6); the obligation was carried across a module boundary, so those siblings need not share this route's trust context",
+        "reported_without_a_judge": false
+      },
+      "app/routes/session.js:displayWelcomePage": {
+        "rows": 4,
+        "carried": 4,
+        "verdict": "none",
+        "witness": "",
+        "reported_without_a_judge": false
+      },
+      "app/routes/profile.js:displayProfile": {
+        "rows": 1,
+        "carried": 1,
+        "verdict": "model_corroborated",
+        "witness": "displayProfile line 20 calls profile.getByUserId(parseInt(userId), (err, doc) => {             if (err) return next(err);             doc.userId = us, whose operation at app/data/profile-dao.js:95: obligated operation with no discharging guard, and no guarded sibling",
+        "reported_without_a_judge": false
+      },
+      "app/routes/profile.js:handleProfileUpdate": {
+        "rows": 1,
+        "carried": 1,
+        "verdict": "none",
+        "witness": "",
+        "reported_without_a_judge": false
+      }
+    },
+    "census_findings_by_family": {
+      "access_control": 0,
+      "config_secrets": 1,
+      "injection": 3,
+      "output_encoding": 1,
+      "path": 0,
+      "prototype": 0,
+      "untrusted_destination": 2
+    }
+  },
+  "measured_on_vampi": {
+    "access_control_findings": 2,
+    "rungs": {
+      "model_entailed": 2
+    },
+    "unchanged": true,
+    "why": "VAmPI keeps handler and query in one file, so no row is carried and the entailed path is untouched."
+  },
+  "what_this_does_not_yet_reach": {
+    "the_documented_idor": "app/routes/allocations.js:17 takes userId from req.params on an authenticated route, with the fix commented out. It raises no obligation even now, because its data-access module reads with allocationsCol.find(...) and `find` is not a modelled operation. Adding it needs a shape discriminator -- Array.prototype.find and jQuery's .find take a closure or a selector where a collection read takes a query document -- and its own false-positive measurement. Task 14.8.",
+    "the_commented_out_admin_check": "app/routes/index.js:58 registers /benefits with isLoggedIn and the isAdmin guard commented out. Neither middleware name is in the discharger vocabulary, and the evidence that /benefits needs a stronger guard than its siblings exists only in a comment. Not claimed, and not claimable by this abstraction.",
+    "identity_through_destructuring": "const { userId } = req.session then dao.getByUserId(userId, ...) is correctly identity-constrained, and the destructuring erases the session.userId spelling the token list holds, so the guard is invisible at the call. Two of NodeGoat's three corroborated claims are this shape. Task 14.7.",
+    "cross_file_siblings": "The contradiction that would make NodeGoat's IDOR entailed is cross-file: allocations passes a URL parameter while contributions and profile pass session identity. The sibling set is one file. Widening it is a decision with a measured false-positive risk, not an implementation detail. Task 14.7."
+  },
+  "controls": [
+    "A route-and-DAO split raises the obligation at the handler, corroborated, with a witness naming the call and the operation's file.",
+    "A third module defining a member of the SAME NAME that nothing imports is not attributed, which is the collision the file scope was closed against.",
+    "A sibling handler that passes the caller's own identity into the same module yields no verdict at all."
+  ],
+  "limits": [
+    "One named call out of the region's file, not a transitive walk: a helper's helper's query is not attributed to a handler that never mentions it.",
+    "Provenance comes from an external stub's fullName, which is a jssrc2cpg detail; a frontend that resolves the call properly needs no stub, and one that emits neither carries nothing.",
+    "Two subjects, both used to develop the analyser."
+  ]
+}

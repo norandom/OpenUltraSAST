@@ -296,3 +296,143 @@ def test_a_qualified_setting_needs_its_receiver(tmp_path: Path) -> None:
     settings = [str(row.get("setting", "")) for row in (payload.get("0") or []) if row.get("setting")]
     assert any("marked.setOptions" in row for row in settings), f"the template engine's setting was missed: {settings}"
     assert all("editor.setOptions" not in row for row in settings), f"an unrelated setOptions was claimed: {settings}"
+
+
+def _route_and_dao(tmp_path: Path) -> Path:
+    """An application shaped the way the census found NodeGoat: route in one file, query in another.
+
+    `displayNote` takes the record id from the URL; `displayMine` takes it from the caller's identity. Both
+    reach the same data-access module, so the file holding the query cannot tell them apart and the file
+    holding the decision holds no operation at all. A third module defines a member of the SAME NAME that
+    nothing imports, which is the collision the file scope was originally closed to prevent.
+    """
+    routes = tmp_path / "app" / "routes"
+    data = tmp_path / "app" / "data"
+    routes.mkdir(parents=True)
+    data.mkdir(parents=True)
+    (routes / "notes.js").write_text(
+        'const NotesDAO = require("../data/notes-dao").NotesDAO;\n'
+        "\n"
+        "function NotesHandler(db) {\n"
+        "    const notesDAO = new NotesDAO(db);\n"
+        "\n"
+        "    this.displayNote = (req, res) => {\n"
+        "        const noteId = req.params.noteId;\n"
+        "        return notesDAO.getById(noteId, (err, note) => res.json(note));\n"
+        "    };\n"
+        "\n"
+        "    this.displayMine = (req, res) => {\n"
+        "        return notesDAO.getOwned(req.user.id, (err, notes) => res.json(notes));\n"
+        "    };\n"
+        "}\n"
+        "\n"
+        "module.exports = NotesHandler;\n"
+    )
+    (data / "notes-dao.js").write_text(
+        "function NotesDAO(db) {\n"
+        '    const notes = db.collection("notes");\n'
+        "\n"
+        "    this.getById = (noteId, callback) => {\n"
+        "        notes.findOne({ _id: noteId }, callback);\n"
+        "    };\n"
+        "\n"
+        "    this.getOwned = (userId, callback) => {\n"
+        "        notes.findOne({ owner: userId }, callback);\n"
+        "    };\n"
+        "}\n"
+        "\n"
+        "module.exports.NotesDAO = NotesDAO;\n"
+    )
+    (data / "audit-dao.js").write_text(
+        "function AuditDAO(db) {\n"
+        '    const audit = db.collection("audit");\n'
+        "\n"
+        "    this.getById = (anyId, callback) => {\n"
+        "        audit.findOne({ _id: anyId }, callback);\n"
+        "    };\n"
+        "}\n"
+        "\n"
+        "module.exports.AuditDAO = AuditDAO;\n"
+    )
+    return tmp_path
+
+
+def _dominance_rows(tmp_path: Path, *, function: str, file: str) -> list[dict[str, object]]:
+    from openultrasast.cpg.backend import extract_payload
+    from openultrasast.model.dominance import request_params
+    from openultrasast.model.specs import dominance_specs
+
+    frontend = __import__("shutil").which("jssrc2cpg")
+    if frontend is None:
+        pytest.skip("jssrc2cpg is not installed")
+    cpg = tmp_path / "cpg.bin"
+    built = subprocess.run([frontend, str(tmp_path), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
+    if not cpg.is_file():
+        pytest.skip(f"could not build a sample cpg: {(built.stderr or '')[-200:]}")
+    spec = dominance_specs(language="javascript")["access_control"]
+    params = request_params(spec, function=function, file=file)
+    request = {k: v for k, v in params.items() if isinstance(v, str)}
+    request["operations"] = ",".join(spec.operations)
+    request["dischargers"] = ",".join(spec.dischargers)
+    requests = tmp_path / "requests.json"
+    requests.write_text(json.dumps({"0": request}))
+    done = subprocess.run(
+        [
+            _joern() or "joern",
+            "--script",
+            str((QUERIES / "dominance.sc").resolve()),
+            "--param",
+            f"cpgFile={cpg}",
+            "--param",
+            f"requestsFile={requests}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
+    )
+    assert done.returncode == 0, f"dominance.sc did not run: {(done.stderr or done.stdout or '')[-500:]}"
+    payload = extract_payload(done.stdout or "")
+    assert payload is not None, "dominance.sc produced no parseable payload"
+    return [row for row in (payload.get("0") or []) if row.get("operation")]
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_a_route_and_dao_split_raises_the_obligation_at_the_handler(tmp_path: Path) -> None:
+    """The obligation follows the call the handler writes, and the witness names both sites."""
+    from openultrasast.cpg.backend import CpgResult
+    from openultrasast.model.dominance import verdict
+    from openultrasast.model.ladder import Rung
+    from openultrasast.model.specs import dominance_specs
+
+    rows = _dominance_rows(_route_and_dao(tmp_path), function="displayNote", file="app/routes/notes.js")
+    assert rows, "the route file raised no obligation at all, which is the gap this closes"
+    carried = [row for row in rows if row.get("viaLine")]
+    assert carried, f"no obligation was carried across the module boundary: {rows}"
+    assert all("notes-dao.js" in str(row["opFile"]) for row in carried), f"an unimported module was attributed: {carried}"
+
+    spec = dominance_specs(language="javascript")["access_control"]
+    cpg = CpgResult(cpg_path=tmp_path / "cpg.bin", run=lambda q, p: rows)
+    answer = verdict(cpg, spec, function="displayNote", file="app/routes/notes.js")
+    assert answer is not None, f"no verdict from rows {rows}"
+    # CORROBORATED, not entailed, and deliberately: the obligation crossed a module boundary, so the guarded
+    # sibling need not share this route's trust context. Measured on NodeGoat, where entailing it reported a
+    # signup handler that is public by design. The residual question the band carries is the right one.
+    assert answer.rung is Rung.CORROBORATED, f"{answer.rung} from {answer.witness}"
+    assert "displayNote" in answer.witness, answer.witness
+    assert "notes-dao.js" in answer.witness, f"the witness does not name the operation's site: {answer.witness}"
+    assert "getById" in answer.witness, f"the witness does not name the call that carries it: {answer.witness}"
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_an_identity_constrained_handler_is_not_reported(tmp_path: Path) -> None:
+    """The control for the other direction: the sibling that passes the caller's own identity is guarded."""
+    from openultrasast.cpg.backend import CpgResult
+    from openultrasast.model.dominance import verdict
+    from openultrasast.model.specs import dominance_specs
+
+    rows = _dominance_rows(_route_and_dao(tmp_path), function="displayMine", file="app/routes/notes.js")
+    spec = dominance_specs(language="javascript")["access_control"]
+    cpg = CpgResult(cpg_path=tmp_path / "cpg.bin", run=lambda q, p: rows)
+    answer = verdict(cpg, spec, function="displayMine", file="app/routes/notes.js")
+    assert answer is None, f"a handler that passes the caller's own identity was reported: {answer}"
