@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "experiment": "php-detection-corrected-v1",
+  "date": "2026-09-20",
+  "task": "pre-push-safety-net 13.2",
+  "claim_scope": "What PHP actually detects on Paid Memberships Pro, and why this project reported that it detected nothing.",
+  "the_correction": "PHP is not silent. It establishes findings on PMPro, including a true-positive SQL injection. Two separate mistakes made it look silent: the census harness checked question COMPLETION before findings, so a family with 18 findings and no completed question reported 'asked but no question completed'; and only the 500-region runs were looked at, which are the ones that time out.",
+  "what_was_wrong_with_the_instrument": {
+    "defect": "benchmarks/push/family_census.py ordered its verdict completion-first",
+    "effect": "every PHP finding was reported as 'asked but no question completed'",
+    "fix": "findings are checked first; a question-outcome count is bookkeeping and cannot hide the thing being censused",
+    "scope": "PHP only. NodeGoat and VAmPI complete every question, so their verdicts reached the findings check and were correct."
+  },
+  "the_true_positive": {
+    "site": "adminpages/discountcodes.php:749",
+    "rung": "model_entailed",
+    "witness": "sanitize_text_field($_REQUEST[\"s\"]) -> $wpdb->get_results($sqlQuery, OBJECT), 9 steps",
+    "source_shape": "$sqlQuery .= \"WHERE code LIKE '%$s%' \"; then $wpdb->get_results($sqlQuery, OBJECT)",
+    "why_it_is_real": "A request value is interpolated into SQL with no $wpdb->prepare. sanitize_text_field strips tags and encodes; it does not escape SQL quotes. This is the class of CVE-2023-23488, which the PHP fact table's own comment names as the reason those WordPress sanitizers are excluded from the sanitizer list. The prediction and the measurement agree."
+  },
+  "the_false_positives": {
+    "family": "output_encoding",
+    "count_at_25_regions": 18,
+    "sampled": [
+      {
+        "site": "adminpages/admin_header.php:169",
+        "source": "echo 'pmpro_admin-' . esc_attr( $view );",
+        "verdict": "escaped, false positive"
+      },
+      {
+        "site": "adminpages/discountcodes.php:770",
+        "source": "echo esc_attr( wp_unslash( $s ) );",
+        "verdict": "escaped, false positive"
+      },
+      {
+        "site": "adminpages/admin_header.php:197",
+        "source": "echo admin_url( '...' . $specific_notification );",
+        "verdict": "the value was intval()'d upstream, false positive"
+      }
+    ],
+    "cause": "WordPress's esc_attr, esc_html and esc_url are deliberately absent from the PHP sanitizer list, because the list is flat across families and none of them stops SQL injection. Excluding them keeps the injection finding above and costs this family its precision. The tension is documented in php.toml; this is its measured price."
+  },
+  "the_scale_limit": {
+    "runs": {
+      "25 regions": {
+        "questions": 127,
+        "questions_completed": 0,
+        "findings": 19,
+        "by_family": {
+          "injection": 1,
+          "output_encoding": 18
+        },
+        "query_seconds": 240.85,
+        "build_seconds": 122.08,
+        "timed_out": false,
+        "degradations": [
+          "cross_partition_semantics_unresolved",
+          "partition_file_census_incomplete"
+        ]
+      },
+      "100 regions": {
+        "questions": 520,
+        "questions_completed": 0,
+        "findings": 43,
+        "by_family": {
+          "injection": 10,
+          "output_encoding": 32,
+          "path": 1
+        },
+        "query_seconds": 522.27,
+        "build_seconds": 131.07,
+        "timed_out": false,
+        "degradations": [
+          "cross_partition_semantics_unresolved",
+          "partition_file_census_incomplete"
+        ]
+      },
+      "500 regions, 300s ceiling": {
+        "questions": 2526,
+        "questions_completed": 0,
+        "findings": 0,
+        "by_family": {},
+        "query_seconds": 363.41,
+        "build_seconds": 144.04,
+        "timed_out": true,
+        "degradations": [
+          "cross_partition_semantics_unresolved",
+          "partition_file_census_incomplete",
+          "process_timeout",
+          "query_failed",
+          "scratch_cleanup_incomplete",
+          "shard_query_incomplete"
+        ]
+      },
+      "500 regions, 1800s ceiling": {
+        "questions": 2526,
+        "questions_completed": 0,
+        "findings": 0,
+        "by_family": {},
+        "query_seconds": 1874.15,
+        "build_seconds": 113.24,
+        "timed_out": true,
+        "degradations": [
+          "cross_partition_semantics_unresolved",
+          "partition_file_census_incomplete",
+          "process_timeout",
+          "query_failed",
+          "scratch_cleanup_incomplete",
+          "shard_query_incomplete"
+        ]
+      }
+    },
+    "reading": "Cost is roughly one to two seconds per question and the failure is a straightforward scale limit. 25 and 100 regions complete with no timeout at all; 500 regions asks 2,526 questions, which at that rate needs more than the 1,800-second ceiling and gets killed. Nothing pathological."
+  },
+  "the_remaining_real_gap": {
+    "symptom": "questions_completed is 0 in EVERY PHP run, including the ones that find things",
+    "always_present": [
+      "cross_partition_semantics_unresolved",
+      "partition_file_census_incomplete"
+    ],
+    "reading": "Findings and question outcomes disagree in public: the family establishes a defect while every question it asked is recorded unresolved. Group 12 raised completion for JavaScript and Python and PHP was never measured. This is bookkeeping, not detection, and it is what the admission policy reads."
+  },
+  "what_is_not_the_problem": {
+    "the_malformed_cpg_bug": "joernio/joern#6281, fixed in 4.0.625 which the image pins; verified on the real trigger file",
+    "the_dataflow_overlay": "42 seconds on the full 637-file graph, succeeds; 37 seconds on the 208-file tree without the bundled payment SDKs",
+    "the_engine_version": "4.0.625 and 4.0.631 are indistinguishable on this subject",
+    "vendored_libraries": "Two thirds of PMPro's PHP files are bundled Stripe, Braintree and Twocheckout SDKs under includes/lib, which the PHP vendored list does not cover. That was my hypothesis for the cost and the measurement refuted it: the overlay costs 42 s with them and 37 s without."
+  },
+  "limits": [
+    "One PHP subject, and its findings are unreviewed beyond the four witnesses inspected by hand.",
+    "The 18 output-encoding findings were sampled at three, not audited in full.",
+    "Region budgets of 25 and 100 are not the production population; they bound the question, not the repository."
+  ]
+}

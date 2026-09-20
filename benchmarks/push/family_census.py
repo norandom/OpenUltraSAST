@@ -85,6 +85,10 @@ def main() -> int:
         "degradations": [str(d.get("reason")) for d in result.degradations],
         "questions_total": len(result.question_outcomes),
         "questions_completed": sum(1 for q in result.question_outcomes if q.status == "completed"),
+        "findings_total": len(result.findings),
+        # Why the outcomes say what they say, counted rather than inferred: a family can find something while
+        # every one of its questions is recorded unresolved, and the two numbers then disagree in public.
+        "outcome_status": dict(collections.Counter(q.status for q in result.question_outcomes)),
     }
 
     asked = collections.Counter(q.identity.family for q in result.question_outcomes)
@@ -111,17 +115,24 @@ def main() -> int:
             "questions_completed": completed.get(family, 0),
             "findings": len(found.get(family, [])),
             "rungs": dict(collections.Counter(item["rung"] for item in found.get(family, []))),
-            "examples": found.get(family, [])[:3],
+            "examples": found.get(family, [])[:10],
             # The distinction that matters: a family that answered and found nothing is a different
             # statement from one that could not answer, and neither is "clean".
+            #
+            # Findings are checked FIRST, and that order is the whole point. It used to ask about completion
+            # before findings, so a family that established 18 findings on a PHP plugin while no question
+            # outcome was marked completed reported "asked but no question completed" -- and a census whose
+            # job is to say what each family finds reported nothing for a repository that had found a real
+            # SQL injection. A question-outcome count is a statement about bookkeeping; a finding is the
+            # thing being censused, and it cannot be hidden behind the other.
             "verdict": (
-                "region offered, no question asked"
+                "establishes findings"
+                if found.get(family)
+                else "region offered, no question asked"
                 if not asked.get(family)
                 else "asked but no question completed"
                 if not completed.get(family)
                 else "answered, nothing found"
-                if not found.get(family)
-                else "establishes findings"
             ),
         }
         for family in families

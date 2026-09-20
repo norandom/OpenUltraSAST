@@ -196,6 +196,16 @@ pinned that version throughout; it is verified today on the real trigger file, o
 failure take longer. The engine pin stays where it is, because the newer release measures the
 same here.
 
+That runtime reading was itself incomplete, and the correction matters more than the reading.
+PHP is not silent: at 25 and 100 regions PMPro completes with no timeout at all and establishes
+19 and 43 findings, including a true-positive SQL injection at
+`adminpages/discountcodes.php:749` of exactly the class the PHP fact table predicted. It looked
+silent because the census harness ordered its verdict on question completion before findings,
+and because only the 500-region runs had been examined. The harness is fixed. What remains is a
+scale limit of roughly one to two seconds per question, and one real gap that is bookkeeping
+rather than detection: no PHP question is ever marked completed, even in the runs that find
+things.
+
 Closing the second gap surfaced four defects, three of which were false positives it would
 otherwise have shipped: a permissive-value set shared across settings whose booleans have
 opposite polarity, a dotted setting matched on its trailing segment alone, a flow query asked of
@@ -211,4 +221,5 @@ Evidence: [family detection census](../../../benchmarks/measurements/2026-09-19-
 [collection read obligation](../../../benchmarks/measurements/2026-09-20-collection-read-obligation.json),
 [sibling scope and identity](../../../benchmarks/measurements/2026-09-20-sibling-scope-and-identity.json),
 [every permissive setting](../../../benchmarks/measurements/2026-09-20-every-permissive-setting.json),
-[PHP runtime after the graph fix](../../../benchmarks/measurements/2026-09-20-php-runtime-after-graph-fix.json).
+[PHP runtime after the graph fix](../../../benchmarks/measurements/2026-09-20-php-runtime-after-graph-fix.json),
+[PHP detection corrected](../../../benchmarks/measurements/2026-09-20-php-detection-corrected.json).
