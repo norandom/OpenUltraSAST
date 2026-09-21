@@ -594,6 +594,15 @@ Preserve all completed task evidence below.
   - _Requirements: 3.1, 5.1, 5.6, 7.1_
 
 
+- [ ] 16. Make a harness report the cause of its own failure (robustness)
+  - **Named by a week in which three separate causes looked identical.** The census reported 19 findings and 0 completed questions side by side for days without complaint; a stale image measured the engine a bug had been diagnosed against; and a partition fix looked applied while an unscoped copy of the same gap kept demoting everything. Each was found by reading code, and each would have been visible in a record that carried its own causes.
+  - Every harness result should carry the counts that disambiguate its failure modes, the degradations whole rather than by reason, and the engine and ruleset identities actually used. Two of these were added reactively during that week and should be the standard shape rather than a reaction.
+  - Add a self-consistency assertion to each harness. Findings above zero with completion at zero is a contradiction, and an instrument that says so loudly is the difference between an hour and a week.
+  - Done when each harness record carries its provenance and per-cause counts, and a deliberately contradictory result is reported as a contradiction rather than as a number.
+  - _Boundary: Evaluation harness_
+  - _Requirements: 8.1, 8.2_
+
+
 ## Implementation Notes
 
 - Task5.2 measured PMPro timing out after both snapshots were materialized but before change context/graph analysis. Group6 must account for compatible snapshot/discovery reuse as well as graph reuse; identical-tip hits cannot substitute for the later representative changed-code latency gate. No new detector, scope heuristic or incremental CPG mutation is implied.
