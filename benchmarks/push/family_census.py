@@ -94,6 +94,9 @@ def main() -> int:
         # Why the outcomes say what they say, counted rather than inferred: a family can find something while
         # every one of its questions is recorded unresolved, and the two numbers then disagree in public.
         "outcome_status": dict(collections.Counter(q.status for q in result.question_outcomes)),
+        # WHY an outcome is not completed. Counting only the statuses left three separate causes looking
+        # identical, and each one had to be found by reading code rather than by reading the record.
+        "outcome_reason": dict(collections.Counter(f"{q.status}:{q.reason}" for q in result.question_outcomes)),
     }
 
     asked = collections.Counter(q.identity.family for q in result.question_outcomes)

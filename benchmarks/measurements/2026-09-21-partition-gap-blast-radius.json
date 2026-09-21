@@ -22,7 +22,8 @@
     "reading": "The JAVASCRIPT partition expected 36 files and its graph holds 32. The four absent ones are a webpack build output, a minified third-party library, a build config and one source file. The PHP partition is intact. So a plugin's bundled select2.min.js costs the entire PHP analysis its admissibility: 4,425 PHP regions demoted by four JavaScript files.",
     "why_the_gap_is_right_and_its_blast_radius_is_not": "A file expected but missing from a graph could hold a sanitizer, so answers drawn from THAT partition may be wrong and demoting them is conservative. A missing JavaScript file cannot make a PHP answer wrong. This is the same over-broad blast radius as part one and the third instance of one principle in this thread: a gap should reach the questions it can actually affect.",
     "fix_direction": "Scope a partition's census gap to that partition's questions. The language is known where the gap is raised, and path-to-language is already computed and used to dispatch every request, so the data exists; it is not threaded to the demotion.",
-    "second_order": "Three of the four files are build output or minified vendored code. The JavaScript vendored list holds only node_modules/, so a minified library under js/ is treated as first-party. Excluding build artefacts would remove this instance without addressing the blast radius."
+    "second_order": "Three of the four files are build output or minified vendored code. The JavaScript vendored list holds only node_modules/, so a minified library under js/ is treated as first-party. Excluding build artefacts would remove this instance without addressing the blast radius.",
+    "superseded_by": "part_two_closed"
   },
   "measured_after_part_one": {
     "questions_completed": 0,
@@ -39,5 +40,20 @@
   "limits": [
     "One multi-language subject. A single-language PHP repository would isolate part one's effect and has not been measured.",
     "Part one is verified by argument and by the test suite, not yet by a subject that completes because of it."
-  ]
+  ],
+  "part_two_closed": {
+    "change": "A census gap now carries the partition it was raised for, and an integrity gap reaches only that partition's questions. The same gap is raised in TWO passes, arbitration and evidence, and carrying the language in one but not the other left an unscoped copy that demoted everything: the fix looked applied and was not, until the record printed each outcome's reason rather than only its status.",
+    "measured_on_pmpro": {
+      "questions_completed_before": 0,
+      "questions_completed_after": 120,
+      "questions_total": 127,
+      "findings_unchanged": 19,
+      "outcome_reason": {
+        "completed:query_answered_and_arbitrated": 120,
+        "unresolved:graph_incomplete": 7
+      },
+      "the_seven_still_unresolved": "the JavaScript partition's own questions, which is correct: the four missing files are its files, so its answers are the ones that could be wrong"
+    },
+    "still_open": "The push policy's _blocking_degradations exempts declared exclusions but does not yet respect a partition, and a post-hoc diagnostic copy carries no language. A JavaScript partition's gap would still block admission of a PHP finding."
+  }
 }

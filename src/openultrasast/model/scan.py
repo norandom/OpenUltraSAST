@@ -812,7 +812,10 @@ def _evidence_pass(
                 {
                     "stage": "model",
                     "reason": "cpg_empty" if "methods" in entry and methods <= 0 else entry.get("census_failure", "cpg_empty"),
-                    **{k: entry[k] for k in ("methods", "files", "missing_file_names") if k in entry},
+                    # The partition travels here too. This pass raises the same gap as the arbitration pass,
+                    # and carrying the language in one place and not the other left an unscoped copy that
+                    # demoted every question in the repository -- the scoping fix looked applied and was not.
+                    **{k: entry[k] for k in ("methods", "files", "missing_file_names", "census_language") if k in entry},
                 }
             )
         if shards > 1:
