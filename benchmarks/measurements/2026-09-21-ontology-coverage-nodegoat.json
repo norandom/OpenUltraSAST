@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "experiment": "ontology-coverage-first-run-v1",
+  "date": "2026-09-21",
+  "task": "contributor-scan 7.1",
+  "claim_scope": "What one subject calls that the ontology does not model. A candidate list, not an ontology.",
+  "subject": "nodegoat",
+  "language": "javascript",
+  "coverage": {
+    "distinct_call_names": 175,
+    "calls_total": 1185,
+    "modelled_names": 18,
+    "modelled_calls": 143,
+    "modelled_call_share": 0.121
+  },
+  "ontology_size": {
+    "discharger": 40,
+    "operation": 36,
+    "sanitizer": 10,
+    "setting": 10,
+    "sink:injection": 5,
+    "sink:output_encoding": 12,
+    "sink:path": 6,
+    "sink:prototype": 7,
+    "sink:untrusted_destination": 15,
+    "source": 11
+  },
+  "reading": "18 of 175 distinct call names are modelled, covering 12% of the calls. That number is not a score: most of what any program calls is not security-relevant, and a high share would mean the tables were too loose. It is a baseline to move deliberately.",
+  "leads_it_found": {
+    "res.render": "23 calls, five in a method that reads untrusted input, and the highest-ranked product candidate. Task 14.3 reasoned its way to this same gap by hand and declined to model it as a flow sink because template escaping is a property of the engine's configuration. The instrument found it in one run, which is the validation that matters.",
+    "Math.random": "7 calls in app/data/user-dao.js. Weak randomness is a weakness class this ontology has no family for at all, so no census could have surfaced it: the family list itself is the blind spot. This is the kind of gap only a coverage instrument finds.",
+    "parseInt": "9 calls, one near a source. A coercion, and the JavaScript sanitizer list has no coercion entry while Python's has five.",
+    "app.post and app.use": "route registration, near untrusted input, and the place middleware guards are attached",
+    "db.collection": "the accessor whose result carries the operations the access-control family models"
+  },
+  "noise_it_had_to_be_taught_to_drop": {
+    "synthesised_names": "`_tmp_3.push` and `__ecma.Array.factory` were the two most frequent candidates in the first run. They are how the frontend lowers a destructuring and an array literal, not names the code calls.",
+    "tests_and_build_scripts": "A Cypress suite and a Gruntfile held four of the five most frequent remaining candidates. Ranked together with product code they would have buried the two real leads."
+  },
+  "limits": [
+    "The `file` and `line` on a candidate are its first occurrence, which misleads when one name is called from several files; the distinct-spelling count is reported beside it.",
+    "One subject, one language. The instrument says nothing about whether a candidate is security-relevant; that judgement is the point of requiring provenance before an entry.",
+    "Coverage share counts calls, not findings. A name modelled but never reached contributes to the share and nothing else."
+  ]
+}

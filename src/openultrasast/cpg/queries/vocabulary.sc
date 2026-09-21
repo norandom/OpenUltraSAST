@@ -36,7 +36,14 @@
     head.trim.takeRight(120)
   }
 
-  val calls = cpg.call.filterNot(_.name.startsWith("<operator")).l
+  // Names the FRONTEND synthesised are not names the code calls. jssrc2cpg lowers a destructuring to
+  // `_tmp_3.push` and an array literal to `__ecma.Array.factory`, and on the first measured subject those
+  // were the two most frequent candidates in the list -- noise at the top of a worklist is how a worklist
+  // stops being read.
+  def synthesised(name: String): Boolean =
+    name.startsWith("<") || name.startsWith("__ecma") || name.matches("^_tmp_?[0-9]*\\..*") || name.startsWith("_tmp")
+
+  val calls = cpg.call.filterNot(c => c.name.startsWith("<operator") || synthesised(c.name)).l
 
   // Memoised per method: does this method read something the ontology calls untrusted input? A gap that sits
   // beside a source is worth more attention than one that does not, and that is a ranking hint rather than a
@@ -78,6 +85,7 @@
       "modelled" -> items.exists(_.modelledHere),
       "nearSource" -> items.count(_.near),
       "file" -> first.file,
+      "spellings" -> items.map(_.spelling).distinct.size,
       "line" -> first.line
     )
   }

@@ -21,8 +21,13 @@ from typing import Any
 
 from openultrasast.cpg.backend import JoernBackend
 from openultrasast.model.contracts import ExecutionBudget
+from openultrasast.model.layout import is_test_path
 from openultrasast.model.specs import config_specs, dominance_specs, taint_specs
 from openultrasast.preprocess import enumerate_source_files
+
+# Build tooling a repository runs but does not ship. Named here rather than guessed from a path, because a
+# file called Gruntfile is a build script wherever it sits.
+_BUILD_SCRIPTS = frozenset({"Gruntfile.js", "gulpfile.js", "webpack.config.js", "rollup.config.js", "karma.conf.js"})
 
 
 def modelled_tokens(language: str) -> dict[str, tuple[str, ...]]:
@@ -117,7 +122,17 @@ def main() -> int:
     }
     record["modelled_seen"] = [{k: r[k] for k in ("name", "count") if k in r} for r in known[: args.top]]
     wanted = ("name", "spelling", "count", "nearSource", "file", "line")
-    record["candidates"] = [{k: r[k] for k in wanted if k in r} for r in unknown[: args.top]]
+
+    # A test helper and a build script are not product API. The layout facts already know which paths those
+    # are, and on the first measured subject a Gruntfile and a Cypress suite held four of the five most
+    # frequent candidates -- ranked first, they would have buried the two real leads beneath them.
+    def product(row: dict[str, Any]) -> bool:
+        where = str(row.get("file") or "")
+        return bool(where) and not is_test_path(where) and Path(where).name not in _BUILD_SCRIPTS
+
+    ranked = [{k: r[k] for k in wanted if k in r} for r in unknown]
+    record["candidates"] = [r for r in ranked if product(r)][: args.top]
+    record["candidates_in_test_or_build"] = [r for r in ranked if not product(r)][:20]
     record["candidates_near_a_source"] = [r for r in record["candidates"] if int(r.get("nearSource", 0)) > 0][:20]
     save()
     cleanup = getattr(graph, "cleanup", None)
