@@ -581,7 +581,8 @@ Preserve all completed task evidence below.
 - [ ] 15.1 Reserve and review an untouched evaluation population
   - Freeze reviewed vulnerable, fixed and benign changes from projects not used to develop or tune this analyser. NodeGoat, VAmPI, PMPro, WP Statistics, MW WP Form and libpng are all development subjects and none of them may qualify anything.
   - Reserve the cases untouched: do not examine their scan results before the population is frozen, and record the reservation so a later run cannot be mistaken for a blind one.
-  - Done when a frozen population exists with its provenance and review recorded, and nothing in it has been scanned.
+  - **The population MUST hold a multi-language repository.** Task 13.4 found that a second language in a repository cost every question its completion, and so cost every finding its admission — on the declared v0.1 target, which is PHP plus admin JavaScript. Neither subject that passes today could reveal it, because both hold exactly one language. A population of single-language repositories would qualify a capability that fails on the product's own target.
+  - Done when a frozen population exists with its provenance and review recorded, at least one member holds more than one language, and nothing in it has been scanned.
   - _Boundary: Evaluation harness, corpus provenance_
   - _Requirements: 8.1, 8.2_
 - [ ] 15.2 Declare the v1 advisory scope as the families whose claims can be admitted
