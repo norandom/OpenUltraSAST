@@ -51,6 +51,38 @@ for someone who does not have Joern.
 - Building a sandbox. Req 10 of the predecessor stands: adopt, never build.
 - Changing the gates, the taxonomy, or the fact-table schema.
 
+## The fact tables are an ontology, and it is general-purpose — 2026-09-21
+
+The `[[source]]`, `[[sink]]`, `[[sanitizer]]`, `[[operation]]`, `[[discharger]]` and `[[layout]]` rows
+are not a pattern list. They are an ontology of program elements and their security relations: what
+carries untrusted input, what is dangerous under which weakness class, what discharges which
+obligation, what a value's shape has to be for a call to mean what the table says. The engine reasons
+over that ontology; it is where nearly all of this tool's accuracy lives, and the 2026-09 family
+census measured that directly. Five of seven families established nothing, and every one of them
+failed for an ontology reason with the flow engine ready and nothing to aim at: no HTTP client for a
+server-side request forgery, no collection read for an object-reference defect, no WordPress spelling
+for a deserialization, and only browser sinks for a server-rendered injection.
+
+**This is a general-purpose pre-commit hook, not an application-specific one.** The ontology describes
+LIBRARIES, FRAMEWORKS and LANGUAGE CONSTRUCTS. It does not describe repositories. That distinction is
+the difference between a tool that transfers and a set of rules that happen to fit whatever was last
+measured, and it constrains how the ontology may grow:
+
+- An entry names an API and is justified by what that API DOES. `needle.get` is admissible because
+  needle is an HTTP client and the argument is a destination, not because NodeGoat calls it.
+- An entry carries provenance and a weakness class, so a reader can check the claim without trusting
+  the person who added it.
+- An entry must not encode a path, directory name or identifier peculiar to one project. A plugin's
+  `includes/lib/` was measured and declined on exactly this ground: it would have fixed one subject and
+  claimed something false about every other.
+- A measured gap is a CANDIDATE, never an answer. The coverage instrument below reports what a
+  repository calls that nothing models; each candidate must then be resolved to a library API with
+  provenance before it enters the ontology. Accretion by subject is how a general tool becomes a
+  fixture of its benchmark.
+
+The corollary is that ontology growth should be driven by measurement rather than by whatever
+repository is in front of the maintainer, which is what task 7.1 exists to make possible.
+
 ## Boundary Commitments
 
 ### This Spec Owns

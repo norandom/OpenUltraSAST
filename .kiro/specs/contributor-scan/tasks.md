@@ -1210,3 +1210,50 @@ checkout that can actually demonstrate detection.
 pre-push-safety-net task 3.4: pinned JavaScript frontend filters remove declared
 first-party tests. The maintainer approved its dependency adaptation and acceptance checks;
 task 2.18 now implements it before downstream partition completion.
+
+
+## Group 7 — Grow the ontology by measurement, not by subject (2026-09-21)
+
+Named by the family detection census and the week of repairs after it. Five of seven families
+established nothing and every one failed for an ontology reason, so this group is where detection
+efficiency actually lives. The design amendment above states the constraint these tasks work under:
+the ontology describes libraries, frameworks and language constructs, never repositories.
+
+- [ ] 7.1 Report what a repository calls that the ontology does not model
+  - Census the call names, and the receiver-qualified spellings, that appear in a repository's first-party graph; subtract everything any fact table names; rank the remainder by how often it is called and by how close it sits to a modelled source. The output is a measured worklist of what this tool is blind to here.
+  - It needs no dataflow, which is why it is cheap: the same structural pass that answers 17,700 requests in 44 s already walks every call.
+  - **It reports candidates, not entries.** A candidate becomes ontology only when someone resolves it to a library API, states the weakness class and records provenance. Nothing may be added because a subject called it.
+  - Three defects this would have named in one run rather than three investigations: `needle.get` absent while the family found the redirect two files away, `find` absent so the documented object-reference defect raised no obligation, and `maybe_unserialize` absent so the only deserialization site in 1,164 PHP files was invisible.
+  - Done when the instrument reports a ranked gap list for each measured subject, every entry carries how often it is called, and adding nothing to the ontology changes no result.
+  - _Boundary: shipped semantic facts, evaluation harness_
+  - _Requirements: 6.2, 8.1_
+- [ ] 7.2 Key sanitizers to the weakness they actually prevent
+  - The sanitizer list is flat across families, and that forces a false choice which is now measured: adding WordPress's `esc_attr` removes eighteen output-encoding false positives on one plugin and simultaneously hides a real SQL injection, because no HTML escaper stops SQL injection. `php.toml` has carried a comment predicting exactly this since before the measurement existed.
+  - Key each sanitizer to the weakness class it discharges, so a family consults the cleansers that apply to it. Do not solve it by choosing which defect to keep.
+  - Done when an HTML escaper clears an output-encoding flow and leaves an injection flow standing, on the measured plugin, with both outcomes recorded.
+  - _Boundary: shipped semantic facts_
+  - _Requirements: 6.2, 8.1_
+- [ ] 7.3 Do not arbitrate a question whose evidence says there is nothing to find
+  - The structural pass answers 17,700 requests in 44 s; arbitration costs one to two seconds per question, and a 673-file plugin asks 2,526 of them. Gate arbitration on the evidence vector already computed: a question whose scope holds no modelled sink, or no reachable source, cannot produce a flow and does not need the expensive pass.
+  - This attacks the scale limit from the opposite side to graph reuse and can be sized today from data already on disk, by counting how many of those 2,526 questions had any sink in scope at all.
+  - Done when the arbitrated count falls without any finding being lost on the measured subjects, and the questions skipped are recorded as skipped rather than as answered.
+  - _Boundary: contributor-scan scan budget_
+  - _Requirements: 4.1, 6.3, 8.1_
+- [ ] 7.4 One matcher, used by every query
+  - Four query files carry near-copies of the same token matcher and each acquired the same defect separately: the configuration matcher needed a receiver check the dominance matcher already had, and the sink matcher searched a whole node's text including its comments. Six instances of one bug class are listed in the pre-push design's invariants.
+  - Extract one matcher with callee confinement and word boundaries built in, and have taint, dominance and config use it. A rule in a document gets rediscovered; a rule in a constructor does not.
+  - Done when one implementation is shared, each caller's behaviour is unchanged on the measured subjects, and a new query cannot match text that merely contains a name.
+  - _Boundary: contributor-scan queries_
+  - _Requirements: 6.2, 8.1_
+- [ ] 7.5 A degradation must declare the scope it reaches
+  - Five instances of one bug class are listed in the pre-push design's invariants, two of them found this week, and two of those cost the declared target its entire admissibility. A degradation is currently a bare dict, so nothing forces a new reason to say whether it reaches one question, one file, one partition or the whole read.
+  - Make it a record with a required scope, and let the demotion and the admission policy read that field rather than a hand-maintained membership set.
+  - Done when a degradation cannot be constructed without a scope, the existing reasons carry theirs, and the measured subjects' outcomes are unchanged.
+  - _Boundary: contributor-scan degradation vocabulary, pre-push admission_
+  - _Requirements: 6.3, 8.1_
+- [ ] 7.6 Golden findings per subject, so a silent change cannot pass
+  - Nothing fails today when a change alters what NodeGoat or VAmPI report. Four changes in one week altered detection and each time the census had to be re-run from memory; one false positive was caught by reading a witness rather than by a test.
+  - Commit an expectation per subject at the finding level, site and family and rung, and diff against it. Keep it honest about what it is: a regression guard on development subjects, never evidence of qualification.
+  - Done when a deliberate change to a matcher or a fact table fails the diff, and the expectation records the ruleset and engine identities it was taken under.
+  - _Boundary: evaluation harness_
+  - _Requirements: 8.1, 8.2_

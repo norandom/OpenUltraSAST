@@ -24,6 +24,21 @@ an irrelevant old defect, or an unactionable witness can still produce noise.
 - Do not build a second ranker/scope heuristic, an incremental CPG engine, a daemon, an automatic fixer,
   or a mandatory model service. Do not scan intermediate pushed history in this feature.
 
+## What this hook is, and is not — 2026-09-21
+
+A general-purpose pre-commit hook, not an application-specific one. It may be measured on WordPress
+plugins and Node applications, and it may not become a tool that only works on them. The practical
+test at review time: would this change still be correct on a repository nobody here has seen? A path,
+a directory name or an identifier peculiar to one project fails that test, and one was declined on
+exactly this ground when a plugin's bundled library tree would have fixed a single subject while
+claiming something false about every other.
+
+The fact tables are an ontology of libraries, frameworks and language constructs, and
+`contributor-scan` owns it. Its design records how it may grow and its group 7 makes growth
+measurable rather than anecdotal. Nearly all of this tool's accuracy lives there: the 2026-09 family
+census found five of seven families establishing nothing, every one of them for an ontology reason
+with the flow engine ready and nothing to aim at.
+
 ## Two invariants this project keeps rediscovering
 
 Added 2026-09-21 after the same two defects appeared eleven times between them. Each instance was
