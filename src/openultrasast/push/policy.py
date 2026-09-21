@@ -360,9 +360,28 @@ def _blocking_gaps(scan: ModelScanResult, *questions: QuestionIdentity) -> tuple
     )
 
 
-def _blocking_degradations(scan: ModelScanResult) -> tuple[str, ...]:
-    """Degradations that undermine an answer. A declared exclusion is not one of them."""
-    return tuple(str(d.get("reason")) for d in scan.degradations if str(d.get("reason")) not in DECLARED_EXCLUSION_GAPS)
+def _blocking_degradations(scan: ModelScanResult, *, language: str = "") -> tuple[str, ...]:
+    """Degradations that undermine an answer. A declared exclusion is not one of them, and neither is a gap
+    another language partition raised.
+
+    A partitioned scan records a gap per graph. A JavaScript file missing from the JavaScript graph cannot
+    make a PHP answer wrong, and treating it as though it could is what left a WordPress plugin -- PHP plus
+    its admin JavaScript, which is every plugin -- unable to admit a finding it had already established.
+    Measured 2026-09-21: four build artefacts against 4,425 PHP regions.
+
+    Scope is read from the degradation's own partition. A gap that names none reaches everything, and so does
+    every gap when the claim's own language is unknown, because unknown scope is not evidence of independence.
+    """
+    kept: list[str] = []
+    for item in scan.degradations:
+        reason = str(item.get("reason"))
+        if reason in DECLARED_EXCLUSION_GAPS:
+            continue
+        partition = str(item.get("census_language") or "")
+        if partition and language and partition != language:
+            continue
+        kept.append(reason)
+    return tuple(kept)
 
 
 # A qualified callee: an identifier, optionally reached through `.`, `->` or `::`. Receiver
@@ -425,7 +444,7 @@ def dependency_gaps(
         if scan is None:
             continue
         gaps.extend(gap for gap in (scan.scope.unresolved_boundaries if scan.scope else ()) if pertains(gap))
-        gaps.extend(_blocking_degradations(scan))
+        gaps.extend(_blocking_degradations(scan, language=op.question.language))
     return tuple(dict.fromkeys(gaps))
 
 
@@ -611,7 +630,7 @@ def _compare_evidence(
                 and base.scope.population_complete
                 # A truncated base scan cannot establish absence, wherever it was truncated.
                 and all(question.reason == "tier_zero" for question in base.scope.deferred)
-                and not _blocking_degradations(base)
+                and not _blocking_degradations(base, language=op.question.language)
                 and required <= selected
                 and required <= answered
                 and {q.identity for q in base.question_outcomes} <= selected
@@ -632,7 +651,7 @@ def _compare_evidence(
                 # A bounded reachability on the head can hide further flows; it cannot invalidate
                 # the flow this finding was traced from, so it does not block the head's own claim.
                 or [gap for gap in _blocking_gaps(head, op.question) if not gap.startswith(REACHABILITY_BOUNDED)]
-                or _blocking_degradations(head)
+                or _blocking_degradations(head, language=op.question.language)
                 or not _valid_answer(head, op.question, head_ops)
                 or op.question not in {q.identity for q in head.scope.selected}
             ):

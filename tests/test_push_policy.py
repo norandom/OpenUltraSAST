@@ -600,3 +600,26 @@ def test_a_candidate_without_an_operation_reports_no_dependency_gaps():
 
     candidate = replace(delta(scan(), scan(rows=inventory_rows(), findings=False), changed_line_context()), head_operation=None)
     assert dependency_gaps(candidate, context=changed_line_context(), head=scan()) == ()
+
+
+def test_a_gap_from_another_language_partition_does_not_block_admission():
+    """A JavaScript file missing from the JavaScript graph cannot make a PHP answer wrong.
+
+    A partitioned scan records a gap per graph, and treating one partition's gap as evidence against every
+    claim left a WordPress plugin -- PHP plus its admin JavaScript, which is every plugin -- unable to admit a
+    finding it had already established. Measured 2026-09-21: four build artefacts against 4,425 PHP regions.
+    """
+    from openultrasast.push.policy import _blocking_degradations
+
+    elsewhere = {"stage": "model", "reason": "partition_file_census_incomplete", "census_language": "javascript"}
+    here = {"stage": "model", "reason": "partition_file_census_incomplete", "census_language": "php"}
+    unplaced = {"stage": "model", "reason": "partition_file_census_incomplete"}
+
+    def scan(*degradations):
+        return ModelScanResult(findings=(), degradations=tuple(degradations))
+
+    assert _blocking_degradations(scan(elsewhere), language="php") == ()
+    assert _blocking_degradations(scan(here), language="php") == ("partition_file_census_incomplete",)
+    # Unknown scope is not evidence of independence, in either direction.
+    assert _blocking_degradations(scan(unplaced), language="php") == ("partition_file_census_incomplete",)
+    assert _blocking_degradations(scan(elsewhere), language="") == ("partition_file_census_incomplete",)
