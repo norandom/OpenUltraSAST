@@ -561,10 +561,13 @@ Preserve all completed task evidence below.
   - _Boundary: Evaluation harness, full-run integration_
   - _Depends: 13.2_
   - _Requirements: 6.2, 6.3, 8.1, 8.2_
-- [ ] 13.4 Complete a PHP question, or say which scope it could not reach
-  - **Named by the 2026-09-20 correction.** `questions_completed` is zero in every PHP run, including the runs that establish findings, with `cross_partition_semantics_unresolved` and `partition_file_census_incomplete` present throughout. Findings and question outcomes therefore disagree in public, and the admission policy reads the outcomes rather than the findings.
-  - Group 12 raised completion from 205 to 298 of 436 for JavaScript and answered every VAmPI question; PHP was never measured. The partition and shard boundaries are the first place to look, because those are the degradations every run carries.
-  - Done when a PHP question whose scope the graph holds completes, a question whose scope it cannot reach stays unresolved with the reason named, and no question completes by widening its scope.
+- [ ] 13.4 Let a question inside one partition complete, whatever else the repository holds
+  - **Diagnosed 2026-09-21, and PHP was never the variable.** A repository holding TWO languages can never complete a question, so it can never admit a finding. `partitions.py` raises `cross_partition_semantics_unresolved` whenever more than one language partition exists; that reason is a member of `GRAPH_INTEGRITY_GAPS`; and a graph-integrity gap demotes every completed outcome in the scan.
+  - The evidence is one column wide: NodeGoat is JavaScript alone and completes 299 of 299, VAmPI is Python alone and completes 35 of 35, PMPro is PHP with 36 regions of bundled JavaScript and completes 0 of 127 and 0 of 520 while establishing 19 and 43 findings. NodeGoat's own `vendor_semantics_unresolved` is a DECLARED exclusion rather than an integrity gap, which is why it does not demote.
+  - **This is larger than the PHP runtime limit and it lands on the declared v0.1 target.** A WordPress plugin is PHP plus its admin JavaScript, so every one of them is multi-language, so on the target this tool was built for it can detect defects and never admit one. Neither subject that currently passes could reveal it.
+  - Recording the boundary is right: a flow from PHP into JavaScript is semantics the partitioned graph cannot follow. Demoting every question is not, including one wholly inside a single PHP file. Task 12.3 already fixed this bug class one level down, making an empty-scope gap question-owned "so it cannot block another question's comparison"; the same principle applies to a partition boundary.
+  - Do not reclassify the reason as a declared exclusion. That would claim cross-language flows are out of scope when they are unresolved, which is the opposite of what this project's degradation vocabulary exists to say.
+  - Done when a question whose scope lies inside one partition completes, a question whose scope could cross a partition boundary stays unresolved with the boundary named, and no question completes by widening its scope. Evidence: `benchmarks/measurements/2026-09-21-two-languages-defeat-completion.json`.
   - _Boundary: contributor-scan query/context evidence, Ranker Scope Contract_
   - _Depends: 13.3_
   - _Requirements: 2.1, 2.2, 6.3, 8.1_

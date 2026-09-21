@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "experiment": "two-languages-defeat-completion-v1",
+  "date": "2026-09-21",
+  "task": "pre-push-safety-net 13.4",
+  "claim_scope": "Why no PHP question is ever marked completed. Measured across four census runs on three subjects.",
+  "finding": "A repository that holds TWO languages can never complete a question, so it can never admit a finding. The cause is structural and deliberate, not a bug in PHP support: `partitions.py` raises `cross_partition_semantics_unresolved` whenever more than one language partition exists, that reason is a member of `GRAPH_INTEGRITY_GAPS`, and a graph-integrity gap demotes EVERY completed outcome in the scan. PHP was never the variable.",
+  "evidence": {
+    "nodegoat": {
+      "languages": {
+        "javascript": 44
+      },
+      "language_count": 1,
+      "questions_total": 299,
+      "questions_completed": 299,
+      "findings": 8,
+      "degradations": [
+        "vendor_semantics_unresolved"
+      ]
+    },
+    "vampi": {
+      "languages": {
+        "python": 25
+      },
+      "language_count": 1,
+      "questions_total": 35,
+      "questions_completed": 35,
+      "findings": 4,
+      "degradations": []
+    },
+    "pmpro-n25": {
+      "languages": {
+        "php": 4425,
+        "javascript": 36
+      },
+      "language_count": 2,
+      "questions_total": 127,
+      "questions_completed": 0,
+      "findings": 19,
+      "degradations": [
+        "cross_partition_semantics_unresolved",
+        "partition_file_census_incomplete"
+      ]
+    },
+    "pmpro-n100": {
+      "languages": {
+        "php": 4425,
+        "javascript": 36
+      },
+      "language_count": 2,
+      "questions_total": 520,
+      "questions_completed": 0,
+      "findings": 43,
+      "degradations": [
+        "cross_partition_semantics_unresolved",
+        "partition_file_census_incomplete"
+      ]
+    }
+  },
+  "the_reading": "NodeGoat is JavaScript alone and completes 299 of 299. VAmPI is Python alone and completes 35 of 35. PMPro is PHP with 36 regions of bundled JavaScript and completes 0 of 127 and 0 of 520, while establishing 19 and 43 findings. The only difference between the subjects that complete and the one that does not is the number of languages. NodeGoat's own degradation, `vendor_semantics_unresolved`, is a DECLARED exclusion rather than an integrity gap, which is exactly why it does not demote.",
+  "why_this_matters_for_the_release": "The declared v0.1 target is WordPress plugins, and a WordPress plugin is PHP plus its admin JavaScript. Every such repository is multi-language, so on the declared target the analyser can detect defects and can never admit one. That is a larger obstacle than the PHP runtime limit, and it is invisible from either subject that currently passes.",
+  "why_the_gap_exists": "A flow that crosses a language boundary is not modelled: PHP calling into JavaScript, or a script posting to an endpoint, is semantics the partitioned graph cannot follow. Recording that is right.",
+  "why_the_response_is_too_coarse": "The gap demotes every question, including one wholly inside a single PHP file with no cross-language element in its scope. This project has already fixed this bug class once, at the question level: task 12.3 made an empty-scope gap question-owned 'so it cannot block another question's comparison'. The same principle applies one level up. A partition boundary should demote the questions whose scope could cross it, not every question in the repository.",
+  "what_to_do": "Scope the partition boundary to the questions it can actually affect, and leave a question whose scope lies inside one partition completable. Do not simply reclassify the reason as a declared exclusion: that would silently claim cross-language flows are out of scope rather than unresolved.",
+  "limits": [
+    "Three subjects, one of them multi-language. A single-language PHP repository has not been measured and would isolate the cause further.",
+    "`partition_file_census_incomplete` is present on PMPro too and is also an integrity gap, so fixing only the cross-partition reason may not be enough on this subject."
+  ]
+}

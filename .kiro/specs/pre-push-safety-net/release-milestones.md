@@ -48,6 +48,16 @@ threshold and no owner boundary.
    it would ship silence. Output encoding, path, prototype and deserialization have not earned a
    place either. M4 explicitly does not require every language or family to become eligible.
 
+**Amendment to the amendment, same day.** Decision 1's re-run exposed something larger than the
+runtime limit it was chasing. A repository holding two languages can never complete a question,
+because a partition boundary is classified as a graph-integrity gap and such a gap demotes every
+completed outcome; and a completed outcome is what admission requires. NodeGoat completes 299 of
+299 and VAmPI 35 of 35 because each holds one language, while PMPro completes none of 520 and
+still establishes 43 findings. The declared v0.1 target is WordPress plugins, and a plugin is PHP
+plus its admin JavaScript, so on the target this tool was built for it can detect and never admit.
+Task 13.4 carries it, and it now ranks with M2 rather than behind it: a narrow JavaScript-only
+release can proceed without it, and the WordPress target cannot proceed at all.
+
 **The risk this amendment does not remove.** Every number so far comes from two repositories used
 to build the analyser, and one week of examining them surfaced seven false positives. On untouched
 code the precision estimate will move, against a bar of 95% with zero false alerts on the fixed and
