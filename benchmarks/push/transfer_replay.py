@@ -142,6 +142,11 @@ def main() -> int:
     parser.add_argument("--language", required=True)
     parser.add_argument("--symbols", default="", help="comma-separated operation symbols for the unreviewed declaration")
     parser.add_argument("--deadline", type=float, default=900.0)
+    # The population a bounded run examines. 500 is the committed default and the shape every earlier
+    # measurement used; a smaller budget is how a repository whose full question set cannot fit any ceiling
+    # gets asked at all. It bounds the RUN, never the repository: the artifact's own census reports what was
+    # left unexamined, and a bounded population establishes transfer rather than coverage.
+    parser.add_argument("--max-regions", type=int, default=500)
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=False)
     out = args.out.resolve()
@@ -177,7 +182,7 @@ def main() -> int:
             (bare / "objects/info/alternates").write_text("\n".join(sorted(alternates)) + "\n")
             pins[sid] = pin_snapshot(bare, snapshot.get("commit", recipe.commit), snapshot)
 
-    settings = ScanBudget(max_model_calls=0, max_regions=500, order_by_evidence=True)
+    settings = ScanBudget(max_model_calls=0, max_regions=args.max_regions, order_by_evidence=True)
     installed = _provenance(bare, settings)
     family = next((targets[c["id"]]["family"] for c in cases if c["id"] in targets), "injection")
     symbols = tuple(s.strip() for s in args.symbols.split(",") if s.strip())
@@ -192,6 +197,7 @@ def main() -> int:
         "language": args.language,
         "flag": FLAG,
         "development_budget_seconds": args.deadline,
+        "max_regions": args.max_regions,
         "budget_note": "Explicitly named development budget; this run cannot satisfy or measure the hook latency gate.",
         "expectations": EXPECTATIONS,
         "pins": pins,
@@ -235,7 +241,7 @@ def main() -> int:
             "--cancellation-allowance",
             "2",
             "--max-regions",
-            "500",
+            str(args.max_regions),
             "--cache-dir",
             str(out / "cache"),
             FLAG,
