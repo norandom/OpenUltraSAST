@@ -233,7 +233,7 @@ def test_an_unresolved_context_projection_still_demotes_the_question(tmp_path):
     assert result.question_outcomes[0].reason == "change_context_incomplete"
 
 
-def scan_with_layout(tmp_path, *, vendor=False, symlink=False):
+def scan_with_layout(tmp_path, *, vendor=False, symlink=False, second_language=False):
     """Exercise the real partition boundaries rather than injecting a reason."""
     (tmp_path / "source.php").write_text("readable\n")
     if vendor:
@@ -241,6 +241,8 @@ def scan_with_layout(tmp_path, *, vendor=False, symlink=False):
         (tmp_path / "vendor" / "lib.php").write_text("third party\n")
     if symlink:
         (tmp_path / "linked.php").symlink_to(tmp_path / "source.php")
+    if second_language:
+        (tmp_path / "admin.js").write_text("const x = 1;\n")
     rows = vector() + [row("source.php"), {"kind": "context_summary"}]
     return scan_repository(
         tmp_path,
@@ -347,3 +349,40 @@ def test_a_question_naming_a_function_the_file_does_not_define_says_so(tmp_path)
     # The gap is owned by the question that asked it, so it cannot block another question.
     assert gaps[0].endswith(outcome.identity.question_id)
     assert not any("context_scope_empty" in g for g in result.scope.unresolved_boundaries)
+
+
+def test_a_second_language_does_not_invalidate_the_first_language_answer(tmp_path):
+    """A repository holding two languages must still be able to complete a question.
+
+    Measured 2026-09-21 on a WordPress plugin: PHP with 36 regions of admin JavaScript completed NONE of 520
+    questions while establishing 43 findings, because a partition boundary was classified as a graph-integrity
+    failure and any such gap demotes every answer in the repository. Admission requires a completed outcome,
+    so every multi-language repository was unadmittable by construction -- which is every plugin this product
+    was built for.
+
+    A flow this tool cannot follow out of one language can hide a finding and never invent one, so the
+    boundary is a declared limit. It stays reported; it no longer demotes.
+    """
+    result = scan_with_layout(tmp_path, second_language=True)
+    assert "cross_partition_semantics_unresolved" in result.scope.unresolved_boundaries, result.scope.unresolved_boundaries
+    assert result.question_outcomes[0].status == "completed", result.question_outcomes[0]
+
+
+def test_a_gap_in_another_partition_does_not_demote_this_one(tmp_path):
+    """An integrity gap reaches the questions it can be wrong about, which is its own partition's.
+
+    On that same plugin four JavaScript files -- a webpack build output, a minified select2, a build config and
+    one source file -- were absent from the JavaScript graph, and a repository-wide demotion took the
+    admissibility of 4,425 PHP regions with them. A missing JavaScript file cannot make a PHP answer wrong.
+    """
+    from openultrasast.model.scan import GRAPH_INTEGRITY_GAPS, _scan_repository_impl  # noqa: F401
+
+    result = scan_with_layout(tmp_path, second_language=True)
+    scoped = [d for d in result.degradations if d.get("census_language")]
+    for gap in scoped:
+        assert gap["reason"] in GRAPH_INTEGRITY_GAPS, gap
+    # Whatever the fake graph reports, a PHP question may only be demoted by a gap from the PHP partition.
+    php = [o for o in result.question_outcomes if o.identity.language == "php"]
+    assert php, result.question_outcomes
+    if all(str(d.get("census_language") or "") != "php" for d in result.degradations):
+        assert all(o.status == "completed" for o in php), [(o.status, o.reason) for o in php]

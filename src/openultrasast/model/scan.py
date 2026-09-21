@@ -426,7 +426,7 @@ def _scan_repository_impl(
                             {
                                 "stage": "model",
                                 "reason": "cpg_empty" if "methods" in entry and methods == 0 else entry.get("census_failure", "cpg_empty"),
-                                **{k: entry[k] for k in ("methods", "files", "missing_file_names") if k in entry},
+                                **{k: entry[k] for k in ("methods", "files", "missing_file_names", "census_language") if k in entry},
                             }
                         )
                     # More than one graph means some files could only be built apart from the rest, and a
@@ -519,6 +519,22 @@ def _scan_repository_impl(
         degradations.append({"stage": "model", "reason": "budget_exhausted", "regions_unasked": len(unasked)})
 
     graph_gaps = tuple(str(d["reason"]) for d in degradations if d.get("reason") in GRAPH_INTEGRITY_GAPS)
+    # An integrity gap reaches the questions it can actually be wrong about, which for a census gap is the
+    # ONE partition it came from. A partitioned scan raises a gap per graph, and a repository-wide demotion
+    # let four JavaScript files -- a webpack build output, a minified select2, a build config and one source
+    # file -- take the admissibility of 4,425 PHP regions with them. Third instance of this shape in one week,
+    # after vendor exclusion acting as a global veto and line ambiguity inherited by every question, so the
+    # rule is now written in the design: a gap is owned by the narrowest scope that caused it.
+    scoped_graph_gaps: dict[str, list[str]] = {}
+    unscoped_graph_gaps: list[str] = []
+    for item in degradations:
+        if item.get("reason") not in GRAPH_INTEGRITY_GAPS:
+            continue
+        partition = str(item.get("census_language") or "")
+        if partition:
+            scoped_graph_gaps.setdefault(partition, []).append(str(item["reason"]))
+        else:
+            unscoped_graph_gaps.append(str(item["reason"]))
     # A declared exclusion is a deliberate scope choice, not a failure to read the graph. It stays
     # in coverage, and whether a particular answer needed the excluded semantics is carried by that
     # question's own unresolved call destinations, not assumed for every answer in the repository.
@@ -535,8 +551,13 @@ def _scan_repository_impl(
             )
         if question.identity in context_gaps and outcomes[rid].status == "completed":
             outcomes[rid] = replace(outcomes[rid], status="unresolved", reason="change_context_incomplete")
-        if graph_gaps and outcomes[rid].status == "completed":
-            outcomes[rid] = replace(outcomes[rid], status="unresolved", reason="graph_incomplete")
+        if outcomes[rid].status == "completed":
+            # A gap with no partition is about the whole read and reaches everything. A scoped one reaches its
+            # own partition, and a question whose language the scan cannot place is treated as reached: an
+            # unplaceable question is not evidence that the gap missed it.
+            reached = bool(unscoped_graph_gaps) or bool(scoped_graph_gaps.get(question.identity.language))
+            if reached or (scoped_graph_gaps and not question.identity.language):
+                outcomes[rid] = replace(outcomes[rid], status="unresolved", reason="graph_incomplete")
     scope = replace(scope, unresolved_boundaries=tuple(dict.fromkeys((*scope.unresolved_boundaries, *graph_gaps, *declared_gaps))))
     ordered_outcomes = tuple(outcomes[q.identity.question_id] for q in scope.selected)
     scanned = len(judged)

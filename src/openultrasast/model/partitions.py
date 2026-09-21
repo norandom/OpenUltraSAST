@@ -121,11 +121,19 @@ class PartitionGraph:
                     if not named or not expected <= observed:
                         self.diagnostics.append("partition_file_census_incomplete" if named else "partition_file_census_unavailable")
                         reason = "partition_file_census_incomplete" if named else "partition_file_census_unavailable"
+                        # The partition the gap came FROM travels with it. A census gap is evidence about one
+                        # graph: a JavaScript file missing from the JavaScript graph says nothing about whether
+                        # a PHP answer is right, and without this the scan cannot tell the difference.
                         rows = [
-                            dict(r, census_failure=reason, missing_file_names=sorted(expected - observed) if named else [])
+                            dict(
+                                r,
+                                census_failure=reason,
+                                census_language=language,
+                                missing_file_names=sorted(expected - observed) if named else [],
+                            )
                             for r in normalized
                             if isinstance(r, Mapping)
-                        ] or [{"census_failure": reason, "missing_file_names": []}]
+                        ] or [{"census_failure": reason, "census_language": language, "missing_file_names": []}]
                     # Preserve any individual empty or sharded graph's degradation.
                     previous = answers.get(rid, [])
                     if not previous or any(

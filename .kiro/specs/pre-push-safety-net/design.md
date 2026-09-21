@@ -24,6 +24,53 @@ an irrelevant old defect, or an unactionable witness can still produce noise.
 - Do not build a second ranker/scope heuristic, an incremental CPG engine, a daemon, an automatic fixer,
   or a mandatory model service. Do not scan intermediate pushed history in this feature.
 
+## Two invariants this project keeps rediscovering
+
+Added 2026-09-21 after the same two defects appeared eleven times between them. Each instance was
+found by measurement, fixed in one place, and then found again somewhere else, because the RULE was
+never written down. Both are cheap to check in review and expensive to find in a benchmark.
+
+### A degradation is owned by the narrowest scope that caused it
+
+A gap recorded at repository scope silences questions it has no evidence about. The test for a
+repository-wide gap is whether it could make a reported answer WRONG everywhere, not whether it cost
+coverage somewhere.
+
+| instance | the blast radius | where it was fixed |
+|---|---|---|
+| vendor exclusion acting as a global completion veto | every question in the repository | M1b, task 10.6 |
+| line ambiguity inherited by every question | every question in a file | M1b |
+| an empty scope blocking another question's comparison | a sibling's answer | task 12.3 |
+| a language partition boundary demoting every answer | 4,425 PHP regions, by 36 JavaScript ones | task 13.4 |
+| a partition census gap demoting every answer | 4,425 PHP regions, by four build artefacts | task 13.4 |
+
+The fourth and fifth cost the declared v0.1 target its entire admissibility: a WordPress plugin is
+PHP plus admin JavaScript, so the product could detect defects on its own target and never admit
+one. Neither passing subject could reveal it, because both hold one language.
+
+**In review:** every new degradation reason must state the scope it reaches — one question, one file,
+one partition, or the whole read — and a reason that demotes an outcome must justify reaching that
+far. A gap that costs coverage without threatening correctness is a declared exclusion: it stays
+published and it does not demote.
+
+### A token matches the thing it names, not text that contains it
+
+Every matcher in this project searches text for a declared name, and each time the search was allowed
+to look somewhere the name does not appear AS the thing, it claimed something else.
+
+| instance | what it matched instead | where it was fixed |
+|---|---|---|
+| `gets` inside `fgets` | the safe API reported as the dangerous one, 26 times | task 5.13 |
+| `resolve` inside `resolveUrl` | a sanitizer that sanitized nothing | contributor-scan |
+| `user` inside `users` in a SQL string | a textbook IDOR read as guarded | authorization-obligations |
+| a sink word inside a comment | a prototype finding on a handler with no such call | task 14.1 |
+| a dotted setting matched on its last segment | an editor's `setOptions` read as a template engine's | task 14.3 |
+| a flow query reading the call's receiver | `res.end()`, which takes no data, reported like a write | task 14.3 |
+
+**In review:** a text match must be bounded AND confined to the part of the node that names the
+callee. Whole-node text, an argument subtree, a receiver and a trailing path segment are all places
+the name can appear without being what is called.
+
 ## Boundary Commitments
 
 ### This Spec Owns
