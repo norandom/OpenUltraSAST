@@ -223,3 +223,18 @@ Evidence: [family detection census](../../../benchmarks/measurements/2026-09-19-
 [every permissive setting](../../../benchmarks/measurements/2026-09-20-every-permissive-setting.json),
 [PHP runtime after the graph fix](../../../benchmarks/measurements/2026-09-20-php-runtime-after-graph-fix.json),
 [PHP detection corrected](../../../benchmarks/measurements/2026-09-20-php-detection-corrected.json).
+
+## Strategy, 2026-09-21
+
+Sequence amended after the family census and the PHP correction: close M3 at a completing scale
+first (task 13.3), fix PHP question completion because admission reads outcomes (13.4), reserve
+the untouched M4 population in parallel starting now (15.1), and give the remaining engineering to
+M2 graph reuse, which cannot be scoped away because meeting the latency gate by analysing less is
+explicitly not the same result. The v1 advisory scope is declared as the families whose claims can
+be admitted at the entailed rung (15.2): injection, untrusted destination and configuration.
+Access control is excluded because a carried obligation corroborates by design and would ship as
+silence.
+
+No acceptance threshold and no owner boundary changes. The risk that remains is that every number
+so far comes from subjects used to build the analyser, and one week of examining two of them
+surfaced seven false positives; the first independent evaluation should be expected to fail.

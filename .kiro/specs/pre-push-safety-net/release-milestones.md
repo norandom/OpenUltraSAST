@@ -8,16 +8,51 @@ It does not approve an unreviewed implementation design or enable any capability
 
 ## Current position
 
-**Next milestone: M1b. M1a is met; none of M1–M5 is verified yet.** The 28/29 completed
-executable tasks measure implementation progress, not release readiness. Task 8.3 remains blocked.
-The published `v1.2.0-alpha.1` is an experimental implementation release, not a qualified
-advisory rollout. See [current status](status.md) for measured evidence and limitations.
+**Next milestone: M3, with M4 population preparation running in parallel. M1a and M1b are met;
+M2 is measured NO-GO; none of M1–M5 is verified.** The published `v1.2.0-alpha.1` is an
+experimental implementation release, not a qualified advisory rollout. See
+[current status](status.md) for measured evidence and limitations.
 
-The immediate goal is one real changed-code defect, a defensible explanation, and a
-fixed twin that stays quiet. M1a first shows the raw detection with every admission veto
-recorded rather than applied; M1b repairs only the vetoes that fired. A longer, explicitly
-named development budget is acceptable for M1; it cannot satisfy the hook's latency gate.
-Runtime optimization is the next milestone after this useful result is demonstrated.
+The immediate goal was one real changed-code defect with a defensible explanation and a quiet
+fixed twin. That is met. Task 8.3 remains blocked.
+
+## Strategy amendment, 2026-09-21
+
+Accepted after the family detection census and the PHP correction. Four decisions, in the order
+they should be executed. They change sequence and declared scope; they change no acceptance
+threshold and no owner boundary.
+
+1. **Close M3 at a scale that completes, before anything else.** PHP transfer is recorded as not
+   established, and that record came from two instrument defects rather than from the analyser:
+   a census verdict that checked question completion before findings, and a region budget whose
+   question count cannot fit any ceiling. Bounded to 25 and 100 regions, Paid Memberships Pro
+   completes with no timeout and establishes a true-positive SQL injection of the class its own
+   fact table predicted. Re-run the declared transfer replay at a completing scale and let the
+   result stand either way.
+
+2. **Reserve and review the untouched M4 population now, in parallel.** M4 already permits
+   population preparation to proceed before the frozen candidate exists, and it is the longest
+   lead-time item on this path: nothing can be qualified without it however good the analyser
+   gets. Starting it after M2 serialises the release for no reason.
+
+3. **M2 is the only engineering item that remains, and it cannot be scoped away.** A changed-code
+   transaction spends its whole budget in the build with zero query time. Graph reuse across
+   revisions is the accepted direction. Narrowing what a push analyses is explicitly not a way to
+   meet the latency gate, so the work is architectural and should have the effort that family
+   vocabulary work has been absorbing.
+
+4. **Declare the v1 advisory scope as the families whose claims can be ADMITTED.** Admission
+   requires the entailed rung. Injection, untrusted destination and configuration entail with
+   witnesses; access control does not, because on any application that splits its route from its
+   data access the obligation is carried and a carried obligation corroborates by design. Shipping
+   it would ship silence. Output encoding, path, prototype and deserialization have not earned a
+   place either. M4 explicitly does not require every language or family to become eligible.
+
+**The risk this amendment does not remove.** Every number so far comes from two repositories used
+to build the analyser, and one week of examining them surfaced seven false positives. On untouched
+code the precision estimate will move, against a bar of 95% with zero false alerts on the fixed and
+benign sides. Expect the first M4 evaluation to fail and budget for a second. That is the strongest
+argument for decision 2.
 
 ## M1 — One real security change works end to end
 
@@ -234,10 +269,10 @@ remaining blocker and next concrete action. Report implementation task counts se
 Change a milestone to verified only with linked evidence; do not infer progress from
 elapsed effort or a completed experimental release tag.
 
-Immediate next action (M1b): repair the five vetoes M1a recorded, smallest first, starting
-with operation correspondence for an operation on a changed line, since that one survives
-every other repair. Then rerun the same three revisions without the flag through the
-production evidence and comparison rules. Use
-[M1a evidence](m1a-recorded-vetoes.md) and
-[remediation research](../contributor-scan/release-remediation-research.md) as the starting
-record; do not begin another broad timing campaign before the M1 outcome exists.
+Immediate next action (M3, task 13.3): re-run the declared PHP transfer replay bounded to a
+region budget whose questions complete, using the corrected census verdict, and record the
+outcome either way. Then task 13.4, PHP question completion, because admission reads outcomes
+and M4 measures completion at 95%. Task 15.1 (M4 population reservation) runs in parallel and
+blocks on nothing. Do not begin another family vocabulary campaign: the census has said which
+families can speak, and the constraint has moved to runtime and to evidence from code this
+project has not seen.

@@ -554,6 +554,38 @@ Preserve all completed task evidence below.
   - _Requirements: 6.2, 8.1_
 
 
+- [ ] 13.3 Re-run the declared PHP transfer at a scale whose questions complete
+  - **Named by the 2026-09-20 correction.** The not-established record came from two instrument defects, not from the analyser: the census verdict checked question completion before findings, and a 500-region budget asks 2,526 questions, which no ceiling this project sets can hold. Bounded to 25 and 100 regions, PMPro completes with no timeout and establishes a true-positive SQL injection at `adminpages/discountcodes.php:749`.
+  - Replay the three declared comparisons with the corrected harness at a region budget that completes, and record the declared target's evidence or its absence. State the budget as a limit of the run, not as a property of the repository: a bounded population establishes transfer, never coverage.
+  - Done when all three comparisons complete with their declared target evidence recorded, or the budget they need is stated as a finding.
+  - _Boundary: Evaluation harness, full-run integration_
+  - _Depends: 13.2_
+  - _Requirements: 6.2, 6.3, 8.1, 8.2_
+- [ ] 13.4 Complete a PHP question, or say which scope it could not reach
+  - **Named by the 2026-09-20 correction.** `questions_completed` is zero in every PHP run, including the runs that establish findings, with `cross_partition_semantics_unresolved` and `partition_file_census_incomplete` present throughout. Findings and question outcomes therefore disagree in public, and the admission policy reads the outcomes rather than the findings.
+  - Group 12 raised completion from 205 to 298 of 436 for JavaScript and answered every VAmPI question; PHP was never measured. The partition and shard boundaries are the first place to look, because those are the degradations every run carries.
+  - Done when a PHP question whose scope the graph holds completes, a question whose scope it cannot reach stays unresolved with the reason named, and no question completes by widening its scope.
+  - _Boundary: contributor-scan query/context evidence, Ranker Scope Contract_
+  - _Depends: 13.3_
+  - _Requirements: 2.1, 2.2, 6.3, 8.1_
+
+- [ ] 15. Prepare the independent population and declare the shippable scope (M4 preparation)
+  - Runs in parallel with M2 and M3. M4 already permits population preparation before the frozen candidate exists, and it is the longest lead-time item on the path: nothing can be qualified without it however good the analyser gets.
+- [ ] 15.1 Reserve and review an untouched evaluation population
+  - Freeze reviewed vulnerable, fixed and benign changes from projects not used to develop or tune this analyser. NodeGoat, VAmPI, PMPro, WP Statistics, MW WP Form and libpng are all development subjects and none of them may qualify anything.
+  - Reserve the cases untouched: do not examine their scan results before the population is frozen, and record the reservation so a later run cannot be mistaken for a blind one.
+  - Done when a frozen population exists with its provenance and review recorded, and nothing in it has been scanned.
+  - _Boundary: Evaluation harness, corpus provenance_
+  - _Requirements: 8.1, 8.2_
+- [ ] 15.2 Declare the v1 advisory scope as the families whose claims can be admitted
+  - **Admission requires the entailed rung.** Injection, untrusted destination and configuration entail with witnesses on the measured subjects. Access control does not: on an application that splits its route from its data access the obligation is carried, and a carried obligation corroborates by design, so shipping the family would ship silence. Output encoding, path, prototype and deserialization have not earned a place.
+  - Record the scope, the reason each excluded family is excluded, and what a contributor is therefore NOT told. M4 does not require every language or family to become eligible, and a published limitation is the honest form of a narrow release.
+  - Done when one record states the declared scope and every exclusion's reason, and the packaged advisory output names the limits it ships with.
+  - _Boundary: pre-push-safety-net admission, release validation_
+  - _Depends: 15.1_
+  - _Requirements: 3.1, 5.1, 5.6, 7.1_
+
+
 ## Implementation Notes
 
 - Task5.2 measured PMPro timing out after both snapshots were materialized but before change context/graph analysis. Group6 must account for compatible snapshot/discovery reuse as well as graph reuse; identical-tip hits cannot substitute for the later representative changed-code latency gate. No new detector, scope heuristic or incremental CPG mutation is implied.
