@@ -570,6 +570,17 @@ def _scan_repository_impl(
 
 # Reading the graph failed or produced something incomplete. An answer drawn from it cannot be
 # trusted, so a completed outcome is demoted.
+#
+# The test for membership is whether the gap could make a reported answer WRONG, not whether it cost
+# coverage. An unparsed file may hold the sanitizer that would have cleared a flow this scan reports,
+# so `files_unparsed` belongs here and demoting is the conservative reading. A missing file the
+# partition census expected is the same shape. That is why `cross_partition_semantics_unresolved` is
+# NOT here: a flow this tool cannot follow from one language into another can hide a finding, never
+# invent one, because a PHP sink is sanitised in PHP. Demoting on it protected nothing and cost
+# everything -- measured 2026-09-21, where a WordPress plugin with 36 regions of admin JavaScript
+# completed none of 520 questions while establishing 43 findings, and admission requires a completed
+# outcome. Every multi-language repository was unadmittable by construction, which is every plugin
+# this product was built for.
 GRAPH_INTEGRITY_GAPS = frozenset(
     {
         "files_unparsed",
@@ -577,7 +588,6 @@ GRAPH_INTEGRITY_GAPS = frozenset(
         "partition_file_census_incomplete",
         "partition_file_census_unavailable",
         "cpg_sharded",
-        "cross_partition_semantics_unresolved",
         "symlink_context_unresolved",
         "frontend_unsupported",
         "source_unreadable",
@@ -588,7 +598,14 @@ GRAPH_INTEGRITY_GAPS = frozenset(
 # Declared, intentional exclusions. The exclusion stays physical and stays reported; it is not
 # evidence that any particular first-party answer is wrong. Treating it as one demoted every
 # answer on every real repository, because every real repository excludes its dependencies.
-DECLARED_EXCLUSION_GAPS = frozenset({"vendor_semantics_unresolved"})
+# Declared, intentional exclusions. The exclusion stays physical and stays reported -- both classes are
+# added to the scope's unresolved boundaries, so a declared gap is still published as unresolved; the class
+# decides only whether it demotes every answer in the repository.
+#
+# `cross_partition_semantics_unresolved` is one of these: analysing each language separately, and not
+# modelling a flow that leaves one for another, is a deliberate scope choice of exactly the kind vendor
+# exclusion is. It was in the integrity set until 2026-09-21 and the reason for moving it is above.
+DECLARED_EXCLUSION_GAPS = frozenset({"vendor_semantics_unresolved", "cross_partition_semantics_unresolved"})
 
 
 def _identity(unit: str, region: ScanRegion, family: str) -> QuestionIdentity:

@@ -83,6 +83,11 @@ def main() -> int:
         "query_seconds": result.query_seconds,
         "hook_table_hooks": len(hooks),
         "degradations": [str(d.get("reason")) for d in result.degradations],
+        # The reason alone cannot be acted on. A partition census that reports files missing carries WHICH
+        # files, and without them the gap is a label rather than a lead.
+        "degradation_detail": [
+            {k: (v[:20] if isinstance(v, list) else v) for k, v in d.items() if k != "stage"} for d in result.degradations
+        ],
         "questions_total": len(result.question_outcomes),
         "questions_completed": sum(1 for q in result.question_outcomes if q.status == "completed"),
         "findings_total": len(result.findings),
