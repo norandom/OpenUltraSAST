@@ -238,3 +238,20 @@ silence.
 No acceptance threshold and no owner boundary changes. The risk that remains is that every number
 so far comes from subjects used to build the analyser, and one week of examining two of them
 surfaced seven false positives; the first independent evaluation should be expected to fail.
+
+## PHP reaches its declared target, 2026-09-22
+
+The M3 PHP target is detected: `classes/class.memberorder.php:936:getMemberOrderByCode`, a request
+value concatenated into SQL with no prepare. It had never been reached, and nothing about detection
+changed to reach it. The population became affordable.
+
+Four repairs did that, and three of them are the same rule the design now carries. Tier-zero pruning
+was switched off for a whole scan by any degradation, and a multi-language repository always carries
+one. Batches were sized by request count when the cost is per matched sink, so a family whose sinks
+are `echo` and `print` was priced like one whose sinks are rare. A per-query timeout cancelled the
+entire scan, abandoning work with half an hour of budget left. And nothing was held back for
+arbitration, so a scan could spend everything on queries and report none of what they answered.
+
+On the 500-region population that previously completed zero questions at every budget tried: 271 of
+406 completed, 213 findings, 2,950 seconds. The three declared comparisons are running at that
+budget; detection is not transfer, and only the comparison decides M3.
