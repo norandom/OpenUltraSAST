@@ -1053,7 +1053,20 @@ class JoernBackend:
         """
         if not requests:
             return self._batch_once(cpg_path, query, requests)
+        # What each invocation cost and whether it answered. Nine hypotheses about this cost have been
+        # eliminated by rebuilding the request outside the driver -- batch size, call depth, parameter
+        # sources, hook table, argument length, sharding -- and every one of them answered in under four
+        # minutes while the driver spent whatever ceiling it was given. A scan that issues several
+        # invocations cannot say which of them burned the budget, and that is why the guessing continued.
+        started = time.monotonic()
         answered = self._batch_once(cpg_path, query, requests)
+        logger.info(
+            "cpg batch %s: %d request(s) in %.1fs, %s",
+            query,
+            len(requests),
+            time.monotonic() - started,
+            "answered" if answered is not None else "unanswered",
+        )
         if answered is not None or len(requests) <= 1:
             return answered
         size = max(1, len(requests) // _BATCH_SPLITS)
@@ -1062,8 +1075,18 @@ class JoernBackend:
         recovered = False
         for start in range(0, len(ids), size):
             if not self._time_available():
+                logger.info("cpg batch %s: split abandoned at part %d, no time left", query, start // size + 1)
                 break
+            part_started = time.monotonic()
             part = self._batch_once(cpg_path, query, {rid: requests[rid] for rid in ids[start : start + size]})
+            logger.info(
+                "cpg batch %s part %d: %d request(s) in %.1fs, %s",
+                query,
+                start // size + 1,
+                min(size, len(ids) - start),
+                time.monotonic() - part_started,
+                "answered" if part is not None else "unanswered",
+            )
             if part is None:
                 continue
             recovered = True
