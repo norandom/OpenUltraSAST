@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "experiment": "sink-weighted-batching-v1",
+  "date": "2026-09-22",
+  "task": "contributor-scan 7.7",
+  "claim_scope": "Making a large PHP population affordable. Measured on Paid Memberships Pro at 500 regions, where every earlier run produced nothing.",
+  "four_defects_each_hidden_by_the_one_before": [
+    {
+      "defect": "batches sized by request count",
+      "why_wrong": "cost is per matched sink; reachableByFlows is asked once per sink call the family's names match",
+      "fix": "budget in sink visits, from the count the evidence pass already produced",
+      "measured": "380 requests carrying 5,807 sink visits split into 11 batches, each answering in 80-197 s, none near the 300 s ceiling"
+    },
+    {
+      "defect": "packing heaviest-first",
+      "why_wrong": "the expensive output-encoding batches ran first and spent the deadline, leaving injection with 114 questions asked and none answered -- the one family holding a true positive on this subject",
+      "fix": "keep the ranker's order; a deadline always cuts a tail, and the tail it should cut is the one the ranker put last",
+      "measured": "injection 0 completed and 0 findings became 11 and 12"
+    },
+    {
+      "defect": "any query timeout cancelled the whole scan",
+      "why_wrong": "a per-query ceiling and an exhausted scan deadline reached one handler and got one consequence; four batches returned in 0.0 s with 33 minutes of budget left",
+      "fix": "cancel only when the SCAN deadline is gone",
+      "measured": "batches behind a failed one now run: 27 in 111 s, 8 in 97 s, 71 in 137 s"
+    },
+    {
+      "defect": "no budget kept for arbitration",
+      "why_wrong": "rows are not findings. Removing the cascade was right and made the result WORSE, because the cascade had been an accidental guard: the query phase then ran the full deadline and completed nothing",
+      "fix": "reserve a fifth of what is left when querying starts, floor 60 s, never more than half -- and check it before each BATCH, because one query kind is a single loop iteration that runs all of its batches inside it",
+      "measured": "checked per kind it changed nothing at all, 0 of 406; checked per batch, 153 of 406"
+    }
+  ],
+  "measured": {
+    "with the cascade": {
+      "questions_completed": 37,
+      "questions_arbitrated": 406,
+      "findings": 78,
+      "query_seconds": 734.43,
+      "total_seconds": 957.7,
+      "deadline_exhausted": false
+    },
+    "cascade removed": {
+      "questions_completed": 0,
+      "questions_arbitrated": 406,
+      "findings": 0,
+      "query_seconds": 2444.42,
+      "total_seconds": 2700.8,
+      "deadline_exhausted": true
+    },
+    "reserve per kind": {
+      "questions_completed": 0,
+      "questions_arbitrated": 406,
+      "findings": 0,
+      "query_seconds": 2435.44,
+      "total_seconds": 2700.6,
+      "deadline_exhausted": true
+    },
+    "reserve per batch": {
+      "questions_completed": 153,
+      "questions_arbitrated": 406,
+      "findings": 125,
+      "query_seconds": 2078.94,
+      "total_seconds": 2338.2,
+      "deadline_exhausted": false
+    }
+  },
+  "the_result": "153 of 406 questions completed and 125 findings, inside the deadline with no exhaustion, where the same population previously completed nothing. Every family that can speak on this subject now does: injection 49 completed and 24 findings, path 64 and 15, output encoding 32 and 70, untrusted destination 8 and 16. Eight batches were left unasked to keep time for arbitration, and that is recorded rather than silent.",
+  "what_this_does_not_claim": [
+    "The population is still not fully arbitrated: 253 of 406 questions went unanswered and the scan still records process_timeout on one batch.",
+    "Raw finding counts are dominated by output encoding, which is the family already measured to be imprecise on PHP because the WordPress escapers are absent from a sanitizer list that cannot separate weakness classes. More findings there is not better detection.",
+    "One subject. The saving depends on how common each family's sinks are in a codebase, which is a property of the code and the ontology together.",
+    "The reserve share of a fifth is a first value, chosen because the phases after querying took roughly 220 s for 400 questions on this subject. It is not tuned."
+  ]
+}
