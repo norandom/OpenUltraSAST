@@ -107,6 +107,10 @@ def main() -> int:
     deferred_by_family: dict[str, collections.Counter[str]] = collections.defaultdict(collections.Counter)
     for item in result.scope.deferred if result.scope else ():
         deferred_by_family[item.identity.family][item.reason] += 1
+    # Which regions the budget actually reached, in rank order. A census that reports what it found cannot
+    # say whether a defect it missed was examined and cleared or never looked at, and that is the difference
+    # between a negative and a silence. It is also how a bounded run's budget gets sized without guessing.
+    record["selected_paths"] = list(dict.fromkeys(q.identity.path for q in (result.scope.selected if result.scope else ())))[:400]
     asked = collections.Counter(q.identity.family for q in result.question_outcomes)
     completed = collections.Counter(q.identity.family for q in result.question_outcomes if q.status == "completed")
     found: dict[str, list[dict[str, Any]]] = collections.defaultdict(list)
