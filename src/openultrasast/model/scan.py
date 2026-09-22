@@ -22,7 +22,7 @@ import inspect
 import json
 import logging
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
@@ -427,7 +427,13 @@ def _scan_repository_impl(
         kind_started = time.monotonic()
         batch = getattr(cpg, "run_batch", None)
         if callable(batch):
-            answered_batch = _batched(batch, kind, requests, weights=_sink_weights(work, evidence_by_pair))
+            answered_batch = _batched(
+                batch,
+                kind,
+                requests,
+                weights=_sink_weights(work, evidence_by_pair),
+                within=lambda: _within_deadline(execution_budget, reserve=reserve),
+            )
             if answered_batch is None:
                 # The engine could not answer. That is NOT an empty result, and recording it is what keeps a
                 # failed scan from reading as a clean repository: on a 117k-line PHP checkout every query
@@ -862,7 +868,12 @@ def _sized_batches(requests: Mapping[str, Mapping[str, object]], weights: Mappin
 
 
 def _batched(
-    batch: Any, kind: str, requests: Mapping[str, Mapping[str, object]], *, weights: Mapping[str, int]
+    batch: Any,
+    kind: str,
+    requests: Mapping[str, Mapping[str, object]],
+    *,
+    weights: Mapping[str, int],
+    within: Callable[[], bool] = lambda: True,
 ) -> dict[str, list[object]] | None:
     """Ask one kind in chunks the engine can afford, and merge what answered.
 
@@ -883,7 +894,14 @@ def _batched(
     )
     merged: dict[str, list[object]] = {}
     answered_any = False
-    for chunk in chunks:
+    for index, chunk in enumerate(chunks):
+        # Checked per CHUNK, not per kind. A first attempt checked between kinds, and one kind is a single
+        # iteration that runs every chunk inside it -- so taint spent the whole budget and the reserve only
+        # stopped the cheap kinds behind it. The granularity of a budget check has to match the granularity
+        # of the work it guards.
+        if not within():
+            logger.info("cpg %s: %d batch(es) left unasked to keep time for arbitration", kind, len(chunks) - index)
+            break
         answer = batch(kind, chunk)
         if answer is None:
             continue
