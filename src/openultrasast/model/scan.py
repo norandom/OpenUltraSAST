@@ -904,27 +904,39 @@ def _batched(
     )
     merged: dict[str, list[object]] = {}
     answered_any = False
-    for index, chunk in enumerate(chunks):
-        # Checked per CHUNK, not per kind. A first attempt checked between kinds, and one kind is a single
-        # iteration that runs every chunk inside it -- so taint spent the whole budget and the reserve only
-        # stopped the cheap kinds behind it. The granularity of a budget check has to match the granularity
-        # of the work it guards.
+    # A QUEUE, not a fixed list, because a killed portion leaves a remainder that must be re-asked at the now
+    # smaller budget rather than dropped. On the plugin the fixed list ran out at 1,263 s of a 3,600 s budget
+    # with the killed portions' remainders lost -- completion far below what the budget could buy. The queue
+    # keeps working while there is time and something left to ask; `fit` sizes the head against the current
+    # budget, and a portion that comes back short pushes its unanswered ids back for a smaller retry.
+    queue: list[dict[str, Mapping[str, object]]] = list(chunks)
+    while queue:
+        # Checked per portion, not per kind: one kind runs every portion inside a single loop iteration, so a
+        # per-kind check would let taint spend the whole budget before the reserve looked.
         if not within():
-            logger.info("cpg %s: %d batch(es) left unasked to keep time for arbitration", kind, len(chunks) - index)
+            left = sum(len(c) for c in queue)
+            logger.info("cpg %s: %d request(s) left unasked to keep time for arbitration", kind, left)
             break
-        chunk = sizer.fit(chunk, pending=chunks[index + 1 :])
+        chunk = sizer.fit(queue.pop(0), pending=queue)
         started = time.monotonic()
         answer = batch(kind, chunk)
         # WHOLE, not merely non-empty. A killed portion streams some answers and returns them, which is the
         # point -- but its time is the ceiling, not the cost of the work, so fitting a per-visit rate from it
-        # is meaningless. Only a portion that answered every id it was asked gives a clean sample; a short
-        # one halves the budget, because it was too big for the ceiling.
-        whole = answer is not None and all(rid in answer for rid in chunk)
+        # is meaningless. Only a portion that answered every id it was asked gives a clean sample.
+        answered_ids = set(answer or ())
+        whole = answer is not None and all(rid in answered_ids for rid in chunk)
         sizer.observe(chunk, time.monotonic() - started, answered=whole)
-        if answer is None:
-            continue
-        answered_any = True
-        merged.update(answer)
+        if answer is not None:
+            answered_any = True
+            merged.update(answer)
+        # The unanswered remainder goes back to the front, to be re-asked at the now-smaller budget: either
+        # progress was made and the rest is a genuine remainder, or nothing answered and `fit` will split the
+        # portion smaller next time. Termination is guaranteed because a portion that answers nothing halves
+        # the budget, `fit` caps the head at the budget, so heads shrink to single requests; and a SINGLE
+        # request a whole ceiling could not answer is dropped rather than looped on forever.
+        remainder = {rid: req for rid, req in chunk.items() if rid not in answered_ids}
+        if remainder and len(chunk) > 1:
+            queue.insert(0, remainder)
     return merged if answered_any else None
 
 

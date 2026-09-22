@@ -1311,3 +1311,25 @@ def test_the_portioner_asks_single_attempts_and_halves_on_a_short_answer(tmp_pat
     assert once_calls, "the single-attempt path was not used"
     # The portion that came back short of its ids was reported as not-whole (False) to the sizer.
     assert False in seen, seen
+
+
+def test_the_queue_re_asks_a_killed_remainder_and_terminates() -> None:
+    """A killed portion's unanswered ids are re-asked at a smaller budget; a lone hard request is dropped."""
+    from openultrasast.model import scan
+
+    attempts: list[list[str]] = []
+
+    def batch(kind: str, requests: dict[str, dict[str, object]]) -> dict[str, list[object]] | None:
+        attempts.append(sorted(requests))
+        # "hard" never answers, whatever size it is asked in; everything else answers.
+        answered = {rid: [] for rid in requests if rid != "hard"}
+        return answered or None
+
+    weights = {"a": 500, "b": 500, "hard": 500, "c": 500}
+    requests = {rid: {} for rid in weights}
+    merged = scan._batched(batch, "taint", requests, weights=weights)
+    assert merged is not None
+    assert {"a", "b", "c"} <= set(merged) and "hard" not in merged, merged
+    # It must stop: "hard" is asked, dropped once it is alone, and never re-queued forever.
+    assert len(attempts) < 40, len(attempts)
+    assert attempts.count(["hard"]) <= 1, attempts
