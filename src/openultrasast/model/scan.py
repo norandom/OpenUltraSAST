@@ -416,7 +416,7 @@ def _scan_repository_impl(
         kind_started = time.monotonic()
         batch = getattr(cpg, "run_batch", None)
         if callable(batch):
-            answered_batch = batch(kind, requests)
+            answered_batch = _batched(batch, kind, requests, weights=_sink_weights(work, evidence_by_pair))
             if answered_batch is None:
                 # The engine could not answer. That is NOT an empty result, and recording it is what keeps a
                 # failed scan from reading as a clean repository: on a 117k-line PHP checkout every query
@@ -772,6 +772,95 @@ def _family_coverage(scope: ScopeDecision, outcomes: tuple[QuestionOutcome, ...]
 
 def _pair_key(region: ScanRegion, spec: ArbiterSpec) -> tuple[str, str, str]:
     return (region.path, region.function or "", getattr(spec, "family", ""))
+
+
+# What one arbitration request costs the engine, in the only unit that predicts it: the sink CALLS its
+# family matches in scope. `reachableByFlows` is asked per matched sink, so a request whose family is `echo`
+# asks a different question from one whose family is `$wpdb->get_var`, at identical request counts.
+#
+# Measured 2026-09-22 on one WordPress plugin's graph, at a fixed 100 requests each: SQL injection 147 s with
+# six declared sinks, path 194 s with sixteen, output encoding 704 s with seven. The declared count does not
+# predict cost and the request count does not predict cost. The matched count does.
+#
+# The budget is in sink visits rather than requests, so a family whose sinks are rare rides in one batch and
+# a family whose sinks are everywhere is split until it fits. Splitting by request count, which is what the
+# backend's failure retry does, cannot help: every part carries the same everywhere-sinks.
+MAX_SINK_VISITS_PER_BATCH = 600
+
+
+def _sink_weights(
+    work: Sequence[tuple[str, ScanRegion, ArbiterSpec]], evidence_by_pair: Mapping[tuple[str, str, str], Any]
+) -> dict[str, int]:
+    """Sink calls in scope per request id, from the evidence pass that already counted them.
+
+    A request the evidence pass never saw weighs one. That is deliberate: an unknown cost must not make a
+    batch look cheap, but neither should it dominate a budget it was never measured against.
+    """
+    weights: dict[str, int] = {}
+    for rid, region, spec in work:
+        evidence = evidence_by_pair.get(_pair_key(region, spec))
+        sinks = getattr(evidence, "sinks", ()) if evidence is not None else ()
+        weights[rid] = max(1, len(sinks))
+    return weights
+
+
+def _sized_batches(requests: Mapping[str, Mapping[str, object]], weights: Mapping[str, int]) -> list[dict[str, Mapping[str, object]]]:
+    """Chunks whose implied sink work stays under the budget, in the order the ranker gave.
+
+    The order is the ranker's and must stay the ranker's. A first attempt packed heaviest-first, which is
+    better packing and worse analysis: on the measured plugin the expensive output-encoding chunks ran first,
+    spent the deadline, and left injection with 114 questions asked and none answered -- the one family
+    holding a true positive on that subject. A deadline always cuts a tail, and the tail it should cut is the
+    one the ranker put last.
+
+    One request over the budget on its own gets its own chunk rather than being dropped: the scan's job is to
+    report that it is expensive, not to decide it is unaskable.
+    """
+    ordered = list(requests)
+    chunks: list[dict[str, Mapping[str, object]]] = []
+    current: dict[str, Mapping[str, object]] = {}
+    carried = 0
+    for rid in ordered:
+        weight = weights.get(rid, 1)
+        if current and carried + weight > MAX_SINK_VISITS_PER_BATCH:
+            chunks.append(current)
+            current, carried = {}, 0
+        current[rid] = requests[rid]
+        carried += weight
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def _batched(
+    batch: Any, kind: str, requests: Mapping[str, Mapping[str, object]], *, weights: Mapping[str, int]
+) -> dict[str, list[object]] | None:
+    """Ask one kind in chunks the engine can afford, and merge what answered.
+
+    A chunk that fails leaves its own requests unanswered rather than discarding the answers beside it, which
+    is the same contract the backend's split retry keeps. Everything answered is returned; only a kind where
+    no chunk answered at all is reported as unavailable.
+    """
+    chunks = _sized_batches(requests, weights)
+    if len(chunks) <= 1:
+        answered: dict[str, list[object]] | None = batch(kind, requests)
+        return answered
+    logger.info(
+        "cpg %s split into %d batches by sink weight (%d request(s), %d sink visit(s))",
+        kind,
+        len(chunks),
+        len(requests),
+        sum(weights.get(rid, 1) for rid in requests),
+    )
+    merged: dict[str, list[object]] = {}
+    answered_any = False
+    for chunk in chunks:
+        answer = batch(kind, chunk)
+        if answer is None:
+            continue
+        answered_any = True
+        merged.update(answer)
+    return merged if answered_any else None
 
 
 def _collect(
