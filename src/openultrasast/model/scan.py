@@ -427,8 +427,13 @@ def _scan_repository_impl(
         kind_started = time.monotonic()
         batch = getattr(cpg, "run_batch", None)
         if callable(batch):
+            # The portioner is the retry layer, so it asks in SINGLE attempts: a portion timed with
+            # `run_batch` folds that method's own split-retry into the number, which once read 953 s for one
+            # portion and collapsed the sizer. `run_batch_once` is one invocation whose kill returns what it
+            # streamed. A backend without it falls back to `run_batch`, unchanged.
+            once = getattr(cpg, "run_batch_once", None)
             answered_batch = _batched(
-                batch,
+                once if callable(once) else batch,
                 kind,
                 requests,
                 weights=_sink_weights(work, evidence_by_pair),
@@ -910,7 +915,12 @@ def _batched(
         chunk = sizer.fit(chunk, pending=chunks[index + 1 :])
         started = time.monotonic()
         answer = batch(kind, chunk)
-        sizer.observe(chunk, time.monotonic() - started, answered=bool(answer))
+        # WHOLE, not merely non-empty. A killed portion streams some answers and returns them, which is the
+        # point -- but its time is the ceiling, not the cost of the work, so fitting a per-visit rate from it
+        # is meaningless. Only a portion that answered every id it was asked gives a clean sample; a short
+        # one halves the budget, because it was too big for the ceiling.
+        whole = answer is not None and all(rid in answer for rid in chunk)
+        sizer.observe(chunk, time.monotonic() - started, answered=whole)
         if answer is None:
             continue
         answered_any = True

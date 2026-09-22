@@ -1269,3 +1269,45 @@ def test_a_killed_batch_retries_only_the_remainder(tmp_path: Path) -> None:
     assert answered is not None and answered["a"] == [1] and answered["b"] == ["b"] and answered["c"] == ["c"]
     assert calls[0] == ["a", "b", "c"]
     assert all("a" not in retry for retry in calls[1:]), calls
+
+
+def test_the_portioner_asks_single_attempts_and_halves_on_a_short_answer(tmp_path: Path) -> None:
+    """A killed portion returns what it streamed; the sizer must read that as too big, not as slow.
+
+    Timing `run_batch` folds its internal split-retry into the number -- one portion read 953 s that way and
+    the sizer fitted a per-visit rate from it and collapsed. The portioner asks `run_batch_once` instead, and
+    a portion that came back short of the ids it asked halves the budget rather than fitting from a ceiling.
+    """
+    from openultrasast.cpg.backend import CpgResult
+    from openultrasast.model import scan
+
+    once_calls: list[list[str]] = []
+
+    def once(kind: str, requests: dict[str, dict[str, object]]) -> dict[str, list[object]] | None:
+        once_calls.append(sorted(requests))
+        # Answer everything except a designated heavy id, as a kill would: it streamed the rest and died.
+        return {rid: [] for rid in requests if rid != "heavy"}
+
+    result = CpgResult(cpg_path=tmp_path / "c.bin", run=lambda k, p: None, run_batch=lambda k, r: None, run_batch_once=once)
+
+    seen: list[bool] = []
+    real_observe = scan._PortionSizer.observe
+
+    def spy(self, chunk, seconds, *, answered):  # type: ignore[no-untyped-def]
+        seen.append(answered)
+        return real_observe(self, chunk, seconds, answered=answered)
+
+    # Two portions over the budget so the portioner actually splits and observes.
+    weights = {"heavy": 500, "a": 400, "b": 400}
+    requests = {rid: {} for rid in weights}
+    monkey = scan._PortionSizer.observe
+    scan._PortionSizer.observe = spy  # type: ignore[method-assign]
+    try:
+        merged = scan._batched(result.run_batch_once, "taint", requests, weights=weights)
+    finally:
+        scan._PortionSizer.observe = monkey  # type: ignore[method-assign]
+
+    assert merged is not None and "a" in merged and "b" in merged and "heavy" not in merged
+    assert once_calls, "the single-attempt path was not used"
+    # The portion that came back short of its ids was reported as not-whole (False) to the sizer.
+    assert False in seen, seen

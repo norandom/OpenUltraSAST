@@ -297,6 +297,11 @@ class CpgResult:
     cpg_path: Path
     run: Callable[[str, Mapping[str, object]], object | None]
     run_batch: Callable[[str, Mapping[str, Mapping[str, object]]], dict[str, list[object]] | None] | None = None
+    # A SINGLE batch attempt: no internal split-on-failure, so its wall time is the cost of exactly one
+    # invocation and a killed one returns the answers it streamed before the kill. The scan-level portioner
+    # uses this because it is itself the retry layer -- timing `run_batch`, which splits internally, once
+    # read one portion at 953 s (its own retries folded in) and collapsed the adaptive sizer.
+    run_batch_once: Callable[[str, Mapping[str, Mapping[str, object]]], dict[str, list[object]] | None] | None = None
     # Files the frontend read and could not turn into a graph. A CPG is not all-or-nothing: `php2cpg` logs a
     # warning per file it drops and still exits 0 with a graph that is missing them, so a scan over the
     # remainder is a scan of LESS CODE THAN IT WAS ASKED ABOUT, and silence about those files is the same
@@ -607,6 +612,7 @@ class JoernBackend:
                     cpg_path=shards[0],
                     run=lambda query, params: self.query_across(shards, query, params),
                     run_batch=lambda query, requests: self.query_batch_across(shards, query, requests),
+                    run_batch_once=lambda query, requests: self.query_batch_across(shards, query, requests, once=True),
                     unparsed=unparsed,
                     cleanup=dispose,
                     execution_diagnostics=lambda: tuple(self._diagnostics),
@@ -639,6 +645,7 @@ class JoernBackend:
             cpg_path=cpg_path,
             run=lambda query, params: self.query(cpg_path, query, params),
             run_batch=lambda query, requests: self.query_batch(cpg_path, query, requests),
+            run_batch_once=lambda query, requests: self._batch_once(cpg_path, query, requests),
             unparsed=unparsed,
             cleanup=dispose,
             execution_diagnostics=lambda: tuple(self._diagnostics),
@@ -931,12 +938,14 @@ class JoernBackend:
         return merged if answered else None
 
     def query_batch_across(
-        self, shards: Sequence[Path], query: str, requests: Mapping[str, Mapping[str, object]]
+        self, shards: Sequence[Path], query: str, requests: Mapping[str, Mapping[str, object]], *, once: bool = False
     ) -> dict[str, list[object]] | None:
         """The batch over every shard, rows concatenated per request id.
 
         The census is summed rather than taken from one shard, and carries the shard count, because
         `cpg_empty` has to mean "no graph anywhere" and not "the first of two graphs was small".
+
+        ``once`` runs a single attempt per shard, for the scan-level portioner that retries itself.
         """
         merged: dict[str, list[object]] = {}
         methods = 0
@@ -945,7 +954,7 @@ class JoernBackend:
         file_names: set[str] = set()
         named_census = True
         for shard in shards:
-            one = self.query_batch(shard, query, requests)
+            one = self._batch_once(shard, query, requests) if once else self.query_batch(shard, query, requests)
             if one is None:
                 named_census = False
                 if self.execution_budget is not None:
