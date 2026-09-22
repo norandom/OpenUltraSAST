@@ -91,6 +91,19 @@ class PartitionGraph:
         return self.run_batch(kind, {"one": params}).get("one")
 
     def run_batch(self, kind: str, requests: Mapping[str, Mapping[str, object]]) -> dict[str, list[object]]:
+        return self._dispatch(kind, requests, "run_batch")
+
+    def run_batch_once(self, kind: str, requests: Mapping[str, Mapping[str, object]]) -> dict[str, list[object]]:
+        """A single attempt per partition, for the scan-level portioner that retries itself.
+
+        Without this a multi-language repository -- every WordPress plugin -- had no single-attempt path, so
+        the portioner fell back to `run_batch`, whose internal split-retry folded into the time it measured:
+        one portion read 956 s and collapsed the sizer. The routing is identical; only the per-graph method
+        called differs.
+        """
+        return self._dispatch(kind, requests, "run_batch_once")
+
+    def _dispatch(self, kind: str, requests: Mapping[str, Mapping[str, object]], method: str) -> dict[str, list[object]]:
         answers: dict[str, list[object]] = {}
         languages = dict.fromkeys(self.path_languages.get(str(params.get("file", "")), "") for params in requests.values())
         for language in languages:
@@ -102,7 +115,7 @@ class PartitionGraph:
             selected = {rid: params for rid, params in requests.items() if self.path_languages.get(str(params.get("file", ""))) == language}
             if not selected:
                 continue
-            batch = getattr(graph, "run_batch", None)
+            batch = getattr(graph, method, None) or getattr(graph, "run_batch", None)
             raw = batch(kind, selected) if callable(batch) else {rid: graph.run(kind, params) for rid, params in selected.items()}
             if not isinstance(raw, Mapping):
                 continue
