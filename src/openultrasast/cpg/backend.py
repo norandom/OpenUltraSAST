@@ -1163,7 +1163,11 @@ class JoernBackend:
                 merged.setdefault(rid, rows)
         if recovered:
             self._note("batch_split_after_failure:" + query)
-            logger.warning("cpg batch %s failed whole; %d of %d requests answered in parts", query, len(merged), len(requests))
+            # Requests only. The census rides the answer under its own key and is not a request; counting it
+            # once printed "22126 of 22125 requests answered", and an instrument that miscounts by one casts
+            # doubt on every number beside it.
+            answered_requests = sum(1 for rid in merged if rid in requests)
+            logger.warning("cpg batch %s failed whole; %d of %d requests answered in parts", query, answered_requests, len(requests))
         return merged if recovered else None
 
     def _batch_once(self, cpg_path: Path, query: str, requests: Mapping[str, Mapping[str, object]]) -> dict[str, list[object]] | None:
