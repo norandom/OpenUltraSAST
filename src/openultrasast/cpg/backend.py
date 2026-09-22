@@ -1318,8 +1318,18 @@ class JoernBackend:
                 return None
             return result
         except subprocess.TimeoutExpired:
-            self._cancel_deadline = min(self._cleanup_limit(), time.monotonic() + self.execution_budget.cancellation_allowance_seconds)
-            self._note("deadline_exhausted" if time.monotonic() >= self.execution_budget.deadline_monotonic else "process_timeout")
+            # Two different timeouts end here and they must not have the same consequence. If the SCAN's
+            # deadline is gone, cancellation is right: stop everything promptly, which is what the push's
+            # two-second gate measures. If a single query merely exceeded its own ceiling, the scan may have
+            # most of its budget left and every other batch is independent and cheaper -- and cancelling took
+            # them all. Measured 2026-09-22: one batch of 116 requests hit a 300 s ceiling 734 s into a
+            # 2,700 s scan, and the four batches behind it returned in 0.0 s unanswered with 33 minutes to
+            # spare. Fourth instance of one rule this week: a failure is owned by the narrowest scope that
+            # caused it.
+            exhausted = time.monotonic() >= self.execution_budget.deadline_monotonic
+            if exhausted:
+                self._cancel_deadline = min(self._cleanup_limit(), time.monotonic() + self.execution_budget.cancellation_allowance_seconds)
+            self._note("deadline_exhausted" if exhausted else "process_timeout")
             return None
         except (OSError, subprocess.SubprocessError):
             self._note("process_failed")
