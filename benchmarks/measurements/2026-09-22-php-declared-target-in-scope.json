@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "experiment": "php-declared-target-in-scope-v1",
+  "date": "2026-09-22",
+  "task": "pre-push-safety-net 13.3",
+  "claim_scope": "Sizing the population a bounded PHP transfer replay needs. One whole-repository scan, detection only, no comparison.",
+  "why": "The earlier bounded attempt failed for a reason no budget increase could fix: 25 regions of 4,461 is 0.6% of the population and the declared target was never asked about. A three-case replay costs hours, so the budget is established with one scan first.",
+  "result": {
+    "budget": {
+      "max_regions": 500,
+      "deadline_seconds": 3600
+    },
+    "questions_completed": 271,
+    "questions_arbitrated": 406,
+    "findings": 213,
+    "seconds": 2949.8,
+    "declared_target_found": true,
+    "target": "classes/class.memberorder.php:936:getMemberOrderByCode, injection",
+    "target_file_findings": 8
+  },
+  "the_target_itself": "`$wpdb->get_var(\"SELECT id FROM $wpdb->pmpro_membership_orders WHERE code = '\" . $code . \"' LIMIT 1\")`. A value concatenated into SQL with no prepare, which is the declared M3 target for PHP and is detected here for the first time.",
+  "what_changed_to_make_it_reachable": "Nothing about detection. The population became affordable: tier-zero pruning scoped to its partition (7.3), batches budgeted by the sink work they imply (7.7), a per-query timeout no longer cancelling the scan, and a reserve kept for arbitration. Before those, this population completed zero questions at any budget tried.",
+  "cost_implied_for_the_replay": "One whole-repository scan at this budget costs 2,950 s. A push transaction is two scans plus discovery and preparation, so a case is roughly 6,600 s and the three declared comparisons roughly five and a half hours. That is the price of the population that contains the target.",
+  "limits": [
+    "Detection only. This scan makes no comparison and establishes no novelty, which is what the replay is for.",
+    "271 of 406 questions completed, so the population is examined but not exhausted.",
+    "PMPro is a development subject and qualifies nothing."
+  ]
+}
