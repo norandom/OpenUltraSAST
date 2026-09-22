@@ -70,5 +70,23 @@
     "Raw finding counts are dominated by output encoding, which is the family already measured to be imprecise on PHP because the WordPress escapers are absent from a sanitizer list that cannot separate weakness classes. More findings there is not better detection.",
     "One subject. The saving depends on how common each family's sinks are in a codebase, which is a property of the code and the ontology together.",
     "The reserve share of a fifth is a first value, chosen because the phases after querying took roughly 220 s for 400 questions on this subject. It is not tuned."
-  ]
+  ],
+  "no_finding_lost_at_the_small_population": {
+    "subject": "PMPro at 25 regions, which completed before this work and still does",
+    "before": {
+      "completed": 27,
+      "findings": 19,
+      "seconds": 465.9
+    },
+    "after": {
+      "completed": 27,
+      "findings": 19,
+      "seconds": 460.5
+    },
+    "per_family": {
+      "injection": "1 before, 1 after",
+      "output_encoding": "18 before, 18 after"
+    },
+    "reading": "Identical. The batching changes what a large population can afford and nothing about what a small one answers."
+  }
 }
