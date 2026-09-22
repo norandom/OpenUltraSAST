@@ -338,3 +338,10 @@ def test_a_portion_sizer_shrinks_to_budget_and_learns_from_what_answered() -> No
     assert sizer.budget == 300.0
     sizer.observe({"y": {}, "z": {}}, scan.PORTION_FIXED_SECONDS + 20.0, answered=True)  # 0.1 s per visit
     assert 450 < sizer.budget < 550, sizer.budget
+    # A portion that finished inside the fixed start says nothing: the budget must not move on it.
+    before = sizer.budget
+    sizer.observe({"y": {}}, scan.PORTION_FIXED_SECONDS + 1.0, answered=True)
+    assert sizer.budget == before
+    # And a genuinely cheap portion may double the budget, never more: 0.01 s per visit would fit 5,000.
+    sizer.observe({"w": {}}, scan.PORTION_FIXED_SECONDS + 5.0 + 5.0, answered=True)
+    assert sizer.budget == before * scan.PORTION_MAX_GROWTH, sizer.budget

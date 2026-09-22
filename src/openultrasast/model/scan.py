@@ -922,6 +922,8 @@ def _batched(
 # a mis-estimate is bounded and a kill costs little.
 PORTION_TARGET_SECONDS = 120.0
 PORTION_FIXED_SECONDS = 70.0  # measured start-and-load on a 4 MB graph
+PORTION_MIN_INFORMATIVE_SECONDS = 10.0  # less work than this above the fixed start says nothing about cost per visit
+PORTION_MAX_GROWTH = 2.0  # a budget may double per portion, never more
 
 
 class _PortionSizer:
@@ -965,9 +967,15 @@ class _PortionSizer:
             self.budget = max(1.0, self.budget / 2)
             logger.info("cpg portion of %d sink visit(s) did not answer in %.0fs; budget halved to %d", visits, seconds, int(self.budget))
             return
-        per_visit = max(0.0, seconds - PORTION_FIXED_SECONDS) / visits
-        if per_visit > 0:
-            self.budget = max(1.0, (PORTION_TARGET_SECONDS - PORTION_FIXED_SECONDS) / per_visit)
+        work = seconds - PORTION_FIXED_SECONDS
+        # A portion that finished inside the fixed start carries no information about cost per visit -- 3 s
+        # of work over 199 visits read as 0.015 s each and the next budget grew thirteen-fold to 3,404, which
+        # the ceiling then killed. Measured on the plugin. So a sample below the floor is not extrapolated
+        # from, and growth is capped at doubling per step: the sizing may be wrong, but never by more than
+        # one factor of two per portion, which a kill can then undo.
+        if work >= PORTION_MIN_INFORMATIVE_SECONDS:
+            fitted = (PORTION_TARGET_SECONDS - PORTION_FIXED_SECONDS) / (work / visits)
+            self.budget = max(1.0, min(fitted, self.budget * PORTION_MAX_GROWTH))
         logger.info("cpg portion of %d sink visit(s) answered in %.0fs; next budget %d visit(s)", visits, seconds, int(self.budget))
 
 
