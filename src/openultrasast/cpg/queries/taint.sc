@@ -874,15 +874,23 @@
     )
   }
 
-  println("---OUSAST-CPG-BEGIN---")
   if (requestsJson.nonEmpty) {
     val parsed = ujson.read(requestsJson).obj
-    val answers = parsed.map { case (id, req) =>
+    // STREAMED: the census first, then one line per request as it is answered, flushed as it goes. What
+    // this buys is what a kill keeps. Built as one object and printed at the end, a batch killed at its
+    // ceiling lost every answer it had finished -- 116 requests at 300 s, then eight JVM starts to ask them
+    // all again. Printed as it goes, the same kill keeps everything that finished, the driver harvests it,
+    // and only the unfinished requests are asked again. The fence is unchanged; the driver reads both forms.
+    val census = ujson.Arr(ujson.Obj("methods" -> cpg.method.size.toString, "files" -> cpg.file.size.toString, "file_names" -> ujson.Arr.from(cpg.file.name.l)))
+    println("---OUSAST-CPG-BEGIN---")
+    println(ujson.write(ujson.Obj("__census__" -> census)))
+    System.out.flush()
+    parsed.foreach { case (id, req) =>
       def field(name: String): String = req.obj.get(name).map(_.str).getOrElse("")
       val paramSrc = req.obj.get("parameterSources").map(_.str).getOrElse("false")
       val fieldSrc = req.obj.get("fieldSources").map(_.str).getOrElse("true")
       val evidence = req.obj.get("evidenceOnly").map(_.str).getOrElse("false")
-      id -> ujson.Arr(
+      val rows = ujson.Arr(
         rowsFor(
           field("sources"),
           field("sinks"),
@@ -902,15 +910,15 @@
           field("contextEvidence")
         ): _*
       )
+      println(ujson.write(ujson.Obj("id" -> id, "rows" -> rows)))
+      System.out.flush()
     }
-    // A census of the graph, under a key no request id can collide with (ids are numbers). A frontend can
-    // fail every file and STILL exit 0 with a valid, empty CPG -- `joern-parse` does not even propagate the
-    // per-file warnings -- so "no rows" and "no graph" are indistinguishable to the driver without this.
-    // It rides the batch rather than costing its own invocation, because JVM startup is what this whole
-    // batching design exists to avoid.
-    val census = ujson.Arr(ujson.Obj("methods" -> cpg.method.size.toString, "files" -> cpg.file.size.toString, "file_names" -> ujson.Arr.from(cpg.file.name.l)))
-    println(ujson.write(ujson.Obj.from(answers.toSeq :+ ("__census__" -> census))))
+    // The census rides the stream as its FIRST line rather than costing its own invocation, because JVM
+    // startup is what this whole batching design exists to avoid -- and first because a frontend that fails
+    // every file still exits 0 with an empty graph, and the driver must see that even when the process is
+    // killed before any request answers.
   } else {
+    println("---OUSAST-CPG-BEGIN---")
     println(
       ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, hookCallbacks, dispatchApply, function, parameterSources, fieldSources, evidenceOnly, file, callDepth, boundedSinks): _*))
     )

@@ -186,13 +186,36 @@ _SHARED_REQUEST_FIELDS = ("hookCallbacks", "dispatchApply")
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 
 
+# A streamed answer: one JSON document per line inside the fence, each carrying the request id it answers,
+# printed and flushed as the engine finishes it. The point is what a KILL keeps. A batch that used to build
+# its whole answer and print it once lost every answer when it was killed at the ceiling -- 116 requests at
+# 300 s, then eight fresh JVM starts to ask them again. Streamed, the same kill keeps everything that had
+# finished, and only the unfinished requests are asked again.
+STREAM_ID = "id"
+STREAM_ROWS = "rows"
+PARTIAL = "__partial__"
+
+
 def extract_payload(stdout: str) -> object | None:
-    """The JSON between the fence markers, or ``None`` when it is absent or malformed."""
+    """The JSON between the fence markers, or ``None`` when it is absent or malformed.
+
+    Two shapes are accepted. The committed one is a single document. The streamed one is a document per
+    line, each `{"id": ..., "rows": [...]}` or `{"__census__": [...]}`, which this assembles into the same
+    mapping the callers already read. A streamed body whose closing fence never arrived -- the process was
+    killed -- still yields every complete line, marked ``__partial__`` so a caller can tell a harvest from a
+    whole answer. A single-document body without its closing fence is still nothing, as before: there is
+    no partial truth in half a document.
+    """
     start = stdout.find(BEGIN)
-    end = stdout.find(END, start + 1) if start >= 0 else -1
-    if start < 0 or end < 0:
+    if start < 0:
         return None
-    body = stdout[start + len(BEGIN) : end].strip()
+    end = stdout.find(END, start + 1)
+    body = stdout[start + len(BEGIN) : end if end >= 0 else len(stdout)].strip()
+    streamed = _streamed(body, complete=end >= 0)
+    if streamed is not None:
+        return streamed
+    if end < 0:
+        return None
     # Joern logs to STDOUT, and it does so while the script is running -- so a log line can land INSIDE the
     # fence, ahead of the payload. `[INFO ] Attempting to determine flows from empty list of sources.` did
     # exactly that and cost a 205-request batch every one of its answers, reported as `query_failed`. The
@@ -202,6 +225,40 @@ def extract_payload(stdout: str) -> object | None:
     if payload is None:
         logger.debug("cpg query payload was not valid JSON")
     return payload
+
+
+def _streamed(body: str, *, complete: bool) -> dict[str, object] | None:
+    """Assemble a streamed body, or ``None`` when the body is not streamed at all.
+
+    A line is streamed when it is a JSON object carrying an id or the census key. Anything else on a line
+    is what Joern logged and is skipped; a trailing line that does not parse is the one the kill cut
+    through, and it is dropped rather than guessed at.
+    """
+    answers: dict[str, object] = {}
+    saw_stream = False
+    for line in body.splitlines():
+        text = line.strip()
+        if not text.startswith("{"):
+            continue
+        try:
+            document = json.loads(text)
+        except ValueError:
+            continue
+        if not isinstance(document, dict):
+            continue
+        # A census LINE carries nothing but the census. A legacy single document carries the census beside
+        # every answer, and reading that as a census line dropped every answer it sat beside.
+        if set(document) == {"__census__"}:
+            answers["__census__"] = document["__census__"]
+            saw_stream = True
+        elif STREAM_ID in document and STREAM_ROWS in document:
+            answers[str(document[STREAM_ID])] = document[STREAM_ROWS]
+            saw_stream = True
+    if not saw_stream:
+        return None
+    if not complete:
+        answers[PARTIAL] = True
+    return answers
 
 
 def _decoded_json(body: str) -> object | None:
@@ -1067,18 +1124,30 @@ class JoernBackend:
             time.monotonic() - started,
             "answered" if answered is not None else "unanswered",
         )
-        if answered is not None or len(requests) <= 1:
+        # Only what is still unanswered is asked again. A streamed batch that was killed hands back every
+        # answer it finished, so the retry is the REMAINDER, not the batch; and a batch that answered whole
+        # has no remainder and returns here as it always did.
+        merged: dict[str, list[object]] = {rid: rows for rid, rows in (answered or {}).items()}
+        remaining = {rid: req for rid, req in requests.items() if rid not in merged}
+        if not remaining or len(requests) <= 1:
             return answered
-        size = max(1, len(requests) // _BATCH_SPLITS)
-        ids = list(requests)
-        merged: dict[str, list[object]] = {}
-        recovered = False
+        if merged:
+            logger.info(
+                "cpg batch %s: %d of %d answered before the kill; asking the other %d in parts",
+                query,
+                len([k for k in merged if k != "__census__"]),
+                len(requests),
+                len(remaining),
+            )
+        size = max(1, len(remaining) // _BATCH_SPLITS)
+        ids = list(remaining)
+        recovered = bool(answered)
         for start in range(0, len(ids), size):
             if not self._time_available():
                 logger.info("cpg batch %s: split abandoned at part %d, no time left", query, start // size + 1)
                 break
             part_started = time.monotonic()
-            part = self._batch_once(cpg_path, query, {rid: requests[rid] for rid in ids[start : start + size]})
+            part = self._batch_once(cpg_path, query, {rid: remaining[rid] for rid in ids[start : start + size]})
             logger.info(
                 "cpg batch %s part %d: %d request(s) in %.1fs, %s",
                 query,
@@ -1151,7 +1220,8 @@ class JoernBackend:
             for name, value in shared.items():
                 command += ["--param", f"{name}={value}"]
             completed = self._run(command, timeout=self.query_timeout, cwd=cpg_path.parent)
-            if completed is None or completed.returncode != 0:
+            harvested = completed is not None and completed.returncode != 0 and BEGIN in (completed.stdout or "")
+            if completed is None or (completed.returncode != 0 and not harvested):
                 detail = _engine_failure(completed)
                 logger.warning("cpg batch %s failed: %s", query, detail)
                 return None
@@ -1165,8 +1235,11 @@ class JoernBackend:
             # clean repository -- 500 regions examined, nothing found, no degradation recorded.
             logger.warning("cpg batch %s returned no parseable payload", query)
             return None
+        if parsed.get(PARTIAL):
+            answered = sum(1 for rid, rows in parsed.items() if rid != PARTIAL and isinstance(rows, list) and rid != "__census__")
+            logger.info("cpg batch %s was killed with %d of %d answer(s) already streamed", query, answered, len(requests))
         # A request the engine did not answer is absent, not empty: the caller must be able to tell them apart.
-        return {str(rid): list(rows) for rid, rows in parsed.items() if isinstance(rows, list)}
+        return {str(rid): list(rows) for rid, rows in parsed.items() if rid != PARTIAL and isinstance(rows, list)}
 
     def query(self, cpg_path: Path, query: str, params: Mapping[str, object]) -> object | None:
         """Run a shipped CPGQL script against a built CPG and return its fenced JSON payload."""
@@ -1298,6 +1371,7 @@ class JoernBackend:
             self._note("deadline_exhausted")
             return None
         process = None
+        terminated = False
         try:
             if self.runner is not None:
                 result = self.runner(command, capture_output=True, text=True, timeout=remaining, check=False, cwd=str(cwd) if cwd else None)
@@ -1317,7 +1391,10 @@ class JoernBackend:
             if not self._time_available():
                 return None
             return result
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as expired:
+            # What the process had already written is kept, because a streamed answer is worth exactly the
+            # lines that finished. `communicate` raises without returning them, so they are drained after
+            # the kill -- see `_partial_stdout`, which reads what the pipe still holds.
             # Two different timeouts end here and they must not have the same consequence. If the SCAN's
             # deadline is gone, cancellation is right: stop everything promptly, which is what the push's
             # two-second gate measures. If a single query merely exceeded its own ceiling, the scan may have
@@ -1330,12 +1407,25 @@ class JoernBackend:
             if exhausted:
                 self._cancel_deadline = min(self._cleanup_limit(), time.monotonic() + self.execution_budget.cancellation_allowance_seconds)
             self._note("deadline_exhausted" if exhausted else "process_timeout")
+            # The group is killed BEFORE its output is read. A first cut read the pipe first, and a pipe whose
+            # writer is still alive never reaches end-of-file: the suite's own hanging-engine control sat on
+            # that read for twenty-eight minutes. Once the group is dead, `communicate` returns promptly with
+            # everything the pipe still held.
+            if process is not None:
+                if not _terminate_bounded_group(process, self._cleanup_limit()):
+                    self._note("process_cleanup_incomplete")
+                terminated = True
+            partial = _partial_stdout(expired, process)
+            if partial:
+                # A killed process whose output holds finished answers is not nothing. The negative return
+                # code says it was killed; the stdout says what it finished; `_batch_once` reads both.
+                return subprocess.CompletedProcess(command, -1, partial, "")
             return None
         except (OSError, subprocess.SubprocessError):
             self._note("process_failed")
             return None
         finally:
-            if process is not None:
+            if process is not None and not terminated:
                 # No Popen context manager: its implicit wait has no timeout. Always signal
                 # the original group ID, even if the launcher already exited, so descendants
                 # retaining pipes (or closing them) cannot survive it.
@@ -1414,6 +1504,26 @@ class JoernBackend:
 
 class _DeadlineExpired(Exception):
     """Internal cooperative boundary; public builds/queries retain failure semantics."""
+
+
+def _partial_stdout(expired: subprocess.TimeoutExpired, process: subprocess.Popen[str] | None) -> str:
+    """Whatever the killed process had written, from the exception and then from the pipe itself.
+
+    `communicate(timeout=)` raises with the output it had buffered so far, but a pipe can hold more than the
+    buffer had drained by the time the timer fired. After the group is killed the pipe has nothing left to
+    wait on, so a final read returns the rest without blocking.
+    """
+    output = expired.output if isinstance(expired.output, str) else (expired.output.decode(errors="replace") if expired.output else "")
+    if process is None:
+        return output
+    # Only valid once the group is dead; the caller guarantees that. `communicate` on a finished process
+    # returns whatever the pipes still held and does not wait on anything.
+    try:
+        rest, _ = process.communicate(timeout=1.0)
+    except (subprocess.TimeoutExpired, OSError, ValueError):
+        return output
+    rest_text = rest if isinstance(rest, str) else (rest.decode(errors="replace") if rest else "")
+    return rest_text if rest_text else output
 
 
 def _terminate_bounded_group(process: subprocess.Popen[str], deadline: float) -> bool:

@@ -1275,3 +1275,13 @@ the ontology describes libraries, frameworks and language constructs, never repo
   - _Boundary: contributor-scan scan budget, cpg backend_
   - _Depends: 7.3_
   - _Requirements: 4.1, 6.3, 8.1_
+
+- [ ] 7.8 Portion the work instead of capping it: a kill keeps what finished
+  - **Asked for by the maintainer on 2026-09-22, after 7.7.** A hard per-invocation ceiling is all-or-nothing: a batch killed at 301 s loses every answer it had already computed, and the retry then pays a fresh JVM start per part to ask them all again. Measured on the plugin: 116 requests killed at 300 s, eight restarts, and the same everywhere-sinks in every part.
+  - Three coordinated changes replace the cap as the thing that governs cost. The taint query STREAMS: the census first, then one line per request as it is answered, flushed as it goes, inside the unchanged fence. The driver harvests a killed process's stdout and assembles every complete line, marking the result partial; the retry then asks only the remainder. And portion sizing ADAPTS: after each portion the observed seconds per sink visit, less the fixed start, resizes the rest toward a target duration, and a portion that did not answer halves the budget rather than being fitted. The ceiling stays as a safety net that the sizing is meant to make rare.
+  - Legacy single-document payloads must keep parsing unchanged; the other queries do not stream and need not. A census line is one whose only key is the census — a first cut misread a legacy document that carried the census beside its answers as a census line and dropped every answer it sat beside, which a control caught.
+  - Done when a killed taint batch hands back the answers it finished and the retry asks only the rest; portion sizes follow observed cost; the streamed and legacy forms both parse; and the plugin population completes more questions per unit of budget than under 7.7 with no finding lost.
+  - _Status:_ implemented with host controls passing for the assembler, the remainder retry and the sizer; the joern-gated streaming check and the plugin measurement wait for the transfer replay to free the machine.
+  - _Boundary: cpg backend, contributor-scan scan budget, taint query_
+  - _Depends: 7.7_
+  - _Requirements: 4.1, 6.3, 8.1_

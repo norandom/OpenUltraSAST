@@ -320,3 +320,21 @@ def test_expired_planning_keeps_census_without_more_fact_reads(tmp_path, monkeyp
     assert time.monotonic() < deadline + 0.5
     assert len(result.scope.selected) + len(result.scope.deferred) == 200
     assert "deadline_exhausted" in result.scope.unresolved_boundaries
+
+
+def test_a_portion_sizer_shrinks_to_budget_and_learns_from_what_answered() -> None:
+    """Portions follow the engine's observed cost; a portion that did not answer halves the budget."""
+    from openultrasast.model import scan
+
+    weights = {"w": 500, "x": 400, "y": 100, "z": 100}
+    sizer = scan._PortionSizer(weights)
+    sizer.budget = 600.0
+    pending = [{"y": {}}, {"z": {}}]
+    fitted = sizer.fit({"w": {}, "x": {}}, pending=pending)
+    assert sorted(fitted) == ["w"] and pending[0] == {"x": {}}, (fitted, pending)  # x pushed to the front, not lost
+    grown = sizer.fit({"y": {}}, pending=[{"z": {}}])
+    assert sorted(grown) == ["y", "z"]
+    sizer.observe({"w": {}}, 300.0, answered=False)
+    assert sizer.budget == 300.0
+    sizer.observe({"y": {}, "z": {}}, scan.PORTION_FIXED_SECONDS + 20.0, answered=True)  # 0.1 s per visit
+    assert 450 < sizer.budget < 550, sizer.budget

@@ -885,6 +885,11 @@ def _batched(
     if len(chunks) <= 1:
         answered: dict[str, list[object]] | None = batch(kind, requests)
         return answered
+    # The budget adapts to what the engine actually does. The constant it starts from was read off one
+    # subject, and a graph where sinks are cheaper or dearer would either waste portions or blow them. After
+    # each portion the observed cost per sink visit, less the fixed start, resizes the rest toward a target
+    # duration -- so a kill becomes something the sizing avoids rather than something the ceiling handles.
+    sizer = _PortionSizer(weights)
     logger.info(
         "cpg %s split into %d batches by sink weight (%d request(s), %d sink visit(s))",
         kind,
@@ -902,12 +907,68 @@ def _batched(
         if not within():
             logger.info("cpg %s: %d batch(es) left unasked to keep time for arbitration", kind, len(chunks) - index)
             break
+        chunk = sizer.fit(chunk, pending=chunks[index + 1 :])
+        started = time.monotonic()
         answer = batch(kind, chunk)
+        sizer.observe(chunk, time.monotonic() - started, answered=bool(answer))
         if answer is None:
             continue
         answered_any = True
         merged.update(answer)
     return merged if answered_any else None
+
+
+# What one portion should take: long enough that the fixed JVM start is a minority of it, short enough that
+# a mis-estimate is bounded and a kill costs little.
+PORTION_TARGET_SECONDS = 120.0
+PORTION_FIXED_SECONDS = 70.0  # measured start-and-load on a 4 MB graph
+
+
+class _PortionSizer:
+    """Resize the remaining portions from the cost the engine has shown so far.
+
+    Sizing starts from `MAX_SINK_VISITS_PER_BATCH`, and the observed seconds per sink visit replaces that
+    guess as soon as one portion has answered. A portion that did not answer is evidence too, of the
+    harshest kind: the budget is halved rather than fitted, because the true cost is unknown and above the
+    ceiling. `pending` is edited in place, so a portion cut down to fit puts its remainder back at the front
+    of the queue rather than losing it.
+    """
+
+    def __init__(self, weights: Mapping[str, int]) -> None:
+        self.weights = weights
+        self.budget = float(MAX_SINK_VISITS_PER_BATCH)
+
+    def weight(self, chunk: Mapping[str, object]) -> int:
+        return sum(self.weights.get(rid, 1) for rid in chunk)
+
+    def fit(
+        self, chunk: dict[str, Mapping[str, object]], *, pending: list[dict[str, Mapping[str, object]]]
+    ) -> dict[str, Mapping[str, object]]:
+        """Shrink this portion to the budget, or grow it from the ones behind it while it still fits."""
+        if self.weight(chunk) > self.budget and len(chunk) > 1:
+            kept: dict[str, Mapping[str, object]] = {}
+            carried = 0
+            for rid, req in chunk.items():
+                if kept and carried + self.weights.get(rid, 1) > self.budget:
+                    break
+                kept[rid] = req
+                carried += self.weights.get(rid, 1)
+            pending.insert(0, {rid: req for rid, req in chunk.items() if rid not in kept})
+            return kept
+        while pending and self.weight(chunk) + self.weight(pending[0]) <= self.budget:
+            chunk = {**chunk, **pending.pop(0)}
+        return chunk
+
+    def observe(self, chunk: Mapping[str, object], seconds: float, *, answered: bool) -> None:
+        visits = max(1, self.weight(chunk))
+        if not answered:
+            self.budget = max(1.0, self.budget / 2)
+            logger.info("cpg portion of %d sink visit(s) did not answer in %.0fs; budget halved to %d", visits, seconds, int(self.budget))
+            return
+        per_visit = max(0.0, seconds - PORTION_FIXED_SECONDS) / visits
+        if per_visit > 0:
+            self.budget = max(1.0, (PORTION_TARGET_SECONDS - PORTION_FIXED_SECONDS) / per_visit)
+        logger.info("cpg portion of %d sink visit(s) answered in %.0fs; next budget %d visit(s)", visits, seconds, int(self.budget))
 
 
 def _collect(

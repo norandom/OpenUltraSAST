@@ -1230,3 +1230,42 @@ def test_an_engine_failure_reports_the_line_that_names_the_cause(tmp_path, monke
     assert _engine_failure(None) == "timeout"
     assert "no output" in _engine_failure(subprocess.CompletedProcess(["joern"], 3, "", ""))
     assert isinstance(JoernBackend(), JoernBackend)
+
+
+def test_a_streamed_payload_assembles_and_a_killed_one_keeps_what_finished() -> None:
+    """A kill keeps every answer that had streamed; a half-written line is dropped, not guessed at."""
+    from openultrasast.cpg.backend import BEGIN, END, PARTIAL, extract_payload
+
+    whole = f'{BEGIN}\n{{"__census__": [{{"methods": "5"}}]}}\n{{"id": "0", "rows": [1]}}\n{{"id": "1", "rows": []}}\n{END}\n'
+    assembled = extract_payload(whole)
+    assert assembled == {"__census__": [{"methods": "5"}], "0": [1], "1": []}
+
+    killed = f'{BEGIN}\n[INFO ] engine chatter\n{{"__census__": []}}\n{{"id": "0", "rows": [1]}}\n{{"id": "1", "ro'
+    harvest = extract_payload(killed)
+    assert harvest is not None and harvest.get(PARTIAL) is True
+    assert harvest["0"] == [1] and "1" not in harvest
+
+    legacy = f'{BEGIN}\n{{"0": [1], "__census__": []}}\n{END}\n'
+    assert extract_payload(legacy) == {"0": [1], "__census__": []}
+    # Half of a single document is still nothing.
+    assert extract_payload(f'{BEGIN}\n{{"0": [1], "__cen') is None
+
+
+def test_a_killed_batch_retries_only_the_remainder(tmp_path: Path) -> None:
+    """The retry asks what was NOT answered, so a kill costs the unfinished requests and nothing else."""
+    from openultrasast.cpg.backend import JoernBackend
+
+    backend = JoernBackend(runner=lambda *a, **k: None)
+    calls: list[list[str]] = []
+
+    def once(cpg_path: Path, query: str, requests: dict[str, dict[str, object]]) -> dict[str, list[object]] | None:
+        calls.append(sorted(requests))
+        if len(calls) == 1:
+            return {"__census__": [], "a": [1]}  # killed mid-way: a answered, b and c did not
+        return {rid: [rid] for rid in requests}
+
+    backend._batch_once = once  # type: ignore[method-assign]
+    answered = backend.query_batch(tmp_path / "cpg.bin", "taint", {"a": {}, "b": {}, "c": {}})
+    assert answered is not None and answered["a"] == [1] and answered["b"] == ["b"] and answered["c"] == ["c"]
+    assert calls[0] == ["a", "b", "c"]
+    assert all("a" not in retry for retry in calls[1:]), calls

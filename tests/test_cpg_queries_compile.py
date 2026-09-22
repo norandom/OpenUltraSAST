@@ -575,3 +575,49 @@ def test_prototype_pollution_is_established_on_the_shape_it_declares(tmp_path: P
     flows = [row for row in (payload.get("0") or []) if row.get("sink")]
     assert flows, "a request body merged into an object was not reported"
     assert all("merge" in str(row["sink"]) for row in flows), f"the Express setting was reported: {flows}"
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_the_taint_query_streams_one_line_per_request(tmp_path: Path) -> None:
+    """Answers arrive as they finish, so a kill keeps what finished. The fence is unchanged."""
+    from openultrasast.cpg.backend import BEGIN, END, extract_payload
+
+    frontend = __import__("shutil").which("jssrc2cpg")
+    if frontend is None:
+        pytest.skip("jssrc2cpg is not installed")
+    (tmp_path / "a.js").write_text("function handler(req, res) { return eval(req.body.x); }\n")
+    cpg = tmp_path / "cpg.bin"
+    subprocess.run([frontend, str(tmp_path), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
+    if not cpg.is_file():
+        pytest.skip("could not build a sample cpg")
+    requests = tmp_path / "requests.json"
+    requests.write_text(
+        json.dumps(
+            {
+                "0": {"sources": "req.body", "sinks": "eval", "function": "handler"},
+                "1": {"sources": "req.body", "sinks": "eval", "function": "nothing"},
+            }
+        )
+    )
+    done = subprocess.run(
+        [
+            _joern() or "joern",
+            "--script",
+            str((QUERIES / "taint.sc").resolve()),
+            "--param",
+            f"cpgFile={cpg}",
+            "--param",
+            f"requestsFile={requests}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
+    )
+    assert done.returncode == 0, (done.stderr or done.stdout or "")[-500:]
+    body = done.stdout[done.stdout.find(BEGIN) + len(BEGIN) : done.stdout.find(END)]
+    lines = [line for line in body.splitlines() if line.strip().startswith("{")]
+    assert len(lines) >= 3, lines  # census, then one per request
+    assert json.loads(lines[0]).keys() == {"__census__"}
+    assembled = extract_payload(done.stdout)
+    assert assembled is not None and set(assembled) >= {"0", "1", "__census__"} and "__partial__" not in assembled
