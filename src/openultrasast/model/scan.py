@@ -987,6 +987,32 @@ def _collect(
     return work
 
 
+EVIDENCE_PORTION = 4000  # requests per evidence invocation; roughly ten seconds of work behind one JVM start
+
+
+def _portioned_evidence(cpg: Any, requests: Mapping[str, Mapping[str, object]]) -> dict[str, Any] | None:
+    """The evidence pass in portions, merged. ``None`` only when no portion answered.
+
+    Typed as the batch returns it -- rows are the engine's mappings, and the caller reads them as such.
+    """
+    ids = list(requests)
+    if len(ids) <= EVIDENCE_PORTION:
+        answered: dict[str, Any] | None = cpg.run_batch("taint", requests)
+        return answered
+    merged: dict[str, Any] = {}
+    answered_any = False
+    for start in range(0, len(ids), EVIDENCE_PORTION):
+        part = cpg.run_batch("taint", {rid: requests[rid] for rid in ids[start : start + EVIDENCE_PORTION]})
+        if part is None:
+            continue
+        answered_any = True
+        census = part.pop("__census__", None)
+        if census is not None and "__census__" not in merged:
+            merged["__census__"] = census
+        merged.update(part)
+    return merged if answered_any else None
+
+
 def _evidence_pass(
     cpg: Any,
     work: Sequence[tuple[str, ScanRegion, ArbiterSpec]],
@@ -1008,7 +1034,12 @@ def _evidence_pass(
         rid: {**dict(params), "evidenceOnly": "true", **({"contextEvidence": "true"} if context_rows is not None else {})}
         for rid, params in grouped_taint.items()
     }
-    answered = cpg.run_batch("taint", requests)
+    # Portioned by request count, because evidence has no per-request weight yet -- it is the pass that
+    # PRODUCES the weights. It is cheap per request, 17,700 in 44 s, and it was still one all-or-nothing
+    # batch: a 22,125-request evidence pass on a plugin's push transaction exceeded its ceiling under load and
+    # cost the whole scan. Streaming keeps what finished when a portion is killed; portioning keeps a single
+    # kill from being the whole pass.
+    answered = _portioned_evidence(cpg, requests)
     if answered is None:
         return {}, len(requests)
     census = answered.pop("__census__", None)
