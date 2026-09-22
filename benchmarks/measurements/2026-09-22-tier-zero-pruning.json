@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "experiment": "tier-zero-pruning-scoped-v1",
+  "date": "2026-09-22",
+  "task": "contributor-scan 7.3",
+  "claim_scope": "One change to when tier-zero pruning applies, measured on Paid Memberships Pro at two population sizes.",
+  "what_was_wrong": "Tier-zero pruning already existed: a question whose evidence vector says no sink of its family is in reach cannot produce a flow and is deferred. It was switched off for the WHOLE SCAN whenever any of twelve degradation reasons appeared, and a multi-language repository always carries two of them, so the plugin arbitrated every question it could ask. Third instance this week of one blast radius.",
+  "the_change": "A prune blocker that names a partition withholds pruning from that partition's questions and from nobody else's. `cross_partition_semantics_unresolved` leaves the blocker set entirely, for the reason it left the integrity gaps: a PHP family's sink is PHP, so a second language cannot be why its vector saw none.",
+  "measured": {
+    "25 regions, before": {
+      "questions_arbitrated": 127,
+      "questions_deferred": 0,
+      "questions_completed": 120,
+      "findings": 19,
+      "query_seconds": 248.97,
+      "timed_out": false
+    },
+    "25 regions, after": {
+      "questions_arbitrated": 34,
+      "questions_deferred": 93,
+      "questions_completed": 27,
+      "findings": 19,
+      "query_seconds": 257.34,
+      "timed_out": false
+    },
+    "500 regions, before": {
+      "questions_arbitrated": 2526,
+      "questions_deferred": 0,
+      "questions_completed": 0,
+      "findings": null,
+      "query_seconds": 363.41,
+      "timed_out": true
+    },
+    "500 regions, after": {
+      "questions_arbitrated": 406,
+      "questions_deferred": 2120,
+      "questions_completed": 0,
+      "findings": 0,
+      "query_seconds": 375.72,
+      "timed_out": true
+    }
+  },
+  "reading": "Pruning works and is not sufficient. At 25 regions arbitration falls from 127 questions to 34 with all 19 findings identical, family by family. At 500 it falls from 2,526 to 406, and the run fails in the same way at the same cost, because 406 questions at roughly one and a half seconds each still exceed the 300-second per-batch ceiling. The lever moved the volume; the ceiling is a separate limit.",
+  "no_finding_lost": {
+    "at_25_regions": "19 before and 19 after, identical per family: injection 1, output_encoding 18, the rest zero",
+    "at_500_regions": "neither run completed a question, so neither establishes anything to compare"
+  },
+  "skips_are_recorded": "2,120 questions deferred with reason tier_zero at 500 regions, 93 at 25. A family whose every question was pruned now reports 'no sink of this family in reach' rather than 'region offered, no question asked', because nothing to ask is a different statement from never offered.",
+  "limits": [
+    "One subject. The saving depends entirely on how much of a repository holds no sink of a given family, which is a property of the code and the ontology together.",
+    "Pruning is only defined for taint families; dominance and configuration questions are unaffected.",
+    "The 500-region run still fails, so this task removes a cause rather than the symptom."
+  ]
+}

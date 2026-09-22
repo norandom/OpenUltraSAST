@@ -97,8 +97,16 @@ def main() -> int:
         # WHY an outcome is not completed. Counting only the statuses left three separate causes looking
         # identical, and each one had to be found by reading code rather than by reading the record.
         "outcome_reason": dict(collections.Counter(f"{q.status}:{q.reason}" for q in result.question_outcomes)),
+        # A question the scan chose not to arbitrate is recorded as skipped, with why. Without this a cheaper
+        # scan and a narrower one look identical, and the whole point of skipping is that it is not the same.
+        "deferred": dict(collections.Counter(item.reason for item in (result.scope.deferred if result.scope else ()))),
     }
 
+    # A family whose every question was pruned asked nothing, and "nothing to ask" is a different statement
+    # from "never offered". Counting the skips per family is what keeps those apart in the verdict below.
+    deferred_by_family: dict[str, collections.Counter[str]] = collections.defaultdict(collections.Counter)
+    for item in result.scope.deferred if result.scope else ():
+        deferred_by_family[item.identity.family][item.reason] += 1
     asked = collections.Counter(q.identity.family for q in result.question_outcomes)
     completed = collections.Counter(q.identity.family for q in result.question_outcomes if q.status == "completed")
     found: dict[str, list[dict[str, Any]]] = collections.defaultdict(list)
@@ -133,9 +141,12 @@ def main() -> int:
             # job is to say what each family finds reported nothing for a repository that had found a real
             # SQL injection. A question-outcome count is a statement about bookkeeping; a finding is the
             # thing being censused, and it cannot be hidden behind the other.
+            "deferred": dict(deferred_by_family.get(family, {})),
             "verdict": (
                 "establishes findings"
                 if found.get(family)
+                else "no sink of this family in reach"
+                if not asked.get(family) and deferred_by_family.get(family, {}).get("tier_zero")
                 else "region offered, no question asked"
                 if not asked.get(family)
                 else "asked but no question completed"

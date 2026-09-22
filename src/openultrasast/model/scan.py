@@ -357,28 +357,38 @@ def _scan_repository_impl(
 
     # Authoritative selection is made once, from the actual final ranker order.
     # Stable question IDs are the IDs sent to every execution request below.
-    scope_limits = (
-        replace(limits, prune_tier0=False)
-        if any(
-            d.get("reason")
-            in {
-                "files_unparsed",
-                "cpg_empty",
-                "partition_file_census_incomplete",
-                "partition_file_census_unavailable",
-                "cpg_sharded",
-                "cross_partition_semantics_unresolved",
-                "vendor_semantics_unresolved",
-                "symlink_context_unresolved",
-                "frontend_unsupported",
-                "source_unreadable",
-                "ambiguous_frontend_path",
-                "typescript_property_support_unvalidated",
-            }
-            for d in degradations
-        )
-        else limits
-    )
+    #
+    # A tier-zero vector says no sink of this family is in reach, and a question with no sink cannot produce a
+    # flow. Pruning those is what makes a large population affordable: arbitration costs one to two seconds a
+    # question and a 673-file plugin asks 2,526 of them, while the structural pass that produced the vectors
+    # answered 17,700 requests in 44 s.
+    #
+    # It is switched off where the graph might be missing the very sink the vector did not see -- an unparsed
+    # file, an excluded tree, a shard that cannot see its neighbour. That is right, and it was applied to the
+    # whole scan, which is not: a census gap belongs to ONE partition, and a JavaScript file missing from the
+    # JavaScript graph is no reason to arbitrate every tier-zero question a PHP family asks. On the measured
+    # plugin that single distinction is the difference between 2,526 arbitrated questions and the few hundred
+    # that could say anything.
+    #
+    # `cross_partition_semantics_unresolved` leaves this set entirely, for the reason it left the integrity
+    # gaps: a PHP family's sink is PHP, so the existence of a second language cannot be why its vector saw none.
+    prune_blockers = {
+        "files_unparsed",
+        "cpg_empty",
+        "partition_file_census_incomplete",
+        "partition_file_census_unavailable",
+        "cpg_sharded",
+        "vendor_semantics_unresolved",
+        "symlink_context_unresolved",
+        "frontend_unsupported",
+        "source_unreadable",
+        "ambiguous_frontend_path",
+        "typescript_property_support_unvalidated",
+    }
+    blocking = [d for d in degradations if d.get("reason") in prune_blockers]
+    # A blocker that names no partition is about the whole read and stops pruning everywhere.
+    scope_limits = replace(limits, prune_tier0=False) if any(not d.get("census_language") for d in blocking) else limits
+    unprunable_languages = frozenset(str(d["census_language"]) for d in blocking if d.get("census_language"))
     scope, work = _scope_work(
         ordered_regions,
         evidence_by_pair,
@@ -389,6 +399,7 @@ def _scan_repository_impl(
         change_context=change_context,
         context_gaps=context_gaps,
         execution_budget=execution_budget,
+        unprunable_languages=unprunable_languages,
     )
     outcomes: dict[str, QuestionOutcome] = {}
 
@@ -649,6 +660,9 @@ def _scope_work(
     change_context: ChangeContext | None = None,
     context_gaps: set[QuestionIdentity] | None = None,
     execution_budget: ExecutionBudget | None = None,
+    # Languages whose graph might be missing the sink their vectors did not see. Pruning is withheld from
+    # their questions and from nobody else's.
+    unprunable_languages: frozenset[str] = frozenset(),
 ) -> tuple[ScopeDecision, list[tuple[str, ScanRegion, ArbiterSpec]]]:
     """Consume the ranker's final order once; the returned work IS selected scope."""
     selected: list[RankedQuestion] = []
@@ -707,6 +721,7 @@ def _scope_work(
                     if index >= limits.max_regions
                     else "tier_zero"
                     if limits.prune_tier0
+                    and identity.language not in unprunable_languages
                     and identity not in (context_gaps or set())
                     and isinstance(spec, TaintSpec)
                     and vector is not None
