@@ -1262,3 +1262,12 @@ the ontology describes libraries, frameworks and language constructs, never repo
   - Done when a deliberate change to a matcher or a fact table fails the diff, and the expectation records the ruleset and engine identities it was taken under.
   - _Boundary: evaluation harness_
   - _Requirements: 8.1, 8.2_
+
+- [ ] 7.7 Budget a batch by the sinks it implies, not by the requests it holds
+  - **Named by the 2026-09-22 identification.** A taint batch costs what its matched sink NODES cost, because `reachableByFlows` is asked per sink. Measured at a fixed 100 requests on one graph: SQL injection 147 s, path 194 s, output encoding 704 s — and output encoding declares seven sink names against path's sixteen. What separates them is that `echo` and `print` match thousands of calls in a WordPress plugin.
+  - The driver currently splits a failed batch into eight parts by request count, which cannot help: each part carries the same everywhere-sinks.
+  - The count needed is already computed. `taint.sc` memoises its candidate sink list per sink set, and the evidence pass reports the in-scope sink list per request before any dataflow runs. A driver that reads it can size a batch by expected work, and can report a family whose sinks are everywhere as EXPENSIVE rather than as failed.
+  - Done when a batch is sized by the sink nodes it implies, the measured plugin's arbitration completes within its ceiling, and a family too expensive to arbitrate is reported as such rather than as a timeout.
+  - _Boundary: contributor-scan scan budget, cpg backend_
+  - _Depends: 7.3_
+  - _Requirements: 4.1, 6.3, 8.1_

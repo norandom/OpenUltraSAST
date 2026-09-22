@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "experiment": "php-query-cost-identified-v1",
+  "date": "2026-09-22",
+  "task": "pre-push-safety-net 13.2",
+  "claim_scope": "What makes a PHP arbitration batch unaffordable. One graph, built once, three controlled sweeps plus the driver's own log.",
+  "the_answer": "The cost is the number of CALL NODES a family's sink names match in this repository, not the number of requests in the batch, not the number of sink names declared, and not any request parameter. `reachableByFlows` is asked per matched sink, and PHP's output-encoding sinks are `echo` and `print`, which a WordPress plugin writes thousands of times.",
+  "the_evidence": {
+    "batch_size_is_exonerated": {
+      "sweep": [
+        {
+          "requests": 25,
+          "seconds": 71.4,
+          "answered": true,
+          "rc": 0,
+          "per_request": 2.86
+        },
+        {
+          "requests": 50,
+          "seconds": 76.0,
+          "answered": true,
+          "rc": 0,
+          "per_request": 1.52
+        },
+        {
+          "requests": 100,
+          "seconds": 155.4,
+          "answered": true,
+          "rc": 0,
+          "per_request": 1.55
+        },
+        {
+          "requests": 200,
+          "seconds": 166.7,
+          "answered": true,
+          "rc": 0,
+          "per_request": 0.83
+        },
+        {
+          "requests": 400,
+          "seconds": 169.7,
+          "answered": true,
+          "rc": 0,
+          "per_request": 0.42
+        }
+      ],
+      "reading": "400 requests answer in 170 s and cost per request FALLS with size, because roughly 70 s is fixed JVM start and graph load."
+    },
+    "request_parameters_are_exonerated": {
+      "sweep": [
+        {
+          "callDepth": "0",
+          "parameterSources": "false",
+          "seconds": 150.2,
+          "answered": true,
+          "rc": 0
+        },
+        {
+          "callDepth": "3",
+          "parameterSources": "false",
+          "seconds": 156.9,
+          "answered": true,
+          "rc": 0
+        },
+        {
+          "callDepth": "0",
+          "parameterSources": "true",
+          "seconds": 226.0,
+          "answered": true,
+          "rc": 0
+        },
+        {
+          "callDepth": "3",
+          "parameterSources": "true",
+          "seconds": 221.3,
+          "answered": true,
+          "rc": 0
+        }
+      ],
+      "reading": "At 200 requests the full production shape, call depth 3 with parameter sources, costs 221 s against a 150 s baseline. Not the difference between 170 s and a 1,200 s timeout."
+    },
+    "the_family_is_the_variable": {
+      "sweep": [
+        {
+          "family": "injection_sql",
+          "sinks_declared": 6,
+          "seconds": 146.8,
+          "answered": true
+        },
+        {
+          "family": "output_encoding",
+          "sinks_declared": 7,
+          "seconds": 704.2,
+          "answered": true
+        },
+        {
+          "family": "path",
+          "sinks_declared": 16,
+          "seconds": 193.8,
+          "answered": true
+        }
+      ],
+      "reading": "Same graph, same 100 requests, same query. SQL injection costs 147 s with six declared sinks; path costs 194 s with sixteen; output encoding costs 704 s with seven. The declared count does not predict it and the request count does not predict it. What separates output encoding is that `echo` and `print` match thousands of calls where `$wpdb->get_var` matches a handful."
+    },
+    "the_driver_named_its_own_expensive_step": [
+      "cpg batch taint: 2435 request(s) in 45.5s, answered   (evidence, no dataflow)",
+      "cpg batch taint: 65 request(s) in 21.6s, answered",
+      "cpg batch taint: 315 request(s) in 1200.1s, unanswered  (arbitration, all families)",
+      "cpg batch taint: split abandoned at part 1, no time left",
+      "cpg batch dominance: 13 request(s) in 20.6s, answered"
+    ]
+  },
+  "why_it_stayed_unidentified_since_september": "Every reproduction outside the driver carried the SQL sinks, because that is the family the declared target belongs to. The one family that is cheap on this subject was the one being re-measured. Nine hypotheses were eliminated that way, and the tenth was not a hypothesis anyone had stated.",
+  "why_splitting_did_not_rescue_it": "The driver splits a failed batch into eight parts BY REQUEST COUNT. Each part still carries the same everywhere-sinks, so each part is expensive in proportion to its share and the whole is no cheaper. Splitting by request count cannot help when the cost is per matched sink.",
+  "fix_direction": "Budget a batch by the sink nodes it implies rather than by the requests it holds. The count is already computed: taint.sc memoises its candidate sink list per sink set, and the evidence pass reports the in-scope sink list per request before any dataflow runs. A driver that reads it can size batches, and can report a family whose sinks are everywhere as expensive rather than as failed.",
+  "limits": [
+    "One subject and one language. The effect should be proportional to how common a family's sinks are in a codebase, which is a property of the code.",
+    "The sweeps use file-scoped requests; production also sends function-scoped ones, which were not separately timed.",
+    "`echo` as an output-encoding sink is correct for PHP. The finding is about cost, not about whether the fact is right."
+  ]
+}
