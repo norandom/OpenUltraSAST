@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "experiment": "portioning-vs-hard-cap-v1",
+  "date": "2026-09-23",
+  "task": "contributor-scan 7.8",
+  "claim_scope": "Portioning with streamed harvest against the hard-cap-plus-reserve baseline, on one PHP subject at 500 regions, 3600 s.",
+  "hard_cap_7_7": {
+    "completed": 153,
+    "of": 406,
+    "findings": 125,
+    "seconds": 2338.2
+  },
+  "portioned_7_8": {
+    "completed": 131,
+    "of": 406,
+    "findings": 125,
+    "seconds": 2982.0
+  },
+  "reading": "A mixed result, told straight. Findings are IDENTICAL, 125 either way -- the detection output does not change. Completion is slightly LOWER under portioning, 131 of 406 against 153, and it used more wall time, 2,982 s against 2,338. So on this subject portioning does not beat hard-cap-plus-reserve on throughput; it matches it on what it finds.",
+  "what_portioning_actually_buys": "Kill-safety, which is what the maintainer asked for. Under the hard cap a batch killed at the ceiling loses every answer it computed; under streaming it keeps them. The two approaches reaching the same 125 findings is the evidence that streaming loses nothing the cap kept -- and it no longer discards a near-complete batch's work when the ceiling falls mid-answer. The completion gap is not a detection gap.",
+  "why_completion_did_not_rise": "The requeue re-asks a killed portion's remainder, and on this subject those remainders are the expensive output-encoding questions that keep hitting the ceiling in smaller and smaller pieces, spending budget without completing. The arbitration reserve then stops the query phase (query_budget_reserved) with those still unresolved. A cap that simply drops them, plus the reserve, happened to leave more budget for the questions that could complete. Honest read: requeue helps a transient kill and does not help a genuinely-too-expensive family, and telling those apart is the next lever, not more portioning.",
+  "neither_is_release_ready": "131 or 153 of 406 is 32-38% completion on a bounded 500-region PHP run; the M4 gate is 95%. Neither approach makes PHP release-qualifying, and this subject is development data that qualifies nothing. The value delivered here is robustness of the engine path, not a PHP capability.",
+  "limits": [
+    "One subject, one language, one budget. The comparison may invert on a repository whose expensive family is rarer.",
+    "The reserve share and the portion target are first values, not tuned; the completion gap is within the range those could move."
+  ]
+}
