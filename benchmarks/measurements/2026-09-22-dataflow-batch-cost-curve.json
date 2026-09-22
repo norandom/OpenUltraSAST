@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "experiment": "dataflow-batch-cost-curve-v1",
+  "date": "2026-09-22",
+  "task": "pre-push-safety-net 13.2",
+  "claim_scope": "Whether one dataflow batch is superlinear in its request count. One graph, built once, five batch sizes.",
+  "why_it_was_asked": "Four census runs on this subject spent whatever query ceiling they were given -- 363 s of 300, 1,255 s of 1,200, 1,874 s of 1,800 -- at question counts of 2,526 and 406. Cost that tracks the budget rather than the work is not per-question cost, and tier-zero pruning cutting the count six-fold changed nothing at all. A census runs one batch, so no census can answer this.",
+  "measured": [
+    {
+      "requests": 25,
+      "seconds": 71.4,
+      "answered": true,
+      "rc": 0,
+      "per_request": 2.86
+    },
+    {
+      "requests": 50,
+      "seconds": 76.0,
+      "answered": true,
+      "rc": 0,
+      "per_request": 1.52
+    },
+    {
+      "requests": 100,
+      "seconds": 155.4,
+      "answered": true,
+      "rc": 0,
+      "per_request": 1.55
+    },
+    {
+      "requests": 200,
+      "seconds": 166.7,
+      "answered": true,
+      "rc": 0,
+      "per_request": 0.83
+    },
+    {
+      "requests": 400,
+      "seconds": 169.7,
+      "answered": true,
+      "rc": 0,
+      "per_request": 0.42
+    }
+  ],
+  "finding": "Batch size is exonerated. 400 dataflow requests answer in 170 s on the same graph the census fails on, and cost is SUBLINEAR: 2.86 s per request at 25, 0.42 s at 400, because roughly 70 s is fixed JVM start and graph load. Every size answered.",
+  "what_this_leaves": "The production invocation differs from this probe in its request PARAMETERS, not its size. The probe sent callDepth=0 and no parameter sources; production sends callDepth=3 with parameter sources on every entry point, plus a hook table, dispatch list and context evidence. Task 13.2 recorded in September that every reproduction outside the push path answered in under a minute and the difference was not known. It is now narrowed to the parameters, with size removed as a candidate.",
+  "limits": [
+    "One graph, one family's sinks, one subject.",
+    "The probe's requests are file-scoped with no function, which is the census's shape but not every production request's."
+  ]
+}
