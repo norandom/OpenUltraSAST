@@ -410,8 +410,19 @@ def _scan_repository_impl(
     census_reported = False
     query_started = time.monotonic()
     pruned = sum(q.reason == "tier_zero" for q in scope.deferred)
+    # Time the phases AFTER this one need. Querying fills rows; arbitration turns them into findings and the
+    # outcomes are assembled from that, and neither costs the engine anything -- so a scan that spends its
+    # whole budget on queries reports nothing at all, however many of them answered.
+    #
+    # Measured 2026-09-22, and by accident. A per-query timeout used to cancel the whole scan, which stopped
+    # the query phase early and left time to arbitrate: 78 findings. Removing that cancellation was right on
+    # its own terms and made the result worse, 0 of 406 questions completed, because the query phase then ran
+    # the full 2,700 s deadline to exhaustion. The cascade had been an accidental budget guard, and this is
+    # the deliberate one.
+    reserve = _arbitration_reserve(execution_budget)
     for kind, requests in _grouped(work, hook_callbacks=hooks).items():
-        if not _within_deadline(execution_budget):
+        if not _within_deadline(execution_budget, reserve=reserve):
+            degradations.append({"stage": "model", "reason": "query_budget_reserved", "kind": kind, "requests": len(requests)})
             break
         kind_started = time.monotonic()
         batch = getattr(cpg, "run_batch", None)
@@ -770,6 +781,24 @@ def _family_coverage(scope: ScopeDecision, outcomes: tuple[QuestionOutcome, ...]
     )
 
 
+# The share of what is left when querying starts that is kept back for arbitration and reporting. A quarter
+# with a sixty-second floor: on the measured plugin the phases after querying took roughly 220 s for 400
+# questions, and a scan too small for the floor to matter is a scan where the floor costs nothing.
+ARBITRATION_RESERVE_SHARE = 0.2
+ARBITRATION_RESERVE_FLOOR = 60.0
+# A reserve may never take more than half of what is left. Held back without this, the floor swallowed a
+# whole small budget and the query loop never ran at all -- a scan with a fifth of a second to spend must
+# still spend it, and a control caught exactly that.
+ARBITRATION_RESERVE_CAP = 0.5
+
+
+def _arbitration_reserve(execution_budget: ExecutionBudget | None) -> float:
+    if execution_budget is None:
+        return 0.0
+    remaining = max(0.0, execution_budget.deadline_monotonic - time.monotonic())
+    return min(max(ARBITRATION_RESERVE_FLOOR, remaining * ARBITRATION_RESERVE_SHARE), remaining * ARBITRATION_RESERVE_CAP)
+
+
 def _pair_key(region: ScanRegion, spec: ArbiterSpec) -> tuple[str, str, str]:
     return (region.path, region.function or "", getattr(spec, "family", ""))
 
@@ -1030,8 +1059,13 @@ def _dispose(cpg: object) -> None:
             logger.warning("could not remove the cpg scratch directory: %s", exc)
 
 
-def _within_deadline(budget: ExecutionBudget | None) -> bool:
-    return budget is None or time.monotonic() < budget.deadline_monotonic
+def _within_deadline(budget: ExecutionBudget | None, *, reserve: float = 0.0) -> bool:
+    """Is there time left, keeping back `reserve` seconds for whatever must happen after this?
+
+    A reserve of zero is the committed meaning and every caller but the query loop uses it. The query loop
+    passes one, because rows the engine returned are worth nothing until something turns them into findings.
+    """
+    return budget is None or time.monotonic() < budget.deadline_monotonic - reserve
 
 
 def _build(backend: Any, root: Path, language: str, *, execution_budget: ExecutionBudget | None = None) -> Any:
