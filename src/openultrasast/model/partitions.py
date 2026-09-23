@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ..cpg.backend import _DeadlineExpired, _remove_owned_tree
+from ..cpg.backend import TIMING, _DeadlineExpired, _remove_owned_tree
 from ..preprocess import LANGUAGE_BY_EXTENSION
 from .contracts import ExecutionBudget
 from .layout import is_test_path, is_vendored, layout_facts
@@ -125,6 +125,9 @@ class PartitionGraph:
             for rid, rows in raw.items():
                 if rid in selected and isinstance(rows, list):
                     answers[rid] = self._normalize(rows)
+                elif rid == TIMING and isinstance(rows, list):
+                    # Carried, not normalized: it names request ids and costs, never a path.
+                    answers.setdefault(TIMING, []).extend(rows)
                 elif rid == "__census__" and isinstance(rows, list):
                     expected = set(next(p.paths for p in self.partitions if p.language == language))
                     normalized = self._normalize(rows)

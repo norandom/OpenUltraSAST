@@ -322,26 +322,56 @@ def test_expired_planning_keeps_census_without_more_fact_reads(tmp_path, monkeyp
     assert "deadline_exhausted" in result.scope.unresolved_boundaries
 
 
-def test_a_portion_sizer_shrinks_to_budget_and_learns_from_what_answered() -> None:
-    """Portions follow the engine's observed cost; a portion that did not answer halves the budget."""
+def test_a_portion_sizer_learns_measured_costs_per_family() -> None:
+    """Portions are sized in predicted seconds from what each family's answers reported costing."""
     from openultrasast.model import scan
 
-    weights = {"w": 500, "x": 400, "y": 100, "z": 100}
-    sizer = scan._PortionSizer(weights)
-    sizer.budget = 600.0
-    pending = [{"y": {}}, {"z": {}}]
-    fitted = sizer.fit({"w": {}, "x": {}}, pending=pending)
-    assert sorted(fitted) == ["w"] and pending[0] == {"x": {}}, (fitted, pending)  # x pushed to the front, not lost
-    grown = sizer.fit({"y": {}}, pending=[{"z": {}}])
-    assert sorted(grown) == ["y", "z"]
-    sizer.observe({"w": {}}, 300.0, answered=False)
-    assert sizer.budget == 300.0
-    sizer.observe({"y": {}, "z": {}}, scan.PORTION_FIXED_SECONDS + 20.0, answered=True)  # 0.1 s per visit
-    assert 450 < sizer.budget < 550, sizer.budget
-    # A portion that finished inside the fixed start says nothing: the budget must not move on it.
-    before = sizer.budget
-    sizer.observe({"y": {}}, scan.PORTION_FIXED_SECONDS + 1.0, answered=True)
-    assert sizer.budget == before
-    # And a genuinely cheap portion may double the budget, never more: 0.01 s per visit would fit 5,000.
-    sizer.observe({"w": {}}, scan.PORTION_FIXED_SECONDS + 5.0 + 5.0, answered=True)
-    assert sizer.budget == before * scan.PORTION_MAX_GROWTH, sizer.budget
+    weights = {"i1": 10, "i2": 10, "o1": 10, **{f"x{i}": 10 for i in range(8)}}
+    families = {"i1": "injection", "i2": "injection", "o1": "output_encoding", **{f"x{i}": "output_encoding" for i in range(8)}}
+    sizer = scan._PortionSizer(weights, families)
+    # A whole portion: answers explain 2 s, the other 23 s is the fixed start -- not the 70 s prior.
+    sizer.observe({"i1": {}, "i2": {}}, 25.0, answered={"i1", "i2"}, timing={"i1": 1.0, "i2": 1.0})
+    assert sizer.fixed == 23.0
+    assert abs(sizer.rate("injection") - 0.1) < 1e-9
+    # A family never seen is costed at the dearest rate known, never below the prior.
+    assert sizer.rate("output_encoding") >= scan.PORTION_PRIOR_SECONDS_PER_VISIT
+    sizer.observe({"o1": {}}, 43.0, answered={"o1"}, timing={"o1": 20.0})
+    assert abs(sizer.rate("output_encoding") - 2.0) < 1e-9
+    assert abs(sizer.rate("injection") - 0.1) < 1e-9, "one family's cost leaked into another's"
+    # A portion is cut where the predicted seconds run out: 97 s of allowance holds four 20 s requests.
+    pending: list[dict[str, dict[str, object]]] = []
+    fitted = sizer.fit({f"x{i}": {} for i in range(8)}, pending=pending)
+    assert len(fitted) == 4 and len(pending[0]) == 4, (fitted, pending)
+
+
+def test_a_fast_portion_grows_the_next_one_after_a_collapse() -> None:
+    """The trace that motivated this: after two kills the budget fell to 3 visits and never came back.
+
+    Portions of 3 visits finished in 27 s. Under an assumed 70 s start that was 'no information', so the
+    budget could only shrink. Measured, 27 s is almost all start, the work is cheap, and the next portion
+    must carry far more.
+    """
+    from openultrasast.model import scan
+
+    weights = {f"r{i}": 3 for i in range(200)}
+    families = dict.fromkeys(weights, "injection")
+    sizer = scan._PortionSizer(weights, families)
+    sizer.observe({"r0": {}}, 27.0, answered={"r0"}, timing={"r0": 0.6})
+    pending = [{f"r{i}": {} for i in range(2, 200)}]
+    fitted = sizer.fit({"r1": {}}, pending=pending)
+    assert len(fitted) >= 100, len(fitted)
+
+
+def test_a_killed_culprit_makes_its_family_dearer_and_nothing_else() -> None:
+    """The request running at the kill ran at least as long as nothing else explains."""
+    from openultrasast.model import scan
+
+    weights = {"a": 5, "b": 5, "c": 5}
+    families = {"a": "injection", "b": "output_encoding", "c": "output_encoding"}
+    sizer = scan._PortionSizer(weights, families)
+    sizer.fixed = 25.0
+    sizer.observe({"a": {}, "b": {}, "c": {}}, 300.0, answered={"a"}, timing={"a": 5.0}, culprit="b")
+    # b ran at least 300 - 25 - 5 = 270 s over 5 visits.
+    assert sizer.rate("output_encoding") >= 54.0
+    assert abs(sizer.rate("injection") - 1.0) < 1e-9
+    assert sizer.fixed == 25.0, "a killed portion must not be read as a fixed-start sample"

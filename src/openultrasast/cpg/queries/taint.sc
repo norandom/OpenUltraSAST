@@ -886,6 +886,12 @@
     println(ujson.write(ujson.Obj("__census__" -> census)))
     System.out.flush()
     parsed.foreach { case (id, req) =>
+      // What THIS answer cost, measured where it is spent. The driver sizes its portions from it, learns the
+      // fixed start as the wall time the answers do not account for, and -- when a portion is killed -- knows
+      // exactly which request was running, because every one before it reported its own time. A per-portion
+      // wall clock cannot tell one 90 s request from thirty 3 s ones, and fitting a single rate to both
+      // collapsed the sizer to three sink visits per JVM start on the plugin.
+      val started = System.nanoTime()
       def field(name: String): String = req.obj.get(name).map(_.str).getOrElse("")
       val paramSrc = req.obj.get("parameterSources").map(_.str).getOrElse("false")
       val fieldSrc = req.obj.get("fieldSources").map(_.str).getOrElse("true")
@@ -910,7 +916,7 @@
           field("contextEvidence")
         ): _*
       )
-      println(ujson.write(ujson.Obj("id" -> id, "rows" -> rows)))
+      println(ujson.write(ujson.Obj("id" -> id, "rows" -> rows, "ms" -> ((System.nanoTime() - started) / 1000000L).toDouble)))
       System.out.flush()
     }
     // The census rides the stream as its FIRST line rather than costing its own invocation, because JVM

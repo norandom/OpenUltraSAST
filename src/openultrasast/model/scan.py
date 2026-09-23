@@ -27,7 +27,7 @@ from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
-from ..cpg.backend import CpgResult
+from ..cpg.backend import TIMING, CpgResult
 from .candidates import enumerate_candidates
 from .config_value import request_params as config_params
 from .contracts import (
@@ -407,6 +407,7 @@ def _scan_repository_impl(
     # per family put a ten-line file at four minutes and a thousand regions at roughly fifty hours -- while
     # the queries themselves are milliseconds once the CPG is loaded.
     rows_by_id: dict[str, list[object]] = {}
+    too_expensive_ids: set[str] = set()
     census_reported = False
     query_started = time.monotonic()
     pruned = sum(q.reason == "tier_zero" for q in scope.deferred)
@@ -432,13 +433,31 @@ def _scan_repository_impl(
             # portion and collapsed the sizer. `run_batch_once` is one invocation whose kill returns what it
             # streamed. A backend without it falls back to `run_batch`, unchanged.
             once = getattr(cpg, "run_batch_once", None)
+            expensive: dict[str, float] = {}
             answered_batch = _batched(
                 once if callable(once) else batch,
                 kind,
                 requests,
                 weights=_sink_weights(work, evidence_by_pair),
+                families=_request_families(work),
                 within=lambda: _within_deadline(execution_budget, reserve=reserve),
+                too_expensive=expensive,
             )
+            if expensive:
+                # Asked ALONE and still over the ceiling: this question costs more than one invocation may
+                # spend, which is a fact about the question and not a transient failure. Reported apart from
+                # `query_failed`, so a reader can tell a scan that ran out of luck from one that met a question
+                # it cannot afford.
+                too_expensive_ids.update(expensive)
+                degradations.append(
+                    {
+                        "stage": "model",
+                        "reason": "query_too_expensive",
+                        "kind": kind,
+                        "requests": len(expensive),
+                        "max_seconds": max(expensive.values()),
+                    }
+                )
             if answered_batch is None:
                 # The engine could not answer. That is NOT an empty result, and recording it is what keeps a
                 # failed scan from reading as a clean repository: on a 117k-line PHP checkout every query
@@ -472,7 +491,7 @@ def _scan_repository_impl(
                     census_reported = True
                 valid = {rid: rows for rid, rows in answered_batch.items() if rid in requests and isinstance(rows, list)}
                 rows_by_id.update(valid)
-                missing = len(requests) - len(valid)
+                missing = len(requests) - len(valid) - len(expensive)
                 if missing:
                     degradations.append({"stage": "model", "reason": "query_failed", "kind": kind, "requests": missing})
         else:  # a backend without batching still works, one call at a time
@@ -579,7 +598,11 @@ def _scan_repository_impl(
             outcomes[rid] = QuestionOutcome(
                 question.identity,
                 "not_arbitrated" if has_answer else "unanswered",
-                "deadline_exhausted" if not _within_deadline(execution_budget) else "query_unanswered",
+                "query_too_expensive"
+                if rid in too_expensive_ids
+                else "deadline_exhausted"
+                if not _within_deadline(execution_budget)
+                else "query_unanswered",
                 _rows_json(rows_by_id[rid]) if has_answer else None,
             )
         if question.identity in context_gaps and outcomes[rid].status == "completed":
@@ -844,6 +867,11 @@ def _sink_weights(
     return weights
 
 
+def _request_families(work: Sequence[tuple[str, ScanRegion, ArbiterSpec]]) -> dict[str, str]:
+    """The family of each request id: the unit the sizer learns a cost rate for."""
+    return {rid: str(getattr(spec, "family", "")) for rid, _region, spec in work}
+
+
 def _sized_batches(requests: Mapping[str, Mapping[str, object]], weights: Mapping[str, int]) -> list[dict[str, Mapping[str, object]]]:
     """Chunks whose implied sink work stays under the budget, in the order the ranker gave.
 
@@ -878,127 +906,259 @@ def _batched(
     requests: Mapping[str, Mapping[str, object]],
     *,
     weights: Mapping[str, int],
+    families: Mapping[str, str] | None = None,
     within: Callable[[], bool] = lambda: True,
+    too_expensive: dict[str, float] | None = None,
 ) -> dict[str, list[object]] | None:
-    """Ask one kind in chunks the engine can afford, and merge what answered.
+    """Ask one kind in portions the engine can afford, and merge what answered.
 
-    A chunk that fails leaves its own requests unanswered rather than discarding the answers beside it, which
-    is the same contract the backend's split retry keeps. Everything answered is returned; only a kind where
-    no chunk answered at all is reported as unavailable.
+    A portion that fails leaves its own requests unanswered rather than discarding the answers beside it.
+    Everything answered is returned; only a kind where no portion answered at all is reported as unavailable.
+    A request that could not be answered even alone, and spent more than a portion's target trying, is
+    recorded in ``too_expensive`` with the seconds it took -- a different fact from a failure, and reported
+    as one.
     """
     chunks = _sized_batches(requests, weights)
-    if len(chunks) <= 1:
-        answered: dict[str, list[object]] | None = batch(kind, requests)
-        return answered
-    # The budget adapts to what the engine actually does. The constant it starts from was read off one
-    # subject, and a graph where sinks are cheaper or dearer would either waste portions or blow them. After
-    # each portion the observed cost per sink visit, less the fixed start, resizes the rest toward a target
-    # duration -- so a kill becomes something the sizing avoids rather than something the ceiling handles.
-    sizer = _PortionSizer(weights)
-    logger.info(
-        "cpg %s split into %d batches by sink weight (%d request(s), %d sink visit(s))",
-        kind,
-        len(chunks),
-        len(requests),
-        sum(weights.get(rid, 1) for rid in requests),
-    )
+    # The cost model is MEASURED, per family. The engine reports what each answer cost, so the sizer learns
+    # the fixed start as the wall time the answers do not account for and a seconds-per-sink-visit rate for
+    # each family from its own answers. One global rate fitted to whole portions could not tell one 90 s
+    # request from thirty 3 s ones: on the plugin it fitted the tail, fell to three visits per portion, and
+    # never grew back, because a fast portion under an assumed 70 s start read as no information at all.
+    sizer = _PortionSizer(weights, families)
+    if len(chunks) > 1:
+        logger.info(
+            "cpg %s split into %d batches by sink weight (%d request(s), %d sink visit(s))",
+            kind,
+            len(chunks),
+            len(requests),
+            sum(weights.get(rid, 1) for rid in requests),
+        )
     merged: dict[str, list[object]] = {}
     answered_any = False
-    # A QUEUE, not a fixed list, because a killed portion leaves a remainder that must be re-asked at the now
-    # smaller budget rather than dropped. On the plugin the fixed list ran out at 1,263 s of a 3,600 s budget
-    # with the killed portions' remainders lost -- completion far below what the budget could buy. The queue
-    # keeps working while there is time and something left to ask; `fit` sizes the head against the current
-    # budget, and a portion that comes back short pushes its unanswered ids back for a smaller retry.
+    # A QUEUE, not a fixed list, because a killed portion leaves a remainder that must be re-asked rather than
+    # dropped. The queue keeps working while there is time and something left to ask; `fit` sizes the head
+    # against the current cost model.
     queue: list[dict[str, Mapping[str, object]]] = list(chunks)
-    while queue:
+    # Requests that were RUNNING when a portion was killed. The engine answers in order and streams each answer
+    # as it finishes, so after a kill the first id without an answer is the one that held the process at the
+    # ceiling, and every id after it never started. Those are not evidence of anything and go straight back;
+    # the culprit is asked alone, after everything else, so an expensive question cannot hold the queue.
+    #
+    # This is the difference between a TRANSIENT kill and a genuinely expensive question. The earlier queue
+    # re-asked the whole remainder at half the size, and on the plugin that meant the same expensive
+    # output-encoding request killing portion after portion while the cheap ones behind it waited.
+    isolated: list[str] = []
+    while queue or isolated:
         # Checked per portion, not per kind: one kind runs every portion inside a single loop iteration, so a
         # per-kind check would let taint spend the whole budget before the reserve looked.
         if not within():
-            left = sum(len(c) for c in queue)
+            left = sum(len(c) for c in queue) + len(isolated)
             logger.info("cpg %s: %d request(s) left unasked to keep time for arbitration", kind, left)
             break
-        chunk = sizer.fit(queue.pop(0), pending=queue)
+        alone = not queue
+        chunk = {isolated[0]: requests[isolated.pop(0)]} if alone else sizer.fit(queue.pop(0), pending=queue)
         started = time.monotonic()
         answer = batch(kind, chunk)
-        # WHOLE, not merely non-empty. A killed portion streams some answers and returns them, which is the
-        # point -- but its time is the ceiling, not the cost of the work, so fitting a per-visit rate from it
-        # is meaningless. Only a portion that answered every id it was asked gives a clean sample.
-        answered_ids = set(answer or ())
-        whole = answer is not None and all(rid in answered_ids for rid in chunk)
-        sizer.observe(chunk, time.monotonic() - started, answered=whole)
+        seconds = time.monotonic() - started
+        timing = _answer_timing(answer)
+        answered_ids = {rid for rid in (answer or ()) if rid in chunk}
+        remainder = [rid for rid in chunk if rid not in answered_ids]
         if answer is not None:
             answered_any = True
-            merged.update(answer)
-        # The unanswered remainder goes back to the front, to be re-asked at the now-smaller budget: either
-        # progress was made and the rest is a genuine remainder, or nothing answered and `fit` will split the
-        # portion smaller next time. Termination is guaranteed because a portion that answers nothing halves
-        # the budget, `fit` caps the head at the budget, so heads shrink to single requests; and a SINGLE
-        # request a whole ceiling could not answer is dropped rather than looped on forever.
-        remainder = {rid: req for rid, req in chunk.items() if rid not in answered_ids}
-        if remainder and len(chunk) > 1:
-            queue.insert(0, remainder)
+            merged.update({rid: rows for rid, rows in answer.items() if rid in chunk})
+            if "__census__" in answer and "__census__" not in merged:
+                merged["__census__"] = answer["__census__"]
+        # A kill is a partial answer from an engine that LOADED: the census arrived, so the process was
+        # working through requests in order. Nothing at all -- no census -- is a failure to start or a crash,
+        # and says nothing about which request was at fault.
+        killed = answer is not None and bool(remainder)
+        culprit = remainder[0] if killed else None
+        sizer.observe(chunk, seconds, answered=answered_ids, timing=timing, culprit=culprit)
+        if not remainder:
+            continue
+        if alone or len(chunk) == 1:
+            # Asked alone and still unanswered. Termination rests here: a single request is never re-queued.
+            if seconds >= PORTION_TARGET_SECONDS and too_expensive is not None:
+                too_expensive[remainder[0]] = round(seconds, 1)
+            logger.info("cpg %s: request %s unanswered when asked alone (%.0fs)", kind, remainder[0], seconds)
+            continue
+        if culprit is not None:
+            isolated.append(culprit)
+            rest = {rid: chunk[rid] for rid in remainder if rid != culprit}
+            logger.info(
+                "cpg %s: portion killed on request %s after %d of %d answered; %d re-queued, the culprit asked alone later",
+                kind,
+                culprit,
+                len(answered_ids),
+                len(chunk),
+                len(rest),
+            )
+        else:
+            # Nothing answered and no census: the sizer has already made this family dearer, so `fit` will cut
+            # the portion smaller next time. Heads shrink to single requests, and a single request is dropped.
+            rest = {rid: chunk[rid] for rid in remainder}
+        if rest:
+            queue.insert(0, rest)
     return merged if answered_any else None
+
+
+def _answer_timing(answer: Mapping[str, object] | None) -> dict[str, float]:
+    """Seconds per answered request id, from the engine's own streamed cost; empty when it reported none."""
+    timing: dict[str, float] = {}
+    raw = answer.get(TIMING) if isinstance(answer, Mapping) else None
+    if not isinstance(raw, list):
+        return timing
+    for entry in raw:
+        if isinstance(entry, Mapping) and isinstance(entry.get("ms"), (int, float)):
+            rid = str(entry.get("id", ""))
+            # Shards each answer the same id; its cost is what all of them spent.
+            timing[rid] = timing.get(rid, 0.0) + float(entry["ms"]) / 1000.0
+    return timing
 
 
 # What one portion should take: long enough that the fixed JVM start is a minority of it, short enough that
 # a mis-estimate is bounded and a kill costs little.
 PORTION_TARGET_SECONDS = 120.0
-PORTION_FIXED_SECONDS = 70.0  # measured start-and-load on a 4 MB graph
-PORTION_MIN_INFORMATIVE_SECONDS = 10.0  # less work than this above the fixed start says nothing about cost per visit
-PORTION_MAX_GROWTH = 2.0  # a budget may double per portion, never more
+# A PRIOR for the start-and-load, used until one whole portion has shown the real one: its wall time less the
+# time its answers report. Measured 70 s on a 4 MB graph once, and 25 s on the plugin in the trace that
+# showed the constant was wrong -- which is why it is a prior and not a fact.
+PORTION_FIXED_SECONDS = 70.0
+# A family with no answers yet is costed at the dearest rate seen so far, never below this. Pessimism is the
+# cheaper mistake: an over-estimate costs one extra JVM start, an under-estimate costs a ceiling.
+PORTION_PRIOR_SECONDS_PER_VISIT = (PORTION_TARGET_SECONDS - PORTION_FIXED_SECONDS) / MAX_SINK_VISITS_PER_BATCH
+# The least the engine's work may be budgeted per portion, whatever the fixed start is measured at.
+PORTION_MIN_WORK_SECONDS = 10.0
 
 
 class _PortionSizer:
-    """Resize the remaining portions from the cost the engine has shown so far.
+    """Size portions in predicted SECONDS, from what the engine has shown each family costs.
 
-    Sizing starts from `MAX_SINK_VISITS_PER_BATCH`, and the observed seconds per sink visit replaces that
-    guess as soon as one portion has answered. A portion that did not answer is evidence too, of the
-    harshest kind: the budget is halved rather than fitted, because the true cost is unknown and above the
-    ceiling. `pending` is edited in place, so a portion cut down to fit puts its remainder back at the front
-    of the queue rather than losing it.
+    Every answered request contributes its own reported cost to its family's rate (seconds per sink visit).
+    A whole portion also shows the fixed start: its wall time less what its answers account for. A killed
+    portion's culprit contributes a LOWER BOUND -- it ran for at least the time the others do not explain --
+    so its family becomes dearer and the next portion of that family is cut to fit. An engine that reports no
+    costs is costed from the portion's wall time, spread over its requests by prediction.
     """
 
-    def __init__(self, weights: Mapping[str, int]) -> None:
+    def __init__(self, weights: Mapping[str, int], families: Mapping[str, str] | None = None) -> None:
         self.weights = weights
-        self.budget = float(MAX_SINK_VISITS_PER_BATCH)
+        self.families = families or {}
+        self.fixed = PORTION_FIXED_SECONDS
+        self._fixed_seen: list[float] = []
+        self.spent: dict[str, float] = {}
+        self.visited: dict[str, int] = {}
+        self.penalty: dict[str, float] = {}
 
     def weight(self, chunk: Mapping[str, object]) -> int:
         return sum(self.weights.get(rid, 1) for rid in chunk)
 
+    def rate(self, family: str) -> float:
+        """Seconds per sink visit for a family: its own, else the dearest known, else the prior."""
+        known = [self.spent[f] / self.visited[f] for f in self.visited if self.visited[f] > 0]
+        base = self.spent[family] / self.visited[family] if self.visited.get(family) else max([PORTION_PRIOR_SECONDS_PER_VISIT, *known])
+        return base * self.penalty.get(family, 1.0)
+
+    def cost(self, rid: str) -> float:
+        return self.rate(self.families.get(rid, "")) * self.weights.get(rid, 1)
+
+    @property
+    def allowance(self) -> float:
+        """Predicted engine seconds one portion may carry, once the fixed start is paid."""
+        return max(PORTION_MIN_WORK_SECONDS, PORTION_TARGET_SECONDS - self.fixed)
+
     def fit(
         self, chunk: dict[str, Mapping[str, object]], *, pending: list[dict[str, Mapping[str, object]]]
     ) -> dict[str, Mapping[str, object]]:
-        """Shrink this portion to the budget, or grow it from the ones behind it while it still fits."""
-        if self.weight(chunk) > self.budget and len(chunk) > 1:
-            kept: dict[str, Mapping[str, object]] = {}
-            carried = 0
-            for rid, req in chunk.items():
-                if kept and carried + self.weights.get(rid, 1) > self.budget:
-                    break
-                kept[rid] = req
-                carried += self.weights.get(rid, 1)
-            pending.insert(0, {rid: req for rid, req in chunk.items() if rid not in kept})
-            return kept
-        while pending and self.weight(chunk) + self.weight(pending[0]) <= self.budget:
-            chunk = {**chunk, **pending.pop(0)}
-        return chunk
+        """Cut this portion to the allowance, or grow it from the ones behind it while it still fits.
 
-    def observe(self, chunk: Mapping[str, object], seconds: float, *, answered: bool) -> None:
-        visits = max(1, self.weight(chunk))
-        if not answered:
-            self.budget = max(1.0, self.budget / 2)
-            logger.info("cpg portion of %d sink visit(s) did not answer in %.0fs; budget halved to %d", visits, seconds, int(self.budget))
-            return
-        work = seconds - PORTION_FIXED_SECONDS
-        # A portion that finished inside the fixed start carries no information about cost per visit -- 3 s
-        # of work over 199 visits read as 0.015 s each and the next budget grew thirteen-fold to 3,404, which
-        # the ceiling then killed. Measured on the plugin. So a sample below the floor is not extrapolated
-        # from, and growth is capped at doubling per step: the sizing may be wrong, but never by more than
-        # one factor of two per portion, which a kill can then undo.
-        if work >= PORTION_MIN_INFORMATIVE_SECONDS:
-            fitted = (PORTION_TARGET_SECONDS - PORTION_FIXED_SECONDS) / (work / visits)
-            self.budget = max(1.0, min(fitted, self.budget * PORTION_MAX_GROWTH))
-        logger.info("cpg portion of %d sink visit(s) answered in %.0fs; next budget %d visit(s)", visits, seconds, int(self.budget))
+        Always at least one request, however dear: the scan's job is to report that it is expensive, not to
+        decide it is unaskable. The rest of a cut portion goes to the FRONT of the queue, in ranker order.
+        """
+        kept: dict[str, Mapping[str, object]] = {}
+        carried = 0.0
+        for rid, req in chunk.items():
+            if kept and carried + self.cost(rid) > self.allowance:
+                break
+            kept[rid] = req
+            carried += self.cost(rid)
+        rest = {rid: req for rid, req in chunk.items() if rid not in kept}
+        if rest:
+            pending.insert(0, rest)
+            return kept
+        # Grown id by id, not chunk by chunk: the queue's head is often one large chunk -- the remainder of the
+        # ranker's first cut -- and waiting for the whole of it to fit kept portions at one request after a
+        # collapse even once the engine had shown each costs a fraction of a second.
+        while pending:
+            head = pending[0]
+            taken = []
+            for rid in head:
+                if carried + self.cost(rid) > self.allowance:
+                    break
+                taken.append(rid)
+                carried += self.cost(rid)
+            for rid in taken:
+                kept[rid] = head.pop(rid)
+            if head:
+                break
+            pending.pop(0)
+        return kept
+
+    def _learn(self, rid: str, seconds: float) -> None:
+        family = self.families.get(rid, "")
+        self.spent[family] = self.spent.get(family, 0.0) + max(0.0, seconds)
+        self.visited[family] = self.visited.get(family, 0) + self.weights.get(rid, 1)
+
+    def observe(
+        self,
+        chunk: Mapping[str, object],
+        seconds: float,
+        *,
+        answered: set[str] | frozenset[str],
+        timing: Mapping[str, float] | None = None,
+        culprit: str | None = None,
+    ) -> None:
+        timing = timing or {}
+        done = [rid for rid in chunk if rid in answered]
+        whole = len(done) == len(chunk)
+        reported = all(rid in timing for rid in done)
+        if done and reported:
+            for rid in done:
+                self._learn(rid, timing[rid])
+            explained = sum(timing[rid] for rid in done)
+            if whole:
+                # The fixed start is what the answers do not explain. The median of what has been seen, so one
+                # slow start (a cold page cache, a busy host) does not resize every portion after it.
+                self._fixed_seen.append(max(0.0, seconds - explained))
+                self.fixed = sorted(self._fixed_seen)[len(self._fixed_seen) // 2]
+        elif done:
+            # No per-answer costs: spread the portion's work over its requests in proportion to prediction.
+            predicted = {rid: self.cost(rid) for rid in done}
+            total = sum(predicted.values()) or 1.0
+            work = max(0.0, seconds - self.fixed)
+            if whole and seconds < self.fixed:
+                self.fixed = seconds  # a portion cannot finish before its own start: the prior was too high
+            for rid in done:
+                self._learn(rid, work * predicted[rid] / total)
+            explained = work
+        else:
+            explained = 0.0
+        if culprit is not None:
+            # It ran at least as long as nothing else accounts for, and did not finish. A lower bound, which is
+            # exactly what the next portion of its family should be sized against.
+            self._learn(culprit, seconds - self.fixed - (explained if reported else 0.0))
+        elif not done:
+            # Nothing answered and no census: the engine said nothing about cost, only that this was too much.
+            for family in {self.families.get(rid, "") for rid in chunk}:
+                self.penalty[family] = self.penalty.get(family, 1.0) * 2
+        logger.info(
+            "cpg portion of %d request(s), %d sink visit(s): %d answered in %.0fs; fixed start %.0fs, allowance %.0fs",
+            len(chunk),
+            self.weight(chunk),
+            len(done),
+            seconds,
+            self.fixed,
+            self.allowance,
+        )
 
 
 def _collect(

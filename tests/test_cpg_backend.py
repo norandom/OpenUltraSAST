@@ -1271,46 +1271,63 @@ def test_a_killed_batch_retries_only_the_remainder(tmp_path: Path) -> None:
     assert all("a" not in retry for retry in calls[1:]), calls
 
 
-def test_the_portioner_asks_single_attempts_and_halves_on_a_short_answer(tmp_path: Path) -> None:
-    """A killed portion returns what it streamed; the sizer must read that as too big, not as slow.
+def test_the_portioner_asks_single_attempts_and_isolates_the_culprit(tmp_path: Path) -> None:
+    """A killed portion's running request is asked alone, AFTER the rest; the ids behind it go straight back.
 
-    Timing `run_batch` folds its internal split-retry into the number -- one portion read 953 s that way and
-    the sizer fitted a per-visit rate from it and collapsed. The portioner asks `run_batch_once` instead, and
-    a portion that came back short of the ids it asked halves the budget rather than fitting from a ceiling.
+    The engine answers in order and streams as it goes, so after a kill the first unanswered id is the one
+    that held the ceiling and everything after it never started. Re-asking them together at half the size is
+    what let one expensive request kill portion after portion on the plugin.
     """
     from openultrasast.cpg.backend import CpgResult
     from openultrasast.model import scan
 
-    once_calls: list[list[str]] = []
+    calls: list[list[str]] = []
 
     def once(kind: str, requests: dict[str, dict[str, object]]) -> dict[str, list[object]] | None:
-        once_calls.append(sorted(requests))
-        # Answer everything except a designated heavy id, as a kill would: it streamed the rest and died.
-        return {rid: [] for rid in requests if rid != "heavy"}
+        calls.append(list(requests))
+        answer: dict[str, list[object]] = {"__census__": [{"methods": "3"}]}
+        for rid in requests:
+            if rid == "heavy":
+                return answer  # killed while answering heavy: nothing after it started
+            answer[rid] = []
+        return answer
 
     result = CpgResult(cpg_path=tmp_path / "c.bin", run=lambda k, p: None, run_batch=lambda k, r: None, run_batch_once=once)
+    weights = dict.fromkeys(["a", "heavy", "b", "c"], 1)
+    expensive: dict[str, float] = {}
+    merged = scan._batched(result.run_batch_once, "taint", {rid: {} for rid in weights}, weights=weights, too_expensive=expensive)
+    assert merged is not None and {"a", "b", "c"} <= set(merged) and "heavy" not in merged
+    assert calls[0] == ["a", "heavy", "b", "c"]
+    assert calls[1] == ["b", "c"], "the requests behind the culprit were not re-asked straight away"
+    assert calls[-1] == ["heavy"] and calls.count(["heavy"]) == 1, calls
+    assert not expensive, "a lone failure faster than a portion's target is not 'too expensive'"
 
-    seen: list[bool] = []
-    real_observe = scan._PortionSizer.observe
 
-    def spy(self, chunk, seconds, *, answered):  # type: ignore[no-untyped-def]
-        seen.append(answered)
-        return real_observe(self, chunk, seconds, answered=answered)
+def test_a_single_portion_kill_still_re_asks_its_remainder() -> None:
+    """A scan small enough for one portion used to take one attempt and lose whatever a kill cut off."""
+    from openultrasast.model import scan
 
-    # Two portions over the budget so the portioner actually splits and observes.
-    weights = {"heavy": 500, "a": 400, "b": 400}
-    requests = {rid: {} for rid in weights}
-    monkey = scan._PortionSizer.observe
-    scan._PortionSizer.observe = spy  # type: ignore[method-assign]
-    try:
-        merged = scan._batched(result.run_batch_once, "taint", requests, weights=weights)
-    finally:
-        scan._PortionSizer.observe = monkey  # type: ignore[method-assign]
+    calls: list[list[str]] = []
 
-    assert merged is not None and "a" in merged and "b" in merged and "heavy" not in merged
-    assert once_calls, "the single-attempt path was not used"
-    # The portion that came back short of its ids was reported as not-whole (False) to the sizer.
-    assert False in seen, seen
+    def once(kind: str, requests: dict[str, dict[str, object]]) -> dict[str, list[object]] | None:
+        calls.append(list(requests))
+        if len(calls) == 1:
+            return {"__census__": [], "a": []}  # killed on b
+        return {"__census__": [], **{rid: [] for rid in requests}}
+
+    merged = scan._batched(once, "taint", {"a": {}, "b": {}, "c": {}}, weights={"a": 1, "b": 1, "c": 1})
+    assert merged is not None and {"a", "b", "c"} <= set(merged), (merged, calls)
+
+
+def test_streamed_costs_survive_every_layer() -> None:
+    """The engine's per-answer cost is parsed, carried beside the census, and never read as a request."""
+    from openultrasast.cpg.backend import BEGIN, END, TIMING, extract_payload
+    from openultrasast.model import scan
+
+    body = f'{BEGIN}\n{{"__census__": []}}\n{{"id": "0", "rows": [], "ms": 1500}}\n{{"id": "1", "rows": [1], "ms": 20}}\n{END}\n'
+    parsed = extract_payload(body)
+    assert isinstance(parsed, dict) and parsed[TIMING] == [{"id": "0", "ms": 1500.0}, {"id": "1", "ms": 20.0}]
+    assert scan._answer_timing(parsed) == {"0": 1.5, "1": 0.02}
 
 
 def test_the_queue_re_asks_a_killed_remainder_and_terminates() -> None:

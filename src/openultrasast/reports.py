@@ -435,6 +435,10 @@ _COVERAGE_DEGRADATIONS: dict[str, str] = {
     ),
     "files_unparsed": "{count} file(s) could not be parsed and are absent from the graph: {files}.",
     "query_failed": "A `{kind}` query failed for {requests} region(s), so those regions were not decided.",
+    "query_too_expensive": (
+        "{requests} `{kind}` question(s) could not be answered even when asked alone, spending up to "
+        "{max_seconds} s each, so those regions were not decided. This is the cost of the question, not a transient failure."
+    ),
     "budget_exhausted": "The model-call budget ran out with {regions_unasked} region(s) still unasked.",
     "regions_truncated": (
         "Only the **{examined} highest-ranked of {total} regions** were examined. Nothing above says anything "

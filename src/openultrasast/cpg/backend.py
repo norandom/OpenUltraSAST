@@ -194,6 +194,10 @@ Runner = Callable[..., subprocess.CompletedProcess[str]]
 STREAM_ID = "id"
 STREAM_ROWS = "rows"
 PARTIAL = "__partial__"
+# What each streamed answer cost the engine, as `[{"id": ..., "ms": ...}]` under a reserved key beside the
+# census. It is a list so every layer that merges answers per key -- shards concatenate, partitions collect --
+# carries it without knowing what it is, and every consumer that reads answers by request id ignores it.
+TIMING = "__timing__"
 
 
 def extract_payload(stdout: str) -> object | None:
@@ -254,6 +258,11 @@ def _streamed(body: str, *, complete: bool) -> dict[str, object] | None:
         elif STREAM_ID in document and STREAM_ROWS in document:
             answers[str(document[STREAM_ID])] = document[STREAM_ROWS]
             saw_stream = True
+            cost = document.get("ms")
+            if isinstance(cost, (int, float)) and not isinstance(cost, bool):
+                timing = answers.setdefault(TIMING, [])
+                if isinstance(timing, list):
+                    timing.append({"id": str(document[STREAM_ID]), "ms": float(cost)})
     if not saw_stream:
         return None
     if not complete:
@@ -1144,7 +1153,7 @@ class JoernBackend:
             logger.info(
                 "cpg batch %s: %d of %d answered before the kill; asking the other %d in parts",
                 query,
-                len([k for k in merged if k != "__census__"]),
+                len([k for k in merged if k not in ("__census__", TIMING)]),
                 len(requests),
                 len(remaining),
             )
@@ -1249,7 +1258,7 @@ class JoernBackend:
             logger.warning("cpg batch %s returned no parseable payload", query)
             return None
         if parsed.get(PARTIAL):
-            answered = sum(1 for rid, rows in parsed.items() if rid != PARTIAL and isinstance(rows, list) and rid != "__census__")
+            answered = sum(1 for rid, rows in parsed.items() if rid not in (PARTIAL, TIMING, "__census__") and isinstance(rows, list))
             logger.info("cpg batch %s was killed with %d of %d answer(s) already streamed", query, answered, len(requests))
         # A request the engine did not answer is absent, not empty: the caller must be able to tell them apart.
         return {str(rid): list(rows) for rid, rows in parsed.items() if rid != PARTIAL and isinstance(rows, list)}

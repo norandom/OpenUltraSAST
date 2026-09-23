@@ -621,3 +621,8 @@ def test_the_taint_query_streams_one_line_per_request(tmp_path: Path) -> None:
     assert json.loads(lines[0]).keys() == {"__census__"}
     assembled = extract_payload(done.stdout)
     assert assembled is not None and set(assembled) >= {"0", "1", "__census__"} and "__partial__" not in assembled
+    # Every answer reports its own cost, which is what the portioner sizes from and how a kill names the
+    # request that was running. Absent, the sizer falls back to guessing from wall time.
+    answers = [json.loads(line) for line in lines[1:]]
+    assert all(isinstance(a.get("ms"), (int, float)) and a["ms"] >= 0 for a in answers), answers
+    assert [t["id"] for t in assembled["__timing__"]] == ["0", "1"]

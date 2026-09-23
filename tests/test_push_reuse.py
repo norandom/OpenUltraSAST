@@ -87,3 +87,37 @@ def test_fresh_missing_census_cannot_borrow_a_cached_query_census(tmp_path):
     assert "q" in result.run_batch("taint", {"q": {"file": "a.js"}})
     answer = result.run_batch("taint", {"q": {"file": "a.js"}, "fresh": {"file": "a.js", "callDepth": 3}})
     assert "q" in answer and "fresh" not in answer
+
+
+def test_the_single_attempt_path_is_reused_and_normalized_too(tmp_path):
+    """The portioner asks `run_batch_once`; wrapping only `run_batch` let every portioned query skip reuse."""
+    from openultrasast.cpg.artifact import GraphArtifact, GraphCensus, GraphIdentity
+    from openultrasast.cpg.backend import TIMING
+
+    identity = GraphIdentity(
+        "source", "declarations", "exclude", "repository", "javascript", "engine", "frontend", "version", ("dataflowOss",), ()
+    )
+    artifact = GraphArtifact(identity, "graph-bytes", 10, GraphCensus(1, 1, 1), "complete", (), "/old", ("a.js",))
+    cache = ArtifactCache(tmp_path / "cache", max_bytes=100000)
+    semantics = SemanticKeys("facts", "queries", "config", "ranking", "admission", "disabled", "empty", "advisory")
+    wrapper = ReusingBackend(JoernBackend(), cache, semantics, declarations="d", exclusions="e")
+    census = [{"files": 1, "methods": 1, "file_names": ["a.js"]}]
+    once_calls = []
+
+    def once(kind, requests):
+        once_calls.append(dict(requests))
+        return {
+            **{rid: [{"file": "/old/a.js"}] for rid in requests},
+            "__census__": census,
+            TIMING: [{"id": rid, "ms": 5.0} for rid in requests],
+        }
+
+    graph = CpgResult(tmp_path / "graph", lambda *_: None, lambda k, r: None, run_batch_once=once)
+    result = wrapper._answers(graph, artifact, ExecutionBudget(time.monotonic() + 5, 0.2))
+    assert result.run_batch_once is not None
+    first = result.run_batch_once("taint", {"q": {"file": "a.js"}})
+    assert first["q"] == [{"file": "a.js"}], "the source root was not stripped on the single-attempt path"
+    assert first[TIMING] == [{"id": "q", "ms": 5.0}]
+    second = result.run_batch_once("taint", {"q": {"file": "a.js"}})
+    assert second["q"] == [{"file": "a.js"}] and len(once_calls) == 1, "the single-attempt path bypassed the cache"
+    assert TIMING not in second, "a cached answer cost the engine nothing and must report no time"

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from openultrasast.cpg.artifact import GraphArtifact, digest_value
-from openultrasast.cpg.backend import CpgResult, JoernBackend
+from openultrasast.cpg.backend import TIMING, CpgResult, JoernBackend
 from openultrasast.model.contracts import ExecutionBudget
 from openultrasast.model.regions import ScanRegion
 from openultrasast.push.cache import ArtifactCache, SemanticKeys
@@ -74,7 +74,11 @@ class ReusingBackend:
                 return {key: normalize(item) for key, item in value.items()}
             return value
 
-        def batch(kind: str, requests: Mapping[str, Mapping[str, object]]) -> dict[str, list[object]] | None:
+        def cached(engine: Any) -> Any:
+            return lambda kind, requests: batch(kind, requests, engine=engine)
+
+        def batch(kind: str, requests: Mapping[str, Mapping[str, object]], *, engine: Any = None) -> dict[str, list[object]] | None:
+            engine = engine or result.run_batch
             answers: dict[str, list[object]] = {}
             missing = {}
             keys = {}
@@ -96,8 +100,8 @@ class ReusingBackend:
                 else:
                     missing[rid] = request
             if missing and time.monotonic() < budget.deadline_monotonic:
-                raw: Any = result.run_batch(kind, missing) if result.run_batch else None
-                if raw is None and result.run_batch is None:
+                raw: Any = engine(kind, missing) if engine else None
+                if raw is None and engine is None:
                     raw = {rid: result.run(kind, params) for rid, params in missing.items()}
                 if isinstance(raw, dict):
                     normalized = normalize(raw)
@@ -106,6 +110,10 @@ class ReusingBackend:
                     if not valid:
                         return answers or None
                     answers["__census__"] = census
+                    # What the engine spent on the ids it actually ran; a cached answer cost nothing and
+                    # reports no time, so the portioner learns from real work only.
+                    if isinstance(raw.get(TIMING), list):
+                        answers[TIMING] = raw[TIMING]
                     for rid in missing:
                         rows = normalized.get(rid)
                         if isinstance(rows, list):
@@ -120,7 +128,15 @@ class ReusingBackend:
             rows = batch(kind, {"one": params})
             return rows.get("one") if rows is not None else None
 
-        return replace(result, run=run, run_batch=batch)
+        # BOTH batch paths go through the cache. The scan's portioner asks `run_batch_once`, and wrapping only
+        # `run_batch` let every portioned query bypass reuse -- and the source-root normalization with it, so a
+        # pre-push scan answered from the engine with absolute scratch paths in its rows.
+        return replace(
+            result,
+            run=run,
+            run_batch=cached(result.run_batch),
+            run_batch_once=cached(result.run_batch_once) if result.run_batch_once is not None else None,
+        )
 
     @staticmethod
     def _census(value: object, artifact: GraphArtifact) -> bool:
