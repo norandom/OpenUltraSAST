@@ -451,3 +451,24 @@ def test_the_evidence_pass_names_the_changed_files_to_the_engine(tmp_path):
     assert asked and all("contextFilter" not in r for r in asked)
     assert scan._changed_files(context("x\ny.php")) is None
     assert scan._changed_files(context("source.php")) == ("source.php",)
+
+
+def test_attaching_relationships_is_linear_in_what_it_attaches(tmp_path, monkeypatch):
+    """Membership went through a list: 8 million comparisons for 4,000 relationships, and a push over a
+    WordPress plugin ran 82 minutes past its evidence pass and overran the deadline. Counted, not timed, so the
+    control cannot flake under load."""
+    from openultrasast.model.contracts import AffectedRelationship, QuestionIdentity
+    from openultrasast.model.regions import affected_context
+
+    (tmp_path / "source.php").write_text("x\n" * 400)
+    compared = []
+    original = AffectedRelationship.__eq__
+    monkeypatch.setattr(AffectedRelationship, "__eq__", lambda self, other: compared.append(1) or original(self, other))
+    questions = [QuestionIdentity("unit", "php", f"f{i}.php", "run", "injection") for i in range(200)]
+    rows = {
+        q: [{"kind": "context_summary"}] + [{**row("source.php", function=f"m{j}"), "startLine": 1, "endLine": 400} for j in range(20)]
+        for q in questions
+    }
+    enriched, _ = affected_context(context(), questions, rows, tmp_path)
+    assert len(enriched.relationships) == 4000
+    assert len(compared) < 4000, f"{len(compared)} comparisons for 4,000 relationships"

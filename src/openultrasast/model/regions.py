@@ -194,6 +194,17 @@ AMBIGUOUS_CORRESPONDENCE = "ambiguous_line_correspondence"
 REACHABILITY_BOUNDED = "dynamic_external_or_depth_context_unresolved"
 
 
+def _context_path(raw: str, root: Path, resolved_root: Path) -> str | None:
+    """A context location's path relative to the root, or ``None`` when it is not a real file under it."""
+    try:
+        path = Path(raw)
+        absolute = path if path.is_absolute() else root / path
+        text = absolute.resolve().relative_to(resolved_root).as_posix()
+        return text if absolute.is_file() else None
+    except (ValueError, OSError):
+        return None
+
+
 def _elsewhere_unusable(row: Mapping[str, object], root: Path, checked: dict[str, bool]) -> bool:
     """Whether a summarised set of locations holds one the itemised check would have rejected.
 
@@ -239,6 +250,11 @@ def affected_context(
     """
 
     relationships = list(context.relationships)
+    # Membership through a set, order through the list. `relation not in relationships` on the list alone was
+    # quadratic -- 8 million comparisons for 4,000 relationships, 7 s -- and a push over a WordPress plugin
+    # produces tens of thousands, which ran 82 minutes past the evidence pass and overran the deadline, because
+    # the deadline is checked once per question and a single question could take minutes.
+    known = set(relationships)
     gaps = list(context.unresolved_boundaries)
     affected_gaps: set[QuestionIdentity] = set()
     changed = {context.decode_path(p) for p in context.changed_paths}
@@ -256,6 +272,10 @@ def affected_context(
     inherited_gap = any(not gap.endswith(":" + AMBIGUOUS_CORRESPONDENCE) for gap in gaps)
     renamed = {context.decode_path(r.base_path): context.decode_path(r.head_path) for r in context.renames}
     checked: dict[str, bool] = {}
+    # Resolved once per distinct path: the same few changed files recur in every question's rows, and resolving
+    # them again per row was half of what `affected_context` cost once its quadratic was gone.
+    resolved: dict[str, str | None] = {}
+    resolved_root = root.resolve()
     for identity in questions:
         if execution_budget is not None and time.monotonic() >= execution_budget.deadline_monotonic:
             gaps.append("change_context_deadline_exhausted")
@@ -286,11 +306,12 @@ def affected_context(
                 continue
             if row.get("kind") != "context_method":
                 continue
-            path = Path(str(row.get("path", "")))
+            raw_path = str(row.get("path", ""))
+            if raw_path not in resolved:
+                resolved[raw_path] = _context_path(raw_path, root, resolved_root)
+            path_text = resolved[raw_path]
             try:
-                absolute = path if path.is_absolute() else root / path
-                path_text = absolute.resolve().relative_to(root.resolve()).as_posix()
-                if not absolute.is_file():
+                if path_text is None:
                     raise ValueError("missing context source")
                 start, end = int(str(row.get("startLine", 0))), int(str(row.get("endLine", 0)))
                 if start < 1 or end < start:
@@ -314,7 +335,8 @@ def affected_context(
             function = str(row.get("function", "")) or None
             source = QuestionIdentity(identity.unit, identity.language, path_text, function, identity.family)
             relation = AffectedRelationship(source, identity, str(row.get("relationship", "method")), tuple(evidence))
-            if relation not in relationships:
+            if relation not in known:
+                known.add(relation)
                 relationships.append(relation)
         if local_gaps or inherited_gap:
             affected_gaps.add(identity)
