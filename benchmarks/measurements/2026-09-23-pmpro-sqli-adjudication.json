@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "experiment": "pmpro-sqli-precision-sample-v1",
+  "date": "2026-09-23",
+  "subject": "Paid Memberships Pro 2.9.7 (pin 1a900be3f09f), development subject",
+  "scan": {"source_commit": "6b85a60", "families": ["injection"], "regions": 4461, "questions": 382, "completed": 272, "findings": 48, "all_rungs": "model_entailed", "seconds": 2935.9, "tool": "benchmarks/push/finding_dump.py"},
+  "sampling": "every 5th finding in site order (indices 0,5,...,45), requested by the maintainer",
+  "standard": "TP = attacker-controlled request data reaches SQL text without prepare, integer cast, or esc_sql inside quotes (sanitize_text_field does not count). TP-privileged = same, reachable only by an administrator/privileged capability. FP-guarded = escaped/cast/allow-listed/bound first. FP-not-attacker = value from the database, a constant or internal state.",
+  "sample": [
+    {"i": 0, "site": "adminpages/reports/memberships.php:313", "verdict": "FP-guarded", "reason": "every interpolated value is intval/esc_sql-in-quotes/constant; witness source $type never enters SQL except as an extra apply_filters argument", "fp_class": "apply_filters_extra_arg"},
+    {"i": 5, "site": "classes/class-pmpro-discount-codes.php:154", "verdict": "TP-privileged", "reason": "REST POST /pmpro/v1/discount_code: code = sanitize_text_field(param), interpolated in quotes in save(); needs pmpro_discountcodes capability. Witness names $this->expires, not $this->code"},
+    {"i": 10, "site": "classes/class-pmpro-members-list-table.php:384", "verdict": "FP-guarded", "reason": "orderby via allow-list map sanitize_orderby, order via ==, search_key in_array allow-list, $s esc_sql in quotes", "fp_class": "allowlist_lookup"},
+    {"i": 15, "site": "classes/class.memberorder.php:1122", "verdict": "FP-not-attacker", "reason": "$this->membership_id loaded from the order's DB row; witness source $update_order->BillingFrequency is internal state (upstream hardened it with prepare in 2.9.8)", "fp_class": "object_field_source"},
+    {"i": 20, "site": "classes/class.memberorder.php:1633", "verdict": "FP-not-attacker", "reason": "$this->user_id / membership_id internal order state", "fp_class": "object_field_source"},
+    {"i": 25, "site": "classes/class.memberorder.php:705", "verdict": "FP-not-attacker", "reason": "$this->user_id = $dbobj->user_id from the DB row; the injectable query is the separate id lookup at line 671", "fp_class": "object_field_source"},
+    {"i": 30, "site": "classes/class.pmproemail.php:262", "verdict": "FP-not-attacker", "reason": "$user->ID and old level ids are internal", "fp_class": "object_field_source"},
+    {"i": 35, "site": "classes/gateways/class.pmprogateway_twocheckout.php:240", "verdict": "FP-not-attacker", "reason": "(int) cast code_id, WordPress user id, internal order id; witness source $morder->user_id", "fp_class": "object_field_source"},
+    {"i": 40, "site": "includes/profile.php:344", "verdict": "TP-privileged", "reason": "$user_ID = $_REQUEST['user_id'] raw, interpolated in quotes; needs the membership-level capability. Sibling finding at line 337 (raw expires_hour/minute) is also real"},
+    {"i": 45, "site": "includes/profile.php:515", "verdict": "FP-not-attacker", "reason": "$invoice->code_id from a DB row", "fp_class": "object_field_source"}
+  ],
+  "tally": {"TP": 0, "TP_privileged": 2, "FP_guarded": 2, "FP_not_attacker": 6, "precision": "2/10", "precision_95ci_wilson": "0.06-0.51"},
+  "false_positive_classes": {"object_field_source": 6, "apply_filters_extra_arg": 1, "allowlist_lookup": 1},
+  "reading": "SQL injection precision on this sample is 20% against a 95% gate. Six of eight false positives share one cause: an object field ($this->x, $obj->x) is treated as attacker input although, in these PHP classes, it is loaded from the database or set internally. The real findings are both privileged (admin capability); none in the sample is reachable unauthenticated. The declared target (class.memberorder.php:936) is a true positive outside the sample.",
+  "limits": ["One subject, development data; a 10-finding sample has a wide interval.", "Privilege and reachability judged from capability checks in code, not by exploitation."]
+}
