@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import fcntl
 import hashlib
 import json
@@ -45,6 +46,19 @@ class ArtifactCache:
         self.last_reason = ""
         self.hits = 0
         self.misses = 0
+        # The last full scan of what the cache holds, keyed by the root directory's modification stamp. Every
+        # publication used to list and stat the whole cache to total its size, so a push that stores one
+        # answer per question paid O(entries) per answer: on a WordPress plugin, 12,115 entries in, each new
+        # answer cost ~50,000 filesystem calls and the evidence pass never finished a 7,200 s case. Any change
+        # another process makes -- an entry added, evicted or removed -- moves the stamp and forces a rescan,
+        # so the size limit stays exact under concurrent pushes; our own changes update the tally in place.
+        self._usage: tuple[int, list[tuple[float, Path, int]], int] | None = None
+        self._room: tuple[list[tuple[float, Path, int]], int] = ([], 0)
+        # Every lock stripe exists from the start, so creating one on first use never moves the root's stamp
+        # and invalidates the remembered scan. A stripe that cannot be created is left to `_lock`, as before.
+        for name in [".publication-lock", *(f".lock-{stripe:02d}" for stripe in range(64))]:
+            with contextlib.suppress(OSError):
+                os.close(os.open(self.root / name, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600))
 
     @contextmanager
     def _lock(self, name: str, budget: ExecutionBudget, *, shared: bool = False, wait: bool = True) -> Iterator[bool]:
@@ -146,24 +160,22 @@ class ArtifactCache:
         _remove_owned_tree(root, budget.deadline_monotonic)
 
     def _make_room(self, incoming: int, key: str, budget: ExecutionBudget) -> bool:
-        entries = []
-        used = 0
-        for path in self.root.iterdir():
-            if time.monotonic() >= budget.deadline_monotonic:
+        remembered = self._usage
+        self._usage = None  # restored only by a publication that completes
+        if remembered is not None and remembered[0] == self.root.stat().st_mtime_ns:
+            entries, used = list(remembered[1]), remembered[2]
+        else:
+            scanned = self._scan(budget)
+            if scanned is None:
                 return False
-            if path.is_symlink():
+            entries, used = scanned
+        kept: list[tuple[float, Path, int]] = []
+        fits = False
+        for mtime, path, size in sorted(entries):
+            if fits or used + incoming <= self.max_bytes:
+                fits = True
+                kept.append((mtime, path, size))
                 continue
-            if path.is_dir() and (_KEY.fullmatch(path.name) or path.name.startswith(".pending-")):
-                size = 0
-                for child in path.iterdir():
-                    if time.monotonic() >= budget.deadline_monotonic:
-                        return False
-                    size += child.lstat().st_size
-                used += size
-                entries.append((path.stat().st_mtime, path, size))
-        for _, path, size in sorted(entries):
-            if used + incoming <= self.max_bytes:
-                return True
             if path.name == key or path.name.startswith(".pending-"):
                 self._remove(path, budget)
                 used -= size
@@ -172,7 +184,29 @@ class ArtifactCache:
                     if locked:
                         self._remove(path, budget)
                         used -= size
+                    else:
+                        kept.append((mtime, path, size))
+        self._room = (kept, used)
         return used + incoming <= self.max_bytes
+
+    def _scan(self, budget: ExecutionBudget) -> tuple[list[tuple[float, Path, int]], int] | None:
+        """Every entry and pending publication with its size, or ``None`` when the deadline passed."""
+        entries = []
+        used = 0
+        for path in self.root.iterdir():
+            if time.monotonic() >= budget.deadline_monotonic:
+                return None
+            if path.is_symlink():
+                continue
+            if path.is_dir() and (_KEY.fullmatch(path.name) or path.name.startswith(".pending-")):
+                size = 0
+                for child in path.iterdir():
+                    if time.monotonic() >= budget.deadline_monotonic:
+                        return None
+                    size += child.lstat().st_size
+                used += size
+                entries.append((path.stat().st_mtime, path, size))
+        return entries, used
 
     def publish(self, key: str, payload: bytes | Path, metadata: dict[str, Any], budget: ExecutionBudget, *, complete: bool = True) -> bool:
         if not complete or not _KEY.fullmatch(key):
@@ -224,6 +258,12 @@ class ArtifactCache:
                         self._remove(existing, budget)
                     os.replace(pending, existing)
                     pending = None
+                    kept, used = self._room
+                    replaced = [entry for entry in kept if entry[1].name == key]
+                    kept = [entry for entry in kept if entry[1].name != key]
+                    used -= sum(entry[2] for entry in replaced)
+                    kept.append((existing.stat().st_mtime, existing, size + len(manifest)))
+                    self._usage = (self.root.stat().st_mtime_ns, kept, used + size + len(manifest))
                     return True
         except (OSError, ValueError, TimeoutError, _DeadlineExpired) as error:
             self.last_reason = type(error).__name__
