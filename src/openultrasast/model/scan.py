@@ -408,6 +408,7 @@ def _scan_repository_impl(
     # the queries themselves are milliseconds once the CPG is loaded.
     rows_by_id: dict[str, list[object]] = {}
     too_expensive_ids: set[str] = set()
+    reserved_ids: set[str] = set()
     census_reported = False
     query_started = time.monotonic()
     pruned = sum(q.reason == "tier_zero" for q in scope.deferred)
@@ -434,6 +435,7 @@ def _scan_repository_impl(
             # streamed. A backend without it falls back to `run_batch`, unchanged.
             once = getattr(cpg, "run_batch_once", None)
             expensive: dict[str, float] = {}
+            held: list[str] = []
             answered_batch = _batched(
                 once if callable(once) else batch,
                 kind,
@@ -442,7 +444,13 @@ def _scan_repository_impl(
                 families=_request_families(work),
                 within=lambda: _within_deadline(execution_budget, reserve=reserve),
                 too_expensive=expensive,
+                unasked=held,
             )
+            if held:
+                # NEVER ASKED, held back so arbitration has time. Counted as `query_failed` they read as an
+                # engine that could not answer, which is a different and more alarming fact.
+                reserved_ids.update(held)
+                degradations.append({"stage": "model", "reason": "query_budget_reserved", "kind": kind, "requests": len(held)})
             if expensive:
                 # Asked ALONE and still over the ceiling: this question costs more than one invocation may
                 # spend, which is a fact about the question and not a transient failure. Reported apart from
@@ -462,7 +470,8 @@ def _scan_repository_impl(
                 # The engine could not answer. That is NOT an empty result, and recording it is what keeps a
                 # failed scan from reading as a clean repository: on a 117k-line PHP checkout every query
                 # failed at CPG load and the scan reported 500 regions examined with nothing found.
-                degradations.append({"stage": "model", "reason": "query_failed", "kind": kind, "requests": len(requests)})
+                if len(requests) > len(held):
+                    degradations.append({"stage": "model", "reason": "query_failed", "kind": kind, "requests": len(requests) - len(held)})
             else:
                 # The graph census rides the batch under a reserved key. A frontend that fails every file
                 # still exits 0 with a valid CPG containing nothing, and `joern-parse` does not propagate
@@ -491,7 +500,7 @@ def _scan_repository_impl(
                     census_reported = True
                 valid = {rid: rows for rid, rows in answered_batch.items() if rid in requests and isinstance(rows, list)}
                 rows_by_id.update(valid)
-                missing = len(requests) - len(valid) - len(expensive)
+                missing = len(requests) - len(valid) - len(expensive) - len(held)
                 if missing:
                     degradations.append({"stage": "model", "reason": "query_failed", "kind": kind, "requests": missing})
         else:  # a backend without batching still works, one call at a time
@@ -600,6 +609,8 @@ def _scan_repository_impl(
                 "not_arbitrated" if has_answer else "unanswered",
                 "query_too_expensive"
                 if rid in too_expensive_ids
+                else "query_budget_reserved"
+                if rid in reserved_ids
                 else "deadline_exhausted"
                 if not _within_deadline(execution_budget)
                 else "query_unanswered",
@@ -909,6 +920,7 @@ def _batched(
     families: Mapping[str, str] | None = None,
     within: Callable[[], bool] = lambda: True,
     too_expensive: dict[str, float] | None = None,
+    unasked: list[str] | None = None,
 ) -> dict[str, list[object]] | None:
     """Ask one kind in portions the engine can afford, and merge what answered.
 
@@ -952,8 +964,10 @@ def _batched(
         # Checked per portion, not per kind: one kind runs every portion inside a single loop iteration, so a
         # per-kind check would let taint spend the whole budget before the reserve looked.
         if not within():
-            left = sum(len(c) for c in queue) + len(isolated)
-            logger.info("cpg %s: %d request(s) left unasked to keep time for arbitration", kind, left)
+            left = [rid for c in queue for rid in c] + isolated
+            logger.info("cpg %s: %d request(s) left unasked to keep time for arbitration", kind, len(left))
+            if unasked is not None:
+                unasked.extend(left)
             break
         alone = not queue
         chunk = {isolated[0]: requests[isolated.pop(0)]} if alone else sizer.fit(queue.pop(0), pending=queue)

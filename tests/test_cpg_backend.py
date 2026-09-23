@@ -1350,3 +1350,21 @@ def test_the_queue_re_asks_a_killed_remainder_and_terminates() -> None:
     # It must stop: "hard" is asked, dropped once it is alone, and never re-queued forever.
     assert len(attempts) < 40, len(attempts)
     assert attempts.count(["hard"]) <= 1, attempts
+
+
+def test_requests_held_for_arbitration_are_reported_as_unasked() -> None:
+    """A request the reserve kept back was never asked; it must not be counted as an engine failure."""
+    from openultrasast.model import scan
+
+    calls: list[list[str]] = []
+
+    def once(kind: str, requests: dict[str, dict[str, object]]) -> dict[str, list[object]] | None:
+        calls.append(list(requests))
+        return {"__census__": [], **{rid: [] for rid in requests}}
+
+    weights = {f"r{i}": 600 for i in range(4)}
+    held: list[str] = []
+    budget = iter([True, False])
+    merged = scan._batched(once, "taint", {rid: {} for rid in weights}, weights=weights, within=lambda: next(budget, False), unasked=held)
+    assert merged is not None and len(calls) == 1
+    assert sorted(held + calls[0]) == sorted(weights), (held, calls)
