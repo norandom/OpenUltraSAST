@@ -81,11 +81,7 @@
   // field join's flow queries. Keyed by the parameters the answer depends on, so one family's seeds never
   // answer another's.
   val methodsByFile  = scala.collection.mutable.Map.empty[String, List[io.shiftleft.codepropertygraph.generated.nodes.Method]]
-  val seedsByFile    = scala.collection.mutable.Map.empty[(String, String, String, String), List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode]]
-  // Whether any caller hands a method's parameter request data, per (sources, sanitizers, method, index); and
-  // the request-source calls themselves, which every such question starts from.
-  val callerFedMemo  = scala.collection.mutable.Map.empty[(String, String, String, Int), Boolean]
-  val sourceCallMemo = scala.collection.mutable.Map.empty[String, List[io.shiftleft.codepropertygraph.generated.nodes.Call]]
+  val seedsByFile    = scala.collection.mutable.Map.empty[(String, String, String), List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode]]
   val fieldTaintMemo = scala.collection.mutable.Map.empty[(String, String, String, String, String), Boolean]
   val hookKeysMemo   = scala.collection.mutable.Map.empty[(String, String, String), Set[String]]
 
@@ -272,46 +268,14 @@
   // Framework sources are untrusted wherever they appear. Parameters are untrusted only where the caller has
   // said this region is an entry point -- the same contract `parameterNodes` carries, and for the same
   // reason: an arbitrary helper's parameters carry whatever its caller happened to have.
-  //
-  // A parameter seeds the FIELD join only where some CALLER hands it request data. Counting every parameter of
-  // every method in the file made each setter a source: `$morder->user_id = $user_id` in a gateway's hook
-  // callback, `$this->membership_id = ...` loaded from the order's own row. Adjudicated on PMPro 2026-09-23,
-  // six of eight false SQL injections in a 1-in-5 sample were exactly that -- object fields holding database
-  // or internal values, read as attacker input. MW WP Form's CVE-2023-6559, which the join exists for, is the
-  // case the rule keeps: its constructor's `$attachments` is passed the uploaded files by the controller.
-  def requestSourceCalls: List[io.shiftleft.codepropertygraph.generated.nodes.Call] =
-    sourceCallMemo.getOrElseUpdate(sourcesS, cpg.call.filter(c => sourcePatterns.exists(p => c.code.contains(p))).l)
-
-  def fedByCaller(
-      m: io.shiftleft.codepropertygraph.generated.nodes.Method,
-      param: io.shiftleft.codepropertygraph.generated.nodes.MethodParameterIn
-  ): Boolean =
-    callerFedMemo.getOrElseUpdate(
-      (sourcesS, sanitizersS, m.fullName, param.index), {
-        val sources = requestSourceCalls
-        sources.nonEmpty && m.callIn.l.exists { call =>
-          call.argument.l.filter(_.argumentIndex == param.index).exists { arg =>
-            arg.ast.isCall.exists(c => sourcePatterns.exists(p => c.code.contains(p))) ||
-            arg.start.reachableByFlows(sources.iterator).l.exists(f =>
-              !f.elements.map(_.code).l.exists(code => mentionsToken(code, sanitizerNames))
-            )
-          }
-        }
-      }
-    )
-
   def seedsIn(fileName: String) =
     seedsByFile.getOrElseUpdate(
-      (sourcesS, sanitizersS, paramSrc, fileName), {
+      (sourcesS, paramSrc, fileName), {
         val methods = methodsIn(fileName)
         val framework: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
           methods.flatMap(_.ast.isCall.filter(c => sourcePatterns.exists(p => c.code.contains(p))).l)
-        // Every parameter is a CANDIDATE start; whether its callers feed it is asked only of a parameter that
-        // actually begins an unsanitized flow into the field being read (`fieldIsTainted`). Asked of every
-        // parameter up front, the caller check ran a repository-wide flow query per parameter of every
-        // method in the file and cut PMPro's completed questions from 272 to 67 in the same budget.
         val params: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
-          if (parameterSources == "true") methods.flatMap(_.parameter.l.filter(_.name != "this")) else Nil
+          if (parameterSources == "true") methods.flatMap(_.parameter.l) else Nil
         framework ++ params
       }
     )
@@ -333,13 +297,7 @@
                 // queries that way: the fixed side of its pair went from 1 finding to 13 without this,
                 // which is the pair no longer separating at all.
                 val flows = args(1).start.reachableByFlows(seeds.iterator).l
-                flows.exists { f =>
-                  !f.elements.map(_.code).l.exists(code => mentionsToken(code, sanitizerNames)) && (f.elements.headOption match {
-                    case Some(param: io.shiftleft.codepropertygraph.generated.nodes.MethodParameterIn) =>
-                      fedByCaller(param.method, param)
-                    case _ => true
-                  })
-                }
+                flows.exists(f => !f.elements.map(_.code).l.exists(code => mentionsToken(code, sanitizerNames)))
               case _ => false
             })
           }
