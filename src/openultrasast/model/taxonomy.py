@@ -90,7 +90,7 @@ class FamilyTaxonomy:
         return "lateral"
 
 
-def load_families(path: Path | None = None, *, require_all: bool = True) -> FamilyTaxonomy:
+def _load_families_uncached(path: Path | None = None, *, require_all: bool = True) -> FamilyTaxonomy:
     """Load the taxonomy. ``require_all`` demands the full closed set in order (the shipped file);
     a scoped fixture may declare a subset, but never a family outside ``FAMILY_IDS``."""
     source = path if path is not None else DEFAULT_FAMILIES_PATH
@@ -192,3 +192,21 @@ __all__ = [
     "Relation",
     "load_families",
 ]
+
+
+# Parsed once per file state; see `semantic.facts.load_facts` for why and for the key.
+_FAMILIES_MEMO: dict[tuple[object, ...], FamilyTaxonomy] = {}
+
+
+def load_families(path: Path | None = None, *, require_all: bool = True) -> FamilyTaxonomy:
+    """Load the taxonomy. ``require_all`` demands the full closed set in order (the shipped file);
+    a scoped fixture may declare a subset, but never a family outside ``FAMILY_IDS``."""
+    source = path if path is not None else DEFAULT_FAMILIES_PATH
+    try:
+        info = source.stat()
+    except OSError:
+        return _load_families_uncached(path, require_all=require_all)
+    key = (str(source.resolve()), info.st_size, info.st_mtime_ns, require_all)
+    if key not in _FAMILIES_MEMO:
+        _FAMILIES_MEMO[key] = _load_families_uncached(path, require_all=require_all)
+    return _FAMILIES_MEMO[key]

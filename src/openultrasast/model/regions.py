@@ -18,6 +18,7 @@ Two restraints are deliberate:
 
 from __future__ import annotations
 
+import bisect
 import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
@@ -194,6 +195,15 @@ AMBIGUOUS_CORRESPONDENCE = "ambiguous_line_correspondence"
 REACHABILITY_BOUNDED = "dynamic_external_or_depth_context_unresolved"
 
 
+def _anchored_lines(anchors: list[tuple[int, int]] | None, start: int, end: int) -> list[int]:
+    """Anchor lines within ``[start, end]``, in the order the change context listed them."""
+    if not anchors:
+        return []
+    low = bisect.bisect_left(anchors, (start, -1))
+    high = bisect.bisect_right(anchors, (end, float("inf")))
+    return [line for line, _ in sorted(anchors[low:high], key=lambda item: item[1])]
+
+
 def _context_path(raw: str, root: Path, resolved_root: Path) -> str | None:
     """A context location's path relative to the root, or ``None`` when it is not a real file under it."""
     try:
@@ -272,6 +282,20 @@ def affected_context(
     inherited_gap = any(not gap.endswith(":" + AMBIGUOUS_CORRESPONDENCE) for gap in gaps)
     renamed = {context.decode_path(r.base_path): context.decode_path(r.head_path) for r in context.renames}
     checked: dict[str, bool] = {}
+    # Decoded ONCE per call. Every row used to decode every span's and every line anchor's path -- a changed file
+    # has one anchor per unchanged line -- and with the engine stubbed out that was 78% of a whole push. Anchors
+    # are indexed by line so a row finds its own with two bisections, in their original order.
+    attachable = changed | set(renamed.values())
+    spans_by_path: dict[str, list[tuple[str, str, int, int]]] = {}
+    for span in context.spans:
+        old_path = context.decode_path(span.path)
+        match_path = renamed.get(old_path, old_path) if span.side == "base" else old_path
+        spans_by_path.setdefault(match_path, []).append((span.side, old_path, span.start_line, span.end_line))
+    anchors_by_path: dict[str, list[tuple[int, int]]] = {}
+    for index, anchor in enumerate(context.line_correspondences):
+        anchors_by_path.setdefault(context.decode_path(anchor.head_path), []).append((anchor.head_start_line, index))
+    for anchors in anchors_by_path.values():
+        anchors.sort()
     # Resolved once per distinct path: the same few changed files recur in every question's rows, and resolving
     # them again per row was half of what `affected_context` cost once its quadratic was gone.
     resolved: dict[str, str | None] = {}
@@ -319,18 +343,15 @@ def affected_context(
             except (ValueError, TypeError, OSError):
                 local_gaps.append("context_location_unavailable")
                 continue
-            evidence = []
-            for span in context.spans:
-                old_path = context.decode_path(span.path)
-                match_path = renamed.get(old_path, old_path) if span.side == "base" else old_path
-                if match_path != path_text:
-                    continue
-                if span.side == "base" or (span.start_line <= end and span.end_line >= start):
-                    evidence.append(f"{span.side}_span:{old_path}:{span.start_line}-{span.end_line}")
-            for anchor in context.line_correspondences:
-                if context.decode_path(anchor.head_path) == path_text and start <= anchor.head_start_line <= end:
-                    evidence.append(f"unchanged_line:{anchor.head_start_line};lexical_only")
-            if not evidence or path_text not in changed | set(renamed.values()):
+            if path_text not in attachable:
+                continue
+            evidence = [
+                f"{side}_span:{old_path}:{span_start}-{span_end}"
+                for side, old_path, span_start, span_end in spans_by_path.get(path_text, ())
+                if side == "base" or (span_start <= end and span_end >= start)
+            ]
+            evidence += [f"unchanged_line:{line};lexical_only" for line in _anchored_lines(anchors_by_path.get(path_text), start, end)]
+            if not evidence:
                 continue
             function = str(row.get("function", "")) or None
             source = QuestionIdentity(identity.unit, identity.language, path_text, function, identity.family)

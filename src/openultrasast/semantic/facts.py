@@ -116,7 +116,7 @@ class SemanticFacts:
         )
 
 
-def load_facts(directory: Path | None = None) -> SemanticFacts:
+def _load_facts_uncached(directory: Path | None = None) -> SemanticFacts:
     root = directory if directory is not None else DEFAULT_FACTS_DIR
     if not root.is_dir():
         raise FactLoadError(f"semantic fact directory missing: {root}")
@@ -271,3 +271,44 @@ def _sanitizers(value: object, language: str, path: Path) -> list[SanitizerFact]
             )
         )
     return rows
+
+
+# Parsed once per ruleset STATE, not once per call. Region discovery asks for the family specs of every region,
+# and each spec call loaded the facts again: 89,127 TOML parses and 275 s of a 339 s discovery on a WordPress
+# plugin, paid twice per push. The key is every fact file's name, size and modification time, so an edited
+# ruleset -- a test's fixture, a maintainer's change -- is read again, and the result is immutable, so sharing
+# it is safe. A load that fails is not remembered.
+_FACTS_MEMO: dict[tuple[object, ...], SemanticFacts] = {}
+
+
+_LISTED: dict[tuple[str, str], tuple[int, tuple[Path, ...]]] = {}
+
+
+def _ruleset_state(root: Path, pattern: str) -> tuple[object, ...]:
+    """Every matching file's name, size and modification time -- cheaply, because every question asks.
+
+    The directory is listed again only when its own stamp moves (a file added, removed or renamed); an edit in
+    place moves the file's stamp, which is read every time. Globbing and resolving on every call was 7% of a
+    whole push with the engine stubbed out.
+    """
+    stamp = root.stat().st_mtime_ns
+    listed = _LISTED.get((str(root), pattern))
+    if listed is None or listed[0] != stamp:
+        listed = (stamp, tuple(sorted(root.glob(pattern))))
+        _LISTED[(str(root), pattern)] = listed
+    return (str(root), stamp, *((path.name, *_stat_of(path)) for path in listed[1]))
+
+
+def _stat_of(path: Path) -> tuple[int, int]:
+    info = path.stat()
+    return info.st_size, info.st_mtime_ns
+
+
+def load_facts(directory: Path | None = None) -> SemanticFacts:
+    root = directory if directory is not None else DEFAULT_FACTS_DIR
+    if not root.is_dir():
+        return _load_facts_uncached(directory)
+    key = _ruleset_state(root, "*.toml")
+    if key not in _FACTS_MEMO:
+        _FACTS_MEMO[key] = _load_facts_uncached(directory)
+    return _FACTS_MEMO[key]

@@ -472,3 +472,68 @@ def test_attaching_relationships_is_linear_in_what_it_attaches(tmp_path, monkeyp
     enriched, _ = affected_context(context(), questions, rows, tmp_path)
     assert len(enriched.relationships) == 4000
     assert len(compared) < 4000, f"{len(compared)} comparisons for 4,000 relationships"
+
+
+def _reference_evidence(context_value, path_text, start, end):
+    """The pre-index matching, verbatim in effect: every span and anchor decoded and tested per row."""
+    renamed = {context_value.decode_path(r.base_path): context_value.decode_path(r.head_path) for r in context_value.renames}
+    evidence = []
+    for span in context_value.spans:
+        old_path = context_value.decode_path(span.path)
+        match_path = renamed.get(old_path, old_path) if span.side == "base" else old_path
+        if match_path != path_text:
+            continue
+        if span.side == "base" or (span.start_line <= end and span.end_line >= start):
+            evidence.append(f"{span.side}_span:{old_path}:{span.start_line}-{span.end_line}")
+    for anchor in context_value.line_correspondences:
+        if context_value.decode_path(anchor.head_path) == path_text and start <= anchor.head_start_line <= end:
+            evidence.append(f"unchanged_line:{anchor.head_start_line};lexical_only")
+    return evidence
+
+
+def test_indexed_matching_attaches_exactly_what_the_row_by_row_matching_did(tmp_path):
+    """Randomised: renames, base and head spans, anchors out of order and in several files."""
+    import random
+
+    from openultrasast.model.contracts import PathRename, QuestionIdentity
+    from openultrasast.model.regions import affected_context
+
+    rng = random.Random(20260923)
+    names = ["a.php", "b.php", "c.php", "old.php"]
+    for name in ["a.php", "b.php", "c.php"]:
+        (tmp_path / name).write_text("x\n" * 200)
+    attached = 0
+    for _ in range(200):
+        spans = tuple(
+            ChangedSpan(rng.choice(names).encode().hex(), s, s + rng.randint(0, 20), rng.choice(["base", "head"]))
+            for s in (rng.randint(1, 180) for _ in range(rng.randint(0, 6)))
+        )
+        anchors = tuple(
+            LineCorrespondence(
+                rng.choice(names).encode().hex(), rng.choice(names).encode().hex(), base, base + rng.randint(0, 3), rng.randint(1, 200)
+            )
+            for base in (rng.randint(1, 190) for _ in range(rng.randint(0, 40)))
+        )
+        renames = (PathRename(b"old.php".hex(), b"c.php".hex()),) if rng.random() < 0.5 else ()
+        changed = tuple(n.encode().hex() for n in rng.sample(["a.php", "b.php", "c.php"], rng.randint(1, 3)))
+        ctx = ChangeContext("base", "head", changed, (), spans, renames, (), (), (), "filesystem-bytes-hex", anchors)
+        question = QuestionIdentity("unit", "php", "q.php", "run", "injection")
+        rows = [{"kind": "context_summary"}]
+        for _ in range(rng.randint(1, 12)):
+            s = rng.randint(1, 190)
+            rows.append(
+                {**row(rng.choice(["a.php", "b.php", "c.php"]), function=f"f{s}"), "startLine": s, "endLine": s + rng.randint(0, 30)}
+            )
+        enriched, _ = affected_context(ctx, [question], {question: rows}, tmp_path)
+        attachable = {ctx.decode_path(p) for p in ctx.changed_paths} | {ctx.decode_path(r.head_path) for r in ctx.renames}
+        expected = []
+        for r in rows[1:]:
+            evidence = _reference_evidence(ctx, r["path"], r["startLine"], r["endLine"])
+            if evidence and r["path"] in attachable:
+                key = (r["path"], r["function"], tuple(evidence))
+                if key not in expected:
+                    expected.append(key)
+        got = [(rel.source.path, rel.source.function, rel.evidence) for rel in enriched.relationships]
+        assert got == expected
+        attached += len(got)
+    assert attached > 100, f"only {attached} relationships across 200 cases: the comparison would be vacuous"

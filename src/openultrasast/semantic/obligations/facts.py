@@ -11,6 +11,8 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..facts import _ruleset_state
+
 OPERATION_KINDS = ("protected_read", "protected_write", "privileged_action", "security_setting")
 DISCHARGER_KINDS = ("path_guard", "identity_constraint", "ownership_check", "non_permissive_value", "validated_input")
 PROVENANCE_KINDS = ("authenticated_context", "request_input", "constant", "unknown")
@@ -73,7 +75,7 @@ class ObligationFacts:
         )
 
 
-def load_obligation_facts(directory: Path | None = None) -> ObligationFacts:
+def _load_obligation_facts_uncached(directory: Path | None = None) -> ObligationFacts:
     root = directory if directory is not None else DEFAULT_OBLIGATION_FACTS_DIR
     if not root.is_dir():
         raise ObligationFactsError(f"obligation facts directory missing: {root}")
@@ -160,3 +162,17 @@ def _strings(value: object, field: str, path: Path) -> tuple[str, ...]:
     if not isinstance(value, list) or not all(isinstance(item, str) and item for item in value):
         raise ObligationFactsError(f"{path} has invalid {field} list")
     return tuple(str(item) for item in value)
+
+
+# Parsed once per ruleset state; see `semantic.facts.load_facts` for the measurement and the key.
+_OBLIGATION_MEMO: dict[tuple[object, ...], ObligationFacts] = {}
+
+
+def load_obligation_facts(directory: Path | None = None) -> ObligationFacts:
+    root = directory if directory is not None else DEFAULT_OBLIGATION_FACTS_DIR
+    if not root.is_dir():
+        return _load_obligation_facts_uncached(directory)
+    key = _ruleset_state(root, "*.toml")
+    if key not in _OBLIGATION_MEMO:
+        _OBLIGATION_MEMO[key] = _load_obligation_facts_uncached(directory)
+    return _OBLIGATION_MEMO[key]
