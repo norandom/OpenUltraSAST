@@ -100,7 +100,8 @@
       boundedS: String,
       contextS: String = "",
       contextFilterS: String = "",
-      contextPathsS: String = ""
+      contextPathsS: String = "",
+      traceS: String = ""
   ): List[ujson.Obj] = {
 
   // Word-boundary matching, never substring. `resolveUrl` contains `resolve`, so a bare-substring sanitizer
@@ -265,6 +266,85 @@
   def methodsIn(fileName: String) =
     methodsByFile.getOrElseUpdate(fileName, cpg.method.filter(m => fileName.isEmpty || m.filename.endsWith(fileName)).l)
 
+  // ---- which reported paths are PLAUSIBLE -------------------------------------------------------------
+  //
+  // Joern's dataflow is not field-sensitive on objects and treats a call's return as carrying its arguments.
+  // Both are sound over-approximations, and on PHP classes they manufactured most of the false SQL injections
+  // an adjudication found (PMPro, 2026-09-23: 2 of 10 sampled findings real). Traced element by element, every
+  // false one took one of two steps no real injection needs:
+  //
+  //   A. THROUGH A QUERY. `$id = $wpdb->get_var("... '" . $token . "'")` is the injection, reported there. The
+  //      engine then carried `$token` out through the query's RESULT -- `$id`, the row it loaded, the row's
+  //      `user_id` -- into later queries. What a query returns is stored data, not request input.
+  //   B. THROUGH THE OBJECT. Request data written to `$order->ProfileStartDate`, or passed as an argument to a
+  //      method of `$wpdb`, taints the object as a whole; a DIFFERENT field read from it afterwards --
+  //      `$this->membership_id`, `$wpdb->pmpro_memberships_users` -- came out tainted.
+  //
+  // So a path is dropped when it passes through a call to a sink of its own family, or when a field read is
+  // reached through the bare object after the taint entered that object by writing another field or as an
+  // argument of a method called ON it. Reading a member of an object that IS the tainted value -- the result
+  // of `req.body`, of `JSON.parse(input)` -- is untouched, because there the object came out of a read or a
+  // return, not into it.
+  def familySinkCall(node: io.shiftleft.codepropertygraph.generated.nodes.AstNode): Boolean = node match {
+    case c: io.shiftleft.codepropertygraph.generated.nodes.Call if !c.name.startsWith("<operator") =>
+      val callee = c.code.takeWhile(_ != '(')
+      sinkNames.exists(n => c.name == n || mentionsToken(callee, List(n)) || mentionsToken(c.methodFullName, List(n)))
+    case _ => false
+  }
+
+  def objectHop(node: io.shiftleft.codepropertygraph.generated.nodes.AstNode): Boolean = node match {
+    case _: io.shiftleft.codepropertygraph.generated.nodes.Identifier         => true
+    case _: io.shiftleft.codepropertygraph.generated.nodes.MethodParameterIn  => true
+    case _: io.shiftleft.codepropertygraph.generated.nodes.MethodParameterOut => true
+    case _                                                                    => false
+  }
+
+  def fieldOf(c: io.shiftleft.codepropertygraph.generated.nodes.Call): String =
+    c.argument.l.find(_.argumentIndex == 2).map(_.code.trim).getOrElse("")
+
+  def writtenField(c: io.shiftleft.codepropertygraph.generated.nodes.Call): Boolean =
+    c.argumentIndex == 1 && (c.astParent match {
+      case parent: io.shiftleft.codepropertygraph.generated.nodes.Call => parent.name == "<operator>.assignment"
+      case _                                                           => false
+    })
+
+  def assignedTo(id: io.shiftleft.codepropertygraph.generated.nodes.Identifier): Boolean =
+    id.argumentIndex == 1 && (id.astParent match {
+      case parent: io.shiftleft.codepropertygraph.generated.nodes.Call => parent.name == "<operator>.assignment"
+      case _                                                           => false
+    })
+
+  def absorbedByObject(elements: List[io.shiftleft.codepropertygraph.generated.nodes.AstNode]): Boolean =
+    elements.indices.exists { k =>
+      elements(k) match {
+        case read: io.shiftleft.codepropertygraph.generated.nodes.Call
+            if k > 0 && read.name == "<operator>.fieldAccess" && objectHop(elements(k - 1)) =>
+          var j = k - 1
+          while (j >= 0 && objectHop(elements(j))) j -= 1
+          if (j < 0) false // the object itself is where the path starts: it IS the tainted value
+          else
+            elements(j) match {
+              case prior: io.shiftleft.codepropertygraph.generated.nodes.Call if prior.name == "<operator>.fieldAccess" =>
+                writtenField(prior) && fieldOf(prior) != fieldOf(read)
+              case _ =>
+                // How did the value reach the object? Legitimately only by being ASSIGNED to it
+                // (`$data = json_decode($input)`) or passed in as a parameter. An object merely used beside
+                // the tainted value -- the receiver of a call that took it as an argument -- absorbed it.
+                elements(j + 1) match {
+                  case _: io.shiftleft.codepropertygraph.generated.nodes.MethodParameterIn => false
+                  case id: io.shiftleft.codepropertygraph.generated.nodes.Identifier        => !assignedTo(id)
+                  case _                                                                     => true
+                }
+            }
+        case _ => false
+      }
+    }
+
+  def plausible(flow: io.joern.dataflowengineoss.language.Path): Boolean = {
+    val elements = flow.elements.l
+    !elements.dropRight(1).exists(familySinkCall) && !absorbedByObject(elements)
+  }
+
   // Framework sources are untrusted wherever they appear. Parameters are untrusted only where the caller has
   // said this region is an entry point -- the same contract `parameterNodes` carries, and for the same
   // reason: an arbitrary helper's parameters carry whatever its caller happened to have.
@@ -296,7 +376,7 @@
                 // `$this->sqlQuery = "..." . esc_sql($x) . "..."` tainted, and PMPro builds most of its
                 // queries that way: the fixed side of its pair went from 1 finding to 13 without this,
                 // which is the pair no longer separating at all.
-                val flows = args(1).start.reachableByFlows(seeds.iterator).l
+                val flows = args(1).start.reachableByFlows(seeds.iterator).l.filter(plausible)
                 flows.exists(f => !f.elements.map(_.code).l.exists(code => mentionsToken(code, sanitizerNames)))
               case _ => false
             })
@@ -421,7 +501,7 @@
                     case target: io.shiftleft.codepropertygraph.generated.nodes.Call if target.name == INDEX_ACCESS =>
                       val key = keyOf(target)
                       if (key.isEmpty) None
-                      else if (args(1).start.reachableByFlows(seeds.iterator).l.exists(f => !f.elements.l.exists(sanitizesHere)))
+                      else if (args(1).start.reachableByFlows(seeds.iterator).l.filter(plausible).exists(f => !f.elements.l.exists(sanitizesHere)))
                         Some(key)
                       else None
                     case _ => None
@@ -805,7 +885,7 @@
     // no data at all, yet `res` is reachable from the request in any handler that captures it, so the flow
     // query answered yes about a call that receives nothing. Measured on NodeGoat, where `res.write(body)` is a
     // real finding and `res.end()` two lines below it was reported identically.
-    val flows = if (hasSources) sink.argument.argumentIndexGt(0).reachableByFlows(sourceNodes).l else Nil
+    val flows = if (hasSources) sink.argument.argumentIndexGt(0).reachableByFlows(sourceNodes).l.filter(plausible) else Nil
 
     // The SHAPE of the sink call, which is what distinguishes a fix from a bug when the fix is a safe form
     // rather than a sanitizing call: `execute(sql, params)` binds where `execute(sql + x)` interpolates, and
@@ -842,18 +922,31 @@
     // Emitting every path was a 100x payload term: ten real requests at callDepth 3 returned 3,838 rows
     // for 38 distinct keys, and a whole-repository scan would ship on the order of 130,000 rows to have
     // the reporter collapse them after they were paid for. `paths` keeps the count. Task 5.13.
+    // With `trace`, each row also carries its SHORTEST path, element by element. Off by default: it exists
+    // for adjudication, where a witness naming only its two ends hid that PMPro's object-field findings
+    // start at one field and end at another.
+    def traced(flow: io.joern.dataflowengineoss.language.Path): ujson.Arr =
+      ujson.Arr.from(flow.elements.l.map { node =>
+        val where = node match {
+          case c: io.shiftleft.codepropertygraph.generated.nodes.CfgNode => c.method.filename.split("/").last + ":" + c.method.name
+          case _                                                          => "?"
+        }
+        s"$where:${node.lineNumber.getOrElse(-1)} [${node.label}] ${node.code.take(120)}"
+      })
     flows
       .map { flow =>
         val elements   = flow.elements.map(_.code).l
         val sanitized  = sanitizerNames.nonEmpty && flow.elements.l.exists(node => sanitizesHere(node))
         val sourceKind = sourceKindOf(flow.elements.l.headOption)
-        ((sourceKind, elements.headOption.getOrElse("").take(200), sanitized), elements.size)
+        ((sourceKind, elements.headOption.getOrElse("").take(200), sanitized), (elements.size, flow))
       }
       .groupBy(_._1)
       .toList
       .sortBy(_._1)
-      .map { case ((sourceKind, source, sanitized), paths) =>
-        ujson.Obj(
+      .map { case ((sourceKind, source, sanitized), grouped) =>
+        val paths = grouped.map { case (key, (size, _)) => (key, size) }
+        val shortest = grouped.minBy(_._2._1)._2._2
+        val row = ujson.Obj(
           "sink"            -> sink.code.take(200),
           "sourceKind"      -> sourceKind,
           "sinkLine"        -> sink.lineNumber.getOrElse(-1).toString,
@@ -871,6 +964,8 @@
           "bound"            -> bounds.headOption.getOrElse("").take(120),
           "inLabeledScope"  -> (function.isEmpty || nestedInLabeled(sink.method) || reachableMethods.contains(sink.method.fullName))
         )
+        if (traceS == "true") row("trace") = traced(shortest)
+        row
       }
   }
 
@@ -943,7 +1038,8 @@
           field("boundedSinks"),
           field("contextEvidence"),
           if (field("contextFilter").nonEmpty) field("contextFilter") else contextFilter,
-          if (field("contextPaths").nonEmpty) field("contextPaths") else contextPaths
+          if (field("contextPaths").nonEmpty) field("contextPaths") else contextPaths,
+          field("trace")
         ): _*
       )
       println(ujson.write(ujson.Obj("id" -> id, "rows" -> rows, "ms" -> ((System.nanoTime() - started) / 1000000L).toDouble)))

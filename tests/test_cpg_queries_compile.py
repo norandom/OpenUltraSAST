@@ -679,3 +679,69 @@ def test_context_locations_outside_the_changed_files_are_summarised(tmp_path: Pa
     assert kept == [r for r in whole if r["path"] == "b.js"], "the changed file's locations must be unchanged"
     assert len(summary) == 1 and summary[0]["paths"] == sorted({r["path"] for r in whole if r["path"] != "b.js"})
     assert summary[0]["locations"] == len(whole) - len(kept)
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_a_path_through_a_query_result_or_a_whole_object_is_not_an_injection(tmp_path: Path) -> None:
+    """The two steps every false PMPro injection took, cut; the flows real injections take, kept.
+
+    Adjudicated 2026-09-23 and traced element by element: taint carried out of a query's RESULT into the next
+    query (A), and taint written to one field of an object coming out of a DIFFERENT field, or passed into a
+    method of an object coming out of its field (B). Reading a member of an object that is itself the tainted
+    value, and reading back the field that was written, must still be found.
+    """
+    from openultrasast.cpg.backend import extract_payload
+
+    frontend = __import__("shutil").which("php2cpg")
+    if frontend is None:
+        pytest.skip("php2cpg is not installed")
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "app.php").write_text(
+        "<?php\n"
+        "class Order {\n  public $membership_id;\n  public $start;\n"
+        '  function level() { global $wpdb; return $wpdb->get_row("SELECT * FROM l WHERE id = \'" . $this->membership_id . "\'"); }\n}\n'
+        "class Logger {\n  public $table = 'log';\n  function note($m) { return $m; }\n}\n"
+        "function a_handler() { global $wpdb;\n"
+        "  $id = $wpdb->get_var(\"SELECT id FROM t WHERE code = '\" . $_GET['code'] . \"'\");\n"
+        '  return $wpdb->get_row("SELECT * FROM t WHERE id = \'" . $id . "\'"); }\n'
+        "function b_handler() { $o = new Order(); $o->start = $_GET['start']; return $o->level(); }\n"
+        "function c_handler() { global $wpdb; $logger = new Logger(); $logger->note($_GET['m']);\n"
+        '  return $wpdb->get_var("SELECT x FROM " . $logger->table); }\n'
+        "function d_handler() { global $wpdb; $data = json_decode($_GET['j']);\n"
+        '  return $wpdb->query("DELETE FROM t WHERE n = \'" . $data->name . "\'"); }\n'
+        "function e_handler() { global $wpdb; $o = new Order(); $o->membership_id = $_GET['id'];\n"
+        '  return $wpdb->query("DELETE FROM t WHERE id = \'" . $o->membership_id . "\'"); }\n'
+    )
+    cpg = tmp_path / "cpg.bin"
+    built = subprocess.run([frontend, str(src), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
+    if not cpg.is_file():
+        pytest.skip(f"could not build a sample cpg: {(built.stderr or '')[-200:]}")
+    common = {"sources": "$_GET", "sinks": "$wpdb->get_var,$wpdb->get_row,$wpdb->query", "file": "app.php", "callDepth": "2"}
+    requests = tmp_path / "requests.json"
+    requests.write_text(json.dumps({name: {**common, "function": f"{name}_handler"} for name in "abcde"}))
+    done = subprocess.run(
+        [
+            _joern() or "joern",
+            "--script",
+            str((QUERIES / "taint.sc").resolve()),
+            "--param",
+            f"cpgFile={cpg}",
+            "--param",
+            f"requestsFile={requests}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
+        cwd=str(tmp_path),
+    )
+    assert done.returncode == 0, (done.stderr or done.stdout or "")[-500:]
+    payload = extract_payload(done.stdout or "")
+    assert isinstance(payload, dict)
+    lines = {rid: sorted({int(r["sinkLine"]) for r in payload[rid] if isinstance(r, dict) and r.get("sourceKind")}) for rid in "abcde"}
+    assert lines["a"] == [12], f"through a query's result: {lines['a']} (the injection is line 12, not line 13 fed by its result)"
+    assert lines["b"] == [], f"a field written, another read through the object: {lines['b']}"
+    assert lines["c"] == [], f"an argument into an object's method, its field read: {lines['c']}"
+    assert lines["d"] == [18], f"a member of a decoded request value must still be found: {lines['d']}"
+    assert lines["e"] == [20], f"the field that was written, read back, must still be found: {lines['e']}"
