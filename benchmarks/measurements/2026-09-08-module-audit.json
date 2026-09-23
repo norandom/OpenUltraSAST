@@ -1,7 +1,7 @@
 {
-  "modules": 117,
+  "modules": 118,
   "counts": {
-    "load_bearing": 108,
+    "load_bearing": 109,
     "standalone_capability": 9
   },
   "orphaned": [],
@@ -697,6 +697,14 @@
         "semantic.overlay",
         "skills",
         "stage_processors"
+      ]
+    },
+    {
+      "module": "profiling",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
+        "cli"
       ]
     },
     {

@@ -14,7 +14,7 @@ from pathlib import Path
 from time import perf_counter
 from typing import TYPE_CHECKING, Any
 
-from . import profiling, tool_hunter
+from . import tool_hunter
 from .benchmark import (
     create_benchmark_run,
     evaluate_benchmark,
@@ -61,6 +61,7 @@ from .pairs import (
 )
 from .policy import assert_rules_resolve, load_policy
 from .preprocess import FileTarget, preprocess_repository, write_preprocess_artifact
+from .profiling import start as start_profiling
 from .provenance import fingerprint
 from .rank import rank_obligations, rank_targets, write_rankings
 from .regress import TRIGGERABLE, CandidateVerdict, run_regression, write_verdicts
@@ -243,7 +244,7 @@ def main(argv: list[str] | None = None) -> int:
     # indistinguishable from a run with nothing to report, which is how four PHP investigations were
     # spent reading a later stage's timeout as the cause.
     _configure_logging()
-    profiling.start()  # only when OUSAST_SAMPLE_PROFILE names a file
+    start_profiling()  # only when OUSAST_SAMPLE_PROFILE names a file
     if args.command == "pre-push":
         from .config import PushConfig
         from .push.runner import push, replay
