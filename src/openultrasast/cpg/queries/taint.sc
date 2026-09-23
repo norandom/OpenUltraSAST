@@ -306,10 +306,12 @@
         val methods = methodsIn(fileName)
         val framework: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
           methods.flatMap(_.ast.isCall.filter(c => sourcePatterns.exists(p => c.code.contains(p))).l)
+        // Every parameter is a CANDIDATE start; whether its callers feed it is asked only of a parameter that
+        // actually begins an unsanitized flow into the field being read (`fieldIsTainted`). Asked of every
+        // parameter up front, the caller check ran a repository-wide flow query per parameter of every
+        // method in the file and cut PMPro's completed questions from 272 to 67 in the same budget.
         val params: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
-          if (parameterSources == "true")
-            methods.flatMap(m => m.parameter.l.filter(p => p.name != "this" && fedByCaller(m, p)))
-          else Nil
+          if (parameterSources == "true") methods.flatMap(_.parameter.l.filter(_.name != "this")) else Nil
         framework ++ params
       }
     )
@@ -331,7 +333,13 @@
                 // queries that way: the fixed side of its pair went from 1 finding to 13 without this,
                 // which is the pair no longer separating at all.
                 val flows = args(1).start.reachableByFlows(seeds.iterator).l
-                flows.exists(f => !f.elements.map(_.code).l.exists(code => mentionsToken(code, sanitizerNames)))
+                flows.exists { f =>
+                  !f.elements.map(_.code).l.exists(code => mentionsToken(code, sanitizerNames)) && (f.elements.headOption match {
+                    case Some(param: io.shiftleft.codepropertygraph.generated.nodes.MethodParameterIn) =>
+                      fedByCaller(param.method, param)
+                    case _ => true
+                  })
+                }
               case _ => false
             })
           }

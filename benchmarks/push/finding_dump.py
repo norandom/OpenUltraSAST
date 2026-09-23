@@ -81,11 +81,17 @@ def main() -> int:
         "seconds": round(time.monotonic() - started, 1),
         "questions": len(outcomes),
         "completed": sum(1 for o in outcomes if o.status == "completed"),
+        # Which questions answered, so two runs can be compared only where BOTH answered: a finding that
+        # vanishes because its question went unasked is lost coverage, not gained precision.
+        "completed_regions": sorted({f"{o.identity.path}:{o.identity.function or ''}" for o in outcomes if o.status == "completed"}),
         "degradations": sorted({str(d.get("reason")) for d in result.degradations}),
         "findings": findings,
     }
     args.out.write_text(json.dumps(record, indent=2) + "\n")
-    print(json.dumps({k: v for k, v in record.items() if k != "findings"} | {"findings": len(findings)}), flush=True)
+    print(
+        json.dumps({k: v for k, v in record.items() if k not in ("findings", "completed_regions")} | {"findings": len(findings)}),
+        flush=True,
+    )
     if not outcomes:
         raise SystemExit("no question was asked: the dump measured nothing")
     return 0
