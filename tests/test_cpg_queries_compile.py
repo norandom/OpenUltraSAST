@@ -679,3 +679,64 @@ def test_context_locations_outside_the_changed_files_are_summarised(tmp_path: Pa
     assert kept == [r for r in whole if r["path"] == "b.js"], "the changed file's locations must be unchanged"
     assert len(summary) == 1 and summary[0]["paths"] == sorted({r["path"] for r in whole if r["path"] != "b.js"})
     assert summary[0]["locations"] == len(whole) - len(kept)
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_a_field_is_attacker_input_only_when_a_caller_feeds_it_request_data(tmp_path: Path) -> None:
+    """The field join's parameter seeds are the parameters some caller passes request data.
+
+    Counting every parameter of every method made each setter a source: on PMPro six of eight false SQL
+    injections in an adjudicated sample were object fields holding database or internal values. The shape the
+    join exists for -- MW WP Form's CVE-2023-6559, a constructor handed the uploads by the controller -- must
+    still be found.
+    """
+    from openultrasast.cpg.backend import extract_payload
+
+    frontend = __import__("shutil").which("php2cpg")
+    if frontend is None:
+        pytest.skip("php2cpg is not installed")
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "order.php").write_text(
+        "<?php\nclass Order {\n  public $user_id;\n  function set_user($user_id) { $this->user_id = $user_id; }\n"
+        '  function load() { global $wpdb; return $wpdb->get_var("SELECT x FROM t WHERE id = \'" . $this->user_id . "\'"); }\n}\n'
+        "function internal_caller() { $o = new Order(); $o->set_user(42); return $o->load(); }\n"
+    )
+    (src / "mailer.php").write_text(
+        "<?php\nclass Mailer {\n  private $attachments;\n  function __construct($attachments) { $this->attachments = $attachments; }\n"
+        '  function send() { global $wpdb; return $wpdb->query("DELETE FROM t WHERE f = \'" . $this->attachments . "\'"); }\n}\n'
+        "function controller() { $m = new Mailer($_GET['files']); return $m->send(); }\n"
+    )
+    cpg = tmp_path / "cpg.bin"
+    built = subprocess.run([frontend, str(src), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
+    if not cpg.is_file():
+        pytest.skip(f"could not build a sample cpg: {(built.stderr or '')[-200:]}")
+    common = {"sources": "$_GET", "sinks": "$wpdb->get_var,$wpdb->query", "parameterSources": "true"}
+    requests = tmp_path / "requests.json"
+    requests.write_text(
+        json.dumps(
+            {"internal": {**common, "function": "load", "file": "order.php"}, "fed": {**common, "function": "send", "file": "mailer.php"}}
+        )
+    )
+    done = subprocess.run(
+        [
+            _joern() or "joern",
+            "--script",
+            str((QUERIES / "taint.sc").resolve()),
+            "--param",
+            f"cpgFile={cpg}",
+            "--param",
+            f"requestsFile={requests}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
+        cwd=str(tmp_path),
+    )
+    assert done.returncode == 0, (done.stderr or done.stdout or "")[-500:]
+    payload = extract_payload(done.stdout or "")
+    assert isinstance(payload, dict)
+    flows = {rid: [r for r in payload[rid] if isinstance(r, dict) and r.get("sourceKind")] for rid in ("internal", "fed")}
+    assert not flows["internal"], f"a setter only ever given a constant made its field attacker input: {flows['internal']}"
+    assert flows["fed"], "a constructor handed $_GET data no longer carries it through the field to the sink"
