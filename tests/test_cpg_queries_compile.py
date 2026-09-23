@@ -626,3 +626,56 @@ def test_the_taint_query_streams_one_line_per_request(tmp_path: Path) -> None:
     answers = [json.loads(line) for line in lines[1:]]
     assert all(isinstance(a.get("ms"), (int, float)) and a["ms"] >= 0 for a in answers), answers
     assert [t["id"] for t in assembled["__timing__"]] == ["0", "1"]
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_context_locations_outside_the_changed_files_are_summarised(tmp_path: Path) -> None:
+    """Only the changed files are itemised; every other location collapses into one checkable summary.
+
+    Itemised, one PHP request returned 1,845 locations and a push over a WordPress plugin never finished.
+    """
+    frontend = __import__("shutil").which("jssrc2cpg")
+    if frontend is None:
+        pytest.skip("jssrc2cpg is not installed")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "a.js").write_text(
+        "const h = require('./b');\nfunction handler(req, res) { return h.helper(req.body.x); }\nmodule.exports = handler;\n"
+    )
+    (tmp_path / "src" / "b.js").write_text("function helper(x) { return eval(x); }\nmodule.exports = { helper };\n")
+    cpg = tmp_path / "cpg.bin"
+    subprocess.run([frontend, str(tmp_path / "src"), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
+    if not cpg.is_file():
+        pytest.skip("could not build a sample cpg")
+    # Repository-wide scope, so the context reaches methods in both files. A `require`d helper is not a
+    # resolved call edge in the JavaScript graph, so a handler-scoped request would never leave `a.js`.
+    request = {"sources": "req.body", "sinks": "eval", "evidenceOnly": "true", "contextEvidence": "true"}
+    requests = tmp_path / "requests.json"
+    requests.write_text(json.dumps({"whole": request, "filtered": {**request, "contextFilter": "true", "contextPaths": "b.js"}}))
+    done = subprocess.run(
+        [
+            _joern() or "joern",
+            "--script",
+            str((QUERIES / "taint.sc").resolve()),
+            "--param",
+            f"cpgFile={cpg}",
+            "--param",
+            f"requestsFile={requests}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
+    )
+    assert done.returncode == 0, (done.stderr or done.stdout or "")[-500:]
+    from openultrasast.cpg.backend import extract_payload
+
+    payload = extract_payload(done.stdout)
+    assert isinstance(payload, dict)
+    whole = [r for r in payload["whole"] if r.get("kind") == "context_method"]
+    kept = [r for r in payload["filtered"] if r.get("kind") == "context_method"]
+    summary = [r for r in payload["filtered"] if r.get("kind") == "context_elsewhere"]
+    assert {r["path"] for r in whole} >= {"a.js", "b.js"}, whole  # the unfiltered form still itemises everything
+    assert kept and all(r["path"] == "b.js" for r in kept), kept
+    assert kept == [r for r in whole if r["path"] == "b.js"], "the changed file's locations must be unchanged"
+    assert len(summary) == 1 and summary[0]["paths"] == sorted({r["path"] for r in whole if r["path"] != "b.js"})
+    assert summary[0]["locations"] == len(whole) - len(kept)

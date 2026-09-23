@@ -340,6 +340,7 @@ def _scan_repository_impl(
             hooks,
             degradations=degradations,
             context_rows=context_rows if change_context is not None else None,
+            context_files=_changed_files(change_context) if change_context is not None else None,
             unit=unit,
         )
         per_kind["evidence"] = round(time.monotonic() - tier_started, 2)
@@ -878,6 +879,17 @@ def _sink_weights(
     return weights
 
 
+def _changed_files(context: ChangeContext) -> tuple[str, ...] | None:
+    """The head-side files a context location can be attached to, exactly the set `affected_context` reads.
+
+    ``None`` when one cannot be sent intact -- a newline in a path -- so the engine itemises everything.
+    """
+    changed = {context.decode_path(p) for p in context.changed_paths} | {context.decode_path(r.head_path) for r in context.renames}
+    if any("\n" in path or not path for path in changed):
+        return None
+    return tuple(sorted(changed))
+
+
 def _request_families(work: Sequence[tuple[str, ScanRegion, ArbiterSpec]]) -> dict[str, str]:
     """The family of each request id: the unit the sizer learns a cost rate for."""
     return {rid: str(getattr(spec, "family", "")) for rid, _region, spec in work}
@@ -1224,6 +1236,7 @@ def _evidence_pass(
     *,
     degradations: list[Mapping[str, object]] | None = None,
     context_rows: dict[QuestionIdentity, list[Mapping[str, object]]] | None = None,
+    context_files: tuple[str, ...] | None = None,
     unit: str = "repository",
 ) -> tuple[dict[tuple[str, str, str], Evidence], int]:
     """The evidence vector of every taint pair in ``work``, keyed by (path, function, family).
@@ -1234,10 +1247,13 @@ def _evidence_pass(
     grouped_taint = _grouped(list(work), hook_callbacks=hooks).get("taint", {})
     if not grouped_taint:
         return {}, 0
-    requests = {
-        rid: {**dict(params), "evidenceOnly": "true", **({"contextEvidence": "true"} if context_rows is not None else {})}
-        for rid, params in grouped_taint.items()
-    }
+    # With change context, the engine itemises locations only in the files the change touched and summarises
+    # the rest, because those are the only locations `affected_context` can attach. `None` means the change's
+    # files cannot be named safely, and then every location is itemised as before.
+    context = {"contextEvidence": "true"} if context_rows is not None else {}
+    if context and context_files is not None:
+        context.update({"contextFilter": "true", "contextPaths": "\n".join(context_files)})
+    requests = {rid: {**dict(params), "evidenceOnly": "true", **context} for rid, params in grouped_taint.items()}
     # Portioned by request count, because evidence has no per-request weight yet -- it is the pass that
     # PRODUCES the weights. It is cheap per request, 17,700 in 44 s, and it was still one all-or-nothing
     # batch: a 22,125-request evidence pass on a plugin's push transaction exceeded its ceiling under load and

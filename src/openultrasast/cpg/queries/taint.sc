@@ -52,6 +52,8 @@
     evidenceOnly: String = "false",
     hookCallbacks: String = "",
     dispatchApply: String = "",
+    contextFilter: String = "",
+    contextPaths: String = "",
     requests: String = "",
     requestsFile: String = ""
 ) = {
@@ -96,7 +98,9 @@
       fileS: String,
       depthS: String,
       boundedS: String,
-      contextS: String = ""
+      contextS: String = "",
+      contextFilterS: String = "",
+      contextPathsS: String = ""
   ): List[ujson.Obj] = {
 
   // Word-boundary matching, never substring. `resolveUrl` contains `resolve`, so a bare-substring sanitizer
@@ -717,21 +721,45 @@
           "startLine" -> m.lineNumber.getOrElse(-1), "endLine" -> m.lineNumberEnd.getOrElse(-1),
           "relationship" -> kind)
       val scoped = cpg.method.filterNot(_.isExternal).filter(m => inScope(m)).l
-      val methods = scoped.map(m => location(m, if (labeledMethods.exists(_.id == m.id)) "entry" else "callee"))
       // Field carrying is deliberately same-file in the existing abstraction. Retain
       // its file context conservatively, never claim every method carries the value.
       val fieldFiles = if (fieldCarriedKind.isEmpty) Set.empty[String] else
         cpg.call.nameExact(FIELD_ACCESS).filter(c => inScope(c.method)).l.map(_.method.filename).toSet
-      val fields = fieldFiles.toList.flatMap(f => methodsIn(f).filterNot(_.isExternal).map(m => location(m, "field")))
       val callbacks = if (hookApply.isEmpty) Nil else cpg.call.filter(c => hookApply.contains(c.name))
         .filter(c => inScope(c.method)).l.flatMap { call =>
           val hook = call.argument.l.headOption.map(a => unquote(a.code)).getOrElse("")
           hookTable.getOrElse(hook, Nil).flatMap(name => cpg.method.nameExact(name).filterNot(_.isExternal).l)
         }.distinct
-      val hooks = callbacks.map(m => location(m, "hook"))
       // Export sanitizer locations as guard context, not proof of discharge. Removed
       // guards are retained through base spans and unchanged-line correspondence.
-      val guards = scoped.filter(_.ast.l.exists(sanitizesHere)).map(m => location(m, "guard"))
+      val located: List[(io.shiftleft.codepropertygraph.generated.nodes.Method, String)] =
+        scoped.map(m => m -> (if (labeledMethods.exists(_.id == m.id)) "entry" else "callee")) ++
+          fieldFiles.toList.flatMap(f => methodsIn(f).filterNot(_.isExternal).map(_ -> "field")) ++
+          callbacks.map(_ -> "hook") ++
+          scoped.filter(_.ast.l.exists(sanitizesHere)).map(_ -> "guard")
+      // ONLY THE CHANGED FILES are itemised when the driver says which they are. The consumer attaches a
+      // location to a change only when the location's file is one the change touched, and discards every
+      // other row after checking it names a real file with a sane extent. Itemised anyway, a request whose
+      // scope reaches a vendored SDK returned 1,845 rows, 200 of them 9.4 MB, and the whole-repository pass
+      // on a WordPress plugin never finished a push. Everything else collapses into ONE row carrying exactly
+      // what that check reads: the distinct files and how many locations had no usable extent.
+      val itemise = contextFilterS != "true"
+      // Newline-separated: a path may hold a comma, and the driver never filters when one holds a newline.
+      val changedFiles = contextPathsS.split("\n").map(_.trim).filter(_.nonEmpty).toList
+      def touched(m: io.shiftleft.codepropertygraph.generated.nodes.Method): Boolean =
+        itemise || changedFiles.exists(p => m.filename == p || m.filename.endsWith("/" + p))
+      val (kept, elsewhere) = located.partition { case (m, _) => touched(m) }
+      val locations = kept.map { case (m, relationship) => location(m, relationship) }
+      val elsewhereRows =
+        if (elsewhere.isEmpty) Nil
+        else {
+          val unusable = elsewhere.count { case (m, _) =>
+            val start = m.lineNumber.getOrElse(-1)
+            start < 1 || m.lineNumberEnd.getOrElse(-1) < start
+          }
+          List(ujson.Obj("kind" -> "context_elsewhere", "locations" -> elsewhere.size, "unusableExtents" -> unusable,
+            "paths" -> ujson.Arr.from(elsewhere.map(_._1.filename).distinct.sorted)))
+        }
       // Reachability remains bounded. External/dynamic calls and calls outside the
       // current reachability set cannot establish a complete negative for a change.
       // A modeled argument does not summarize its consumer: unknown(req.body),
@@ -761,7 +789,7 @@
         else if (missing)
           List(ujson.Obj("kind" -> "context_boundary", "reason" -> "dynamic_external_or_depth_context_unresolved:contributor-scan"))
         else Nil
-      ujson.Obj("kind" -> "context_summary") :: (methods ++ fields ++ hooks ++ guards ++ boundaries)
+      ujson.Obj("kind" -> "context_summary") :: (locations ++ elsewhereRows ++ boundaries)
     }
     return summary :: (perSink ++ contextRows)
   }
@@ -913,7 +941,9 @@
           field("file"),
           field("callDepth"),
           field("boundedSinks"),
-          field("contextEvidence")
+          field("contextEvidence"),
+          if (field("contextFilter").nonEmpty) field("contextFilter") else contextFilter,
+          if (field("contextPaths").nonEmpty) field("contextPaths") else contextPaths
         ): _*
       )
       println(ujson.write(ujson.Obj("id" -> id, "rows" -> rows, "ms" -> ((System.nanoTime() - started) / 1000000L).toDouble)))

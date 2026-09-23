@@ -194,6 +194,37 @@ AMBIGUOUS_CORRESPONDENCE = "ambiguous_line_correspondence"
 REACHABILITY_BOUNDED = "dynamic_external_or_depth_context_unresolved"
 
 
+def _elsewhere_unusable(row: Mapping[str, object], root: Path, checked: dict[str, bool]) -> bool:
+    """Whether a summarised set of locations holds one the itemised check would have rejected.
+
+    The same rejections as an itemised `context_method` row: a file that is not a real file under the root,
+    or an extent that is missing or inverted. Each file is checked once per call, because the summary for
+    every family of a region names the same files.
+    """
+    try:
+        if int(str(row.get("unusableExtents", 0))) > 0:
+            return True
+    except ValueError:
+        return True
+    paths = row.get("paths")
+    if not isinstance(paths, list):
+        return True
+    resolved_root = root.resolve()
+    for raw in paths:
+        text = str(raw)
+        if text not in checked:
+            try:
+                path = Path(text)
+                absolute = path if path.is_absolute() else root / path
+                absolute.resolve().relative_to(resolved_root)
+                checked[text] = absolute.is_file()
+            except (ValueError, OSError):
+                checked[text] = False
+        if not checked[text]:
+            return True
+    return False
+
+
 def affected_context(
     context: ChangeContext,
     questions: Sequence[QuestionIdentity],
@@ -224,6 +255,7 @@ def affected_context(
     # ambiguous anchor remains uncomparable.
     inherited_gap = any(not gap.endswith(":" + AMBIGUOUS_CORRESPONDENCE) for gap in gaps)
     renamed = {context.decode_path(r.base_path): context.decode_path(r.head_path) for r in context.renames}
+    checked: dict[str, bool] = {}
     for identity in questions:
         if execution_budget is not None and time.monotonic() >= execution_budget.deadline_monotonic:
             gaps.append("change_context_deadline_exhausted")
@@ -233,7 +265,9 @@ def affected_context(
         local_gaps = []
         if not any(r.get("kind") == "context_summary" for r in rows):
             local_gaps.append("context_projection_unavailable:contributor-scan")
-        elif not any(r.get("kind") == "context_method" for r in rows) and not any(r.get("kind") == "context_boundary" for r in rows):
+        elif not any(r.get("kind") in ("context_method", "context_elsewhere") for r in rows) and not any(
+            r.get("kind") == "context_boundary" for r in rows
+        ):
             # Only when the query offered no account of its own. A query that already said why its
             # scope is empty -- a named function this file does not define, most often -- has given
             # the specific reason, and adding a generic one on top buries it.
@@ -243,6 +277,13 @@ def affected_context(
             if row.get("kind") == "context_boundary":
                 reason = str(row.get("reason", "context_unresolved"))
                 (recorded_only if reason.startswith(REACHABILITY_BOUNDED) else local_gaps).append(reason)
+            if row.get("kind") == "context_elsewhere":
+                # Locations in files the change did not touch, summarised by the engine. None of them can be
+                # attached to a change, so the only thing to do with them is what was always done before they
+                # were discarded: check each names a real file under the root and had a usable extent.
+                if _elsewhere_unusable(row, root, checked):
+                    local_gaps.append("context_location_unavailable")
+                continue
             if row.get("kind") != "context_method":
                 continue
             path = Path(str(row.get("path", "")))

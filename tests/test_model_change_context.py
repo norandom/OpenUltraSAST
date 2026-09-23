@@ -386,3 +386,68 @@ def test_a_gap_in_another_partition_does_not_demote_this_one(tmp_path):
     assert php, result.question_outcomes
     if all(str(d.get("census_language") or "") != "php" for d in result.degradations):
         assert all(o.status == "completed" for o in php), [(o.status, o.reason) for o in php]
+
+
+def _summary(rows):
+    """What the engine now emits in place of itemised rows for files the change did not touch."""
+    unusable = sum(1 for r in rows if int(r["startLine"]) < 1 or int(r["endLine"]) < int(r["startLine"]))
+    return {"kind": "context_elsewhere", "locations": len(rows), "unusableExtents": unusable, "paths": sorted({r["path"] for r in rows})}
+
+
+@pytest.mark.parametrize(
+    "elsewhere",
+    [
+        pytest.param([row("other.php"), row("other.php", "field", "f"), row("lib/deep.php", "hook", "h")], id="valid"),
+        pytest.param([row("other.php"), row("missing.php")], id="missing-file"),
+        pytest.param([row("other.php"), {**row("other.php", function="g"), "startLine": -1}], id="no-extent"),
+        pytest.param([row("../outside.php")], id="outside-root"),
+    ],
+)
+@pytest.mark.parametrize("with_changed_row", [True, False])
+def test_summarised_locations_decide_exactly_what_itemised_ones_did(tmp_path, elsewhere, with_changed_row):
+    """Summarising unchanged-file locations in the engine must change nothing `affected_context` decides.
+
+    Itemised, one PHP request returned 1,845 locations and a push over a WordPress plugin never finished;
+    every location outside the changed files was only ever checked and then discarded, so the summary carries
+    exactly what that check reads.
+    """
+    from openultrasast.model.contracts import QuestionIdentity
+    from openultrasast.model.regions import affected_context
+
+    (tmp_path / "source.php").write_text("readable\nchanged\n")
+    (tmp_path / "other.php").write_text("unchanged\n")
+    (tmp_path / "lib").mkdir()
+    (tmp_path / "lib" / "deep.php").write_text("unchanged\n")
+    (tmp_path.parent / "outside.php").write_text("outside the root\n")
+    question = QuestionIdentity("unit", "php", "sink.php", "run", "injection")
+    changed = [row("source.php", "callee")] if with_changed_row else []
+    head = [{"kind": "context_summary"}]
+    itemised = head + changed + elsewhere
+    summarised = head + changed + [_summary(elsewhere)]
+    old = affected_context(context(), [question], {question: itemised}, tmp_path)
+    new = affected_context(context(), [question], {question: summarised}, tmp_path)
+    assert new == old
+
+
+def test_the_evidence_pass_names_the_changed_files_to_the_engine(tmp_path):
+    """The engine can only summarise what the driver says is unchanged; with no safe list it itemises all."""
+    from openultrasast.model import scan
+
+    asked: list[dict[str, object]] = []
+
+    class Graph:
+        cpg_path = tmp_path / "cpg.bin"
+
+        def run_batch(self, kind, requests):
+            asked.extend(requests.values())
+            return {rid: [] for rid in requests}
+
+    work = scan._collect([region("sink.php", "php")])
+    context_rows: dict = {}
+    scan._evidence_pass(Graph(), work, "", context_rows=context_rows, context_files=("a.php", "b,c.php"))
+    assert asked and all(r["contextFilter"] == "true" and r["contextPaths"] == "a.php\nb,c.php" for r in asked)
+    asked.clear()
+    scan._evidence_pass(Graph(), work, "", context_rows=context_rows, context_files=None)
+    assert asked and all("contextFilter" not in r for r in asked)
+    assert scan._changed_files(context("x\ny.php")) is None
+    assert scan._changed_files(context("source.php")) == ("source.php",)
