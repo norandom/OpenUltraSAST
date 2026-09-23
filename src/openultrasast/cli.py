@@ -14,7 +14,7 @@ from pathlib import Path
 from time import perf_counter
 from typing import TYPE_CHECKING, Any
 
-from . import tool_hunter
+from . import profiling, tool_hunter
 from .benchmark import (
     create_benchmark_run,
     evaluate_benchmark,
@@ -243,6 +243,7 @@ def main(argv: list[str] | None = None) -> int:
     # indistinguishable from a run with nothing to report, which is how four PHP investigations were
     # spent reading a later stage's timeout as the cause.
     _configure_logging()
+    profiling.start()  # only when OUSAST_SAMPLE_PROFILE names a file
     if args.command == "pre-push":
         from .config import PushConfig
         from .push.runner import push, replay

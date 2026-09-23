@@ -263,7 +263,12 @@ def main() -> int:
         overrun = None
         with stdout_path.open("w") as stdout, stderr_path.open("w") as stderr:
             process = subprocess.Popen(  # noqa: S603
-                command, stdout=stdout, stderr=stderr, text=True, env={**os.environ, "OUSAST_LOG_LEVEL": "INFO"}, start_new_session=True
+                command,
+                stdout=stdout,
+                stderr=stderr,
+                text=True,
+                env={**os.environ, "OUSAST_LOG_LEVEL": "INFO", "OUSAST_SAMPLE_PROFILE": str(out / (case["id"] + ".profile.txt"))},
+                start_new_session=True,
             )
             try:
                 returncode: int | None = process.wait(timeout=args.deadline + 60)

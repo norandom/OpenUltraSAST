@@ -244,12 +244,13 @@ class ArtifactCache:
                     elif graph_bytes(payload, budget.deadline_monotonic, target) != sha:
                         raise ValueError("publication_source_changed")
                     target.chmod(0o600)
-                    with target.open("rb") as stream:
-                        os.fsync(stream.fileno())
+                    # No fsync. Durability is not what makes an entry safe to read: `_entry` rejects anything
+                    # whose manifest receipt, payload size or payload SHA-256 does not check, so a write torn
+                    # by a crash is a MISS, never a wrong answer. Two fsyncs per entry were ~18 ms, and a push
+                    # publishes one entry per question -- about 22,000 on a WordPress plugin, minutes of the
+                    # budget spent making a cache survive power loss that it already survives by verification.
                     with (pending / "manifest.json").open("xb") as stream:
                         stream.write(manifest)
-                        stream.flush()
-                        os.fsync(stream.fileno())
                     (pending / "manifest.json").chmod(0o600)
                     if time.monotonic() >= budget.deadline_monotonic:
                         raise TimeoutError("deadline_exhausted")
