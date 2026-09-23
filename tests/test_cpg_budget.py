@@ -67,7 +67,12 @@ while True: time.sleep(1)
         for pid in map(int, pids.read_text().split()):
             status = Path(f"/proc/{pid}/stat")
             for _ in range(30):
-                if not status.exists() or status.read_text().split()[2] == "Z":
+                # Read, never check-then-read: a killed process can be reaped between the two, and its
+                # disappearing is exactly the outcome this test wants, not an error.
+                try:
+                    if status.read_text().split()[2] == "Z":
+                        break
+                except FileNotFoundError:
                     break
                 time.sleep(0.005)
             else:
@@ -147,7 +152,10 @@ print({END!r})
         for pid in map(int, pid_log.read_text().split()):
             status = Path(f"/proc/{pid}/stat")
             for _ in range(30):
-                if not status.exists() or status.read_text().split()[2] == "Z":
+                try:  # read, never check-then-read: a reaped process is the outcome wanted
+                    if status.read_text().split()[2] == "Z":
+                        break
+                except FileNotFoundError:
                     break
                 time.sleep(0.005)
             else:
