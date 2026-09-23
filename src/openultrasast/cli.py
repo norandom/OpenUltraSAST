@@ -116,7 +116,7 @@ def _configure_logging() -> None:
     if level not in {"DEBUG", "INFO", "WARNING", "ERROR"}:
         return
     handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter("%(levelname)s %(name)s %(message)s"))
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s", "%H:%M:%S"))
     root = logging.getLogger("openultrasast")
     root.handlers = [handler]
     root.setLevel(getattr(logging, level))

@@ -20,6 +20,7 @@ import hashlib
 import json
 import os
 import platform
+import signal
 import subprocess
 import sys
 import time
@@ -147,6 +148,7 @@ def main() -> int:
     # gets asked at all. It bounds the RUN, never the repository: the artifact's own census reports what was
     # left unexamined, and a bounded population establishes transfer rather than coverage.
     parser.add_argument("--max-regions", type=int, default=500)
+    parser.add_argument("--only", default="", help="comma-separated case ids to run; the rest are recorded as skipped")
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=False)
     out = args.out.resolve()
@@ -217,7 +219,11 @@ def main() -> int:
     }
     write(out / "transfer-record.json", record)
 
+    only = {c.strip() for c in args.only.split(",") if c.strip()}
     for case in cases:
+        if only and case["id"] not in only:
+            record["cases"].append({"case_id": case["id"], "status": "skipped_by_only"})
+            continue
         target = targets.get(case["id"])
         if target is None:
             record["cases"].append({"case_id": case["id"], "status": "no_declared_target"})
@@ -248,22 +254,39 @@ def main() -> int:
             "--experimental-declarations",
             str(declarations),
         ]
+        # Streamed to files as it runs, with the engine's own timing logs on. Captured in memory, a case that
+        # overran its deadline took its output with it: the 2026-09-23 replay crashed on case 1 and left no
+        # record of where 95 minutes went. An overrun is recorded as what it is -- the product failing its
+        # cancellation contract -- and the next case still runs.
+        stdout_path, stderr_path = out / (case["id"] + ".stdout"), out / (case["id"] + ".stderr")
         started = time.monotonic()
-        process = subprocess.run(command, capture_output=True, text=True, timeout=args.deadline + 60)  # noqa: S603
+        overrun = None
+        with stdout_path.open("w") as stdout, stderr_path.open("w") as stderr:
+            process = subprocess.Popen(  # noqa: S603
+                command, stdout=stdout, stderr=stderr, text=True, env={**os.environ, "OUSAST_LOG_LEVEL": "INFO"}, start_new_session=True
+            )
+            try:
+                returncode: int | None = process.wait(timeout=args.deadline + 60)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.wait()
+                returncode = None
+                overrun = round(time.monotonic() - started - args.deadline, 1)
         elapsed = time.monotonic() - started
-        (out / (case["id"] + ".stdout")).write_text(process.stdout)
-        (out / (case["id"] + ".stderr")).write_text(process.stderr)
+        terminal = stdout_path.read_text(errors="replace")
         entry: dict[str, Any] = {
             "case_id": case["id"],
             "label": case["label"],
             "role": role_of(case),
             "base_oid": pins[case["base"]],
             "head_oid": pins[case["tip"]],
-            "exit_code": process.returncode,
+            "exit_code": returncode,
             "elapsed_seconds": elapsed,
-            "terminal": process.stdout,
+            "terminal": terminal,
         }
-        if artifact.is_file():
+        if overrun is not None:
+            entry["outcome"] = {"instrument_error": "deadline_overrun", "overrun_seconds": overrun}
+        elif artifact.is_file():
             data = json.loads(artifact.read_text())
             entry["provenance_matches"] = all(
                 data["provenance"].get(k) == installed[k] for k in ("engine", "facts", "queries", "policy", "core", "semantics")
@@ -273,7 +296,7 @@ def main() -> int:
             entry["outcome"] = {"instrument_error": "missing_artifact"}
         record["cases"].append(entry)
         write(out / "transfer-record.json", record)
-        print(json.dumps({"case": case["id"], "elapsed": round(elapsed, 1), "exit": process.returncode}), flush=True)
+        print(json.dumps({"case": case["id"], "elapsed": round(elapsed, 1), "exit": returncode}), flush=True)
 
     outcomes = {c["case_id"]: c.get("outcome", {}) for c in record["cases"]}
     regressions = [(c["case_id"], c.get("outcome", {})) for c in record["cases"] if c.get("role") == "regression"]
