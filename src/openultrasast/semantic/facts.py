@@ -80,6 +80,11 @@ class DispatchFact:
     # came out "tainted" because `$this` was passed as filter context. Empty keeps the engine's default.
     returns: tuple[str, ...] = ()
     value_arg: int = 0
+    # The `register` calls whose callbacks are handed REQUEST-BORNE arguments. Every other registration's
+    # callback receives what the matching apply call passes -- framework or plugin values such as the
+    # `WP_User` a profile hook gets -- so its parameters are not attacker input; where request data does
+    # reach an apply call's arguments, the hook half of the taint query follows it from there.
+    request_arguments: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -174,6 +179,7 @@ def _dispatches(value: object, language: str, path: Path) -> list[DispatchFact]:
                 language=language,
                 returns=_returning(item, path),
                 value_arg=_value_arg(item, path),
+                request_arguments=_request_arguments(item, path),
             )
         )
     return facts
@@ -185,6 +191,16 @@ def _returning(item: dict[str, object], path: Path) -> tuple[str, ...]:
     if unknown:
         raise FactLoadError(f"dispatch {item.get('id')!r} in {path}: returns names calls that are not apply calls: {sorted(unknown)}")
     return returns
+
+
+def _request_arguments(item: dict[str, object], path: Path) -> tuple[str, ...]:
+    calls = _strings(item.get("request_arguments", []), "request_arguments", path)
+    unknown = set(calls) - set(_strings(item.get("register"), "register", path))
+    if unknown:
+        raise FactLoadError(
+            f"dispatch {item.get('id')!r} in {path}: request_arguments names calls that are not register calls: {sorted(unknown)}"
+        )
+    return calls
 
 
 def _value_arg(item: dict[str, object], path: Path) -> int:

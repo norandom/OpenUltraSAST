@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from ..cpg.backend import TIMING, CpgResult
+from ..semantic.facts import load_facts
 from .candidates import enumerate_candidates
 from .config_value import request_params as config_params
 from .contracts import (
@@ -1514,7 +1515,23 @@ def _parameters_are_input(region: ScanRegion) -> bool:
     keep the rule; JavaScript and Python emit no `function` entries at all. The region is still followed into
     its callees -- call depth stays with `_is_entry_point` -- only its parameters stop being sources.
     """
-    return _is_entry_point(region) and region.entry_kind != "function"
+    return _is_entry_point(region) and region.entry_kind != "function" and not _registry_supplied(region)
+
+
+def _registry_supplied(region: ScanRegion) -> bool:
+    """Was this entry registered in a string-keyed registry whose callbacks get the REGISTRY's arguments?
+
+    A WordPress hook callback is called by `do_action`/`apply_filters` with whatever the call site passes:
+    `pmpro_membership_history_profile_fields($user)` on `edit_user_profile` gets the `WP_User` WordPress
+    loaded, and an adjudicated SQL injection on PMPro was that object's `ID`. The dispatch facts say which
+    registrations do hand a callback request-borne arguments (a shortcode's `$atts`); every other one does not.
+    """
+    if not region.entry_registry:
+        return False
+    for fact in load_facts().for_language(region.language).dispatches:
+        if region.entry_registry in fact.register:
+            return region.entry_registry not in fact.request_arguments
+    return False
 
 
 def _spec_for(family: str, language: str) -> ArbiterSpec | None:

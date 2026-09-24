@@ -213,6 +213,10 @@ apply = ["apply_filters", "apply_filters_ref_array", "do_action", "do_action_ref
 # whatever `$this` carried, and a random md5 fragment became an SQL injection.
 returns = ["apply_filters", "apply_filters_ref_array"]
 value_arg = 2
+# A hook callback is handed its arguments by `do_action`/`apply_filters` -- a WP_User, a post id, a filtered
+# value -- not by the request, so its parameters are not attacker input. A shortcode's `$atts` come from post
+# content a contributor writes, which is input, so `add_shortcode` keeps the parameter rule.
+request_arguments = ["add_shortcode"]
 
 # What a PHP repository's paths say about scope. `vendored` trees are out of the scan and out of the graph
 # (a bundled library is a separate unit); `tests` paths stay in scope but are not product, so their

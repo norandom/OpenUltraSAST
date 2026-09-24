@@ -91,6 +91,11 @@ class EntryPointRecord:
     # "public" only because nothing was found -- which is precisely the bug the access-control family exists
     # to report, so treating it as a declaration would silence the detector on its primary case.
     access_declared: bool = False
+    # The registry call that made this function an entry, when a string-keyed registry did (`add_action`,
+    # `add_filter`, `add_shortcode`). Such a callback is handed its arguments BY THE REGISTRY -- whatever the
+    # matching `do_action`/`apply_filters` passes -- not by the request, which is what the scan's parameter
+    # rule needs to know. Empty for every entry that did not come from a registration.
+    registered_by: str = ""
 
 
 def ingest_sarif(path: Path) -> list[StaticHint]:
@@ -302,7 +307,20 @@ def _php_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
             access, evidence = _wordpress_hook_access(match.group("call"), hook)
             start, end = bounds.get(handler, (number, number))
             records.append(
-                _entry(target, start, end, handler, f"wp:{hook}", "route", access, "http_request", evidence, [], access_declared=True)
+                _entry(
+                    target,
+                    start,
+                    end,
+                    handler,
+                    f"wp:{hook}",
+                    "route",
+                    access,
+                    "http_request",
+                    evidence,
+                    [],
+                    access_declared=True,
+                    registered_by=match.group("call"),
+                )
             )
         if _PHP_REST_ROUTE.search(line):
             window = "\n".join(lines[number - 1 : number + 12])
@@ -774,6 +792,7 @@ def _entry(
     conditions: list[str],
     access_declared: bool = False,
     defines_handler: bool = True,
+    registered_by: str = "",
 ) -> EntryPointRecord:
     return EntryPointRecord(
         path=target.path,
@@ -790,6 +809,7 @@ def _entry(
         provenance=f"entrypoint:{kind}:{access_level}",
         rationale=f"{kind} surface classified as {access_level} at {trust_boundary}",
         access_declared=access_declared,
+        registered_by=registered_by,
     )
 
 

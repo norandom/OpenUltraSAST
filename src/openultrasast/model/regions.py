@@ -70,6 +70,9 @@ class ScanRegion:
     # its catch-all for a named function with no evidence of receiving a request. Only the scan's parameter
     # rule reads it, because only it depends on whether a parameter carries request data.
     entry_kind: str = ""
+    # The string-keyed registry call that registered this entry (`add_action`), or empty. Read by the scan's
+    # parameter rule alongside the dispatch facts; see `EntryPointRecord.registered_by`.
+    entry_registry: str = ""
 
 
 def regions_for(entries: Sequence[object], targets: Sequence[object], *, shipped: frozenset[str] | None = None) -> tuple[ScanRegion, ...]:
@@ -131,6 +134,7 @@ def regions_for(entries: Sequence[object], targets: Sequence[object], *, shipped
                 rank=rank,
                 source="module_scope" if module_body else "entry_point",
                 entry_kind=str(getattr(entry, "kind", "") or ""),
+                entry_registry=str(getattr(entry, "registered_by", "") or ""),
             )
 
     # A nameless entry point IS the file. Where a named region already covers that file it adds nothing but
