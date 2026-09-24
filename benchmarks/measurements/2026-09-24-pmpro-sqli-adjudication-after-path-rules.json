@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "experiment": "pmpro-sqli-precision-sample-v2",
+  "date": "2026-09-24",
+  "subject": "Paid Memberships Pro 2.9.7 (pin 1a900be3f09f), development subject",
+  "code": "7bc7acb (path plausibility rules 1f91c0b/da0ee57, field-seed split 7bc7acb)",
+  "scan": {"families": ["injection"], "questions": 382, "completed": 138, "findings": 23, "tool": "benchmarks/push/finding_dump.py"},
+  "effect_on_first_sample": {
+    "compared_on": "questions both the pre-fix run (old2, 295 completed) and this run answered (138)",
+    "findings_on_common_questions": {"before": 29, "after": 17, "removed": 12, "added": 0},
+    "sampled_false_positives_answered_in_both": 7, "removed": 6, "kept": ["#0 memberships.php:313 (apply_filters extra argument)"],
+    "sampled_true_positives": {"#40 profile.php:344": "kept", "#5 discount-codes.php:154": "not answered in this run"},
+    "declared_target_936": "kept"
+  },
+  "sampling": "every 5th of the 23 current findings in site order (indices 0,5,10,15,20)",
+  "sample": [
+    {"i": 0, "site": "adminpages/reports/memberships.php:313", "verdict": "FP-guarded", "fp_class": "apply_filters_extra_arg", "reason": "all interpolations guarded; taint enters only via an extra apply_filters argument"},
+    {"i": 5, "site": "classes/class.memberorder.php:1512", "verdict": "FP-not-attacker", "fp_class": "apply_filters_extra_arg", "reason": "$code is an md5 fragment; tainted only through apply_filters('pmpro_random_code', $code, $this) carrying the extra $this"},
+    {"i": 10, "site": "classes/class.memberorder.php:936", "verdict": "TP", "reason": "declared CVE-2023-23488: $_POST['item_number'] reaches the quoted code lookup unauthenticated"},
+    {"i": 15, "site": "includes/profile.php:337", "verdict": "TP-privileged", "reason": "raw $_REQUEST expires_hour/expires_minute in the UPDATE; needs the membership-level capability"},
+    {"i": 20, "site": "includes/profile.php:424", "verdict": "FP-not-attacker", "fp_class": "core_hook_argument", "reason": "$user is the WP_User WordPress passes to the profile hooks, database state"}
+  ],
+  "tally": {"TP": 1, "TP_privileged": 1, "FP": 3, "precision": "2/5", "precision_95ci_wilson": "0.12-0.77", "previous": "2/10 (0.06-0.51)"},
+  "remaining_false_positive_classes": {"apply_filters_extra_arg": 2, "core_hook_argument": 1},
+  "recall_pins": {"CVE-2023-6559 MW WP Form": "found (10 -> 4 path findings)", "CVE-2022-25148 WP Statistics": "found (39 -> 18 injection findings)", "dropped_findings_spot_check": "about 10 of 27 dropped findings traced to internal callers (constants, own temp dir, template names)"},
+  "limits": ["Five findings is a very small sample; the interval is wide.", "This run completed 138 of 382 questions against 295 before, so the current finding set covers less of the plugin.", "Development subject; qualifies nothing."]
+}
