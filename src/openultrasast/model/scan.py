@@ -1459,6 +1459,7 @@ def _grouped(
                     parameter_sources=_parameters_are_input(region),
                     call_depth=ENTRY_POINT_CALL_DEPTH if entry else 0,
                     hook_callbacks=hook_callbacks,
+                    field_parameter_sources=entry,
                 ),
             )
         grouped.setdefault(kind, {})[rid] = params

@@ -27,6 +27,7 @@ def request_params(
     parameter_sources: bool = False,
     call_depth: int = 0,
     hook_callbacks: str = "",
+    field_parameter_sources: bool | None = None,
 ) -> dict[str, object]:
     """The query parameters this arbiter sends. Shared with the batcher so there is one definition, not two.
 
@@ -45,6 +46,10 @@ def request_params(
         "function": function,
         "file": file,
         "parameterSources": "true" if parameter_sources else "false",
+        # The FIELD join's parameter seeds, apart from the region's own parameters: a constructor handed the
+        # uploads stores them in a field another method reads (MW WP Form, CVE-2023-6559), whatever kind of
+        # entry the reading method is. Defaults to the region's own rule, so a caller that sets one sets both.
+        "fieldParameterSources": "true" if (parameter_sources if field_parameter_sources is None else field_parameter_sources) else "false",
         "callDepth": str(call_depth),
         "boundedSinks": spec.bounded_sinks,
         # The hook link table, `hook:callback;hook:callback`. Read out of the source text rather than the

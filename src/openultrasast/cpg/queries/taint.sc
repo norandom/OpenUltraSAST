@@ -93,6 +93,7 @@
       dispatchApplyS: String,
       functionS: String,
       paramSrc: String,
+      fieldParamSrc: String,
       fieldSrc: String,
       evidenceS: String,
       fileS: String,
@@ -358,19 +359,19 @@
   // reason: an arbitrary helper's parameters carry whatever its caller happened to have.
   def seedsIn(fileName: String) =
     seedsByFile.getOrElseUpdate(
-      (sourcesS, paramSrc, fileName), {
+      (sourcesS, fieldParamSrc, fileName), {
         val methods = methodsIn(fileName)
         val framework: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
           methods.flatMap(_.ast.isCall.filter(c => sourcePatterns.exists(p => c.code.contains(p))).l)
         val params: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
-          if (parameterSources == "true") methods.flatMap(_.parameter.l) else Nil
+          if (fieldParamSrc == "true") methods.flatMap(_.parameter.l) else Nil
         framework ++ params
       }
     )
 
   def fieldIsTainted(fileName: String, fieldCode: String): Boolean =
     fieldTaintMemo.getOrElseUpdate(
-      (sourcesS, paramSrc, sanitizersS, fileName, fieldCode), {
+      (sourcesS, fieldParamSrc, sanitizersS, fileName, fieldCode), {
         val seeds = seedsIn(fileName)
         if (seeds.isEmpty) false
         else
@@ -1025,6 +1026,7 @@
       val started = System.nanoTime()
       def field(name: String): String = req.obj.get(name).map(_.str).getOrElse("")
       val paramSrc = req.obj.get("parameterSources").map(_.str).getOrElse("false")
+      val fieldParamSrc = req.obj.get("fieldParameterSources").map(_.str).getOrElse(paramSrc)
       val fieldSrc = req.obj.get("fieldSources").map(_.str).getOrElse("true")
       val evidence = req.obj.get("evidenceOnly").map(_.str).getOrElse("false")
       val rows = ujson.Arr(
@@ -1039,6 +1041,7 @@
           if (field("dispatchApply").nonEmpty) field("dispatchApply") else dispatchApply,
           field("function"),
           paramSrc,
+          fieldParamSrc,
           fieldSrc,
           evidence,
           field("file"),
@@ -1060,7 +1063,7 @@
   } else {
     println("---OUSAST-CPG-BEGIN---")
     println(
-      ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, hookCallbacks, dispatchApply, function, parameterSources, fieldSources, evidenceOnly, file, callDepth, boundedSinks): _*))
+      ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, hookCallbacks, dispatchApply, function, parameterSources, parameterSources, fieldSources, evidenceOnly, file, callDepth, boundedSinks): _*))
     )
   }
   println("---OUSAST-CPG-END---")
