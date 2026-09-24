@@ -479,11 +479,31 @@
   // Off by request only, and defaulting to ON when the field is absent, so nothing about the shipped
   // behaviour depends on a caller remembering to set it. It exists so the join can be measured against
   // itself: a cost you cannot switch off is a cost you cannot attribute.
+  // A field read is a source only where it reads OBJECT STATE -- a value some other method left there. Two
+  // reads are not that:
+  //   * the target of a write (`$this->sqlQuery = ...`), which is a field-access node like any read;
+  //   * a read the method's own write to the same field dominates. Every PMPro `MemberOrder` method builds its
+  //     statement in `$this->sqlQuery` and runs it at once; because one method writes request data there, the
+  //     join marked the field tainted everywhere, and `deleteMe()` -- which had just set it from the internal
+  //     `$this->id` -- became an SQL injection. After a dominating write the value is the method's own, and if
+  //     that write carries request data the ordinary flow from the source already finds it.
+  def writeTarget(c: io.shiftleft.codepropertygraph.generated.nodes.Call): Boolean =
+    c.argumentIndex == 1 && (c.astParent match {
+      case parent: io.shiftleft.codepropertygraph.generated.nodes.Call => parent.name == ASSIGNMENT
+      case _                                                           => false
+    })
+
+  def overwrittenBefore(read: io.shiftleft.codepropertygraph.generated.nodes.Call): Boolean =
+    read.dominatedBy.isCall
+      .nameExact(ASSIGNMENT)
+      .exists(a => a.argument.l.find(_.argumentIndex == 1).exists(_.code.trim == read.code.trim))
+
   def fieldSourceNodes =
     if (fieldSrc != "true") Iterator.empty
     else {
-      val reads = cpg.call.nameExact(FIELD_ACCESS).filter(c => inScope(c.method)).l
-      if (reads.isEmpty) Iterator.empty else reads.filter(r => taintedPrefixes(r.code.trim, fileS, r.method)).iterator
+      val reads = cpg.call.nameExact(FIELD_ACCESS).filter(c => inScope(c.method)).l.filterNot(writeTarget)
+      if (reads.isEmpty) Iterator.empty
+      else reads.filter(r => taintedPrefixes(r.code.trim, fileS, r.method) && !overwrittenBefore(r)).iterator
     }
 
   // ---- the hook half of the two-stage join (task 5.11) ----------------------------------------------

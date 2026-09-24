@@ -911,3 +911,55 @@ def test_a_sanitizer_the_value_passes_through_inside_an_expression_counts(tmp_pa
     }
     assert not unsanitized["cast"], f"a value cast inside a conditional was reported unsanitized: {unsanitized['cast']}"
     assert unsanitized["other"], "a sanitizer in the other branch of the conditional cleaned the tainted branch"
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_a_field_the_method_just_overwrote_is_not_object_state(tmp_path: Path) -> None:
+    """Every PMPro MemberOrder method builds its statement in `$this->sqlQuery` and runs it at once. One writes
+    request data there; `deleteMe()` had just set it from the internal id and was reported. A method that READS
+    state another method left must still be found, and so must the method whose own write carries the input."""
+    from openultrasast.cpg.backend import extract_payload
+
+    frontend = __import__("shutil").which("php2cpg")
+    if frontend is None:
+        pytest.skip("php2cpg is not installed")
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "order.php").write_text(
+        "<?php\nclass Order {\n  public $sqlQuery;\n  public $id;\n"
+        "  function find() { global $wpdb;\n"
+        "    $this->sqlQuery = \"SELECT 1 WHERE c = '\" . $_POST['c'] . \"'\"; return $wpdb->query($this->sqlQuery); }\n"
+        "  function deleteMe() { global $wpdb;\n"
+        '    $this->sqlQuery = "DELETE FROM t WHERE id = \'" . $this->id . "\'"; return $wpdb->query($this->sqlQuery); }\n'
+        "  function rerun() { global $wpdb; return $wpdb->query($this->sqlQuery); }\n}\n"
+    )
+    cpg = tmp_path / "cpg.bin"
+    built = subprocess.run([frontend, str(src), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
+    if not cpg.is_file():
+        pytest.skip(f"could not build a sample cpg: {(built.stderr or '')[-200:]}")
+    common = {"sources": "$_POST", "sinks": "$wpdb->query", "file": "order.php", "fieldParameterSources": "true"}
+    requests = tmp_path / "requests.json"
+    requests.write_text(json.dumps({name: {**common, "function": name} for name in ("find", "deleteMe", "rerun")}))
+    done = subprocess.run(
+        [
+            _joern() or "joern",
+            "--script",
+            str((QUERIES / "taint.sc").resolve()),
+            "--param",
+            f"cpgFile={cpg}",
+            "--param",
+            f"requestsFile={requests}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
+        cwd=str(tmp_path),
+    )
+    assert done.returncode == 0, (done.stderr or done.stdout or "")[-500:]
+    payload = extract_payload(done.stdout or "")
+    assert isinstance(payload, dict)
+    flows = {rid: [r for r in payload[rid] if isinstance(r, dict) and r.get("sourceKind")] for rid in ("find", "deleteMe", "rerun")}
+    assert flows["find"], "the method whose own write carries request data must be found"
+    assert not flows["deleteMe"], f"a field the method had just overwritten was read as object state: {flows['deleteMe']}"
+    assert flows["rerun"], "a method reading the state another method left must still be found"
