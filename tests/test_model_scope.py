@@ -375,3 +375,16 @@ def test_a_killed_culprit_makes_its_family_dearer_and_nothing_else() -> None:
     assert sizer.rate("output_encoding") >= 54.0
     assert abs(sizer.rate("injection") - 1.0) < 1e-9
     assert sizer.fixed == 25.0, "a killed portion must not be read as a fixed-start sample"
+
+
+def test_only_a_request_entry_treats_its_parameters_as_attacker_input() -> None:
+    """The mapper's `function` kind is its catch-all; its parameters carry whatever the caller had."""
+    from openultrasast.model import scan
+
+    route = ScanRegion("api.php", "handle", "php", ("injection",), 1.0, "entry_point", entry_kind="route")
+    helper = ScanRegion("mail.php", "sendCancelAdminEmail", "php", ("injection",), 0.3, "entry_point", entry_kind="function")
+    params = scan._grouped([("0", route, scan._spec_for("injection", "php")), ("1", helper, scan._spec_for("injection", "php"))])["taint"]
+    assert params["0"]["parameterSources"] == "true"
+    assert params["1"]["parameterSources"] == "false"
+    # Still followed into its callees: only its own parameters stop being sources.
+    assert params["1"]["callDepth"] == params["0"]["callDepth"] != "0"

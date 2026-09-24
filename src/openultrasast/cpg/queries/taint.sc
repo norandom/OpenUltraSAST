@@ -302,12 +302,6 @@
   def fieldOf(c: io.shiftleft.codepropertygraph.generated.nodes.Call): String =
     c.argument.l.find(_.argumentIndex == 2).map(_.code.trim).getOrElse("")
 
-  def writtenField(c: io.shiftleft.codepropertygraph.generated.nodes.Call): Boolean =
-    c.argumentIndex == 1 && (c.astParent match {
-      case parent: io.shiftleft.codepropertygraph.generated.nodes.Call => parent.name == "<operator>.assignment"
-      case _                                                           => false
-    })
-
   def assignedTo(id: io.shiftleft.codepropertygraph.generated.nodes.Identifier): Boolean =
     id.argumentIndex == 1 && (id.astParent match {
       case parent: io.shiftleft.codepropertygraph.generated.nodes.Call => parent.name == "<operator>.assignment"
@@ -324,8 +318,10 @@
           if (j < 0) false // the object itself is where the path starts: it IS the tainted value
           else
             elements(j) match {
-              case prior: io.shiftleft.codepropertygraph.generated.nodes.Call if prior.name == "<operator>.fieldAccess" =>
-                writtenField(prior) && fieldOf(prior) != fieldOf(read)
+              // Through the SAME field -- written then read back, or read and read again -- is field-sensitive.
+              case prior: io.shiftleft.codepropertygraph.generated.nodes.Call
+                  if prior.name == "<operator>.fieldAccess" && fieldOf(prior) == fieldOf(read) =>
+                false
               case _ =>
                 // How did the value reach the object? Legitimately only by being ASSIGNED to it
                 // (`$data = json_decode($input)`) or passed in as a parameter. An object merely used beside
@@ -340,9 +336,21 @@
       }
     }
 
+  // Per element, not per path: the same nodes recur across thousands of paths of one sink, and walking each
+  // path's calls afresh cost one outlier request 101 s -> 160 s.
+  val familySinkMemo = scala.collection.mutable.Map.empty[Long, Boolean]
+
   def plausible(flow: io.joern.dataflowengineoss.language.Path): Boolean = {
     val elements = flow.elements.l
-    !elements.dropRight(1).exists(familySinkCall) && !absorbedByObject(elements)
+    val throughSink = elements.dropRight(1).exists {
+      case c: io.shiftleft.codepropertygraph.generated.nodes.Call if !c.name.startsWith("<operator") =>
+        familySinkMemo.getOrElseUpdate(c.id, familySinkCall(c))
+      case _ => false
+    }
+    !throughSink && !(elements.exists {
+      case c: io.shiftleft.codepropertygraph.generated.nodes.Call => c.name == "<operator>.fieldAccess"
+      case _                                                      => false
+    } && absorbedByObject(elements))
   }
 
   // Framework sources are untrusted wherever they appear. Parameters are untrusted only where the caller has

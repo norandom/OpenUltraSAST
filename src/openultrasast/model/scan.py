@@ -559,7 +559,7 @@ def _scan_repository_impl(
                 # A repository's parameters are not all attacker input -- but an ENTRY POINT's are, by
                 # definition. That is the trust boundary, and it is the one place both halves of the old
                 # objection stop applying.
-                parameter_sources=_is_entry_point(region),
+                parameter_sources=_parameters_are_input(region),
                 call_depth=ENTRY_POINT_CALL_DEPTH if _is_entry_point(region) else 0,
             )
         except Exception as exc:  # noqa: BLE001 -- one bad region must not end the scan
@@ -1456,7 +1456,7 @@ def _grouped(
                     spec,
                     function=function,
                     file=region.path,
-                    parameter_sources=entry,
+                    parameter_sources=_parameters_are_input(region),
                     call_depth=ENTRY_POINT_CALL_DEPTH if entry else 0,
                     hook_callbacks=hook_callbacks,
                 ),
@@ -1500,6 +1500,20 @@ def _is_entry_point(region: ScanRegion) -> bool:
     arbitrated, function-locally -- not shipped is not unscanned.
     """
     return region.source == "entry_point" and bool(region.function) and region.function != MODULE_SCOPE and region.shipped
+
+
+def _parameters_are_input(region: ScanRegion) -> bool:
+    """Are this region's own parameters attacker input? Only where the mapper saw a request arrive.
+
+    `function` is the mapper's catch-all: every named function it found, with no evidence of a request. On a
+    WordPress plugin that is 3,507 of 4,412 entries, and treating their parameters as input made every internal
+    helper a source -- `sendCancelAdminEmail($user, $old_level_id)`, a gateway's
+    `pmpro_checkout_before_change_membership_level($user_id, $morder)` fired by `do_action` with internal ids.
+    Adjudicated on PMPro 2026-09-23, those were false SQL injections. Routes, parsers and privileged surfaces
+    keep the rule; JavaScript and Python emit no `function` entries at all. The region is still followed into
+    its callees -- call depth stays with `_is_entry_point` -- only its parameters stop being sources.
+    """
+    return _is_entry_point(region) and region.entry_kind != "function"
 
 
 def _spec_for(family: str, language: str) -> ArbiterSpec | None:
