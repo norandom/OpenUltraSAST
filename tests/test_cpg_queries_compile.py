@@ -802,3 +802,59 @@ def test_a_filter_returns_its_value_argument_not_its_context(tmp_path: Path) -> 
     flows = {rid: [r for r in payload[rid] if isinstance(r, dict) and r.get("sourceKind")] for rid in ("context", "value")}
     assert not flows["context"], f"filter context became its result: {flows['context']}"
     assert flows["value"], "the filtered value no longer carries request data"
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_the_field_join_links_methods_only_through_the_object_itself(tmp_path: Path) -> None:
+    """`$this->x` written in one method and read in another is object state; `$user->ID` in two functions is
+    two variables. PMPro's `$user = new stdClass; $user->ID = $_POST['user_id']` in one function made the
+    WP_User parameter's `$user->ID` in another an SQL injection."""
+    from openultrasast.cpg.backend import extract_payload
+
+    frontend = __import__("shutil").which("php2cpg")
+    if frontend is None:
+        pytest.skip("php2cpg is not installed")
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "app.php").write_text(
+        "<?php\n"
+        "function fill() { $user = new stdClass; $user->ID = $_POST['user_id']; return $user; }\n"
+        'function history($user) { global $wpdb; return $wpdb->get_var("SELECT 1 WHERE u = \'" . $user->ID . "\'"); }\n'
+        "class Mailer {\n  public $attachments;\n  function collect() { $this->attachments = $_POST['files']; }\n"
+        '  function send() { global $wpdb; return $wpdb->query("DELETE FROM t WHERE f = \'" . $this->attachments . "\'"); }\n}\n'
+    )
+    cpg = tmp_path / "cpg.bin"
+    built = subprocess.run([frontend, str(src), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
+    if not cpg.is_file():
+        pytest.skip(f"could not build a sample cpg: {(built.stderr or '')[-200:]}")
+    common = {
+        "sources": "$_POST",
+        "sinks": "$wpdb->get_var,$wpdb->query",
+        "file": "app.php",
+        "parameterSources": "false",
+        "fieldParameterSources": "true",
+    }
+    requests = tmp_path / "requests.json"
+    requests.write_text(json.dumps({"local": {**common, "function": "history"}, "object": {**common, "function": "send"}}))
+    done = subprocess.run(
+        [
+            _joern() or "joern",
+            "--script",
+            str((QUERIES / "taint.sc").resolve()),
+            "--param",
+            f"cpgFile={cpg}",
+            "--param",
+            f"requestsFile={requests}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
+        cwd=str(tmp_path),
+    )
+    assert done.returncode == 0, (done.stderr or done.stdout or "")[-500:]
+    payload = extract_payload(done.stdout or "")
+    assert isinstance(payload, dict)
+    flows = {rid: [r for r in payload[rid] if isinstance(r, dict) and r.get("sourceKind")] for rid in ("local", "object")}
+    assert not flows["local"], f"another function's local variable tainted this parameter's field: {flows['local']}"
+    assert flows["object"], "object state written in one method and read in another is no longer traced"

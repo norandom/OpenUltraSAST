@@ -409,13 +409,29 @@
       }
     )
 
-  def fieldIsTainted(fileName: String, fieldCode: String): Boolean =
+  // The join carries OBJECT STATE between methods: `$this->attachments` written in the constructor, read in
+  // `_delete_files()`. That is what a field keyed by its text means only when the base IS the object. Any other
+  // base is a variable, and the same text in two functions names two variables: PMPro's
+  // `$user = new stdClass; $user->ID = $_POST['user_id']` in one function made the `WP_User` parameter's
+  // `$user->ID` in another an SQL injection source. So a non-object base is joined within its own method only,
+  // where it is one variable -- and where the engine's own dataflow already sees it.
+  val objectBases = Set("$this", "this", "self")
+
+  def fieldScope(fieldCode: String, reader: io.shiftleft.codepropertygraph.generated.nodes.Method): String = {
+    val base = fieldCode.split("->|\\.").headOption.map(_.trim).getOrElse("")
+    if (objectBases.contains(base)) "" else reader.fullName
+  }
+
+  def fieldIsTainted(fileName: String, fieldCode: String, scope: String = ""): Boolean =
     fieldTaintMemo.getOrElseUpdate(
-      (sourcesS, fieldParamSrc, sanitizersS, fileName, fieldCode), {
+      (sourcesS, fieldParamSrc, sanitizersS, fileName, scope + "|" + fieldCode), {
         val seeds = seedsIn(fileName)
         if (seeds.isEmpty) false
         else
-          methodsIn(fileName).flatMap(_.ast.isCall.nameExact(ASSIGNMENT).l).exists { assignment =>
+          methodsIn(fileName)
+            .filter(m => scope.isEmpty || m.fullName == scope)
+            .flatMap(_.ast.isCall.nameExact(ASSIGNMENT).l)
+            .exists { assignment =>
             val args = assignment.argument.l
             args.size >= 2 && (args.head match {
               case target: io.shiftleft.codepropertygraph.generated.nodes.Call
@@ -437,10 +453,14 @@
   // `$this->rest_hits` in one method and reads `$this->rest_hits->current_page_id` in another, so an exact
   // code match sees two unrelated strings where the source text says one is inside the other. Every prefix
   // that ends on a `->` boundary is checked, left to right.
-  def taintedPrefixes(code: String, fileName: String): Boolean = {
+  def taintedPrefixes(code: String, fileName: String, reader: io.shiftleft.codepropertygraph.generated.nodes.Method): Boolean = {
     val parts = code.split("->").map(_.trim).filter(_.nonEmpty)
     if (parts.length < 2) false
-    else (2 to parts.length).exists(n => fieldIsTainted(fileName, parts.take(n).mkString("->")))
+    else
+      (2 to parts.length).exists { n =>
+        val prefix = parts.take(n).mkString("->")
+        fieldIsTainted(fileName, prefix, fieldScope(prefix, reader))
+      }
   }
 
   // Off by request only, and defaulting to ON when the field is absent, so nothing about the shipped
@@ -450,7 +470,7 @@
     if (fieldSrc != "true") Iterator.empty
     else {
       val reads = cpg.call.nameExact(FIELD_ACCESS).filter(c => inScope(c.method)).l
-      if (reads.isEmpty) Iterator.empty else reads.filter(r => taintedPrefixes(r.code.trim, fileS)).iterator
+      if (reads.isEmpty) Iterator.empty else reads.filter(r => taintedPrefixes(r.code.trim, fileS, r.method)).iterator
     }
 
   // ---- the hook half of the two-stage join (task 5.11) ----------------------------------------------
@@ -508,7 +528,7 @@
     val framework: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
       callback.ast.isCall.filter(isSourceCall).l
     val fields: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
-      callback.ast.isCall.nameExact(FIELD_ACCESS).l.filter(r => taintedPrefixes(r.code.trim, callback.filename))
+      callback.ast.isCall.nameExact(FIELD_ACCESS).l.filter(r => taintedPrefixes(r.code.trim, callback.filename, r.method))
     framework ++ fields
   }
 
@@ -811,7 +831,7 @@
           .nameExact(FIELD_ACCESS)
           .filter(c => inScope(c.method))
           .l
-          .exists(r => prefixKind(r.code.trim, fedFields(r.method.filename)) == "parameter" && taintedPrefixes(r.code.trim, r.method.filename))
+          .exists(r => prefixKind(r.code.trim, fedFields(r.method.filename)) == "parameter" && taintedPrefixes(r.code.trim, r.method.filename, r.method))
         if (confirmed) "source" else "parameter"
       }
     val carried = carriedKind.nonEmpty
