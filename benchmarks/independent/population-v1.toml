@@ -1,0 +1,174 @@
+# Independent evaluation population v1 (pre-push-safety-net task 15.1, milestone M4).
+#
+# RESERVED, NOT SCANNED. Every case below was chosen from public advisories and fix diffs by web research alone:
+# no repository was cloned, no scanner or project tooling was run on any of them, and none appears among the
+# 262 repositories referenced anywhere in this project's benchmarks. They exist to answer the question the
+# development subjects can no longer answer honestly -- PMPro, WP Statistics, MW WP Form, NodeGoat and VAmPI all
+# shaped the rules they would be measured by.
+#
+# Rules for this file:
+#   * Do not scan, trace, probe or census any of these repositories until the population is FROZEN (status
+#     below) and the freeze commit is recorded. A scan before that makes the case a development subject.
+#   * Freezing requires, per case: the vulnerable and fixed pins verified in the checkout, the sink confirmed at
+#     the vulnerable pin by reading source, and a BENIGN change chosen from the same history without scanning.
+#   * No rule, fact or query change may cite anything learned from these cases before their evaluation is
+#     recorded; after it, a retune needs a new untouched population (release-milestones M4).
+#
+# Selected by the maintainer on 2026-09-24 from 15 researched candidates (menu selection); rejected alternates
+# and the research notes are in the research log referenced below.
+
+schema_version = 1
+status = "reserved-unscanned"
+reserved_on = "2026-09-24"
+selected_by = "maintainer"
+research = "web research of GitHub advisories and fix diffs via the GitHub API; no clone, no scan"
+multi_language_members = ["wp-ultimate-member-sqli", "wp-learnpress-sqli", "phpmyfaq-captcha-ua-sqli", "yeswiki-bazar-form-sqli"]
+also_reserved = ["../push/ghost-reserved.toml"]
+
+[[case]]
+id = "wp-ultimate-member-sqli"
+repo = "https://github.com/ultimatemember/ultimatemember"
+language = "php"
+also = ["javascript"]
+family = "injection"
+advisory = ["CVE-2024-1071", "GHSA-mh7h-gpmx-fggj"]
+vulnerable = "a49b3061ded1630e4f6860b4ebece5ccf0a493d2"
+fixed = "476de92f4c9aaa56c3e2f5527b242ce0476f4655"
+sink = "includes/core/class-member-directory-meta.php :: Member_Directory_Meta::ajax_get_members (ORDER BY built from esc_sql'd sort values)"
+privilege = "unauthenticated (only with the custom usermeta table option on)"
+license = "GPL"
+notes = "Release pair 2.8.2 (e1885a73) -> 2.8.3 (a6a7d13a) spans 94 commits; the commit pair is the clean one. c61008bd is a larger follow-up refactor of the same file."
+
+[[case]]
+id = "wp-learnpress-sqli"
+repo = "https://github.com/LearnPress/learnpress"
+language = "php"
+also = ["javascript"]
+family = "injection"
+advisory = ["CVE-2024-8522", "GHSA-3w3r-r6g6-w8x5", "CVE-2024-8529", "GHSA-98wp-w76v-f75p"]
+vulnerable = "73b3cbceef8669056e9da5e2f2c78944eb139af5"
+fixed = "aaf42fe0c6bf05dcf2ff125750b7bd836e76fa3c"
+sink = "inc/Databases/class-lp-db.php :: LP_Database::execute (implode of only_fields into SELECT); source REST get_courses c_only_fields/c_fields"
+privilege = "unauthenticated (REST /wp-json/learnpress/v1/courses)"
+license = "GPL"
+notes = "The fix also touches assets/src/js/loadAJAX.js: the change itself is multi-language."
+
+[[case]]
+id = "phpmyfaq-captcha-ua-sqli"
+repo = "https://github.com/thorsten/phpMyFAQ"
+language = "php"
+also = ["typescript", "javascript"]
+family = "injection"
+advisory = ["CVE-2026-46364", "GHSA-289f-fq7w-6q2w"]
+vulnerable = "11583abcf4787543d00c25d6c7926af6f509faf0"
+fixed = "545bdffb11244a4741cd29ac909a849c9a6a2e53"
+sink = "phpmyfaq/src/phpMyFAQ/Captcha/BuiltinCaptcha.php :: garbageCollector, saveCaptcha (User-Agent and client IP in sprintf SQL)"
+privilege = "unauthenticated (GET /api/captcha)"
+license = "MPL-2.0"
+notes = "The advisory's commit b9f25109 is the vulnerable master commit the reporter tested, not the fix. Release pair 4.1.1 (f791858b) -> 4.1.2 (66792f25)."
+
+[[case]]
+id = "yeswiki-bazar-form-sqli"
+repo = "https://github.com/YesWiki/yeswiki"
+language = "php"
+also = ["javascript"]
+family = "injection"
+advisory = ["CVE-2026-46670", "GHSA-jwvv-qr7q-cv8j"]
+vulnerable = "6f222915df36fca628fc83325cb0feed8dc2aca0"
+fixed = "fe7244bffcbeffd42777496ebc2a6f6118cc2388"
+sink = "tools/bazar/services/FormManager.php :: FormManager::create (bn_id_nature unquoted in INSERT); source FormController::displayAll imported-form JSON"
+privilege = "unauthenticated"
+license = "AGPL-3.0"
+notes = "Four-line fix: intval plus a Guard::isAllowed check. Default branch doryphore-dev."
+
+[[case]]
+id = "signalk-remote-conn-ssrf"
+repo = "https://github.com/SignalK/signalk-server"
+language = "typescript"
+family = "untrusted_destination"
+advisory = ["CVE-2026-55591", "GHSA-q59x-jc9f-gfqf"]
+vulnerable = "1c479cc0d2d26d14ed74416cff36fa7336c7bf9e"
+fixed = "2816b0dda1bdde893d85c969a9c5950e7825eee7"
+sink = "src/serverroutes.ts :: makeRemoteRequest (req.body.host/port to http(s).request)"
+privilege = "unauthenticated by default (security not configured); admin otherwise"
+license = "Apache-2.0"
+notes = "Fix adds a schema, an ssrfGuard module and requestId validation (~450 added lines, mostly guard code and tests)."
+
+[[case]]
+id = "saltcorn-sync-sqli"
+repo = "https://github.com/saltcorn/saltcorn"
+language = "javascript"
+also = ["typescript"]
+family = "injection"
+advisory = ["CVE-2026-41478", "GHSA-jp74-mfrx-3qvh"]
+vulnerable = "e7e09254a3c69dc6582eda9e5b5769935db108af"
+fixed = "2b6c8a2eab88955ea6b12b1b4e5c2e613faefef5"
+sink = "packages/server/routes/sync.js :: getSyncRows, getDelRows (maxLoadedId and timestamps in SQL template literals)"
+privilege = "authenticated low-privilege user"
+license = "MIT"
+notes = "Large multi-package repository; the fix is on the main line (v1.4.6 is a separate backport), so use the commit pair."
+
+[[case]]
+id = "mongo-express-bson-rce"
+repo = "https://github.com/mongo-express/mongo-express"
+language = "javascript"
+family = "injection"
+advisory = ["CVE-2019-10758", "GHSA-h47j-hc6x-h3qq"]
+vulnerable = "ea02b364d43f179f191fc91fb9962efdb0843a8d"
+fixed = "d8c9bda46a204ecba1d35558452685cd0674e6f2"
+sink = "lib/bson.js :: toBSON (vm.runInNewContext over request text); callers lib/routes/collection.js, lib/routes/document.js"
+privilege = "authenticated (HTTP basic auth, default admin:pass)"
+license = "MIT"
+notes = "Code injection, not SQL. The advisory's first reference 7d365141 is only the v0.54.0 release commit."
+
+[[case]]
+id = "mockoon-admin-api-cors"
+repo = "https://github.com/mockoon/mockoon"
+language = "typescript"
+family = "config_secrets"
+advisory = ["CVE-2026-59148", "GHSA-rqx4-3f6q-3x2v"]
+vulnerable = "b42bdfb7f82e83f0e81bea8e6fe41adf5ec82585"
+fixed = "c420b5a56918475b8663977b51e5f986e45b3299"
+sink = "packages/commons-server/src/libs/server/admin-api.ts :: admin-API middleware (Access-Control-Allow-Origin: *)"
+privilege = "unauthenticated"
+license = "MIT"
+notes = "Weaker fit: the fix commit touches 34 files; only one hunk in admin-api.ts is the CORS fix."
+
+[[case]]
+id = "alerta-query-sqli"
+repo = "https://github.com/alerta/alerta"
+language = "python"
+family = "injection"
+advisory = ["CVE-2026-34400", "GHSA-8prr-286p-4w7j"]
+vulnerable = "71c098d8bb8091e76edaefeef4662eb77c753ce7"
+fixed = "fdd52cd1abad8d02d1dfb8ecdcdbb43b6af3b883"
+sink = "alerta/database/backends/postgres/queryparser.py :: SearchTerm.__repr__ (f-string WHERE) used by utils.py QueryBuilder.from_params"
+privilege = "API user; possibly unauthenticated if AUTH_REQUIRED defaults to False (unverified)"
+license = "Apache-2.0"
+notes = "The advisory's aeba85a3 introduced the parser; the fix is fdd52cd1."
+
+[[case]]
+id = "wger-next-open-redirect"
+repo = "https://github.com/wger-project/wger"
+language = "python"
+family = "untrusted_destination"
+advisory = ["GHSA-vqv8-j3mj-wjxj"]
+vulnerable = "d30e85b23fb1307ac6579e9e3ae393c50470cea7"
+fixed = "0ba371bbb50cd5668820f240995405e1b2483384"
+sink = "wger/core/views/user.py :: trainer_login; wger/core/views/languages.py :: use_browser_language (request.GET next redirected unchecked)"
+privilege = "use_browser_language: unauthenticated; trainer_login: authenticated trainer"
+license = "AGPL-3.0"
+notes = "No CVE. A later commit cfa27a7f fixes the same pattern in core/middleware.py; not part of this fix."
+
+[[case]]
+id = "opencve-notification-ssrf"
+repo = "https://github.com/opencve/opencve"
+language = "python"
+family = "untrusted_destination"
+advisory = ["CVE-2026-62282", "GHSA-ch3g-4xvr-674q"]
+vulnerable = "928bbadbb1672051bcfc2a6289a9e6a8f029c106"
+fixed = "0af7f894debc95c67fa53e7ba5a6cdecb10c34f0"
+sink = "web/projects/notifications.py :: _http_post_json (webhook and Slack test POST to a user-supplied URL)"
+privilege = "authenticated (can configure project notifications)"
+license = "unverified (GitHub reports NOASSERTION; possibly non-OSS BSL) -- verify before publishing any result"
+notes = "Selected by the maintainer despite the licence question; results must not be redistributed until it is checked."
