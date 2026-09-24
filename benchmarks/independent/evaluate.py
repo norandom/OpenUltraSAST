@@ -102,7 +102,9 @@ def run(args: argparse.Namespace) -> int:
             else:
                 out.write_text(json.dumps({"instrument_error": result["instrument_error"], "questions": 0, "findings": []}) + "\n")
             summary = json.loads(out.read_text())
-            print(json.dumps({"case": case["id"], "pin": label, "questions": summary.get("questions"), "completed": summary.get("completed"), "findings": len(summary.get("findings", [])), "seconds": summary.get("seconds")}), flush=True)  # fmt: skip
+            keys = ("questions", "completed", "seconds")
+            progress = {"case": case["id"], "pin": label, "findings": len(summary.get("findings", [])), **{k: summary.get(k) for k in keys}}
+            print(json.dumps(progress), flush=True)
     return 0
 
 
@@ -114,9 +116,7 @@ def hunks(case: dict, side: str) -> dict[str, list[tuple[int, int]]]:
     ranges: dict[str, list[tuple[int, int]]] = {}
     current = ""
     for line in diff.splitlines():
-        if line.startswith("--- a/") and side == "old":
-            current = line[6:]
-        elif line.startswith("+++ b/") and side == "new":
+        if (line.startswith("--- a/") and side == "old") or (line.startswith("+++ b/") and side == "new"):
             current = line[6:]
         elif line.startswith("@@") and current:
             match = re.search(r"-(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))?", line)
