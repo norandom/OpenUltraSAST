@@ -18,7 +18,9 @@
 # and the research notes are in the research log referenced below.
 
 schema_version = 1
-status = "reserved-unscanned"
+status = "frozen"
+frozen_on = "2026-09-24"
+freeze_record = "freeze-v1.json"
 reserved_on = "2026-09-24"
 selected_by = "maintainer"
 research = "web research of GitHub advisories and fix diffs via the GitHub API; no clone, no scan"
@@ -39,6 +41,7 @@ privilege = "unauthenticated (only with the custom usermeta table option on)"
 license = "GPL"
 notes = "Release pair 2.8.2 (e1885a73) -> 2.8.3 (a6a7d13a) spans 94 commits; the commit pair is the clean one. c61008bd is a larger follow-up refactor of the same file."
 
+benign = { base = "13151ef558eb6998720cb1ee5f78b5f17535c16c", tip = "9130a3226ffec45569a2872ffac338200bd1bfcb", subject = "- wpcs;" }
 [[case]]
 id = "wp-learnpress-sqli"
 repo = "https://github.com/LearnPress/learnpress"
@@ -51,8 +54,10 @@ fixed = "aaf42fe0c6bf05dcf2ff125750b7bd836e76fa3c"
 sink = "inc/Databases/class-lp-db.php :: LP_Database::execute (implode of only_fields into SELECT); source REST get_courses c_only_fields/c_fields"
 privilege = "unauthenticated (REST /wp-json/learnpress/v1/courses)"
 license = "GPL"
-notes = "The fix also touches assets/src/js/loadAJAX.js: the change itself is multi-language."
+fix_site = "inc/Models/Courses.php :: handle_params_for_query_courses (fields quoted as identifiers); the REST controller stops assigning c_only_fields directly"
+notes = "The sink is where the SQL runs (class-lp-db.php:607 implode of only_fields); the fix is on the source side and does not change that file. It also touches assets/src/js/loadAJAX.js: the change itself is multi-language."
 
+benign = { base = "aaf42fe0c6bf05dcf2ff125750b7bd836e76fa3c", tip = "179ed7760e6ae5fa46fbe9c5f1324278a42ece04", subject = "= 4.2.7.1 = ~ Added: lpOnElementReady function js" }
 [[case]]
 id = "phpmyfaq-captcha-ua-sqli"
 repo = "https://github.com/thorsten/phpMyFAQ"
@@ -67,6 +72,7 @@ privilege = "unauthenticated (GET /api/captcha)"
 license = "MPL-2.0"
 notes = "The advisory's commit b9f25109 is the vulnerable master commit the reporter tested, not the fix. Release pair 4.1.1 (f791858b) -> 4.1.2 (66792f25)."
 
+benign = { base = "bf781788ab6b5c2967a09d66216d7580778a2b5a", tip = "a4601ae5f01761dc0bb91b8c0c3901be91987ba3", subject = "build: updated version strings to 4.2" }
 [[case]]
 id = "yeswiki-bazar-form-sqli"
 repo = "https://github.com/YesWiki/yeswiki"
@@ -81,6 +87,7 @@ privilege = "unauthenticated"
 license = "AGPL-3.0"
 notes = "Four-line fix: intval plus a Guard::isAllowed check. Default branch doryphore-dev."
 
+benign = { base = "03f27fdde5f89f90de76cd3f2160cff82e7bffac", tip = "70d240c0b43f7e7b0bac55fc0431fb4c2d88b49c", subject = "fix(contact): send shared page by mail" }
 [[case]]
 id = "signalk-remote-conn-ssrf"
 repo = "https://github.com/SignalK/signalk-server"
@@ -94,6 +101,7 @@ privilege = "unauthenticated by default (security not configured); admin otherwi
 license = "Apache-2.0"
 notes = "Fix adds a schema, an ssrfGuard module and requestId validation (~450 added lines, mostly guard code and tests)."
 
+benign = { base = "8af993d45c898edfe28f820f1726b6fc33b27cad", tip = "07416b79601c5d901f671f70a94bd57bed90bad8", subject = "fix: allow multiple deltaHandler next calls (#2818)" }
 [[case]]
 id = "saltcorn-sync-sqli"
 repo = "https://github.com/saltcorn/saltcorn"
@@ -108,6 +116,7 @@ privilege = "authenticated low-privilege user"
 license = "MIT"
 notes = "Large multi-package repository; the fix is on the main line (v1.4.6 is a separate backport), so use the commit pair."
 
+benign = { base = "5c619403c40447bf56ce662570d3a3ffbf781019", tip = "df114765fd36d280395b2129f1703fa98c712d06", subject = "updated at in trigger.findAllWithTableName" }
 [[case]]
 id = "mongo-express-bson-rce"
 repo = "https://github.com/mongo-express/mongo-express"
@@ -121,6 +130,7 @@ privilege = "authenticated (HTTP basic auth, default admin:pass)"
 license = "MIT"
 notes = "Code injection, not SQL. The advisory's first reference 7d365141 is only the v0.54.0 release commit."
 
+benign = { base = "9550ae2529258b47a2b637d8e64e69a0d4d38ad8", tip = "5b9b34f8553d004ceb7b666bbf566b406a2a3153", subject = "Merge pull request #538 from damien-malescot/master" }
 [[case]]
 id = "mockoon-admin-api-cors"
 repo = "https://github.com/mockoon/mockoon"
@@ -130,10 +140,12 @@ advisory = ["CVE-2026-59148", "GHSA-rqx4-3f6q-3x2v"]
 vulnerable = "b42bdfb7f82e83f0e81bea8e6fe41adf5ec82585"
 fixed = "c420b5a56918475b8663977b51e5f986e45b3299"
 sink = "packages/commons-server/src/libs/server/admin-api.ts :: admin-API middleware (Access-Control-Allow-Origin: *)"
+sink_evidence = "'Access-Control-Allow-Origin': '*'"
 privilege = "unauthenticated"
 license = "MIT"
 notes = "Weaker fit: the fix commit touches 34 files; only one hunk in admin-api.ts is the CORS fix."
 
+benign = { base = "de69f5e30f89e17918855d147f4e8c055d5b2ba9", tip = "895961070b55a14d290ad50232ab9c6d800c3cad", subject = "Fix serverless lib returning a 404 when no body is present (#2274)" }
 [[case]]
 id = "alerta-query-sqli"
 repo = "https://github.com/alerta/alerta"
@@ -147,6 +159,7 @@ privilege = "API user; possibly unauthenticated if AUTH_REQUIRED defaults to Fal
 license = "Apache-2.0"
 notes = "The advisory's aeba85a3 introduced the parser; the fix is fdd52cd1."
 
+benign = { base = "b7111d23ae9aefb5064ef107976f62e3836217b6", tip = "71c098d8bb8091e76edaefeef4662eb77c753ce7", subject = "fix(deps): replace pkg_resources with importlib.metadata (#2041)" }
 [[case]]
 id = "wger-next-open-redirect"
 repo = "https://github.com/wger-project/wger"
@@ -160,6 +173,7 @@ privilege = "use_browser_language: unauthenticated; trainer_login: authenticated
 license = "AGPL-3.0"
 notes = "No CVE. A later commit cfa27a7f fixes the same pattern in core/middleware.py; not part of this fix."
 
+benign = { base = "47d646c24178783eb6787ecf26e79dc8f4a394c6", tip = "c1144533bf9bca487ff905d925b567151d89c1aa", subject = "Formatting" }
 [[case]]
 id = "opencve-notification-ssrf"
 repo = "https://github.com/opencve/opencve"
@@ -172,3 +186,4 @@ sink = "web/projects/notifications.py :: _http_post_json (webhook and Slack test
 privilege = "authenticated (can configure project notifications)"
 license = "unverified (GitHub reports NOASSERTION; possibly non-OSS BSL) -- verify before publishing any result"
 notes = "Selected by the maintainer despite the licence question; results must not be redistributed until it is checked."
+benign = { base = "0c8101082ba20628b28fcec9c4611745d32202c2", tip = "965dc348e225308edabdfef3ecb76f7d73a0c162", subject = "fix: unlink automation executions before cleaning expired reports" }

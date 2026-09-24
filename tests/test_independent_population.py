@@ -34,6 +34,13 @@ def test_the_reservation_is_well_formed() -> None:
         assert case["vulnerable"] != case["fixed"], case["id"]
         assert case["repo"].startswith("https://github.com/"), case["id"]
         assert case["advisory"] and case["sink"] and case["privilege"], case["id"]
+    if data["status"] == "frozen":
+        # Frozen means every case carries its benign control: a change from the same history, reviewed as not a
+        # security change, whose two sides a correct analyzer must not tell apart.
+        for case in cases:
+            benign = case.get("benign") or {}
+            assert SHA.fullmatch(benign.get("base", "")) and SHA.fullmatch(benign.get("tip", "")), case["id"]
+        assert (POPULATION.parent / data["freeze_record"]).is_file()
     languages = {case["language"] for case in cases}
     assert {"php", "python"} <= languages and languages & {"javascript", "typescript"}
 

@@ -1,0 +1,334 @@
+{
+  "schema_version": 1,
+  "population": "population-v1.toml",
+  "cases": [
+    {
+      "id": "wp-ultimate-member-sqli",
+      "repo": "https://github.com/ultimatemember/ultimatemember",
+      "vulnerable": "a49b3061ded1630e4f6860b4ebece5ccf0a493d2",
+      "fixed": "476de92f4c9aaa56c3e2f5527b242ce0476f4655",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "includes/core/class-member-directory-meta.php",
+      "sink_functions": [
+        "ajax_get_members"
+      ],
+      "sink_sha256_vulnerable": "fc6f64e3570f69637a05d747c24bc6fd5e5b350e0a9b1639ef1114d76177c719",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "2f7a6a913a1ac0c0bed728c8b53d4a32435bafe4f50756f7d8fe30effc789fd7",
+      "fix_changed_files": 1,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "13151ef558eb6998720cb1ee5f78b5f17535c16c",
+        "tip": "9130a3226ffec45569a2872ffac338200bd1bfcb",
+        "subject": "- wpcs;",
+        "manual": true
+      },
+      "benign_review": "replaced: the proposal ea316d04 changed account-status/deactivation logic (authorization-adjacent); 9130a322 is a WPCS reformat of class-dependencies.php"
+    },
+    {
+      "id": "wp-learnpress-sqli",
+      "repo": "https://github.com/LearnPress/learnpress",
+      "vulnerable": "73b3cbceef8669056e9da5e2f2c78944eb139af5",
+      "fixed": "aaf42fe0c6bf05dcf2ff125750b7bd836e76fa3c",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "inc/Databases/class-lp-db.php",
+      "sink_functions": [
+        "execute"
+      ],
+      "sink_sha256_vulnerable": "5a1e22fa525b56771676e6dd7562c796146e52b96e4e0c11471bf2f0d1d329ce",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "5a1e22fa525b56771676e6dd7562c796146e52b96e4e0c11471bf2f0d1d329ce",
+      "fix_changed_files": 4,
+      "fix_touches_sink_file": false,
+      "fix_touches_fix_site": true,
+      "benign_proposal": {
+        "base": "aaf42fe0c6bf05dcf2ff125750b7bd836e76fa3c",
+        "tip": "179ed7760e6ae5fa46fbe9c5f1324278a42ece04",
+        "subject": "= 4.2.7.1 = ~ Added: lpOnElementReady function js",
+        "files": [
+          "assets/src/js/loadAJAX.js",
+          "assets/src/js/utils.js",
+          "inc/class-lp-assets.php"
+        ],
+        "lines": 50
+      },
+      "benign_review": "accepted: JS utility and asset registration"
+    },
+    {
+      "id": "phpmyfaq-captcha-ua-sqli",
+      "repo": "https://github.com/thorsten/phpMyFAQ",
+      "vulnerable": "11583abcf4787543d00c25d6c7926af6f509faf0",
+      "fixed": "545bdffb11244a4741cd29ac909a849c9a6a2e53",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "phpmyfaq/src/phpMyFAQ/Captcha/BuiltinCaptcha.php",
+      "sink_functions": [
+        "garbageCollector",
+        "saveCaptcha"
+      ],
+      "sink_sha256_vulnerable": "87e468ef69ea87d20d2bafe4ec3a2b5a796fa96faaaac114334e98e72f85a5fb",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "37c38d1fc7a8ee0dc3a79b69f3fdfb2c9e0f3b90eef078c027e8884b2975dfbc",
+      "fix_changed_files": 2,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "bf781788ab6b5c2967a09d66216d7580778a2b5a",
+        "tip": "a4601ae5f01761dc0bb91b8c0c3901be91987ba3",
+        "subject": "build: updated version strings to 4.2",
+        "files": [
+          "CHANGELOG.md",
+          "docker-compose.yml",
+          "docs/update.md",
+          "mkdocs.yml",
+          "package.json",
+          "phpmyfaq/src/phpMyFAQ/Setup/AbstractSetup.php",
+          "phpmyfaq/src/phpMyFAQ/Setup/Installer.php",
+          "phpmyfaq/src/phpMyFAQ/Setup/Update.php",
+          "phpmyfaq/src/phpMyFAQ/Setup/UpdateRunner.php",
+          "phpmyfaq/src/phpMyFAQ/System.php",
+          "scripts/version.sh",
+          "tests/phpMyFAQ/SystemTest.php"
+        ],
+        "lines": 157
+      },
+      "benign_review": "accepted: version strings"
+    },
+    {
+      "id": "yeswiki-bazar-form-sqli",
+      "repo": "https://github.com/YesWiki/yeswiki",
+      "vulnerable": "6f222915df36fca628fc83325cb0feed8dc2aca0",
+      "fixed": "fe7244bffcbeffd42777496ebc2a6f6118cc2388",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "tools/bazar/services/FormManager.php",
+      "sink_functions": [
+        "create"
+      ],
+      "sink_sha256_vulnerable": "2051be959575f429ad51367ea6a2e592bc3eb0e86756e93cca3715a942084d3c",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "f71d844466f0466d8b3e5963670c29b6730f5e675de985b466137a03ad3e1ef9",
+      "fix_changed_files": 2,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "03f27fdde5f89f90de76cd3f2160cff82e7bffac",
+        "tip": "70d240c0b43f7e7b0bac55fc0431fb4c2d88b49c",
+        "subject": "fix(contact): send shared page by mail",
+        "files": [
+          "tools/contact/libs/contact.functions.php"
+        ],
+        "lines": 7
+      },
+      "benign_review": "accepted: mail receiver string-to-array normalisation and comments"
+    },
+    {
+      "id": "signalk-remote-conn-ssrf",
+      "repo": "https://github.com/SignalK/signalk-server",
+      "vulnerable": "1c479cc0d2d26d14ed74416cff36fa7336c7bf9e",
+      "fixed": "2816b0dda1bdde893d85c969a9c5950e7825eee7",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "src/serverroutes.ts",
+      "sink_functions": [
+        "makeRemoteRequest"
+      ],
+      "sink_sha256_vulnerable": "10b2224bfdc0308bf1b7f92ee2f37aaabcfdc6578cda59d245e3e97ddea8185f",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "9aeb864d90df914181683ada2bd49a8e4a86cda4a1a2caa160025225001801bd",
+      "fix_changed_files": 5,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "8af993d45c898edfe28f820f1726b6fc33b27cad",
+        "tip": "07416b79601c5d901f671f70a94bd57bed90bad8",
+        "subject": "fix: allow multiple deltaHandler next calls (#2818)",
+        "files": [
+          "src/deltachain.ts",
+          "test/deltachain.ts"
+        ],
+        "lines": 61
+      },
+      "benign_review": "accepted: delta handler chaining fix"
+    },
+    {
+      "id": "saltcorn-sync-sqli",
+      "repo": "https://github.com/saltcorn/saltcorn",
+      "vulnerable": "e7e09254a3c69dc6582eda9e5b5769935db108af",
+      "fixed": "2b6c8a2eab88955ea6b12b1b4e5c2e613faefef5",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "packages/server/routes/sync.js",
+      "sink_functions": [
+        "getSyncRows",
+        "getDelRows"
+      ],
+      "sink_sha256_vulnerable": "b69b79171574ba7d8ca4b02d5c0ffcadeb0f885faab016d8066ebf753d839edf",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "5b5d34758caca6601e327953191ca30475193e389bea542549a91f82af2bf8dc",
+      "fix_changed_files": 5,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "5c619403c40447bf56ce662570d3a3ffbf781019",
+        "tip": "df114765fd36d280395b2129f1703fa98c712d06",
+        "subject": "updated at in trigger.findAllWithTableName",
+        "files": [
+          "packages/saltcorn-data/models/trigger.ts"
+        ],
+        "lines": 2
+      },
+      "benign_review": "accepted: adds a constant column to a SQL select -- a query edited without any input, a useful negative control"
+    },
+    {
+      "id": "mongo-express-bson-rce",
+      "repo": "https://github.com/mongo-express/mongo-express",
+      "vulnerable": "ea02b364d43f179f191fc91fb9962efdb0843a8d",
+      "fixed": "d8c9bda46a204ecba1d35558452685cd0674e6f2",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "lib/bson.js",
+      "sink_functions": [
+        "toBSON"
+      ],
+      "sink_sha256_vulnerable": "09032fcec4e4b0782f94bb69bd946afeee9794991daa4b6a9d3c7aa0b1b5531c",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "a9fa97927fbbb8460902813beb8b99e7d23cda6be7f3761420259aaaf9268640",
+      "fix_changed_files": 6,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "9550ae2529258b47a2b637d8e64e69a0d4d38ad8",
+        "tip": "5b9b34f8553d004ceb7b666bbf566b406a2a3153",
+        "subject": "Merge pull request #538 from damien-malescot/master",
+        "files": [
+          "lib/routes/document.js",
+          "lib/views/document.html"
+        ],
+        "lines": 7
+      },
+      "benign_review": "accepted: UUID document-delete fix"
+    },
+    {
+      "id": "mockoon-admin-api-cors",
+      "repo": "https://github.com/mockoon/mockoon",
+      "vulnerable": "b42bdfb7f82e83f0e81bea8e6fe41adf5ec82585",
+      "fixed": "c420b5a56918475b8663977b51e5f986e45b3299",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "packages/commons-server/src/libs/server/admin-api.ts",
+      "sink_functions": [
+        "middleware"
+      ],
+      "sink_sha256_vulnerable": "1beb42bf35daa8c7291a1f75976a7012cdd29411d909218a27544ec06eae92f9",
+      "sink_evidence_found": true,
+      "sink_sha256_fixed": "81866aec8e3a67f3aef78c40980193dab841934102fce53ca4f53c73c2ed6eab",
+      "fix_changed_files": 34,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "de69f5e30f89e17918855d147f4e8c055d5b2ba9",
+        "tip": "895961070b55a14d290ad50232ab9c6d800c3cad",
+        "subject": "Fix serverless lib returning a 404 when no body is present (#2274)",
+        "files": [
+          "packages/commons-server/src/libs/server/server.ts",
+          "packages/commons-server/test/specs/server/server-body-parsing.test.ts"
+        ],
+        "lines": 40
+      },
+      "benign_review": "accepted: serverless 404 on empty body"
+    },
+    {
+      "id": "alerta-query-sqli",
+      "repo": "https://github.com/alerta/alerta",
+      "vulnerable": "71c098d8bb8091e76edaefeef4662eb77c753ce7",
+      "fixed": "fdd52cd1abad8d02d1dfb8ecdcdbb43b6af3b883",
+      "problems": [
+        "no benign change found automatically; choose one by hand"
+      ],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "alerta/database/backends/postgres/queryparser.py",
+      "sink_functions": [
+        "__repr__"
+      ],
+      "sink_sha256_vulnerable": "40884d7e83cc38db30a03b11f9686c8cb4b629c2de74191175516cb4c4f1ad3e",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "d9c13317bb36208bbe83bd305bed1199a9e7a586659ca8256479f6158b9d0ce6",
+      "fix_changed_files": 3,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "b7111d23ae9aefb5064ef107976f62e3836217b6",
+        "tip": "71c098d8bb8091e76edaefeef4662eb77c753ce7",
+        "subject": "fix(deps): replace pkg_resources with importlib.metadata (#2041)",
+        "manual": true
+      },
+      "benign_review": "replaced: no neutral commit after the fix (proposals were login, TLS-verification and filter changes); 71c098d8 replaces pkg_resources with importlib.metadata, both sides still vulnerable"
+    },
+    {
+      "id": "wger-next-open-redirect",
+      "repo": "https://github.com/wger-project/wger",
+      "vulnerable": "d30e85b23fb1307ac6579e9e3ae393c50470cea7",
+      "fixed": "0ba371bbb50cd5668820f240995405e1b2483384",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "wger/core/views/user.py",
+      "sink_functions": [
+        "trainer_login",
+        "use_browser_language"
+      ],
+      "sink_sha256_vulnerable": "185582190d001b1670738dde2264dac5e6fef2253cc8595dc862c74a270e906f",
+      "sink_functions_missing": [
+        "use_browser_language"
+      ],
+      "sink_sha256_fixed": "c0952e4b1990081906cb90a597a83cabafd1a3f8e2d124c4c9b1e2ab80756534",
+      "fix_changed_files": 4,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "47d646c24178783eb6787ecf26e79dc8f4a394c6",
+        "tip": "c1144533bf9bca487ff905d925b567151d89c1aa",
+        "subject": "Formatting",
+        "files": [
+          "wger/core/api/serializers.py"
+        ],
+        "lines": 5
+      },
+      "benign_review": "accepted: formatting"
+    },
+    {
+      "id": "opencve-notification-ssrf",
+      "repo": "https://github.com/opencve/opencve",
+      "vulnerable": "928bbadbb1672051bcfc2a6289a9e6a8f029c106",
+      "fixed": "0af7f894debc95c67fa53e7ba5a6cdecb10c34f0",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "web/projects/notifications.py",
+      "sink_functions": [
+        "_http_post_json"
+      ],
+      "sink_sha256_vulnerable": "392b560fdbfe29f0d56661a5a1e74afcca426ce6658eb96d1c0ff12c8cacb1ad",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "e8cc8b410e1e43bbf5356066a800c61a32f7d13f03c449512c761dd67553e933",
+      "fix_changed_files": 8,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "0c8101082ba20628b28fcec9c4611745d32202c2",
+        "tip": "965dc348e225308edabdfef3ecb76f7d73a0c162",
+        "subject": "fix: unlink automation executions before cleaning expired reports",
+        "files": [
+          "scheduler/dags/includes/constants.py",
+          "scheduler/tests/tasks/test_reports.py"
+        ],
+        "lines": 118
+      },
+      "benign_review": "accepted: scheduler cleanup of automation executions"
+    }
+  ],
+  "reviewed_by": "assistant review of each benign diff; selection of cases by the maintainer",
+  "frozen_on": "2026-09-24"
+}
