@@ -858,3 +858,56 @@ def test_the_field_join_links_methods_only_through_the_object_itself(tmp_path: P
     flows = {rid: [r for r in payload[rid] if isinstance(r, dict) and r.get("sourceKind")] for rid in ("local", "object")}
     assert not flows["local"], f"another function's local variable tainted this parameter's field: {flows['local']}"
     assert flows["object"], "object state written in one method and read in another is no longer traced"
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_a_sanitizer_the_value_passes_through_inside_an_expression_counts(tmp_path: Path) -> None:
+    """`isset($p["id"]) ? intval($p["id"]) : null`: the engine steps from intval's argument to the conditional,
+    so `intval` is never a path element. PMPro's REST level id, cast exactly so, was reported as an injection.
+    A sanitizer in the OTHER branch must not count."""
+    from openultrasast.cpg.backend import extract_payload
+
+    frontend = __import__("shutil").which("php2cpg")
+    if frontend is None:
+        pytest.skip("php2cpg is not installed")
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "app.php").write_text(
+        "<?php\n"
+        "function cast() { global $wpdb; $id = isset($_GET['id']) ? intval($_GET['id']) : null;\n"
+        '  return $wpdb->query("DELETE FROM t WHERE id = " . $id); }\n'
+        "function other_branch($x) { global $wpdb; $id = isset($_GET['id']) ? $_GET['id'] : intval($x);\n"
+        '  return $wpdb->query("DELETE FROM t WHERE id = " . $id); }\n'
+    )
+    cpg = tmp_path / "cpg.bin"
+    built = subprocess.run([frontend, str(src), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
+    if not cpg.is_file():
+        pytest.skip(f"could not build a sample cpg: {(built.stderr or '')[-200:]}")
+    common = {"sources": "$_GET", "sinks": "$wpdb->query", "sanitizers": "intval", "file": "app.php"}
+    requests = tmp_path / "requests.json"
+    requests.write_text(json.dumps({"cast": {**common, "function": "cast"}, "other": {**common, "function": "other_branch"}}))
+    done = subprocess.run(
+        [
+            _joern() or "joern",
+            "--script",
+            str((QUERIES / "taint.sc").resolve()),
+            "--param",
+            f"cpgFile={cpg}",
+            "--param",
+            f"requestsFile={requests}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
+        cwd=str(tmp_path),
+    )
+    assert done.returncode == 0, (done.stderr or done.stdout or "")[-500:]
+    payload = extract_payload(done.stdout or "")
+    assert isinstance(payload, dict)
+    unsanitized = {
+        rid: [r for r in payload[rid] if isinstance(r, dict) and r.get("sourceKind") and not r.get("sanitized")]
+        for rid in ("cast", "other")
+    }
+    assert not unsanitized["cast"], f"a value cast inside a conditional was reported unsanitized: {unsanitized['cast']}"
+    assert unsanitized["other"], "a sanitizer in the other branch of the conditional cleaned the tainted branch"

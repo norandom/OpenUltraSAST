@@ -144,9 +144,22 @@
   // whole text, `apply_filters("h", md5("x"), $_GET["c"])` and `sanitize_text_field($_POST["x"])` were
   // sources themselves, so a filter's return was request data whatever it returned. The access inside the
   // argument is a source in its own right; nothing that reaches a sink through it is lost.
+  // Of the operators, only an ACCESS names its own value: `$_GET["c"]`, `req.body.x`. A conditional or a
+  // concatenation whose text contains `$_GET` is an expression built from the access, not the access -- matched
+  // on its text, `isset($_GET["id"]) ? intval($_GET["id"]) : null` was itself a source, downstream of the cast.
+  val accessOperators = Set(
+    "<operator>.fieldAccess",
+    "<operator>.indexAccess",
+    "<operator>.indirectFieldAccess",
+    "<operator>.indirectIndexAccess"
+  )
+
   def isSourceCall(c: io.shiftleft.codepropertygraph.generated.nodes.Call): Boolean = {
-    val named = if (c.name.startsWith("<operator")) c.code else c.code.takeWhile(_ != '(')
-    sourcePatterns.exists(p => named.contains(p))
+    val named =
+      if (accessOperators.contains(c.name)) c.code
+      else if (c.name.startsWith("<operator")) ""
+      else c.code.takeWhile(_ != '(')
+    named.nonEmpty && sourcePatterns.exists(p => named.contains(p))
   }
 
   def frameworkSources = cpg.call.filter(isSourceCall)
@@ -570,7 +583,7 @@
                     case target: io.shiftleft.codepropertygraph.generated.nodes.Call if target.name == INDEX_ACCESS =>
                       val key = keyOf(target)
                       if (key.isEmpty) None
-                      else if (args(1).start.reachableByFlows(seeds.iterator).l.filter(plausible).exists(f => !f.elements.l.exists(sanitizesHere)))
+                      else if (args(1).start.reachableByFlows(seeds.iterator).l.filter(plausible).exists(f => !f.elements.l.exists(sanitizesHere) && !sanitizedBetween(f.elements.l)))
                         Some(key)
                       else None
                     case _ => None
@@ -696,6 +709,36 @@
     }
     byName || sanitizerNames.exists(n => code.startsWith(n + "(") || code.contains("'" + n + "'") || code.contains("\"" + n + "\""))
   }
+
+  // A sanitizer the value passes THROUGH between two path elements. The engine can step from a sanitizer's
+  // argument straight to the expression around the call -- `$params["id"]` inside
+  // `isset($params["id"]) ? intval($params["id"]) : null` went to the conditional, and `intval` itself was
+  // never an element -- so checking elements alone reported PMPro's integer-cast REST level id as an SQL
+  // injection. Where the next element CONTAINS the previous one, the syntax between them is what the value
+  // was wrapped in; a sanitizer there sanitized it. A sanitizer elsewhere in the expression does not count.
+  def sanitizedBetween(elements: List[io.shiftleft.codepropertygraph.generated.nodes.AstNode]): Boolean =
+    elements.zip(elements.drop(1)).exists { case (inner, outer) =>
+      var node: Option[io.shiftleft.codepropertygraph.generated.nodes.AstNode] = inner._astIn.nextOption() match {
+        case Some(parent: io.shiftleft.codepropertygraph.generated.nodes.AstNode) => Some(parent)
+        case _                                                                     => None
+      }
+      var wrapped = false
+      var reached = false
+      var depth   = 0
+      while (node.isDefined && !reached && depth < 8) {
+        val current = node.get
+        if (current.id == outer.id) reached = true
+        else {
+          if (sanitizesHere(current)) wrapped = true
+          node = current._astIn.nextOption() match {
+            case Some(parent: io.shiftleft.codepropertygraph.generated.nodes.AstNode) => Some(parent)
+            case _                                                                     => None
+          }
+          depth += 1
+        }
+      }
+      reached && wrapped
+    }
 
   // The candidate sink calls for a FAMILY do not depend on the region, and scanning every call in the graph
   // for each of 2,487 requests was a large share of what made a request cost seconds -- in evidence mode,
@@ -1005,7 +1048,7 @@
     flows
       .map { flow =>
         val elements   = flow.elements.map(_.code).l
-        val sanitized  = sanitizerNames.nonEmpty && flow.elements.l.exists(node => sanitizesHere(node))
+        val sanitized  = sanitizerNames.nonEmpty && (flow.elements.l.exists(node => sanitizesHere(node)) || sanitizedBetween(flow.elements.l))
         val sourceKind = sourceKindOf(flow.elements.l.headOption)
         ((sourceKind, elements.headOption.getOrElse("").take(200), sanitized), (elements.size, flow))
       }
