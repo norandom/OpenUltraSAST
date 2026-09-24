@@ -52,6 +52,7 @@
     evidenceOnly: String = "false",
     hookCallbacks: String = "",
     dispatchApply: String = "",
+    dispatchValue: String = "",
     contextFilter: String = "",
     contextPaths: String = "",
     requests: String = "",
@@ -91,6 +92,7 @@
       sanitizersS: String,
       hookCallbacksS: String,
       dispatchApplyS: String,
+      dispatchValueS: String,
       functionS: String,
       paramSrc: String,
       fieldParamSrc: String,
@@ -137,7 +139,17 @@
   // Framework sources: a call whose code contains one of the patterns. Matching on `code` rather than a
   // method name keeps `request.args["x"]` (an indexAccess over a fieldAccess) and `req.body.name` both
   // reachable without a per-framework rule for each.
-  def frameworkSources = cpg.call.filter(c => sourcePatterns.exists(p => c.code.contains(p)))
+  // A call IS a source when the pattern names the call itself -- its callee or receiver, or the access it is
+  // (`$_GET["c"]`, `req.body.x`) -- not when the pattern merely appears inside an argument. Matched on the
+  // whole text, `apply_filters("h", md5("x"), $_GET["c"])` and `sanitize_text_field($_POST["x"])` were
+  // sources themselves, so a filter's return was request data whatever it returned. The access inside the
+  // argument is a source in its own right; nothing that reaches a sink through it is lost.
+  def isSourceCall(c: io.shiftleft.codepropertygraph.generated.nodes.Call): Boolean = {
+    val named = if (c.name.startsWith("<operator")) c.code else c.code.takeWhile(_ != '(')
+    sourcePatterns.exists(p => named.contains(p))
+  }
+
+  def frameworkSources = cpg.call.filter(isSourceCall)
 
   // The labeled methods, and the region they lexically own. A closure defined inside the labeled function --
   // the callback passed to `fs.stat`, say -- has its own synthetic method (`<lambda>0`) whose astParentFullName
@@ -341,6 +353,34 @@
   // path's calls afresh cost one outlier request 101 s -> 160 s.
   val familySinkMemo = scala.collection.mutable.Map.empty[Long, Boolean]
 
+  // A registry read returns ONE of its arguments -- the dispatched value -- or nothing at all, per the facts'
+  // `returns`/`value_arg`. A path that enters such a call through any other argument has used the engine's
+  // default "every argument reaches the return", which is how `$this`, passed as filter context, turned a
+  // random md5 fragment into an SQL injection.
+  val dispatchValues: Map[String, Int] = split(dispatchValueS).flatMap { entry =>
+    entry.split(":") match {
+      case Array(name, position) => scala.util.Try(name.trim -> position.trim.toInt).toOption
+      case _                     => None
+    }
+  }.toMap
+
+  def offValueDispatch(elements: List[io.shiftleft.codepropertygraph.generated.nodes.AstNode]): Boolean =
+    dispatchValues.nonEmpty && elements.indices.exists { k =>
+      elements(k) match {
+        case call: io.shiftleft.codepropertygraph.generated.nodes.Call if k > 0 && dispatchValues.contains(call.name) =>
+          val position = dispatchValues(call.name)
+          // The argument the path ENTERED by, which is the first of the run of this call's arguments right
+          // before it: the engine hops between sibling arguments (`$_GET["c"]` -> `md5("x")` -> the call),
+          // so the one immediately before the call can be the value argument when the data came in as context.
+          val arguments = call.argument.l.map(a => a.id -> a).toMap
+          var j = k - 1
+          while (j >= 0 && arguments.contains(elements(j).id)) j -= 1
+          if (j == k - 1) false
+          else position == 0 || arguments(elements(j + 1).id).argumentIndex != position
+        case _ => false
+      }
+    }
+
   def plausible(flow: io.joern.dataflowengineoss.language.Path): Boolean = {
     val elements = flow.elements.l
     val throughSink = elements.dropRight(1).exists {
@@ -348,7 +388,7 @@
         familySinkMemo.getOrElseUpdate(c.id, familySinkCall(c))
       case _ => false
     }
-    !throughSink && !(elements.exists {
+    !throughSink && !offValueDispatch(elements) && !(elements.exists {
       case c: io.shiftleft.codepropertygraph.generated.nodes.Call => c.name == "<operator>.fieldAccess"
       case _                                                      => false
     } && absorbedByObject(elements))
@@ -362,7 +402,7 @@
       (sourcesS, fieldParamSrc, fileName), {
         val methods = methodsIn(fileName)
         val framework: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
-          methods.flatMap(_.ast.isCall.filter(c => sourcePatterns.exists(p => c.code.contains(p))).l)
+          methods.flatMap(_.ast.isCall.filter(isSourceCall).l)
         val params: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
           if (fieldParamSrc == "true") methods.flatMap(_.parameter.l) else Nil
         framework ++ params
@@ -466,7 +506,7 @@
   // and only the sink is elsewhere. Task 5.13 has the numbers.
   def hookSeedsOf(callback: io.shiftleft.codepropertygraph.generated.nodes.Method) = {
     val framework: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
-      callback.ast.isCall.filter(c => sourcePatterns.exists(p => c.code.contains(p))).l
+      callback.ast.isCall.filter(isSourceCall).l
     val fields: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
       callback.ast.isCall.nameExact(FIELD_ACCESS).l.filter(r => taintedPrefixes(r.code.trim, callback.filename))
     framework ++ fields
@@ -1039,6 +1079,7 @@
           // -region path.
           if (field("hookCallbacks").nonEmpty) field("hookCallbacks") else hookCallbacks,
           if (field("dispatchApply").nonEmpty) field("dispatchApply") else dispatchApply,
+          if (field("dispatchValue").nonEmpty) field("dispatchValue") else dispatchValue,
           field("function"),
           paramSrc,
           fieldParamSrc,
@@ -1063,7 +1104,7 @@
   } else {
     println("---OUSAST-CPG-BEGIN---")
     println(
-      ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, hookCallbacks, dispatchApply, function, parameterSources, parameterSources, fieldSources, evidenceOnly, file, callDepth, boundedSinks): _*))
+      ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, hookCallbacks, dispatchApply, dispatchValue, function, parameterSources, parameterSources, fieldSources, evidenceOnly, file, callDepth, boundedSinks): _*))
     )
   }
   println("---OUSAST-CPG-END---")

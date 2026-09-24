@@ -115,6 +115,9 @@ class TaintSpec:
     # The calls that read a value back out of a string-keyed registry (`apply_filters`, `do_action`). Facts,
     # not constants, so a second framework is a row in a TOML rather than an edit to the query.
     dispatch_apply: tuple[str, ...] = ()
+    # Which argument of each apply call its RESULT comes from, as `call:position`; position 0 means the call
+    # returns nothing a flow can carry. Only calls a fact describes appear here.
+    dispatch_value: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -243,6 +246,11 @@ def taint_specs(
         return bool(getattr(fact, "parameterized", False)) or getattr(fact, "literal_format_arg", None) is not None
 
     dispatch_apply = tuple(sorted({call for fact in scoped.dispatches for call in fact.apply}))
+    dispatch_value = tuple(
+        sorted(
+            {f"{call}:{fact.value_arg if call in fact.returns else 0}" for fact in scoped.dispatches if fact.returns for call in fact.apply}
+        )
+    )
     sanitizers = tuple(sorted({call for fact in scoped.sanitizers if not _is_shape(fact) for call in fact.calls}))
     safe_shapes = tuple(sorted({call for fact in scoped.sanitizers if _is_shape(fact) for call in fact.calls}))
     by_family: dict[str, set[str]] = {}
@@ -266,6 +274,7 @@ def taint_specs(
             bounded_sinks=tuple(sorted(bounded.get(family_id, ()))),
             safe_shape_sinks=safe_shapes,
             dispatch_apply=dispatch_apply,
+            dispatch_value=dispatch_value,
         )
         for family_id, calls in sorted(by_family.items())
     }

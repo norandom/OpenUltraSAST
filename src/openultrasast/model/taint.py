@@ -59,6 +59,7 @@ def request_params(
         # The registry's own vocabulary, from the fact tables. Without it the query would have to know what
         # `apply_filters` is, which makes a general mechanism into a WordPress feature.
         "dispatchApply": spec.dispatch_apply,
+        "dispatchValue": spec.dispatch_value,
     }
 
 

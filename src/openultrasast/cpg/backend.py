@@ -181,7 +181,7 @@ FRONTEND_BUILD_ATTEMPTS = 4
 # across 2,500 requests made a 42.5MB request file of which 41.7MB was the same string over and over. Joern
 # parsed that with ujson inside a 2GB heap and the whole batch died in ForkJoinPool, which the driver
 # correctly reported as `query_failed` for all 2,500 regions -- a whole-repository scan that decided nothing.
-_SHARED_REQUEST_FIELDS = ("hookCallbacks", "dispatchApply", "contextFilter", "contextPaths")
+_SHARED_REQUEST_FIELDS = ("hookCallbacks", "dispatchApply", "dispatchValue", "contextFilter", "contextPaths")
 
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 

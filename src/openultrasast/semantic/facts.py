@@ -72,6 +72,14 @@ class DispatchFact:
     register: tuple[str, ...]
     apply: tuple[str, ...]
     language: str
+    # What an apply call RETURNS. `returns` names the apply calls whose result is the dispatched value, and
+    # `value_arg` is that value's argument position (1-based, receiver excluded): WordPress's
+    # `apply_filters('hook', $value, ...$context)` returns the filtered `$value`, and its context arguments
+    # never become the result. An apply call not named in `returns` returns nothing a flow can carry
+    # (`do_action`). Without this the engine let EVERY argument reach the return: PMPro's random order code
+    # came out "tainted" because `$this` was passed as filter context. Empty keeps the engine's default.
+    returns: tuple[str, ...] = ()
+    value_arg: int = 0
 
 
 @dataclass(frozen=True)
@@ -164,9 +172,28 @@ def _dispatches(value: object, language: str, path: Path) -> list[DispatchFact]:
                 register=_strings(item.get("register"), "register", path),
                 apply=_strings(item.get("apply"), "apply", path),
                 language=language,
+                returns=_returning(item, path),
+                value_arg=_value_arg(item, path),
             )
         )
     return facts
+
+
+def _returning(item: dict[str, object], path: Path) -> tuple[str, ...]:
+    returns = _strings(item.get("returns", []), "returns", path)
+    unknown = set(returns) - set(_strings(item.get("apply"), "apply", path))
+    if unknown:
+        raise FactLoadError(f"dispatch {item.get('id')!r} in {path}: returns names calls that are not apply calls: {sorted(unknown)}")
+    return returns
+
+
+def _value_arg(item: dict[str, object], path: Path) -> int:
+    value = item.get("value_arg", 0)
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise FactLoadError(f"dispatch {item.get('id')!r} in {path}: value_arg must be a non-negative integer")
+    if item.get("returns") and value < 1:
+        raise FactLoadError(f"dispatch {item.get('id')!r} in {path}: returns needs the value's argument position")
+    return value
 
 
 def _layouts(value: object, language: str, path: Path) -> list[LayoutFact]:
