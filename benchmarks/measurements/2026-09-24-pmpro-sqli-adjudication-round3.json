@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "experiment": "pmpro-sqli-precision-sample-v3",
+  "date": "2026-09-24",
+  "subject": "Paid Memberships Pro 2.9.7 (pin 1a900be3f09f), development subject",
+  "code": "6c03b4a (dispatch value, source = access, hook-argument rule, REST mapper, object-scoped field join, sanitizer-between)",
+  "scan": {"families": ["injection"], "questions": 382, "completed": 346, "findings": 22},
+  "recall_pins": {"VAmPI SQLi": "found", "NodeGoat injection": "3 -> 3 unchanged", "CVE-2023-6559 MW WP Form": "found", "CVE-2022-25148 WP Statistics": "found", "PMPro CVE-2023-23488 (936)": "found"},
+  "sampling": "every 5th of the 22 findings in site order (indices 0,5,10,15,20)",
+  "sample": [
+    {"i": 0, "site": "adminpages/discountcodes.php:749", "verdict": "TP-privileged", "reason": "sanitize_text_field($_REQUEST['s']) interpolated into LIKE '%$s%'; admin page"},
+    {"i": 5, "site": "classes/class.memberorder.php:1263", "verdict": "FP", "fp_class": "scratch_field_reused", "reason": "updateTimestamp() has no caller in the plugin; reported only because $this->sqlQuery carries taint written by another method"},
+    {"i": 10, "site": "classes/class.memberorder.php:1753", "verdict": "FP", "fp_class": "scratch_field_reused", "reason": "deleteMe() rebuilds $this->sqlQuery from the internal $this->id right before the query"},
+    {"i": 15, "site": "classes/class.pmproemail.php:661", "verdict": "FP", "fp_class": "core_object_id", "reason": "$user is the passed WP_User or $current_user; its ID is WordPress state"},
+    {"i": 20, "site": "services/applydiscountcode.php:17", "verdict": "FP", "fp_class": "allowlist_regex", "reason": "preg_replace('/[^A-Za-z0-9\\-]/', '', ...) leaves no quote before the quoted interpolation"}
+  ],
+  "tally": {"TP_privileged": 1, "FP": 4, "precision": "1/5", "precision_95ci_wilson": "0.04-0.62", "previous_samples": ["2/10 (first)", "2/5 (second)"]},
+  "false_positive_classes": {"scratch_field_reused": 2, "core_object_id": 1, "allowlist_regex": 1},
+  "known_true_positives_still_reported": ["classes/class.memberorder.php:936 (declared CVE)", "includes/profile.php:337", "includes/profile.php:344", "adminpages/discountcodes.php:749"],
+  "known_true_positive_not_reported": {"classes/class-pmpro-discount-codes.php:154": "REST source restored (53d2069) but the engine does not carry $discount_code->code into $this->code inside save() once other methods ran on the object; needs a cross-file field join keyed by class"},
+  "reading": "The findings shrank from 48 to 22 across five fixes with every recall pin intact, but precision on a 1-in-5 sample is still low and the samples are too small to show a trend (2/10, 2/5, 1/5). The next largest class is a scratch field ($this->sqlQuery) that the field join treats as tainted everywhere although each method overwrites it before use.",
+  "limits": ["Five findings; the interval is very wide.", "Development subject; qualifies nothing."]
+}
