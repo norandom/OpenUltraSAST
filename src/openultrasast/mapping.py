@@ -288,6 +288,36 @@ _PHP_FUNCTION = re.compile(
 )
 
 
+def _call_arguments(lines: list[str], number: int, opener: re.Pattern[str], *, limit: int = 120) -> str:
+    """The text of one call's argument list, from the line that opens it to its balancing parenthesis."""
+    text = "\n".join(lines[number - 1 : number - 1 + limit])
+    start = opener.search(text)
+    if start is None:
+        return text
+    depth = 0
+    for position in range(start.end() - 1, len(text)):
+        character = text[position]
+        if character == "(":
+            depth += 1
+        elif character == ")":
+            depth -= 1
+            if depth == 0:
+                return text[start.start() : position + 1]
+    return text
+
+
+def _own_permission(
+    callback: re.Match[str], previous: re.Match[str] | None, following: re.Match[str] | None, permissions: list[re.Match[str]]
+) -> re.Match[str] | None:
+    """The permission callback of the same endpoint: the first after this callback and before the next one,
+    else the last after the previous callback and before this one -- endpoints write them in either order."""
+    after = [p for p in permissions if p.start() > callback.end() and (following is None or p.start() < following.start())]
+    if after:
+        return after[0]
+    before = [p for p in permissions if p.start() < callback.start() and (previous is None or p.start() > previous.end())]
+    return before[-1] if before else None
+
+
 def _php_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
     """WordPress's registration model, plus every top-level function as a region of its own.
 
@@ -323,13 +353,23 @@ def _php_entry_points(target: FileTarget, text: str) -> list[EntryPointRecord]:
                 )
             )
         if _PHP_REST_ROUTE.search(line):
-            window = "\n".join(lines[number - 1 : number + 12])
-            callback = _PHP_CALLBACK.search(window)
-            if callback is not None:
+            # EVERY callback of the registration, not the first. One `register_rest_route` commonly carries
+            # an array of endpoints -- PMPro's `/discount_code` has a GET and a POST handler -- and taking the
+            # first recorded the reader as a route and left the writer an ordinary function, whose `$request`
+            # then was no source: the REST path that injects SQL through the discount-code `save()` vanished.
+            window = _call_arguments(lines, number, _PHP_REST_ROUTE)
+            callbacks = list(_PHP_CALLBACK.finditer(window))
+            permissions = list(_PHP_PERMISSION.finditer(window))
+            for index, callback in enumerate(callbacks):
                 handler = callback.group("handler") or callback.group("method")
                 if not handler:
                     continue
-                permission = _PHP_PERMISSION.search(window)
+                permission = _own_permission(
+                    callback,
+                    callbacks[index - 1] if index else None,
+                    callbacks[index + 1] if index + 1 < len(callbacks) else None,
+                    permissions,
+                )
                 access, evidence = _rest_route_access(permission.group("value").strip() if permission else None)
                 start, end = bounds.get(handler, (number, number))
                 records.append(

@@ -73,3 +73,26 @@ def test_a_hook_callback_gets_the_registrys_arguments_not_the_requests(tmp_path)
     # A route that did not come from a registry keeps its parameters as input.
     route = dataclasses.replace(regions["show_history"], entry_registry="", entry_kind="route")
     assert scan._parameters_are_input(route)
+
+
+def test_every_callback_of_one_rest_registration_is_a_route(tmp_path) -> None:
+    """PMPro registers a GET and a POST handler in one `register_rest_route`; taking the first callback left
+    the writer an ordinary function, so its `$request` was no source."""
+    from openultrasast.mapping import analyze_entry_points
+    from openultrasast.preprocess import build_file_target, enumerate_source_files
+
+    (tmp_path / "rest.php").write_text(
+        "<?php\nclass Routes {\n  function register() {\n"
+        "    register_rest_route( $ns, '/code',\n    array(\n"
+        "      array( 'methods' => 'GET', 'callback' => array( $this, 'read_code' ),\n"
+        "        'permission_callback' => array( $this, 'can_read' ) ),\n"
+        "      array( 'methods' => 'POST', 'callback' => array( $this, 'write_code' ), 'permission_callback' => '__return_true' ),\n"
+        "    ));\n  }\n"
+        "  function read_code($request) { return 1; }\n  function write_code($request) { return 2; }\n}\n"
+    )
+    files = enumerate_source_files(tmp_path)
+    entries = analyze_entry_points(tmp_path, [build_file_target(tmp_path, p) for p in files])
+    routes = {e.function_name: e for e in entries if e.name == "wp:rest_route"}
+    assert set(routes) == {"read_code", "write_code"}
+    # Each endpoint keeps its OWN permission callback.
+    assert routes["write_code"].access_level == "public" and routes["read_code"].access_level != "public"
