@@ -42,6 +42,12 @@ class SinkFact:
     language: str
     weak_literals: tuple[str, ...] = ()
     format_arg: int | None = None
+    # A DESTINATION sink (a redirect, an outbound request) is dangerous only where the value can choose where
+    # it goes. With `prefix_fixes_origin`, a value appended after a prefix that already fixes the origin -- a
+    # path `/x`, a `?query`, `scheme://host/`, or an `origin_anchors` call such as Django's `reverse()` -- is
+    # not an untrusted destination, and neither is one that only fills an anchor call's arguments.
+    prefix_fixes_origin: bool = False
+    origin_anchors: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -263,6 +269,14 @@ def _sources(value: object, language: str, path: Path) -> list[SourceFact]:
     return rows
 
 
+def _flag(value: object, field: str, path: Path, ident: str) -> bool:
+    if value is None:
+        return False
+    if not isinstance(value, bool):
+        raise FactLoadError(f"{path} sink {ident} has a non-boolean {field}")
+    return value
+
+
 def _sinks(value: object, language: str, path: Path) -> list[SinkFact]:
     rows: list[SinkFact] = []
     for item in _items(value):
@@ -287,6 +301,8 @@ def _sinks(value: object, language: str, path: Path) -> list[SinkFact]:
                 language=language,
                 weak_literals=_strings(item.get("weak_literals"), "weak_literals", path),
                 format_arg=format_arg if isinstance(format_arg, int) else None,
+                prefix_fixes_origin=_flag(item.get("prefix_fixes_origin"), "prefix_fixes_origin", path, ident),
+                origin_anchors=_strings(item.get("origin_anchors"), "origin_anchors", path),
             )
         )
     return rows

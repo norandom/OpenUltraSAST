@@ -118,6 +118,10 @@ class TaintSpec:
     # Which argument of each apply call its RESULT comes from, as `call:position`; position 0 means the call
     # returns nothing a flow can carry. Only calls a fact describes appear here.
     dispatch_value: tuple[str, ...] = ()
+    # Whether a prefix that fixes the origin makes a destination safe, and the calls that build such a
+    # prefix (`reverse`). From the sink facts; only destination families set them.
+    fixed_origin: bool = False
+    origin_anchors: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -255,6 +259,8 @@ def taint_specs(
     safe_shapes = tuple(sorted({call for fact in scoped.sanitizers if _is_shape(fact) for call in fact.calls}))
     by_family: dict[str, set[str]] = {}
     bounded: dict[str, set[str]] = {}
+    fixed_origin: set[str] = set()
+    anchors: dict[str, set[str]] = {}
     for sink in scoped.sinks:
         family = families.family_of_cwe(sink.cwe)
         if family is None:
@@ -264,6 +270,9 @@ def taint_specs(
         # is on the fact already, so which sinks these are is read from the data rather than declared here.
         if sink.cwe in OVERFLOW_CWES:
             bounded.setdefault(family.id, set()).update(sink.calls)
+        if sink.prefix_fixes_origin:
+            fixed_origin.add(family.id)
+            anchors.setdefault(family.id, set()).update(sink.origin_anchors)
     return {
         family_id: TaintSpec(
             family=family_id,
@@ -275,6 +284,8 @@ def taint_specs(
             safe_shape_sinks=safe_shapes,
             dispatch_apply=dispatch_apply,
             dispatch_value=dispatch_value,
+            fixed_origin=family_id in fixed_origin,
+            origin_anchors=tuple(sorted(anchors.get(family_id, ()))),
         )
         for family_id, calls in sorted(by_family.items())
     }

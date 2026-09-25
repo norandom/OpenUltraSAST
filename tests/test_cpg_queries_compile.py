@@ -1018,3 +1018,77 @@ def test_node_vm_is_an_eval_and_a_package_name_is_not_a_sink(tmp_path: Path) -> 
     assert any("runInNewContext" in str(r["sink"]) for r in flows["vulnerable"]), flows["vulnerable"]
     assert not flows["parsed"], f"a package name was read as a sink: {flows['parsed']}"
     assert any("query" in str(r["sink"]) for r in flows["raw"]), f"a real query call was lost: {flows['raw']}"
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_a_destination_whose_origin_is_fixed_is_not_untrusted(tmp_path: Path) -> None:
+    """OpenCVE redirects to `reverse("cves") + "?" + request.GET.urlencode()` and to `reverse(route, kwargs=...)`:
+    the request picks a query string or a path segment, never the site. Both were reported as open redirects
+    once Django's sources were known. A prefix that does NOT fix the origin -- a scheme with the host still to
+    come, or no prefix at all -- must still be reported. The shipped spec supplies sinks, anchors and flag."""
+    from openultrasast.cpg.backend import extract_payload
+    from openultrasast.model.specs import taint_specs
+
+    frontend = __import__("shutil").which("pysrc2cpg")
+    if frontend is None:
+        pytest.skip("pysrc2cpg is not installed")
+    spec = taint_specs(language="python")["untrusted_destination"]
+    assert spec.fixed_origin and "reverse" in spec.origin_anchors, "the shipped redirect fact no longer fixes origins"
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "views.py").write_text(
+        "from django.shortcuts import redirect\nfrom django.urls import reverse\n\n"
+        "def appended(request):\n"
+        '    url = reverse("cves") + ("?" + request.GET.urlencode() if request.GET else "")\n'
+        "    return redirect(url)\n\n"
+        "def augmented(request):\n"
+        '    url = reverse("x")\n'
+        "    if request.GET:\n"
+        '        url += "&" + request.GET.urlencode()\n'
+        "    return redirect(url)\n\n"
+        "def formatted(request):\n"
+        "    return redirect(f\"/items?{request.GET.get('q')}\")\n\n"
+        "def anchored(request):\n"
+        '    return redirect(reverse("m", kwargs={"n": request.POST.get("n")}))\n\n'
+        "def host(request):\n"
+        '    return redirect("https://" + request.GET.get("host") + "/x")\n\n'
+        "def bare(request):\n"
+        '    return redirect(request.GET.get("next"))\n\n'
+        "def slash(request):\n"
+        '    return redirect("/" + request.GET.get("path"))\n'
+    )
+    cpg = tmp_path / "cpg.bin"
+    built = subprocess.run([frontend, str(src), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
+    if not cpg.is_file():
+        pytest.skip(f"could not build a sample cpg: {(built.stderr or '')[-200:]}")
+    common = {
+        "sources": ",".join(spec.sources),
+        "sinks": ",".join(spec.sinks),
+        "file": "views.py",
+        "fixedOrigin": "true",
+        "originAnchors": ",".join(spec.origin_anchors),
+    }
+    names = ("appended", "augmented", "formatted", "anchored", "host", "bare", "slash")
+    requests = tmp_path / "requests.json"
+    requests.write_text(json.dumps({name: {**common, "function": name} for name in names}))
+    done = subprocess.run(
+        [
+            _joern() or "joern",
+            "--script",
+            str((QUERIES / "taint.sc").resolve()),
+            "--param",
+            f"cpgFile={cpg}",
+            "--param",
+            f"requestsFile={requests}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
+        cwd=str(tmp_path),
+    )
+    assert done.returncode == 0, (done.stderr or done.stdout or "")[-500:]
+    payload = extract_payload(done.stdout or "")
+    assert isinstance(payload, dict)
+    reported = {name for name in names if any(isinstance(r, dict) and r.get("sink") and r.get("sourceKind") for r in payload[name])}
+    assert reported == {"host", "bare", "slash"}, {name: payload[name] for name in names}

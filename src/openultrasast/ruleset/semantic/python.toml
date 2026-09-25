@@ -16,6 +16,23 @@ patterns = [
   "request.get",
 ]
 
+# Django and Django REST framework. The source vocabulary above is Flask's alone, so on a Django project no
+# flow could begin anywhere: OpenCVE's notification test POSTs to a URL read from `form.cleaned_data`, and the
+# scan answered the file and found nothing. `cleaned_data` is what a form bound to the request hands back --
+# validated for type, not for trust.
+[[source]]
+id = "django-request"
+patterns = [
+  "request.GET",
+  "request.POST",
+  "request.body",
+  "request.COOKIES",
+  "request.FILES",
+  "request.META",
+  "request.query_params",
+  "cleaned_data",
+]
+
 [[source]]
 id = "argv"
 patterns = ["sys.argv"]
@@ -111,9 +128,13 @@ id = "outbound.request"
 cwe = "CWE-918"
 calls = ["requests.get", "requests.post", "requests.request", "urlopen", "urlretrieve", "httpx.get", "httpx.post"]
 rule_ids = []
+prefix_fixes_origin = true
 
 [[sink]]
 id = "redirect"
 cwe = "CWE-601"
 calls = ["redirect", "HttpResponseRedirect", "url_for"]
 rule_ids = []
+# Django's `reverse` builds an in-site path from a route NAME; request data can only fill its path segments.
+prefix_fixes_origin = true
+origin_anchors = ["reverse", "reverse_lazy"]

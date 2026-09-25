@@ -104,7 +104,9 @@
       contextS: String = "",
       contextFilterS: String = "",
       contextPathsS: String = "",
-      traceS: String = ""
+      traceS: String = "",
+      fixedOriginS: String = "",
+      originAnchorsS: String = ""
   ): List[ujson.Obj] = {
 
   // Word-boundary matching, never substring. `resolveUrl` contains `resolve`, so a bare-substring sanitizer
@@ -400,6 +402,82 @@
       }
     }
 
+  // A destination is untrusted only where the value can choose WHERE it goes. OpenCVE redirects to
+  // `reverse("cves") + "?" + request.GET.urlencode()` and to `reverse(route, kwargs={...})`: the request
+  // decides the query string or a path segment, and the redirect stays on the site. So, for a sink fact that
+  // says so, a path is cut when it enters a concatenation through anything but its LEFTMOST operand and that
+  // operand already fixes the origin, or when it passes through an anchor call such as `reverse`. What does
+  // NOT fix an origin is kept deliberately: `"/" + x` becomes `//evil.example`, and `"https://" + host` is the
+  // attack itself.
+  val originFixing = fixedOriginS == "true"
+  val originAnchors = split(originAnchorsS).toSet
+  val schemeHostThenPath = java.util.regex.Pattern.compile("^[A-Za-z][A-Za-z0-9+.-]*://[^/?#\\\\]+[/?#]")
+  val concatenations = Set("<operator>.addition", "<operator>.assignmentPlus", "<operator>.formatString")
+  val fixesOriginMemo = scala.collection.mutable.Map.empty[Long, Boolean]
+
+  def literalFixesOrigin(code: String): Boolean = {
+    // The literal's TEXT, without its quotes. With the closing quote left on, `"/"` read as `/"` and passed
+    // the path test -- and `"/" + x` is the protocol-relative `//evil.example`.
+    val quoted = "(?s)^(?:[rRbBuUfF]{1,2})?(['\"`])(.*)\\1$".r
+    val text = code.trim match {
+      case quoted(_, inner) => inner
+      case other            => other
+    }
+    text.startsWith("?") || text.startsWith("#") || text.matches("(?s)^/[^/\\\\].*") || schemeHostThenPath.matcher(text).find()
+  }
+
+  def fixesOrigin(node: io.shiftleft.codepropertygraph.generated.nodes.AstNode, depth: Int): Boolean =
+    depth <= 3 && fixesOriginMemo.getOrElseUpdate(node.id, node match {
+      case l: io.shiftleft.codepropertygraph.generated.nodes.Literal => literalFixesOrigin(l.code)
+      case c: io.shiftleft.codepropertygraph.generated.nodes.Call if originAnchors.contains(c.name) => true
+      case c: io.shiftleft.codepropertygraph.generated.nodes.Call if concatenations.contains(c.name) =>
+        c.argument.l.sortBy(_.argumentIndex).headOption.exists(a => fixesOrigin(a, depth + 1))
+      case i: io.shiftleft.codepropertygraph.generated.nodes.Identifier =>
+        // A variable fixes the origin when EVERY assignment to it in the method does.
+        val writes = i.method.ast.isCall.nameExact(ASSIGNMENT).l.filter(_.argument.l.sortBy(_.argumentIndex).headOption.exists {
+          case t: io.shiftleft.codepropertygraph.generated.nodes.Identifier => t.name == i.name
+          case _                                                             => false
+        })
+        writes.nonEmpty && writes.forall(w => w.argument.l.find(_.argumentIndex == 2).exists(v => fixesOrigin(v, depth + 1)))
+      case _ => false
+    })
+
+  // The argument of `call` that holds `node` -- the node itself or anywhere inside it. The engine does not
+  // always step through the argument: `reverse("cves") + ("?" + request.GET.urlencode())` goes from
+  // `request.GET` straight to the outer `+`.
+  def argumentHolding(
+      call: io.shiftleft.codepropertygraph.generated.nodes.Call,
+      node: io.shiftleft.codepropertygraph.generated.nodes.AstNode
+  ): Option[io.shiftleft.codepropertygraph.generated.nodes.Expression] =
+    call.argument.l.find(a => a.id == node.id || a.ast.exists(_.id == node.id))
+
+  def originFixed(elements: List[io.shiftleft.codepropertygraph.generated.nodes.AstNode]): Boolean =
+    originFixing && elements.indices.exists { k =>
+      elements(k) match {
+        // Through an anchor: the value only fills the route's arguments. The anchor may be the path's last
+        // element, which is the sink's own argument.
+        case call: io.shiftleft.codepropertygraph.generated.nodes.Call if k > 0 && originAnchors.contains(call.name) => true
+        // `url += "&" + q`: the engine goes from the right-hand side to the TARGET `url`, never visiting the
+        // `+=` itself. The value is appended to what `url` already held.
+        case target: io.shiftleft.codepropertygraph.generated.nodes.Identifier if k > 0 && target.argumentIndex == 1 =>
+          target.astParent match {
+            case augmented: io.shiftleft.codepropertygraph.generated.nodes.Call if augmented.name == "<operator>.assignmentPlus" =>
+              argumentHolding(augmented, elements(k - 1)).exists(_.argumentIndex == 2) && fixesOrigin(target, 0)
+            case _ => false
+          }
+        case call: io.shiftleft.codepropertygraph.generated.nodes.Call if k > 0 && concatenations.contains(call.name) =>
+          // The argument the path entered by, as in `offValueDispatch`: the first of the run of elements
+          // right before the call that lie inside its arguments.
+          var j = k - 1
+          while (j >= 0 && argumentHolding(call, elements(j)).isDefined) j -= 1
+          j < k - 1 && argumentHolding(call, elements(j + 1)).exists { entered =>
+            val leftmost = call.argument.l.sortBy(_.argumentIndex).headOption
+            entered.argumentIndex > 1 && leftmost.exists(l => l.argumentIndex < entered.argumentIndex && fixesOrigin(l, 0))
+          }
+        case _ => false
+      }
+    }
+
   def plausible(flow: io.joern.dataflowengineoss.language.Path): Boolean = {
     val elements = flow.elements.l
     val throughSink = elements.dropRight(1).exists {
@@ -407,7 +485,7 @@
         familySinkMemo.getOrElseUpdate(c.id, familySinkCall(c))
       case _ => false
     }
-    !throughSink && !offValueDispatch(elements) && !(elements.exists {
+    !throughSink && !offValueDispatch(elements) && !originFixed(elements) && !(elements.exists {
       case c: io.shiftleft.codepropertygraph.generated.nodes.Call => c.name == "<operator>.fieldAccess"
       case _                                                      => false
     } && absorbedByObject(elements))
@@ -1180,7 +1258,9 @@
           field("contextEvidence"),
           if (field("contextFilter").nonEmpty) field("contextFilter") else contextFilter,
           if (field("contextPaths").nonEmpty) field("contextPaths") else contextPaths,
-          field("trace")
+          field("trace"),
+          field("fixedOrigin"),
+          field("originAnchors")
         ): _*
       )
       println(ujson.write(ujson.Obj("id" -> id, "rows" -> rows, "ms" -> ((System.nanoTime() - started) / 1000000L).toDouble)))

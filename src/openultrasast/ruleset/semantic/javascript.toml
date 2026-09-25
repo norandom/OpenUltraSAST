@@ -123,12 +123,14 @@ calls = [
   "https.request",
 ]
 rule_ids = []
+prefix_fixes_origin = true
 
 [[sink]]
 id = "redirect"
 cwe = "CWE-601"
 calls = ["redirect", "location.assign", "location.replace"]
 rule_ids = []
+prefix_fixes_origin = true
 
 # --- model-grounded-detection: sanitizers -----------------------------------------------------------------
 # This file shipped with no [[sanitizer]] entries at all, so no JavaScript fix of any family could be

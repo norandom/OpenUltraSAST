@@ -60,6 +60,8 @@ def request_params(
         # `apply_filters` is, which makes a general mechanism into a WordPress feature.
         "dispatchApply": spec.dispatch_apply,
         "dispatchValue": spec.dispatch_value,
+        "fixedOrigin": "true" if spec.fixed_origin else "false",
+        "originAnchors": spec.origin_anchors,
     }
 
 
