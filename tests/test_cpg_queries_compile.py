@@ -1391,15 +1391,26 @@ def test_an_allowlist_check_guards_its_branch_and_its_ternary_arm(tmp_path: Path
         "function else_branch() { global $wpdb; $s = $_POST['s']; $core = array( 'login' );\n"
         "  if ( in_array( $s, $core, true ) ) { return null; }\n"
         '  else { return $wpdb->query( "SELECT 1 FROM t ORDER BY u.{$s}" ); } }\n'
+        "function stored_in_branch() { global $wpdb; $s = $_POST['s']; $core = array( 'login' ); $o = '';\n"
+        '  if ( in_array( $s, $core, true ) ) { $o = " ORDER BY u.{$s} "; }\n'
+        "  $o = apply_filters( 'sort', $o, $s );\n"
+        '  return $wpdb->query( "SELECT 1 FROM t {$o}" ); }\n'
+        "function stored_in_else() { global $wpdb; $s = $_POST['s']; $core = array( 'login' ); $o = '';\n"
+        "  if ( in_array( $s, $core, true ) ) { $o = ' ORDER BY u.login '; }\n"
+        '  else { $o = " ORDER BY u.{$s} "; }\n'
+        "  $o = apply_filters( 'sort', $o, $s );\n"
+        '  return $wpdb->query( "SELECT 1 FROM t {$o}" ); }\n'
     )
-    names = ("ternary", "wrong_arm", "branch", "else_branch")
+    names = ("ternary", "wrong_arm", "branch", "else_branch", "stored_in_branch", "stored_in_else")
     common = {
         "sources": ",".join(spec.sources),
         "sinks": ",".join(spec.sinks),
         "sanitizers": ",".join(spec.sanitizers),
         "guards": ",".join(spec.guards),
+        "dispatchApply": ",".join(spec.dispatch_apply),
+        "dispatchValue": ",".join(spec.dispatch_value),
         "file": "app.php",
     }
     payload = _taint_rows(tmp_path, "php2cpg", {"app.php": app}, {n: {**common, "function": n} for n in names})
     reported = {n for n in names if _unsanitized(payload, n)}
-    assert reported == {"wrong_arm", "else_branch"}, {n: payload[n] for n in names}
+    assert reported == {"wrong_arm", "else_branch", "stored_in_else"}, {n: payload[n] for n in names}

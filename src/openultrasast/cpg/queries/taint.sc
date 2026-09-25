@@ -773,7 +773,19 @@
           case _ => false
         }
       }
-      ternary || (end match {
+      // Where the check is judged: the end of the flow, and every point where the path STORES the value. A
+      // store made while the check held carries it forward -- Ultimate Member writes `$this->sql_order` inside
+      // `elseif (in_array($sortby, ...))` and passes it through a filter after the chain. A mere READ inside a
+      // branch is not a candidate: the engine lists uses in branches the flow does not depend on.
+      def stored(node: io.shiftleft.codepropertygraph.generated.nodes.AstNode) = node match {
+        case e: io.shiftleft.codepropertygraph.generated.nodes.Expression if e.argumentIndex == 1 =>
+          e.astParent match {
+            case a: io.shiftleft.codepropertygraph.generated.nodes.Call => a.name.startsWith("<operator>.assignment")
+            case _                                                      => false
+          }
+        case _ => false
+      }
+      ternary || (end :: elements.filter(stored)).distinctBy(_.id).exists {
         case cfg: io.shiftleft.codepropertygraph.generated.nodes.CfgNode =>
           val method = cfg.method
           method.ast.isControlStructure.controlStructureType("IF").l.exists { cs =>
@@ -781,7 +793,7 @@
               val checks = guardsIn(cond, names)
               checks.nonEmpty && {
                 val (whenTrue, _) = branches(cs)
-                val inside = whenTrue.exists(b => contains(b, end)) && checks.exists(g => polarity(g, cond).contains(true))
+                val inside = whenTrue.exists(b => contains(b, cfg)) && checks.exists(g => polarity(g, cond).contains(true))
                 inside || (checks.exists(g => polarity(g, cond).contains(false)) && whenTrue.exists { b =>
                   val bails = b.ast.exists {
                     case _: io.shiftleft.codepropertygraph.generated.nodes.Return => true
@@ -792,7 +804,7 @@
                     case i: io.shiftleft.codepropertygraph.generated.nodes.Identifier => names(i.name) || names(i.code.trim)
                     case _                                                             => false
                   })
-                  (bails || overwrites) && !contains(cs, end) && (cond match {
+                  (bails || overwrites) && !contains(cs, cfg) && (cond match {
                     case c: io.shiftleft.codepropertygraph.generated.nodes.CfgNode => cfg.dominatedBy.exists(_.id == c.id)
                     case _                                                          => false
                   })
@@ -801,7 +813,7 @@
             }
           }
         case _ => false
-      })
+      }
     }
 
   def cleansed(elements: List[io.shiftleft.codepropertygraph.generated.nodes.AstNode]): Boolean =
