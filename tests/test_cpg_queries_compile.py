@@ -1228,3 +1228,56 @@ def test_an_escaped_but_unquoted_field_is_object_state_that_carries_input(tmp_pa
     }
     assert any("$this->order" in str(r.get("source")) for r in unsanitized["members"]), payload["members"]
     assert not unsanitized["named"], f"a field built from a quoted escape was reported: {unsanitized['named']}"
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_a_source_pattern_is_a_token_not_a_prefix(tmp_path: Path) -> None:
+    """Flask's `request.get` matched Django's `request.get_host()` as a substring. wger's fix hands the host to
+    `url_has_allowed_host_and_scheme`, and both fixed functions were reported as open redirects from it. The
+    real parameter, `request.GET.get("next")`, is still a source."""
+    from openultrasast.cpg.backend import extract_payload
+    from openultrasast.model.specs import taint_specs
+
+    frontend = __import__("shutil").which("pysrc2cpg")
+    if frontend is None:
+        pytest.skip("pysrc2cpg is not installed")
+    spec = taint_specs(language="python")["untrusted_destination"]
+    assert "request.get" in spec.sources, "the shipped vocabulary no longer holds the pattern this control is about"
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "views.py").write_text(
+        "from django.shortcuts import redirect\n\n"
+        "def host(request):\n"
+        "    return redirect(request.get_host())\n\n"
+        "def parameter(request):\n"
+        '    return redirect(request.GET.get("next"))\n'
+    )
+    cpg = tmp_path / "cpg.bin"
+    built = subprocess.run([frontend, str(src), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
+    if not cpg.is_file():
+        pytest.skip(f"could not build a sample cpg: {(built.stderr or '')[-200:]}")
+    common = {"sources": ",".join(spec.sources), "sinks": ",".join(spec.sinks), "file": "views.py"}
+    requests = tmp_path / "requests.json"
+    requests.write_text(json.dumps({name: {**common, "function": name} for name in ("host", "parameter")}))
+    done = subprocess.run(
+        [
+            _joern() or "joern",
+            "--script",
+            str((QUERIES / "taint.sc").resolve()),
+            "--param",
+            f"cpgFile={cpg}",
+            "--param",
+            f"requestsFile={requests}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
+        cwd=str(tmp_path),
+    )
+    assert done.returncode == 0, (done.stderr or done.stdout or "")[-500:]
+    payload = extract_payload(done.stdout or "")
+    assert isinstance(payload, dict)
+    flows = {name: [r for r in payload[name] if isinstance(r, dict) and r.get("sourceKind")] for name in ("host", "parameter")}
+    assert not flows["host"], f"request.get_host() was read as request.get: {flows['host']}"
+    assert flows["parameter"], "the request parameter is no longer a source"

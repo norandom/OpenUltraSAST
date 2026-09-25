@@ -174,7 +174,10 @@
       if (accessOperators.contains(c.name)) c.code
       else if (c.name.startsWith("<operator")) ""
       else c.code.takeWhile(_ != '(')
-    named.nonEmpty && sourcePatterns.exists(p => named.contains(p))
+    // Bounded, like every other token here: a substring test let Flask's `request.get` claim Django's
+    // `request.get_host()` -- the host handed to the redirect VALIDATOR in wger's fix -- and both fixed
+    // functions were reported as open redirects.
+    named.nonEmpty && sourcePatterns.exists(p => mentionsToken(named, List(p)))
   }
 
   def frameworkSources = cpg.call.filter(isSourceCall)
@@ -1003,7 +1006,7 @@
   def sourceMethods(fileName: String): Set[String] =
     sourceMethodsMemo.getOrElseUpdate(
       fileName,
-      methodsIn(fileName).filter(m => m.ast.isCall.exists(c => sourcePatterns.exists(p => c.code.contains(p)))).map(_.name).toSet
+      methodsIn(fileName).filter(m => m.ast.isCall.exists(c => mentionsToken(c.code, sourcePatterns))).map(_.name).toSet
     )
 
   def fedFields(fileName: String): Map[String, String] =
@@ -1023,7 +1026,7 @@
                     case id: io.shiftleft.codepropertygraph.generated.nodes.Identifier => params.contains(id.name)
                     case _                                                             => false
                   }
-                  val fromSource = sourcePatterns.exists(p => rhs.code.contains(p)) || (readers.nonEmpty && rhs.ast.isCall.name.l.exists(readers.contains))
+                  val fromSource = mentionsToken(rhs.code, sourcePatterns) || (readers.nonEmpty && rhs.ast.isCall.name.l.exists(readers.contains))
                   if (fromSource) Some(target.code.trim -> "source")
                   else if (fromParameter) Some(target.code.trim -> "parameter")
                   else None
@@ -1041,7 +1044,7 @@
     callbackFedMemo.getOrElseUpdate(
       callback,
       strongest(cpg.method.nameExact(callback).l.map { m =>
-        if (m.ast.isCall.exists(c => sourcePatterns.exists(p => c.code.contains(p)))) "source"
+        if (m.ast.isCall.exists(c => mentionsToken(c.code, sourcePatterns))) "source"
         else {
           val fed = fedFields(m.filename)
           if (fed.isEmpty) "" else strongest(m.ast.isCall.nameExact(FIELD_ACCESS).code.l.map(code => prefixKind(code.trim, fed)))
@@ -1073,7 +1076,7 @@
     // no-dataflow query take minutes. `cpg.method.filter(...)` over every method per request was the
     // other half of that, replaced by a direct lookup of the reachable names.
     def methodHasSource(m: io.shiftleft.codepropertygraph.generated.nodes.Method): Boolean =
-      methodSourceMemo.getOrElseUpdate(m.fullName, m.ast.isCall.exists(c => sourcePatterns.exists(p => c.code.contains(p))))
+      methodSourceMemo.getOrElseUpdate(m.fullName, m.ast.isCall.exists(c => mentionsToken(c.code, sourcePatterns)))
     val sinkList    = sinkCalls.l
     val sourceLocal = labeledMethods.exists(methodHasSource)
     val sourceNear  = depth > 0 && cpg.method.fullNameExact(reachableMethods.toSeq: _*).exists(methodHasSource)

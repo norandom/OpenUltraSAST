@@ -279,6 +279,9 @@ def build_partitions(
             if language == "typescript":
                 record_limits += ("typescript_property_support_unvalidated",)
                 boundaries.add("typescript_property_support_unvalidated")
+                # About TypeScript answers. YesWiki is a PHP application that ships a few `.ts` files, and this
+                # boundary made all 1,128 of its PHP questions unresolved.
+                owned_languages.setdefault("typescript_property_support_unvalidated", set()).add("typescript")
             if language in {"c", "cpp"}:
                 record_limits += ("c_bounds_arithmetic_unmodeled",)
             records.append(

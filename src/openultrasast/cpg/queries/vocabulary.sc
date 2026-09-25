@@ -54,7 +54,7 @@
     else
       sourceMemo.getOrElseUpdate(
         c.method.fullName,
-        c.method.ast.isCall.exists(x => sourcePatterns.exists(p => x.code.contains(p)))
+        c.method.ast.isCall.exists(x => sourcePatterns.exists(p => boundedPattern(p).matcher(x.code).find()))
       )
 
   def isModelled(c: io.shiftleft.codepropertygraph.generated.nodes.Call): Boolean = {

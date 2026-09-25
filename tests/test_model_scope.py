@@ -453,3 +453,18 @@ def test_a_language_no_frontend_reads_demotes_only_its_own_questions(tmp_path):
     assert gap and gap[0].get("census_language") == "go", result.degradations
     assert "frontend_unsupported" in result.scope.unresolved_boundaries
     assert result.question_outcomes[0].status == "completed", result.question_outcomes
+
+
+def test_unvalidated_typescript_demotes_only_typescript_questions(tmp_path):
+    """YesWiki is PHP with a few `.ts` files; the TypeScript limit made every one of its PHP questions unresolved."""
+    root = source(tmp_path, "app.py", "widget.ts")
+    result = scan_repository(
+        root,
+        [region("app.py"), region("widget.ts", "typescript")],
+        backend=Backend({"app.py": vector(), "widget.ts": vector()}),
+        population_complete=True,
+    )
+    gap = [d for d in result.degradations if d.get("reason") == "typescript_property_support_unvalidated"]
+    assert gap and gap[0].get("census_language") == "typescript", result.degradations
+    status = {o.identity.path: o.status for o in result.question_outcomes}
+    assert status == {"app.py": "completed", "widget.ts": "unresolved"}, status
