@@ -3,7 +3,7 @@
 from dataclasses import replace
 
 import pytest
-from test_model_scope import Backend, region, vector
+from test_model_scope import Backend, _CensusGapBackend, region, vector
 
 from openultrasast.model.contracts import ChangeContext, ChangedSpan, LineCorrespondence
 from openultrasast.model.scan import ScanBudget, scan_repository
@@ -233,7 +233,7 @@ def test_an_unresolved_context_projection_still_demotes_the_question(tmp_path):
     assert result.question_outcomes[0].reason == "change_context_incomplete"
 
 
-def scan_with_layout(tmp_path, *, vendor=False, symlink=False, second_language=False):
+def scan_with_layout(tmp_path, *, vendor=False, symlink=False, second_language=False, unnamed_census=False):
     """Exercise the real partition boundaries rather than injecting a reason."""
     (tmp_path / "source.php").write_text("readable\n")
     if vendor:
@@ -247,7 +247,7 @@ def scan_with_layout(tmp_path, *, vendor=False, symlink=False, second_language=F
     return scan_repository(
         tmp_path,
         [region("source.php", "php")],
-        backend=Backend({"source.php": rows}),
+        backend=_CensusGapBackend(None, evidence={"source.php": rows}) if unnamed_census else Backend({"source.php": rows}),
         change_context=context(),
     )
 
@@ -259,17 +259,24 @@ def test_a_declared_vendor_exclusion_does_not_invalidate_a_first_party_answer(tm
     assert result.question_outcomes[0].status == "completed"
 
 
-def test_an_unresolved_symlink_still_demotes_the_answer(tmp_path):
+def test_a_skipped_symlink_is_owned_by_its_own_path(tmp_path):
+    """alerta's one symlink, `alerta/app.wsgi` -- not even source -- made all 261 questions unresolved. The link
+    is skipped, so the graph is incomplete about THAT path; an answer about a file it read is still an answer.
+    The boundary stays reported, and it names the path."""
     result = scan_with_layout(tmp_path, symlink=True)
     assert "symlink_context_unresolved" in result.scope.unresolved_boundaries
-    assert result.question_outcomes[0].status == "unresolved"
-    assert result.question_outcomes[0].reason == "graph_incomplete"
+    gap = [d for d in result.degradations if d.get("reason") == "symlink_context_unresolved"]
+    assert gap and gap[0].get("owned_paths") == ["linked.php"], result.degradations
+    assert result.question_outcomes[0].status == "completed"
 
 
 def test_a_declared_exclusion_beside_an_integrity_failure_still_demotes(tmp_path):
-    result = scan_with_layout(tmp_path, vendor=True, symlink=True)
-    assert {"vendor_semantics_unresolved", "symlink_context_unresolved"} <= set(result.scope.unresolved_boundaries)
+    """A vendor exclusion must not mask a real integrity failure: a census gap naming no file reaches its
+    whole partition, excluded dependencies or not."""
+    result = scan_with_layout(tmp_path, vendor=True, unnamed_census=True)
+    assert {"vendor_semantics_unresolved", "partition_file_census_unavailable"} <= set(result.scope.unresolved_boundaries)
     assert result.question_outcomes[0].status == "unresolved"
+    assert result.question_outcomes[0].reason == "graph_incomplete"
 
 
 class FamilyBackend(Backend):

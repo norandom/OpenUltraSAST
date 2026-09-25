@@ -192,11 +192,18 @@ def test_missing_graph_files_disable_safe_pruning_and_completion(tmp_path):
             cpg.unparsed = ("missing.py",)
             return cpg
 
-    result = scan_repository(source(tmp_path, "a.py"), [region("a.py")], backend=Partial({"a.py": vector(False)}), ranking_mode="evidence")
-    assert len(result.scope.selected) == 1
+    result = scan_repository(
+        source(tmp_path, "a.py", "missing.py"),
+        [region("a.py"), region("missing.py")],
+        backend=Partial({"a.py": vector(False), "missing.py": vector(False)}),
+        ranking_mode="evidence",
+    )
+    # Pruning stays off: the unparsed file may hold the very sink a vector did not see.
+    assert len(result.scope.selected) == 2
     assert result.scope.deferred == ()
-    assert result.question_outcomes[0].status == "unresolved"
-    assert result.family_coverage[0].completed == 0
+    # Completion is owned by the file: the unparsed one is unresolved, the one the graph read is answered.
+    status = {o.identity.path: o.status for o in result.question_outcomes}
+    assert status == {"a.py": "completed", "missing.py": "unresolved"}, status
 
 
 def test_cli_sample_uses_deferred_order_not_scanned_count(tmp_path):
@@ -433,3 +440,16 @@ def test_a_census_gap_that_names_no_file_still_reaches_its_partition(tmp_path):
     regions = [region("app.py", "python"), region("other.py", "python")]
     result = scan_repository(root, regions, backend=_CensusGapBackend(None, evidence=evidence), population_complete=True)
     assert all(o.status == "unresolved" for o in result.question_outcomes), [(o.status, o.reason) for o in result.question_outcomes]
+
+
+def test_a_language_no_frontend_reads_demotes_only_its_own_questions(tmp_path):
+    """wger's Python questions all went unresolved because the repository also holds files of a language no
+    frontend reads. That gap is about THAT language; it is reported, and it names the language."""
+    root = source(tmp_path, "app.py")
+    (tmp_path / "tools").mkdir()
+    (tmp_path / "tools" / "main.go").write_text("package main\n")
+    result = scan_repository(root, [region("app.py")], backend=Backend({"app.py": vector()}), population_complete=True)
+    gap = [d for d in result.degradations if d.get("reason") == "frontend_unsupported"]
+    assert gap and gap[0].get("census_language") == "go", result.degradations
+    assert "frontend_unsupported" in result.scope.unresolved_boundaries
+    assert result.question_outcomes[0].status == "completed", result.question_outcomes

@@ -51,6 +51,10 @@ class PartitionGraph:
         self.path_languages: dict[str, str] = {}
         self.partitions: tuple[PartitionCoverage, ...] = ()
         self.boundaries: tuple[str, ...] = ()
+        # What each boundary is ABOUT, where that is known: the paths a symlink boundary skipped (a directory
+        # ends in `/`) and the languages no frontend reads. A boundary absent from both reaches everything.
+        self.boundary_paths: dict[str, tuple[str, ...]] = {}
+        self.boundary_languages: dict[str, tuple[str, ...]] = {}
         self.unparsed: tuple[str, ...] = ()
         self.cpg_path = Path("partitioned-cpg")
 
@@ -167,6 +171,8 @@ def build_partitions(
     graph = PartitionGraph(budget)
     paths: dict[str, list[Path]] = {}
     boundaries: set[str] = set()
+    owned_paths: dict[str, set[str]] = {}
+    owned_languages: dict[str, set[str]] = {}
     excluded: set[str] = set()
     facts = layout_facts()
     root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
@@ -192,6 +198,8 @@ def build_partitions(
                 if path.is_symlink() or is_vendored(relative + "/", facts):
                     excluded.add(relative + "/")
                     boundaries.add("symlink_context_unresolved" if path.is_symlink() else "vendor_semantics_unresolved")
+                    if path.is_symlink():
+                        owned_paths.setdefault("symlink_context_unresolved", set()).add(relative + "/")
                     dirs.remove(name)
             for name in files:
                 if budget is not None and time.monotonic() >= budget.deadline_monotonic:
@@ -206,6 +214,7 @@ def build_partitions(
                 if path.is_symlink() or not path.is_file():
                     excluded.add(relative)
                     boundaries.add("symlink_context_unresolved")
+                    owned_paths.setdefault("symlink_context_unresolved", set()).add(relative)
                     continue
                 language = LANGUAGE_BY_EXTENSION.get(path.suffix.lower(), "unknown")
                 if language == "unknown":
@@ -234,6 +243,7 @@ def build_partitions(
             if frontend is None:
                 records.append(PartitionCoverage(language, None, relative_paths, 0, "unsupported", ("frontend_unsupported",)))
                 boundaries.add("frontend_unsupported")
+                owned_languages.setdefault("frontend_unsupported", set()).add(language)
                 continue
             scratch = Path(tempfile.mkdtemp(prefix="ousast-input-"))
             graph.roots[language] = scratch
@@ -283,6 +293,8 @@ def build_partitions(
             for record in records
         )
         graph.boundaries = tuple(sorted(boundaries))
+        graph.boundary_paths = {reason: tuple(sorted(paths)) for reason, paths in owned_paths.items()}
+        graph.boundary_languages = {reason: tuple(sorted(languages)) for reason, languages in owned_languages.items()}
         return graph
     except BaseException:
         graph.cleanup()

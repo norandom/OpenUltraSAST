@@ -247,7 +247,7 @@ def _scan_repository_impl(
             execution_budget,
             {path: tuple(sorted(languages)) for path, languages in declarations.items()},
         )
-        degradations.extend({"stage": "model", "reason": reason} for reason in cpg.boundaries)
+        degradations.extend(_boundary_degradations(cpg))
     else:
         cpg = _build(backend, root, dominant, execution_budget=execution_budget)
     build_seconds = round(time.monotonic() - build_started, 2)
@@ -287,7 +287,14 @@ def _scan_repository_impl(
     if getattr(cpg, "unparsed", ()):  # a backend need not carry the field
         unparsed = tuple(cpg.unparsed)
         degradations.append(
-            {"stage": "model", "reason": "files_unparsed", "count": len(unparsed), "files": [Path(name).name for name in unparsed[:20]]}
+            {
+                "stage": "model",
+                "reason": "files_unparsed",
+                "count": len(unparsed),
+                "files": [Path(name).name for name in unparsed[:20]],
+                # Whole, so the gap can be owned by exactly these files.
+                "owned_paths": [str(name).removeprefix("./") for name in unparsed],
+            }
         )
 
     # Count calls here rather than reading a client's own meter: the budget is this driver's contract and
@@ -590,25 +597,31 @@ def _scan_repository_impl(
     # rule is now written in the design: a gap is owned by the narrowest scope that caused it.
     scoped_graph_gaps: dict[str, list[str]] = {}
     unscoped_graph_gaps: list[str] = []
-    # A census gap that NAMES its missing files is owned by those files. The first evaluation on untouched
-    # code (benchmarks/independent/results-v1.json) completed no question at all on eight of eleven projects,
-    # and on the ones traced the cause was this: `.eslintrc.js` and `webpack.config.js` absent from a
-    # JavaScript graph, a `contrib/apache/api.wsgi` shim absent from a Python graph, and every question of that
-    # language marked unresolved. A missing file makes the graph incomplete ABOUT that file; an answer about
-    # another file is still an answer, and the gap stays in the report as a boundary. A gap that names no files
-    # keeps its partition-wide reach, and one that names no partition reaches everything, as before.
-    file_owned_gaps: dict[str, set[str]] = {}
+    # A gap that NAMES what it is about is owned by exactly that. The first evaluation on untouched code
+    # (benchmarks/independent/results-v1.json) completed no question at all on eight of eleven projects, and
+    # the traced causes all had this shape: `.eslintrc.js` missing from a JavaScript graph, one symlinked
+    # `app.wsgi` that is not even source, one unparsed file, a Go directory in a Python project -- and every
+    # question of the language, or of the repository, marked unresolved. A missing, skipped or unparsed file
+    # makes the graph incomplete ABOUT that file (a skipped directory, about what is under it); a language no
+    # frontend reads, about that language. An answer about anything else is still an answer, and every gap
+    # stays in the report as a boundary. A gap that names nothing reaches its partition, or everything.
+    path_owned_gaps: set[str] = set()
     for item in degradations:
         if item.get("reason") not in GRAPH_INTEGRITY_GAPS:
             continue
         partition = str(item.get("census_language") or "")
-        absent_files = item.get("missing_file_names")
-        if partition and isinstance(absent_files, list) and absent_files and all(isinstance(name, str) for name in absent_files):
-            file_owned_gaps.setdefault(partition, set()).update(name.removeprefix("./") for name in absent_files)
+        named_paths = item.get("owned_paths") or (item.get("missing_file_names") if partition else None)
+        if isinstance(named_paths, list) and named_paths and all(isinstance(name, str) for name in named_paths):
+            path_owned_gaps.update(name.removeprefix("./") for name in named_paths)
         elif partition:
             scoped_graph_gaps.setdefault(partition, []).append(str(item["reason"]))
         else:
             unscoped_graph_gaps.append(str(item["reason"]))
+
+    def owns(path: str) -> bool:
+        path = path.removeprefix("./")
+        return path in path_owned_gaps or any(gap.endswith("/") and path.startswith(gap) for gap in path_owned_gaps)
+
     # A declared exclusion is a deliberate scope choice, not a failure to read the graph. It stays
     # in coverage, and whether a particular answer needed the excluded semantics is carried by that
     # question's own unresolved call destinations, not assumed for every answer in the repository.
@@ -636,12 +649,8 @@ def _scan_repository_impl(
             # own partition, and a question whose language the scan cannot place is treated as reached: an
             # unplaceable question is not evidence that the gap missed it.
             language = question.identity.language
-            reached = (
-                bool(unscoped_graph_gaps)
-                or bool(scoped_graph_gaps.get(language))
-                or question.identity.path.removeprefix("./") in file_owned_gaps.get(language, set())
-            )
-            if reached or ((scoped_graph_gaps or file_owned_gaps) and not language):
+            reached = bool(unscoped_graph_gaps) or bool(scoped_graph_gaps.get(language)) or owns(question.identity.path)
+            if reached or (scoped_graph_gaps and not language):
                 outcomes[rid] = replace(outcomes[rid], status="unresolved", reason="graph_incomplete")
     scope = replace(scope, unresolved_boundaries=tuple(dict.fromkeys((*scope.unresolved_boundaries, *graph_gaps, *declared_gaps))))
     ordered_outcomes = tuple(outcomes[q.identity.question_id] for q in scope.selected)
@@ -677,6 +686,23 @@ def _scan_repository_impl(
 # Reading the graph failed or produced something incomplete. An answer drawn from it cannot be
 # trusted, so a completed outcome is demoted.
 #
+def _boundary_degradations(cpg: Any) -> list[dict[str, Any]]:
+    """One degradation per boundary, carrying what it is about where the partition build recorded it: the
+    skipped paths of a symlink boundary, one entry per language no frontend reads. See the ownership rule in
+    `scan_repository`."""
+    paths = getattr(cpg, "boundary_paths", {}) or {}
+    languages = getattr(cpg, "boundary_languages", {}) or {}
+    out: list[dict[str, Any]] = []
+    for reason in cpg.boundaries:
+        if paths.get(reason):
+            out.append({"stage": "model", "reason": reason, "owned_paths": list(paths[reason])})
+        elif languages.get(reason):
+            out.extend({"stage": "model", "reason": reason, "census_language": language} for language in languages[reason])
+        else:
+            out.append({"stage": "model", "reason": reason})
+    return out
+
+
 # The test for membership is whether the gap could make a reported answer WRONG, not whether it cost
 # coverage. An unparsed file may hold the sanitizer that would have cleared a flow this scan reports,
 # so `files_unparsed` belongs here and demoting is the conservative reading. A missing file the
