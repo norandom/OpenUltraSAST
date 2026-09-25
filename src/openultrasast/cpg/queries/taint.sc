@@ -710,8 +710,11 @@
   def guardsIn(root: io.shiftleft.codepropertygraph.generated.nodes.AstNode, names: Set[String]): List[io.shiftleft.codepropertygraph.generated.nodes.Call] =
     if (guardNames.isEmpty) Nil
     else
+      // Only the TESTED value is validated -- the first argument: `in_array`'s needle, the URL a redirect check is
+      // given. PMPro's `in_array( 'E', $levels )` asks whether a constant is in `$levels`; with any argument
+      // counted, it discharged a flow through `$levels` itself.
       root.ast.isCall.l.filter(g => guardNames.contains(g.name)).filter { g =>
-        g.argument.l.exists(_.ast.exists {
+        g.argument.l.filter(_.argumentIndex == 1).exists(_.ast.exists {
           case i: io.shiftleft.codepropertygraph.generated.nodes.Identifier                       => names(i.name) || names(i.code.trim)
           case c: io.shiftleft.codepropertygraph.generated.nodes.Call if c.name == FIELD_ACCESS => names(c.code.trim)
           case _                                                                                 => false

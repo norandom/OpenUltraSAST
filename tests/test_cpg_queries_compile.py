@@ -1400,8 +1400,11 @@ def test_an_allowlist_check_guards_its_branch_and_its_ternary_arm(tmp_path: Path
         '  else { $o = " ORDER BY u.{$s} "; }\n'
         "  $o = apply_filters( 'sort', $o, $s );\n"
         '  return $wpdb->query( "SELECT 1 FROM t {$o}" ); }\n'
+        "function haystack() { global $wpdb; $l = $_POST['l'];\n"
+        "  if ( in_array( 'E', $l, true ) ) { return $wpdb->query( \"SELECT 1 FROM t WHERE u = {$l[0]}\" ); }\n"
+        "  return null; }\n"
     )
-    names = ("ternary", "wrong_arm", "branch", "else_branch", "stored_in_branch", "stored_in_else")
+    names = ("ternary", "wrong_arm", "branch", "else_branch", "stored_in_branch", "stored_in_else", "haystack")
     common = {
         "sources": ",".join(spec.sources),
         "sinks": ",".join(spec.sinks),
@@ -1413,4 +1416,4 @@ def test_an_allowlist_check_guards_its_branch_and_its_ternary_arm(tmp_path: Path
     }
     payload = _taint_rows(tmp_path, "php2cpg", {"app.php": app}, {n: {**common, "function": n} for n in names})
     reported = {n for n in names if _unsanitized(payload, n)}
-    assert reported == {"wrong_arm", "else_branch", "stored_in_else"}, {n: payload[n] for n in names}
+    assert reported == {"wrong_arm", "else_branch", "stored_in_else", "haystack"}, {n: payload[n] for n in names}
