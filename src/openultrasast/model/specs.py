@@ -124,6 +124,8 @@ class TaintSpec:
     origin_anchors: tuple[str, ...] = ()
     # The sanitizers that protect only a value inside a quoted literal (`esc_sql`); a subset of `sanitizers`.
     quoted_sanitizers: tuple[str, ...] = ()
+    # Checks that make a value safe where they held (see `SanitizerFact.guard`); never in `sanitizers`.
+    guards: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -257,7 +259,8 @@ def taint_specs(
             {f"{call}:{fact.value_arg if call in fact.returns else 0}" for fact in scoped.dispatches if fact.returns for call in fact.apply}
         )
     )
-    sanitizers = tuple(sorted({call for fact in scoped.sanitizers if not _is_shape(fact) for call in fact.calls}))
+    sanitizers = tuple(sorted({call for fact in scoped.sanitizers if not _is_shape(fact) and not fact.guard for call in fact.calls}))
+    guards = tuple(sorted({call for fact in scoped.sanitizers if fact.guard for call in fact.calls}))
     safe_shapes = tuple(sorted({call for fact in scoped.sanitizers if _is_shape(fact) for call in fact.calls}))
     quoted = tuple(sorted({call for fact in scoped.sanitizers if not _is_shape(fact) and fact.quoted_only for call in fact.calls}))
     by_family: dict[str, set[str]] = {}
@@ -290,6 +293,7 @@ def taint_specs(
             fixed_origin=family_id in fixed_origin,
             origin_anchors=tuple(sorted(anchors.get(family_id, ()))),
             quoted_sanitizers=quoted,
+            guards=guards,
         )
         for family_id, calls in sorted(by_family.items())
     }

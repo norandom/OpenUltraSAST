@@ -107,7 +107,8 @@
       traceS: String = "",
       fixedOriginS: String = "",
       originAnchorsS: String = "",
-      quotedSanitizersS: String = ""
+      quotedSanitizersS: String = "",
+      guardsS: String = ""
   ): List[ujson.Obj] = {
 
   // Word-boundary matching, never substring. `resolveUrl` contains `resolve`, so a bare-substring sanitizer
@@ -139,6 +140,7 @@
   val strictNames = sanitizerNames.filterNot(quotedOnly.contains)
   val quotedNames = sanitizerNames.filter(quotedOnly.contains)
   val stringBuilders = Set("<operator>.concat", "encaps", "<operator>.addition", "<operator>.formatString")
+  val guardNames = split(guardsS).toSet
   val boundedNames   = split(boundedS)
 
   // A relational comparison against an integer literal: `len > 250`, `n <= sizeof(buf)`. Equality and null
@@ -688,8 +690,122 @@
         }
     }
 
+  // A GUARD is a check, not a transformation, so it is judged by WHERE the flow is relative to it:
+  //   * inside the branch its condition selects -- `if next_url and url_has_allowed_host_and_scheme(next_url)`
+  //     around the redirect, `elseif (in_array($sortby, $allowed, true)) { ... }` around the query;
+  //   * past it, when its failure exits or overwrites the value -- `if not ...(next_url): next_url = reverse(..)`
+  //     -- and the check dominates the end of the flow;
+  //   * through the arm of a ternary it selects -- `in_array(strtoupper($o), ['ASC','DESC'], true) ? $o : 'ASC'`.
+  // The guard must test a variable the path itself carries. Polarity is read off the condition: a positive
+  // guard sits under nothing but `&&`; a failure test is exactly one `!` under nothing but `||`.
+  val exitCalls = Set("exit", "die", "wp_die", "abort", "<operator>.throw")
+
+  def carried(elements: List[io.shiftleft.codepropertygraph.generated.nodes.AstNode]): Set[String] =
+    elements.flatMap {
+      case i: io.shiftleft.codepropertygraph.generated.nodes.Identifier => List(i.name, i.code.trim)
+      case c: io.shiftleft.codepropertygraph.generated.nodes.Call if c.name == FIELD_ACCESS => List(c.code.trim)
+      case _ => Nil
+    }.toSet
+
+  def guardsIn(root: io.shiftleft.codepropertygraph.generated.nodes.AstNode, names: Set[String]): List[io.shiftleft.codepropertygraph.generated.nodes.Call] =
+    if (guardNames.isEmpty) Nil
+    else
+      root.ast.isCall.l.filter(g => guardNames.contains(g.name)).filter { g =>
+        g.argument.l.exists(_.ast.exists {
+          case i: io.shiftleft.codepropertygraph.generated.nodes.Identifier                       => names(i.name) || names(i.code.trim)
+          case c: io.shiftleft.codepropertygraph.generated.nodes.Call if c.name == FIELD_ACCESS => names(c.code.trim)
+          case _                                                                                 => false
+        })
+      }
+
+  // Some(true): the guard holds wherever the condition does. Some(false): the condition says it FAILED.
+  def polarity(g: io.shiftleft.codepropertygraph.generated.nodes.AstNode, root: io.shiftleft.codepropertygraph.generated.nodes.AstNode): Option[Boolean] = {
+    var node = g
+    var nots, ands, ors = 0
+    var other = false
+    while (node.id != root.id && !other) {
+      node._astIn.nextOption() match {
+        case Some(parent: io.shiftleft.codepropertygraph.generated.nodes.Call) =>
+          parent.name match {
+            case "<operator>.logicalNot" => nots += 1
+            case "<operator>.logicalAnd" => ands += 1
+            case "<operator>.logicalOr"  => ors += 1
+            case _                       => other = true
+          }
+          node = parent
+        case Some(parent: io.shiftleft.codepropertygraph.generated.nodes.AstNode) if parent.id == root.id => node = parent
+        case _ => other = true
+      }
+    }
+    if (other) None
+    else if (nots == 0 && ors == 0) Some(true)
+    else if (nots == 1 && ands == 0) Some(false)
+    else None
+  }
+
+  def branches(cs: io.shiftleft.codepropertygraph.generated.nodes.ControlStructure) = {
+    val children = cs.astChildren.l.sortBy(_.order)
+    (children.find(_.order == 2), children.find(_.order == 3))
+  }
+
+  def contains(root: io.shiftleft.codepropertygraph.generated.nodes.AstNode, node: io.shiftleft.codepropertygraph.generated.nodes.AstNode) =
+    root.id == node.id || root.ast.exists(_.id == node.id)
+
+  def guarded(elements: List[io.shiftleft.codepropertygraph.generated.nodes.AstNode]): Boolean =
+    guardNames.nonEmpty && elements.nonEmpty && {
+      val names = carried(elements)
+      val end = elements.last
+      val ternary = elements.indices.exists { k =>
+        elements(k) match {
+          // The engine may enter through the CONDITION's own copy of the value (`in_array(strtoupper($o), ..)`),
+          // which never becomes the result. What the ternary can return is its arms; with the check holding on
+          // the carried value and the other arm unable to carry it, the result is the checked value or a constant.
+          case c: io.shiftleft.codepropertygraph.generated.nodes.Call if k > 0 && c.name == "<operator>.conditional" =>
+            val args = c.argument.l
+            def carries(arm: io.shiftleft.codepropertygraph.generated.nodes.AstNode) = arm.ast.exists {
+              case i: io.shiftleft.codepropertygraph.generated.nodes.Identifier                       => names(i.name) || names(i.code.trim)
+              case f: io.shiftleft.codepropertygraph.generated.nodes.Call if f.name == FIELD_ACCESS => names(f.code.trim)
+              case _                                                                                 => false
+            }
+            argumentHolding(c, elements(k - 1)).exists(a => a.argumentIndex == 1 || a.argumentIndex == 2) &&
+              args.find(_.argumentIndex == 1).exists(cond => guardsIn(cond, names).exists(g => polarity(g, cond).contains(true))) &&
+              !args.find(_.argumentIndex == 3).exists(carries)
+          case _ => false
+        }
+      }
+      ternary || (end match {
+        case cfg: io.shiftleft.codepropertygraph.generated.nodes.CfgNode =>
+          val method = cfg.method
+          method.ast.isControlStructure.controlStructureType("IF").l.exists { cs =>
+            cs.condition.l.headOption.exists { cond =>
+              val checks = guardsIn(cond, names)
+              checks.nonEmpty && {
+                val (whenTrue, _) = branches(cs)
+                val inside = whenTrue.exists(b => contains(b, end)) && checks.exists(g => polarity(g, cond).contains(true))
+                inside || (checks.exists(g => polarity(g, cond).contains(false)) && whenTrue.exists { b =>
+                  val bails = b.ast.exists {
+                    case _: io.shiftleft.codepropertygraph.generated.nodes.Return => true
+                    case c: io.shiftleft.codepropertygraph.generated.nodes.Call    => exitCalls.contains(c.name)
+                    case _                                                          => false
+                  }
+                  val overwrites = b.ast.isCall.nameExact(ASSIGNMENT).l.exists(_.argument.l.find(_.argumentIndex == 1).exists {
+                    case i: io.shiftleft.codepropertygraph.generated.nodes.Identifier => names(i.name) || names(i.code.trim)
+                    case _                                                             => false
+                  })
+                  (bails || overwrites) && !contains(cs, end) && (cond match {
+                    case c: io.shiftleft.codepropertygraph.generated.nodes.CfgNode => cfg.dominatedBy.exists(_.id == c.id)
+                    case _                                                          => false
+                  })
+                })
+              }
+            }
+          }
+        case _ => false
+      })
+    }
+
   def cleansed(elements: List[io.shiftleft.codepropertygraph.generated.nodes.AstNode]): Boolean =
-    elements.exists(node => sanitizesHere(node, strictNames)) || sanitizedBetween(elements, strictNames) ||
+    guarded(elements) || elements.exists(node => sanitizesHere(node, strictNames)) || sanitizedBetween(elements, strictNames) ||
       (quotedNames.nonEmpty && elements.indices.exists { k =>
         (sanitizesHere(elements(k), quotedNames) ||
           (k + 1 < elements.size && wrappedBetween(elements(k), elements(k + 1), quotedNames))) && landsQuoted(elements, k + 1)
@@ -1278,7 +1394,7 @@
       .map { flow =>
         val path       = spliced(flow.elements.l)
         val elements   = path.map(_.code)
-        val sanitized  = sanitizerNames.nonEmpty && cleansed(path)
+        val sanitized  = (sanitizerNames.nonEmpty || guardNames.nonEmpty) && cleansed(path)
         val sourceKind = sourceKindOf(path.headOption)
         ((sourceKind, elements.headOption.getOrElse("").take(200), sanitized), (elements.size, flow))
       }
@@ -1387,7 +1503,8 @@
           field("trace"),
           field("fixedOrigin"),
           field("originAnchors"),
-          field("quotedSanitizers")
+          field("quotedSanitizers"),
+          field("guards")
         ): _*
       )
       println(ujson.write(ujson.Obj("id" -> id, "rows" -> rows, "ms" -> ((System.nanoTime() - started) / 1000000L).toDouble)))

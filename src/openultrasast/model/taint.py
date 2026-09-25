@@ -63,6 +63,7 @@ def request_params(
         "fixedOrigin": "true" if spec.fixed_origin else "false",
         "originAnchors": spec.origin_anchors,
         "quotedSanitizers": spec.quoted_sanitizers,
+        "guards": spec.guards,
     }
 
 

@@ -138,3 +138,10 @@ rule_ids = []
 # Django's `reverse` builds an in-site path from a route NAME; request data can only fill its path segments.
 prefix_fixes_origin = true
 origin_anchors = ["reverse", "reverse_lazy"]
+
+# Django's documented redirect-target check (`is_safe_url` is its pre-3.0 name). wger's fix for its open
+# redirect is `if not url_has_allowed_host_and_scheme(next_url, ...): next_url = reverse(...)`.
+[[sanitizer]]
+id = "url_allowlist"
+calls = ["url_has_allowed_host_and_scheme", "is_safe_url"]
+guard = true

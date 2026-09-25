@@ -60,6 +60,10 @@ class SanitizerFact:
     # An ESCAPE, not a cleansing: `esc_sql` backslashes quotes, which protects a value inside a quoted SQL
     # literal and nothing else. `ORDER BY u.{$sortby}` is Ultimate Member's CVE-2024-1071, escaped and injectable.
     quoted_only: bool = False
+    # A CHECK, not a transformation: `in_array($v, $allowed, true)`, `url_has_allowed_host_and_scheme(v)`. It
+    # makes a value safe only where it held -- inside the branch it guards, past an exit on its failure, or in
+    # the arm of a ternary it selects. Never a cleansing call on a path.
+    guard: bool = False
 
 
 @dataclass(frozen=True)
@@ -331,6 +335,7 @@ def _sanitizers(value: object, language: str, path: Path) -> list[SanitizerFact]
                 parameterized=bool(item.get("parameterized", False)),
                 literal_format_arg=literal if isinstance(literal, int) else None,
                 quoted_only=_flag(item.get("quoted_only"), "quoted_only", path, ident),
+                guard=_flag(item.get("guard"), "guard", path, ident),
             )
         )
     return rows

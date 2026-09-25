@@ -1281,3 +1281,125 @@ def test_a_source_pattern_is_a_token_not_a_prefix(tmp_path: Path) -> None:
     flows = {name: [r for r in payload[name] if isinstance(r, dict) and r.get("sourceKind")] for name in ("host", "parameter")}
     assert not flows["host"], f"request.get_host() was read as request.get: {flows['host']}"
     assert flows["parameter"], "the request parameter is no longer a source"
+
+
+def _taint_rows(tmp_path: Path, frontend_name: str, files: dict[str, str], requests: dict[str, dict]) -> dict:
+    from openultrasast.cpg.backend import extract_payload
+
+    frontend = __import__("shutil").which(frontend_name)
+    if frontend is None:
+        pytest.skip(f"{frontend_name} is not installed")
+    src = tmp_path / "src"
+    src.mkdir()
+    for name, text in files.items():
+        (src / name).write_text(text)
+    cpg = tmp_path / "cpg.bin"
+    built = subprocess.run([frontend, str(src), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
+    if not cpg.is_file():
+        pytest.skip(f"could not build a sample cpg: {(built.stderr or '')[-200:]}")
+    path = tmp_path / "requests.json"
+    path.write_text(json.dumps(requests))
+    done = subprocess.run(
+        [
+            _joern() or "joern",
+            "--script",
+            str((QUERIES / "taint.sc").resolve()),
+            "--param",
+            f"cpgFile={cpg}",
+            "--param",
+            f"requestsFile={path}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
+        cwd=str(tmp_path),
+    )
+    assert done.returncode == 0, (done.stderr or done.stdout or "")[-500:]
+    payload = extract_payload(done.stdout or "")
+    assert isinstance(payload, dict)
+    return payload
+
+
+def _unsanitized(payload: dict, name: str) -> list:
+    return [r for r in payload[name] if isinstance(r, dict) and r.get("sourceKind") and not r.get("sanitized")]
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_a_redirect_validator_guards_only_where_it_held(tmp_path: Path) -> None:
+    """wger's fix: `if not url_has_allowed_host_and_scheme(next_url, ...): next_url = reverse(...)`, and
+    `if next_url and url_has_allowed_host_and_scheme(next_url, ...): return HttpResponseRedirect(next_url)`.
+    The check guards where it held -- not a different variable, and not a failure that is only logged."""
+    from openultrasast.model.specs import taint_specs
+
+    spec = taint_specs(language="python")["untrusted_destination"]
+    assert "url_has_allowed_host_and_scheme" in spec.guards
+    views = (
+        "from django.http import HttpResponseRedirect\n"
+        "from django.utils.http import url_has_allowed_host_and_scheme\n\n"
+        "def overwritten(request):\n"
+        "    n = request.GET.get('next', '/')\n"
+        "    if not url_has_allowed_host_and_scheme(n, allowed_hosts=None):\n"
+        "        n = '/home'\n"
+        "    return HttpResponseRedirect(n)\n\n"
+        "def branch(request):\n"
+        "    n = request.GET.get('next')\n"
+        "    if n and url_has_allowed_host_and_scheme(n, allowed_hosts=None):\n"
+        "        return HttpResponseRedirect(n)\n"
+        "    return HttpResponseRedirect('/')\n\n"
+        "def unguarded(request):\n"
+        "    return HttpResponseRedirect(request.GET.get('next'))\n\n"
+        "def other_variable(request):\n"
+        "    n = request.GET.get('next')\n"
+        "    m = request.GET.get('back')\n"
+        "    if url_has_allowed_host_and_scheme(m, allowed_hosts=None):\n"
+        "        return HttpResponseRedirect(n)\n"
+        "    return HttpResponseRedirect('/')\n\n"
+        "def only_logged(request):\n"
+        "    n = request.GET.get('next')\n"
+        "    if not url_has_allowed_host_and_scheme(n, allowed_hosts=None):\n"
+        "        print('suspicious')\n"
+        "    return HttpResponseRedirect(n)\n"
+    )
+    names = ("overwritten", "branch", "unguarded", "other_variable", "only_logged")
+    common = {"sources": ",".join(spec.sources), "sinks": ",".join(spec.sinks), "guards": ",".join(spec.guards), "file": "views.py"}
+    payload = _taint_rows(tmp_path, "pysrc2cpg", {"views.py": views}, {n: {**common, "function": n} for n in names})
+    reported = {n for n in names if _unsanitized(payload, n)}
+    assert reported == {"unguarded", "other_variable", "only_logged"}, {n: payload[n] for n in names}
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_an_allowlist_check_guards_its_branch_and_its_ternary_arm(tmp_path: Path) -> None:
+    """Ultimate Member's CVE-2024-1071 fix: `in_array( strtoupper( $order ), array( 'ASC', 'DESC' ), true ) ?
+    $order : 'ASC'` and `elseif ( in_array( $sortby, $core, true ) ) { ... }`. The unguarded `else`, and the
+    arm of a ternary the check does NOT select, stay reported."""
+    from openultrasast.model.specs import taint_specs
+
+    spec = taint_specs(language="php")["injection"]
+    assert "in_array" in spec.guards and "in_array" not in spec.sanitizers
+    app = (
+        "<?php\n"
+        "function ternary() { global $wpdb; $o = $_POST['o'];\n"
+        "  $o = in_array( strtoupper( $o ), array( 'ASC', 'DESC' ), true ) ? $o : 'ASC';\n"
+        '  return $wpdb->query( "SELECT 1 FROM t ORDER BY a {$o}" ); }\n'
+        "function wrong_arm() { global $wpdb; $o = $_POST['o'];\n"
+        "  $o = in_array( $o, array( 'ASC', 'DESC' ), true ) ? 'ASC' : $o;\n"
+        '  return $wpdb->query( "SELECT 1 FROM t ORDER BY a {$o}" ); }\n'
+        "function branch() { global $wpdb; $s = $_POST['s']; $core = array( 'login' );\n"
+        '  if ( in_array( $s, $core, true ) ) { return $wpdb->query( "SELECT 1 FROM t ORDER BY u.{$s}" ); }\n'
+        "  return null; }\n"
+        "function else_branch() { global $wpdb; $s = $_POST['s']; $core = array( 'login' );\n"
+        "  if ( in_array( $s, $core, true ) ) { return null; }\n"
+        '  else { return $wpdb->query( "SELECT 1 FROM t ORDER BY u.{$s}" ); } }\n'
+    )
+    names = ("ternary", "wrong_arm", "branch", "else_branch")
+    common = {
+        "sources": ",".join(spec.sources),
+        "sinks": ",".join(spec.sinks),
+        "sanitizers": ",".join(spec.sanitizers),
+        "guards": ",".join(spec.guards),
+        "file": "app.php",
+    }
+    payload = _taint_rows(tmp_path, "php2cpg", {"app.php": app}, {n: {**common, "function": n} for n in names})
+    reported = {n for n in names if _unsanitized(payload, n)}
+    assert reported == {"wrong_arm", "else_branch"}, {n: payload[n] for n in names}
