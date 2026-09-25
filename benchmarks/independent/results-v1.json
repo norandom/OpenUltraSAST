@@ -1,0 +1,581 @@
+{
+  "schema_version": 1,
+  "experiment": "independent-population-v1-evaluation",
+  "protocol": "protocol-v1.md",
+  "analyzer_commit": "ebcc2cf7fd847aa6ff7a5d08b6d9dce340f5ed4f",
+  "started": "2026-09-24T16:45:45+02:00",
+  "population": "population-v1.toml",
+  "summary": {
+    "recall": [
+      1,
+      11
+    ],
+    "recall_wilson95": [
+      0.016,
+      0.377
+    ],
+    "precision": [
+      1,
+      12
+    ],
+    "precision_wilson95": [
+      0.015,
+      0.354
+    ],
+    "fixed_side_alerts": 4,
+    "benign_alerts": 1,
+    "cases_with_zero_completed_questions_at_vulnerable_pin": [
+      "phpmyfaq-captcha-ua-sqli",
+      "yeswiki-bazar-form-sqli",
+      "signalk-remote-conn-ssrf",
+      "saltcorn-sync-sqli",
+      "mongo-express-bson-rce",
+      "mockoon-admin-api-cors",
+      "alerta-query-sqli",
+      "wger-next-open-redirect"
+    ]
+  },
+  "m4_gates": {
+    "precision>=0.95": false,
+    "recall>=0.90": false,
+    "completion>=0.95": false,
+    "zero_fixed_or_benign_alerts": false
+  },
+  "reading": "The first measurement on untouched code fails every M4 gate. One of eleven targets is detected (Signal K's SSRF), eleven of twelve reported findings are false, and four fixed-side and one benign false alerts are raised. The dominant cause is not precision but coverage: at the vulnerable pin eight of eleven cases completed no question at all (Saltcorn asked none), so most targets were never decided. That is the first thing to investigate; nothing here may inform a change before this record is committed.",
+  "cases": [
+    {
+      "id": "wp-ultimate-member-sqli",
+      "family": "injection",
+      "language": "php",
+      "detected": false,
+      "detected_sites": [],
+      "unanswered": false,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "completion": {
+        "vulnerable": [
+          76,
+          303
+        ],
+        "fixed": [
+          76,
+          303
+        ],
+        "benign_base": [
+          71,
+          229
+        ],
+        "benign_tip": [
+          71,
+          229
+        ]
+      },
+      "seconds": {
+        "vulnerable": 215.8,
+        "fixed": 218.0,
+        "benign_base": 199.3,
+        "benign_tip": 202.8
+      }
+    },
+    {
+      "id": "wp-learnpress-sqli",
+      "family": "injection",
+      "language": "php",
+      "detected": false,
+      "detected_sites": [],
+      "unanswered": false,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "completion": {
+        "vulnerable": [
+          4815,
+          5000
+        ],
+        "fixed": [
+          4815,
+          5000
+        ],
+        "benign_base": [
+          4815,
+          5000
+        ],
+        "benign_tip": [
+          4815,
+          5000
+        ]
+      },
+      "seconds": {
+        "vulnerable": 414.2,
+        "fixed": 470.5,
+        "benign_base": 418.1,
+        "benign_tip": 467.7
+      }
+    },
+    {
+      "id": "phpmyfaq-captcha-ua-sqli",
+      "family": "injection",
+      "language": "php",
+      "detected": false,
+      "detected_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "completion": {
+        "vulnerable": [
+          0,
+          5000
+        ],
+        "fixed": [
+          0,
+          5000
+        ],
+        "benign_base": [
+          0,
+          5000
+        ],
+        "benign_tip": [
+          0,
+          5000
+        ]
+      },
+      "seconds": {
+        "vulnerable": 437.7,
+        "fixed": 426.2,
+        "benign_base": 416.4,
+        "benign_tip": 425.7
+      }
+    },
+    {
+      "id": "yeswiki-bazar-form-sqli",
+      "family": "injection",
+      "language": "php",
+      "detected": false,
+      "detected_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "completion": {
+        "vulnerable": [
+          0,
+          1128
+        ],
+        "fixed": [
+          0,
+          1128
+        ],
+        "benign_base": [
+          0,
+          1128
+        ],
+        "benign_tip": [
+          0,
+          1128
+        ]
+      },
+      "seconds": {
+        "vulnerable": 334.9,
+        "fixed": 306.9,
+        "benign_base": 304.3,
+        "benign_tip": 305.3
+      }
+    },
+    {
+      "id": "signalk-remote-conn-ssrf",
+      "family": "untrusted_destination",
+      "language": "typescript",
+      "detected": true,
+      "detected_sites": [
+        "src/serverroutes.ts:2506:<lambda>1"
+      ],
+      "unanswered": false,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [
+        "src/serverroutes.ts:2577:<lambda>1"
+      ],
+      "completion": {
+        "vulnerable": [
+          0,
+          525
+        ],
+        "fixed": [
+          0,
+          529
+        ],
+        "benign_base": [
+          0,
+          533
+        ],
+        "benign_tip": [
+          0,
+          533
+        ]
+      },
+      "seconds": {
+        "vulnerable": 313.3,
+        "fixed": 319.5,
+        "benign_base": 334.3,
+        "benign_tip": 315.4
+      }
+    },
+    {
+      "id": "saltcorn-sync-sqli",
+      "family": "injection",
+      "language": "javascript",
+      "detected": false,
+      "detected_sites": [],
+      "unanswered": true,
+      "instrument_errors": {
+        "vulnerable": "no question was asked",
+        "fixed": "no question was asked",
+        "benign_base": "no question was asked",
+        "benign_tip": "no question was asked"
+      },
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "completion": {
+        "vulnerable": [
+          null,
+          0
+        ],
+        "fixed": [
+          null,
+          0
+        ],
+        "benign_base": [
+          null,
+          0
+        ],
+        "benign_tip": [
+          null,
+          0
+        ]
+      },
+      "seconds": {
+        "vulnerable": null,
+        "fixed": null,
+        "benign_base": null,
+        "benign_tip": null
+      }
+    },
+    {
+      "id": "mongo-express-bson-rce",
+      "family": "injection",
+      "language": "javascript",
+      "detected": false,
+      "detected_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [
+        "lib/bson.js:32:toString",
+        "lib/bson.js:8:toBSON"
+      ],
+      "benign_alerts": [],
+      "completion": {
+        "vulnerable": [
+          0,
+          40
+        ],
+        "fixed": [
+          0,
+          39
+        ],
+        "benign_base": [
+          0,
+          39
+        ],
+        "benign_tip": [
+          0,
+          39
+        ]
+      },
+      "seconds": {
+        "vulnerable": 47.9,
+        "fixed": 48.5,
+        "benign_base": 47.5,
+        "benign_tip": 50.3
+      }
+    },
+    {
+      "id": "mockoon-admin-api-cors",
+      "family": "config_secrets",
+      "language": "typescript",
+      "detected": false,
+      "detected_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "completion": {
+        "vulnerable": [
+          0,
+          450
+        ],
+        "fixed": [
+          0,
+          453
+        ],
+        "benign_base": [
+          0,
+          453
+        ],
+        "benign_tip": [
+          0,
+          453
+        ]
+      },
+      "seconds": {
+        "vulnerable": 150.9,
+        "fixed": 158.5,
+        "benign_base": 146.4,
+        "benign_tip": 144.7
+      }
+    },
+    {
+      "id": "alerta-query-sqli",
+      "family": "injection",
+      "language": "python",
+      "detected": false,
+      "detected_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "completion": {
+        "vulnerable": [
+          0,
+          261
+        ],
+        "fixed": [
+          0,
+          261
+        ],
+        "benign_base": [
+          0,
+          261
+        ],
+        "benign_tip": [
+          0,
+          261
+        ]
+      },
+      "seconds": {
+        "vulnerable": 114.8,
+        "fixed": 111.7,
+        "benign_base": 109.9,
+        "benign_tip": 112.9
+      }
+    },
+    {
+      "id": "wger-next-open-redirect",
+      "family": "untrusted_destination",
+      "language": "python",
+      "detected": false,
+      "detected_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [
+        "wger/core/views/languages.py:131:use_browser_language",
+        "wger/core/views/user.py:211:trainer_login"
+      ],
+      "benign_alerts": [],
+      "completion": {
+        "vulnerable": [
+          0,
+          683
+        ],
+        "fixed": [
+          0,
+          683
+        ],
+        "benign_base": [
+          0,
+          683
+        ],
+        "benign_tip": [
+          0,
+          683
+        ]
+      },
+      "seconds": {
+        "vulnerable": 156.5,
+        "fixed": 160.0,
+        "benign_base": 160.8,
+        "benign_tip": 164.7
+      }
+    },
+    {
+      "id": "opencve-notification-ssrf",
+      "family": "untrusted_destination",
+      "language": "python",
+      "detected": false,
+      "detected_sites": [],
+      "unanswered": false,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "completion": {
+        "vulnerable": [
+          14,
+          27
+        ],
+        "fixed": [
+          13,
+          26
+        ],
+        "benign_base": [
+          13,
+          26
+        ],
+        "benign_tip": [
+          13,
+          26
+        ]
+      },
+      "seconds": {
+        "vulnerable": 129.7,
+        "fixed": 132.4,
+        "benign_base": 144.3,
+        "benign_tip": 139.4
+      }
+    }
+  ],
+  "precision_review": [
+    {
+      "case": "signalk-remote-conn-ssrf",
+      "site": "src/index.ts:916:<lambda>6",
+      "family": "untrusted_destination",
+      "rung": "model_entailed",
+      "witness": "req.headers.host?.split(':')[0] -> res.redirect(`https://${host}:${redirectPort}${req.path}`) in src/index.ts (line 916, 5 steps)",
+      "reached_from": 1,
+      "verdict": "FP",
+      "fp_class": "not_attacker",
+      "reason": "HTTP->HTTPS redirect built from the request's own Host header, which a browser sets to the real target"
+    },
+    {
+      "case": "signalk-remote-conn-ssrf",
+      "site": "src/oidc/oidc-auth.ts:303:<lambda>2",
+      "family": "untrusted_destination",
+      "rung": "model_entailed",
+      "witness": "req.headers[\"x-forwarded-proto\"] -> res.redirect(authUrl) in src/oidc/oidc-auth.ts (line 303, 11 steps)",
+      "reached_from": 1,
+      "verdict": "FP",
+      "fp_class": "guarded",
+      "reason": "authorization URL from provider config; the request redirect is validated by isSafeRelativeUrl"
+    },
+    {
+      "case": "signalk-remote-conn-ssrf",
+      "site": "src/oidc/oidc-auth.ts:490:<lambda>6",
+      "family": "untrusted_destination",
+      "rung": "model_entailed",
+      "witness": "req.query.redirect -> res.redirect(postLogoutRedirect) in src/oidc/oidc-auth.ts (line 490, 22 steps)",
+      "reached_from": 1,
+      "verdict": "FP",
+      "fp_class": "guarded",
+      "reason": "postLogoutRedirect = isSafeRelativeUrl(req.query.redirect) ? ... : '/'"
+    },
+    {
+      "case": "signalk-remote-conn-ssrf",
+      "site": "src/oidc/oidc-auth.ts:501:<lambda>6",
+      "family": "untrusted_destination",
+      "rung": "model_entailed",
+      "witness": "req.query.redirect -> res.redirect(postLogoutRedirect) in src/oidc/oidc-auth.ts (line 501, 22 steps)",
+      "reached_from": 1,
+      "verdict": "FP",
+      "fp_class": "guarded",
+      "reason": "same isSafeRelativeUrl guard"
+    },
+    {
+      "case": "signalk-remote-conn-ssrf",
+      "site": "src/oidc/oidc-auth.ts:508:<lambda>6",
+      "family": "untrusted_destination",
+      "rung": "model_entailed",
+      "witness": "req.query.redirect -> res.redirect(postLogoutRedirect) in src/oidc/oidc-auth.ts (line 508, 22 steps)",
+      "reached_from": 1,
+      "verdict": "FP",
+      "fp_class": "guarded",
+      "reason": "same isSafeRelativeUrl guard"
+    },
+    {
+      "case": "signalk-remote-conn-ssrf",
+      "site": "src/serverroutes.ts:2506:<lambda>1",
+      "family": "untrusted_destination",
+      "rung": "model_entailed",
+      "witness": "req.body -> protocol.request(options, (response) => {\n      let data = ''\n      response.on('data', (chunk: string) => {\n        data += chunk\n      })\n      response.on('end', () => {\n        resolve({ status: r in src/serverroutes.ts (line 2506, 16 steps)",
+      "reached_from": 1,
+      "verdict": "TP",
+      "fp_class": "",
+      "reason": "the declared CVE-2026-55591 sink: req.body host/port to protocol.request, unauthenticated by default"
+    },
+    {
+      "case": "signalk-remote-conn-ssrf",
+      "site": "src/serverroutes.ts:457:<lambda>24",
+      "family": "untrusted_destination",
+      "rung": "model_entailed",
+      "witness": "(_tmp_69 = (req.headers?.host || '')\n      .split(':')[0]\n      .split('.')[0]).toLowerCase -> res.redirect(app.config.settings.landingPage || landingPage) in src/serverroutes.ts (line 457, 26 steps)",
+      "reached_from": 1,
+      "verdict": "FP",
+      "fp_class": "not_attacker",
+      "reason": "redirect target is the configured landing page; the Host header only selects nothing"
+    },
+    {
+      "case": "signalk-remote-conn-ssrf",
+      "site": "src/tokensecurity.ts:677:<lambda>5",
+      "family": "untrusted_destination",
+      "rung": "model_entailed",
+      "witness": "req.body.destination -> res.redirect(getSafeDestination(req.body.destination)) in src/tokensecurity.ts (line 677, 12 steps)",
+      "reached_from": 1,
+      "verdict": "FP",
+      "fp_class": "guarded",
+      "reason": "getSafeDestination allows only relative paths and rejects //"
+    },
+    {
+      "case": "yeswiki-bazar-form-sqli",
+      "site": "includes/entities/ConfigurationFile.php:69:load",
+      "family": "injection",
+      "rung": "model_entailed",
+      "witness": "$this->_file -> eval($content) in includes/entities/ConfigurationFile.php (line 69, 5 steps)",
+      "reached_from": 1,
+      "verdict": "FP",
+      "fp_class": "not_attacker",
+      "reason": "eval of the site's own configuration file"
+    },
+    {
+      "case": "yeswiki-bazar-form-sqli",
+      "site": "includes/services/DbService.php:46:initSqlConnection",
+      "family": "injection",
+      "rung": "model_entailed",
+      "witness": "$this->params -> mysqli_query($this->link, \"SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci\") in includes/services/DbService.php (line 46, 9 steps)",
+      "reached_from": 2,
+      "verdict": "FP",
+      "fp_class": "constant_query",
+      "reason": "the SQL text is a constant SET NAMES; taint reaches only the connection handle"
+    },
+    {
+      "case": "yeswiki-bazar-form-sqli",
+      "site": "setup/install.php:113:<global>",
+      "family": "injection",
+      "rung": "model_entailed",
+      "witness": "$_POST[\"config\"] -> mysqli_query($dblink, \"SET NAMES utf8mb4 COLLATE utf8mb4_general_ci\") in setup/install.php (line 113, 19 steps)",
+      "reached_from": 1,
+      "verdict": "FP",
+      "fp_class": "constant_query",
+      "reason": "constant SET NAMES; taint reaches only the connection handle"
+    },
+    {
+      "case": "yeswiki-bazar-form-sqli",
+      "site": "setup/install.php:54:<global>",
+      "family": "injection",
+      "rung": "model_entailed",
+      "witness": "$_POST[\"config\"] -> mysqli_query($dblink, \"CREATE DATABASE \" . $config[\"mysql_database\"]) in setup/install.php (line 54, 16 steps)",
+      "reached_from": 1,
+      "verdict": "FP",
+      "fp_class": "no_boundary",
+      "reason": "installer: whoever submits it must already supply the database password; borderline, counted false"
+    }
+  ]
+}
