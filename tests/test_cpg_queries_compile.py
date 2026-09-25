@@ -1092,3 +1092,139 @@ def test_a_destination_whose_origin_is_fixed_is_not_untrusted(tmp_path: Path) ->
     assert isinstance(payload, dict)
     reported = {name for name in names if any(isinstance(r, dict) and r.get("sink") and r.get("sourceKind") for r in payload[name])}
     assert reported == {"host", "bare", "slash"}, {name: payload[name] for name in names}
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_an_sql_escape_protects_only_a_quoted_value(tmp_path: Path) -> None:
+    """Ultimate Member CVE-2024-1071 is `$sortby = esc_sql(...)` built into `" ORDER BY u.{$sortby} "`: escaped,
+    unquoted, injectable, and read as sanitized. An escape inside quotes -- concatenated, interpolated, inline,
+    inside a LIKE pattern -- still cleanses; an unquoted identifier or number does not."""
+    from openultrasast.cpg.backend import extract_payload
+    from openultrasast.model.specs import taint_specs
+
+    frontend = __import__("shutil").which("php2cpg")
+    if frontend is None:
+        pytest.skip("php2cpg is not installed")
+    spec = taint_specs(language="php")["injection"]
+    assert "esc_sql" in spec.quoted_sanitizers, "the shipped esc_sql fact no longer says it is an escape"
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "app.php").write_text(
+        "<?php\n"
+        "function unquoted() { global $wpdb;\n"
+        "  $sortby = esc_sql( sanitize_text_field( $_POST['sorting'] ) );\n"
+        '  $order = " ORDER BY u.{$sortby} ASC ";\n'
+        '  return $wpdb->get_col( "SELECT ID FROM t {$order}" ); }\n'
+        "function numeric() { global $wpdb; $v = esc_sql( $_POST['v'] );\n"
+        '  return $wpdb->query( "DELETE FROM t WHERE id = " . $v ); }\n'
+        "function quoted() { global $wpdb; $v = esc_sql( $_POST['v'] );\n"
+        '  return $wpdb->query( "SELECT 1 FROM t WHERE a = \'" . $v . "\'" ); }\n'
+        "function quoted_inline() { global $wpdb;\n"
+        "  return $wpdb->query( \"SELECT 1 FROM t WHERE a = '\" . esc_sql( $_POST['v'] ) . \"' AND b = 1\" ); }\n"
+        "function interpolated() { global $wpdb; $v = esc_sql( $_POST['v'] );\n"
+        "  return $wpdb->query( \"SELECT 1 FROM t WHERE a = '{$v}'\" ); }\n"
+        "function like() { global $wpdb; $v = esc_sql( $_POST['v'] );\n"
+        '  return $wpdb->query( "SELECT 1 FROM t WHERE a LIKE \'%" . $v . "%\'" ); }\n'
+    )
+    cpg = tmp_path / "cpg.bin"
+    built = subprocess.run([frontend, str(src), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
+    if not cpg.is_file():
+        pytest.skip(f"could not build a sample cpg: {(built.stderr or '')[-200:]}")
+    common = {
+        "sources": "$_POST",
+        "sinks": "$wpdb->query,$wpdb->get_col",
+        "sanitizers": ",".join(spec.sanitizers),
+        "quotedSanitizers": ",".join(spec.quoted_sanitizers),
+        "file": "app.php",
+    }
+    names = ("unquoted", "numeric", "quoted", "quoted_inline", "interpolated", "like")
+    requests = tmp_path / "requests.json"
+    requests.write_text(json.dumps({name: {**common, "function": name} for name in names}))
+    done = subprocess.run(
+        [
+            _joern() or "joern",
+            "--script",
+            str((QUERIES / "taint.sc").resolve()),
+            "--param",
+            f"cpgFile={cpg}",
+            "--param",
+            f"requestsFile={requests}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
+        cwd=str(tmp_path),
+    )
+    assert done.returncode == 0, (done.stderr or done.stdout or "")[-500:]
+    payload = extract_payload(done.stdout or "")
+    assert isinstance(payload, dict)
+    flows = {name: [r for r in payload[name] if isinstance(r, dict) and r.get("sourceKind")] for name in names}
+    assert all(flows.values()), f"a flow was lost altogether: {flows}"
+    unsanitized = {name for name in names if any(not r.get("sanitized") for r in flows[name])}
+    assert unsanitized == {"unquoted", "numeric"}, flows
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_an_escaped_but_unquoted_field_is_object_state_that_carries_input(tmp_path: Path) -> None:
+    """The field join decided whether `$this->sql_order` carries request data by looking for ANY sanitizer name
+    on the path, so an `esc_sql` inside `" ORDER BY u.{$s} "` marked the field clean. On Ultimate Member that
+    was the only deterministic route to CVE-2024-1071: the engine's own path to the query changed run to run.
+    A field built from a QUOTED escape stays clean."""
+    from openultrasast.cpg.backend import extract_payload
+    from openultrasast.model.specs import taint_specs
+
+    frontend = __import__("shutil").which("php2cpg")
+    if frontend is None:
+        pytest.skip("php2cpg is not installed")
+    spec = taint_specs(language="php")["injection"]
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "dir.php").write_text(
+        "<?php\nclass Dir {\n  public $order = ''; public $where = '';\n"
+        "  function prepare_order() { $s = esc_sql( sanitize_text_field( $_POST['sorting'] ) );\n"
+        '    $this->order = " ORDER BY u.{$s} "; }\n'
+        "  function prepare_where() { $s = esc_sql( $_POST['name'] );\n"
+        "    $this->where = \" WHERE u.name = '{$s}' \"; }\n"
+        '  function members() { global $wpdb; return $wpdb->get_col( "SELECT ID FROM t u {$this->order}" ); }\n'
+        '  function named() { global $wpdb; return $wpdb->get_col( "SELECT ID FROM t u {$this->where}" ); }\n'
+        "}\n"
+    )
+    cpg = tmp_path / "cpg.bin"
+    built = subprocess.run([frontend, str(src), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
+    if not cpg.is_file():
+        pytest.skip(f"could not build a sample cpg: {(built.stderr or '')[-200:]}")
+    common = {
+        "sources": ",".join(spec.sources),
+        "sinks": ",".join(spec.sinks),
+        "sanitizers": ",".join(spec.sanitizers),
+        "quotedSanitizers": ",".join(spec.quoted_sanitizers),
+        "file": "dir.php",
+    }
+    requests = tmp_path / "requests.json"
+    requests.write_text(json.dumps({name: {**common, "function": name} for name in ("members", "named")}))
+    done = subprocess.run(
+        [
+            _joern() or "joern",
+            "--script",
+            str((QUERIES / "taint.sc").resolve()),
+            "--param",
+            f"cpgFile={cpg}",
+            "--param",
+            f"requestsFile={requests}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
+        cwd=str(tmp_path),
+    )
+    assert done.returncode == 0, (done.stderr or done.stdout or "")[-500:]
+    payload = extract_payload(done.stdout or "")
+    assert isinstance(payload, dict)
+    unsanitized = {
+        name: [r for r in payload[name] if isinstance(r, dict) and r.get("sourceKind") and not r.get("sanitized")]
+        for name in ("members", "named")
+    }
+    assert any("$this->order" in str(r.get("source")) for r in unsanitized["members"]), payload["members"]
+    assert not unsanitized["named"], f"a field built from a quoted escape was reported: {unsanitized['named']}"

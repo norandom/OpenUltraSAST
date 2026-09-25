@@ -122,6 +122,8 @@ class TaintSpec:
     # prefix (`reverse`). From the sink facts; only destination families set them.
     fixed_origin: bool = False
     origin_anchors: tuple[str, ...] = ()
+    # The sanitizers that protect only a value inside a quoted literal (`esc_sql`); a subset of `sanitizers`.
+    quoted_sanitizers: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -257,6 +259,7 @@ def taint_specs(
     )
     sanitizers = tuple(sorted({call for fact in scoped.sanitizers if not _is_shape(fact) for call in fact.calls}))
     safe_shapes = tuple(sorted({call for fact in scoped.sanitizers if _is_shape(fact) for call in fact.calls}))
+    quoted = tuple(sorted({call for fact in scoped.sanitizers if not _is_shape(fact) and fact.quoted_only for call in fact.calls}))
     by_family: dict[str, set[str]] = {}
     bounded: dict[str, set[str]] = {}
     fixed_origin: set[str] = set()
@@ -286,6 +289,7 @@ def taint_specs(
             dispatch_value=dispatch_value,
             fixed_origin=family_id in fixed_origin,
             origin_anchors=tuple(sorted(anchors.get(family_id, ()))),
+            quoted_sanitizers=quoted,
         )
         for family_id, calls in sorted(by_family.items())
     }

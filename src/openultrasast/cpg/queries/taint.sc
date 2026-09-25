@@ -106,7 +106,8 @@
       contextPathsS: String = "",
       traceS: String = "",
       fixedOriginS: String = "",
-      originAnchorsS: String = ""
+      originAnchorsS: String = "",
+      quotedSanitizersS: String = ""
   ): List[ujson.Obj] = {
 
   // Word-boundary matching, never substring. `resolveUrl` contains `resolve`, so a bare-substring sanitizer
@@ -132,6 +133,12 @@
   val sourcePatterns = split(sourcesS)
   val sinkNames      = split(sinksS)
   val sanitizerNames = split(sanitizersS)
+  // Escapes (`esc_sql`) among the sanitizers, and the calls that build a string a value can land in; see
+  // `cleansed`. Declared here because Scala forbids a forward reference across a value definition.
+  val quotedOnly  = split(quotedSanitizersS).toSet
+  val strictNames = sanitizerNames.filterNot(quotedOnly.contains)
+  val quotedNames = sanitizerNames.filter(quotedOnly.contains)
+  val stringBuilders = Set("<operator>.concat", "encaps", "<operator>.addition", "<operator>.formatString")
   val boundedNames   = split(boundedS)
 
   // A relational comparison against an integer literal: `len > 250`, `n <= sizeof(buf)`. Equality and null
@@ -370,6 +377,52 @@
       }
     }
 
+  // The engine is field-INSENSITIVE on the object: a write to `$this->sql_order` taints `$this`, and the path
+  // it reports can leave through the NEXT use of `$this` -- another field entirely -- and come back to
+  // `$this->sql_order` later. Ultimate Member's CVE-2024-1071 is exactly that: the ORDER BY built in
+  // `$this->sql_order` reaches the query, but the one path the engine gave went `$this` -> `$this->having` ->
+  // `esc_sql($this->having)` -> ... -> `$this->sql_order`, which `absorbedByObject` rightly cut and which
+  // credited an unrelated field's escape. Where a path leaves a field for ANOTHER field through the object and
+  // later reads the first field again -- on the path, or inside the sink's argument the path ends at -- the
+  // segment between is that detour, and it is spliced out. Only such a detour: an arbitrary loop may hold the
+  // field's own re-sanitisation.
+  def spliced(elements: List[io.shiftleft.codepropertygraph.generated.nodes.AstNode]): List[io.shiftleft.codepropertygraph.generated.nodes.AstNode] = {
+    def isField(node: io.shiftleft.codepropertygraph.generated.nodes.AstNode) = node match {
+      case c: io.shiftleft.codepropertygraph.generated.nodes.Call => c.name == "<operator>.fieldAccess"
+      case _                                                      => false
+    }
+    val detour = elements.indices.iterator.flatMap { k =>
+      elements(k) match {
+        case read: io.shiftleft.codepropertygraph.generated.nodes.Call
+            if k > 0 && read.name == "<operator>.fieldAccess" && objectHop(elements(k - 1)) =>
+          var j = k - 1
+          while (j >= 0 && objectHop(elements(j))) j -= 1
+          if (j < 0 || !isField(elements(j))) None
+          else {
+            val left = elements(j).asInstanceOf[io.shiftleft.codepropertygraph.generated.nodes.Call]
+            if (fieldOf(left) == fieldOf(read)) None
+            else
+              elements.indices.drop(k + 1).find(m => isField(elements(m)) && elements(m).code.trim == left.code.trim) match {
+                case Some(m) => Some(elements.take(j) ++ elements.drop(m))
+                case None =>
+                  // The path may never read the field again and reach the sink's argument by sibling hops
+                  // instead -- the query string that READS `$this->sql_order` is where it ends. A read of the
+                  // same field inside that last element is the rejoin.
+                  elements.lastOption.flatMap(last => last.ast.isCall.nameExact("<operator>.fieldAccess").find(_.code.trim == left.code.trim).map(r => (last, r))) match {
+                    case Some((last, r)) if r.id != last.id => Some(elements.take(j) ++ List(r, last))
+                    case _                                  => None
+                  }
+              }
+          }
+        case _ => None
+      }
+    }.nextOption()
+    detour match {
+      case Some(shorter) if shorter.size < elements.size => spliced(shorter)
+      case _                                             => elements
+    }
+  }
+
   // Per element, not per path: the same nodes recur across thousands of paths of one sink, and walking each
   // path's calls afresh cost one outlier request 101 s -> 160 s.
   val familySinkMemo = scala.collection.mutable.Map.empty[Long, Boolean]
@@ -415,14 +468,19 @@
   val concatenations = Set("<operator>.addition", "<operator>.assignmentPlus", "<operator>.formatString")
   val fixesOriginMemo = scala.collection.mutable.Map.empty[Long, Boolean]
 
-  def literalFixesOrigin(code: String): Boolean = {
-    // The literal's TEXT, without its quotes. With the closing quote left on, `"/"` read as `/"` and passed
-    // the path test -- and `"/" + x` is the protocol-relative `//evil.example`.
+  // A literal's TEXT: its code without the quotes, and without a Python string prefix.
+  def literalText(code: String): String = {
     val quoted = "(?s)^(?:[rRbBuUfF]{1,2})?(['\"`])(.*)\\1$".r
-    val text = code.trim match {
+    code.trim match {
       case quoted(_, inner) => inner
       case other            => other
     }
+  }
+
+  def literalFixesOrigin(code: String): Boolean = {
+    // The literal's TEXT, without its quotes. With the closing quote left on, `"/"` read as `/"` and passed
+    // the path test -- and `"/" + x` is the protocol-relative `//evil.example`.
+    val text = literalText(code)
     text.startsWith("?") || text.startsWith("#") || text.matches("(?s)^/[^/\\\\].*") || schemeHostThenPath.matcher(text).find()
   }
 
@@ -479,7 +537,7 @@
     }
 
   def plausible(flow: io.joern.dataflowengineoss.language.Path): Boolean = {
-    val elements = flow.elements.l
+    val elements = spliced(flow.elements.l)
     val throughSink = elements.dropRight(1).exists {
       case c: io.shiftleft.codepropertygraph.generated.nodes.Call if !c.name.startsWith("<operator") =>
         familySinkMemo.getOrElseUpdate(c.id, familySinkCall(c))
@@ -519,9 +577,124 @@
     if (objectBases.contains(base)) "" else reader.fullName
   }
 
+  // Does THIS path element cleanse the value flowing through it?
+  //
+  // The old test asked whether a sanitizer's name appeared anywhere in the element's source text, and that
+  // is wrong on exactly the shape WordPress writes. WP Statistics' vulnerable query is one concatenation:
+  //
+  //     "... " . (array_key_exists(...) ? "AND `uri` = '" . esc_sql($page_uri) . "'" : "")
+  //             . "AND `id` = {$current_page['id']}"
+  //
+  // `esc_sql` cleanses `$page_uri`. It does nothing whatsoever for `$current_page['id']`, which is the
+  // injectable value and CVE-2022-25148 -- but both live in one expression, so the concatenation node's
+  // code mentions `esc_sql` and the whole flow read as sanitized. A sibling's cleansing was being credited
+  // to its neighbour.
+  //
+  // So the element must BE the cleansing, not merely contain a mention of one:
+  //   * a call to the sanitizer -- by node name, or by its code opening with `name(`;
+  //   * the sanitizer named as a string literal, which is how `array_map('esc_sql', $status)` applies it and
+  //     is a form PMPro actually writes.
+  def sanitizesHere(node: io.shiftleft.codepropertygraph.generated.nodes.AstNode, names: List[String] = sanitizerNames): Boolean = {
+    val code = node.code
+    val byName = node match {
+      case call: io.shiftleft.codepropertygraph.generated.nodes.Call => names.exists(n => call.name == n)
+      case _                                                        => false
+    }
+    byName || names.exists(n => code.startsWith(n + "(") || code.contains("'" + n + "'") || code.contains("\"" + n + "\""))
+  }
+
+  // A sanitizer the value passes THROUGH between two path elements. The engine can step from a sanitizer's
+  // argument straight to the expression around the call -- `$params["id"]` inside
+  // `isset($params["id"]) ? intval($params["id"]) : null` went to the conditional, and `intval` itself was
+  // never an element -- so checking elements alone reported PMPro's integer-cast REST level id as an SQL
+  // injection. Where the next element CONTAINS the previous one, the syntax between them is what the value
+  // was wrapped in; a sanitizer there sanitized it. A sanitizer elsewhere in the expression does not count.
+  def sanitizedBetween(elements: List[io.shiftleft.codepropertygraph.generated.nodes.AstNode], names: List[String] = sanitizerNames): Boolean =
+    elements.zip(elements.drop(1)).exists { case (inner, outer) => wrappedBetween(inner, outer, names) }
+
+  def wrappedBetween(
+      inner: io.shiftleft.codepropertygraph.generated.nodes.AstNode,
+      outer: io.shiftleft.codepropertygraph.generated.nodes.AstNode,
+      names: List[String]
+  ): Boolean = {
+      var node: Option[io.shiftleft.codepropertygraph.generated.nodes.AstNode] = inner._astIn.nextOption() match {
+        case Some(parent: io.shiftleft.codepropertygraph.generated.nodes.AstNode) => Some(parent)
+        case _                                                                     => None
+      }
+      var wrapped = false
+      var reached = false
+      var depth   = 0
+      while (node.isDefined && !reached && depth < 8) {
+        val current = node.get
+        if (current.id == outer.id) reached = true
+        else {
+          if (sanitizesHere(current, names)) wrapped = true
+          node = current._astIn.nextOption() match {
+            case Some(parent: io.shiftleft.codepropertygraph.generated.nodes.AstNode) => Some(parent)
+            case _                                                                     => None
+          }
+          depth += 1
+        }
+      }
+      reached && wrapped
+  }
+
+  // An ESCAPE protects a value only inside a quoted literal. The credit is withdrawn where the first string the
+  // escaped value is built into leaves it OUTSIDE quotes: the literal text before it opens no quote.
+  // Ultimate Member's `$sortby = esc_sql(...); " ORDER BY u.{$sortby} "` read as sanitized, and is
+  // CVE-2024-1071. With no string built downstream the credit stays, as it always has.
+
+  // The literal text of `root` that precedes `holder`, walking nested string builders in argument order.
+  def textBefore(
+      root: io.shiftleft.codepropertygraph.generated.nodes.Call,
+      holder: io.shiftleft.codepropertygraph.generated.nodes.AstNode
+  ): String = {
+    val text = new StringBuilder
+    def walk(node: io.shiftleft.codepropertygraph.generated.nodes.AstNode): Boolean =
+      if (node.id == holder.id) true
+      else
+        node match {
+          case l: io.shiftleft.codepropertygraph.generated.nodes.Literal => text.append(literalText(l.code)); false
+          case c: io.shiftleft.codepropertygraph.generated.nodes.Call if stringBuilders.contains(c.name) =>
+            c.argument.l.sortBy(_.argumentIndex).exists(walk)
+          case _ => false
+        }
+    walk(root)
+    text.toString
+  }
+
+  def opensQuote(text: String): Boolean = {
+    val singles = text.count(_ == '\'')
+    val doubles = "\\\"".r.findAllMatchIn(text).size
+    singles % 2 == 1 || doubles % 2 == 1
+  }
+
+  def landsQuoted(elements: List[io.shiftleft.codepropertygraph.generated.nodes.AstNode], from: Int): Boolean =
+    elements.indices.drop(from).find { m =>
+      elements(m) match {
+        case c: io.shiftleft.codepropertygraph.generated.nodes.Call => m > 0 && stringBuilders.contains(c.name)
+        case _                                                      => false
+      }
+    } match {
+      case None => true
+      case Some(m) =>
+        val builder = elements(m).asInstanceOf[io.shiftleft.codepropertygraph.generated.nodes.Call]
+        argumentHolding(builder, elements(m - 1)) match {
+          case None         => true
+          case Some(holder) => opensQuote(textBefore(builder, holder))
+        }
+    }
+
+  def cleansed(elements: List[io.shiftleft.codepropertygraph.generated.nodes.AstNode]): Boolean =
+    elements.exists(node => sanitizesHere(node, strictNames)) || sanitizedBetween(elements, strictNames) ||
+      (quotedNames.nonEmpty && elements.indices.exists { k =>
+        (sanitizesHere(elements(k), quotedNames) ||
+          (k + 1 < elements.size && wrappedBetween(elements(k), elements(k + 1), quotedNames))) && landsQuoted(elements, k + 1)
+      })
+
   def fieldIsTainted(fileName: String, fieldCode: String, scope: String = ""): Boolean =
     fieldTaintMemo.getOrElseUpdate(
-      (sourcesS, fieldParamSrc, sanitizersS, fileName, scope + "|" + fieldCode), {
+      (sourcesS, fieldParamSrc, sanitizersS + "|" + quotedSanitizersS, fileName, scope + "|" + fieldCode), {
         val seeds = seedsIn(fileName)
         if (seeds.isEmpty) false
         else
@@ -539,7 +712,12 @@
                 // queries that way: the fixed side of its pair went from 1 finding to 13 without this,
                 // which is the pair no longer separating at all.
                 val flows = args(1).start.reachableByFlows(seeds.iterator).l.filter(plausible)
-                flows.exists(f => !f.elements.map(_.code).l.exists(code => mentionsToken(code, sanitizerNames)))
+                //
+                // Judged exactly as a flow's row is: an ESCAPE counts only where the value lands quoted. Ultimate
+                // Member builds `$this->sql_order = " ORDER BY u.{$sortby} "` from an `esc_sql`'d value, and a
+                // test for any sanitizer NAME on the path marked the field clean -- the one deterministic route
+                // to CVE-2024-1071, while the engine's own path to the query was a coin toss between runs.
+                flows.exists(f => !cleansed(spliced(f.elements.l)))
               case _ => false
             })
           }
@@ -687,7 +865,7 @@
                     case target: io.shiftleft.codepropertygraph.generated.nodes.Call if target.name == INDEX_ACCESS =>
                       val key = keyOf(target)
                       if (key.isEmpty) None
-                      else if (args(1).start.reachableByFlows(seeds.iterator).l.filter(plausible).exists(f => !f.elements.l.exists(sanitizesHere) && !sanitizedBetween(f.elements.l)))
+                      else if (args(1).start.reachableByFlows(seeds.iterator).l.filter(plausible).exists(f => !cleansed(spliced(f.elements.l))))
                         Some(key)
                       else None
                     case _ => None
@@ -787,62 +965,6 @@
     val operator = c.name.startsWith("<operator")
     c.name == n || (!operator && (mentionsToken(calleeText(c.code), List(n)) || fullNameMentions(c.methodFullName, n)))
   }
-
-  // Does THIS path element cleanse the value flowing through it?
-  //
-  // The old test asked whether a sanitizer's name appeared anywhere in the element's source text, and that
-  // is wrong on exactly the shape WordPress writes. WP Statistics' vulnerable query is one concatenation:
-  //
-  //     "... " . (array_key_exists(...) ? "AND `uri` = '" . esc_sql($page_uri) . "'" : "")
-  //             . "AND `id` = {$current_page['id']}"
-  //
-  // `esc_sql` cleanses `$page_uri`. It does nothing whatsoever for `$current_page['id']`, which is the
-  // injectable value and CVE-2022-25148 -- but both live in one expression, so the concatenation node's
-  // code mentions `esc_sql` and the whole flow read as sanitized. A sibling's cleansing was being credited
-  // to its neighbour.
-  //
-  // So the element must BE the cleansing, not merely contain a mention of one:
-  //   * a call to the sanitizer -- by node name, or by its code opening with `name(`;
-  //   * the sanitizer named as a string literal, which is how `array_map('esc_sql', $status)` applies it and
-  //     is a form PMPro actually writes.
-  def sanitizesHere(node: io.shiftleft.codepropertygraph.generated.nodes.AstNode): Boolean = {
-    val code = node.code
-    val byName = node match {
-      case call: io.shiftleft.codepropertygraph.generated.nodes.Call => sanitizerNames.exists(n => call.name == n)
-      case _                                                        => false
-    }
-    byName || sanitizerNames.exists(n => code.startsWith(n + "(") || code.contains("'" + n + "'") || code.contains("\"" + n + "\""))
-  }
-
-  // A sanitizer the value passes THROUGH between two path elements. The engine can step from a sanitizer's
-  // argument straight to the expression around the call -- `$params["id"]` inside
-  // `isset($params["id"]) ? intval($params["id"]) : null` went to the conditional, and `intval` itself was
-  // never an element -- so checking elements alone reported PMPro's integer-cast REST level id as an SQL
-  // injection. Where the next element CONTAINS the previous one, the syntax between them is what the value
-  // was wrapped in; a sanitizer there sanitized it. A sanitizer elsewhere in the expression does not count.
-  def sanitizedBetween(elements: List[io.shiftleft.codepropertygraph.generated.nodes.AstNode]): Boolean =
-    elements.zip(elements.drop(1)).exists { case (inner, outer) =>
-      var node: Option[io.shiftleft.codepropertygraph.generated.nodes.AstNode] = inner._astIn.nextOption() match {
-        case Some(parent: io.shiftleft.codepropertygraph.generated.nodes.AstNode) => Some(parent)
-        case _                                                                     => None
-      }
-      var wrapped = false
-      var reached = false
-      var depth   = 0
-      while (node.isDefined && !reached && depth < 8) {
-        val current = node.get
-        if (current.id == outer.id) reached = true
-        else {
-          if (sanitizesHere(current)) wrapped = true
-          node = current._astIn.nextOption() match {
-            case Some(parent: io.shiftleft.codepropertygraph.generated.nodes.AstNode) => Some(parent)
-            case _                                                                     => None
-          }
-          depth += 1
-        }
-      }
-      reached && wrapped
-    }
 
   // The candidate sink calls for a FAMILY do not depend on the region, and scanning every call in the graph
   // for each of 2,487 requests was a large share of what made a request cost seconds -- in evidence mode,
@@ -1032,7 +1154,7 @@
         scoped.map(m => m -> (if (labeledMethods.exists(_.id == m.id)) "entry" else "callee")) ++
           fieldFiles.toList.flatMap(f => methodsIn(f).filterNot(_.isExternal).map(_ -> "field")) ++
           callbacks.map(_ -> "hook") ++
-          scoped.filter(_.ast.l.exists(sanitizesHere)).map(_ -> "guard")
+          scoped.filter(_.ast.l.exists(node => sanitizesHere(node))).map(_ -> "guard")
       // ONLY THE CHANGED FILES are itemised when the driver says which they are. The consumer attaches a
       // location to a change only when the location's file is one the change touched, and discards every
       // other row after checking it names a real file with a sane extent. Itemised anyway, a request whose
@@ -1142,7 +1264,7 @@
     // for adjudication, where a witness naming only its two ends hid that PMPro's object-field findings
     // start at one field and end at another.
     def traced(flow: io.joern.dataflowengineoss.language.Path): ujson.Arr =
-      ujson.Arr.from(flow.elements.l.map { node =>
+      ujson.Arr.from(spliced(flow.elements.l).map { node =>
         val where = node match {
           case c: io.shiftleft.codepropertygraph.generated.nodes.CfgNode => c.method.filename.split("/").last + ":" + c.method.name
           case _                                                          => "?"
@@ -1151,9 +1273,10 @@
       })
     flows
       .map { flow =>
-        val elements   = flow.elements.map(_.code).l
-        val sanitized  = sanitizerNames.nonEmpty && (flow.elements.l.exists(node => sanitizesHere(node)) || sanitizedBetween(flow.elements.l))
-        val sourceKind = sourceKindOf(flow.elements.l.headOption)
+        val path       = spliced(flow.elements.l)
+        val elements   = path.map(_.code)
+        val sanitized  = sanitizerNames.nonEmpty && cleansed(path)
+        val sourceKind = sourceKindOf(path.headOption)
         ((sourceKind, elements.headOption.getOrElse("").take(200), sanitized), (elements.size, flow))
       }
       .groupBy(_._1)
@@ -1260,7 +1383,8 @@
           if (field("contextPaths").nonEmpty) field("contextPaths") else contextPaths,
           field("trace"),
           field("fixedOrigin"),
-          field("originAnchors")
+          field("originAnchors"),
+          field("quotedSanitizers")
         ): _*
       )
       println(ujson.write(ujson.Obj("id" -> id, "rows" -> rows, "ms" -> ((System.nanoTime() - started) / 1000000L).toDouble)))

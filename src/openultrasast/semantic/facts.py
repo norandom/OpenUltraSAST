@@ -57,6 +57,9 @@ class SanitizerFact:
     language: str
     parameterized: bool = False
     literal_format_arg: int | None = None
+    # An ESCAPE, not a cleansing: `esc_sql` backslashes quotes, which protects a value inside a quoted SQL
+    # literal and nothing else. `ORDER BY u.{$sortby}` is Ultimate Member's CVE-2024-1071, escaped and injectable.
+    quoted_only: bool = False
 
 
 @dataclass(frozen=True)
@@ -273,7 +276,7 @@ def _flag(value: object, field: str, path: Path, ident: str) -> bool:
     if value is None:
         return False
     if not isinstance(value, bool):
-        raise FactLoadError(f"{path} sink {ident} has a non-boolean {field}")
+        raise FactLoadError(f"{path} fact {ident} has a non-boolean {field}")
     return value
 
 
@@ -327,6 +330,7 @@ def _sanitizers(value: object, language: str, path: Path) -> list[SanitizerFact]
                 language=language,
                 parameterized=bool(item.get("parameterized", False)),
                 literal_format_arg=literal if isinstance(literal, int) else None,
+                quoted_only=_flag(item.get("quoted_only"), "quoted_only", path, ident),
             )
         )
     return rows
