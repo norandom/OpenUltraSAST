@@ -121,6 +121,12 @@
   def mentionsToken(code: String, tokens: List[String]): Boolean =
     tokens.exists(t => boundedPattern(t).matcher(code).find())
 
+  // A full name is not source text: a `-` in it is part of an npm package's name, never an operator.
+  // `require('mongodb-query-parser')` gives every call on the parser the full name `mongodb-query-parser...`,
+  // and read as code that mentions the SQL sink `query` -- mongo-express's fixed pin was reported twice for
+  // parsing a string with the very library its fix switched to.
+  def fullNameMentions(fullName: String, token: String): Boolean = mentionsToken(fullName.replace('-', '_'), List(token))
+
   val sourcePatterns = split(sourcesS)
   val sinkNames      = split(sinksS)
   val sanitizerNames = split(sanitizersS)
@@ -314,7 +320,7 @@
   def familySinkCall(node: io.shiftleft.codepropertygraph.generated.nodes.AstNode): Boolean = node match {
     case c: io.shiftleft.codepropertygraph.generated.nodes.Call if !c.name.startsWith("<operator") =>
       val callee = c.code.takeWhile(_ != '(')
-      sinkNames.exists(n => c.name == n || mentionsToken(callee, List(n)) || mentionsToken(c.methodFullName, List(n)))
+      sinkNames.exists(n => c.name == n || mentionsToken(callee, List(n)) || fullNameMentions(c.methodFullName, n))
     case _ => false
   }
 
@@ -701,7 +707,7 @@
 
   def sinkMatches(c: io.shiftleft.codepropertygraph.generated.nodes.Call, n: String): Boolean = {
     val operator = c.name.startsWith("<operator")
-    c.name == n || (!operator && (mentionsToken(calleeText(c.code), List(n)) || mentionsToken(c.methodFullName, List(n))))
+    c.name == n || (!operator && (mentionsToken(calleeText(c.code), List(n)) || fullNameMentions(c.methodFullName, n)))
   }
 
   // Does THIS path element cleanse the value flowing through it?

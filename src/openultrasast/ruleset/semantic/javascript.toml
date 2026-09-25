@@ -12,6 +12,15 @@ calls = ["eval"]
 rule_ids = ["js-eval"]
 
 [[sink]]
+# CWE-95. Node's `vm` module compiles and runs a string exactly as `eval` does -- its own documentation says
+# it is not a security mechanism. mongo-express CVE-2019-10758 is `vm.runInNewContext('doc = eval((' +
+# string + '));')` over a request body, and with only `eval` listed the flow ended at a sink nobody named.
+id = "vm.eval"
+cwe = "CWE-95"
+calls = ["runInNewContext", "runInContext", "runInThisContext", "compileFunction"]
+rule_ids = []
+
+[[sink]]
 id = "exec"
 cwe = "CWE-78"
 calls = ["exec", "execSync"]

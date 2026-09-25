@@ -963,3 +963,58 @@ def test_a_field_the_method_just_overwrote_is_not_object_state(tmp_path: Path) -
     assert flows["find"], "the method whose own write carries request data must be found"
     assert not flows["deleteMe"], f"a field the method had just overwritten was read as object state: {flows['deleteMe']}"
     assert flows["rerun"], "a method reading the state another method left must still be found"
+
+
+@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
+def test_node_vm_is_an_eval_and_a_package_name_is_not_a_sink(tmp_path: Path) -> None:
+    """mongo-express CVE-2019-10758 ran the request body through `vm.runInNewContext`, which no sink named. Its fix
+    parses with `mongodb-query-parser`, and every call on that parser carries the package name in its full name --
+    which read as the SQL sink `query`. The shipped injection sinks are used, not a hand-picked list."""
+    from openultrasast.cpg.backend import extract_payload
+    from openultrasast.model.specs import taint_specs
+
+    frontend = __import__("shutil").which("jssrc2cpg")
+    if frontend is None:
+        pytest.skip("jssrc2cpg is not installed")
+    sinks = taint_specs(language="javascript")["injection"].sinks
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "bson.js").write_text(
+        "const vm = require('vm');\n"
+        "const parser = require('mongodb-query-parser');\n"
+        "const db = require('./db');\n"
+        "function vulnerable(req, res) { const doc = req.body.document;\n"
+        "  return vm.runInNewContext('doc = eval((' + doc + '));', {}); }\n"
+        "function parsed(req, res) { return parser(req.body.document) + parser.toJSString(req.query.x, '  '); }\n"
+        "function raw(req, res) { return db.query(req.query.q); }\n"
+    )
+    cpg = tmp_path / "cpg.bin"
+    built = subprocess.run([frontend, str(src), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
+    if not cpg.is_file():
+        pytest.skip(f"could not build a sample cpg: {(built.stderr or '')[-200:]}")
+    common = {"sources": "req.body,req.query", "sinks": ",".join(sinks), "file": "bson.js"}
+    requests = tmp_path / "requests.json"
+    requests.write_text(json.dumps({name: {**common, "function": name} for name in ("vulnerable", "parsed", "raw")}))
+    done = subprocess.run(
+        [
+            _joern() or "joern",
+            "--script",
+            str((QUERIES / "taint.sc").resolve()),
+            "--param",
+            f"cpgFile={cpg}",
+            "--param",
+            f"requestsFile={requests}",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=900,
+        check=False,
+        cwd=str(tmp_path),
+    )
+    assert done.returncode == 0, (done.stderr or done.stdout or "")[-500:]
+    payload = extract_payload(done.stdout or "")
+    assert isinstance(payload, dict)
+    flows = {rid: [r for r in payload[rid] if isinstance(r, dict) and r.get("sink")] for rid in ("vulnerable", "parsed", "raw")}
+    assert any("runInNewContext" in str(r["sink"]) for r in flows["vulnerable"]), flows["vulnerable"]
+    assert not flows["parsed"], f"a package name was read as a sink: {flows['parsed']}"
+    assert any("query" in str(r["sink"]) for r in flows["raw"]), f"a real query call was lost: {flows['raw']}"
