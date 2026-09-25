@@ -388,3 +388,48 @@ def test_only_a_request_entry_treats_its_parameters_as_attacker_input() -> None:
     assert params["1"]["parameterSources"] == "false"
     # Still followed into its callees: only its own parameters stop being sources.
     assert params["1"]["callDepth"] == params["0"]["callDepth"] != "0"
+
+
+class _CensusGapBackend(Backend):
+    """A graph whose census reads only some of its files, or reports no file names at all."""
+
+    def __init__(self, observed, **kwargs):
+        super().__init__(**kwargs)
+        self.observed = observed
+
+    def build(self, root, **kwargs):
+        graph = super().build(root, **kwargs)
+        inner = graph.run_batch
+
+        def batch(kind, requests):
+            answer = dict(inner(kind, requests))
+            row = {"methods": "3", "files": "2"}
+            if self.observed is not None:
+                row["file_names"] = list(self.observed)
+            answer["__census__"] = [row]
+            return answer
+
+        graph.run_batch = batch
+        return graph
+
+
+def test_a_named_missing_file_demotes_only_the_questions_about_it(tmp_path):
+    """The first evaluation on untouched code completed no question on eight of eleven projects: a missing
+    `.eslintrc.js` or `api.wsgi` made every question of its language unresolved. A missing file makes the
+    graph incomplete about THAT file; an answer about another file is still an answer."""
+    root = source(tmp_path, "app.py", "broken.py")
+    evidence = {"app.py": vector(), "broken.py": vector()}
+    regions = [region("app.py", "python"), region("broken.py", "python")]
+    result = scan_repository(root, regions, backend=_CensusGapBackend(["app.py"], evidence=evidence), population_complete=True)
+    status = {o.identity.path: (o.status, o.reason) for o in result.question_outcomes}
+    assert status["broken.py"] == ("unresolved", "graph_incomplete"), status
+    assert status["app.py"][0] == "completed", status
+    assert "partition_file_census_incomplete" in result.scope.unresolved_boundaries
+
+
+def test_a_census_gap_that_names_no_file_still_reaches_its_partition(tmp_path):
+    root = source(tmp_path, "app.py", "other.py")
+    evidence = {"app.py": vector(), "other.py": vector()}
+    regions = [region("app.py", "python"), region("other.py", "python")]
+    result = scan_repository(root, regions, backend=_CensusGapBackend(None, evidence=evidence), population_complete=True)
+    assert all(o.status == "unresolved" for o in result.question_outcomes), [(o.status, o.reason) for o in result.question_outcomes]

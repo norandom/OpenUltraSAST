@@ -590,11 +590,22 @@ def _scan_repository_impl(
     # rule is now written in the design: a gap is owned by the narrowest scope that caused it.
     scoped_graph_gaps: dict[str, list[str]] = {}
     unscoped_graph_gaps: list[str] = []
+    # A census gap that NAMES its missing files is owned by those files. The first evaluation on untouched
+    # code (benchmarks/independent/results-v1.json) completed no question at all on eight of eleven projects,
+    # and on the ones traced the cause was this: `.eslintrc.js` and `webpack.config.js` absent from a
+    # JavaScript graph, a `contrib/apache/api.wsgi` shim absent from a Python graph, and every question of that
+    # language marked unresolved. A missing file makes the graph incomplete ABOUT that file; an answer about
+    # another file is still an answer, and the gap stays in the report as a boundary. A gap that names no files
+    # keeps its partition-wide reach, and one that names no partition reaches everything, as before.
+    file_owned_gaps: dict[str, set[str]] = {}
     for item in degradations:
         if item.get("reason") not in GRAPH_INTEGRITY_GAPS:
             continue
         partition = str(item.get("census_language") or "")
-        if partition:
+        absent_files = item.get("missing_file_names")
+        if partition and isinstance(absent_files, list) and absent_files and all(isinstance(name, str) for name in absent_files):
+            file_owned_gaps.setdefault(partition, set()).update(name.removeprefix("./") for name in absent_files)
+        elif partition:
             scoped_graph_gaps.setdefault(partition, []).append(str(item["reason"]))
         else:
             unscoped_graph_gaps.append(str(item["reason"]))
@@ -624,8 +635,13 @@ def _scan_repository_impl(
             # A gap with no partition is about the whole read and reaches everything. A scoped one reaches its
             # own partition, and a question whose language the scan cannot place is treated as reached: an
             # unplaceable question is not evidence that the gap missed it.
-            reached = bool(unscoped_graph_gaps) or bool(scoped_graph_gaps.get(question.identity.language))
-            if reached or (scoped_graph_gaps and not question.identity.language):
+            language = question.identity.language
+            reached = (
+                bool(unscoped_graph_gaps)
+                or bool(scoped_graph_gaps.get(language))
+                or question.identity.path.removeprefix("./") in file_owned_gaps.get(language, set())
+            )
+            if reached or ((scoped_graph_gaps or file_owned_gaps) and not language):
                 outcomes[rid] = replace(outcomes[rid], status="unresolved", reason="graph_incomplete")
     scope = replace(scope, unresolved_boundaries=tuple(dict.fromkeys((*scope.unresolved_boundaries, *graph_gaps, *declared_gaps))))
     ordered_outcomes = tuple(outcomes[q.identity.question_id] for q in scope.selected)
