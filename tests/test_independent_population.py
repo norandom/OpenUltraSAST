@@ -12,18 +12,22 @@ import re
 import tomllib
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
-POPULATION = ROOT / "benchmarks" / "independent" / "population-v1.toml"
+POPULATIONS = sorted((ROOT / "benchmarks" / "independent").glob("population-v*.toml"))
+POPULATION = POPULATIONS[0]
 FAMILIES = {"injection", "untrusted_destination", "config_secrets"}
 SHA = re.compile(r"[0-9a-f]{40}")
 
 
-def _population() -> dict:
-    return tomllib.loads(POPULATION.read_text())
+def _population(path: Path = POPULATION) -> dict:
+    return tomllib.loads(path.read_text())
 
 
-def test_the_reservation_is_well_formed() -> None:
-    data = _population()
+@pytest.mark.parametrize("path", POPULATIONS, ids=lambda p: p.stem)
+def test_the_reservation_is_well_formed(path: Path) -> None:
+    data = _population(path)
     assert data["status"] in {"reserved-unscanned", "frozen"}
     cases = data["case"]
     ids = [case["id"] for case in cases]
@@ -40,21 +44,22 @@ def test_the_reservation_is_well_formed() -> None:
         for case in cases:
             benign = case.get("benign") or {}
             assert SHA.fullmatch(benign.get("base", "")) and SHA.fullmatch(benign.get("tip", "")), case["id"]
-        assert (POPULATION.parent / data["freeze_record"]).is_file()
+        assert (path.parent / data["freeze_record"]).is_file()
     languages = {case["language"] for case in cases}
     assert {"php", "python"} <= languages and languages & {"javascript", "typescript"}
 
 
-def test_a_multi_language_repository_is_reserved() -> None:
+@pytest.mark.parametrize("path", POPULATIONS, ids=lambda p: p.stem)
+def test_a_multi_language_repository_is_reserved(path: Path) -> None:
     """The declared v0.1 target is a WordPress plugin: PHP plus its admin JavaScript (task 13.4)."""
-    data = _population()
+    data = _population(path)
     by_id = {case["id"]: case for case in data["case"]}
     members = data["multi_language_members"]
     assert members and all(by_id[m]["language"] == "php" and "javascript" in by_id[m].get("also", []) for m in members)
 
 
 def test_no_reserved_repository_is_referenced_by_the_development_tree() -> None:
-    reserved = {case["repo"].rstrip("/").lower() for case in _population()["case"]}
+    reserved = {case["repo"].rstrip("/").lower() for path in POPULATIONS for case in _population(path)["case"]}
     names = {url.rsplit("/", 2)[-2] + "/" + url.rsplit("/", 1)[-1] for url in reserved}
     offenders = []
     for top in ("benchmarks", "src", "tests"):

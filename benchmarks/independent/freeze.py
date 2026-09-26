@@ -10,8 +10,8 @@ The benign change is a PROPOSAL for review, chosen mechanically: the first commi
 about security in its message, and stays small. A reviewer confirms or replaces it before the status becomes
 `frozen`.
 
-Usage: python benchmarks/independent/freeze.py [--cache DIR] [--only ID,...]
-Writes: benchmarks/independent/freeze-v1.json
+Usage: python benchmarks/independent/freeze.py [--population population-vN.toml] [--cache DIR] [--only ID,...]
+Writes: benchmarks/independent/freeze-vN.json (v1 by default)
 """
 
 from __future__ import annotations
@@ -26,7 +26,13 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 POPULATION = HERE / "population-v1.toml"
-OUT = HERE / "freeze-v1.json"
+
+
+def freeze_record(population: Path) -> Path:
+    """`population-v2.toml` -> `freeze-v2.json`, next to it."""
+    return population.with_name("freeze-" + population.stem.removeprefix("population-") + ".json")
+
+
 EXTENSIONS = {
     "php": (".php",),
     "javascript": (".js", ".mjs", ".cjs", ".jsx"),
@@ -145,8 +151,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--cache", type=Path, default=Path.home() / ".cache" / "openultrasast" / "independent")
     parser.add_argument("--only", default="")
+    parser.add_argument("--population", type=Path, default=POPULATION, help="a population-vN.toml in this directory")
     args = parser.parse_args()
-    cases = tomllib.loads(POPULATION.read_text())["case"]
+    population = args.population if args.population.is_absolute() else HERE / args.population.name
+    cases = tomllib.loads(population.read_text())["case"]
     only = {c.strip() for c in args.only.split(",") if c.strip()}
     records = []
     for case in cases:
@@ -163,7 +171,9 @@ def main() -> int:
             ),
             flush=True,
         )
-    OUT.write_text(json.dumps({"schema_version": 1, "population": POPULATION.name, "cases": records}, indent=2) + "\n")
+    freeze_record(population).write_text(
+        json.dumps({"schema_version": 1, "population": population.name, "cases": records}, indent=2) + "\n"
+    )
     return 0 if all(not r["problems"] for r in records) else 1
 
 

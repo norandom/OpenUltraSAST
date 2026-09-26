@@ -1,0 +1,319 @@
+# Independent evaluation population v2 (milestone M4). Reserved 2026-09-26.
+#
+# RESERVED, NOT SCANNED. Chosen by web research alone (research-2026-09-26.md): advisories taken newest-first per
+# language under fixed criteria, never by how easy a case looks for this analyzer; 261 advisories examined, 224
+# rejected with reasons. No repository was cloned, no scanner or project tooling run on any of them, and none is
+# referenced anywhere in this project's development tree (checked against every github.com URL under benchmarks/,
+# src/, tests/ and .kiro/, which includes the v1 population).
+#
+# Why a v2: v1 (2026-09-24) was evaluated and then used to retune the analyzer (file-owned gaps, Node vm sinks,
+# Django sources, quoted-only SQL escapes, guards, .gitignore semantics). A retune cannot be qualified on the
+# population that informed it.
+#
+# Rules for this file are v1's: no scan, trace, probe or census of these repositories before the population is
+# FROZEN and protocol-v2.md is committed; no rule, fact or query change may cite these cases before their
+# evaluation is recorded.
+#
+# `sites` are the sink or execution locations the ADVISORY names, declared here before any scan. Protocol v2
+# credits a finding at one of them as well as one matching the fix's changed lines.
+#
+# Selected by the maintainer on 2026-09-26 ("balanced" rule-based selection, 17 cases -- the menu called it 16; the
+# list it showed held 17). Licences marked "verify" must be checked before any result is published.
+
+schema_version = 1
+status = "reserved-unscanned"
+reserved_on = "2026-09-26"
+selected_by = "maintainer"
+research = "research-2026-09-26.md"
+protocol = "protocol-v2.md"
+multi_language_members = ["wp-gopay-log-filter-sqli", "wp-user-registration-login-redirect", "wp-directorist-avatar-ssrf", "wp-groundhogg-confirm-redirect"]
+also_reserved = ["population-v1.toml", "../push/ghost-reserved.toml"]
+
+[[case]]
+id = "pgadmin-maintenance-sqli"
+repo = "https://github.com/pgadmin-org/pgadmin4"
+language = "python"
+also = ["javascript"]
+family = "injection"
+advisory = ["CVE-2026-7815", "GHSA-hp84-p2gq-6fvr"]
+vulnerable = "d112dc3b962218efc3613fa727d54f0fc5b1d527"
+fixed = "cf53953d9ad66c182a08e662c1ba29c5831b486b"
+ancestry = "parent"
+sink = "web/pgadmin/tools/maintenance/templates/maintenance/sql/command.sql (string concatenation of vacuum_index_cleanup, vacuum_parallel, buffer_usage_limit, reindex_tablespace) rendered in web/pgadmin/tools/maintenance/__init__.py :: create_maintenance_job() → render_template(...) → BatchProcess(cmd=psql, args=[..., '--command', query])"
+source = "JSON body of POST /maintenance/job/<sid>/<did>"
+sites = ["web/pgadmin/tools/maintenance/__init__.py::create_maintenance_job"]
+privilege = "authenticated (tools_maintenance permission)"
+license = "PostgreSQL License (OSI; GitHub: NOASSERTION)  [verify before publishing]"
+confidence = "high"
+
+[[case]]
+id = "qwed-sympy-eval"
+repo = "https://github.com/QWED-AI/qwed-verification"
+language = "python"
+also = []
+family = "injection"
+advisory = ["CVE-2026-55585", "GHSA-q27q-98j4-9pfv"]
+vulnerable = "06801f68cbf9c9b5e54cc17f2a61cb2792da7a26"
+fixed = "6066b68c0c4f4cc2c3771824822aaa864d082ef8"
+ancestry = "first parent (fixed is the merge of PR #200; the PR commit `dc9d4db72ca4b4ae3f96d0e6a0c27a9e38a06f61` is a direct child of the vulnerable SHA)"
+sink = "src/qwed_new/api/main.py :: verify_math() → sympy.parsing.sympy_parser.parse_expr(expression_normalized) (also left_str/right_str); second path src/qwed_new/core/batch.py :: _verify_item() → parse_expr(item.query)"
+source = "POST /verify/math JSON expression; POST /verify/batch item query"
+sites = ["src/qwed_new/api/main.py::verify_math", "src/qwed_new/core/batch.py::_verify_item"]
+privilege = "authenticated tenant (API key; self-signup /auth/signup is on by default)"
+license = "Apache-2.0"
+confidence = "high"
+
+[[case]]
+id = "contextforge-prompt-ssti"
+repo = "https://github.com/IBM/mcp-context-forge"
+language = "python"
+also = ["javascript"]
+family = "injection"
+advisory = ["GHSA-vwf3-4xxj-qg6h"]
+vulnerable = "0f8e0ad679f1fff685f486e17f642ac863c8ca9e"
+fixed = "4d31004661858a2e99055b3c0c9f14218b8f7120"
+ancestry = "parent"
+sink = "mcpgateway/services/prompt_service.py :: PromptService._render_template() → _compile_jinja_template() → _get_jinja_env().from_string(template).render() (plain jinja2.Environment)"
+source = "prompt template stored through register_prompt (prompts create/update API), rendered on prompt get"
+sites = ["mcpgateway/services/prompt_service.py::_render_template", "mcpgateway/services/prompt_service.py::_compile_jinja_template"]
+privilege = "authenticated (permission to create or update prompts)"
+license = "Apache-2.0"
+confidence = "high"
+
+[[case]]
+id = "lmdeploy-media-url-ssrf"
+repo = "https://github.com/InternLM/lmdeploy"
+language = "python"
+also = []
+family = "untrusted_destination"
+advisory = ["GHSA-39wr-7q6h-cf68"]
+vulnerable = "71648d239c978452720a6d6692fe914efc8a7b94"
+fixed = "03c313006d17cc3feae86b633c44206a997c44db"
+ancestry = "parent"
+sink = "lmdeploy/vl/media/connection.py :: _load_http_url() → requests.Session().get(url_spec.geturl(), allow_redirects=True), gated by _is_safe_url() (the urlparse host differs from the requests host)"
+source = "image_url/video/audio URLs in POST /v1/chat/completions → serve/processors/multimodal.py :: MultimodalProcessor._parse_multimodal_item() → load_from_url()"
+sites = ["lmdeploy/vl/media/connection.py::_load_http_url"]
+privilege = "unauthenticated by default (api_keys is optional, default None)"
+license = "Apache-2.0"
+confidence = "medium"
+
+[[case]]
+id = "winml-cli-serve-cors"
+repo = "https://github.com/microsoft/winml-cli"
+language = "python"
+also = []
+family = "config_secrets"
+advisory = ["CVE-2026-84452", "GHSA-96p9-rh4f-92cf"]
+vulnerable = "02179d185f0e3ac23518236b5ca1f61fd37ef680"
+fixed = "f4073e0ef4700a25b623487e7e45c421ca0b9993"
+ancestry = "parent"
+sink = "src/winml/modelkit/serve/cli_api.py :: module level app.add_middleware(CORSMiddleware, allow_origins=[\"*\"], ...) (same in serve/app.py :: create_app())"
+source = "any web page in the victim's browser calling POST /v1/cli/{command} on 127.0.0.1"
+sites = ["src/winml/modelkit/serve/cli_api.py::<global>", "src/winml/modelkit/serve/app.py::create_app"]
+privilege = "unauthenticated (cross-origin from any website)"
+license = "MIT"
+confidence = "high"
+
+[[case]]
+id = "reactpress-findall-column-sqli"
+repo = "https://github.com/fecommunity/reactpress"
+language = "typescript"
+also = ["javascript"]
+family = "injection"
+advisory = ["CVE-2026-61685", "GHSA-wmw4-mw6x-6vfm"]
+vulnerable = "c3dd10681b3d2b5e224f7ac647b3769557603975"
+fixed = "78ecb70af1c021455c05fdcbe137212c70e310d6"
+ancestry = "parent"
+sink = "server/src/modules/article/article.service.ts :: ArticleService.findAll() (query-string key interpolated as article.${key} into andWhere); same pattern in comment/file/page/knowledge services"
+source = "@Query() queryParams in ArticleController.findAll() (GET /api/article)"
+sites = ["server/src/modules/article/article.service.ts::findAll"]
+privilege = "unauthenticated"
+license = "MIT"
+confidence = "high"
+
+[[case]]
+id = "fuxa-tdengine-escape-sqli"
+repo = "https://github.com/frangoteam/FUXA"
+language = "javascript"
+also = ["typescript"]
+family = "injection"
+advisory = ["CVE-2026-47720", "GHSA-h9fj-c2qr-76g2"]
+vulnerable = "193a888f8e3f805325072829b1644a2c768c948b"
+fixed = "b78f6159d02a56ce5ff48207feb936afb3534fc8"
+ancestry = "parent"
+sink = "server/runtime/storage/tdengine/index.js :: TDengine.getDaqValue() (escapeTdString(tagid) doubles quotes but not backslashes, then SQL string for cursor.query)"
+source = "sids of GET /api/daq (server/api/daq/index.js) or Socket.IO DAQ_QUERY"
+sites = ["server/runtime/storage/tdengine/index.js::getDaqValue"]
+privilege = "unauthenticated (guest level; socket handler has no auth check)"
+license = "MIT"
+confidence = "medium"
+
+[[case]]
+id = "budibase-mongo-template-nosqli"
+repo = "https://github.com/Budibase/budibase"
+language = "typescript"
+also = ["javascript"]
+family = "injection"
+advisory = ["GHSA-pmpg-2mxq-6xwr", "GHSA-qw6m-8fw2-2v64"]
+vulnerable = "b7e63df737eede85d951aa9665b0c0778ece7ccb"
+fixed = "dd8c0654b35cd89ce3645f2355f4bf2ff9a5dd80"
+ancestry = "parent"
+sink = "packages/server/src/sdk/workspace/queries/queries.ts :: enrichContext() (handlebars processStringSync(..., {noEscaping: true}) into the json template, then JSON.parse) → packages/server/src/integrations/mongodb.ts :: MongoIntegration.read() (collection.find(json))"
+source = "query parameters / bindings (e.g. currentUser.email, request parameters) of POST /api/v2/queries/:queryId (packages/server/src/api/controllers/query/index.ts :: executeV2)"
+sites = ["packages/server/src/integrations/mongodb.ts::read", "packages/server/src/sdk/workspace/queries/queries.ts::enrichContext"]
+privilege = "authenticated app user (BASIC role)"
+license = "GPL-3.0 (root LICENSE says \"GPLv3 overall\"; server package.json GPL-3.0; GitHub NOASSERTION)"
+confidence = "medium"
+
+[[case]]
+id = "unleash-addon-webhook-ssrf"
+repo = "https://github.com/Unleash/unleash"
+language = "typescript"
+also = ["javascript"]
+family = "untrusted_destination"
+advisory = ["CVE-2026-63004", "GHSA-5vf6-jrqr-78fj"]
+vulnerable = "b9f3217d327f24094b4352130baa30387f85cffe"
+fixed = "2100db76af3473f13e6fb40096cf17a9c2b741a1"
+ancestry = "parent"
+sink = "src/lib/addons/addon.ts :: Addon.fetchRetry() (ky(url, ...)), called from webhook.ts / slack / teams / datadog / new-relic addons"
+source = "addon parameters.url saved through the admin addons API (CREATE_ADDON/UPDATE_ADDON), fired on feature events"
+sites = ["src/lib/addons/addon.ts::fetchRetry"]
+privilege = "authenticated (CREATE_ADDON/UPDATE_ADDON root permission)"
+license = "AGPL-3.0"
+confidence = "high"
+
+[[case]]
+id = "medplum-external-auth-open-redirect"
+repo = "https://github.com/medplum/medplum"
+language = "typescript"
+also = ["javascript"]
+family = "untrusted_destination"
+advisory = ["CVE-2026-53728", "GHSA-m44r-7c5h-m6mj"]
+vulnerable = "5d4a8654b02aa67c444f96ae1eb5663c09854006"
+fixed = "7ae10035ddadde4dba7b18d3156553940465b3a1"
+ancestry = "parent"
+sink = "packages/server/src/auth/external.ts :: externalCallbackHandler() (res.redirect(redirectUrl) with URI accepted by getClientRedirectUri(client, body.redirectUri, true) prefix match in packages/server/src/oauth/clients.ts)"
+source = "redirectUri inside JSON state query parameter of GET /auth/external"
+sites = ["packages/server/src/auth/external.ts::externalCallbackHandler"]
+privilege = "unauthenticated (victim completes external IdP login)"
+license = "Apache-2.0"
+confidence = "high"
+
+[[case]]
+id = "cct-studio-server-cmdi"
+repo = "https://github.com/davila7/claude-code-templates"
+language = "javascript"
+also = ["typescript", "python"]
+family = "injection"
+advisory = ["CVE-2026-73222", "GHSA-79wm-x847-7cvg"]
+vulnerable = "acdb5893412a81eaec9862ee24a4613bf296ab45"
+fixed = "bc4618b07232633c1c0aac12a43e436268d31783"
+ancestry = "parent"
+sink = "cli-tool/src/sandbox-server.js :: executeLocalTask() (spawn('claude', [finalPrompt], {shell: true})), route handler POST /api/install-agent and checkAndInstallAgent() (spawn('npx', [..., agentName, ...], {shell: true}))"
+source = "req.body.prompt, req.body.agentName, req.body.agent"
+sites = ["cli-tool/src/sandbox-server.js::executeLocalTask", "cli-tool/src/sandbox-server.js::checkAndInstallAgent"]
+privilege = "unauthenticated (server on 0.0.0.0, wildcard CORS)"
+license = "MIT"
+confidence = "high"
+
+[[case]]
+id = "wp-gopay-log-filter-sqli"
+repo = "https://github.com/gopaycommunity/gopay-woocommerce-integration"
+language = "php"
+also = ["javascript"]
+family = "injection"
+advisory = ["CVE-2026-75959", "GHSA-88c4-2f34-57h5"]
+vulnerable = "626bc8b5f8d33de6eefd921e3a05ed52ac320bcd"
+fixed = "7190c985370f9758f226c2f2addd79532a2f93d5"
+ancestry = "parent"
+sink = "admin/views/log.php :: file scope (included by admin/class-gopay-gateway-admin.php), two $wpdb->get_results(sprintf(\"... REGEXP '[\\w\\W]*%s[\\w\\W]*' ...\", ..., strtoupper($log_table_filter)))"
+source = "filter_input(INPUT_GET, 'log_table_filter')"
+sites = ["admin/views/log.php::<global>"]
+privilege = "admin (shop manager, manage_woocommerce)"
+license = "GitHub: none; plugin header GPLv2 or later  [verify before publishing]"
+confidence = "high"
+
+[[case]]
+id = "wp-user-registration-login-redirect"
+repo = "https://github.com/themegrill/user-registration"
+language = "php"
+also = ["javascript"]
+family = "untrusted_destination"
+advisory = ["CVE-2026-80072", "GHSA-w78c-fx7q-9x8m"]
+vulnerable = "e52cf151cb229852e6209fb3a627aa51485139c1"
+fixed = "75c940dab15fd54d5a3fbb9f2213767b89467b08"
+ancestry = "parent"
+sink = "includes/functions-ur-core.php :: ur_process_login() (wp_redirect(wp_validate_redirect($redirect, $redirect)), and wp_send_json_success(['message'=>$redirect]) on the AJAX path)"
+source = "$post['redirect'] (login form POST) or wp_get_raw_referer()"
+sites = ["includes/functions-ur-core.php::ur_process_login"]
+privilege = "unauthenticated attacker, victim logs in"
+license = "GitHub: NOASSERTION; repo has license.txt, plugin header GPLv3  [verify before publishing]"
+confidence = "high"
+
+[[case]]
+id = "wp-directorist-avatar-ssrf"
+repo = "https://github.com/sovware/directorist"
+language = "php"
+also = ["javascript"]
+family = "untrusted_destination"
+advisory = ["CVE-2026-84046", "GHSA-6q63-3w56-m722"]
+vulnerable = "77cfc9bc8b453f97ab7e720330706fa4ef056867"
+fixed = "1a67825d5cf6e7c768c3a692da1d18bae732bea9"
+ancestry = "parent"
+sink = "includes/rest-api/functions.php :: directorist_rest_upload_image_from_url() (download_url($image_url))"
+source = "$request['avater']['src'] in includes/rest-api/Version1/class-users-controller.php :: update_user_meta_fields() (REST user update)"
+sites = ["includes/rest-api/functions.php::directorist_rest_upload_image_from_url"]
+privilege = "authenticated (subscriber)"
+license = "GitHub: NOASSERTION; plugin header GPLv3  [verify before publishing]"
+confidence = "medium"
+
+[[case]]
+id = "wp-groundhogg-confirm-redirect"
+repo = "https://github.com/groundhoggwp/groundhogg"
+language = "php"
+also = ["javascript"]
+family = "untrusted_destination"
+advisory = ["CVE-2026-81741", "GHSA-m96f-c5vh-h7cm"]
+vulnerable = "9472a1dd79d4556c40eece501a61930793f170d3"
+fixed = "028247d4b8ec9ba051d3eb48f1466a759bc16bfd"
+ancestry = "parent (follow-up is the direct child of the fix)"
+sink = "templates/preferences.php :: file scope, case 'confirm': (wp_redirect($redirect_to))"
+source = "get_url_var('redirect_to') (query string, only through esc_url_raw(sanitize_text_field(...)))"
+sites = ["templates/preferences.php::<global>"]
+privilege = "unauthenticated (crafted preferences link)"
+license = "GitHub: none, no LICENSE file; plugin header GPLv3  [verify before publishing]"
+confidence = "high"
+
+[[case]]
+id = "froxlor-admin-ip-second-order-sqli"
+repo = "https://github.com/froxlor/froxlor"
+language = "php"
+also = ["javascript"]
+family = "injection"
+advisory = ["CVE-2026-54348", "GHSA-w27m-rmmf-g5w4"]
+vulnerable = "9bf03de643a2edee4642bfc6c94db1f05253da02"
+fixed = "a1eaca5a1601c8a30e00814a4fc73ad0c185f89e"
+ancestry = "parent (ancestor of tag 2.3.8)"
+sink = "lib/Froxlor/Api/Commands/IpsAndPorts.php :: IpsAndPorts::listing() / listingCount() (implode(\", \", json_decode($this->getUserDetail('ip'), true)) into WHERE id IN (...)); also lib/Froxlor/Api/Commands/Domains.php :: validateIpAddresses()"
+source = "ipaddress API parameter of Admins.add / Admins.update (lib/Froxlor/Api/Commands/Admins.php), stored as JSON in panel_admins.ip, read back via getUserDetail('ip')"
+sites = ["lib/Froxlor/Api/Commands/IpsAndPorts.php::listing", "lib/Froxlor/Api/Commands/IpsAndPorts.php::listingCount", "lib/Froxlor/Api/Commands/Domains.php::validateIpAddresses"]
+privilege = "admin (API key with change_serversettings)"
+license = "LGPL-2.1 (per GitHub)"
+confidence = "high"
+
+[[case]]
+id = "sulu-smart-content-sql2-injection"
+repo = "https://github.com/sulu/sulu"
+language = "php"
+also = ["javascript"]
+family = "injection"
+advisory = ["CVE-2026-92692", "GHSA-jg26-q8hg-3pq4"]
+vulnerable = "d061094f5b7bb1d5e974544fce30bede9c7adf8e"
+fixed = "d19c01487af8c3de2fb3aa145856707a6367392c"
+ancestry = "parent (2.6 branch; ancestor of tag 2.6.25)"
+sink = "src/Sulu/Component/Content/SmartContent/QueryBuilder.php :: QueryBuilder::buildCategoriesWhere() (also buildTagsWhere(), buildAudienceTargeting()), string-concatenated into the SQL2 WHERE clause built by buildWhere()"
+source = "?categories= query parameter, read in src/Sulu/Component/Category/Request/CategoryRequestHandler.php :: getCategories() (explode + trim only), passed by src/Sulu/Component/SmartContent/ContentType.php as websiteCategories"
+sites = ["src/Sulu/Component/Content/SmartContent/QueryBuilder.php::buildCategoriesWhere", "src/Sulu/Component/Content/SmartContent/QueryBuilder.php::buildWhere"]
+privilege = "unauthenticated (any public page with a category-filtered Smart Content block)"
+license = "MIT"
+confidence = "high"
