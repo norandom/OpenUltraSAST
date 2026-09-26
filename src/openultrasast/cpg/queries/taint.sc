@@ -72,6 +72,7 @@
   // Per-family answers that do not depend on the region, kept across the whole batch.
   val familyInRepoMemo = scala.collection.mutable.Map.empty[String, Boolean]
   val sinkCandidatesMemo = scala.collection.mutable.Map.empty[String, List[io.shiftleft.codepropertygraph.generated.nodes.Call]]
+  val wrapperMemo = scala.collection.mutable.Map.empty[String, Map[String, Set[Int]]]
   val reachableMemo = scala.collection.mutable.Map.empty[(String, String, Int), Set[String]]
   val methodSourceMemo = scala.collection.mutable.Map.empty[String, Boolean]
   val fedFieldsMemo = scala.collection.mutable.Map.empty[String, Map[String, String]]
@@ -1104,9 +1105,99 @@
   // for each of 2,487 requests was a large share of what made a request cost seconds -- in evidence mode,
   // which asks for no dataflow at all, it alone took a query past an hour. Scanned once per sink list and
   // kept for the batch; the per-request work is the scope filter over that list.
+  // ---- project-local sink WRAPPERS ------------------------------------------------------------------------
+  //
+  // Real code rarely calls the driver where it builds the query. YesWiki builds its INSERT in
+  // `FormManager::create($data)` and runs it through `$this->dbService->query($query)`, whose body is the
+  // `mysqli_query` the facts name -- so the one sink the facts knew sat in a helper no request ever reached
+  // directly, and the injectable value was never asked about where it entered. A method whose parameter
+  // feeds a family sink is itself a sink for that argument, reported where it is CALLED.
+  //
+  // Summarised STRUCTURALLY, not by dataflow: the parameter reaches the sink call's argument directly or
+  // through at most two local assignments, and at least one occurrence is outside every cleansing call. A
+  // flow query per parameter per method, repeated at every engine start of a portioned scan, is what this
+  // project's scale walls were made of. Up to three levels (a wrapper of a wrapper). Calls resolve by NAME,
+  // because an injected receiver (`$this->dbService`) has no type the frontend can see -- so a name counts
+  // only if every project method so named is a wrapper; one harmless `query()` elsewhere disqualifies it.
+  def underCleansing(node: io.shiftleft.codepropertygraph.generated.nodes.AstNode, root: io.shiftleft.codepropertygraph.generated.nodes.AstNode): Boolean = {
+    var current: Option[io.shiftleft.codepropertygraph.generated.nodes.AstNode] = Some(node)
+    var found = false
+    while (current.isDefined && !found && current.get.id != root.id) {
+      if (current.get.id != node.id && sanitizesHere(current.get, strictNames)) found = true
+      current = current.get._astIn.nextOption() match {
+        case Some(parent: io.shiftleft.codepropertygraph.generated.nodes.AstNode) => Some(parent)
+        case _                                                                     => None
+      }
+    }
+    found
+  }
+
+  def feeds(
+      method: io.shiftleft.codepropertygraph.generated.nodes.Method,
+      expression: io.shiftleft.codepropertygraph.generated.nodes.AstNode,
+      name: String,
+      depth: Int
+  ): Boolean =
+    depth <= 2 && {
+      val identifiers = expression.ast.isIdentifier.l
+      identifiers.exists(i => i.name == name && !underCleansing(i, expression)) ||
+      identifiers.map(_.name).distinct.filter(_ != name).exists { local =>
+        method.ast.isCall.nameExact(ASSIGNMENT).l.exists { assignment =>
+          val args = assignment.argument.l
+          args.find(_.argumentIndex == 1).exists {
+            case target: io.shiftleft.codepropertygraph.generated.nodes.Identifier => target.name == local
+            case _                                                                  => false
+          } && args.find(_.argumentIndex == 2).exists(value => feeds(method, value, name, depth + 1))
+        }
+      }
+    }
+
+  lazy val wrappers: Map[String, Set[Int]] =
+    wrapperMemo.getOrElseUpdate(
+      sinksS + "|" + sanitizersS + "|" + quotedSanitizersS, {
+        var known = Map.empty[String, Set[Int]]
+        var wrapperMethods = Set.empty[String]
+        var frontier = sinkCandidatesMemo.getOrElseUpdate(sinksS, cpg.call.filter(c => sinkNames.exists(n => sinkMatches(c, n))).l)
+        var level = 0
+        var growing = true
+        while (level < 3 && growing && frontier.nonEmpty) {
+          val found = frontier.groupBy(_.method).toList.flatMap { case (method, calls) =>
+            if (method.isExternal || method.name.startsWith("<")) Nil
+            else
+              method.parameter.l
+                .filter(p => p.index >= 1 && !objectBases.contains(p.name) && p.name != "self" && p.name != "this")
+                .filter(p => calls.exists(c => c.argument.argumentIndexGt(0).l.exists(a => feeds(method, a, p.name, 0))))
+                .map(p => (method, p.index))
+          }
+          val added = found.filterNot { case (m, index) => known.get(m.name).exists(_.contains(index)) }
+          growing = added.nonEmpty
+          added.foreach { case (m, index) =>
+            known = known.updated(m.name, known.getOrElse(m.name, Set.empty[Int]) + index)
+            wrapperMethods += m.fullName
+          }
+          val names = added.map(_._1.name).toSet
+          frontier = if (names.isEmpty) Nil else cpg.call.filter(c => !c.name.startsWith("<operator") && names.contains(c.name)).l
+          level += 1
+        }
+        known.filter { case (name, _) => cpg.method.nameExact(name).filterNot(_.isExternal).l.forall(m => wrapperMethods.contains(m.fullName)) }
+      }
+    )
+
+  def wrapperCall(c: io.shiftleft.codepropertygraph.generated.nodes.Call): Boolean =
+    !c.name.startsWith("<operator") && wrappers.contains(c.name) && !sinkNames.exists(n => sinkMatches(c, n))
+
+  // The arguments a flow must arrive through: every real argument of a fact sink, only the summarised ones of
+  // a wrapper.
+  def sinkTargets(c: io.shiftleft.codepropertygraph.generated.nodes.Call) =
+    if (wrapperCall(c)) c.argument.l.filter(a => wrappers(c.name).contains(a.argumentIndex))
+    else c.argument.argumentIndexGt(0).l
+
   def sinkCalls =
     sinkCandidatesMemo
-      .getOrElseUpdate(sinksS, cpg.call.filter(c => sinkNames.exists(n => sinkMatches(c, n))).l)
+      .getOrElseUpdate("wrapped|" + sinksS + "|" + sanitizersS + "|" + quotedSanitizersS, {
+        val facts = sinkCandidatesMemo.getOrElseUpdate(sinksS, cpg.call.filter(c => sinkNames.exists(n => sinkMatches(c, n))).l)
+        if (wrappers.isEmpty) facts else facts ++ cpg.call.filter(wrapperCall).l
+      })
       .filter(c => inScope(c.method))
 
   // ---- stage one of the two-stage join WITHOUT dataflow, for evidence mode (flow-aware-ranking, phase 2) --
@@ -1357,7 +1448,7 @@
     // no data at all, yet `res` is reachable from the request in any handler that captures it, so the flow
     // query answered yes about a call that receives nothing. Measured on NodeGoat, where `res.write(body)` is a
     // real finding and `res.end()` two lines below it was reported identically.
-    val flows = if (hasSources) sink.argument.argumentIndexGt(0).reachableByFlows(sourceNodes).l.filter(plausible) else Nil
+    val flows = if (hasSources) sinkTargets(sink).reachableByFlows(sourceNodes).l.filter(plausible) else Nil
 
     // The SHAPE of the sink call, which is what distinguishes a fix from a bug when the fix is a safe form
     // rather than a sanitizing call: `execute(sql, params)` binds where `execute(sql + x)` interpolates, and
