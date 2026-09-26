@@ -68,11 +68,12 @@ while True: time.sleep(1)
             status = Path(f"/proc/{pid}/stat")
             for _ in range(30):
                 # Read, never check-then-read: a killed process can be reaped between the two, and its
-                # disappearing is exactly the outcome this test wants, not an error.
+                # disappearing is exactly the outcome this test wants, not an error. It can vanish before the
+                # open (FileNotFoundError) or during the read, which the kernel reports as ESRCH.
                 try:
                     if status.read_text().split()[2] == "Z":
                         break
-                except FileNotFoundError:
+                except (FileNotFoundError, ProcessLookupError):
                     break
                 time.sleep(0.005)
             else:
