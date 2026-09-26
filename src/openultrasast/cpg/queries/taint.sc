@@ -72,7 +72,6 @@
   // Per-family answers that do not depend on the region, kept across the whole batch.
   val familyInRepoMemo = scala.collection.mutable.Map.empty[String, Boolean]
   val sinkCandidatesMemo = scala.collection.mutable.Map.empty[String, List[io.shiftleft.codepropertygraph.generated.nodes.Call]]
-  val wrapperMemo = scala.collection.mutable.Map.empty[String, Map[String, Set[Int]]]
   val reachableMemo = scala.collection.mutable.Map.empty[(String, String, Int), Set[String]]
   val methodSourceMemo = scala.collection.mutable.Map.empty[String, Boolean]
   val fedFieldsMemo = scala.collection.mutable.Map.empty[String, Map[String, String]]
@@ -1347,63 +1346,7 @@
     return summary :: (perSink ++ contextRows)
   }
 
-  // ---- project-local sink WRAPPERS, one level, confirmed by dataflow ---------------------------------------
-  //
-  // Real code rarely calls the driver where it builds the query: YesWiki runs its INSERT through
-  // `$this->dbService->query($query)`, whose body is the `mysqli_query` the facts name. A method whose
-  // parameter REACHES a fact sink's argument -- by the engine's own dataflow inside the method, on a plausible
-  // path no cleansing or guard discharges -- is a sink for that argument where it is called.
-  //
-  // The first version (reverted, c7e3a05) summarised structurally, cascaded three levels by name and fed the
-  // structural pass: MW WP Form went from 3 findings to 60, PMPro to 65 with 20 inside bundled Braintree and
-  // Stripe, and the question count tripled until completion collapsed. So: one level only; nothing under a
-  // bundled library tree; a name only if every project method so named is a wrapper (an injected receiver has
-  // no type to resolve by); and wrappers are asked in this flow pass alone, never in the evidence pass, so they
-  // change no region's selection.
-  val bundledTrees = Set("lib", "libs", "vendor", "vendors", "third_party", "third-party", "node_modules", "bower_components")
-
-  lazy val wrappers: Map[String, Set[Int]] =
-    wrapperMemo.getOrElseUpdate(
-      List(sinksS, sanitizersS, quotedSanitizersS, guardsS, dispatchValueS).mkString("|"), {
-        val factSinks = sinkCandidatesMemo.getOrElseUpdate(sinksS, cpg.call.filter(c => sinkNames.exists(n => sinkMatches(c, n))).l)
-        val confirmed = factSinks.groupBy(_.method).toList.flatMap { case (method, calls) =>
-          val bundled = method.filename.split("/").exists(bundledTrees.contains)
-          if (method.isExternal || bundled || method.name.startsWith("<")) Nil
-          else
-            method.parameter.l
-              .filter(p => p.index >= 1 && !objectBases.contains(p.name) && p.name != "self" && p.name != "this")
-              .filter { p =>
-                calls.exists { c =>
-                  c.argument.argumentIndexGt(0).reachableByFlows(Iterator.single(p)).l.filter(plausible).exists(f => !cleansed(spliced(f.elements.l)))
-                }
-              }
-              .map(p => (method, p.index))
-        }
-        val byName = confirmed.groupBy(_._1.name).map { case (name, found) => name -> found.map(_._2).toSet }
-        val wrapperMethods = confirmed.map(_._1.fullName).toSet
-        byName.filter { case (name, _) =>
-          cpg.method.nameExact(name).filterNot(_.isExternal).l.forall(m => wrapperMethods.contains(m.fullName))
-        }
-      }
-    )
-
-  def wrapperCall(c: io.shiftleft.codepropertygraph.generated.nodes.Call): Boolean =
-    !c.name.startsWith("<operator") && wrappers.contains(c.name) && !sinkNames.exists(n => sinkMatches(c, n))
-
-  // The arguments a flow must arrive through: every real argument of a fact sink, only the confirmed ones of a
-  // wrapper.
-  def sinkTargets(c: io.shiftleft.codepropertygraph.generated.nodes.Call) =
-    if (wrapperCall(c)) c.argument.l.filter(a => wrappers(c.name).contains(a.argumentIndex))
-    else c.argument.argumentIndexGt(0).l
-
-  def wrapperCalls: List[io.shiftleft.codepropertygraph.generated.nodes.Call] =
-    if (!hasSources || wrappers.isEmpty) Nil
-    else
-      sinkCandidatesMemo
-        .getOrElseUpdate("wrapped|" + List(sinksS, sanitizersS, quotedSanitizersS, guardsS, dispatchValueS).mkString("|"), cpg.call.filter(wrapperCall).l)
-        .filter(c => inScope(c.method))
-
-  val rows = (sinkCalls.l ++ wrapperCalls).flatMap { sink =>
+  val rows = sinkCalls.l.flatMap { sink =>
     // Data flows into the arguments; asking the call node itself finds nothing.
     // `call.argument` includes the RECEIVER at argumentIndex 0 (`db` in `db.execute(...)`), so counting it
     // makes a one-argument interpolated call look like a two-argument bound one -- the exact inversion of the
@@ -1414,7 +1357,7 @@
     // no data at all, yet `res` is reachable from the request in any handler that captures it, so the flow
     // query answered yes about a call that receives nothing. Measured on NodeGoat, where `res.write(body)` is a
     // real finding and `res.end()` two lines below it was reported identically.
-    val flows = if (hasSources) sinkTargets(sink).reachableByFlows(sourceNodes).l.filter(plausible) else Nil
+    val flows = if (hasSources) sink.argument.argumentIndexGt(0).reachableByFlows(sourceNodes).l.filter(plausible) else Nil
 
     // The SHAPE of the sink call, which is what distinguishes a fix from a bug when the fix is a safe form
     // rather than a sanitizing call: `execute(sql, params)` binds where `execute(sql + x)` interpolates, and

@@ -1292,7 +1292,6 @@ def _taint_rows(tmp_path: Path, frontend_name: str, files: dict[str, str], reque
     src = tmp_path / "src"
     src.mkdir()
     for name, text in files.items():
-        (src / name).parent.mkdir(parents=True, exist_ok=True)
         (src / name).write_text(text)
     cpg = tmp_path / "cpg.bin"
     built = subprocess.run([frontend, str(src), "-o", str(cpg)], capture_output=True, text=True, timeout=600, check=False)
@@ -1418,69 +1417,3 @@ def test_an_allowlist_check_guards_its_branch_and_its_ternary_arm(tmp_path: Path
     payload = _taint_rows(tmp_path, "php2cpg", {"app.php": app}, {n: {**common, "function": n} for n in names})
     reported = {n for n in names if _unsanitized(payload, n)}
     assert reported == {"wrong_arm", "else_branch", "stored_in_else", "haystack"}, {n: payload[n] for n in names}
-
-
-_WRAPPED_PHP = (
-    "<?php\n"
-    "class DbService { public $link;\n"
-    "  function query( $query ) { return mysqli_query( $this->link, $query ); }\n"
-    "  function number( $n ) { return mysqli_query( $this->link, 'SELECT ' . intval( $n ) ); } }\n"
-    "class FormManager { public $dbService;\n"
-    "  function create( $data ) { $query = 'INSERT INTO t VALUES (' . $data['id'] . ')';\n"
-    "    return $this->dbService->query( $query ); } }\n"
-    "class FormController { public $formManager; public $dbService;\n"
-    "  function displayAll() { $value = $_POST['form']; return $this->formManager->create( $value ); }\n"
-    "  function direct() { return $this->dbService->query( 'SELECT ' . $_POST['q'] ); }\n"
-    "  function literal() { return $this->dbService->query( 'SELECT 1' ); }\n"
-    "  function cast() { return $this->dbService->number( $_POST['n'] ); } }\n"
-)
-
-
-def _wrapped_requests(spec, names, file="app.php"):
-    common = {
-        "sources": ",".join(spec.sources),
-        "sinks": ",".join(spec.sinks),
-        "sanitizers": ",".join(spec.sanitizers),
-        "quotedSanitizers": ",".join(spec.quoted_sanitizers),
-        "file": file,
-    }
-    return {n: {**common, "function": n} for n in names}
-
-
-@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
-def test_a_project_sink_wrapper_is_a_sink_where_it_is_called(tmp_path: Path) -> None:
-    """YesWiki runs its SQL through `$this->dbService->query($query)`, whose body is the `mysqli_query` the facts
-    name, through a receiver the frontend cannot type. One level only: `create`, which feeds the wrapper rather
-    than the driver, is not itself a sink -- the first version cascaded and flooded real projects."""
-    from openultrasast.model.specs import taint_specs
-
-    spec = taint_specs(language="php")["injection"]
-    names = ("displayAll", "direct", "literal", "cast")
-    payload = _taint_rows(tmp_path, "php2cpg", {"app.php": _WRAPPED_PHP}, _wrapped_requests(spec, names))
-    reported = {n for n in names if [r for r in _unsanitized(payload, n) if r.get("sinkMethod") == n]}
-    assert reported == {"direct"}, {n: payload[n] for n in names}
-
-
-@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
-def test_a_wrapper_name_shared_with_a_harmless_method_is_not_a_sink(tmp_path: Path) -> None:
-    """Calls resolve by name, so a name is a sink only if every project method so named is a wrapper."""
-    from openultrasast.model.specs import taint_specs
-
-    spec = taint_specs(language="php")["injection"]
-    code = _WRAPPED_PHP + "class Cache { function query( $key ) { return strlen( $key ); } }\n"
-    payload = _taint_rows(tmp_path, "php2cpg", {"app.php": code}, _wrapped_requests(spec, ("direct",)))
-    assert not [r for r in _unsanitized(payload, "direct") if r.get("sinkMethod") == "direct"], payload["direct"]
-
-
-@pytest.mark.skipif(_joern() is None, reason="joern is not installed on this machine")
-def test_a_bundled_library_method_is_not_a_wrapper(tmp_path: Path) -> None:
-    """PMPro bundles Braintree and Stripe under `includes/lib/`; the first version made their HTTP helpers sinks."""
-    from openultrasast.model.specs import taint_specs
-
-    spec = taint_specs(language="php")["injection"]
-    files = {
-        "lib/Db.php": "<?php\nclass Db { public $link; function run( $q ) { return mysqli_query( $this->link, $q ); } }\n",
-        "app.php": "<?php\nclass C { public $db; function go() { return $this->db->run( 'SELECT ' . $_POST['q'] ); } }\n",
-    }
-    payload = _taint_rows(tmp_path, "php2cpg", files, _wrapped_requests(spec, ("go",)))
-    assert not [r for r in _unsanitized(payload, "go") if r.get("sinkMethod") == "go"], payload["go"]
