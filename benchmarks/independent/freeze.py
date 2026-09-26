@@ -112,7 +112,14 @@ def verify(case: dict[str, object], cache: Path) -> dict[str, object]:
     record["vulnerable_is_ancestor_of_fixed"] = ordered
     if not ordered:
         problems.append("the vulnerable pin is not an ancestor of the fixed pin")
-    sink_file, functions = sink_parts(str(case["sink"]))
+    sites = [str(site) for site in case.get("sites", [])]  # type: ignore[union-attr]
+    if sites:
+        # Declared `path::function` sites (population v2) are what the verification reads; the first names the
+        # sink file, and every function declared in that file must appear in it.
+        sink_file = sites[0].partition("::")[0]
+        functions = [site.partition("::")[2] for site in sites if site.partition("::")[0] == sink_file and not site.endswith("::<global>")]
+    else:
+        sink_file, functions = sink_parts(str(case["sink"]))
     record["sink_file"], record["sink_functions"] = sink_file, functions
     before, after = blob(repo, vulnerable, sink_file), blob(repo, fixed, sink_file)
     if before is None:
@@ -142,7 +149,7 @@ def verify(case: dict[str, object], cache: Path) -> dict[str, object]:
     languages = [str(case["language"]), *[str(x) for x in case.get("also", [])]]  # type: ignore[union-attr]
     extensions = tuple(e for lang in languages for e in EXTENSIONS.get(lang, ()))
     record["benign_proposal"] = benign(repo, fixed, sink_file, extensions)
-    if record["benign_proposal"] is None:
+    if record["benign_proposal"] is None and not case.get("benign"):
         problems.append("no benign change found automatically; choose one by hand")
     return record
 

@@ -21,7 +21,9 @@
 # list it showed held 17). Licences marked "verify" must be checked before any result is published.
 
 schema_version = 1
-status = "reserved-unscanned"
+status = "frozen"
+frozen_on = "2026-09-26"
+freeze_record = "freeze-v2.json"
 reserved_on = "2026-09-26"
 selected_by = "maintainer"
 research = "research-2026-09-26.md"
@@ -45,6 +47,7 @@ sites = ["web/pgadmin/tools/maintenance/__init__.py::create_maintenance_job"]
 privilege = "authenticated (tools_maintenance permission)"
 license = "PostgreSQL License (OSI; GitHub: NOASSERTION)  [verify before publishing]"
 confidence = "high"
+benign = { base = "e7eaef0dc002c254e4dd15705df800c448e8eb4c", tip = "a50a553b0a7e529e5d87f52bdc6d3a5ee3e8b9e8", subject = "chore: feature tests use sys.executable; sync yarn.lock to package.json", how = "automatic proposal, reviewed" }
 
 [[case]]
 id = "qwed-sympy-eval"
@@ -62,6 +65,7 @@ sites = ["src/qwed_new/api/main.py::verify_math", "src/qwed_new/core/batch.py::_
 privilege = "authenticated tenant (API key; self-signup /auth/signup is on by default)"
 license = "Apache-2.0"
 confidence = "high"
+benign = { base = "5214f2c558641f4d02d3d75abf039f164e393131", tip = "637a880a8333875543090894fc13bf092783d90e", subject = "feat: emit VC v1.0 outputs from Docker action entrypoint (#313)", how = "chosen by hand after review" }
 
 [[case]]
 id = "contextforge-prompt-ssti"
@@ -79,6 +83,7 @@ sites = ["mcpgateway/services/prompt_service.py::_render_template", "mcpgateway/
 privilege = "authenticated (permission to create or update prompts)"
 license = "Apache-2.0"
 confidence = "high"
+benign = { base = "1f8fd58980f4565d4788ffc3587d6e3bd16b3342", tip = "9938c58f7819c526932c4ae4ad646a9c028cb19e", subject = "fix: add rust coverage reports (#4458)", how = "automatic proposal, reviewed" }
 
 [[case]]
 id = "lmdeploy-media-url-ssrf"
@@ -96,6 +101,7 @@ sites = ["lmdeploy/vl/media/connection.py::_load_http_url"]
 privilege = "unauthenticated by default (api_keys is optional, default None)"
 license = "Apache-2.0"
 confidence = "medium"
+benign = { base = "b6a29db4d2d218838048975977f125dc9b1ac75d", tip = "3d9d23087b59fa44afe83deb03ee7cce04df3b4d", subject = "fix(benchmark): seed NumPy RNG so --seed controls random-mode lengths (#4785)", how = "automatic proposal, reviewed" }
 
 [[case]]
 id = "winml-cli-serve-cors"
@@ -113,6 +119,7 @@ sites = ["src/winml/modelkit/serve/cli_api.py::<global>", "src/winml/modelkit/se
 privilege = "unauthenticated (cross-origin from any website)"
 license = "MIT"
 confidence = "high"
+benign = { base = "8d631f6f1e5db26a04e8c13045280408c6f984dc", tip = "be3e59dd412d4918c5a852aa4d8f0207c34aaf6f", subject = "Remove preload ORT DLL (undo PR 689) (#1380)", how = "automatic proposal, reviewed" }
 
 [[case]]
 id = "reactpress-findall-column-sqli"
@@ -130,6 +137,7 @@ sites = ["server/src/modules/article/article.service.ts::findAll"]
 privilege = "unauthenticated"
 license = "MIT"
 confidence = "high"
+benign = { base = "295f5de807ed1ebec7b6b155cce16b24a743f247", tip = "903d4b2e2de1c259843f3a8c67701fa7d50d2205", subject = "docs: update documentation links to new site URL", how = "chosen by hand after review" }
 
 [[case]]
 id = "fuxa-tdengine-escape-sqli"
@@ -147,6 +155,7 @@ sites = ["server/runtime/storage/tdengine/index.js::getDaqValue"]
 privilege = "unauthenticated (guest level; socket handler has no auth check)"
 license = "MIT"
 confidence = "medium"
+benign = { base = "e787e4140b5e71c5b02e23c295fa08b8df0edc53", tip = "bf998eeee3158e338724c71979b7cdafcfa74b32", subject = "Button control with configurable icon (#2349)", how = "automatic proposal, reviewed" }
 
 [[case]]
 id = "budibase-mongo-template-nosqli"
@@ -160,10 +169,11 @@ fixed = "dd8c0654b35cd89ce3645f2355f4bf2ff9a5dd80"
 ancestry = "parent"
 sink = "packages/server/src/sdk/workspace/queries/queries.ts :: enrichContext() (handlebars processStringSync(..., {noEscaping: true}) into the json template, then JSON.parse) → packages/server/src/integrations/mongodb.ts :: MongoIntegration.read() (collection.find(json))"
 source = "query parameters / bindings (e.g. currentUser.email, request parameters) of POST /api/v2/queries/:queryId (packages/server/src/api/controllers/query/index.ts :: executeV2)"
-sites = ["packages/server/src/integrations/mongodb.ts::read", "packages/server/src/sdk/workspace/queries/queries.ts::enrichContext"]
+sites = ["packages/server/src/sdk/workspace/queries/queries.ts::enrichContext", "packages/server/src/integrations/mongodb.ts::read"]
 privilege = "authenticated app user (BASIC role)"
 license = "GPL-3.0 (root LICENSE says \"GPLv3 overall\"; server package.json GPL-3.0; GitHub NOASSERTION)"
 confidence = "medium"
+benign = { base = "a4423fc5bf237e6101c2e8348ef5372fff6484cd", tip = "272c6a61a2a386688792f9e26c2665f2f431a5c2", subject = "Merge pull request #18865 from Budibase/feature/18784-ai-credit", how = "automatic proposal, reviewed" }
 
 [[case]]
 id = "unleash-addon-webhook-ssrf"
@@ -181,6 +191,7 @@ sites = ["src/lib/addons/addon.ts::fetchRetry"]
 privilege = "authenticated (CREATE_ADDON/UPDATE_ADDON root permission)"
 license = "AGPL-3.0"
 confidence = "high"
+benign = { base = "d4efb3a31616483c438606edbecce13b868fc587", tip = "cb4e6250743fac364bae50b985b2b8348def7a2b", subject = "Merge commit '232b5d575c7d455ce7ac767183e61fd389dd8aac' into automation/sync-oss-upstream", how = "automatic proposal, reviewed" }
 
 [[case]]
 id = "medplum-external-auth-open-redirect"
@@ -198,6 +209,7 @@ sites = ["packages/server/src/auth/external.ts::externalCallbackHandler"]
 privilege = "unauthenticated (victim completes external IdP login)"
 license = "Apache-2.0"
 confidence = "high"
+benign = { base = "0dd335e8520b859563626d9bf50d602a5f3ad79a", tip = "20790b17d76f335e60dd703f65d4eb13bbb4754d", subject = "tweak(cdk): make `minHealthyPercent` 100 (#8836)", how = "automatic proposal, reviewed" }
 
 [[case]]
 id = "cct-studio-server-cmdi"
@@ -215,6 +227,7 @@ sites = ["cli-tool/src/sandbox-server.js::executeLocalTask", "cli-tool/src/sandb
 privilege = "unauthenticated (server on 0.0.0.0, wildcard CORS)"
 license = "MIT"
 confidence = "high"
+benign = { base = "c2ed4066bc7ea66806e90d6c0b97988495ff44b2", tip = "025520a8bfc8ed05e9a197bf53fa2f871f666dea", subject = "feat(dashboard): hide Loops from navigation menu (#738)", how = "chosen by hand after review" }
 
 [[case]]
 id = "wp-gopay-log-filter-sqli"
@@ -232,6 +245,7 @@ sites = ["admin/views/log.php::<global>"]
 privilege = "admin (shop manager, manage_woocommerce)"
 license = "GitHub: none; plugin header GPLv2 or later  [verify before publishing]"
 confidence = "high"
+benign = { base = "2b5fe58d6dadbfecb01ed34611aed8502d11e612", tip = "88b10bda704a37e88121e22dc22f4e5019097272", subject = "GPY025-136: fix i18n and remove translation calls on non-literal text", how = "automatic proposal, reviewed" }
 
 [[case]]
 id = "wp-user-registration-login-redirect"
@@ -249,6 +263,7 @@ sites = ["includes/functions-ur-core.php::ur_process_login"]
 privilege = "unauthenticated attacker, victim logs in"
 license = "GitHub: NOASSERTION; repo has license.txt, plugin header GPLv3  [verify before publishing]"
 confidence = "high"
+benign = { base = "064dd7ab1585082b9b5cf078f2d22c0234f25e48", tip = "3b6acc4695e93d9d48969ed894c21419bd09b33a", subject = "Fix - Deactivate Licence button did nothing when the pro-activation transient was set (#1418)", how = "automatic proposal, reviewed" }
 
 [[case]]
 id = "wp-directorist-avatar-ssrf"
@@ -266,6 +281,7 @@ sites = ["includes/rest-api/functions.php::directorist_rest_upload_image_from_ur
 privilege = "authenticated (subscriber)"
 license = "GitHub: NOASSERTION; plugin header GPLv3  [verify before publishing]"
 confidence = "medium"
+benign = { base = "61ddcdf84f18cbe7749036a912d2931cef8cbd5a", tip = "986becd484f8f2d9b60604737d4fb4bf08fa6d1b", subject = "Replaced Location with Address on the All Listings map view (#2280)", how = "chosen by hand after review" }
 
 [[case]]
 id = "wp-groundhogg-confirm-redirect"
@@ -283,6 +299,7 @@ sites = ["templates/preferences.php::<global>"]
 privilege = "unauthenticated (crafted preferences link)"
 license = "GitHub: none, no LICENSE file; plugin header GPLv3  [verify before publishing]"
 confidence = "high"
+benign = { base = "61c8a03f11b6030c630be6ae0b0c2ad641eb733a", tip = "e3a69f1c2814c6bebed940505894008748566b93", subject = "output a square image regardless of image dimensions", how = "automatic proposal, reviewed" }
 
 [[case]]
 id = "froxlor-admin-ip-second-order-sqli"
@@ -300,6 +317,7 @@ sites = ["lib/Froxlor/Api/Commands/IpsAndPorts.php::listing", "lib/Froxlor/Api/C
 privilege = "admin (API key with change_serversettings)"
 license = "LGPL-2.1 (per GitHub)"
 confidence = "high"
+benign = { base = "b595f061fbb68874423809fec9f2a42bf6b34175", tip = "9d274828bdc4eefec0058a5a3a25bf4eb69d0f70", subject = "avoid warnings regarding php8.5 in config/database.php; adjust phpunit for froxlor/framework testing", how = "automatic proposal, reviewed" }
 
 [[case]]
 id = "sulu-smart-content-sql2-injection"
@@ -317,3 +335,4 @@ sites = ["src/Sulu/Component/Content/SmartContent/QueryBuilder.php::buildCategor
 privilege = "unauthenticated (any public page with a category-filtered Smart Content block)"
 license = "MIT"
 confidence = "high"
+benign = { base = "777f4eb47d45dab420c82b43ae6f513638294de0", tip = "6621a429c5284bd05ee1b60f333aff83297fecde", subject = "Removing unused service argument (#7169)", how = "chosen by hand after review" }

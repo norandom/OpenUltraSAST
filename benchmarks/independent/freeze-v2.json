@@ -1,0 +1,475 @@
+{
+  "schema_version": 1,
+  "population": "population-v2.toml",
+  "cases": [
+    {
+      "id": "pgadmin-maintenance-sqli",
+      "repo": "https://github.com/pgadmin-org/pgadmin4",
+      "vulnerable": "d112dc3b962218efc3613fa727d54f0fc5b1d527",
+      "fixed": "cf53953d9ad66c182a08e662c1ba29c5831b486b",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "web/pgadmin/tools/maintenance/__init__.py",
+      "sink_functions": [
+        "create_maintenance_job"
+      ],
+      "sink_sha256_vulnerable": "9fa2828e8ff9d3af71b9194a8903eee6301e61f8af33c942f1a447ebbf829ec9",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "e841eedc2e859240c87899b5de1e5a077e36b6eaa4251c82435a425812bf6be6",
+      "fix_changed_files": 4,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "e7eaef0dc002c254e4dd15705df800c448e8eb4c",
+        "tip": "a50a553b0a7e529e5d87f52bdc6d3a5ee3e8b9e8",
+        "subject": "chore: feature tests use sys.executable; sync yarn.lock to package.json",
+        "files": [
+          "web/regression/feature_utils/app_starter.py",
+          "web/yarn.lock"
+        ],
+        "lines": 48
+      }
+    },
+    {
+      "id": "qwed-sympy-eval",
+      "repo": "https://github.com/QWED-AI/qwed-verification",
+      "vulnerable": "06801f68cbf9c9b5e54cc17f2a61cb2792da7a26",
+      "fixed": "6066b68c0c4f4cc2c3771824822aaa864d082ef8",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "src/qwed_new/api/main.py",
+      "sink_functions": [
+        "verify_math"
+      ],
+      "sink_sha256_vulnerable": "bff26eca2c749dbd6bbc20cfd912ef077bd2ab3c62d87b9caea5f6f989a463df",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "7632a218b3ce20eb50ebf76e3f9d0110a9152f9a38bad9f47b752294fe7a505d",
+      "fix_changed_files": 8,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "62e74ad0a1760abbb9986292fef3e2e6125b1187",
+        "tip": "89498ca5eb621a66316b2cf2de1e1e8fdaf6d79d",
+        "subject": "Merge pull request #211 from QWED-AI/fix/codeql-redos-data-uri",
+        "files": [
+          ".coverage",
+          "src/qwed_new/core/output_sanitizer.py",
+          "tests/test_output_sanitizer.py"
+        ],
+        "lines": 70
+      }
+    },
+    {
+      "id": "contextforge-prompt-ssti",
+      "repo": "https://github.com/IBM/mcp-context-forge",
+      "vulnerable": "0f8e0ad679f1fff685f486e17f642ac863c8ca9e",
+      "fixed": "4d31004661858a2e99055b3c0c9f14218b8f7120",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "mcpgateway/services/prompt_service.py",
+      "sink_functions": [
+        "_render_template",
+        "_compile_jinja_template"
+      ],
+      "sink_sha256_vulnerable": "0a9752890c5324a7ff01bd15890b376b35226cc81d8853525e41f8b31fb66cb6",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "dd91186b8ee3eed6373761554ad5873e3436b7213305d1d1104f209c6be213af",
+      "fix_changed_files": 27,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "1f8fd58980f4565d4788ffc3587d6e3bd16b3342",
+        "tip": "9938c58f7819c526932c4ae4ad646a9c028cb19e",
+        "subject": "fix: add rust coverage reports (#4458)",
+        "files": [
+          "Makefile",
+          "crates/mcp_runtime/DEVELOPING.md",
+          "tests/unit/test_makefile_rust_targets.py"
+        ],
+        "lines": 81
+      }
+    },
+    {
+      "id": "lmdeploy-media-url-ssrf",
+      "repo": "https://github.com/InternLM/lmdeploy",
+      "vulnerable": "71648d239c978452720a6d6692fe914efc8a7b94",
+      "fixed": "03c313006d17cc3feae86b633c44206a997c44db",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "lmdeploy/vl/media/connection.py",
+      "sink_functions": [
+        "_load_http_url"
+      ],
+      "sink_sha256_vulnerable": "697f169c03cf175c338fee2dddaa81a7649913ed2908e1602bd845806fd19646",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "ec8efc50b1749326454731e395d92ab5430e6dac3cf1f334c067ab25a2eb566b",
+      "fix_changed_files": 12,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "b6a29db4d2d218838048975977f125dc9b1ac75d",
+        "tip": "3d9d23087b59fa44afe83deb03ee7cce04df3b4d",
+        "subject": "fix(benchmark): seed NumPy RNG so --seed controls random-mode lengths (#4785)",
+        "files": [
+          "benchmark/benchmark_guided.py",
+          "benchmark/profile_pipeline_api.py",
+          "benchmark/profile_throughput.py"
+        ],
+        "lines": 3
+      }
+    },
+    {
+      "id": "winml-cli-serve-cors",
+      "repo": "https://github.com/microsoft/winml-cli",
+      "vulnerable": "02179d185f0e3ac23518236b5ca1f61fd37ef680",
+      "fixed": "f4073e0ef4700a25b623487e7e45c421ca0b9993",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "src/winml/modelkit/serve/cli_api.py",
+      "sink_functions": [],
+      "sink_sha256_vulnerable": "efab45cd65ef1cd0a64070fe104dfdcfc2f298c98def37973c0f22cd0140949f",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "c616799bdaace01883b9e392a3c118eb54295f827eae7f8d7cafcfd40674c012",
+      "fix_changed_files": 12,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "8d631f6f1e5db26a04e8c13045280408c6f984dc",
+        "tip": "be3e59dd412d4918c5a852aa4d8f0207c34aaf6f",
+        "subject": "Remove preload ORT DLL (undo PR 689) (#1380)",
+        "files": [
+          "src/winml/modelkit/__init__.py",
+          "tests/unit/test_modelkit_init.py"
+        ],
+        "lines": 158
+      }
+    },
+    {
+      "id": "reactpress-findall-column-sqli",
+      "repo": "https://github.com/fecommunity/reactpress",
+      "vulnerable": "c3dd10681b3d2b5e224f7ac647b3769557603975",
+      "fixed": "78ecb70af1c021455c05fdcbe137212c70e310d6",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "server/src/modules/article/article.service.ts",
+      "sink_functions": [
+        "findAll"
+      ],
+      "sink_sha256_vulnerable": "33fb3c644ab4ee3ea469cb190a58eacdc2f34f8f2379c04437f3df4d7ede7901",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "8fe3e41ec60351a004455c49d5110fb969acdf2a883b9f22505e66d56c84a3b5",
+      "fix_changed_files": 9,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "78ecb70af1c021455c05fdcbe137212c70e310d6",
+        "tip": "70c7dc39e1a885a1ac7d051c57a409432905fe6c",
+        "subject": "fix(server): correct column whitelist to match entity definitions",
+        "files": [
+          "server/src/utils/query-whitelist.util.ts"
+        ],
+        "lines": 23
+      }
+    },
+    {
+      "id": "fuxa-tdengine-escape-sqli",
+      "repo": "https://github.com/frangoteam/FUXA",
+      "vulnerable": "193a888f8e3f805325072829b1644a2c768c948b",
+      "fixed": "b78f6159d02a56ce5ff48207feb936afb3534fc8",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "server/runtime/storage/tdengine/index.js",
+      "sink_functions": [
+        "getDaqValue"
+      ],
+      "sink_sha256_vulnerable": "e129a1520f736ef53de1c813ca4295b2b9de09f8041477a4e96bcf242b375d0e",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "7f89162c781081034a2b6e525c0a2e29f976ee984651b2345b2b5fefdd9ac456",
+      "fix_changed_files": 2,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "e787e4140b5e71c5b02e23c295fa08b8df0edc53",
+        "tip": "bf998eeee3158e338724c71979b7cdafcfa74b32",
+        "subject": "Button control with configurable icon (#2349)",
+        "files": [
+          "client/src/app/_models/hmi.ts",
+          "client/src/app/framework/icon-selector/icon-selector.component.scss",
+          "client/src/app/gauges/controls/html-button/html-button.component.ts",
+          "client/src/app/gauges/gauge-property/gauge-property.component.html",
+          "client/src/app/gauges/gauge-property/gauge-property.component.scss",
+          "client/src/app/gauges/gauge-property/gauge-property.component.ts",
+          "client/src/assets/i18n/en.json"
+        ],
+        "lines": 92
+      }
+    },
+    {
+      "id": "budibase-mongo-template-nosqli",
+      "repo": "https://github.com/Budibase/budibase",
+      "vulnerable": "b7e63df737eede85d951aa9665b0c0778ece7ccb",
+      "fixed": "dd8c0654b35cd89ce3645f2355f4bf2ff9a5dd80",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "packages/server/src/sdk/workspace/queries/queries.ts",
+      "sink_functions": [
+        "enrichContext"
+      ],
+      "sink_sha256_vulnerable": "27233a212e8227bb0dc5f0045aa64b8afa0ced563b174ddd17f8ff5013a516cb",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "e127d41a1e33b89173b69e802395d753f3cfc0cda06bffa3ae6952e910102ce8",
+      "fix_changed_files": 4,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "a4423fc5bf237e6101c2e8348ef5372fff6484cd",
+        "tip": "272c6a61a2a386688792f9e26c2665f2f431a5c2",
+        "subject": "Merge pull request #18865 from Budibase/feature/18784-ai-credit",
+        "files": [
+          "packages/builder/src/components/usage/Usage.svelte",
+          "packages/builder/src/settings/pages/usage.svelte",
+          "packages/shared-core/src/helpers/tests/url.spec.ts",
+          "packages/shared-core/src/helpers/url.ts"
+        ],
+        "lines": 92
+      }
+    },
+    {
+      "id": "unleash-addon-webhook-ssrf",
+      "repo": "https://github.com/Unleash/unleash",
+      "vulnerable": "b9f3217d327f24094b4352130baa30387f85cffe",
+      "fixed": "2100db76af3473f13e6fb40096cf17a9c2b741a1",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "src/lib/addons/addon.ts",
+      "sink_functions": [
+        "fetchRetry"
+      ],
+      "sink_sha256_vulnerable": "a52627ff0742bd8c296a9f63753174b334f74aba50e013cc8bc18d60e6929aa1",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "7b405bfdf4a981787e70c21f4559e8df94d55f6a56cfc0ab130c7ff8a18549de",
+      "fix_changed_files": 21,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "d4efb3a31616483c438606edbecce13b868fc587",
+        "tip": "cb4e6250743fac364bae50b985b2b8348def7a2b",
+        "subject": "Merge commit '232b5d575c7d455ce7ac767183e61fd389dd8aac' into automation/sync-oss-upstream",
+        "files": [
+          "frontend/src/component/providers/UnleashFlagProvider/UnleashFlagProvider.tsx"
+        ],
+        "lines": 13
+      }
+    },
+    {
+      "id": "medplum-external-auth-open-redirect",
+      "repo": "https://github.com/medplum/medplum",
+      "vulnerable": "5d4a8654b02aa67c444f96ae1eb5663c09854006",
+      "fixed": "7ae10035ddadde4dba7b18d3156553940465b3a1",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "packages/server/src/auth/external.ts",
+      "sink_functions": [
+        "externalCallbackHandler"
+      ],
+      "sink_sha256_vulnerable": "3ab597c5f268210f56232b07094d80771dce0bc3b78996e9246bb31a0930bd53",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "74cc58f9a399550945d7a2266c8bd4dac48a852378e4eea56fb5f2a1deb72084",
+      "fix_changed_files": 7,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "0dd335e8520b859563626d9bf50d602a5f3ad79a",
+        "tip": "20790b17d76f335e60dd703f65d4eb13bbb4754d",
+        "subject": "tweak(cdk): make `minHealthyPercent` 100 (#8836)",
+        "files": [
+          "packages/cdk/src/backend.ts"
+        ],
+        "lines": 4
+      }
+    },
+    {
+      "id": "cct-studio-server-cmdi",
+      "repo": "https://github.com/davila7/claude-code-templates",
+      "vulnerable": "acdb5893412a81eaec9862ee24a4613bf296ab45",
+      "fixed": "bc4618b07232633c1c0aac12a43e436268d31783",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "cli-tool/src/sandbox-server.js",
+      "sink_functions": [
+        "executeLocalTask",
+        "checkAndInstallAgent"
+      ],
+      "sink_sha256_vulnerable": "e2c24dcf02b90e5056c2b7065ce46027ef02139991117ee70f589a3a971e974d",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "2414d562c0714689978808349499af8cadf7cf39a28a534194f2ff40954aa25e",
+      "fix_changed_files": 4,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": null
+    },
+    {
+      "id": "wp-gopay-log-filter-sqli",
+      "repo": "https://github.com/gopaycommunity/gopay-woocommerce-integration",
+      "vulnerable": "626bc8b5f8d33de6eefd921e3a05ed52ac320bcd",
+      "fixed": "7190c985370f9758f226c2f2addd79532a2f93d5",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "admin/views/log.php",
+      "sink_functions": [],
+      "sink_sha256_vulnerable": "541b921b7810a7b563a4ffefd2ac296e5b37f81d970c5fd9dd787f107c0593b6",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "bdc6178b33d87bcc149019555239668bd71a9bd0f9c30c3ec396ee32974810f4",
+      "fix_changed_files": 1,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "2b5fe58d6dadbfecb01ed34611aed8502d11e612",
+        "tip": "88b10bda704a37e88121e22dc22f4e5019097272",
+        "subject": "GPY025-136: fix i18n and remove translation calls on non-literal text",
+        "files": [
+          "includes/class-gopay-gateway-options.php",
+          "includes/class-gopay-wc-blocks-support.php"
+        ],
+        "lines": 11
+      }
+    },
+    {
+      "id": "wp-user-registration-login-redirect",
+      "repo": "https://github.com/themegrill/user-registration",
+      "vulnerable": "e52cf151cb229852e6209fb3a627aa51485139c1",
+      "fixed": "75c940dab15fd54d5a3fbb9f2213767b89467b08",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "includes/functions-ur-core.php",
+      "sink_functions": [
+        "ur_process_login"
+      ],
+      "sink_sha256_vulnerable": "7ec30d26e49ed039448d4e2616000987db57d2067533e0b2015fe9621e38e57f",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "867fccbaa0df3344523aff6516102cdb22e1e7cd8b2eb7b482cdf9e9e3184b06",
+      "fix_changed_files": 8,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "064dd7ab1585082b9b5cf078f2d22c0234f25e48",
+        "tip": "3b6acc4695e93d9d48969ed894c21419bd09b33a",
+        "subject": "Fix - Deactivate Licence button did nothing when the pro-activation transient was set (#1418)",
+        "files": [
+          "includes/class-ur-plugin-updater.php"
+        ],
+        "lines": 4
+      }
+    },
+    {
+      "id": "wp-directorist-avatar-ssrf",
+      "repo": "https://github.com/sovware/directorist",
+      "vulnerable": "77cfc9bc8b453f97ab7e720330706fa4ef056867",
+      "fixed": "1a67825d5cf6e7c768c3a692da1d18bae732bea9",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "includes/rest-api/functions.php",
+      "sink_functions": [
+        "directorist_rest_upload_image_from_url"
+      ],
+      "sink_sha256_vulnerable": "fb9e13afbf7f1b856d59a75acca4fc8ebbadb06908af5e409d2b2e7eb470e4b4",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "c451a4853a2ec8a3038741af558f4024cf34edc919a07dd3b16c8f665f834d0f",
+      "fix_changed_files": 7,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": null
+    },
+    {
+      "id": "wp-groundhogg-confirm-redirect",
+      "repo": "https://github.com/groundhoggwp/groundhogg",
+      "vulnerable": "9472a1dd79d4556c40eece501a61930793f170d3",
+      "fixed": "028247d4b8ec9ba051d3eb48f1466a759bc16bfd",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "templates/preferences.php",
+      "sink_functions": [],
+      "sink_sha256_vulnerable": "7887dbbac602984f3c8f754c526dc0656e547c2e66f00e0eb417d56c1af85554",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "081f9b70f08905b7c2c909306747aaacb4a885d7563f455b54638a3a70c611d8",
+      "fix_changed_files": 1,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "61c8a03f11b6030c630be6ae0b0c2ad641eb733a",
+        "tip": "e3a69f1c2814c6bebed940505894008748566b93",
+        "subject": "output a square image regardless of image dimensions",
+        "files": [
+          "includes/utils/html.php"
+        ],
+        "lines": 13
+      }
+    },
+    {
+      "id": "froxlor-admin-ip-second-order-sqli",
+      "repo": "https://github.com/froxlor/froxlor",
+      "vulnerable": "9bf03de643a2edee4642bfc6c94db1f05253da02",
+      "fixed": "a1eaca5a1601c8a30e00814a4fc73ad0c185f89e",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "lib/Froxlor/Api/Commands/IpsAndPorts.php",
+      "sink_functions": [
+        "listing",
+        "listingCount"
+      ],
+      "sink_sha256_vulnerable": "d1494998117a922d6370c9acbc68c9f547207dfae435c9e23a1d4af1786b0854",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "c4db47c2b4b7d62f6494989c30bd682bd1a39136b6b545d79dad8d33fbff6863",
+      "fix_changed_files": 3,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "b595f061fbb68874423809fec9f2a42bf6b34175",
+        "tip": "9d274828bdc4eefec0058a5a3a25bf4eb69d0f70",
+        "subject": "avoid warnings regarding php8.5 in config/database.php; adjust phpunit for froxlor/framework testing",
+        "files": [
+          "composer.json",
+          "config/database.php",
+          "phpunit.xml",
+          "tests/Feature/ExampleTest.php",
+          "tests/Unit/ExampleTest.php"
+        ],
+        "lines": 62
+      }
+    },
+    {
+      "id": "sulu-smart-content-sql2-injection",
+      "repo": "https://github.com/sulu/sulu",
+      "vulnerable": "d061094f5b7bb1d5e974544fce30bede9c7adf8e",
+      "fixed": "d19c01487af8c3de2fb3aa145856707a6367392c",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "src/Sulu/Component/Content/SmartContent/QueryBuilder.php",
+      "sink_functions": [
+        "buildCategoriesWhere",
+        "buildWhere"
+      ],
+      "sink_sha256_vulnerable": "421e860f75a4953bef494c24b64e951dc0e3748c7d7f592d73ee419af46c73cc",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "764798a416b14f85c24c9ff7f6342e78fde837dbf1d74207c4284bb162318b99",
+      "fix_changed_files": 2,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "2c4ee09545cf1c9a400006fcaca3b8499cc9a161",
+        "tip": "87d30d8f061102ce114556d72d628224e64529e5",
+        "subject": "Merge branch '2.6' of https://github.com/sulu/sulu into 3.0",
+        "files": [
+          "config/packages/security.yaml",
+          "src/Sulu/Bundle/SecurityBundle/Security/AuthenticationHandler.php",
+          "src/Sulu/Bundle/SecurityBundle/Tests/Application/config/config.yml",
+          "src/Sulu/Bundle/SecurityBundle/Tests/Functional/Controller/LoginControllerTest.php",
+          "src/Sulu/Bundle/SecurityBundle/Tests/Functional/Security/AuthenticationHandlerTest.php",
+          "src/Sulu/Component/Content/Tests/Unit/Types/LinkTest.php",
+          "src/Sulu/Component/Content/Types/Link.php"
+        ],
+        "lines": 183
+      }
+    }
+  ]
+}
