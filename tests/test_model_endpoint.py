@@ -95,7 +95,7 @@ def test_the_config_can_point_the_chat_endpoint_somewhere_else(monkeypatch: pyte
     detector, judge = resolve_models(config)
     # The default detector follows DEFAULT_DETECTOR_MODEL; the judge here is pinned by config to a legacy id,
     # which must keep working so an old run can be reproduced and re-priced.
-    assert detector == "deepseek-v4.1-flash" and judge == "deepseek-v4-pro"
+    assert detector == "deepseek-flash" and judge == "deepseek-v4-pro"
 
 
 def test_the_adapter_disables_thinking_asks_for_json_and_keeps_the_reasoning_field() -> None:
@@ -224,3 +224,25 @@ def test_the_config_can_turn_thinking_on(tmp_path: Path) -> None:
     assert load_config(path).models.thinking is True
     path.write_text("[models]\nthinking = false\n")
     assert load_config(path).models.thinking is False
+
+
+def test_the_default_model_is_an_api_name_the_platform_lists() -> None:
+    """`deepseek-v4.1-flash` is the product name; the API rejected it with HTTP 400 for every call (2026-09-10..28)."""
+    from openultrasast.model.endpoint import DEFAULT_DETECTOR_MODEL, DEFAULT_JUDGE_MODEL, price_of
+
+    assert DEFAULT_DETECTOR_MODEL == DEFAULT_JUDGE_MODEL == "deepseek-flash"
+    assert price_of(DEFAULT_DETECTOR_MODEL) is not None
+
+
+def test_the_hunter_reaches_deepseek_when_its_key_is_set(monkeypatch) -> None:
+    """DeepSeek is the chat provider; OpenRouter holds embeddings. The hunter resolved OpenRouter only."""
+    from openultrasast import tool_hunter
+    from openultrasast.model.endpoint import DeepSeekChatClient
+
+    monkeypatch.delenv(tool_hunter.CLIENT_ENV, raising=False)
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "embeddings-key")
+    client = tool_hunter.resolve_hunter_client()
+    assert isinstance(client, DeepSeekChatClient), type(client)
+    monkeypatch.delenv("DEEPSEEK_API_KEY")
+    assert not isinstance(tool_hunter.resolve_hunter_client(), DeepSeekChatClient)

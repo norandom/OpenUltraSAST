@@ -29,8 +29,12 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 # 12:00 Beijing time on 2026-09-14, billed at Flash's price. So the judge tier is no longer a more expensive
 # model -- detector and judge are the same model, and any claim in this repo that the judge is a *stronger*
 # second opinion is now a claim about prompt and evidence, not about model class.
-DEFAULT_DETECTOR_MODEL = "deepseek-v4.1-flash"
-DEFAULT_JUDGE_MODEL = "deepseek-v4.1-flash"
+# The API name is `deepseek-flash`, not the product name. From 2026-09-10 to 2026-09-28 this default was
+# `deepseek-v4.1-flash`, which the platform rejects with HTTP 400 ("The supported API model names are
+# deepseek-flash, deepseek-v4-pro") -- every model call in that period failed and was recorded only as a
+# degradation. The id is what `GET /models` lists; `deepseek-chat` is an alias the platform maps to it.
+DEFAULT_DETECTOR_MODEL = "deepseek-flash"
+DEFAULT_JUDGE_MODEL = "deepseek-flash"
 Provider = Literal["deepseek", "openrouter", "custom", "scripted"]
 _SCRIPTED_FLAGS = frozenset({"scripted", "script", "dump", "dump-only", "unsafe", "unsafe-snippet"})
 
@@ -50,6 +54,7 @@ class Prices:
 
 _PRICES: dict[str, Prices] = {
     # V4.1 Flash is priced as Flash; Pro requests are routed here and billed at this rate from 2026-09-14.
+    "deepseek-flash": Prices(cache_hit_per_m=0.014, input_per_m=0.44, output_per_m=1.32),
     "deepseek-v4.1-flash": Prices(cache_hit_per_m=0.014, input_per_m=0.44, output_per_m=1.32),
     "deepseek-v4-flash": Prices(cache_hit_per_m=0.014, input_per_m=0.44, output_per_m=1.32),
     "deepseek-v4-flash-vision-exp": Prices(cache_hit_per_m=0.014, input_per_m=0.44, output_per_m=1.32),

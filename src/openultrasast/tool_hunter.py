@@ -237,7 +237,12 @@ def scripted_hunter_client(mode: str = "scripted") -> ScriptedChatClient:
 
 
 def resolve_hunter_client() -> ChatClient | None:
-    """Return a hunter client from env, or OpenRouter when an API key is present."""
+    """Return a hunter client: scripted when asked, DeepSeek when its key is set, else OpenRouter.
+
+    DeepSeek is the chat provider; OpenRouter carries embeddings. This resolved OpenRouter only, so with the
+    project's keys the hunter could not reach the chat model at all -- every call went to an endpoint whose key
+    is scoped to embeddings and came back 401.
+    """
     flag = os.environ.get(CLIENT_ENV, "").strip().lower()
     if flag in _SCRIPTED_FLAGS:
         return scripted_hunter_client("scripted")
@@ -245,6 +250,12 @@ def resolve_hunter_client() -> ChatClient | None:
         return scripted_hunter_client("dump-only")
     if flag in _UNSAFE_FLAGS:
         return scripted_hunter_client("unsafe-snippet")
+    if flag not in _OPENROUTER_FLAGS and os.environ.get("DEEPSEEK_API_KEY"):
+        from .model.endpoint import DEEPSEEK_BASE_ENV, DEEPSEEK_BASE_URL, ChatEndpoint, DeepSeekChatClient
+
+        base_url = os.environ.get(DEEPSEEK_BASE_ENV, DEEPSEEK_BASE_URL).rstrip("/")
+        endpoint = ChatEndpoint(provider="deepseek", base_url=base_url, thinking=False)
+        return DeepSeekChatClient(OpenRouterChatClient(api_key=os.environ["DEEPSEEK_API_KEY"], base_url=base_url), endpoint=endpoint)
     if flag in _OPENROUTER_FLAGS or (not flag and os.environ.get("OPENROUTER_API_KEY")):
         try:
             return OpenRouterHunterClient.from_env()
