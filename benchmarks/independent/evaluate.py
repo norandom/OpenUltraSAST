@@ -270,7 +270,13 @@ def score_v2() -> int:
         hit_b = {f["site"] for f in vb if matches_v2(f, case, old)}
         fixed_alerts = sorted({f["site"] for f in fa + fb if matches_v2(f, case, new)})
         base_regions = {tuple(f["site"].split(":")[0::2]) for f in scans["benign_base"].get("findings", [])}
-        benign_alerts = [f["site"] for f in scans["benign_tip"].get("findings", []) if tuple(f["site"].split(":")[0::2]) not in base_regions]
+        # protocol-v2.md: benign alerts and the precision pool are findings OF THE CASE FAMILY. The engine's dump
+        # emits only that family, so this was invisible until the hunter, whose findings span every family.
+        benign_alerts = [
+            f["site"]
+            for f in scans["benign_tip"].get("findings", [])
+            if f.get("family") == case["family"] and tuple(f["site"].split(":")[0::2]) not in base_regions
+        ]
         site_files = {site.partition("::")[0] for site in case.get("sites", [])}
         covered = set(old) | site_files
         answered = any(r.split(":")[0] in covered for label in ("vulnerable_a", "vulnerable_b") for r in scans[label].get("completed_regions", []))
@@ -295,9 +301,9 @@ def score_v2() -> int:
                 "seconds": {label: s.get("seconds") for label, s in scans.items()},
             }
         )  # fmt: skip
-        stable = {f["site"] for f in vb}
-        pool += [{"case": case["id"], **f} for f in va if f["site"] in stable]
-        unstable_pool += len({f["site"] for f in va} ^ stable)
+        stable = {f["site"] for f in vb if f.get("family") == case["family"]}
+        pool += [{"case": case["id"], **f} for f in va if f.get("family") == case["family"] and f["site"] in stable]
+        unstable_pool += len({f["site"] for f in va if f.get("family") == case["family"]} ^ stable)
     pool.sort(key=lambda f: (f["case"], f["site"]))
     sample = pool if len(pool) <= 15 else pool[0::3]
     scored = [c for c in per_case if c.get("status") != "incomplete"]

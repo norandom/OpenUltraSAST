@@ -1,0 +1,1206 @@
+{
+  "protocol": "protocol-v2.md",
+  "cases_scored": 17,
+  "cases_incomplete": [],
+  "recall": [
+    1,
+    17
+  ],
+  "recall_wilson95": [
+    0.01,
+    0.27
+  ],
+  "unstable_detections": [],
+  "fixed_side_alerts": 1,
+  "benign_alerts": 16,
+  "completion": [
+    368,
+    408
+  ],
+  "stability": [
+    846,
+    1159
+  ],
+  "pooled_stable_vulnerable_findings": 40,
+  "unstable_vulnerable_findings": 163,
+  "precision_sample_size": 14,
+  "cases": [
+    {
+      "id": "pgadmin-maintenance-sqli",
+      "family": "injection",
+      "language": "python",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          21,
+          31
+        ],
+        "fixed": [
+          43,
+          51
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          4,
+          4
+        ],
+        "vulnerable_b": [
+          4,
+          4
+        ],
+        "fixed_a": [
+          4,
+          4
+        ],
+        "fixed_b": [
+          4,
+          4
+        ],
+        "benign_base": [
+          4,
+          4
+        ],
+        "benign_tip": [
+          4,
+          4
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 122.5,
+        "vulnerable_b": 143.5,
+        "fixed_a": 133.3,
+        "fixed_b": 145.2,
+        "benign_base": 143.5,
+        "benign_tip": 114.1
+      }
+    },
+    {
+      "id": "qwed-sympy-eval",
+      "family": "injection",
+      "language": "python",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          48,
+          59
+        ],
+        "fixed": [
+          44,
+          50
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          4,
+          4
+        ],
+        "vulnerable_b": [
+          4,
+          4
+        ],
+        "fixed_a": [
+          4,
+          4
+        ],
+        "fixed_b": [
+          4,
+          4
+        ],
+        "benign_base": [
+          4,
+          4
+        ],
+        "benign_tip": [
+          4,
+          4
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 55.0,
+        "vulnerable_b": 54.2,
+        "fixed_a": 50.5,
+        "fixed_b": 48.7,
+        "benign_base": 55.0,
+        "benign_tip": 53.1
+      }
+    },
+    {
+      "id": "contextforge-prompt-ssti",
+      "family": "injection",
+      "language": "python",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          37,
+          48
+        ],
+        "fixed": [
+          19,
+          34
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          4,
+          4
+        ],
+        "vulnerable_b": [
+          4,
+          4
+        ],
+        "fixed_a": [
+          4,
+          4
+        ],
+        "fixed_b": [
+          4,
+          4
+        ],
+        "benign_base": [
+          4,
+          4
+        ],
+        "benign_tip": [
+          4,
+          4
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 120.8,
+        "vulnerable_b": 119.2,
+        "fixed_a": 116.6,
+        "fixed_b": 115.4,
+        "benign_base": 109.5,
+        "benign_tip": 110.1
+      }
+    },
+    {
+      "id": "lmdeploy-media-url-ssrf",
+      "family": "untrusted_destination",
+      "language": "python",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          29,
+          42
+        ],
+        "fixed": [
+          29,
+          43
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          4,
+          4
+        ],
+        "vulnerable_b": [
+          4,
+          4
+        ],
+        "fixed_a": [
+          4,
+          4
+        ],
+        "fixed_b": [
+          4,
+          4
+        ],
+        "benign_base": [
+          4,
+          4
+        ],
+        "benign_tip": [
+          4,
+          4
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 62.3,
+        "vulnerable_b": 60.8,
+        "fixed_a": 57.2,
+        "fixed_b": 58.3,
+        "benign_base": 64.6,
+        "benign_tip": 64.6
+      }
+    },
+    {
+      "id": "winml-cli-serve-cors",
+      "family": "config_secrets",
+      "language": "python",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [
+        "src/winml/modelkit/analyze/models/onnx_model.py:1:",
+        "src/winml/modelkit/analyze/onnx_opset/_impl/opset_ai_onnx_preview_training1.py:1:",
+        "src/winml/modelkit/analyze/onnx_opset/_impl/opset_com_microsoft1.py:1:",
+        "src/winml/modelkit/analyze/runtime_checker/runner.py:1:",
+        "src/winml/modelkit/analyze/utils/avalizble_ep_device_ops/case_index_key_codec.py:1:"
+      ],
+      "stability": {
+        "vulnerable": [
+          24,
+          28
+        ],
+        "fixed": [
+          22,
+          24
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          4,
+          4
+        ],
+        "vulnerable_b": [
+          4,
+          4
+        ],
+        "fixed_a": [
+          4,
+          4
+        ],
+        "fixed_b": [
+          4,
+          4
+        ],
+        "benign_base": [
+          4,
+          4
+        ],
+        "benign_tip": [
+          4,
+          4
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 63.3,
+        "vulnerable_b": 70.0,
+        "fixed_a": 72.0,
+        "fixed_b": 60.8,
+        "benign_base": 64.6,
+        "benign_tip": 68.4
+      }
+    },
+    {
+      "id": "reactpress-findall-column-sqli",
+      "family": "injection",
+      "language": "typescript",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [
+        "cli/bin/reactpress.js:341:",
+        "cli/lib/dev-banner.js:1:"
+      ],
+      "stability": {
+        "vulnerable": [
+          30,
+          41
+        ],
+        "fixed": [
+          16,
+          28
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          4,
+          4
+        ],
+        "vulnerable_b": [
+          4,
+          4
+        ],
+        "fixed_a": [
+          4,
+          4
+        ],
+        "fixed_b": [
+          4,
+          4
+        ],
+        "benign_base": [
+          4,
+          4
+        ],
+        "benign_tip": [
+          4,
+          4
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 51.8,
+        "vulnerable_b": 593.6,
+        "fixed_a": 49.1,
+        "fixed_b": 47.7,
+        "benign_base": 51.8,
+        "benign_tip": 54.4
+      }
+    },
+    {
+      "id": "fuxa-tdengine-escape-sqli",
+      "family": "injection",
+      "language": "javascript",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {
+        "vulnerable_a": "no hunt completed: OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request; OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request; OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request",
+        "vulnerable_b": "no hunt completed: OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request; OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request; OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request",
+        "fixed_a": "no hunt completed: OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request; OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request; OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request",
+        "fixed_b": "no hunt completed: OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request; OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request; OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request",
+        "benign_base": "no hunt completed: OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request; OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request; OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request",
+        "benign_tip": "no hunt completed: OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request; OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request; OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request"
+      },
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          0,
+          0
+        ],
+        "fixed": [
+          0,
+          0
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          0,
+          4
+        ],
+        "vulnerable_b": [
+          0,
+          4
+        ],
+        "fixed_a": [
+          0,
+          4
+        ],
+        "fixed_b": [
+          0,
+          4
+        ],
+        "benign_base": [
+          0,
+          4
+        ],
+        "benign_tip": [
+          0,
+          4
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 78.9,
+        "vulnerable_b": 86.6,
+        "fixed_a": 78.3,
+        "fixed_b": 98.5,
+        "benign_base": 104.8,
+        "benign_tip": 102.9
+      }
+    },
+    {
+      "id": "budibase-mongo-template-nosqli",
+      "family": "injection",
+      "language": "typescript",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [
+        "packages/backend-core/src/context/mainContext.ts:34:",
+        "packages/backend-core/src/context/mainContext.ts:45:",
+        "packages/backend-core/src/context/mainContext.ts:54:"
+      ],
+      "stability": {
+        "vulnerable": [
+          33,
+          41
+        ],
+        "fixed": [
+          35,
+          44
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          4,
+          4
+        ],
+        "vulnerable_b": [
+          4,
+          4
+        ],
+        "fixed_a": [
+          4,
+          4
+        ],
+        "fixed_b": [
+          4,
+          4
+        ],
+        "benign_base": [
+          4,
+          4
+        ],
+        "benign_tip": [
+          4,
+          4
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 115.0,
+        "vulnerable_b": 107.9,
+        "fixed_a": 110.8,
+        "fixed_b": 118.6,
+        "benign_base": 100.8,
+        "benign_tip": 104.3
+      }
+    },
+    {
+      "id": "unleash-addon-webhook-ssrf",
+      "family": "untrusted_destination",
+      "language": "typescript",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [
+        "frontend/src/component/App.tsx:56:",
+        "frontend/src/component/admin/Admin.tsx:30:"
+      ],
+      "stability": {
+        "vulnerable": [
+          23,
+          33
+        ],
+        "fixed": [
+          15,
+          30
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          4,
+          4
+        ],
+        "vulnerable_b": [
+          4,
+          4
+        ],
+        "fixed_a": [
+          4,
+          4
+        ],
+        "fixed_b": [
+          4,
+          4
+        ],
+        "benign_base": [
+          4,
+          4
+        ],
+        "benign_tip": [
+          4,
+          4
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 61.2,
+        "vulnerable_b": 80.1,
+        "fixed_a": 65.3,
+        "fixed_b": 67.3,
+        "benign_base": 70.7,
+        "benign_tip": 88.1
+      }
+    },
+    {
+      "id": "medplum-external-auth-open-redirect",
+      "family": "untrusted_destination",
+      "language": "typescript",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          24,
+          31
+        ],
+        "fixed": [
+          12,
+          27
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          4,
+          4
+        ],
+        "vulnerable_b": [
+          4,
+          4
+        ],
+        "fixed_a": [
+          4,
+          4
+        ],
+        "fixed_b": [
+          4,
+          4
+        ],
+        "benign_base": [
+          4,
+          4
+        ],
+        "benign_tip": [
+          4,
+          4
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 67.9,
+        "vulnerable_b": 69.4,
+        "fixed_a": 55.4,
+        "fixed_b": 67.3,
+        "benign_base": 61.7,
+        "benign_tip": 61.1
+      }
+    },
+    {
+      "id": "cct-studio-server-cmdi",
+      "family": "injection",
+      "language": "javascript",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          37,
+          48
+        ],
+        "fixed": [
+          38,
+          49
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          4,
+          4
+        ],
+        "vulnerable_b": [
+          4,
+          4
+        ],
+        "fixed_a": [
+          4,
+          4
+        ],
+        "fixed_b": [
+          4,
+          4
+        ],
+        "benign_base": [
+          4,
+          4
+        ],
+        "benign_tip": [
+          4,
+          4
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 127.5,
+        "vulnerable_b": 126.1,
+        "fixed_a": 119.9,
+        "fixed_b": 117.7,
+        "benign_base": 136.8,
+        "benign_tip": 131.9
+      }
+    },
+    {
+      "id": "wp-gopay-log-filter-sqli",
+      "family": "injection",
+      "language": "php",
+      "detected": true,
+      "detected_sites": [
+        "admin/views/log.php:13:",
+        "admin/views/log.php:22:"
+      ],
+      "unstable": false,
+      "unstable_sites": [
+        "admin/views/log.php:14:",
+        "admin/views/log.php:30:",
+        "admin/views/log.php:41:"
+      ],
+      "unanswered": false,
+      "instrument_errors": {},
+      "fixed_side_alerts": [
+        "admin/views/log.php:14:"
+      ],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          25,
+          34
+        ],
+        "fixed": [
+          15,
+          24
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          4,
+          4
+        ],
+        "vulnerable_b": [
+          4,
+          4
+        ],
+        "fixed_a": [
+          4,
+          4
+        ],
+        "fixed_b": [
+          4,
+          4
+        ],
+        "benign_base": [
+          4,
+          4
+        ],
+        "benign_tip": [
+          4,
+          4
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 43.5,
+        "vulnerable_b": 43.5,
+        "fixed_a": 39.2,
+        "fixed_b": 43.7,
+        "benign_base": 41.7,
+        "benign_tip": 44.7
+      }
+    },
+    {
+      "id": "wp-user-registration-login-redirect",
+      "family": "untrusted_destination",
+      "language": "php",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          18,
+          35
+        ],
+        "fixed": [
+          29,
+          45
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          4,
+          4
+        ],
+        "vulnerable_b": [
+          4,
+          4
+        ],
+        "fixed_a": [
+          4,
+          4
+        ],
+        "fixed_b": [
+          4,
+          4
+        ],
+        "benign_base": [
+          4,
+          4
+        ],
+        "benign_tip": [
+          4,
+          4
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 56.0,
+        "vulnerable_b": 70.5,
+        "fixed_a": 72.4,
+        "fixed_b": 53.9,
+        "benign_base": 58.6,
+        "benign_tip": 65.8
+      }
+    },
+    {
+      "id": "wp-directorist-avatar-ssrf",
+      "family": "untrusted_destination",
+      "language": "php",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {
+        "vulnerable_a": "no hunt completed: OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request; OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request; OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request",
+        "vulnerable_b": "no hunt completed: OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request; OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request; OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request",
+        "fixed_a": "no hunt completed: OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request; OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request; OpenRouterError: OpenRouter chat request failed: HTTPError: HTTP Error 400: Bad Request"
+      },
+      "fixed_side_alerts": [],
+      "benign_alerts": [
+        "assets/js/add-listing.min.js:1:",
+        "assets/js/admin-extension-update.min.js:1:",
+        "includes/classes/class-add-listing.php:456:",
+        "includes/classes/class-add-listing.php:954:"
+      ],
+      "stability": {
+        "vulnerable": [
+          0,
+          0
+        ],
+        "fixed": [
+          37,
+          37
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          0,
+          4
+        ],
+        "vulnerable_b": [
+          0,
+          4
+        ],
+        "fixed_a": [
+          0,
+          4
+        ],
+        "fixed_b": [
+          1,
+          4
+        ],
+        "benign_base": [
+          4,
+          4
+        ],
+        "benign_tip": [
+          3,
+          4
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 126.4,
+        "vulnerable_b": 96.4,
+        "fixed_a": 98.3,
+        "fixed_b": 136.2,
+        "benign_base": 102.5,
+        "benign_tip": 112.5
+      }
+    },
+    {
+      "id": "wp-groundhogg-confirm-redirect",
+      "family": "untrusted_destination",
+      "language": "php",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          31,
+          39
+        ],
+        "fixed": [
+          33,
+          45
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          4,
+          4
+        ],
+        "vulnerable_b": [
+          4,
+          4
+        ],
+        "fixed_a": [
+          4,
+          4
+        ],
+        "fixed_b": [
+          4,
+          4
+        ],
+        "benign_base": [
+          4,
+          4
+        ],
+        "benign_tip": [
+          4,
+          4
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 56.7,
+        "vulnerable_b": 55.4,
+        "fixed_a": 55.6,
+        "fixed_b": 51.1,
+        "benign_base": 59.7,
+        "benign_tip": 55.1
+      }
+    },
+    {
+      "id": "froxlor-admin-ip-second-order-sqli",
+      "family": "injection",
+      "language": "php",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          38,
+          46
+        ],
+        "fixed": [
+          25,
+          36
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          4,
+          4
+        ],
+        "vulnerable_b": [
+          4,
+          4
+        ],
+        "fixed_a": [
+          4,
+          4
+        ],
+        "fixed_b": [
+          4,
+          4
+        ],
+        "benign_base": [
+          4,
+          4
+        ],
+        "benign_tip": [
+          4,
+          4
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 51.2,
+        "vulnerable_b": 44.9,
+        "fixed_a": 48.4,
+        "fixed_b": 43.5,
+        "benign_base": 23.5,
+        "benign_tip": 24.9
+      }
+    },
+    {
+      "id": "sulu-smart-content-sql2-injection",
+      "family": "injection",
+      "language": "php",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          4,
+          16
+        ],
+        "fixed": [
+          12,
+          20
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          4,
+          4
+        ],
+        "vulnerable_b": [
+          4,
+          4
+        ],
+        "fixed_a": [
+          4,
+          4
+        ],
+        "fixed_b": [
+          4,
+          4
+        ],
+        "benign_base": [
+          4,
+          4
+        ],
+        "benign_tip": [
+          4,
+          4
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 69.7,
+        "vulnerable_b": 73.3,
+        "fixed_a": 73.7,
+        "fixed_b": 72.9,
+        "benign_base": 86.1,
+        "benign_tip": 84.1
+      }
+    }
+  ],
+  "precision_sample": [
+    {
+      "case": "budibase-mongo-template-nosqli",
+      "site": "packages/backend-core/src/configs/configs.ts:158:",
+      "family": "injection",
+      "model_family": "url-injection",
+      "title": "Tenant ID interpolated into platform URL host without validation",
+      "witness": "getPlatformUrl builds the tenant-aware platform URL via platformUrl.replace(\"://\", `://${tenantId}.`) using context.getTenantId(). The tenant ID is derived from request context (mainContext.getTenantId / getTenantIDFromWorkspaceID splits workspace IDs) and is not validated or encoded before being placed into the URL authority. A tenant ID containing characters such as '/', '@', ':', or '#' could a",
+      "verdict": "False, not attacker",
+      "reason": "tenant id from request context not shown attacker-controlled"
+    },
+    {
+      "case": "cct-studio-server-cmdi",
+      "site": "api/claude-code-monitor/parser.js:14:",
+      "family": "injection",
+      "model_family": "regex-injection",
+      "title": "RegExp constructed from version string (regex injection / ReDoS)",
+      "witness": "parseVersionChangelog builds `new RegExp(`^##\\\\s+(?:v)?${cleanVersion.replace(/\\./g, '\\\\.')}`, 'm')` from the `version` argument. Only dots are escaped; other regex metacharacters pass through unescaped, so a crafted version string can alter the pattern, cause a SyntaxError, or trigger catastrophic backtracking (ReDoS) against the changelog. The same pattern is duplicated in api/_parser-claude.js ",
+      "verdict": "False, not attacker",
+      "reason": "regex built from an internal changelog version"
+    },
+    {
+      "case": "contextforge-prompt-ssti",
+      "site": "mcp-servers/python/data_analysis_server/src/data_analysis_server/utils/query_parser.py:89:",
+      "family": "injection",
+      "model_family": "code-injection",
+      "title": "Arbitrary expression evaluation via pandas DataFrame.query on user-supplied query string",
+      "witness": "execute_query passes the raw user query to _parse_and_execute, which for any non-SELECT input calls df.query(query) directly. pandas query uses numexpr/python eval semantics, so attacker-controlled query text is evaluated as an expression rather than treated as data. The same pattern recurs at lines 257 and 477 (df.query(condition) inside _apply_where_clause and the HAVING handler), so WHERE/HAVIN",
+      "verdict": "True, privileged",
+      "reason": "sample MCP data server passes the caller's query to DataFrame.query"
+    },
+    {
+      "case": "contextforge-prompt-ssti",
+      "site": "mcp-servers/python/mcp_eval_server/mcp_eval_server/rest_server.py:829:",
+      "family": "injection",
+      "model_family": "prompt-injection",
+      "title": "agent_benchmark endpoint passes request data to agent tools",
+      "witness": "The handler forwards caller-supplied request fields into AgentTools without visible validation, allowing untrusted input to flow into downstream evaluation logic.",
+      "verdict": "False",
+      "reason": "no sink established ('without visible validation')"
+    },
+    {
+      "case": "pgadmin-maintenance-sqli",
+      "site": "runtime/src/js/pgadmin.js:243:",
+      "family": "injection",
+      "model_family": "",
+      "title": "Shell-style command string built from pythonPath/pgadminFile",
+      "witness": "let command = pythonPath + ' -s ' + pgadminFile; concatenates paths into a command string. If this string is ever passed to a shell (e.g. exec/execSync) rather than the argument-array spawn at line 269, the dev_config-controlled paths would allow command injection. Worth verifying all consumers of `command`.",
+      "verdict": "False",
+      "reason": "hypothetical: the string is spawned as an argv array"
+    },
+    {
+      "case": "qwed-sympy-eval",
+      "site": "qwed_sdk/guards/mcp_poison_guard.py:162:",
+      "family": "injection",
+      "model_family": "prompt-injection",
+      "title": "MCP tool schema scanning uses fixed injection regex list",
+      "witness": "verify_tool_definition scans descriptions/parameters with a hardcoded _DEFAULT_INJECTION_PATTERNS list plus optional custom patterns; novel injection phrasings not matching these regexes pass, and the guard trusts the schema structure it is given.",
+      "verdict": "False",
+      "reason": "guard regex list incompleteness is not a vulnerability"
+    },
+    {
+      "case": "reactpress-findall-column-sqli",
+      "site": "cli/lib/dev.js:79:",
+      "family": "injection",
+      "model_family": "command-injection",
+      "title": "spawn with shell:true for client dev",
+      "witness": "spawnClient runs spawn('pnpm', ['run', '--dir', './client', 'dev'], { shell: true, cwd: projectRoot }). With shell:true the argv is joined into a shell command line, so shell metacharacters in the resolved cwd/args can break out of the intended command. The sibling spawnApi at line 43 avoids the shell, making this the outlier.",
+      "verdict": "False, not attacker",
+      "reason": "dev CLI spawn with fixed args"
+    },
+    {
+      "case": "reactpress-findall-column-sqli",
+      "site": "cli/lib/publish.js:234:",
+      "family": "injection",
+      "model_family": "command-injection",
+      "title": "execSync with interpolated package name/version",
+      "witness": "execSync(`npm view ${packageName}@${nextVersion} version`, ...) interpolates packageName and nextVersion into a shell command string. If either value is derived from package.json or user input without validation, shell metacharacters would be executed by the shell.",
+      "verdict": "False, not attacker",
+      "reason": "release script interpolates package.json name/version"
+    },
+    {
+      "case": "sulu-smart-content-sql2-injection",
+      "site": "src/Sulu/Bundle/AdminBundle/Admin/View/TabViewBuilderInterface.php:27:",
+      "family": "injection",
+      "model_family": "expression-injection",
+      "title": "setTabCondition accepts arbitrary string stored as view option",
+      "witness": "The interface exposes `setTabCondition(string $tabCondition)` (and `addRouterAttributesToBlacklist(array)`) with no validation. Implementations (TabViewChildBuilderTrait.php:21) store the raw string as the `tabCondition` view option, which is later evaluated as a jexl expression on the client \u2014 the entry point through which unvalidated condition strings reach the expression evaluator.",
+      "verdict": "False",
+      "reason": "admin view-builder configuration API"
+    },
+    {
+      "case": "sulu-smart-content-sql2-injection",
+      "site": "src/Sulu/Bundle/AdminBundle/Resources/js/components/Number/Number.js:1:",
+      "family": "injection",
+      "model_family": "no-sink",
+      "title": "Number ranked hotspot: no injection sink found",
+      "witness": "Inspected the full component. It parses input with parseFloat, guards NaN, and forwards the numeric value plus event to props.onChange, rendering through the shared Input component. No HTML/script sink, no string concatenation into markup, no URL handling. Ranking is not corroborated by an injection primitive.",
+      "verdict": "False",
+      "reason": "non-finding filed by the model"
+    },
+    {
+      "case": "unleash-addon-webhook-ssrf",
+      "site": "frontend/src/component/admin/AdminRedirect.tsx:3:",
+      "family": "untrusted_destination",
+      "model_family": "",
+      "title": "Static Navigate redirect to hardcoded admin path",
+      "witness": "The component renders <Navigate to='/admin/users' replace />. The destination is a hardcoded literal, not derived from user input, query params, or state, so the 'untrusted_destination' ranking is a false positive here. No open-redirect or attacker-controlled navigation sink exists in this file.",
+      "verdict": "False",
+      "reason": "static Navigate target; the model says so"
+    },
+    {
+      "case": "winml-cli-serve-cors",
+      "site": "scripts/download_rules.py:83:",
+      "family": "config_secrets",
+      "model_family": "credential_exposure",
+      "title": "GitHub token embedded in clone URL (credential exposure)",
+      "witness": "The gh CLI token is read from `gh auth token` and interpolated directly into a git remote URL (`https://x-access-token:{token}@github.com/...`). This URL is passed to `git clone`, so the live credential can leak into process listings (argv), git error output, shell history, and any logs that echo the command. The token is a full-access credential for the authenticated account, so exposure is high ",
+      "verdict": "False, not attacker",
+      "reason": "local dev script, user's own token"
+    },
+    {
+      "case": "wp-gopay-log-filter-sqli",
+      "site": "admin/views/log.php:13:",
+      "family": "injection",
+      "model_family": "sql-injection",
+      "title": "SQL injection via unsanitized log_table_filter in REGEXP query",
+      "witness": "$log_table_filter = filter_input( INPUT_GET, 'log_table_filter' ) is taken raw from the request with no sanitize/escape, then interpolated directly into SQL via sprintf() at lines 22 and 41 and passed to $wpdb->get_results() without $wpdb->prepare(). Only strtoupper() is applied, which does not neutralize SQL metacharacters such as quotes, so an attacker can break out of the REGEXP '[\\w\\W]*%s[\\w\\W",
+      "verdict": "True, privileged",
+      "reason": "the case's CVE: filter_input GET -> sprintf REGEXP -> $wpdb->get_results"
+    },
+    {
+      "case": "wp-user-registration-login-redirect",
+      "site": "assets/js/admin/ur-setup.js:711:",
+      "family": "untrusted_destination",
+      "model_family": "untrusted_destination",
+      "title": "Navigation to server-supplied redirectUrl in show_toast_and_reload",
+      "witness": "show_toast_and_reload(redirectUrl) assigns window.location.href = redirectUrl. The value is passed in from callers (e.g. activate_feature_from_settings builds it from window.location.href, but the function itself accepts an arbitrary string and performs a top-level navigation without validation). This is the untrusted_destination sink the ranker flagged.",
+      "verdict": "False, not attacker",
+      "reason": "redirect URL built from window.location.href"
+    }
+  ],
+  "precision": [
+    2,
+    14
+  ],
+  "precision_wilson95": [
+    0.04,
+    0.399
+  ],
+  "under_test": "tool_hunter unchanged (default prompt/tools/4 steps), deepseek-flash, runner 6bfb05f",
+  "cost_usd": 8.8776,
+  "scope_in_reach": {
+    "cases_where_the_vulnerable_file_was_among_the_hotspots": 1,
+    "of": 17,
+    "detected_when_in_reach": "1/1 (wp-gopay-log-filter-sqli)"
+  },
+  "instrument_failures": {
+    "fuxa-tdengine-escape-sqli": "all six pins: every hunt rejected with DeepSeek HTTP 400 (undiagnosed); 0 regions offered the family",
+    "wp-directorist-avatar-ssrf": "three pins: every hunt HTTP 400; 0 regions offered the family"
+  },
+  "gates": {
+    "precision>=0.95": "not met",
+    "recall>=0.90": "not met",
+    "fixed_alerts==0": "not met (1)",
+    "benign_alerts==0": "not met (16)"
+  }
+}
