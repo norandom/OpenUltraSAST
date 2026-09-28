@@ -32,6 +32,8 @@ def read_file(root: Path, path: str, *, max_chars: int) -> str:
     return clamped.read_text(errors="ignore")[:max_chars]
 
 
+# A matched line is quoted, not returned whole: a minified bundle's single line can be megabytes.
+_LINE_CHARS = 240
 _Lines = tuple[tuple[str, tuple[str, ...]], ...]
 _SOURCE_MEMO: dict[tuple[str, int], tuple[_Lines, tuple[tuple[Path, int], ...]]] = {}
 
@@ -72,7 +74,7 @@ def grep_repo(root: Path, pattern: str, *, max_matches: int) -> list[dict[str, o
     for relative, lines in _source_lines(root):
         for line_no, line in enumerate(lines, start=1):
             if compiled.search(line):
-                matches.append({"path": relative, "line": line_no, "text": line})
+                matches.append({"path": relative, "line": line_no, "text": line[:_LINE_CHARS]})
                 if len(matches) >= max_matches:
                     return matches
     return matches
@@ -102,7 +104,7 @@ def find_refs(root: Path, symbol: str, mapping_index: object) -> list[dict[str, 
         for relative, lines in _source_lines(resolved_root):
             for line_no, line in enumerate(lines, start=1):
                 if compiled.search(line):
-                    refs.append({"path": relative, "name": symbol, "line": line_no, "text": line, "source": "text"})
+                    refs.append({"path": relative, "name": symbol, "line": line_no, "text": line[:_LINE_CHARS], "source": "text"})
     return refs
 
 

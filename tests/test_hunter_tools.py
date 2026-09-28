@@ -143,3 +143,14 @@ def test_grep_reads_the_tree_once_and_sees_an_edit(tmp_path, monkeypatch) -> Non
     stamp = source.stat().st_mtime_ns + 10_000_000
     os.utime(source, ns=(stamp, stamp))
     assert [m["line"] for m in hunter_tools.grep_repo(tmp_path, r"query\(", max_matches=5)] == [3], "a stale read survived an edit"
+
+
+def test_a_match_in_a_minified_line_is_quoted_not_returned_whole(tmp_path) -> None:
+    """FUXA's minified bundles have megabyte lines; one match overflowed the model's context for the whole hunt."""
+    from openultrasast import hunter_tools, tool_hunter
+
+    (tmp_path / "bundle.js").write_text("var a=1;" + "x" * 500_000 + ";eval(q);\n")
+    [match] = hunter_tools.grep_repo(tmp_path, r"var a", max_matches=5)
+    assert len(match["text"]) <= 240
+    call = tool_hunter.ToolCall(id="c", name="grep_repo", arguments={"pattern": "x+", "max_matches": 50})
+    assert len(tool_hunter._run_tool(tmp_path, call, 4000)) <= 16 * 4000 + 64

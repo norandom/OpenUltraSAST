@@ -114,7 +114,16 @@ class OpenRouterChatClient:
         try:
             return call_with_retry(_do, attempts=self.max_attempts, base_delay=self.retry_base_delay)
         except (urllib.error.URLError, TimeoutError, http.client.HTTPException, json.JSONDecodeError) as exc:
-            raise OpenRouterError(f"OpenRouter chat request failed: {type(exc).__name__}: {exc}") from exc
+            # The provider's own reason is in the body. Without it a 400 said nothing: DeepSeek's "the supported
+            # model names are ..." cost eighteen days of silently failed calls, and a case whose every request was
+            # rejected could not be diagnosed at all.
+            detail = ""
+            if isinstance(exc, urllib.error.HTTPError):
+                try:
+                    detail = " -- " + exc.read().decode("utf-8", errors="replace")[:500]
+                except Exception:  # noqa: BLE001 -- a body we cannot read is still an error with a status
+                    detail = ""
+            raise OpenRouterError(f"OpenRouter chat request failed: {type(exc).__name__}: {exc}{detail}") from exc
 
     def complete_json(self, *, model: str, messages: list[dict[str, str]], timeout_seconds: int = 60) -> object:
         message = self.complete_chat(model=model, messages=messages, timeout_seconds=timeout_seconds)

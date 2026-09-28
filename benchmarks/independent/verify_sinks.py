@@ -128,6 +128,8 @@ def main() -> int:
                 for candidate in pending:
                     futures.append(pool.submit(verify, str(checkout), list(candidate), case["family"], args.model, args.max_steps))
                 for future in concurrent.futures.as_completed(futures):
+                    if future.cancelled():  # cancelled at the ceiling: never run, nothing to record
+                        continue
                     result = future.result()
                     spent += float(result.get("usd", 0.0))
                     sink.write(json.dumps(result) + "\n")

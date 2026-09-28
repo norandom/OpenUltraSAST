@@ -486,7 +486,11 @@ def _run_tool(root: Path, call: ToolCall, max_chars: int = _DEFAULT_MAX_CHARS) -
         payload = _dispatch_tool(root, call.name, _arguments(call.arguments), max_chars)
     except Exception as exc:  # noqa: BLE001 — tool failures stay in-band so the scan continues
         payload = {"error": f"{type(exc).__name__}: {exc}"}
-    return json.dumps(payload, sort_keys=True)
+    text = json.dumps(payload, sort_keys=True)
+    # Bounded, whatever the tool. FUXA ships minified bundles whose single lines run to megabytes; one grep match
+    # returned such a line whole and every later request of the hunt failed with "maximum context length".
+    limit = 16 * max_chars
+    return text if len(text) <= limit else text[:limit] + f"... [truncated {len(text) - limit} characters]"
 
 
 def _dispatch_tool(root: Path, name: str, arguments: Mapping[str, object], default_max_chars: int = _DEFAULT_MAX_CHARS) -> object:
