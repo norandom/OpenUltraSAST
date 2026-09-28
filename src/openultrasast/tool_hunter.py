@@ -251,10 +251,11 @@ def resolve_hunter_client() -> ChatClient | None:
     if flag in _UNSAFE_FLAGS:
         return scripted_hunter_client("unsafe-snippet")
     if flag not in _OPENROUTER_FLAGS and os.environ.get("DEEPSEEK_API_KEY"):
-        from .model.endpoint import DEEPSEEK_BASE_ENV, DEEPSEEK_BASE_URL, ChatEndpoint, DeepSeekChatClient
+        from .model.endpoint import DEEPSEEK_BASE_ENV, DEEPSEEK_BASE_URL, DEFAULT_DETECTOR_MODEL, ChatEndpoint, DeepSeekChatClient, price_of
 
         base_url = os.environ.get(DEEPSEEK_BASE_ENV, DEEPSEEK_BASE_URL).rstrip("/")
-        endpoint = ChatEndpoint(provider="deepseek", base_url=base_url, thinking=False)
+        # Priced, so a budget can see what it spends: unpriced, the meter read $0.00 for any number of calls.
+        endpoint = ChatEndpoint(provider="deepseek", base_url=base_url, thinking=False, prices=price_of(DEFAULT_DETECTOR_MODEL))
         return DeepSeekChatClient(OpenRouterChatClient(api_key=os.environ["DEEPSEEK_API_KEY"], base_url=base_url), endpoint=endpoint)
     if flag in _OPENROUTER_FLAGS or (not flag and os.environ.get("OPENROUTER_API_KEY")):
         try:

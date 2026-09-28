@@ -244,5 +244,7 @@ def test_the_hunter_reaches_deepseek_when_its_key_is_set(monkeypatch) -> None:
     monkeypatch.setenv("OPENROUTER_API_KEY", "embeddings-key")
     client = tool_hunter.resolve_hunter_client()
     assert isinstance(client, DeepSeekChatClient), type(client)
+    # Priced: a budget that reads $0.00 for any number of calls is not a budget.
+    assert client.endpoint is not None and client.endpoint.prices is not None
     monkeypatch.delenv("DEEPSEEK_API_KEY")
     assert not isinstance(tool_hunter.resolve_hunter_client(), DeepSeekChatClient)
