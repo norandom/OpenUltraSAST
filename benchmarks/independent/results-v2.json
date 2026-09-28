@@ -1,0 +1,1205 @@
+{
+  "protocol": "protocol-v2.md",
+  "cases_scored": 17,
+  "cases_incomplete": [],
+  "recall": [
+    0,
+    17
+  ],
+  "recall_wilson95": [
+    0.0,
+    0.184
+  ],
+  "unstable_detections": [],
+  "fixed_side_alerts": 0,
+  "benign_alerts": 3,
+  "completion": [
+    13206,
+    108374
+  ],
+  "stability": [
+    2,
+    100
+  ],
+  "pooled_stable_vulnerable_findings": 49,
+  "unstable_vulnerable_findings": 0,
+  "precision_sample_size": 17,
+  "cases": [
+    {
+      "id": "pgadmin-maintenance-sqli",
+      "family": "injection",
+      "language": "python",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [
+        "web/pgadmin/utils/driver/psycopg3/connection.py:1648:cancel_transaction"
+      ],
+      "stability": {
+        "vulnerable": [
+          0,
+          4
+        ],
+        "fixed": [
+          1,
+          5
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          50,
+          2091
+        ],
+        "vulnerable_b": [
+          50,
+          2091
+        ],
+        "fixed_a": [
+          52,
+          2092
+        ],
+        "fixed_b": [
+          51,
+          2092
+        ],
+        "benign_base": [
+          51,
+          2107
+        ],
+        "benign_tip": [
+          53,
+          2107
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 2027.4,
+        "vulnerable_b": 2014.7,
+        "fixed_a": 2082.0,
+        "fixed_b": 2081.7,
+        "benign_base": 2067.4,
+        "benign_tip": 2052.5
+      }
+    },
+    {
+      "id": "qwed-sympy-eval",
+      "family": "injection",
+      "language": "python",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": false,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          0,
+          15
+        ],
+        "fixed": [
+          0,
+          15
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          55,
+          55
+        ],
+        "vulnerable_b": [
+          55,
+          55
+        ],
+        "fixed_a": [
+          55,
+          55
+        ],
+        "fixed_b": [
+          55,
+          55
+        ],
+        "benign_base": [
+          59,
+          59
+        ],
+        "benign_tip": [
+          59,
+          59
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 270.4,
+        "vulnerable_b": 263.6,
+        "fixed_a": 270.9,
+        "fixed_b": 271.9,
+        "benign_base": 346.6,
+        "benign_tip": 337.1
+      }
+    },
+    {
+      "id": "contextforge-prompt-ssti",
+      "family": "injection",
+      "language": "python",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          0,
+          0
+        ],
+        "fixed": [
+          0,
+          0
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          126,
+          2212
+        ],
+        "vulnerable_b": [
+          126,
+          2212
+        ],
+        "fixed_a": [
+          126,
+          2214
+        ],
+        "fixed_b": [
+          126,
+          2214
+        ],
+        "benign_base": [
+          126,
+          2247
+        ],
+        "benign_tip": [
+          126,
+          2248
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 210.8,
+        "vulnerable_b": 211.8,
+        "fixed_a": 215.2,
+        "fixed_b": 211.0,
+        "benign_base": 239.5,
+        "benign_tip": 230.8
+      }
+    },
+    {
+      "id": "lmdeploy-media-url-ssrf",
+      "family": "untrusted_destination",
+      "language": "python",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {
+        "vulnerable_a": "no question was asked",
+        "fixed_a": "no question was asked",
+        "fixed_b": "no question was asked",
+        "benign_base": "no question was asked",
+        "benign_tip": "no question was asked"
+      },
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          0,
+          0
+        ],
+        "fixed": [
+          0,
+          0
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          null,
+          0
+        ],
+        "vulnerable_b": [
+          0,
+          796
+        ],
+        "fixed_a": [
+          null,
+          0
+        ],
+        "fixed_b": [
+          null,
+          0
+        ],
+        "benign_base": [
+          null,
+          0
+        ],
+        "benign_tip": [
+          null,
+          0
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": null,
+        "vulnerable_b": 2104.7,
+        "fixed_a": null,
+        "fixed_b": null,
+        "benign_base": null,
+        "benign_tip": null
+      }
+    },
+    {
+      "id": "winml-cli-serve-cors",
+      "family": "config_secrets",
+      "language": "python",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          0,
+          0
+        ],
+        "fixed": [
+          1,
+          1
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          0,
+          1022
+        ],
+        "vulnerable_b": [
+          1,
+          1022
+        ],
+        "fixed_a": [
+          1,
+          1027
+        ],
+        "fixed_b": [
+          2,
+          1027
+        ],
+        "benign_base": [
+          0,
+          1034
+        ],
+        "benign_tip": [
+          0,
+          1033
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 2231.7,
+        "vulnerable_b": 2178.4,
+        "fixed_a": 2157.2,
+        "fixed_b": 2229.0,
+        "benign_base": 1958.2,
+        "benign_tip": 2244.9
+      }
+    },
+    {
+      "id": "reactpress-findall-column-sqli",
+      "family": "injection",
+      "language": "typescript",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": false,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          0,
+          1
+        ],
+        "fixed": [
+          0,
+          1
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          24,
+          24
+        ],
+        "vulnerable_b": [
+          24,
+          24
+        ],
+        "fixed_a": [
+          24,
+          24
+        ],
+        "fixed_b": [
+          24,
+          24
+        ],
+        "benign_base": [
+          24,
+          24
+        ],
+        "benign_tip": [
+          24,
+          24
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 157.6,
+        "vulnerable_b": 160.4,
+        "fixed_a": 163.3,
+        "fixed_b": 155.7,
+        "benign_base": 159.9,
+        "benign_tip": 173.6
+      }
+    },
+    {
+      "id": "fuxa-tdengine-escape-sqli",
+      "family": "injection",
+      "language": "javascript",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": false,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          0,
+          0
+        ],
+        "fixed": [
+          0,
+          0
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          19,
+          19
+        ],
+        "vulnerable_b": [
+          19,
+          19
+        ],
+        "fixed_a": [
+          19,
+          19
+        ],
+        "fixed_b": [
+          19,
+          19
+        ],
+        "benign_base": [
+          19,
+          19
+        ],
+        "benign_tip": [
+          19,
+          19
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 259.9,
+        "vulnerable_b": 243.5,
+        "fixed_a": 231.4,
+        "fixed_b": 232.2,
+        "benign_base": 238.5,
+        "benign_tip": 241.0
+      }
+    },
+    {
+      "id": "budibase-mongo-template-nosqli",
+      "family": "injection",
+      "language": "typescript",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          0,
+          1
+        ],
+        "fixed": [
+          0,
+          0
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          15,
+          2590
+        ],
+        "vulnerable_b": [
+          15,
+          2590
+        ],
+        "fixed_a": [
+          13,
+          2590
+        ],
+        "fixed_b": [
+          14,
+          2590
+        ],
+        "benign_base": [
+          15,
+          2590
+        ],
+        "benign_tip": [
+          15,
+          2590
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 2186.6,
+        "vulnerable_b": 2258.7,
+        "fixed_a": 2110.3,
+        "fixed_b": 2128.5,
+        "benign_base": 2202.0,
+        "benign_tip": 2192.8
+      }
+    },
+    {
+      "id": "unleash-addon-webhook-ssrf",
+      "family": "untrusted_destination",
+      "language": "typescript",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          0,
+          1
+        ],
+        "fixed": [
+          0,
+          1
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          35,
+          5000
+        ],
+        "vulnerable_b": [
+          31,
+          5000
+        ],
+        "fixed_a": [
+          29,
+          5000
+        ],
+        "fixed_b": [
+          27,
+          5000
+        ],
+        "benign_base": [
+          22,
+          5000
+        ],
+        "benign_tip": [
+          32,
+          5000
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 2044.8,
+        "vulnerable_b": 2033.2,
+        "fixed_a": 2078.9,
+        "fixed_b": 2044.9,
+        "benign_base": 2140.7,
+        "benign_tip": 2073.4
+      }
+    },
+    {
+      "id": "medplum-external-auth-open-redirect",
+      "family": "untrusted_destination",
+      "language": "typescript",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": false,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [
+        "packages/server/src/oauth/authorize.ts:138:validateAuthorizeRequest",
+        "packages/server/src/oauth/authorize.ts:290:sendErrorRedirect"
+      ],
+      "stability": {
+        "vulnerable": [
+          0,
+          9
+        ],
+        "fixed": [
+          0,
+          9
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          10,
+          2643
+        ],
+        "vulnerable_b": [
+          12,
+          2643
+        ],
+        "fixed_a": [
+          11,
+          2643
+        ],
+        "fixed_b": [
+          12,
+          2643
+        ],
+        "benign_base": [
+          10,
+          2643
+        ],
+        "benign_tip": [
+          11,
+          2643
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 2046.9,
+        "vulnerable_b": 2126.6,
+        "fixed_a": 2116.5,
+        "fixed_b": 2125.5,
+        "benign_base": 2099.5,
+        "benign_tip": 2113.8
+      }
+    },
+    {
+      "id": "cct-studio-server-cmdi",
+      "family": "injection",
+      "language": "javascript",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": false,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          0,
+          1
+        ],
+        "fixed": [
+          0,
+          1
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          1130,
+          1152
+        ],
+        "vulnerable_b": [
+          1130,
+          1152
+        ],
+        "fixed_a": [
+          1130,
+          1152
+        ],
+        "fixed_b": [
+          1130,
+          1152
+        ],
+        "benign_base": [
+          1111,
+          1133
+        ],
+        "benign_tip": [
+          1111,
+          1133
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 905.7,
+        "vulnerable_b": 791.5,
+        "fixed_a": 910.5,
+        "fixed_b": 809.5,
+        "benign_base": 913.6,
+        "benign_tip": 765.5
+      }
+    },
+    {
+      "id": "wp-gopay-log-filter-sqli",
+      "family": "injection",
+      "language": "php",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": false,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          0,
+          0
+        ],
+        "fixed": [
+          0,
+          0
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          101,
+          101
+        ],
+        "vulnerable_b": [
+          101,
+          101
+        ],
+        "fixed_a": [
+          101,
+          101
+        ],
+        "fixed_b": [
+          101,
+          101
+        ],
+        "benign_base": [
+          101,
+          101
+        ],
+        "benign_tip": [
+          101,
+          101
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 96.6,
+        "vulnerable_b": 96.9,
+        "fixed_a": 96.0,
+        "fixed_b": 95.5,
+        "benign_base": 94.6,
+        "benign_tip": 97.1
+      }
+    },
+    {
+      "id": "wp-user-registration-login-redirect",
+      "family": "untrusted_destination",
+      "language": "php",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": false,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          0,
+          2
+        ],
+        "fixed": [
+          0,
+          2
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          111,
+          111
+        ],
+        "vulnerable_b": [
+          111,
+          111
+        ],
+        "fixed_a": [
+          111,
+          111
+        ],
+        "fixed_b": [
+          111,
+          111
+        ],
+        "benign_base": [
+          111,
+          111
+        ],
+        "benign_tip": [
+          111,
+          111
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 475.2,
+        "vulnerable_b": 490.4,
+        "fixed_a": 468.4,
+        "fixed_b": 473.4,
+        "benign_base": 468.8,
+        "benign_tip": 476.4
+      }
+    },
+    {
+      "id": "wp-directorist-avatar-ssrf",
+      "family": "untrusted_destination",
+      "language": "php",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": false,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          0,
+          9
+        ],
+        "fixed": [
+          0,
+          10
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          111,
+          215
+        ],
+        "vulnerable_b": [
+          111,
+          215
+        ],
+        "fixed_a": [
+          111,
+          215
+        ],
+        "fixed_b": [
+          111,
+          215
+        ],
+        "benign_base": [
+          129,
+          221
+        ],
+        "benign_tip": [
+          129,
+          221
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 697.5,
+        "vulnerable_b": 666.0,
+        "fixed_a": 691.8,
+        "fixed_b": 697.1,
+        "benign_base": 592.6,
+        "benign_tip": 594.8
+      }
+    },
+    {
+      "id": "wp-groundhogg-confirm-redirect",
+      "family": "untrusted_destination",
+      "language": "php",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          0,
+          0
+        ],
+        "fixed": [
+          0,
+          0
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          96,
+          215
+        ],
+        "vulnerable_b": [
+          96,
+          215
+        ],
+        "fixed_a": [
+          96,
+          215
+        ],
+        "fixed_b": [
+          96,
+          215
+        ],
+        "benign_base": [
+          96,
+          215
+        ],
+        "benign_tip": [
+          96,
+          215
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 497.2,
+        "vulnerable_b": 505.6,
+        "fixed_a": 504.2,
+        "fixed_b": 504.2,
+        "benign_base": 509.6,
+        "benign_tip": 498.5
+      }
+    },
+    {
+      "id": "froxlor-admin-ip-second-order-sqli",
+      "family": "injection",
+      "language": "php",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {
+        "benign_base": "no question was asked",
+        "benign_tip": "no question was asked"
+      },
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          0,
+          6
+        ],
+        "fixed": [
+          0,
+          6
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          130,
+          130
+        ],
+        "vulnerable_b": [
+          130,
+          130
+        ],
+        "fixed_a": [
+          130,
+          130
+        ],
+        "fixed_b": [
+          130,
+          130
+        ],
+        "benign_base": [
+          null,
+          0
+        ],
+        "benign_tip": [
+          null,
+          0
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 326.5,
+        "vulnerable_b": 328.2,
+        "fixed_a": 325.5,
+        "fixed_b": 329.5,
+        "benign_base": null,
+        "benign_tip": null
+      }
+    },
+    {
+      "id": "sulu-smart-content-sql2-injection",
+      "family": "injection",
+      "language": "php",
+      "detected": false,
+      "detected_sites": [],
+      "unstable": false,
+      "unstable_sites": [],
+      "unanswered": true,
+      "instrument_errors": {},
+      "fixed_side_alerts": [],
+      "benign_alerts": [],
+      "stability": {
+        "vulnerable": [
+          0,
+          0
+        ],
+        "fixed": [
+          0,
+          0
+        ]
+      },
+      "completion": {
+        "vulnerable_a": [
+          247,
+          389
+        ],
+        "vulnerable_b": [
+          247,
+          389
+        ],
+        "fixed_a": [
+          247,
+          389
+        ],
+        "fixed_b": [
+          247,
+          389
+        ],
+        "benign_base": [
+          207,
+          339
+        ],
+        "benign_tip": [
+          207,
+          339
+        ]
+      },
+      "seconds": {
+        "vulnerable_a": 482.1,
+        "vulnerable_b": 485.2,
+        "fixed_a": 480.1,
+        "fixed_b": 481.7,
+        "benign_base": 413.7,
+        "benign_tip": 416.4
+      }
+    }
+  ],
+  "precision_sample": [
+    {
+      "case": "budibase-mongo-template-nosqli",
+      "site": "packages/server/src/api/controllers/query/index.ts:174:save",
+      "family": "injection",
+      "rung": "model_entailed",
+      "witness": "ctx.request.query -> query?.name.match(ValidQueryNameRegex) in packages/server/src/api/controllers/query/index.ts (line 174, 14 steps)",
+      "reached_from": 1,
+      "verdict": "False, not a sink",
+      "reason": "regex String.match treated as an injection sink"
+    },
+    {
+      "case": "froxlor-admin-ip-second-order-sqli",
+      "site": "lib/Froxlor/Cli/MasterCron.php:232:lockJob",
+      "family": "injection",
+      "rung": "model_entailed",
+      "witness": "$this->lockFile -> system(\"kill -CHLD \" . (int) $jobinfo[\"pid\"] . \" 1> /dev/null 2> /dev/null\", $check_pid_return) in lib/Froxlor/Cli/MasterCron.php (line 232, 15 steps)",
+      "reached_from": 2,
+      "verdict": "False, guarded",
+      "reason": "(int) cast of the pid"
+    },
+    {
+      "case": "froxlor-admin-ip-second-order-sqli",
+      "site": "lib/Froxlor/Install/Install.php:364:checkDatabase",
+      "family": "injection",
+      "rung": "model_entailed",
+      "witness": "$this->currentStep -> $pdo->exec(\"CREATE DATABASE IF NOT EXISTS \" . $testDatabase . \";\") in lib/Froxlor/Install/Install.php (line 364, 26 steps)",
+      "reached_from": 2,
+      "verdict": "False, not attacker",
+      "reason": "database name is uniqid('froxlor_tmp_')"
+    },
+    {
+      "case": "medplum-external-auth-open-redirect",
+      "site": "packages/core/src/client.ts:1342:put",
+      "family": "untrusted_destination",
+      "rung": "model_entailed",
+      "witness": "req.params.id -> this.request('PUT', url, options) in packages/core/src/client.ts (line 1342, 124 steps)",
+      "reached_from": 1,
+      "verdict": "False, not attacker",
+      "reason": "Medplum client SDK request, not server code; 124-step path"
+    },
+    {
+      "case": "medplum-external-auth-open-redirect",
+      "site": "packages/core/src/client.ts:3785:executeAutoBatch",
+      "family": "untrusted_destination",
+      "rung": "model_entailed",
+      "witness": "req.body[\"hub.topic\"] -> this.request(entry.method, concatUrls(this.fhirBaseUrl, entry.url), entry.options) in packages/core/src/client.ts (line 3785, 19 steps)",
+      "reached_from": 1,
+      "verdict": "False, not attacker",
+      "reason": "Medplum client SDK autobatch request"
+    },
+    {
+      "case": "medplum-external-auth-open-redirect",
+      "site": "packages/server/src/oauth/authorize.ts:138:validateAuthorizeRequest",
+      "family": "untrusted_destination",
+      "rung": "model_entailed",
+      "witness": "req.body -> res.redirect(redirectUrl.toString()) in packages/server/src/oauth/authorize.ts (line 138, 55 steps)",
+      "reached_from": 1,
+      "verdict": "False, guarded",
+      "reason": "redirect_uri checked by getClientRedirectUri against the client's registered URIs"
+    },
+    {
+      "case": "pgadmin-maintenance-sqli",
+      "site": "web/pgadmin/misc/bgprocess/process_executor.py:560:<module>",
+      "family": "injection",
+      "rung": "model_entailed",
+      "witness": "sys.argv -> execute(argv) in web/pgadmin/misc/bgprocess/process_executor.py (line 560, 25 steps)",
+      "reached_from": 1,
+      "verdict": "False, not attacker",
+      "reason": "background process reads its own argv"
+    },
+    {
+      "case": "qwed-sympy-eval",
+      "site": "qwed_sdk/cli.py:374:_guarded_popen",
+      "family": "injection",
+      "rung": "model_entailed",
+      "witness": "server_url -> subprocess.Popen(command, **popen_kwargs) in qwed_sdk/cli.py (line 374, 80 steps)",
+      "reached_from": 1,
+      "verdict": "False, not attacker",
+      "reason": "local CLI argument to Popen"
+    },
+    {
+      "case": "qwed-sympy-eval",
+      "site": "src/qwed_new/auth/audit_routes.py:39:get_logs",
+      "family": "injection",
+      "rung": "model_entailed",
+      "witness": "session -> session.exec(statement) in src/qwed_new/auth/audit_routes.py (line 39, 3 steps)",
+      "reached_from": 1,
+      "verdict": "False, guarded",
+      "reason": "SQLModel select statement, parameterised"
+    },
+    {
+      "case": "qwed-sympy-eval",
+      "site": "src/qwed_new/auth/routes.py:221:revoke_api_key_endpoint",
+      "family": "injection",
+      "rung": "model_entailed",
+      "witness": "session -> session.exec(statement) in src/qwed_new/auth/routes.py (line 221, 3 steps)",
+      "reached_from": 1,
+      "verdict": "False, guarded",
+      "reason": "SQLModel select statement, parameterised"
+    },
+    {
+      "case": "qwed-sympy-eval",
+      "site": "src/qwed_new/auth/routes.py:96:signin",
+      "family": "injection",
+      "rung": "model_entailed",
+      "witness": "session -> session.exec(statement) in src/qwed_new/auth/routes.py (line 96, 3 steps)",
+      "reached_from": 1,
+      "verdict": "False, guarded",
+      "reason": "SQLModel select statement, parameterised"
+    },
+    {
+      "case": "qwed-sympy-eval",
+      "site": "src/qwed_new/core/compliance_exporter.py:177:generate_soc2_report",
+      "family": "injection",
+      "rung": "model_entailed",
+      "witness": "organization_id -> session.exec(select(User).where(User.organization_id == organization_id)) in src/qwed_new/core/compliance_exporter.py (line 177, 14 steps)",
+      "reached_from": 1,
+      "verdict": "False, guarded",
+      "reason": "ORM where(==) comparison, parameterised"
+    },
+    {
+      "case": "reactpress-findall-column-sqli",
+      "site": "toolkit/src/utils/cookie.ts:5:readRequestCookie",
+      "family": "injection",
+      "rung": "model_entailed",
+      "witness": "req.headers.cookie -> new RegExp(`(?:^|;\\\\s*)${name}=([^;]*)`).exec(header) in toolkit/src/utils/cookie.ts (line 5, 4 steps)",
+      "reached_from": 1,
+      "verdict": "False, not a sink",
+      "reason": "RegExp.exec matched the command-exec sink name"
+    },
+    {
+      "case": "wp-directorist-avatar-ssrf",
+      "site": "includes/rest-api/Version1/class-abstract-terms-controller.php:336:get_items",
+      "family": "untrusted_destination",
+      "rung": "model_entailed",
+      "witness": "$request -> $response->header(\"X-WP-TotalPages\", (int) $max_pages) in includes/rest-api/Version1/class-abstract-terms-controller.php (line 336, 66 steps)",
+      "reached_from": 7,
+      "verdict": "False, guarded",
+      "reason": "(int) cast into X-WP-TotalPages header"
+    },
+    {
+      "case": "wp-directorist-avatar-ssrf",
+      "site": "includes/rest-api/Version1/class-listings-controller.php:188:get_items",
+      "family": "untrusted_destination",
+      "rung": "model_entailed",
+      "witness": "$request -> $response->header(\"X-WP-TotalPages\", (int) $max_pages) in includes/rest-api/Version1/class-listings-controller.php (line 188, 125 steps)",
+      "reached_from": 6,
+      "verdict": "False, guarded",
+      "reason": "(int) cast into X-WP-TotalPages header"
+    },
+    {
+      "case": "wp-directorist-avatar-ssrf",
+      "site": "includes/rest-api/Version1/class-users-controller.php:408:create_item",
+      "family": "untrusted_destination",
+      "rung": "model_entailed",
+      "witness": "$request -> $response->header(\"Location\", rest_url(sprintf(\"/%s/%s/%d\", $this->namespace, $this->rest_base, $user_id))) in includes/rest-api/Version1/class-users-controller.php (line 408, 91 steps)",
+      "reached_from": 8,
+      "verdict": "False, guarded",
+      "reason": "rest_url with %d user id"
+    },
+    {
+      "case": "wp-user-registration-login-redirect",
+      "site": "includes/admin/class-ur-admin-import-export-forms.php:95:export_json",
+      "family": "untrusted_destination",
+      "rung": "model_entailed",
+      "witness": "$_POST[\"formid\"] -> header(\"Content-Disposition: attachment;filename=\\\"\" . $file_name . \"\\\";charset=utf-8\") in includes/admin/class-ur-admin-import-export-forms.php (line 95, 18 steps)",
+      "reached_from": 1,
+      "verdict": "False, guarded",
+      "reason": "header() rejects CRLF; admin-only export"
+    }
+  ],
+  "precision": [
+    0,
+    17
+  ],
+  "precision_wilson95": [
+    0,
+    0.184
+  ],
+  "analyzer_commit": "a75b9f6",
+  "frozen_source": "/home/mc/ousast-frozen/frozen-a75b9f6-3370788-0",
+  "gates": {
+    "precision>=0.95": "not met",
+    "recall>=0.90": "not met",
+    "completion>=0.95": "not met (13206/108374)",
+    "fixed_alerts==0": "met (trivially: nothing detected)",
+    "benign_alerts==0": "not met (3)"
+  },
+  "instrument_failures": {
+    "lmdeploy-media-url-ssrf": "every taint batch failed whole on all six pins (\"no question was asked\"); cause not diagnosed before this record",
+    "froxlor-admin-ip-second-order-sqli": "benign_base and benign_tip scans"
+  }
+}
