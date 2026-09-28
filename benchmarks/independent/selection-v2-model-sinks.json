@@ -1,0 +1,331 @@
+{
+ "measurement": "model-classified sink selection on population v2 vulnerable pins (source only, deepseek-flash, model_sinks.py @ 05d5699)",
+ "declared_site_in_candidates": [
+  15,
+  17
+ ],
+ "fix_or_site_file_in_candidates": [
+  16,
+  17
+ ],
+ "compare": {
+  "ranker_top20_file_in_scope": [
+   1,
+   17
+  ],
+  "vocabulary_sink_first_site": [
+   2,
+   17
+  ]
+ },
+ "candidate_functions_total": 4757,
+ "spent_usd": 14.42,
+ "note": "v2 is spent for tuning; informs design, qualifies nothing",
+ "cases": [
+  {
+   "id": "pgadmin-maintenance-sqli",
+   "family": "injection",
+   "files": 948,
+   "chunks": 1251,
+   "unclassified_chunks": 0,
+   "candidate_functions": 1037,
+   "candidate_files": 196,
+   "declared_site_in_candidates": [
+    "web/pgadmin/tools/maintenance/__init__.py::create_maintenance_job"
+   ],
+   "fix_or_site_file_in_candidates": [
+    "web/pgadmin/tools/maintenance/__init__.py"
+   ],
+   "usd": 1.293,
+   "seconds": 148.6
+  },
+  {
+   "id": "qwed-sympy-eval",
+   "family": "injection",
+   "files": 152,
+   "chunks": 197,
+   "unclassified_chunks": 0,
+   "candidate_functions": 84,
+   "candidate_files": 33,
+   "declared_site_in_candidates": [
+    "src/qwed_new/core/batch.py::_verify_item"
+   ],
+   "fix_or_site_file_in_candidates": [
+    "src/qwed_new/api/main.py",
+    "src/qwed_new/core/batch.py",
+    "src/qwed_new/core/validator.py",
+    "src/qwed_new/core/verifier.py"
+   ],
+   "usd": 0.2178,
+   "seconds": 21.7
+  },
+  {
+   "id": "contextforge-prompt-ssti",
+   "family": "injection",
+   "files": 607,
+   "chunks": 978,
+   "unclassified_chunks": 0,
+   "candidate_functions": 444,
+   "candidate_files": 134,
+   "declared_site_in_candidates": [
+    "mcpgateway/services/prompt_service.py::_compile_jinja_template",
+    "mcpgateway/services/prompt_service.py::_render_template"
+   ],
+   "fix_or_site_file_in_candidates": [
+    "mcpgateway/services/prompt_service.py"
+   ],
+   "usd": 1.3444,
+   "seconds": 112.8
+  },
+  {
+   "id": "lmdeploy-media-url-ssrf",
+   "family": "untrusted_destination",
+   "files": 617,
+   "chunks": 762,
+   "unclassified_chunks": 0,
+   "candidate_functions": 115,
+   "candidate_files": 50,
+   "declared_site_in_candidates": [
+    "lmdeploy/vl/media/connection.py::_load_http_url"
+   ],
+   "fix_or_site_file_in_candidates": [
+    "lmdeploy/serve/openai/api_server.py",
+    "lmdeploy/serve/processors/multimodal.py",
+    "lmdeploy/vl/media/connection.py"
+   ],
+   "usd": 0.7622,
+   "seconds": 79.3
+  },
+  {
+   "id": "winml-cli-serve-cors",
+   "family": "config_secrets",
+   "files": 452,
+   "chunks": 642,
+   "unclassified_chunks": 0,
+   "candidate_functions": 3,
+   "candidate_files": 3,
+   "declared_site_in_candidates": [
+    "src/winml/modelkit/serve/cli_api.py::<global>"
+   ],
+   "fix_or_site_file_in_candidates": [
+    "src/winml/modelkit/serve/cli_api.py"
+   ],
+   "usd": 0.813,
+   "seconds": 67.5
+  },
+  {
+   "id": "reactpress-findall-column-sqli",
+   "family": "injection",
+   "files": 492,
+   "chunks": 507,
+   "unclassified_chunks": 0,
+   "candidate_functions": 97,
+   "candidate_files": 48,
+   "declared_site_in_candidates": [
+    "server/src/modules/article/article.service.ts::findAll"
+   ],
+   "fix_or_site_file_in_candidates": [
+    "server/src/modules/article/article.service.ts",
+    "server/src/modules/comment/comment.service.ts",
+    "server/src/modules/file/file.service.ts",
+    "server/src/modules/knowledge/knowledge.service.ts",
+    "server/src/modules/page/page.service.ts"
+   ],
+   "usd": 0.2499,
+   "seconds": 50.6
+  },
+  {
+   "id": "fuxa-tdengine-escape-sqli",
+   "family": "injection",
+   "files": 398,
+   "chunks": 490,
+   "unclassified_chunks": 0,
+   "candidate_functions": 89,
+   "candidate_files": 33,
+   "declared_site_in_candidates": [
+    "server/runtime/storage/tdengine/index.js::getDaqValue"
+   ],
+   "fix_or_site_file_in_candidates": [
+    "server/runtime/storage/tdengine/index.js"
+   ],
+   "usd": 0.4613,
+   "seconds": 52.0
+  },
+  {
+   "id": "budibase-mongo-template-nosqli",
+   "family": "injection",
+   "files": 1926,
+   "chunks": 2063,
+   "unclassified_chunks": 0,
+   "candidate_functions": 565,
+   "candidate_files": 204,
+   "declared_site_in_candidates": [
+    "packages/server/src/integrations/mongodb.ts::read",
+    "packages/server/src/sdk/workspace/queries/queries.ts::enrichContext"
+   ],
+   "fix_or_site_file_in_candidates": [
+    "packages/server/src/integrations/mongodb.ts",
+    "packages/server/src/sdk/workspace/queries/queries.ts",
+    "packages/string-templates/src/index.ts"
+   ],
+   "usd": 1.0743,
+   "seconds": 213.6
+  },
+  {
+   "id": "unleash-addon-webhook-ssrf",
+   "family": "untrusted_destination",
+   "files": 4893,
+   "chunks": 4999,
+   "unclassified_chunks": 0,
+   "candidate_functions": 491,
+   "candidate_files": 312,
+   "declared_site_in_candidates": [
+    "src/lib/addons/addon.ts::fetchRetry"
+   ],
+   "fix_or_site_file_in_candidates": [
+    "src/lib/addons/addon.ts",
+    "src/lib/addons/new-relic.ts",
+    "src/lib/addons/teams-workflow.ts",
+    "src/lib/addons/teams.ts"
+   ],
+   "usd": 1.5115,
+   "seconds": 502.7
+  },
+  {
+   "id": "medplum-external-auth-open-redirect",
+   "family": "untrusted_destination",
+   "files": 973,
+   "chunks": 1120,
+   "unclassified_chunks": 0,
+   "candidate_functions": 332,
+   "candidate_files": 189,
+   "declared_site_in_candidates": [
+    "packages/server/src/auth/external.ts::externalCallbackHandler"
+   ],
+   "fix_or_site_file_in_candidates": [
+    "packages/server/src/auth/external.ts"
+   ],
+   "usd": 1.0018,
+   "seconds": 123.8
+  },
+  {
+   "id": "cct-studio-server-cmdi",
+   "family": "injection",
+   "files": 1061,
+   "chunks": 1255,
+   "unclassified_chunks": 0,
+   "candidate_functions": 328,
+   "candidate_files": 161,
+   "declared_site_in_candidates": [
+    "cli-tool/src/sandbox-server.js::checkAndInstallAgent",
+    "cli-tool/src/sandbox-server.js::executeLocalTask"
+   ],
+   "fix_or_site_file_in_candidates": [
+    "cli-tool/src/sandbox-server.js"
+   ],
+   "usd": 1.1606,
+   "seconds": 144.4
+  },
+  {
+   "id": "wp-gopay-log-filter-sqli",
+   "family": "injection",
+   "files": 19,
+   "chunks": 26,
+   "unclassified_chunks": 0,
+   "candidate_functions": 12,
+   "candidate_files": 6,
+   "declared_site_in_candidates": [
+    "admin/views/log.php::<global>"
+   ],
+   "fix_or_site_file_in_candidates": [
+    "admin/views/log.php"
+   ],
+   "usd": 0.0037,
+   "seconds": 6.2
+  },
+  {
+   "id": "wp-user-registration-login-redirect",
+   "family": "untrusted_destination",
+   "files": 679,
+   "chunks": 1036,
+   "unclassified_chunks": 0,
+   "candidate_functions": 224,
+   "candidate_files": 92,
+   "declared_site_in_candidates": [],
+   "fix_or_site_file_in_candidates": [
+    "includes/Functions/CoreFunctions.php"
+   ],
+   "usd": 1.3749,
+   "seconds": 118.7
+  },
+  {
+   "id": "wp-directorist-avatar-ssrf",
+   "family": "untrusted_destination",
+   "files": 620,
+   "chunks": 829,
+   "unclassified_chunks": 0,
+   "candidate_functions": 100,
+   "candidate_files": 64,
+   "declared_site_in_candidates": [
+    "includes/rest-api/functions.php::directorist_rest_upload_image_from_url"
+   ],
+   "fix_or_site_file_in_candidates": [
+    "includes/rest-api/Version1/class-users-controller.php",
+    "includes/rest-api/functions.php"
+   ],
+   "usd": 0.8386,
+   "seconds": 92.6
+  },
+  {
+   "id": "wp-groundhogg-confirm-redirect",
+   "family": "untrusted_destination",
+   "files": 653,
+   "chunks": 940,
+   "unclassified_chunks": 0,
+   "candidate_functions": 179,
+   "candidate_files": 84,
+   "declared_site_in_candidates": [
+    "templates/preferences.php::<global>"
+   ],
+   "fix_or_site_file_in_candidates": [
+    "templates/preferences.php"
+   ],
+   "usd": 0.23,
+   "seconds": 107.4
+  },
+  {
+   "id": "froxlor-admin-ip-second-order-sqli",
+   "family": "injection",
+   "files": 333,
+   "chunks": 463,
+   "unclassified_chunks": 0,
+   "candidate_functions": 345,
+   "candidate_files": 115,
+   "declared_site_in_candidates": [
+    "lib/Froxlor/Api/Commands/Domains.php::validateIpAddresses",
+    "lib/Froxlor/Api/Commands/IpsAndPorts.php::listing",
+    "lib/Froxlor/Api/Commands/IpsAndPorts.php::listingCount"
+   ],
+   "fix_or_site_file_in_candidates": [
+    "lib/Froxlor/Api/Commands/Admins.php",
+    "lib/Froxlor/Api/Commands/Domains.php",
+    "lib/Froxlor/Api/Commands/IpsAndPorts.php"
+   ],
+   "usd": 0.7755,
+   "seconds": 62.4
+  },
+  {
+   "id": "sulu-smart-content-sql2-injection",
+   "family": "injection",
+   "files": 2904,
+   "chunks": 3014,
+   "unclassified_chunks": 0,
+   "candidate_functions": 312,
+   "candidate_files": 164,
+   "declared_site_in_candidates": [],
+   "fix_or_site_file_in_candidates": [],
+   "usd": 1.3089,
+   "seconds": 329.9
+  }
+ ]
+}
