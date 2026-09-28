@@ -396,7 +396,13 @@ def _final_answer(
             ),
         },
     ]
-    response = client.complete(model=model, messages=messages, tools=schemas, json_object=True)
+    # Plain text, no tools. In JSON mode with tools attached, DeepSeek answered the final turn with the format
+    # itself (`{"type": "json_object"}`), wrapped the array (`{"type": "json_object", "value": [...]}`) or emitted
+    # its tool-call markup as text -- and a hunt that had found the bug reported nothing. Measured on the v2 sink
+    # verifier: 0 of 7 declared vulnerable functions confirmed in JSON mode, 5 of 7 asked plainly (6 of 7 at 8
+    # steps). The parser already takes a bare or fenced array.
+    del schemas
+    response = client.complete(model=model, messages=messages, tools=[], json_object=False)
     return _findings_from_content(root, hotspots, response.content or "", tags)
 
 
@@ -548,6 +554,9 @@ def _findings_from_content(
         items = payload
     elif isinstance(payload, dict) and isinstance(payload.get("findings"), list):
         items = payload["findings"]
+    elif isinstance(payload, dict) and isinstance(payload.get("value"), list):
+        # DeepSeek in JSON mode wrapped the array it was asked for as `{"type": "json_object", "value": [...]}`.
+        items = payload["value"]
     else:
         return []
     scores = {hotspot.path: hotspot.score for hotspot in hotspots}

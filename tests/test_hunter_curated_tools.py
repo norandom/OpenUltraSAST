@@ -179,7 +179,9 @@ def test_the_loop_asks_once_more_for_the_answer_instead_of_dropping_prose() -> N
         findings = run_tool_hunter(root, [], client=client, model="m", max_steps=3)
     assert [item.line for item in findings] == [2]
     final = client.calls[-1]
-    assert final.get("json_object") is True, "the last turn asks the provider for JSON, it does not hope for it"
+    # Asked for JSON in the prompt, not through the provider's JSON mode: with tools attached, DeepSeek's JSON mode
+    # returned `{"type": "json_object"}` and lost the answers (tests/test_tool_hunter.py pins the shapes).
+    assert not final.get("json_object") and final.get("tools") == [], "the last turn is plain text without tools"
     text = "\n".join(str(message.get("content") or "") for message in final["messages"])
     assert "JSON" in text and prose in text, "the prose it already wrote is what the final turn is asked to format"
 

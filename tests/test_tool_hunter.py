@@ -151,7 +151,9 @@ def test_a_budget_that_runs_out_mid_hunt_still_asks_for_the_answer(tmp_path: Pat
     findings = run_tool_hunter(root, [_hotspot()], client=client, model="test-hunter", max_steps=1)
 
     assert [item.line for item in findings] == [item["line"] for item in _DUMP_FINDINGS]
-    assert len(client.calls) == 2 and client.calls[-1].get("json_object") is True
+    # The answer turn is asked plainly and without tools: DeepSeek's JSON mode lost the answers (see
+    # test_the_final_answer_is_asked_plainly_and_a_wrapped_array_is_read).
+    assert len(client.calls) == 2 and not client.calls[-1].get("json_object") and client.calls[-1].get("tools") == []
 
 
 _UNSAFE_SNIPPET = 'client = docker.DockerClient(base_url="unix://var/run/docker.sock")\n'
@@ -331,3 +333,35 @@ def test_openrouter_hunter_client_maps_tool_calls_without_network() -> None:
     assert len(response.tool_calls) == 1
     assert response.tool_calls[0].name == "grep_repo"
     assert response.tool_calls[0].arguments == {"pattern": "eval", "max_matches": 4}
+
+
+def test_the_final_answer_is_asked_plainly_and_a_wrapped_array_is_read(tmp_path) -> None:
+    """In JSON mode with tools attached, DeepSeek answered `{"type": "json_object"}` or wrapped the array as
+    `{"type": "json_object", "value": [...]}`; a hunt that had found the bug reported nothing."""
+    import json
+
+    from openultrasast import tool_hunter
+    from openultrasast.complexity.map import Hotspot
+
+    (tmp_path / "app.py").write_text("def run(q):\n    return eval(q)\n")
+    finding = {"path": "app.py", "line": 2, "title": "eval of request data", "rationale": "q reaches eval"}
+    seen: list[dict] = []
+
+    class Client:
+        def __init__(self) -> None:
+            self.turns = [
+                tool_hunter.ChatResponse(tool_calls=(tool_hunter.ToolCall(id="c1", name="read_file", arguments={"path": "app.py"}),)),
+                tool_hunter.ChatResponse(content="The input reaches eval on line 2."),  # prose: triggers the final turn
+                tool_hunter.ChatResponse(content=json.dumps({"type": "json_object", "value": [finding]})),
+            ]
+
+        def complete(self, **kw):
+            seen.append({"tools": kw.get("tools"), "json_object": kw.get("json_object", False)})
+            return self.turns.pop(0)
+
+    spot = Hotspot(
+        path="app.py", function_name="run", score=1.0, band="x", signals={}, rationale="x", test_hint=None, inventory_finding_ids=()
+    )
+    found = tool_hunter.run_tool_hunter(tmp_path, [spot], client=Client(), model="m", max_steps=3)
+    assert [(f.path, f.line) for f in found] == [("app.py", 2)]
+    assert seen[-1] == {"tools": [], "json_object": False}, seen[-1]
