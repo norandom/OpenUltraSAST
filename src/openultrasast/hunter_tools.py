@@ -32,13 +32,45 @@ def read_file(root: Path, path: str, *, max_chars: int) -> str:
     return clamped.read_text(errors="ignore")[:max_chars]
 
 
+_Lines = tuple[tuple[str, tuple[str, ...]], ...]
+_SOURCE_MEMO: dict[tuple[str, int], tuple[_Lines, tuple[tuple[Path, int], ...]]] = {}
+
+
+def _source_lines(root: Path) -> _Lines:
+    """Every product source file under `root` with its lines, read ONCE per root state.
+
+    Each `grep_repo` and `find_refs` call re-enumerated the tree -- walk, ignore rules, vendored checks -- and
+    re-read every file. On a 1,800-file repository a model verifying candidates spent its hours there, CPU-bound,
+    not waiting on the model. Keyed by the root's path and modification time, and a hit is re-validated file by
+    file -- an edit inside a subdirectory does not touch the root's mtime. The value is immutable.
+    """
+    resolved_root = root.resolve()
+    key = (str(resolved_root), resolved_root.stat().st_mtime_ns)
+    entry = _SOURCE_MEMO.get(key)
+    if entry is not None and all(_mtime(path) == stamp for path, stamp in entry[1]):
+        return entry[0]
+    files = list(_iter_clamped_source_files(resolved_root))
+    lines = tuple((relative, tuple(path.read_text(errors="ignore").splitlines())) for relative, path in files)
+    if len(_SOURCE_MEMO) >= 4:
+        _SOURCE_MEMO.pop(next(iter(_SOURCE_MEMO)))
+    _SOURCE_MEMO[key] = (lines, tuple((path, _mtime(path)) for _, path in files))
+    return lines
+
+
+def _mtime(path: Path) -> int:
+    try:
+        return path.stat().st_mtime_ns
+    except OSError:
+        return -1
+
+
 def grep_repo(root: Path, pattern: str, *, max_matches: int) -> list[dict[str, object]]:
     if max_matches <= 0:
         return []
     compiled = re.compile(pattern)
     matches: list[dict[str, object]] = []
-    for relative, path in _iter_clamped_source_files(root):
-        for line_no, line in enumerate(path.read_text(errors="ignore").splitlines(), start=1):
+    for relative, lines in _source_lines(root):
+        for line_no, line in enumerate(lines, start=1):
             if compiled.search(line):
                 matches.append({"path": relative, "line": line_no, "text": line})
                 if len(matches) >= max_matches:
@@ -67,8 +99,8 @@ def find_refs(root: Path, symbol: str, mapping_index: object) -> list[dict[str, 
         )
     if symbol:
         compiled = re.compile(rf"\b{re.escape(symbol)}\b")
-        for relative, path in _iter_clamped_source_files(resolved_root):
-            for line_no, line in enumerate(path.read_text(errors="ignore").splitlines(), start=1):
+        for relative, lines in _source_lines(resolved_root):
+            for line_no, line in enumerate(lines, start=1):
                 if compiled.search(line):
                     refs.append({"path": relative, "name": symbol, "line": line_no, "text": line, "source": "text"})
     return refs

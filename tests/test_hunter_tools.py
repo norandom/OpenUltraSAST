@@ -121,3 +121,25 @@ def test_find_refs_rejects_mapping_path_escape(tmp_path: Path) -> None:
         find_refs(root, "passwd", [{"path": "../etc/passwd", "name": "passwd"}])
     with pytest.raises(PathEscapesRepo):
         find_refs(root, "passwd", [{"path": "/etc/passwd", "name": "passwd"}])
+
+
+def test_grep_reads_the_tree_once_and_sees_an_edit(tmp_path, monkeypatch) -> None:
+    """Every call re-enumerated and re-read the repository; now once per root state, re-validated per file."""
+    import os
+
+    from openultrasast import hunter_tools
+
+    sub = tmp_path / "pkg"
+    sub.mkdir()
+    source = sub / "app.py"
+    source.write_text("def run(q):\n    return query(q)\n")
+    calls = []
+    real = hunter_tools._iter_clamped_source_files
+    monkeypatch.setattr(hunter_tools, "_iter_clamped_source_files", lambda root: calls.append(root) or real(root))
+    assert [m["line"] for m in hunter_tools.grep_repo(tmp_path, r"query\(", max_matches=5)] == [2]
+    assert [m["line"] for m in hunter_tools.grep_repo(tmp_path, r"def run", max_matches=5)] == [1]
+    assert len(calls) == 1, "the tree was enumerated again for an unchanged root"
+    source.write_text("def run(q):\n    x = 1\n    return query(q)\n")
+    stamp = source.stat().st_mtime_ns + 10_000_000
+    os.utime(source, ns=(stamp, stamp))
+    assert [m["line"] for m in hunter_tools.grep_repo(tmp_path, r"query\(", max_matches=5)] == [3], "a stale read survived an edit"
