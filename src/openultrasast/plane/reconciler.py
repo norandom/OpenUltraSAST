@@ -1,19 +1,22 @@
 """ax-backed reconciler of a ``Run``: submission, resume, start, completion by delivery (ai-service-plane Req 3, 4, 7).
 
 ax executes every task on this host's kind cluster; nothing here runs a task locally or knows a prompt, a score or
-a model call. Per ready task: one rendered YAML file (the Task with its env extended, its Workspaces, a generated
-Workspace with the consumed artifacts as ``files``, the bound Model), ``ax apply -f``, ``ax resume task`` (retried
-on DeadlineExceeded/Unavailable -- a new image's first resume waits for Agent Substrate's golden snapshot -- for
-up to ``OUSAST_RESUME_TIMEOUT`` s, 900), and once ax says ``Running`` one start request through Substrate's router
-(``router.py``, Req 4.5) carrying the bound Model's credential from this process's environment, never from a file
-(Req 4.6). Completion is the runner's artifact delivery (ax has no Completed phase); ``Failed``, the task
-vanishing, a refused start or ``OUSAST_TASK_TIMEOUT`` s (7200) without delivery fail it; ``ax delete task`` follows.
+a model call. Per ready task: one rendered YAML file (the Task with its env extended, its Workspaces, the bound
+Model), ``ax apply -f``, ``ax resume task`` (retried on DeadlineExceeded/Unavailable -- a new image's first resume
+waits for Agent Substrate's golden snapshot -- for up to ``OUSAST_RESUME_TIMEOUT`` s, 900), and once ax says
+``Running`` one start request through Substrate's router (``router.py``, Req 4.5) carrying the bound Model's
+credential from this process's environment, never from a file (Req 4.6). Completion is the runner's artifact
+delivery (ax has no Completed phase); ``Failed``, the task vanishing, a refused start or ``OUSAST_TASK_TIMEOUT`` s
+(7200) without delivery fail it; ``ax delete task`` follows.
 
 ax rejects unknown fields, so rendered documents carry only ax's fields; ``openultrasast.io/model`` reaches the
-task as ``OUSAST_MODEL`` plus ``OUSAST_MODEL_PARAMS`` (Req 7.1), each Workspace's ``openultrasast.io/git-commits``
-as ``OUSAST_GIT_PINS``; ``OUSAST_INPUT_<NAME>`` points into ``/workspace/.ousast-in/<task>``. The receiver takes
-the runner's tar (``X-Ousast-Run``, ``X-Ousast-Task``) on ``OUSAST_ARTIFACT_PORT`` (18090), reached by its Service
-name through the egress gateway; between ``ax apply`` and resume the task's egress policy is written (``egress.py``).
+task as ``OUSAST_MODEL`` plus ``OUSAST_MODEL_PARAMS`` (Req 7.1), each Workspace's pin annotation as
+``OUSAST_GIT_PINS``. Inputs other tasks produced are never rendered: ``OUSAST_INPUTS`` maps each input's name to
+``<producer>/<artifact>``, which the runner fetches after the start from the receiver's ``GET /inputs/...`` to
+``OUSAST_INPUT_<NAME>`` under ``/workspace/.ousast-in/<task>`` (the receiver serves a running task its declared
+inputs only). The receiver takes the runner's tar (``X-Ousast-Run``, ``X-Ousast-Task``) on
+``OUSAST_ARTIFACT_PORT`` (18090), reached by its Service name through the egress gateway; between ``ax apply`` and
+resume the task's egress policy is written (``egress.py``).
 State: ``~/ousast-results/plane/<run>/`` (``OUSAST_RESULTS``), polled every ``OUSAST_POLL_SECONDS`` (3).
 """
 
@@ -123,20 +126,10 @@ def _model_doc(model: Model) -> dict[str, Any]:
     return _doc("Model", model.metadata.name, spec, model.metadata.atespace)
 
 
-def _input_files(entry: RunTask, base: Path) -> list[dict[str, str]]:
-    files: list[dict[str, str]] = []
-    for ref in entry.inputs.values():
-        source = base / ref
-        for path in sorted(source.rglob("*")) if source.is_dir() else [source]:
-            if path.is_file():
-                files.append({"path": path.relative_to(base).as_posix(), "content": path.read_text(encoding="utf-8")})
-    return files
-
-
-def render_task(
-    run: Run, entry: RunTask, manifests: Manifests, base: Path, artifact_url: str, dial: str | None = None
-) -> list[dict[str, Any]]:
-    """The documents ``ax apply`` receives for one Run task: Task, its Model, its Workspaces, the inputs Workspace."""
+def render_task(run: Run, entry: RunTask, manifests: Manifests, artifact_url: str, dial: str | None = None) -> list[dict[str, Any]]:
+    """The documents ``ax apply`` receives for one Run task: its Model, its Workspaces, the Task last. Task-produced
+    inputs are never rendered: ax puts every bound Workspace into one env value, which Substrate caps at 32768
+    characters, so the runner fetches them from the receiver (``OUSAST_INPUTS``) after the start."""
     task: Task = manifests.tasks[entry.task]
     ax_name = _ax_name(run.metadata.name, entry.name)
     env = {e.name: e.value for e in task.env}
@@ -144,8 +137,9 @@ def render_task(
     env.update(OUSAST_ARTIFACT_URL=artifact_url, **({"OUSAST_ARTIFACT_DIAL": dial} if dial else {}))
     budget = _fields(entry.budget) if entry.budget else {}
     env.update({f"OUSAST_BUDGET_{k.upper()}": str(v) for k, v in budget.items()})
-    for input_name, ref in entry.inputs.items():
-        env[f"OUSAST_INPUT_{re.sub(r'[^A-Z0-9]+', '_', input_name.upper())}"] = f"{INPUTS_ROOT}/{entry.name}/{ref}"
+    inputs = {re.sub(r"[^A-Z0-9]+", "_", name.upper()): ref for name, ref in entry.inputs.items()}
+    env.update({f"OUSAST_INPUT_{name}": f"{INPUTS_ROOT}/{entry.name}/{ref}" for name, ref in inputs.items()})
+    env.update({"OUSAST_INPUTS": json.dumps(inputs, sort_keys=True)} if inputs else {})
     docs: list[dict[str, Any]] = []
     model_name = task.metadata.annotations.get(MODEL_ANNOTATION)
     if model_name:
@@ -156,9 +150,6 @@ def render_task(
     docs.extend(_workspace_doc(manifests.workspaces[b.name]) for b in task.workspaces)
     pins = {f"{b.name}/{git}": sha for b in task.workspaces for git, sha in manifests.workspaces[b.name].pins.items()}
     env.update({"OUSAST_GIT_PINS": json.dumps(pins, sort_keys=True)} if pins else {})
-    if entry.inputs:
-        docs.append(_doc("Workspace", f"{ax_name}-inputs", {"files": _input_files(entry, base)}, task.metadata.atespace))
-        bindings.append({"name": f"{ax_name}-inputs", "path": f"{INPUTS_ROOT}/{entry.name}"})
     spec: dict[str, Any] = {"command": list(task.command), "env": [{"name": k, "value": v} for k, v in env.items()]}
     if task.image:
         spec["image"] = task.image
@@ -305,7 +296,7 @@ def _execute(
     ax_name, task = _ax_name(run.metadata.name, entry.name), manifests.tasks[entry.task]
     atespace, manifest = task.metadata.atespace or "default", base / entry.name / "task.yaml"
     manifest.parent.mkdir(parents=True, exist_ok=True)
-    docs = render_task(run, entry, manifests, base, receiver.url, receiver.dial)
+    docs = render_task(run, entry, manifests, receiver.url, receiver.dial)
     manifest.write_text(yaml.safe_dump_all(docs, sort_keys=False), encoding="utf-8")
     model = manifests.models.get(task.metadata.annotations.get(MODEL_ANNOTATION) or "")
     policy = policy_for(task, [manifests.workspaces[b.name] for b in task.workspaces], model, urlsplit(receiver.url).hostname)
@@ -362,13 +353,17 @@ def run(run_manifest: Path, *, workers: int = 1, ax: str = "ax", results_root: P
                     pending.remove(entry)
                     running[entry.name] = entry
                     blocked.add(entry.serialize or "")
-                    with receiver.lock:
+                    with receiver.lock:  # the receiver serves a running task its declared inputs, nothing else
                         receiver.running.add(entry.name)
+                        receiver.inputs[entry.name] = frozenset(entry.inputs.values())
                     threading.Thread(target=worker, args=(entry,), daemon=True).start()
                 if not running:
                     break  # nothing can start: a producer stopped short
                 name, status, reason = finished.get()
                 del running[name]
+                with receiver.lock:
+                    receiver.running.discard(name)
+                    receiver.inputs.pop(name, None)
                 summary = _read_json(base / name / "summary.json") or {}
                 state.set(name, status=status, finished=_now(), usd=summary.get("usd"), model=summary.get("model"), reason=reason or None)
                 halted = halted or status == "failed"

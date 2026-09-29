@@ -73,7 +73,7 @@ def test_validation_run_resolves_and_renders_every_task(tmp_path: Path) -> None:
             assert model == "deepseek-flash" and entry.budget and entry.budget.usd and entry.budget.calls
             env = {e.name: e.value for e in task.env}
             assert env["OUSAST_PASS"] == entry.name[-1]
-        docs = reconciler.render_task(run, entry, manifests, tmp_path, "http://127.0.0.1:1/")
+        docs = reconciler.render_task(run, entry, manifests, "http://127.0.0.1:1/")
         for doc in docs:
             assert not non_ax_fields(doc["spec"], AX_FIELDS[doc["kind"]], doc["kind"])
             assert set(doc["metadata"]) <= {"name", "atespace"}

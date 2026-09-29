@@ -76,6 +76,9 @@ mypy are clean, and the commit is gated on pytest's own exit code. Script-level 
     `ate-target-actor: <atespace>/<task>`; 502/503/504 and connection errors retried up to
     `OUSAST_START_TIMEOUT`, a 409 final), carrying the bound Model's `secretKey.key` variable from the
     reconciler's environment; a Model-bound task whose variable is unset fails before `ax apply`.
+    Task-produced inputs travel as `OUSAST_INPUTS`, not as a rendered Workspace: the runner fetches them after
+    the start from the receiver's authorised `GET /inputs/<producer>/<artifact>` (a 182 KB `facts.json` in
+    `AX_WORKSPACES_YAML` exceeded Substrate's 32768-character env limit on the live cluster, 2026-09-29).
   - `ousast plane run <Run.yaml>`, `ousast plane status <run>` (token attribution table per task and Model
     from the tasks' `summary.json` usage; `--units` from `units.jsonl`; also written to `attribution.json`),
     `ousast plane workspaces <population.toml>` (generates Workspace manifests per case pin).

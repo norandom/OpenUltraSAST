@@ -56,7 +56,12 @@ container the same module is PID 1 (`ax-task-runner`), built as a target of the 
   for tasks that must not overlap; engine-bearing tasks carry `engine`). The reconciler passes budgets and
   artifact paths to a task as `env` entries (`OUSAST_BUDGET_USD`, `OUSAST_BUDGET_CALLS`, `OUSAST_INPUT_<NAME>`,
   `OUSAST_OUTPUT_DIR`), which is ax's own mechanism for task configuration, so a Run never adds a field to a
-  Task.
+  Task. Inputs another task produced are never rendered into a Workspace (ax puts every bound Workspace into one
+  env value, `AX_WORKSPACES_YAML`, and Agent Substrate rejects values over 32768 characters): the Task carries
+  `OUSAST_INPUTS` = `{"<NAME>": "<producer>/<artifact>"}`, and after the start request the runner fetches each
+  from the receiver's `GET /inputs/<producer>/<artifact>` (same headers, dial and retries as delivery; only a
+  running task's declared inputs are served) to its `OUSAST_INPUT_<NAME>` path; a failed fetch delivers a
+  failed summary naming the input and the command never runs.
 
 ### Runner (`runner.py`)
 

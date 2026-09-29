@@ -46,6 +46,10 @@ Environment the runner reads, all optional except the two ax variables:
     OUSAST_ARTIFACT_DIAL               ``host:port`` to connect to instead of the URL's host, which is sent as
                                        ``Host`` (the egress gateway decides on and resolves that name)
     OUSAST_DELIVERY_BACKOFF            seconds before the second delivery attempt, doubled per retry
+    OUSAST_INPUTS                      JSON ``{"<NAME>": "<producer>/<artifact>"}``: after the start and before the
+                                       command each is fetched from ``<OUSAST_ARTIFACT_URL>/inputs/<ref>`` (same
+                                       dial, headers and retries as delivery) to ``OUSAST_INPUT_<NAME>``; a failed
+                                       fetch delivers a failed summary naming the input, the command never runs
 
 The runner exports ``OUSAST_WORKSPACE_DIR`` (the first bound workspace) when the Task's env leaves it unset,
 ``AX_RUNNER_BOUND_PORT`` with the health server's port and ``AX_METADATA_URL``.
@@ -60,6 +64,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import signal
 import subprocess
 import sys
@@ -67,6 +72,7 @@ import tarfile
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections import deque
 from collections.abc import Mapping, MutableMapping, Sequence
@@ -97,6 +103,8 @@ __all__ = [
     "StartGate",
     "build_tar",
     "deliver",
+    "fetch",
+    "fetch_inputs",
     "clone_destination",
     "find_cached_checkout",
     "load_pins",
@@ -635,6 +643,16 @@ def build_tar(output_dir: Path) -> bytes:
     return buffer.getvalue()
 
 
+def _dialled(url: str, headers: Mapping[str, str], dial: str | None) -> tuple[str, dict[str, str]]:
+    """(URL to connect to, headers): with ``dial`` the connection goes there and the URL's host is sent as ``Host``."""
+    out = dict(headers)
+    if not dial:
+        return url, out
+    parts = urlsplit(url)
+    out["Host"] = parts.netloc
+    return parts._replace(netloc=dial).geturl(), out
+
+
 def deliver(
     url: str,
     payload: bytes,
@@ -649,10 +667,7 @@ def deliver(
     ``dial`` (``host:port``): connect there instead and send the URL's host as ``Host``, as the actor must -- it
     cannot resolve the receiver's cluster name, and the egress gateway decides on ``Host`` and resolves it itself.
     """
-    last, target, headers = "no attempt made", url, dict(headers)
-    if dial:
-        parts = urlsplit(url)
-        target, headers["Host"] = parts._replace(netloc=dial).geturl(), parts.netloc
+    last, (target, headers) = "no attempt made", _dialled(url, headers, dial)
     for attempt in range(1, attempts + 1):
         request = urllib.request.Request(target, data=payload, method="POST", headers=headers)
         try:
@@ -669,6 +684,68 @@ def deliver(
         if attempt < attempts:
             time.sleep(backoff * (2 ** (attempt - 1)))
     raise DeliveryError(f"{last} after {attempts} attempts to {url}")
+
+
+def fetch(
+    url: str, headers: Mapping[str, str], dest: Path, *, attempts: int = DELIVERY_ATTEMPTS, backoff: float = 1.0, dial: str | None = None
+) -> int:
+    """GET ``url`` into ``dest`` (streamed to a sibling temp file, then renamed); retried like :func:`deliver`.
+
+    Returns the byte count; :class:`DeliveryError` names the last cause when every attempt failed."""
+    last, (target, headers) = "no attempt made", _dialled(url, headers, dial)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    partial = dest.with_name(dest.name + ".part")
+    for attempt in range(1, attempts + 1):
+        request = urllib.request.Request(target, method="GET", headers=headers)
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response, partial.open("wb") as out:  # noqa: S310
+                shutil.copyfileobj(response, out, 1 << 16)
+                size = out.tell()
+            length = response.headers.get("Content-Length")
+            if length is not None and int(length) != size:
+                raise ValueError(f"short read: {size} of {length} bytes")
+            partial.replace(dest)
+            return size
+        except urllib.error.HTTPError as exc:
+            last = f"HTTP {exc.code}"
+        except (urllib.error.URLError, http.client.HTTPException, OSError, ValueError) as exc:
+            last = f"{type(exc).__name__}: {exc}"
+        partial.unlink(missing_ok=True)
+        log.warning("input fetch attempt %d/%d from %s failed: %s", attempt, attempts, url, last)
+        if attempt < attempts:
+            time.sleep(backoff * (2 ** (attempt - 1)))
+    raise DeliveryError(f"{last} after {attempts} attempts to {url}")
+
+
+def fetch_inputs(environ: Mapping[str, str]) -> list[Path]:
+    """Fetch every ``OUSAST_INPUTS`` entry from the receiver to its ``OUSAST_INPUT_<NAME>`` path.
+
+    :class:`RunnerError` names the input when one cannot be fetched: a task never runs with an input missing."""
+    raw = environ.get("OUSAST_INPUTS")
+    if not raw:
+        return []
+    try:
+        inputs = json.loads(raw)
+    except ValueError as exc:
+        raise RunnerError(f"OUSAST_INPUTS is not JSON: {exc}") from None
+    if not isinstance(inputs, dict):
+        raise RunnerError("OUSAST_INPUTS must map input names to <producer>/<artifact>")
+    url = environ.get("OUSAST_ARTIFACT_URL")
+    headers = {"X-Ousast-Run": environ.get("OUSAST_RUN", ""), "X-Ousast-Task": environ.get("OUSAST_TASK", "")}
+    backoff = float(environ.get("OUSAST_DELIVERY_BACKOFF", "1.0"))
+    fetched: list[Path] = []
+    for name, ref in sorted(inputs.items()):
+        dest = environ.get(f"OUSAST_INPUT_{name}")
+        if not url or not dest or not isinstance(ref, str):
+            raise RunnerError(f"input {name} ({ref}) not fetched: OUSAST_ARTIFACT_URL or OUSAST_INPUT_{name} is unset")
+        source = f"{url.rstrip('/')}/inputs/{urllib.parse.quote(ref)}"
+        try:
+            size = fetch(source, headers, Path(dest), backoff=backoff, dial=environ.get("OUSAST_ARTIFACT_DIAL") or None)
+        except DeliveryError as exc:
+            raise RunnerError(f"input {name} ({ref}) not fetched: {exc}") from None
+        log.info("input %s (%s): %d bytes to %s", name, ref, size, dest)
+        fetched.append(Path(dest))
+    return fetched
 
 
 def _deliver_output(task: Task, output_dir: Path, environ: Mapping[str, str]) -> bool:
@@ -751,8 +828,8 @@ def _finish(session: _Session, env: Mapping[str, str], exit_code: int | None, su
 
 
 def _run_once(env: MutableMapping[str, str], ready: threading.Event, stop: threading.Event, gate: StartGate) -> int:
-    """Wait for the start request, then materialise, run the command once and deliver; on a resumed volume, only
-    what the marker says is left. A boot whose marker records a delivered run refuses every start request.
+    """Wait for the start request, then materialise, fetch the inputs, run the command once and deliver; on a
+    resumed volume, only what the marker says is left. A boot whose marker records a delivered run refuses every start request.
 
     Workspaces are prepared only after the start: Substrate's golden boot never gets one, so it touches no network,
     and a started actor is RUNNING with its egress policy in force (a clone at boot failed on the live cluster
@@ -785,12 +862,13 @@ def _run_once(env: MutableMapping[str, str], ready: threading.Event, stop: threa
             return 0
         try:
             _materialise_once(session, env)
+            fetch_inputs(env)  # after the start as well: the receiver serves a task its inputs only while it runs
         except RunnerError as exc:
             log.error("runner failed: %s", exc)
             failed = _failed(f"runner failed: {exc}", read_summary(session.output_dir))
             write_summary(session.output_dir, failed)
             return _exit_of(_finish(session, env, None, failed))
-        log.info("workspaces ready; running task %s: %s", session.task.metadata.name, list(session.task.command))
+        log.info("workspaces and inputs ready; running task %s: %s", session.task.metadata.name, list(session.task.command))
         grace = float(env.get("OUSAST_TERM_GRACE") or TERM_GRACE)
         code, summary = run_command(session.task, session.output_dir, env, stop, grace, start.credentials)
         if code is None:

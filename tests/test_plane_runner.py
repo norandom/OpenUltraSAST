@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-from openultrasast.plane import runner
+from openultrasast.plane import egress, runner
 from openultrasast.plane.manifests import GitSource
 from openultrasast.plane.router import Router, StartError
 from openultrasast.plane.runner import (
@@ -588,7 +588,7 @@ def test_git_commits_annotation_round_trips_to_the_checkout(
         "apiVersion: openultrasast.io/v1alpha1\nkind: Run\nmetadata: {name: rt}\nspec: {tasks: [{name: stub, task: stub}]}\n"
     )
     run, manifests = reconciler.load_run(manifest)
-    *rest, task_doc = reconciler.render_task(run, run.tasks[0], manifests, tmp_path, "unused")
+    *rest, task_doc = reconciler.render_task(run, run.tasks[0], manifests, "unused")
     assert rest[0]["metadata"] == {"name": "case"}, "annotations are stripped before ax"
     assert rest[0]["spec"]["git"] == [{"name": "code", "repo": repo.as_uri(), "branch": "main"}], "no commit for ax"
     overrides = {"OUSAST_OUTPUT_DIR": str(output)}
@@ -771,3 +771,82 @@ def test_workspaces_are_prepared_only_after_the_start_request(env: dict[str, str
     thread.join(timeout=30)
     assert codes == [0]
     assert [p for p in (tmp_path / "ws").rglob("*") if p.is_file()], "the start materialises the workspace"
+
+
+# --- inputs other tasks produced: fetched from the receiver after the start (Requirement 3.1, 4.4) -------------------
+
+
+@pytest.fixture
+def plane_receiver(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[egress.Receiver]:
+    """The reconciler's own receiver on a free port, with a producer's artifact delivered and the task ``stub`` running."""
+    monkeypatch.setenv("OUSAST_ARTIFACT_HOST", "127.0.0.1")
+    server = egress.Receiver("r", tmp_path / "run", 0)
+    (tmp_path / "run" / "repo-facts").mkdir(parents=True)
+    (tmp_path / "run" / "repo-facts" / "facts.json").write_bytes(b'{"a.py": ["f"]}' * 5000)
+    server.running.add("stub")
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        yield server
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def input_env(server: egress.Receiver, tmp_path: Path) -> dict[str, str]:
+    return {
+        "OUSAST_ARTIFACT_URL": server.url,
+        "OUSAST_RUN": "r",
+        "OUSAST_TASK": "stub",
+        "OUSAST_INPUTS": json.dumps({"FACTS": "repo-facts/facts.json"}),
+        "OUSAST_INPUT_FACTS": str(tmp_path / "ws" / "in" / "repo-facts" / "facts.json"),
+    }
+
+
+def test_inputs_are_fetched_from_the_receiver_before_the_command(
+    env: dict[str, str], plane_receiver: egress.Receiver, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    plane_receiver.inputs["stub"] = frozenset({"repo-facts/facts.json"})
+    code, output = run_main(monkeypatch, tmp_path, files_workspace_yaml(), **input_env(plane_receiver, tmp_path))
+    assert code == 0
+    fetched = tmp_path / "ws" / "in" / "repo-facts" / "facts.json"
+    assert fetched.read_bytes() == (tmp_path / "run" / "repo-facts" / "facts.json").read_bytes()
+    assert "in/repo-facts/facts.json" in json.loads((output / "facts.json").read_text())["workspace_files"], "there before the command ran"
+    assert "stub" in plane_receiver.delivered
+
+
+def test_an_input_that_cannot_be_fetched_delivers_a_failed_summary_and_never_runs_the_command(
+    env: dict[str, str], plane_receiver: egress.Receiver, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    plane_receiver.inputs["stub"] = frozenset({"repo-facts/other.json"})  # facts.json is not among its inputs: 403
+    code, output = run_main(monkeypatch, tmp_path, files_workspace_yaml(), **input_env(plane_receiver, tmp_path))
+    assert code == EXIT_BY_STATUS["failed"]
+    assert not (output / "facts.json").exists(), "the command never ran with an input missing"
+    delivered = json.loads((tmp_path / "run" / "stub" / "summary.json").read_text())
+    assert delivered["status"] == "failed" and "input FACTS (repo-facts/facts.json) not fetched: HTTP 403" in delivered["reason"]
+    assert not (tmp_path / "ws" / "in" / "repo-facts").exists() or not any((tmp_path / "ws" / "in" / "repo-facts").iterdir())
+
+
+def test_fetch_dials_the_override_and_sends_the_url_host(tmp_path: Path) -> None:
+    seen: list[dict[str, str]] = []
+
+    class _Handler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:  # noqa: N802
+            seen.append({"path": self.path, **dict(self.headers.items())})
+            self.send_response(200)
+            self.send_header("Content-Length", "2")
+            self.end_headers()
+            self.wfile.write(b"ok")
+
+        def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        dial = f"127.0.0.1:{server.server_address[1]}"
+        size = runner.fetch("http://receiver.example/inputs/p/a.json", {"X-Ousast-Run": "r"}, tmp_path / "x" / "a.json", dial=dial)
+    finally:
+        server.shutdown()
+        server.server_close()
+    assert size == 2 and (tmp_path / "x" / "a.json").read_bytes() == b"ok"
+    assert seen[0]["path"] == "/inputs/p/a.json" and seen[0]["Host"] == "receiver.example" and seen[0]["X-Ousast-Run"] == "r"

@@ -27,6 +27,7 @@ import io
 import ipaddress
 import json
 import os
+import shutil
 import subprocess
 import tarfile
 import threading
@@ -35,11 +36,12 @@ from collections.abc import Iterable, Mapping
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from .manifests import Model, Task, Workspace
 
 __all__ = [
+    "INPUTS_PATH",
     "RECEIVER_HOST",
     "RECEIVER_PORT",
     "Egress",
@@ -52,6 +54,7 @@ __all__ = [
 ]
 
 RECEIVER_HOST = "ousast-receiver.ax-system.svc.cluster.local"
+INPUTS_PATH = "/inputs/"  # GET <receiver>/inputs/<producer>/<artifact>: a consumer fetches a declared input
 RECEIVER_PORT = 18090  # the receiver Service's targetPort; ops/ax/up.sh renders the Service with the same number
 _NOT_FOUND = ("not found", "notfound")
 
@@ -206,19 +209,45 @@ class Egress:
 
 
 class Receiver(ThreadingHTTPServer):
-    """Accepts one tar per running task and extracts it under ``<run dir>/<task>/``."""
+    """Accepts one tar per running task and extracts it under ``<run dir>/<task>/`` (POST); serves a running task
+    the producer artifacts it declared as inputs (``GET /inputs/<producer>/<artifact>``, ``inputs[task]``)."""
 
     daemon_threads = True
 
     def __init__(self, run_name: str, base: Path, port: int) -> None:
         super().__init__(("0.0.0.0", port), _Handler)
         self.run_name, self.base, self.running, self.delivered = run_name, base, set[str](), set[str]()
+        self.inputs: dict[str, frozenset[str]] = {}
         self.lock = threading.Lock()
         self.url, self.dial = receiver_address(self.server_address[1])
 
+    def _task(self, headers: Any) -> str | None:
+        """The ``X-Ousast-Task`` of a request naming this run and a task that is running now, else None."""
+        task = str(headers.get("X-Ousast-Task", ""))
+        with self.lock:
+            return task if headers.get("X-Ousast-Run") == self.run_name and task in self.running else None
+
+    def input_file(self, headers: Any, ref: str) -> tuple[int, str | Path]:
+        """(200, the file) when ``ref`` is one of the requesting task's declared inputs, else (403/404, why).
+
+        ``ref`` must equal a declared ``<producer>/<artifact>`` exactly and resolve to a regular file under the run
+        directory; nothing is normalised first, so ``..`` or an absolute path never names a declared input."""
+        task = self._task(headers)
+        if task is None:
+            return 403, "unknown run or task"
+        with self.lock:
+            declared = ref in self.inputs.get(task, frozenset())
+        if not declared:
+            return 403, f"{ref!r} is not an input of {task}"
+        root = self.base.resolve()
+        path = (root / ref).resolve()
+        if not path.is_relative_to(root) or not path.is_file():
+            return 404, f"{ref} was not delivered"
+        return 200, path
+
     def accept(self, headers: Any, body: bytes) -> tuple[int, str]:
-        task = headers.get("X-Ousast-Task", "")
-        if headers.get("X-Ousast-Run") != self.run_name or task not in self.running:
+        task = self._task(headers)
+        if task is None:
             return 403, "unknown run or task"
         if not str(headers.get("Content-Type", "")).startswith("application/x-tar"):
             return 415, "expected application/x-tar"
@@ -239,14 +268,35 @@ class Receiver(ThreadingHTTPServer):
 
 
 class _Handler(BaseHTTPRequestHandler):
-    def do_POST(self) -> None:
+    def do_GET(self) -> None:  # noqa: N802 - http.server's naming
+        server: Receiver = self.server  # type: ignore[assignment]
+        path = urlsplit(self.path).path
+        if not path.startswith(INPUTS_PATH):
+            self._text(404, "not found")
+            return
+        code, found = server.input_file(self.headers, unquote(path[len(INPUTS_PATH) :]))
+        if not isinstance(found, Path):
+            self._text(code, found)
+            return
+        with found.open("rb") as source:  # streamed: a producer artifact can be far larger than any env value
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Length", str(os.fstat(source.fileno()).st_size))
+            self.end_headers()
+            shutil.copyfileobj(source, self.wfile, 1 << 16)
+
+    def do_POST(self) -> None:  # noqa: N802 - http.server's naming
         server: Receiver = self.server  # type: ignore[assignment]
         body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
-        code, text = server.accept(self.headers, body)
+        self._text(*server.accept(self.headers, body))
+
+    def _text(self, code: int, text: str) -> None:
+        data = text.encode()
         self.send_response(code)
         self.send_header("Content-Type", "text/plain")
+        self.send_header("Content-Length", str(len(data)))
         self.end_headers()
-        self.wfile.write(text.encode())
+        self.wfile.write(data)
 
     def log_message(self, format: str, *args: object) -> None:
         return

@@ -19,6 +19,8 @@ import sys
 import tarfile
 import threading
 import time
+import urllib.error
+import urllib.request
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -123,9 +125,22 @@ elif argv[:2] == ["get", "task"]:
     if rec["phase"] == "Running" and rec["polls"] >= script.get("polls", 1) and started and not rec.get("sent"):
         rec["sent"] = True
         if script.get("deliver", True) and "phase" not in script and not script.get("vanish"):
+            files = script.get("files", {{}})
+            base = env["OUSAST_ARTIFACT_URL"].rstrip("/") + "/inputs/"
+            for name, ref in json.loads(env.get("OUSAST_INPUTS", "{{}}")).items():
+                fetch = urllib.request.Request(base + ref, headers={{"X-Ousast-Run": env["OUSAST_RUN"], "X-Ousast-Task": task}})
+                try:
+                    with urllib.request.urlopen(fetch) as resp:
+                        dest = HERE / "fetched" / task / ref
+                        dest.parent.mkdir(parents=True, exist_ok=True)
+                        dest.write_bytes(resp.read())
+                        (HERE / "ax.log").open("a").write(f"{{time.monotonic():.4f}} fetched {{task}} {{name}} {{resp.status}}\\n")
+                except urllib.error.HTTPError as exc:  # the runner delivers a failed summary naming the input
+                    (HERE / "ax.log").open("a").write(f"{{time.monotonic():.4f}} unfetched {{task}} {{name}} {{exc.code}}\\n")
+                    files = {{"summary.json": {{"status": "failed", "reason": f"input {{name}} ({{ref}}) not fetched: HTTP {{exc.code}}"}}}}
             buf = io.BytesIO()
             with tarfile.open(fileobj=buf, mode="w") as tar:
-                for path, content in script.get("files", {{}}).items():
+                for path, content in files.items():
                     data = (content if isinstance(content, str) else json.dumps(content)).encode()
                     info = tarfile.TarInfo(path)
                     info.size = len(data)
@@ -273,6 +288,8 @@ class Fake:
                 out.append((stamp, f"{words[1]} {words[2]}"))
             elif verb in ("delivered", "rejected") and words[0] == verb:
                 out.append((stamp, words[1]))
+            elif verb in ("fetched", "unfetched") and words[0] == verb:
+                out.append((stamp, f"{words[1]} {words[2]} {words[3]}"))
         return out
 
 
@@ -363,14 +380,16 @@ def test_chain_runs_in_order_with_inputs_env_and_model(fake: Fake, tmp_path: Pat
     assert env["OUSAST_OUTPUT_DIR"] == "/workspace/.ousast-out/verify"
     assert env["OUSAST_BUDGET_USD"] == "2.5" and env["OUSAST_BUDGET_CALLS"] == "40"
     assert env["OUSAST_INPUT_FACTS"] == "/workspace/.ousast-in/verify/repo-facts/facts.json"
+    assert json.loads(env["OUSAST_INPUTS"]) == {"FACTS": "repo-facts/facts.json"}
     assert env["OUSAST_ARTIFACT_URL"].startswith("http://127.0.0.1:")
     assert env["OUSAST_MODEL"] == "deepseek-flash"
     assert json.loads(env["OUSAST_MODEL_PARAMS"]) == {"cache_hit_per_m": 0.07, "input_per_m": 0.27, "output_per_m": 1.1}
     kinds = [(d["kind"], d["metadata"]["name"]) for d in verify["docs"]]
-    assert kinds == [("Model", "deepseek-flash"), ("Workspace", "case-pin"), ("Workspace", "chain-verify-inputs"), ("Task", "chain-verify")]
-    inputs_ws = next(d for d in verify["docs"] if d["metadata"]["name"] == "chain-verify-inputs")
-    assert inputs_ws["spec"]["files"] == [{"path": "repo-facts/facts.json", "content": json.dumps({"a.py": {"functions": ["f"]}})}]
-    assert verify["docs"][-1]["spec"]["workspaces"][-1] == {"name": "chain-verify-inputs", "path": "/workspace/.ousast-in/verify"}
+    assert kinds == [("Model", "deepseek-flash"), ("Workspace", "case-pin"), ("Task", "chain-verify")], "no inputs Workspace"
+    assert verify["docs"][-1]["spec"]["workspaces"] == [{"name": "case-pin", "path": "/workspace"}]
+    assert [n for _, n in fake.events("fetched")] == ["verify FACTS 200", "agree PASS 200"], "inputs come over the receiver's GET"
+    assert json.loads((tmp_path / "fetched" / "verify" / "repo-facts" / "facts.json").read_text()) == {"a.py": {"functions": ["f"]}}
+    assert json.loads((tmp_path / "fetched" / "agree" / "verify" / "agreed.json").read_text()) == {"agreed": ["a.py:f"]}
     assert "annotations" not in verify["docs"][-1]["metadata"], "ax's ObjectMeta has no annotations"
     assert json.loads(env["OUSAST_GIT_PINS"]) == {"case-pin/repo": PIN}, "the Workspace annotation reaches the task as env"
     assert next(d for d in verify["docs"] if d["metadata"]["name"] == "case-pin")["spec"]["git"] == [
@@ -690,7 +709,7 @@ def test_rendered_documents_carry_only_ax_fields(tmp_path: Path) -> None:
     (tmp_path / "repo-facts").mkdir()
     (tmp_path / "repo-facts" / "facts.json").write_text("{}", encoding="utf-8")
     run, manifests = reconciler.load_run(write_run(tmp_path, "fields"))
-    docs = [d for entry in run.tasks for d in reconciler.render_task(run, entry, manifests, tmp_path, "http://h:1/")]
+    docs = [d for entry in run.tasks for d in reconciler.render_task(run, entry, manifests, "http://h:1/")]
     assert {d["kind"] for d in docs} == {"Task", "Workspace", "Model"}
     for rendered in docs:
         where = f"{rendered['kind']}/{rendered['metadata']['name']}"
@@ -707,7 +726,7 @@ def test_the_task_is_applied_after_everything_it_binds(tmp_path: Path) -> None:
     (tmp_path / "repo-facts" / "facts.json").write_text("{}", encoding="utf-8")
     run, manifests = reconciler.load_run(write_run(tmp_path, "order"))
     for entry in run.tasks:
-        docs = reconciler.render_task(run, entry, manifests, tmp_path, "http://h:1/")
+        docs = reconciler.render_task(run, entry, manifests, "http://h:1/")
         assert [d["kind"] for d in docs].count("Task") == 1
         assert docs[-1]["kind"] == "Task", [d["kind"] for d in docs]
 
@@ -780,3 +799,69 @@ def test_a_refused_egress_policy_fails_the_task_before_resume(fake: Fake, tmp_pa
     assert reconciler.run(write_run(tmp_path, "egfail"), ax=str(fake.ax)) == "failed"
     assert "permission denied" in state_of("egfail")["tasks"]["repo-facts"]["reason"]
     assert fake.events("resume") == [] and [n for _, n in fake.events("delete")] == ["egfail-repo-facts"]
+
+
+# --- inputs over the receiver's GET (Req 3.1, 4.4) ----------------------------------------------------------------
+
+SUBSTRATE_ENV_LIMIT = 32768  # "actor_template.containers[0].env[11].value: Too long" on the live cluster, 2026-09-29
+
+
+def get_input(receiver: reconciler.Receiver, path: str, run: str = "r", task: str = "t") -> tuple[int, bytes]:
+    url = f"http://127.0.0.1:{receiver.server_address[1]}{path}"
+    request = urllib.request.Request(url, headers={"X-Ousast-Run": run, "X-Ousast-Task": task})
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            return response.status, response.read()
+    except urllib.error.HTTPError as exc:
+        return exc.code, exc.read()
+
+
+def test_receiver_serves_a_running_task_its_declared_inputs_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OUSAST_ARTIFACT_HOST", "127.0.0.1")
+    base = tmp_path / "r"
+    (base / "p").mkdir(parents=True)
+    big = b"x" * (3 << 20)
+    (base / "p" / "a.json").write_bytes(big)
+    (base / "p" / "b.json").write_bytes(b"not declared")
+    (tmp_path / "secret.txt").write_text("outside the run")
+    receiver = reconciler.Receiver("r", base, 0)
+    threading.Thread(target=receiver.serve_forever, daemon=True).start()
+    try:
+        receiver.running.update({"t", "idle"})
+        receiver.inputs.update({"t": frozenset({"p/a.json", "p/missing.json", "../secret.txt"}), "done": frozenset({"p/a.json"})})
+        assert get_input(receiver, "/inputs/p/a.json") == (200, big), "streamed whole"
+        assert get_input(receiver, "/inputs/p/a.json", run="other")[0] == 403, "wrong run"
+        assert get_input(receiver, "/inputs/p/a.json", task="done")[0] == 403, "a task that is not running"
+        assert get_input(receiver, "/inputs/p/a.json", task="idle")[0] == 403, "a running task without that input"
+        assert get_input(receiver, "/inputs/p/b.json")[0] == 403, "not among the task's inputs"
+        assert get_input(receiver, "/inputs/p/missing.json")[0] == 404, "declared but not delivered"
+        for escape in ("/inputs/../secret.txt", "/inputs/%2e%2e/secret.txt", "/inputs/p/../../secret.txt", "/inputs//etc/passwd"):
+            code, body = get_input(receiver, escape)
+            assert code in (403, 404) and b"outside" not in body, escape
+        assert get_input(receiver, "/p/a.json")[0] == 404, "only /inputs/ is served"
+    finally:
+        receiver.shutdown()
+        receiver.server_close()
+
+
+def test_a_missing_producer_artifact_fails_the_consumer_instead_of_running_it(fake: Fake, tmp_path: Path) -> None:
+    script = json.loads(json.dumps(SCRIPT))
+    del script["repo-facts"]["files"]["facts.json"]  # repo-facts reports done but never delivered facts.json
+    fake.script(script)
+    assert reconciler.run(write_run(tmp_path, "nofacts"), ax=str(fake.ax)) == "failed"
+    assert [n for _, n in fake.events("unfetched")] == ["verify FACTS 404"]
+    assert "input FACTS (repo-facts/facts.json) not fetched" in state_of("nofacts")["tasks"]["verify"]["reason"]
+
+
+def test_a_megabyte_producer_artifact_keeps_every_rendered_value_under_substrates_limit(tmp_path: Path) -> None:
+    """Regression: a 182 KB facts.json rendered into an inputs Workspace made ax's AX_WORKSPACES_YAML too long."""
+    (tmp_path / "repo-facts").mkdir()
+    (tmp_path / "repo-facts" / "facts.json").write_text(json.dumps({"blob": "f" * (1 << 20)}), encoding="utf-8")
+    run, manifests = reconciler.load_run(write_run(tmp_path, "big"))
+    for entry in run.tasks:
+        docs = reconciler.render_task(run, entry, manifests, "http://h:1/", "10.0.0.1:80")
+        task, workspaces = docs[-1], [d for d in docs if d["kind"] == "Workspace"]
+        assert all(len(e["value"]) < SUBSTRATE_ENV_LIMIT for e in task["spec"]["env"]), entry.name
+        assert len(yaml.safe_dump(task)) < SUBSTRATE_ENV_LIMIT, f"{entry.name}: AX_TASK_YAML"
+        assert len(yaml.safe_dump_all(workspaces)) < SUBSTRATE_ENV_LIMIT, f"{entry.name}: AX_WORKSPACES_YAML"
+        assert all(len(yaml.safe_dump(w)) < SUBSTRATE_ENV_LIMIT for w in workspaces), entry.name
