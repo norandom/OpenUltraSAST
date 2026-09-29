@@ -143,7 +143,9 @@ def main() -> int:
     load_config()
     evaluate.use(args.population)
     candidates_dir = evaluate.RESULTS.with_name(evaluate.RESULTS.name + "-modelsinks")
-    out_dir = evaluate.RESULTS.with_name(evaluate.RESULTS.name + "-" + args.results_suffix) / "scans"
+    # Checkouts too, not only results: two runs exporting the same pin into one path deleted each other's tree.
+    evaluate.RESULTS = evaluate.RESULTS.with_name(evaluate.RESULTS.name + "-" + args.results_suffix)
+    out_dir = evaluate.RESULTS / "scans"
     out_dir.mkdir(parents=True, exist_ok=True)
     only = {c.strip() for c in args.only.split(",") if c.strip()}
     spent = 0.0
