@@ -1,0 +1,36 @@
+{
+ "measurement": "verify_batched.py on the 46-candidate validation set (15 declared-site cases + 26 flickering pgAdmin candidates), triage on, 2 passes, 6 steps, $1.01",
+ "declared_sites": {
+  "agreed": 16,
+  "of": 20,
+  "cases_detected": 12,
+  "of_cases_with_a_candidate_site": 15,
+  "newly_found_vs_per_candidate_design": [
+   "budibase (both sites)",
+   "froxlor listing/listingCount"
+  ],
+  "lost": [
+   "unleash fetchRetry (found in 1 of 2 passes)"
+  ],
+  "missed": [
+   "winml (triage: constant -- a CORS literal; the reachability question does not fit config_secrets)",
+   "fuxa getDaqValue (1 of 2 passes)",
+   "froxlor validateIpAddresses (1 of 2)"
+  ]
+ },
+ "flickering_pgadmin_26": {
+  "triaged_out": 2,
+  "agreed_in_both_passes": 9,
+  "disputed": 4,
+  "quiet": 13,
+  "note": "the 9 need adjudication; agreement turns run-to-run noise into a stable set"
+ },
+ "cost": {
+  "usd_per_candidate_two_passes": 0.022,
+  "old_design_two_passes": 0.0334,
+  "pgadmin_subset_per_candidate_two_passes": 0.0146,
+  "old_single_pass": 0.0167,
+  "note": "per-file batching: ~2.3x cheaper per pass on a file with several candidates"
+ },
+ "decision_pending": "full run of all 17 cases with this design"
+}
