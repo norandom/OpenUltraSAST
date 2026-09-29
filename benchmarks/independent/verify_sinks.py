@@ -136,11 +136,14 @@ def main() -> int:
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--budget-usd", type=float, default=40.0)
     parser.add_argument("--fixed", action="store_true", help="recheck detected sites at the fixed pin")
+    parser.add_argument("--results-suffix", default="verified", help="results go to independent-<vN>-<suffix>/")
+    parser.add_argument("--declared-sites-only", action="store_true", help="verify only the case's declared sites (a known-answer check)")
+    parser.add_argument("--candidates-from", type=Path, help="verify exactly the candidates recorded in this per-case .jsonl")
     args = parser.parse_args()
     load_config()
     evaluate.use(args.population)
     candidates_dir = evaluate.RESULTS.with_name(evaluate.RESULTS.name + "-modelsinks")
-    out_dir = evaluate.RESULTS.with_name(evaluate.RESULTS.name + "-verified") / "scans"
+    out_dir = evaluate.RESULTS.with_name(evaluate.RESULTS.name + "-" + args.results_suffix) / "scans"
     out_dir.mkdir(parents=True, exist_ok=True)
     only = {c.strip() for c in args.only.split(",") if c.strip()}
     spent = 0.0
@@ -156,6 +159,12 @@ def main() -> int:
         spent += sum(float(d.get("usd", 0.0)) for d in done)
         record = json.loads((candidates_dir / f"{case['id']}.json").read_text())
         todo = list({(p, fn): (p, fn, ln) for p, fn, ln in sorted(record["candidates"])}.values())  # one question per function
+        if args.declared_sites_only:
+            sites = {tuple(site.split("::", 1)) for site in case.get("sites", [])}
+            todo = [c for c in todo if (c[0], c[1]) in sites]
+        if args.candidates_from:
+            wanted = {tuple(json.loads(row)["candidate"][:2]) for row in args.candidates_from.read_text().splitlines() if row.strip()}
+            todo = [c for c in todo if (c[0], c[1]) in wanted]
         if args.fixed:
             vulnerable = json.loads((out_dir / f"{case['id']}--vulnerable_a.json").read_text())
             detected = {f["candidate"] for f in vulnerable["findings"]}
