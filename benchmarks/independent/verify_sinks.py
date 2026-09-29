@@ -32,6 +32,9 @@ from model_sinks import OPERATIONS  # noqa: E402
 from openultrasast.config import load_config  # noqa: E402
 from openultrasast.model.endpoint import DEFAULT_DETECTOR_MODEL  # noqa: E402
 
+# The provider refusing the ACCOUNT (no credit, bad key): every later call fails the same way.
+ACCOUNT_ERRORS = ("HTTP Error 402", "HTTP Error 401", "Insufficient Balance")
+
 SYSTEM = (
     "You are a security reviewer with repository tools (read_file, grep_repo, find_refs). You are given ONE "
     "operation in ONE function. Decide whether data an attacker controls -- HTTP request parameters, body, "
@@ -117,11 +120,14 @@ def main() -> int:
             vulnerable = json.loads((out_dir / f"{case['id']}--vulnerable_a.json").read_text())
             detected = {f["candidate"] for f in vulnerable["findings"]}
             todo = [c for c in todo if f"{c[0]}::{c[1]}" in detected]
+        # Only a VERIFIED candidate is done. An unverified one -- a failed call -- is asked again on resume; counting
+        # it as done wrote sixteen cases as complete with zero calls made when the account ran out of credit.
+        done = [d for d in done if "findings" in d]
         finished = {tuple(d["candidate"][:2]) for d in done}
         pending = [c for c in todo if (c[0], c[1]) not in finished]
         started = time.monotonic()
         checkout = evaluate.export(case, label, case["fixed" if args.fixed else "vulnerable"])
-        stopped = False
+        stopped, account_error = False, ""
         try:
             with concurrent.futures.ProcessPoolExecutor(max_workers=args.workers) as pool, log.open("a") as sink:
                 futures = []
@@ -131,6 +137,13 @@ def main() -> int:
                     if future.cancelled():  # cancelled at the ceiling: never run, nothing to record
                         continue
                     result = future.result()
+                    if any(code in str(result.get("unverified", "")) for code in ACCOUNT_ERRORS):
+                        # The account, not the candidate: nothing after this can succeed. Stop, record nothing.
+                        account_error = str(result["unverified"])[:200]
+                        stopped = True
+                        for other in futures:
+                            other.cancel()
+                        continue
                     spent += float(result.get("usd", 0.0))
                     sink.write(json.dumps(result) + "\n")
                     sink.flush()
@@ -144,7 +157,7 @@ def main() -> int:
         verified = {tuple(d["candidate"][:2]) for d in done if "findings" in d}
         findings = [f for d in done for f in d.get("findings", [])]
         unverified = [d["unverified"] for d in done if "unverified" in d]
-        complete = len(verified) + len(unverified) >= len(todo)
+        complete = len(verified) >= len(todo) and not account_error
         result = {
             "root": "/case", "families": [case["family"]], "questions": len(todo), "completed": len(verified),
             "completed_regions": sorted(f"{p}:{fn}" for p, fn in verified), "unverified": unverified[:20],
@@ -154,6 +167,9 @@ def main() -> int:
         if complete:
             out.write_text(json.dumps(result, indent=1) + "\n")
         print(json.dumps({"case": case["id"], "pin": label, "candidates": len(todo), "verified": len(verified), "findings": len(findings), "unverified": len(unverified), "usd": result["usd"], "total_usd": round(spent, 4), "complete": complete}), flush=True)
+        if account_error:
+            print(json.dumps({"stopped": "account", "error": account_error, "spent_usd": round(spent, 4)}), flush=True)
+            return 2
         if stopped or spent >= args.budget_usd:
             print(json.dumps({"stopped": "budget", "spent_usd": round(spent, 4)}), flush=True)
             break
