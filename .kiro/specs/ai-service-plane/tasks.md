@@ -122,7 +122,7 @@ mypy are clean, and the commit is gated on pytest's own exit code. Script-level 
   - Workspaces generated for the 15 validation cases' vulnerable pins; the runner image rebuilt and loaded.
   - _Requirements: 1.1, 1.2, 6.1_
 
-- [ ] 8. Measurement of the first increment
+- [x] 8. Measurement of the first increment
   - Run `validation-46` through the reconciler on ax (needs DeepSeek credit); record cost per candidate, tool turns
     per hunt, declared sites agreed, against `verifier-batched-check-2026-09-29.json`.
   - Run `benchmarks/dev/token_report.py` on the increment's development session.
