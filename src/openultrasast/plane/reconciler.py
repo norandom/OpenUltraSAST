@@ -1,23 +1,22 @@
-"""ax-backed reconciler of a ``Run``: submission, status, resume, artifact receipt (ai-service-plane Req 3, 7).
+"""ax-backed reconciler of a ``Run``: submission, resume, completion by delivery (ai-service-plane Req 3, 4.4, 7).
 
 Every task of a Run is executed by ax on this host's kind cluster; nothing here runs a task as a local subprocess
 and nothing here knows a prompt, a score or a model call. For each ready task the reconciler renders one YAML
 file (the Task with its env extended, its Workspaces, one generated Workspace carrying the consumed artifacts as
-``files`` entries, and the bound Model), runs ``ax apply -f``, polls ``ax get task`` until a terminal phase and
-``ax delete task`` afterwards. The outcome is read from the delivered ``summary.json``, never from the phase alone.
+``files`` entries, and the bound Model) and runs ``ax apply -f``. ax creates a Task ``Suspended``; the reconciler
+resumes it (``ax resume task``), retrying with backoff while ax answers DeadlineExceeded/Unavailable (the first
+resume of a new image waits for its golden snapshot) for up to ``OUSAST_RESUME_TIMEOUT`` s (default 900). ax has no
+Completed phase and never reports that a command exited; completion is the runner's artifact delivery, and
+``Failed``, the task vanishing, or ``OUSAST_TASK_TIMEOUT`` s (default 7200) without delivery fail the task with
+ax's condition message. ``ax delete task`` follows either way. The outcome is the delivered ``summary.json``.
 
-ax's ObjectMeta is ``name``/``atespace`` and its API server rejects unknown fields, so rendered documents carry only
-ax's fields; ``openultrasast.io/*`` annotations are stripped and reach the task as env. Model binding: a Task names
-its Model in ``openultrasast.io/model``; the task receives ``OUSAST_MODEL`` and the Model's ``spec.parameters`` as
-``OUSAST_MODEL_PARAMS`` JSON (Req 7.1). Commit pins: each bound Workspace's ``openultrasast.io/git-commits`` becomes
-``OUSAST_GIT_PINS`` = ``{"<workspace>/<git name>": "<sha>"}``. Inputs: ``OUSAST_INPUT_<NAME>`` points into a
-generated Workspace bound at ``/workspace/.ousast-in/<task>`` (ax mounts every workspace under ``/workspace``).
-Artifacts: the runner POSTs an uncompressed tar of its output directory to ``OUSAST_ARTIFACT_URL`` with
-``X-Ousast-Run`` and ``X-Ousast-Task`` headers; the receiver listens on ``0.0.0.0`` at ``OUSAST_ARTIFACT_PORT``
-(default: a free port) and advertises ``OUSAST_ARTIFACT_HOST`` (default ``172.17.0.1``, the docker bridge address
-of this host, which kind nodes reach; ``127.0.0.1`` for a fake ax on the host). Run state lives in
-``~/ousast-results/plane/<run>/`` (``OUSAST_RESULTS`` overrides the root): ``state.json``, a PID ``lock``, one
-directory per task, ``attribution.json`` written by ``status``; ``OUSAST_POLL_SECONDS`` (default 3) paces polling.
+ax's API server rejects unknown fields, so rendered documents carry only ax's fields; ``openultrasast.io/*``
+annotations reach the task as env: ``openultrasast.io/model`` as ``OUSAST_MODEL`` plus ``OUSAST_MODEL_PARAMS`` (Req
+7.1), each Workspace's ``openultrasast.io/git-commits`` as ``OUSAST_GIT_PINS``. ``OUSAST_INPUT_<NAME>`` points into
+a generated Workspace at ``/workspace/.ousast-in/<task>``. The receiver takes the runner's tar (``X-Ousast-Run``,
+``X-Ousast-Task``) on ``OUSAST_ARTIFACT_PORT`` and advertises ``OUSAST_ARTIFACT_HOST`` (default ``172.17.0.1``, the
+docker bridge kind nodes reach). Run state: ``~/ousast-results/plane/<run>/`` (``OUSAST_RESULTS``), polls every
+``OUSAST_POLL_SECONDS`` (3).
 """
 
 from __future__ import annotations
@@ -31,7 +30,7 @@ import subprocess
 import tarfile
 import threading
 import time
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -40,15 +39,14 @@ from typing import Any
 
 import yaml
 
+from .doctor import doctor
 from .manifests import AX_API_VERSION, Manifests, Model, Run, RunTask, Task, Workspace, load_manifests
 
 MODEL_ANNOTATION = "openultrasast.io/model"
 OUTPUT_ROOT = "/workspace/.ousast-out"
 INPUTS_ROOT = "/workspace/.ousast-in"
 DEFAULT_ARTIFACT_HOST = "172.17.0.1"
-FAILURE_PHASES = ("failed", "error")
-TERMINAL_PHASES = ("succeeded", "completed", *FAILURE_PHASES)
-UP = "ops/ax/up.sh brings it up"
+TRANSIENT = re.compile(r"deadline ?exceeded|unavailable", re.IGNORECASE)  # the golden-snapshot build outlives a resume
 _ROW = "{:<28} {:<20} {:>7} {:>10} {:>10} {:>9} {:>10}"
 _COLUMNS = ("calls", "prompt", "cache_hit", "output", "usd")
 _USAGE_KEYS = {"prompt": "prompt_tokens", "cache_hit": "prompt_cache_hit_tokens", "output": "completion_tokens"}
@@ -81,10 +79,6 @@ def _read_json(path: Path) -> Any:
 
 def _ax_name(*parts: str) -> str:
     return re.sub(r"[^a-z0-9-]+", "-", "-".join(parts).lower()).strip("-")[:63]
-
-
-def _is(phase: str, words: tuple[str, ...]) -> bool:
-    return any(word in phase.lower() for word in words)
 
 
 def load_run(run_manifest: Path) -> tuple[Run, Manifests]:
@@ -177,7 +171,7 @@ def render_task(run: Run, entry: RunTask, manifests: Manifests, base: Path, arti
 
 
 class Ax:
-    """The three ``ax`` verbs the reconciler uses; the executable path is injectable so tests use a fake."""
+    """The four ``ax`` verbs the reconciler uses; the executable path is injectable so tests use a fake."""
 
     def __init__(self, executable: str = "ax") -> None:
         self.executable = executable
@@ -185,24 +179,38 @@ class Ax:
     def _run(self, *args: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run([self.executable, *args], capture_output=True, text=True, check=False)
 
+    def _error(self, proc: subprocess.CompletedProcess[str]) -> str:
+        return proc.stderr.strip() or proc.stdout.strip() or f"exit {proc.returncode}"
+
     def apply(self, path: Path) -> None:
         proc = self._run("apply", "-f", str(path))
         if proc.returncode != 0:
-            raise RuntimeError(f"ax apply failed ({proc.returncode}): {proc.stderr.strip() or proc.stdout.strip()}")
+            raise RuntimeError(f"ax apply failed ({proc.returncode}): {self._error(proc)}")
 
-    def phase(self, name: str) -> str:
-        """``status.phase`` from ``ax get task <name>`` (YAML; Pending when unset; ``Unknown: ...`` when ax fails)."""
+    def resume(self, name: str) -> str | None:
+        """``ax resume task <name>``: None once ax accepted it, else ax's error text."""
+        proc = self._run("resume", "task", name)
+        return None if proc.returncode == 0 else self._error(proc)
+
+    def phase(self, name: str) -> tuple[str, str]:
+        """(``status.phase``, the Ready condition's message) from ``ax get task`` YAML; ``Pending`` while unset,
+        ``Gone`` when ax no longer knows the task, ``Unknown`` when ax itself fails."""
         proc = self._run("get", "task", name)
         if proc.returncode != 0:
-            return "Unknown: " + (proc.stderr.strip() or proc.stdout.strip())
+            return ("Gone" if re.search(r"not ?found", self._error(proc), re.IGNORECASE) else "Unknown"), self._error(proc)
         try:
             doc = yaml.safe_load(proc.stdout)
         except yaml.YAMLError:
-            return "Unknown: unreadable ax output"
+            return "Unknown", "unreadable ax output"
         status = doc.get("status") if isinstance(doc, dict) else None
-        return str(status.get("phase") or "Pending") if isinstance(status, dict) else "Pending"
+        if not isinstance(status, dict):
+            return "Pending", ""
+        conditions = [c for c in status.get("conditions") or [] if isinstance(c, dict)]
+        ready = [c for c in conditions if c.get("type") == "Ready"] or conditions
+        return str(status.get("phase") or "Pending"), str(ready[-1].get("message") or "") if ready else ""
 
     def delete(self, name: str) -> None:
+        """``ax delete task <name>``; ax returns once the actor is torn down."""
         self._run("delete", "task", name)
 
 
@@ -274,10 +282,8 @@ class _State:
         return str(self.data["tasks"].get(task, {}).get("status", "pending"))
 
 
-def outcome_of(summary: Mapping[str, Any] | None, phase: str) -> tuple[str, str]:
-    """(status, reason) of a finished task from its delivered summary and ax's terminal phase."""
-    if _is(phase, FAILURE_PHASES):
-        return "failed", f"ax phase {phase}"
+def outcome_of(summary: Mapping[str, Any] | None) -> tuple[str, str]:
+    """(status, reason) of a delivered task from its ``summary.json``: done only when every unit is."""
     if summary is None:
         return "failed", "no summary.json delivered"
     if summary.get("status") == "done" and summary.get("units_done") == summary.get("units_total"):
@@ -301,6 +307,47 @@ def _acquire_lock(base: Path) -> Path:
     return lock
 
 
+def _await(ax: Ax, name: str, delivered: Callable[[], bool], poll: float) -> str | None:
+    """Resume ``name`` and wait for its delivery: None once delivered, else why the task failed.
+
+    ax sets ``Failed`` when a resume call fails, so ``Failed`` is final only once a resume went through; until then
+    a DeadlineExceeded/Unavailable resume is retried with doubling backoff inside ``OUSAST_RESUME_TIMEOUT``.
+    """
+    task_limit = float(os.environ.get("OUSAST_TASK_TIMEOUT") or 7200)
+    resume_limit = float(os.environ.get("OUSAST_RESUME_TIMEOUT") or 900)
+    started = time.monotonic()
+    resuming: float | None = started  # when the current resume spell began; None while ax runs the task
+    retry_at, backoff, last, unknown, phase = started, poll, "", 0, "Suspended"
+    while not delivered():
+        now = time.monotonic()
+        if now - started > task_limit:
+            return f"no delivery within {task_limit:g}s (OUSAST_TASK_TIMEOUT); ax phase {phase}"
+        if resuming is not None and now >= retry_at:
+            if now - resuming > resume_limit:
+                return f"ax resume did not succeed within {resume_limit:g}s (OUSAST_RESUME_TIMEOUT): {last}"
+            error = ax.resume(name)
+            if error is None:
+                resuming = None
+            elif TRANSIENT.search(error):
+                last, retry_at, backoff = error, now + backoff, min(backoff * 2, 60.0)
+            else:
+                return f"ax resume failed: {error}"
+        time.sleep(poll)
+        if delivered():
+            break
+        phase, message = ax.phase(name)
+        unknown = unknown + 1 if phase == "Unknown" else 0
+        if phase == "Gone":
+            return f"the task disappeared from ax before delivery: {message}"
+        if unknown >= 10:  # ten consecutive unreadable polls: ax itself is broken, not the task
+            return f"ax get task keeps failing: {message}"
+        if resuming is None and phase == "Failed":
+            return f"ax phase Failed: {message}"
+        if resuming is None and phase == "Suspended":
+            resuming, retry_at, backoff = time.monotonic(), 0.0, poll
+    return None
+
+
 def _execute(ax: Ax, run: Run, entry: RunTask, manifests: Manifests, base: Path, receiver: Receiver, poll: float) -> tuple[str, str]:
     ax_name = _ax_name(run.metadata.name, entry.name)
     manifest = base / entry.name / "task.yaml"
@@ -311,21 +358,11 @@ def _execute(ax: Ax, run: Run, entry: RunTask, manifests: Manifests, base: Path,
         ax.apply(manifest)
     except RuntimeError as exc:
         return "failed", str(exc)
-    phase, unknown = "Pending", 0
     try:
-        while not _is(phase, TERMINAL_PHASES):
-            time.sleep(poll)
-            phase = ax.phase(ax_name)
-            unknown = unknown + 1 if phase.startswith("Unknown") else 0
-            if unknown >= 10:  # ten consecutive unreadable polls: ax itself is broken, not the task
-                phase = "Error: " + phase
-        for _ in range(5):  # delivery may trail the phase change by a few seconds
-            if entry.name in receiver.delivered or _is(phase, FAILURE_PHASES):
-                break
-            time.sleep(poll)
+        failure = _await(ax, ax_name, lambda: entry.name in receiver.delivered, poll)
     finally:
         ax.delete(ax_name)
-    return outcome_of(_read_json(base / entry.name / "summary.json"), phase)
+    return ("failed", failure) if failure else outcome_of(_read_json(base / entry.name / "summary.json"))
 
 
 def run(run_manifest: Path, *, workers: int = 1, ax: str = "ax", results_root: Path | None = None) -> str:
@@ -456,43 +493,6 @@ def status(run_name: str, *, units: bool = False, results_root: Path | None = No
     if base.is_dir():
         _write_json(base / "attribution.json", report)
     return "\n".join(lines)
-
-
-# --- doctor (Req 3.5) ----------------------------------------------------------------------------------------------
-
-
-def _sh(*args: str) -> tuple[bool, str]:
-    try:
-        proc = subprocess.run(args, capture_output=True, text=True, timeout=60, check=False)
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        return False, str(exc)
-    return proc.returncode == 0, (proc.stdout + proc.stderr).strip()
-
-
-def _pods_ready(namespace: str, context: str) -> tuple[bool, str]:
-    ok, out = _sh("kubectl", "--context", context, "-n", namespace, "get", "pods", "--no-headers")
-    if not ok or not out:
-        return False, out or "no pods"
-    rows = [r for r in (line.split() for line in out.splitlines()) if len(r) > 2 and re.fullmatch(r"\d+/\d+", r[1])]
-    if not rows:  # "No resources found" is not a ready namespace
-        return False, f"no pods in {namespace}"
-    bad = [r[0] for r in rows if r[2] not in ("Completed", "Succeeded") and r[1].split("/")[0] != r[1].split("/")[1]]
-    return not bad, f"not ready: {', '.join(bad)}" if bad else f"{len(rows)} pods ready"
-
-
-def doctor() -> list[tuple[str, bool, str]]:
-    """Four checks of the host's ax: kind, Agent Substrate, the ax controller, the runner image (Req 3.5)."""
-    context = "kind-" + (os.environ.get("KIND_CLUSTER_NAME") or "ousast")
-    ok, out = _sh("kubectl", "--context", context, "cluster-info")
-    checks = [("kind cluster", ok, "reachable" if ok else f"context {context} unreachable ({out[:80]}); {UP}")]
-    for label, ns in (("agent substrate (ate-system)", "ate-system"), ("ax controller (ax-system)", "ax-system")):
-        ok, out = _pods_ready(ns, context)
-        checks.append((label, ok, out if ok else f"{out}; {UP}"))
-    ok, out = _sh("curl", "-s", "localhost:5001/v2/_catalog")
-    present = ok and "ousast-runner" in out
-    text = "ousast-runner present" if present else f"missing from localhost:5001 ({out[:80]}); {UP} and loads it"
-    checks.append(("runner image in kind registry", present, text))
-    return checks
 
 
 __all__ = ["Ax", "Receiver", "attribution", "doctor", "load_run", "outcome_of", "render_task", "run", "run_dir", "status"]

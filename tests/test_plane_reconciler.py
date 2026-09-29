@@ -1,9 +1,11 @@
 """ai-service-plane Req 3.1-3.5, 2.2, 7.3: a fake ``ax`` drives a Run through the reconciler.
 
-The fake is a Python script the tests write into ``tmp_path``: it logs every argv line, parses what ``apply``
-receives, answers ``get task`` with Running until a scripted poll count and then a terminal phase, and on reaching
-it POSTs a scripted tar to the ``OUSAST_ARTIFACT_URL`` it found in the applied Task's env. Nothing here runs a
-task; every outcome comes from a scripted ``summary.json`` delivery.
+The fake is a Python script the tests write into ``tmp_path`` that follows ax's real task lifecycle (ax source:
+internal/controller/reconciler.go, internal/server/server.go): ``apply`` creates the task ``Suspended``; ``resume``
+fails with DeadlineExceeded the first time (ax then reports ``Failed``, as while Agent Substrate builds a new
+image's golden snapshot) and succeeds after; ``get task`` answers ``Running`` forever -- ax has no Completed phase
+-- and on the scripted poll it POSTs a scripted tar to the ``OUSAST_ARTIFACT_URL`` in the applied Task's env, or
+turns ``Failed`` with a condition message, or vanishes. Every outcome comes from a scripted delivery.
 """
 
 from __future__ import annotations
@@ -60,7 +62,8 @@ def non_ax_fields(value: object, schema: dict | None, path: str) -> list[str]:
 
 
 FAKE_AX = '''#!{python}
-"""Fake ax CLI for the reconciler tests: argv log, scripted phases, scripted deliveries."""
+"""Fake ax CLI with ax's real task lifecycle: apply -> Suspended; resume (the first ones fail DeadlineExceeded and
+leave the task Failed, as ax's server does) -> Running; never Completed; the scripted delivery after N polls."""
 import io, json, sys, tarfile, time, urllib.error, urllib.request
 from pathlib import Path
 import yaml
@@ -70,42 +73,73 @@ SCRIPT = json.loads((HERE / "script.json").read_text())
 argv = sys.argv[1:]
 (HERE / "ax.log").open("a").write(f"{{time.monotonic():.4f}} " + " ".join(argv) + "\\n")
 (HERE / "applied").mkdir(exist_ok=True)
+record = HERE / "applied" / ((argv[2] if len(argv) > 2 else "-") + ".json")
+rec = json.loads(record.read_text()) if record.exists() else None
+script = SCRIPT.get(rec["env"]["OUSAST_TASK"], {{}}) if rec else {{}}
+
+
+def gone():
+    print(f'Error: getting task "{{argv[2]}}": rpc error: code = NotFound desc = task not found', file=sys.stderr)
+    sys.exit(1)
+
+
 if argv[:2] == ["apply", "-f"]:
     docs = list(yaml.safe_load_all(Path(argv[2]).read_text()))
     for doc in docs:
         if doc["kind"] == "Task":
             env = {{e["name"]: e["value"] for e in doc["spec"].get("env", [])}}
-            (HERE / "applied" / (doc["metadata"]["name"] + ".json")).write_text(json.dumps({{"docs": docs, "env": env, "polls": 0}}))
+            state = {{"docs": docs, "env": env, "polls": 0, "resumes": 0, "phase": "Suspended", "message": "Task is suspended"}}
+            (HERE / "applied" / (doc["metadata"]["name"] + ".json")).write_text(json.dumps(state))
     print("task created")
-elif argv[:2] == ["get", "task"]:
-    record = HERE / "applied" / (argv[2] + ".json")
-    if not record.exists():
-        print("Error: not found", file=sys.stderr)
+elif argv[:2] == ["resume", "task"]:
+    if rec is None or rec.get("gone"):
+        gone()
+    rec["resumes"] += 1
+    if rec["resumes"] <= script.get("resume_failures", 1):
+        rec.update(phase="Failed", message="resuming actor: context deadline exceeded")
+        record.write_text(json.dumps(rec))
+        print("Error: resuming task: rpc error: code = DeadlineExceeded desc = context deadline exceeded", file=sys.stderr)
         sys.exit(1)
-    rec = json.loads(record.read_text())
-    rec["polls"] += 1
-    env, task = rec["env"], rec["env"]["OUSAST_TASK"]
-    script = SCRIPT.get(task, {{}})
-    needed = script.get("polls", 1)
-    phase = "Running" if rec["polls"] < needed else script.get("phase", "Completed")
-    if rec["polls"] == needed and script.get("deliver", True):
-        buf = io.BytesIO()
-        with tarfile.open(fileobj=buf, mode="w") as tar:
-            for path, content in script.get("files", {{}}).items():
-                data = (content if isinstance(content, str) else json.dumps(content)).encode()
-                info = tarfile.TarInfo(path)
-                info.size = len(data)
-                tar.addfile(info, io.BytesIO(data))
-        headers = {{"Content-Type": "application/x-tar", "X-Ousast-Task": script.get("as_task", task), "X-Ousast-Run": env["OUSAST_RUN"]}}
-        req = urllib.request.Request(env["OUSAST_ARTIFACT_URL"], data=buf.getvalue(), method="POST", headers=headers)
-        try:
-            with urllib.request.urlopen(req) as resp:
-                (HERE / "ax.log").open("a").write(f"{{time.monotonic():.4f}} delivered {{task}} {{resp.status}}\\n")
-        except urllib.error.HTTPError as exc:
-            (HERE / "ax.log").open("a").write(f"{{time.monotonic():.4f}} rejected {{task}} {{exc.code}}\\n")
+    rec.update(phase="Running", message="Task is running and its workspace is ready")
     record.write_text(json.dumps(rec))
-    print(yaml.safe_dump({{"apiVersion": "ax.io/v1alpha1", "kind": "Task", "metadata": {{"name": argv[2]}}, "status": {{"phase": phase}}}}))
+    print(f"task.ax.io/{{argv[2]}} resumed")
+elif argv[:2] == ["get", "task"]:
+    if rec is None or rec.get("gone"):
+        gone()
+    if rec["phase"] == "Running":
+        rec["polls"] += 1
+    env, task = rec["env"], rec["env"]["OUSAST_TASK"]
+    if rec["phase"] == "Running" and rec["polls"] == script.get("polls", 1):
+        if "phase" in script:
+            rec.update(phase=script["phase"], message=script.get("message", ""))
+        if script.get("vanish"):
+            rec["gone"] = True
+        if script.get("deliver", True) and "phase" not in script and not script.get("vanish"):
+            buf = io.BytesIO()
+            with tarfile.open(fileobj=buf, mode="w") as tar:
+                for path, content in script.get("files", {{}}).items():
+                    data = (content if isinstance(content, str) else json.dumps(content)).encode()
+                    info = tarfile.TarInfo(path)
+                    info.size = len(data)
+                    tar.addfile(info, io.BytesIO(data))
+            headers = {{"Content-Type": "application/x-tar", "X-Ousast-Run": env["OUSAST_RUN"]}}
+            headers["X-Ousast-Task"] = script.get("as_task", task)
+            req = urllib.request.Request(env["OUSAST_ARTIFACT_URL"], data=buf.getvalue(), method="POST", headers=headers)
+            try:
+                with urllib.request.urlopen(req) as resp:
+                    (HERE / "ax.log").open("a").write(f"{{time.monotonic():.4f}} delivered {{task}} {{resp.status}}\\n")
+            except urllib.error.HTTPError as exc:
+                (HERE / "ax.log").open("a").write(f"{{time.monotonic():.4f}} rejected {{task}} {{exc.code}}\\n")
+    record.write_text(json.dumps(rec))
+    if rec.get("gone"):
+        gone()
+    condition = {{"type": "Ready", "status": "True" if rec["phase"] == "Running" else "False", "message": rec["message"]}}
+    status = {{"phase": rec["phase"], "conditions": [condition]}}
+    print(yaml.safe_dump({{"apiVersion": "ax.io/v1alpha1", "kind": "Task", "metadata": {{"name": argv[2]}}, "status": status}}))
 elif argv[:2] == ["delete", "task"]:
+    if rec is not None:
+        rec["gone"] = True
+        record.write_text(json.dumps(rec))
     print("deleted")
 '''
 
@@ -222,7 +256,7 @@ class Fake:
         for stamp, words in self.log():
             if verb == "apply" and words[:2] == ["apply", "-f"]:
                 out.append((stamp, Path(words[2]).parent.name))
-            elif verb == "delete" and words[:2] == ["delete", "task"]:
+            elif verb in ("delete", "resume") and words[:2] == [verb, "task"]:
                 out.append((stamp, words[2]))
             elif verb in ("delivered", "rejected") and words[0] == verb:
                 out.append((stamp, words[1]))
@@ -234,6 +268,7 @@ def fake(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Fake:
     monkeypatch.setenv("OUSAST_RESULTS", str(tmp_path / "results"))
     monkeypatch.setenv("OUSAST_ARTIFACT_HOST", "127.0.0.1")
     monkeypatch.setenv("OUSAST_POLL_SECONDS", "0.02")
+    monkeypatch.setenv("OUSAST_TASK_TIMEOUT", "20")  # a test that never delivers fails in seconds, not in 2 hours
     fake = Fake(tmp_path)
     fake.script(SCRIPT)
     return fake
@@ -343,18 +378,57 @@ def test_failed_task_halts_the_run(fake: Fake, tmp_path: Path) -> None:
     assert [name for _, name in fake.events("apply")] == ["repo-facts"]
 
 
-def test_ax_failure_phase_and_missing_delivery_are_failed(fake: Fake, tmp_path: Path) -> None:
+def test_resume_retries_deadline_exceeded_and_completion_is_the_delivery(fake: Fake, tmp_path: Path) -> None:
+    """ax creates a Task Suspended; the first resume of a new image times out; a later one runs it (live evidence)."""
+    assert reconciler.run(write_run(tmp_path, "life", "    - name: repo-facts\n      task: repo-facts\n"), ax=str(fake.ax)) == "done"
+    verbs = [w[0] for _, w in fake.log() if w[0] in ("apply", "resume", "delivered", "delete")]
+    assert verbs == ["apply", "resume", "resume", "delivered", "delete"], "resumed twice, delivered, then deleted"
+    resumes = [stamp for stamp, _ in fake.events("resume")]
+    (delivered, _), (deleted, _) = fake.events("delivered")[0], fake.events("delete")[0]
+    assert resumes[1] < delivered < deleted, "the fake delivers only once a resume went through"
+    assert state_of("life")["tasks"]["repo-facts"]["status"] == "done", "done without any Completed phase from ax"
+
+
+def test_resume_gives_up_after_the_resume_timeout_with_the_last_error(fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OUSAST_RESUME_TIMEOUT", "0.3")
+    fake.script({**SCRIPT, "repo-facts": {**SCRIPT["repo-facts"], "resume_failures": 1000}})
+    assert reconciler.run(write_run(tmp_path, "stuck"), ax=str(fake.ax)) == "failed"
+    reason = state_of("stuck")["tasks"]["repo-facts"]["reason"]
+    assert "OUSAST_RESUME_TIMEOUT" in reason and "DeadlineExceeded" in reason
+    assert len(fake.events("resume")) >= 2, "retried with backoff before giving up"
+    assert [n for _, n in fake.events("delete")] == ["stuck-repo-facts"]
+
+
+def test_ax_failed_phase_before_delivery_fails_with_the_condition_message(fake: Fake, tmp_path: Path) -> None:
     script = json.loads(json.dumps(SCRIPT))
-    script["repo-facts"]["phase"] = "Failed"
+    script["repo-facts"].update(phase="Failed", message="ActorResumeFailed: worker lost")
     fake.script(script)
     assert reconciler.run(write_run(tmp_path, "phase"), ax=str(fake.ax)) == "failed"
-    assert state_of("phase")["tasks"]["repo-facts"]["reason"] == "ax phase Failed"
-    script = json.loads(json.dumps(SCRIPT))
-    script["repo-facts"]["deliver"] = False
-    fake.script(script)
+    assert state_of("phase")["tasks"]["repo-facts"]["reason"] == "ax phase Failed: ActorResumeFailed: worker lost"
+    assert statuses("phase") == {"repo-facts": "failed", "verify": "pending", "agree": "pending"}
+    assert [n for _, n in fake.events("delete")] == ["phase-repo-facts"], "ax delete follows a failed task"
+
+
+def test_a_task_that_vanishes_before_delivery_is_failed(fake: Fake, tmp_path: Path) -> None:
+    fake.script({**SCRIPT, "repo-facts": {**SCRIPT["repo-facts"], "vanish": True}})
+    assert reconciler.run(write_run(tmp_path, "vanish"), ax=str(fake.ax)) == "failed"
+    assert "disappeared from ax" in state_of("vanish")["tasks"]["repo-facts"]["reason"]
+
+
+def test_no_delivery_within_the_task_timeout_is_failed(fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OUSAST_TASK_TIMEOUT", "0.5")
+    fake.script({**SCRIPT, "repo-facts": {**SCRIPT["repo-facts"], "deliver": False}})
+    started = time.monotonic()
     assert reconciler.run(write_run(tmp_path, "silent"), ax=str(fake.ax)) == "failed"
-    assert state_of("silent")["tasks"]["repo-facts"]["reason"] == "no summary.json delivered"
-    assert [n for _, n in fake.events("delete")] == ["phase-repo-facts", "silent-repo-facts"], "ax delete follows every terminal task"
+    assert time.monotonic() - started >= 0.5
+    reason = state_of("silent")["tasks"]["repo-facts"]["reason"]
+    assert "OUSAST_TASK_TIMEOUT" in reason and "Running" in reason, "Running forever is not completion"
+    assert [n for _, n in fake.events("delete")] == ["silent-repo-facts"], "ax delete follows every task"
+
+
+def test_outcome_of_needs_a_delivered_summary() -> None:
+    assert reconciler.outcome_of(None) == ("failed", "no summary.json delivered")
+    assert reconciler.outcome_of({"status": "done", "units_done": 1, "units_total": 1}) == ("done", "")
 
 
 def test_summary_done_requires_every_unit(fake: Fake, tmp_path: Path) -> None:
@@ -393,7 +467,8 @@ def test_receiver_rejects_traversal_unknown_tasks_and_wrong_types(tmp_path: Path
     receiver.server_close()
 
 
-def test_delivery_for_a_task_that_is_not_running_is_rejected(fake: Fake, tmp_path: Path) -> None:
+def test_delivery_for_a_task_that_is_not_running_is_rejected(fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OUSAST_TASK_TIMEOUT", "1")  # the rejected delivery is no delivery: the task times out
     script = json.loads(json.dumps(SCRIPT))
     script["repo-facts"]["as_task"] = "agree"  # the runner claims to be a task that has not started
     fake.script(script)
@@ -544,12 +619,12 @@ def test_elapsed_polling_is_paced(fake: Fake, tmp_path: Path, monkeypatch: pytes
 
 def test_doctor_treats_an_empty_namespace_as_not_ready(monkeypatch: pytest.MonkeyPatch) -> None:
     """kubectl's "No resources found" must not read as one ready pod (a plausible-zero instrument failure)."""
-    from openultrasast.plane import reconciler
+    from openultrasast.plane import doctor
 
-    monkeypatch.setattr(reconciler, "_sh", lambda *a: (True, "No resources found in ax-system namespace."))
-    ok, text = reconciler._pods_ready("ax-system", "kind-ousast")
+    monkeypatch.setattr(doctor, "_sh", lambda *a: (True, "No resources found in ax-system namespace."))
+    ok, text = doctor._pods_ready("ax-system", "kind-ousast")
     assert not ok and "no pods" in text
-    monkeypatch.setattr(reconciler, "_sh", lambda *a: (True, "a-1 1/1 Running 0 1m\nb-2 0/1 Completed 0 1m"))
-    assert reconciler._pods_ready("ns", "ctx") == (True, "2 pods ready")
-    monkeypatch.setattr(reconciler, "_sh", lambda *a: (True, "a-1 0/1 Running 0 1m"))
-    assert reconciler._pods_ready("ns", "ctx")[0] is False
+    monkeypatch.setattr(doctor, "_sh", lambda *a: (True, "a-1 1/1 Running 0 1m\nb-2 0/1 Completed 0 1m"))
+    assert doctor._pods_ready("ns", "ctx") == (True, "2 pods ready")
+    monkeypatch.setattr(doctor, "_sh", lambda *a: (True, "a-1 0/1 Running 0 1m"))
+    assert doctor._pods_ready("ns", "ctx")[0] is False

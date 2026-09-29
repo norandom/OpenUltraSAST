@@ -23,6 +23,7 @@ src/openultrasast/plane/
   manifests.py                   load + validate Task / Workspace / Model / Run (PyYAML, declared dependency)
   reconciler.py                  Run execution, status, resume  (<= 500 lines, test-enforced)
   runner.py                      ax runner contract: AX_TASK_YAML / AX_WORKSPACES_YAML -> entrypoint
+  doctor.py                      `ousast plane doctor`: the four checks of Requirement 3.5
   budget.py                      spend and call metering from provider usage fields
   tasks/repo_facts.py            source-only facts artifact
   tasks/verify.py                one hunt per file with facts in the prompt; per-unit resume
@@ -61,9 +62,19 @@ container the same module is PID 1 (`ax-task-runner`), built as a target of the 
 
 Reads `AX_TASK_YAML` and `AX_WORKSPACES_YAML`, materialises each workspace's `git` entries at the pinned commit
 into the bound path (locally a `git archive` from the case cache, as `evaluate.export` does today), writes
-`spec.files`, then executes `spec.command`, whose first element names a task module
-(`openultrasast.plane.tasks.<name>`). With `AX_RUNNER_HTTP=1` it serves `/healthz` and `/readyz` (503 until
-workspaces are ready) on port 80 in a thread; locally the flag is unset (Requirement 4.2).
+`spec.files`, then runs `spec.command` as ax's runner contract requires (ax `docs/runner.md`,
+`docs/sandbox.md`): a child process `python -m openultrasast.plane.tasks.<name> <args>` in its own process group,
+with the first workspace as working directory and `AX_METADATA_URL` pointing at the runner's own server. It serves
+`/healthz`, `/readyz` (503 until workspaces are ready; ax probes `/readyz?check=workspace`) and ax's two metadata
+paths on port 80 (Requirement 4.2). Workspaces are prepared on the first boot only; `/workspace` survives suspend
+and resume. After the child exits the runner reads `summary.json` (a crash without one becomes `failed` with the
+exit code and stderr tail), delivers the output directory (Requirement 4.4), writes the completion marker
+`/workspace/.ousast-state/<task>.done.json` (`exit`, `status`, `delivered`) and then keeps running as PID 1 until
+SIGTERM: an exiting runner stops the container, which the first live run showed as every resume timing out. A
+boot that finds the marker does not rerun the command (a resumed actor must not repeat billed work); a marker
+with a failed delivery retries the delivery only. SIGTERM (ax's stop and suspend) is forwarded to the command's
+process group, followed by SIGKILL after `OUSAST_TERM_GRACE` (10 s), and the runner exits 0.
+`AX_RUNNER_EXIT_AFTER_COMMAND=1` is a unit-test escape that exits with the task's code after delivery.
 
 ### Reconciler (`reconciler.py`, ax-backed)
 
@@ -71,9 +82,15 @@ workspaces are ready) on port 80 in a thread; locally the flag is unset (Require
 per-task status in `pending | running | suspended | done | failed | unfinished`, timestamps, spend. Execution:
 topological order; for each ready task the reconciler renders the Task manifest with the run's env
 (`OUSAST_BUDGET_*`, `OUSAST_INPUT_*`, `OUSAST_OUTPUT_DIR`, `OUSAST_ARTIFACT_URL`), applies it and its
-Workspaces through the `ax` CLI (`ax apply`, `ax get`, `ax delete`; the CLI path is injectable so tests use a
-fake), and polls ax's status. Artifacts: the reconciler serves a small HTTP receiver on the host (reachable from
-kind pods via the node's host gateway); the runner posts the output directory there at exit. Tasks sharing a
+Workspaces through the `ax` CLI (`ax apply`, `ax resume`, `ax get`, `ax delete`; the CLI path is injectable so
+tests use a fake). ax creates a Task `Suspended`; it runs only after `ax resume task`, and the first resume of a
+new image can fail with `DeadlineExceeded` while Agent Substrate builds its golden snapshot (ax then reports
+`Failed`), so the reconciler retries a DeadlineExceeded/Unavailable resume with backoff for up to
+`OUSAST_RESUME_TIMEOUT` (900 s). ax has no Completed phase and never reports that a command exited: completion is
+the artifact delivery. `Failed` after a resume went through, or the task disappearing, before delivery fails the
+task with ax's condition message; no delivery within `OUSAST_TASK_TIMEOUT` (7200 s) fails it too; `ax delete task`
+follows either way. Artifacts: the reconciler serves a small HTTP receiver on the host (reachable from kind pods
+via the docker bridge); the runner posts the output directory there after its command exits. Tasks sharing a
 `serialize` label never overlap; everything else may run in parallel up to `--workers`. A task's outcome is
 read from its delivered `summary.json`: `done` only when the task says every unit finished; `unfinished` on a
 budget stop; `failed` on an account or authentication error, a crash, or a missing delivery. `status` prints
@@ -140,12 +157,16 @@ plus the per-candidate cost, turns and the declared-site match (`evaluate.matche
 
 - `tests/test_plane_manifests.py`: valid ax manifests load; an unknown field, a bad provider without the
   annotation, and a Run with a cycle are rejected with the field named.
-- `tests/test_plane_reconciler.py`: a fake `ax` CLI (a script recording `apply`/`get`/`delete` calls and
-  posting scripted `summary.json` deliveries to the receiver) drives a DAG: order, `serialize` non-overlap,
-  skip-on-rerun, `unfinished` and `failed` propagation, missing delivery, the lock, the attribution table; a
+- `tests/test_plane_reconciler.py`: a fake `ax` CLI with ax's real lifecycle (apply -> `Suspended`, a first
+  resume failing DeadlineExceeded, then `Running` forever, and a scripted `summary.json` delivery only after a
+  resume went through) drives a DAG: order, `serialize` non-overlap, skip-on-rerun, `unfinished` and `failed`
+  propagation, resume retry and timeout, `Failed` with a condition message, a vanished task, the task timeout
+  without delivery, the lock, the attribution table; a
   test asserts the module is under 500 lines. `tests/test_plane_ax_live.py` (marker `ax`, skipped unless
   `ousast plane doctor` passes) applies one trivial Task on the real cluster.
-- `tests/test_plane_runner.py`: the env contract on a fixture workspace; `/readyz` 503 then 200 with the flag.
+- `tests/test_plane_runner.py`: the env contract on a fixture workspace; `/readyz` 503 then 200; the command as a
+  child in its own group in the first workspace; the runner serving on after the command; SIGTERM reaching the
+  command's group; the completion marker preventing a rerun and retrying a failed delivery alone.
 - `tests/test_plane_repo_facts.py`: a three-file tree; callers found across files, none from tests or vendor;
   identical output on a second run.
 - `tests/test_plane_verify.py`: a scripted client; the prompt carries the callers; `units.jsonl` resume asks

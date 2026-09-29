@@ -2,46 +2,59 @@
 
 This module is ``/usr/local/bin/ax-task-runner`` in the runner image, PID 1 of the task container. ax hands it
 the Task as YAML in ``AX_TASK_YAML`` and the bound Workspaces as a multi-document stream in ``AX_WORKSPACES_YAML``;
-nothing else comes from the command line (Requirement 4.1). It serves ``/healthz`` and ``/readyz`` on port 80,
-``/readyz`` answering 503 until every workspace is materialised (Requirement 4.2), then runs ``spec.command``:
-its first element names ``openultrasast.plane.tasks.<name>`` whose ``main(argv)`` gets the rest.
+nothing else comes from the command line (Requirement 4.1). It serves ``/healthz``, ``/readyz`` and ax's two
+metadata paths on port 80, ``/readyz`` answering 503 until every workspace is materialised (Requirement 4.2).
+Workspaces are prepared on the first boot only: ``/workspace`` survives suspend and resume, the process tree does
+not (ax docs/runner.md).
 
-ax has no artifact channel, so after the task returns the runner posts the whole ``OUSAST_OUTPUT_DIR`` as a tar
-stream to ``OUSAST_ARTIFACT_URL`` before it reports completion; a failed delivery is reported as ``failed``, never
-as done (Requirement 4.4). The exit code follows the task's ``summary.json``: 0 ``done``, 2 ``failed``, 3
-``unfinished``.
+The command runs as a child process, ``python -m openultrasast.plane.tasks.<spec.command[0]> <spec.command[1:]>``,
+in its own process group, with the first workspace as its working directory and ``AX_METADATA_URL`` pointing at
+this server. ax has no artifact channel and never reports that a command finished, so after the child exits the
+runner reads ``summary.json`` (a crash without one becomes ``failed`` with the exit code and the stderr tail),
+posts the whole ``OUSAST_OUTPUT_DIR`` as a tar to ``OUSAST_ARTIFACT_URL`` -- that delivery is the task's
+completion (Requirement 4.4); a failed one is reported ``failed``, never done -- and writes the completion marker
+``<OUSAST_STATE_DIR>/<task>.done.json`` (``exit``, ``status``, ``delivered``). Then it keeps serving until SIGTERM,
+as ax requires of PID 1. A boot that finds the marker never reruns the command (a resumed actor must not repeat
+billed work); when the marker says the delivery failed, it retries the delivery alone. SIGTERM (ax's stop and
+suspend) goes to the command's process group; after ``OUSAST_TERM_GRACE`` seconds the rest is killed and the
+runner exits 0.
 
 Environment the runner reads, all optional except the two ax variables:
 
     AX_TASK_YAML, AX_WORKSPACES_YAML   ax's contract
     AX_RUNNER_HTTP                     "0" disables the health server (unit tests only)
     AX_RUNNER_PORT                     port of the health server, default 80; "0" picks a free port
+    AX_RUNNER_EXIT_AFTER_COMMAND       "1" exits after delivery with 0 done, 2 failed, 3 unfinished (unit tests only)
+    AX_RUNNER_TASK_PACKAGE             package the command's module is looked up in (unit tests only)
+    OUSAST_STATE_DIR                   completion markers, default ``/workspace/.ousast-state`` (the durable volume)
+    OUSAST_TERM_GRACE                  seconds between SIGTERM and SIGKILL of the command's group, default 10
     OUSAST_CASE_CACHE                  a directory of git checkouts (``benchmarks/independent`` cache layout)
     OUSAST_GIT_PINS                    JSON ``{"<workspace>/<git name>": "<40-hex commit>"}`` from the reconciler
     OUSAST_ARTIFACT_URL, OUSAST_RUN    where to deliver, and the run name carried in ``X-Ousast-Run``
     OUSAST_DELIVERY_BACKOFF            seconds before the second delivery attempt, doubled per retry
 
-The runner exports ``OUSAST_WORKSPACE_DIR`` (the first bound workspace) when the Task's env leaves it unset, and
-``AX_RUNNER_BOUND_PORT`` with the health server's port.
+The runner exports ``OUSAST_WORKSPACE_DIR`` (the first bound workspace) when the Task's env leaves it unset,
+``AX_RUNNER_BOUND_PORT`` with the health server's port and ``AX_METADATA_URL``.
 """
 
 from __future__ import annotations
 
+import contextlib
 import http.client
-import importlib
 import io
 import json
 import logging
 import os
 import re
+import signal
 import subprocess
 import sys
 import tarfile
 import threading
 import time
-import traceback
 import urllib.error
 import urllib.request
+from collections import deque
 from collections.abc import Mapping, MutableMapping, Sequence
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -56,7 +69,9 @@ __all__ = [
     "DEFAULT_PORT",
     "DELIVERY_ATTEMPTS",
     "EXIT_BY_STATUS",
+    "STATE_DIR",
     "TASK_PACKAGE",
+    "Child",
     "DeliveryError",
     "HealthServer",
     "RunnerError",
@@ -70,19 +85,26 @@ __all__ = [
     "main",
     "materialise",
     "read_summary",
-    "run_task_module",
+    "run_command",
     "start_health_server",
+    "summary_after",
+    "task_module",
     "write_summary",
 ]
 
 DEFAULT_PORT = 80
 DELIVERY_ATTEMPTS = 3
 TASK_PACKAGE = "openultrasast.plane.tasks"
+STATE_DIR = "/workspace/.ousast-state"
+TERM_GRACE = 10.0  # ax's own runner: SIGTERM, ten seconds, SIGKILL
+STDERR_TAIL_LINES = 40
 EXIT_BY_STATUS = {"done": 0, "failed": 2, "unfinished": 3}
 SUMMARY = "summary.json"
+METADATA_PATHS = {"/metadata/v1alpha1/ax/task": "task", "/metadata/v1alpha1/ax/workspaces": "workspaces"}
 DEFAULT_BRANCH = "main"  # ax internal/workspace/setup.go: defaultBranch
 _PLACEHOLDER_NAMES = ("", "repo", "origin")  # setup.go: names that do not name a checkout directory
 _SHA = re.compile(r"[0-9a-f]{40}")
+_MODULE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 log = logging.getLogger("ousast.plane.runner")
 
@@ -140,18 +162,21 @@ class _HealthHandler(BaseHTTPRequestHandler):
     server: HealthServer
 
     def do_GET(self) -> None:  # noqa: N802 - http.server's naming
-        if self.path == "/healthz":
+        path = self.path.split("?", 1)[0]  # ax's controller probes /readyz?check=workspace
+        if path == "/healthz":
             self._answer(200, "ok")
-        elif self.path == "/readyz":
+        elif path == "/readyz":
             ready = self.server.ready.is_set()
             self._answer(200 if ready else 503, "ready" if ready else "workspaces not materialised")
+        elif path in METADATA_PATHS:
+            self._answer(200, self.server.metadata.get(METADATA_PATHS[path], ""), "application/yaml")
         else:
             self._answer(404, "not found")
 
-    def _answer(self, status: int, body: str) -> None:
+    def _answer(self, status: int, body: str, content_type: str = "text/plain; charset=utf-8") -> None:
         payload = body.encode("utf-8")
         self.send_response(status)
-        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)
@@ -161,13 +186,15 @@ class _HealthHandler(BaseHTTPRequestHandler):
 
 
 class HealthServer(ThreadingHTTPServer):
-    """``/healthz`` always 200; ``/readyz`` 503 until ``ready`` is set. Serves in a daemon thread."""
+    """``/healthz`` always 200; ``/readyz`` 503 until ``ready`` is set; the Task and Workspaces YAML under
+    ``/metadata/v1alpha1/ax/``. Serves in a daemon thread."""
 
     daemon_threads = True
 
-    def __init__(self, port: int, ready: threading.Event) -> None:
+    def __init__(self, port: int, ready: threading.Event, metadata: Mapping[str, str] | None = None) -> None:
         super().__init__(("0.0.0.0", port), _HealthHandler)
         self.ready = ready
+        self.metadata = dict(metadata or {})
         self._thread = threading.Thread(target=self.serve_forever, name="ax-health", daemon=True)
 
     @property
@@ -183,8 +210,9 @@ class HealthServer(ThreadingHTTPServer):
         self._thread.join(timeout=5)
 
 
-def start_health_server(port: int, ready: threading.Event) -> HealthServer:
-    server = HealthServer(port, ready)
+def start_health_server(port: int, ready: threading.Event, metadata: Mapping[str, str] | None = None) -> HealthServer:
+    """Serve ``/healthz``, ``/readyz`` and ax's metadata paths (``metadata`` keyed ``task``/``workspaces``)."""
+    server = HealthServer(port, ready, metadata)
     server.start()
     return server
 
@@ -370,46 +398,91 @@ def _failed(reason: str, base: Mapping[str, Any] | None = None) -> dict[str, Any
     return summary
 
 
-def run_task_module(command: Sequence[str], output_dir: Path) -> dict[str, Any]:
-    """Import ``openultrasast.plane.tasks.<command[0]>`` and call ``main(command[1:])``; return the summary.
+def task_module(command: Sequence[str], package: str = TASK_PACKAGE) -> str:
+    """``spec.command[0]`` as a module under ``package`` (``repo-facts`` -> ``<package>.repo_facts``)."""
+    if not command:
+        raise RunnerError("spec.command is empty")
+    name = command[0].replace("-", "_")
+    if not _MODULE.fullmatch(name):
+        raise RunnerError(f"spec.command[0] {command[0]!r} does not name a task module")
+    return f"{package}.{name}"
 
-    A crash (any exception, or ``sys.exit`` with a non-zero code) writes ``summary.json`` with ``status: failed``
-    and the traceback; a task that returns without writing ``summary.json`` is failed too.
+
+class Child:
+    """``spec.command`` as a child in its own process group; its stderr is echoed and the tail kept."""
+
+    def __init__(self, argv: Sequence[str], cwd: str | None, env: Mapping[str, str]) -> None:
+        self.proc = subprocess.Popen(list(argv), cwd=cwd, env=dict(env), stderr=subprocess.PIPE, start_new_session=True)
+        self.tail: deque[str] = deque(maxlen=STDERR_TAIL_LINES)
+        self._reader = threading.Thread(target=self._echo, name="task-stderr", daemon=True)
+        self._reader.start()
+
+    def _echo(self) -> None:
+        assert self.proc.stderr is not None
+        for raw in self.proc.stderr:
+            line = raw.decode("utf-8", errors="replace")
+            sys.stderr.write(line)
+            sys.stderr.flush()
+            self.tail.append(line.rstrip("\n"))
+
+    def signal_group(self, signum: int) -> None:
+        with contextlib.suppress(ProcessLookupError, PermissionError):
+            os.killpg(self.proc.pid, signum)
+
+    def wait(self, stop: threading.Event, grace: float) -> int | None:
+        """The exit code; or, once ``stop`` is set, SIGTERM to the group, ``grace`` seconds, SIGKILL, and None."""
+        while self.proc.poll() is None:
+            if stop.wait(0.1):
+                log.info("stopping: SIGTERM to the command's process group %d", self.proc.pid)
+                self.signal_group(signal.SIGTERM)
+                try:
+                    self.proc.wait(timeout=grace)
+                except subprocess.TimeoutExpired:
+                    log.warning("the command outlived the %gs grace period; SIGKILL", grace)
+                self.signal_group(signal.SIGKILL)
+                self.proc.wait()
+                self._reader.join(timeout=5)
+                return None
+        self._reader.join(timeout=5)
+        return self.proc.returncode
+
+
+def summary_after(code: int, output_dir: Path, name: str, stderr_tail: Sequence[str] = ()) -> dict[str, Any]:
+    """The task's ``summary.json`` after it exited with ``code``; a failed one when it wrote none that is valid.
+
+    A task exits 2 or 3 with a ``failed``/``unfinished`` summary by design; a non-zero exit next to ``done``, or no
+    valid summary at all, is a crash: the failed summary keeps the task's fields and carries the exit code and the
+    tail of its stderr (the traceback of an uncaught exception).
     """
-    name = f"{TASK_PACKAGE}.{command[0].replace('-', '_')}"
-    argv = list(command[1:])
-    try:
-        try:
-            module = importlib.import_module(name)
-        except ImportError as exc:
-            raise RunnerError(f"task module {name} cannot be imported: {exc}") from exc
-        entry = getattr(module, "main", None)
-        if not callable(entry):
-            raise RunnerError(f"{name} has no main()")
-        entry(argv)
-    except RunnerError as exc:
-        log.error("%s", exc)
-        summary = _failed(str(exc), read_summary(output_dir))
-        write_summary(output_dir, summary)
-        return summary
-    except SystemExit as exc:
-        if exc.code not in (None, 0):
-            summary = _failed(f"task {command[0]} exited with {exc.code!r}", read_summary(output_dir))
-            write_summary(output_dir, summary)
-            return summary
-    except BaseException:
-        reason = f"task {command[0]} crashed:\n{traceback.format_exc()}"
-        log.error("%s", reason)
-        summary = _failed(reason, read_summary(output_dir))
-        write_summary(output_dir, summary)
-        return summary
     written = read_summary(output_dir)
-    if written is not None and written.get("status") in EXIT_BY_STATUS:
-        return written
-    found = None if written is None else written.get("status")
-    summary = _failed(f"task {command[0]} wrote no valid {SUMMARY} (status {found!r})", written)
+    status = None if written is None else written.get("status")
+    if status in EXIT_BY_STATUS and (code == 0 or status != "done"):
+        return dict(written or {})
+    why = "reported done" if status == "done" else f"wrote no valid {SUMMARY} (status {status!r})"
+    reason = f"task {name} exited with {code} and {why}"
+    if stderr_tail:
+        reason += "; stderr tail:\n" + "\n".join(stderr_tail)
+    summary = _failed(reason, written)
+    summary["exit"] = code
     write_summary(output_dir, summary)
     return summary
+
+
+def run_command(
+    task: Task, output_dir: Path, env: Mapping[str, str], stop: threading.Event, grace: float
+) -> tuple[int | None, dict[str, Any]]:
+    """Run ``python -m <package>.<command[0]> <command[1:]>`` in the first workspace; (exit code, summary).
+
+    (None, {}) when ``stop`` interrupted it: the command did not finish and a resume runs it again.
+    """
+    module = task_module(task.command, env.get("AX_RUNNER_TASK_PACKAGE") or TASK_PACKAGE)
+    cwd = task.workspaces[0].path if task.workspaces else None
+    child = Child([sys.executable, "-m", module, *task.command[1:]], cwd, env)
+    code = child.wait(stop, grace)
+    if code is None:
+        return None, {}
+    log.info("task %s exited with %d", task.metadata.name, code)
+    return code, summary_after(code, output_dir, task.command[0], list(child.tail))
 
 
 # --- artifact delivery -----------------------------------------------------------------------------------------
@@ -445,16 +518,18 @@ def deliver(url: str, payload: bytes, headers: Mapping[str, str], *, attempts: i
     raise DeliveryError(f"{last} after {attempts} attempts to {url}")
 
 
-def _deliver_output(task: Task, output_dir: Path, environ: Mapping[str, str]) -> None:
+def _deliver_output(task: Task, output_dir: Path, environ: Mapping[str, str]) -> bool:
+    """POST the output directory; False when there is nowhere to deliver; :class:`DeliveryError` when it fails."""
     url = environ.get("OUSAST_ARTIFACT_URL")
     if not url:
-        return
+        return False
     headers = {"Content-Type": "application/x-tar", "X-Ousast-Task": task.metadata.name}
     run = environ.get("OUSAST_RUN")
     if run:
         headers["X-Ousast-Run"] = run
     backoff = float(environ.get("OUSAST_DELIVERY_BACKOFF", "1.0"))
     deliver(url, build_tar(output_dir), headers, backoff=backoff)
+    return True
 
 
 # --- entrypoint --------------------------------------------------------------------------------------------------
@@ -465,6 +540,16 @@ class _Session:
     task: Task
     workspaces: dict[str, Workspace]
     output_dir: Path
+    state_dir: Path
+
+    @property
+    def marker(self) -> Path:
+        """``<state>/<task>.done.json``: the command finished; ``delivered`` says whether the receiver has it."""
+        return self.state_dir / f"{self.task.metadata.name}.done.json"
+
+    @property
+    def prepared(self) -> Path:
+        return self.state_dir / f"{self.task.metadata.name}.workspaces.done"
 
 
 def _prepare(environ: MutableMapping[str, str]) -> _Session:
@@ -481,47 +566,124 @@ def _prepare(environ: MutableMapping[str, str]) -> _Session:
         base = environ.get("OUSAST_WORKSPACE_DIR") or os.getcwd()
         environ["OUSAST_OUTPUT_DIR"] = str(Path(base) / "output")
     output_dir = Path(environ["OUSAST_OUTPUT_DIR"])
-    output_dir.mkdir(parents=True, exist_ok=True)
-    return _Session(task, workspaces, output_dir)
+    state_dir = Path(environ.get("OUSAST_STATE_DIR") or STATE_DIR)
+    try:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        state_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise RunnerError(f"cannot create the output or state directory: {exc}") from exc
+    return _Session(task, workspaces, output_dir, state_dir)
 
 
-def main(argv: Sequence[str] | None = None, environ: MutableMapping[str, str] | None = None) -> int:
-    """The ``ax-task-runner`` entrypoint; returns the exit code (0 done, 2 failed, 3 unfinished)."""
-    env = os.environ if environ is None else environ
-    if argv:
-        log.warning("ax-task-runner ignores command-line arguments %r; the Task manifest is the only input", list(argv))
-    ready = threading.Event()
-    server: HealthServer | None = None
-    if env.get("AX_RUNNER_HTTP", "1") != "0":
-        server = start_health_server(int(env.get("AX_RUNNER_PORT", str(DEFAULT_PORT))), ready)
-        env["AX_RUNNER_BOUND_PORT"] = str(server.port)
-        log.info("health server on port %d", server.port)
+def _exit_of(marker: Mapping[str, Any]) -> int:
+    return EXIT_BY_STATUS.get(str(marker.get("status")), EXIT_BY_STATUS["failed"])
+
+
+def _finish(session: _Session, env: Mapping[str, str], exit_code: int | None, summary: Mapping[str, Any]) -> dict[str, Any]:
+    """Deliver the output directory and write the completion marker; a failed delivery reports ``failed``.
+
+    The marker keeps the task's own summary so a later boot can put it back and retry the delivery alone.
+    """
+    marker: dict[str, Any] = {"exit": exit_code, "status": str(summary.get("status")), "delivered": False, "summary": dict(summary)}
+    try:
+        marker["delivered"] = _deliver_output(session.task, session.output_dir, env)
+    except DeliveryError as exc:
+        log.error("artifact delivery failed: %s", exc)
+        marker.update(status="failed", reason=f"artifact delivery failed: {exc}")
+        write_summary(session.output_dir, _failed(marker["reason"], summary))
+    session.marker.write_text(json.dumps(marker, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    log.info("task %s: status %s, delivered %s", session.task.metadata.name, marker["status"], marker["delivered"])
+    return marker
+
+
+def _run_once(env: MutableMapping[str, str], ready: threading.Event, stop: threading.Event) -> int:
+    """Materialise, run the command once, deliver; on a resumed volume, only what the marker says is left."""
     session: _Session | None = None
     try:
         session = _prepare(env)
-        cache_dir = env.get("OUSAST_CASE_CACHE")
-        pins = load_pins(env.get("OUSAST_GIT_PINS", ""))
-        materialise(session.task, session.workspaces, Path(cache_dir) if cache_dir else None, pins)
+        if session.prepared.exists():
+            log.info("workspaces were prepared on an earlier boot; keeping them")
+        else:
+            cache_dir = env.get("OUSAST_CASE_CACHE")
+            materialise(session.task, session.workspaces, Path(cache_dir) if cache_dir else None, load_pins(env.get("OUSAST_GIT_PINS", "")))
+            session.prepared.touch()
         ready.set()
+        done = _read_marker(session.marker)
+        if done is not None and done.get("delivered"):
+            log.info("task %s already ran and was delivered (%s); not running it again", session.task.metadata.name, done.get("status"))
+            return _exit_of(done)
+        if done is not None:
+            log.info("task %s already ran; retrying the delivery only", session.task.metadata.name)
+            stored = done.get("summary")
+            kept: dict[str, Any] = stored if isinstance(stored, dict) else read_summary(session.output_dir) or {}
+            write_summary(session.output_dir, kept)
+            return _exit_of(_finish(session, env, done.get("exit"), kept))
+        if stop.is_set():
+            return 0
         log.info("workspaces ready; running task %s: %s", session.task.metadata.name, list(session.task.command))
-        summary = run_task_module(session.task.command, session.output_dir)
-        try:
-            _deliver_output(session.task, session.output_dir, env)
-        except DeliveryError as exc:
-            log.error("artifact delivery failed: %s", exc)
-            summary = _failed(f"artifact delivery failed: {exc}", summary)
-            write_summary(session.output_dir, summary)
-        status = str(summary.get("status"))
-        log.info("task %s finished with status %s", session.task.metadata.name, status)
-        return EXIT_BY_STATUS.get(status, EXIT_BY_STATUS["failed"])
+        code, summary = run_command(session.task, session.output_dir, env, stop, float(env.get("OUSAST_TERM_GRACE") or TERM_GRACE))
+        if code is None:
+            log.info("task %s was stopped before its command finished; a resume runs it again", session.task.metadata.name)
+            return 0
+        return _exit_of(_finish(session, env, code, summary))
     except RunnerError as exc:
         log.error("runner failed: %s", exc)
-        if session is not None:
-            write_summary(session.output_dir, _failed(f"runner failed: {exc}", read_summary(session.output_dir)))
-        return EXIT_BY_STATUS["failed"]
+        if session is None:
+            return EXIT_BY_STATUS["failed"]
+        summary = _failed(f"runner failed: {exc}", read_summary(session.output_dir))
+        write_summary(session.output_dir, summary)
+        return _exit_of(_finish(session, env, None, summary))
+
+
+def _read_marker(path: Path) -> dict[str, Any] | None:
+    try:
+        loaded = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return loaded if isinstance(loaded, dict) else None
+
+
+def main(argv: Sequence[str] | None = None, environ: MutableMapping[str, str] | None = None) -> int:
+    """The ``ax-task-runner`` entrypoint (PID 1): run the command once, deliver, then serve until SIGTERM.
+
+    Returns 0 after SIGTERM. ``AX_RUNNER_EXIT_AFTER_COMMAND=1`` (unit tests only; the image never sets it) returns
+    right after delivery with the task's exit code: 0 done, 2 failed, 3 unfinished.
+    """
+    env = os.environ if environ is None else environ
+    if argv:
+        log.warning("ax-task-runner ignores command-line arguments %r; the Task manifest is the only input", list(argv))
+    ready, stop = threading.Event(), threading.Event()
+    previous = _on_sigterm(stop)
+    server: HealthServer | None = None
+    if env.get("AX_RUNNER_HTTP", "1") != "0":
+        metadata = {"task": env.get("AX_TASK_YAML", ""), "workspaces": env.get("AX_WORKSPACES_YAML", "")}
+        server = start_health_server(int(env.get("AX_RUNNER_PORT", str(DEFAULT_PORT))), ready, metadata)
+        env["AX_RUNNER_BOUND_PORT"] = str(server.port)
+        env["AX_METADATA_URL"] = f"http://127.0.0.1:{server.port}"
+        log.info("health and metadata server on port %d", server.port)
+    try:
+        code = _run_once(env, ready, stop)
+        if stop.is_set():
+            return 0
+        if env.get("AX_RUNNER_EXIT_AFTER_COMMAND") == "1":
+            return code
+        log.info("the command is finished (exit %d by status); serving until SIGTERM", code)
+        while not stop.wait(1.0):
+            pass
+        log.info("SIGTERM: shutting down")
+        return 0
     finally:
+        if previous is not None:
+            signal.signal(signal.SIGTERM, previous)
         if server is not None:
             server.stop()
+
+
+def _on_sigterm(stop: threading.Event) -> Any:
+    """Route SIGTERM (ax's stop and suspend) to ``stop``; the previous handler, or None off the main thread."""
+    if threading.current_thread() is not threading.main_thread():
+        return None
+    return signal.signal(signal.SIGTERM, lambda signum, frame: stop.set())
 
 
 if __name__ == "__main__":
