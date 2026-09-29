@@ -421,14 +421,18 @@ def _tool_schemas(names: Sequence[str] | None) -> list[dict[str, object]]:
 
 
 def _user_message(root: Path, hotspots: Sequence[Hotspot], user_prompt: str | None, context_files: Sequence[str], max_chars: int) -> str:
+    # Context files FIRST, the question LAST. DeepSeek bills a cached prefix at 1/30 of a fresh one, and the cache
+    # is by prefix: with the question first, every candidate in the same file broke the prefix at its first
+    # line and the file was paid for again. The file is the stable part across the questions asked about it.
     body = user_prompt if user_prompt is not None else _hotspot_prompt(hotspots)
-    parts = [body]
+    parts = []
     for relative in context_files:
         try:
             text = read_file(root, relative, max_chars=max_chars)
         except (PathEscapesRepo, OSError):
             continue
         parts.append(f"--- {relative}\n{text}")
+    parts.append(body)
     return "\n\n".join(parts)
 
 

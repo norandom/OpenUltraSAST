@@ -60,9 +60,43 @@ def _client():
     return _CLIENT
 
 
-def verify(root: str, candidate: list, family: str, model: str, max_steps: int) -> dict:
-    """One candidate, in a worker process: CPU-bound repository tools do not serialise behind one interpreter."""
+class _Recording:
+    """Wraps the chat client for one candidate: counts investigation turns and slices token usage."""
+
+    def __init__(self, client) -> None:
+        self.client, self.turns_with_tools, self.first_usage = client, 0, len(getattr(client, "usage", []))
+
+    def complete(self, **kw):
+        response = self.client.complete(**kw)
+        if response.tool_calls:
+            self.turns_with_tools += 1
+        return response
+
+    def usage(self) -> dict[str, int]:
+        rows = getattr(self.client, "usage", [])[self.first_usage :]
+        keys = ("prompt_tokens", "prompt_cache_hit_tokens", "completion_tokens")
+        return {k: sum(int(r.get(k) or 0) for r in rows) for k in keys} | {"calls": len(rows)}
+
+
+def _hunt(root: str, spot, prompt: str, path: str, model: str, steps: int):
     from openultrasast import tool_hunter
+
+    recording = _Recording(_client())
+    found = tool_hunter.run_tool_hunter(
+        Path(root), [spot], client=recording, model=model, max_steps=steps,
+        system_prompt=SYSTEM, user_prompt=prompt, context_files=[path], tags=("sink-verifier",),
+    )  # fmt: skip
+    return found, recording
+
+
+def verify(root: str, candidate: list, family: str, model: str, max_steps: int, escalate_steps: int = 0) -> dict:
+    """One candidate, in a worker process: CPU-bound repository tools do not serialise behind one interpreter.
+
+    Adaptive budget: the hunt runs at `max_steps`; if it spent EVERY step on tool calls and reported nothing, the
+    model was still investigating when the budget ended, and the hunt is repeated once at `escalate_steps`. A hunt
+    that concluded early (fewer tool turns than steps) is final at the small budget. Measured on the seven declared
+    v2 sites: 3 steps found 5, 8 steps found 6; most candidates conclude in 3.
+    """
     from openultrasast.complexity.map import Hotspot
 
     client = _client()
@@ -71,20 +105,25 @@ def verify(root: str, candidate: list, family: str, model: str, max_steps: int) 
     spot = Hotspot(path=path, function_name=function, score=1.0, band="candidate", signals={}, rationale="model-classified sink", test_hint=None, inventory_finding_ids=())
     prompt = (
         f"Operation to judge: in `{path}`, function `{function}`, around line {line}, code that {OPERATIONS[family]}. "
-        "The file is below. Trace where the operation's data comes from and whether it is guarded."
+        "The file is above. Trace where the operation's data comes from and whether it is guarded."
     )
+    usage: dict[str, int] = {}
+    escalated = False
     try:
-        found = tool_hunter.run_tool_hunter(
-            Path(root), [spot], client=client, model=model, max_steps=max_steps,
-            system_prompt=SYSTEM, user_prompt=prompt, context_files=[path], tags=("sink-verifier",),
-        )  # fmt: skip
+        found, recording = _hunt(root, spot, prompt, path, model, max_steps)
+        usage = recording.usage()
+        if not found and escalate_steps > max_steps and recording.turns_with_tools >= max_steps:
+            escalated = True
+            found, recording = _hunt(root, spot, prompt, path, model, escalate_steps)
+            second = recording.usage()
+            usage = {k: usage.get(k, 0) + second.get(k, 0) for k in set(usage) | set(second)}
     except Exception as error:  # noqa: BLE001 -- recorded; an unverified candidate is not a clean one
         return {"candidate": candidate, "unverified": f"{type(error).__name__}: {str(error)[:120]}", "usd": float(client.cost_usd()) - before}
     findings = [
         {"site": f"{f.path}:{f.line or line}:{f.function_name or function}", "family": family, "title": f.title, "witness": f.rationale[:600], "candidate": f"{path}::{function}"}
         for f in found
     ]
-    return {"candidate": candidate, "findings": findings, "usd": float(client.cost_usd()) - before}
+    return {"candidate": candidate, "findings": findings, "usd": float(client.cost_usd()) - before, "escalated": escalated, "usage": usage}
 
 
 def main() -> int:
@@ -93,6 +132,7 @@ def main() -> int:
     parser.add_argument("--only", default="")
     parser.add_argument("--model", default=DEFAULT_DETECTOR_MODEL)
     parser.add_argument("--max-steps", type=int, default=3)
+    parser.add_argument("--escalate-steps", type=int, default=6, help="rerun a hunt that used every step without a verdict; 0 disables")
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--budget-usd", type=float, default=40.0)
     parser.add_argument("--fixed", action="store_true", help="recheck detected sites at the fixed pin")
@@ -132,7 +172,7 @@ def main() -> int:
             with concurrent.futures.ProcessPoolExecutor(max_workers=args.workers) as pool, log.open("a") as sink:
                 futures = []
                 for candidate in pending:
-                    futures.append(pool.submit(verify, str(checkout), list(candidate), case["family"], args.model, args.max_steps))
+                    futures.append(pool.submit(verify, str(checkout), list(candidate), case["family"], args.model, args.max_steps, args.escalate_steps))
                 for future in concurrent.futures.as_completed(futures):
                     if future.cancelled():  # cancelled at the ceiling: never run, nothing to record
                         continue
@@ -166,7 +206,9 @@ def main() -> int:
         }  # fmt: skip
         if complete:
             out.write_text(json.dumps(result, indent=1) + "\n")
-        print(json.dumps({"case": case["id"], "pin": label, "candidates": len(todo), "verified": len(verified), "findings": len(findings), "unverified": len(unverified), "usd": result["usd"], "total_usd": round(spent, 4), "complete": complete}), flush=True)
+        tokens = {k: sum(int(d.get("usage", {}).get(k, 0)) for d in done) for k in ("prompt_tokens", "prompt_cache_hit_tokens", "completion_tokens")}
+        result["usage"] = tokens | {"escalated": sum(1 for d in done if d.get("escalated"))}
+        print(json.dumps({"case": case["id"], "pin": label, "candidates": len(todo), "verified": len(verified), "findings": len(findings), "unverified": len(unverified), "escalated": result["usage"]["escalated"], "cache_share": round(tokens["prompt_cache_hit_tokens"] / max(tokens["prompt_tokens"], 1), 2), "usd": result["usd"], "total_usd": round(spent, 4), "complete": complete}), flush=True)
         if account_error:
             print(json.dumps({"stopped": "account", "error": account_error, "spent_usd": round(spent, 4)}), flush=True)
             return 2

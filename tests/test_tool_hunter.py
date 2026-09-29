@@ -365,3 +365,14 @@ def test_the_final_answer_is_asked_plainly_and_a_wrapped_array_is_read(tmp_path)
     found = tool_hunter.run_tool_hunter(tmp_path, [spot], client=Client(), model="m", max_steps=3)
     assert [(f.path, f.line) for f in found] == [("app.py", 2)]
     assert seen[-1] == {"tools": [], "json_object": False}, seen[-1]
+
+
+def test_context_files_precede_the_question_so_the_prefix_caches(tmp_path) -> None:
+    """DeepSeek bills a cached prefix at 1/30 of a fresh one, by prefix. With the question first, every candidate
+    asked about the same file broke the prefix on its first line and paid for the file again."""
+    from openultrasast import tool_hunter
+
+    (tmp_path / "app.py").write_text("def run(q):\n    return eval(q)\n")
+    message = tool_hunter._user_message(tmp_path, [], "Judge the eval in run.", ["app.py"], 4000)
+    assert message.index("--- app.py") < message.index("def run(q)") < message.index("Judge the eval in run.")
+    assert message.endswith("Judge the eval in run.")
