@@ -1,7 +1,7 @@
 {
-  "modules": 121,
+  "modules": 122,
   "counts": {
-    "load_bearing": 112,
+    "load_bearing": 113,
     "standalone_capability": 9
   },
   "orphaned": [],
@@ -653,7 +653,9 @@
       "module": "plane",
       "classification": "load_bearing",
       "reason": "ai-service-plane Req 1-4: the service plane package; runner and reconciler integration in tasks 3-4",
-      "importers": []
+      "importers": [
+        "plane.runner"
+      ]
     },
     {
       "module": "plane.budget",
@@ -665,6 +667,14 @@
       "module": "plane.manifests",
       "classification": "load_bearing",
       "reason": "ai-service-plane Req 1.1-1.4: ax-shaped Task/Workspace/Model and the Run kind, validated before anything runs",
+      "importers": [
+        "plane.runner"
+      ]
+    },
+    {
+      "module": "plane.runner",
+      "classification": "load_bearing",
+      "reason": "ai-service-plane Req 4.1-4.4: the ax-task-runner entrypoint (PID 1 of the task image); delivers the output directory",
       "importers": []
     },
     {
