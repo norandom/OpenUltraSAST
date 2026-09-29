@@ -133,6 +133,17 @@ artifacts for the increment; the `classify` and `triage` tasks are later specs.
 
 Reads the pass outputs, emits `agreed.json` and `disputed.json` by the same rule as `verify_batched.agreement`,
 plus the per-candidate cost, turns and the declared-site match (`evaluate.matches_v2`) for the measurement.
+The rule is reproduced in the package (`agree.matches_declared`, parity-tested against `matches_v2` on the recorded
+reference outputs) and the generator writes the fix ranges it matches against into each case's `case.json`, so
+the runner image carries no benchmark tree.
+
+**Measurement.** Requirement 6.2's cost is judged on `cost_per_candidate_with_recorded_triage`: the plane's two
+verify passes plus the recorded triage cost of the case, over the candidates before triage, summed across the run.
+The reference's $0.022 (`verifier-batched-check-2026-09-29.json`) paid for per-file triage and the hunts while the
+plane applies the recorded triage without a model call, so `cost_per_candidate` (plane spend alone) is reported but
+not judged; the triage share is derived per file from the recorded spend minus the priced hunt usage (about $0.087
+of the $1.01) and labelled as derived in `case.json`. Sites are judged as `declared_sites_matched_agreed` against
+`declared_sites_in_set`, the reference's 16 of 20.
 
 ## Data Models
 

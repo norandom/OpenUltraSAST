@@ -256,6 +256,13 @@ def main(argv: list[str] | None = None) -> int:
     plane_ws.add_argument("--triage", type=Path, help="with --validation-set: recorded batched-check scans (<case>--vulnerable_a.jsonl)")
     plane_ws.add_argument("--run", default="validation-46", help="with --validation-set: the Run name")
     plane_ws.add_argument("--plane", type=Path, default=Path("plane"), help="with --validation-set: the manifest root")
+    plane_ws.add_argument(
+        "--repos", type=Path, default=Path.home() / ".cache" / "openultrasast" / "independent",
+        help="with --validation-set: one clone per case id, for the fix ranges agree scores by (evaluate.hunks)",
+    )  # fmt: skip
+    plane_ws.add_argument(
+        "--runner-image", type=Path, help="with --validation-set: re-pin the task templates to the image in this file (ops/ax/up.sh)"
+    )
 
     args = parser.parse_args(argv)
     # Diagnosis needs the stage costs, and nothing configures logging, so the default root level of
@@ -1324,11 +1331,18 @@ def _plane_increment(args: argparse.Namespace) -> int:
         print("--validation-set needs --candidates and --triage", file=sys.stderr)
         return 2
     home = str(Path.home())
-    shown = [str(p).replace(home, "~", 1) for p in (args.population, args.validation_set, args.candidates, args.triage)]
-    command = f"ousast plane workspaces {shown[0]} --validation-set {shown[1]} --candidates {shown[2]} --triage {shown[3]} --run {args.run}"
-    written = increment(
-        args.population, args.validation_set, args.candidates, args.triage, plane=args.plane, run_name=args.run, command=command
+    paths = (args.population, args.validation_set, args.candidates, args.triage, args.repos)
+    shown = [str(p).replace(home, "~", 1) for p in paths]
+    command = (
+        f"ousast plane workspaces {shown[0]} --validation-set {shown[1]} --candidates {shown[2]} --triage {shown[3]}"
+        f" --repos {shown[4]} --run {args.run}"
     )
+    if args.runner_image is not None:
+        command += f" --runner-image {str(args.runner_image).replace(home, '~', 1)}"
+    written = increment(
+        args.population, args.validation_set, args.candidates, args.triage, plane=args.plane, run_name=args.run, command=command,
+        repos=args.repos, runner_image=args.runner_image,
+    )  # fmt: skip
     print(f"{len(written)} manifests written under {args.plane} (Run {args.run})")
     return 0
 
