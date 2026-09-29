@@ -2,9 +2,10 @@
 
 ## Overview
 
-A thin service plane under `src/openultrasast/plane/`: manifest schemas in ax's shape plus a `Run` kind, a local
-reconciler that executes a Run's tasks in dependency order with persisted status and resume, a runner that
-honours ax's contract, and task entrypoints. The pipeline's logic lives only in the task entrypoints; the
+A thin service plane under `src/openultrasast/plane/`: manifest schemas in ax's shape plus a `Run` kind, an
+ax-backed reconciler that submits a Run's tasks to ax on this host's kind cluster in dependency order with
+persisted status and resume, a runner that honours ax's contract and delivers artifacts, and task entrypoints.
+ax (with Agent Substrate) is the only executor; there is no local subprocess path. The pipeline's logic lives only in the task entrypoints; the
 reconciler and runner know nothing about prompts, models or scoring (Requirement 3.4). The first increment moves
 `repo-facts` and `verify` (plus a model-free `agree` step) and measures them on the 46-candidate set
 (Requirement 6); the other concerns stay as scripts until that measurement is recorded.
@@ -56,13 +57,19 @@ into the bound path (locally a `git archive` from the case cache, as `evaluate.e
 (`openultrasast.plane.tasks.<name>`). With `AX_RUNNER_HTTP=1` it serves `/healthz` and `/readyz` (503 until
 workspaces are ready) on port 80 in a thread; locally the flag is unset (Requirement 4.2).
 
-### Reconciler (`reconciler.py`)
+### Reconciler (`reconciler.py`, ax-backed)
 
-`ousast plane run <Run.yaml>` and `ousast plane status <run>`. State: `state.json` with per-task status in
-`pending | running | suspended | done | failed | unfinished`, timestamps, spend. Execution: topological order;
-tasks sharing a `serialize` label never overlap; everything else may run in parallel up to `--workers`. A task's
-outcome is read from its `summary.json`: `done` only when the task says every unit finished; `unfinished` on a
-budget stop; `failed` on an account or authentication error or a crash. On rerun, `done` tasks are skipped and
+`ousast plane run <Run.yaml>`, `ousast plane status <run>` and `ousast plane doctor`. State: `state.json` with
+per-task status in `pending | running | suspended | done | failed | unfinished`, timestamps, spend. Execution:
+topological order; for each ready task the reconciler renders the Task manifest with the run's env
+(`OUSAST_BUDGET_*`, `OUSAST_INPUT_*`, `OUSAST_OUTPUT_DIR`, `OUSAST_ARTIFACT_URL`), applies it and its
+Workspaces through the `ax` CLI (`ax apply`, `ax get`, `ax delete`; the CLI path is injectable so tests use a
+fake), and polls ax's status. Artifacts: the reconciler serves a small HTTP receiver on the host (reachable from
+kind pods via the node's host gateway); the runner posts the output directory there at exit. Tasks sharing a
+`serialize` label never overlap; everything else may run in parallel up to `--workers`. A task's outcome is
+read from its delivered `summary.json`: `done` only when the task says every unit finished; `unfinished` on a
+budget stop; `failed` on an account or authentication error, a crash, or a missing delivery. `status` prints
+the token attribution table (Requirement 7.3) from the delivered summaries and writes `attribution.json`. On rerun, `done` tasks are skipped and
 the others re-executed; per-unit resume is the task's own duty (Requirement 2.2). No prompts, scoring or model
 calls anywhere in this module; a test counts its lines.
 
@@ -125,9 +132,11 @@ plus the per-candidate cost, turns and the declared-site match (`evaluate.matche
 
 - `tests/test_plane_manifests.py`: valid ax manifests load; an unknown field, a bad provider without the
   annotation, and a Run with a cycle are rejected with the field named.
-- `tests/test_plane_reconciler.py`: stub tasks (shell commands writing `summary.json`) in a DAG: order,
-  `serialize` non-overlap, skip-on-rerun, `unfinished` and `failed` propagation, the lock; a test asserts the
-  module is under 500 lines.
+- `tests/test_plane_reconciler.py`: a fake `ax` CLI (a script recording `apply`/`get`/`delete` calls and
+  posting scripted `summary.json` deliveries to the receiver) drives a DAG: order, `serialize` non-overlap,
+  skip-on-rerun, `unfinished` and `failed` propagation, missing delivery, the lock, the attribution table; a
+  test asserts the module is under 500 lines. `tests/test_plane_ax_live.py` (marker `ax`, skipped unless
+  `ousast plane doctor` passes) applies one trivial Task on the real cluster.
 - `tests/test_plane_runner.py`: the env contract on a fixture workspace; `/readyz` 503 then 200 with the flag.
 - `tests/test_plane_repo_facts.py`: a three-file tree; callers found across files, none from tests or vendor;
   identical output on a second run.

@@ -1,8 +1,19 @@
 # Implementation Plan
 
-Order follows the dependency chain: manifests -> budget -> runner -> reconciler -> tasks -> increment run ->
-measurement. Every task ships with its tests; a task is done when its tests pass in the host suite, ruff and
+Order follows the dependency chain: ax bring-up (parallel with 1-2) -> manifests -> budget -> runner ->
+ax-backed reconciler -> tasks -> increment run on ax -> measurement. Every task ships with its tests; a task is done when its tests pass in the host suite, ruff and
 mypy are clean, and the commit is gated on pytest's own exit code. Script-level pipeline work stays paused.
+
+- [ ] 0. ax bring-up on this host
+  - Install `kind`, `kubectl`, the `ax` CLI and `ko` (user-local). `ops/ax/up.sh`: create the kind cluster and
+    install Agent Substrate with its `hack/create-kind-cluster.sh` and `hack/install-ate-kind.sh
+    --deploy-ate-system`, deploy the ax control plane with `ko` to the kind registry, apply one trivial Task
+    and wait for it to finish; `ops/ax/down.sh` tears it down. Record the measured idle footprint (RSS, CPU)
+    in `ops/ax/README.md` next to the 7 GB host constraint.
+  - `ousast plane doctor` (in `reconciler.py` or a sibling `doctor.py`): the four checks of Requirement 3.5.
+  - Stop rule: if the cluster does not come up within one working session, report the exact failure and stop;
+    the decision to work around it is the maintainer's.
+  - _Requirements: 3.5, 3.6_
 
 - [ ] 1. Manifest schemas and validation
   - Add `pyyaml` as a declared dependency in `pyproject.toml`.
@@ -23,20 +34,29 @@ mypy are clean, and the commit is gated on pytest's own exit code. Script-level 
 - [ ] 3. Runner contract
   - `src/openultrasast/plane/runner.py`: read `AX_TASK_YAML` / `AX_WORKSPACES_YAML`; materialise `git`
     entries at the pinned commit from the local case cache and write `spec.files`; execute `spec.command`
-    by importing `openultrasast.plane.tasks.<name>`; optional `/healthz` `/readyz` server under
-    `AX_RUNNER_HTTP=1`; exit codes 0 done, 2 failed, 3 unfinished.
-  - `tests/test_plane_runner.py`: the env contract on a fixture workspace; readyz 503 then 200.
-  - _Requirements: 4.1, 4.2, 4.3_
+    by importing `openultrasast.plane.tasks.<name>`; `/healthz` `/readyz` server on port 80 (503 until
+    workspaces are ready; disabled only under `AX_RUNNER_HTTP=0` for unit tests); at exit, POST the output
+    directory as a tar stream to `OUSAST_ARTIFACT_URL` and report `failed` if delivery fails; exit codes
+    0 done, 2 failed, 3 unfinished. `plane/Dockerfile.runner`: this package on Python 3.12, installed to
+    `/usr/local/bin/ax-task-runner`, loaded into kind by `ops/ax/up.sh`.
+  - `tests/test_plane_runner.py`: the env contract on a fixture workspace; readyz 503 then 200; delivery to a
+    local receiver; delivery failure yields `failed`.
+  - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
-- [ ] 4. Local reconciler and CLI
-  - `src/openultrasast/plane/reconciler.py` (under 500 lines, no pipeline logic): `state.json`, statuses,
-    topological execution, `serialize` labels never overlapping, `--workers`, budgets and artifact paths
-    passed as task env, outcome read from `summary.json`, skip `done` on rerun, PID lock per run.
-  - `ousast plane run <Run.yaml>`, `ousast plane status <run>`, `ousast plane workspaces <population.toml>`
-    (generates Workspace manifests per case pin).
-  - `tests/test_plane_reconciler.py`: stub tasks in a DAG: order, non-overlap, skip-on-rerun, `unfinished`
-    and `failed` propagation, the lock, and the line-count assertion.
-  - _Requirements: 3.1, 3.2, 3.3, 3.4, 2.2_
+- [ ] 4. ax-backed reconciler and CLI
+  - `src/openultrasast/plane/reconciler.py` (under 500 lines, no pipeline logic, no local subprocess
+    executor): `state.json`, statuses, topological submission through the `ax` CLI (path injectable), status
+    polling, the artifact HTTP receiver, `serialize` labels never overlapping, `--workers`, budgets and
+    artifact env passed in the rendered Task manifest, outcome read from the delivered `summary.json`, skip
+    `done` on rerun, PID lock per run, `ax delete` of finished Tasks.
+  - `ousast plane run <Run.yaml>`, `ousast plane status <run>` (token attribution table per task and Model
+    from the tasks' `summary.json` usage; `--units` from `units.jsonl`; also written to `attribution.json`),
+    `ousast plane workspaces <population.toml>` (generates Workspace manifests per case pin).
+  - `tests/test_plane_reconciler.py`: a fake `ax` CLI drives a DAG: order, non-overlap, skip-on-rerun,
+    `unfinished` and `failed` propagation, missing delivery, the lock, the attribution table, and the
+    line-count assertion. `tests/test_plane_ax_live.py` (marker `ax`, skipped without a live cluster): one
+    trivial Task end to end.
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 2.2, 7.1, 7.3_
 
 - [ ] 5. `repo-facts` task
   - `src/openultrasast/plane/tasks/repo_facts.py`: product files, functions per file (per-language
@@ -50,23 +70,24 @@ mypy are clean, and the commit is gated on pytest's own exit code. Script-level 
   - `src/openultrasast/plane/tasks/verify.py`: the batched hunt moved from `verify_batched.py` (one hunt per
     file, up to 6 candidates, 6 steps, candidate-anchored sites) with known callers from `facts.json` in the
     prompt, tool turns and usage per hunt in `units.jsonl`, per-unit resume, `pass` from env, budget wrapper
-    from task 2; `summary.json` never `done` unless every unit finished.
+    from task 2; `summary.json` never `done` unless every unit finished, and records the bound Model and
+    the summed usage fields (prompt, cache-hit, output tokens, calls, usd).
   - `src/openultrasast/plane/tasks/agree.py`: agreement across pass outputs, per-candidate cost and turns,
     declared-site matching via `evaluate.matches_v2`.
   - `tests/test_plane_verify.py`: scripted client; prompt carries the callers; resume asks only the
     unfinished file; a scripted 402 yields `failed`; agree on two scripted passes.
-  - _Requirements: 5.3, 2.1, 2.2, 2.3_
+  - _Requirements: 5.3, 2.1, 2.2, 2.3, 7.2_
 
 - [ ] 7. Manifests for the increment
   - `plane/models/deepseek-flash.yaml` (annotated extension, prices in parameters);
     `plane/tasks/repo-facts.yaml`, `plane/tasks/verify.yaml`, `plane/tasks/agree.yaml`;
     `plane/runs/validation-46.yaml`: repo-facts -> verify pass a, verify pass b -> agree, budgets per task,
     inputs from the recorded candidate and triage artifacts.
-  - Workspaces generated for the 15 validation cases' vulnerable pins.
+  - Workspaces generated for the 15 validation cases' vulnerable pins; the runner image rebuilt and loaded.
   - _Requirements: 1.1, 1.2, 6.1_
 
 - [ ] 8. Measurement of the first increment
-  - Run `validation-46` through the reconciler (needs DeepSeek credit); record cost per candidate, tool turns
+  - Run `validation-46` through the reconciler on ax (needs DeepSeek credit); record cost per candidate, tool turns
     per hunt, declared sites agreed, against `verifier-batched-check-2026-09-29.json`.
   - Run `benchmarks/dev/token_report.py` on the increment's development session.
   - Record `benchmarks/independent/plane-increment-1.json` with the gate result (met or not met) and commit;
