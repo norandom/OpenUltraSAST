@@ -1,7 +1,11 @@
 """Manifests of the model-level service plane.
 
 ``Task``, ``Workspace`` and ``Model`` follow google/ax (``apiVersion: ax.io/v1alpha1``) and carry only the
-fields ax documents. ``Run`` (``apiVersion: openultrasast.io/v1alpha1``) is this project's kind for the task
+fields ax documents, under ax's own names (``metadata.atespace``, not ``namespace``). ``metadata.annotations``
+is this project's extension: ax's ObjectMeta has no such field and its API server rejects unknown fields, so the
+reconciler strips annotations before anything reaches ``ax apply``. They declare the provider extension and carry
+the Model binding and the Workspace commit pins (``openultrasast.io/git-commits: "<git name>=<sha>,..."``), which
+reach the task as env. ``Run`` (``apiVersion: openultrasast.io/v1alpha1``) is this project's kind for the task
 graph, artifacts and budgets; it holds nothing a task needs to execute. Every schema violation raises
 :class:`ManifestError`, whose message names the kind, the ``metadata.name`` and the offending field path
 (``Task/verify: spec.foo is not a field``), before anything runs.
@@ -9,6 +13,7 @@ graph, artifacts and budgets; it holds nothing a task needs to execute. Every sc
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -20,6 +25,7 @@ __all__ = [
     "AX_API_VERSION",
     "AX_PROVIDERS",
     "EXTENSION_PROVIDERS",
+    "GIT_COMMITS_ANNOTATION",
     "PROVIDER_EXTENSION_ANNOTATION",
     "RUN_API_VERSION",
     "Budget",
@@ -48,6 +54,7 @@ __all__ = [
 AX_API_VERSION = "ax.io/v1alpha1"
 RUN_API_VERSION = "openultrasast.io/v1alpha1"
 PROVIDER_EXTENSION_ANNOTATION = "openultrasast.io/provider-extension"
+GIT_COMMITS_ANNOTATION = "openultrasast.io/git-commits"
 AX_PROVIDERS = frozenset({"google", "anthropic"})
 EXTENSION_PROVIDERS = frozenset({"deepseek"})
 
@@ -64,7 +71,7 @@ class ManifestError(ValueError):
 @dataclass(frozen=True)
 class Metadata:
     name: str
-    namespace: str | None = None
+    atespace: str | None = None
     annotations: Mapping[str, str] = field(default_factory=dict)
 
 
@@ -106,10 +113,13 @@ class Task:
 
 @dataclass(frozen=True)
 class GitSource:
+    """ax's ``GitRepo``: exactly ``name``, ``repo``, ``branch``, ``dir``, ``depth`` (a commit pin is an annotation)."""
+
     name: str
     repo: str
     branch: str | None = None
-    commit: str | None = None
+    dir: str | None = None
+    depth: int | None = None
 
 
 @dataclass(frozen=True)
@@ -137,6 +147,11 @@ class Workspace:
     files: tuple[FileEntry, ...] = ()
     mcp: McpSpec | None = None
     skills: SkillsSpec | None = None
+
+    @property
+    def pins(self) -> dict[str, str]:
+        """Git entry name -> 40-hex commit, from ``metadata.annotations["openultrasast.io/git-commits"]``."""
+        return _split_pins(self.metadata.annotations.get(GIT_COMMITS_ANNOTATION, ""))
 
 
 @dataclass(frozen=True)
@@ -275,6 +290,12 @@ class _Check:
                 raise self.fail(_join(_join(path, key), str(item_key)), "must map a string to a non-empty string")
         return value
 
+    def optional_int(self, parent: Mapping[str, Any], path: str, key: str) -> int | None:
+        value = parent.get(key)
+        if value is not None and (isinstance(value, bool) or not isinstance(value, int) or value < 0):
+            raise self.fail(_join(path, key), "must be a non-negative integer")
+        return value
+
     def boolean(self, parent: Mapping[str, Any], path: str, key: str) -> bool:
         value = parent.get(key, False)
         if not isinstance(value, bool):
@@ -286,10 +307,10 @@ class _Check:
 
 
 def _parse_metadata(check: _Check, value: object) -> Metadata:
-    meta = check.mapping(value, "metadata", ("name", "namespace", "annotations"))
+    meta = check.mapping(value, "metadata", ("name", "atespace", "annotations"))
     return Metadata(
         name=check.string(meta, "metadata", "name"),
-        namespace=check.optional_string(meta, "metadata", "namespace"),
+        atespace=check.optional_string(meta, "metadata", "atespace"),
         annotations=check.string_map(meta, "metadata", "annotations"),
     )
 
@@ -329,20 +350,59 @@ def _parse_task(check: _Check, metadata: Metadata, spec: Mapping[str, Any]) -> T
     )
 
 
+_SHA = re.compile(r"[0-9a-f]{40}")
+
+
+def _pin_items(value: str) -> list[str]:
+    return [item for item in (part.strip() for part in value.split(",")) if item]
+
+
+def _split_pins(value: str) -> dict[str, str]:
+    """``name=sha,name=sha`` -> ``{name: sha}`` (validated at parse time by :func:`_check_pins`)."""
+    pairs = (item.partition("=") for item in _pin_items(value))
+    return {name.strip(): sha.strip() for name, _, sha in pairs}
+
+
+def _check_pins(check: _Check, metadata: Metadata, git: tuple[GitSource, ...]) -> None:
+    path = f'metadata.annotations["{GIT_COMMITS_ANNOTATION}"]'
+    names = {g.name for g in git}
+    for item in _pin_items(metadata.annotations.get(GIT_COMMITS_ANNOTATION, "")):
+        name, eq, sha = (part.strip() for part in item.partition("="))
+        if not eq or not name:
+            raise check.fail(path, f'item "{item}" must be "<git name>=<40-hex commit>"')
+        if name not in names:
+            raise check.fail(path, f'"{name}" names no spec.git entry')
+        if not _SHA.fullmatch(sha):
+            raise check.fail(path, f'"{name}={sha}" is not a 40-hex commit')
+
+
+def _parse_git(check: _Check, spec: Mapping[str, Any]) -> tuple[GitSource, ...]:
+    for index, entry in enumerate(check.sequence(spec, "spec", "git")):
+        if isinstance(entry, dict) and "commit" in entry:
+            raise check.fail(
+                f"spec.git[{index}].commit",
+                f'is not an ax field; pin the commit in metadata.annotations["{GIT_COMMITS_ANNOTATION}"] as "<git name>=<sha>"',
+            )
+    return tuple(
+        GitSource(
+            check.string(g, p, "name"),
+            check.string(g, p, "repo"),
+            check.optional_string(g, p, "branch"),
+            check.optional_string(g, p, "dir"),
+            check.optional_int(g, p, "depth"),
+        )
+        for p, g in check.mappings(spec, "spec", "git", ("name", "repo", "branch", "dir", "depth"))
+    )
+
+
 def _parse_workspace(check: _Check, metadata: Metadata, spec: Mapping[str, Any]) -> Workspace:
     mcp = check.optional_mapping(spec, "spec", "mcp", ("registries", "servers"))
     skills = check.optional_mapping(spec, "spec", "skills", ("registries", "path"))
+    git = _parse_git(check, spec)
+    _check_pins(check, metadata, git)
     return Workspace(
         metadata=metadata,
-        git=tuple(
-            GitSource(
-                check.string(g, p, "name"),
-                check.string(g, p, "repo"),
-                check.optional_string(g, p, "branch"),
-                check.optional_string(g, p, "commit"),
-            )
-            for p, g in check.mappings(spec, "spec", "git", ("name", "repo", "branch", "commit"))
-        ),
+        git=git,
         files=tuple(
             FileEntry(check.string(f, p, "path"), check.string(f, p, "content"))
             for p, f in check.mappings(spec, "spec", "files", ("path", "content"))

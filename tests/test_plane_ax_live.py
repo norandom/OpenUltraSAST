@@ -1,11 +1,13 @@
 """ai-service-plane Req 3.5/3.6: one trivial Task end to end on the real ax cluster of ``ops/ax/up.sh``.
 
-Marker ``ax``; skipped unless every check of ``ousast plane doctor`` passes, so the host suite never depends on
-the cluster. Run it on purpose: ``pytest -m ax tests/test_plane_ax_live.py``.
+Marker ``ax``; opt-in only (``OUSAST_AX_LIVE=1``) and skipped unless every check of ``ousast plane doctor``
+passes, so the host suite never depends on cluster state. It applies the digest-pinned smoke manifest that
+``ops/ax/up.sh`` renders. Run it on purpose: ``OUSAST_AX_LIVE=1 pytest -m ax tests/test_plane_ax_live.py``.
 """
 
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 
@@ -14,11 +16,13 @@ import pytest
 from openultrasast.plane.reconciler import Ax, doctor
 
 pytestmark = pytest.mark.ax
-SMOKE = Path("ops/ax/smoke-task.yaml")
+SMOKE = Path.home() / ".cache/ousast/ax-src/smoke-task.yaml"
 
 
 @pytest.fixture(scope="module")
 def live_ax() -> Ax:
+    if os.environ.get("OUSAST_AX_LIVE") != "1":
+        pytest.skip("live ax test is opt-in: set OUSAST_AX_LIVE=1")
     checks = doctor()
     failing = [f"{name}: {text}" for name, ok, text in checks if not ok]
     if failing:

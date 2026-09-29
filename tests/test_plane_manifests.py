@@ -25,7 +25,7 @@ apiVersion: ax.io/v1alpha1
 kind: Task
 metadata:
   name: verify
-  namespace: sast
+  atespace: sast
 spec:
   image: openultrasast:dev
   command: ["verify", "--pass", "a"]
@@ -47,12 +47,15 @@ apiVersion: ax.io/v1alpha1
 kind: Workspace
 metadata:
   name: flask-abc123
+  annotations:
+    openultrasast.io/git-commits: "repo=0123456789abcdef0123456789abcdef01234567"
 spec:
   git:
     - name: repo
       repo: https://github.com/pallets/flask.git
       branch: main
-      commit: abc123
+      dir: flask
+      depth: 1
   files:
     - path: candidates.json
       content: '{"sinks": []}'
@@ -143,7 +146,7 @@ def test_task_loads_every_ax_field() -> None:
     task = parse_manifest(doc(TASK_YAML))
     assert isinstance(task, Task)
     assert task.metadata.name == "verify"
-    assert task.metadata.namespace == "sast"
+    assert task.metadata.atespace == "sast"
     assert task.image == "openultrasast:dev"
     assert task.command == ("verify", "--pass", "a")
     assert task.env[0].name == "OUSAST_PASS" and task.env[0].value == "a"
@@ -162,10 +165,64 @@ def test_task_minimal_defaults() -> None:
 def test_workspace_loads() -> None:
     workspace = parse_manifest(doc(WORKSPACE_YAML))
     assert isinstance(workspace, Workspace)
-    assert workspace.git[0].repo.endswith("flask.git") and workspace.git[0].commit == "abc123"
+    assert workspace.git[0].repo.endswith("flask.git")
+    assert workspace.git[0].dir == "flask" and workspace.git[0].depth == 1
+    assert workspace.pins == {"repo": "0123456789abcdef0123456789abcdef01234567"}
     assert workspace.files[0].path == "candidates.json"
     assert workspace.mcp is not None and len(workspace.mcp.registries) == 1 and len(workspace.mcp.servers) == 1
     assert workspace.skills is not None and workspace.skills.path == "/skills"
+
+
+SMOKE = Path(__file__).parent / "fixtures" / "plane" / "smoke-task.yaml"
+
+
+def test_the_bring_up_smoke_manifest_loads() -> None:
+    """``ops/ax/smoke-task.yaml`` (copied as a fixture) is what ``ax apply`` accepted; it must load here too."""
+    manifests = load_manifests([SMOKE])
+    assert manifests.tasks["ousast-smoke"].metadata.atespace == "default"
+    assert manifests.workspaces["ousast-smoke-ws"].metadata.atespace == "default"
+
+
+def test_the_shipped_smoke_manifest_matches_the_fixture() -> None:
+    shipped = Path(__file__).parent.parent / "ops" / "ax" / "smoke-task.yaml"
+    if not shipped.is_file():
+        pytest.skip("ops/ax/smoke-task.yaml is not in this checkout")
+    assert load_manifests([shipped]).tasks.keys() == {"ousast-smoke"}
+
+
+@pytest.mark.parametrize("key", ["namespace", "labels", "creation_timestamp"])
+def test_metadata_takes_ax_names_only(key: str) -> None:
+    task = doc(TASK_YAML)
+    task["metadata"][key] = "sast"
+    rejected(task, f"Task/verify: metadata.{key} is not a field")
+
+
+def test_git_commit_is_rejected_with_a_pointer_to_the_annotation() -> None:
+    workspace = doc(WORKSPACE_YAML)
+    workspace["spec"]["git"][0]["commit"] = "abc123"
+    message = rejected(workspace, "Workspace/flask-abc123: spec.git[0].commit is not an ax field")
+    assert "openultrasast.io/git-commits" in message
+
+
+@pytest.mark.parametrize(
+    ("value", "rule"),
+    [
+        ("other=" + "a" * 40, '"other" names no spec.git entry'),
+        ("repo=abc123", '"repo=abc123" is not a 40-hex commit'),
+        ("repo", 'item "repo" must be'),
+    ],
+)
+def test_git_commits_annotation_is_validated(value: str, rule: str) -> None:
+    workspace = doc(WORKSPACE_YAML)
+    workspace["metadata"]["annotations"]["openultrasast.io/git-commits"] = value
+    message = rejected(workspace, 'metadata.annotations["openultrasast.io/git-commits"]')
+    assert rule in message, message
+
+
+def test_git_depth_must_be_an_integer() -> None:
+    workspace = doc(WORKSPACE_YAML)
+    workspace["spec"]["git"][0]["depth"] = "1"
+    rejected(workspace, "Workspace/flask-abc123: spec.git[0].depth must be a non-negative integer")
 
 
 def test_model_loads_with_declared_extension() -> None:
@@ -235,8 +292,8 @@ def test_unknown_nested_fields_are_named_with_index() -> None:
     task["spec"]["resources"]["requests"]["gpu"] = "1"
     rejected(task, "spec.resources.requests.gpu is not a field")
     workspace = doc(WORKSPACE_YAML)
-    workspace["spec"]["git"][0]["depth"] = 1
-    rejected(workspace, "Workspace/flask-abc123: spec.git[0].depth is not a field")
+    workspace["spec"]["git"][0]["submodules"] = True
+    rejected(workspace, "Workspace/flask-abc123: spec.git[0].submodules is not a field")
     model = doc(MODEL_YAML)
     model["spec"]["secretKey"]["namespace"] = "x"
     rejected(model, "Model/deepseek-flash: spec.secretKey.namespace is not a field")

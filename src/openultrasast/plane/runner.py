@@ -17,6 +17,7 @@ Environment the runner reads, all optional except the two ax variables:
     AX_RUNNER_HTTP                     "0" disables the health server (unit tests only)
     AX_RUNNER_PORT                     port of the health server, default 80; "0" picks a free port
     OUSAST_CASE_CACHE                  a directory of git checkouts (``benchmarks/independent`` cache layout)
+    OUSAST_GIT_PINS                    JSON ``{"<workspace>/<git name>": "<40-hex commit>"}`` from the reconciler
     OUSAST_ARTIFACT_URL, OUSAST_RUN    where to deliver, and the run name carried in ``X-Ousast-Run``
     OUSAST_DELIVERY_BACKOFF            seconds before the second delivery attempt, doubled per retry
 
@@ -32,7 +33,7 @@ import io
 import json
 import logging
 import os
-import shutil
+import re
 import subprocess
 import sys
 import tarfile
@@ -61,7 +62,9 @@ __all__ = [
     "RunnerError",
     "build_tar",
     "deliver",
+    "clone_destination",
     "find_cached_checkout",
+    "load_pins",
     "load_task",
     "load_workspaces",
     "main",
@@ -77,6 +80,9 @@ DELIVERY_ATTEMPTS = 3
 TASK_PACKAGE = "openultrasast.plane.tasks"
 EXIT_BY_STATUS = {"done": 0, "failed": 2, "unfinished": 3}
 SUMMARY = "summary.json"
+DEFAULT_BRANCH = "main"  # ax internal/workspace/setup.go: defaultBranch
+_PLACEHOLDER_NAMES = ("", "repo", "origin")  # setup.go: names that do not name a checkout directory
+_SHA = re.compile(r"[0-9a-f]{40}")
 
 log = logging.getLogger("ousast.plane.runner")
 
@@ -221,13 +227,45 @@ def find_cached_checkout(cache: Path, repo: str) -> Path | None:
     return None
 
 
-def _pinned_ref(source: GitSource) -> str:
-    return source.commit or source.branch or "HEAD"
+def load_pins(text: str) -> dict[str, str]:
+    """Parse ``OUSAST_GIT_PINS``: the reconciler's rendering of the Workspaces' ``openultrasast.io/git-commits``."""
+    if not text.strip():
+        return {}
+    try:
+        pins = json.loads(text)
+    except ValueError as exc:
+        raise RunnerError(f"OUSAST_GIT_PINS is not JSON: {exc}") from exc
+    if not isinstance(pins, dict) or not all(
+        isinstance(k, str) and "/" in k and isinstance(v, str) and _SHA.fullmatch(v) for k, v in pins.items()
+    ):
+        raise RunnerError(f'OUSAST_GIT_PINS must map "<workspace>/<git name>" to a 40-hex commit, got {text[:200]!r}')
+    return pins
 
 
-def _export_from_cache(checkout: Path, source: GitSource, dest: Path) -> None:
+def repo_dir_name(url: str) -> str:
+    """setup.go ``RepoDirName``: ``https://github.com/chalk/chalk.git`` -> ``chalk``."""
+    trimmed = url.strip().removesuffix("/").removesuffix(".git")
+    return trimmed[max(trimmed.rfind("/"), trimmed.rfind(":")) + 1 :]
+
+
+def clone_destination(source: GitSource, root: Path) -> Path:
+    """setup.go ``cloneDestination``: ``dir`` wins (``.`` the workspace root, absolute as-is, else under the root);
+    otherwise the entry's ``name``, unless that is a placeholder (``repo``, ``origin``), then the URL's last segment."""
+    if source.dir:
+        return root if source.dir == "." else root / source.dir  # an absolute dir replaces root in the join
+    name = source.name
+    if name in _PLACEHOLDER_NAMES:
+        name = repo_dir_name(source.repo) or name or "repo"
+    return root / name
+
+
+def _pinned_ref(source: GitSource, commit: str | None) -> str:
+    return commit or source.branch or DEFAULT_BRANCH
+
+
+def _export_from_cache(checkout: Path, source: GitSource, commit: str | None, dest: Path) -> None:
     """``git archive`` the pinned ref out of the cache into ``dest`` (no ``.git``), as ``evaluate.export`` does."""
-    ref = source.commit or (f"origin/{source.branch}" if source.branch else "HEAD")
+    ref = commit or (f"origin/{source.branch}" if source.branch else "HEAD")
     done = subprocess.run(["git", "-C", str(checkout), "archive", ref], capture_output=True, check=False)
     if done.returncode != 0:
         raise RunnerError(f"git archive {ref} in {checkout} failed: {done.stderr.decode(errors='replace').strip()[:400]}")
@@ -241,47 +279,60 @@ def _export_from_cache(checkout: Path, source: GitSource, dest: Path) -> None:
         raise RunnerError(f"{source.repo}@{ref}: the export from {checkout} is empty")
 
 
-def _shallow_clone(source: GitSource, dest: Path) -> None:
-    """Shallow clone at the branch, then make sure the pinned commit is checked out."""
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    args = ["clone", "--quiet", "--depth", "1"]
-    if source.branch:
-        args += ["--branch", source.branch]
-    _git(*args, source.repo, str(dest))
-    if source.commit:
-        present = subprocess.run(["git", "cat-file", "-e", f"{source.commit}^{{commit}}"], cwd=dest, capture_output=True, check=False)
+def _fetch(source: GitSource, commit: str | None, dest: Path) -> None:
+    """setup.go ``fetchRepo`` (init, remote, fetch ``--depth`` when ``depth`` > 0, checkout FETCH_HEAD), then the pin.
+
+    A pinned entry without a branch fetches the commit itself rather than ax's default ``main``.
+    """
+    dest.mkdir(parents=True, exist_ok=True)
+    depth = [f"--depth={source.depth}"] if source.depth else []
+    _git("init", "--quiet", cwd=dest)
+    try:
+        _git("remote", "add", "origin", source.repo, cwd=dest)
+    except RunnerError:
+        _git("remote", "set-url", "origin", source.repo, cwd=dest)
+    _git("fetch", "--quiet", *depth, "origin", source.branch or commit or DEFAULT_BRANCH, cwd=dest)
+    _git("checkout", "--quiet", "-f", "FETCH_HEAD", cwd=dest)
+    if commit:
+        present = subprocess.run(["git", "cat-file", "-e", f"{commit}^{{commit}}"], cwd=dest, capture_output=True, check=False)
         if present.returncode != 0:
-            _git("fetch", "--quiet", "--depth", "1", "origin", source.commit, cwd=dest)
-        _git("checkout", "--quiet", "--detach", source.commit, cwd=dest)
+            _git("fetch", "--quiet", *depth, "origin", commit, cwd=dest)
+        _git("checkout", "--quiet", "-f", "--detach", commit, cwd=dest)
 
 
-def _materialise_git(source: GitSource, root: Path, cache: Path | None) -> Path:
-    dest = root / source.name
-    if dest.is_dir() and any(dest.iterdir()):
+def _materialise_git(source: GitSource, root: Path, cache: Path | None, commit: str | None) -> Path:
+    dest = clone_destination(source, root)
+    resumed = (dest / ".git").exists() if dest == root else dest.is_dir() and any(dest.iterdir())
+    if resumed:
         log.info("workspace repo %s already present at %s (resumed volume); keeping it", source.repo, dest)
         return dest
     checkout = find_cached_checkout(cache, source.repo) if cache is not None else None
     if checkout is not None:
-        log.info("exporting %s@%s from cache %s to %s", source.repo, _pinned_ref(source), checkout, dest)
-        _export_from_cache(checkout, source, dest)
+        log.info("exporting %s@%s from cache %s to %s", source.repo, _pinned_ref(source, commit), checkout, dest)
+        _export_from_cache(checkout, source, commit, dest)
     else:
-        log.info("cloning %s@%s to %s", source.repo, _pinned_ref(source), dest)
-        if dest.exists():
-            shutil.rmtree(dest)
-        _shallow_clone(source, dest)
+        log.info("fetching %s@%s to %s (depth %s)", source.repo, _pinned_ref(source, commit), dest, source.depth or "full")
+        _fetch(source, commit, dest)
     return dest
 
 
-def materialise(task: Task, workspaces: Mapping[str, Workspace], cache: Path | None) -> list[Path]:
-    """Write every bound workspace at its path (``spec.files`` verbatim, ``spec.git`` at ``<path>/<name>``).
+def materialise(task: Task, workspaces: Mapping[str, Workspace], cache: Path | None, pins: Mapping[str, str] | None = None) -> list[Path]:
+    """Write every bound workspace at its path (``spec.files`` verbatim, ``spec.git`` where ax's setup puts it).
 
-    Returns the bound paths in binding order; raises :class:`RunnerError` for a binding without a Workspace.
+    ``pins`` (from ``OUSAST_GIT_PINS``) names the commit of ``<workspace>/<git name>``; a pin naming no bound git
+    entry, or a binding without a Workspace, raises :class:`RunnerError` before anything is written.
     """
+    pins = dict(pins or {})
+    for binding in task.workspaces:
+        if binding.name not in workspaces:
+            raise RunnerError(f"Task/{task.metadata.name}: workspace {binding.name!r} is bound but not in AX_WORKSPACES_YAML")
+    known = {f"{b.name}/{g.name}" for b in task.workspaces for g in workspaces[b.name].git}
+    unknown = sorted(set(pins) - known)
+    if unknown:
+        raise RunnerError(f"OUSAST_GIT_PINS names no bound git entry: {', '.join(unknown)}")
     paths: list[Path] = []
     for binding in task.workspaces:
-        workspace = workspaces.get(binding.name)
-        if workspace is None:
-            raise RunnerError(f"Task/{task.metadata.name}: workspace {binding.name!r} is bound but not in AX_WORKSPACES_YAML")
+        workspace = workspaces[binding.name]
         root = Path(binding.path)
         root.mkdir(parents=True, exist_ok=True)
         for entry in workspace.files:
@@ -289,7 +340,7 @@ def materialise(task: Task, workspaces: Mapping[str, Workspace], cache: Path | N
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(entry.content, encoding="utf-8")
         for source in workspace.git:
-            _materialise_git(source, root, cache)
+            _materialise_git(source, root, cache, pins.get(f"{binding.name}/{source.name}"))
         paths.append(root)
     return paths
 
@@ -449,7 +500,8 @@ def main(argv: Sequence[str] | None = None, environ: MutableMapping[str, str] | 
     try:
         session = _prepare(env)
         cache_dir = env.get("OUSAST_CASE_CACHE")
-        materialise(session.task, session.workspaces, Path(cache_dir) if cache_dir else None)
+        pins = load_pins(env.get("OUSAST_GIT_PINS", ""))
+        materialise(session.task, session.workspaces, Path(cache_dir) if cache_dir else None, pins)
         ready.set()
         log.info("workspaces ready; running task %s: %s", session.task.metadata.name, list(session.task.command))
         summary = run_task_module(session.task.command, session.output_dir)

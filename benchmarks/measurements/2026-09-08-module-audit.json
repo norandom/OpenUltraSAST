@@ -679,7 +679,8 @@
       "reason": "ai-service-plane Req 1.1-1.4: ax-shaped Task/Workspace/Model and the Run kind, validated before anything runs",
       "importers": [
         "plane.reconciler",
-        "plane.runner"
+        "plane.runner",
+        "plane.workspaces"
       ]
     },
     {

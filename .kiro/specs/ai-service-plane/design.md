@@ -42,6 +42,14 @@ container the same module is PID 1 (`ax-task-runner`), built as a target of the 
   are rejected with the path named. `Model.spec.provider` accepts ax's `google` and `anthropic`, and `deepseek`
   only when `metadata.annotations["openultrasast.io/provider-extension"] == "true"` (Requirement 1.4): the
   deviation is declared, not hidden in another field.
+- Field names are ax's verbatim (`ax.proto`; its API server decodes with `protojson`, so an unknown field fails
+  `ax apply`): `metadata` is `name` and `atespace` (not `namespace`), and a Workspace `git` entry is `name`,
+  `repo`, `branch`, `dir`, `depth` (no `commit`; a `commit` there is rejected with a pointer to the annotation).
+  `metadata.annotations` is this project's only extension, and nothing under it reaches ax: the reconciler strips
+  it and carries it to the task as env. The Model binding (`openultrasast.io/model`) becomes `OUSAST_MODEL` and
+  `OUSAST_MODEL_PARAMS`. Commit pins (`openultrasast.io/git-commits: "<git name>=<40-hex sha>,..."` on a
+  Workspace) become `OUSAST_GIT_PINS` = `{"<workspace>/<git name>": "<sha>"}`, which the runner checks out after
+  fetching the way ax's `internal/workspace/setup.go` does, with the same `dir` and `depth` rules.
 - `Run`: `apiVersion: openultrasast.io/v1alpha1`. `spec.tasks[]`: `name`, `task` (a Task manifest name),
   `dependsOn[]`, `inputs{name: "<task>/<artifact>"}`, `outputs[]`, `budget{usd, calls}`, `serialize` (a label
   for tasks that must not overlap; engine-bearing tasks carry `engine`). The reconciler passes budgets and

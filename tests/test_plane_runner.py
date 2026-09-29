@@ -19,7 +19,15 @@ from pathlib import Path
 import pytest
 
 from openultrasast.plane import runner
-from openultrasast.plane.runner import EXIT_BY_STATUS, DeliveryError, deliver, find_cached_checkout, start_health_server
+from openultrasast.plane.manifests import GitSource
+from openultrasast.plane.runner import (
+    EXIT_BY_STATUS,
+    DeliveryError,
+    clone_destination,
+    deliver,
+    find_cached_checkout,
+    start_health_server,
+)
 
 STUB = Path(__file__).parent / "plane_stub_task.py"
 STUB_MODULE = f"{runner.TASK_PACKAGE}.stub_task"
@@ -313,12 +321,17 @@ def upstream(tmp_path: Path) -> tuple[Path, str]:
     return repo, pin
 
 
-def git_workspace_yaml(repo_url: str, pin: str) -> str:
+def git_workspace_yaml(repo_url: str, extra: str = "") -> str:
+    """ax's Workspace as ax hands it over: no annotations, no commit (the pin travels in ``OUSAST_GIT_PINS``)."""
     return (
         "apiVersion: ax.io/v1alpha1\nkind: Workspace\nmetadata:\n  name: case\nspec:\n  git:\n"
-        f"    - name: repo\n      repo: {repo_url}\n      branch: main\n      commit: {pin}\n"
+        f"    - name: code\n      repo: {repo_url}\n      branch: main\n{extra}"
         "  files:\n    - path: candidates.json\n      content: '{\"sinks\": []}'\n"
     )
+
+
+def pins(pin: str, key: str = "case/code") -> str:
+    return json.dumps({key: pin})
 
 
 def test_git_entry_is_exported_from_the_case_cache_at_the_pin(
@@ -332,22 +345,24 @@ def test_git_entry_is_exported_from_the_case_cache_at_the_pin(
     git("remote", "set-url", "origin", url, cwd=case)
     assert find_cached_checkout(cache, "https://example.invalid/acme/repo") == case
     assert find_cached_checkout(cache, "https://example.invalid/other/repo.git") is None
-    code, output = run_main(monkeypatch, tmp_path, git_workspace_yaml(url, pin), OUSAST_CASE_CACHE=str(cache))
+    code, output = run_main(monkeypatch, tmp_path, git_workspace_yaml(url), OUSAST_CASE_CACHE=str(cache), OUSAST_GIT_PINS=pins(pin))
     assert code == 0, (output / "summary.json").read_text()
-    checkout = tmp_path / "ws" / "repo"
+    checkout = tmp_path / "ws" / "code"
     assert (checkout / "hello.py").read_text() == "print('v1')\n", "the pinned commit, not the branch tip"
     assert not (checkout / ".git").exists(), "an export, as evaluate.export makes"
     facts = json.loads((output / "facts.json").read_text())
-    assert facts["workspace_files"] == ["candidates.json", "repo/hello.py"]
+    assert facts["workspace_files"] == ["candidates.json", "code/hello.py"]
 
 
 def test_git_entry_without_a_cache_is_shallow_cloned_at_the_pin(
     env: dict[str, str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path, upstream: tuple[Path, str]
 ) -> None:
     repo, pin = upstream
-    code, output = run_main(monkeypatch, tmp_path, git_workspace_yaml(repo.as_uri(), pin), OUSAST_CASE_CACHE=str(tmp_path / "no-cache"))
+    code, output = run_main(
+        monkeypatch, tmp_path, git_workspace_yaml(repo.as_uri()), OUSAST_CASE_CACHE=str(tmp_path / "no-cache"), OUSAST_GIT_PINS=pins(pin)
+    )
     assert code == 0, (output / "summary.json").read_text()
-    checkout = tmp_path / "ws" / "repo"
+    checkout = tmp_path / "ws" / "code"
     assert (checkout / "hello.py").read_text() == "print('v1')\n"
     assert git("rev-parse", "HEAD", cwd=checkout) == pin
 
@@ -356,9 +371,93 @@ def test_a_materialised_repo_survives_a_resume(
     env: dict[str, str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path, upstream: tuple[Path, str]
 ) -> None:
     repo, pin = upstream
-    checkout = tmp_path / "ws" / "repo"
+    checkout = tmp_path / "ws" / "code"
     checkout.mkdir(parents=True)
     (checkout / "hello.py").write_text("kept\n")
-    code, _ = run_main(monkeypatch, tmp_path, git_workspace_yaml(repo.as_uri(), pin))
+    code, _ = run_main(monkeypatch, tmp_path, git_workspace_yaml(repo.as_uri()), OUSAST_GIT_PINS=pins(pin))
     assert code == 0
     assert (checkout / "hello.py").read_text() == "kept\n", "/workspace persists across suspend and resume; no re-clone"
+
+
+# --- ax's GitRepo fields: dir, depth; the commit pin from OUSAST_GIT_PINS ------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("name", "repo", "dir_", "expected"),
+    [
+        ("code", "https://github.com/chalk/chalk.git", None, "/ws/code"),
+        ("repo", "https://github.com/chalk/chalk.git", None, "/ws/chalk"),
+        ("origin", "git@github.com:chalk/chalk", None, "/ws/chalk"),
+        ("code", "https://github.com/chalk/chalk.git", "src", "/ws/src"),
+        ("code", "https://github.com/chalk/chalk.git", ".", "/ws"),
+        ("code", "https://github.com/chalk/chalk.git", "/elsewhere", "/elsewhere"),
+    ],
+)
+def test_clone_destination_follows_ax_setup(name: str, repo: str, dir_: str | None, expected: str) -> None:
+    """ax internal/workspace/setup.go cloneDestination: dir wins; placeholder names derive from the URL."""
+    assert clone_destination(GitSource(name, repo, dir=dir_), Path("/ws")) == Path(expected)
+
+
+def test_git_dir_and_depth_are_honoured(
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path, upstream: tuple[Path, str]
+) -> None:
+    repo, _ = upstream
+    code, output = run_main(monkeypatch, tmp_path, git_workspace_yaml(repo.as_uri(), "      dir: src\n      depth: 1\n"))
+    assert code == 0, (output / "summary.json").read_text()
+    checkout = tmp_path / "ws" / "src"
+    assert (checkout / "hello.py").read_text() == "print('v2')\n", "no pin: the branch tip"
+    assert git("rev-parse", "--is-shallow-repository", cwd=checkout) == "true", "depth 1 is a shallow fetch"
+    assert not (tmp_path / "ws" / "code").exists()
+
+
+def test_a_pin_naming_no_bound_git_entry_fails_the_task(
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path, upstream: tuple[Path, str]
+) -> None:
+    repo, pin = upstream
+    code, output = run_main(monkeypatch, tmp_path, git_workspace_yaml(repo.as_uri()), OUSAST_GIT_PINS=pins(pin, "case/other"))
+    assert code == EXIT_BY_STATUS["failed"]
+    assert "case/other" in json.loads((output / "summary.json").read_text())["reason"]
+
+
+def test_unreadable_pins_fail_the_task(env: dict[str, str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    code, output = run_main(monkeypatch, tmp_path, files_workspace_yaml(), OUSAST_GIT_PINS='{"case/code": "abc"}')
+    assert code == EXIT_BY_STATUS["failed"]
+    assert "OUSAST_GIT_PINS" in json.loads((output / "summary.json").read_text())["reason"]
+
+
+def test_git_commits_annotation_round_trips_to_the_checkout(
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path, upstream: tuple[Path, str]
+) -> None:
+    """Workspace annotation -> reconciler -> ``OUSAST_GIT_PINS`` in the Task env -> the runner checks out the pin."""
+    import yaml
+
+    from openultrasast.plane import reconciler
+
+    repo, pin = upstream
+    output, workspace = tmp_path / "out", tmp_path / "ws"
+    manifest = tmp_path / "run.yaml"
+    manifest.write_text(
+        "apiVersion: ax.io/v1alpha1\nkind: Workspace\nmetadata:\n  name: case\n"
+        f"  annotations: {{openultrasast.io/git-commits: 'code={pin}'}}\n"
+        f"spec:\n  git: [{{name: code, repo: '{repo.as_uri()}', branch: main}}]\n---\n"
+        "apiVersion: ax.io/v1alpha1\nkind: Task\nmetadata: {name: stub}\n"
+        f"spec: {{command: [stub-task], workspaces: [{{name: case, path: '{workspace}'}}]}}\n---\n"
+        "apiVersion: openultrasast.io/v1alpha1\nkind: Run\nmetadata: {name: rt}\nspec: {tasks: [{name: stub, task: stub}]}\n"
+    )
+    run, manifests = reconciler.load_run(manifest)
+    task_doc, *rest = reconciler.render_task(run, run.tasks[0], manifests, tmp_path, "unused")
+    assert rest[0]["metadata"] == {"name": "case"}, "annotations are stripped before ax"
+    assert rest[0]["spec"]["git"] == [{"name": "code", "repo": repo.as_uri(), "branch": "main"}], "no commit for ax"
+    overrides = {"OUSAST_OUTPUT_DIR": str(output)}
+    task_doc["spec"]["env"] = [
+        {"name": e["name"], "value": overrides.get(e["name"], e["value"])}
+        for e in task_doc["spec"]["env"]
+        if e["name"] != "OUSAST_ARTIFACT_URL"
+    ]
+    assert json.loads({e["name"]: e["value"] for e in task_doc["spec"]["env"]}["OUSAST_GIT_PINS"]) == {"case/code": pin}
+    monkeypatch.setenv("AX_TASK_YAML", yaml.safe_dump(task_doc))
+    monkeypatch.setenv("AX_WORKSPACES_YAML", yaml.safe_dump_all([d for d in rest if d["kind"] == "Workspace"]))
+    assert runner.main() == 0, (output / "summary.json").read_text()
+    checkout = workspace / "code"
+    assert git("rev-parse", "HEAD", cwd=checkout) == pin, "the pinned commit, not the branch tip"
+    assert (checkout / "hello.py").read_text() == "print('v1')\n"

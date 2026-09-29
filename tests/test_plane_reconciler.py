@@ -24,6 +24,40 @@ from openultrasast.plane import reconciler
 from openultrasast.plane.workspaces import workspaces
 
 RECONCILER = Path("src/openultrasast/plane/reconciler.py")
+PIN = "0123456789abcdef0123456789abcdef01234567"
+
+# The fields ax's API server decodes (pkg/apis/v1alpha1/ax.proto, protojson: an unknown field is an error at
+# ``ax apply``). ``None`` marks a value ax types as free-form (a Struct) or that this test does not descend into.
+_RESOURCES = {"cpu": None, "memory": None}
+AX_FIELDS: dict[str, dict] = {
+    "Task": {
+        "image": None,
+        "command": None,
+        "env": {"name": None, "value": None},
+        "resources": {"requests": _RESOURCES, "limits": _RESOURCES},
+        "workspaces": {"name": None, "path": None, "goal": None},
+        "debug": None,
+    },
+    "Workspace": {
+        "git": {"name": None, "repo": None, "branch": None, "dir": None, "depth": None},
+        "files": {"path": None, "content": None},
+        "mcp": {"registries": None, "servers": None},
+        "skills": {"registries": None, "path": None},
+    },
+    "Model": {"provider": None, "model": None, "secretKey": {"name": None, "key": None}, "parameters": None},
+}
+
+
+def non_ax_fields(value: object, schema: dict | None, path: str) -> list[str]:
+    """Every key under ``value`` that ``schema`` does not name, as dotted paths."""
+    if schema is None:
+        return []
+    if isinstance(value, list):
+        return [bad for i, item in enumerate(value) for bad in non_ax_fields(item, schema, f"{path}[{i}]")]
+    assert isinstance(value, dict), f"{path} must be a mapping"
+    bad = [f"{path}.{k}" for k in value if k not in schema]
+    return bad + [b for k, v in value.items() if k in schema for b in non_ax_fields(v, schema[k], f"{path}.{k}")]
+
 
 FAKE_AX = '''#!{python}
 """Fake ax CLI for the reconciler tests: argv log, scripted phases, scripted deliveries."""
@@ -90,8 +124,10 @@ apiVersion: ax.io/v1alpha1
 kind: Workspace
 metadata:
   name: case-pin
+  atespace: default
+  annotations: {openultrasast.io/git-commits: "repo=0123456789abcdef0123456789abcdef01234567"}
 spec:
-  git: [{name: repo, repo: https://example.invalid/repo.git, commit: abc123}]
+  git: [{name: repo, repo: https://example.invalid/repo.git, dir: src, depth: 1}]
 ---
 apiVersion: ax.io/v1alpha1
 kind: Task
@@ -242,6 +278,10 @@ def test_chain_runs_in_order_with_inputs_env_and_model(fake: Fake, tmp_path: Pat
     assert inputs_ws["spec"]["files"] == [{"path": "repo-facts/facts.json", "content": json.dumps({"a.py": {"functions": ["f"]}})}]
     assert verify["docs"][0]["spec"]["workspaces"][-1] == {"name": "chain-verify-inputs", "path": "/workspace/.ousast-in/verify"}
     assert "annotations" not in verify["docs"][0]["metadata"], "ax's ObjectMeta has no annotations"
+    assert json.loads(env["OUSAST_GIT_PINS"]) == {"case-pin/repo": PIN}, "the Workspace annotation reaches the task as env"
+    assert verify["docs"][2]["spec"]["git"] == [{"name": "repo", "repo": "https://example.invalid/repo.git", "dir": "src", "depth": 1}]
+    assert verify["docs"][2]["metadata"] == {"name": "case-pin", "atespace": "default"}
+    assert "OUSAST_GIT_PINS" not in fake.applied("chain", "agree")["env"], "no bound workspace, no pins"
     facts = fake.applied("chain", "repo-facts")
     assert "OUSAST_MODEL" not in facts["env"] and "OUSAST_BUDGET_USD" not in facts["env"]
     assert facts["docs"][0]["spec"]["image"] == "ousast-runner:dev"
@@ -440,8 +480,8 @@ def test_doctor_names_the_bring_up_script_when_nothing_is_reachable(monkeypatch:
 def test_workspaces_one_manifest_per_case_pin(tmp_path: Path) -> None:
     population = tmp_path / "population.toml"
     population.write_text(
-        '[[case]]\nid = "demo-sqli"\nrepo = "https://github.com/x/y"\nvulnerable = "aaa"\nfixed = "bbb"\n'
-        'benign = { base = "ccc", tip = "ddd" }\n',
+        '[[case]]\nid = "demo-sqli"\nrepo = "https://github.com/x/y"\nvulnerable = "' + "a" * 40 + '"\nfixed = "' + "b" * 40 + '"\n'
+        'benign = { base = "' + "c" * 40 + '", tip = "' + "d" * 40 + '" }\n',
         encoding="utf-8",
     )
     written = workspaces(population, tmp_path / "out")
@@ -451,12 +491,29 @@ def test_workspaces_one_manifest_per_case_pin(tmp_path: Path) -> None:
     assert doc == {
         "apiVersion": "ax.io/v1alpha1",
         "kind": "Workspace",
-        "metadata": {"name": "demo-sqli-vulnerable"},
-        "spec": {"git": [{"name": "repo", "repo": "https://github.com/x/y", "commit": "aaa"}]},
+        "metadata": {"name": "demo-sqli-vulnerable", "annotations": {"openultrasast.io/git-commits": "repo=" + "a" * 40}},
+        "spec": {"git": [{"name": "repo", "repo": "https://github.com/x/y", "dir": "repo", "depth": 1}]},
     }
     from openultrasast.plane.manifests import load_manifests
 
-    assert set(load_manifests(written).workspaces) == {p.stem for p in written}
+    loaded = load_manifests(written).workspaces
+    assert set(loaded) == {p.stem for p in written}
+    assert loaded["demo-sqli-benign-tip"].pins == {"repo": "d" * 40}
+
+
+def test_rendered_documents_carry_only_ax_fields(tmp_path: Path) -> None:
+    """Req 1.1/1.4: whatever ``ax apply`` receives names only fields ax documents; annotations never leave."""
+    (tmp_path / "repo-facts").mkdir()
+    (tmp_path / "repo-facts" / "facts.json").write_text("{}", encoding="utf-8")
+    run, manifests = reconciler.load_run(write_run(tmp_path, "fields"))
+    docs = [d for entry in run.tasks for d in reconciler.render_task(run, entry, manifests, tmp_path, "http://h:1/")]
+    assert {d["kind"] for d in docs} == {"Task", "Workspace", "Model"}
+    for rendered in docs:
+        where = f"{rendered['kind']}/{rendered['metadata']['name']}"
+        assert set(rendered) == {"apiVersion", "kind", "metadata", "spec"}, where
+        assert set(rendered["metadata"]) <= {"name", "atespace"}, where
+        assert non_ax_fields(rendered["spec"], AX_FIELDS[rendered["kind"]], f"{where} spec") == []
+        assert "openultrasast.io/" not in yaml.safe_dump(rendered["metadata"]), where
 
 
 def test_reconciler_is_under_500_lines_and_holds_no_pipeline_logic() -> None:

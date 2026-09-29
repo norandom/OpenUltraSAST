@@ -6,9 +6,11 @@ file (the Task with its env extended, its Workspaces, one generated Workspace ca
 ``files`` entries, and the bound Model), runs ``ax apply -f``, polls ``ax get task`` until a terminal phase and
 ``ax delete task`` afterwards. The outcome is read from the delivered ``summary.json``, never from the phase alone.
 
-Model binding: a Task names its Model in ``metadata.annotations["openultrasast.io/model"]`` (ax's ObjectMeta has no
-annotations, so the rendered Task carries only ``name``/``atespace``); the task receives ``OUSAST_MODEL`` and the
-Model's ``spec.parameters`` as ``OUSAST_MODEL_PARAMS`` JSON (Req 7.1). Inputs: ``OUSAST_INPUT_<NAME>`` points into a
+ax's ObjectMeta is ``name``/``atespace`` and its API server rejects unknown fields, so rendered documents carry only
+ax's fields; ``openultrasast.io/*`` annotations are stripped and reach the task as env. Model binding: a Task names
+its Model in ``openultrasast.io/model``; the task receives ``OUSAST_MODEL`` and the Model's ``spec.parameters`` as
+``OUSAST_MODEL_PARAMS`` JSON (Req 7.1). Commit pins: each bound Workspace's ``openultrasast.io/git-commits`` becomes
+``OUSAST_GIT_PINS`` = ``{"<workspace>/<git name>": "<sha>"}``. Inputs: ``OUSAST_INPUT_<NAME>`` points into a
 generated Workspace bound at ``/workspace/.ousast-in/<task>`` (ax mounts every workspace under ``/workspace``).
 Artifacts: the runner POSTs an uncompressed tar of its output directory to ``OUSAST_ARTIFACT_URL`` with
 ``X-Ousast-Run`` and ``X-Ousast-Task`` headers; the receiver listens on ``0.0.0.0`` at ``OUSAST_ARTIFACT_PORT``
@@ -97,8 +99,8 @@ def load_run(run_manifest: Path) -> tuple[Run, Manifests]:
     return next(iter(manifests.runs.values())), manifests
 
 
-def _doc(kind: str, name: str, spec: dict[str, Any], namespace: str | None = None) -> dict[str, Any]:
-    meta = {"name": name, **({"atespace": namespace} if namespace else {})}
+def _doc(kind: str, name: str, spec: dict[str, Any], atespace: str | None = None) -> dict[str, Any]:
+    meta = {"name": name, **({"atespace": atespace} if atespace else {})}
     return {"apiVersion": AX_API_VERSION, "kind": kind, "metadata": meta, "spec": spec}
 
 
@@ -116,7 +118,7 @@ def _workspace_doc(ws: Workspace) -> dict[str, Any]:
         spec["mcp"] = {"registries": list(ws.mcp.registries), "servers": list(ws.mcp.servers)}
     if ws.skills:
         spec["skills"] = {"registries": list(ws.skills.registries), **({"path": ws.skills.path} if ws.skills.path else {})}
-    return _doc("Workspace", ws.metadata.name, spec, ws.metadata.namespace)
+    return _doc("Workspace", ws.metadata.name, spec, ws.metadata.atespace)
 
 
 def _model_doc(model: Model) -> dict[str, Any]:
@@ -125,7 +127,7 @@ def _model_doc(model: Model) -> dict[str, Any]:
         spec["secretKey"] = _fields(model.secret_key)
     if model.parameters:
         spec["parameters"] = dict(model.parameters)
-    return _doc("Model", model.metadata.name, spec, model.metadata.namespace)
+    return _doc("Model", model.metadata.name, spec, model.metadata.atespace)
 
 
 def _input_files(entry: RunTask, base: Path) -> list[dict[str, str]]:
@@ -157,8 +159,10 @@ def render_task(run: Run, entry: RunTask, manifests: Manifests, base: Path, arti
         docs.append(_model_doc(model))
     bindings = [_fields(b) for b in task.workspaces]
     docs.extend(_workspace_doc(manifests.workspaces[b.name]) for b in task.workspaces)
+    pins = {f"{b.name}/{git}": sha for b in task.workspaces for git, sha in manifests.workspaces[b.name].pins.items()}
+    env.update({"OUSAST_GIT_PINS": json.dumps(pins, sort_keys=True)} if pins else {})
     if entry.inputs:
-        docs.append(_doc("Workspace", f"{ax_name}-inputs", {"files": _input_files(entry, base)}, task.metadata.namespace))
+        docs.append(_doc("Workspace", f"{ax_name}-inputs", {"files": _input_files(entry, base)}, task.metadata.atespace))
         bindings.append({"name": f"{ax_name}-inputs", "path": f"{INPUTS_ROOT}/{entry.name}"})
     spec: dict[str, Any] = {"command": list(task.command), "env": [{"name": k, "value": v} for k, v in env.items()]}
     if task.image:
@@ -169,7 +173,7 @@ def render_task(run: Run, entry: RunTask, manifests: Manifests, base: Path, arti
         spec["workspaces"] = bindings
     if task.debug:
         spec["debug"] = True
-    return [_doc("Task", ax_name, spec, task.metadata.namespace), *docs]
+    return [_doc("Task", ax_name, spec, task.metadata.atespace), *docs]
 
 
 class Ax:
