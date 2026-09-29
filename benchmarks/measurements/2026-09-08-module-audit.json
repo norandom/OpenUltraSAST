@@ -691,7 +691,7 @@
     {
       "module": "plane.tasks",
       "classification": "load_bearing",
-      "reason": "ai-service-plane Req 2.1: the tasks package, each a main() under the OUSAST_* env contract; runner wiring in task 3",
+      "reason": "ai-service-plane Req 4.1: the task entrypoint package the runner imports by name; runner integration pending (task 3)",
       "importers": [
         "plane.tasks.agree"
       ]
