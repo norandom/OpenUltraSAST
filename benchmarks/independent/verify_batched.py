@@ -122,7 +122,10 @@ def hunt(root: Path, path: str, group: list[list], family: str, model: str, step
         fn = f.function_name or ""
         if fn not in names:  # attribute by the nearest listed line when the model renamed the function
             fn = min(group, key=lambda c: abs((c[2] or 0) - (f.line or 0)))[1]
-        rows.append({"candidate": f"{path}::{fn}", "site": f"{f.path}:{f.line or 0}:{fn}", "family": family, "title": f.title, "witness": f.rationale[:600]})
+        # The verdict is about the candidate operation, so the site is the candidate's file and function; the
+        # model's own location is kept beside it (it often names the file where the input enters instead).
+        line = f.line if f.path == path else next(c[2] for c in group if c[1] == fn)
+        rows.append({"candidate": f"{path}::{fn}", "site": f"{path}:{line or 0}:{fn}", "reported_at": f"{f.path}:{f.line or 0}", "family": family, "title": f.title, "witness": f.rationale[:600]})
     return rows, recording.usage()
 
 
@@ -177,6 +180,7 @@ def main() -> int:
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--budget-usd", type=float, default=40.0)
     parser.add_argument("--results-suffix", default="batched")
+    parser.add_argument("--fixed", action="store_true", help="recheck the AGREED candidates of each case at its fixed pin (no triage)")
     args = parser.parse_args()
     load_config()
     evaluate.use(args.population)
@@ -191,10 +195,11 @@ def main() -> int:
     for case in evaluate.cases():
         if only and case["id"] not in only or (subset is not None and case["id"] not in subset):
             continue
-        out = out_dir / f"{case['id']}--vulnerable_a.json"
+        label = "fixed_a" if args.fixed else "vulnerable_a"
+        out = out_dir / f"{case['id']}--{label}.json"
         if out.is_file():
             continue
-        log = out_dir / f"{case['id']}--vulnerable_a.jsonl"
+        log = out_dir / f"{case['id']}--{label}.jsonl"
         done = {r["path"]: r for r in (json.loads(row) for row in log.read_text().splitlines()) if "unverified" not in r} if log.is_file() else {}
         spent += sum(float(r.get("usd", 0.0)) for r in done.values())
         record = json.loads((candidates_dir / f"{case['id']}.json").read_text())
@@ -202,12 +207,29 @@ def main() -> int:
         if subset is not None:
             wanted = {tuple(x) for x in subset[case["id"]]}
             unique = [c for c in unique if (c[0], c[1]) in wanted]
+        if args.fixed:
+            # The agreed findings at the vulnerable pin, by (path, function), asked again at the fixed pin. Line
+            # numbers are the vulnerable pin's; the file itself is in the prompt. A function the fix removed
+            # cannot be asked and counts as removed.
+            vulnerable_out = out_dir / f"{case['id']}--vulnerable_a.json"
+            if not vulnerable_out.is_file():
+                continue
+            agreed = {tuple(f["candidate"].split("::", 1)) for f in json.loads(vulnerable_out.read_text())["findings"]}
+            unique = [c for c in unique if (c[0], c[1]) in agreed]
+            settings = dict(settings, no_triage=True)
         by_file: dict[str, list[list]] = {}
         for c in unique:
             by_file.setdefault(c[0], []).append(c)
         pending = {p: cs for p, cs in by_file.items() if p not in done}
         started = time.monotonic()
-        checkout = evaluate.export(case, "vulnerable_a", case["vulnerable"])
+        checkout = evaluate.export(case, label, case["fixed" if args.fixed else "vulnerable"])
+        if args.fixed:
+            present = [c for c in unique if (checkout / c[0]).is_file()]
+            removed = [f"{c[0]}::{c[1]}" for c in unique if (checkout / c[0]).is_file() is False]
+            unique, by_file = present, {}
+            for c in unique:
+                by_file.setdefault(c[0], []).append(c)
+            pending = {p: cs for p, cs in by_file.items() if p not in done}
         account_error = ""
         try:
             with concurrent.futures.ProcessPoolExecutor(max_workers=args.workers) as pool, log.open("a") as sink:
@@ -245,6 +267,8 @@ def main() -> int:
             "triaged_out": triaged_out, "passes": args.passes, "usage": usage, "usd": round(sum(float(r.get("usd", 0.0)) for r in done.values()), 4),
             "seconds": round(time.monotonic() - started, 1), "findings": sorted(agreed, key=lambda f: f["site"]), "disputed": sorted(disputed, key=lambda f: f["site"]),
         }  # fmt: skip
+        if args.fixed:
+            result["removed_by_fix"] = removed
         if complete:
             out.write_text(json.dumps(result, indent=1) + "\n")
         print(json.dumps({"case": case["id"], "files": f"{len(done)}/{len(by_file)}", "candidates": len(unique), "triaged_out": triaged_out, "agreed": len(agreed), "disputed": len(disputed), "usd": result["usd"], "total_usd": round(spent, 4), "complete": complete}), flush=True)
