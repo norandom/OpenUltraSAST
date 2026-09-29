@@ -1,0 +1,114 @@
+{
+ "measurement": "model-driven pipeline on population v2 (exploratory; v2 is spent for tuning): model-classified sinks -> per-file triage -> per-file 6-step tool hunts -> two-pass agreement. Stopped by the maintainer after the account emptied; 7 of 17 cases complete.",
+ "analyzer": "6acd354 (hunter fixes cf57995, 3ffb8b4, 8794884; verify_batched.py 072a102)",
+ "spend_usd": {
+  "stage1_model_sinks": 14.42,
+  "validation_46_candidates": 1.01,
+  "full_run_7_cases_plus_budibase_partial": 23.36
+ },
+ "stage1_reach": {
+  "declared_site_among_candidates": [
+   15,
+   17
+  ],
+  "note": "ranker top-20: 1/17; vocabulary sink-first: 2/17"
+ },
+ "validation_set": {
+  "declared_sites_agreed": [
+   16,
+   20
+  ],
+  "cases": [
+   12,
+   15
+  ],
+  "flickering_pgadmin_26": {
+   "triaged_out": 2,
+   "agreed": 9,
+   "disputed": 4,
+   "quiet": 13
+  }
+ },
+ "full_run_7_cases": {
+  "recall": [
+   4,
+   7
+  ],
+  "recall_wilson95": [
+   0.25,
+   0.842
+  ],
+  "detected": [
+   "pgadmin-maintenance-sqli",
+   "qwed-sympy-eval",
+   "lmdeploy-media-url-ssrf",
+   "reactpress-findall-column-sqli"
+  ],
+  "unstable_one_pass_only": [
+   "contextforge-prompt-ssti",
+   "fuxa-tdengine-escape-sqli"
+  ],
+  "missed": [
+   "winml-cli-serve-cors (triage: constant; the reachability question does not fit config_secrets)"
+  ],
+  "agreed_findings_pooled": 196,
+  "pgadmin": {
+   "candidates": 1037,
+   "triaged_out": 162,
+   "agreed": 126,
+   "disputed": 238,
+   "usd": 8.91
+  },
+  "not_run": [
+   "budibase-mongo-template-nosqli",
+   "unleash-addon-webhook-ssrf",
+   "medplum-external-auth-open-redirect",
+   "cct-studio-server-cmdi",
+   "wp-gopay-log-filter-sqli",
+   "wp-user-registration-login-redirect",
+   "wp-directorist-avatar-ssrf",
+   "wp-groundhogg-confirm-redirect",
+   "froxlor-admin-ip-second-order-sqli",
+   "sulu-smart-content-sql2-injection"
+  ],
+  "fixed_side_alerts": "not measured (no recheck run)"
+ },
+ "precision": {
+  "formal_sample": "66 drawn, not adjudicated (stopped)",
+  "spot_check_pgadmin_5": [
+   {
+    "site": "web/pgadmin/authenticate/mfa/utils.py:370:mfa_add",
+    "verdict": "False, guarded",
+    "why": "SQLAlchemy ORM, parameterized; the rationale says so and reports anyway"
+   },
+   {
+    "site": "web/pgadmin/browser/server_groups/servers/databases/schemas/__init__.py:533:nodes",
+    "verdict": "True, privileged",
+    "why": "stored schema_res split and quoted without escaping into nsp.nspname in (...)"
+   },
+   {
+    "site": "web/pgadmin/browser/server_groups/servers/databases/schemas/tables/compound_triggers/__init__.py:662:update",
+    "verdict": "True, privileged",
+    "why": "update.sql interpolates {{ data.prosrc }} raw; witness did not name the field"
+   },
+   {
+    "site": "web/pgadmin/browser/server_groups/servers/databases/schemas/tables/indexes/utils.py:286:get_sql",
+    "verdict": "True, privileged",
+    "why": "update.sql interpolates {{data.fillfactor}} and other storage parameters raw"
+   },
+   {
+    "site": "web/pgadmin/misc/cloud/biganimal/__init__.py:528:deploy_on_biganimal",
+    "verdict": "False, not attacker",
+    "why": "pickle.loads of an app-produced value in the signed Flask session"
+   }
+  ],
+  "note": "two-pass agreement does not catch a mistake both passes make; a no-tools judge over rationale + code is the proposed next filter"
+ },
+ "stability": "contextforge and fuxa were agreed in the validation run and only disputed in the full run: two-pass agreement varies between runs",
+ "cost_per_candidate_two_passes_usd": {
+  "validation_set": 0.022,
+  "pgadmin_full": 0.0086,
+  "old_single_pass_design": 0.0167
+ },
+ "gates": "none met or measurable: 7/17 cases run, precision unadjudicated, fixed pins unchecked"
+}

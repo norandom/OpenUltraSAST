@@ -82,3 +82,39 @@ declared sites, which would leak the answer).
 1. Direction: run the hunter experiment first (recommended), or choose A, B or C now.
 2. For the experiment: the scope handed to the model per pin, the model, and the cost ceiling.
 3. Whether the roadmap's M1b/M2 work (rendering, runtime) pauses until the direction is chosen.
+
+
+## 7. Update 2026-09-29: what the experiment showed
+
+Recorded in `benchmarks/independent/results-v2-model-pipeline.json` (exploratory; v2 is spent for tuning).
+
+**Instrument first.** Four defects had made every model-backed result since 2026-09-10 unmeasured: the default
+model id was the product name and the API rejected it (cf57995); the hunter reached the embeddings provider, not
+the chat provider (cf57995); the final-answer turn used the provider's JSON mode and the answers were lost
+(3ffb8b4); one grep match in a minified bundle overflowed the model's context (8794884). The "hunter 1/17" number
+in section 5's experiment was produced through the broken answer turn and is void.
+
+**Scope selection, source only.** The declared vulnerable function is among the candidates for: the ranker's
+top-20 entry points 1/17; the shipped sink vocabulary 2/17; a model reading every product file 15/17 ($14). The
+vocabulary route (option A) is confirmed not to converge on this population.
+
+**Verification.** Per-file triage, one 6-step tool hunt per file, two independent passes, report only agreement:
+- validation set: 16 of 20 declared sites agreed, 12 of 15 cases; the 26 pgAdmin candidates that flickered
+  between single runs reduce to 9 stable, 4 disputed, 13 quiet;
+- full run, 7 of 17 cases before the account emptied ($23): detected 4/7 (pgAdmin, qwed, LMDeploy,
+  ReactPress); ContextForge and FUXA found in one pass of two; winml missed because a CORS literal is triaged
+  "constant" -- the config family needs its own question, not the reachability one;
+- cost: $0.009-0.022 per candidate for two passes (old single-pass design: $0.017); a full two-pass run of the
+  population is roughly $45-50.
+
+**Precision is the open problem.** 196 agreed findings across 7 cases (pgAdmin alone 126 of 875 verified). Five
+pgAdmin findings read against source: three true (privileged; raw `{{ data.* }}` in SQL templates, unescaped
+stored `schema_res`), two false with rationales that contradict their own verdict (an ORM call the model itself
+calls parameterized; a pickle from the signed session). Agreement cannot catch a mistake both passes make. The
+proposed next filter is a no-tools judge over each agreed finding's rationale and code (~$0.002 per finding),
+which was not run. Two-pass agreement is itself not stable between runs (ContextForge, FUXA).
+
+**Standing.** Recall: the model route reaches 12/15 candidate-site cases where the engine reached 0/17 and the
+vocabulary 2/17; that decides between options A and B in the model's favour for recall. Precision, fixed-pin
+behaviour and cost at product scale are unmeasured. No gate is met. Any qualification needs population v3 and
+a pre-registered protocol that also states the judge stage, the pass rule and the config-family question.
