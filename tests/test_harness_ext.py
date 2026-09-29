@@ -18,8 +18,8 @@ from openultrasast.harness_ext import (
 PYPROJECT = tomllib.loads(Path("pyproject.toml").read_text())
 
 
-def test_core_dependencies_stay_empty() -> None:
-    assert PYPROJECT["project"]["dependencies"] == []
+def test_core_dependencies_are_pyyaml_only() -> None:
+    assert PYPROJECT["project"]["dependencies"] == ["pyyaml>=6.0"]  # ai-service-plane task 1: manifests are YAML; HarnessX stays an extra
 
 
 def test_harnessx_is_a_sha_pinned_optional_extra() -> None:

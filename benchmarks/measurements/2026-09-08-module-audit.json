@@ -1,7 +1,7 @@
 {
-  "modules": 118,
+  "modules": 120,
   "counts": {
-    "load_bearing": 109,
+    "load_bearing": 111,
     "standalone_capability": 9
   },
   "orphaned": [],
@@ -644,6 +644,18 @@
         "model.candidates",
         "pair_gate"
       ]
+    },
+    {
+      "module": "plane",
+      "classification": "load_bearing",
+      "reason": "ai-service-plane Req 1: the model-level service plane package; reconciler and runner land in tasks 3-4",
+      "importers": []
+    },
+    {
+      "module": "plane.manifests",
+      "classification": "load_bearing",
+      "reason": "ai-service-plane Req 1.1-1.4: ax-shaped Task/Workspace/Model and the Run kind, validated before anything runs",
+      "importers": []
     },
     {
       "module": "policy",
