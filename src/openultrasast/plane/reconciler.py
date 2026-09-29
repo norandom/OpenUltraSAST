@@ -469,8 +469,10 @@ def _pods_ready(namespace: str, context: str) -> tuple[bool, str]:
     ok, out = _sh("kubectl", "--context", context, "-n", namespace, "get", "pods", "--no-headers")
     if not ok or not out:
         return False, out or "no pods"
-    rows = [line.split() for line in out.splitlines()]
-    bad = [r[0] for r in rows if len(r) > 2 and r[2] not in ("Completed", "Succeeded") and r[1].split("/")[0] != r[1].split("/")[-1]]
+    rows = [r for r in (line.split() for line in out.splitlines()) if len(r) > 2 and re.fullmatch(r"\d+/\d+", r[1])]
+    if not rows:  # "No resources found" is not a ready namespace
+        return False, f"no pods in {namespace}"
+    bad = [r[0] for r in rows if r[2] not in ("Completed", "Succeeded") and r[1].split("/")[0] != r[1].split("/")[1]]
     return not bad, f"not ready: {', '.join(bad)}" if bad else f"{len(rows)} pods ready"
 
 

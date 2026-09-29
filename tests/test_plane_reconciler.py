@@ -483,3 +483,16 @@ def test_elapsed_polling_is_paced(fake: Fake, tmp_path: Path, monkeypatch: pytes
     started = time.monotonic()
     assert reconciler.run(write_run(tmp_path, "paced", PAIR.replace("{serialize}", "")), ax=str(fake.ax)) == "done"
     assert time.monotonic() - started >= 0.4, "three polls of x plus one of y at 0.1s each"
+
+
+def test_doctor_treats_an_empty_namespace_as_not_ready(monkeypatch: pytest.MonkeyPatch) -> None:
+    """kubectl's "No resources found" must not read as one ready pod (a plausible-zero instrument failure)."""
+    from openultrasast.plane import reconciler
+
+    monkeypatch.setattr(reconciler, "_sh", lambda *a: (True, "No resources found in ax-system namespace."))
+    ok, text = reconciler._pods_ready("ax-system", "kind-ousast")
+    assert not ok and "no pods" in text
+    monkeypatch.setattr(reconciler, "_sh", lambda *a: (True, "a-1 1/1 Running 0 1m\nb-2 0/1 Completed 0 1m"))
+    assert reconciler._pods_ready("ns", "ctx") == (True, "2 pods ready")
+    monkeypatch.setattr(reconciler, "_sh", lambda *a: (True, "a-1 0/1 Running 0 1m"))
+    assert reconciler._pods_ready("ns", "ctx")[0] is False
