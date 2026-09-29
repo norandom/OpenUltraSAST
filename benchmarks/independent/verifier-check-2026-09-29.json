@@ -1,0 +1,46 @@
+{
+ "measurement": "known-answer check of the sink verifier after 041d871 (context-first order, 3->6 restart escalation)",
+ "declared_sites": {
+  "found": 11,
+  "of_cases_with_a_candidate_site": 15,
+  "found_at_3_steps": [
+   "pgadmin",
+   "lmdeploy",
+   "reactpress",
+   "unleash",
+   "medplum",
+   "cct-studio x2",
+   "gopay",
+   "directorist"
+  ],
+  "found_only_at_6": [
+   "qwed",
+   "contextforge",
+   "groundhogg"
+  ],
+  "missed": [
+   "winml (config, question shape)",
+   "fuxa",
+   "budibase",
+   "froxlor"
+  ],
+  "usd": 0.283
+ },
+ "pgadmin_180_overlap": {
+  "baseline_findings": 15,
+  "check_findings": 13,
+  "in_common": 2,
+  "note": "verdicts on borderline candidates flip run to run; declared sites were stable"
+ },
+ "cost": {
+  "baseline_usd_per_candidate": 0.0139,
+  "check_usd_per_candidate": 0.0201,
+  "escalated_share": 0.88,
+  "non_escalated_usd": 0.0038,
+  "escalated_usd": 0.0222,
+  "cache_share_of_prompt_tokens": 0.56,
+  "per_call_usd": 0.002,
+  "conclusion": "restart escalation is strictly worse than a straight 6-step budget; the cache was already effective within a conversation"
+ },
+ "decision": "defaults set to --max-steps 6 --escalate-steps 0"
+}
