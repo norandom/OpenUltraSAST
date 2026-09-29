@@ -1,0 +1,22 @@
+# The chat model of the first increment (ai-service-plane Req 1.1, 1.4, 7.1). `deepseek` is not an ax provider;
+# the annotation declares the extension instead of hiding it in another field. `secretKey` names the Kubernetes
+# Secret and key that hold DEEPSEEK_API_KEY, the variable `tool_hunter.resolve_hunter_client()` reads; the key
+# itself is never in a manifest. Prices are `openultrasast.model.endpoint`'s for `deepseek-flash` (USD per million
+# tokens); the verify task's meter reads them from OUSAST_MODEL_PARAMS with `budget.prices_from`.
+apiVersion: ax.io/v1alpha1
+kind: Model
+metadata:
+  name: deepseek-flash
+  atespace: default
+  annotations:
+    openultrasast.io/provider-extension: "true"
+spec:
+  provider: deepseek
+  model: deepseek-flash
+  secretKey:
+    name: deepseek
+    key: DEEPSEEK_API_KEY
+  parameters:
+    cache_hit_per_m: 0.014
+    input_per_m: 0.44
+    output_per_m: 1.32

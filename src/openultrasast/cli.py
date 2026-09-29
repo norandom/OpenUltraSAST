@@ -251,6 +251,11 @@ def main(argv: list[str] | None = None) -> int:
     plane_ws = plane_sub.add_parser("workspaces", help="one Workspace manifest per case pin of a population file")
     plane_ws.add_argument("population", type=Path)
     plane_ws.add_argument("--out", type=Path, default=Path("plane/workspaces"))
+    plane_ws.add_argument("--validation-set", type=Path, help="JSON {case: [[path, function], ...]}: emit that set's increment instead")
+    plane_ws.add_argument("--candidates", type=Path, help="with --validation-set: per-case candidate records (independent-v2-modelsinks)")
+    plane_ws.add_argument("--triage", type=Path, help="with --validation-set: recorded batched-check scans (<case>--vulnerable_a.jsonl)")
+    plane_ws.add_argument("--run", default="validation-46", help="with --validation-set: the Run name")
+    plane_ws.add_argument("--plane", type=Path, default=Path("plane"), help="with --validation-set: the manifest root")
 
     args = parser.parse_args(argv)
     # Diagnosis needs the stage costs, and nothing configures logging, so the default root level of
@@ -1303,10 +1308,28 @@ def _plane(args: argparse.Namespace) -> int:
         for name, ok, text in checks:
             print(f"[{'ok' if ok else 'FAIL'}] {name}: {text}")
         return 0 if all(ok for _, ok, _ in checks) else 1
+    if args.validation_set is not None:
+        return _plane_increment(args)
     from .plane.workspaces import workspaces
 
     written = workspaces(args.population, args.out)
     print(f"{len(written)} Workspace manifests written to {args.out}")
+    return 0
+
+
+def _plane_increment(args: argparse.Namespace) -> int:
+    from .plane.generate import increment
+
+    if args.candidates is None or args.triage is None:
+        print("--validation-set needs --candidates and --triage", file=sys.stderr)
+        return 2
+    home = str(Path.home())
+    shown = [str(p).replace(home, "~", 1) for p in (args.population, args.validation_set, args.candidates, args.triage)]
+    command = f"ousast plane workspaces {shown[0]} --validation-set {shown[1]} --candidates {shown[2]} --triage {shown[3]} --run {args.run}"
+    written = increment(
+        args.population, args.validation_set, args.candidates, args.triage, plane=args.plane, run_name=args.run, command=command
+    )
+    print(f"{len(written)} manifests written under {args.plane} (Run {args.run})")
     return 0
 
 

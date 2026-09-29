@@ -1,0 +1,21 @@
+# verify (ai-service-plane Req 5.3, 2.1-2.3, 7.2): one batched hunt per file with the known callers from
+# repo-facts in the prompt. Bound to its Model by the `openultrasast.io/model` annotation, which the reconciler
+# strips and renders as OUSAST_MODEL / OUSAST_MODEL_PARAMS. This is the template the per-case, per-pass Tasks of a
+# Run are generated from (the pass is OUSAST_PASS=a|b in their env). The image is digest-pinned.
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: verify
+  atespace: default
+  annotations:
+    openultrasast.io/model: deepseek-flash
+spec:
+  image: "localhost:5001/ousast-runner@sha256:318cbe019c1155b43fe59e47368d99e78f6f6011b7c822292251de53cf567bf3"
+  command: ["verify"]
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "384Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"

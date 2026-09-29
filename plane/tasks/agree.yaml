@@ -1,0 +1,18 @@
+# agree (ai-service-plane Req 5.3, 2.1): agreement across the two verify passes, per-candidate cost and turns,
+# declared-site match. No model. This is the template the per-case Tasks of a Run are generated from (bound to the
+# case's inputs Workspace for the candidates and declared sites). The image is digest-pinned.
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: agree
+  atespace: default
+spec:
+  image: "localhost:5001/ousast-runner@sha256:318cbe019c1155b43fe59e47368d99e78f6f6011b7c822292251de53cf567bf3"
+  command: ["agree"]
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "1"
+      memory: "512Mi"

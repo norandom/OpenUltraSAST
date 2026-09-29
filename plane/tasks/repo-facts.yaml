@@ -1,0 +1,19 @@
+# repo-facts (ai-service-plane Req 5.1/5.2): source only, no model. This is the template the per-case Tasks of a
+# Run are generated from (`ousast plane workspaces --validation-set ...` binds the case's pinned Workspace and its
+# inputs Workspace, and sets the paths as env). The image is digest-pinned: Agent Substrate rejects tags.
+# Heavy for the host (a full-tree scan of the case at 1 CPU / 1.5 GiB per gVisor worker): the Run serializes it.
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: repo-facts
+  atespace: default
+spec:
+  image: "localhost:5001/ousast-runner@sha256:318cbe019c1155b43fe59e47368d99e78f6f6011b7c822292251de53cf567bf3"
+  command: ["repo-facts"]
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "1280Mi"
