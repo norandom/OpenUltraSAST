@@ -1,0 +1,6 @@
+# Build context for plane/Dockerfile.runner: only what the image copies.
+*
+!pyproject.toml
+!README.md
+!src/
+src/**/__pycache__
