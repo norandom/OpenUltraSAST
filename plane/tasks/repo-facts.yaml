@@ -8,7 +8,7 @@ metadata:
   name: repo-facts
   atespace: default
 spec:
-  image: "localhost:5001/ousast-runner@sha256:c58503666eee0bf296d44a7326862b8e7207edf397f4fdf1d02c3c2f27373e76"
+  image: "localhost:5001/ousast-runner@sha256:c1d2023321fcfbf529712de31241eadfd4575a07864f4383eca9ec889e2e1db9"
   command: ["repo-facts"]
   resources:
     requests:
