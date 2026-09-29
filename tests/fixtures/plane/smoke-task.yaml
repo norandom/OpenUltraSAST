@@ -1,0 +1,29 @@
+# Minimal Task for the bring-up smoke test: default runner image, a files-only workspace, no MCP or skills.
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: ousast-smoke
+  atespace: default
+spec:
+  image: "gcr.io/ax-substrate/ate-images/ax-task-runner@sha256:3a0dea6ad8b55278685db58aca6e37dc4ba04056831d45bef3aaeafdca43cac6"
+  command: ["sh", "-c", "cat /workspace/hello.txt && echo smoke-ok"]
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+  workspaces:
+    - name: ousast-smoke-ws
+      path: "/workspace"
+---
+apiVersion: ax.io/v1alpha1
+kind: Workspace
+metadata:
+  name: ousast-smoke-ws
+  atespace: default
+spec:
+  files:
+    - path: "hello.txt"
+      content: "hello from openultrasast\n"
