@@ -1,7 +1,7 @@
 {
-  "modules": 121,
+  "modules": 124,
   "counts": {
-    "load_bearing": 112,
+    "load_bearing": 115,
     "standalone_capability": 9
   },
   "orphaned": [],
@@ -56,6 +56,7 @@
         "complexity.ledger",
         "complexity.map",
         "map_gate",
+        "plane.tasks.verify",
         "regress.candidate",
         "semantic.prove_filter",
         "tool_hunter"
@@ -90,6 +91,7 @@
         "complexity.hints",
         "complexity.ledger",
         "map_gate",
+        "plane.tasks.verify",
         "regress.candidate",
         "semantic.prove_filter",
         "tool_hunter"
@@ -653,19 +655,45 @@
       "module": "plane",
       "classification": "load_bearing",
       "reason": "ai-service-plane Req 1-4: the service plane package; runner and reconciler integration in tasks 3-4",
-      "importers": []
+      "importers": [
+        "plane.tasks.verify"
+      ]
     },
     {
       "module": "plane.budget",
       "classification": "load_bearing",
       "reason": "ai-service-plane Req 2.3/2.4: metered chat client with usd and calls ceilings; task integration in tasks 3, 6",
-      "importers": []
+      "importers": [
+        "plane.tasks.verify"
+      ]
     },
     {
       "module": "plane.manifests",
       "classification": "load_bearing",
       "reason": "ai-service-plane Req 1.1-1.4: ax-shaped Task/Workspace/Model and the Run kind, validated before anything runs",
       "importers": []
+    },
+    {
+      "module": "plane.tasks",
+      "classification": "load_bearing",
+      "reason": "ai-service-plane Req 2.1: the tasks package, each a main() under the OUSAST_* env contract; runner wiring in task 3",
+      "importers": [
+        "plane.tasks.agree"
+      ]
+    },
+    {
+      "module": "plane.tasks.agree",
+      "classification": "load_bearing",
+      "reason": "ai-service-plane Req 5.3/2.1: agreement across two verify passes with per-candidate cost, turns and site match",
+      "importers": []
+    },
+    {
+      "module": "plane.tasks.verify",
+      "classification": "load_bearing",
+      "reason": "ai-service-plane Req 5.3/2.1-2.3/7.2: the batched hunt with known callers, metered and resumable per file hunt",
+      "importers": [
+        "plane.tasks.agree"
+      ]
     },
     {
       "module": "policy",
@@ -1320,7 +1348,8 @@
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "model.endpoint",
-        "plane.budget"
+        "plane.budget",
+        "plane.tasks.verify"
       ]
     },
     {
