@@ -238,6 +238,20 @@ def main(argv: list[str] | None = None) -> int:
     candidates.add_argument("--generator", choices=("ir", "ruleset"), default="ir", help="which pass enumerates the candidate sites")
     candidates.add_argument("--json", action="store_true")
 
+    plane = subparsers.add_parser("plane", help="maintainer: the ax-backed service plane on this host's kind cluster")
+    plane_sub = plane.add_subparsers(dest="plane_command", required=True)
+    plane_run = plane_sub.add_parser("run", help="execute a Run manifest on ax; a rerun skips done tasks")
+    plane_run.add_argument("run_manifest", type=Path)
+    plane_run.add_argument("--workers", type=int, default=1, help="tasks in flight at once (serialize labels never overlap)")
+    plane_run.add_argument("--ax", default="ax", help="path of the ax CLI")
+    plane_status = plane_sub.add_parser("status", help="per-task status and the token attribution table of a run")
+    plane_status.add_argument("run")
+    plane_status.add_argument("--units", action="store_true", help="per-unit rows from each task's units.jsonl")
+    plane_sub.add_parser("doctor", help="check kind, Agent Substrate, the ax controller and the runner image")
+    plane_ws = plane_sub.add_parser("workspaces", help="one Workspace manifest per case pin of a population file")
+    plane_ws.add_argument("population", type=Path)
+    plane_ws.add_argument("--out", type=Path, default=Path("plane/workspaces"))
+
     args = parser.parse_args(argv)
     # Diagnosis needs the stage costs, and nothing configures logging, so the default root level of
     # WARNING silently dropped every informational line. A run that reports nothing is
@@ -350,6 +364,8 @@ def main(argv: list[str] | None = None) -> int:
         return _repos(args.dir, args.repo, fetch=args.fetch, json_out=args.json)
     if args.command == "model":
         return _model_candidates(args)
+    if args.command == "plane":
+        return _plane(args)
     if args.command == "mcp":
         from .mcp import serve  # lazy: keeps the import cycle (mcp -> cli) one-directional
 
@@ -1270,6 +1286,28 @@ def _print_improve_outcomes(outcomes: list[RoundOutcome], manifest_path: Path, t
 
 def _load_scan_findings(run_dir: Path) -> list[StaticFinding]:
     return load_findings(run_dir / "findings.json")
+
+
+def _plane(args: argparse.Namespace) -> int:
+    from .plane import reconciler  # lazy: the plane is a maintainer surface, not the scan path
+
+    if args.plane_command == "run":
+        result = reconciler.run(args.run_manifest, workers=args.workers, ax=args.ax)
+        print(f"run finished: {result}")
+        return 0 if result == "done" else 1
+    if args.plane_command == "status":
+        print(reconciler.status(args.run, units=args.units))
+        return 0
+    if args.plane_command == "doctor":
+        checks = reconciler.doctor()
+        for name, ok, text in checks:
+            print(f"[{'ok' if ok else 'FAIL'}] {name}: {text}")
+        return 0 if all(ok for _, ok, _ in checks) else 1
+    from .plane.workspaces import workspaces
+
+    written = workspaces(args.population, args.out)
+    print(f"{len(written)} Workspace manifests written to {args.out}")
+    return 0
 
 
 def _model_candidates(args: argparse.Namespace) -> int:

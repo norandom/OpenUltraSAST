@@ -41,6 +41,7 @@ pythonpath = ["src"]
 markers = [
     "docker: requires a docker daemon",
     "semantic: requires openultrasast[semantic] tree-sitter extra",
+    "ax: requires the live ax cluster of ops/ax/up.sh (skipped unless `ousast plane doctor` passes)",
 ]
 
 [tool.ruff]
