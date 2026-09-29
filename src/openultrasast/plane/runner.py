@@ -119,6 +119,21 @@ class DeliveryError(RuntimeError):
 
 # --- manifests ---------------------------------------------------------------------------------------------------
 
+# Fields ax's API server sets on what it hands the runner (ax.proto: ObjectMeta.creation_timestamp, Task.status).
+# They are not authoring fields, so they are dropped before the strict schema sees the document; any other
+# unknown field still fails.
+_SERVER_META = ("creationTimestamp", "creation_timestamp")
+
+
+def _without_server_fields(document: object) -> object:
+    if not isinstance(document, dict):
+        return document
+    cleaned = {k: v for k, v in document.items() if k != "status"}
+    meta = cleaned.get("metadata")
+    if isinstance(meta, dict):
+        cleaned["metadata"] = {k: v for k, v in meta.items() if k not in _SERVER_META}
+    return cleaned
+
 
 def load_task(text: str) -> Task:
     """Parse ``AX_TASK_YAML``; raise :class:`RunnerError` unless it is exactly one Task."""
@@ -129,7 +144,7 @@ def load_task(text: str) -> Task:
     if len(documents) != 1:
         raise RunnerError(f"AX_TASK_YAML must hold exactly one Task document, found {len(documents)}")
     try:
-        manifest = parse_manifest(documents[0], source="AX_TASK_YAML")
+        manifest = parse_manifest(_without_server_fields(documents[0]), source="AX_TASK_YAML")
     except ManifestError as exc:
         raise RunnerError(str(exc)) from exc
     if not isinstance(manifest, Task):
@@ -146,7 +161,7 @@ def load_workspaces(text: str) -> dict[str, Workspace]:
     workspaces: dict[str, Workspace] = {}
     for index, document in enumerate(documents):
         try:
-            manifest = parse_manifest(document, source=f"AX_WORKSPACES_YAML[{index}]")
+            manifest = parse_manifest(_without_server_fields(document), source=f"AX_WORKSPACES_YAML[{index}]")
         except ManifestError as exc:
             raise RunnerError(str(exc)) from exc
         if not isinstance(manifest, Workspace):

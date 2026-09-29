@@ -66,7 +66,7 @@ step "smoke task"
 ax delete task ousast-smoke >/dev/null 2>&1 || true
 envsubst < "$(dirname "$0")/smoke-task.yaml.tmpl" > "$SRC/smoke-task.yaml"
 ax apply -f "$SRC/smoke-task.yaml"
-ax resume task ousast-smoke || true
+for i in 1 2 3 4 5 6; do ax resume task ousast-smoke && break; sleep 20; done   # first resume may time out while the golden snapshot builds
 ax get tasks
 
 step "footprint"

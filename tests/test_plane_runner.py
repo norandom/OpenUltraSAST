@@ -590,3 +590,22 @@ def test_git_commits_annotation_round_trips_to_the_checkout(
     checkout = workspace / "code"
     assert git("rev-parse", "HEAD", cwd=checkout) == pin, "the pinned commit, not the branch tip"
     assert (checkout / "hello.py").read_text() == "print('v1')\n"
+
+
+def test_the_runner_accepts_what_ax_hands_it() -> None:
+    """ax's server adds metadata.creationTimestamp and status (live cluster, 2026-09-29); other fields stay strict."""
+    from openultrasast.plane.runner import RunnerError, load_task, load_workspaces
+
+    task = load_task(
+        "apiVersion: ax.io/v1alpha1\nkind: Task\nmetadata:\n  name: t\n  atespace: default\n"
+        "  creationTimestamp: '2026-09-29T17:11:58Z'\nspec:\n  command: [repo-facts]\n"
+        "status:\n  phase: Running\n  id: task-t-1\n"
+    )
+    assert task.metadata.name == "t"
+    spaces = load_workspaces(
+        "apiVersion: ax.io/v1alpha1\nkind: Workspace\nmetadata:\n  name: w\n"
+        "  creationTimestamp: '2026-09-29T17:11:58Z'\nspec:\n  files:\n  - path: a.py\n    content: x\n"
+    )
+    assert list(spaces) == ["w"]
+    with pytest.raises(RunnerError, match="uid"):
+        load_task("apiVersion: ax.io/v1alpha1\nkind: Task\nmetadata:\n  name: t\n  uid: x\nspec: {}\n")
