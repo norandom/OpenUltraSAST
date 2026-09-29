@@ -56,6 +56,8 @@ SPEC_OWNED = {
     "cpg.capability": "model-grounded-detection Req 4.2/4.3: the engine probe that degrades to suspicion",
     "plane": "ai-service-plane Req 1-4: the service plane package; runner and reconciler integration in tasks 3-4",
     "plane.budget": "ai-service-plane Req 2.3/2.4: metered chat client with usd and calls ceilings; task integration in tasks 3, 6",
+    "plane.tasks": "ai-service-plane Req 4.1: the task entrypoint package the runner imports by name; runner integration pending (task 3)",
+    "plane.tasks.repo_facts": "ai-service-plane Req 5.1/5.2: source-only functions and callers per file; runner integration pending",
 }
 
 STANDALONE = {
