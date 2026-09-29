@@ -12,40 +12,39 @@ vanishing, a refused start or ``OUSAST_TASK_TIMEOUT`` s (7200) without delivery 
 ax rejects unknown fields, so rendered documents carry only ax's fields; ``openultrasast.io/model`` reaches the
 task as ``OUSAST_MODEL`` plus ``OUSAST_MODEL_PARAMS`` (Req 7.1), each Workspace's ``openultrasast.io/git-commits``
 as ``OUSAST_GIT_PINS``; ``OUSAST_INPUT_<NAME>`` points into ``/workspace/.ousast-in/<task>``. The receiver takes
-the runner's tar (``X-Ousast-Run``, ``X-Ousast-Task``) on ``OUSAST_ARTIFACT_PORT``, advertised as
-``OUSAST_ARTIFACT_HOST`` (default ``172.17.0.1``, the docker bridge). State: ``~/ousast-results/plane/<run>/``
-(``OUSAST_RESULTS``), polled every ``OUSAST_POLL_SECONDS`` (3).
+the runner's tar (``X-Ousast-Run``, ``X-Ousast-Task``) on ``OUSAST_ARTIFACT_PORT`` (18090), reached by its Service
+name through the egress gateway; between ``ax apply`` and resume the task's egress policy is written (``egress.py``).
+State: ``~/ousast-results/plane/<run>/`` (``OUSAST_RESULTS``), polled every ``OUSAST_POLL_SECONDS`` (3).
 """
 
 from __future__ import annotations
 
 import contextlib
-import io
 import json
 import os
 import queue
 import re
 import subprocess
-import tarfile
+import sys
 import threading
 import time
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import yaml
 
 from .doctor import doctor
+from .egress import RECEIVER_PORT, Egress, Receiver, policy_for
 from .manifests import AX_API_VERSION, Manifests, Model, Run, RunTask, Task, Workspace, load_manifests
 from .router import Router, credentials, open_router
 
 MODEL_ANNOTATION = "openultrasast.io/model"
 OUTPUT_ROOT = "/workspace/.ousast-out"
 INPUTS_ROOT = "/workspace/.ousast-in"
-DEFAULT_ARTIFACT_HOST = "172.17.0.1"
 TRANSIENT = re.compile(r"deadline ?exceeded|unavailable", re.IGNORECASE)  # the golden-snapshot build outlives a resume
 _ROW = "{:<28} {:<20} {:>7} {:>10} {:>10} {:>9} {:>10}"
 _COLUMNS = ("calls", "prompt", "cache_hit", "output", "usd")
@@ -134,13 +133,15 @@ def _input_files(entry: RunTask, base: Path) -> list[dict[str, str]]:
     return files
 
 
-def render_task(run: Run, entry: RunTask, manifests: Manifests, base: Path, artifact_url: str) -> list[dict[str, Any]]:
+def render_task(
+    run: Run, entry: RunTask, manifests: Manifests, base: Path, artifact_url: str, dial: str | None = None
+) -> list[dict[str, Any]]:
     """The documents ``ax apply`` receives for one Run task: Task, its Model, its Workspaces, the inputs Workspace."""
     task: Task = manifests.tasks[entry.task]
     ax_name = _ax_name(run.metadata.name, entry.name)
     env = {e.name: e.value for e in task.env}
     env.update(OUSAST_RUN=run.metadata.name, OUSAST_TASK=entry.name, OUSAST_OUTPUT_DIR=f"{OUTPUT_ROOT}/{entry.name}")
-    env["OUSAST_ARTIFACT_URL"] = artifact_url
+    env.update(OUSAST_ARTIFACT_URL=artifact_url, **({"OUSAST_ARTIFACT_DIAL": dial} if dial else {}))
     budget = _fields(entry.budget) if entry.budget else {}
     env.update({f"OUSAST_BUDGET_{k.upper()}": str(v) for k, v in budget.items()})
     for input_name, ref in entry.inputs.items():
@@ -212,55 +213,6 @@ class Ax:
     def delete(self, name: str) -> None:
         """``ax delete task <name>``; ax returns once the actor is torn down."""
         self._run("delete", "task", name)
-
-
-class Receiver(ThreadingHTTPServer):
-    """Accepts one tar per running task and extracts it under ``<run dir>/<task>/``."""
-
-    daemon_threads = True
-
-    def __init__(self, run_name: str, base: Path, port: int) -> None:
-        super().__init__(("0.0.0.0", port), _Handler)
-        self.run_name, self.base, self.running, self.delivered = run_name, base, set[str](), set[str]()
-        self.lock = threading.Lock()
-
-    def url(self) -> str:
-        return f"http://{os.environ.get('OUSAST_ARTIFACT_HOST') or DEFAULT_ARTIFACT_HOST}:{self.server_address[1]}/"
-
-    def accept(self, headers: Any, body: bytes) -> tuple[int, str]:
-        task = headers.get("X-Ousast-Task", "")
-        if headers.get("X-Ousast-Run") != self.run_name or task not in self.running:
-            return 403, "unknown run or task"
-        if not str(headers.get("Content-Type", "")).startswith("application/x-tar"):
-            return 415, "expected application/x-tar"
-        dest = (self.base / task).resolve()
-        try:
-            with tarfile.open(fileobj=io.BytesIO(body), mode="r:") as tar:
-                members = tar.getmembers()
-                for m in members:
-                    if m.issym() or m.islnk() or not (dest / m.name).resolve().is_relative_to(dest):
-                        return 400, f"rejected member {m.name}"
-                dest.mkdir(parents=True, exist_ok=True)
-                tar.extractall(dest, members)  # every member checked above
-        except tarfile.TarError as exc:
-            return 400, f"bad tar: {exc}"
-        with self.lock:
-            self.delivered.add(task)
-        return 200, "ok"
-
-
-class _Handler(BaseHTTPRequestHandler):
-    def do_POST(self) -> None:
-        server: Receiver = self.server  # type: ignore[assignment]
-        body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
-        code, text = server.accept(self.headers, body)
-        self.send_response(code)
-        self.send_header("Content-Type", "text/plain")
-        self.end_headers()
-        self.wfile.write(text.encode())
-
-    def log_message(self, format: str, *args: object) -> None:
-        return
 
 
 # --- the run -------------------------------------------------------------------------------------------------------
@@ -347,35 +299,45 @@ def _await(ax: Ax, name: str, delivered: Callable[[], bool], start: Callable[[],
     return None
 
 
-def _execute(ax: Ax, run: Run, entry: RunTask, manifests: Manifests, base: Path, receiver: Receiver, router: Router) -> tuple[str, str]:
+def _execute(
+    ax: Ax, egress: Egress, run: Run, entry: RunTask, manifests: Manifests, base: Path, receiver: Receiver, router: Router
+) -> tuple[str, str]:
     ax_name, task = _ax_name(run.metadata.name, entry.name), manifests.tasks[entry.task]
-    manifest = base / entry.name / "task.yaml"
+    atespace, manifest = task.metadata.atespace or "default", base / entry.name / "task.yaml"
     manifest.parent.mkdir(parents=True, exist_ok=True)
-    docs = render_task(run, entry, manifests, base, receiver.url())
+    docs = render_task(run, entry, manifests, base, receiver.url, receiver.dial)
     manifest.write_text(yaml.safe_dump_all(docs, sort_keys=False), encoding="utf-8")
+    model = manifests.models.get(task.metadata.annotations.get(MODEL_ANNOTATION) or "")
+    policy = policy_for(task, [manifests.workspaces[b.name] for b in task.workspaces], model, urlsplit(receiver.url).hostname)
     try:  # Req 4.6: the bound Model's credential is read here and only ever sent in the start request
-        secrets = credentials(manifests.models.get(task.metadata.annotations.get(MODEL_ANNOTATION) or ""))
-        start = router.starter(task.metadata.atespace or "default", ax_name, run.metadata.name, secrets)
-        ax.apply(manifest)
+        start = router.starter(atespace, ax_name, run.metadata.name, credentials(model))
+        ax.apply(manifest)  # creates the Substrate actor; its egress is denied until the policy exists
+        egress.apply(ax_name, atespace, policy)
+        egress.settle()
     except RuntimeError as exc:  # StartError included: a Model-bound task whose secret is unset
+        ax.delete(ax_name)
         return "failed", str(exc)
     try:
         failure = _await(ax, ax_name, lambda: entry.name in receiver.delivered, start)
     finally:
         ax.delete(ax_name)
+        leftover = egress.delete(ax_name, atespace)  # the policy goes with its actor; a survivor is reported
+        if leftover:
+            print(leftover, file=sys.stderr)
     return ("failed", failure) if failure else outcome_of(_read_json(base / entry.name / "summary.json"))
 
 
-def run(run_manifest: Path, *, workers: int = 1, ax: str = "ax", results_root: Path | None = None) -> str:
+def run(run_manifest: Path, *, workers: int = 1, ax: str = "ax", results_root: Path | None = None, kubectl_ate: str | None = None) -> str:
     """Execute a Run on ax and return its status: ``done``, ``unfinished`` or ``failed`` (Req 3.1-3.3, 2.2)."""
     run_spec, manifests = load_run(Path(run_manifest))
     base = run_dir(run_spec.metadata.name, results_root)
     base.mkdir(parents=True, exist_ok=True)
     lock = _acquire_lock(base)
     state = _State(base / "state.json", _read_json(base / "state.json") or {"run": run_spec.metadata.name, "started": _now(), "tasks": {}})
-    receiver = Receiver(run_spec.metadata.name, base, int(os.environ.get("OUSAST_ARTIFACT_PORT") or 0))
+    port = os.environ.get("OUSAST_ARTIFACT_PORT") or (0 if os.environ.get("OUSAST_ARTIFACT_HOST") else RECEIVER_PORT)
+    receiver = Receiver(run_spec.metadata.name, base, int(port))  # the receiver Service targets RECEIVER_PORT
     threading.Thread(target=receiver.serve_forever, daemon=True).start()
-    cli, finished = Ax(ax), queue.Queue[tuple[str, str, str]]()
+    cli, egress, finished = Ax(ax), Egress(kubectl_ate), queue.Queue[tuple[str, str, str]]()
     pending = [t for t in run_spec.tasks if state.status(t.name) != "done"]
     for entry in run_spec.tasks:
         state.set(entry.name, **({"status": "pending"} if entry in pending else {}))
@@ -386,7 +348,7 @@ def run(run_manifest: Path, *, workers: int = 1, ax: str = "ax", results_root: P
         if state.status(entry.name) in ("running", "suspended"):
             cli.delete(_ax_name(run_spec.metadata.name, entry.name))  # an interrupted attempt; ax must not keep it
         state.set(entry.name, status="running", started=_now(), finished=None)
-        finished.put((entry.name, *_execute(cli, run_spec, entry, manifests, base, receiver, router)))
+        finished.put((entry.name, *_execute(cli, egress, run_spec, entry, manifests, base, receiver, router)))
 
     try:
         with open_router() as router:  # one port-forward to Substrate's router for the whole run

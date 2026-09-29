@@ -35,12 +35,26 @@ if ready ate-system; then echo "substrate ready; kept"; else
 fi
 kubectl --context "$CTX" -n ate-system get pods
 
+step "egress gateway (atenet-egress, agentgateway variant: one prebuilt image, nothing built)"
+# Every actor connection goes through this gateway; without it an actor has no network at all. The Substrate
+# install can die before deploying it (e.g. a full disk), so it is applied on its own when absent.
+if kubectl --context "$CTX" -n ate-system get deploy atenet-egress >/dev/null 2>&1; then echo "gateway present; kept"; else
+  kubectl kustomize --load-restrictor=LoadRestrictionsNone "$SRC/substrate/manifests/ate-install/agentgateway-egress" \
+    | kubectl --context "$CTX" apply -f -
+  kubectl --context "$CTX" -n ate-system rollout status deploy/atenet-egress --timeout=300s
+fi
+
 step "ax control plane (ax-system)"
 if ready ax-system; then echo "ax ready; kept"; else
   (cd "$SRC/ax" && make deploy AX_IMAGE_REPO="$KO_DOCKER_REPO")
   kubectl --context "$CTX" -n ax-system wait --for=condition=Ready pod --all --timeout=600s
 fi
 kubectl --context "$CTX" -n ax-system get pods
+
+step "artifact receiver Service (ousast-receiver.ax-system -> this host)"
+KIND_GATEWAY="$(docker network inspect kind --format '{{range .IPAM.Config}}{{if .Gateway}}{{.Gateway}} {{end}}{{end}}' | tr ' ' '\n' | grep -m1 '\.')"
+export KIND_GATEWAY OUSAST_ARTIFACT_PORT="${OUSAST_ARTIFACT_PORT:-18090}"   # the reconciler's fixed receiver port
+envsubst < "$(dirname "$0")/receiver-service.yaml.tmpl" | kubectl --context "$CTX" apply -f -
 
 step "worker pool (gVisor)"
 SUBSTRATE_VERSION="$(kubectl --context "$CTX" get nodes -o jsonpath='{.items[0].metadata.labels.ate\.dev/substrate-version}')"

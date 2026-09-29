@@ -43,6 +43,8 @@ Environment the runner reads, all optional except the two ax variables:
     OUSAST_CASE_CACHE                  a directory of git checkouts (``benchmarks/independent`` cache layout)
     OUSAST_GIT_PINS                    JSON ``{"<workspace>/<git name>": "<40-hex commit>"}`` from the reconciler
     OUSAST_ARTIFACT_URL, OUSAST_RUN    where to deliver, and the run name carried in ``X-Ousast-Run``
+    OUSAST_ARTIFACT_DIAL               ``host:port`` to connect to instead of the URL's host, which is sent as
+                                       ``Host`` (the egress gateway decides on and resolves that name)
     OUSAST_DELIVERY_BACKOFF            seconds before the second delivery attempt, doubled per retry
 
 The runner exports ``OUSAST_WORKSPACE_DIR`` (the first bound workspace) when the Task's env leaves it unset,
@@ -72,6 +74,7 @@ from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import yaml
 
@@ -632,11 +635,26 @@ def build_tar(output_dir: Path) -> bytes:
     return buffer.getvalue()
 
 
-def deliver(url: str, payload: bytes, headers: Mapping[str, str], *, attempts: int = DELIVERY_ATTEMPTS, backoff: float = 1.0) -> int:
-    """POST ``payload`` to ``url`` with ``headers``; retry with doubling backoff; return the 2xx status."""
-    last = "no attempt made"
+def deliver(
+    url: str,
+    payload: bytes,
+    headers: Mapping[str, str],
+    *,
+    attempts: int = DELIVERY_ATTEMPTS,
+    backoff: float = 1.0,
+    dial: str | None = None,
+) -> int:
+    """POST ``payload`` to ``url`` with ``headers``; retry with doubling backoff; return the 2xx status.
+
+    ``dial`` (``host:port``): connect there instead and send the URL's host as ``Host``, as the actor must -- it
+    cannot resolve the receiver's cluster name, and the egress gateway decides on ``Host`` and resolves it itself.
+    """
+    last, target, headers = "no attempt made", url, dict(headers)
+    if dial:
+        parts = urlsplit(url)
+        target, headers["Host"] = parts._replace(netloc=dial).geturl(), parts.netloc
     for attempt in range(1, attempts + 1):
-        request = urllib.request.Request(url, data=payload, method="POST", headers=dict(headers))
+        request = urllib.request.Request(target, data=payload, method="POST", headers=headers)
         try:
             with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310 - the reconciler's URL
                 status = int(response.status)
@@ -658,12 +676,13 @@ def _deliver_output(task: Task, output_dir: Path, environ: Mapping[str, str]) ->
     url = environ.get("OUSAST_ARTIFACT_URL")
     if not url:
         return False
-    headers = {"Content-Type": "application/x-tar", "X-Ousast-Task": task.metadata.name}
+    # the Run's task name (``OUSAST_TASK``) is what the receiver knows; the ax Task is named ``<run>-<task>``
+    headers = {"Content-Type": "application/x-tar", "X-Ousast-Task": environ.get("OUSAST_TASK") or task.metadata.name}
     run = environ.get("OUSAST_RUN")
     if run:
         headers["X-Ousast-Run"] = run
     backoff = float(environ.get("OUSAST_DELIVERY_BACKOFF", "1.0"))
-    deliver(url, build_tar(output_dir), headers, backoff=backoff)
+    deliver(url, build_tar(output_dir), headers, backoff=backoff, dial=environ.get("OUSAST_ARTIFACT_DIAL") or None)
     return True
 
 

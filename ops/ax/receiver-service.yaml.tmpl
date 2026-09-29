@@ -1,0 +1,31 @@
+# The reconciler's artifact receiver by name (ai-service-plane task 0). Actors reach nothing but through Agent
+# Substrate's egress gateway, and the gateway allows HTTP by hostname only (never an IP address): the runner dials
+# this Service's ClusterIP on port 80 with Host `ousast-receiver.ax-system.svc.cluster.local`; the gateway allows
+# it on that Host and connects to the ClusterIP, which kube-proxy maps to the endpoint below, the host's receiver
+# on ${OUSAST_ARTIFACT_PORT} at the kind gateway. Rendered by up.sh.
+apiVersion: v1
+kind: Service
+metadata:
+  name: ousast-receiver
+  namespace: ax-system
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: ${OUSAST_ARTIFACT_PORT}
+      protocol: TCP
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: ousast-receiver-host
+  namespace: ax-system
+  labels:
+    kubernetes.io/service-name: ousast-receiver
+addressType: IPv4
+ports:
+  - name: http
+    port: ${OUSAST_ARTIFACT_PORT}
+    protocol: TCP
+endpoints:
+  - addresses: ["${KIND_GATEWAY}"]

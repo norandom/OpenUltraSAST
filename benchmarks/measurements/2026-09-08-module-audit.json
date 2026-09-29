@@ -1,7 +1,7 @@
 {
-  "modules": 131,
+  "modules": 132,
   "counts": {
-    "load_bearing": 122,
+    "load_bearing": 123,
     "standalone_capability": 9
   },
   "orphaned": [],
@@ -661,6 +661,7 @@
       "reason": "ai-service-plane Req 1-4: the service plane package; runner and reconciler integration in tasks 3-4",
       "importers": [
         "cli",
+        "plane.egress",
         "plane.generate",
         "plane.reconciler",
         "plane.router",
@@ -687,6 +688,14 @@
       ]
     },
     {
+      "module": "plane.egress",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
+        "plane.reconciler"
+      ]
+    },
+    {
       "module": "plane.generate",
       "classification": "load_bearing",
       "reason": "ai-service-plane task 7: an increment's Workspaces, per-case Tasks and Run from a recorded set",
@@ -699,6 +708,7 @@
       "classification": "load_bearing",
       "reason": "ai-service-plane Req 1.1-1.4: ax-shaped Task/Workspace/Model and the Run kind, validated before anything runs",
       "importers": [
+        "plane.egress",
         "plane.generate",
         "plane.reconciler",
         "plane.router",

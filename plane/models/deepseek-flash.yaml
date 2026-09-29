@@ -10,6 +10,7 @@ metadata:
   atespace: default
   annotations:
     openultrasast.io/provider-extension: "true"
+    openultrasast.io/egress-hosts: "api.deepseek.com"   # model.endpoint.DEEPSEEK_BASE_URL; the task's only model egress
 spec:
   provider: deepseek
   model: deepseek-flash

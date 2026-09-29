@@ -156,7 +156,7 @@ apiVersion: ax.io/v1alpha1
 kind: Model
 metadata:
   name: deepseek-flash
-  annotations: {openultrasast.io/provider-extension: "true"}
+  annotations: {openultrasast.io/provider-extension: "true", openultrasast.io/egress-hosts: api.deepseek.com}
 spec:
   provider: deepseek
   model: deepseek-chat
@@ -269,6 +269,8 @@ class Fake:
                 out.append((stamp, Path(words[2]).parent.name))
             elif verb in ("delete", "resume") and words[:2] == [verb, "task"]:
                 out.append((stamp, words[2]))
+            elif verb == "egress" and words[0] == verb:
+                out.append((stamp, f"{words[1]} {words[2]}"))
             elif verb in ("delivered", "rejected") and words[0] == verb:
                 out.append((stamp, words[1]))
         return out
@@ -313,7 +315,7 @@ class _RouterHandler(BaseHTTPRequestHandler):
 
 
 @pytest.fixture
-def fake(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Fake]:
+def fake(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kubectl_ate: Path) -> Iterator[Fake]:
     monkeypatch.setenv("OUSAST_RESULTS", str(tmp_path / "results"))
     monkeypatch.setenv("OUSAST_ARTIFACT_HOST", "127.0.0.1")
     monkeypatch.setenv("OUSAST_POLL_SECONDS", "0.02")
@@ -747,3 +749,34 @@ def test_doctor_treats_an_empty_namespace_as_not_ready(monkeypatch: pytest.Monke
     assert doctor._pods_ready("ns", "ctx") == (True, "2 pods ready")
     monkeypatch.setattr(doctor, "_sh", lambda *a: (True, "a-1 0/1 Running 0 1m"))
     assert doctor._pods_ready("ns", "ctx")[0] is False
+
+
+# --- egress (task 0: the per-task policy) --------------------------------------------------------------------------
+
+
+def test_egress_policy_between_apply_and_resume_and_checked_after_delete(fake: Fake, tmp_path: Path) -> None:
+    """apply -> policy -> resume -> start -> delivery -> delete task -> the policy is gone with its actor."""
+    assert reconciler.run(write_run(tmp_path, "eg"), ax=str(fake.ax)) == "done"
+    lines = [" ".join(words) for _, words in fake.log()]
+
+    def first(prefix: str, after: int = 0) -> int:
+        return next(i for i, line in enumerate(lines) if i >= after and line.startswith(prefix))
+
+    order = [first("apply -f " + str(reconciler.run_dir("eg") / "verify"))]
+    steps = ("egress create eg-verify", "resume task eg-verify", "started eg-verify 202", "delivered verify", "delete task eg-verify")
+    for prefix in (*steps, "egress get eg-verify"):  # the last one: the check after the delete
+        order.append(first(prefix, order[-1] + 1))
+    assert order == sorted(order)
+    assert not (tmp_path / "policies" / "default_eg-verify.json").exists(), "the policy went with its actor"
+    written = json.loads((tmp_path / "policies" / "default_eg-verify.written.json").read_text())
+    tls = {"hostnames": ["api.deepseek.com", "example.invalid"], "ports": {"numbers": [443]}}
+    assert written["rules"] == [{"tlsPassthrough": tls}], "the Model host and the Git host, nothing else"
+    facts = json.loads((tmp_path / "policies" / "default_eg-repo-facts.written.json").read_text())
+    assert facts["rules"] == [{"tlsPassthrough": {"hostnames": ["example.invalid"], "ports": {"numbers": [443]}}}]
+
+
+def test_a_refused_egress_policy_fails_the_task_before_resume(fake: Fake, tmp_path: Path, kubectl_ate: Path) -> None:
+    kubectl_ate.write_text("#!/bin/sh\necho 'Error: permission denied' >&2\nexit 1\n", encoding="utf-8")
+    assert reconciler.run(write_run(tmp_path, "egfail"), ax=str(fake.ax)) == "failed"
+    assert "permission denied" in state_of("egfail")["tasks"]["repo-facts"]["reason"]
+    assert fake.events("resume") == [] and [n for _, n in fake.events("delete")] == ["egfail-repo-facts"]

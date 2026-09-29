@@ -244,6 +244,10 @@ def test_output_dir_is_delivered_as_a_tar_with_the_headers(
     assert headers["Content-Type"] == "application/x-tar"
     assert headers["X-Ousast-Task"] == "stub"
     assert headers["X-Ousast-Run"] == "validation-46"
+    receiver.posts.clear()
+    again = {"OUSAST_ARTIFACT_URL": receiver.url, "OUSAST_TASK": "facts", "OUSAST_STATE_DIR": str(tmp_path / "again-state")}
+    code, _ = run_main(monkeypatch, tmp_path / "again", files_workspace_yaml(), **again)
+    assert code == 0 and receiver.posts[0][0]["X-Ousast-Task"] == "facts", "the Run's task name, not the ax Task's"
     with tarfile.open(fileobj=io.BytesIO(body), mode="r:") as archive:
         names = sorted(archive.getnames())
         summary = archive.extractfile("summary.json")

@@ -11,6 +11,12 @@ mypy are clean, and the commit is gated on pytest's own exit code. Script-level 
     and wait for it to finish; `ops/ax/down.sh` tears it down. Record the measured idle footprint (RSS, CPU)
     in `ops/ax/README.md` next to the 7 GB host constraint.
   - `ousast plane doctor` (in `reconciler.py` or a sibling `doctor.py`): the four checks of Requirement 3.5.
+  - Egress: `up.sh` applies Substrate's agentgateway egress gateway (`atenet-egress`, prebuilt image, rendered
+    with `kubectl kustomize`) when absent, and the receiver Service `ousast-receiver.ax-system`
+    (`receiver-service.yaml.tmpl`, endpoint the kind gateway at port 18090). The reconciler writes each task's
+    egress policy (`egress.py`: receiver over HTTP, Git and Model hosts as TLS passthrough) between `ax apply` and
+    resume; the runner delivers to `OUSAST_ARTIFACT_DIAL` (the Service's ClusterIP, port 80) with the receiver's name as
+    `Host`.
   - Stop rule: if the cluster does not come up within one working session, report the exact failure and stop;
     the decision to work around it is the maintainer's.
   - _Requirements: 3.5, 3.6_

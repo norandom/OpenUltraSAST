@@ -4,8 +4,10 @@ set -euo pipefail
 export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
 SRC="${OUSAST_AX_SRC:-$HOME/.cache/ousast/ax-src}"
 RUNNER_IMAGE="$(cat "$SRC/runner-image")"; export RUNNER_IMAGE
-KIND_GW="$(docker network inspect kind --format '{{range .IPAM.Config}}{{if .Gateway}}{{.Gateway}} {{end}}{{end}}' | tr ' ' '\n' | grep -m1 '\.')"
-export OUSAST_ARTIFACT_HOST="${OUSAST_ARTIFACT_HOST:-$KIND_GW}"   # sandboxes reach the host via the kind gateway
+# Actors reach the receiver by its Service name through the egress gateway (ops/ax/receiver-service.yaml.tmpl,
+# applied by up.sh, endpoint this host at OUSAST_ARTIFACT_PORT): the runner dials the Service's ClusterIP on port
+# 80 with that name as Host; the reconciler looks the ClusterIP up unless OUSAST_ARTIFACT_DIAL is set.
+export OUSAST_ARTIFACT_PORT="${OUSAST_ARTIFACT_PORT:-18090}"
 envsubst < "$(dirname "$0")/smoke-run.yaml.tmpl" > "$SRC/smoke-run.yaml"
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 "$REPO/.venv/bin/ousast" plane run "$SRC/smoke-run.yaml" "$@"

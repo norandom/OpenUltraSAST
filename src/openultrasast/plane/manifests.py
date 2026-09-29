@@ -24,6 +24,7 @@ import yaml
 __all__ = [
     "AX_API_VERSION",
     "AX_PROVIDERS",
+    "EGRESS_HOSTS_ANNOTATION",
     "EXTENSION_PROVIDERS",
     "GIT_COMMITS_ANNOTATION",
     "PROVIDER_EXTENSION_ANNOTATION",
@@ -55,6 +56,8 @@ AX_API_VERSION = "ax.io/v1alpha1"
 RUN_API_VERSION = "openultrasast.io/v1alpha1"
 PROVIDER_EXTENSION_ANNOTATION = "openultrasast.io/provider-extension"
 GIT_COMMITS_ANNOTATION = "openultrasast.io/git-commits"
+EGRESS_HOSTS_ANNOTATION = "openultrasast.io/egress-hosts"  # the Model API hosts a bound task may reach
+_DNS_NAME = re.compile(r"^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$")
 AX_PROVIDERS = frozenset({"google", "anthropic"})
 EXTENSION_PROVIDERS = frozenset({"deepseek"})
 
@@ -167,6 +170,15 @@ class Model:
     model: str
     secret_key: SecretKey | None = None
     parameters: Mapping[str, Any] = field(default_factory=dict)
+
+    @property
+    def egress_hosts(self) -> tuple[str, ...]:
+        """DNS names from ``metadata.annotations["openultrasast.io/egress-hosts"]`` (comma-separated)."""
+        return _split_hosts(self.metadata.annotations.get(EGRESS_HOSTS_ANNOTATION, ""))
+
+
+def _split_hosts(text: str) -> tuple[str, ...]:
+    return tuple(h.strip() for h in text.split(",") if h.strip())
 
 
 @dataclass(frozen=True)
@@ -426,6 +438,10 @@ def _parse_model(check: _Check, metadata: Metadata, spec: Mapping[str, Any]) -> 
             )
     elif provider not in AX_PROVIDERS:
         raise check.fail("spec.provider", f'"{provider}" is not one of {", ".join(sorted(AX_PROVIDERS | EXTENSION_PROVIDERS))}')
+    for host in _split_hosts(metadata.annotations.get(EGRESS_HOSTS_ANNOTATION, "")):
+        if not _DNS_NAME.match(host) or host.replace(".", "").isdigit():
+            path = f'metadata.annotations["{EGRESS_HOSTS_ANNOTATION}"]'
+            raise check.fail(path, f"{host!r} is not a lowercase DNS name (no wildcard, IP address, port or scheme)")
     secret = check.optional_mapping(spec, "spec", "secretKey", ("name", "key"))
     parameters = spec.get("parameters") or {}
     if not isinstance(parameters, dict):

@@ -110,8 +110,8 @@ new image can fail with `DeadlineExceeded` while Agent Substrate builds its gold
 `OUSAST_RESUME_TIMEOUT` (900 s). ax has no Completed phase and never reports that a command exited: completion is
 the artifact delivery. `Failed` after a resume went through, or the task disappearing, before delivery fails the
 task with ax's condition message; no delivery within `OUSAST_TASK_TIMEOUT` (7200 s) fails it too; `ax delete task`
-follows either way. Artifacts: the reconciler serves a small HTTP receiver on the host (reachable from kind pods
-via the docker bridge); the runner posts the output directory there after its command exits. Tasks sharing a
+follows either way. Artifacts: the reconciler serves a small HTTP receiver on the host (reachable from actors
+by name through the egress gateway, see Egress below); the runner posts the output directory there after its command exits. Tasks sharing a
 `serialize` label never overlap; everything else may run in parallel up to `--workers`. A task's outcome is
 read from its delivered `summary.json`: `done` only when the task says every unit finished; `unfinished` on a
 budget stop; `failed` on an account or authentication error, a crash, or a missing delivery. `status` prints
@@ -130,6 +130,30 @@ fails the task with the response text unless it already delivered. Credentials c
 bound Model's `spec.secretKey.key` names the variable (`DEEPSEEK_API_KEY` for `deepseek-flash`), read from the
 reconciler's own environment (`ousast` loads `.env` at startup); a Model-bound task whose variable is unset fails
 before `ax apply`, and a task without a Model gets none. The value is never rendered, logged or written.
+
+#### Egress (`egress.py`)
+
+Every actor connection except DNS goes through Agent Substrate's egress gateway (`atenet-egress`), which denies
+an actor without an `EgressPolicy`. Three pieces make the plane work under that rule:
+
+- **Receiver by name.** `ops/ax/receiver-service.yaml.tmpl` (applied by `up.sh`) is a selector-less Service
+  `ousast-receiver` in `ax-system`, port 80, with an EndpointSlice on the kind gateway at `OUSAST_ARTIFACT_PORT`
+  (fixed, 18090), where the reconciler binds its receiver. Tasks get
+  `OUSAST_ARTIFACT_URL=http://ousast-receiver.ax-system.svc.cluster.local/` plus `OUSAST_ARTIFACT_DIAL=<the
+  Service's ClusterIP>:80` (looked up with kubectl unless set): the actor cannot resolve cluster names, so the
+  runner connects to the dial address and sends the URL's host as `Host`. The gateway decides the policy on
+  `Host` but connects to the address the actor dialled (measured: dialling the kind gateway on port 80 was allowed
+  and then refused upstream), so the dial address is the ClusterIP, which kube-proxy maps to the host.
+  `OUSAST_ARTIFACT_HOST` set keeps the old direct URL (tests).
+- **Per-task policy.** `policy_for` grants `http` on port 80 to the receiver name, and `tls_passthrough` on 443
+  to the Git hosts of the bound Workspaces' `https` repos and to the bound Model's
+  `openultrasast.io/egress-hosts` (`api.deepseek.com` for `deepseek-flash`, validated as a plain DNS name).
+  Nothing else: no IP address or wildcard, and passthrough only -- an `https` rule intercepts TLS and the actor
+  would need the gateway CA, which ax templates do not mount.
+- **Order.** `ax apply` creates the actor; the reconciler writes the policy with `kubectl ate create
+  egress-policy` (update when one exists), reads it back, waits `OUSAST_EGRESS_SETTLE` (11 s: the gateway caches a
+  missing policy as deny for 10 s), then resumes. kubectl-ate has no delete verb; Substrate's store deletes the
+  policy with its actor, so after `ax delete task` the reconciler confirms it is gone.
 
 ### Budget (`budget.py`)
 
