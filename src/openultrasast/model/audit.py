@@ -59,6 +59,9 @@ SPEC_OWNED = {
     "plane.manifests": "ai-service-plane Req 1.1-1.4: ax-shaped Task/Workspace/Model and the Run kind, validated before anything runs",
     "plane.tasks": "ai-service-plane Req 4.1: the task entrypoint package the runner imports by name; runner integration pending (task 3)",
     "plane.tasks.repo_facts": "ai-service-plane Req 5.1/5.2: source-only functions and callers per file; runner integration pending",
+    "plane.tasks": "ai-service-plane Req 2.1: the tasks package, each a main() under the OUSAST_* env contract; runner wiring in task 3",
+    "plane.tasks.verify": "ai-service-plane Req 5.3/2.1-2.3/7.2: the batched hunt with known callers, metered and resumable per file hunt",
+    "plane.tasks.agree": "ai-service-plane Req 5.3/2.1: agreement across two verify passes with per-candidate cost, turns and site match",
 }
 
 STANDALONE = {
