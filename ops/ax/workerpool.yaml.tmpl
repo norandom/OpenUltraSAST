@@ -1,0 +1,23 @@
+# Warm gVisor workers for ax tasks on this host (Agent Substrate WorkerPool). ax's per-task ActorTemplates
+# set no workerSelector, so every pool of the matching sandbox class is eligible. Two workers of 1 CPU /
+# 1.5 GiB fit the 7 GB host beside the control planes; an actor occupies a whole worker.
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: ousast-pool
+  namespace: ax-system
+  labels:
+    workload: ousast
+spec:
+  replicas: 2
+  workerImage: ko://github.com/agent-substrate/substrate/cmd/ateom-gvisor
+  template:
+    nodeSelector:
+      ate.dev/substrate-version: "${SUBSTRATE_VERSION}"
+    resources:
+      limits:
+        cpu: "1"
+        memory: 1536Mi
+      requests:
+        cpu: 250m
+        memory: 1536Mi

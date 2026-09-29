@@ -1,12 +1,15 @@
-# Minimal Task for the bring-up smoke test: default runner image, a files-only workspace, no MCP or skills.
+# Bring-up smoke test: our runner image runs the model-free repo-facts task over a files-only workspace.
 apiVersion: ax.io/v1alpha1
 kind: Task
 metadata:
   name: ousast-smoke
   atespace: default
 spec:
-  image: "gcr.io/ax-substrate/ate-images/ax-task-runner@sha256:3a0dea6ad8b55278685db58aca6e37dc4ba04056831d45bef3aaeafdca43cac6"
-  command: ["sh", "-c", "cat /workspace/hello.txt && echo smoke-ok"]
+  image: "${RUNNER_IMAGE}"   # digest-pinned (Substrate rejects tags); rendered by up.sh
+  command: ["repo-facts"]
+  env:
+    - name: OUSAST_OUTPUT_DIR
+      value: "/workspace/.ousast-out/smoke"
   resources:
     requests:
       cpu: "100m"
@@ -25,5 +28,5 @@ metadata:
   atespace: default
 spec:
   files:
-    - path: "hello.txt"
-      content: "hello from openultrasast\n"
+    - path: "hello.py"
+      content: "def hello():\n    return greet()\n"
