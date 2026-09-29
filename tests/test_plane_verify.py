@@ -230,8 +230,8 @@ def _two_passes(tmp_path: Path) -> tuple[Path, Path, Path]:
 def test_agree_over_two_scripted_passes_computes_agreement_and_metrics(tmp_path: Path) -> None:
     _, a, b = _two_passes(tmp_path)
     out = tmp_path / "agree"
-    sites = {"id": "case", "family": "injection", "sites": ["app.py::run", "db.py::query"]}
-    summary = agree.run(out, CANDIDATES, agree.load_pass(a), agree.load_pass(b), sites=sites, matcher=agree.load_matcher())
+    sites = {"id": "case", "family": "injection", "sites": ["app.py::run", "db.py::query"], "ranges": {"app.py": [[40, 41]]}}
+    summary = agree.run(out, CANDIDATES, agree.load_pass(a), agree.load_pass(b), sites=sites)
     assert summary["status"] == "done" and summary["usd"] == 0 and summary["calls"] == 0 and summary["model"] is None
     report = json.loads((out / "agreed.json").read_text())
     by_name = {r["candidate"]: r for r in report["candidates"]}
@@ -255,6 +255,34 @@ def test_agree_over_two_scripted_passes_computes_agreement_and_metrics(tmp_path:
     assert by_name["app.py::run"]["usd"] == pytest.approx(2 * per_call, abs=1e-6)
 
 
+def test_agree_reports_cost_with_the_recorded_triage_and_needs_fix_ranges_to_assess_sites(tmp_path: Path) -> None:
+    _, a, b = _two_passes(tmp_path)
+    cost = {"candidates_before_triage": 4, "recorded_usd": 1.0, "recorded_triage_usd": 0.01, "recorded_triage_basis": "derived"}
+    sites = {"id": "case", "family": "injection", "sites": ["app.py::run"], "sites_in_set": ["app.py::run"], "cost": cost}
+    metrics = agree.run(tmp_path / "agree", CANDIDATES, agree.load_pass(a), agree.load_pass(b), sites=sites)["metrics"]
+    spend = metrics["usd_total"]
+    assert metrics["candidates"] == 3 and metrics["candidates_before_triage"] == 4 and metrics["declared_sites_in_set"] == 1
+    assert metrics["cost_per_candidate"] == pytest.approx(spend / 4, abs=1e-6)
+    assert metrics["usd_total_with_recorded_triage"] == pytest.approx(spend + 0.01, abs=1e-6)
+    assert metrics["cost_per_candidate_with_recorded_triage"] == pytest.approx((spend + 0.01) / 4, abs=1e-6)
+    # without the fix ranges a miss cannot be told from a match: not assessed, never a silent zero
+    assert metrics["site_matching"] == "not assessed: no fix ranges given" and metrics["declared_sites_matched"] == 0
+
+
+def test_matches_declared_is_the_protocol_v2_rule() -> None:
+    case = {"family": "injection", "sites": ["a.py::run", "b.py::<global>"]}
+    ranges = {"a.py": [[50, 52]], "c.py": [[5, 5]]}
+    hit = lambda site, family="injection": agree.matches_declared({"site": site, "family": family}, case, ranges)  # noqa: E731
+    assert hit("a.py:0:run") and hit("b.py:0:<global>")  # a declared path::function, whether or not the fix touched it
+    assert not hit("a.py:0:run", "ssrf")  # another family never matches
+    assert hit("a.py:62:helper") and not hit("a.py:63:helper") and hit("a.py:40:x") and not hit("a.py:39:x")  # 10-line window
+    assert hit("c.py:900:run") and not hit("d.py:1:run")  # a declared function name in a changed file only
+    assert (
+        not hit("a.py:x:helper") and hit("c.py:x:helper") and agree.anchor_site("a.py::run", "other.py:7:run") == "a.py:0:run"
+    )  # a non-numeric line is -1, as in the reference
+    assert agree.anchor_site("a.py::run", "a.py:7:renamed") == "a.py:7:run"
+
+
 def test_agree_without_sites_leaves_site_matching_unassessed_and_flags_unasked_candidates(tmp_path: Path) -> None:
     _, a, b = _two_passes(tmp_path)
     rows_b = [r for r in agree.load_pass(b) if r["path"] != "db.py"]
@@ -269,7 +297,8 @@ def test_agree_main_reads_the_env_contract(tmp_path: Path, monkeypatch: pytest.M
     _, a, b = _two_passes(tmp_path)
     (tmp_path / "candidates.json").write_text(json.dumps(CANDIDATES))
     (tmp_path / "case.toml").write_text(
-        '[[case]]\nid = "case"\nfamily = "injection"\nsites = ["app.py::run"]\n\n[[case]]\nid = "x"\nfamily = "injection"\nsites = []\n'
+        '[[case]]\nid = "case"\nfamily = "injection"\nsites = ["app.py::run"]\nranges = { "app.py" = [[40, 41]] }\n\n'
+        '[[case]]\nid = "x"\nfamily = "injection"\nsites = []\n'
     )
     env = {
         "OUSAST_OUTPUT_DIR": str(tmp_path / "agree"), "OUSAST_INPUT_PASS_A": str(a), "OUSAST_INPUT_PASS_B": str(b / "units.jsonl"),

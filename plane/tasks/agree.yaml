@@ -7,7 +7,7 @@ metadata:
   name: agree
   atespace: default
 spec:
-  image: "localhost:5001/ousast-runner@sha256:318cbe019c1155b43fe59e47368d99e78f6f6011b7c822292251de53cf567bf3"
+  image: "localhost:5001/ousast-runner@sha256:055ef8581911fbe9c3a3eb97b78b8a7206723460238aed52ce25b3d04756b3f4"
   command: ["agree"]
   resources:
     requests:

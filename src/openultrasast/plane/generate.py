@@ -8,8 +8,11 @@ under ``--plane`` (default ``plane/``), everything a Run over the set needs besi
   ``openultrasast.io/git-commits`` annotation, as :mod:`.workspaces` writes it);
 - ``workspaces/<case>-inputs.yaml``: a files-only Workspace with the inputs no task produces -- the recorded
   candidates (``candidates.json`` in the ``independent-v2-modelsinks`` shape for ``verify`` and ``agree``,
-  ``functions.json`` as ``{path, function, line}`` rows for ``repo-facts``), the case's declared sites
-  (``case.json`` for ``agree``) and the recorded triage (``triage.json``, for the measurement);
+  ``functions.json`` as ``{path, function, line}`` rows for ``repo-facts``), everything ``agree`` scores by
+  (``case.json``: the declared sites, the old-side fix ranges exactly as ``evaluate.hunks(case, "old")`` computes
+  them from ``--repos``, the declared sites among the set's candidates -- the reference's "of 20" -- and the
+  reference's cost: candidates before triage, recorded usd, and the triage share of it) and the recorded triage
+  (``triage.json``, for the measurement);
 - ``tasks/<run>.yaml``: per case, one Task per template (two for ``verify``: ``OUSAST_PASS=a|b``) binding the two
   Workspaces and naming the files as env;
 - ``runs/<run>.yaml``: the Run, per case ``facts -> verify a, verify b -> agree``, with budgets.
@@ -24,12 +27,21 @@ Candidates are the set's ``(path, function)`` pairs with the line of the case re
 ``benchmarks/independent/verify_batched.py`` does (sorted, the last line of a repeated pair wins), and filtered
 by the recorded triage (the ``kept`` lists of the batched-check scans): ``verify`` has no triage stage, so the
 hunts see exactly the candidates the reference hunts saw. Output is a pure function of the inputs.
+
+The recorded triage cost is derived per file: a batched-check record's ``usd`` paid for the triage call and the
+hunts, and its ``usage`` counts only the hunts (``verify_sinks._Recording`` slices the client's usage from the
+first hunt on), so the triage share is ``usd`` minus that usage priced at the reference model's list price.
+
+``--runner-image FILE`` (``~/.cache/ousast/ax-src/runner-image``, written by ``ops/ax/up.sh``) re-pins the
+templates' ``image:`` to the digest in that file before generating, so a rebuilt image is one command.
 """
 
 from __future__ import annotations
 
 import json
 import math
+import re
+import subprocess
 import tomllib
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -38,13 +50,21 @@ from typing import Any
 
 import yaml
 
+from ..model.endpoint import price_of
+from .budget import cost_of
 from .manifests import GIT_COMMITS_ANNOTATION, RUN_API_VERSION, Task, load_manifests
 from .reconciler import _ax_name, _doc
 from .tasks.verify import MAX_STEPS, units_of
 
-__all__ = ["CaseInputs", "increment", "read_cases", "render"]
+__all__ = ["CaseInputs", "fix_ranges", "increment", "read_cases", "render", "repin_templates"]
 
 REFERENCE_USD_PER_CANDIDATE = 0.022  # two passes: verifier-batched-check-2026-09-29.json cost.usd_per_candidate_two_passes
+REFERENCE_MODEL = "deepseek-flash"  # verify_batched.py's default (DEFAULT_DETECTOR_MODEL) in the batched check
+TRIAGE_BASIS = (
+    "derived per file from the batched-check scans: recorded usd (triage + hunts) minus the recorded hunt usage "
+    f"priced at {REFERENCE_MODEL} list prices; the triage call's own usage was not recorded"
+)
+RANGES_BASIS = "git diff -U0 <vulnerable> <fixed>, old side: benchmarks/independent/evaluate.hunks(case, 'old')"
 HEADROOM = 1.5
 CALLS_PER_HUNT = MAX_STEPS + 2  # every tool step, the answer, one empty-content retry
 ATESPACE = "default"
@@ -62,6 +82,37 @@ class CaseInputs:
     kept: tuple[Candidate, ...]
     triage: Mapping[str, str]
     recorded_usd: float
+    triage_usd: float = 0.0
+    ranges: Mapping[str, Sequence[tuple[int, int]]] | None = None
+
+
+def fix_ranges(repo: Path, vulnerable: str, fixed: str) -> dict[str, list[tuple[int, int]]]:
+    """Changed line ranges per file on the vulnerable side of the fix: `evaluate.hunks(case, "old")`, line for
+    line (including its attribution of a hunk under ``--- /dev/null`` to the file before it)."""
+    if not (repo / ".git").exists() and not (repo / "HEAD").is_file():
+        raise ValueError(f"no repository at {repo}: the fix ranges cannot be computed")
+    diff = subprocess.run(["git", "-C", str(repo), "diff", "-U0", vulnerable, fixed], capture_output=True, text=True, check=True).stdout
+    ranges: dict[str, list[tuple[int, int]]] = {}
+    current = ""
+    for line in diff.splitlines():
+        if line.startswith("--- a/"):
+            current = line[6:]
+        elif line.startswith("@@") and current:
+            match = re.search(r"-(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))?", line)
+            if match:
+                first, length = int(match.group(1)), int(match.group(2)) if match.group(2) is not None else 1
+                ranges.setdefault(current, []).append((first, first + max(length, 1) - 1))
+    if not ranges:
+        raise ValueError(f"{repo}: the diff {vulnerable[:12]}..{fixed[:12]} changed no line on the vulnerable side")
+    return ranges
+
+
+def _triage_usd(rows: Sequence[Mapping[str, Any]]) -> float:
+    """The triage share of the recorded spend: per file, usd minus the recorded hunt usage at list price."""
+    prices = price_of(REFERENCE_MODEL)
+    if prices is None:
+        raise ValueError(f"no recorded price for {REFERENCE_MODEL}")
+    return round(sum(max(float(r.get("usd") or 0.0) - cost_of(r.get("usage") or {}, prices), 0.0) for r in rows), 6)
 
 
 def _scan_rows(triage_dir: Path, case_id: str) -> list[dict[str, Any]]:
@@ -75,8 +126,11 @@ def _scan_rows(triage_dir: Path, case_id: str) -> list[dict[str, Any]]:
     return rows
 
 
-def read_cases(validation_set: Path, candidates_dir: Path, triage_dir: Path, population: Path) -> list[CaseInputs]:
-    """The set's cases in id order, each with its candidates, the triage-kept subset and the recorded cost."""
+def read_cases(
+    validation_set: Path, candidates_dir: Path, triage_dir: Path, population: Path, repos: Path | None = None
+) -> list[CaseInputs]:
+    """The set's cases in id order, each with its candidates, the triage-kept subset, the recorded cost and its
+    triage share, and -- with ``repos`` (one clone per case id) -- the fix's old-side ranges."""
     subset: dict[str, list[list[str]]] = json.loads(validation_set.read_text(encoding="utf-8"))
     records = {c["id"]: c for c in tomllib.loads(population.read_text(encoding="utf-8"))["case"]}
     cases: list[CaseInputs] = []
@@ -104,6 +158,8 @@ def read_cases(validation_set: Path, candidates_dir: Path, triage_dir: Path, pop
                 kept=tuple(c for c in chosen if (c[0], c[1]) in kept_keys),
                 triage=dict(sorted(triage.items())),
                 recorded_usd=round(sum(float(r.get("usd") or 0.0) for r in rows), 6),
+                triage_usd=_triage_usd(rows),
+                ranges=None if repos is None else fix_ranges(repos / case_id, records[case_id]["vulnerable"], records[case_id]["fixed"]),
             )
         )
     return cases
@@ -117,6 +173,23 @@ def _json(payload: object) -> str:
     return json.dumps(payload, indent=1, sort_keys=True) + "\n"
 
 
+def _case_record(item: CaseInputs) -> dict[str, Any]:
+    """What `agree` scores by: sites, fix ranges (absent without ``--repos``), sites in the set, reference cost."""
+    case = item.case
+    sites = [str(s) for s in case.get("sites", [])]
+    in_set = {f"{p}::{fn}" for p, fn, _ in item.candidates}
+    record: dict[str, Any] = {"id": case["id"], "family": case["family"], "sites": sites}
+    if item.ranges is not None:
+        record["ranges"] = {path: [list(span) for span in spans] for path, spans in item.ranges.items()}
+        record["ranges_basis"] = RANGES_BASIS
+    record["sites_in_set"] = [s for s in sites if s in in_set]
+    record["cost"] = {
+        "candidates_before_triage": len(item.candidates), "recorded_usd": item.recorded_usd,
+        "recorded_triage_usd": item.triage_usd, "recorded_triage_basis": TRIAGE_BASIS,
+    }  # fmt: skip
+    return record
+
+
 def _workspaces(item: CaseInputs) -> tuple[dict[str, Any], dict[str, Any]]:
     case = item.case
     git = [{"name": "repo", "repo": case["repo"], "dir": "repo", "depth": 1}]
@@ -125,7 +198,7 @@ def _workspaces(item: CaseInputs) -> tuple[dict[str, Any], dict[str, Any]]:
     files = {
         "candidates.json": _json({"id": case["id"], "family": case["family"], "candidates": [list(c) for c in item.kept]}),
         "functions.json": _json([{"path": p, "function": fn, "line": ln} for p, fn, ln in item.kept]),
-        "case.json": _json({"id": case["id"], "family": case["family"], "sites": list(case.get("sites", []))}),
+        "case.json": _json(_case_record(item)),
         "triage.json": _json(
             {"candidates": [list(c) for c in item.candidates], "kept": [list(c) for c in item.kept], "triage": dict(item.triage)}
         ),
@@ -207,12 +280,43 @@ def render(cases: Sequence[CaseInputs], templates: Mapping[str, Task], run_name:
     return out
 
 
+_IMAGE_LINE = re.compile(r'^(\s*image:\s*)"?[^"\s]+"?\s*$', re.MULTILINE)
+
+
+def repin_templates(plane: Path, image_file: Path) -> str:
+    """Set every template's ``image:`` to the digest-pinned reference in ``image_file`` (as ``ops/ax/up.sh``
+    writes it); comments and layout are kept. Returns the reference."""
+    image = image_file.read_text(encoding="utf-8").strip()
+    if not re.fullmatch(r"\S+@sha256:[0-9a-f]{64}", image):
+        raise ValueError(f"{image_file}: expected a digest-pinned image reference, got {image!r}")
+    for name in TEMPLATES:
+        path = plane / "tasks" / f"{name}.yaml"
+        text = path.read_text(encoding="utf-8")
+        pinned, count = _IMAGE_LINE.subn(lambda m: f'{m.group(1)}"{image}"', text)
+        if count != 1:
+            raise ValueError(f"{path}: {count} image lines, expected one")
+        path.write_text(pinned, encoding="utf-8")
+    return image
+
+
 def increment(
-    population: Path, validation_set: Path, candidates_dir: Path, triage_dir: Path, *, plane: Path, run_name: str, command: str
+    population: Path,
+    validation_set: Path,
+    candidates_dir: Path,
+    triage_dir: Path,
+    *,
+    plane: Path,
+    run_name: str,
+    command: str,
+    repos: Path | None = None,
+    runner_image: Path | None = None,
 ) -> list[Path]:
-    """Write the generated manifests under ``plane`` from the templates in ``plane/tasks``; returns the paths."""
+    """Write the generated manifests under ``plane`` from the templates in ``plane/tasks`` (re-pinned first when
+    ``runner_image`` is given); returns the paths."""
+    if runner_image is not None:
+        repin_templates(plane, runner_image)
     loaded = load_manifests([plane / "tasks" / f"{name}.yaml" for name in TEMPLATES])
-    files = render(read_cases(validation_set, candidates_dir, triage_dir, population), loaded.tasks, run_name, command)
+    files = render(read_cases(validation_set, candidates_dir, triage_dir, population, repos), loaded.tasks, run_name, command)
     written: list[Path] = []
     for relative, text in files.items():
         path = plane / relative

@@ -403,6 +403,7 @@
         "model.specs",
         "model.taint",
         "plane.budget",
+        "plane.generate",
         "plane.tasks.repo_facts",
         "preprocess",
         "push.assistance",
@@ -485,6 +486,7 @@
       "importers": [
         "cli",
         "plane.budget",
+        "plane.generate",
         "push.assistance",
         "tool_hunter"
       ]
@@ -672,6 +674,7 @@
       "classification": "load_bearing",
       "reason": "ai-service-plane Req 2.3/2.4: metered chat client with usd and calls ceilings; task integration in tasks 3, 6",
       "importers": [
+        "plane.generate",
         "plane.tasks.verify"
       ]
     },
