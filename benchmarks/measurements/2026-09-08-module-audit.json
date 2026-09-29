@@ -1,7 +1,7 @@
 {
-  "modules": 121,
+  "modules": 123,
   "counts": {
-    "load_bearing": 112,
+    "load_bearing": 114,
     "standalone_capability": 9
   },
   "orphaned": [],
@@ -401,6 +401,7 @@
         "model.specs",
         "model.taint",
         "plane.budget",
+        "plane.tasks.repo_facts",
         "preprocess",
         "push.assistance",
         "push.cache",
@@ -528,6 +529,7 @@
       "importers": [
         "model.partitions",
         "model.scan",
+        "plane.tasks.repo_facts",
         "preprocess",
         "push.runner"
       ]
@@ -668,6 +670,18 @@
       "importers": []
     },
     {
+      "module": "plane.tasks",
+      "classification": "load_bearing",
+      "reason": "ai-service-plane Req 4.1: the task entrypoint package the runner imports by name; runner integration pending (task 3)",
+      "importers": []
+    },
+    {
+      "module": "plane.tasks.repo_facts",
+      "classification": "load_bearing",
+      "reason": "ai-service-plane Req 5.1/5.2: source-only functions and callers per file; runner integration pending",
+      "importers": []
+    },
+    {
       "module": "policy",
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
@@ -713,6 +727,7 @@
         "model.partitions",
         "model.scan",
         "pairs",
+        "plane.tasks.repo_facts",
         "push.runner",
         "rank",
         "regress.candidate",
@@ -1343,6 +1358,5 @@
         "cli"
       ]
     }
-  ],
-  "note": "Group 8: runner reaches recomputed versioned eligibility and its frozen scorer."
+  ]
 }
