@@ -167,7 +167,7 @@ def render_task(run: Run, entry: RunTask, manifests: Manifests, base: Path, arti
         spec["workspaces"] = bindings
     if task.debug:
         spec["debug"] = True
-    return [_doc("Task", ax_name, spec, task.metadata.atespace), *docs]
+    return [*docs, _doc("Task", ax_name, spec, task.metadata.atespace)]  # ax snapshots bound Workspaces at Task create
 
 
 class Ax:

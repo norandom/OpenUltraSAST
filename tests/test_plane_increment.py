@@ -73,8 +73,9 @@ def test_validation_run_resolves_and_renders_every_task(tmp_path: Path) -> None:
             assert not non_ax_fields(doc["spec"], AX_FIELDS[doc["kind"]], doc["kind"])
             assert set(doc["metadata"]) <= {"name", "atespace"}
             assert len(doc["metadata"]["name"]) <= 63, doc["metadata"]["name"]
-        assert docs[0]["metadata"]["name"] not in ax_names
-        ax_names.add(docs[0]["metadata"]["name"])
+        assert docs[-1]["kind"] == "Task"
+        assert docs[-1]["metadata"]["name"] not in ax_names
+        ax_names.add(docs[-1]["metadata"]["name"])
 
 
 def test_inputs_carry_the_validation_set() -> None:

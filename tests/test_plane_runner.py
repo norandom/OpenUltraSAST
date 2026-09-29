@@ -584,7 +584,7 @@ def test_git_commits_annotation_round_trips_to_the_checkout(
         "apiVersion: openultrasast.io/v1alpha1\nkind: Run\nmetadata: {name: rt}\nspec: {tasks: [{name: stub, task: stub}]}\n"
     )
     run, manifests = reconciler.load_run(manifest)
-    task_doc, *rest = reconciler.render_task(run, run.tasks[0], manifests, tmp_path, "unused")
+    *rest, task_doc = reconciler.render_task(run, run.tasks[0], manifests, tmp_path, "unused")
     assert rest[0]["metadata"] == {"name": "case"}, "annotations are stripped before ax"
     assert rest[0]["spec"]["git"] == [{"name": "code", "repo": repo.as_uri(), "branch": "main"}], "no commit for ax"
     overrides = {"OUSAST_OUTPUT_DIR": str(output)}

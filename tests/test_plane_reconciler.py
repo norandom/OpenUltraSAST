@@ -365,18 +365,20 @@ def test_chain_runs_in_order_with_inputs_env_and_model(fake: Fake, tmp_path: Pat
     assert env["OUSAST_MODEL"] == "deepseek-flash"
     assert json.loads(env["OUSAST_MODEL_PARAMS"]) == {"cache_hit_per_m": 0.07, "input_per_m": 0.27, "output_per_m": 1.1}
     kinds = [(d["kind"], d["metadata"]["name"]) for d in verify["docs"]]
-    assert kinds == [("Task", "chain-verify"), ("Model", "deepseek-flash"), ("Workspace", "case-pin"), ("Workspace", "chain-verify-inputs")]
-    inputs_ws = verify["docs"][3]
+    assert kinds == [("Model", "deepseek-flash"), ("Workspace", "case-pin"), ("Workspace", "chain-verify-inputs"), ("Task", "chain-verify")]
+    inputs_ws = next(d for d in verify["docs"] if d["metadata"]["name"] == "chain-verify-inputs")
     assert inputs_ws["spec"]["files"] == [{"path": "repo-facts/facts.json", "content": json.dumps({"a.py": {"functions": ["f"]}})}]
-    assert verify["docs"][0]["spec"]["workspaces"][-1] == {"name": "chain-verify-inputs", "path": "/workspace/.ousast-in/verify"}
-    assert "annotations" not in verify["docs"][0]["metadata"], "ax's ObjectMeta has no annotations"
+    assert verify["docs"][-1]["spec"]["workspaces"][-1] == {"name": "chain-verify-inputs", "path": "/workspace/.ousast-in/verify"}
+    assert "annotations" not in verify["docs"][-1]["metadata"], "ax's ObjectMeta has no annotations"
     assert json.loads(env["OUSAST_GIT_PINS"]) == {"case-pin/repo": PIN}, "the Workspace annotation reaches the task as env"
-    assert verify["docs"][2]["spec"]["git"] == [{"name": "repo", "repo": "https://example.invalid/repo.git", "dir": "src", "depth": 1}]
-    assert verify["docs"][2]["metadata"] == {"name": "case-pin", "atespace": "default"}
+    assert next(d for d in verify["docs"] if d["metadata"]["name"] == "case-pin")["spec"]["git"] == [
+        {"name": "repo", "repo": "https://example.invalid/repo.git", "dir": "src", "depth": 1}
+    ]
+    assert next(d for d in verify["docs"] if d["metadata"]["name"] == "case-pin")["metadata"] == {"name": "case-pin", "atespace": "default"}
     assert "OUSAST_GIT_PINS" not in fake.applied("chain", "agree")["env"], "no bound workspace, no pins"
     facts = fake.applied("chain", "repo-facts")
     assert "OUSAST_MODEL" not in facts["env"] and "OUSAST_BUDGET_USD" not in facts["env"]
-    assert facts["docs"][0]["spec"]["image"] == "ousast-runner:dev"
+    assert facts["docs"][-1]["spec"]["image"] == "ousast-runner:dev"
     delivered = reconciler.run_dir("chain") / "verify" / "agreed.json"
     assert json.loads(delivered.read_text()) == {"agreed": ["a.py:f"]}
     assert state_of("chain")["tasks"]["verify"]["usd"] == 0.5 and state_of("chain")["tasks"]["verify"]["model"] == "deepseek-flash"
@@ -505,7 +507,7 @@ def test_start_is_sent_once_after_resume_with_the_models_credential(fake: Fake, 
     for s in starts:
         name = s["body"]["task"]
         assert accepted[name] < s["at"] < delivered[name.removeprefix("sig-")], f"{name}: resume, then start, then delivery"
-    verify_model = fake.applied("sig", "verify")["docs"][1]
+    verify_model = next(d for d in fake.applied("sig", "verify")["docs"] if d["kind"] == "Model")
     assert verify_model["spec"]["secretKey"] == {"name": "deepseek", "key": "DEEPSEEK_API_KEY"}, "the manifest names the key"
     assert "DEEPSEEK_API_KEY" not in fake.applied("sig", "verify")["env"], "the rendered Task carries no credential"
     rendered = str(reconciler.run_dir("sig") / "verify" / "task.yaml")
@@ -694,6 +696,18 @@ def test_rendered_documents_carry_only_ax_fields(tmp_path: Path) -> None:
         assert set(rendered["metadata"]) <= {"name", "atespace"}, where
         assert non_ax_fields(rendered["spec"], AX_FIELDS[rendered["kind"]], f"{where} spec") == []
         assert "openultrasast.io/" not in yaml.safe_dump(rendered["metadata"]), where
+
+
+def test_the_task_is_applied_after_everything_it_binds(tmp_path: Path) -> None:
+    """ax copies the bound Workspaces into the task at create time: a Task applied before its Workspace ran with
+    an empty AX_WORKSPACES_YAML on the live cluster (2026-09-29). The Task is the last document of each apply."""
+    (tmp_path / "repo-facts").mkdir()
+    (tmp_path / "repo-facts" / "facts.json").write_text("{}", encoding="utf-8")
+    run, manifests = reconciler.load_run(write_run(tmp_path, "order"))
+    for entry in run.tasks:
+        docs = reconciler.render_task(run, entry, manifests, tmp_path, "http://h:1/")
+        assert [d["kind"] for d in docs].count("Task") == 1
+        assert docs[-1]["kind"] == "Task", [d["kind"] for d in docs]
 
 
 def test_reconciler_is_under_500_lines_and_holds_no_pipeline_logic() -> None:
