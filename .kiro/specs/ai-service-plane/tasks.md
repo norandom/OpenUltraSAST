@@ -4,7 +4,7 @@ Order follows the dependency chain: ax bring-up (parallel with 1-2) -> manifests
 ax-backed reconciler -> tasks -> increment run on ax -> measurement. Every task ships with its tests; a task is done when its tests pass in the host suite, ruff and
 mypy are clean, and the commit is gated on pytest's own exit code. Script-level pipeline work stays paused.
 
-- [ ] 0. ax bring-up on this host
+- [x] 0. ax bring-up on this host
   - Install `kind`, `kubectl`, the `ax` CLI and `ko` (user-local). `ops/ax/up.sh`: create the kind cluster and
     install Agent Substrate with its `hack/create-kind-cluster.sh` and `hack/install-ate-kind.sh
     --deploy-ate-system`, deploy the ax control plane with `ko` to the kind registry, apply one trivial Task
@@ -21,7 +21,7 @@ mypy are clean, and the commit is gated on pytest's own exit code. Script-level 
     the decision to work around it is the maintainer's.
   - _Requirements: 3.5, 3.6_
 
-- [ ] 1. Manifest schemas and validation
+- [x] 1. Manifest schemas and validation
   - Add `pyyaml` as a declared dependency in `pyproject.toml`.
   - `src/openultrasast/plane/manifests.py`: dataclasses and loaders for `Task`, `Workspace`, `Model`
     (`ax.io/v1alpha1`, ax's fields only) and `Run` (`openultrasast.io/v1alpha1`: tasks, dependsOn, inputs,
@@ -30,14 +30,14 @@ mypy are clean, and the commit is gated on pytest's own exit code. Script-level 
   - `tests/test_plane_manifests.py`: valid manifests load; each rejection names the field.
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 2. Budget metering
+- [x] 2. Budget metering
   - `src/openultrasast/plane/budget.py`: a client wrapper that sums provider usage per call, prices from the
     Model's parameters, raises `BudgetExhausted` at the ceiling and `AccountError` on 401/402 or an
     "insufficient balance" body; an unpriced model reports `unpriced` and refuses a `usd` budget.
   - Tests with a scripted client: ceiling stop, account error, unpriced refusal, cache-hit pricing.
   - _Requirements: 2.3, 2.4_
 
-- [ ] 3. Runner contract
+- [x] 3. Runner contract
   - `src/openultrasast/plane/runner.py`: read `AX_TASK_YAML` / `AX_WORKSPACES_YAML`; materialise `git`
     entries at the pinned commit from the local case cache and write `spec.files` (first boot only); run
     `spec.command` as a child `python -m openultrasast.plane.tasks.<name>` in its own process group, cwd the
@@ -62,7 +62,7 @@ mypy are clean, and the commit is gated on pytest's own exit code. Script-level 
     with identical env only the addressed one runs (the golden scenario).
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
 
-- [ ] 4. ax-backed reconciler and CLI
+- [x] 4. ax-backed reconciler and CLI
   - `src/openultrasast/plane/reconciler.py` (under 500 lines, no pipeline logic, no local subprocess
     executor): `state.json`, statuses, topological submission through the `ax` CLI (path injectable),
     `ax resume task` after `ax apply` (a created Task is `Suspended`), retrying DeadlineExceeded/Unavailable
@@ -91,7 +91,7 @@ mypy are clean, and the commit is gated on pytest's own exit code. Script-level 
     trivial Task end to end.
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 2.2, 4.5, 4.6, 7.1, 7.3_
 
-- [ ] 5. `repo-facts` task
+- [x] 5. `repo-facts` task
   - `src/openultrasast/plane/tasks/repo_facts.py`: product files, functions per file (per-language
     declaration patterns), call sites per candidate function across product files (path, line, enclosing
     function, cap 40), sorted and deterministic; `summary.json` per the task contract.
@@ -99,7 +99,7 @@ mypy are clean, and the commit is gated on pytest's own exit code. Script-level 
     identical output on a second run.
   - _Requirements: 5.1, 5.2, 2.1_
 
-- [ ] 6. `verify` and `agree` tasks
+- [x] 6. `verify` and `agree` tasks
   - `src/openultrasast/plane/tasks/verify.py`: the batched hunt moved from `verify_batched.py` (one hunt per
     file, up to 6 candidates, 6 steps, candidate-anchored sites) with known callers from `facts.json` in the
     prompt, tool turns and usage per hunt in `units.jsonl`, per-unit resume, `pass` from env, budget wrapper
@@ -111,7 +111,7 @@ mypy are clean, and the commit is gated on pytest's own exit code. Script-level 
     unfinished file; a scripted 402 yields `failed`; agree on two scripted passes.
   - _Requirements: 5.3, 2.1, 2.2, 2.3, 7.2_
 
-- [ ] 7. Manifests for the increment
+- [x] 7. Manifests for the increment
   - `plane/models/deepseek-flash.yaml` (annotated extension, prices in parameters);
     `plane/tasks/repo-facts.yaml`, `plane/tasks/verify.yaml`, `plane/tasks/agree.yaml`;
     `plane/runs/validation-46.yaml`: repo-facts -> verify pass a, verify pass b -> agree, budgets per task,
