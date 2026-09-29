@@ -3,11 +3,13 @@
 The tests copy it into a throwaway package (``AX_RUNNER_TASK_PACKAGE``) so the runner starts it the way it starts
 a real task, ``python -m <package>.stub_task``. ``STUB_MODE`` picks the outcome (``done``, ``failed``,
 ``unfinished``, ``crash``, ``nosummary``, ``exit``, ``sleep``); ``STUB_COUNTER`` names a file that gets one line
-per run.
+per run. ``STUB_SECRET_VAR`` names a credential variable: the stub records the SHA-256 of its value (or None),
+never the value.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import signal
@@ -21,6 +23,11 @@ from pathlib import Path
 def _get(url: str) -> tuple[int, str]:
     with urllib.request.urlopen(url, timeout=5) as response:
         return int(response.status), response.read().decode("utf-8")
+
+
+def _secret_hash(name: str | None) -> str | None:
+    value = os.environ.get(name) if name else None
+    return hashlib.sha256(value.encode("utf-8")).hexdigest() if value else None
 
 
 def main(argv: list[str]) -> None:
@@ -45,6 +52,7 @@ def main(argv: list[str]) -> None:
         "pgid": os.getpgid(0),
         "metadata_url": metadata,
         "metadata_task": _get(f"{metadata}/metadata/v1alpha1/ax/task")[1] if metadata else None,
+        "secret_sha256": _secret_hash(os.environ.get("STUB_SECRET_VAR")),
     }
     (out / "facts.json").write_text(json.dumps(record, indent=2, sort_keys=True), encoding="utf-8")
     if mode == "sleep":  # ignore SIGTERM so only the runner's SIGKILL ends the group; the grandchild inherits it
@@ -52,6 +60,9 @@ def main(argv: list[str]) -> None:
         grandchild = subprocess.Popen(["sleep", "60"])
         (out / "pids.json").write_text(json.dumps([os.getpid(), grandchild.pid]), encoding="utf-8")
         time.sleep(60)
+    if mode == "leak":  # a task that prints its credential and crashes: the runner must redact it
+        sys.stderr.write(f"auth failed for key {os.environ.get(os.environ.get('STUB_SECRET_VAR', ''), '')}\n")
+        raise SystemExit(5)
     if mode == "crash":
         raise RuntimeError("stub exploded")
     if mode == "exit":

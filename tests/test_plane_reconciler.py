@@ -5,7 +5,8 @@ internal/controller/reconciler.go, internal/server/server.go): ``apply`` creates
 fails with DeadlineExceeded the first time (ax then reports ``Failed``, as while Agent Substrate builds a new
 image's golden snapshot) and succeeds after; ``get task`` answers ``Running`` forever -- ax has no Completed phase
 -- and on the scripted poll it POSTs a scripted tar to the ``OUSAST_ARTIFACT_URL`` in the applied Task's env, or
-turns ``Failed`` with a condition message, or vanishes. Every outcome comes from a scripted delivery.
+turns ``Failed`` with a condition message, or vanishes. Every outcome comes from a scripted delivery, and a
+delivery happens only after the reconciler's start request reached the fake router (Req 4.5).
 """
 
 from __future__ import annotations
@@ -16,7 +17,10 @@ import stat
 import subprocess
 import sys
 import tarfile
+import threading
 import time
+from collections.abc import Iterator
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
@@ -27,6 +31,7 @@ from openultrasast.plane.workspaces import workspaces
 
 RECONCILER = Path("src/openultrasast/plane/reconciler.py")
 PIN = "0123456789abcdef0123456789abcdef01234567"
+SECRET = "sk-reconciler-test-7a2b-only-in-the-start-request"
 
 # The fields ax's API server decodes (pkg/apis/v1alpha1/ax.proto, protojson: an unknown field is an error at
 # ``ax apply``). ``None`` marks a value ax types as free-form (a Struct) or that this test does not descend into.
@@ -114,6 +119,9 @@ elif argv[:2] == ["get", "task"]:
             rec.update(phase=script["phase"], message=script.get("message", ""))
         if script.get("vanish"):
             rec["gone"] = True
+    started = (HERE / "started" / argv[2]).exists()  # the runner runs its command only after the start request
+    if rec["phase"] == "Running" and rec["polls"] >= script.get("polls", 1) and started and not rec.get("sent"):
+        rec["sent"] = True
         if script.get("deliver", True) and "phase" not in script and not script.get("vanish"):
             buf = io.BytesIO()
             with tarfile.open(fileobj=buf, mode="w") as tar:
@@ -152,6 +160,7 @@ metadata:
 spec:
   provider: deepseek
   model: deepseek-chat
+  secretKey: {name: deepseek, key: DEEPSEEK_API_KEY}
   parameters: {cache_hit_per_m: 0.07, input_per_m: 0.27, output_per_m: 1.1}
 ---
 apiVersion: ax.io/v1alpha1
@@ -234,6 +243,8 @@ SCRIPT = {
 
 
 class Fake:
+    router: FakeRouter
+
     def __init__(self, root: Path) -> None:
         self.root = root
         self.ax = root / "ax"
@@ -263,15 +274,61 @@ class Fake:
         return out
 
 
+class FakeRouter(ThreadingHTTPServer):
+    """Agent Substrate's router as the reconciler sees it: records each start request and answers from ``codes``
+    (by ax task name, default 202); an accepted start marks the task started for the fake ax, whose runner only
+    then runs its command and delivers."""
+
+    daemon_threads = True
+
+    def __init__(self, root: Path) -> None:
+        super().__init__(("127.0.0.1", 0), _RouterHandler)
+        self.root = root
+        self.codes: dict[str, tuple[int, str]] = {}
+        self.starts: list[dict] = []
+        threading.Thread(target=self.serve_forever, daemon=True).start()
+
+
+class _RouterHandler(BaseHTTPRequestHandler):
+    server: FakeRouter
+
+    def do_POST(self) -> None:  # noqa: N802
+        body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)))
+        target = self.headers.get("ate-target-actor", "")
+        name = target.partition("/")[2]
+        code, text = self.server.codes.get(name, (202, "started"))
+        self.server.starts.append({"at": time.monotonic(), "path": self.path, "target": target, "body": body, "code": code})
+        if code == 202:
+            (self.server.root / "started").mkdir(exist_ok=True)
+            (self.server.root / "started" / name).touch()
+        with (self.server.root / "ax.log").open("a") as log:
+            log.write(f"{time.monotonic():.4f} started {name} {code}\n")
+        self.send_response(code)
+        self.send_header("Content-Length", str(len(text.encode())))
+        self.end_headers()
+        self.wfile.write(text.encode())
+
+    def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+        pass
+
+
 @pytest.fixture
-def fake(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Fake:
+def fake(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Fake]:
     monkeypatch.setenv("OUSAST_RESULTS", str(tmp_path / "results"))
     monkeypatch.setenv("OUSAST_ARTIFACT_HOST", "127.0.0.1")
     monkeypatch.setenv("OUSAST_POLL_SECONDS", "0.02")
     monkeypatch.setenv("OUSAST_TASK_TIMEOUT", "20")  # a test that never delivers fails in seconds, not in 2 hours
+    monkeypatch.setenv("OUSAST_START_TIMEOUT", "2")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", SECRET)  # the Model's secretKey variable, as ``.env`` would set it
     fake = Fake(tmp_path)
     fake.script(SCRIPT)
-    return fake
+    fake.router = FakeRouter(tmp_path)
+    monkeypatch.setenv("OUSAST_ROUTER_URL", f"http://127.0.0.1:{fake.router.server_address[1]}")
+    try:
+        yield fake
+    finally:
+        fake.router.shutdown()
+        fake.router.server_close()
 
 
 def write_run(tmp_path: Path, name: str, tasks: str = CHAIN) -> Path:
@@ -424,6 +481,54 @@ def test_no_delivery_within_the_task_timeout_is_failed(fake: Fake, tmp_path: Pat
     reason = state_of("silent")["tasks"]["repo-facts"]["reason"]
     assert "OUSAST_TASK_TIMEOUT" in reason and "Running" in reason, "Running forever is not completion"
     assert [n for _, n in fake.events("delete")] == ["silent-repo-facts"], "ax delete follows every task"
+
+
+def files_containing(root: Path, needle: str) -> list[str]:
+    return sorted(str(p) for p in root.rglob("*") if p.is_file() and needle.encode() in p.read_bytes())
+
+
+def test_start_is_sent_once_after_resume_with_the_models_credential(fake: Fake, tmp_path: Path) -> None:
+    """Req 4.5/4.6: one start per task through the router, after ax accepted a resume; the bound Model's credential
+    travels only in that request, never in the rendered Task, the run dir or any file the run leaves behind."""
+    assert reconciler.run(write_run(tmp_path, "sig"), ax=str(fake.ax)) == "done"
+    starts = fake.router.starts
+    assert [s["target"] for s in starts] == ["default/sig-repo-facts", "default/sig-verify", "default/sig-agree"], "once each"
+    assert all(s["path"] == "/ousast/v1/start" and s["code"] == 202 for s in starts)
+    by_task = {s["body"]["task"]: s for s in starts}
+    assert by_task["sig-verify"]["body"] == {"run": "sig", "task": "sig-verify", "credentials": {"DEEPSEEK_API_KEY": SECRET}}
+    assert by_task["sig-repo-facts"]["body"]["credentials"] == {} and by_task["sig-agree"]["body"]["credentials"] == {}, "no Model"
+    accepted = {}
+    for stamp, words in fake.log():  # the last resume of each task is the one ax accepted
+        if words[:2] == ["resume", "task"]:
+            accepted[words[2]] = stamp
+    delivered = {name: stamp for stamp, name in fake.events("delivered")}
+    for s in starts:
+        name = s["body"]["task"]
+        assert accepted[name] < s["at"] < delivered[name.removeprefix("sig-")], f"{name}: resume, then start, then delivery"
+    verify_model = fake.applied("sig", "verify")["docs"][1]
+    assert verify_model["spec"]["secretKey"] == {"name": "deepseek", "key": "DEEPSEEK_API_KEY"}, "the manifest names the key"
+    assert "DEEPSEEK_API_KEY" not in fake.applied("sig", "verify")["env"], "the rendered Task carries no credential"
+    rendered = str(reconciler.run_dir("sig") / "verify" / "task.yaml")
+    assert rendered in files_containing(tmp_path, "OUSAST_ARTIFACT_URL"), "the scan reads the rendered files it vouches for"
+    assert files_containing(tmp_path, SECRET) == [], "no rendered task.yaml, state, log or applied record holds the value"
+
+
+def test_a_model_bound_task_without_its_secret_fails_before_ax_sees_it(fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("DEEPSEEK_API_KEY")
+    assert reconciler.run(write_run(tmp_path, "nokey"), ax=str(fake.ax)) == "failed"
+    assert statuses("nokey") == {"repo-facts": "done", "verify": "failed", "agree": "pending"}
+    reason = state_of("nokey")["tasks"]["verify"]["reason"]
+    assert "DEEPSEEK_API_KEY" in reason and "deepseek-flash" in reason
+    assert [name for _, name in fake.events("apply")] == ["repo-facts"], "verify is never applied without its credential"
+
+
+def test_a_refused_start_fails_the_task_with_the_runners_answer(fake: Fake, tmp_path: Path) -> None:
+    fake.router.codes["ref-repo-facts"] = (409, "task ref-repo-facts already ran and was delivered (done)")
+    assert reconciler.run(write_run(tmp_path, "ref"), ax=str(fake.ax)) == "failed"
+    reason = state_of("ref")["tasks"]["repo-facts"]["reason"]
+    assert "HTTP 409" in reason and "already ran and was delivered" in reason
+    assert len(fake.router.starts) == 1, "a refusal is final, not retried"
+    assert [n for _, n in fake.events("delete")] == ["ref-repo-facts"], "ax delete follows a refused start"
 
 
 def test_outcome_of_needs_a_delivered_summary() -> None:

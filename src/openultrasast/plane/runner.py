@@ -7,6 +7,16 @@ metadata paths on port 80, ``/readyz`` answering 503 until every workspace is ma
 Workspaces are prepared on the first boot only: ``/workspace`` survives suspend and resume, the process tree does
 not (ax docs/runner.md).
 
+The command never starts by itself (Requirements 4.5, 4.6). Agent Substrate boots every new ActorTemplate once as a
+"golden" actor to snapshot it, with this image and the same ``AX_TASK_YAML``/``AX_WORKSPACES_YAML``/env, and inside
+the sandbox nothing tells that boot from the real one. So after the workspaces are ready the runner waits for
+``POST /ousast/v1/start`` with ``{"run", "task", "credentials"}``, which the reconciler sends through Substrate's
+router to the task's actor only (``plane/router.py``). ``run`` and ``task`` must match ``OUSAST_RUN`` and the Task's
+name (409 otherwise); one request per boot is accepted (202), later ones are 409, and a boot whose completion marker
+records a delivered run refuses every request (409 with the reason). Before the workspaces are ready the answer is
+503, which the reconciler retries. The credentials live in this process's memory and go into the command's
+environment only; they are never logged or written, and their values are redacted from the command's echoed stderr.
+
 The command runs as a child process, ``python -m openultrasast.plane.tasks.<spec.command[0]> <spec.command[1:]>``,
 in its own process group, with the first workspace as its working directory and ``AX_METADATA_URL`` pointing at
 this server. ax has no artifact channel and never reports that a command finished, so after the child exits the
@@ -25,6 +35,8 @@ Environment the runner reads, all optional except the two ax variables:
     AX_RUNNER_HTTP                     "0" disables the health server (unit tests only)
     AX_RUNNER_PORT                     port of the health server, default 80; "0" picks a free port
     AX_RUNNER_EXIT_AFTER_COMMAND       "1" exits after delivery with 0 done, 2 failed, 3 unfinished (unit tests only)
+    AX_RUNNER_AUTOSTART                "1" runs the command without waiting for a start request (unit tests only;
+                                       required with AX_RUNNER_HTTP=0, where no request could arrive)
     AX_RUNNER_TASK_PACKAGE             package the command's module is looked up in (unit tests only)
     OUSAST_STATE_DIR                   completion markers, default ``/workspace/.ousast-state`` (the durable volume)
     OUSAST_TERM_GRACE                  seconds between SIGTERM and SIGKILL of the command's group, default 10
@@ -64,17 +76,22 @@ from typing import Any
 import yaml
 
 from openultrasast.plane.manifests import GitSource, ManifestError, Task, Workspace, parse_manifest
+from openultrasast.plane.router import ALREADY_STARTED
+from openultrasast.plane.router import redact as _redact
 
 __all__ = [
     "DEFAULT_PORT",
     "DELIVERY_ATTEMPTS",
     "EXIT_BY_STATUS",
+    "START_PATH",
     "STATE_DIR",
     "TASK_PACKAGE",
     "Child",
     "DeliveryError",
     "HealthServer",
     "RunnerError",
+    "Start",
+    "StartGate",
     "build_tar",
     "deliver",
     "clone_destination",
@@ -173,8 +190,104 @@ def load_workspaces(text: str) -> dict[str, Workspace]:
 # --- health server -----------------------------------------------------------------------------------------------
 
 
+START_PATH = "/ousast/v1/start"
+_CREDENTIAL_NAME = re.compile(r"[A-Z][A-Z0-9_]*")
+_RESERVED_PREFIXES = ("AX_", "OUSAST_")  # the runner's own contract; a credential must not redirect it
+
+
+@dataclass(frozen=True)
+class Start:
+    """An accepted start request: the credentials go to the command's environment and nowhere else."""
+
+    credentials: Mapping[str, str]
+
+    def __repr__(self) -> str:  # never print a value by accident
+        return f"Start(credentials={sorted(self.credentials)})"
+
+
+class StartGate:
+    """The one start request per boot (Requirements 4.5, 4.6).
+
+    Before :meth:`arm` (workspaces not ready) a request is answered 503, which the reconciler retries; afterwards
+    one request whose ``run`` and ``task`` match the Task is accepted (202), every other one is 409, as is any
+    request once :meth:`refuse` recorded why this boot runs nothing (a delivered run). The request body is never
+    logged, and no answer echoes it.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._accepted = threading.Event()
+        self._expected: tuple[str, str] | None = None
+        self._refusal: str | None = None
+        self._start: Start | None = None
+
+    def arm(self, run: str, task: str) -> None:
+        with self._lock:
+            self._expected = (run, task)
+
+    def refuse(self, reason: str) -> None:
+        with self._lock:
+            self._refusal = reason
+
+    def autostart(self) -> Start:
+        """The test escape ``AX_RUNNER_AUTOSTART=1``: start without a request; a later request is refused."""
+        with self._lock:
+            self._start = Start({})
+            self._accepted.set()
+            return self._start
+
+    def offer(self, body: bytes) -> tuple[int, str]:
+        with self._lock:
+            if self._refusal is not None:
+                return 409, self._refusal
+            if self._accepted.is_set():
+                return 409, f"this task was {ALREADY_STARTED}"
+            if self._expected is None:
+                return 503, "workspaces not materialised"
+            try:
+                request = json.loads(body.decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                return 400, "the start body is not JSON"
+            if not isinstance(request, dict):
+                return 400, "the start body must be a JSON object"
+            creds = request.get("credentials") or {}
+            if not isinstance(creds, dict) or not all(
+                isinstance(k, str) and _CREDENTIAL_NAME.fullmatch(k) and not k.startswith(_RESERVED_PREFIXES) and isinstance(v, str)
+                for k, v in creds.items()
+            ):
+                return 400, "credentials must map ^[A-Z][A-Z0-9_]*$ names (not AX_/OUSAST_) to strings"
+            run, task = self._expected
+            if request.get("run") != run or request.get("task") != task:
+                return 409, f"this actor runs task {task!r} of run {run!r}"
+            self._start = Start(dict(creds))
+            self._accepted.set()
+            return 202, "started"
+
+    def wait(self, stop: threading.Event) -> Start | None:
+        """The accepted start, or None once ``stop`` is set first."""
+        while not self._accepted.wait(0.1):
+            if stop.is_set():
+                return None
+        return self._start
+
+
 class _HealthHandler(BaseHTTPRequestHandler):
     server: HealthServer
+
+    def do_POST(self) -> None:  # noqa: N802 - http.server's naming
+        if self.path.split("?", 1)[0] != START_PATH:
+            self._answer(404, "not found")
+            return
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            length = -1
+        if not 0 <= length <= 1 << 20:
+            self._answer(400, "bad Content-Length")
+            return
+        status, text = self.server.gate.offer(self.rfile.read(length))
+        log.info("start request: %d %s", status, text)
+        self._answer(status, text)
 
     def do_GET(self) -> None:  # noqa: N802 - http.server's naming
         path = self.path.split("?", 1)[0]  # ax's controller probes /readyz?check=workspace
@@ -202,14 +315,15 @@ class _HealthHandler(BaseHTTPRequestHandler):
 
 class HealthServer(ThreadingHTTPServer):
     """``/healthz`` always 200; ``/readyz`` 503 until ``ready`` is set; the Task and Workspaces YAML under
-    ``/metadata/v1alpha1/ax/``. Serves in a daemon thread."""
+    ``/metadata/v1alpha1/ax/``; ``POST /ousast/v1/start`` goes to ``gate``. Serves in a daemon thread."""
 
     daemon_threads = True
 
-    def __init__(self, port: int, ready: threading.Event, metadata: Mapping[str, str] | None = None) -> None:
+    def __init__(self, port: int, ready: threading.Event, metadata: Mapping[str, str] | None = None, gate: StartGate | None = None) -> None:
         super().__init__(("0.0.0.0", port), _HealthHandler)
         self.ready = ready
         self.metadata = dict(metadata or {})
+        self.gate = gate or StartGate()
         self._thread = threading.Thread(target=self.serve_forever, name="ax-health", daemon=True)
 
     @property
@@ -225,9 +339,11 @@ class HealthServer(ThreadingHTTPServer):
         self._thread.join(timeout=5)
 
 
-def start_health_server(port: int, ready: threading.Event, metadata: Mapping[str, str] | None = None) -> HealthServer:
-    """Serve ``/healthz``, ``/readyz`` and ax's metadata paths (``metadata`` keyed ``task``/``workspaces``)."""
-    server = HealthServer(port, ready, metadata)
+def start_health_server(
+    port: int, ready: threading.Event, metadata: Mapping[str, str] | None = None, gate: StartGate | None = None
+) -> HealthServer:
+    """Serve ``/healthz``, ``/readyz``, ax's metadata paths (``metadata`` keyed ``task``/``workspaces``) and the start."""
+    server = HealthServer(port, ready, metadata, gate)
     server.start()
     return server
 
@@ -426,7 +542,8 @@ def task_module(command: Sequence[str], package: str = TASK_PACKAGE) -> str:
 class Child:
     """``spec.command`` as a child in its own process group; its stderr is echoed and the tail kept."""
 
-    def __init__(self, argv: Sequence[str], cwd: str | None, env: Mapping[str, str]) -> None:
+    def __init__(self, argv: Sequence[str], cwd: str | None, env: Mapping[str, str], secrets: Sequence[str] = ()) -> None:
+        self.secrets = [s for s in secrets if s]
         self.proc = subprocess.Popen(list(argv), cwd=cwd, env=dict(env), stderr=subprocess.PIPE, start_new_session=True)
         self.tail: deque[str] = deque(maxlen=STDERR_TAIL_LINES)
         self._reader = threading.Thread(target=self._echo, name="task-stderr", daemon=True)
@@ -435,7 +552,7 @@ class Child:
     def _echo(self) -> None:
         assert self.proc.stderr is not None
         for raw in self.proc.stderr:
-            line = raw.decode("utf-8", errors="replace")
+            line = _redact(raw.decode("utf-8", errors="replace"), self.secrets)
             sys.stderr.write(line)
             sys.stderr.flush()
             self.tail.append(line.rstrip("\n"))
@@ -484,15 +601,18 @@ def summary_after(code: int, output_dir: Path, name: str, stderr_tail: Sequence[
 
 
 def run_command(
-    task: Task, output_dir: Path, env: Mapping[str, str], stop: threading.Event, grace: float
+    task: Task, output_dir: Path, env: Mapping[str, str], stop: threading.Event, grace: float, credentials: Mapping[str, str] | None = None
 ) -> tuple[int | None, dict[str, Any]]:
     """Run ``python -m <package>.<command[0]> <command[1:]>`` in the first workspace; (exit code, summary).
 
-    (None, {}) when ``stop`` interrupted it: the command did not finish and a resume runs it again.
+    ``credentials`` (from the start request) are added to the child's environment only, and their values are
+    redacted from its echoed stderr and from the stderr tail a crash summary keeps. (None, {}) when ``stop``
+    interrupted it: the command did not finish and a resume runs it again.
     """
+    credentials = dict(credentials or {})
     module = task_module(task.command, env.get("AX_RUNNER_TASK_PACKAGE") or TASK_PACKAGE)
     cwd = task.workspaces[0].path if task.workspaces else None
-    child = Child([sys.executable, "-m", module, *task.command[1:]], cwd, env)
+    child = Child([sys.executable, "-m", module, *task.command[1:]], cwd, {**env, **credentials}, list(credentials.values()))
     code = child.wait(stop, grace)
     if code is None:
         return None, {}
@@ -611,8 +731,9 @@ def _finish(session: _Session, env: Mapping[str, str], exit_code: int | None, su
     return marker
 
 
-def _run_once(env: MutableMapping[str, str], ready: threading.Event, stop: threading.Event) -> int:
-    """Materialise, run the command once, deliver; on a resumed volume, only what the marker says is left."""
+def _run_once(env: MutableMapping[str, str], ready: threading.Event, stop: threading.Event, gate: StartGate) -> int:
+    """Materialise, wait for the start request, run the command once, deliver; on a resumed volume, only what the
+    marker says is left. A boot whose marker records a delivered run refuses every start request."""
     session: _Session | None = None
     try:
         session = _prepare(env)
@@ -622,11 +743,21 @@ def _run_once(env: MutableMapping[str, str], ready: threading.Event, stop: threa
             cache_dir = env.get("OUSAST_CASE_CACHE")
             materialise(session.task, session.workspaces, Path(cache_dir) if cache_dir else None, load_pins(env.get("OUSAST_GIT_PINS", "")))
             session.prepared.touch()
-        ready.set()
         done = _read_marker(session.marker)
         if done is not None and done.get("delivered"):
+            gate.refuse(f"task {session.task.metadata.name} already ran and was delivered ({done.get('status')})")
+            ready.set()
             log.info("task %s already ran and was delivered (%s); not running it again", session.task.metadata.name, done.get("status"))
             return _exit_of(done)
+        gate.arm(env.get("OUSAST_RUN", ""), session.task.metadata.name)
+        ready.set()
+        if env.get("AX_RUNNER_AUTOSTART") == "1":
+            start: Start | None = gate.autostart()
+        else:
+            log.info("workspaces ready; waiting for the start request on %s", START_PATH)
+            start = gate.wait(stop)
+        if start is None:
+            return 0
         if done is not None:
             log.info("task %s already ran; retrying the delivery only", session.task.metadata.name)
             stored = done.get("summary")
@@ -636,17 +767,26 @@ def _run_once(env: MutableMapping[str, str], ready: threading.Event, stop: threa
         if stop.is_set():
             return 0
         log.info("workspaces ready; running task %s: %s", session.task.metadata.name, list(session.task.command))
-        code, summary = run_command(session.task, session.output_dir, env, stop, float(env.get("OUSAST_TERM_GRACE") or TERM_GRACE))
+        grace = float(env.get("OUSAST_TERM_GRACE") or TERM_GRACE)
+        code, summary = run_command(session.task, session.output_dir, env, stop, grace, start.credentials)
         if code is None:
             log.info("task %s was stopped before its command finished; a resume runs it again", session.task.metadata.name)
             return 0
         return _exit_of(_finish(session, env, code, summary))
     except RunnerError as exc:
+        # The failure is reported, never acted on unasked: a start request is answered with it (409 without a
+        # session, else 202 and the failed summary is delivered), so the golden boot delivers nothing either.
         log.error("runner failed: %s", exc)
         if session is None:
+            gate.refuse(f"runner failed: {exc}")
+            ready.set()
             return EXIT_BY_STATUS["failed"]
         summary = _failed(f"runner failed: {exc}", read_summary(session.output_dir))
         write_summary(session.output_dir, summary)
+        gate.arm(env.get("OUSAST_RUN", ""), session.task.metadata.name)
+        ready.set()
+        if env.get("AX_RUNNER_AUTOSTART") != "1" and gate.wait(stop) is None:
+            return 0
         return _exit_of(_finish(session, env, None, summary))
 
 
@@ -667,17 +807,20 @@ def main(argv: Sequence[str] | None = None, environ: MutableMapping[str, str] | 
     env = os.environ if environ is None else environ
     if argv:
         log.warning("ax-task-runner ignores command-line arguments %r; the Task manifest is the only input", list(argv))
-    ready, stop = threading.Event(), threading.Event()
+    ready, stop, gate = threading.Event(), threading.Event(), StartGate()
     previous = _on_sigterm(stop)
     server: HealthServer | None = None
     if env.get("AX_RUNNER_HTTP", "1") != "0":
         metadata = {"task": env.get("AX_TASK_YAML", ""), "workspaces": env.get("AX_WORKSPACES_YAML", "")}
-        server = start_health_server(int(env.get("AX_RUNNER_PORT", str(DEFAULT_PORT))), ready, metadata)
+        server = start_health_server(int(env.get("AX_RUNNER_PORT", str(DEFAULT_PORT))), ready, metadata, gate)
         env["AX_RUNNER_BOUND_PORT"] = str(server.port)
         env["AX_METADATA_URL"] = f"http://127.0.0.1:{server.port}"
         log.info("health and metadata server on port %d", server.port)
     try:
-        code = _run_once(env, ready, stop)
+        if server is None and env.get("AX_RUNNER_AUTOSTART") != "1":
+            log.error("AX_RUNNER_HTTP=0 without AX_RUNNER_AUTOSTART=1: no start request could ever arrive")
+            return EXIT_BY_STATUS["failed"]
+        code = _run_once(env, ready, stop, gate)
         if stop.is_set():
             return 0
         if env.get("AX_RUNNER_EXIT_AFTER_COMMAND") == "1":

@@ -1,9 +1,12 @@
-"""ax runner contract (ai-service-plane task 3, Requirements 4.1-4.4): env contract, readiness, delivery, exit codes."""
+"""ax runner contract (ai-service-plane task 3, Requirements 4.1-4.6): env contract, readiness, delivery, exit codes,
+the start request and credentials."""
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
+import logging
 import os
 import shutil
 import signal
@@ -23,9 +26,13 @@ import pytest
 
 from openultrasast.plane import runner
 from openultrasast.plane.manifests import GitSource
+from openultrasast.plane.router import Router, StartError
 from openultrasast.plane.runner import (
     EXIT_BY_STATUS,
+    START_PATH,
     DeliveryError,
+    Start,
+    StartGate,
     clone_destination,
     deliver,
     find_cached_checkout,
@@ -61,6 +68,7 @@ def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stub_root: Path) -> Ite
             monkeypatch.delenv(key)
     monkeypatch.setenv("AX_RUNNER_HTTP", "0")
     monkeypatch.setenv("AX_RUNNER_EXIT_AFTER_COMMAND", "1")
+    monkeypatch.setenv("AX_RUNNER_AUTOSTART", "1")  # the start-request tests below take it away again
     monkeypatch.setenv("AX_RUNNER_TASK_PACKAGE", STUB_PACKAGE)
     monkeypatch.setenv("OUSAST_STATE_DIR", str(tmp_path / "state"))
     monkeypatch.setenv("OUSAST_DELIVERY_BACKOFF", "0")
@@ -341,12 +349,14 @@ def wait_for(predicate: object, timeout: float = 30.0) -> None:
         time.sleep(0.05)
 
 
-def spawn_runner(tmp_path: Path, port: int, **extra: str) -> subprocess.Popen[bytes]:
-    """``python -m openultrasast.plane.runner`` as the image runs it: HTTP on, no exit-after-command escape."""
-    child_env = {k: v for k, v in os.environ.items() if k != "AX_RUNNER_EXIT_AFTER_COMMAND"}
+def spawn_runner(tmp_path: Path, port: int, *, autostart: bool = True, log_name: str = "runner.log", **extra: str) -> subprocess.Popen:
+    """``python -m openultrasast.plane.runner`` as the image runs it: HTTP on, no exit-after-command escape;
+    ``autostart=False`` also drops the autostart escape, so the command waits for a start request."""
+    dropped = {"AX_RUNNER_EXIT_AFTER_COMMAND"} | (set() if autostart else {"AX_RUNNER_AUTOSTART"})
+    child_env = {k: v for k, v in os.environ.items() if k not in dropped}
     child_env.update(AX_TASK_YAML=task_yaml(tmp_path / "out", tmp_path / "ws"), AX_WORKSPACES_YAML=files_workspace_yaml())
     child_env.update(AX_RUNNER_HTTP="1", AX_RUNNER_PORT=str(port), **extra)
-    log = (tmp_path / "runner.log").open("wb")
+    log = (tmp_path / log_name).open("wb")
     return subprocess.Popen([sys.executable, "-m", "openultrasast.plane.runner"], env=child_env, stdout=log, stderr=log)
 
 
@@ -609,3 +619,138 @@ def test_the_runner_accepts_what_ax_hands_it() -> None:
     assert list(spaces) == ["w"]
     with pytest.raises(RunnerError, match="uid"):
         load_task("apiVersion: ax.io/v1alpha1\nkind: Task\nmetadata:\n  name: t\n  uid: x\nspec: {}\n")
+
+
+# --- the start request and credentials (Requirements 4.5, 4.6) -----------------------------------------------------------
+
+SECRET = "sk-test-0f3c9a-never-written-anywhere"
+SECRET_SHA = hashlib.sha256(SECRET.encode()).hexdigest()
+
+
+def post_start(port: int | str, body: object) -> tuple[int, str]:
+    data = json.dumps(body).encode()
+    request = urllib.request.Request(f"http://127.0.0.1:{port}{START_PATH}", data=data, method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=5) as response:
+            return int(response.status), response.read().decode()
+    except urllib.error.HTTPError as exc:
+        return exc.code, exc.read().decode()
+
+
+def ready_on(port: int | str) -> bool:
+    try:
+        return get(f"http://127.0.0.1:{port}/readyz") == 200
+    except urllib.error.URLError:
+        return False  # not listening yet
+
+
+def files_containing(root: Path, needle: str) -> list[str]:
+    return sorted(str(p) for p in root.rglob("*") if p.is_file() and needle.encode() in p.read_bytes())
+
+
+def main_in_thread(tmp_path: Path, **extra: str) -> tuple[threading.Thread, dict[str, str], list[int]]:
+    """``runner.main`` on a private environment in a thread: HTTP on a free port, no autostart; the exit code lands
+    in the returned list once the command was started and delivered."""
+    environ = {k: v for k, v in os.environ.items() if k != "AX_RUNNER_AUTOSTART"}
+    environ.update(AX_TASK_YAML=task_yaml(tmp_path / "out", tmp_path / "ws"), AX_WORKSPACES_YAML=files_workspace_yaml())
+    environ.update(AX_RUNNER_HTTP="1", AX_RUNNER_PORT="0", OUSAST_RUN="run-1", STUB_SECRET_VAR="DEEPSEEK_API_KEY", **extra)
+    codes: list[int] = []
+    thread = threading.Thread(target=lambda: codes.append(runner.main(environ=environ)), daemon=True)
+    thread.start()
+    wait_for(lambda: "AX_RUNNER_BOUND_PORT" in environ)
+    wait_for(lambda: ready_on(environ["AX_RUNNER_BOUND_PORT"]))
+    return thread, environ, codes
+
+
+def test_the_command_waits_for_the_start_request_and_the_credential_reaches_only_the_child(
+    env: dict[str, str], receiver: Receiver, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    counter = tmp_path / "runs.txt"
+    thread, environ, codes = main_in_thread(tmp_path, OUSAST_ARTIFACT_URL=receiver.url, STUB_COUNTER=str(counter))
+    port = environ["AX_RUNNER_BOUND_PORT"]
+    time.sleep(0.5)
+    assert not counter.exists() and thread.is_alive(), "ready, but the command waits for the start request"
+    assert post_start(port, {"run": "run-2", "task": "stub"})[0] == 409, "another run's start"
+    assert post_start(port, {"run": "run-1", "task": "golden"})[0] == 409, "another task's start"
+    assert post_start(port, {"run": "run-1", "task": "stub", "credentials": {"lower": "x"}})[0] == 400
+    assert post_start(port, {"run": "run-1", "task": "stub", "credentials": {"OUSAST_OUTPUT_DIR": "/"}})[0] == 400
+    assert not counter.exists()
+    status, text = post_start(port, {"run": "run-1", "task": "stub", "credentials": {"DEEPSEEK_API_KEY": SECRET}})
+    assert (status, text) == (202, "started")
+    status, text = post_start(port, {"run": "run-1", "task": "stub", "credentials": {"DEEPSEEK_API_KEY": SECRET}})
+    assert status == 409 and "already started" in text, "one start per boot"
+    thread.join(timeout=30)
+    assert codes == [0] and len(counter.read_text().splitlines()) == 1
+    facts = json.loads((tmp_path / "out" / "facts.json").read_text())
+    assert facts["secret_sha256"] == SECRET_SHA, "the credential is in the command's environment"
+    assert "DEEPSEEK_API_KEY" not in environ and "DEEPSEEK_API_KEY" not in os.environ, "and only there"
+    assert str(tmp_path / "out" / "facts.json") in files_containing(tmp_path, SECRET_SHA), "the scan reads the output files"
+    assert files_containing(tmp_path, SECRET) == [], "no file holds the credential"
+    assert SECRET not in receiver.posts[0][1].decode("latin-1"), "nor the delivered tar"
+    assert all(SECRET not in record.getMessage() for record in caplog.records), "nor any log record"
+    assert any("start request: 202" in record.getMessage() for record in caplog.records)
+
+
+def test_a_crash_that_prints_the_credential_is_redacted(
+    env: dict[str, str], receiver: Receiver, tmp_path: Path, capfd: pytest.CaptureFixture[str]
+) -> None:
+    thread, environ, codes = main_in_thread(tmp_path, OUSAST_ARTIFACT_URL=receiver.url, STUB_MODE="leak")
+    start = {"run": "run-1", "task": "stub", "credentials": {"DEEPSEEK_API_KEY": SECRET}}
+    assert post_start(environ["AX_RUNNER_BOUND_PORT"], start)[0] == 202
+    thread.join(timeout=30)
+    assert codes == [EXIT_BY_STATUS["failed"]]
+    summary = json.loads((tmp_path / "out" / "summary.json").read_text())
+    assert "auth failed for key [redacted]" in summary["reason"], "the stderr tail keeps the line, not the value"
+    assert files_containing(tmp_path, SECRET) == []
+    assert SECRET not in capfd.readouterr().err, "the echoed stderr is redacted too"
+
+
+def test_start_before_the_workspaces_are_ready_is_503_and_a_delivered_run_refuses_it() -> None:
+    gate = StartGate()
+    assert gate.offer(b'{"run": "r", "task": "t"}')[0] == 503, "the reconciler retries until the workspaces are ready"
+    gate.refuse("task t already ran and was delivered (done)")
+    status, text = gate.offer(b'{"run": "r", "task": "t"}')
+    assert status == 409 and "already ran and was delivered" in text
+    assert "sk-" not in repr(Start({"K": "sk-x"})), "a Start never prints a value"
+
+
+def test_http_off_without_autostart_is_refused(env: dict[str, str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.delenv("AX_RUNNER_AUTOSTART")
+    code, output = run_main(monkeypatch, tmp_path, files_workspace_yaml())
+    assert code == EXIT_BY_STATUS["failed"] and not (output / "facts.json").exists()
+
+
+def test_the_golden_boot_never_runs_the_command(env: dict[str, str], receiver: Receiver, tmp_path: Path) -> None:
+    """Agent Substrate's golden-snapshot boot runs the same image with the same env; only the router-addressed
+    actor gets the start request, so only it runs the command. A later boot of a delivered task refuses a start."""
+    counter = tmp_path / "runs.txt"
+    same = {"OUSAST_ARTIFACT_URL": receiver.url, "STUB_COUNTER": str(counter), "OUSAST_RUN": "run-1"}
+    real_port, golden_port = free_port(), free_port()
+    real = spawn_runner(tmp_path, real_port, autostart=False, log_name="real.log", **same)
+    golden = spawn_runner(tmp_path, golden_port, autostart=False, log_name="golden.log", **same)
+    try:
+        for port in (real_port, golden_port):
+            wait_for(lambda port=port: ready_on(port))
+        Router(f"http://127.0.0.1:{real_port}").start_task("default", "stub", "run-1", {"DEEPSEEK_API_KEY": SECRET})
+        marker = tmp_path / "state" / "stub.done.json"
+        wait_for(marker.exists)
+        time.sleep(1.0)
+        assert len(counter.read_text().splitlines()) == 1, "the golden boot never ran the command"
+        assert golden.poll() is None and len(receiver.posts) == 1
+        with pytest.raises(StartError, match="already started"):
+            Router(f"http://127.0.0.1:{real_port}").start_task("default", "stub", "run-1", {})
+        again_port = free_port()
+        again = spawn_runner(tmp_path, again_port, autostart=False, log_name="again.log", **same)
+        try:
+            with pytest.raises(StartError, match="already ran and was delivered"):
+                Router(f"http://127.0.0.1:{again_port}").start_task("default", "stub", "run-1", {})
+        finally:
+            again.kill()
+            again.wait()
+    finally:
+        for proc in (real, golden):
+            proc.kill()
+            proc.wait()
+    assert len(counter.read_text().splitlines()) == 1
+    assert files_containing(tmp_path, SECRET) == [], "no log, workspace, output or state file holds the credential"

@@ -1,7 +1,7 @@
 {
-  "modules": 130,
+  "modules": 131,
   "counts": {
-    "load_bearing": 121,
+    "load_bearing": 122,
     "standalone_capability": 9
   },
   "orphaned": [],
@@ -661,6 +661,7 @@
         "cli",
         "plane.generate",
         "plane.reconciler",
+        "plane.router",
         "plane.runner",
         "plane.tasks.verify",
         "plane.workspaces"
@@ -697,6 +698,7 @@
       "importers": [
         "plane.generate",
         "plane.reconciler",
+        "plane.router",
         "plane.runner",
         "plane.workspaces"
       ]
@@ -708,6 +710,15 @@
       "importers": [
         "plane.generate",
         "plane.workspaces"
+      ]
+    },
+    {
+      "module": "plane.router",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
+        "plane.reconciler",
+        "plane.runner"
       ]
     },
     {

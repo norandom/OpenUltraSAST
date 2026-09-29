@@ -41,12 +41,20 @@ mypy are clean, and the commit is gated on pytest's own exit code. Script-level 
     write `/workspace/.ousast-state/<task>.done.json`, and keep serving until SIGTERM (ax's contract for PID 1);
     a boot with the marker never reruns the command and retries only a failed delivery; SIGTERM goes to the
     command's group, SIGKILL after `OUSAST_TERM_GRACE`, exit 0. `AX_RUNNER_EXIT_AFTER_COMMAND=1` (tests only)
-    exits after delivery with 0 done, 2 failed, 3 unfinished. `plane/Dockerfile.runner`: this package on Python 3.12, installed to
+    exits after delivery with 0 done, 2 failed, 3 unfinished. The command never starts by itself: after the
+    workspaces are ready the runner waits for `POST /ousast/v1/start` (`{run, task, credentials}`; 503 before
+    ready, 409 on a run/task mismatch, a second request, or a marker recording a delivered run; 202 once),
+    merges the credentials into the child's environment only and redacts them from its echoed stderr, so
+    Agent Substrate's golden-snapshot boot runs nothing (Req 4.5, 4.6). `AX_RUNNER_AUTOSTART=1` (tests only)
+    starts without a request. `plane/Dockerfile.runner`: this package on Python 3.12, installed to
     `/usr/local/bin/ax-task-runner`, loaded into kind by `ops/ax/up.sh`.
   - `tests/test_plane_runner.py`: the env contract on a fixture workspace; readyz 503 then 200; delivery to a
     local receiver; delivery failure yields `failed`; the child's cwd and `AX_METADATA_URL`; the runner stays
-    up after the command; SIGTERM kills a long-running command's group; the marker prevents a rerun.
-  - _Requirements: 4.1, 4.2, 4.3, 4.4_
+    up after the command; SIGTERM kills a long-running command's group; the marker prevents a rerun; no command
+    before a start request, 409 on a wrong run/task and on a second start, the credential reaches the child
+    (its hash in the artifact) and no file or log record, a crash printing it is redacted, and of two runners
+    with identical env only the addressed one runs (the golden scenario).
+  - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6_
 
 - [ ] 4. ax-backed reconciler and CLI
   - `src/openultrasast/plane/reconciler.py` (under 500 lines, no pipeline logic, no local subprocess
@@ -56,7 +64,12 @@ mypy are clean, and the commit is gated on pytest's own exit code. Script-level 
     none for a finished command); `Failed` or a vanished task before delivery, or no delivery within
     `OUSAST_TASK_TIMEOUT`, fails the task with ax's condition message; the artifact HTTP receiver, `serialize` labels never overlapping, `--workers`, budgets and
     artifact env passed in the rendered Task manifest, outcome read from the delivered `summary.json`, skip
-    `done` on rerun, PID lock per run, `ax delete` of finished Tasks.
+    `done` on rerun, PID lock per run, `ax delete` of finished Tasks. Once ax reports `Running` after a
+    resume, one start request per resume through Agent Substrate's router (`src/openultrasast/plane/router.py`:
+    `kubectl port-forward svc/atenet-router` for the run, or `OUSAST_ROUTER_URL`; header
+    `ate-target-actor: <atespace>/<task>`; 502/503/504 and connection errors retried up to
+    `OUSAST_START_TIMEOUT`, a 409 final), carrying the bound Model's `secretKey.key` variable from the
+    reconciler's environment; a Model-bound task whose variable is unset fails before `ax apply`.
   - `ousast plane run <Run.yaml>`, `ousast plane status <run>` (token attribution table per task and Model
     from the tasks' `summary.json` usage; `--units` from `units.jsonl`; also written to `attribution.json`),
     `ousast plane workspaces <population.toml>` (generates Workspace manifests per case pin).
@@ -64,9 +77,13 @@ mypy are clean, and the commit is gated on pytest's own exit code. Script-level 
     failing DeadlineExceeded, Running without a Completed phase) drives a DAG: order, non-overlap,
     skip-on-rerun, `unfinished` and `failed` propagation, resume retry and timeout, `Failed` with a condition
     message, the task timeout without delivery, the lock, the attribution table, and the
-    line-count assertion. `tests/test_plane_ax_live.py` (marker `ax`, skipped without a live cluster): one
+    line-count assertion; with a fake router: one start per task after the accepted resume and before the
+    delivery, the credential in the verify start only and in no file under the run or tmp dirs, a missing
+    secret failing the task, a refused start failing it. `tests/test_plane_router.py`: port parsing from a
+    fake kubectl and its termination on exit, retry on 503/502 then 202, 409 raised with redacted text, the
+    start timeout. `tests/test_plane_ax_live.py` (marker `ax`, skipped without a live cluster): one
     trivial Task end to end.
-  - _Requirements: 3.1, 3.2, 3.3, 3.4, 2.2, 7.1, 7.3_
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 2.2, 4.5, 4.6, 7.1, 7.3_
 
 - [ ] 5. `repo-facts` task
   - `src/openultrasast/plane/tasks/repo_facts.py`: product files, functions per file (per-language

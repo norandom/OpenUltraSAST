@@ -1,26 +1,25 @@
-"""ax-backed reconciler of a ``Run``: submission, resume, completion by delivery (ai-service-plane Req 3, 4.4, 7).
+"""ax-backed reconciler of a ``Run``: submission, resume, start, completion by delivery (ai-service-plane Req 3, 4, 7).
 
-Every task of a Run is executed by ax on this host's kind cluster; nothing here runs a task as a local subprocess
-and nothing here knows a prompt, a score or a model call. For each ready task the reconciler renders one YAML
-file (the Task with its env extended, its Workspaces, one generated Workspace carrying the consumed artifacts as
-``files`` entries, and the bound Model) and runs ``ax apply -f``. ax creates a Task ``Suspended``; the reconciler
-resumes it (``ax resume task``), retrying with backoff while ax answers DeadlineExceeded/Unavailable (the first
-resume of a new image waits for its golden snapshot) for up to ``OUSAST_RESUME_TIMEOUT`` s (default 900). ax has no
-Completed phase and never reports that a command exited; completion is the runner's artifact delivery, and
-``Failed``, the task vanishing, or ``OUSAST_TASK_TIMEOUT`` s (default 7200) without delivery fail the task with
-ax's condition message. ``ax delete task`` follows either way. The outcome is the delivered ``summary.json``.
+ax executes every task on this host's kind cluster; nothing here runs a task locally or knows a prompt, a score or
+a model call. Per ready task: one rendered YAML file (the Task with its env extended, its Workspaces, a generated
+Workspace with the consumed artifacts as ``files``, the bound Model), ``ax apply -f``, ``ax resume task`` (retried
+on DeadlineExceeded/Unavailable -- a new image's first resume waits for Agent Substrate's golden snapshot -- for
+up to ``OUSAST_RESUME_TIMEOUT`` s, 900), and once ax says ``Running`` one start request through Substrate's router
+(``router.py``, Req 4.5) carrying the bound Model's credential from this process's environment, never from a file
+(Req 4.6). Completion is the runner's artifact delivery (ax has no Completed phase); ``Failed``, the task
+vanishing, a refused start or ``OUSAST_TASK_TIMEOUT`` s (7200) without delivery fail it; ``ax delete task`` follows.
 
-ax's API server rejects unknown fields, so rendered documents carry only ax's fields; ``openultrasast.io/*``
-annotations reach the task as env: ``openultrasast.io/model`` as ``OUSAST_MODEL`` plus ``OUSAST_MODEL_PARAMS`` (Req
-7.1), each Workspace's ``openultrasast.io/git-commits`` as ``OUSAST_GIT_PINS``. ``OUSAST_INPUT_<NAME>`` points into
-a generated Workspace at ``/workspace/.ousast-in/<task>``. The receiver takes the runner's tar (``X-Ousast-Run``,
-``X-Ousast-Task``) on ``OUSAST_ARTIFACT_PORT`` and advertises ``OUSAST_ARTIFACT_HOST`` (default ``172.17.0.1``, the
-docker bridge kind nodes reach). Run state: ``~/ousast-results/plane/<run>/`` (``OUSAST_RESULTS``), polls every
-``OUSAST_POLL_SECONDS`` (3).
+ax rejects unknown fields, so rendered documents carry only ax's fields; ``openultrasast.io/model`` reaches the
+task as ``OUSAST_MODEL`` plus ``OUSAST_MODEL_PARAMS`` (Req 7.1), each Workspace's ``openultrasast.io/git-commits``
+as ``OUSAST_GIT_PINS``; ``OUSAST_INPUT_<NAME>`` points into ``/workspace/.ousast-in/<task>``. The receiver takes
+the runner's tar (``X-Ousast-Run``, ``X-Ousast-Task``) on ``OUSAST_ARTIFACT_PORT``, advertised as
+``OUSAST_ARTIFACT_HOST`` (default ``172.17.0.1``, the docker bridge). State: ``~/ousast-results/plane/<run>/``
+(``OUSAST_RESULTS``), polled every ``OUSAST_POLL_SECONDS`` (3).
 """
 
 from __future__ import annotations
 
+import contextlib
 import io
 import json
 import os
@@ -41,6 +40,7 @@ import yaml
 
 from .doctor import doctor
 from .manifests import AX_API_VERSION, Manifests, Model, Run, RunTask, Task, Workspace, load_manifests
+from .router import Router, credentials, open_router
 
 MODEL_ANNOTATION = "openultrasast.io/model"
 OUTPUT_ROOT = "/workspace/.ousast-out"
@@ -297,27 +297,22 @@ def _acquire_lock(base: Path) -> Path:
     lock = base / "lock"
     pid = _read_json(lock)
     if isinstance(pid, int) and pid != os.getpid():
-        try:
+        with contextlib.suppress(OSError):
             os.kill(pid, 0)
-        except OSError:
-            pass
-        else:
             raise RuntimeError(f"run is held by pid {pid} ({lock})")
     lock.write_text(json.dumps(os.getpid()), encoding="utf-8")
     return lock
 
 
-def _await(ax: Ax, name: str, delivered: Callable[[], bool], poll: float) -> str | None:
-    """Resume ``name`` and wait for its delivery: None once delivered, else why the task failed.
-
-    ax sets ``Failed`` when a resume call fails, so ``Failed`` is final only once a resume went through; until then
-    a DeadlineExceeded/Unavailable resume is retried with doubling backoff inside ``OUSAST_RESUME_TIMEOUT``.
-    """
-    task_limit = float(os.environ.get("OUSAST_TASK_TIMEOUT") or 7200)
+def _await(ax: Ax, name: str, delivered: Callable[[], bool], start: Callable[[], str | None]) -> str | None:
+    """Resume ``name``, ``start`` it once Running (again after a re-resume), await delivery: None, else why it failed.
+    ``Failed`` is final only once a resume went through (ax sets it when a resume call fails); until then a
+    DeadlineExceeded/Unavailable resume is retried with doubling backoff inside ``OUSAST_RESUME_TIMEOUT``."""
+    task_limit, poll = float(os.environ.get("OUSAST_TASK_TIMEOUT") or 7200), float(os.environ.get("OUSAST_POLL_SECONDS") or 3)
     resume_limit = float(os.environ.get("OUSAST_RESUME_TIMEOUT") or 900)
     started = time.monotonic()
     resuming: float | None = started  # when the current resume spell began; None while ax runs the task
-    retry_at, backoff, last, unknown, phase = started, poll, "", 0, "Suspended"
+    retry_at, backoff, last, unknown, phase, sent = started, poll, "", 0, "Suspended", False
     while not delivered():
         now = time.monotonic()
         if now - started > task_limit:
@@ -344,22 +339,28 @@ def _await(ax: Ax, name: str, delivered: Callable[[], bool], poll: float) -> str
         if resuming is None and phase == "Failed":
             return f"ax phase Failed: {message}"
         if resuming is None and phase == "Suspended":
-            resuming, retry_at, backoff = time.monotonic(), 0.0, poll
+            resuming, retry_at, backoff, sent = time.monotonic(), 0.0, poll, False
+        if resuming is None and phase == "Running" and not sent:
+            sent, refused = True, start()  # through Substrate's router: the golden actor is never addressed (Req 4.5)
+            if refused and not delivered():
+                return refused
     return None
 
 
-def _execute(ax: Ax, run: Run, entry: RunTask, manifests: Manifests, base: Path, receiver: Receiver, poll: float) -> tuple[str, str]:
-    ax_name = _ax_name(run.metadata.name, entry.name)
+def _execute(ax: Ax, run: Run, entry: RunTask, manifests: Manifests, base: Path, receiver: Receiver, router: Router) -> tuple[str, str]:
+    ax_name, task = _ax_name(run.metadata.name, entry.name), manifests.tasks[entry.task]
     manifest = base / entry.name / "task.yaml"
     manifest.parent.mkdir(parents=True, exist_ok=True)
     docs = render_task(run, entry, manifests, base, receiver.url())
     manifest.write_text(yaml.safe_dump_all(docs, sort_keys=False), encoding="utf-8")
-    try:
+    try:  # Req 4.6: the bound Model's credential is read here and only ever sent in the start request
+        secrets = credentials(manifests.models.get(task.metadata.annotations.get(MODEL_ANNOTATION) or ""))
+        start = router.starter(task.metadata.atespace or "default", ax_name, run.metadata.name, secrets)
         ax.apply(manifest)
-    except RuntimeError as exc:
+    except RuntimeError as exc:  # StartError included: a Model-bound task whose secret is unset
         return "failed", str(exc)
     try:
-        failure = _await(ax, ax_name, lambda: entry.name in receiver.delivered, poll)
+        failure = _await(ax, ax_name, lambda: entry.name in receiver.delivered, start)
     finally:
         ax.delete(ax_name)
     return ("failed", failure) if failure else outcome_of(_read_json(base / entry.name / "summary.json"))
@@ -371,9 +372,7 @@ def run(run_manifest: Path, *, workers: int = 1, ax: str = "ax", results_root: P
     base = run_dir(run_spec.metadata.name, results_root)
     base.mkdir(parents=True, exist_ok=True)
     lock = _acquire_lock(base)
-    poll = float(os.environ.get("OUSAST_POLL_SECONDS") or 3)
-    fresh = {"run": run_spec.metadata.name, "started": _now(), "tasks": {}}
-    state = _State(base / "state.json", _read_json(base / "state.json") or fresh)
+    state = _State(base / "state.json", _read_json(base / "state.json") or {"run": run_spec.metadata.name, "started": _now(), "tasks": {}})
     receiver = Receiver(run_spec.metadata.name, base, int(os.environ.get("OUSAST_ARTIFACT_PORT") or 0))
     threading.Thread(target=receiver.serve_forever, daemon=True).start()
     cli, finished = Ax(ax), queue.Queue[tuple[str, str, str]]()
@@ -387,31 +386,32 @@ def run(run_manifest: Path, *, workers: int = 1, ax: str = "ax", results_root: P
         if state.status(entry.name) in ("running", "suspended"):
             cli.delete(_ax_name(run_spec.metadata.name, entry.name))  # an interrupted attempt; ax must not keep it
         state.set(entry.name, status="running", started=_now(), finished=None)
-        finished.put((entry.name, *_execute(cli, run_spec, entry, manifests, base, receiver, poll)))
+        finished.put((entry.name, *_execute(cli, run_spec, entry, manifests, base, receiver, router)))
 
     try:
-        while pending or running:
-            blocked = {t.serialize for t in running.values() if t.serialize}
-            for entry in list(pending):
-                if halted or len(running) >= max(workers, 1) or (entry.serialize and entry.serialize in blocked):
-                    continue
-                if not all(state.status(p) == "done" for p in entry.producers):
-                    continue
-                pending.remove(entry)
-                running[entry.name] = entry
-                blocked.add(entry.serialize or "")
-                with receiver.lock:
-                    receiver.running.add(entry.name)
-                threading.Thread(target=worker, args=(entry,), daemon=True).start()
-            if not running:
-                break  # nothing can start: a producer stopped short
-            name, status, reason = finished.get()
-            del running[name]
-            summary = _read_json(base / name / "summary.json") or {}
-            state.set(name, status=status, finished=_now(), usd=summary.get("usd"), model=summary.get("model"), reason=reason or None)
-            halted = halted or status == "failed"
-            if status == "unfinished":
-                pending = [t for t in pending if name not in t.producers]
+        with open_router() as router:  # one port-forward to Substrate's router for the whole run
+            while pending or running:
+                blocked = {t.serialize for t in running.values() if t.serialize}
+                for entry in list(pending):
+                    if halted or len(running) >= max(workers, 1) or (entry.serialize and entry.serialize in blocked):
+                        continue
+                    if not all(state.status(p) == "done" for p in entry.producers):
+                        continue
+                    pending.remove(entry)
+                    running[entry.name] = entry
+                    blocked.add(entry.serialize or "")
+                    with receiver.lock:
+                        receiver.running.add(entry.name)
+                    threading.Thread(target=worker, args=(entry,), daemon=True).start()
+                if not running:
+                    break  # nothing can start: a producer stopped short
+                name, status, reason = finished.get()
+                del running[name]
+                summary = _read_json(base / name / "summary.json") or {}
+                state.set(name, status=status, finished=_now(), usd=summary.get("usd"), model=summary.get("model"), reason=reason or None)
+                halted = halted or status == "failed"
+                if status == "unfinished":
+                    pending = [t for t in pending if name not in t.producers]
     finally:
         receiver.shutdown()
         lock.unlink(missing_ok=True)

@@ -76,6 +76,27 @@ with a failed delivery retries the delivery only. SIGTERM (ax's stop and suspend
 process group, followed by SIGKILL after `OUSAST_TERM_GRACE` (10 s), and the runner exits 0.
 `AX_RUNNER_EXIT_AFTER_COMMAND=1` is a unit-test escape that exits with the task's code after delivery.
 
+The command never starts by itself (Requirements 4.5, 4.6). Once the workspaces are ready the runner serves
+`POST /ousast/v1/start` on port 80 with the body `{"run", "task", "credentials"}`: 503 before the workspaces are
+ready (the reconciler retries), 409 when `run`/`task` differ from `OUSAST_RUN` and the Task's name, 409 for a
+second request on the same boot, 409 with the reason when the completion marker records a delivered run, 400 for
+a malformed body or a credential name outside `^[A-Z][A-Z0-9_]*$` (or under `AX_`/`OUSAST_`), and 202 once.
+Only then does the command run -- or, when the marker records a failed delivery, only the delivery is retried; a
+runner failure (bad manifests, a workspace that cannot be materialised) is likewise delivered only after a start,
+or refused with its reason. The credentials stay in the runner's memory and are merged into the child's
+environment only; they are never logged or written, and their values are redacted from the child's echoed
+stderr and the stderr tail a crash summary keeps. `AX_RUNNER_AUTOSTART=1` (unit tests only; required with
+`AX_RUNNER_HTTP=0`) starts without a request.
+
+**Golden snapshot.** Agent Substrate boots every new ActorTemplate once as a temporary "golden" actor (atespace
+`ate-golden`, a UUID name) to capture a snapshot. ax bakes `AX_TASK_YAML`, `AX_WORKSPACES_YAML` and `spec.env`
+into the template, and inside the sandbox the hostname is always `actor` with no identity variable, so the golden
+boot and the real one are indistinguishable from within (observed on the live cluster, 2026-09-29: the command
+ran in both). The distinction exists only outside: Substrate's router (`svc/atenet-router` in `ate-system`)
+routes on `ate-target-actor: <atespace>/<name>` to the task's actor, resuming it if suspended, and never to the
+golden one. Hence the start request, and hence credentials only in it: a template, a rendered Task or an ax
+manifest is visible to the golden boot and to anyone who can read the cluster's objects.
+
 ### Reconciler (`reconciler.py`, ax-backed)
 
 `ousast plane run <Run.yaml>`, `ousast plane status <run>` and `ousast plane doctor`. State: `state.json` with
@@ -97,6 +118,18 @@ budget stop; `failed` on an account or authentication error, a crash, or a missi
 the token attribution table (Requirement 7.3) from the delivered summaries and writes `attribution.json`. On rerun, `done` tasks are skipped and
 the others re-executed; per-unit resume is the task's own duty (Requirement 2.2). No prompts, scoring or model
 calls anywhere in this module; a test counts its lines.
+
+Start (Requirements 4.5, 4.6; `router.py`, kept out of the reconciler's line budget): for the whole run the
+reconciler holds one `kubectl --context kind-ousast -n ate-system port-forward svc/atenet-router :80` (random local
+port read from kubectl's `Forwarding from 127.0.0.1:NNNN`; the child is terminated when the run ends;
+`OUSAST_ROUTER_URL` replaces it, as in the tests). When ax reports `Running` after an accepted resume -- again
+after a re-resume of a suspended task, where an "already started on this boot" answer means the command
+survived and still runs -- it posts the start body with `ate-target-actor: <atespace>/<task>`,
+retrying 502/503/504 and connection errors with backoff up to `OUSAST_START_TIMEOUT` (300 s); a 409 or the timeout
+fails the task with the response text unless it already delivered. Credentials come from the Model binding: the
+bound Model's `spec.secretKey.key` names the variable (`DEEPSEEK_API_KEY` for `deepseek-flash`), read from the
+reconciler's own environment (`ousast` loads `.env` at startup); a Model-bound task whose variable is unset fails
+before `ax apply`, and a task without a Model gets none. The value is never rendered, logged or written.
 
 ### Budget (`budget.py`)
 
