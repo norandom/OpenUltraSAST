@@ -62,6 +62,8 @@ SPEC_OWNED = {
     "plane.tasks": "ai-service-plane Req 2.1: the tasks package, each a main() under the OUSAST_* env contract; runner wiring in task 3",
     "plane.tasks.verify": "ai-service-plane Req 5.3/2.1-2.3/7.2: the batched hunt with known callers, metered and resumable per file hunt",
     "plane.tasks.agree": "ai-service-plane Req 5.3/2.1: agreement across two verify passes with per-candidate cost, turns and site match",
+    "plane.reconciler": "ai-service-plane Req 3.1-3.5, 7.3: ax-backed Run execution, status attribution and doctor; `ousast plane`",
+    "plane.workspaces": "ai-service-plane task 4: Workspace manifests per case pin of a population; `ousast plane workspaces`",
 }
 
 STANDALONE = {
