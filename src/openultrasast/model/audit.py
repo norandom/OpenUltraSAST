@@ -54,6 +54,8 @@ SPEC_OWNED = {
     "cpg": "model-grounded-detection Req 4: the CPG seam package",
     "cpg.backend": "model-grounded-detection Req 4.1/4.5: the single Joern subprocess boundary",
     "cpg.capability": "model-grounded-detection Req 4.2/4.3: the engine probe that degrades to suspicion",
+    "plane": "ai-service-plane Req 1-4: the service plane package; runner and reconciler integration in tasks 3-4",
+    "plane.budget": "ai-service-plane Req 2.3/2.4: metered chat client with usd and calls ceilings; task integration in tasks 3, 6",
 }
 
 STANDALONE = {
