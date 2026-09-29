@@ -13,9 +13,9 @@ from openultrasast.semantic.extra import grammar_for, has_semantic_extra
 from openultrasast.semantic.ir import parse_file
 
 
-def test_core_dependencies_stay_empty_and_semantic_is_optional() -> None:
+def test_core_dependencies_are_pyyaml_only_and_semantic_is_optional() -> None:
     payload = tomllib.loads(Path("pyproject.toml").read_text())
-    assert payload["project"]["dependencies"] == []
+    assert payload["project"]["dependencies"] == ["pyyaml>=6.0"]  # ai-service-plane task 1: manifests are YAML
     extra = payload["project"]["optional-dependencies"]["semantic"]
     joined = " ".join(extra)
     assert "tree-sitter" in joined
