@@ -98,6 +98,13 @@ later.
 4. Because ax has no artifact channel, the runner delivers the task's output directory (including
    `summary.json` and `units.jsonl`) to the reconciler's artifact endpoint named in `OUSAST_ARTIFACT_URL`
    before it reports completion; a delivery failure is reported as `failed`, never as done.
+5. The command never runs in Agent Substrate's golden-snapshot boot, which executes the same image with the same
+   task environment (observed on the live cluster, 2026-09-29): the runner prepares workspaces, reports ready and
+   waits; the reconciler starts the command with one request to the task's actor through Substrate's router
+   (`ate-target-actor: <atespace>/<task>`), which never addresses the golden actor. A second start request for
+   the same task is refused.
+6. Provider credentials reach a task only in that start request, held in the runner's memory and passed to the
+   command's environment; they never appear in a manifest, a rendered Task, an ax template or any file.
 
 ### Requirement 5: `repo-facts` is the memory layer
 
