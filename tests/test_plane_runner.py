@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
-import importlib.util
 import io
 import json
 import os
+import shutil
+import signal
+import socket
 import subprocess
 import sys
 import tarfile
 import threading
+import time
 import urllib.error
 import urllib.request
 from collections.abc import Iterator
@@ -30,36 +33,38 @@ from openultrasast.plane.runner import (
 )
 
 STUB = Path(__file__).parent / "plane_stub_task.py"
-STUB_MODULE = f"{runner.TASK_PACKAGE}.stub_task"
+STUB_PACKAGE = "ousast_stub_tasks"
+SRC = Path(runner.__file__).resolve().parents[2]  # the ``src`` this test imports; the children must import it too
 
 
-@pytest.fixture(autouse=True)
-def stub_task() -> Iterator[None]:
-    """Register the stub as ``openultrasast.plane.tasks.stub_task`` for the runner's import; no src package needed."""
-    spec = importlib.util.spec_from_file_location(STUB_MODULE, STUB)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[STUB_MODULE] = module
-    spec.loader.exec_module(module)
-    try:
-        yield
-    finally:
-        sys.modules.pop(STUB_MODULE, None)
+@pytest.fixture(scope="session")
+def stub_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """A throwaway package holding the stub, so the runner starts it as ``python -m ousast_stub_tasks.stub_task``."""
+    root = tmp_path_factory.mktemp("stubs")
+    (root / STUB_PACKAGE).mkdir()
+    (root / STUB_PACKAGE / "__init__.py").write_text("", encoding="utf-8")
+    shutil.copy(STUB, root / STUB_PACKAGE / "stub_task.py")
+    return root
 
 
 @pytest.fixture
-def env(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, str]]:
+def env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, stub_root: Path) -> Iterator[dict[str, str]]:
     """A private environment for one runner invocation, restored whole afterwards.
 
     The runner and the stub read and write ``os.environ`` directly (that is the contract), so monkeypatch alone
-    would not undo what the runner exports; the snapshot does.
+    would not undo what the runner exports; the snapshot does. ``AX_RUNNER_EXIT_AFTER_COMMAND`` makes ``main()``
+    return after delivery instead of serving until SIGTERM, as the image does.
     """
     saved = dict(os.environ)
     for key in list(os.environ):
         if key.startswith(("OUSAST_", "AX_", "STUB_")):
             monkeypatch.delenv(key)
     monkeypatch.setenv("AX_RUNNER_HTTP", "0")
+    monkeypatch.setenv("AX_RUNNER_EXIT_AFTER_COMMAND", "1")
+    monkeypatch.setenv("AX_RUNNER_TASK_PACKAGE", STUB_PACKAGE)
+    monkeypatch.setenv("OUSAST_STATE_DIR", str(tmp_path / "state"))
     monkeypatch.setenv("OUSAST_DELIVERY_BACKOFF", "0")
+    monkeypatch.setenv("PYTHONPATH", os.pathsep.join(filter(None, [str(stub_root), str(SRC), os.environ.get("PYTHONPATH")])))
     try:
         yield os.environ
     finally:
@@ -156,8 +161,10 @@ def test_readyz_is_503_until_workspaces_are_ready_then_200() -> None:
         assert get(f"{base}/healthz") == 200
         assert get(f"{base}/readyz") == 503
         assert get(f"{base}/other") == 404
+        assert get(f"{base}/readyz?check=workspace") == 503, "ax's controller probes with a query string"
         ready.set()
         assert get(f"{base}/readyz") == 200
+        assert get(f"{base}/readyz?check=workspace") == 200
     finally:
         server.stop()
 
@@ -295,6 +302,128 @@ def test_an_unknown_task_module_is_failed(env: dict[str, str], monkeypatch: pyte
     monkeypatch.setenv("AX_WORKSPACES_YAML", files_workspace_yaml())
     assert runner.main() == 2
     assert "no_such_task" in json.loads((output / "summary.json").read_text())["reason"]
+
+
+# --- ax's lifecycle: a child process, stay up, SIGTERM, completion marker (docs/runner.md, docs/sandbox.md) -----------------
+
+
+def test_the_command_is_a_child_in_its_own_group_in_the_first_workspace(
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    code, output = run_main(monkeypatch, tmp_path, files_workspace_yaml(), AX_RUNNER_HTTP="1", AX_RUNNER_PORT="0")
+    assert code == 0
+    facts = json.loads((output / "facts.json").read_text())
+    assert facts["pid"] != os.getpid(), "the task is a child process, not an import"
+    assert facts["pgid"] == facts["pid"] != os.getpgid(0), "the child leads its own process group"
+    assert facts["cwd"] == str(tmp_path / "ws"), "the first workspace is the working directory"
+    assert facts["metadata_url"] == f"http://127.0.0.1:{os.environ['AX_RUNNER_BOUND_PORT']}"
+    assert "name: stub" in facts["metadata_task"], "AX_METADATA_URL serves the Task YAML"
+
+
+def free_port() -> int:
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        return int(probe.getsockname()[1])
+
+
+def alive(pid: int) -> bool:
+    """True while ``pid`` exists and is not a zombie (a killed orphan may wait for its reaper)."""
+    try:
+        return Path(f"/proc/{pid}/stat").read_text().split(")")[-1].split()[0] != "Z"
+    except (FileNotFoundError, ProcessLookupError, IndexError):
+        return False
+
+
+def wait_for(predicate: object, timeout: float = 30.0) -> None:
+    deadline = time.monotonic() + timeout
+    while not predicate():  # type: ignore[operator]
+        assert time.monotonic() < deadline, "timed out"
+        time.sleep(0.05)
+
+
+def spawn_runner(tmp_path: Path, port: int, **extra: str) -> subprocess.Popen[bytes]:
+    """``python -m openultrasast.plane.runner`` as the image runs it: HTTP on, no exit-after-command escape."""
+    child_env = {k: v for k, v in os.environ.items() if k != "AX_RUNNER_EXIT_AFTER_COMMAND"}
+    child_env.update(AX_TASK_YAML=task_yaml(tmp_path / "out", tmp_path / "ws"), AX_WORKSPACES_YAML=files_workspace_yaml())
+    child_env.update(AX_RUNNER_HTTP="1", AX_RUNNER_PORT=str(port), **extra)
+    log = (tmp_path / "runner.log").open("wb")
+    return subprocess.Popen([sys.executable, "-m", "openultrasast.plane.runner"], env=child_env, stdout=log, stderr=log)
+
+
+def test_the_runner_keeps_serving_after_the_command_and_exits_0_on_sigterm(env: dict[str, str], receiver: Receiver, tmp_path: Path) -> None:
+    port = free_port()
+    proc = spawn_runner(tmp_path, port, OUSAST_ARTIFACT_URL=receiver.url)
+    marker = tmp_path / "state" / "stub.done.json"
+    try:
+        wait_for(marker.exists)
+        time.sleep(0.5)
+        assert proc.poll() is None, "PID 1 must outlive the command (ax: 'Container guest is stopped' otherwise)"
+        base = f"http://127.0.0.1:{port}"
+        assert get(f"{base}/healthz") == 200 and get(f"{base}/readyz?check=workspace") == 200
+        assert get(f"{base}/metadata/v1alpha1/ax/workspaces") == 200
+        assert len(receiver.posts) == 1
+        assert json.loads(marker.read_text()) | {"summary": None} == {"exit": 0, "status": "done", "delivered": True, "summary": None}
+        proc.send_signal(signal.SIGTERM)
+        assert proc.wait(timeout=10) == 0
+    finally:
+        proc.kill()
+        proc.wait()
+
+
+def test_sigterm_goes_to_the_commands_group_then_sigkill_after_the_grace(env: dict[str, str], receiver: Receiver, tmp_path: Path) -> None:
+    port = free_port()
+    proc = spawn_runner(tmp_path, port, OUSAST_ARTIFACT_URL=receiver.url, STUB_MODE="sleep", OUSAST_TERM_GRACE="1")
+    pids_file = tmp_path / "out" / "pids.json"
+    try:
+        wait_for(pids_file.exists)
+        pids = json.loads(pids_file.read_text())
+        assert all(alive(pid) for pid in pids)
+        started = time.monotonic()
+        proc.send_signal(signal.SIGTERM)
+        assert proc.wait(timeout=15) == 0
+        assert time.monotonic() - started >= 0.9, "the command ignored SIGTERM, so the runner waited out the grace"
+        wait_for(lambda: not any(alive(pid) for pid in pids), timeout=5)
+    finally:
+        proc.kill()
+        proc.wait()
+    assert not (tmp_path / "state" / "stub.done.json").exists(), "an interrupted command is not complete"
+    assert receiver.posts == [], "nothing is delivered for an interrupted command"
+
+
+def test_the_completion_marker_prevents_a_rerun_on_resume(
+    env: dict[str, str], receiver: Receiver, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    counter = tmp_path / "runs.txt"
+    code, _ = run_main(monkeypatch, tmp_path, files_workspace_yaml(), OUSAST_ARTIFACT_URL=receiver.url, STUB_COUNTER=str(counter))
+    assert code == 0 and len(counter.read_text().splitlines()) == 1 and len(receiver.posts) == 1
+    (tmp_path / "ws" / "candidates.json").write_text("changed by the task\n")
+    code, _ = run_main(monkeypatch, tmp_path, files_workspace_yaml(), OUSAST_ARTIFACT_URL=receiver.url, STUB_COUNTER=str(counter))
+    assert code == 0
+    assert len(counter.read_text().splitlines()) == 1, "a resumed actor must not repeat billed work"
+    assert len(receiver.posts) == 1, "a delivered result is not delivered again"
+    assert (tmp_path / "ws" / "candidates.json").read_text() == "changed by the task\n", "workspaces are prepared once"
+
+
+def test_a_failed_delivery_is_retried_alone_on_the_next_boot(
+    env: dict[str, str], receiver: Receiver, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    counter = tmp_path / "runs.txt"
+    broken = Receiver(500)
+    try:
+        code, output = run_main(monkeypatch, tmp_path, files_workspace_yaml(), OUSAST_ARTIFACT_URL=broken.url, STUB_COUNTER=str(counter))
+    finally:
+        broken.stop()
+    assert code == 2
+    marker = json.loads((tmp_path / "state" / "stub.done.json").read_text())
+    assert marker["delivered"] is False and marker["status"] == "failed" and marker["exit"] == 0
+    code, output = run_main(monkeypatch, tmp_path, files_workspace_yaml(), OUSAST_ARTIFACT_URL=receiver.url, STUB_COUNTER=str(counter))
+    assert code == 0
+    assert len(counter.read_text().splitlines()) == 1, "only the delivery is retried"
+    with tarfile.open(fileobj=io.BytesIO(receiver.posts[0][1]), mode="r:") as archive:
+        summary = archive.extractfile("summary.json")
+        assert summary is not None and json.loads(summary.read())["status"] == "done", "the task's own summary"
+    marker = json.loads((tmp_path / "state" / "stub.done.json").read_text())
+    assert marker["delivered"] is True and marker["status"] == "done"
 
 
 # --- git workspaces from the case cache and by shallow clone ----------------------------------------------------------------

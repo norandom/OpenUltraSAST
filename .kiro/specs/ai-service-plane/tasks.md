@@ -33,27 +33,37 @@ mypy are clean, and the commit is gated on pytest's own exit code. Script-level 
 
 - [ ] 3. Runner contract
   - `src/openultrasast/plane/runner.py`: read `AX_TASK_YAML` / `AX_WORKSPACES_YAML`; materialise `git`
-    entries at the pinned commit from the local case cache and write `spec.files`; execute `spec.command`
-    by importing `openultrasast.plane.tasks.<name>`; `/healthz` `/readyz` server on port 80 (503 until
-    workspaces are ready; disabled only under `AX_RUNNER_HTTP=0` for unit tests); at exit, POST the output
-    directory as a tar stream to `OUSAST_ARTIFACT_URL` and report `failed` if delivery fails; exit codes
-    0 done, 2 failed, 3 unfinished. `plane/Dockerfile.runner`: this package on Python 3.12, installed to
+    entries at the pinned commit from the local case cache and write `spec.files` (first boot only); run
+    `spec.command` as a child `python -m openultrasast.plane.tasks.<name>` in its own process group, cwd the
+    first workspace, `AX_METADATA_URL` set; `/healthz` `/readyz` and ax's metadata paths on port 80 (503 until
+    workspaces are ready; disabled only under `AX_RUNNER_HTTP=0` for unit tests); after the command exits,
+    POST the output directory as a tar stream to `OUSAST_ARTIFACT_URL` (report `failed` if delivery fails),
+    write `/workspace/.ousast-state/<task>.done.json`, and keep serving until SIGTERM (ax's contract for PID 1);
+    a boot with the marker never reruns the command and retries only a failed delivery; SIGTERM goes to the
+    command's group, SIGKILL after `OUSAST_TERM_GRACE`, exit 0. `AX_RUNNER_EXIT_AFTER_COMMAND=1` (tests only)
+    exits after delivery with 0 done, 2 failed, 3 unfinished. `plane/Dockerfile.runner`: this package on Python 3.12, installed to
     `/usr/local/bin/ax-task-runner`, loaded into kind by `ops/ax/up.sh`.
   - `tests/test_plane_runner.py`: the env contract on a fixture workspace; readyz 503 then 200; delivery to a
-    local receiver; delivery failure yields `failed`.
+    local receiver; delivery failure yields `failed`; the child's cwd and `AX_METADATA_URL`; the runner stays
+    up after the command; SIGTERM kills a long-running command's group; the marker prevents a rerun.
   - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
 - [ ] 4. ax-backed reconciler and CLI
   - `src/openultrasast/plane/reconciler.py` (under 500 lines, no pipeline logic, no local subprocess
-    executor): `state.json`, statuses, topological submission through the `ax` CLI (path injectable), status
-    polling, the artifact HTTP receiver, `serialize` labels never overlapping, `--workers`, budgets and
+    executor): `state.json`, statuses, topological submission through the `ax` CLI (path injectable),
+    `ax resume task` after `ax apply` (a created Task is `Suspended`), retrying DeadlineExceeded/Unavailable
+    with backoff up to `OUSAST_RESUME_TIMEOUT`; completion is the artifact delivery, never an ax phase (ax has
+    none for a finished command); `Failed` or a vanished task before delivery, or no delivery within
+    `OUSAST_TASK_TIMEOUT`, fails the task with ax's condition message; the artifact HTTP receiver, `serialize` labels never overlapping, `--workers`, budgets and
     artifact env passed in the rendered Task manifest, outcome read from the delivered `summary.json`, skip
     `done` on rerun, PID lock per run, `ax delete` of finished Tasks.
   - `ousast plane run <Run.yaml>`, `ousast plane status <run>` (token attribution table per task and Model
     from the tasks' `summary.json` usage; `--units` from `units.jsonl`; also written to `attribution.json`),
     `ousast plane workspaces <population.toml>` (generates Workspace manifests per case pin).
-  - `tests/test_plane_reconciler.py`: a fake `ax` CLI drives a DAG: order, non-overlap, skip-on-rerun,
-    `unfinished` and `failed` propagation, missing delivery, the lock, the attribution table, and the
+  - `tests/test_plane_reconciler.py`: a fake `ax` CLI with ax's real lifecycle (Suspended, a first resume
+    failing DeadlineExceeded, Running without a Completed phase) drives a DAG: order, non-overlap,
+    skip-on-rerun, `unfinished` and `failed` propagation, resume retry and timeout, `Failed` with a condition
+    message, the task timeout without delivery, the lock, the attribution table, and the
     line-count assertion. `tests/test_plane_ax_live.py` (marker `ax`, skipped without a live cluster): one
     trivial Task end to end.
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 2.2, 7.1, 7.3_

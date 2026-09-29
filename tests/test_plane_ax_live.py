@@ -8,12 +8,13 @@ passes, so the host suite never depends on cluster state. It applies the digest-
 from __future__ import annotations
 
 import os
+import subprocess
 import time
 from pathlib import Path
 
 import pytest
 
-from openultrasast.plane.reconciler import Ax, doctor
+from openultrasast.plane.reconciler import TRANSIENT, Ax, doctor
 
 pytestmark = pytest.mark.ax
 SMOKE = Path.home() / ".cache/ousast/ax-src/smoke-task.yaml"
@@ -32,16 +33,34 @@ def live_ax() -> Ax:
     return Ax()
 
 
-def test_smoke_task_completes_on_the_cluster(live_ax: Ax) -> None:
+def resume_until_accepted(ax: Ax, name: str, deadline: float) -> None:
+    """ax creates a Task Suspended; the first resume of a new image may time out while its snapshot is built."""
+    error: str | None = "not tried"
+    while error is not None and time.monotonic() < deadline:
+        error = ax.resume(name)
+        if error is not None and not TRANSIENT.search(error):
+            raise AssertionError(f"ax resume task {name} failed: {error}")
+        if error is not None:
+            time.sleep(10)
+    assert error is None, f"ax resume task {name} never went through: {error}"
+
+
+def test_smoke_task_runs_and_its_runner_survives_suspend_and_resume(live_ax: Ax) -> None:
+    """ax has no Completed phase: the smoke task must reach Running after resume, and its runner must stay up after
+    the command so that a suspend and a second resume still go through (an exiting runner made resumes time out)."""
+    name = "ousast-smoke"
+    live_ax.delete(name)
     live_ax.apply(SMOKE)
-    deadline = time.monotonic() + 600
-    phase = "Pending"
+    deadline = time.monotonic() + 900
     try:
-        while time.monotonic() < deadline:
-            phase = live_ax.phase("ousast-smoke")
-            if any(word in phase.lower() for word in ("completed", "succeeded", "failed", "error")):
-                break
-            time.sleep(5)
+        resume_until_accepted(live_ax, name, deadline)
+        phase, message = live_ax.phase(name)
+        assert phase == "Running", f"after resume: {phase} ({message})"
+        time.sleep(30)  # the model-free repo-facts command is finished by now
+        suspended = subprocess.run(["ax", "suspend", "task", name], capture_output=True, text=True, check=False)
+        assert suspended.returncode == 0, suspended.stderr
+        resume_until_accepted(live_ax, name, deadline)
+        phase, message = live_ax.phase(name)
+        assert phase == "Running", f"after the second resume: {phase} ({message})"
     finally:
-        live_ax.delete("ousast-smoke")
-    assert phase.lower() in ("completed", "succeeded"), f"smoke task ended in phase {phase!r}"
+        live_ax.delete(name)

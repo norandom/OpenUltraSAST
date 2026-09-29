@@ -4,7 +4,8 @@
 # git, curl, ax's Go runner as PID 1). This image keeps the same base and the same contract -- PID 1 is
 # /usr/local/bin/ax-task-runner, fed AX_TASK_YAML / AX_WORKSPACES_YAML, serving /healthz and /readyz on port 80 --
 # but the runner is this package's `openultrasast.plane.runner`, so a task's spec.command names a module under
-# `openultrasast.plane.tasks` and the output directory is delivered to the reconciler at exit.
+# `openultrasast.plane.tasks`, run as a child process; the output directory is delivered to the reconciler when
+# it exits, and the runner then keeps serving until SIGTERM, as ax requires of PID 1.
 #
 # Build from the repository root (the package is the context):
 #     docker build -f plane/Dockerfile.runner -t openultrasast-runner:dev .
