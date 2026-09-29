@@ -1,0 +1,32 @@
+# The ax task-runner image for this project (ai-service-plane Requirement 4.2).
+#
+# ax's default runner image is gcr.io/ax-substrate/ate-images/ax-task-runner@sha256:3a0dea6a... (Python 3.12,
+# git, curl, ax's Go runner as PID 1). This image keeps the same base and the same contract -- PID 1 is
+# /usr/local/bin/ax-task-runner, fed AX_TASK_YAML / AX_WORKSPACES_YAML, serving /healthz and /readyz on port 80 --
+# but the runner is this package's `openultrasast.plane.runner`, so a task's spec.command names a module under
+# `openultrasast.plane.tasks` and the output directory is delivered to the reconciler at exit.
+#
+# Build from the repository root (the package is the context):
+#     docker build -f plane/Dockerfile.runner -t openultrasast-runner:dev .
+# `ops/ax/up.sh` builds it and loads it into kind; nothing here is exercised by the unit tests.
+
+FROM python:3.12-slim
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/openultrasast
+COPY pyproject.toml README.md ./
+COPY src ./src
+# Core install only: PyYAML for the manifests, no extras (no HarnessX, no tree-sitter).
+RUN pip install --no-cache-dir . \
+ && printf '#!/bin/sh\nexec python -m openultrasast.plane.runner "$@"\n' > /usr/local/bin/ax-task-runner \
+ && chmod 0755 /usr/local/bin/ax-task-runner
+
+# ax mounts the persistent volume here; it is also the command's working directory in ax's own runner.
+RUN mkdir -p /workspace
+WORKDIR /workspace
+
+EXPOSE 80
+ENTRYPOINT ["/usr/local/bin/ax-task-runner"]

@@ -63,6 +63,7 @@ SPEC_OWNED = {
     "plane.tasks.agree": "ai-service-plane Req 5.3/2.1: agreement across two verify passes with per-candidate cost, turns and site match",
     "plane.reconciler": "ai-service-plane Req 3.1-3.5, 7.3: ax-backed Run execution, status attribution and doctor; `ousast plane`",
     "plane.workspaces": "ai-service-plane task 4: Workspace manifests per case pin of a population; `ousast plane workspaces`",
+    "plane.runner": "ai-service-plane Req 4.1-4.4: the ax-task-runner entrypoint (PID 1 of the task image); delivers the output directory",
 }
 
 STANDALONE = {

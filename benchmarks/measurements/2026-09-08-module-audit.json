@@ -1,7 +1,7 @@
 {
-  "modules": 127,
+  "modules": 128,
   "counts": {
-    "load_bearing": 118,
+    "load_bearing": 119,
     "standalone_capability": 9
   },
   "orphaned": [],
@@ -660,6 +660,7 @@
       "importers": [
         "cli",
         "plane.reconciler",
+        "plane.runner",
         "plane.tasks.verify",
         "plane.workspaces"
       ]
@@ -677,7 +678,8 @@
       "classification": "load_bearing",
       "reason": "ai-service-plane Req 1.1-1.4: ax-shaped Task/Workspace/Model and the Run kind, validated before anything runs",
       "importers": [
-        "plane.reconciler"
+        "plane.reconciler",
+        "plane.runner"
       ]
     },
     {
@@ -687,6 +689,12 @@
       "importers": [
         "plane.workspaces"
       ]
+    },
+    {
+      "module": "plane.runner",
+      "classification": "load_bearing",
+      "reason": "ai-service-plane Req 4.1-4.4: the ax-task-runner entrypoint (PID 1 of the task image); delivers the output directory",
+      "importers": []
     },
     {
       "module": "plane.tasks",
