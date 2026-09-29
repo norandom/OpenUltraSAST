@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import stat
 import subprocess
 import sys
@@ -865,3 +866,14 @@ def test_a_megabyte_producer_artifact_keeps_every_rendered_value_under_substrate
         assert len(yaml.safe_dump(task)) < SUBSTRATE_ENV_LIMIT, f"{entry.name}: AX_TASK_YAML"
         assert len(yaml.safe_dump_all(workspaces)) < SUBSTRATE_ENV_LIMIT, f"{entry.name}: AX_WORKSPACES_YAML"
         assert all(len(yaml.safe_dump(w)) < SUBSTRATE_ENV_LIMIT for w in workspaces), entry.name
+
+
+def test_ax_task_names_leave_room_for_the_template_suffix() -> None:
+    """ax names the template "<task>-tmpl-<8 hex>" and Substrate caps names at 63 bytes: a 51-character task name
+    failed on the live cluster (2026-09-29). Long names keep a prefix plus a stable hash; short ones are unchanged."""
+    long = reconciler._ax_name("validation-46", "budibase-mongo-template-nosqli-facts", limit=reconciler.TASK_NAME_LIMIT)
+    assert len(long) + len("-tmpl-1e472705") <= 63 and long.startswith("validation-46-budibase")
+    other = reconciler._ax_name("validation-46", "budibase-mongo-template-nosqli-agree", limit=reconciler.TASK_NAME_LIMIT)
+    assert other != long, "no collision between tasks sharing a long prefix"
+    assert reconciler._ax_name("run", "facts", limit=reconciler.TASK_NAME_LIMIT) == "run-facts"
+    assert re.fullmatch(r"[a-z0-9]([a-z0-9-]*[a-z0-9])?", long)

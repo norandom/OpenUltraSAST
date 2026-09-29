@@ -23,6 +23,7 @@ State: ``~/ousast-results/plane/<run>/`` (``OUSAST_RESULTS``), polled every ``OU
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import json
 import os
 import queue
@@ -79,8 +80,17 @@ def _read_json(path: Path) -> Any:
         return None
 
 
-def _ax_name(*parts: str) -> str:
-    return re.sub(r"[^a-z0-9-]+", "-", "-".join(parts).lower()).strip("-")[:63]
+# ax names a task's ActorTemplate "<task>-tmpl-<8 hex>" and Substrate caps names at 63 bytes (live, 2026-09-29).
+TASK_NAME_LIMIT = 63 - len("-tmpl-12345678")
+
+
+def _ax_name(*parts: str, limit: int = 63) -> str:
+    """An RFC 1123 label; a name over ``limit`` keeps a readable prefix plus a stable hash, so two never collide."""
+    name = re.sub(r"[^a-z0-9-]+", "-", "-".join(parts).lower()).strip("-")
+    if len(name) <= limit:
+        return name
+    digest = hashlib.sha1(name.encode("utf-8")).hexdigest()[:8]
+    return f"{name[: limit - 9].rstrip('-')}-{digest}"
 
 
 def load_run(run_manifest: Path) -> tuple[Run, Manifests]:
@@ -131,7 +141,7 @@ def render_task(run: Run, entry: RunTask, manifests: Manifests, artifact_url: st
     inputs are never rendered: ax puts every bound Workspace into one env value, which Substrate caps at 32768
     characters, so the runner fetches them from the receiver (``OUSAST_INPUTS``) after the start."""
     task: Task = manifests.tasks[entry.task]
-    ax_name = _ax_name(run.metadata.name, entry.name)
+    ax_name = _ax_name(run.metadata.name, entry.name, limit=TASK_NAME_LIMIT)
     env = {e.name: e.value for e in task.env}
     env.update(OUSAST_RUN=run.metadata.name, OUSAST_TASK=entry.name, OUSAST_OUTPUT_DIR=f"{OUTPUT_ROOT}/{entry.name}")
     env.update(OUSAST_ARTIFACT_URL=artifact_url, **({"OUSAST_ARTIFACT_DIAL": dial} if dial else {}))
@@ -293,7 +303,7 @@ def _await(ax: Ax, name: str, delivered: Callable[[], bool], start: Callable[[],
 def _execute(
     ax: Ax, egress: Egress, run: Run, entry: RunTask, manifests: Manifests, base: Path, receiver: Receiver, router: Router
 ) -> tuple[str, str]:
-    ax_name, task = _ax_name(run.metadata.name, entry.name), manifests.tasks[entry.task]
+    ax_name, task = _ax_name(run.metadata.name, entry.name, limit=TASK_NAME_LIMIT), manifests.tasks[entry.task]
     atespace, manifest = task.metadata.atespace or "default", base / entry.name / "task.yaml"
     manifest.parent.mkdir(parents=True, exist_ok=True)
     docs = render_task(run, entry, manifests, receiver.url, receiver.dial)
@@ -337,7 +347,7 @@ def run(run_manifest: Path, *, workers: int = 1, ax: str = "ax", results_root: P
 
     def worker(entry: RunTask) -> None:
         if state.status(entry.name) in ("running", "suspended"):
-            cli.delete(_ax_name(run_spec.metadata.name, entry.name))  # an interrupted attempt; ax must not keep it
+            cli.delete(_ax_name(run_spec.metadata.name, entry.name, limit=TASK_NAME_LIMIT))  # an interrupted attempt; ax must not keep it
         state.set(entry.name, status="running", started=_now(), finished=None)
         finished.put((entry.name, *_execute(cli, egress, run_spec, entry, manifests, base, receiver, router)))
 
