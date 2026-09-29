@@ -2,6 +2,8 @@
 # Bring up ax on this host: kind cluster + local registry, Agent Substrate, the ax control plane, one smoke
 # Task. Idempotent enough to rerun; `down.sh` removes everything. Requires docker, go, kubectl, kind, ko, ax.
 set -euo pipefail
+trap 'rc=$?; echo "up.sh FAILED at line $LINENO (exit $rc)"' ERR
+trap 'echo "up.sh exit $?"' EXIT
 export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
 export GOTOOLCHAIN=auto
 export KIND_CLUSTER_NAME="${KIND_CLUSTER_NAME:-ousast}"
