@@ -758,3 +758,16 @@ def test_the_golden_boot_never_runs_the_command(env: dict[str, str], receiver: R
             proc.wait()
     assert len(counter.read_text().splitlines()) == 1
     assert files_containing(tmp_path, SECRET) == [], "no log, workspace, output or state file holds the credential"
+
+
+def test_workspaces_are_prepared_only_after_the_start_request(env: dict[str, str], receiver: Receiver, tmp_path: Path) -> None:
+    """Substrate's golden boot never gets a start, so it must touch no workspace (and no network): a clone at boot
+    failed on the live cluster while the actor was still being restored (2026-09-29)."""
+    thread, environ, codes = main_in_thread(tmp_path, OUSAST_ARTIFACT_URL=receiver.url)
+    time.sleep(0.5)
+    written = [p for p in (tmp_path / "ws").rglob("*") if p.is_file()] if (tmp_path / "ws").exists() else []
+    assert written == [], "nothing is materialised before the start request"
+    assert post_start(environ["AX_RUNNER_BOUND_PORT"], {"run": "run-1", "task": "stub"})[0] == 202
+    thread.join(timeout=30)
+    assert codes == [0]
+    assert [p for p in (tmp_path / "ws").rglob("*") if p.is_file()], "the start materialises the workspace"

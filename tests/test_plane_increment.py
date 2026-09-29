@@ -38,7 +38,10 @@ def test_every_manifest_under_plane_loads() -> None:
     manifests = load_manifests(paths)
     assert set(manifests.models) == {"deepseek-flash"}
     assert set(TEMPLATES) <= set(manifests.tasks)
-    assert len(manifests.workspaces) == 30 and set(manifests.runs) == {"validation-46"}
+    assert len(manifests.workspaces) == 30 and "validation-46" in manifests.runs
+    full = {t.name for t in manifests.runs["validation-46"].tasks}
+    for name, other in manifests.runs.items():  # check Runs (e.g. check-lmdeploy) are subsets of the measurement
+        assert {t.name for t in other.tasks} <= full, name
 
 
 def test_model_prices_are_the_endpoint_prices() -> None:

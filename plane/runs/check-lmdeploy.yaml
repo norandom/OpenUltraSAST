@@ -1,0 +1,44 @@
+# one-case check before the validation-46 measurement (task 8); a subset of runs/validation-46.yaml
+apiVersion: openultrasast.io/v1alpha1
+kind: Run
+metadata:
+  name: check-lmdeploy
+spec:
+  tasks:
+  - name: lmdeploy-media-url-ssrf-facts
+    task: repo-facts-lmdeploy-media-url-ssrf
+    outputs:
+    - facts.json
+    budget: &id001
+      usd: 0
+      calls: 0
+    serialize: repo-facts
+  - name: lmdeploy-media-url-ssrf-va
+    task: verify-a-lmdeploy-media-url-ssrf
+    inputs:
+      facts: lmdeploy-media-url-ssrf-facts/facts.json
+    outputs:
+    - units.jsonl
+    - summary.json
+    budget:
+      usd: 0.02
+      calls: 8
+  - name: lmdeploy-media-url-ssrf-vb
+    task: verify-b-lmdeploy-media-url-ssrf
+    inputs:
+      facts: lmdeploy-media-url-ssrf-facts/facts.json
+    outputs:
+    - units.jsonl
+    - summary.json
+    budget:
+      usd: 0.02
+      calls: 8
+  - name: lmdeploy-media-url-ssrf-agree
+    task: agree-lmdeploy-media-url-ssrf
+    inputs:
+      pass_a: lmdeploy-media-url-ssrf-va/units.jsonl
+      pass_b: lmdeploy-media-url-ssrf-vb/units.jsonl
+    outputs:
+    - agreed.json
+    - disputed.json
+    budget: *id001

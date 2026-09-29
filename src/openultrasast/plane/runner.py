@@ -751,17 +751,15 @@ def _finish(session: _Session, env: Mapping[str, str], exit_code: int | None, su
 
 
 def _run_once(env: MutableMapping[str, str], ready: threading.Event, stop: threading.Event, gate: StartGate) -> int:
-    """Materialise, wait for the start request, run the command once, deliver; on a resumed volume, only what the
-    marker says is left. A boot whose marker records a delivered run refuses every start request."""
+    """Wait for the start request, then materialise, run the command once and deliver; on a resumed volume, only
+    what the marker says is left. A boot whose marker records a delivered run refuses every start request.
+
+    Workspaces are prepared only after the start: Substrate's golden boot never gets one, so it touches no network,
+    and a started actor is RUNNING with its egress policy in force (a clone at boot failed on the live cluster
+    while the actor was still being restored, 2026-09-29)."""
     session: _Session | None = None
     try:
         session = _prepare(env)
-        if session.prepared.exists():
-            log.info("workspaces were prepared on an earlier boot; keeping them")
-        else:
-            cache_dir = env.get("OUSAST_CASE_CACHE")
-            materialise(session.task, session.workspaces, Path(cache_dir) if cache_dir else None, load_pins(env.get("OUSAST_GIT_PINS", "")))
-            session.prepared.touch()
         done = _read_marker(session.marker)
         if done is not None and done.get("delivered"):
             gate.refuse(f"task {session.task.metadata.name} already ran and was delivered ({done.get('status')})")
@@ -773,7 +771,7 @@ def _run_once(env: MutableMapping[str, str], ready: threading.Event, stop: threa
         if env.get("AX_RUNNER_AUTOSTART") == "1":
             start: Start | None = gate.autostart()
         else:
-            log.info("workspaces ready; waiting for the start request on %s", START_PATH)
+            log.info("waiting for the start request on %s", START_PATH)
             start = gate.wait(stop)
         if start is None:
             return 0
@@ -785,6 +783,13 @@ def _run_once(env: MutableMapping[str, str], ready: threading.Event, stop: threa
             return _exit_of(_finish(session, env, done.get("exit"), kept))
         if stop.is_set():
             return 0
+        try:
+            _materialise_once(session, env)
+        except RunnerError as exc:
+            log.error("runner failed: %s", exc)
+            failed = _failed(f"runner failed: {exc}", read_summary(session.output_dir))
+            write_summary(session.output_dir, failed)
+            return _exit_of(_finish(session, env, None, failed))
         log.info("workspaces ready; running task %s: %s", session.task.metadata.name, list(session.task.command))
         grace = float(env.get("OUSAST_TERM_GRACE") or TERM_GRACE)
         code, summary = run_command(session.task, session.output_dir, env, stop, grace, start.credentials)
@@ -807,6 +812,15 @@ def _run_once(env: MutableMapping[str, str], ready: threading.Event, stop: threa
         if env.get("AX_RUNNER_AUTOSTART") != "1" and gate.wait(stop) is None:
             return 0
         return _exit_of(_finish(session, env, None, summary))
+
+
+def _materialise_once(session: _Session, env: Mapping[str, str]) -> None:
+    if session.prepared.exists():
+        log.info("workspaces were prepared on an earlier boot; keeping them")
+        return
+    cache_dir = env.get("OUSAST_CASE_CACHE")
+    materialise(session.task, session.workspaces, Path(cache_dir) if cache_dir else None, load_pins(env.get("OUSAST_GIT_PINS", "")))
+    session.prepared.touch()
 
 
 def _read_marker(path: Path) -> dict[str, Any] | None:
