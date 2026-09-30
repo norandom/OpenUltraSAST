@@ -42,6 +42,24 @@ afterwards (`go clean -cache -modcache`); rerunning the full Substrate install o
   with its name as Host. The Envoy gateway needs a Rust build; the agentgateway variant needs none.
 - Apply a Task after the Workspaces it binds; ax copies them at create time.
 
+## Moving to a separate Kubernetes cluster (planned)
+
+The maintainer will deploy the plane to its own Kubernetes environment. The manifests under `plane/` move as they
+are; these parts assume this laptop and must change first (checked 2026-09-30):
+
+| Assumption | Where | Needed in a real cluster |
+|---|---|---|
+| Artifact receiver runs on the developer host, reached through the `ousast-receiver` Service with an EndpointSlice to the kind gateway `172.19.0.1:18090` | `egress.py`, `receiver-service.yaml.tmpl` | the receiver as an in-cluster Deployment (or object storage, e.g. Substrate's S3-compatible store), with the reconciler reading from it |
+| Registry `localhost:5001`, rewritten by Substrate for kind | `up.sh`, `doctor.py:45`, runner digest pin | a registry the workers can pull from; keep digest pins (Substrate rejects tags) |
+| kubectl context `kind-$KIND_CLUSTER_NAME` | `doctor.py:39`, `egress.py`, `router.py` | one configurable context (for example `OUSAST_KUBE_CONTEXT`) |
+| ax's snapshot bucket: `AX_SNAPSHOTS_BUCKET` in ax's `deploy/ax-server.yaml` points at the ax authors' GCS bucket | ax deploy manifest | your own bucket, set before deploying ax |
+| Egress gateway applied by hand (agentgateway variant, no Rust build) | this README | the Substrate-installed gateway; per-task EgressPolicies work unchanged |
+| Worker pool of 2 x 1 CPU / 1.5 GiB for the 7 GB host | `workerpool.yaml.tmpl` | sized to the cluster; `--workers` to match |
+| Plane memory store and results under `~/ousast-results/` on the host | reconciler, memory layer (harnessx-removal Req 6) | a persistent volume or bucket shared by the reconciler |
+
+The provider key already travels only in the start request through `atenet-router`, which works the same through
+a port-forward to any cluster.
+
 ## What a larger ax deployment needs
 
 A Kubernetes cluster with Agent Substrate (and its egress gateway), the ax control plane, a registry the workers
