@@ -10,6 +10,12 @@ deterministic stages under a HarnessX processor. The ai-service-plane increment 
 HarnessX from the product and moves every LLM capability it carried either onto the plane or into a recorded
 retirement. Inventory: `brief.md` (verified 2026-09-30).
 
+Maintainer, 2026-09-30: "Please remove harnessx completely. the memory layer that saves tokens takes over the
+evolutionary improvements as well as loop engineering." So nothing of HarnessX stays, not even as an optional
+path, and the self-improving cycle HarnessX was meant to drive (the LLM `MetaAgent.evolve` proposer plugged into
+`improve/evolve.py`) is carried by the plane's memory layer instead: what runs record (repository facts,
+verdicts, disputes, costs) becomes the input to proposals and to the run-measure-propose-gate loop.
+
 ## Boundary Context
 
 - **In scope**: the HarnessX-only modules (`harness_ext.py`, `hunter_harness.py`); the guarded branches in
@@ -17,8 +23,10 @@ retirement. Inventory: `brief.md` (verified 2026-09-30).
   `stage_processors.py` (`host_under_harnessx`), `config.py` (`HarnessxConfig`); the `harnessx` extra, its mypy
   override and lock entry; the tests that exercise HarnessX; README and docs sections; dated retirement notes in
   the specs and steering that name HarnessX.
-- **Out of scope**: changing the deterministic engine, rulesets or `evolve`'s validated/gated machinery; new
-  detection logic; qualification on an independent population; the plane's own precision work (judge design) --
+- **Also in scope**: the plane memory layer as the source of evolutionary proposals and the loop (Requirement 6),
+  replacing the HarnessX proposer.
+- **Out of scope**: changing the deterministic engine, rulesets or `evolve`'s validator and gate (proposals change
+  source, not how they are validated and gated); new detection logic; qualification on an independent population; the plane's own precision work (judge design) --
   where a capability moves to the plane, this spec wires it, it does not improve it.
 - **Adjacent expectations**: every deterministic path (quick mode, `regress`, `benchmark`, `gate`, `evolve`)
   produces byte-identical output before and after; `vulnerabilities-over-plumbing` applies, so capabilities are
@@ -26,16 +34,17 @@ retirement. Inventory: `brief.md` (verified 2026-09-30).
 
 ## Requirements
 
-### Requirement 1: Each HarnessX capability is moved or retired by an explicit decision
+### Requirement 1: HarnessX is removed completely; the plane is the only agentic path
 
-**User Story:** As the maintainer, I want every LLM capability HarnessX provided to have a recorded fate, so that
-nothing is lost silently.
+**User Story:** As the maintainer, I want no HarnessX path left, optional or not, and every LLM capability either
+on the plane or explicitly retired, so that nothing is lost silently.
 
 #### Acceptance Criteria
 
-1. The design lists each capability -- LLM hunter pool (`ousast scan --llm`), LLM judge (`verify_judge`), LLM
-   fusion panels (`fusion`), deterministic stages hosted under HarnessX (`host_under_harnessx`) -- with one of:
-   moved to a plane task (named), or retired (with the evidence or reason).
+1. No HarnessX code path remains, optional or guarded. The design lists each capability -- LLM hunter pool
+   (`ousast scan --llm`), LLM judge (`verify_judge`), LLM fusion panels (`fusion`), deterministic stages hosted
+   under HarnessX (`host_under_harnessx`), the LLM evolution proposer -- with its fate: carried by a plane task
+   (named), carried by the memory layer (Requirement 6), or retired with the deterministic path kept.
 2. A capability moved to the plane is reachable from the CLI through the plane (`ousast plane run` with a
    documented Run, or a CLI flag that submits one), binds its own Model per task (ai-service-plane Req 7), and
    has a fixture test like the other plane tasks.
@@ -96,3 +105,21 @@ deterministic run produces.
 1. Order: baseline (3.1) -> capabilities moved or retired (1) -> code and packaging removed (2) -> equality proof
    (3.2) -> docs and specs (4). Each step is a commit gated on the full suite's own exit code, ruff and mypy.
 2. No step deletes code whose replacement (Requirement 1) has not landed and passed its fixture test.
+
+### Requirement 6: The memory layer carries evolutionary improvement and loop engineering
+
+**User Story:** As the maintainer, I want the token-saving memory layer to be what the system learns from, so
+that improvement proposals and the improvement loop come from recorded evidence instead of a HarnessX agent.
+
+#### Acceptance Criteria
+
+1. Plane runs persist their memory beyond the run directory in one store keyed by repository and pin: repository
+   facts (`repo-facts`), per-candidate verdicts per pass with the final decision, disputes and tie-breaks, and cost
+   and tool turns per unit; later runs reuse facts for an unchanged pin instead of recomputing them.
+2. `evolve`'s proposals are generated from that store (for example: families or rules whose candidates are often
+   disputed, missed declared sites, repeated false alerts), deterministically and without a HarnessX agent; they
+   pass through the existing validator and gate unchanged.
+3. The improvement loop -- run, measure, propose, validate, gate -- is expressible as a plane Run whose tasks bind
+   their own Models and budgets (ai-service-plane Req 7), so each iteration's token spend is attributed per task.
+4. A proposal records which memory entries it came from, so a later reader can trace every accepted change to the
+   evidence behind it; proposals never train on the population used to qualify them (the train-on-test rule).
