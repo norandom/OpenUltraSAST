@@ -10,8 +10,10 @@ completes, read back on start: Requirement 2.2). The chat client is wrapped by `
 last -- names the bound Model (Requirement 7.2) and is `done` only when every unit finished.
 
 Env contract: `OUSAST_WORKSPACE_DIR`, `OUSAST_OUTPUT_DIR`, `OUSAST_INPUT_CANDIDATES`, `OUSAST_INPUT_FACTS`
-(optional), `OUSAST_BUDGET_USD`, `OUSAST_BUDGET_CALLS`, `OUSAST_MODEL`, `OUSAST_MODEL_PARAMS`, `OUSAST_PASS`.
-Exit 0 done, 2 failed, 3 unfinished.
+(optional), `OUSAST_BUDGET_USD`, `OUSAST_BUDGET_CALLS`, `OUSAST_MODEL`, `OUSAST_MODEL_PARAMS`, `OUSAST_PASS`,
+`OUSAST_INPUT_ONLY` (optional: a JSON list of `path::function` names, `[path, function, ...]` rows or finding
+objects with a `candidate` -- `agree`'s `disputed.json` -- restricting the hunt to those candidates; the tie-break
+pass c. An empty list is a `done` task with 0 units and no model call). Exit 0 done, 2 failed, 3 unfinished.
 """
 
 from __future__ import annotations
@@ -93,6 +95,34 @@ def load_candidates(payload: object) -> tuple[str | None, list[Candidate]]:
         line = int(row[2]) if len(row) > 2 and isinstance(row[2], int | float) else 0
         unique.setdefault((path, function), (path, function, line))
     return family, list(unique.values())
+
+
+def only_names(payload: object) -> set[str]:
+    """The `path::function` names of an `OUSAST_INPUT_ONLY` list (names, rows, or `agree`'s finding objects)."""
+    rows = payload.get("disputed", []) if isinstance(payload, Mapping) else payload
+    if not isinstance(rows, list):
+        raise ValueError("OUSAST_INPUT_ONLY must be a JSON list (e.g. agree's disputed.json)")
+    names = set()
+    for row in rows:
+        if isinstance(row, Mapping):
+            names.add(str(row["candidate"]))
+        elif isinstance(row, list | tuple):
+            names.add(f"{row[0]}::{row[1]}")
+        else:
+            names.add(str(row))
+    return names
+
+
+def restrict(unique: Sequence[Candidate], only: set[str] | None) -> list[Candidate]:
+    """The candidates named by `only` (all of them when `only` is None)."""
+    return list(unique) if only is None else [c for c in unique if f"{c[0]}::{c[1]}" in only]
+
+
+class _NoModel:
+    """The client of a task with nothing to ask: any call is a defect, never a silent spend."""
+
+    def complete(self, **kw: Any) -> ChatResponse:
+        raise RuntimeError("no model call is expected: the candidate restriction is empty")
 
 
 def callers_of(facts: Mapping[str, Any] | None, path: str, function: str) -> list[dict[str, Any]]:
@@ -224,10 +254,12 @@ def run(
     model: str = "",
     pass_label: str = "a",
     family: str | None = None,
+    only: set[str] | None = None,
 ) -> dict[str, Any]:
     """Hunt every unfinished unit, append `units.jsonl` per hunt, write `summary.json` last; returns the summary.
 
-    `budget` is the meter to run under (built from `client` when absent); `client` is what the meter wraps.
+    `budget` is the meter to run under (built from `client` when absent); `client` is what the meter wraps;
+    `only` restricts the hunt to those `path::function` candidates.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     log, summary_path = output_dir / "units.jsonl", output_dir / "summary.json"
@@ -235,7 +267,7 @@ def run(
     model = model or getattr(metered, "model", "") or "unbound"
     recorded_family, unique = load_candidates(candidates)
     family = family or recorded_family
-    units = units_of(unique)
+    units = units_of(restrict(unique, only))
     rows = read_units(log)
     done = {unit_key(r["path"], r["candidates"]): r for r in rows if "error" not in r}
     status, reason = "done", ""
@@ -278,6 +310,8 @@ def run(
         "status": status, "units_done": len(done), "units_total": len(units), "usd": usd, "calls": calls, "usage": usage,
         "priced": metered.priced, "model": model, "pass": pass_label, "family": family,
     }  # fmt: skip
+    if only is not None:
+        summary["only"] = len(restrict(unique, only))
     if reason:
         summary["reason"] = reason
     summary_path.write_text(json.dumps(summary, indent=1) + "\n")
@@ -336,13 +370,16 @@ def main() -> int:
         params = json.loads(os.environ.get("OUSAST_MODEL_PARAMS", "") or "{}")
         candidates = json.loads(candidates_path.read_text())
         facts = json.loads(facts_path.read_text()) if facts_path is not None else None
-        client = build_client()
+        only_path = _env_path("OUSAST_INPUT_ONLY", required=False)
+        only = only_names(json.loads(only_path.read_text())) if only_path is not None else None
+        nothing = only is not None and not restrict(load_candidates(candidates)[1], only)
+        client: ChatClient = _NoModel() if nothing else build_client()
         metered = MeteredClient(
             client, prices=params, budget_usd=_env_number("OUSAST_BUDGET_USD", float), budget_calls=_env_number("OUSAST_BUDGET_CALLS", int)
         )
         summary = run(
             workspace, output_dir, candidates, facts, client=client, budget=metered, model=model, pass_label=pass_label,
-            family=os.environ.get("OUSAST_FAMILY") or None,
+            family=os.environ.get("OUSAST_FAMILY") or None, only=only,
         )  # fmt: skip
     except Exception:  # noqa: BLE001 -- a crash is `failed` with its traceback, never a silent zero
         summary = _failed(output_dir, traceback.format_exc()[-2000:], model, pass_label)
@@ -364,6 +401,8 @@ __all__ = [
     "hunt_prompt",
     "load_candidates",
     "main",
+    "only_names",
+    "restrict",
     "run",
     "units_of",
 ]

@@ -1738,3 +1738,468 @@ spec:
   workspaces:
   - name: wp-groundhogg-confirm-redirect-inputs
     path: /workspace/inputs
+---
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: verify-c-budibase-mongo-template-nosqli
+  atespace: default
+  annotations:
+    openultrasast.io/model: deepseek-flash
+spec:
+  image: localhost:5001/ousast-runner@sha256:200e335877b52d68ea0bc53b4c9ba49ef2ee19e8a5ec2c874148b969123ef7ab
+  command:
+  - verify
+  env:
+  - name: OUSAST_WORKSPACE_DIR
+    value: /workspace/case/repo
+  - name: OUSAST_INPUT_CANDIDATES
+    value: /workspace/inputs/candidates.json
+  - name: OUSAST_PASS
+    value: c
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      cpu: '1'
+      memory: 1Gi
+  workspaces:
+  - name: budibase-mongo-template-nosqli-vulnerable
+    path: /workspace/case
+  - name: budibase-mongo-template-nosqli-inputs
+    path: /workspace/inputs
+---
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: verify-c-cct-studio-server-cmdi
+  atespace: default
+  annotations:
+    openultrasast.io/model: deepseek-flash
+spec:
+  image: localhost:5001/ousast-runner@sha256:200e335877b52d68ea0bc53b4c9ba49ef2ee19e8a5ec2c874148b969123ef7ab
+  command:
+  - verify
+  env:
+  - name: OUSAST_WORKSPACE_DIR
+    value: /workspace/case/repo
+  - name: OUSAST_INPUT_CANDIDATES
+    value: /workspace/inputs/candidates.json
+  - name: OUSAST_PASS
+    value: c
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      cpu: '1'
+      memory: 1Gi
+  workspaces:
+  - name: cct-studio-server-cmdi-vulnerable
+    path: /workspace/case
+  - name: cct-studio-server-cmdi-inputs
+    path: /workspace/inputs
+---
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: verify-c-contextforge-prompt-ssti
+  atespace: default
+  annotations:
+    openultrasast.io/model: deepseek-flash
+spec:
+  image: localhost:5001/ousast-runner@sha256:200e335877b52d68ea0bc53b4c9ba49ef2ee19e8a5ec2c874148b969123ef7ab
+  command:
+  - verify
+  env:
+  - name: OUSAST_WORKSPACE_DIR
+    value: /workspace/case/repo
+  - name: OUSAST_INPUT_CANDIDATES
+    value: /workspace/inputs/candidates.json
+  - name: OUSAST_PASS
+    value: c
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      cpu: '1'
+      memory: 1Gi
+  workspaces:
+  - name: contextforge-prompt-ssti-vulnerable
+    path: /workspace/case
+  - name: contextforge-prompt-ssti-inputs
+    path: /workspace/inputs
+---
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: verify-c-froxlor-admin-ip-second-order-sqli
+  atespace: default
+  annotations:
+    openultrasast.io/model: deepseek-flash
+spec:
+  image: localhost:5001/ousast-runner@sha256:200e335877b52d68ea0bc53b4c9ba49ef2ee19e8a5ec2c874148b969123ef7ab
+  command:
+  - verify
+  env:
+  - name: OUSAST_WORKSPACE_DIR
+    value: /workspace/case/repo
+  - name: OUSAST_INPUT_CANDIDATES
+    value: /workspace/inputs/candidates.json
+  - name: OUSAST_PASS
+    value: c
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      cpu: '1'
+      memory: 1Gi
+  workspaces:
+  - name: froxlor-admin-ip-second-order-sqli-vulnerable
+    path: /workspace/case
+  - name: froxlor-admin-ip-second-order-sqli-inputs
+    path: /workspace/inputs
+---
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: verify-c-fuxa-tdengine-escape-sqli
+  atespace: default
+  annotations:
+    openultrasast.io/model: deepseek-flash
+spec:
+  image: localhost:5001/ousast-runner@sha256:200e335877b52d68ea0bc53b4c9ba49ef2ee19e8a5ec2c874148b969123ef7ab
+  command:
+  - verify
+  env:
+  - name: OUSAST_WORKSPACE_DIR
+    value: /workspace/case/repo
+  - name: OUSAST_INPUT_CANDIDATES
+    value: /workspace/inputs/candidates.json
+  - name: OUSAST_PASS
+    value: c
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      cpu: '1'
+      memory: 1Gi
+  workspaces:
+  - name: fuxa-tdengine-escape-sqli-vulnerable
+    path: /workspace/case
+  - name: fuxa-tdengine-escape-sqli-inputs
+    path: /workspace/inputs
+---
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: verify-c-lmdeploy-media-url-ssrf
+  atespace: default
+  annotations:
+    openultrasast.io/model: deepseek-flash
+spec:
+  image: localhost:5001/ousast-runner@sha256:200e335877b52d68ea0bc53b4c9ba49ef2ee19e8a5ec2c874148b969123ef7ab
+  command:
+  - verify
+  env:
+  - name: OUSAST_WORKSPACE_DIR
+    value: /workspace/case/repo
+  - name: OUSAST_INPUT_CANDIDATES
+    value: /workspace/inputs/candidates.json
+  - name: OUSAST_PASS
+    value: c
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      cpu: '1'
+      memory: 1Gi
+  workspaces:
+  - name: lmdeploy-media-url-ssrf-vulnerable
+    path: /workspace/case
+  - name: lmdeploy-media-url-ssrf-inputs
+    path: /workspace/inputs
+---
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: verify-c-medplum-external-auth-open-redirect
+  atespace: default
+  annotations:
+    openultrasast.io/model: deepseek-flash
+spec:
+  image: localhost:5001/ousast-runner@sha256:200e335877b52d68ea0bc53b4c9ba49ef2ee19e8a5ec2c874148b969123ef7ab
+  command:
+  - verify
+  env:
+  - name: OUSAST_WORKSPACE_DIR
+    value: /workspace/case/repo
+  - name: OUSAST_INPUT_CANDIDATES
+    value: /workspace/inputs/candidates.json
+  - name: OUSAST_PASS
+    value: c
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      cpu: '1'
+      memory: 1Gi
+  workspaces:
+  - name: medplum-external-auth-open-redirect-vulnerable
+    path: /workspace/case
+  - name: medplum-external-auth-open-redirect-inputs
+    path: /workspace/inputs
+---
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: verify-c-pgadmin-maintenance-sqli
+  atespace: default
+  annotations:
+    openultrasast.io/model: deepseek-flash
+spec:
+  image: localhost:5001/ousast-runner@sha256:200e335877b52d68ea0bc53b4c9ba49ef2ee19e8a5ec2c874148b969123ef7ab
+  command:
+  - verify
+  env:
+  - name: OUSAST_WORKSPACE_DIR
+    value: /workspace/case/repo
+  - name: OUSAST_INPUT_CANDIDATES
+    value: /workspace/inputs/candidates.json
+  - name: OUSAST_PASS
+    value: c
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      cpu: '1'
+      memory: 1Gi
+  workspaces:
+  - name: pgadmin-maintenance-sqli-vulnerable
+    path: /workspace/case
+  - name: pgadmin-maintenance-sqli-inputs
+    path: /workspace/inputs
+---
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: verify-c-qwed-sympy-eval
+  atespace: default
+  annotations:
+    openultrasast.io/model: deepseek-flash
+spec:
+  image: localhost:5001/ousast-runner@sha256:200e335877b52d68ea0bc53b4c9ba49ef2ee19e8a5ec2c874148b969123ef7ab
+  command:
+  - verify
+  env:
+  - name: OUSAST_WORKSPACE_DIR
+    value: /workspace/case/repo
+  - name: OUSAST_INPUT_CANDIDATES
+    value: /workspace/inputs/candidates.json
+  - name: OUSAST_PASS
+    value: c
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      cpu: '1'
+      memory: 1Gi
+  workspaces:
+  - name: qwed-sympy-eval-vulnerable
+    path: /workspace/case
+  - name: qwed-sympy-eval-inputs
+    path: /workspace/inputs
+---
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: verify-c-reactpress-findall-column-sqli
+  atespace: default
+  annotations:
+    openultrasast.io/model: deepseek-flash
+spec:
+  image: localhost:5001/ousast-runner@sha256:200e335877b52d68ea0bc53b4c9ba49ef2ee19e8a5ec2c874148b969123ef7ab
+  command:
+  - verify
+  env:
+  - name: OUSAST_WORKSPACE_DIR
+    value: /workspace/case/repo
+  - name: OUSAST_INPUT_CANDIDATES
+    value: /workspace/inputs/candidates.json
+  - name: OUSAST_PASS
+    value: c
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      cpu: '1'
+      memory: 1Gi
+  workspaces:
+  - name: reactpress-findall-column-sqli-vulnerable
+    path: /workspace/case
+  - name: reactpress-findall-column-sqli-inputs
+    path: /workspace/inputs
+---
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: verify-c-unleash-addon-webhook-ssrf
+  atespace: default
+  annotations:
+    openultrasast.io/model: deepseek-flash
+spec:
+  image: localhost:5001/ousast-runner@sha256:200e335877b52d68ea0bc53b4c9ba49ef2ee19e8a5ec2c874148b969123ef7ab
+  command:
+  - verify
+  env:
+  - name: OUSAST_WORKSPACE_DIR
+    value: /workspace/case/repo
+  - name: OUSAST_INPUT_CANDIDATES
+    value: /workspace/inputs/candidates.json
+  - name: OUSAST_PASS
+    value: c
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      cpu: '1'
+      memory: 1Gi
+  workspaces:
+  - name: unleash-addon-webhook-ssrf-vulnerable
+    path: /workspace/case
+  - name: unleash-addon-webhook-ssrf-inputs
+    path: /workspace/inputs
+---
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: verify-c-winml-cli-serve-cors
+  atespace: default
+  annotations:
+    openultrasast.io/model: deepseek-flash
+spec:
+  image: localhost:5001/ousast-runner@sha256:200e335877b52d68ea0bc53b4c9ba49ef2ee19e8a5ec2c874148b969123ef7ab
+  command:
+  - verify
+  env:
+  - name: OUSAST_WORKSPACE_DIR
+    value: /workspace/case/repo
+  - name: OUSAST_INPUT_CANDIDATES
+    value: /workspace/inputs/candidates.json
+  - name: OUSAST_PASS
+    value: c
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      cpu: '1'
+      memory: 1Gi
+  workspaces:
+  - name: winml-cli-serve-cors-vulnerable
+    path: /workspace/case
+  - name: winml-cli-serve-cors-inputs
+    path: /workspace/inputs
+---
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: verify-c-wp-directorist-avatar-ssrf
+  atespace: default
+  annotations:
+    openultrasast.io/model: deepseek-flash
+spec:
+  image: localhost:5001/ousast-runner@sha256:200e335877b52d68ea0bc53b4c9ba49ef2ee19e8a5ec2c874148b969123ef7ab
+  command:
+  - verify
+  env:
+  - name: OUSAST_WORKSPACE_DIR
+    value: /workspace/case/repo
+  - name: OUSAST_INPUT_CANDIDATES
+    value: /workspace/inputs/candidates.json
+  - name: OUSAST_PASS
+    value: c
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      cpu: '1'
+      memory: 1Gi
+  workspaces:
+  - name: wp-directorist-avatar-ssrf-vulnerable
+    path: /workspace/case
+  - name: wp-directorist-avatar-ssrf-inputs
+    path: /workspace/inputs
+---
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: verify-c-wp-gopay-log-filter-sqli
+  atespace: default
+  annotations:
+    openultrasast.io/model: deepseek-flash
+spec:
+  image: localhost:5001/ousast-runner@sha256:200e335877b52d68ea0bc53b4c9ba49ef2ee19e8a5ec2c874148b969123ef7ab
+  command:
+  - verify
+  env:
+  - name: OUSAST_WORKSPACE_DIR
+    value: /workspace/case/repo
+  - name: OUSAST_INPUT_CANDIDATES
+    value: /workspace/inputs/candidates.json
+  - name: OUSAST_PASS
+    value: c
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      cpu: '1'
+      memory: 1Gi
+  workspaces:
+  - name: wp-gopay-log-filter-sqli-vulnerable
+    path: /workspace/case
+  - name: wp-gopay-log-filter-sqli-inputs
+    path: /workspace/inputs
+---
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: verify-c-wp-groundhogg-confirm-redirect
+  atespace: default
+  annotations:
+    openultrasast.io/model: deepseek-flash
+spec:
+  image: localhost:5001/ousast-runner@sha256:200e335877b52d68ea0bc53b4c9ba49ef2ee19e8a5ec2c874148b969123ef7ab
+  command:
+  - verify
+  env:
+  - name: OUSAST_WORKSPACE_DIR
+    value: /workspace/case/repo
+  - name: OUSAST_INPUT_CANDIDATES
+    value: /workspace/inputs/candidates.json
+  - name: OUSAST_PASS
+    value: c
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      cpu: '1'
+      memory: 1Gi
+  workspaces:
+  - name: wp-groundhogg-confirm-redirect-vulnerable
+    path: /workspace/case
+  - name: wp-groundhogg-confirm-redirect-inputs
+    path: /workspace/inputs

@@ -130,6 +130,15 @@ mypy are clean, and the commit is gated on pytest's own exit code. Script-level 
     if not met, revise the design before task 9.
   - _Requirements: 6.1, 6.2, 6.3_
 
+- [ ] 8.1 Tie-break pass and re-measurement
+  - `verify` takes `OUSAST_INPUT_ONLY` (pass c on the disputed candidates only); `agree` takes
+    `OUSAST_INPUT_PASS_C` and decides 2-of-3 where pass c asked, the a/b rule elsewhere (`metrics.tiebreak`).
+  - `validation-46` gains `<case>-vc` and `<case>-final` per case, appended so the first 60 entries keep their
+    state; an offline replay with an empty pass c reproduces the recorded 14/20.
+  - Rerun `validation-46` on ax (only the new tasks run), re-evaluate the 6.2 gate on the final decision and record
+    `benchmarks/independent/plane-increment-2.json` next to the first.
+  - _Requirements: 6.2, 6.4_
+
 - [ ] 9. Handover
   - `ops/README.md`: how to run a Run locally and what an ax deployment would need (Kubernetes, Agent
     Substrate, the runner image, the provider extension); memory note updated; scripts that the tasks replaced

@@ -448,6 +448,30 @@ def test_unfinished_stops_dependants_and_rerun_skips_done(fake: Fake, tmp_path: 
     assert statuses("resume") == {"repo-facts": "done", "verify": "done", "agree": "done"}
 
 
+TIEBREAK = """
+    - name: tiebreak
+      task: verify
+      dependsOn: [agree]
+      inputs: {only: verify/agreed.json, facts: repo-facts/facts.json}
+      outputs: [agreed.json]
+      budget: {usd: 1, calls: 8}
+"""
+
+
+def test_a_rerun_of_a_run_that_gained_tasks_runs_only_the_new_ones(fake: Fake, tmp_path: Path) -> None:
+    manifest = write_run(tmp_path, "grow")
+    assert reconciler.run(manifest, ax=str(fake.ax)) == "done"
+    first = state_of("grow")["tasks"]
+    (fake.root / "ax.log").unlink()
+    fake.script({**SCRIPT, "tiebreak": SCRIPT["verify"]})
+    write_run(tmp_path, "grow", CHAIN + TIEBREAK)  # the same Run, one task appended (the tie-break pass)
+    assert reconciler.run(manifest, ax=str(fake.ax)) == "done"
+    assert [name for _, name in fake.events("apply")] == ["tiebreak"], "done tasks keep their state; only the new task runs"
+    assert statuses("grow") == {"repo-facts": "done", "verify": "done", "agree": "done", "tiebreak": "done"}
+    assert {k: v for k, v in state_of("grow")["tasks"].items() if k != "tiebreak"} == first
+    assert sorted(n for _, n in fake.events("fetched")) == ["tiebreak FACTS 200", "tiebreak ONLY 200"], "inputs of done producers"
+
+
 def test_failed_task_halts_the_run(fake: Fake, tmp_path: Path) -> None:
     script = json.loads(json.dumps(SCRIPT))
     failed = {"status": "failed", "units_done": 0, "units_total": 3, "reason": "402 insufficient balance"}

@@ -17,7 +17,13 @@ divide by the candidates before triage when `case.json` gives that count, as the
 Env contract: `OUSAST_INPUT_PASS_A`, `OUSAST_INPUT_PASS_B` (a verify output directory or its `units.jsonl`),
 `OUSAST_INPUT_CANDIDATES`, `OUSAST_OUTPUT_DIR`, optional `OUSAST_INPUT_SITES` (the generator's `case.json`:
 `family`, `sites`, `ranges`, `sites_in_set`, `cost`; or a `population-v2.toml`-shaped TOML with `OUSAST_CASE_ID`
-naming the case). Writes `agreed.json`, `disputed.json`, `summary.json`. Exit 0 done, 2 failed, 3 unfinished.
+naming the case), optional `OUSAST_INPUT_PASS_C` (the tie-break pass: `verify` restricted to the candidates a and
+b disputed). Writes `agreed.json`, `disputed.json`, `summary.json`. Exit 0 done, 2 failed, 3 unfinished.
+
+With pass c the decision is 2 of 3 for every candidate pass c asked about and the a/b rule for the rest, so pass c
+alone never decides; `metrics.tiebreak` counts the candidates asked and the decisions that flipped against a/b,
+and names the rule. The declared-site metrics and `agreed`/`disputed` are on the final decision; `usd_total`,
+`hunts` and the per-hunt means include pass c. Without pass c every number is the two-pass one.
 """
 
 from __future__ import annotations
@@ -122,6 +128,28 @@ def _per_candidate(total: float | None, count: int) -> float | None:
     return None if total is None or not count else round(total / count, 6)
 
 
+RULE_A_B = "agreed when passes a and b both flagged the candidate (no pass c given)"
+RULE_2_OF_3 = (
+    "a candidate asked in pass c is agreed when at least 2 of passes a, b, c flagged it; a candidate not asked in "
+    "pass c is agreed when passes a and b both flagged it (pass c alone never decides)"
+)
+
+
+def _votes(candidate: str, flagged: Sequence[Mapping[str, Any]]) -> int:
+    return sum(candidate in f for f in flagged)
+
+
+def _pick(candidate: str, flagged: Sequence[Mapping[str, Mapping[str, Any]]]) -> dict[str, Any]:
+    return dict(next(f[candidate] for f in flagged if candidate in f))
+
+
+def _decided(candidate: str, asked_c: set[str], flagged: Sequence[Mapping[str, Any]]) -> bool:
+    """The final decision: 2 of 3 when pass c asked the candidate, else both of a and b."""
+    if candidate in asked_c:
+        return _votes(candidate, flagged) >= 2
+    return candidate in flagged[0] and candidate in flagged[1]
+
+
 def run(
     output_dir: Path,
     candidates: object,
@@ -129,15 +157,28 @@ def run(
     pass_b: Sequence[Mapping[str, Any]],
     *,
     sites: Mapping[str, Any] | None = None,
+    pass_c: Sequence[Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=True)
     family, unique = load_candidates(candidates)
     names = [f"{p}::{fn}" for p, fn, _ in unique]
     lines = {f"{p}::{fn}": ln for p, fn, ln in unique}
-    asked = [{f"{r['path']}::{c[1]}" for r in rows for c in r.get("candidates", [])} for rows in (pass_a, pass_b)]
-    flagged = [{str(f["candidate"]): dict(f) for r in rows for f in r.get("flagged", [])} for rows in (pass_a, pass_b)]
-    agreed, disputed = agreement([list(flagged[0].values()), list(flagged[1].values())])
-    usd_by, turns_by = _per_candidate_cost([*pass_a, *pass_b])
+    passes = (pass_a, pass_b, pass_c or [])
+    asked = [{f"{r['path']}::{c[1]}" for r in rows for c in r.get("candidates", [])} for rows in passes]
+    flagged = [{str(f["candidate"]): dict(f) for r in rows for f in r.get("flagged", [])} for rows in passes]
+    ab_agreed, _ = agreement([list(flagged[0].values()), list(flagged[1].values())])
+    ab = {str(f["candidate"]) for f in ab_agreed}
+    final = {c for c in set(flagged[0]) | set(flagged[1]) | set(flagged[2]) if _decided(c, asked[2], flagged)}
+    agreed = [dict(f, passes=_votes(f["candidate"], flagged)) for f in ab_agreed if f["candidate"] in final]
+    agreed += [dict(_pick(c, flagged), passes=_votes(c, flagged)) for c in sorted(final - ab)]
+    agreed.sort(key=lambda f: str(f["candidate"]))
+    some = (set(flagged[0]) | set(flagged[1]) | set(flagged[2])) - final
+    disputed = [dict(_pick(c, flagged), passes=_votes(c, flagged)) for c in sorted(some)]
+    tiebreak = {
+        "asked": len(asked[2]), "flipped_to_agreed": len(final - ab), "flipped_to_rejected": len(ab - final),
+        "rule": RULE_2_OF_3 if pass_c is not None else RULE_A_B,
+    }  # fmt: skip
+    usd_by, turns_by = _per_candidate_cost([*pass_a, *pass_b, *(pass_c or [])])
     case = dict(sites) if sites else None
     if case is not None and "family" not in case and family:
         case["family"] = family
@@ -147,19 +188,20 @@ def run(
     rows: list[dict[str, Any]] = []
     for name in names:
         in_a, in_b = (name in flagged[0] if name in asked[0] else None), (name in flagged[1] if name in asked[1] else None)
-        finding = flagged[0].get(name) or flagged[1].get(name)
+        in_c = name in flagged[2] if name in asked[2] else None
+        finding = flagged[0].get(name) or flagged[1].get(name) or flagged[2].get(name)
         site = anchor_site(name, finding["site"]) if finding else f"{name.partition('::')[0]}:{lines[name]}:{name.partition('::')[2]}"
         site_match = None
         if assessed and case is not None and isinstance(ranges, Mapping):
             site_match = matches_declared({"site": site, "family": (finding or {}).get("family", family)}, case, ranges)
         cost = usd_by.get(name)
         rows.append({
-            "candidate": name, "site": site, "a": in_a, "b": in_b, "agreed": bool(in_a and in_b), "disputed": bool(in_a) != bool(in_b),
+            "candidate": name, "site": site, "a": in_a, "b": in_b, "c": in_c, "agreed": name in final, "disputed": bool(in_a) != bool(in_b),
             "site_match": site_match, "usd": (None if cost is None else round(cost, 6)), "turns": turns_by.get(name, 0), "finding": finding,
         })  # fmt: skip
     unasked = [r["candidate"] for r in rows if r["a"] is None or r["b"] is None]
     declared = [r for r in rows if r["site_match"]]
-    hunts = [*pass_a, *pass_b]
+    hunts = [*pass_a, *pass_b, *(pass_c or [])]
     usd_total = None if any(r.get("usd") is None for r in hunts) else round(sum(float(r["usd"]) for r in hunts), 6)
     reference: Mapping[str, Any] = (case or {}).get("cost") or {}
     before = int(reference.get("candidates_before_triage") or len(names))
@@ -177,6 +219,7 @@ def run(
         "usd_total_with_recorded_triage": with_triage, "cost_per_candidate_with_recorded_triage": _per_candidate(with_triage, before),
         "turns_per_hunt": _mean([float(r.get("turns") or 0) for r in hunts]),
         "calls_per_hunt": _mean([float((r.get("usage") or {}).get("calls") or 0) for r in hunts]),
+        "tiebreak": tiebreak,
     }  # fmt: skip
     (output_dir / "agreed.json").write_text(
         json.dumps({"family": family, "candidates": rows, "agreed": agreed, "disputed": disputed, "metrics": metrics}, indent=1) + "\n"
@@ -201,7 +244,8 @@ def main() -> int:
         candidates = json.loads(Path(os.environ["OUSAST_INPUT_CANDIDATES"]).read_text())
         sites_path = Path(os.environ["OUSAST_INPUT_SITES"]) if os.environ.get("OUSAST_INPUT_SITES") else None
         sites = load_sites(sites_path, os.environ.get("OUSAST_CASE_ID"))
-        summary = run(output_dir, candidates, pass_a, pass_b, sites=sites)
+        pass_c = load_pass(Path(os.environ["OUSAST_INPUT_PASS_C"])) if os.environ.get("OUSAST_INPUT_PASS_C") else None
+        summary = run(output_dir, candidates, pass_a, pass_b, sites=sites, pass_c=pass_c)
     except Exception:  # noqa: BLE001 -- a crash is `failed` with its traceback
         summary = {
             "status": "failed", "units_done": 0, "units_total": 0, "usd": 0, "calls": 0, "usage": dict.fromkeys(USAGE_FIELDS, 0),
@@ -214,7 +258,18 @@ def main() -> int:
     return EXIT_CODES.get(str(summary["status"]), 2)
 
 
-__all__ = ["LINE_WINDOW", "agreement", "anchor_site", "load_pass", "load_sites", "main", "matches_declared", "run"]
+__all__ = [
+    "LINE_WINDOW",
+    "RULE_2_OF_3",
+    "RULE_A_B",
+    "agreement",
+    "anchor_site",
+    "load_pass",
+    "load_sites",
+    "main",
+    "matches_declared",
+    "run",
+]
 
 
 if __name__ == "__main__":
