@@ -1,7 +1,7 @@
 {
-  "modules": 142,
+  "modules": 143,
   "counts": {
-    "load_bearing": 135,
+    "load_bearing": 136,
     "standalone_capability": 7
   },
   "orphaned": [],
@@ -351,6 +351,7 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
+        "cli",
         "learn.features",
         "learn.roles",
         "plane.tasks.features",
@@ -364,6 +365,14 @@
       "reason": "imported by plane.tasks.features",
       "importers": [
         "plane.tasks.features"
+      ]
+    },
+    {
+      "module": "learn.labels",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
+        "cli"
       ]
     },
     {
@@ -429,6 +438,7 @@
         "cpg.backend",
         "cpg.session",
         "learn.features",
+        "learn.labels",
         "model.candidates",
         "model.config_value",
         "model.dominance",
@@ -671,6 +681,7 @@
       "importers": [
         "cli",
         "learn.features",
+        "learn.labels",
         "model.candidates",
         "model.report",
         "model.scan",
@@ -695,6 +706,7 @@
         "improve",
         "improve.evolve",
         "improve.memory",
+        "learn.labels",
         "model.candidates",
         "pair_gate",
         "plane.tasks.loop"
@@ -817,6 +829,7 @@
       "importers": [
         "cli",
         "learn.features",
+        "learn.labels",
         "learn.roles",
         "plane.engine_alerts",
         "plane.generate",
@@ -872,6 +885,7 @@
       "reason": "ai-service-plane Req 5.1/5.2: source-only functions and callers per file; runner integration pending",
       "importers": [
         "learn.features",
+        "learn.labels",
         "learn.roles",
         "plane.generate",
         "plane.tasks.alerts",
@@ -944,6 +958,7 @@
         "improve.evolve",
         "index",
         "learn.features",
+        "learn.labels",
         "learn.roles",
         "map_gate",
         "mapping",
@@ -1223,6 +1238,7 @@
         "improve.memory",
         "improve.validator",
         "learn.features",
+        "learn.labels",
         "learn.roles",
         "pairs",
         "plane.tasks.alerts",
@@ -1238,6 +1254,7 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
+        "learn.labels",
         "learn.roles",
         "ruleset.store",
         "semantic.facts"

@@ -259,6 +259,16 @@ def _main(argv: list[str] | None) -> int:
     candidates.add_argument("--generator", choices=("ir", "ruleset"), default="ir", help="which pass enumerates the candidate sites")
     candidates.add_argument("--json", action="store_true")
 
+    learn = subparsers.add_parser("learn", help="maintainer: the learned decision engine's data (labels)")
+    learn_sub = learn.add_subparsers(dest="learn_command", required=True)
+    learn_labels = learn_sub.add_parser("labels", help="labels from the fail-closed sources in learn/sources.toml (host only)")
+    learn_labels.add_argument("--sources", type=Path, help="the source list (default: the packaged learn/sources.toml)")
+    learn_labels.add_argument("--root", type=Path, default=Path("."), help="the repository root the source paths are relative to")
+    learn_labels.add_argument("--cache", type=Path, help="clones and checkouts (default ~/.cache/openultrasast)")
+    learn_labels.add_argument("--out", type=Path, help="write the full rows to OUT/labels-<sha>.jsonl (local: they name functions)")
+    learn_labels.add_argument("--snapshot", type=Path, help="write the counts-only snapshot (the committable record) here")
+    learn_labels.add_argument("--include-title", action="store_true", help="the title-tier pairs as well (a sensitivity arm)")
+    learn_labels.add_argument("--no-assumed-benign", action="store_true", help="skip mining the assumed-benign history source")
     plane = subparsers.add_parser("plane", help="maintainer: the ax-backed service plane on this host's kind cluster")
     plane_sub = plane.add_subparsers(dest="plane_command", required=True)
     plane_run = plane_sub.add_parser("run", help="execute a Run manifest on ax; a rerun skips done tasks")
@@ -429,6 +439,8 @@ def _main(argv: list[str] | None) -> int:
         return _model_candidates(args)
     if args.command == "plane":
         return _plane(args)
+    if args.command == "learn":
+        return _learn_labels(args)
     if args.command == "mcp":
         from .mcp import serve  # lazy: keeps the import cycle (mcp -> cli) one-directional
 
@@ -1313,6 +1325,33 @@ def _print_improve_outcomes(outcomes: list[RoundOutcome], manifest_path: Path, t
 
 def _load_scan_findings(run_dir: Path) -> list[StaticFinding]:
     return load_findings(run_dir / "findings.json")
+
+
+def _learn_labels(args: argparse.Namespace) -> int:
+    """``ousast learn labels``: exit 2 on a source outside the list, an excluded file or an unreadable clone."""
+    from .learn.labels import DEFAULT_CACHE, DEFAULT_SOURCES, LabelSourceError, build_labels, write_labels
+
+    try:
+        build, record = build_labels(
+            args.root, sources_path=args.sources or DEFAULT_SOURCES, cache=args.cache or DEFAULT_CACHE, include_title=args.include_title,
+            assumed_benign=not args.no_assumed_benign,
+        )  # fmt: skip
+    except LabelSourceError as exc:
+        print(f"learn labels: {exc}", file=sys.stderr)
+        return 2
+    if args.out is not None:
+        digest = write_labels(build, args.out / "labels.jsonl")
+        (args.out / "labels.jsonl").rename(args.out / f"labels-{digest[:16]}.jsonl")
+        record["labels_sha256"] = digest
+    text = json.dumps(record, indent=2, sort_keys=True) + "\n"
+    if args.snapshot is not None:
+        args.snapshot.parent.mkdir(parents=True, exist_ok=True)
+        args.snapshot.write_text(text, encoding="utf-8")
+    pins = record["verified_pin_labels"]["by_family"]
+    print(f"labels: {record['rows']} rows in {record['groups']} repository groups; per family (positive/negative groups, model):")
+    for family, entry in pins.items():
+        print(f"  {family}: {entry['positive_groups']}/{entry['negative_groups']} {entry['model']}")
+    return 0
 
 
 def _plane(args: argparse.Namespace) -> int:

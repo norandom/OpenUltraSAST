@@ -22,7 +22,7 @@ the maintainer confirms its budget.
     approach), the vocabulary overlay for the engine; fixture tests with no model calls.
   - _Requirements: 8.1_
 
-- [ ] 4. Labels
+- [x] 4. Labels
   - `learn/sources.toml` (fail-closed allowed sources, v3 excluded unread), `learn/labels.py`, `ousast learn
     labels`, repository-group normalisation and CVE merge, the `assumed_benign` source mined from non-security
     commits (separate, never merged); a first label snapshot committed as counts only.

@@ -1,0 +1,110 @@
+# Label sources, fail-closed (learned-decision-engine Req 2.3; design section 3).
+#
+# `ousast learn labels` reads ONLY the files named here. A population that is not listed cannot produce a label, and
+# the builder never opens a file it does not list: every read goes through one guard that refuses any path outside
+# this list and every `[[excluded]]` file name, before the file is touched.
+#
+# Population v3 (PHP) is reserved for the one-time check (Req 5.3, design section 7). It is named below only as
+# excluded, by file name; nothing in it is read. It becomes a label source only in a later commit that adds it here
+# after `result-v3-engine.json` is recorded.
+#
+# Paths are relative to the repository root. `evaluation` names the files that prove the source's evaluation was
+# recorded (checked to exist, never parsed for labels); `recorded` is that record's commit date.
+
+version = 1
+
+[[source]]
+id = "population-v1"
+kind = "population"
+file = "benchmarks/independent/population-v1.toml"
+evaluation = ["benchmarks/independent/results-v1.json"]
+recorded = "2026-09-25"
+status = "spent"          # retuned on after its evaluation (population-v2.toml header)
+matching = "fix_range"    # v1 declares no sites: the functions the fix changed on the vulnerable side
+cache = "independent"     # one clone per case id under ~/.cache/openultrasast/independent
+
+[[source]]
+id = "population-v2"
+kind = "population"
+file = "benchmarks/independent/population-v2.toml"
+evaluation = [
+  "benchmarks/independent/results-v2.json",
+  "benchmarks/independent/results-v2-hunter.json",
+  "benchmarks/independent/plane-increment-2.json",
+]
+recorded = "2026-09-28"
+status = "spent"
+matching = "declared_sites"
+design_informed = true    # verify, the tie-break and the callers line were chosen after seeing v2 (design section 4)
+cache = "independent"
+
+[[source]]
+id = "dev-php"
+kind = "recipes"
+files = ["benchmarks/repos/pmpro.toml", "benchmarks/repos/wpstatistics.toml", "benchmarks/repos/mwwpform.toml"]
+evaluation = ["benchmarks/push/inputs.json"]
+recorded = "2026-09-12"
+status = "development"
+checkouts = "repos"       # ~/.cache/openultrasast/repos/<name>, read for dependency manifests only
+
+[[source]]
+id = "pairs"
+kind = "pairs"
+file = "benchmarks/pairs/catalog.toml"   # with the slice catalogs load_pair_catalog adds
+evaluation = ["benchmarks/measurements/2026-09-30-harnessx-removal-baseline/pairs.json"]
+recorded = "2026-09-30"
+status = "development"
+exclude_tiers = ["title"]  # labels read from advisory titles; a sensitivity arm only (`--include-title`)
+
+[[source]]
+id = "adjudications"
+kind = "adjudications"
+files = [
+  "benchmarks/independent/results-v1.json#precision_review",
+  "benchmarks/independent/results-v2.json#precision_sample",
+  "benchmarks/independent/results-v2-hunter.json#precision_sample",
+]
+evaluation = ["benchmarks/independent/results-v1.json", "benchmarks/independent/results-v2.json"]
+recorded = "2026-09-28"
+status = "recorded verdicts"
+# verifier-check-2026-09-29.json records aggregate counts only (no per-finding verdict), so it labels nothing.
+
+# Maintainer decision at design approval (2026-09-30): ordinary non-security commits of the training repositories are
+# mined as ASSUMED-BENIGN pushes -- their own source, reported separately, never merged with verified negatives.
+[[source]]
+id = "assumed_benign"
+kind = "history"
+repositories_from = ["population-v1", "population-v2"]
+recorded = "2026-09-30"
+status = "assumption"
+weight = 0.5
+min_days_from_fix = 90
+scan_commits = 1500          # newest ancestors of the fixed pin looked at, per repository
+max_commits_per_repository = 40
+max_files_per_commit = 20    # a larger commit is a bulk change, not a push
+
+[[excluded]]
+file = "population-v3-php.toml"
+reason = "population v3 is reserved for the one-time check (protocol-v3.md); never opened"
+
+[[excluded]]
+file = "freeze-v3-php.json"
+reason = "v3 freeze record; never opened"
+
+[[excluded]]
+file = "candidates-v3-php.json"
+reason = "v3 candidate list; never opened"
+
+[[excluded]]
+file = "research-2026-09-30-php.md"
+reason = "v3 selection research; never opened"
+
+[[excluded]]
+file = "protocol-v3.md"
+reason = "v3 protocol; never opened"
+
+# Repository aliases: forks and renames that are one repository group. Groups sharing an advisory id (CVE/GHSA) or
+# a fix commit are merged automatically; list here only what those cannot see.
+# [[alias]]
+# repo = "someone/fork"
+# group = "upstream/project"
