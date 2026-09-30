@@ -1,0 +1,192 @@
+[
+ {
+  "decision_source": "deterministic-reconciler",
+  "degradations": [],
+  "disposition": "accepted",
+  "finding_id": "python-os-command:app.py:17",
+  "model_ids": [],
+  "panels": [
+   {
+    "confidence": 0.75,
+    "disposition": "accepted",
+    "false_positive_case": "Reachability or sanitizer evidence could still neutralize the sink.",
+    "leaning": "vulnerability",
+    "model_id": null,
+    "rationale": "reachability=reachable, severity=critical, verified=True",
+    "role": "panel_a",
+    "vulnerability_case": "Static corroboration exists and function-level reachability evidence is attached."
+   },
+   {
+    "confidence": 0.6,
+    "disposition": "accepted",
+    "false_positive_case": "Impact and exploitability still require deeper verifier or dynamic evidence.",
+    "leaning": "false_positive",
+    "model_id": null,
+    "rationale": "reachable=True, rejected=False, verified=True",
+    "role": "panel_b",
+    "vulnerability_case": "A tainted sink shape exists in the source."
+   }
+  ],
+  "triggered": true,
+  "triggers": [
+   "gates_risky_fix",
+   "severity:critical"
+  ],
+  "votes": {
+   "accepted": 2
+  },
+  "warnings": []
+ },
+ {
+  "decision_source": "deterministic-reconciler",
+  "degradations": [],
+  "disposition": "accepted",
+  "finding_id": "python-shell-true:app.py:23",
+  "model_ids": [],
+  "panels": [
+   {
+    "confidence": 0.75,
+    "disposition": "accepted",
+    "false_positive_case": "Reachability or sanitizer evidence could still neutralize the sink.",
+    "leaning": "vulnerability",
+    "model_id": null,
+    "rationale": "reachability=reachable, severity=critical, verified=True",
+    "role": "panel_a",
+    "vulnerability_case": "Static corroboration exists and function-level reachability evidence is attached."
+   },
+   {
+    "confidence": 0.6,
+    "disposition": "accepted",
+    "false_positive_case": "Impact and exploitability still require deeper verifier or dynamic evidence.",
+    "leaning": "false_positive",
+    "model_id": null,
+    "rationale": "reachable=True, rejected=False, verified=True",
+    "role": "panel_b",
+    "vulnerability_case": "A tainted sink shape exists in the source."
+   }
+  ],
+  "triggered": true,
+  "triggers": [
+   "gates_risky_fix",
+   "severity:critical"
+  ],
+  "votes": {
+   "accepted": 2
+  },
+  "warnings": []
+ },
+ {
+  "decision_source": "deterministic-reconciler",
+  "degradations": [],
+  "disposition": "accepted",
+  "finding_id": "python-sql-injection:app.py:44",
+  "model_ids": [],
+  "panels": [
+   {
+    "confidence": 0.75,
+    "disposition": "accepted",
+    "false_positive_case": "Reachability or sanitizer evidence could still neutralize the sink.",
+    "leaning": "vulnerability",
+    "model_id": null,
+    "rationale": "reachability=reachable, severity=high, verified=True",
+    "role": "panel_a",
+    "vulnerability_case": "Static corroboration exists and function-level reachability evidence is attached."
+   },
+   {
+    "confidence": 0.6,
+    "disposition": "accepted",
+    "false_positive_case": "Impact and exploitability still require deeper verifier or dynamic evidence.",
+    "leaning": "false_positive",
+    "model_id": null,
+    "rationale": "reachable=True, rejected=False, verified=True",
+    "role": "panel_b",
+    "vulnerability_case": "A tainted sink shape exists in the source."
+   }
+  ],
+  "triggered": true,
+  "triggers": [
+   "gates_risky_fix",
+   "severity:high"
+  ],
+  "votes": {
+   "accepted": 2
+  },
+  "warnings": []
+ },
+ {
+  "decision_source": "deterministic-reconciler",
+  "degradations": [],
+  "disposition": "accepted",
+  "finding_id": "python-sql-injection:app.py:50",
+  "model_ids": [],
+  "panels": [
+   {
+    "confidence": 0.75,
+    "disposition": "accepted",
+    "false_positive_case": "Reachability or sanitizer evidence could still neutralize the sink.",
+    "leaning": "vulnerability",
+    "model_id": null,
+    "rationale": "reachability=reachable, severity=high, verified=True",
+    "role": "panel_a",
+    "vulnerability_case": "Static corroboration exists and function-level reachability evidence is attached."
+   },
+   {
+    "confidence": 0.6,
+    "disposition": "accepted",
+    "false_positive_case": "Impact and exploitability still require deeper verifier or dynamic evidence.",
+    "leaning": "false_positive",
+    "model_id": null,
+    "rationale": "reachable=True, rejected=False, verified=True",
+    "role": "panel_b",
+    "vulnerability_case": "A tainted sink shape exists in the source."
+   }
+  ],
+  "triggered": true,
+  "triggers": [
+   "gates_risky_fix",
+   "severity:high"
+  ],
+  "votes": {
+   "accepted": 2
+  },
+  "warnings": []
+ },
+ {
+  "decision_source": "deterministic-reconciler",
+  "degradations": [],
+  "disposition": "accepted",
+  "finding_id": "python-unsafe-eval:app.py:28",
+  "model_ids": [],
+  "panels": [
+   {
+    "confidence": 0.75,
+    "disposition": "accepted",
+    "false_positive_case": "Reachability or sanitizer evidence could still neutralize the sink.",
+    "leaning": "vulnerability",
+    "model_id": null,
+    "rationale": "reachability=reachable, severity=critical, verified=True",
+    "role": "panel_a",
+    "vulnerability_case": "Static corroboration exists and function-level reachability evidence is attached."
+   },
+   {
+    "confidence": 0.6,
+    "disposition": "accepted",
+    "false_positive_case": "Impact and exploitability still require deeper verifier or dynamic evidence.",
+    "leaning": "false_positive",
+    "model_id": null,
+    "rationale": "reachable=True, rejected=False, verified=True",
+    "role": "panel_b",
+    "vulnerability_case": "A tainted sink shape exists in the source."
+   }
+  ],
+  "triggered": true,
+  "triggers": [
+   "gates_risky_fix",
+   "severity:critical"
+  ],
+  "votes": {
+   "accepted": 2
+  },
+  "warnings": []
+ }
+]

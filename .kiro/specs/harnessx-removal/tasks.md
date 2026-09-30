@@ -4,7 +4,7 @@ Order follows the design's commit sequence (Requirement 5): nothing is deleted b
 and passed its fixture test. Every task is a commit gated on the full suite's own exit code, `ruff check`,
 `ruff format --check` and `mypy`; the reconciler stays under 500 lines.
 
-- [ ] 1. Baseline without the extra
+- [x] 1. Baseline without the extra
   - Equality script (design §3) with its `find_spec("harnessx")` and freeze checks; re-sync `.venv` without the
     `harnessx` extra first.
   - Record `benchmarks/measurements/<date>-harnessx-removal-baseline/`: full suite, `ousast pairs --json`, the

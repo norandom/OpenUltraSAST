@@ -1,0 +1,181 @@
+{
+ "baseline_deltas": [],
+ "benchmark_name": "python-vulnerable",
+ "benchmark_run_id": "<RUN_ID>",
+ "calibration_records": [
+  {
+   "cwe": "CWE-89",
+   "evidence": "execute runs a SQL query string built from request input on a prior line",
+   "failed_stage": "benchmark_ground_truth_matching",
+   "next_improvement_candidate": "language_hunter",
+   "path": "app.py",
+   "reason": "no OpenUltraSAST finding matched the expected benchmark vulnerability",
+   "rule_id": null,
+   "vulnerability_class": "sql injection"
+  }
+ ],
+ "false_positives": [],
+ "language": "python_web",
+ "metrics": {
+  "actual_findings_total": 12,
+  "artifact_links": {
+   "findings": "<ROOT>/benchmarks/fixtures/python-vulnerable/.openultrasast/runs/<RUN_ID>/findings.json",
+   "manifest": "<ROOT>/benchmarks/fixtures/python-vulnerable/.openultrasast/runs/<RUN_ID>/manifest.json",
+   "report": "<ROOT>/benchmarks/fixtures/python-vulnerable/.openultrasast/runs/<RUN_ID>/report.md",
+   "sarif": "<ROOT>/benchmarks/fixtures/python-vulnerable/.openultrasast/runs/<RUN_ID>/report.sarif"
+  },
+  "expected_findings_total": 13,
+  "false_positive_findings_total": 0,
+  "matched_findings_total": 12,
+  "missed_findings_total": 1,
+  "model_usage": {},
+  "per_rule": {
+   "python-flask-debug": {
+    "false_positives": 0,
+    "matched": 1,
+    "missed": 0
+   },
+   "python-os-command": {
+    "false_positives": 0,
+    "matched": 1,
+    "missed": 0
+   },
+   "python-path-traversal": {
+    "false_positives": 0,
+    "matched": 1,
+    "missed": 0
+   },
+   "python-shell-true": {
+    "false_positives": 0,
+    "matched": 1,
+    "missed": 0
+   },
+   "python-sql-injection": {
+    "false_positives": 0,
+    "matched": 2,
+    "missed": 0
+   },
+   "python-ssrf": {
+    "false_positives": 0,
+    "matched": 1,
+    "missed": 0
+   },
+   "python-ssti": {
+    "false_positives": 0,
+    "matched": 1,
+    "missed": 0
+   },
+   "python-unsafe-deserialization": {
+    "false_positives": 0,
+    "matched": 2,
+    "missed": 0
+   },
+   "python-unsafe-eval": {
+    "false_positives": 0,
+    "matched": 1,
+    "missed": 0
+   },
+   "python-weak-hash": {
+    "false_positives": 0,
+    "matched": 1,
+    "missed": 0
+   }
+  },
+  "precision": 1.0,
+  "recall": 0.9230769230769231
+ },
+ "misses": [
+  {
+   "cwe": "CWE-89",
+   "evidence": "execute runs a SQL query string built from request input on a prior line",
+   "path": "app.py",
+   "reason": "no OpenUltraSAST finding matched the expected benchmark vulnerability",
+   "rule_id": null,
+   "vulnerability_class": "sql injection"
+  }
+ ],
+ "mode": "quick",
+ "rule_recommendations": [
+  {
+   "action": "keep",
+   "false_positives": 0,
+   "matched": 1,
+   "missed": 0,
+   "rationale": "rule matched expected findings with no false positives",
+   "rule_id": "python-flask-debug"
+  },
+  {
+   "action": "keep",
+   "false_positives": 0,
+   "matched": 1,
+   "missed": 0,
+   "rationale": "rule matched expected findings with no false positives",
+   "rule_id": "python-os-command"
+  },
+  {
+   "action": "keep",
+   "false_positives": 0,
+   "matched": 1,
+   "missed": 0,
+   "rationale": "rule matched expected findings with no false positives",
+   "rule_id": "python-path-traversal"
+  },
+  {
+   "action": "keep",
+   "false_positives": 0,
+   "matched": 1,
+   "missed": 0,
+   "rationale": "rule matched expected findings with no false positives",
+   "rule_id": "python-shell-true"
+  },
+  {
+   "action": "keep",
+   "false_positives": 0,
+   "matched": 2,
+   "missed": 0,
+   "rationale": "rule matched expected findings with no false positives",
+   "rule_id": "python-sql-injection"
+  },
+  {
+   "action": "keep",
+   "false_positives": 0,
+   "matched": 1,
+   "missed": 0,
+   "rationale": "rule matched expected findings with no false positives",
+   "rule_id": "python-ssrf"
+  },
+  {
+   "action": "keep",
+   "false_positives": 0,
+   "matched": 1,
+   "missed": 0,
+   "rationale": "rule matched expected findings with no false positives",
+   "rule_id": "python-ssti"
+  },
+  {
+   "action": "keep",
+   "false_positives": 0,
+   "matched": 2,
+   "missed": 0,
+   "rationale": "rule matched expected findings with no false positives",
+   "rule_id": "python-unsafe-deserialization"
+  },
+  {
+   "action": "keep",
+   "false_positives": 0,
+   "matched": 1,
+   "missed": 0,
+   "rationale": "rule matched expected findings with no false positives",
+   "rule_id": "python-unsafe-eval"
+  },
+  {
+   "action": "keep",
+   "false_positives": 0,
+   "matched": 1,
+   "missed": 0,
+   "rationale": "rule matched expected findings with no false positives",
+   "rule_id": "python-weak-hash"
+  }
+ ],
+ "scan_run_dir": "<ROOT>/benchmarks/fixtures/python-vulnerable/.openultrasast/runs/<RUN_ID>"
+}

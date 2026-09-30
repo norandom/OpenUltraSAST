@@ -1,0 +1,11 @@
+scan_id=<RUN_ID>
+run_dir=<ROOT>/benchmarks/fixtures/python-vulnerable/.openultrasast/runs/<RUN_ID>
+file_targets=2
+ranked_targets=2
+findings=12
+calibrations_applied=0
+benchmark_run_id=<RUN_ID>
+benchmark_run_dir=<ROOT>/benchmarks/fixtures/python-vulnerable/.openultrasast/benchmarks/<RUN_ID>
+benchmark_expected=13
+benchmark_matched=12
+benchmark_missed=1

@@ -1,0 +1,6 @@
+scan_id=<RUN_ID>
+run_dir=<ROOT>/benchmarks/fixtures/python-vulnerable/.openultrasast/runs/<RUN_ID>
+file_targets=2
+ranked_targets=2
+findings=17
+calibrations_applied=1

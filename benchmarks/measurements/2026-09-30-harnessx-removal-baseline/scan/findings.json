@@ -1,0 +1,630 @@
+{
+ "findings": [
+  {
+   "confidence": "medium",
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-flask-debug:app.py:81",
+   "function_name": null,
+   "line": 81,
+   "path": "app.py",
+   "proposed_snippet": null,
+   "ranking_priority": 1.5,
+   "rationale": "Static pattern python-flask-debug (CWE-489) matched debug on line 81; manual verification still required.",
+   "reachability_conditions": [],
+   "reachability_evidence": [],
+   "reachability_status": "unknown",
+   "rung": "suspicion",
+   "severity": "medium",
+   "status": "enabled",
+   "tags": [
+    "crypto",
+    "deserialization",
+    "filesystem_entry",
+    "insecure_default",
+    "syscall_entry"
+   ],
+   "title": "Flask debug mode enabled needs review"
+  },
+  {
+   "confidence": "medium",
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-os-command:app.py:17",
+   "function_name": "ping",
+   "line": 17,
+   "path": "app.py",
+   "proposed_snippet": null,
+   "ranking_priority": 3.8,
+   "rationale": "Static pattern python-os-command (CWE-78) matched os.system on line 17; manual verification still required.",
+   "reachability_conditions": [],
+   "reachability_evidence": [
+    {
+     "access_declared": false,
+     "access_evidence": [
+      "app.get('/ping')"
+     ],
+     "access_level": "public",
+     "conditions": [],
+     "defines_handler": true,
+     "end_line": 17,
+     "function_name": "ping",
+     "kind": "route",
+     "line": 15,
+     "name": "ping",
+     "path": "app.py",
+     "provenance": "entrypoint:route:public",
+     "rationale": "route surface classified as public at http_request",
+     "registered_by": "",
+     "trust_boundary": "http_request"
+    }
+   ],
+   "reachability_status": "reachable",
+   "rung": "suspicion",
+   "severity": "critical",
+   "status": "enabled",
+   "tags": [
+    "crypto",
+    "deserialization",
+    "filesystem_entry",
+    "syscall_entry"
+   ],
+   "title": "Python OS command execution needs review"
+  },
+  {
+   "confidence": "medium",
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-path-traversal:app.py:55",
+   "function_name": "read",
+   "line": 55,
+   "path": "app.py",
+   "proposed_snippet": null,
+   "ranking_priority": 3.8,
+   "rationale": "Static pattern python-path-traversal (CWE-22) matched open on line 55; manual verification still required.",
+   "reachability_conditions": [],
+   "reachability_evidence": [
+    {
+     "access_declared": false,
+     "access_evidence": [
+      "app.get('/read')"
+     ],
+     "access_level": "public",
+     "conditions": [],
+     "defines_handler": true,
+     "end_line": 55,
+     "function_name": "read",
+     "kind": "route",
+     "line": 54,
+     "name": "read",
+     "path": "app.py",
+     "provenance": "entrypoint:route:public",
+     "rationale": "route surface classified as public at http_request",
+     "registered_by": "",
+     "trust_boundary": "http_request"
+    }
+   ],
+   "reachability_status": "reachable",
+   "rung": "suspicion",
+   "severity": "medium",
+   "status": "enabled",
+   "tags": [
+    "crypto",
+    "deserialization",
+    "filesystem_entry",
+    "syscall_entry"
+   ],
+   "title": "Python file open with external input needs review"
+  },
+  {
+   "confidence": "medium",
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-shell-true:app.py:23",
+   "function_name": "run",
+   "line": 23,
+   "path": "app.py",
+   "proposed_snippet": null,
+   "ranking_priority": 3.8,
+   "rationale": "Static pattern python-shell-true (CWE-78) matched subprocess.check_output on line 23; manual verification still required.",
+   "reachability_conditions": [],
+   "reachability_evidence": [
+    {
+     "access_declared": false,
+     "access_evidence": [
+      "app.get('/run')"
+     ],
+     "access_level": "public",
+     "conditions": [],
+     "defines_handler": true,
+     "end_line": 23,
+     "function_name": "run",
+     "kind": "route",
+     "line": 21,
+     "name": "run",
+     "path": "app.py",
+     "provenance": "entrypoint:route:public",
+     "rationale": "route surface classified as public at http_request",
+     "registered_by": "",
+     "trust_boundary": "http_request"
+    }
+   ],
+   "reachability_status": "reachable",
+   "rung": "suspicion",
+   "severity": "critical",
+   "status": "enabled",
+   "tags": [
+    "crypto",
+    "deserialization",
+    "filesystem_entry",
+    "syscall_entry"
+   ],
+   "title": "Subprocess shell execution needs review"
+  },
+  {
+   "confidence": "medium",
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-sql-injection:app.py:44",
+   "function_name": "user",
+   "line": 44,
+   "path": "app.py",
+   "proposed_snippet": null,
+   "ranking_priority": 3.8,
+   "rationale": "Static pattern python-sql-injection (CWE-89) matched .execute on line 44; manual verification still required.",
+   "reachability_conditions": [],
+   "reachability_evidence": [
+    {
+     "access_declared": false,
+     "access_evidence": [
+      "app.get('/user')"
+     ],
+     "access_level": "public",
+     "conditions": [],
+     "defines_handler": true,
+     "end_line": 44,
+     "function_name": "user",
+     "kind": "route",
+     "line": 42,
+     "name": "user",
+     "path": "app.py",
+     "provenance": "entrypoint:route:public",
+     "rationale": "route surface classified as public at http_request",
+     "registered_by": "",
+     "trust_boundary": "http_request"
+    }
+   ],
+   "reachability_status": "reachable",
+   "rung": "suspicion",
+   "severity": "high",
+   "status": "enabled",
+   "tags": [
+    "crypto",
+    "deserialization",
+    "filesystem_entry",
+    "injection",
+    "syscall_entry"
+   ],
+   "title": "Python SQL string composition needs review"
+  },
+  {
+   "confidence": "medium",
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-sql-injection:app.py:50",
+   "function_name": "report",
+   "line": 50,
+   "path": "app.py",
+   "proposed_snippet": null,
+   "ranking_priority": 3.8,
+   "rationale": "Static pattern python-sql-injection (CWE-89) matched .execute on line 50; manual verification still required.",
+   "reachability_conditions": [],
+   "reachability_evidence": [
+    {
+     "access_declared": false,
+     "access_evidence": [
+      "app.get('/report')"
+     ],
+     "access_level": "public",
+     "conditions": [],
+     "defines_handler": true,
+     "end_line": 50,
+     "function_name": "report",
+     "kind": "route",
+     "line": 48,
+     "name": "report",
+     "path": "app.py",
+     "provenance": "entrypoint:route:public",
+     "rationale": "route surface classified as public at http_request",
+     "registered_by": "",
+     "trust_boundary": "http_request"
+    }
+   ],
+   "reachability_status": "reachable",
+   "rung": "suspicion",
+   "severity": "high",
+   "status": "enabled",
+   "tags": [
+    "crypto",
+    "deserialization",
+    "filesystem_entry",
+    "injection",
+    "syscall_entry"
+   ],
+   "title": "Python SQL string composition needs review"
+  },
+  {
+   "confidence": "medium",
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-ssrf:app.py:60",
+   "function_name": "fetch",
+   "line": 60,
+   "path": "app.py",
+   "proposed_snippet": null,
+   "ranking_priority": 3.8,
+   "rationale": "Static pattern python-ssrf (CWE-918) matched requests.get on line 60; manual verification still required.",
+   "reachability_conditions": [],
+   "reachability_evidence": [
+    {
+     "access_declared": false,
+     "access_evidence": [
+      "app.get('/fetch')"
+     ],
+     "access_level": "public",
+     "conditions": [],
+     "defines_handler": true,
+     "end_line": 60,
+     "function_name": "fetch",
+     "kind": "route",
+     "line": 59,
+     "name": "fetch",
+     "path": "app.py",
+     "provenance": "entrypoint:route:public",
+     "rationale": "route surface classified as public at http_request",
+     "registered_by": "",
+     "trust_boundary": "http_request"
+    }
+   ],
+   "reachability_status": "reachable",
+   "rung": "suspicion",
+   "severity": "medium",
+   "status": "enabled",
+   "tags": [
+    "crypto",
+    "deserialization",
+    "filesystem_entry",
+    "network_entry",
+    "syscall_entry"
+   ],
+   "title": "Python outbound request with external input needs review"
+  },
+  {
+   "confidence": "medium",
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-ssti:app.py:70",
+   "function_name": "render",
+   "line": 70,
+   "path": "app.py",
+   "proposed_snippet": null,
+   "ranking_priority": 3.8,
+   "rationale": "Static pattern python-ssti (CWE-94) matched render_template_string on line 70; manual verification still required.",
+   "reachability_conditions": [],
+   "reachability_evidence": [
+    {
+     "access_declared": false,
+     "access_evidence": [
+      "app.get('/render')"
+     ],
+     "access_level": "public",
+     "conditions": [],
+     "defines_handler": true,
+     "end_line": 70,
+     "function_name": "render",
+     "kind": "route",
+     "line": 69,
+     "name": "render",
+     "path": "app.py",
+     "provenance": "entrypoint:route:public",
+     "rationale": "route surface classified as public at http_request",
+     "registered_by": "",
+     "trust_boundary": "http_request"
+    }
+   ],
+   "reachability_status": "reachable",
+   "rung": "suspicion",
+   "severity": "medium",
+   "status": "enabled",
+   "tags": [
+    "crypto",
+    "deserialization",
+    "filesystem_entry",
+    "injection",
+    "syscall_entry"
+   ],
+   "title": "Python server-side template injection needs review"
+  },
+  {
+   "confidence": "medium",
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-unsafe-deserialization:app.py:33",
+   "function_name": "load",
+   "line": 33,
+   "path": "app.py",
+   "proposed_snippet": null,
+   "ranking_priority": 3.8,
+   "rationale": "Static pattern python-unsafe-deserialization (CWE-502) matched pickle.loads on line 33; manual verification still required.",
+   "reachability_conditions": [],
+   "reachability_evidence": [
+    {
+     "access_declared": false,
+     "access_evidence": [
+      "app.get('/load')"
+     ],
+     "access_level": "public",
+     "conditions": [],
+     "defines_handler": true,
+     "end_line": 33,
+     "function_name": "load",
+     "kind": "route",
+     "line": 32,
+     "name": "load",
+     "path": "app.py",
+     "provenance": "entrypoint:route:public",
+     "rationale": "route surface classified as public at http_request",
+     "registered_by": "",
+     "trust_boundary": "http_request"
+    }
+   ],
+   "reachability_status": "reachable",
+   "rung": "suspicion",
+   "severity": "medium",
+   "status": "enabled",
+   "tags": [
+    "crypto",
+    "deserialization",
+    "filesystem_entry",
+    "syscall_entry"
+   ],
+   "title": "Unsafe Python deserialization needs review"
+  },
+  {
+   "confidence": "medium",
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-unsafe-deserialization:app.py:38",
+   "function_name": "config",
+   "line": 38,
+   "path": "app.py",
+   "proposed_snippet": null,
+   "ranking_priority": 3.8,
+   "rationale": "Static pattern python-unsafe-deserialization (CWE-502) matched yaml.load on line 38; manual verification still required.",
+   "reachability_conditions": [],
+   "reachability_evidence": [
+    {
+     "access_declared": false,
+     "access_evidence": [
+      "app.get('/config')"
+     ],
+     "access_level": "public",
+     "conditions": [],
+     "defines_handler": true,
+     "end_line": 38,
+     "function_name": "config",
+     "kind": "route",
+     "line": 37,
+     "name": "config",
+     "path": "app.py",
+     "provenance": "entrypoint:route:public",
+     "rationale": "route surface classified as public at http_request",
+     "registered_by": "",
+     "trust_boundary": "http_request"
+    }
+   ],
+   "reachability_status": "reachable",
+   "rung": "suspicion",
+   "severity": "medium",
+   "status": "enabled",
+   "tags": [
+    "crypto",
+    "deserialization",
+    "filesystem_entry",
+    "syscall_entry"
+   ],
+   "title": "Unsafe Python deserialization needs review"
+  },
+  {
+   "confidence": "medium",
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-unsafe-eval:app.py:28",
+   "function_name": "calc",
+   "line": 28,
+   "path": "app.py",
+   "proposed_snippet": null,
+   "ranking_priority": 3.8,
+   "rationale": "Static pattern python-unsafe-eval (CWE-95) matched eval on line 28; manual verification still required.",
+   "reachability_conditions": [],
+   "reachability_evidence": [
+    {
+     "access_declared": false,
+     "access_evidence": [
+      "app.get('/calc')"
+     ],
+     "access_level": "public",
+     "conditions": [],
+     "defines_handler": true,
+     "end_line": 28,
+     "function_name": "calc",
+     "kind": "route",
+     "line": 27,
+     "name": "calc",
+     "path": "app.py",
+     "provenance": "entrypoint:route:public",
+     "rationale": "route surface classified as public at http_request",
+     "registered_by": "",
+     "trust_boundary": "http_request"
+    }
+   ],
+   "reachability_status": "reachable",
+   "rung": "suspicion",
+   "severity": "critical",
+   "status": "enabled",
+   "tags": [
+    "crypto",
+    "deserialization",
+    "filesystem_entry",
+    "syscall_entry"
+   ],
+   "title": "Dynamic Python execution needs review"
+  },
+  {
+   "confidence": "medium",
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-weak-hash:app.py:65",
+   "function_name": "token",
+   "line": 65,
+   "path": "app.py",
+   "proposed_snippet": null,
+   "ranking_priority": 3.8,
+   "rationale": "Static pattern python-weak-hash (CWE-327) matched md5 on line 65; manual verification still required.",
+   "reachability_conditions": [],
+   "reachability_evidence": [
+    {
+     "access_declared": false,
+     "access_evidence": [
+      "app.get('/token')"
+     ],
+     "access_level": "public",
+     "conditions": [],
+     "defines_handler": true,
+     "end_line": 65,
+     "function_name": "token",
+     "kind": "route",
+     "line": 64,
+     "name": "token",
+     "path": "app.py",
+     "provenance": "entrypoint:route:public",
+     "rationale": "route surface classified as public at http_request",
+     "registered_by": "",
+     "trust_boundary": "http_request"
+    }
+   ],
+   "reachability_status": "reachable",
+   "rung": "suspicion",
+   "severity": "medium",
+   "status": "enabled",
+   "tags": [
+    "crypto",
+    "deserialization",
+    "filesystem_entry",
+    "syscall_entry"
+   ],
+   "title": "Python weak hash needs review"
+  },
+  {
+   "confidence": "medium",
+   "evidence_level": "static_corroboration",
+   "finding_id": "overlay-coverage:app.py:77:execute",
+   "function_name": null,
+   "line": 77,
+   "path": "app.py",
+   "proposed_snippet": null,
+   "ranking_priority": 0.0,
+   "rationale": "uninventoried sink execute reached from request",
+   "reachability_conditions": [],
+   "reachability_evidence": [],
+   "reachability_status": "unknown",
+   "rung": "suspicion",
+   "severity": "high",
+   "status": "enabled",
+   "tags": [
+    "overlay-originated"
+   ],
+   "title": "Overlay coverage: execute"
+  },
+  {
+   "confidence": "medium",
+   "evidence_level": "static_corroboration",
+   "finding_id": "overlay-coverage:safe.py:11:os.system",
+   "function_name": null,
+   "line": 11,
+   "path": "safe.py",
+   "proposed_snippet": null,
+   "ranking_priority": 0.0,
+   "rationale": "uninventoried sink os.system reached from parameter",
+   "reachability_conditions": [],
+   "reachability_evidence": [],
+   "reachability_status": "unknown",
+   "rung": "suspicion",
+   "severity": "critical",
+   "status": "enabled",
+   "tags": [
+    "overlay-originated"
+   ],
+   "title": "Overlay coverage: os.system"
+  },
+  {
+   "confidence": "low",
+   "evidence_level": "suspicion",
+   "finding_id": "obligation:protected_read:app.py:44:identity_constraint",
+   "function_name": "user",
+   "line": 44,
+   "path": "app.py",
+   "proposed_snippet": null,
+   "ranking_priority": 0.3,
+   "rationale": "protected_read on users in user is reached without a dominating identity_constraint. Why the obligation exists: the operation fact alone (function-local mode). Label: function_local.",
+   "reachability_conditions": [],
+   "reachability_evidence": [],
+   "reachability_status": "unknown",
+   "rung": "suspicion",
+   "severity": "high",
+   "status": "enabled",
+   "tags": [
+    "obligation:protected_read",
+    "discharger:identity_constraint",
+    "obligation_evidence:function_local",
+    "resource:users"
+   ],
+   "title": "Obligation not discharged: protected_read on users without identity_constraint"
+  },
+  {
+   "confidence": "low",
+   "evidence_level": "suspicion",
+   "finding_id": "obligation:protected_read:app.py:50:identity_constraint",
+   "function_name": "report",
+   "line": 50,
+   "path": "app.py",
+   "proposed_snippet": null,
+   "ranking_priority": 0.3,
+   "rationale": "protected_read on reports in report is reached without a dominating identity_constraint. Why the obligation exists: the operation fact alone (function-local mode). Label: function_local.",
+   "reachability_conditions": [],
+   "reachability_evidence": [],
+   "reachability_status": "unknown",
+   "rung": "suspicion",
+   "severity": "high",
+   "status": "enabled",
+   "tags": [
+    "obligation:protected_read",
+    "discharger:identity_constraint",
+    "obligation_evidence:function_local",
+    "resource:reports"
+   ],
+   "title": "Obligation not discharged: protected_read on reports without identity_constraint"
+  },
+  {
+   "confidence": "low",
+   "evidence_level": "suspicion",
+   "finding_id": "obligation:protected_read:app.py:77:identity_constraint",
+   "function_name": "search",
+   "line": 77,
+   "path": "app.py",
+   "proposed_snippet": null,
+   "ranking_priority": 0.3,
+   "rationale": "protected_read on a resource in search is reached without a dominating identity_constraint. Why the obligation exists: the operation fact alone (function-local mode). Label: function_local.",
+   "reachability_conditions": [],
+   "reachability_evidence": [],
+   "reachability_status": "unknown",
+   "rung": "suspicion",
+   "severity": "high",
+   "status": "enabled",
+   "tags": [
+    "obligation:protected_read",
+    "discharger:identity_constraint",
+    "obligation_evidence:function_local"
+   ],
+   "title": "Obligation not discharged: protected_read on a resource without identity_constraint"
+  }
+ ]
+}

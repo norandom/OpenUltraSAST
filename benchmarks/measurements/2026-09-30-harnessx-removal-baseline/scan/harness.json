@@ -1,0 +1,11 @@
+{
+ "contract_mode": "strict",
+ "model_roles": {
+  "hunter": null,
+  "patcher": null,
+  "ranker": null,
+  "verifier": null
+ },
+ "processor_versions": {},
+ "prompt_hashes": {}
+}
