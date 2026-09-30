@@ -165,3 +165,9 @@ stability, spend. Shadow quick rules are reported separately as exploratory.
   (`tests/test_independent_population.py`).
 - No result of a case whose licence is marked "verify" is published until the licence is checked. Kirby is not
   OSI-licensed: its results are unpublishable without the licensor's permission.
+
+## Maintainer confirmation (2026-09-30, before any scan)
+
+The maintainer confirmed the two choices made while drafting: the model-spend ceiling of $60 in total and $6 per
+case (a case stopped by its cap counts as not detected), and shadow quick rules reported as exploratory only,
+outside every gate. No v3 repository had been scanned when this was confirmed.
