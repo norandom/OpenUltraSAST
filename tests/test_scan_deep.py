@@ -141,7 +141,6 @@ def test_deep_scan_unsafe_hunter_snippet_is_safety_rejected_without_docker_job(t
     monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
     monkeypatch.setenv("OPENULTRASAST_SANDBOX_PROBE", "1")
     monkeypatch.setenv("OPENULTRASAST_HUNTER_CLIENT", "unsafe-snippet")
-    monkeypatch.setattr(cli, "has_harnessx", lambda: False)
     monkeypatch.setattr(cli, "resolve_sandbox_runner", lambda: fake)
     docker_argv = _guard_docker(monkeypatch)
 

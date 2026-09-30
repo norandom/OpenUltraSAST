@@ -1,12 +1,10 @@
 """Scan-pipeline integrity & serialization (Phase 4 task 9).
 
-9.1 — with the extra absent, quick and standard scans run through the existing sync
-driver with behaviour unchanged from the deterministic baseline, and a
-requested-but-unavailable HarnessX stage records a manifest degradation.
+9.1 — quick and standard scans run through the sync driver with the deterministic
+hunter, verifier and fusion; a configured hunter model never changes the
+deterministic findings.
 9.2 — every persisted scan-state slot serializes and restores without loss (guards
-against a non-serializable slot silently restoring as empty). This covers the
-current artifact-persistence model; the HarnessX processor slot-contract variant
-(spec task 9.2 over task 6.3) remains deferred with 6.3.
+against a non-serializable slot silently restoring as empty).
 """
 
 import json
@@ -15,7 +13,6 @@ from pathlib import Path
 
 import pytest
 
-from openultrasast import cli
 from openultrasast.benchmark import load_findings
 from openultrasast.cli import main
 from openultrasast.findings import StaticFinding, write_findings
@@ -27,14 +24,13 @@ from openultrasast.verification import EvidenceLevel, VerificationResult, Verifi
 _VULN = "@app.route('/admin')\ndef admin():\n    return eval(request.data)\n"
 
 
-# ---- 9.1 fallback parity + degradation --------------------------------------
+# ---- 9.1 deterministic parity + degradation --------------------------------------
 
 
-def _scan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, mode: str, config_body: str | None, harnessx: bool) -> tuple[list, dict]:
+def _scan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, mode: str, config_body: str | None) -> tuple[list, dict]:
     repo = tmp_path / "repo"
     repo.mkdir(parents=True)
     (repo / "app.py").write_text(_VULN)
-    monkeypatch.setattr(cli, "has_harnessx", lambda: harnessx)
     monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.delenv("OPENULTRASAST_HUNTER_CLIENT", raising=False)
@@ -50,40 +46,27 @@ def _scan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, mode: str, config_
     return findings, manifest
 
 
-def test_standard_scan_extra_absent_matches_deterministic_baseline(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    # Requested-but-unavailable HarnessX (models set, extra absent) must produce the
-    # same findings as the plain deterministic path (no models), differing only by
-    # the recorded degradation.
-    requested, requested_manifest = _scan(
-        tmp_path / "a",
-        monkeypatch,
-        mode="standard",
-        config_body='[models]\nhunter = "openai/gpt-4o"\nverifier = "openai/gpt-4o"\n',
-        harnessx=False,
-    )
-    baseline, baseline_manifest = _scan(tmp_path / "b", monkeypatch, mode="standard", config_body=None, harnessx=False)
+def test_standard_scan_with_a_hunter_model_keeps_deterministic_findings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # A configured hunter model (no client reachable here) must leave the deterministic findings byte-identical.
+    requested, requested_manifest = _scan(tmp_path / "a", monkeypatch, mode="standard", config_body='[models]\nhunter = "openai/gpt-4o"\n')
+    baseline, baseline_manifest = _scan(tmp_path / "b", monkeypatch, mode="standard", config_body=None)
 
-    assert requested == baseline  # byte-identical findings -> sync driver behaviour unchanged
-    stages = {entry["stage"] for entry in requested_manifest.get("degradations", [])}
-    # `model` joins the set when the model layer runs without a CPG engine: findings are byte-identical
-    # (asserted above) and the only difference is that the scan now SAYS the arbiter was unavailable
-    # (contributor-scan Req 1.3) rather than being silently absent.
-    assert stages == {"hunter_pool", "verify", "model"}
-    assert {e["reason"] for e in requested_manifest["degradations"] if e["stage"] == "model"} == {"cpg_unavailable"}
-    assert all(entry["reason"] == "harnessx_extra_unavailable" for entry in requested_manifest["degradations"] if entry["stage"] != "model")
-    assert all(entry["reason"] != "hunter_model_unavailable" for entry in requested_manifest["degradations"])
-    assert [e["reason"] for e in baseline_manifest.get("degradations", []) if e["stage"] != "model"] == ["hunter_model_unavailable"]
+    assert requested == baseline
+    # The hunter model runs the tool hunter (its client is absent here, so it contributes nothing) and removes the
+    # `map` skip; `model` records that no CPG engine was available (contributor-scan Req 1.3).
+    assert requested_manifest["degradations"] == [{"reason": "cpg_unavailable", "stage": "model"}]
+    assert {(e["stage"], e["reason"]) for e in baseline_manifest["degradations"]} == {
+        ("model", "cpg_unavailable"),
+        ("map", "hunter_model_unavailable"),
+    }
 
 
-def test_quick_scan_is_unaffected_by_the_extra(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    # Quick mode never touches the agentic plane: identical findings whether the
-    # extra is present or absent, and never a degradation.
-    present, present_manifest = _scan(tmp_path / "a", monkeypatch, mode="quick", config_body=None, harnessx=True)
-    absent, _ = _scan(tmp_path / "b", monkeypatch, mode="quick", config_body=None, harnessx=False)
+def test_quick_scan_records_no_degradation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Quick mode never touches a model: findings are produced and no degradation is recorded.
+    findings, manifest = _scan(tmp_path, monkeypatch, mode="quick", config_body=None)
 
-    assert present == absent
-    assert present  # findings were produced
-    assert "degradations" not in present_manifest
+    assert findings
+    assert "degradations" not in manifest
 
 
 # ---- 9.2 per-slot serialization round-trip ----------------------------------

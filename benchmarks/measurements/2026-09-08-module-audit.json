@@ -1,7 +1,7 @@
 {
-  "modules": 137,
+  "modules": 136,
   "counts": {
-    "load_bearing": 128,
+    "load_bearing": 127,
     "standalone_capability": 9
   },
   "orphaned": [],
@@ -243,8 +243,7 @@
         "semantic.prove_filter",
         "stage_processors",
         "tool_hunter",
-        "verification",
-        "verify_judge"
+        "verification"
       ]
     },
     {
@@ -278,11 +277,7 @@
       "classification": "standalone_capability",
       "reason": "HarnessX extension surface; loaded by name when the optional harness is present",
       "importers": [
-        "cli",
-        "fusion",
-        "hunter_harness",
-        "stage_processors",
-        "verify_judge"
+        "hunter_harness"
       ]
     },
     {
@@ -298,9 +293,7 @@
       "module": "hunter_harness",
       "classification": "standalone_capability",
       "reason": "harness wiring for the tool hunter; used by the hunter path and by mcp",
-      "importers": [
-        "cli"
-      ]
+      "importers": []
     },
     {
       "module": "hunter_tools",
@@ -1519,16 +1512,7 @@
         "calibration",
         "cli",
         "fusion",
-        "reports",
-        "verify_judge"
-      ]
-    },
-    {
-      "module": "verify_judge",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
-      "importers": [
-        "cli"
+        "reports"
       ]
     }
   ]

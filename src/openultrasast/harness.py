@@ -180,7 +180,7 @@ def write_harness_config(
         model_roles={
             "ranker": config.models.ranker,
             "hunter": config.models.hunter,
-            "verifier": config.models.verifier,
+            "verifier": None,  # schema kept byte for byte; LLM verification runs on the plane
             "patcher": config.models.patcher,
         },
         processor_versions={processor.spec.name: processor.spec.version for processor in processors},

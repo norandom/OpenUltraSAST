@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import tomllib
 from dataclasses import asdict, dataclass
@@ -10,6 +11,41 @@ from typing import Literal
 from openultrasast.contracts import Contract
 
 DEFAULT_VECTOR_STORE = "json-local"
+
+# Retirement notes (harnessx-removal Req 1.3, 3.3). A key that asked for a retired LLM capability fails and names
+# the replacement, never a silent downgrade; the old budget section only warns. Every line below that names the
+# removed plane carries its retirement date, which the reference-search test holds the rest of the tree to.
+_RETIRED_ON = "retired 2026-09-30 with HarnessX"
+_PLANE_RUN = "`ousast plane run`, see ops/ax/README.md"
+_RETIRED_PANELS = (
+    f"LLM fusion panels were retired; fusion is deterministic; independent LLM agreement is the plane's `agree` task ({_PLANE_RUN})"
+)
+RETIRED_KEYS: dict[tuple[str, str], str] = {
+    ("models", "verifier"): f"LLM verification runs on the plane (`verify` + `agree`, {_PLANE_RUN})",
+    ("fusion", "panel_model"): _RETIRED_PANELS,
+    ("fusion", "decider_model"): _RETIRED_PANELS,
+}
+RETIRED_SECTION = "harnessx"  # retired 2026-09-30: loads with one warning and is otherwise ignored (Req 3.3)
+RETIRED_SECTION_WARNING = (
+    "`[harnessx]` is ignored (retired 2026-09-30): HarnessX was removed; agentic work runs on the ax plane "
+    "with per-task budgets, see ops/ax/README.md"
+)
+
+
+class RetiredConfigError(ValueError):
+    """A config key asked for a capability that was retired; the message names its replacement."""
+
+
+def _check_retired(data: dict[str, object]) -> None:
+    problems = []
+    for (section, key), replacement in RETIRED_KEYS.items():
+        table = data.get(section)
+        if isinstance(table, dict) and key in table:
+            problems.append(f"`[{section}] {key}` was {_RETIRED_ON}: {replacement}. Remove the key.")
+    if problems:
+        raise RetiredConfigError("\n".join(problems))
+    if RETIRED_SECTION in data:
+        logging.getLogger("openultrasast.config").warning(RETIRED_SECTION_WARNING)
 
 
 def load_dotenv(path: Path | None = None, *, force: bool = False) -> None:
@@ -34,7 +70,6 @@ def load_dotenv(path: Path | None = None, *, force: bool = False) -> None:
 class ModelConfig:
     ranker: str | None = None
     hunter: str | None = None
-    verifier: str | None = None
     patcher: str | None = None
     judge: str | None = None  # second, independent judgement before anything is published as proven
     chat_base_url: str | None = None  # chat endpoint; independent of the embedding endpoint
@@ -96,17 +131,6 @@ class RulesetConfig:
 
 
 @dataclass(frozen=True)
-class HarnessxConfig:
-    # Optional agentic plane (the openultrasast[harnessx] extra). `provider`
-    # selects the HarnessX LLM provider used by both the hunter pool and the
-    # llm-judge verifier; the budget caps bound per-task cost and token spend.
-    # Inert unless the extra is installed and a model is configured in [models].
-    provider: str = "anthropic"
-    max_cost_usd: float = 2.0
-    token_threshold: int = 120_000
-
-
-@dataclass(frozen=True)
 class HardeningConfig:
     # Release-readiness controls. redact_secrets masks credentials in traces/reports;
     # max_findings caps the reported finding count for bounded CI runs (0 = unlimited).
@@ -116,12 +140,9 @@ class HardeningConfig:
 
 @dataclass(frozen=True)
 class FusionConfig:
-    # Two-panel fusion adjudication for triggered findings (standard mode). Runs
-    # deterministically by default; setting panel_model routes the panels through
-    # the configured HarnessX provider. high_assurance forces fusion on every finding.
+    # Two-panel fusion adjudication for triggered findings (standard mode). Deterministic
+    # panels and reconciler; high_assurance forces fusion on every finding.
     enabled: bool = True
-    panel_model: str | None = None
-    decider_model: str | None = None
     high_assurance: bool = False
 
 
@@ -198,7 +219,6 @@ class ResolvedConfig:
     static_analysis: StaticAnalysisConfig = StaticAnalysisConfig()
     score: ScoreConfig = ScoreConfig()
     ruleset: RulesetConfig = RulesetConfig()
-    harnessx: HarnessxConfig = HarnessxConfig()
     fusion: FusionConfig = FusionConfig()
     hardening: HardeningConfig = HardeningConfig()
     complexity: ComplexityConfig = ComplexityConfig()
@@ -217,6 +237,7 @@ def load_config(config_path: Path | None = None, *, dotenv: bool = True) -> Reso
     if config_path is not None and config_path.exists():
         with config_path.open("rb") as handle:
             data = tomllib.load(handle)
+    _check_retired(data)
 
     return ResolvedConfig(
         models=_load_models(data.get("models", {})),
@@ -227,7 +248,6 @@ def load_config(config_path: Path | None = None, *, dotenv: bool = True) -> Reso
         static_analysis=_load_static_analysis(data.get("static_analysis", {})),
         score=_load_score(data.get("score", {})),
         ruleset=_load_ruleset_config(data.get("ruleset", {})),
-        harnessx=_load_harnessx(data.get("harnessx", {})),
         fusion=_load_fusion(data.get("fusion", {})),
         hardening=_load_hardening(data.get("hardening", {})),
         complexity=_load_complexity(data.get("complexity", {})),
@@ -263,7 +283,6 @@ def _load_models(value: object) -> ModelConfig:
     return ModelConfig(
         ranker=_string(data.get("ranker")),
         hunter=_string(data.get("hunter")),
-        verifier=_string(data.get("verifier")),
         patcher=_string(data.get("patcher")),
         judge=_string(data.get("judge")),
         chat_base_url=_string(data.get("chat_base_url")),
@@ -342,15 +361,6 @@ def _load_ruleset_config(value: object) -> RulesetConfig:
     )
 
 
-def _load_harnessx(value: object) -> HarnessxConfig:
-    data = _section(value)
-    return HarnessxConfig(
-        provider=_string(data.get("provider")) or "anthropic",
-        max_cost_usd=_float_value(data.get("max_cost_usd"), 2.0),
-        token_threshold=_int_value(data.get("token_threshold"), 120_000),
-    )
-
-
 def _load_hardening(value: object) -> HardeningConfig:
     data = _section(value)
     return HardeningConfig(
@@ -363,8 +373,6 @@ def _load_fusion(value: object) -> FusionConfig:
     data = _section(value)
     return FusionConfig(
         enabled=bool(data.get("enabled", True)),
-        panel_model=_string(data.get("panel_model")),
-        decider_model=_string(data.get("decider_model")),
         high_assurance=bool(data.get("high_assurance", False)),
     )
 

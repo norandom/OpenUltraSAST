@@ -1,7 +1,11 @@
+import logging
 import os
+from dataclasses import replace
 from pathlib import Path
 
-from openultrasast.config import load_config, load_dotenv, write_resolved_config
+import pytest
+
+from openultrasast.config import RetiredConfigError, load_config, load_dotenv, write_resolved_config
 
 
 def test_load_config_reads_toml(tmp_path: Path) -> None:
@@ -29,48 +33,64 @@ def test_load_config_reads_toml(tmp_path: Path) -> None:
     assert config.dynamic.network_scope == ("127.0.0.1:8080",)
 
 
-def test_harnessx_defaults_when_section_absent() -> None:
-    config = load_config(None)
-    assert config.harnessx.provider == "anthropic"
-    assert config.harnessx.max_cost_usd == 2.0
-    assert config.harnessx.token_threshold == 120_000
-
-
-def test_load_config_reads_harnessx_section(tmp_path: Path) -> None:
+def test_retired_agentic_section_loads_with_one_warning(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    # retired 2026-09-30: a budget-only [harnessx] section loads with one warning naming the plane (Req 3.3)
     config_path = tmp_path / "openultrasast.toml"
-    config_path.write_text(
-        "\n".join(
-            [
-                "[harnessx]",
-                'provider = "openai"',
-                "max_cost_usd = 5.0",
-                "token_threshold = 200000",
-            ]
-        )
-    )
+    config_path.write_text('[harnessx]\nprovider = "openai"\nmax_cost_usd = 5.0\n[score]\nmin_score = 70\n')  # retired 2026-09-30
 
-    config = load_config(config_path)
+    with caplog.at_level(logging.WARNING, logger="openultrasast.config"):
+        config = load_config(config_path)
 
-    assert config.harnessx.provider == "openai"
-    assert config.harnessx.max_cost_usd == 5.0
-    assert config.harnessx.token_threshold == 200_000
+    records = [record for record in caplog.records if record.name == "openultrasast.config"]
+    assert len(records) == 1
+    assert "ax plane" in records[0].getMessage() and "ops/ax/README.md" in records[0].getMessage()
+    assert config.score.min_score == 70  # the rest of the file still loads
+    assert config == replace(load_config(None), score=config.score)  # and nothing else is read from the section
+
+
+@pytest.mark.parametrize(
+    ("body", "key", "replacement"),
+    [
+        ('[models]\nverifier = "gpt-4o"\n', "`[models] verifier`", "`verify` + `agree`"),
+        ('[fusion]\npanel_model = "gpt-4o"\n', "`[fusion] panel_model`", "`agree` task"),
+        ('[fusion]\ndecider_model = "gpt-4o"\n', "`[fusion] decider_model`", "`agree` task"),
+    ],
+)
+def test_retired_llm_keys_fail_naming_the_replacement(tmp_path: Path, body: str, key: str, replacement: str) -> None:
+    config_path = tmp_path / "openultrasast.toml"
+    config_path.write_text(body)
+
+    with pytest.raises(RetiredConfigError) as raised:
+        load_config(config_path)
+
+    message = str(raised.value)
+    assert key in message and replacement in message and "ousast plane run" in message and "Remove the key" in message
+
+
+def test_the_cli_exits_2_on_a_retired_key(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    from openultrasast.cli import main
+
+    (tmp_path / "repo").mkdir()
+    config_path = tmp_path / "openultrasast.toml"
+    config_path.write_text('[models]\nverifier = "gpt-4o"\n')
+
+    assert main(["scan", str(tmp_path / "repo"), "--config", str(config_path)]) == 2
+    assert "`[models] verifier`" in capsys.readouterr().err
 
 
 def test_fusion_defaults_when_section_absent() -> None:
     config = load_config(None)
     assert config.fusion.enabled is True
-    assert config.fusion.panel_model is None
     assert config.fusion.high_assurance is False
 
 
 def test_load_config_reads_fusion_section(tmp_path: Path) -> None:
     config_path = tmp_path / "openultrasast.toml"
-    config_path.write_text('[fusion]\nenabled = true\npanel_model = "gpt-4o"\ndecider_model = "gpt-4o"\nhigh_assurance = true\n')
+    config_path.write_text("[fusion]\nenabled = false\nhigh_assurance = true\n")
 
     config = load_config(config_path)
 
-    assert config.fusion.panel_model == "gpt-4o"
-    assert config.fusion.decider_model == "gpt-4o"
+    assert config.fusion.enabled is False
     assert config.fusion.high_assurance is True
 
 

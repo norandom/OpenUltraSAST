@@ -3,12 +3,8 @@
 Each stage is a :class:`slot_contract.SlotContractMixin` with ``skip_model = True`` and
 a declared read/write slot allow-list. Running them through a :class:`SlotPipeline`
 reproduces the deterministic quick-scan path byte-for-byte while enforcing the slot
-contract on every lifecycle hook. The hunter and verifier stages are *not* here —
-they are the agentic plane (``hunter_harness``/``verify_judge``); this module is the
-deterministic, model-free remainder.
-
-``host_under_harnessx`` is the optional, lazy bridge: it wraps a model-disabled stage
-as a HarnessX ``MultiHookProcessor`` that disables the model call on ``before_model``.
+contract on every lifecycle hook. The hunter and verifier stages are *not* here; this
+module is the deterministic, model-free remainder that ``test_gate`` pins.
 """
 
 from __future__ import annotations
@@ -126,36 +122,6 @@ def run_quick_pipeline(
     return build_deterministic_pipeline().run(initial, runtime=runtime)
 
 
-def host_under_harnessx(processor: SlotContractMixin) -> Any:
-    """Host a model-disabled deterministic stage under a HarnessX ``MultiHookProcessor``.
-
-    Lazy + capability-guarded (imports ``harnessx`` only when called). On the
-    ``before_model`` hook the hosted stage yields a ``BeforeModelEvent`` with
-    ``skip_model=True``, so no deterministic stage incurs a model call when it runs on
-    the HarnessX runloop. Raises :class:`HarnessXUnavailableError` when the extra is absent.
-    """
-    import dataclasses
-
-    from .harness_ext import require_harnessx
-
-    require_harnessx()
-    from harnessx.core.events import BeforeModelEvent
-    from harnessx.core.processor import MultiHookProcessor
-
-    class _ModelDisabledStage(MultiHookProcessor):  # type: ignore[misc, valid-type]
-        _singleton_group = "ousast_deterministic"
-        _order = 50
-
-        def __init__(self, stage: SlotContractMixin) -> None:
-            self.stage = stage
-            self.name = stage.name
-
-        async def on_before_model(self, event: BeforeModelEvent):  # type: ignore[no-untyped-def]
-            yield dataclasses.replace(event, skip_model=True, synthetic_output=f"[deterministic stage {self.stage.name}: model disabled]")
-
-    return _ModelDisabledStage(processor)
-
-
 __all__ = [
     "EntryPointProcessor",
     "PolicyScoringProcessor",
@@ -165,6 +131,5 @@ __all__ = [
     "ScoreProcessor",
     "build_deterministic_pipeline",
     "deterministic_processors",
-    "host_under_harnessx",
     "run_quick_pipeline",
 ]

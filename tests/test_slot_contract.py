@@ -2,8 +2,7 @@
 
 Proves: deterministic stages carry work in declared slots, a slot-contract violation
 is raised on undeclared slot access, the pipeline is model-disabled, the slot pipeline
-reproduces the deterministic quick-scan path byte-for-byte, lifecycle hooks fire, and
-(when the extra is present) a stage can run under HarnessX with the model disabled.
+reproduces the deterministic quick-scan path byte-for-byte, and lifecycle hooks fire.
 """
 
 from collections.abc import Mapping
@@ -13,13 +12,10 @@ from typing import Any
 import pytest
 
 from openultrasast.gate import _quick_scan
-from openultrasast.harness_ext import has_harnessx
 from openultrasast.slot_contract import SlotContractError, SlotContractMixin, SlotPipeline
 from openultrasast.stage_processors import (
-    PreprocessProcessor,
     build_deterministic_pipeline,
     deterministic_processors,
-    host_under_harnessx,
     run_quick_pipeline,
 )
 
@@ -110,24 +106,3 @@ def test_pipeline_emits_lifecycle_hooks_per_stage() -> None:
     for name in names:
         assert ("stage_start", name) in recorder.events
         assert ("stage_end", name) in recorder.events
-
-
-# ---- optional: run under HarnessX with the model disabled (1.6) --------------
-
-
-@pytest.mark.skipif(not has_harnessx(), reason="requires the harnessx extra")
-def test_host_under_harnessx_disables_the_model() -> None:  # pragma: no cover - needs the extra
-    import asyncio
-
-    from harnessx.core.events import BeforeModelEvent
-    from harnessx.core.processor import MultiHookProcessor
-
-    hosted = host_under_harnessx(PreprocessProcessor())
-    assert isinstance(hosted, MultiHookProcessor)
-
-    async def drive() -> list[Any]:
-        event = BeforeModelEvent(run_id="test", step_id=0)
-        return [out async for out in hosted.on_before_model(event)]
-
-    emitted = asyncio.run(drive())
-    assert emitted and emitted[-1].skip_model is True

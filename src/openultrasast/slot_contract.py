@@ -4,14 +4,9 @@ The deterministic scan stages carry their work in named *slots* and run with mod
 invocation disabled (``skip_model = True``). Each stage declares a read/write slot
 allow-list that is validated on every lifecycle hook, preserving the
 ``ProcessorSpec.reads/writes`` provenance discipline of the sync ``HarnessRuntime``
-(the top-level driver) — without forcing the deterministic stages through HarnessX's
-agent loop ("bridge, do not map", per the spec design).
+(the top-level driver).
 
-This is the zero-dependency substrate. When the optional ``openultrasast[harnessx]``
-extra is present, the same model-disabled processors can be hosted under a HarnessX
-``MultiHookProcessor`` (see ``stage_processors.host_under_harnessx``); the
-``skip_model`` marker maps onto HarnessX's ``BeforeModelEvent.skip_model`` so no
-deterministic stage incurs a model call.
+This is the zero-dependency substrate for the deterministic pipeline.
 """
 
 from __future__ import annotations

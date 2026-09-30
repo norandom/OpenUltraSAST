@@ -9,11 +9,10 @@ from openultrasast.findings import StaticFinding
 from openultrasast.fusion import (
     FusionDisposition,
     fuse_finding,
-    fuse_findings_dispatch,
+    fuse_findings,
     fusion_triggers,
     should_fuse,
 )
-from openultrasast.harness_ext import has_harnessx
 from openultrasast.verification import EvidenceLevel, VerificationResult, VerificationStatus
 
 
@@ -135,16 +134,8 @@ def test_dispatch_only_fuses_triggered_findings() -> None:
         _finding(finding_id="hot:app.py:3", severity="critical"),
         _finding(finding_id="cold:lib.py:9", severity="low", reachability="unknown"),
     ]
-    decisions = fuse_findings_dispatch(findings, [])
+    decisions = fuse_findings(findings, [])
     assert [d.finding_id for d in decisions] == ["hot:app.py:3"]
-
-
-def test_dispatch_records_degradation_when_llm_requested_but_extra_absent() -> None:
-    if has_harnessx():
-        pytest.skip("HarnessX extra installed; exercises the extra-absent degradation path")
-    decisions = fuse_findings_dispatch([_finding()], [], panel_model="gpt-4o", use_harnessx=True)
-    assert decisions and decisions[0].decision_source == "deterministic-reconciler"
-    assert any("fusion_llm_unavailable" in note for note in decisions[0].degradations)
 
 
 def test_decision_serializes_with_full_disclosure() -> None:

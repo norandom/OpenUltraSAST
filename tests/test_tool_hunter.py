@@ -219,14 +219,13 @@ def _guard_docker(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
 
 
 def test_standard_scripted_hunter_emits_tool_hunter_suspicion(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from openultrasast import cli, tool_hunter
+    from openultrasast import tool_hunter
     from openultrasast.cli import main
 
     repo = _standard_repo(tmp_path)
     config = _write_hunter_config(tmp_path)
     monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
     monkeypatch.setenv("OPENULTRASAST_HUNTER_CLIENT", "scripted")
-    monkeypatch.setattr(cli, "has_harnessx", lambda: False)
     docker_argv = _guard_docker(monkeypatch)
     hunter_calls: list[int] = []
     real_hunter = tool_hunter.run_tool_hunter
@@ -256,14 +255,13 @@ def test_standard_scripted_hunter_emits_tool_hunter_suspicion(tmp_path: Path, mo
 
 
 def test_dump_only_hunter_client_emits_no_hunter_findings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from openultrasast import cli, tool_hunter
+    from openultrasast import tool_hunter
     from openultrasast.cli import main
 
     repo = _standard_repo(tmp_path)
     config = _write_hunter_config(tmp_path)
     monkeypatch.setenv("OPENULTRASAST_RUNS_DIR", ".runs")
     monkeypatch.setenv("OPENULTRASAST_HUNTER_CLIENT", "dump-only")
-    monkeypatch.setattr(cli, "has_harnessx", lambda: False)
     docker_argv = _guard_docker(monkeypatch)
     hunter_calls: list[int] = []
     real_hunter = tool_hunter.run_tool_hunter

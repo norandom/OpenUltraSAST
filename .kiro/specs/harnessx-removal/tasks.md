@@ -38,7 +38,7 @@ and passed its fixture test. Every task is a commit gated on the full suite's ow
     passes it reuses from memory).
   - _Requirements: 6.3_
 
-- [ ] 5. Retire the HarnessX scan paths
+- [x] 5. Retire the HarnessX scan paths
   - `cli.py`, `fusion.py`, `verify_judge.py`, `stage_processors.py` changes; `RetiredConfigError` for
     `[models] verifier`, `[fusion] panel_model`/`decider_model`; one warning for a `[harnessx]` section (the only
     tagged retirement text allowed in `src`, enforced by a test); tests renamed to the behaviour they assert.
