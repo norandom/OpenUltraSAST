@@ -46,6 +46,7 @@ patterns = ["php://input"]
 # them itself, so they are not injection sinks.
 [[sink]]
 id = "wpdb"
+framework = "wordpress"
 cwe = "CWE-89"
 calls = [
   "$wpdb->get_var",
@@ -125,6 +126,12 @@ rule_ids = []
 # --- deserialization ---------------------------------------------------------------------------------
 
 [[sink]]
+id = "unserialize"
+cwe = "CWE-502"
+calls = ["unserialize"]
+rule_ids = []
+
+[[sink]]
 # `maybe_unserialize` is WordPress's own wrapper and the form every plugin in this project's corpus actually
 # writes: across four plugins and 1,164 PHP files there is exactly one deserialization site, and it is spelled
 # that way. It is not reached by the bare token, and correctly so -- the matcher is word-bounded, and the
@@ -134,8 +141,9 @@ rule_ids = []
 # It is a real entry point rather than a safe wrapper: `maybe_unserialize` calls `unserialize` whenever the
 # string looks serialized, and only returns the value untouched when it does not.
 id = "unserialize"
+framework = "wordpress"
 cwe = "CWE-502"
-calls = ["unserialize", "maybe_unserialize"]
+calls = ["maybe_unserialize"]
 rule_ids = []
 
 # --- untrusted destination ---------------------------------------------------------------------------
@@ -167,7 +175,14 @@ calls = ["htmlspecialchars", "htmlentities", "html_entity_decode_safe"]
 # a cleanser.
 [[sanitizer]]
 id = "sql_escape"
-calls = ["mysqli_real_escape_string", "mysql_real_escape_string", "pg_escape_string", "esc_sql"]
+calls = ["mysqli_real_escape_string", "mysql_real_escape_string", "pg_escape_string"]
+quoted_only = true
+
+# WordPress's escape of the same kind.
+[[sanitizer]]
+id = "sql_escape"
+framework = "wordpress"
+calls = ["esc_sql"]
 quoted_only = true
 
 [[sanitizer]]
@@ -193,6 +208,7 @@ guard = true
 
 [[sanitizer]]
 id = "wpdb_prepare"
+framework = "wordpress"
 calls = ["$wpdb->prepare"]
 
 [[sanitizer]]
@@ -205,7 +221,12 @@ calls = ["basename", "realpath"]
 
 [[sanitizer]]
 id = "coerce"
-calls = ["intval", "floatval", "filter_var", "settype", "absint"]
+calls = ["intval", "floatval", "filter_var", "settype"]
+
+[[sanitizer]]
+id = "coerce"
+framework = "wordpress"
+calls = ["absint"]
 
 # A prepared statement is a SHAPE, not a cleansing call: `mysqli_prepare` makes the query safe by binding
 # rather than by transforming the value, which is the same distinction `execute`/`executemany` carry in
@@ -224,6 +245,7 @@ parameterized = true
 # a row here rather than a change to the query. That is the whole reason it is a fact and not a constant.
 [[dispatch]]
 id = "wordpress_hooks"
+framework = "wordpress"
 register = ["add_action", "add_filter", "add_shortcode"]
 apply = ["apply_filters", "apply_filters_ref_array", "do_action", "do_action_ref_array"]
 # A filter returns its VALUE argument, filtered; its further arguments are context and never the result, and
@@ -240,8 +262,8 @@ request_arguments = ["add_shortcode"]
 # (a bundled library is a separate unit); `tests` paths stay in scope but are not product, so their
 # regions are ordered after the product's. Measured before this row: 207 of WP Statistics's 357 PHP files
 # were vendored and two of them were 60% of its graph; 14 of the 67 regions ahead of MW WP Form's CVE
-# were test-mail.php and test-mail-parser.php.
+# were test-mail.php and test-mail-parser.php. A product filter (vendored and test paths), not detection: untagged.
 [[layout]]
-id = "php_composer_and_wordpress"
+id = "php_layout"
 vendored = ["vendor/", "node_modules/", "third_party/", "third-party/", "lib/vendor/"]
 tests = ["tests/", "test/", "spec/", "test-*.php", "*Test.php", "*.test.php", "*_test.php", "phpunit/"]

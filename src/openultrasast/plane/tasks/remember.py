@@ -2,8 +2,9 @@
 
 No model, budget ``{usd: 0, calls: 0}``, one per case. It reads the case's `facts.json`, the `units.jsonl` of the
 verify passes a, b and c, the final `agreed.json` (its per-candidate rows and `disputed` list) and, when present,
-`alerts.jsonl` with the alerts' `summary.json`, and writes `memory.jsonl` -- rows of the kinds `facts`, `verdict`,
-`unit_cost`, `alert` and `coverage` (per language and pin: whether any rule could have fired there; the kind
+`alerts.jsonl` with the alerts' `summary.json`, and the `features` task's `features.jsonl`, and writes `memory.jsonl`
+-- rows of the kinds `facts`, `verdict`, `unit_cost`, `alert`, `coverage` (per language and pin: whether any rule
+could have fired there) and `features` (one per candidate and family, validated against the allow-list; the kind
 `proposal_outcome` comes from the loop) -- and passes `facts.json` through. Task code interprets the
 artifacts, so the reconciler and the runner stay content-blind (ai-service-plane Req 3.4).
 
@@ -14,7 +15,7 @@ Env contract in a Run: `OUSAST_OUTPUT_DIR`, `OUSAST_RUN`, `OUSAST_TASK`, `OUSAST
 whose reused or recorded `image` the facts row carries; without one named, the row is omitted),
 `OUSAST_INPUT_PASS_A`/`_B`, optional `OUSAST_INPUT_PASS_C`, `OUSAST_INPUT_SUMMARY_A`/`_B`/`_C` (the passes'
 `summary.json`, for the model), `OUSAST_INPUT_AGREED`, `OUSAST_INPUT_ALERTS` (and `OUSAST_INPUT_ALERTS_SUMMARY`,
-the coverage); the repository and pin from the bound
+the coverage), `OUSAST_INPUT_FEATURES`; the repository and pin from the bound
 Workspace (`AX_WORKSPACES_YAML`, `OUSAST_GIT_PINS`), the image from `AX_TASK_YAML`, the population and split from
 `OUSAST_POPULATION`/`OUSAST_SPLIT` (the generator copies the Run's `openultrasast.io/population` and
 `openultrasast.io/split` annotations). Exit 0 done, 2 failed.
@@ -38,6 +39,7 @@ from typing import Any
 
 import yaml
 
+from ...learn.schema import validate_record
 from ..memory import REMEMBER_OUTPUT, IngestResult, MemoryStore, image_digest, ingest, repo_key, row_id, validate_row
 from .repo_facts import _digest
 
@@ -105,8 +107,10 @@ def rows_for(
     agreed: Mapping[str, Any] | None,
     alerts: Sequence[Mapping[str, Any]] = (),
     alerts_summary: Mapping[str, Any] | None = None,
+    features: Sequence[Mapping[str, Any]] = (),
 ) -> list[dict[str, Any]]:
-    """The memory rows of one case: facts, verdicts, unit costs, alerts, and the alerts' coverage per language and pin."""
+    """The memory rows of one case: facts, verdicts, unit costs, alerts, the alerts' coverage per language and pin, and
+    the feature records (re-validated: a delivered record outside the allow-list fails the case)."""
     rows: list[dict[str, Any]] = []
     if facts is not None:
         loaded = json.loads(facts)
@@ -143,6 +147,9 @@ def rows_for(
         subject = f"{fields['rule_id']}:{fields['path']}:{fields['line']}" + (":fixed" if fields.get("pin_role") == "fixed" else "")
         rows.append(ctx.row("alert", subject, **fields))
     rows.extend(coverage_rows(ctx, alerts_summary))
+    for rec in features:
+        checked = validate_record(rec)
+        rows.append(ctx.row("features", f"{checked['candidate']}:{checked['family']}", **checked))
     return [validate_row(r, f"{ctx.task} {r['kind']}") for r in rows]
 
 
@@ -212,7 +219,10 @@ def case_rows(base: Path, case: str, *, population: str, split: str) -> tuple[li
     models = {p: _model(_json(base / f"{case}-v{p}" / "summary.json")) for p in PASSES}
     alerts = _jsonl(base / f"{case}-alerts" / "alerts.jsonl")
     alerts_summary = _json(base / f"{case}-alerts" / "summary.json")
-    rows = rows_for(ctx, facts=facts, passes=passes, models=models, agreed=agreed, alerts=alerts, alerts_summary=alerts_summary)
+    features = _jsonl(base / f"{case}-features" / "features.jsonl")
+    rows = rows_for(
+        ctx, facts=facts, passes=passes, models=models, agreed=agreed, alerts=alerts, alerts_summary=alerts_summary, features=features
+    )
     return rows, facts
 
 
@@ -275,7 +285,10 @@ def main(environ: Mapping[str, str] | None = None) -> int:
         models = {p: _model(_json(_path(env, f"OUSAST_INPUT_SUMMARY_{p.upper()}"))) for p in PASSES}
         agreed = _json(_path(env, "OUSAST_INPUT_AGREED"))
         alerts, alerts_summary = _jsonl(_path(env, "OUSAST_INPUT_ALERTS")), _json(_path(env, "OUSAST_INPUT_ALERTS_SUMMARY"))
-        rows = rows_for(ctx, facts=None, passes=passes, models=models, agreed=agreed, alerts=alerts, alerts_summary=alerts_summary)
+        features = _jsonl(_path(env, "OUSAST_INPUT_FEATURES"))
+        rows = rows_for(
+            ctx, facts=None, passes=passes, models=models, agreed=agreed, alerts=alerts, alerts_summary=alerts_summary, features=features
+        )
         facts_image = _facts_image(env, ctx.image)
         if facts is not None and facts_image is not None:  # the facts row carries the image the facts were computed on
             facts_ctx = Context(ctx.run, ctx.task, ctx.repo, ctx.pin, facts_image, ctx.population, ctx.split)

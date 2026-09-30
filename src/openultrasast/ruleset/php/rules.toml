@@ -26,6 +26,7 @@ status = "enabled"
 min_evidence_level = "static_corroboration"
 precision_estimate = 0.032
 version = "1"
+framework = "wordpress"
 pattern = '''\$wpdb->(get_var|get_results|get_row|get_col|query|replace)\s*\(\s*(?!\$wpdb->prepare)(?:"[^"\n]*\{?\$(?!wpdb->)[A-Za-z_]|[^\n;]*?["']\s*\.\s*\$(?!wpdb->)[A-Za-z_]|[^\n;]*?\$_(?:GET|POST|REQUEST|COOKIE)\b)'''
 
 [[rule]]
@@ -54,7 +55,22 @@ status = "enabled"
 min_evidence_level = "static_corroboration"
 precision_estimate = 0.034
 version = "1"
+framework = "wordpress"
 pattern = '''(?<![$\w>])(?=(VALUES|IN|ORDER|GROUP|LIMIT|OFFSET|WHERE|AND|OR|SET|HAVING)\b)(?:(?:VALUES|IN)\s*\(|(?:ORDER|GROUP)\s+BY\b[^"'\n]*|(?:LIMIT|OFFSET)\s+(?:\d+\s*,\s*)?|(?:WHERE|AND|OR|SET|HAVING)\s+[\w.`]+\s*(?:=|<>|!=|<=|>=|<|>|LIKE)\s*)["']\s*\.\s*\$(?!wpdb->)(?!\w*(?:format|placeholder))[A-Za-z_]'''
+
+# Active only when the rule above is dropped (priors off); status and precision are the tagged rule's measurement.
+[[rule]]
+rule_id = "php-sql-unquoted-concat-language"
+title = "PHP SQL literal concatenates a variable into an unquoted position (language-level)"
+languages = ["php"]
+cwe = "CWE-89"
+tags = ["injection"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.034
+version = "1"
+fallback_for = "php-sql-unquoted-concat"
+pattern = '''(?<![$\w>])(?=(VALUES|IN|ORDER|GROUP|LIMIT|OFFSET|WHERE|AND|OR|SET|HAVING)\b)(?:(?:VALUES|IN)\s*\(|(?:ORDER|GROUP)\s+BY\b[^"'\n]*|(?:LIMIT|OFFSET)\s+(?:\d+\s*,\s*)?|(?:WHERE|AND|OR|SET|HAVING)\s+[\w.`]+\s*(?:=|<>|!=|<=|>=|<|>|LIKE)\s*)["']\s*\.\s*\$(?!\w*(?:format|placeholder))[A-Za-z_]'''
 
 [[rule]]
 rule_id = "php-sql-unquoted-interpolation"
@@ -66,7 +82,22 @@ status = "enabled"
 min_evidence_level = "static_corroboration"
 precision_estimate = 0.129
 version = "1"
+framework = "wordpress"
 pattern = '''(?<![$\w>])(?=(VALUES|IN|ORDER|GROUP|LIMIT|OFFSET|WHERE|AND|OR|SET|HAVING)\b)(?:(?:VALUES|IN)\s*\(\s*|(?:ORDER|GROUP)\s+BY\b[^"'\n;]*?|(?:LIMIT|OFFSET)\s+(?:\d+\s*,\s*)?|(?:WHERE|AND|OR|SET|HAVING)\s+[\w.`]+\s*(?:=|<>|!=|<=|>=|<|>|LIKE)\s*)\{?\$(?!wpdb->)(?!\w*(?:format|placeholder))[A-Za-z_]'''
+
+# Active only when the rule above is dropped (priors off); status and precision are the tagged rule's measurement.
+[[rule]]
+rule_id = "php-sql-unquoted-interpolation-language"
+title = "PHP SQL string interpolates a variable into an unquoted position (language-level)"
+languages = ["php"]
+cwe = "CWE-89"
+tags = ["injection"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.129
+version = "1"
+fallback_for = "php-sql-unquoted-interpolation"
+pattern = '''(?<![$\w>])(?=(VALUES|IN|ORDER|GROUP|LIMIT|OFFSET|WHERE|AND|OR|SET|HAVING)\b)(?:(?:VALUES|IN)\s*\(\s*|(?:ORDER|GROUP)\s+BY\b[^"'\n;]*?|(?:LIMIT|OFFSET)\s+(?:\d+\s*,\s*)?|(?:WHERE|AND|OR|SET|HAVING)\s+[\w.`]+\s*(?:=|<>|!=|<=|>=|<|>|LIKE)\s*)\{?\$(?!\w*(?:format|placeholder))[A-Za-z_]'''
 
 # sprintf-built SQL with a quoted %s and no escaping or coercion anywhere in the statement (phpMyFAQ
 # CVE-2026-46364). Statement-scoped, so it spans lines up to the closing `);`.
@@ -80,7 +111,22 @@ status = "enabled"
 min_evidence_level = "static_corroboration"
 precision_estimate = 0.109
 version = "1"
+framework = "wordpress"
 pattern = '''(sprintf)\(\s*["']\s*(?:SELECT|INSERT|UPDATE|DELETE|REPLACE)\b(?=(?:(?!\);)[\s\S]){0,2000}?'%s')(?=(?:(?![Ee]scape|quote\(|intval\(|absint\(|\(int\)|esc_sql\()[\s\S]){0,2000}?\);)'''
+
+# Active only when the rule above is dropped (priors off); status and precision are the tagged rule's measurement.
+[[rule]]
+rule_id = "php-sql-sprintf-unescaped-language"
+title = "PHP sprintf-built SQL with an unescaped %s value (language-level)"
+languages = ["php"]
+cwe = "CWE-89"
+tags = ["injection"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.109
+version = "1"
+fallback_for = "php-sql-sprintf-unescaped"
+pattern = '''(sprintf)\(\s*["']\s*(?:SELECT|INSERT|UPDATE|DELETE|REPLACE)\b(?=(?:(?!\);)[\s\S]){0,2000}?'%s')(?=(?:(?![Ee]scape|quote\(|intval\(|\(int\))[\s\S]){0,2000}?\);)'''
 
 # --- command / code (command, code_eval) -------------------------------------------------------------------
 
@@ -120,8 +166,22 @@ status = "shadow"
 min_evidence_level = "static_corroboration"
 precision_estimate = 0.25
 version = "1"
+pattern = '''(?<![\w>:$\\])(?<!function )(?=(unserialize)\s*\()unserialize\s*\((?![^\n]*allowed_classes)[^\n;]*(?:\$[A-Za-z_]|php://input)'''
+
+[[rule]]
+rule_id = "php-maybe-unserialize"
+title = "WordPress maybe_unserialize of request input"
+languages = ["php"]
+cwe = "CWE-502"
+tags = ["deserialization"]
+status = "shadow"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.25
+version = "1"
+framework = "wordpress"
 # `maybe_unserialize` (WordPress) runs on every option and meta read, so it counts only with request input.
-pattern = '''(?<![\w>:$\\])(?<!function )(?=(unserialize|maybe_unserialize)\s*\()(?:unserialize\s*\((?![^\n]*allowed_classes)[^\n;]*(?:\$[A-Za-z_]|php://input)|maybe_unserialize\s*\([^\n;]*(?:\$_(?:GET|POST|REQUEST|COOKIE)\b|php://input))'''
+# Split from php-unserialize (2026-09-30), whose measured status and precision it keeps.
+pattern = '''(?<![\w>:$\\])(?<!function )(?=(maybe_unserialize)\s*\()maybe_unserialize\s*\([^\n;]*(?:\$_(?:GET|POST|REQUEST|COOKIE)\b|php://input)'''
 
 # --- output encoding (echo) --------------------------------------------------------------------------------
 
@@ -135,7 +195,22 @@ status = "shadow"
 min_evidence_level = "static_corroboration"
 precision_estimate = 0.333
 version = "1"
+framework = "wordpress"
 pattern = '''(?m)^(?![^\n]*(?:htmlspecialchars|htmlentities|esc_html|esc_attr|esc_url|esc_js|intval|absint|json_encode|urlencode)\s*\()[^\n]*?(\becho\b|\bprint\b|<\?=)(?:[^\n;]*?[.,])?\s*\$_(?:GET|POST|REQUEST|COOKIE|SERVER)\[[^\]\n]*\]\s*(?:[.,;]|\?>)'''
+
+# Active only when the rule above is dropped (priors off); status and precision are the tagged rule's measurement.
+[[rule]]
+rule_id = "php-xss-echo-input-language"
+title = "PHP echo of request input without HTML escaping (language-level)"
+languages = ["php"]
+cwe = "CWE-79"
+tags = ["injection"]
+status = "shadow"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.333
+version = "1"
+fallback_for = "php-xss-echo-input"
+pattern = '''(?m)^(?![^\n]*(?:htmlspecialchars|htmlentities|intval|json_encode|urlencode)\s*\()[^\n]*?(\becho\b|\bprint\b|<\?=)(?:[^\n;]*?[.,])?\s*\$_(?:GET|POST|REQUEST|COOKIE|SERVER)\[[^\]\n]*\]\s*(?:[.,;]|\?>)'''
 
 # --- path / inclusion (filesystem, file_inclusion) ---------------------------------------------------------
 

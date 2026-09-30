@@ -5,13 +5,13 @@ Order follows the design's commit sequence. Every task is a commit gated on the 
 adopted model every path is today's. Tasks 5, 7 and 10 spend model money or host hours: each starts only after
 the maintainer confirms its budget.
 
-- [ ] 1. Schema and features
+- [x] 1. Schema and features
   - `learn/schema.py` (closed, typed allow-list; no identities; missing != zero), `learn/features.py` (host
     builder), new memory `KINDS`, `plane/tasks/features.py` and the `remember` input; tests enforcing the
     allow-list and the exclusion of label-carrying fields.
   - _Requirements: 1.1, 1.2, 1.3, 7.2_
 
-- [ ] 2. Framework tags
+- [x] 2. Framework tags
   - `ruleset/frameworks.toml`; tag and split every framework/library entry listed in design section 2; `priors=`
     in the semantic and quick loaders (default `all`, so today's scan is unchanged -- the golden benchmark test
     stays byte-identical); a lint test that no untagged framework entry remains.

@@ -939,6 +939,24 @@ spec:
     budget:
       usd: 0
       calls: 0
+  - name: budibase-mongo-template-nosqli-features
+    task: features-budibase-mongo-template-nosqli
+    inputs:
+      facts: budibase-mongo-template-nosqli-facts/facts.json
+      facts_summary: budibase-mongo-template-nosqli-facts/summary.json
+      pass_a: budibase-mongo-template-nosqli-va/units.jsonl
+      summary_a: budibase-mongo-template-nosqli-va/summary.json
+      pass_b: budibase-mongo-template-nosqli-vb/units.jsonl
+      summary_b: budibase-mongo-template-nosqli-vb/summary.json
+      pass_c: budibase-mongo-template-nosqli-vc/units.jsonl
+      summary_c: budibase-mongo-template-nosqli-vc/summary.json
+      agreed: budibase-mongo-template-nosqli-final/agreed.json
+    outputs:
+    - features.jsonl
+    - summary.json
+    budget:
+      usd: 0
+      calls: 0
   - name: budibase-mongo-template-nosqli-remember
     task: remember-budibase-mongo-template-nosqli
     inputs:
@@ -951,8 +969,27 @@ spec:
       pass_c: budibase-mongo-template-nosqli-vc/units.jsonl
       summary_c: budibase-mongo-template-nosqli-vc/summary.json
       agreed: budibase-mongo-template-nosqli-final/agreed.json
+      features: budibase-mongo-template-nosqli-features/features.jsonl
     outputs:
     - memory.jsonl
+    budget:
+      usd: 0
+      calls: 0
+  - name: cct-studio-server-cmdi-features
+    task: features-cct-studio-server-cmdi
+    inputs:
+      facts: cct-studio-server-cmdi-facts/facts.json
+      facts_summary: cct-studio-server-cmdi-facts/summary.json
+      pass_a: cct-studio-server-cmdi-va/units.jsonl
+      summary_a: cct-studio-server-cmdi-va/summary.json
+      pass_b: cct-studio-server-cmdi-vb/units.jsonl
+      summary_b: cct-studio-server-cmdi-vb/summary.json
+      pass_c: cct-studio-server-cmdi-vc/units.jsonl
+      summary_c: cct-studio-server-cmdi-vc/summary.json
+      agreed: cct-studio-server-cmdi-final/agreed.json
+    outputs:
+    - features.jsonl
+    - summary.json
     budget:
       usd: 0
       calls: 0
@@ -968,8 +1005,27 @@ spec:
       pass_c: cct-studio-server-cmdi-vc/units.jsonl
       summary_c: cct-studio-server-cmdi-vc/summary.json
       agreed: cct-studio-server-cmdi-final/agreed.json
+      features: cct-studio-server-cmdi-features/features.jsonl
     outputs:
     - memory.jsonl
+    budget:
+      usd: 0
+      calls: 0
+  - name: contextforge-prompt-ssti-features
+    task: features-contextforge-prompt-ssti
+    inputs:
+      facts: contextforge-prompt-ssti-facts/facts.json
+      facts_summary: contextforge-prompt-ssti-facts/summary.json
+      pass_a: contextforge-prompt-ssti-va/units.jsonl
+      summary_a: contextforge-prompt-ssti-va/summary.json
+      pass_b: contextforge-prompt-ssti-vb/units.jsonl
+      summary_b: contextforge-prompt-ssti-vb/summary.json
+      pass_c: contextforge-prompt-ssti-vc/units.jsonl
+      summary_c: contextforge-prompt-ssti-vc/summary.json
+      agreed: contextforge-prompt-ssti-final/agreed.json
+    outputs:
+    - features.jsonl
+    - summary.json
     budget:
       usd: 0
       calls: 0
@@ -985,8 +1041,27 @@ spec:
       pass_c: contextforge-prompt-ssti-vc/units.jsonl
       summary_c: contextforge-prompt-ssti-vc/summary.json
       agreed: contextforge-prompt-ssti-final/agreed.json
+      features: contextforge-prompt-ssti-features/features.jsonl
     outputs:
     - memory.jsonl
+    budget:
+      usd: 0
+      calls: 0
+  - name: froxlor-admin-ip-second-order-sqli-features
+    task: features-froxlor-admin-ip-second-order-sqli
+    inputs:
+      facts: froxlor-admin-ip-second-order-sqli-facts/facts.json
+      facts_summary: froxlor-admin-ip-second-order-sqli-facts/summary.json
+      pass_a: froxlor-admin-ip-second-order-sqli-va/units.jsonl
+      summary_a: froxlor-admin-ip-second-order-sqli-va/summary.json
+      pass_b: froxlor-admin-ip-second-order-sqli-vb/units.jsonl
+      summary_b: froxlor-admin-ip-second-order-sqli-vb/summary.json
+      pass_c: froxlor-admin-ip-second-order-sqli-vc/units.jsonl
+      summary_c: froxlor-admin-ip-second-order-sqli-vc/summary.json
+      agreed: froxlor-admin-ip-second-order-sqli-final/agreed.json
+    outputs:
+    - features.jsonl
+    - summary.json
     budget:
       usd: 0
       calls: 0
@@ -1002,8 +1077,27 @@ spec:
       pass_c: froxlor-admin-ip-second-order-sqli-vc/units.jsonl
       summary_c: froxlor-admin-ip-second-order-sqli-vc/summary.json
       agreed: froxlor-admin-ip-second-order-sqli-final/agreed.json
+      features: froxlor-admin-ip-second-order-sqli-features/features.jsonl
     outputs:
     - memory.jsonl
+    budget:
+      usd: 0
+      calls: 0
+  - name: fuxa-tdengine-escape-sqli-features
+    task: features-fuxa-tdengine-escape-sqli
+    inputs:
+      facts: fuxa-tdengine-escape-sqli-facts/facts.json
+      facts_summary: fuxa-tdengine-escape-sqli-facts/summary.json
+      pass_a: fuxa-tdengine-escape-sqli-va/units.jsonl
+      summary_a: fuxa-tdengine-escape-sqli-va/summary.json
+      pass_b: fuxa-tdengine-escape-sqli-vb/units.jsonl
+      summary_b: fuxa-tdengine-escape-sqli-vb/summary.json
+      pass_c: fuxa-tdengine-escape-sqli-vc/units.jsonl
+      summary_c: fuxa-tdengine-escape-sqli-vc/summary.json
+      agreed: fuxa-tdengine-escape-sqli-final/agreed.json
+    outputs:
+    - features.jsonl
+    - summary.json
     budget:
       usd: 0
       calls: 0
@@ -1019,8 +1113,27 @@ spec:
       pass_c: fuxa-tdengine-escape-sqli-vc/units.jsonl
       summary_c: fuxa-tdengine-escape-sqli-vc/summary.json
       agreed: fuxa-tdengine-escape-sqli-final/agreed.json
+      features: fuxa-tdengine-escape-sqli-features/features.jsonl
     outputs:
     - memory.jsonl
+    budget:
+      usd: 0
+      calls: 0
+  - name: lmdeploy-media-url-ssrf-features
+    task: features-lmdeploy-media-url-ssrf
+    inputs:
+      facts: lmdeploy-media-url-ssrf-facts/facts.json
+      facts_summary: lmdeploy-media-url-ssrf-facts/summary.json
+      pass_a: lmdeploy-media-url-ssrf-va/units.jsonl
+      summary_a: lmdeploy-media-url-ssrf-va/summary.json
+      pass_b: lmdeploy-media-url-ssrf-vb/units.jsonl
+      summary_b: lmdeploy-media-url-ssrf-vb/summary.json
+      pass_c: lmdeploy-media-url-ssrf-vc/units.jsonl
+      summary_c: lmdeploy-media-url-ssrf-vc/summary.json
+      agreed: lmdeploy-media-url-ssrf-final/agreed.json
+    outputs:
+    - features.jsonl
+    - summary.json
     budget:
       usd: 0
       calls: 0
@@ -1036,8 +1149,27 @@ spec:
       pass_c: lmdeploy-media-url-ssrf-vc/units.jsonl
       summary_c: lmdeploy-media-url-ssrf-vc/summary.json
       agreed: lmdeploy-media-url-ssrf-final/agreed.json
+      features: lmdeploy-media-url-ssrf-features/features.jsonl
     outputs:
     - memory.jsonl
+    budget:
+      usd: 0
+      calls: 0
+  - name: medplum-external-auth-open-redirect-features
+    task: features-medplum-external-auth-open-redirect
+    inputs:
+      facts: medplum-external-auth-open-redirect-facts/facts.json
+      facts_summary: medplum-external-auth-open-redirect-facts/summary.json
+      pass_a: medplum-external-auth-open-redirect-va/units.jsonl
+      summary_a: medplum-external-auth-open-redirect-va/summary.json
+      pass_b: medplum-external-auth-open-redirect-vb/units.jsonl
+      summary_b: medplum-external-auth-open-redirect-vb/summary.json
+      pass_c: medplum-external-auth-open-redirect-vc/units.jsonl
+      summary_c: medplum-external-auth-open-redirect-vc/summary.json
+      agreed: medplum-external-auth-open-redirect-final/agreed.json
+    outputs:
+    - features.jsonl
+    - summary.json
     budget:
       usd: 0
       calls: 0
@@ -1053,8 +1185,27 @@ spec:
       pass_c: medplum-external-auth-open-redirect-vc/units.jsonl
       summary_c: medplum-external-auth-open-redirect-vc/summary.json
       agreed: medplum-external-auth-open-redirect-final/agreed.json
+      features: medplum-external-auth-open-redirect-features/features.jsonl
     outputs:
     - memory.jsonl
+    budget:
+      usd: 0
+      calls: 0
+  - name: pgadmin-maintenance-sqli-features
+    task: features-pgadmin-maintenance-sqli
+    inputs:
+      facts: pgadmin-maintenance-sqli-facts/facts.json
+      facts_summary: pgadmin-maintenance-sqli-facts/summary.json
+      pass_a: pgadmin-maintenance-sqli-va/units.jsonl
+      summary_a: pgadmin-maintenance-sqli-va/summary.json
+      pass_b: pgadmin-maintenance-sqli-vb/units.jsonl
+      summary_b: pgadmin-maintenance-sqli-vb/summary.json
+      pass_c: pgadmin-maintenance-sqli-vc/units.jsonl
+      summary_c: pgadmin-maintenance-sqli-vc/summary.json
+      agreed: pgadmin-maintenance-sqli-final/agreed.json
+    outputs:
+    - features.jsonl
+    - summary.json
     budget:
       usd: 0
       calls: 0
@@ -1070,8 +1221,27 @@ spec:
       pass_c: pgadmin-maintenance-sqli-vc/units.jsonl
       summary_c: pgadmin-maintenance-sqli-vc/summary.json
       agreed: pgadmin-maintenance-sqli-final/agreed.json
+      features: pgadmin-maintenance-sqli-features/features.jsonl
     outputs:
     - memory.jsonl
+    budget:
+      usd: 0
+      calls: 0
+  - name: qwed-sympy-eval-features
+    task: features-qwed-sympy-eval
+    inputs:
+      facts: qwed-sympy-eval-facts/facts.json
+      facts_summary: qwed-sympy-eval-facts/summary.json
+      pass_a: qwed-sympy-eval-va/units.jsonl
+      summary_a: qwed-sympy-eval-va/summary.json
+      pass_b: qwed-sympy-eval-vb/units.jsonl
+      summary_b: qwed-sympy-eval-vb/summary.json
+      pass_c: qwed-sympy-eval-vc/units.jsonl
+      summary_c: qwed-sympy-eval-vc/summary.json
+      agreed: qwed-sympy-eval-final/agreed.json
+    outputs:
+    - features.jsonl
+    - summary.json
     budget:
       usd: 0
       calls: 0
@@ -1087,8 +1257,27 @@ spec:
       pass_c: qwed-sympy-eval-vc/units.jsonl
       summary_c: qwed-sympy-eval-vc/summary.json
       agreed: qwed-sympy-eval-final/agreed.json
+      features: qwed-sympy-eval-features/features.jsonl
     outputs:
     - memory.jsonl
+    budget:
+      usd: 0
+      calls: 0
+  - name: reactpress-findall-column-sqli-features
+    task: features-reactpress-findall-column-sqli
+    inputs:
+      facts: reactpress-findall-column-sqli-facts/facts.json
+      facts_summary: reactpress-findall-column-sqli-facts/summary.json
+      pass_a: reactpress-findall-column-sqli-va/units.jsonl
+      summary_a: reactpress-findall-column-sqli-va/summary.json
+      pass_b: reactpress-findall-column-sqli-vb/units.jsonl
+      summary_b: reactpress-findall-column-sqli-vb/summary.json
+      pass_c: reactpress-findall-column-sqli-vc/units.jsonl
+      summary_c: reactpress-findall-column-sqli-vc/summary.json
+      agreed: reactpress-findall-column-sqli-final/agreed.json
+    outputs:
+    - features.jsonl
+    - summary.json
     budget:
       usd: 0
       calls: 0
@@ -1104,8 +1293,27 @@ spec:
       pass_c: reactpress-findall-column-sqli-vc/units.jsonl
       summary_c: reactpress-findall-column-sqli-vc/summary.json
       agreed: reactpress-findall-column-sqli-final/agreed.json
+      features: reactpress-findall-column-sqli-features/features.jsonl
     outputs:
     - memory.jsonl
+    budget:
+      usd: 0
+      calls: 0
+  - name: unleash-addon-webhook-ssrf-features
+    task: features-unleash-addon-webhook-ssrf
+    inputs:
+      facts: unleash-addon-webhook-ssrf-facts/facts.json
+      facts_summary: unleash-addon-webhook-ssrf-facts/summary.json
+      pass_a: unleash-addon-webhook-ssrf-va/units.jsonl
+      summary_a: unleash-addon-webhook-ssrf-va/summary.json
+      pass_b: unleash-addon-webhook-ssrf-vb/units.jsonl
+      summary_b: unleash-addon-webhook-ssrf-vb/summary.json
+      pass_c: unleash-addon-webhook-ssrf-vc/units.jsonl
+      summary_c: unleash-addon-webhook-ssrf-vc/summary.json
+      agreed: unleash-addon-webhook-ssrf-final/agreed.json
+    outputs:
+    - features.jsonl
+    - summary.json
     budget:
       usd: 0
       calls: 0
@@ -1121,8 +1329,27 @@ spec:
       pass_c: unleash-addon-webhook-ssrf-vc/units.jsonl
       summary_c: unleash-addon-webhook-ssrf-vc/summary.json
       agreed: unleash-addon-webhook-ssrf-final/agreed.json
+      features: unleash-addon-webhook-ssrf-features/features.jsonl
     outputs:
     - memory.jsonl
+    budget:
+      usd: 0
+      calls: 0
+  - name: winml-cli-serve-cors-features
+    task: features-winml-cli-serve-cors
+    inputs:
+      facts: winml-cli-serve-cors-facts/facts.json
+      facts_summary: winml-cli-serve-cors-facts/summary.json
+      pass_a: winml-cli-serve-cors-va/units.jsonl
+      summary_a: winml-cli-serve-cors-va/summary.json
+      pass_b: winml-cli-serve-cors-vb/units.jsonl
+      summary_b: winml-cli-serve-cors-vb/summary.json
+      pass_c: winml-cli-serve-cors-vc/units.jsonl
+      summary_c: winml-cli-serve-cors-vc/summary.json
+      agreed: winml-cli-serve-cors-final/agreed.json
+    outputs:
+    - features.jsonl
+    - summary.json
     budget:
       usd: 0
       calls: 0
@@ -1138,8 +1365,27 @@ spec:
       pass_c: winml-cli-serve-cors-vc/units.jsonl
       summary_c: winml-cli-serve-cors-vc/summary.json
       agreed: winml-cli-serve-cors-final/agreed.json
+      features: winml-cli-serve-cors-features/features.jsonl
     outputs:
     - memory.jsonl
+    budget:
+      usd: 0
+      calls: 0
+  - name: wp-directorist-avatar-ssrf-features
+    task: features-wp-directorist-avatar-ssrf
+    inputs:
+      facts: wp-directorist-avatar-ssrf-facts/facts.json
+      facts_summary: wp-directorist-avatar-ssrf-facts/summary.json
+      pass_a: wp-directorist-avatar-ssrf-va/units.jsonl
+      summary_a: wp-directorist-avatar-ssrf-va/summary.json
+      pass_b: wp-directorist-avatar-ssrf-vb/units.jsonl
+      summary_b: wp-directorist-avatar-ssrf-vb/summary.json
+      pass_c: wp-directorist-avatar-ssrf-vc/units.jsonl
+      summary_c: wp-directorist-avatar-ssrf-vc/summary.json
+      agreed: wp-directorist-avatar-ssrf-final/agreed.json
+    outputs:
+    - features.jsonl
+    - summary.json
     budget:
       usd: 0
       calls: 0
@@ -1155,8 +1401,27 @@ spec:
       pass_c: wp-directorist-avatar-ssrf-vc/units.jsonl
       summary_c: wp-directorist-avatar-ssrf-vc/summary.json
       agreed: wp-directorist-avatar-ssrf-final/agreed.json
+      features: wp-directorist-avatar-ssrf-features/features.jsonl
     outputs:
     - memory.jsonl
+    budget:
+      usd: 0
+      calls: 0
+  - name: wp-gopay-log-filter-sqli-features
+    task: features-wp-gopay-log-filter-sqli
+    inputs:
+      facts: wp-gopay-log-filter-sqli-facts/facts.json
+      facts_summary: wp-gopay-log-filter-sqli-facts/summary.json
+      pass_a: wp-gopay-log-filter-sqli-va/units.jsonl
+      summary_a: wp-gopay-log-filter-sqli-va/summary.json
+      pass_b: wp-gopay-log-filter-sqli-vb/units.jsonl
+      summary_b: wp-gopay-log-filter-sqli-vb/summary.json
+      pass_c: wp-gopay-log-filter-sqli-vc/units.jsonl
+      summary_c: wp-gopay-log-filter-sqli-vc/summary.json
+      agreed: wp-gopay-log-filter-sqli-final/agreed.json
+    outputs:
+    - features.jsonl
+    - summary.json
     budget:
       usd: 0
       calls: 0
@@ -1172,8 +1437,27 @@ spec:
       pass_c: wp-gopay-log-filter-sqli-vc/units.jsonl
       summary_c: wp-gopay-log-filter-sqli-vc/summary.json
       agreed: wp-gopay-log-filter-sqli-final/agreed.json
+      features: wp-gopay-log-filter-sqli-features/features.jsonl
     outputs:
     - memory.jsonl
+    budget:
+      usd: 0
+      calls: 0
+  - name: wp-groundhogg-confirm-redirect-features
+    task: features-wp-groundhogg-confirm-redirect
+    inputs:
+      facts: wp-groundhogg-confirm-redirect-facts/facts.json
+      facts_summary: wp-groundhogg-confirm-redirect-facts/summary.json
+      pass_a: wp-groundhogg-confirm-redirect-va/units.jsonl
+      summary_a: wp-groundhogg-confirm-redirect-va/summary.json
+      pass_b: wp-groundhogg-confirm-redirect-vb/units.jsonl
+      summary_b: wp-groundhogg-confirm-redirect-vb/summary.json
+      pass_c: wp-groundhogg-confirm-redirect-vc/units.jsonl
+      summary_c: wp-groundhogg-confirm-redirect-vc/summary.json
+      agreed: wp-groundhogg-confirm-redirect-final/agreed.json
+    outputs:
+    - features.jsonl
+    - summary.json
     budget:
       usd: 0
       calls: 0
@@ -1189,6 +1473,7 @@ spec:
       pass_c: wp-groundhogg-confirm-redirect-vc/units.jsonl
       summary_c: wp-groundhogg-confirm-redirect-vc/summary.json
       agreed: wp-groundhogg-confirm-redirect-final/agreed.json
+      features: wp-groundhogg-confirm-redirect-features/features.jsonl
     outputs:
     - memory.jsonl
     budget:

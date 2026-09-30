@@ -11,7 +11,7 @@ def test_layout_rows_load_and_match() -> None:
     from openultrasast.model.layout import is_test_path, is_vendored, layout_facts
 
     rows = layout_facts("php")
-    assert [r.id for r in rows] == ["php_composer_and_wordpress"]
+    assert [r.id for r in rows] == ["php_layout"]
     assert is_vendored("includes/vendor/whichbrowser/parser/data/profiles.php", rows)
     assert is_vendored("vendor/autoload.php", rows)
     assert not is_vendored("classes/class.mail.php", rows)

@@ -1,10 +1,17 @@
-"""Source, sink, and sanitizer facts as versioned data next to the ruleset."""
+"""Source, sink, and sanitizer facts as versioned data next to the ruleset.
+
+An entry that knows a framework or a library carries ``framework = "<id>"`` or ``library = "<id>"`` (an id of
+``ruleset/frameworks.toml``): a prior (learned-decision-engine Req 8.2). :func:`load_facts` keeps or drops the tagged
+entries by ``priors`` -- ``"all"`` (the default: today's facts), ``"off"`` (language-level only) or a set of ids.
+"""
 
 from __future__ import annotations
 
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
+
+from ..ruleset.frameworks import Priors, kept, normalize_priors, read_tag, tag_of
 
 DEFAULT_FACTS_DIR = Path(__file__).resolve().parents[1] / "ruleset" / "semantic"
 
@@ -31,6 +38,8 @@ class SourceFact:
     id: str
     patterns: tuple[str, ...]
     language: str
+    framework: str | None = None
+    library: str | None = None
 
 
 @dataclass(frozen=True)
@@ -48,6 +57,8 @@ class SinkFact:
     # not an untrusted destination, and neither is one that only fills an anchor call's arguments.
     prefix_fixes_origin: bool = False
     origin_anchors: tuple[str, ...] = ()
+    framework: str | None = None
+    library: str | None = None
 
 
 @dataclass(frozen=True)
@@ -64,6 +75,8 @@ class SanitizerFact:
     # makes a value safe only where it held -- inside the branch it guards, past an exit on its failure, or in
     # the arm of a ternary it selects. Never a cleansing call on a path.
     guard: bool = False
+    framework: str | None = None
+    library: str | None = None
 
 
 @dataclass(frozen=True)
@@ -98,6 +111,8 @@ class DispatchFact:
     # `WP_User` a profile hook gets -- so its parameters are not attacker input; where request data does
     # reach an apply call's arguments, the hook half of the taint query follows it from there.
     request_arguments: tuple[str, ...] = ()
+    framework: str | None = None
+    library: str | None = None
 
 
 @dataclass(frozen=True)
@@ -140,6 +155,25 @@ class SemanticFacts:
             dispatches=tuple(item for item in self.dispatches if item.language == key),
             layouts=tuple(item for item in self.layouts if item.language == key),
         )
+
+
+def _tags(item: dict[str, object], path: Path) -> dict[str, str | None]:
+    framework, library = read_tag(item, f"{path} {item.get('id')!r}")
+    return {"framework": framework, "library": library}
+
+
+def with_priors(facts: SemanticFacts, priors: Priors) -> SemanticFacts:
+    """``facts`` with the tagged entries ``priors`` does not keep removed (language-level entries always stay)."""
+    if priors == "all":
+        return facts
+    return SemanticFacts(
+        version=facts.version,
+        sources=tuple(f for f in facts.sources if kept(tag_of(f), priors)),
+        sinks=tuple(f for f in facts.sinks if kept(tag_of(f), priors)),
+        sanitizers=tuple(f for f in facts.sanitizers if kept(tag_of(f), priors)),
+        dispatches=tuple(f for f in facts.dispatches if kept(tag_of(f), priors)),
+        layouts=facts.layouts,
+    )
 
 
 def _load_facts_uncached(directory: Path | None = None) -> SemanticFacts:
@@ -193,6 +227,7 @@ def _dispatches(value: object, language: str, path: Path) -> list[DispatchFact]:
                 returns=_returning(item, path),
                 value_arg=_value_arg(item, path),
                 request_arguments=_request_arguments(item, path),
+                **_tags(item, path),
             )
         )
     return facts
@@ -272,7 +307,7 @@ def _sources(value: object, language: str, path: Path) -> list[SourceFact]:
         patterns = _strings(item.get("patterns"), "patterns", path)
         if not patterns:
             raise FactLoadError(f"{path} source {ident} has no patterns")
-        rows.append(SourceFact(id=ident, patterns=patterns, language=language))
+        rows.append(SourceFact(id=ident, patterns=patterns, language=language, **_tags(item, path)))
     return rows
 
 
@@ -310,6 +345,7 @@ def _sinks(value: object, language: str, path: Path) -> list[SinkFact]:
                 format_arg=format_arg if isinstance(format_arg, int) else None,
                 prefix_fixes_origin=_flag(item.get("prefix_fixes_origin"), "prefix_fixes_origin", path, ident),
                 origin_anchors=_strings(item.get("origin_anchors"), "origin_anchors", path),
+                **_tags(item, path),
             )
         )
     return rows
@@ -336,6 +372,7 @@ def _sanitizers(value: object, language: str, path: Path) -> list[SanitizerFact]
                 literal_format_arg=literal if isinstance(literal, int) else None,
                 quoted_only=_flag(item.get("quoted_only"), "quoted_only", path, ident),
                 guard=_flag(item.get("guard"), "guard", path, ident),
+                **_tags(item, path),
             )
         )
     return rows
@@ -372,11 +409,19 @@ def _stat_of(path: Path) -> tuple[int, int]:
     return info.st_size, info.st_mtime_ns
 
 
-def load_facts(directory: Path | None = None) -> SemanticFacts:
+def load_facts(directory: Path | None = None, *, priors: Priors = "all") -> SemanticFacts:
+    """The facts of ``directory`` (default: the bundled ruleset), with the priors ``priors`` keeps: ``"all"`` (the
+    default, today's facts), ``"off"`` or a set of framework/library ids."""
+    chosen = normalize_priors(priors)
     root = directory if directory is not None else DEFAULT_FACTS_DIR
     if not root.is_dir():
-        return _load_facts_uncached(directory)
+        return with_priors(_load_facts_uncached(directory), chosen)
     key = _ruleset_state(root, "*.toml")
     if key not in _FACTS_MEMO:
         _FACTS_MEMO[key] = _load_facts_uncached(directory)
-    return _FACTS_MEMO[key]
+    if chosen == "all":
+        return _FACTS_MEMO[key]
+    scoped = (*key, "priors", chosen if isinstance(chosen, str) else tuple(sorted(chosen)))
+    if scoped not in _FACTS_MEMO:
+        _FACTS_MEMO[scoped] = with_priors(_FACTS_MEMO[key], chosen)
+    return _FACTS_MEMO[scoped]

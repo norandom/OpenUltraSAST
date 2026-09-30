@@ -3,7 +3,13 @@ language = "java"
 
 [[source]]
 id = "servlet"
-patterns = ["getParameter", "getHeader", "getCookies", "readLine", "getQueryString"]
+framework = "jakarta-servlet"
+patterns = ["getParameter", "getHeader", "getCookies", "getQueryString"]
+
+# A request body or a console read line by line: the reader, not the servlet API.
+[[source]]
+id = "servlet"
+patterns = ["readLine"]
 
 [[sink]]
 id = "exec"
@@ -45,6 +51,7 @@ rule_ids = []
 [[sink]]
 # CWE-79. Servlet response writers: what reaches these reaches the browser unescaped.
 id = "response.write"
+framework = "jakarta-servlet"
 cwe = "CWE-79"
 calls = ["println", "print", "write", "getWriter", "setHeader", "addHeader"]
 rule_ids = []
@@ -53,13 +60,37 @@ rule_ids = []
 # CWE-918 / CWE-601: outbound requests and redirects to a caller-supplied destination.
 id = "outbound.request"
 cwe = "CWE-918"
-calls = ["openConnection", "openStream", "sendRedirect", "getForObject", "exchange"]
+calls = ["openConnection", "openStream"]
+rule_ids = []
+
+[[sink]]
+id = "outbound.request"
+framework = "jakarta-servlet"
+cwe = "CWE-918"
+calls = ["sendRedirect"]
+rule_ids = []
+
+[[sink]]
+id = "outbound.request"
+framework = "spring"
+cwe = "CWE-918"
+calls = ["getForObject", "exchange"]
 rule_ids = []
 
 [[sanitizer]]
 # CWE-22 / CWE-79. The documented normalising and encoding APIs; ESAPI is what the OWASP suite itself uses.
 id = "java.escape"
-calls = ["getCanonicalPath", "normalize", "ESAPI.encoder", "encodeForHTML", "encodeForURL", "StringEscapeUtils.escapeHtml4", "URLEncoder.encode"]
+calls = ["getCanonicalPath", "normalize", "URLEncoder.encode"]
+
+[[sanitizer]]
+id = "java.escape"
+library = "esapi"
+calls = ["ESAPI.encoder", "encodeForHTML", "encodeForURL"]
+
+[[sanitizer]]
+id = "java.escape"
+library = "commons-text"
+calls = ["StringEscapeUtils.escapeHtml4"]
 
 [[sanitizer]]
 id = "parameterized_statement"

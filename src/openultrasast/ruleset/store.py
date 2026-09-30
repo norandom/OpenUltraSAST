@@ -6,6 +6,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from .frameworks import Priors, kept, normalize_priors, read_tag
+
 DEFAULT_RULESET_DIR = Path(__file__).parent
 VALID_STATUS = ("enabled", "shadow", "disabled")
 
@@ -32,14 +34,23 @@ class PatternRule:
     min_evidence_level: str = "static_corroboration"
     precision_estimate: float = 0.0
     version: str = "1"
+    # A prior (learned-decision-engine Req 8.2): the rule knows a framework or a library (`ruleset/frameworks.toml`).
+    framework: str | None = None
+    library: str | None = None
+    # The language-level stand-in of a tagged rule: active only when that rule's prior is off.
+    fallback_for: str | None = None
 
 
-def load_ruleset(directory: Path = DEFAULT_RULESET_DIR, ledger: Path | None = None) -> tuple[PatternRule, ...]:
+def load_ruleset(directory: Path = DEFAULT_RULESET_DIR, ledger: Path | None = None, *, priors: Priors = "all") -> tuple[PatternRule, ...]:
     """Load every ``*.toml`` rule file under ``directory`` and apply the loop ledger.
 
     Rules are returned sorted by ``rule_id`` for determinism. The optional ledger
     (``rule_policy.json``) overlays loop-owned ``status``/``min_evidence_level``/
     ``precision_estimate`` per ``rule_id``.
+
+    ``priors`` keeps or drops the rules tagged ``framework``/``library``: ``"all"`` (the default, today's rules),
+    ``"off"`` or a set of ids. A rule with ``fallback_for`` stands in for a tagged rule and is active exactly when
+    that rule is dropped, so the language-level part of a mixed rule survives with its prior off.
     """
     rules: dict[str, PatternRule] = {}
     for path in sorted(directory.rglob("*.toml")):
@@ -49,8 +60,17 @@ def load_ruleset(directory: Path = DEFAULT_RULESET_DIR, ledger: Path | None = No
             if rule.rule_id in rules:
                 raise RulesetError(f"duplicate rule_id {rule.rule_id!r} in {path}")
             rules[rule.rule_id] = rule
+    chosen = normalize_priors(priors)
+    for rule in rules.values():
+        target = rules.get(rule.fallback_for) if rule.fallback_for else None
+        if rule.fallback_for and (target is None or not (target.framework or target.library)):
+            raise RulesetError(f"rule {rule.rule_id}: fallback_for {rule.fallback_for!r} names no tagged rule")
+        if rule.fallback_for and (rule.framework or rule.library):
+            raise RulesetError(f"rule {rule.rule_id}: a fallback is language-level and carries no tag")
+    active = {rule_id: rule for rule_id, rule in rules.items() if kept(rule.framework or rule.library, chosen)}
+    selected = [rule for rule in active.values() if not (rule.fallback_for and rule.fallback_for in active)]
     overlay = _load_ledger(ledger)
-    resolved = [_apply_overlay(rule, overlay.get(rule.rule_id)) for rule in rules.values()]
+    resolved = [_apply_overlay(rule, overlay.get(rule.rule_id)) for rule in selected]
     return tuple(sorted(resolved, key=lambda rule: rule.rule_id))
 
 
@@ -74,6 +94,7 @@ def write_ruleset(path: Path, rules: Iterable[PatternRule]) -> None:
                     f"min_evidence_level = {_s(rule.min_evidence_level)}",
                     f"precision_estimate = {float(rule.precision_estimate)}",
                     f"version = {_s(rule.version)}",
+                    *(f"{name} = {_s(value)}" for name in ("framework", "library", "fallback_for") if (value := getattr(rule, name))),
                     f"pattern = '''{rule.pattern}'''",
                 ]
             )
@@ -104,6 +125,10 @@ def _rule_from_dict(item: dict[str, object], path: Path) -> PatternRule:
         raise RulesetError(f"rule {rule_id} has invalid status {status!r}")
     if not pattern:
         raise RulesetError(f"rule {rule_id} has an empty pattern")
+    try:
+        framework, library = read_tag(item, f"rule {rule_id} in {path}")
+    except ValueError as exc:
+        raise RulesetError(str(exc)) from exc
     return PatternRule(
         rule_id=rule_id,
         title=str(item.get("title", rule_id)),
@@ -115,6 +140,9 @@ def _rule_from_dict(item: dict[str, object], path: Path) -> PatternRule:
         min_evidence_level=str(item.get("min_evidence_level", "static_corroboration")),
         precision_estimate=float(item.get("precision_estimate", 0.0)),  # type: ignore[arg-type]
         version=str(item.get("version", "1")),
+        framework=framework,
+        library=library,
+        fallback_for=str(item["fallback_for"]) if item.get("fallback_for") else None,
     )
 
 

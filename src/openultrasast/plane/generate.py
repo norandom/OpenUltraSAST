@@ -15,7 +15,8 @@ under ``--plane`` (default ``plane/``), everything a Run over the set needs besi
   (``triage.json``, for the measurement);
 - ``tasks/<run>.yaml``: per case, one Task per template (two for ``verify``: ``OUSAST_PASS=a|b``) binding the two
   Workspaces and naming the files as env;
-- ``runs/<run>.yaml``: the Run, per case ``facts -> verify a, verify b -> agree -> verify c -> final -> remember``,
+- ``runs/<run>.yaml``: the Run, per case ``facts -> verify a, verify b -> agree -> verify c -> final -> features ->
+  remember`` (``features``: one allow-listed feature record per candidate, learned-decision-engine task 1),
   with budgets, annotated with the population and split (``openultrasast.io/population``/``split``: the files'
   stems) the memory rows carry.
 
@@ -86,7 +87,7 @@ CASE_PATH = "/workspace/case"
 INPUTS_PATH = "/workspace/inputs"
 FIXED_PATH = "/workspace/fixed"
 PROJECT_PATH = "/workspace/project"
-TEMPLATES = ("repo-facts", "verify", "agree", "remember", "alerts", "loop")
+TEMPLATES = ("repo-facts", "verify", "agree", "remember", "alerts", "loop", "features")
 FIXED_RANGES_BASIS = "git diff -U0 <vulnerable> <fixed>, new side: the fix's lines at the fixed pin"
 LOOP_MANIFEST = "benchmarks/manifests/java-spring-boot-vulnerable.toml"  # the equality baseline's `improve` manifest
 LOOP_CATALOG = "benchmarks/pairs/catalog.toml"
@@ -302,12 +303,9 @@ def _free() -> dict[str, int]:
     return {"usd": 0, "calls": 0}  # model-free: budget.py refuses any call, so a stray one fails loudly
 
 
-def _remember(item: CaseInputs, templates: Mapping[str, Task], population: str, split: str, alerts: bool) -> tuple[dict, dict]:
-    """(Task, Run entry) of the case's `remember` (design section 4): bound to the vulnerable Workspace for the
-    repository and pin its rows carry; every artifact of the case's chain (and, in a loop, its alerts) as input."""
-    case_id = item.case["id"]
-    env = {"OUSAST_POPULATION": population or "unknown", "OUSAST_SPLIT": split or "unknown"}
-    task = _task(templates["remember"], f"remember-{case_id}", env, [(_ax_name(case_id, "vulnerable"), CASE_PATH)])
+def _chain_inputs(case_id: str, alerts: bool) -> dict[str, str]:
+    """Every artifact of a case's chain -- facts, the three passes with their summaries, the final agree -- and, in a
+    loop, its alerts with their coverage."""
     inputs = {"facts": f"{case_id}-facts/facts.json", "facts_summary": f"{case_id}-facts/summary.json"}
     for label in ("a", "b", "c"):
         inputs.update({f"pass_{label}": f"{case_id}-v{label}/units.jsonl", f"summary_{label}": f"{case_id}-v{label}/summary.json"})
@@ -315,6 +313,28 @@ def _remember(item: CaseInputs, templates: Mapping[str, Task], population: str, 
     if alerts:
         inputs["alerts"] = f"{case_id}-alerts/alerts.jsonl"
         inputs["alerts_summary"] = f"{case_id}-alerts/summary.json"  # the coverage: whether a zero could mean clean
+    return inputs
+
+
+def _features(item: CaseInputs, templates: Mapping[str, Task], alerts: bool) -> tuple[dict, dict]:
+    """(Task, Run entry) of the case's `features` (learned-decision-engine design section 1): model-free, bound to the
+    vulnerable Workspace for the functions' spans and entry-point distance; the chain's artifacts as input."""
+    case_id = item.case["id"]
+    env = {"OUSAST_WORKSPACE_DIR": f"{CASE_PATH}/repo"}
+    task = _task(templates["features"], f"features-{case_id}", env, [(_ax_name(case_id, "vulnerable"), CASE_PATH)])
+    inputs = _chain_inputs(case_id, alerts)
+    entry = {"name": f"{case_id}-features", "task": f"features-{case_id}", "inputs": inputs, "outputs": ["features.jsonl", "summary.json"]}
+    return task, {**entry, "budget": _free()}
+
+
+def _remember(item: CaseInputs, templates: Mapping[str, Task], population: str, split: str, alerts: bool) -> tuple[dict, dict]:
+    """(Task, Run entry) of the case's `remember` (design section 4): bound to the vulnerable Workspace for the
+    repository and pin its rows carry; every artifact of the case's chain (and, in a loop, its alerts) and the case's
+    feature records as input."""
+    case_id = item.case["id"]
+    env = {"OUSAST_POPULATION": population or "unknown", "OUSAST_SPLIT": split or "unknown"}
+    task = _task(templates["remember"], f"remember-{case_id}", env, [(_ax_name(case_id, "vulnerable"), CASE_PATH)])
+    inputs = {**_chain_inputs(case_id, alerts), "features": f"{case_id}-features/features.jsonl"}
     entry = {"name": f"{case_id}-remember", "task": f"remember-{case_id}", "inputs": inputs, "outputs": ["memory.jsonl"], "budget": _free()}
     return task, entry
 
@@ -382,7 +402,7 @@ def render(
 ) -> dict[str, str]:
     """Relative path under the plane root -> file text, for every generated manifest. ``population`` and ``split``
     (the population file's and the set's stems) become the Run's annotations, which the memory rows carry. Each
-    case ends in `remember`; ``loop`` adds per case `alerts` (and the fixed-pin Workspace), and once the
+    case ends in `features` -> `remember`; ``loop`` adds per case `alerts` (and the fixed-pin Workspace), and once the
     snapshot, `loop-measure`, `loop-propose` and `loop-improve` (design section 6), all model-free."""
     header = f"# generated by `{command}`; do not edit, regenerate.\n"
     out: dict[str, str] = {}
@@ -435,6 +455,9 @@ def render(
             out[f"workspaces/{fixed['metadata']['name']}.yaml"] = _dump(header, [fixed])
             tasks.append(alerts_task)
             entries.append(alerts_entry)
+        features_task, features_entry = _features(item, templates, loop is not None)
+        tasks.append(features_task)
+        entries.append(features_entry)
         remember_task, remember_entry = _remember(item, templates, population, split, loop is not None)
         tasks.append(remember_task)
         entries.append(remember_entry)

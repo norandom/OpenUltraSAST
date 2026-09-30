@@ -1,0 +1,160 @@
+# Framework and library ids for the ruleset's optional priors (learned-decision-engine Req 8, design section 2).
+#
+# Hand-written knowledge stays at the language level: superglobals, built-ins, process execution, raw database
+# drivers, deserialisers, the standard library. An entry of `semantic/*.toml` or a quick `[[rule]]` that knows a
+# framework or a library carries `framework = "<id>"` or `library = "<id>"` naming one row here, and loaders take
+# `priors` ("all" -- today's scan --, "off", or a set of ids) to keep or drop the tagged entries.
+#
+# `symbols` is a lexicon with two uses only: the lint test (`tests/test_semantic_priors.py`) fails on an untagged
+# entry that contains one, and repository stratification (with `packages`, the dependency names a manifest such as
+# composer.json, requirements*.txt, pyproject.toml, package.json or pom.xml declares). It never feeds detection.
+# A symbol matches as a whole token: not preceded or followed by a letter, digit or underscore.
+
+version = "1"
+
+[[framework]]
+id = "wordpress"
+kind = "framework"
+languages = ["php"]
+packages = ["johnpbloch/wordpress", "roots/wordpress", "wordpress/wordpress"]
+# A plugin or theme checkout declares itself in a file header instead of a dependency manifest.
+markers = ["Plugin Name:", "Theme Name:"]
+symbols = [
+  "$wpdb", "wpdb->", "maybe_unserialize", "esc_sql", "absint", "esc_html", "esc_attr", "esc_url", "esc_js",
+  "sanitize_text_field", "wp_kses", "add_action", "add_filter", "add_shortcode", "apply_filters",
+  "apply_filters_ref_array", "do_action", "do_action_ref_array",
+]
+
+[[framework]]
+id = "flask"
+kind = "framework"
+languages = ["python"]
+packages = ["flask"]
+symbols = [
+  "request.args", "request.form", "request.json", "request.values", "request.get_json", "request.files",
+  "send_file", "send_from_directory", "render_template_string", "Markup", "url_for",
+]
+
+[[framework]]
+id = "django"
+kind = "framework"
+languages = ["python"]
+packages = ["django", "djangorestframework"]
+symbols = [
+  "request.GET", "request.POST", "request.COOKIES", "request.FILES", "request.META", "request.query_params",
+  "cleaned_data", "objects.raw", "RawSQL", "mark_safe", "format_html", "HttpResponse", "HttpResponseRedirect",
+  "FileResponse", "url_has_allowed_host_and_scheme", "is_safe_url", "reverse_lazy",
+]
+
+[[framework]]
+id = "express"
+kind = "framework"
+languages = ["javascript", "typescript"]
+packages = ["express"]
+symbols = ["req.query", "req.body", "req.params", "req.cookies", "req.headers", "res.send", "response.send", "sendFile", "res.redirect"]
+
+[[framework]]
+id = "spring"
+kind = "framework"
+languages = ["java"]
+packages = ["org.springframework:spring-web", "org.springframework.boot:spring-boot-starter-web"]
+symbols = ["getForObject", "postForObject", "RestTemplate", "WebClient"]
+
+[[framework]]
+id = "jakarta-servlet"
+kind = "framework"
+languages = ["java"]
+packages = ["jakarta.servlet:jakarta.servlet-api", "javax.servlet:javax.servlet-api"]
+symbols = ["getParameter", "getQueryString", "getWriter", "sendRedirect", "HttpServletRequest", "HttpServletResponse"]
+
+[[framework]]
+id = "react"
+kind = "framework"
+languages = ["javascript", "typescript"]
+packages = ["react", "react-dom"]
+symbols = ["dangerouslySetInnerHTML"]
+
+[[framework]]
+id = "vue"
+kind = "framework"
+languages = ["javascript", "typescript"]
+packages = ["vue"]
+symbols = ["v-html"]
+
+[[framework]]
+id = "sqlalchemy"
+kind = "library"
+languages = ["python"]
+packages = ["sqlalchemy"]
+symbols = ["from_statement"]
+
+[[framework]]
+id = "pyyaml"
+kind = "library"
+languages = ["python"]
+packages = ["pyyaml"]
+symbols = ["yaml.load", "yaml.safe_load"]
+
+[[framework]]
+id = "requests"
+kind = "library"
+languages = ["python"]
+packages = ["requests"]
+symbols = ["requests.get", "requests.post", "requests.request"]
+
+[[framework]]
+id = "httpx"
+kind = "library"
+languages = ["python"]
+packages = ["httpx"]
+symbols = ["httpx.get", "httpx.post"]
+
+[[framework]]
+id = "lodash"
+kind = "library"
+languages = ["javascript", "typescript"]
+packages = ["lodash", "lodash.merge", "lodash.set", "lodash.defaultsdeep"]
+symbols = ["mergeDeep", "defaultsDeep", "setWith"]
+
+# The Node HTTP client packages, one group: each is a thin wrapper over `http.request`, and they are known as a set.
+[[framework]]
+id = "node-http-clients"
+kind = "library"
+languages = ["javascript", "typescript"]
+packages = ["axios", "got", "needle", "request", "superagent", "unirest", "undici"]
+symbols = ["axios", "needle", "superagent", "unirest", "undici"]
+
+[[framework]]
+id = "escape-html"
+kind = "library"
+languages = ["javascript", "typescript"]
+packages = ["escape-html"]
+symbols = ["escapeHtml"]
+
+[[framework]]
+id = "sanitize-html"
+kind = "library"
+languages = ["javascript", "typescript"]
+packages = ["sanitize-html"]
+symbols = ["sanitizeHtml"]
+
+[[framework]]
+id = "dompurify"
+kind = "library"
+languages = ["javascript", "typescript"]
+packages = ["dompurify", "isomorphic-dompurify"]
+symbols = ["DOMPurify"]
+
+[[framework]]
+id = "esapi"
+kind = "library"
+languages = ["java"]
+packages = ["org.owasp.esapi:esapi"]
+symbols = ["ESAPI", "encodeForHTML", "encodeForURL"]
+
+[[framework]]
+id = "commons-text"
+kind = "library"
+languages = ["java"]
+packages = ["org.apache.commons:commons-text", "org.apache.commons:commons-lang3"]
+symbols = ["StringEscapeUtils"]
