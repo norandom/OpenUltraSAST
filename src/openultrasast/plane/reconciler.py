@@ -257,6 +257,18 @@ def _acquire_lock(base: Path) -> Path:
     return lock
 
 
+def mark_done(run_name: str, task: str, *, reused: Mapping[str, Any], results_root: Path | None = None) -> None:
+    """Set ``task`` done without running it (its outputs came from the memory store), under the run lock."""
+    base = run_dir(run_name, results_root)
+    base.mkdir(parents=True, exist_ok=True)
+    lock = _acquire_lock(base)
+    try:
+        state = _State(base / "state.json", _read_json(base / "state.json") or {"run": run_name, "started": _now(), "tasks": {}})
+        state.set(task, status="done", finished=_now(), usd=None, model=None, reused=dict(reused))
+    finally:
+        lock.unlink(missing_ok=True)
+
+
 def _await(ax: Ax, name: str, delivered: Callable[[], bool], start: Callable[[], str | None]) -> str | None:
     """Resume ``name``, ``start`` it once Running (again after a re-resume), await delivery: None, else why it failed.
     ``Failed`` is final only once a resume went through (ax sets it when a resume call fails); until then a
@@ -462,4 +474,4 @@ def status(run_name: str, *, units: bool = False, results_root: Path | None = No
     return "\n".join(lines)
 
 
-__all__ = ["Ax", "Receiver", "attribution", "doctor", "load_run", "outcome_of", "render_task", "run", "run_dir", "status"]
+__all__ = ["Ax", "Receiver", "attribution", "doctor", "load_run", "mark_done", "outcome_of", "render_task", "run", "run_dir", "status"]

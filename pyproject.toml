@@ -20,6 +20,11 @@ dependencies = ["pyyaml>=6.0"]
 harnessx = [
     "harnessx @ git+https://github.com/Darwin-Agent/HarnessX.git@274c512eea67c64701f992d3b6fe06f0fd590ef0",
 ]
+# The plane's memory store on MinIO (OUSAST_MEMORY=minio://<bucket>, plane/memory.py). Imported lazily; the
+# core install and the file store need nothing beyond PyYAML.
+minio = [
+    "minio>=7.2,<8",
+]
 # Structured parse for overlay (JS/C/C++/Java/Python). Core install stays empty.
 # Wheels are MIT; import is lazy via openultrasast.semantic.extra.
 semantic = [
@@ -72,6 +77,11 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "tree_sitter"
+ignore_missing_imports = true
+
+# The minio SDK is an optional extra, absent in the type-check environment (plane/memory.py imports it lazily).
+[[tool.mypy.overrides]]
+module = ["minio", "minio.*"]
 ignore_missing_imports = true
 
 # PyYAML ships no inline types and types-PyYAML is not a dev dependency.

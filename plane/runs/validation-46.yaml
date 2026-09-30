@@ -4,6 +4,9 @@ apiVersion: openultrasast.io/v1alpha1
 kind: Run
 metadata:
   name: validation-46
+  annotations:
+    openultrasast.io/population: population-v2
+    openultrasast.io/split: validation
 spec:
   tasks:
   - name: budibase-mongo-template-nosqli-facts

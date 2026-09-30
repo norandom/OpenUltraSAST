@@ -1,0 +1,66 @@
+{
+ "family": "untrusted_destination",
+ "candidates": [
+  {
+   "candidate": "lmdeploy/vl/media/connection.py::_load_http_url",
+   "site": "lmdeploy/vl/media/connection.py:68:_load_http_url",
+   "a": true,
+   "b": true,
+   "c": null,
+   "agreed": true,
+   "disputed": false,
+   "site_match": true,
+   "usd": 0.022175,
+   "turns": 10,
+   "finding": {
+    "candidate": "lmdeploy/vl/media/connection.py::_load_http_url",
+    "site": "lmdeploy/vl/media/connection.py:68:_load_http_url",
+    "reported_at": "lmdeploy/vl/media/connection.py:68",
+    "family": "untrusted_destination",
+    "title": "SSRF guard bypass via HTTP redirect in _load_http_url",
+    "witness": "Source: an attacker-controlled HTTP request to the OpenAI-compatible RESTful API whose `messages` contain a multimodal c"
+   }
+  }
+ ],
+ "agreed": [
+  {
+   "candidate": "lmdeploy/vl/media/connection.py::_load_http_url",
+   "site": "lmdeploy/vl/media/connection.py:68:_load_http_url",
+   "reported_at": "lmdeploy/vl/media/connection.py:68",
+   "family": "untrusted_destination",
+   "title": "SSRF guard bypass via HTTP redirect in _load_http_url",
+   "witness": "Source: an attacker-controlled HTTP request to the OpenAI-compatible RESTful API whose `messages` contain a multimodal c",
+   "passes": 2
+  }
+ ],
+ "disputed": [],
+ "metrics": {
+  "candidates": 1,
+  "candidates_before_triage": 1,
+  "asked_in_both": 1,
+  "flagged_a": 1,
+  "flagged_b": 1,
+  "agreed": 1,
+  "disputed": 0,
+  "hunts": 2,
+  "declared_sites": 1,
+  "declared_sites_in_set": 1,
+  "declared_sites_matched": 1,
+  "declared_sites_matched_agreed": 1,
+  "site_matching": "assessed",
+  "usd_total": 0.022175,
+  "cost_per_candidate": 0.022175,
+  "recorded_triage_usd": 0.000768,
+  "recorded_triage_basis": "derived per file from the batched-check scans: recorded usd (triage + hunts) minus the recorded hunt usage priced at deepseek-flash list prices; the triage call's own usage was not recorded",
+  "usd_total_with_recorded_triage": 0.022943,
+  "cost_per_candidate_with_recorded_triage": 0.022943,
+  "turns_per_hunt": 5.0,
+  "calls_per_hunt": 7.0,
+  "tiebreak": {
+   "asked": 0,
+   "flipped_to_agreed": 0,
+   "flipped_to_rejected": 0,
+   "rule": "a candidate asked in pass c is agreed when at least 2 of passes a, b, c flagged it; a candidate not asked in pass c is agreed when passes a and b both flagged it (pass c alone never decides)"
+  }
+ }
+}

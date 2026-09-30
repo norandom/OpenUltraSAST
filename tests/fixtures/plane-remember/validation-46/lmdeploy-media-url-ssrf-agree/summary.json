@@ -1,0 +1,38 @@
+{
+ "status": "done",
+ "units_done": 1,
+ "units_total": 1,
+ "usd": 0,
+ "calls": 0,
+ "usage": {
+  "prompt_tokens": 0,
+  "prompt_cache_hit_tokens": 0,
+  "completion_tokens": 0
+ },
+ "priced": true,
+ "model": null,
+ "pass": null,
+ "metrics": {
+  "candidates": 1,
+  "candidates_before_triage": 1,
+  "asked_in_both": 1,
+  "flagged_a": 1,
+  "flagged_b": 1,
+  "agreed": 1,
+  "disputed": 0,
+  "hunts": 2,
+  "declared_sites": 1,
+  "declared_sites_in_set": 1,
+  "declared_sites_matched": 1,
+  "declared_sites_matched_agreed": 1,
+  "site_matching": "assessed",
+  "usd_total": 0.022175,
+  "cost_per_candidate": 0.022175,
+  "recorded_triage_usd": 0.000768,
+  "recorded_triage_basis": "derived per file from the batched-check scans: recorded usd (triage + hunts) minus the recorded hunt usage priced at deepseek-flash list prices; the triage call's own usage was not recorded",
+  "usd_total_with_recorded_triage": 0.022943,
+  "cost_per_candidate_with_recorded_triage": 0.022943,
+  "turns_per_hunt": 5.0,
+  "calls_per_hunt": 7.0
+ }
+}

@@ -248,6 +248,11 @@ def main(argv: list[str] | None = None) -> int:
     plane_status.add_argument("run")
     plane_status.add_argument("--units", action="store_true", help="per-unit rows from each task's units.jsonl")
     plane_sub.add_parser("doctor", help="check kind, Agent Substrate, the ax controller and the runner image")
+    plane_remember = plane_sub.add_parser("remember", help="ingest a run's memory rows into the store (OUSAST_MEMORY)")
+    plane_remember.add_argument("run")
+    plane_remember.add_argument("--plane", type=Path, default=Path("plane"), help="where runs/<run>.yaml names population and split")
+    plane_remember.add_argument("--population", help="the population the run measured (default: the Run's annotation)")
+    plane_remember.add_argument("--split", help="the split of that population (default: the Run's annotation)")
     plane_ws = plane_sub.add_parser("workspaces", help="one Workspace manifest per case pin of a population file")
     plane_ws.add_argument("population", type=Path)
     plane_ws.add_argument("--out", type=Path, default=Path("plane/workspaces"))
@@ -1304,9 +1309,14 @@ def _plane(args: argparse.Namespace) -> int:
     from .plane import reconciler  # lazy: the plane is a maintainer surface, not the scan path
 
     if args.plane_command == "run":
+        _plane_memory("seed", args.run_manifest)
         result = reconciler.run(args.run_manifest, workers=args.workers, ax=args.ax)
         print(f"run finished: {result}")
+        _plane_memory("ingest", args.run_manifest)
         return 0 if result == "done" else 1
+    if args.plane_command == "remember":
+        manifest = args.plane / "runs" / f"{args.run}.yaml"
+        return _plane_memory("ingest", manifest if manifest.is_file() else None, run=args.run, population=args.population, split=args.split)
     if args.plane_command == "status":
         print(reconciler.status(args.run, units=args.units))
         return 0
@@ -1321,6 +1331,40 @@ def _plane(args: argparse.Namespace) -> int:
 
     written = workspaces(args.population, args.out)
     print(f"{len(written)} Workspace manifests written to {args.out}")
+    return 0
+
+
+def _plane_memory(
+    step: str, run_manifest: Path | None, *, run: str | None = None, population: str | None = None, split: str | None = None
+) -> int:
+    """``seed`` before a Run, ``ingest`` after it (and ``ousast plane remember``). A store failure is reported and
+    never changes the run's result: ingest can be repeated by hand."""
+    from .plane import memory, reconciler
+    from .plane.tasks.remember import UNKNOWN, remember_run
+
+    try:
+        store = memory.open_store()
+        if step == "seed":
+            assert run_manifest is not None
+            seeded = memory.seed(run_manifest, store)
+            if seeded:
+                print(f"memory {store.describe()}: facts reused for {len(seeded)} tasks: {', '.join(seeded)}")
+            return 0
+        annotations: dict[str, str] = {}
+        if run_manifest is not None:
+            spec, _ = reconciler.load_run(run_manifest)
+            run, annotations = run or spec.metadata.name, dict(spec.metadata.annotations)
+        assert run is not None
+        results = remember_run(
+            reconciler.run_dir(run), store, population=population or annotations.get(memory.POPULATION_ANNOTATION) or UNKNOWN,
+            split=split or annotations.get(memory.SPLIT_ANNOTATION) or UNKNOWN,
+        )  # fmt: skip
+    except (memory.MemoryStoreError, OSError, ValueError) as exc:
+        print(f"memory {step} failed: {exc}", file=sys.stderr)
+        return 1
+    fresh = [r for r in results if not r.skipped]
+    kinds = " ".join(f"{k}={n}" for k, n in memory.counts(fresh).items()) or "none"
+    print(f"memory {store.describe()}: {run}: {len(fresh)} tasks ingested, {len(results) - len(fresh)} already in the index; rows {kinds}")
     return 0
 
 

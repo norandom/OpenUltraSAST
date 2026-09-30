@@ -756,6 +756,22 @@ def test_the_task_is_applied_after_everything_it_binds(tmp_path: Path) -> None:
         assert docs[-1]["kind"] == "Task", [d["kind"] for d in docs]
 
 
+def test_mark_done_sets_the_state_under_the_run_lock(tmp_path: Path) -> None:
+    import os
+
+    base = tmp_path / "r"
+    base.mkdir()
+    (base / "lock").write_text(json.dumps(os.getppid()))  # a live process that is not this one holds the run
+    with pytest.raises(RuntimeError, match="run is held by pid"):
+        reconciler.mark_done("r", "c-facts", reused={"sha256": "ab", "from_run": "r0"}, results_root=tmp_path)
+    assert not (base / "state.json").exists()
+    (base / "lock").unlink()
+    reconciler.mark_done("r", "c-facts", reused={"sha256": "ab", "from_run": "r0"}, results_root=tmp_path)
+    task = json.loads((base / "state.json").read_text())["tasks"]["c-facts"]
+    assert (task["status"], task["reused"]) == ("done", {"sha256": "ab", "from_run": "r0"}) and task["finished"]
+    assert not (base / "lock").exists(), "the lock is released"
+
+
 def test_reconciler_is_under_500_lines_and_holds_no_pipeline_logic() -> None:
     text = RECONCILER.read_text(encoding="utf-8")
     assert len(text.splitlines()) < 500, "Req 3.4: the reconciler stays under 500 lines"

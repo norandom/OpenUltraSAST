@@ -1,0 +1,22 @@
+{
+  "callers": {
+    "lmdeploy/vl/media/connection.py::_load_http_url": []
+  },
+  "counts": {
+    "callers": 0,
+    "candidates": 1,
+    "files": 1,
+    "functions": 4809
+  },
+  "files": {
+    "lmdeploy/vl/media/connection.py": {
+      "functions": [
+        "_is_safe_url",
+        "_load_http_url",
+        "_load_data_url",
+        "_load_file_url",
+        "load_from_url"
+      ]
+    }
+  }
+}

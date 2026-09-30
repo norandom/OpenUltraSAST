@@ -19,6 +19,8 @@ from openultrasast.plane import reconciler
 from openultrasast.plane.budget import prices_from
 from openultrasast.plane.generate import TEMPLATES, fix_ranges, increment, read_cases, render, repin_templates
 from openultrasast.plane.manifests import load_manifests
+from openultrasast.plane.memory import MEMORY_KEY_ANNOTATION, POPULATION_ANNOTATION, SPLIT_ANNOTATION, parse_memory_key
+from openultrasast.plane.tasks.repo_facts import _digest
 
 PLANE = Path("plane")
 RUN = PLANE / "runs" / "validation-46.yaml"
@@ -160,7 +162,8 @@ def test_committed_manifests_match_the_generator() -> None:
         POPULATION,
         REPOS,
     )
-    for relative, text in render(cases, templates, "validation-46", _committed_command()).items():
+    rendered = render(cases, templates, "validation-46", _committed_command(), population=POPULATION.stem, split="validation")
+    for relative, text in rendered.items():
         assert (PLANE / relative).read_text() == text, relative
 
 
@@ -216,6 +219,12 @@ def test_generator_is_deterministic_and_follows_the_reference(tmp_path: Path) ->
     assert inputs["triage.json"]["candidates"] == [["a.py", "helper", 20], ["a.py", "run", 9]]
     assert run.task("alpha-va").budget is not None and run.task("alpha-va").budget.usd == 0.38  # 1.5 * 0.5 / 2, cent up
     assert yaml.safe_load(first[0].read_text())["metadata"]["annotations"] == {"openultrasast.io/git-commits": f"repo={PIN}"}
+    # memory (harnessx-removal §4): the facts Task names its reuse key, the Run its population and split
+    key = parse_memory_key(manifests.tasks["repo-facts-alpha"].metadata.annotations[MEMORY_KEY_ANNOTATION])
+    image = manifests.tasks["repo-facts-alpha"].image or ""
+    assert key == {"repo": "example.com/alpha", "pin": PIN, "candidates": _digest(["run"]), "image": image.rpartition("@")[2]}
+    assert all(MEMORY_KEY_ANNOTATION not in t.metadata.annotations for n, t in manifests.tasks.items() if not n.startswith("repo-facts-"))
+    assert dict(run.metadata.annotations) == {POPULATION_ANNOTATION: "population", SPLIT_ANNOTATION: "set"}
 
 
 def test_generator_refuses_a_set_the_recorded_scans_did_not_ask(tmp_path: Path) -> None:

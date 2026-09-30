@@ -12,7 +12,7 @@ and passed its fixture test. Every task is a commit gated on the full suite's ow
     written next to it.
   - _Requirements: 3.1, 5.1_
 
-- [ ] 2. Memory store and the `remember` task
+- [x] 2. Memory store and the `remember` task
   - `plane/memory.py`: the `MemoryStore` interface with `FileStore` and `MinioStore` (object metadata/tags,
     S3 Select JSON queries probed with a local fallback, versioned provenance, lifecycle, presign stubs;
     `OUSAST_MEMORY` selects; MinIO settings from `.env`; `minio` SDK as an optional extra); JSON rows per

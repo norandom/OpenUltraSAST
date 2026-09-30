@@ -1,0 +1,40 @@
+apiVersion: ax.io/v1alpha1
+kind: Workspace
+metadata:
+  name: lmdeploy-media-url-ssrf-vulnerable
+  atespace: default
+spec:
+  git:
+  - name: repo
+    repo: https://example.com/reserved/lmdeploy
+    dir: repo
+    depth: 1
+---
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: validation-46-lmdeploy-media-url-ssrf-facts
+  atespace: default
+spec:
+  command:
+  - repo-facts
+  env:
+  - name: OUSAST_RUN
+    value: validation-46
+  - name: OUSAST_TASK
+    value: lmdeploy-media-url-ssrf-facts
+  - name: OUSAST_GIT_PINS
+    value: '{"lmdeploy-media-url-ssrf-vulnerable/repo": "71648d239c978452720a6d6692fe914efc8a7b94"}'
+  image: localhost:5001/ousast-runner@sha256:200e335877b52d68ea0bc53b4c9ba49ef2ee19e8a5ec2c874148b969123ef7ab
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: '1'
+      memory: 1280Mi
+  workspaces:
+  - name: lmdeploy-media-url-ssrf-vulnerable
+    path: /workspace/case
+  - name: lmdeploy-media-url-ssrf-inputs
+    path: /workspace/inputs

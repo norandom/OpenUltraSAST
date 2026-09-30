@@ -1,0 +1,16 @@
+{
+ "status": "done",
+ "units_done": 1,
+ "units_total": 1,
+ "usd": 0.012376,
+ "calls": 7,
+ "usage": {
+  "prompt_tokens": 68714,
+  "prompt_cache_hit_tokens": 48512,
+  "completion_tokens": 2127
+ },
+ "priced": true,
+ "model": "deepseek-flash",
+ "pass": "a",
+ "family": "untrusted_destination"
+}

@@ -1,7 +1,7 @@
 {
-  "modules": 132,
+  "modules": 134,
   "counts": {
-    "load_bearing": 123,
+    "load_bearing": 125,
     "standalone_capability": 9
   },
   "orphaned": [],
@@ -117,6 +117,7 @@
         "hunter_tools",
         "model.endpoint",
         "pairs",
+        "plane.memory",
         "push.assistance",
         "push.policy",
         "push.runner",
@@ -663,9 +664,11 @@
         "cli",
         "plane.egress",
         "plane.generate",
+        "plane.memory",
         "plane.reconciler",
         "plane.router",
         "plane.runner",
+        "plane.tasks.remember",
         "plane.tasks.verify",
         "plane.workspaces"
       ]
@@ -717,11 +720,21 @@
       ]
     },
     {
+      "module": "plane.memory",
+      "classification": "load_bearing",
+      "reason": "harnessx-removal Req 6.1/6.4: the memory store (file, MinIO), ingest and fact reuse; `ousast plane remember`",
+      "importers": [
+        "plane.generate",
+        "plane.tasks.remember"
+      ]
+    },
+    {
       "module": "plane.reconciler",
       "classification": "load_bearing",
       "reason": "ai-service-plane Req 3.1-3.5, 7.3: ax-backed Run execution, status attribution and doctor; `ousast plane`",
       "importers": [
         "plane.generate",
+        "plane.memory",
         "plane.workspaces"
       ]
     },
@@ -745,8 +758,10 @@
       "classification": "load_bearing",
       "reason": "ai-service-plane Req 4.1: the task entrypoint package the runner imports by name; runner integration pending (task 3)",
       "importers": [
+        "cli",
         "plane.generate",
-        "plane.tasks.agree"
+        "plane.tasks.agree",
+        "plane.tasks.remember"
       ]
     },
     {
@@ -756,10 +771,21 @@
       "importers": []
     },
     {
+      "module": "plane.tasks.remember",
+      "classification": "load_bearing",
+      "reason": "harnessx-removal Req 6.1: a case's delivered artifacts as memory rows, model-free",
+      "importers": [
+        "cli"
+      ]
+    },
+    {
       "module": "plane.tasks.repo_facts",
       "classification": "load_bearing",
       "reason": "ai-service-plane Req 5.1/5.2: source-only functions and callers per file; runner integration pending",
-      "importers": []
+      "importers": [
+        "plane.generate",
+        "plane.tasks.remember"
+      ]
     },
     {
       "module": "plane.tasks.verify",
