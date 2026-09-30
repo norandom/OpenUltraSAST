@@ -110,3 +110,23 @@ rule hits.
 2. Without a trained model available the tools fall back to today's behaviour and say so in the report.
 3. Hand-written rules remain as signal producers; changing their enabled/shadow status no longer changes what is
    reported unless the engine's decision changes.
+
+### Requirement 7: Built for unseen repositories -- a repo safety net
+
+**User Story:** As the maintainer, I want the engine judged by how it behaves on repositories it never saw, because
+"the tool will never run against the test cases it's being trained with. it's purpose is a repo safety net."
+(maintainer, 2026-09-30).
+
+#### Acceptance Criteria
+
+1. Every reported metric comes from folds grouped by repository across all corpora: a repository in an evaluation
+   fold contributes no row to training.
+2. Features are repository-agnostic by an allow-listed schema (no repository, path, file, function or commit
+   identities), enforced by a test.
+3. Two operating points serve the safety net: BLOCK, chosen for >= 95% precision on unseen repositories, and
+   ADVISORY, trading precision for recall; both reported with out-of-repository intervals. The decision unit is a
+   candidate in changed code (`pre-push` delta), with whole-repository scans as a secondary mode.
+4. Calibration is checked on held-out repositories; where it does not hold, only ADVISORY is offered for that
+   family.
+5. Any adaptation to a user's own repository (facts reuse, their dismissals) is opt-in, separate from the
+   generalisation model, and never contributes to its reported numbers.
