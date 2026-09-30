@@ -1,0 +1,1076 @@
+{
+ "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+ "runs": [
+  {
+   "results": [
+    {
+     "level": "warning",
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "app.py"
+        },
+        "region": {
+         "startLine": 81
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "Static pattern python-flask-debug (CWE-489) matched debug on line 81; manual verification still required."
+     },
+     "partialFingerprints": {
+      "openultrasastFindingId": "python-flask-debug:app.py:81"
+     },
+     "properties": {
+      "confidence": "medium",
+      "disposition": "unadjudicated",
+      "evidence_level": "static_corroboration",
+      "finding_id": "python-flask-debug:app.py:81",
+      "overlay_reason": "flow_incomplete",
+      "ranking_priority": 1.5,
+      "reachability_conditions": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "medium",
+      "verification": {
+       "context_sources": [
+        "evidence_level",
+        "finding_id",
+        "function_name",
+        "line",
+        "path",
+        "reachability_conditions",
+        "reachability_evidence",
+        "reachability_status",
+        "severity",
+        "tags",
+        "title"
+       ],
+       "counter_case": "No function-level attacker-reachable entry point currently reaches this line.",
+       "evidence_level": "static_corroboration",
+       "finding_id": "python-flask-debug:app.py:81",
+       "pro_case": "A static pattern matched the source line.",
+       "required_next_step": "Add reachability evidence before prioritizing a fix.",
+       "status": "rejected",
+       "tie_breaker": "Provide call-graph, route, CLI, parser, or dynamic evidence linking attacker input to this function.",
+       "verified": false
+      }
+     },
+     "ruleId": "python-flask-debug"
+    },
+    {
+     "level": "error",
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "app.py"
+        },
+        "region": {
+         "startLine": 17
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "Static pattern python-os-command (CWE-78) matched os.system on line 17; manual verification still required."
+     },
+     "partialFingerprints": {
+      "openultrasastFindingId": "python-os-command:app.py:17"
+     },
+     "properties": {
+      "confidence": "medium",
+      "disposition": "promote",
+      "evidence_level": "static_corroboration",
+      "finding_id": "python-os-command:app.py:17",
+      "overlay_reason": "request reaches os.system without a dominating sanitizer",
+      "ranking_priority": 3.8,
+      "reachability_conditions": [],
+      "reachability_status": "reachable",
+      "rung": "suspicion",
+      "severity": "critical",
+      "verification": {
+       "context_sources": [
+        "evidence_level",
+        "finding_id",
+        "function_name",
+        "line",
+        "path",
+        "reachability_conditions",
+        "reachability_evidence",
+        "reachability_status",
+        "severity",
+        "tags",
+        "title"
+       ],
+       "counter_case": "Impact and exploitability still require deeper verifier or dynamic evidence.",
+       "evidence_level": "static_corroboration",
+       "finding_id": "python-os-command:app.py:17",
+       "pro_case": "Static corroboration exists and function-level reachability evidence is attached.",
+       "required_next_step": "Proceed to standard verifier or dynamic reproduction if severity warrants it.",
+       "status": "accepted",
+       "tie_breaker": "Confirm attacker control, sanitizer absence, and impact in the next verification depth.",
+       "verified": true
+      }
+     },
+     "ruleId": "python-os-command"
+    },
+    {
+     "level": "warning",
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "app.py"
+        },
+        "region": {
+         "startLine": 55
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "Static pattern python-path-traversal (CWE-22) matched open on line 55; manual verification still required."
+     },
+     "partialFingerprints": {
+      "openultrasastFindingId": "python-path-traversal:app.py:55"
+     },
+     "properties": {
+      "confidence": "medium",
+      "disposition": "promote",
+      "evidence_level": "static_corroboration",
+      "finding_id": "python-path-traversal:app.py:55",
+      "overlay_reason": "request reaches path.open without a dominating sanitizer",
+      "ranking_priority": 3.8,
+      "reachability_conditions": [],
+      "reachability_status": "reachable",
+      "rung": "suspicion",
+      "severity": "medium",
+      "verification": {
+       "context_sources": [
+        "evidence_level",
+        "finding_id",
+        "function_name",
+        "line",
+        "path",
+        "reachability_conditions",
+        "reachability_evidence",
+        "reachability_status",
+        "severity",
+        "tags",
+        "title"
+       ],
+       "counter_case": "Impact and exploitability still require deeper verifier or dynamic evidence.",
+       "evidence_level": "static_corroboration",
+       "finding_id": "python-path-traversal:app.py:55",
+       "pro_case": "Static corroboration exists and function-level reachability evidence is attached.",
+       "required_next_step": "Proceed to standard verifier or dynamic reproduction if severity warrants it.",
+       "status": "accepted",
+       "tie_breaker": "Confirm attacker control, sanitizer absence, and impact in the next verification depth.",
+       "verified": true
+      }
+     },
+     "ruleId": "python-path-traversal"
+    },
+    {
+     "level": "error",
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "app.py"
+        },
+        "region": {
+         "startLine": 23
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "Static pattern python-shell-true (CWE-78) matched subprocess.check_output on line 23; manual verification still required."
+     },
+     "partialFingerprints": {
+      "openultrasastFindingId": "python-shell-true:app.py:23"
+     },
+     "properties": {
+      "confidence": "medium",
+      "disposition": "promote",
+      "evidence_level": "static_corroboration",
+      "finding_id": "python-shell-true:app.py:23",
+      "overlay_reason": "request reaches os.system without a dominating sanitizer",
+      "ranking_priority": 3.8,
+      "reachability_conditions": [],
+      "reachability_status": "reachable",
+      "rung": "suspicion",
+      "severity": "critical",
+      "verification": {
+       "context_sources": [
+        "evidence_level",
+        "finding_id",
+        "function_name",
+        "line",
+        "path",
+        "reachability_conditions",
+        "reachability_evidence",
+        "reachability_status",
+        "severity",
+        "tags",
+        "title"
+       ],
+       "counter_case": "Impact and exploitability still require deeper verifier or dynamic evidence.",
+       "evidence_level": "static_corroboration",
+       "finding_id": "python-shell-true:app.py:23",
+       "pro_case": "Static corroboration exists and function-level reachability evidence is attached.",
+       "required_next_step": "Proceed to standard verifier or dynamic reproduction if severity warrants it.",
+       "status": "accepted",
+       "tie_breaker": "Confirm attacker control, sanitizer absence, and impact in the next verification depth.",
+       "verified": true
+      }
+     },
+     "ruleId": "python-shell-true"
+    },
+    {
+     "level": "error",
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "app.py"
+        },
+        "region": {
+         "startLine": 44
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "Static pattern python-sql-injection (CWE-89) matched .execute on line 44; manual verification still required."
+     },
+     "partialFingerprints": {
+      "openultrasastFindingId": "python-sql-injection:app.py:44"
+     },
+     "properties": {
+      "confidence": "medium",
+      "disposition": "promote",
+      "evidence_level": "static_corroboration",
+      "finding_id": "python-sql-injection:app.py:44",
+      "overlay_reason": "request reaches execute without a dominating sanitizer",
+      "ranking_priority": 3.8,
+      "reachability_conditions": [],
+      "reachability_status": "reachable",
+      "rung": "suspicion",
+      "severity": "high",
+      "verification": {
+       "context_sources": [
+        "evidence_level",
+        "finding_id",
+        "function_name",
+        "line",
+        "path",
+        "reachability_conditions",
+        "reachability_evidence",
+        "reachability_status",
+        "severity",
+        "tags",
+        "title"
+       ],
+       "counter_case": "Impact and exploitability still require deeper verifier or dynamic evidence.",
+       "evidence_level": "static_corroboration",
+       "finding_id": "python-sql-injection:app.py:44",
+       "pro_case": "Static corroboration exists and function-level reachability evidence is attached.",
+       "required_next_step": "Proceed to standard verifier or dynamic reproduction if severity warrants it.",
+       "status": "accepted",
+       "tie_breaker": "Confirm attacker control, sanitizer absence, and impact in the next verification depth.",
+       "verified": true
+      }
+     },
+     "ruleId": "python-sql-injection"
+    },
+    {
+     "level": "error",
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "app.py"
+        },
+        "region": {
+         "startLine": 50
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "Static pattern python-sql-injection (CWE-89) matched .execute on line 50; manual verification still required."
+     },
+     "partialFingerprints": {
+      "openultrasastFindingId": "python-sql-injection:app.py:50"
+     },
+     "properties": {
+      "confidence": "medium",
+      "disposition": "promote",
+      "evidence_level": "static_corroboration",
+      "finding_id": "python-sql-injection:app.py:50",
+      "overlay_reason": "request reaches execute without a dominating sanitizer",
+      "ranking_priority": 3.8,
+      "reachability_conditions": [],
+      "reachability_status": "reachable",
+      "rung": "suspicion",
+      "severity": "high",
+      "verification": {
+       "context_sources": [
+        "evidence_level",
+        "finding_id",
+        "function_name",
+        "line",
+        "path",
+        "reachability_conditions",
+        "reachability_evidence",
+        "reachability_status",
+        "severity",
+        "tags",
+        "title"
+       ],
+       "counter_case": "Impact and exploitability still require deeper verifier or dynamic evidence.",
+       "evidence_level": "static_corroboration",
+       "finding_id": "python-sql-injection:app.py:50",
+       "pro_case": "Static corroboration exists and function-level reachability evidence is attached.",
+       "required_next_step": "Proceed to standard verifier or dynamic reproduction if severity warrants it.",
+       "status": "accepted",
+       "tie_breaker": "Confirm attacker control, sanitizer absence, and impact in the next verification depth.",
+       "verified": true
+      }
+     },
+     "ruleId": "python-sql-injection"
+    },
+    {
+     "level": "warning",
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "app.py"
+        },
+        "region": {
+         "startLine": 60
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "Static pattern python-ssrf (CWE-918) matched requests.get on line 60; manual verification still required."
+     },
+     "partialFingerprints": {
+      "openultrasastFindingId": "python-ssrf:app.py:60"
+     },
+     "properties": {
+      "confidence": "medium",
+      "disposition": "promote",
+      "evidence_level": "static_corroboration",
+      "finding_id": "python-ssrf:app.py:60",
+      "overlay_reason": "request reaches outbound.request without a dominating sanitizer",
+      "ranking_priority": 3.8,
+      "reachability_conditions": [],
+      "reachability_status": "reachable",
+      "rung": "suspicion",
+      "severity": "medium",
+      "verification": {
+       "context_sources": [
+        "evidence_level",
+        "finding_id",
+        "function_name",
+        "line",
+        "path",
+        "reachability_conditions",
+        "reachability_evidence",
+        "reachability_status",
+        "severity",
+        "tags",
+        "title"
+       ],
+       "counter_case": "Impact and exploitability still require deeper verifier or dynamic evidence.",
+       "evidence_level": "static_corroboration",
+       "finding_id": "python-ssrf:app.py:60",
+       "pro_case": "Static corroboration exists and function-level reachability evidence is attached.",
+       "required_next_step": "Proceed to standard verifier or dynamic reproduction if severity warrants it.",
+       "status": "accepted",
+       "tie_breaker": "Confirm attacker control, sanitizer absence, and impact in the next verification depth.",
+       "verified": true
+      }
+     },
+     "ruleId": "python-ssrf"
+    },
+    {
+     "level": "warning",
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "app.py"
+        },
+        "region": {
+         "startLine": 70
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "Static pattern python-ssti (CWE-94) matched render_template_string on line 70; manual verification still required."
+     },
+     "partialFingerprints": {
+      "openultrasastFindingId": "python-ssti:app.py:70"
+     },
+     "properties": {
+      "confidence": "medium",
+      "disposition": "promote",
+      "evidence_level": "static_corroboration",
+      "finding_id": "python-ssti:app.py:70",
+      "overlay_reason": "request reaches html.unescaped without a dominating sanitizer",
+      "ranking_priority": 3.8,
+      "reachability_conditions": [],
+      "reachability_status": "reachable",
+      "rung": "suspicion",
+      "severity": "medium",
+      "verification": {
+       "context_sources": [
+        "evidence_level",
+        "finding_id",
+        "function_name",
+        "line",
+        "path",
+        "reachability_conditions",
+        "reachability_evidence",
+        "reachability_status",
+        "severity",
+        "tags",
+        "title"
+       ],
+       "counter_case": "Impact and exploitability still require deeper verifier or dynamic evidence.",
+       "evidence_level": "static_corroboration",
+       "finding_id": "python-ssti:app.py:70",
+       "pro_case": "Static corroboration exists and function-level reachability evidence is attached.",
+       "required_next_step": "Proceed to standard verifier or dynamic reproduction if severity warrants it.",
+       "status": "accepted",
+       "tie_breaker": "Confirm attacker control, sanitizer absence, and impact in the next verification depth.",
+       "verified": true
+      }
+     },
+     "ruleId": "python-ssti"
+    },
+    {
+     "level": "warning",
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "app.py"
+        },
+        "region": {
+         "startLine": 33
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "Static pattern python-unsafe-deserialization (CWE-502) matched pickle.loads on line 33; manual verification still required."
+     },
+     "partialFingerprints": {
+      "openultrasastFindingId": "python-unsafe-deserialization:app.py:33"
+     },
+     "properties": {
+      "confidence": "medium",
+      "disposition": "promote",
+      "evidence_level": "static_corroboration",
+      "finding_id": "python-unsafe-deserialization:app.py:33",
+      "overlay_reason": "request reaches pickle.loads without a dominating sanitizer",
+      "ranking_priority": 3.8,
+      "reachability_conditions": [],
+      "reachability_status": "reachable",
+      "rung": "suspicion",
+      "severity": "medium",
+      "verification": {
+       "context_sources": [
+        "evidence_level",
+        "finding_id",
+        "function_name",
+        "line",
+        "path",
+        "reachability_conditions",
+        "reachability_evidence",
+        "reachability_status",
+        "severity",
+        "tags",
+        "title"
+       ],
+       "counter_case": "Impact and exploitability still require deeper verifier or dynamic evidence.",
+       "evidence_level": "static_corroboration",
+       "finding_id": "python-unsafe-deserialization:app.py:33",
+       "pro_case": "Static corroboration exists and function-level reachability evidence is attached.",
+       "required_next_step": "Proceed to standard verifier or dynamic reproduction if severity warrants it.",
+       "status": "accepted",
+       "tie_breaker": "Confirm attacker control, sanitizer absence, and impact in the next verification depth.",
+       "verified": true
+      }
+     },
+     "ruleId": "python-unsafe-deserialization"
+    },
+    {
+     "level": "warning",
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "app.py"
+        },
+        "region": {
+         "startLine": 38
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "Static pattern python-unsafe-deserialization (CWE-502) matched yaml.load on line 38; manual verification still required."
+     },
+     "partialFingerprints": {
+      "openultrasastFindingId": "python-unsafe-deserialization:app.py:38"
+     },
+     "properties": {
+      "confidence": "medium",
+      "disposition": "promote",
+      "evidence_level": "static_corroboration",
+      "finding_id": "python-unsafe-deserialization:app.py:38",
+      "overlay_reason": "request reaches pickle.loads without a dominating sanitizer",
+      "ranking_priority": 3.8,
+      "reachability_conditions": [],
+      "reachability_status": "reachable",
+      "rung": "suspicion",
+      "severity": "medium",
+      "verification": {
+       "context_sources": [
+        "evidence_level",
+        "finding_id",
+        "function_name",
+        "line",
+        "path",
+        "reachability_conditions",
+        "reachability_evidence",
+        "reachability_status",
+        "severity",
+        "tags",
+        "title"
+       ],
+       "counter_case": "Impact and exploitability still require deeper verifier or dynamic evidence.",
+       "evidence_level": "static_corroboration",
+       "finding_id": "python-unsafe-deserialization:app.py:38",
+       "pro_case": "Static corroboration exists and function-level reachability evidence is attached.",
+       "required_next_step": "Proceed to standard verifier or dynamic reproduction if severity warrants it.",
+       "status": "accepted",
+       "tie_breaker": "Confirm attacker control, sanitizer absence, and impact in the next verification depth.",
+       "verified": true
+      }
+     },
+     "ruleId": "python-unsafe-deserialization"
+    },
+    {
+     "level": "error",
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "app.py"
+        },
+        "region": {
+         "startLine": 28
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "Static pattern python-unsafe-eval (CWE-95) matched eval on line 28; manual verification still required."
+     },
+     "partialFingerprints": {
+      "openultrasastFindingId": "python-unsafe-eval:app.py:28"
+     },
+     "properties": {
+      "confidence": "medium",
+      "disposition": "promote",
+      "evidence_level": "static_corroboration",
+      "finding_id": "python-unsafe-eval:app.py:28",
+      "overlay_reason": "request reaches eval without a dominating sanitizer",
+      "ranking_priority": 3.8,
+      "reachability_conditions": [],
+      "reachability_status": "reachable",
+      "rung": "suspicion",
+      "severity": "critical",
+      "verification": {
+       "context_sources": [
+        "evidence_level",
+        "finding_id",
+        "function_name",
+        "line",
+        "path",
+        "reachability_conditions",
+        "reachability_evidence",
+        "reachability_status",
+        "severity",
+        "tags",
+        "title"
+       ],
+       "counter_case": "Impact and exploitability still require deeper verifier or dynamic evidence.",
+       "evidence_level": "static_corroboration",
+       "finding_id": "python-unsafe-eval:app.py:28",
+       "pro_case": "Static corroboration exists and function-level reachability evidence is attached.",
+       "required_next_step": "Proceed to standard verifier or dynamic reproduction if severity warrants it.",
+       "status": "accepted",
+       "tie_breaker": "Confirm attacker control, sanitizer absence, and impact in the next verification depth.",
+       "verified": true
+      }
+     },
+     "ruleId": "python-unsafe-eval"
+    },
+    {
+     "level": "warning",
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "app.py"
+        },
+        "region": {
+         "startLine": 65
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "Static pattern python-weak-hash (CWE-327) matched md5 on line 65; manual verification still required."
+     },
+     "partialFingerprints": {
+      "openultrasastFindingId": "python-weak-hash:app.py:65"
+     },
+     "properties": {
+      "confidence": "medium",
+      "disposition": "promote",
+      "evidence_level": "static_corroboration",
+      "finding_id": "python-weak-hash:app.py:65",
+      "overlay_reason": "request reaches hashlib without a dominating sanitizer",
+      "ranking_priority": 3.8,
+      "reachability_conditions": [],
+      "reachability_status": "reachable",
+      "rung": "suspicion",
+      "severity": "medium",
+      "verification": {
+       "context_sources": [
+        "evidence_level",
+        "finding_id",
+        "function_name",
+        "line",
+        "path",
+        "reachability_conditions",
+        "reachability_evidence",
+        "reachability_status",
+        "severity",
+        "tags",
+        "title"
+       ],
+       "counter_case": "Impact and exploitability still require deeper verifier or dynamic evidence.",
+       "evidence_level": "static_corroboration",
+       "finding_id": "python-weak-hash:app.py:65",
+       "pro_case": "Static corroboration exists and function-level reachability evidence is attached.",
+       "required_next_step": "Proceed to standard verifier or dynamic reproduction if severity warrants it.",
+       "status": "accepted",
+       "tie_breaker": "Confirm attacker control, sanitizer absence, and impact in the next verification depth.",
+       "verified": true
+      }
+     },
+     "ruleId": "python-weak-hash"
+    },
+    {
+     "level": "error",
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "app.py"
+        },
+        "region": {
+         "startLine": 77
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "uninventoried sink execute reached from request"
+     },
+     "partialFingerprints": {
+      "openultrasastFindingId": "overlay-coverage:app.py:77:execute"
+     },
+     "properties": {
+      "confidence": "medium",
+      "disposition": "coverage",
+      "evidence_level": "static_corroboration",
+      "finding_id": "overlay-coverage:app.py:77:execute",
+      "overlay_reason": "uninventoried sink execute reached from request",
+      "ranking_priority": 0.0,
+      "reachability_conditions": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "high",
+      "verification": null
+     },
+     "ruleId": "overlay-coverage"
+    },
+    {
+     "level": "error",
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "safe.py"
+        },
+        "region": {
+         "startLine": 11
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "uninventoried sink os.system reached from parameter"
+     },
+     "partialFingerprints": {
+      "openultrasastFindingId": "overlay-coverage:safe.py:11:os.system"
+     },
+     "properties": {
+      "confidence": "medium",
+      "disposition": "coverage",
+      "evidence_level": "static_corroboration",
+      "finding_id": "overlay-coverage:safe.py:11:os.system",
+      "overlay_reason": "uninventoried sink os.system reached from parameter",
+      "ranking_priority": 0.0,
+      "reachability_conditions": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "critical",
+      "verification": null
+     },
+     "ruleId": "overlay-coverage"
+    },
+    {
+     "level": "error",
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "app.py"
+        },
+        "region": {
+         "startLine": 44
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "protected_read on users in user is reached without a dominating identity_constraint. Why the obligation exists: the operation fact alone (function-local mode). Label: function_local."
+     },
+     "partialFingerprints": {
+      "openultrasastFindingId": "obligation:protected_read:app.py:44:identity_constraint"
+     },
+     "properties": {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "obligation:protected_read:app.py:44:identity_constraint",
+      "obligation_evidence": [],
+      "obligation_intent": null,
+      "obligation_kind": "protected_read",
+      "obligation_known_fix": null,
+      "obligation_label": "function_local",
+      "obligation_missing": "identity_constraint",
+      "obligation_provenance": null,
+      "obligation_resource": "users",
+      "ranking_priority": 0.3,
+      "reachability_conditions": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "high",
+      "verification": null
+     },
+     "ruleId": "obligation"
+    },
+    {
+     "level": "error",
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "app.py"
+        },
+        "region": {
+         "startLine": 50
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "protected_read on reports in report is reached without a dominating identity_constraint. Why the obligation exists: the operation fact alone (function-local mode). Label: function_local."
+     },
+     "partialFingerprints": {
+      "openultrasastFindingId": "obligation:protected_read:app.py:50:identity_constraint"
+     },
+     "properties": {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "obligation:protected_read:app.py:50:identity_constraint",
+      "obligation_evidence": [],
+      "obligation_intent": null,
+      "obligation_kind": "protected_read",
+      "obligation_known_fix": null,
+      "obligation_label": "function_local",
+      "obligation_missing": "identity_constraint",
+      "obligation_provenance": null,
+      "obligation_resource": "reports",
+      "ranking_priority": 0.3,
+      "reachability_conditions": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "high",
+      "verification": null
+     },
+     "ruleId": "obligation"
+    },
+    {
+     "level": "error",
+     "locations": [
+      {
+       "physicalLocation": {
+        "artifactLocation": {
+         "uri": "app.py"
+        },
+        "region": {
+         "startLine": 77
+        }
+       }
+      }
+     ],
+     "message": {
+      "text": "protected_read on a resource in search is reached without a dominating identity_constraint. Why the obligation exists: the operation fact alone (function-local mode). Label: function_local."
+     },
+     "partialFingerprints": {
+      "openultrasastFindingId": "obligation:protected_read:app.py:77:identity_constraint"
+     },
+     "properties": {
+      "confidence": "low",
+      "evidence_level": "suspicion",
+      "finding_id": "obligation:protected_read:app.py:77:identity_constraint",
+      "obligation_evidence": [],
+      "obligation_intent": null,
+      "obligation_kind": "protected_read",
+      "obligation_known_fix": null,
+      "obligation_label": "function_local",
+      "obligation_missing": "identity_constraint",
+      "obligation_provenance": null,
+      "obligation_resource": null,
+      "ranking_priority": 0.3,
+      "reachability_conditions": [],
+      "reachability_status": "unknown",
+      "rung": "suspicion",
+      "severity": "high",
+      "verification": null
+     },
+     "ruleId": "obligation"
+    }
+   ],
+   "tool": {
+    "driver": {
+     "informationUri": "https://github.com/norandom/OpenUltraSAST",
+     "name": "OpenUltraSAST",
+     "rules": [
+      {
+       "id": "python-flask-debug",
+       "name": "Flask debug mode enabled needs review",
+       "properties": {
+        "tags": [
+         "crypto",
+         "deserialization",
+         "filesystem_entry",
+         "insecure_default",
+         "syscall_entry"
+        ]
+       },
+       "shortDescription": {
+        "text": "Flask debug mode enabled needs review"
+       }
+      },
+      {
+       "id": "python-os-command",
+       "name": "Python OS command execution needs review",
+       "properties": {
+        "tags": [
+         "crypto",
+         "deserialization",
+         "filesystem_entry",
+         "syscall_entry"
+        ]
+       },
+       "shortDescription": {
+        "text": "Python OS command execution needs review"
+       }
+      },
+      {
+       "id": "python-path-traversal",
+       "name": "Python file open with external input needs review",
+       "properties": {
+        "tags": [
+         "crypto",
+         "deserialization",
+         "filesystem_entry",
+         "syscall_entry"
+        ]
+       },
+       "shortDescription": {
+        "text": "Python file open with external input needs review"
+       }
+      },
+      {
+       "id": "python-shell-true",
+       "name": "Subprocess shell execution needs review",
+       "properties": {
+        "tags": [
+         "crypto",
+         "deserialization",
+         "filesystem_entry",
+         "syscall_entry"
+        ]
+       },
+       "shortDescription": {
+        "text": "Subprocess shell execution needs review"
+       }
+      },
+      {
+       "id": "python-sql-injection",
+       "name": "Python SQL string composition needs review",
+       "properties": {
+        "tags": [
+         "crypto",
+         "deserialization",
+         "filesystem_entry",
+         "injection",
+         "syscall_entry"
+        ]
+       },
+       "shortDescription": {
+        "text": "Python SQL string composition needs review"
+       }
+      },
+      {
+       "id": "python-ssrf",
+       "name": "Python outbound request with external input needs review",
+       "properties": {
+        "tags": [
+         "crypto",
+         "deserialization",
+         "filesystem_entry",
+         "network_entry",
+         "syscall_entry"
+        ]
+       },
+       "shortDescription": {
+        "text": "Python outbound request with external input needs review"
+       }
+      },
+      {
+       "id": "python-ssti",
+       "name": "Python server-side template injection needs review",
+       "properties": {
+        "tags": [
+         "crypto",
+         "deserialization",
+         "filesystem_entry",
+         "injection",
+         "syscall_entry"
+        ]
+       },
+       "shortDescription": {
+        "text": "Python server-side template injection needs review"
+       }
+      },
+      {
+       "id": "python-unsafe-deserialization",
+       "name": "Unsafe Python deserialization needs review",
+       "properties": {
+        "tags": [
+         "crypto",
+         "deserialization",
+         "filesystem_entry",
+         "syscall_entry"
+        ]
+       },
+       "shortDescription": {
+        "text": "Unsafe Python deserialization needs review"
+       }
+      },
+      {
+       "id": "python-unsafe-eval",
+       "name": "Dynamic Python execution needs review",
+       "properties": {
+        "tags": [
+         "crypto",
+         "deserialization",
+         "filesystem_entry",
+         "syscall_entry"
+        ]
+       },
+       "shortDescription": {
+        "text": "Dynamic Python execution needs review"
+       }
+      },
+      {
+       "id": "python-weak-hash",
+       "name": "Python weak hash needs review",
+       "properties": {
+        "tags": [
+         "crypto",
+         "deserialization",
+         "filesystem_entry",
+         "syscall_entry"
+        ]
+       },
+       "shortDescription": {
+        "text": "Python weak hash needs review"
+       }
+      },
+      {
+       "id": "overlay-coverage",
+       "name": "Overlay coverage: execute",
+       "properties": {
+        "tags": [
+         "overlay-originated"
+        ]
+       },
+       "shortDescription": {
+        "text": "Overlay coverage: execute"
+       }
+      },
+      {
+       "id": "obligation",
+       "name": "Obligation not discharged: protected_read on users without identity_constraint",
+       "properties": {
+        "tags": [
+         "obligation:protected_read",
+         "discharger:identity_constraint",
+         "obligation_evidence:function_local",
+         "resource:users"
+        ]
+       },
+       "shortDescription": {
+        "text": "Obligation not discharged: protected_read on users without identity_constraint"
+       }
+      }
+     ]
+    }
+   }
+  }
+ ],
+ "version": "2.1.0"
+}
