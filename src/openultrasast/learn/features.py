@@ -27,6 +27,7 @@ from ..model.taxonomy import load_families
 from ..plane.tasks.repo_facts import _COMMENT_PREFIXES, DECLARATION, GLOBAL, _declared_name, enclosing, product_files
 from ..preprocess import build_file_target, detect_language
 from ..ruleset import DEFAULT_RULESET_DIR, PatternRule, load_ruleset
+from .roles import CWE_OPERATION, SOURCE_KIND, VERSION, Function, RoleSet, body_roles, functions_of, infer_for_checkout, origin_of
 from .schema import (
     BY_NAME,
     LANGUAGES,
@@ -43,17 +44,6 @@ from .schema import (
 
 ENGINE_RULE_PREFIX = "engine:"
 UNKNOWN_FAMILY = "unknown"
-# The operation a sink performs, by the CWE its semantic entry binds (a closed table; anything else is `other`).
-CWE_OPERATION = {
-    "CWE-89": "sql", "CWE-943": "sql", "CWE-78": "command", "CWE-77": "command", "CWE-94": "code_eval", "CWE-95": "code_eval",
-    "CWE-502": "deserialize", "CWE-22": "file_path", "CWE-98": "file_inclusion", "CWE-918": "outbound_request",
-    "CWE-601": "redirect", "CWE-79": "html_output",
-}  # fmt: skip
-# A semantic source entry's id mapped to its kind; an unlisted id is `other`.
-SOURCE_KIND = {
-    "request": "request", "django-request": "request", "req": "request", "node-request": "request", "servlet": "request",
-    "server": "server", "raw_body": "raw_body", "argv": "argv_stdin", "stdin": "argv_stdin", "input": "argv_stdin",
-}  # fmt: skip
 _STEPS = re.compile(r"(\d+) steps")
 _WITNESS = re.compile(r"^(?P<source>.+?) -> (?P<sink>.+?)(?: in \S+)? \(line")
 _CALL = re.compile(r"(?<![A-Za-z0-9_$])([A-Za-z_]\w*)\s*\(")
@@ -168,20 +158,26 @@ class Vocabulary:
     sources: tuple[tuple[str, str, str], ...]  # (pattern, kind, origin)
 
     @classmethod
-    def load(cls, language: str) -> Vocabulary:
+    def load(cls, language: str, facts: Any = None) -> Vocabulary:
+        """The entries of ``language`` in ``facts`` (default: the bundled facts; a per-repository
+        :func:`.roles.vocabulary_overlay` names each inferred entry's origin in its id)."""
         from ..semantic.facts import FactLoadError, load_facts
 
         try:
-            facts = load_facts().for_language(language)
+            scoped = (facts if facts is not None else load_facts()).for_language(language)
         except FactLoadError:
             return cls({}, ())
         sinks: dict[str, tuple[str, str]] = {}
-        for sink in facts.sinks:
+        for sink in scoped.sinks:
             for call in sink.calls:
-                sinks.setdefault(call, (CWE_OPERATION.get(sink.cwe, "other"), "prior" if _is_prior(sink) else "language"))
+                sinks.setdefault(call, (CWE_OPERATION.get(sink.cwe, "other"), origin_of(sink.id, _is_prior(sink))))
         sources = tuple(
-            (pattern, SOURCE_KIND.get(src.id, "other"), "prior" if _is_prior(src) else "language")
-            for src in facts.sources
+            (
+                pattern,
+                "inferred_role" if origin_of(src.id, False) != "language" else SOURCE_KIND.get(src.id, "other"),
+                origin_of(src.id, _is_prior(src)),
+            )
+            for src in scoped.sources
             for pattern in src.patterns
         )
         return cls(sinks, sources)
@@ -294,6 +290,36 @@ def verify_part(passes: Mapping[str, Sequence[Mapping[str, Any]]], candidate: st
 
 def agree_part(final: str | None) -> Part:
     return Part("ran", {"agree.final": final}) if final else NONE
+
+
+def roles_part(function: Function | None, roles: RoleSet | None, language: str) -> Part:
+    """The deterministic roles of the candidate's function (language-level entries plus wrapper inference; priors
+    off): ``none`` when inference did not run, ``failed`` when the function's body could not be found."""
+    if roles is None or "inferred_wrapper" not in roles.sources:
+        return NONE
+    if function is None:
+        return Part("failed", version=VERSION)
+    confidence, source = body_roles(function, roles, language)
+    return Part("ran", {"roles.sink_confidence": confidence, "roles.source_in_function": source}, VERSION)
+
+
+def model_sinks_part(roles: RoleSet | None, path: str, function: str, version: str | None = None) -> Part:
+    """The model's role classification of the candidate's function: flagged when the model named a sink in it. A
+    file with a chunk the model did not classify is ``failed`` unless the function was flagged -- never "no sink"."""
+    if roles is None or "model_role" not in roles.sources:
+        return NONE
+    named = [r for r in roles.roles if r.origin == "model_role" and r.kind == "sink" and r.path == path and r.function == function]
+    if not named and path in roles.unclassified:
+        return Part("failed", version=version)
+    operation = sorted(r.operation for r in named)[0] if named else None
+    return Part("ran", {"ms.flagged": bool(named), "ms.operation": operation}, version)
+
+
+def function_of(lines: Sequence[str] | None, path: str, language: str, function: str) -> Function | None:
+    """The declared function ``function`` of a file (its parameters and body), ``None`` when it is not declared."""
+    if not lines or function == GLOBAL:
+        return None
+    return next((f for f in functions_of(path, lines, language) if f.name == function), None)
 
 
 # --- the host path ---------------------------------------------------------------------------------------------------
@@ -444,12 +470,14 @@ def build_for_scan(
     rules: Sequence[PatternRule] | None = None,
     quick_languages: Iterable[str] | None = None,
     engine_languages: Iterable[str] | None = None,
+    roles: RoleSet | None | bool = True,
 ) -> list[dict[str, Any]]:
     """``static`` records for a checkout: one per (path, function, family) with a quick or engine signal. ``findings``
     are the quick findings (enabled and shadow alike), ``engine_result`` the engine's record (``findings`` with
     ``site``/``family``/``rung``/``witness``, ``questions``, ``completed``, ``degradations``; ``None`` when the engine
     did not run, ``questions == 0`` is ``failed``). With ``base`` only functions enclosing a changed line are
-    candidates, and ``delta.*`` compares their signals with the base's."""
+    candidates, and ``delta.*`` compares their signals with the base's. ``roles``: ``True`` infers wrapper roles over
+    the checkout (priors off), a :class:`.roles.RoleSet` is used as given, ``False``/``None`` leaves ``roles`` ``none``."""
     from ..plane.tasks.alerts import covers
     from ..plane.tasks.alerts import engine_languages as engine_covered
     from ..plane.tasks.alerts import quick_languages as quick_covered
@@ -480,6 +508,7 @@ def build_for_scan(
     completion = int(completed) / int(questions) if isinstance(completed, int) and isinstance(questions, int) and questions else None
     degraded = bool((engine_result or {}).get("degradations"))
     vocabularies: dict[str, Vocabulary] = {}
+    inferred = (infer_for_checkout(root) if keys else RoleSet(sources=("inferred_wrapper",))) if roles is True else roles or None
     try:
         sanitizer_calls = {language: {c for s in load_facts().for_language(language).sanitizers for c in s.calls} for language in LANGUAGES}
     except FactLoadError:
@@ -498,6 +527,7 @@ def build_for_scan(
             )  # fmt: skip
         lines = index.lines(path)
         parts["source"] = source_part(lines, language, function)
+        parts["roles"] = roles_part(function_of(lines, path, language, function), inferred, language)
         distance = 0 if function == GLOBAL and path in file_entries else entry_distance(function, entries, callers)
         parts["entry_points"] = Part("ran", {"facts.entry_distance": distance})
         parts["facts"] = facts_part(_callers_of(index, callers, path, function), function)
@@ -535,6 +565,7 @@ def _callers_of(index: SourceIndex, callers: Mapping[str, set[str]], path: str, 
 
 __all__ = [
     "CWE_OPERATION", "NONE", "NOT_APPLICABLE", "SOURCE_KIND", "Delta", "Part", "SourceIndex", "Vocabulary", "agree_part",
+    "function_of", "model_sinks_part", "roles_part",
     "build_for_scan", "engine_part", "entry_distance", "entry_names", "facts_part", "function_span", "language_of", "quick_part", "record",
     "ruleset_digest", "source_part", "verify_part",
 ]  # fmt: skip

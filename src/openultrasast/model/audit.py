@@ -69,6 +69,10 @@ SPEC_OWNED = {
     "plane.engine_alerts": "harnessx-removal Req 6.3: engine alerts where quick mode has no rules (PHP), on the host",
     "plane.tasks.loop": "harnessx-removal Req 6.3: the improvement loop's snapshot, measure, propose and improve steps",
     "plane.tasks.features": "learned-decision-engine Req 1.1-1.3/7.2: one allow-listed feature record per candidate, model-free",
+    "plane.tasks.roles": (
+        "learned-decision-engine Req 8.1: model role classification per file chunk (model_sinks.py moved in); "
+        "its Run template comes with the harvest (task 5)"
+    ),
     "plane.workspaces": "ai-service-plane task 4: Workspace manifests per case pin of a population; `ousast plane workspaces`",
     "plane.runner": "ai-service-plane Req 4.1-4.4: the ax-task-runner entrypoint (PID 1 of the task image); delivers the output directory",
 }

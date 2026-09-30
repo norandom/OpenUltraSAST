@@ -17,7 +17,7 @@ the maintainer confirms its budget.
     stays byte-identical); a lint test that no untagged framework entry remains.
   - _Requirements: 8.2, 8.4_
 
-- [ ] 3. Role inference
+- [x] 3. Role inference
   - `learn/roles.py` (deterministic wrapper inference), `plane/tasks/roles.py` (model roles, the `model_sinks.py`
     approach), the vocabulary overlay for the engine; fixture tests with no model calls.
   - _Requirements: 8.1_

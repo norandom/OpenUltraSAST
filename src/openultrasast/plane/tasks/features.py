@@ -16,7 +16,8 @@ when every instrument it could have used failed.
 
 Env: ``OUSAST_OUTPUT_DIR``, ``OUSAST_INPUT_FACTS`` (and ``OUSAST_INPUT_FACTS_SUMMARY``), ``OUSAST_INPUT_PASS_A``/``_B``/``_C``,
 ``OUSAST_INPUT_SUMMARY_A``/``_B``/``_C``, ``OUSAST_INPUT_AGREED``, optional ``OUSAST_INPUT_ALERTS`` and
-``OUSAST_INPUT_ALERTS_SUMMARY``, optional ``OUSAST_WORKSPACE_DIR``. Exit 0 done, 2 failed. On the host,
+``OUSAST_INPUT_ALERTS_SUMMARY``, optional ``OUSAST_INPUT_ROLES`` (the ``roles`` task's ``roles.json``), optional
+``OUSAST_WORKSPACE_DIR``. Exit 0 done, 2 failed. On the host,
 :func:`case_features` does the same over a recorded run directory.
 """
 
@@ -41,12 +42,16 @@ from ...learn.features import (
     entry_distance,
     entry_names,
     facts_part,
+    function_of,
+    model_sinks_part,
     quick_part,
     record,
+    roles_part,
     ruleset_digest,
     source_part,
     verify_part,
 )
+from ...learn.roles import from_model_roles, infer_for_checkout
 from ...model.taxonomy import load_families
 from ...preprocess import detect_language
 from ...ruleset import DEFAULT_RULESET_DIR, PatternRule, load_ruleset
@@ -117,9 +122,11 @@ def case_features(
     workspace: Path | None = None,
     rules: Sequence[PatternRule] | None = None,
     facts_summary: Mapping[str, Any] | None = None,
+    model_roles: Mapping[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """The `plane` records of one case, sorted by (candidate, family). Versions: the ruleset digest (quick), the
-    engine image (engine), the image the facts were computed on (facts), the verify model ids (verify)."""
+    engine image (engine), the image the facts were computed on (facts), the verify model ids (verify). ``model_roles``
+    is the ``roles`` task's ``roles.json`` (with its ``model``); wrapper roles are inferred from ``workspace``."""
     loaded = tuple(rules) if rules is not None else load_ruleset(DEFAULT_RULESET_DIR)
     by_id = {rule.rule_id: rule for rule in loaded}
     candidates: dict[tuple[str, str], dict[str, Any]] = {}
@@ -150,6 +157,9 @@ def case_features(
     facts_image = (reused.get("image") if isinstance(reused, Mapping) else None) or (facts_summary or {}).get("image")
     facts_version = str(facts_image) if facts_image else None
     verify_version = "+".join(sorted({m for m in models.values() if m})) or None
+    inferred = infer_for_checkout(index.root) if index is not None and candidates else None
+    modelled = from_model_roles(model_roles) if model_roles is not None else None
+    roles_version = str(model_roles.get("model")) if model_roles is not None and model_roles.get("model") else None
     out: list[dict[str, Any]] = []
     for (candidate, family), entry in sorted(candidates.items()):
         path, _, function = candidate.partition("::")
@@ -162,11 +172,13 @@ def case_features(
             "delta": NOT_APPLICABLE,
             "verify": verify_part(passes, candidate, entry["line"], verify_version),
             "agree": agree_part(entry.get("final")),
+            "model_sinks": model_sinks_part(modelled, path, function, roles_version),
         }
         if index is not None:
             if entries is None:
                 entries = entry_names(index.root, {c.partition("::")[0] for c, _ in candidates})
             parts["source"] = source_part(index.lines(path), language, function)
+            parts["roles"] = roles_part(function_of(index.lines(path), path, language, function), inferred, language)
             distance = 0 if function == GLOBAL and path in entries[1] else entry_distance(function, entries[0], index.callers())
             parts["entry_points"] = Part("ran", {"facts.entry_distance": distance})
         out.append(record(candidate, family, language, "plane", parts))
@@ -199,6 +211,7 @@ def recorded_case(base: Path, case: str, workspace: Path | None = None) -> list[
         alerts_summary=_json(base / f"{case}-alerts" / "summary.json"),
         workspace=workspace,
         facts_summary=_json(base / f"{case}-facts" / "summary.json"),
+        model_roles=_json(base / f"{case}-roles" / "roles.json"),
     )
 
 
@@ -237,6 +250,7 @@ def main(environ: Mapping[str, str] | None = None) -> int:
             alerts_summary=_json(_path(env, "OUSAST_INPUT_ALERTS_SUMMARY")),
             workspace=workspace,
             facts_summary=_json(_path(env, "OUSAST_INPUT_FACTS_SUMMARY")),
+            model_roles=_json(_path(env, "OUSAST_INPUT_ROLES")),
         )
         states = _states(records)
         used = {name: n for name, n in states.items() if name not in ("language", "delta") and set(n) - {"none"}}

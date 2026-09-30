@@ -1,7 +1,7 @@
 {
-  "modules": 140,
+  "modules": 142,
   "counts": {
-    "load_bearing": 133,
+    "load_bearing": 135,
     "standalone_capability": 7
   },
   "orphaned": [],
@@ -352,8 +352,10 @@
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "learn.features",
+        "learn.roles",
         "plane.tasks.features",
-        "plane.tasks.remember"
+        "plane.tasks.remember",
+        "plane.tasks.roles"
       ]
     },
     {
@@ -365,12 +367,24 @@
       ]
     },
     {
+      "module": "learn.roles",
+      "classification": "load_bearing",
+      "reason": "imported by learn.features, plane.tasks.features, plane.tasks.roles",
+      "importers": [
+        "learn.features",
+        "plane.tasks.features",
+        "plane.tasks.roles"
+      ]
+    },
+    {
       "module": "learn.schema",
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "learn.features",
-        "plane.tasks.remember"
+        "learn.roles",
+        "plane.tasks.remember",
+        "plane.tasks.roles"
       ]
     },
     {
@@ -702,6 +716,7 @@
         "plane.runner",
         "plane.tasks.loop",
         "plane.tasks.remember",
+        "plane.tasks.roles",
         "plane.tasks.verify",
         "plane.workspaces"
       ]
@@ -712,6 +727,7 @@
       "reason": "ai-service-plane Req 2.3/2.4: metered chat client with usd and calls ceilings; task integration in tasks 3, 6",
       "importers": [
         "plane.generate",
+        "plane.tasks.roles",
         "plane.tasks.verify"
       ]
     },
@@ -801,13 +817,15 @@
       "importers": [
         "cli",
         "learn.features",
+        "learn.roles",
         "plane.engine_alerts",
         "plane.generate",
         "plane.memory",
         "plane.tasks.agree",
         "plane.tasks.alerts",
         "plane.tasks.features",
-        "plane.tasks.remember"
+        "plane.tasks.remember",
+        "plane.tasks.roles"
       ]
     },
     {
@@ -854,11 +872,19 @@
       "reason": "ai-service-plane Req 5.1/5.2: source-only functions and callers per file; runner integration pending",
       "importers": [
         "learn.features",
+        "learn.roles",
         "plane.generate",
         "plane.tasks.alerts",
         "plane.tasks.features",
-        "plane.tasks.remember"
+        "plane.tasks.remember",
+        "plane.tasks.roles"
       ]
+    },
+    {
+      "module": "plane.tasks.roles",
+      "classification": "load_bearing",
+      "reason": "learned-decision-engine Req 8.1: model role classification per file chunk (model_sinks.py moved in); its Run template comes with the harvest (task 5)",
+      "importers": []
     },
     {
       "module": "plane.tasks.verify",
@@ -866,7 +892,8 @@
       "reason": "ai-service-plane Req 5.3/2.1-2.3/7.2: the batched hunt with known callers, metered and resumable per file hunt",
       "importers": [
         "plane.generate",
-        "plane.tasks.agree"
+        "plane.tasks.agree",
+        "plane.tasks.roles"
       ]
     },
     {
@@ -917,6 +944,7 @@
         "improve.evolve",
         "index",
         "learn.features",
+        "learn.roles",
         "map_gate",
         "mapping",
         "model.candidates",
@@ -1195,6 +1223,7 @@
         "improve.memory",
         "improve.validator",
         "learn.features",
+        "learn.roles",
         "pairs",
         "plane.tasks.alerts",
         "plane.tasks.features",
@@ -1209,6 +1238,7 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
+        "learn.roles",
         "ruleset.store",
         "semantic.facts"
       ]
@@ -1289,6 +1319,7 @@
         "cpg.capability",
         "hunter_tools",
         "learn.features",
+        "learn.roles",
         "mapping",
         "model.candidates",
         "model.layout",
@@ -1344,6 +1375,7 @@
         "cli",
         "hunter_tools",
         "learn.features",
+        "learn.roles",
         "mapping",
         "model.candidates",
         "model.layout",
@@ -1550,6 +1582,7 @@
       "importers": [
         "model.endpoint",
         "plane.budget",
+        "plane.tasks.roles",
         "plane.tasks.verify"
       ]
     },
