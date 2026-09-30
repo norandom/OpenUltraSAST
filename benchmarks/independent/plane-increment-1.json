@@ -1,37 +1,92 @@
 {
   "measurement": "ai-service-plane first increment (Requirement 6): repo-facts + verify (2 passes) + agree for the 46-candidate validation set, executed by the ax-backed reconciler on google/ax + Agent Substrate (kind, gVisor) on the 7 GB host",
   "date": "2026-09-29",
-  "run": {"name": "validation-46", "manifest": "plane/runs/validation-46.yaml", "tasks": 60, "workers": 2, "status": "done",
-          "results": "~/ousast-results/plane/validation-46/", "model": "deepseek-flash", "runner_image": "localhost:5001/ousast-runner@sha256:200e335877b52d68ea0bc53b4c9ba49ef2ee19e8a5ec2c874148b969123ef7ab"},
+  "run": {
+    "name": "validation-46",
+    "manifest": "plane/runs/validation-46.yaml",
+    "tasks": 60,
+    "workers": 2,
+    "status": "done",
+    "results": "~/ousast-results/plane/validation-46/",
+    "model": "deepseek-flash",
+    "runner_image": "localhost:5001/ousast-runner@sha256:200e335877b52d68ea0bc53b4c9ba49ef2ee19e8a5ec2c874148b969123ef7ab"
+  },
   "reference": "benchmarks/independent/verifier-batched-check-2026-09-29.json (script pipeline, same cases, candidates, pins and recorded triage)",
   "gate": {
-    "declared_sites_agreed": {"plane": 14, "reference": 16, "of": 20, "required": ">= 16", "met": false},
-    "cost_per_candidate_with_recorded_triage_usd": {"plane": 0.0194, "plane_over_46": 0.0181, "reference": 0.022, "required": "< 0.022", "met": true},
+    "declared_sites_agreed": {
+      "plane": 14,
+      "reference": 16,
+      "of": 20,
+      "required": ">= 16",
+      "met": false
+    },
+    "cost_per_candidate_with_recorded_triage_usd": {
+      "plane": 0.0194,
+      "plane_over_46": 0.0181,
+      "reference": 0.022,
+      "required": "< 0.022",
+      "met": true
+    },
     "result": "NOT MET (recall criterion)"
   },
   "detail": {
-    "declared_sites_found_in_either_pass": {"plane": 19, "reference": 19, "of": 20},
-    "agreed_candidates": 23, "disputed_candidates": 10, "candidates_after_recorded_triage": 43,
-    "plane_usd": 0.7471, "recorded_triage_usd": 0.0872, "usd_with_triage": 0.8343, "reference_usd": 1.0123,
-    "calls": 357, "prompt_tokens": 3820395, "cache_hit_tokens": 2385152, "output_tokens": 62257,
-    "turns_per_hunt": 5.37, "hunts": 54,
+    "agreed_candidates": 23,
+    "disputed_candidates": 10,
+    "candidates_after_recorded_triage": 43,
+    "plane_usd": 0.7471,
+    "recorded_triage_usd": 0.0872,
+    "usd_with_triage": 0.8343,
+    "reference_usd": 1.0123,
+    "calls": 357,
+    "prompt_tokens": 3820395,
+    "cache_hit_tokens": 2385152,
+    "output_tokens": 62257,
+    "turns_per_hunt": 5.37,
+    "hunts": 54,
     "per_case_sites_agreed_vs_reference": {
-      "budibase-mongo-template-nosqli": "1/2 vs 2/2 (one site found in one pass only)",
-      "froxlor-admin-ip-second-order-sqli": "0/3 vs 2/3 (two sites found in one pass only)",
+      "budibase-mongo-template-nosqli": "1/2 vs 2/2 (read: flagged by neither plane pass; the reference agreed on it)",
+      "froxlor-admin-ip-second-order-sqli": "0/3 vs 2/3 (all three flagged by pass b only)",
       "unleash-addon-webhook-ssrf": "1/1 vs 0/1 (reference found it in one pass only)",
-      "fuxa-tdengine-escape-sqli": "0/1 vs 0/1", "winml-cli-serve-cors": "0/1 vs 0/1 (triage drops the only candidate)",
+      "fuxa-tdengine-escape-sqli": "0/1 vs 0/1 (getDaqValue: neither plane pass; the reference found it in one pass)",
+      "winml-cli-serve-cors": "0/1 vs 0/1 (triage drops the only candidate)",
       "all_other_cases": "equal"
+    },
+    "declared_sites_flagged_in_either_pass": {
+      "plane": 17,
+      "reference": 19,
+      "of": 20,
+      "definition": "declared sites whose candidate pass a or pass b flagged; reference = 16 agreed + fuxa, froxlor validateIpAddresses, unleash found in one pass"
+    },
+    "declared_sites_covered_by_candidates": {
+      "plane": 19,
+      "of": 20,
+      "definition": "agree's metric declared_sites_matched: candidates whose site falls on a declared site, flagged or not (winml has no candidate)"
     }
   },
-  "reading": "Detection is unchanged: both runs find 19 of 20 declared sites in at least one pass. The two-pass agreement rule's known flicker moved three sites into 'disputed' (net -2 against the reference). Cost fell 17% with the repo-facts callers line in the prompt and prompt caching (62% of prompt tokens were cache hits). By the pre-registered rule the increment is NOT MET and the design is revisited before task 9; the evidence points at the agreement rule (2-of-2 passes), not at the plane.",
-  "dev_token_report": {"transcript": "the whole development session (c09e30b2), not the increment alone", "unique_chars": "7.3M (~1.81M tokens)",
-                       "tool_use_input_pct": 45.4, "tool_result_pct": 40.1, "tool_io_pct": 85.5, "previous_tool_io_pct": 90,
-                       "tool_calls": 2701},
+  "reading": "Detection is lower, not only agreement: plane passes flagged 17 of 20 declared sites in at least one pass against the reference's 19 (budibase read and fuxa getDaqValue were flagged by neither plane pass), and two-pass agreement moved the three froxlor sites (pass b only) into 'disputed'; unleash moved the other way. Cost fell 17% (62% of prompt tokens were cache hits). By the pre-registered rule the increment is NOT MET and the design is revisited before task 9.",
+  "dev_token_report": {
+    "transcript": "the whole development session (c09e30b2), not the increment alone",
+    "unique_chars": "7.3M (~1.81M tokens)",
+    "tool_use_input_pct": 45.4,
+    "tool_result_pct": 40.1,
+    "tool_io_pct": 85.5,
+    "previous_tool_io_pct": 90,
+    "tool_calls": 2701
+  },
   "live_defects_found_by_running_on_ax": [
-    "no Substrate WorkerPool", "tag-pinned images rejected", "ax CLI/server skew", "unknown-field rejection (atespace, commit)",
-    "server-set fields in AX_TASK_YAML", "tasks created Suspended; no Completed phase", "runner exited after the command",
-    "golden-snapshot boot ran the command", "egress gateway not deployed; deny-by-default per-actor policy",
-    "gateway dials the address the actor dialled", "workspace clone before the actor was running",
-    "32 KB env limit on inlined inputs", "63-byte template name limit"
-  ]
+    "no Substrate WorkerPool",
+    "tag-pinned images rejected",
+    "ax CLI/server skew",
+    "unknown-field rejection (atespace, commit)",
+    "server-set fields in AX_TASK_YAML",
+    "tasks created Suspended; no Completed phase",
+    "runner exited after the command",
+    "golden-snapshot boot ran the command",
+    "egress gateway not deployed; deny-by-default per-actor policy",
+    "gateway dials the address the actor dialled",
+    "workspace clone before the actor was running",
+    "32 KB env limit on inlined inputs",
+    "63-byte template name limit"
+  ],
+  "correction": "2026-09-30: the first version of this record read agree's declared_sites_matched (coverage by candidates, 19) as 'found in either pass' and concluded detection was unchanged; recounted from agreed.json rows it is 17 vs the reference's 19."
 }
