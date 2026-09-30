@@ -9,7 +9,8 @@ artifacts, so the reconciler and the runner stay content-blind (ai-service-plane
 Every row carries `id` (deterministic: :func:`..memory.row_id`), `kind`, `repo`, `pin`, `run`, `task`,
 `population`, `split` and `image` (the runner image digest the case's tasks ran on).
 
-Env contract in a Run: `OUSAST_OUTPUT_DIR`, `OUSAST_RUN`, `OUSAST_TASK`, `OUSAST_INPUT_FACTS`,
+Env contract in a Run: `OUSAST_OUTPUT_DIR`, `OUSAST_RUN`, `OUSAST_TASK`, `OUSAST_INPUT_FACTS` (and `OUSAST_INPUT_FACTS_SUMMARY`,
+whose reused or recorded `image` the facts row carries; without one named, the row is omitted),
 `OUSAST_INPUT_PASS_A`/`_B`, optional `OUSAST_INPUT_PASS_C`, `OUSAST_INPUT_SUMMARY_A`/`_B`/`_C` (the passes'
 `summary.json`, for the model), `OUSAST_INPUT_AGREED`, `OUSAST_INPUT_ALERTS`; the repository and pin from the bound
 Workspace (`AX_WORKSPACES_YAML`, `OUSAST_GIT_PINS`), the image from `AX_TASK_YAML`, the population and split from
@@ -40,6 +41,7 @@ from .repo_facts import _digest
 
 PASSES = ("a", "b", "c")
 UNKNOWN = "unknown"
+ALERT_FIELDS = ("rule_id", "rule_status", "path", "line", "function", "pin_role")
 
 
 @dataclass(frozen=True)
@@ -108,8 +110,13 @@ def rows_for(
             }  # fmt: skip
             rows.append(ctx.row("unit_cost", f"{label}:{unit.get('path')}", **fields))
     for alert in alerts:
-        fields = {k: alert.get(k) for k in ("rule_id", "rule_status", "path", "line", "function", "pin_role")}
-        rows.append(ctx.row("alert", f"{fields['rule_id']}:{fields['path']}:{fields['line']}", **fields))
+        fields = {k: alert.get(k) for k in ALERT_FIELDS}
+        if "in_fix_range" in alert:  # the loop's `alerts` task marks it; improve/memory.py's M1 reads it
+            fields["in_fix_range"] = alert["in_fix_range"]
+        if alert.get("pin"):  # a fixed-pin alert is a row of the pin it was raised on, not of the case's vulnerable pin
+            fields["pin"] = str(alert["pin"])
+        subject = f"{fields['rule_id']}:{fields['path']}:{fields['line']}" + (":fixed" if fields.get("pin_role") == "fixed" else "")
+        rows.append(ctx.row("alert", subject, **fields))
     return [validate_row(r, f"{ctx.task} {r['kind']}") for r in rows]
 
 
@@ -202,6 +209,19 @@ def _path(env: Mapping[str, str], name: str) -> Path | None:
     return Path(env[name]) if env.get(name) else None
 
 
+def _facts_image(env: Mapping[str, str], own: str) -> str | None:
+    """The image the case's facts were computed on: without `OUSAST_INPUT_FACTS_SUMMARY` this task's own; with it,
+    the reused entry's image or the image the facts task recorded, else None (unknown)."""
+    path = _path(env, "OUSAST_INPUT_FACTS_SUMMARY")
+    if path is None:
+        return own
+    summary = _json(path) or {}
+    reused = summary.get("reused")
+    reused = reused if isinstance(reused, dict) else {}
+    image = reused.get("image") or summary.get("image")
+    return image_digest(str(image)) if image else None
+
+
 def _units(path: Path | None) -> list[dict[str, Any]]:
     return _jsonl(path / "units.jsonl" if path is not None and path.is_dir() else path)
 
@@ -226,7 +246,13 @@ def main(environ: Mapping[str, str] | None = None) -> int:
         passes = {p: _units(_path(env, f"OUSAST_INPUT_PASS_{p.upper()}")) for p in PASSES}
         models = {p: _model(_json(_path(env, f"OUSAST_INPUT_SUMMARY_{p.upper()}"))) for p in PASSES}
         agreed = _json(_path(env, "OUSAST_INPUT_AGREED"))
-        rows = rows_for(ctx, facts=facts, passes=passes, models=models, agreed=agreed, alerts=_jsonl(_path(env, "OUSAST_INPUT_ALERTS")))
+        rows = rows_for(ctx, facts=None, passes=passes, models=models, agreed=agreed, alerts=_jsonl(_path(env, "OUSAST_INPUT_ALERTS")))
+        facts_image = _facts_image(env, ctx.image)
+        if facts is not None and facts_image is not None:  # the facts row carries the image the facts were computed on
+            facts_ctx = Context(ctx.run, ctx.task, ctx.repo, ctx.pin, facts_image, ctx.population, ctx.split)
+            rows = rows_for(facts_ctx, facts=facts, passes={}, models={}, agreed=None) + rows
+        elif facts is not None:
+            summary["facts_row"] = "omitted: the facts task's summary names no image, and a reuse key must not guess it"
         (output_dir / REMEMBER_OUTPUT).write_text("".join(json.dumps(r, sort_keys=True) + "\n" for r in rows), encoding="utf-8")
         if facts is not None:
             (output_dir / "facts.json").write_bytes(facts)

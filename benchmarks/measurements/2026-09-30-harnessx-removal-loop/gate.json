@@ -1,0 +1,29 @@
+{
+  "accepted": false,
+  "adoption": null,
+  "benchmark_edits": [],
+  "manifest": "benchmarks/manifests/java-spring-boot-vulnerable.toml",
+  "memory_edits": [],
+  "outcome": {
+    "accepted": false,
+    "degradations": [],
+    "edits": [],
+    "fp_after": 0.0,
+    "fp_before": 0.0,
+    "matched_after": 2,
+    "matched_before": 2,
+    "per_profile_after": {},
+    "per_profile_before": {},
+    "profile_regressions": [],
+    "profiles_under_minimum": [],
+    "reason": "no_proposals",
+    "recall_after": 1.0,
+    "recall_before": 1.0,
+    "round": 1,
+    "score_after": 73,
+    "score_before": 73
+  },
+  "proposals": 0,
+  "reason": "no_proposals",
+  "round": 1
+}

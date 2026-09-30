@@ -91,6 +91,26 @@ def gone():
     sys.exit(1)
 
 
+def run_task(rec, task, env, spec):
+    """``python -m openultrasast.plane.tasks.<command>`` with the rendered env, ``AX_TASK_YAML``/``AX_WORKSPACES_YAML``,
+    each fetched input at its ``OUSAST_INPUT_<NAME>``, and ``spec["env"]`` (local checkouts for bound Workspaces)."""
+    import os, subprocess
+    doc = next(d for d in rec["docs"] if d["kind"] == "Task")
+    run_env = {{**os.environ, **env, "AX_TASK_YAML": yaml.safe_dump(doc)}}
+    run_env["AX_WORKSPACES_YAML"] = yaml.safe_dump_all([d for d in rec["docs"] if d["kind"] == "Workspace"])
+    for name, ref in json.loads(env.get("OUSAST_INPUTS", "{{}}")).items():
+        run_env["OUSAST_INPUT_" + name] = str(HERE / "fetched" / task / ref)
+    out = HERE / "out" / task
+    run_env.update(spec.get("env", {{}}), OUSAST_OUTPUT_DIR=str(out))
+    command = doc["spec"]["command"]
+    argv = [sys.executable, "-m", "openultrasast.plane.tasks." + command[0].replace("-", "_"), *command[1:]]
+    proc = subprocess.run(argv, env=run_env, capture_output=True, text=True)
+    (HERE / "ax.log").open("a").write(f"{{time.monotonic():.4f}} exec {{task}} {{proc.returncode}}\\n")
+    (HERE / "stderr").mkdir(exist_ok=True)
+    (HERE / "stderr" / task).write_text(proc.stderr)
+    return {{p.relative_to(out).as_posix(): p.read_text() for p in sorted(out.rglob("*")) if p.is_file()}}
+
+
 if argv[:2] == ["apply", "-f"]:
     docs = list(yaml.safe_load_all(Path(argv[2]).read_text()))
     for doc in docs:
@@ -139,6 +159,8 @@ elif argv[:2] == ["get", "task"]:
                 except urllib.error.HTTPError as exc:  # the runner delivers a failed summary naming the input
                     (HERE / "ax.log").open("a").write(f"{{time.monotonic():.4f}} unfetched {{task}} {{name}} {{exc.code}}\\n")
                     files = {{"summary.json": {{"status": "failed", "reason": f"input {{name}} ({{ref}}) not fetched: HTTP {{exc.code}}"}}}}
+            if "exec" in script and "summary.json" not in files:  # the real task module, as the runner runs it
+                files = run_task(rec, task, env, script["exec"])
             buf = io.BytesIO()
             with tarfile.open(fileobj=buf, mode="w") as tar:
                 for path, content in files.items():

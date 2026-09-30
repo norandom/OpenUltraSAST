@@ -1,0 +1,18 @@
+# loop (harnessx-removal Req 6.3, design section 6): the improvement loop's singletons -- the generator appends the
+# step (snapshot, measure, propose, improve) to the command. No model, budget {usd: 0, calls: 0}; improve replays the
+# benchmark gate unchanged and delivers its verdict as gate.json. The image is digest-pinned.
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: loop
+  atespace: default
+spec:
+  image: "localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9"
+  command: ["loop"]
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "1280Mi"

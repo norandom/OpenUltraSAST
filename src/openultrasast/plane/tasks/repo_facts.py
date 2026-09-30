@@ -23,6 +23,8 @@ from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from ...model.layout import is_test_path, is_vendored, layout_facts
 from ...preprocess import IGNORED_DIRS, detect_language
 
@@ -259,12 +261,13 @@ def assemble_facts(
     }
 
 
-def run(workspace: Path, output_dir: Path, candidates: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+def run(workspace: Path, output_dir: Path, candidates: list[dict[str, Any]] | None = None, image: str | None = None) -> dict[str, Any]:
     """Compute the facts for ``workspace`` into ``output_dir``; returns the written summary.
 
     ``candidates`` rows are ``{"path", "function"}`` (workspace-relative POSIX path). ``None`` means every
     function every product file defines. A `units.jsonl` row from an earlier run over the same candidate set
-    is reused, not recomputed.
+    is reused, not recomputed. ``image`` (the runner image, from `AX_TASK_YAML`) goes into the summary: the
+    `remember` task keys the facts row by the image the facts were computed on.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     units_path = output_dir / "units.jsonl"
@@ -307,7 +310,8 @@ def run(workspace: Path, output_dir: Path, candidates: list[dict[str, Any]] | No
         raise TaskFailed(str(exc)) from exc
     facts = assemble_facts(rows, wanted)
     _write_json(output_dir / "facts.json", facts)
-    return write_summary(output_dir, status="done", units_done=len(rows), units_total=len(files))
+    extra = {"image": image} if image else {}
+    return write_summary(output_dir, status="done", units_done=len(rows), units_total=len(files), **extra)
 
 
 def _load_candidates(path: str | None) -> list[dict[str, Any]] | None:
@@ -332,7 +336,9 @@ def main(environ: Mapping[str, str] | None = None) -> int:
         workspace = Path(env.get("OUSAST_WORKSPACE_DIR") or "")
         if not env.get("OUSAST_WORKSPACE_DIR") or not workspace.is_dir():
             raise ValueError(f"OUSAST_WORKSPACE_DIR is not a directory: {workspace}")
-        summary = run(workspace, output_dir, _load_candidates(env.get("OUSAST_INPUT_CANDIDATES")))
+        task = yaml.safe_load(env.get("AX_TASK_YAML") or "{}")
+        image = str((task.get("spec") or {}).get("image") or "") if isinstance(task, dict) else ""
+        summary = run(workspace, output_dir, _load_candidates(env.get("OUSAST_INPUT_CANDIDATES")), image or None)
     except TaskFailed as exc:
         print(f"repo-facts failed: {exc}", file=sys.stderr)
         return 2

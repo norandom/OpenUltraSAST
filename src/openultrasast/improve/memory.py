@@ -145,7 +145,10 @@ class _View:
 
     @classmethod
     def of(cls, records: Sequence[Record]) -> _View:
+        """One alert per (repo, pin, rule, path, line, function, pin role): every loop run re-alerts an unchanged pin under a
+        new run name, and a repeat is the same evidence, not more of it."""
         view = cls()
+        seen: set[tuple[object, ...]] = set()
         for rec in records:
             row = rec.row
             if row["kind"] == "verdict":
@@ -153,7 +156,10 @@ class _View:
                 if row.get("site_match") is True:
                     view.sites.add((row["repo"], str(row.get("candidate"))))
             elif row["kind"] == "alert" and row.get("rule_id"):
-                view.alerts.setdefault(str(row["rule_id"]), []).append(rec)
+                place = (row["repo"], row["pin"], row["rule_id"], *(row.get(k) for k in ("path", "line", "function", "pin_role")))
+                if place not in seen:
+                    seen.add(place)
+                    view.alerts.setdefault(str(row["rule_id"]), []).append(rec)
         return view
 
     def verdict(self, alert: Mapping[str, Any]) -> Record | None:

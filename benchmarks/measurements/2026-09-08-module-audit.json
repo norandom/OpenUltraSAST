@@ -1,7 +1,7 @@
 {
-  "modules": 135,
+  "modules": 137,
   "counts": {
-    "load_bearing": 126,
+    "load_bearing": 128,
     "standalone_capability": 9
   },
   "orphaned": [],
@@ -27,7 +27,8 @@
         "improve.evolve",
         "map_gate",
         "mcp",
-        "pairs"
+        "pairs",
+        "plane.tasks.loop"
       ]
     },
     {
@@ -232,6 +233,7 @@
         "model.ladder",
         "model.report",
         "pairs",
+        "plane.tasks.alerts",
         "rank",
         "regress.candidate",
         "reports",
@@ -258,7 +260,8 @@
       "classification": "load_bearing",
       "reason": "entry point",
       "importers": [
-        "cli"
+        "cli",
+        "plane.tasks.loop"
       ]
     },
     {
@@ -314,7 +317,8 @@
       "importers": [
         "cli",
         "improve.evolve",
-        "improve.memory"
+        "improve.memory",
+        "plane.tasks.loop"
       ]
     },
     {
@@ -322,7 +326,8 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
-        "improve"
+        "improve",
+        "plane.tasks.loop"
       ]
     },
     {
@@ -332,7 +337,8 @@
       "importers": [
         "improve",
         "improve.evolve",
-        "improve.memory"
+        "improve.memory",
+        "plane.tasks.loop"
       ]
     },
     {
@@ -341,7 +347,8 @@
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
-        "improve.evolve"
+        "improve.evolve",
+        "plane.tasks.loop"
       ]
     },
     {
@@ -351,7 +358,8 @@
       "importers": [
         "improve",
         "improve.evolve",
-        "improve.memory"
+        "improve.memory",
+        "plane.tasks.loop"
       ]
     },
     {
@@ -381,6 +389,7 @@
         "map_gate",
         "model.scan",
         "pairs",
+        "plane.tasks.alerts",
         "preprocess",
         "push.runner",
         "stage_processors"
@@ -666,7 +675,8 @@
         "improve.evolve",
         "improve.memory",
         "model.candidates",
-        "pair_gate"
+        "pair_gate",
+        "plane.tasks.loop"
       ]
     },
     {
@@ -682,6 +692,7 @@
         "plane.reconciler",
         "plane.router",
         "plane.runner",
+        "plane.tasks.loop",
         "plane.tasks.remember",
         "plane.tasks.verify",
         "plane.workspaces"
@@ -740,6 +751,7 @@
       "importers": [
         "improve.memory",
         "plane.generate",
+        "plane.tasks.loop",
         "plane.tasks.remember"
       ]
     },
@@ -775,7 +787,9 @@
       "importers": [
         "cli",
         "plane.generate",
+        "plane.memory",
         "plane.tasks.agree",
+        "plane.tasks.alerts",
         "plane.tasks.remember"
       ]
     },
@@ -784,6 +798,20 @@
       "classification": "load_bearing",
       "reason": "ai-service-plane Req 5.3/2.1: agreement across two verify passes with per-candidate cost, turns and site match",
       "importers": []
+    },
+    {
+      "module": "plane.tasks.alerts",
+      "classification": "load_bearing",
+      "reason": "harnessx-removal Req 6.3: quick-mode alerts on a case's vulnerable and fixed pins, model-free",
+      "importers": []
+    },
+    {
+      "module": "plane.tasks.loop",
+      "classification": "load_bearing",
+      "reason": "harnessx-removal Req 6.3: the improvement loop's snapshot, measure, propose and improve steps",
+      "importers": [
+        "plane.memory"
+      ]
     },
     {
       "module": "plane.tasks.remember",
@@ -799,6 +827,7 @@
       "reason": "ai-service-plane Req 5.1/5.2: source-only functions and callers per file; runner integration pending",
       "importers": [
         "plane.generate",
+        "plane.tasks.alerts",
         "plane.tasks.remember"
       ]
     },
@@ -830,6 +859,7 @@
         "hunter_harness",
         "improve.evolve",
         "improve.validator",
+        "plane.tasks.loop",
         "scoring.project_score",
         "semantic.overlay",
         "stage_processors"
@@ -865,6 +895,7 @@
         "model.partitions",
         "model.scan",
         "pairs",
+        "plane.tasks.alerts",
         "plane.tasks.repo_facts",
         "push.runner",
         "rank",
@@ -1045,6 +1076,7 @@
         "improve.evolve",
         "map_gate",
         "pairs",
+        "plane.tasks.alerts",
         "stage_processors"
       ]
     },
@@ -1136,6 +1168,7 @@
         "improve.memory",
         "improve.validator",
         "pairs",
+        "plane.tasks.loop",
         "stage_processors"
       ]
     },

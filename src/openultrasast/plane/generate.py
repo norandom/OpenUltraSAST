@@ -15,8 +15,16 @@ under ``--plane`` (default ``plane/``), everything a Run over the set needs besi
   (``triage.json``, for the measurement);
 - ``tasks/<run>.yaml``: per case, one Task per template (two for ``verify``: ``OUSAST_PASS=a|b``) binding the two
   Workspaces and naming the files as env;
-- ``runs/<run>.yaml``: the Run, per case ``facts -> verify a, verify b -> agree``, with budgets, annotated with the
-  population and split (``openultrasast.io/population``/``split``: the files' stems) the memory rows carry.
+- ``runs/<run>.yaml``: the Run, per case ``facts -> verify a, verify b -> agree -> verify c -> final -> remember``,
+  with budgets, annotated with the population and split (``openultrasast.io/population``/``split``: the files'
+  stems) the memory rows carry.
+
+``--loop`` (harnessx-removal design section 6) appends the improvement loop: per case ``alerts`` (quick-mode rules
+on the vulnerable and the fixed pin, which gets its Workspace ``<case>-fixed``; ``case.json`` then also carries the
+fix's new-side ranges) feeding ``remember``, and once ``memory-snapshot`` (the store's rows after the train-on-test
+guard, written on the host by ``memory.seed``) -> ``loop-measure`` -> ``loop-propose`` -> ``loop-improve``, the last
+two bound to this repository at the commit under test. All of them model-free with budget ``{usd: 0, calls: 0}``;
+the gate's verdict is ``<run>/loop-improve/gate.json``, and adopting an accepted ledger stays a maintainer commit.
 
 Each ``repo-facts`` Task carries ``openultrasast.io/memory-key`` (repository, pin, candidates digest, runner image
 digest): the key under which stored facts are reused instead of recomputed (``plane/memory.py``, ``seed``).
@@ -57,12 +65,12 @@ import yaml
 from ..model.endpoint import price_of
 from .budget import cost_of
 from .manifests import GIT_COMMITS_ANNOTATION, RUN_API_VERSION, Task, load_manifests
-from .memory import MEMORY_KEY_ANNOTATION, POPULATION_ANNOTATION, SPLIT_ANNOTATION, memory_key
+from .memory import MEMORY_KEY_ANNOTATION, POPULATION_ANNOTATION, SNAPSHOT_ANNOTATION, SPLIT_ANNOTATION, memory_key
 from .reconciler import _ax_name, _doc
 from .tasks.repo_facts import _digest
 from .tasks.verify import MAX_STEPS, units_of
 
-__all__ = ["CaseInputs", "fix_ranges", "increment", "read_cases", "render", "repin_templates"]
+__all__ = ["CaseInputs", "Loop", "fix_ranges", "increment", "read_cases", "render", "repin_templates"]
 
 REFERENCE_USD_PER_CANDIDATE = 0.022  # two passes: verifier-batched-check-2026-09-29.json cost.usd_per_candidate_two_passes
 REFERENCE_MODEL = "deepseek-flash"  # verify_batched.py's default (DEFAULT_DETECTOR_MODEL) in the batched check
@@ -76,7 +84,12 @@ CALLS_PER_HUNT = MAX_STEPS + 2  # every tool step, the answer, one empty-content
 ATESPACE = "default"
 CASE_PATH = "/workspace/case"
 INPUTS_PATH = "/workspace/inputs"
-TEMPLATES = ("repo-facts", "verify", "agree")
+FIXED_PATH = "/workspace/fixed"
+PROJECT_PATH = "/workspace/project"
+TEMPLATES = ("repo-facts", "verify", "agree", "remember", "alerts", "loop")
+FIXED_RANGES_BASIS = "git diff -U0 <vulnerable> <fixed>, new side: the fix's lines at the fixed pin"
+LOOP_MANIFEST = "benchmarks/manifests/java-spring-boot-vulnerable.toml"  # the equality baseline's `improve` manifest
+LOOP_CATALOG = "benchmarks/pairs/catalog.toml"
 
 Candidate = tuple[str, str, int]
 
@@ -90,23 +103,40 @@ class CaseInputs:
     recorded_usd: float
     triage_usd: float = 0.0
     ranges: Mapping[str, Sequence[tuple[int, int]]] | None = None
+    fixed_ranges: Mapping[str, Sequence[tuple[int, int]]] | None = None
 
 
-def fix_ranges(repo: Path, vulnerable: str, fixed: str) -> dict[str, list[tuple[int, int]]]:
+@dataclass(frozen=True)
+class Loop:
+    """The improvement loop appended to a Run (``--loop``, design section 6): ``repo`` at ``commit`` is this
+    repository at the commit under test, where ``manifest`` and ``catalog`` (paths inside it) gate the proposals;
+    rows of ``populations`` never propose (the train-on-test guard)."""
+
+    repo: str
+    commit: str
+    manifest: str = LOOP_MANIFEST
+    catalog: str = LOOP_CATALOG
+    populations: tuple[str, ...] = ()
+
+
+def fix_ranges(repo: Path, vulnerable: str, fixed: str, side: str = "old") -> dict[str, list[tuple[int, int]]]:
     """Changed line ranges per file on the vulnerable side of the fix: `evaluate.hunks(case, "old")`, line for
-    line (including its attribution of a hunk under ``--- /dev/null`` to the file before it)."""
+    line (including its attribution of a hunk under ``--- /dev/null`` to the file before it). ``side="new"`` is
+    the same on the fixed side (``+++ b/`` paths, the ``+`` spans): where a fixed-pin alert sits inside the fix."""
     if not (repo / ".git").exists() and not (repo / "HEAD").is_file():
         raise ValueError(f"no repository at {repo}: the fix ranges cannot be computed")
     diff = subprocess.run(["git", "-C", str(repo), "diff", "-U0", vulnerable, fixed], capture_output=True, text=True, check=True).stdout
     ranges: dict[str, list[tuple[int, int]]] = {}
     current = ""
+    header, group = ("--- a/", 1) if side == "old" else ("+++ b/", 3)
     for line in diff.splitlines():
-        if line.startswith("--- a/"):
+        if line.startswith(header):
             current = line[6:]
         elif line.startswith("@@") and current:
             match = re.search(r"-(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))?", line)
             if match:
-                first, length = int(match.group(1)), int(match.group(2)) if match.group(2) is not None else 1
+                span = match.group(group + 1)
+                first, length = int(match.group(group)), int(span) if span is not None else 1
                 ranges.setdefault(current, []).append((first, first + max(length, 1) - 1))
     if not ranges:
         raise ValueError(f"{repo}: the diff {vulnerable[:12]}..{fixed[:12]} changed no line on the vulnerable side")
@@ -133,10 +163,11 @@ def _scan_rows(triage_dir: Path, case_id: str) -> list[dict[str, Any]]:
 
 
 def read_cases(
-    validation_set: Path, candidates_dir: Path, triage_dir: Path, population: Path, repos: Path | None = None
+    validation_set: Path, candidates_dir: Path, triage_dir: Path, population: Path, repos: Path | None = None, *, fixed_side: bool = False
 ) -> list[CaseInputs]:
     """The set's cases in id order, each with its candidates, the triage-kept subset, the recorded cost and its
-    triage share, and -- with ``repos`` (one clone per case id) -- the fix's old-side ranges."""
+    triage share, and -- with ``repos`` (one clone per case id) -- the fix's old-side ranges (and, with
+    ``fixed_side``, its new-side ranges, which the loop's `alerts` task marks fixed-pin alerts by)."""
     subset: dict[str, list[list[str]]] = json.loads(validation_set.read_text(encoding="utf-8"))
     records = {c["id"]: c for c in tomllib.loads(population.read_text(encoding="utf-8"))["case"]}
     cases: list[CaseInputs] = []
@@ -166,6 +197,11 @@ def read_cases(
                 recorded_usd=round(sum(float(r.get("usd") or 0.0) for r in rows), 6),
                 triage_usd=_triage_usd(rows),
                 ranges=None if repos is None else fix_ranges(repos / case_id, records[case_id]["vulnerable"], records[case_id]["fixed"]),
+                fixed_ranges=(
+                    fix_ranges(repos / case_id, records[case_id]["vulnerable"], records[case_id]["fixed"], side="new")
+                    if repos is not None and fixed_side
+                    else None
+                ),
             )
         )
     return cases
@@ -188,6 +224,9 @@ def _case_record(item: CaseInputs) -> dict[str, Any]:
     if item.ranges is not None:
         record["ranges"] = {path: [list(span) for span in spans] for path, spans in item.ranges.items()}
         record["ranges_basis"] = RANGES_BASIS
+    if item.fixed_ranges is not None:
+        record["fixed_ranges"] = {path: [list(span) for span in spans] for path, spans in item.fixed_ranges.items()}
+        record["fixed_ranges_basis"] = FIXED_RANGES_BASIS
     record["sites_in_set"] = [s for s in sites if s in in_set]
     record["cost"] = {
         "candidates_before_triage": len(item.candidates), "recorded_usd": item.recorded_usd,
@@ -213,11 +252,13 @@ def _workspaces(item: CaseInputs) -> tuple[dict[str, Any], dict[str, Any]]:
     return pinned, inputs
 
 
-def _task(template: Task, name: str, env: Mapping[str, str], bindings: Sequence[tuple[str, str]]) -> dict[str, Any]:
+def _task(
+    template: Task, name: str, env: Mapping[str, str], bindings: Sequence[tuple[str, str]], command: Sequence[str] = ()
+) -> dict[str, Any]:
     spec: dict[str, Any] = {}
     if template.image:
         spec["image"] = template.image
-    spec["command"] = list(template.command)
+    spec["command"] = [*template.command, *command]
     spec["env"] = [{"name": e.name, "value": e.value} for e in template.env] + [{"name": k, "value": v} for k, v in env.items()]
     if template.resources:
         kinds = {kind: values for kind, values in vars(template.resources).items() if values is not None}
@@ -257,11 +298,91 @@ def _tiebreak_entries(item: CaseInputs) -> list[dict[str, Any]]:
     ]  # fmt: skip
 
 
+def _free() -> dict[str, int]:
+    return {"usd": 0, "calls": 0}  # model-free: budget.py refuses any call, so a stray one fails loudly
+
+
+def _remember(item: CaseInputs, templates: Mapping[str, Task], population: str, split: str, alerts: bool) -> tuple[dict, dict]:
+    """(Task, Run entry) of the case's `remember` (design section 4): bound to the vulnerable Workspace for the
+    repository and pin its rows carry; every artifact of the case's chain (and, in a loop, its alerts) as input."""
+    case_id = item.case["id"]
+    env = {"OUSAST_POPULATION": population or "unknown", "OUSAST_SPLIT": split or "unknown"}
+    task = _task(templates["remember"], f"remember-{case_id}", env, [(_ax_name(case_id, "vulnerable"), CASE_PATH)])
+    inputs = {"facts": f"{case_id}-facts/facts.json", "facts_summary": f"{case_id}-facts/summary.json"}
+    for label in ("a", "b", "c"):
+        inputs.update({f"pass_{label}": f"{case_id}-v{label}/units.jsonl", f"summary_{label}": f"{case_id}-v{label}/summary.json"})
+    inputs["agreed"] = f"{case_id}-final/agreed.json"
+    if alerts:
+        inputs["alerts"] = f"{case_id}-alerts/alerts.jsonl"
+    entry = {"name": f"{case_id}-remember", "task": f"remember-{case_id}", "inputs": inputs, "outputs": ["memory.jsonl"], "budget": _free()}
+    return task, entry
+
+
+def _alerts(item: CaseInputs, templates: Mapping[str, Task]) -> tuple[dict, dict, dict]:
+    """(fixed-pin Workspace, Task, Run entry) of the case's `alerts`: quick-mode rules on both pins."""
+    case = item.case
+    git = [{"name": "repo", "repo": case["repo"], "dir": "repo", "depth": 1}]
+    fixed = _doc("Workspace", _ax_name(case["id"], "fixed"), {"git": git}, ATESPACE)
+    fixed["metadata"]["annotations"] = {GIT_COMMITS_ANNOTATION: f"repo={case['fixed']}"}
+    bindings = [(_ax_name(case["id"], "vulnerable"), CASE_PATH), (fixed["metadata"]["name"], FIXED_PATH)]
+    bindings.append((_ax_name(case["id"], "inputs"), INPUTS_PATH))
+    env = {
+        "OUSAST_WORKSPACE_DIR": f"{CASE_PATH}/repo", "OUSAST_FIXED_DIR": f"{FIXED_PATH}/repo",
+        "OUSAST_INPUT_CASE": f"{INPUTS_PATH}/case.json", "OUSAST_VULNERABLE_PIN": str(case["vulnerable"]),
+        "OUSAST_FIXED_PIN": str(case["fixed"]),
+    }  # fmt: skip
+    task = _task(templates["alerts"], f"alerts-{case['id']}", env, bindings)
+    entry = {"name": f"{case['id']}-alerts", "task": f"alerts-{case['id']}", "outputs": ["alerts.jsonl"], "budget": _free()}
+    entry["serialize"] = "engine"
+    return fixed, task, entry
+
+
+def _loop(cases: Sequence[CaseInputs], templates: Mapping[str, Task], loop: Loop) -> tuple[dict, list[dict], list[dict]]:
+    """(project Workspace, Tasks, Run entries) of the loop's singletons: snapshot -> measure -> propose -> improve."""
+    git = [{"name": "repo", "repo": loop.repo, "dir": "repo", "depth": 1}]
+    project = _doc("Workspace", _ax_name("openultrasast", loop.commit[:12]), {"git": git}, ATESPACE)
+    project["metadata"]["annotations"] = {GIT_COMMITS_ANNOTATION: f"repo={loop.commit}"}
+    bound = [(project["metadata"]["name"], PROJECT_PATH)]
+    env = {
+        "OUSAST_PROJECT_DIR": f"{PROJECT_PATH}/repo", "OUSAST_LOOP_MANIFEST": loop.manifest, "OUSAST_LOOP_CATALOG": loop.catalog,
+        "OUSAST_QUALIFY_POPULATIONS": json.dumps(sorted(loop.populations)),
+    }  # fmt: skip
+    snapshot = _task(templates["loop"], "memory-snapshot", {}, [], ["snapshot"])
+    guard = {"catalog": loop.catalog, "manifest": loop.manifest, "populations": sorted(loop.populations)}
+    snapshot["metadata"].setdefault("annotations", {})[SNAPSHOT_ANNOTATION] = json.dumps(guard, sort_keys=True, separators=(",", ":"))
+    tasks = [
+        snapshot, _task(templates["loop"], "loop-measure", {}, [], ["measure"]),
+        _task(templates["loop"], "loop-propose", env, bound, ["propose"]),
+        _task(templates["loop"], "loop-improve", env, bound, ["improve"]),
+    ]  # fmt: skip
+    remembered = {f"remember_{c.case['id']}": f"{c.case['id']}-remember/memory.jsonl" for c in cases}
+    entries = [
+        {"name": "memory-snapshot", "task": "memory-snapshot", "outputs": ["rows.jsonl", "index.json"], "budget": _free()},
+        {"name": "loop-measure", "task": "loop-measure", "inputs": {**remembered, "snapshot": "memory-snapshot/rows.jsonl"},
+         "outputs": ["measure.json", "rows.jsonl"], "budget": _free()},
+        {"name": "loop-propose", "task": "loop-propose",
+         "inputs": {"measure": "loop-measure/measure.json", "rows": "loop-measure/rows.jsonl", "index": "memory-snapshot/index.json"},
+         "outputs": ["proposals.jsonl", "memory_proposals.jsonl", "signals.json"], "budget": _free()},
+        {"name": "loop-improve", "task": "loop-improve", "inputs": {"proposals": "loop-propose/proposals.jsonl"},
+         "outputs": ["gate.json", "journal.json"], "budget": _free(), "serialize": "engine"},
+    ]  # fmt: skip
+    return project, tasks, entries
+
+
 def render(
-    cases: Sequence[CaseInputs], templates: Mapping[str, Task], run_name: str, command: str, *, population: str = "", split: str = ""
+    cases: Sequence[CaseInputs],
+    templates: Mapping[str, Task],
+    run_name: str,
+    command: str,
+    *,
+    population: str = "",
+    split: str = "",
+    loop: Loop | None = None,
 ) -> dict[str, str]:
     """Relative path under the plane root -> file text, for every generated manifest. ``population`` and ``split``
-    (the population file's and the set's stems) become the Run's annotations, which the memory rows carry."""
+    (the population file's and the set's stems) become the Run's annotations, which the memory rows carry. Each
+    case ends in `remember`; ``loop`` adds per case `alerts` (and the fixed-pin Workspace), and once the
+    snapshot, `loop-measure`, `loop-propose` and `loop-improve` (design section 6), all model-free."""
     header = f"# generated by `{command}`; do not edit, regenerate.\n"
     out: dict[str, str] = {}
     tasks: list[dict[str, Any]] = []
@@ -307,6 +428,20 @@ def render(
         tiebreak.extend(_tiebreak_entries(item))
     tasks.sort(key=lambda doc: 1 if doc["metadata"]["name"].startswith("verify-c-") else 0)  # stable: the old Tasks first
     entries.extend(tiebreak)  # appended: the first Run's entries stay byte-identical, so a rerun keeps their state
+    for item in cases:  # appended after the tie-break for the same reason
+        if loop is not None:
+            fixed, alerts_task, alerts_entry = _alerts(item, templates)
+            out[f"workspaces/{fixed['metadata']['name']}.yaml"] = _dump(header, [fixed])
+            tasks.append(alerts_task)
+            entries.append(alerts_entry)
+        remember_task, remember_entry = _remember(item, templates, population, split, loop is not None)
+        tasks.append(remember_task)
+        entries.append(remember_entry)
+    if loop is not None:
+        project, loop_tasks, loop_entries = _loop(cases, templates, loop)
+        out[f"workspaces/{project['metadata']['name']}.yaml"] = _dump(header, [project])
+        tasks.extend(loop_tasks)
+        entries.extend(loop_entries)
     out[f"tasks/{run_name}.yaml"] = _dump(header, tasks)
     annotations = {k: v for k, v in ((POPULATION_ANNOTATION, population), (SPLIT_ANNOTATION, split)) if v}
     metadata: dict[str, Any] = {"name": run_name, **({"annotations": annotations} if annotations else {})}
@@ -349,14 +484,17 @@ def increment(
     command: str,
     repos: Path | None = None,
     runner_image: Path | None = None,
+    loop: Loop | None = None,
 ) -> list[Path]:
     """Write the generated manifests under ``plane`` from the templates in ``plane/tasks`` (re-pinned first when
-    ``runner_image`` is given); returns the paths."""
+    ``runner_image`` is given), with the improvement loop when ``loop`` is given; returns the paths."""
+    if loop is not None and repos is None:
+        raise ValueError("--loop needs --repos: the alerts task marks fixed-pin alerts by the fix's new-side ranges")
     if runner_image is not None:
         repin_templates(plane, runner_image)
     loaded = load_manifests([plane / "tasks" / f"{name}.yaml" for name in TEMPLATES])
-    cases = read_cases(validation_set, candidates_dir, triage_dir, population, repos)
-    files = render(cases, loaded.tasks, run_name, command, population=population.stem, split=validation_set.stem)
+    cases = read_cases(validation_set, candidates_dir, triage_dir, population, repos, fixed_side=loop is not None)
+    files = render(cases, loaded.tasks, run_name, command, population=population.stem, split=validation_set.stem, loop=loop)
     written: list[Path] = []
     for relative, text in files.items():
         path = plane / relative

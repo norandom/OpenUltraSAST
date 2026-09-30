@@ -1,0 +1,18 @@
+# remember (harnessx-removal Req 6.1, design section 4): a case's delivered artifacts as memory rows. No model.
+# The template of the per-case Tasks (bound to the case's vulnerable Workspace for the repository and pin the rows
+# carry); the host ingests the delivered memory.jsonl after the Run. The image is digest-pinned.
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: remember
+  atespace: default
+spec:
+  image: "localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9"
+  command: ["remember"]
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "1"
+      memory: "512Mi"

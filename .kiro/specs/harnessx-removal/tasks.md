@@ -31,7 +31,7 @@ and passed its fixture test. Every task is a commit gated on the full suite's ow
     unchanged.
   - _Requirements: 6.2, 6.4_
 
-- [ ] 4. The loop as a plane Run
+- [x] 4. The loop as a plane Run
   - Tasks `alerts`, `measure`, `propose`, `improve` (no Model, zero budget); `--loop` Run generation; fixed-pin
     Workspaces; the gate's verdict in `<run>/loop-improve/gate.json`; adoption stays a maintainer commit.
   - Fixture tests with the fake ax; one live loop Run on the local ax recorded (no model spend beyond the verify

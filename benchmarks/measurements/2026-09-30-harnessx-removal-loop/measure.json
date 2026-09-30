@@ -1,0 +1,140 @@
+{
+  "inputs_bytes": {
+    "froxlor_admin_ip_second_order_sqli": 5943,
+    "lmdeploy_media_url_ssrf": 43730,
+    "wp_gopay_log_filter_sqli": 1947
+  },
+  "rows": {
+    "run": 87,
+    "snapshot": 119,
+    "union": 191
+  },
+  "run": "validation-46",
+  "run_metrics": {
+    "agreed": 4,
+    "alerts": {
+      "c-shell-exec": {
+        "fixed": 2,
+        "fixed_in_fix_range": 0,
+        "vulnerable": 2
+      },
+      "c-unsafe-memory-copy": {
+        "fixed": 2,
+        "fixed_in_fix_range": 0,
+        "vulnerable": 2
+      },
+      "python-shell-true": {
+        "fixed": 1,
+        "fixed_in_fix_range": 0,
+        "vulnerable": 1
+      },
+      "python-unsafe-deserialization": {
+        "fixed": 8,
+        "fixed_in_fix_range": 0,
+        "vulnerable": 8
+      },
+      "python-unsafe-eval": {
+        "fixed": 23,
+        "fixed_in_fix_range": 0,
+        "vulnerable": 23
+      }
+    },
+    "candidates": 5,
+    "cases": 3,
+    "declared_sites_agreed": 4,
+    "declared_sites_matched": 5,
+    "dispute_rate": {
+      "injection": {
+        "candidates": 4,
+        "disputed": 1,
+        "rate": 0.25
+      },
+      "untrusted_destination": {
+        "candidates": 1,
+        "disputed": 0,
+        "rate": 0.0
+      }
+    },
+    "disputed": 1,
+    "rejected": 0,
+    "tiebreaks": 3,
+    "usd": 0.130134,
+    "usd_per_candidate": 0.026027
+  },
+  "store_metrics": {
+    "agreed": 28,
+    "alerts": {},
+    "candidates": 43,
+    "cases": 14,
+    "declared_sites_agreed": 16,
+    "declared_sites_matched": 19,
+    "dispute_rate": {
+      "injection": {
+        "candidates": 38,
+        "disputed": 5,
+        "rate": 0.1316
+      },
+      "untrusted_destination": {
+        "candidates": 5,
+        "disputed": 0,
+        "rate": 0.0
+      }
+    },
+    "disputed": 5,
+    "rejected": 10,
+    "tiebreaks": 10,
+    "usd": 0.856679,
+    "usd_per_candidate": 0.019923
+  },
+  "union_metrics": {
+    "agreed": 28,
+    "alerts": {
+      "c-shell-exec": {
+        "fixed": 2,
+        "fixed_in_fix_range": 0,
+        "vulnerable": 2
+      },
+      "c-unsafe-memory-copy": {
+        "fixed": 2,
+        "fixed_in_fix_range": 0,
+        "vulnerable": 2
+      },
+      "python-shell-true": {
+        "fixed": 1,
+        "fixed_in_fix_range": 0,
+        "vulnerable": 1
+      },
+      "python-unsafe-deserialization": {
+        "fixed": 8,
+        "fixed_in_fix_range": 0,
+        "vulnerable": 8
+      },
+      "python-unsafe-eval": {
+        "fixed": 23,
+        "fixed_in_fix_range": 0,
+        "vulnerable": 23
+      }
+    },
+    "candidates": 43,
+    "cases": 14,
+    "declared_sites_agreed": 16,
+    "declared_sites_matched": 19,
+    "dispute_rate": {
+      "injection": {
+        "candidates": 38,
+        "disputed": 5,
+        "rate": 0.1316
+      },
+      "untrusted_destination": {
+        "candidates": 5,
+        "disputed": 0,
+        "rate": 0.0
+      }
+    },
+    "disputed": 5,
+    "rejected": 10,
+    "tiebreaks": 10,
+    "usd": 0.856679,
+    "usd_per_candidate": 0.019923
+  }
+}

@@ -284,6 +284,16 @@ def main(argv: list[str] | None = None) -> int:
     plane_ws.add_argument(
         "--runner-image", type=Path, help="with --validation-set: re-pin the task templates to the image in this file (ops/ax/up.sh)"
     )
+    plane_ws.add_argument(
+        "--loop", action="store_true",
+        help="with --validation-set: append the improvement loop (alerts per case, then snapshot, measure, propose, improve)",
+    )  # fmt: skip
+    plane_ws.add_argument("--loop-commit", help="with --loop: the commit under test the gate runs at (default: git rev-parse HEAD)")
+    plane_ws.add_argument("--loop-repo", help="with --loop: this repository's URL (default: git remote get-url origin)")
+    plane_ws.add_argument("--loop-manifest", help="with --loop: the benchmark manifest the proposals are gated on")
+    plane_ws.add_argument(
+        "--qualify-population", action="append", default=[], metavar="NAME", help="with --loop: a population whose rows never propose"
+    )
 
     args = parser.parse_args(argv)
     # Diagnosis needs the stage costs, and nothing configures logging, so the default root level of
@@ -1382,7 +1392,7 @@ def _plane_memory(
             assert run_manifest is not None
             seeded = memory.seed(run_manifest, store)
             if seeded:
-                print(f"memory {store.describe()}: facts reused for {len(seeded)} tasks: {', '.join(seeded)}")
+                print(f"memory {store.describe()}: seeded {len(seeded)} tasks (reused facts, loop snapshot): {', '.join(seeded)}")
             return 0
         annotations: dict[str, str] = {}
         if run_manifest is not None:
@@ -1403,7 +1413,7 @@ def _plane_memory(
 
 
 def _plane_increment(args: argparse.Namespace) -> int:
-    from .plane.generate import increment
+    from .plane.generate import LOOP_MANIFEST, Loop, increment
 
     if args.candidates is None or args.triage is None:
         print("--validation-set needs --candidates and --triage", file=sys.stderr)
@@ -1417,9 +1427,18 @@ def _plane_increment(args: argparse.Namespace) -> int:
     )
     if args.runner_image is not None:
         command += f" --runner-image {str(args.runner_image).replace(home, '~', 1)}"
+    loop = None
+    if args.loop:
+        git = lambda *a: subprocess.run(["git", *a], capture_output=True, text=True, check=True).stdout.strip()  # noqa: E731
+        loop = Loop(
+            repo=args.loop_repo or git("remote", "get-url", "origin"), commit=args.loop_commit or git("rev-parse", "HEAD"),
+            manifest=args.loop_manifest or LOOP_MANIFEST, populations=tuple(args.qualify_population),
+        )  # fmt: skip
+        command += f" --loop --loop-commit {loop.commit} --loop-repo {loop.repo} --loop-manifest {loop.manifest}"
+        command += "".join(f" --qualify-population {p}" for p in loop.populations)
     written = increment(
         args.population, args.validation_set, args.candidates, args.triage, plane=args.plane, run_name=args.run, command=command,
-        repos=args.repos, runner_image=args.runner_image,
+        repos=args.repos, runner_image=args.runner_image, loop=loop,
     )  # fmt: skip
     print(f"{len(written)} manifests written under {args.plane} (Run {args.run})")
     return 0

@@ -10,7 +10,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: "localhost:5001/ousast-runner@sha256:fb9a743027518976659fd11505e58cc3fc84fb42e07627196e13b76ac01d0617"
+  image: "localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9"
   command: ["verify"]
   resources:
     requests:

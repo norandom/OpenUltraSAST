@@ -1,0 +1,335 @@
+{
+  "attribution_loop_tasks": [
+    {
+      "cache_hit": null,
+      "calls": 0,
+      "model": null,
+      "output": null,
+      "prompt": null,
+      "status": "done",
+      "task": "memory-snapshot",
+      "usd": null
+    },
+    {
+      "cache_hit": null,
+      "calls": 0,
+      "model": null,
+      "output": null,
+      "prompt": null,
+      "status": "done",
+      "task": "froxlor-admin-ip-second-order-sqli-alerts",
+      "usd": 0
+    },
+    {
+      "cache_hit": null,
+      "calls": 0,
+      "model": null,
+      "output": null,
+      "prompt": null,
+      "status": "done",
+      "task": "froxlor-admin-ip-second-order-sqli-remember",
+      "usd": 0
+    },
+    {
+      "cache_hit": null,
+      "calls": 0,
+      "model": null,
+      "output": null,
+      "prompt": null,
+      "status": "done",
+      "task": "lmdeploy-media-url-ssrf-alerts",
+      "usd": 0
+    },
+    {
+      "cache_hit": null,
+      "calls": 0,
+      "model": null,
+      "output": null,
+      "prompt": null,
+      "status": "done",
+      "task": "lmdeploy-media-url-ssrf-remember",
+      "usd": 0
+    },
+    {
+      "cache_hit": null,
+      "calls": 0,
+      "model": null,
+      "output": null,
+      "prompt": null,
+      "status": "done",
+      "task": "wp-gopay-log-filter-sqli-alerts",
+      "usd": 0
+    },
+    {
+      "cache_hit": null,
+      "calls": 0,
+      "model": null,
+      "output": null,
+      "prompt": null,
+      "status": "done",
+      "task": "wp-gopay-log-filter-sqli-remember",
+      "usd": 0
+    },
+    {
+      "cache_hit": null,
+      "calls": 0,
+      "model": null,
+      "output": null,
+      "prompt": null,
+      "status": "done",
+      "task": "loop-measure",
+      "usd": 0
+    },
+    {
+      "cache_hit": null,
+      "calls": 0,
+      "model": null,
+      "output": null,
+      "prompt": null,
+      "status": "done",
+      "task": "loop-propose",
+      "usd": 0
+    },
+    {
+      "cache_hit": null,
+      "calls": 0,
+      "model": null,
+      "output": null,
+      "prompt": null,
+      "status": "done",
+      "task": "loop-improve",
+      "usd": 0
+    }
+  ],
+  "cases": [
+    "wp-gopay-log-filter-sqli",
+    "lmdeploy-media-url-ssrf",
+    "froxlor-admin-ip-second-order-sqli"
+  ],
+  "new_spend_usd": 0.0,
+  "note": "harnessx-removal task 4: one live loop Run on the local ax (kind), 2026-09-30. The Run is validation-46 restricted to three cases (set.json) plus the loop; the cases' chain tasks (facts, va, vb, agree, vc, final) were already done in ~/ousast-results/plane/validation-46 and were not rerun. Runner image localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9; loop-propose/loop-improve bound github.com/norandom/OpenUltraSAST at 1ad472c (origin/main, whose benchmarks/ manifests, fixtures and pairs equal the commit under test); the code under test is the image's package.",
+  "tasks": {
+    "froxlor-admin-ip-second-order-sqli-alerts": {
+      "finished": "2026-09-30T09:51:22+00:00",
+      "started": "2026-09-30T09:50:49+00:00",
+      "status": "done",
+      "summary": {
+        "alerts": {
+          "fixed": 0,
+          "vulnerable": 0
+        },
+        "calls": 0,
+        "model": null,
+        "read": {
+          "fixed": {
+            "bytes": 4256572,
+            "files": 366
+          },
+          "vulnerable": {
+            "bytes": 4256094,
+            "files": 366
+          }
+        },
+        "status": "done",
+        "units_done": 2,
+        "units_total": 2,
+        "usage": {},
+        "usd": 0
+      }
+    },
+    "froxlor-admin-ip-second-order-sqli-remember": {
+      "finished": "2026-09-30T09:51:51+00:00",
+      "started": "2026-09-30T09:51:22+00:00",
+      "status": "done",
+      "summary": {
+        "calls": 0,
+        "facts_row": "omitted: the facts task's summary names no image, and a reuse key must not guess it",
+        "model": null,
+        "rows": 9,
+        "status": "done",
+        "units_done": 1,
+        "units_total": 1,
+        "usage": {},
+        "usd": 0
+      }
+    },
+    "lmdeploy-media-url-ssrf-alerts": {
+      "finished": "2026-09-30T09:52:27+00:00",
+      "started": "2026-09-30T09:51:22+00:00",
+      "status": "done",
+      "summary": {
+        "alerts": {
+          "fixed": 36,
+          "vulnerable": 36
+        },
+        "calls": 0,
+        "model": null,
+        "read": {
+          "fixed": {
+            "bytes": 8353172,
+            "files": 1084
+          },
+          "vulnerable": {
+            "bytes": 8340364,
+            "files": 1084
+          }
+        },
+        "status": "done",
+        "units_done": 2,
+        "units_total": 2,
+        "usage": {},
+        "usd": 0
+      }
+    },
+    "lmdeploy-media-url-ssrf-remember": {
+      "finished": "2026-09-30T09:52:56+00:00",
+      "started": "2026-09-30T09:52:27+00:00",
+      "status": "done",
+      "summary": {
+        "calls": 0,
+        "facts_row": "omitted: the facts task's summary names no image, and a reuse key must not guess it",
+        "model": null,
+        "rows": 75,
+        "status": "done",
+        "units_done": 1,
+        "units_total": 1,
+        "usage": {},
+        "usd": 0
+      }
+    },
+    "loop-improve": {
+      "finished": "2026-09-30T09:54:44+00:00",
+      "started": "2026-09-30T09:54:17+00:00",
+      "status": "done",
+      "summary": {
+        "accepted": false,
+        "calls": 0,
+        "edits": 0,
+        "memory_edits": 0,
+        "model": null,
+        "reason": "no_proposals",
+        "status": "done",
+        "step": "improve",
+        "units_done": 1,
+        "units_total": 1,
+        "usage": {},
+        "usd": 0
+      }
+    },
+    "loop-measure": {
+      "finished": "2026-09-30T09:53:50+00:00",
+      "started": "2026-09-30T09:53:27+00:00",
+      "status": "done",
+      "summary": {
+        "calls": 0,
+        "model": null,
+        "rows": {
+          "run": 87,
+          "snapshot": 119,
+          "union": 191
+        },
+        "status": "done",
+        "step": "measure",
+        "units_done": 1,
+        "units_total": 1,
+        "usage": {},
+        "usd": 0
+      }
+    },
+    "loop-propose": {
+      "finished": "2026-09-30T09:54:17+00:00",
+      "started": "2026-09-30T09:53:50+00:00",
+      "status": "done",
+      "summary": {
+        "calls": 0,
+        "excluded": 0,
+        "kept": 191,
+        "model": null,
+        "proposals": 0,
+        "rows": 191,
+        "status": "done",
+        "step": "propose",
+        "units_done": 1,
+        "units_total": 1,
+        "usage": {},
+        "usd": 0
+      }
+    },
+    "memory-snapshot": {
+      "finished": "2026-09-30T09:50:48+00:00",
+      "started": null,
+      "status": "done",
+      "summary": {
+        "calls": 0,
+        "model": null,
+        "reused": {
+          "excluded": {
+            "gated_case": {},
+            "holdout_pair": {},
+            "population": {},
+            "rows": 0
+          },
+          "guard": {
+            "catalog": "benchmarks/pairs/catalog.toml",
+            "manifest": "benchmarks/manifests/java-spring-boot-vulnerable.toml",
+            "populations": []
+          },
+          "index_digest": "6fa3c76576e6706a8b5b439611c15f1337754a2243ab95d6d9b45899b06c5215",
+          "index_entries": 15,
+          "kept": 119,
+          "rows": 119,
+          "store": "file:///tmp/claude-1000/-home-mc-Source-OpenUltraSAST/c09e30b2-39a4-4564-bc31-6ea71ffaa198/scratchpad/hxr2/memory"
+        },
+        "status": "done",
+        "units_done": 1,
+        "units_total": 1,
+        "usage": {},
+        "usd": null
+      }
+    },
+    "wp-gopay-log-filter-sqli-alerts": {
+      "finished": "2026-09-30T09:52:59+00:00",
+      "started": "2026-09-30T09:52:27+00:00",
+      "status": "done",
+      "summary": {
+        "alerts": {
+          "fixed": 0,
+          "vulnerable": 0
+        },
+        "calls": 0,
+        "model": null,
+        "read": {
+          "fixed": {
+            "bytes": 150539,
+            "files": 19
+          },
+          "vulnerable": {
+            "bytes": 150528,
+            "files": 19
+          }
+        },
+        "status": "done",
+        "units_done": 2,
+        "units_total": 2,
+        "usage": {},
+        "usd": 0
+      }
+    },
+    "wp-gopay-log-filter-sqli-remember": {
+      "finished": "2026-09-30T09:53:27+00:00",
+      "started": "2026-09-30T09:52:59+00:00",
+      "status": "done",
+      "summary": {
+        "calls": 0,
+        "facts_row": "omitted: the facts task's summary names no image, and a reuse key must not guess it",
+        "model": null,
+        "rows": 3,
+        "status": "done",
+        "units_done": 1,
+        "units_total": 1,
+        "usage": {},
+        "usd": 0
+      }
+    }
+  }
+}
