@@ -1,5 +1,8 @@
 # Requirements Document
 
+> **Retired 2026-09-30:** HarnessX was removed by `harnessx-removal`; the agentic plane is ax
+> (`ai-service-plane`), and evolutionary proposals come from the plane memory. History below is unchanged.
+
 ## Introduction
 
 OpenUltraSAST today answers one question well: which regexes fired. It does not answer the three questions a rugged DevOps CI workflow actually asks: what exists in this repository, where problems are most likely and how to aim tests, and whether a finding is worth fixing. This feature turns the scan into those three stages. Stage 1 is a static inventory of what exists. Stage 2 is a complexity map of likely problem areas plus test-tuning hints. Stage 3 is isolated regression that proves triggerability before CI treats a finding as blocking.

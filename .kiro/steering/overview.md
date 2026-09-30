@@ -174,4 +174,7 @@ function-level pairs could not see any of them, and a repository showed all nine
 | `learning-harness` | implementation | 30 done, 3 open |
 | six others | complete | `pair-corpus-honesty`, `corpus-seeded-mechanisms`, `propose-adjudicate-prove`, `three-stage-scan`, `real-world-vfc-slice`, `harnessx-self-improving-rulesets`, `tree-sitter-overlay-extra` |
 
+> **Retired 2026-09-30:** HarnessX was removed by `harnessx-removal`; the agentic plane is ax (`ai-service-plane`),
+> and evolutionary proposals come from the plane memory. The HarnessX specs in the table above are history.
+
 97 source modules, 90 load-bearing and 7 standalone capabilities; 814 tests.

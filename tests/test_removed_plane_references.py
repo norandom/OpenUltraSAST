@@ -11,8 +11,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[1]
 _NAME = "harness" + "x"
 _PATTERN = re.compile(_NAME, re.IGNORECASE)
@@ -48,7 +46,6 @@ def test_the_retirement_notes_exist() -> None:
     assert _PATTERN.search(config) and _TAG.search(config)
 
 
-@pytest.mark.xfail(strict=True, reason="the README's plane sections are rewritten in task 8; drop this mark there")
 def test_the_readme_names_the_removed_plane_only_in_its_retirement_note() -> None:
     offenders = _untagged([ROOT / "README.md"])
     assert offenders == [], "\n".join(offenders)

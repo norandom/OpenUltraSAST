@@ -1,5 +1,8 @@
 # Requirements Document
 
+> **Retired 2026-09-30:** HarnessX was removed by `harnessx-removal`; the agentic plane is ax
+> (`ai-service-plane`), and evolutionary proposals come from the plane memory. History below is unchanged.
+
 ## Introduction
 
 OpenUltraSAST's detection numbers cannot be trusted and cannot be improved. The static machinery is treated as the detector while the model with tools already outperforms it (12/14 versus 5/14 pair-correct on the vibe-py holdout once scoring is keyed on class and function), the pair scorer keys detection on text tokens rather than on a vulnerability class, the improve loop learns from its own holdout pairs, and no change is attributed to the class it targets, so an improvement in one class silently degrades another. This feature turns the tool into a learning harness: an auto-classifier assigns every labeled pair, finding and code region to one of ten verifier-aligned families; one detector configuration per family is evolved round by round from structured failure facts; a class-aware, pair-wise scorer with unscorable denominators and a measured per-family noise floor decides acceptance; only verifier-confirmed claims are reported above suspicion; and the train/holdout split is enforced by construction. Context, measurements and sources: `brief.md`, `research.md`, `benchmarks/measurements/2026-09-06-*`.

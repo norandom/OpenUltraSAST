@@ -1,5 +1,8 @@
 # Requirements Document
 
+> **Retired 2026-09-30:** HarnessX was removed by `harnessx-removal`; the agentic plane is ax
+> (`ai-service-plane`), and evolutionary proposals come from the plane memory. History below is unchanged.
+
 ## Introduction
 
 OpenUltraSAST today fuses three responsibilities into one regex layer: detection patterns also carry their own severity strings and act as the sole volume control, so a noisy rule can dominate scan output, set its own criticality, and fire forever with no central governance. This feature splits those responsibilities into three governed owners — rules detect, a central CWE policy decides severity and scope, and a single project score becomes the optimization target — and adopts the HarnessX runtime exactly where it pays off: the LLM hunter loop, the LLM-judge verifier, and a meta-harness self-improvement loop that adapts rules and policy gates under hard bounds.

@@ -1,5 +1,8 @@
 # Design Document: learning-harness
 
+> **Retired 2026-09-30:** HarnessX was removed by `harnessx-removal`; the agentic plane is ax
+> (`ai-service-plane`), and evolutionary proposals come from the plane memory. History below is unchanged.
+
 ## Overview
 
 **Purpose**: Turn OpenUltraSAST from a hand-authored analyzer with a leaking improvement loop into a learning harness: an auto-classifier routes every pair, finding and code region to one of ten verifier-aligned families; one detector configuration per family is evolved one change per round from structured failure facts; a class-aware pair-wise scorer with unscorable denominators and a measured per-family noise floor decides acceptance; only verifier-confirmed claims are reported above suspicion; the split is enforced by construction.

@@ -1,5 +1,8 @@
 # Design: OpenRouter SAST Harness
 
+> **Retired 2026-09-30:** HarnessX was removed by `harnessx-removal`; the agentic plane is ax
+> (`ai-service-plane`), and evolutionary proposals come from the plane memory. History below is unchanged.
+
 ## Architecture Summary
 
 OpenUltraSAST is a harness-oriented SAST system, not a monolithic scanner. The core runtime composes processors, model roles, retrieval, tools, sandbox policy, traces, verification gates, and reporting into a reproducible scan harness.

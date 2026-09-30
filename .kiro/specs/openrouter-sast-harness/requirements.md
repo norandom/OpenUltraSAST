@@ -1,5 +1,8 @@
 # Requirements: OpenRouter SAST Harness
 
+> **Retired 2026-09-30:** HarnessX was removed by `harnessx-removal`; the agentic plane is ax
+> (`ai-service-plane`), and evolutionary proposals come from the plane memory. History below is unchanged.
+
 ## Overview
 
 OpenUltraSAST shall be an independent OpenCode-driven security harness for finding, validating, reporting, and optionally fixing source-code vulnerabilities at scale. It shall use OpenRouter-selected chat models for reasoning, OpenRouter embeddings for semantic retrieval, Docker for isolated analysis, and an explicit evidence ladder to prevent AI suspicion from being reported as verified security impact.

@@ -1,5 +1,8 @@
 # Design Document
 
+> **Retired 2026-09-30:** HarnessX was removed by `harnessx-removal`; the agentic plane is ax
+> (`ai-service-plane`), and evolutionary proposals come from the plane memory. History below is unchanged.
+
 ## Overview
 
 **Purpose.** This feature turns an OpenUltraSAST scan into three operator questions: what exists (static inventory), where problems are most likely and how to aim tests (complexity map), and whether a finding is worth fixing (isolated regression). It is a follow-up to the HarnessX governance spec, not a replacement of CWE policy, scoring, or rules-as-data.

@@ -55,7 +55,7 @@ and passed its fixture test. Every task is a commit gated on the full suite's ow
     exclusion list blocks the merge.
   - _Requirements: 3.2_
 
-- [ ] 8. Documentation and specs
+- [x] 8. Documentation and specs
   - README ax-plane section pointing at `ops/ax/README.md`; `docs/examples.md` §6 and `docs/threat-model.md`
     (egress policy, budgets); dated retirement notes in the four specs and `.kiro/steering/overview.md`; release
     note naming the silent loss of the second hunter for users who set `[models] hunter`.

@@ -57,29 +57,27 @@ uv run ousast improve benchmarks/manifests/java-spring-boot-vulnerable.toml     
 # which the next scan/benchmark of that target loads automatically.
 ```
 
-## 6. Standard mode with the HarnessX agentic plane (OpenAI)
+## 6. Running the agentic plane
+
+Model work over whole repositories runs as a Run manifest on ax, one isolated actor
+per task (bring-up: [ops/ax/README.md](../ops/ax/README.md)). The provider key is
+read from the environment (or `.env`) by `ousast` and sent only in each task's start
+request.
 
 ```bash
-uv sync --extra harnessx
-export OPENAI_API_KEY=sk-...
-cat > openultrasast.toml <<'TOML'
-[models]
-hunter   = "gpt-4o"
-verifier = "gpt-4o"
-[harnessx]
-provider        = "openai"
-max_cost_usd    = 2.0
-token_threshold = 120000
-[fusion]
-panel_model = "gpt-4o"   # two-panel adjudication on triggered findings
-[hardening]
-redact_secrets = true
-max_findings   = 0
-TOML
-uv run ousast scan /path/to/code --mode standard --config openultrasast.toml
-jq '.degradations' "$run/manifest.json"   # null = HarnessX ran; entries = it fell back
-jq '.fusion'       "$run/manifest.json"   # per-finding dispositions
+uv run ousast plane doctor                               # kind, Agent Substrate, ax controller, runner image
+uv run ousast plane run plane/runs/validation-46.yaml    # repo-facts, verify a/b(/c), agree, remember per case
+uv run ousast plane status validation-46                 # per-task status and token attribution
+uv run ousast plane remember validation-46               # re-ingest the run's memory rows (OUSAST_MEMORY)
+
+# Feed the stored rows back into the ruleset loop (same validator and gate)
+uv run ousast improve benchmarks/manifests/java-spring-boot-vulnerable.toml --dry-run --memory
 ```
+
+Each task in the Run carries its own Model and `budget: {usd, calls}`; a task that
+reaches its ceiling stops as `unfinished` and resumes on a rerun with a larger
+budget. A local `ousast scan --mode standard` stays deterministic apart from the
+optional `[models] hunter` tool hunter.
 
 ## 7. Drive it from an MCP client (OpenCode / IDE)
 

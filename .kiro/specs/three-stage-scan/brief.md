@@ -1,5 +1,8 @@
 # Brief: three-stage-scan
 
+> **Retired 2026-09-30:** HarnessX was removed by `harnessx-removal`; the agentic plane is ax
+> (`ai-service-plane`), and evolutionary proposals come from the plane memory. History below is unchanged.
+
 ## Problem
 
 AppSec engineers and DevOps teams running OpenUltraSAST in CI get a regex static scan scored against cheat-sheet fixtures. They cannot tell what actually exists in a real repository, where complexity concentrates, how to aim tests, or whether a finding is worth a CI failure. The previous HarnessX spec added governance around those regexes (CWE policy, score, shadow status) without making the hunter evolutionary or the evaluation realistic.

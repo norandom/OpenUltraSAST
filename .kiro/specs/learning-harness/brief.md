@@ -1,5 +1,8 @@
 # Brief: learning-harness
 
+> **Retired 2026-09-30:** HarnessX was removed by `harnessx-removal`; the agentic plane is ax
+> (`ai-service-plane`), and evolutionary proposals come from the plane memory. History below is unchanged.
+
 ## Problem
 
 The tool is a hand-authored static analyzer with a learning loop bolted on the side, and the loop cannot learn. Three deliberate choices cap it: closed vocabularies (sinks, sources, obligation kinds) that grow only by writing a new spec; a corpus that is the only teacher and a shape that is the only lesson; and a ban on retaining anything the model discovers. Results have ceilings by construction, the loop trains on its own test set, and there is no failure analysis feeding the next round. Detection logic is ~16% of the source and the other 84% cannot say whether the 16% works.

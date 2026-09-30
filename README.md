@@ -215,17 +215,15 @@ ranker → hunter → verifier → mapping loop provides (critical/high severity
 verifier disagreement, conflicting static vs semantic evidence, risky fixes, or
 an explicit high-assurance request), fusion runs two independent panels that
 steel-man the vulnerability and false-positive cases, vote, and a decider issues
-the disposition (accepted / rejected / mitigated / deferred / blocked) with votes,
-model IDs, and degradations disclosed. It runs automatically on triggered findings
+the disposition (accepted / rejected / mitigated / deferred / blocked) with votes
+and degradations disclosed. It runs automatically on triggered findings
 in `--mode standard`, writing `fusion.json` and a `fusion` block in the manifest.
-Deterministic by default (`fusion.py`); set `[fusion] panel_model` to route the
-panels through the configured provider:
+Fusion is deterministic (`fusion.py`); independent LLM agreement on a candidate
+is the plane's `agree` task (see [The agentic plane (ax)](#the-agentic-plane-ax)):
 
 ```toml
 [fusion]
 enabled        = true       # default; runs on triggered findings in standard mode
-panel_model    = "gpt-4o"   # optional: LLM panels via the [harnessx] provider
-decider_model  = "gpt-4o"   # optional: disclosed in the decision's model IDs
 high_assurance = false      # true forces fusion on every finding
 ```
 
@@ -290,44 +288,37 @@ addressed, it stays closed because the recall/precision gate runs in CI.
 `external_baseline_deltas.json` additionally shows where another tool found a
 vulnerability OpenUltraSAST missed (or vice-versa).
 
-## Configuring the HarnessX agentic plane
+## The agentic plane (ax)
 
-The LLM hunter pool and the llm-judge verifier are optional. The core install is
-zero-dependency and `--mode quick` never calls a model. To enable the agentic
-plane, install the extra, name the models, and pick a provider:
-
-```bash
-uv sync --extra harnessx          # SHA-pinned optional dependency
-export OPENAI_API_KEY=sk-...       # or ANTHROPIC_API_KEY, matching the provider
-uv run ousast scan /path/to/code --mode standard --config openultrasast.toml
-```
-
-```toml
-# openultrasast.toml
-[models]
-hunter   = "gpt-4o"   # LLM hunter pool (empty -> deterministic hunter)
-verifier = "gpt-4o"   # llm-judge verifier (empty -> structural verifier)
-
-[harnessx]
-provider        = "openai"   # "anthropic" (default) | "openai" | "litellm"
-max_cost_usd    = 2.0        # per-task spend cap
-token_threshold = 120000     # per-task token budget
-```
-
-The provider selects the HarnessX backend for **both** the hunter and the
-verifier; each reads its own standard key env var (`openai` → `OPENAI_API_KEY`,
-`anthropic` → `ANTHROPIC_API_KEY`). The HarnessX path activates only when the
-extra is installed, a model is configured, and the mode is `standard` — all three
-gated through one capability seam (`harness_ext.has_harnessx`). If any condition
-fails, the scan transparently falls back to the deterministic hunter / structural
-verifier and records a `degradations` entry in `manifest.json`, so a run is never
-silently downgraded:
+The core install is zero-dependency and `--mode quick` never calls a model. Model
+work that spans a whole repository runs on the **agentic plane**: a Run manifest
+of tasks executed on [ax](ops/ax/README.md) (Kubernetes with Agent Substrate), one
+isolated actor per task. What runs there today: `repo-facts`, two independent
+`verify` passes, `agree` with a 2-of-3 tie-break on disputed candidates, and
+`remember`, which writes each run's per-candidate rows into the plane memory.
 
 ```bash
-jq '.degradations' "$run/manifest.json"   # null = HarnessX ran; entries = fell back
+uv run ousast plane doctor                                   # kind, Agent Substrate, ax controller, runner image
+uv run ousast plane run plane/runs/validation-46.yaml        # a rerun skips tasks already done
+uv run ousast plane status <run>                             # per-task status and token attribution
+uv run ousast plane remember <run>                           # ingest the run's memory rows (OUSAST_MEMORY)
 ```
 
-## The HarnessX self-improving cycle
+Every task binds its own Model and its own budget (`usd`, `calls`), and a task
+that reaches its ceiling stops as `unfinished` instead of overspending. Egress is
+deny-by-default per task; the provider key travels only in the task's start
+request and is never written to an artifact. Bring-up, the egress policy and the
+host requirements are in [ops/ax/README.md](ops/ax/README.md).
+
+In a local `ousast scan --mode standard`, `[models] hunter` still enables the
+MAP-stage tool hunter; verification and fusion are deterministic.
+
+> The earlier optional agentic extra, HarnessX, was retired 2026-09-30, and a
+> leftover `[harnessx]` section (retired 2026-09-30) is ignored with one warning.
+> `[models] verifier`, `[fusion] panel_model` and `[fusion] decider_model` fail with
+> a message naming the plane replacement. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
+## The self-improving cycle
 
 Each scan is a composed harness of typed processors with read/write **state
 contracts**. Strict mode fails the scan on a violation; warn mode records a
@@ -391,11 +382,24 @@ it — and the same gate runs in CI (`python -m openultrasast.gate`), so a loop
 result that breached it could never merge. Covered by `tests/test_improve.py` and
 `tests/test_cli_improve.py`.
 
-This is the deterministic substrate of the self-improvement loop. When the
-optional `openultrasast[harnessx]` extra is present, the HarnessX `MetaAgent`
-becomes the richer *proposer* that plugs into this same validated, gated
-machinery — the safety contract (bounded levers, replay/novelty/journal gates,
-hard acceptance gate, byte-for-byte revert) is identical either way.
+This is the deterministic substrate of the self-improvement loop. The **plane
+memory** is the richer proposer that plugs into it: with `--memory`, `ousast
+improve` also reads the rows that plane runs stored per repository and pin, and two
+deterministic rules turn them into rule-status proposals: a rule whose alerts are
+repeatedly false across repositories is shadowed, and a shadow rule that keeps
+hitting agreed, declared vulnerable sites is re-enabled. Rows from holdout pairs,
+from the gated manifest's own cases and from the qualifying population are dropped
+before any rule sees them, so the loop never learns from the cases it is judged on. Each
+proposal records the memory rows it came from (`memory_proposals.jsonl` next to the
+journal), and it goes through the same validator and gate as every other edit.
+
+```bash
+uv run ousast improve benchmarks/manifests/java-spring-boot-vulnerable.toml --dry-run --memory
+```
+
+The whole loop (alerts, measure, propose, improve) can also run as a plane Run
+(generated by `ousast plane workspaces --validation-set ... --loop`), with its own tasks, Models
+and budgets; see [ops/ax/README.md](ops/ax/README.md).
 
 Beyond these loops, the `openultrasast-triage` skill lets an agent adjust
 prompt constraints, retrieval filters, skill routing and benchmark-miss triage.
@@ -407,7 +411,7 @@ directly once the per-family detectors land.
 OpenUltraSAST treats scanned code as **untrusted input and never executes it** (quick
 and standard modes). Scan artifacts are scrubbed of credentials before they are written
 (`[hardening] redact_secrets`, on by default), agentic spend and output size are bounded
-(`[harnessx] max_cost_usd`/`token_threshold`, `[hardening] max_findings`), provider calls
+(per-task `usd`/`calls` budgets on the plane, `[hardening] max_findings`), provider calls
 retry transient failures with backoff, and missing capabilities degrade visibly in the
 manifest rather than silently. See [docs/threat-model.md](docs/threat-model.md) for the
 full trust boundaries and sandbox limits, and [docs/examples.md](docs/examples.md) for

@@ -15,9 +15,12 @@ it does not, and the controls that keep a scan safe to run in CI and safe to sha
   flip rule *status* and tune score constants but can never edit pattern text or the
   authoritative 0–5 severity. See the self-improving cycle in the README.
 - **Provider credentials are the operator's.** The zero-dependency core makes no network
-  calls. The optional HarnessX agentic plane sends source excerpts to the configured LLM
-  provider only when a model is set in `[models]`; keys are read from the provider's
-  standard env var (`OPENAI_API_KEY` / `ANTHROPIC_API_KEY`), never written to artifacts.
+  calls. A local scan calls a model only for the optional `[models] hunter` tool hunter
+  in standard mode. Agentic work runs on the plane (`ousast plane run`): `ousast` reads
+  the variable a task's Model names (`secretKey.key`) from the operator's environment or
+  `.env` and sends the key only in that task's start request, through Agent Substrate's
+  router to that task's actor. It is not baked into an image or task template, and it is
+  never logged or written to artifacts.
 
 ## Controls
 
@@ -28,10 +31,21 @@ tokens, URL-embedded credentials, PEM private keys, and `key = value` assignment
 sensitive names) before traces (`trace/events.jsonl`) and the markdown report are
 written. On by default; disable with `[hardening] redact_secrets = false`.
 
+### Plane egress
+Each plane task runs in its own actor behind Agent Substrate's egress gateway, which
+denies by default. The task's EgressPolicy (`src/openultrasast/plane/egress.py`) allows exactly three
+things: plain HTTP to the artifact receiver, and TLS passthrough to the Git hosts of the
+task's bound Workspaces and to the hosts its bound Model declares
+(`openultrasast.io/egress-hosts`). There are no wildcards, no IP addresses and no TLS
+interception. The policy is deleted with the actor.
+
 ### Cost & CI budgets
-- **Agentic spend** is bounded per task by `[harnessx] max_cost_usd` and
-  `token_threshold` (enforced inside the HarnessX run loop) and by the per-tier hunter
-  budgets.
+- **Agentic spend** is bounded per plane task by the Run's `budget: {usd, calls}`. The
+  metered client refuses the next call once either ceiling is reached (the task is
+  `unfinished` and resumes on a rerun with a larger budget). A usd budget on a Model
+  without prices is refused rather than metered as zero, and an account or
+  authentication error fails the task and starts nothing further. The standard-mode tool
+  hunter is bounded by the per-tier hunter budgets.
 - **Output size** is bounded by `[hardening] max_findings` (0 = unlimited). Truncation is
   severity-ordered and disclosed as a `budget` degradation in the manifest.
 
