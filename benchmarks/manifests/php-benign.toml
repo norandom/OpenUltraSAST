@@ -1,0 +1,12 @@
+name = "php-benign"
+# The repaired twin of php-vulnerable: no expected findings, so every quick-mode finding is a false alert.
+language = "php_web"
+frameworks = ["wordpress"]
+setup = []
+modes = ["quick", "standard"]
+known_noise = []
+baselines = []
+
+[source]
+type = "local"
+path = "../fixtures/php-benign"

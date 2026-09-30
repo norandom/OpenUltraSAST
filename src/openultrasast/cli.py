@@ -275,7 +275,7 @@ def _main(argv: list[str] | None) -> int:
     plane_remember.add_argument("--population", help="the population the run measured (default: the Run's annotation)")
     plane_remember.add_argument("--split", help="the split of that population (default: the Run's annotation)")
     plane_engine = plane_sub.add_parser(
-        "alerts-engine", help="a Run's `alerts` for languages quick mode does not cover (PHP), from the engine image on this host"
+        "alerts-engine", help="a Run's `alerts` for PHP and languages quick mode does not cover, from the engine image on this host"
     )
     plane_engine.add_argument("run_manifest", type=Path)
     plane_engine.add_argument(

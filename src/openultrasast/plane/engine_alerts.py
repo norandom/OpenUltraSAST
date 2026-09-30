@@ -1,10 +1,12 @@
-"""Engine alerts for the languages quick mode does not cover, produced on the host (harnessx-removal Req 6.3).
+"""Engine alerts for the languages quick mode does not cover, and for PHP beside its quick rules
+(``ENGINE_ALONGSIDE_QUICK``), produced on the host (harnessx-removal Req 6.3).
 
 The loop's ``alerts`` task runs the quick-mode scan, which has rules only for the languages its ruleset declares; a
-PHP case yields zero alerts that mean nothing (``coverage: none``). PHP detection comes from the Joern taint engine
-(``ruleset/semantic/php.toml``), which runs in the ``openultrasast:dev`` image, not in the runner sandbox. So
-``ousast plane alerts-engine <Run.yaml>`` does the ``alerts`` task's work on the host for every case whose files
-include a language quick mode does not cover but the engine does:
+case in any other language yields zero alerts that mean nothing (``coverage: none``). PHP has quick rules since
+2026-09-30 (``ruleset/php/rules.toml``, line patterns over the engine's vocabulary), but its detection of record is
+still the Joern taint engine (``ruleset/semantic/php.toml``), which runs in the ``openultrasast:dev`` image, not in
+the runner sandbox. So ``ousast plane alerts-engine <Run.yaml>`` does the ``alerts`` task's work on the host for
+every case whose files include a language the engine models and quick mode does not cover, or PHP:
 
 - export the case's vulnerable and fixed pins from the case cache (``git archive``, as
   ``benchmarks/independent/evaluate.py`` does), run the quick scan on each (:func:`.tasks.alerts.scan`) and the
@@ -42,6 +44,10 @@ IMAGE = "openultrasast:dev"
 MEMORY = "3g"
 DEADLINE = 1800.0
 GRACE = 600.0  # the container's own startup and teardown beyond the scan deadline
+# Languages whose alerts of record come from the engine even though quick mode has rules for them. PHP's quick rules
+# (ruleset/php, 2026-09-30) are a line layer with a low measured precision lower bound on the development corpus, so
+# the engine keeps running for PHP beside them, and the coverage reports the engine for it.
+ENGINE_ALONGSIDE_QUICK = frozenset({"php"})
 CACHE = Path.home() / ".cache" / "openultrasast" / "independent"
 DUMP = Path("benchmarks") / "push" / "finding_dump.py"
 _READ = re.compile(r"^read (\d+) files, (\d+) bytes", re.MULTILINE)
@@ -193,7 +199,10 @@ def produce(
             files[role] = read.pop("languages")
             if read["files"] == 0:
                 raise EngineAlertsError(f"{case.case_id} {role}: the quick scan read no file of {checkout}")
-            needed |= {lang for lang in files[role] if lang != "unknown" and not covers(quick, lang) and lang in engine}
+            needed |= {
+                lang for lang in files[role]
+                if lang != "unknown" and lang in engine and (not covers(quick, lang) or lang in ENGINE_ALONGSIDE_QUICK)
+            }  # fmt: skip
             if not needed:
                 return {"case": case.case_id, "status": "skipped", "reason": "quick mode covers every language read", "languages": files}
             out_dir = work / "out"
@@ -216,7 +225,7 @@ def produce(
         summary["in_fix_range"][role] = sum(1 for r in found if r["in_fix_range"] is True)
         keys = ("files", "bytes", "questions", "completed", "seconds", "degradations", "exit")
         summary["engine"][role] = {**{k: record.get(k) for k in keys}, "findings": len(record.get("findings") or [])}
-    cov = coverage(files, quick, needed)
+    cov = coverage(files, set(quick) - needed, needed)  # a language the engine ran for is reported as the engine's
     summary.update(
         status="done", units_done=len(ROLES), units_total=len(ROLES), usd=0, calls=0, usage={}, model=None, source="engine",
         host=True, family=case.family, image=_image_id(image, runner), deadline=deadline, quick_languages=sorted(quick),

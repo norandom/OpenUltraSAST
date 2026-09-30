@@ -1,0 +1,190 @@
+# PHP quick-mode rules: line/statement patterns over the engine's PHP vocabulary (semantic/php.toml).
+#
+# The engine (Joern taint, standard/deep) owns PHP data flow. These rules are the quick layer: they see one line
+# or one statement, so each one pairs a sink family from semantic/php.toml with the shape that makes it dangerous
+# WITHOUT flow -- a request superglobal on the sink's own line, or a query literal composed with a variable -- and
+# excludes the lines that carry that family's sanitizer. Sinks, sources and sanitizers are the engine's words:
+#   sources     $_GET $_POST $_REQUEST $_COOKIE ($_SERVER, $_FILES, php://input where the family reads them)
+#   sanitizers  $wpdb->prepare, the prepared_statement shape, sql_escape (quoted positions ONLY -- quoted_only),
+#               coerce (intval/absint/floatval), html_escape, shell_escape, path_confine (basename/realpath)
+#
+# Measured on the PHP development corpus only (benchmarks/measurements/2026-09-30-php-quick-rules/): pmpro
+# introduce/repair/benign and the spent population-v1 PHP cases -- never population-v2. `status` and
+# `precision_estimate` come from that measurement: a rule whose firings on the corpus were not at a known site
+# is `shadow`, and precision_estimate is the fraction of corpus + fixture firings that were at a labeled site
+# (a lower bound: an unlabeled firing is counted false).
+
+# --- SQL (sql, wpdb) ---------------------------------------------------------------------------------------
+
+[[rule]]
+rule_id = "php-wpdb-sql-composition"
+title = "WordPress $wpdb query composed from a variable without $wpdb->prepare"
+languages = ["php"]
+cwe = "CWE-89"
+tags = ["injection"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.032
+version = "1"
+pattern = '''\$wpdb->(get_var|get_results|get_row|get_col|query|replace)\s*\(\s*(?!\$wpdb->prepare)(?:"[^"\n]*\{?\$(?!wpdb->)[A-Za-z_]|[^\n;]*?["']\s*\.\s*\$(?!wpdb->)[A-Za-z_]|[^\n;]*?\$_(?:GET|POST|REQUEST|COOKIE)\b)'''
+
+[[rule]]
+rule_id = "php-sql-call-composition"
+title = "PHP SQL call composed from a variable or request input"
+languages = ["php"]
+cwe = "CWE-89"
+tags = ["injection"]
+status = "shadow"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.25
+version = "1"
+pattern = '''(?<![\w>:$\\])(mysqli_query|mysqli_multi_query|mysqli_real_query|mysql_query|pg_query|pg_send_query|sqlite_query|sqlite_unbuffered_query)\s*\((?:\s*"[^"\n]*\{?\$[A-Za-z_]|[^,\n;]*,\s*"[^"\n]*\{?\$[A-Za-z_]|[^\n;]*?["']\s*\.\s*\$[A-Za-z_]|[^\n;]*?\$_(?:GET|POST|REQUEST|COOKIE)\b)'''
+
+# A variable in an UNQUOTED SQL position -- a number, an identifier, ORDER BY / LIMIT / IN (...) / VALUES (...).
+# The engine's sql_escape family is quoted_only: esc_sql and mysqli_real_escape_string protect a value inside a
+# quoted literal and nothing else, so an escaped value here is still injectable (Ultimate Member CVE-2024-1071,
+# YesWiki CVE-2026-46670). Coercion (intval/absint/(int)) is the fix, and a coerced value does not match.
+[[rule]]
+rule_id = "php-sql-unquoted-concat"
+title = "PHP SQL literal concatenates a variable into an unquoted position"
+languages = ["php"]
+cwe = "CWE-89"
+tags = ["injection"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.034
+version = "1"
+pattern = '''(?<![$\w>])(?=(VALUES|IN|ORDER|GROUP|LIMIT|OFFSET|WHERE|AND|OR|SET|HAVING)\b)(?:(?:VALUES|IN)\s*\(|(?:ORDER|GROUP)\s+BY\b[^"'\n]*|(?:LIMIT|OFFSET)\s+(?:\d+\s*,\s*)?|(?:WHERE|AND|OR|SET|HAVING)\s+[\w.`]+\s*(?:=|<>|!=|<=|>=|<|>|LIKE)\s*)["']\s*\.\s*\$(?!wpdb->)(?!\w*(?:format|placeholder))[A-Za-z_]'''
+
+[[rule]]
+rule_id = "php-sql-unquoted-interpolation"
+title = "PHP SQL string interpolates a variable into an unquoted position"
+languages = ["php"]
+cwe = "CWE-89"
+tags = ["injection"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.129
+version = "1"
+pattern = '''(?<![$\w>])(?=(VALUES|IN|ORDER|GROUP|LIMIT|OFFSET|WHERE|AND|OR|SET|HAVING)\b)(?:(?:VALUES|IN)\s*\(\s*|(?:ORDER|GROUP)\s+BY\b[^"'\n;]*?|(?:LIMIT|OFFSET)\s+(?:\d+\s*,\s*)?|(?:WHERE|AND|OR|SET|HAVING)\s+[\w.`]+\s*(?:=|<>|!=|<=|>=|<|>|LIKE)\s*)\{?\$(?!wpdb->)(?!\w*(?:format|placeholder))[A-Za-z_]'''
+
+# sprintf-built SQL with a quoted %s and no escaping or coercion anywhere in the statement (phpMyFAQ
+# CVE-2026-46364). Statement-scoped, so it spans lines up to the closing `);`.
+[[rule]]
+rule_id = "php-sql-sprintf-unescaped"
+title = "PHP sprintf-built SQL with an unescaped %s value"
+languages = ["php"]
+cwe = "CWE-89"
+tags = ["injection"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.109
+version = "1"
+pattern = '''(sprintf)\(\s*["']\s*(?:SELECT|INSERT|UPDATE|DELETE|REPLACE)\b(?=(?:(?!\);)[\s\S]){0,2000}?'%s')(?=(?:(?![Ee]scape|quote\(|intval\(|absint\(|\(int\)|esc_sql\()[\s\S]){0,2000}?\);)'''
+
+# --- command / code (command, code_eval) -------------------------------------------------------------------
+
+[[rule]]
+rule_id = "php-command-injection"
+title = "PHP shell command built from a variable without escapeshellarg"
+languages = ["php"]
+cwe = "CWE-78"
+tags = ["syscall_entry"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 1.0
+version = "1"
+pattern = '''(?<![\w>:$\\])(?<!function )(system|exec|shell_exec|passthru|popen|proc_open|pcntl_exec)\s*\((?![^\n]*escapeshell(?:arg|cmd)\s*\()[^,\n;]*\$[A-Za-z_]'''
+
+[[rule]]
+rule_id = "php-code-eval"
+title = "PHP code evaluation of a variable or request input"
+languages = ["php"]
+cwe = "CWE-95"
+tags = ["syscall_entry"]
+status = "shadow"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.333
+version = "1"
+pattern = '''(?<![\w>:$\\])(?<!function )(?=(eval|create_function|assert)\b)(?:(?:eval|create_function)\s*\([^\n;]*\$[A-Za-z_]|assert\s*\([^\n;]*\$_(?:GET|POST|REQUEST|COOKIE)\b)'''
+
+# --- deserialization (unserialize) -------------------------------------------------------------------------
+
+[[rule]]
+rule_id = "php-unserialize"
+title = "PHP unserialize of a variable or request input without allowed_classes"
+languages = ["php"]
+cwe = "CWE-502"
+tags = ["deserialization"]
+status = "shadow"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.25
+version = "1"
+# `maybe_unserialize` (WordPress) runs on every option and meta read, so it counts only with request input.
+pattern = '''(?<![\w>:$\\])(?<!function )(?=(unserialize|maybe_unserialize)\s*\()(?:unserialize\s*\((?![^\n]*allowed_classes)[^\n;]*(?:\$[A-Za-z_]|php://input)|maybe_unserialize\s*\([^\n;]*(?:\$_(?:GET|POST|REQUEST|COOKIE)\b|php://input))'''
+
+# --- output encoding (echo) --------------------------------------------------------------------------------
+
+[[rule]]
+rule_id = "php-xss-echo-input"
+title = "PHP echo of request input without HTML escaping"
+languages = ["php"]
+cwe = "CWE-79"
+tags = ["injection"]
+status = "shadow"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.333
+version = "1"
+pattern = '''(?m)^(?![^\n]*(?:htmlspecialchars|htmlentities|esc_html|esc_attr|esc_url|esc_js|intval|absint|json_encode|urlencode)\s*\()[^\n]*?(\becho\b|\bprint\b|<\?=)(?:[^\n;]*?[.,])?\s*\$_(?:GET|POST|REQUEST|COOKIE|SERVER)\[[^\]\n]*\]\s*(?:[.,;]|\?>)'''
+
+# --- path / inclusion (filesystem, file_inclusion) ---------------------------------------------------------
+
+[[rule]]
+rule_id = "php-file-inclusion-input"
+title = "PHP include/require of a path from request input"
+languages = ["php"]
+cwe = "CWE-98"
+tags = ["filesystem_entry"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.5
+version = "1"
+pattern = '''(?m)^(?![^\n]*\b(?:basename|realpath)\s*\()[^\n]*?(?<![\w'"$>:-])(include|include_once|require|require_once)\b(?!['"\]])\s*\(?[^\n;]*\$_(?:GET|POST|REQUEST|COOKIE)\b'''
+
+[[rule]]
+rule_id = "php-path-input"
+title = "PHP filesystem call on a path from request input"
+languages = ["php"]
+cwe = "CWE-22"
+tags = ["filesystem_entry"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 1.0
+version = "1"
+pattern = '''(?m)^(?![^\n]*\b(?:basename|realpath)\s*\()[^\n]*?(?<![\w>:$\\])(fopen|file_get_contents|file_put_contents|readfile|unlink|copy|rename|scandir|opendir|mkdir|rmdir|move_uploaded_file)\s*\([^\n;]*\$_(?:GET|POST|REQUEST|COOKIE)\b'''
+
+# --- untrusted destination (outbound_request, redirect) ----------------------------------------------------
+
+[[rule]]
+rule_id = "php-ssrf-input"
+title = "PHP outbound request to a URL from request input"
+languages = ["php"]
+cwe = "CWE-918"
+tags = ["network_entry"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 1.0
+version = "1"
+pattern = '''(?<![\w>:$\\])(curl_init|curl_setopt|fsockopen|stream_socket_client|get_headers)\s*\([^\n;]*\$_(?:GET|POST|REQUEST|COOKIE)\b'''
+
+[[rule]]
+rule_id = "php-open-redirect"
+title = "PHP Location header from request input"
+languages = ["php"]
+cwe = "CWE-601"
+tags = ["injection"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 1.0
+version = "1"
+pattern = '''(?<![\w>:$\\])(header)\s*\(\s*["']Location:[^\n;]*(?:\$_(?:GET|POST|REQUEST|COOKIE)\b|HTTP_REFERER)'''

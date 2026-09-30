@@ -99,7 +99,7 @@ def test_alerts_attribute_functions_and_mark_the_fix_on_both_pins(tmp_path: Path
 
 def test_quick_coverage_is_derived_from_the_ruleset_directory(tmp_path: Path) -> None:
     shipped = alerts.quick_languages()
-    assert {"python", "javascript", "typescript", "java", "c", "groovy"} <= shipped and "php" not in shipped
+    assert {"python", "javascript", "typescript", "java", "c", "groovy", "php"} <= shipped, "PHP has quick rules"
     assert "php" in alerts.engine_languages(), "the engine's semantic models cover PHP"
     rules = tmp_path / "ruleset" / "php"
     rules.mkdir(parents=True)
@@ -113,7 +113,7 @@ def test_quick_coverage_is_derived_from_the_ruleset_directory(tmp_path: Path) ->
 def test_alerts_on_an_uncovered_language_record_coverage_none_not_a_clean_zero(tmp_path: Path) -> None:
     for side in ("v", "f"):
         (tmp_path / side).mkdir()
-        (tmp_path / side / "index.php").write_text('<?php\n$id = $_GET["id"];\nmysqli_query($c, "SELECT " . $id);\n')
+        (tmp_path / side / "app.rb").write_text('id = params["id"]\nDB.execute("SELECT " + id)\n')
         (tmp_path / side / "app.js").write_text("module.exports = 1;\n")
     out = tmp_path / "out"
     env = {
@@ -125,9 +125,26 @@ def test_alerts_on_an_uncovered_language_record_coverage_none_not_a_clean_zero(t
     assert (out / "alerts.jsonl").read_text() == "" and summary["alerts"] == {"vulnerable": 0, "fixed": 0}
     assert summary["coverage"] == {
         "javascript": {"coverage": "quick", "files": {"fixed": 1, "vulnerable": 1}},
-        "php": {"coverage": "none", "files": {"fixed": 1, "vulnerable": 1}},
+        "ruby": {"coverage": "none", "files": {"fixed": 1, "vulnerable": 1}},
     }
-    assert summary["uncovered"] == ["php"] and summary["pins"] == {"vulnerable": VULNERABLE, "fixed": FIXED}
+    assert summary["uncovered"] == ["ruby"] and summary["pins"] == {"vulnerable": VULNERABLE, "fixed": FIXED}
+
+
+def test_php_is_quick_covered_and_alerts_on_a_php_sink(tmp_path: Path) -> None:
+    for side in ("v", "f"):
+        (tmp_path / side).mkdir()
+        (tmp_path / side / "index.php").write_text('<?php\n$id = $_GET["id"];\nmysqli_query($c, "SELECT " . $id);\n')
+    out = tmp_path / "out"
+    env = {
+        "OUSAST_OUTPUT_DIR": str(out), "OUSAST_WORKSPACE_DIR": str(tmp_path / "v"), "OUSAST_FIXED_DIR": str(tmp_path / "f"),
+        "OUSAST_VULNERABLE_PIN": VULNERABLE, "OUSAST_FIXED_PIN": FIXED,
+    }  # fmt: skip
+    assert alerts.main(env) == 0
+    summary = json.loads((out / "summary.json").read_text())
+    assert summary["coverage"] == {"php": {"coverage": "quick", "files": {"fixed": 1, "vulnerable": 1}}}
+    assert summary["uncovered"] == [] and summary["alerts"] == {"vulnerable": 1, "fixed": 1}
+    rows = [json.loads(line) for line in (out / "alerts.jsonl").read_text().splitlines()]
+    assert {(r["rule_id"], r["line"]) for r in rows} == {("php-sql-call-composition", 3)}
 
 
 def test_fix_ranges_new_side_are_the_fixed_pins_lines(tmp_path: Path) -> None:

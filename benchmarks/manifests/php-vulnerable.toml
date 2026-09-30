@@ -1,0 +1,136 @@
+name = "php-vulnerable"
+language = "php_web"
+frameworks = ["wordpress"]
+setup = []
+modes = ["quick", "standard"]
+known_noise = []
+baselines = []
+
+[source]
+type = "local"
+path = "../fixtures/php-vulnerable"
+
+[[expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "app.php"
+line = 11
+rule_id = "php-wpdb-sql-composition"
+sink = "get_var"
+evidence = "wpdb get_var query concatenates the order code without prepare"
+
+[[expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "app.php"
+line = 16
+rule_id = "php-sql-call-composition"
+sink = "mysqli_query"
+evidence = "mysqli_query composes the query from request input"
+
+[[expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "app.php"
+line = 22
+rule_id = "php-sql-unquoted-interpolation"
+sink = "ORDER"
+evidence = "esc_sql value interpolated into an unquoted ORDER BY"
+
+[[expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "app.php"
+line = 27
+rule_id = "php-sql-unquoted-concat"
+sink = "VALUES"
+evidence = "form id concatenated unquoted into VALUES"
+
+[[expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "app.php"
+line = 32
+rule_id = "php-sql-sprintf-unescaped"
+sink = "sprintf"
+evidence = "sprintf SQL with an unescaped quoted %s user agent"
+
+[[expected]]
+cwe = "CWE-78"
+class = "command injection"
+path = "app.php"
+line = 41
+rule_id = "php-command-injection"
+sink = "system"
+evidence = "system runs a command built from request input"
+
+[[expected]]
+cwe = "CWE-95"
+class = "code injection"
+path = "app.php"
+line = 46
+rule_id = "php-code-eval"
+sink = "eval"
+evidence = "eval executes a formula string"
+
+[[expected]]
+cwe = "CWE-502"
+class = "insecure deserialization"
+path = "app.php"
+line = 52
+rule_id = "php-unserialize"
+sink = "unserialize"
+evidence = "unserialize of a cookie"
+
+[[expected]]
+cwe = "CWE-79"
+class = "cross-site scripting"
+path = "app.php"
+line = 57
+rule_id = "php-xss-echo-input"
+sink = "echo"
+evidence = "request input echoed without escaping"
+
+[[expected]]
+cwe = "CWE-98"
+class = "file inclusion"
+path = "app.php"
+line = 62
+rule_id = "php-file-inclusion-input"
+sink = "include"
+evidence = "include of a request-chosen path"
+
+[[expected]]
+cwe = "CWE-22"
+class = "path traversal"
+path = "app.php"
+line = 67
+rule_id = "php-path-input"
+sink = "readfile"
+evidence = "readfile of a request-chosen path"
+
+[[expected]]
+cwe = "CWE-918"
+class = "server-side request forgery"
+path = "app.php"
+line = 72
+rule_id = "php-ssrf-input"
+sink = "curl_init"
+evidence = "curl request to a request-chosen URL"
+
+[[expected]]
+cwe = "CWE-601"
+class = "open redirect"
+path = "app.php"
+line = 78
+rule_id = "php-open-redirect"
+sink = "header"
+evidence = "Location header from request input"
+
+[[expected]]
+cwe = "CWE-89"
+class = "sql injection"
+path = "app.php"
+line = 86
+sink = "mysqli_query"
+evidence = "query built from a request value on an earlier line (not visible to a line rule)"

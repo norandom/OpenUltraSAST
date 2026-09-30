@@ -196,6 +196,8 @@ def _match_is_in_comment(text: str, offset: int, language: str = "") -> bool:
             return True
         comment_column = line.find("#")
         return comment_column != -1 and comment_column < column
+    if language == "php" and stripped.startswith("#") and not stripped.startswith("#["):
+        return True  # PHP also has `#` line comments; `#[...]` is a PHP 8 attribute, not a comment
     if stripped.startswith(("//", "/*", "*")):
         return True
     comment_column = line.find("//")

@@ -1,0 +1,864 @@
+{
+ "cases": {
+  "phpmyfaq-captcha-ua-sqli": {
+   "fixed": {
+    "at_known_site": [
+     "php-sql-sprintf-unescaped:phpmyfaq/src/phpMyFAQ/Captcha/BuiltinCaptcha.php:294",
+     "php-sql-sprintf-unescaped:phpmyfaq/src/phpMyFAQ/Captcha/BuiltinCaptcha.php:320",
+     "php-sql-sprintf-unescaped:phpmyfaq/src/phpMyFAQ/Captcha/BuiltinCaptcha.php:336"
+    ],
+    "by_rule": {
+     "php-sql-sprintf-unescaped": 44,
+     "php-sql-unquoted-concat": 10,
+     "php-sql-unquoted-interpolation": 5
+    },
+    "by_rule_enabled": 59,
+    "findings": 59,
+    "known_sites": {
+     "phpmyfaq/src/phpMyFAQ/Captcha/BuiltinCaptcha.php": [
+      [
+       267,
+       291
+      ],
+      [
+       282,
+       302
+      ],
+      [
+       291,
+       313
+      ],
+      [
+       296,
+       316
+      ],
+      [
+       304,
+       329
+      ],
+      [
+       316,
+       336
+      ],
+      [
+       318,
+       338
+      ],
+      [
+       321,
+       341
+      ],
+      [
+       334,
+       357
+      ],
+      [
+       340,
+       360
+      ],
+      [
+       475,
+       499
+      ],
+      [
+       482,
+       506
+      ]
+     ]
+    },
+    "read": {
+     "php_bytes": 12893136,
+     "php_files": 762,
+     "scan_seconds": 14.4
+    }
+   },
+   "vulnerable": {
+    "at_known_site": [
+     "php-sql-sprintf-unescaped:phpmyfaq/src/phpMyFAQ/Captcha/BuiltinCaptcha.php:289",
+     "php-sql-sprintf-unescaped:phpmyfaq/src/phpMyFAQ/Captcha/BuiltinCaptcha.php:309",
+     "php-sql-sprintf-unescaped:phpmyfaq/src/phpMyFAQ/Captcha/BuiltinCaptcha.php:325",
+     "php-sql-sprintf-unescaped:phpmyfaq/src/phpMyFAQ/Captcha/BuiltinCaptcha.php:474"
+    ],
+    "by_rule": {
+     "php-sql-sprintf-unescaped": 45,
+     "php-sql-unquoted-concat": 10,
+     "php-sql-unquoted-interpolation": 5
+    },
+    "by_rule_enabled": 60,
+    "findings": 60,
+    "known_sites": {
+     "phpmyfaq/src/phpMyFAQ/Captcha/BuiltinCaptcha.php": [
+      [
+       266,
+       286
+      ],
+      [
+       277,
+       297
+      ],
+      [
+       286,
+       308
+      ],
+      [
+       291,
+       311
+      ],
+      [
+       298,
+       318
+      ],
+      [
+       305,
+       325
+      ],
+      [
+       307,
+       327
+      ],
+      [
+       310,
+       330
+      ],
+      [
+       323,
+       346
+      ],
+      [
+       329,
+       349
+      ],
+      [
+       464,
+       484
+      ],
+      [
+       466,
+       486
+      ]
+     ]
+    },
+    "read": {
+     "php_bytes": 12888581,
+     "php_files": 762,
+     "scan_seconds": 13.9
+    }
+   }
+  },
+  "pmpro": {
+   "benign": {
+    "at_known_site": [
+     "php-wpdb-sql-composition:classes/class.memberorder.php:937"
+    ],
+    "by_rule": {
+     "php-sql-unquoted-concat": 9,
+     "php-sql-unquoted-interpolation": 28,
+     "php-wpdb-sql-composition": 55
+    },
+    "by_rule_enabled": 92,
+    "findings": 92,
+    "known_site": "classes/class.memberorder.php:934-946",
+    "read": {
+     "php_bytes": 4244314,
+     "php_files": 637,
+     "scan_seconds": 5.5
+    },
+    "root": "/tmp/claude-1000/-home-mc-Source-OpenUltraSAST/c09e30b2-39a4-4564-bc31-6ea71ffaa198/scratchpad/phpquick/corpus/checkouts/pmpro/benign"
+   },
+   "fixed": {
+    "at_known_site": [],
+    "by_rule": {
+     "php-sql-unquoted-concat": 6,
+     "php-sql-unquoted-interpolation": 21,
+     "php-wpdb-sql-composition": 39
+    },
+    "by_rule_enabled": 66,
+    "findings": 66,
+    "known_site": "classes/class.memberorder.php:934-946",
+    "read": {
+     "php_bytes": 4246202,
+     "php_files": 637,
+     "scan_seconds": 5.3
+    },
+    "root": "/home/mc/.cache/openultrasast/repos/pmpro/2f65530f9442"
+   },
+   "vulnerable": {
+    "at_known_site": [
+     "php-wpdb-sql-composition:classes/class.memberorder.php:936"
+    ],
+    "by_rule": {
+     "php-sql-unquoted-concat": 9,
+     "php-sql-unquoted-interpolation": 28,
+     "php-wpdb-sql-composition": 55
+    },
+    "by_rule_enabled": 92,
+    "findings": 92,
+    "known_site": "classes/class.memberorder.php:933-945",
+    "read": {
+     "php_bytes": 4244270,
+     "php_files": 637,
+     "scan_seconds": 5.3
+    },
+    "root": "/home/mc/.cache/openultrasast/repos/pmpro/1a900be3f09f"
+   }
+  },
+  "wp-learnpress-sqli": {
+   "fixed": {
+    "at_known_site": [],
+    "by_rule": {
+     "php-sql-unquoted-concat": 19,
+     "php-sql-unquoted-interpolation": 23,
+     "php-unserialize": 1,
+     "php-wpdb-sql-composition": 4
+    },
+    "by_rule_enabled": 46,
+    "findings": 47,
+    "known_sites": {
+     "inc/Databases/class-lp-db.php": [
+      [
+       597,
+       617
+      ]
+     ],
+     "inc/Models/Courses.php": [
+      [
+       9,
+       29
+      ],
+      [
+       72,
+       94
+      ],
+      [
+       78,
+       107
+      ]
+     ],
+     "inc/class-lp-assets.php": [
+      [
+       299,
+       319
+      ]
+     ],
+     "inc/jwt/rest-api/version1/class-lp-rest-courses-v1-controller.php": [
+      [
+       425,
+       445
+      ],
+      [
+       431,
+       459
+      ],
+      [
+       448,
+       468
+      ],
+      [
+       532,
+       552
+      ],
+      [
+       536,
+       557
+      ]
+     ]
+    },
+    "read": {
+     "php_bytes": 3515681,
+     "php_files": 801,
+     "scan_seconds": 4.4
+    }
+   },
+   "vulnerable": {
+    "at_known_site": [],
+    "by_rule": {
+     "php-sql-unquoted-concat": 19,
+     "php-sql-unquoted-interpolation": 23,
+     "php-unserialize": 1,
+     "php-wpdb-sql-composition": 4
+    },
+    "by_rule_enabled": 46,
+    "findings": 47,
+    "known_sites": {
+     "inc/Databases/class-lp-db.php": [
+      [
+       597,
+       617
+      ]
+     ],
+     "inc/Models/Courses.php": [
+      [
+       8,
+       28
+      ],
+      [
+       70,
+       90
+      ],
+      [
+       73,
+       93
+      ]
+     ],
+     "inc/class-lp-assets.php": [
+      [
+       299,
+       319
+      ]
+     ],
+     "inc/jwt/rest-api/version1/class-lp-rest-courses-v1-controller.php": [
+      [
+       425,
+       445
+      ],
+      [
+       430,
+       450
+      ],
+      [
+       440,
+       462
+      ],
+      [
+       526,
+       547
+      ],
+      [
+       531,
+       552
+      ]
+     ]
+    },
+    "read": {
+     "php_bytes": 3515194,
+     "php_files": 801,
+     "scan_seconds": 4.7
+    }
+   }
+  },
+  "wp-ultimate-member-sqli": {
+   "fixed": {
+    "at_known_site": [
+     "php-sql-unquoted-interpolation:includes/core/class-member-directory-meta.php:793",
+     "php-sql-unquoted-interpolation:includes/core/class-member-directory-meta.php:810",
+     "php-sql-unquoted-interpolation:includes/core/class-member-directory-meta.php:816",
+     "php-sql-unquoted-interpolation:includes/core/class-member-directory-meta.php:825",
+     "php-sql-unquoted-interpolation:includes/core/class-member-directory-meta.php:833",
+     "php-sql-unquoted-interpolation:includes/core/class-member-directory-meta.php:842",
+     "php-sql-unquoted-interpolation:includes/core/class-member-directory-meta.php:902",
+     "php-sql-unquoted-interpolation:includes/core/class-member-directory-meta.php:907"
+    ],
+    "by_rule": {
+     "php-sql-unquoted-concat": 2,
+     "php-sql-unquoted-interpolation": 9,
+     "php-wpdb-sql-composition": 3
+    },
+    "by_rule_enabled": 14,
+    "findings": 14,
+    "known_sites": {
+     "includes/core/class-member-directory-meta.php": [
+      [
+       778,
+       799
+      ],
+      [
+       780,
+       800
+      ],
+      [
+       782,
+       802
+      ],
+      [
+       798,
+       818
+      ],
+      [
+       805,
+       825
+      ],
+      [
+       814,
+       834
+      ],
+      [
+       822,
+       842
+      ],
+      [
+       831,
+       851
+      ],
+      [
+       862,
+       882
+      ],
+      [
+       891,
+       911
+      ],
+      [
+       893,
+       913
+      ],
+      [
+       896,
+       916
+      ]
+     ]
+    },
+    "read": {
+     "php_bytes": 2588115,
+     "php_files": 261,
+     "scan_seconds": 3.5
+    }
+   },
+   "vulnerable": {
+    "at_known_site": [
+     "php-sql-unquoted-interpolation:includes/core/class-member-directory-meta.php:791",
+     "php-sql-unquoted-interpolation:includes/core/class-member-directory-meta.php:807",
+     "php-sql-unquoted-interpolation:includes/core/class-member-directory-meta.php:812",
+     "php-sql-unquoted-interpolation:includes/core/class-member-directory-meta.php:820",
+     "php-sql-unquoted-interpolation:includes/core/class-member-directory-meta.php:827",
+     "php-sql-unquoted-interpolation:includes/core/class-member-directory-meta.php:835",
+     "php-sql-unquoted-interpolation:includes/core/class-member-directory-meta.php:894",
+     "php-sql-unquoted-interpolation:includes/core/class-member-directory-meta.php:898"
+    ],
+    "by_rule": {
+     "php-sql-unquoted-concat": 2,
+     "php-sql-unquoted-interpolation": 9,
+     "php-wpdb-sql-composition": 3
+    },
+    "by_rule_enabled": 14,
+    "findings": 14,
+    "known_sites": {
+     "includes/core/class-member-directory-meta.php": [
+      [
+       777,
+       797
+      ],
+      [
+       779,
+       799
+      ],
+      [
+       780,
+       800
+      ],
+      [
+       795,
+       815
+      ],
+      [
+       801,
+       821
+      ],
+      [
+       809,
+       829
+      ],
+      [
+       816,
+       836
+      ],
+      [
+       824,
+       844
+      ],
+      [
+       855,
+       875
+      ],
+      [
+       883,
+       903
+      ],
+      [
+       885,
+       905
+      ],
+      [
+       887,
+       907
+      ]
+     ]
+    },
+    "read": {
+     "php_bytes": 2587061,
+     "php_files": 261,
+     "scan_seconds": 3.3
+    }
+   }
+  },
+  "yeswiki-bazar-form-sqli": {
+   "fixed": {
+    "at_known_site": [],
+    "by_rule": {
+     "php-code-eval": 2,
+     "php-sql-call-composition": 3,
+     "php-sql-unquoted-concat": 15,
+     "php-sql-unquoted-interpolation": 4,
+     "php-unserialize": 2,
+     "php-xss-echo-input": 2
+    },
+    "by_rule_enabled": 19,
+    "findings": 28,
+    "known_sites": {
+     "tools/bazar/controllers/FormController.php": [
+      [
+       29,
+       51
+      ]
+     ],
+     "tools/bazar/services/FormManager.php": [
+      [
+       248,
+       268
+      ]
+     ]
+    },
+    "read": {
+     "php_bytes": 3971093,
+     "php_files": 655,
+     "scan_seconds": 5.2
+    }
+   },
+   "vulnerable": {
+    "at_known_site": [
+     "php-sql-unquoted-concat:tools/bazar/services/FormManager.php:258"
+    ],
+    "by_rule": {
+     "php-code-eval": 2,
+     "php-sql-call-composition": 3,
+     "php-sql-unquoted-concat": 16,
+     "php-sql-unquoted-interpolation": 4,
+     "php-unserialize": 2,
+     "php-xss-echo-input": 2
+    },
+    "by_rule_enabled": 20,
+    "findings": 29,
+    "known_sites": {
+     "tools/bazar/controllers/FormController.php": [
+      [
+       28,
+       48
+      ]
+     ],
+     "tools/bazar/services/FormManager.php": [
+      [
+       248,
+       268
+      ]
+     ]
+    },
+    "read": {
+     "php_bytes": 3970854,
+     "php_files": 655,
+     "scan_seconds": 5.1
+    }
+   }
+  }
+ },
+ "engine": {
+  "pmpro": {
+   "fixed": {
+    "at_known_site": [],
+    "completed": 318,
+    "degradations": [
+     "cross_partition_semantics_unresolved",
+     "partition_file_census_incomplete",
+     "process_timeout",
+     "query_budget_reserved"
+    ],
+    "findings": 6,
+    "questions": 382,
+    "read": "read 673 files, 4603062 bytes; 4461 regions offer ('injection',)",
+    "seconds": 2025.8,
+    "sites": [
+     "classes/class-pmpro-discount-codes.php:266:save",
+     "classes/class.memberorder.php:1469:saveOrder",
+     "classes/class.pmproemail.php:549:sendCheckoutEmail",
+     "classes/class.pmproemail.php:668:sendCheckoutAdminEmail",
+     "includes/functions.php:3823:pmpro_insert_or_replace",
+     "services/ipnhandler.php:819:pmpro_ipnSaveOrder"
+    ]
+   },
+   "source": "frozen export of 45d02ec, openultrasast:dev, --memory 3g, --network none, family injection",
+   "vulnerable": {
+    "at_known_site": [
+     "classes/class.memberorder.php:936:getMemberOrderByCode"
+    ],
+    "completed": 125,
+    "degradations": [
+     "cross_partition_semantics_unresolved",
+     "partition_file_census_incomplete",
+     "process_timeout",
+     "query_budget_reserved"
+    ],
+    "findings": 10,
+    "questions": 382,
+    "read": "read 673 files, 4601130 bytes; 4461 regions offer ('injection',)",
+    "seconds": 1993.4,
+    "sites": [
+     "classes/class.memberorder.php:1467:saveOrder",
+     "classes/class.memberorder.php:925:getLastMemberOrder",
+     "classes/class.memberorder.php:936:getMemberOrderByCode",
+     "classes/class.memberorder.php:984:getMemberOrderByPayPalToken",
+     "classes/class.pmproemail.php:550:sendCheckoutEmail",
+     "classes/class.pmproemail.php:661:sendCheckoutAdminEmail",
+     "includes/profile.php:337:pmpro_membership_level_profile_fields_update",
+     "includes/profile.php:344:pmpro_membership_level_profile_fields_update",
+     "includes/profile.php:350:pmpro_membership_level_profile_fields_update",
+     "services/ipnhandler.php:819:pmpro_ipnSaveOrder"
+    ]
+   }
+  },
+  "v1_recorded": {
+   "phpmyfaq-captcha-ua-sqli": {
+    "detected": false,
+    "fixed": {
+     "completed": 0,
+     "findings": 0,
+     "questions": 5000,
+     "seconds": 426.2
+    },
+    "unanswered": true,
+    "vulnerable": {
+     "completed": 0,
+     "findings": 0,
+     "questions": 5000,
+     "seconds": 437.7
+    }
+   },
+   "source": "not re-run: the population-v1 run of 2026-09-24 (analyzer ebcc2cf), ~/ousast-results/independent-v1/score.json",
+   "wp-learnpress-sqli": {
+    "detected": false,
+    "fixed": {
+     "completed": 4815,
+     "findings": 0,
+     "questions": 5000,
+     "seconds": 470.5
+    },
+    "unanswered": false,
+    "vulnerable": {
+     "completed": 4815,
+     "findings": 0,
+     "questions": 5000,
+     "seconds": 414.2
+    }
+   },
+   "wp-ultimate-member-sqli": {
+    "detected": false,
+    "fixed": {
+     "completed": 76,
+     "findings": 0,
+     "questions": 303,
+     "seconds": 218.0
+    },
+    "unanswered": false,
+    "vulnerable": {
+     "completed": 76,
+     "findings": 0,
+     "questions": 303,
+     "seconds": 215.8
+    }
+   },
+   "yeswiki-bazar-form-sqli": {
+    "detected": false,
+    "fixed": {
+     "completed": 0,
+     "findings": 4,
+     "questions": 1128,
+     "seconds": 306.9
+    },
+    "unanswered": true,
+    "vulnerable": {
+     "completed": 0,
+     "findings": 4,
+     "questions": 1128,
+     "seconds": 334.9
+    }
+   }
+  }
+ },
+ "fixtures": {
+  "php-benign": {
+   "expected": 0,
+   "false_positives": [
+    "php-file-inclusion-input:app.php:64",
+    "php-sql-unquoted-concat:app.php:87"
+   ],
+   "findings": 2,
+   "matched": 0,
+   "missed": [],
+   "true_positives": []
+  },
+  "php-vulnerable": {
+   "expected": 14,
+   "false_positives": [],
+   "findings": 13,
+   "matched": 13,
+   "missed": [
+    "CWE-89"
+   ],
+   "true_positives": [
+    "php-code-eval:app.php:46",
+    "php-command-injection:app.php:41",
+    "php-file-inclusion-input:app.php:62",
+    "php-open-redirect:app.php:78",
+    "php-path-input:app.php:67",
+    "php-sql-call-composition:app.php:16",
+    "php-sql-sprintf-unescaped:app.php:32",
+    "php-sql-unquoted-concat:app.php:27",
+    "php-sql-unquoted-interpolation:app.php:22",
+    "php-ssrf-input:app.php:72",
+    "php-unserialize:app.php:52",
+    "php-wpdb-sql-composition:app.php:11",
+    "php-xss-echo-input:app.php:57"
+   ]
+  }
+ },
+ "provenance": {
+  "analyzer_base_commit": "45d02ec",
+  "corpus": "development only: benchmarks/push/inputs.json pmpro vulnerable/fixed/benign (role development) and the spent population-v1 PHP cases' vulnerable/fixed pins; population-v2 was not read",
+  "date": "2026-09-30",
+  "harness": "measure_php_quick.py (this directory)",
+  "in_sample": "the rules were written and tightened while looking at these pins and the fixtures, so every number here is in-sample (development), not a holdout result",
+  "instrument": "every pin reports php_files and php_bytes read by the scan; a zero-byte pin fails the harness",
+  "known_site": "pmpro: getMemberOrderByCode on each pin; v1: fix hunks (vulnerable side / fixed side, test paths dropped) widened by 10 lines, plus the declared LearnPress sink line"
+ },
+ "rules": {
+  "php-code-eval": {
+   "fixed": 2,
+   "fixture_fp": 0,
+   "fixture_tp": 1,
+   "n": 3,
+   "precision_lower_bound": 0.333,
+   "status": "shadow",
+   "vulnerable": 2,
+   "vulnerable_at_site": 0
+  },
+  "php-command-injection": {
+   "fixture_fp": 0,
+   "fixture_tp": 1,
+   "n": 1,
+   "precision_lower_bound": 1.0,
+   "status": "enabled",
+   "vulnerable": 0,
+   "vulnerable_at_site": 0
+  },
+  "php-file-inclusion-input": {
+   "fixture_fp": 1,
+   "fixture_tp": 1,
+   "n": 2,
+   "precision_lower_bound": 0.5,
+   "status": "enabled",
+   "vulnerable": 0,
+   "vulnerable_at_site": 0
+  },
+  "php-open-redirect": {
+   "fixture_fp": 0,
+   "fixture_tp": 1,
+   "n": 1,
+   "precision_lower_bound": 1.0,
+   "status": "enabled",
+   "vulnerable": 0,
+   "vulnerable_at_site": 0
+  },
+  "php-path-input": {
+   "fixture_fp": 0,
+   "fixture_tp": 1,
+   "n": 1,
+   "precision_lower_bound": 1.0,
+   "status": "enabled",
+   "vulnerable": 0,
+   "vulnerable_at_site": 0
+  },
+  "php-sql-call-composition": {
+   "fixed": 3,
+   "fixture_fp": 0,
+   "fixture_tp": 1,
+   "n": 4,
+   "precision_lower_bound": 0.25,
+   "status": "shadow",
+   "vulnerable": 3,
+   "vulnerable_at_site": 0
+  },
+  "php-sql-sprintf-unescaped": {
+   "fixed": 44,
+   "fixed_at_site": 3,
+   "fixture_fp": 0,
+   "fixture_tp": 1,
+   "n": 46,
+   "precision_lower_bound": 0.109,
+   "status": "enabled",
+   "vulnerable": 45,
+   "vulnerable_at_site": 4
+  },
+  "php-sql-unquoted-concat": {
+   "benign": 9,
+   "fixed": 52,
+   "fixture_fp": 1,
+   "fixture_tp": 1,
+   "n": 58,
+   "precision_lower_bound": 0.034,
+   "status": "enabled",
+   "vulnerable": 56,
+   "vulnerable_at_site": 1
+  },
+  "php-sql-unquoted-interpolation": {
+   "benign": 28,
+   "fixed": 62,
+   "fixed_at_site": 8,
+   "fixture_fp": 0,
+   "fixture_tp": 1,
+   "n": 70,
+   "precision_lower_bound": 0.129,
+   "status": "enabled",
+   "vulnerable": 69,
+   "vulnerable_at_site": 8
+  },
+  "php-ssrf-input": {
+   "fixture_fp": 0,
+   "fixture_tp": 1,
+   "n": 1,
+   "precision_lower_bound": 1.0,
+   "status": "enabled",
+   "vulnerable": 0,
+   "vulnerable_at_site": 0
+  },
+  "php-unserialize": {
+   "fixed": 3,
+   "fixture_fp": 0,
+   "fixture_tp": 1,
+   "n": 4,
+   "precision_lower_bound": 0.25,
+   "status": "shadow",
+   "vulnerable": 3,
+   "vulnerable_at_site": 0
+  },
+  "php-wpdb-sql-composition": {
+   "benign": 55,
+   "benign_at_site": 1,
+   "fixed": 46,
+   "fixture_fp": 0,
+   "fixture_tp": 1,
+   "n": 63,
+   "precision_lower_bound": 0.032,
+   "status": "enabled",
+   "vulnerable": 62,
+   "vulnerable_at_site": 1
+  },
+  "php-xss-echo-input": {
+   "fixed": 2,
+   "fixture_fp": 0,
+   "fixture_tp": 1,
+   "n": 3,
+   "precision_lower_bound": 0.333,
+   "status": "shadow",
+   "vulnerable": 2,
+   "vulnerable_at_site": 0
+  }
+ },
+ "window": 10
+}

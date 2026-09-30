@@ -121,7 +121,11 @@ def test_alerts_engine_writes_the_alerts_task_outputs_and_marks_it_done(world: d
     out = world["results"] / "validation-46" / f"{CASE}-alerts"
     rows = [json.loads(line) for line in (out / "alerts.jsonl").read_text().splitlines()]
     vulnerable, fixed = world["pins"]
-    got = [(r["pin_role"], r["pin"], r["line"], r["in_fix_range"], r["source"]) for r in rows]
+    quick = {(r["pin_role"], r["rule_id"], r["line"]) for r in rows if "source" not in r}
+    assert ("vulnerable", "php-sql-call-composition", 3) in quick and ("fixed", "php-sql-call-composition", 3) not in quick, (
+        "PHP's quick rules run beside the engine and see the intval fix"
+    )
+    got = [(r["pin_role"], r["pin"], r["line"], r["in_fix_range"], r["source"]) for r in rows if "source" in r]
     assert got == [("vulnerable", vulnerable, 3, True, "engine"), ("vulnerable", vulnerable, 5, False, "engine"),
                    ("fixed", fixed, 3, True, "engine"), ("fixed", fixed, 5, False, "engine")]  # fmt: skip
     summary = json.loads((out / "summary.json").read_text())
