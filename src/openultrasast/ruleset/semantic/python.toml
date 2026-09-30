@@ -3,6 +3,7 @@ language = "python"
 
 [[source]]
 id = "request"
+framework = "flask"
 patterns = [
   "request.args",
   "request.form",
@@ -22,6 +23,7 @@ patterns = [
 # validated for type, not for trust.
 [[source]]
 id = "django-request"
+framework = "django"
 patterns = [
   "request.GET",
   "request.POST",
@@ -54,8 +56,15 @@ rule_ids = ["python-unsafe-eval"]
 [[sink]]
 id = "pickle.loads"
 cwe = "CWE-502"
-calls = ["pickle.loads", "pickle.load", "yaml.load", "marshal.loads", "cPickle.loads"]
+calls = ["pickle.loads", "pickle.load", "marshal.loads", "cPickle.loads"]
 rule_ids = ["python-unsafe-deserialization"]
+
+[[sink]]
+id = "pickle.loads"
+library = "pyyaml"
+cwe = "CWE-502"
+calls = ["yaml.load"]
+rule_ids = []
 
 [[sink]]
 id = "execute"
@@ -82,6 +91,7 @@ calls = ["ast.literal_eval"]
 
 [[sanitizer]]
 id = "yaml.safe_load"
+library = "pyyaml"
 calls = ["yaml.safe_load", "safe_load"]
 
 [[sanitizer]]
@@ -100,8 +110,16 @@ parameterized = true
 # CWE-89. Django's documented raw-SQL escape hatches (docs: "Performing raw SQL queries") and the
 # SQLAlchemy/peewee text forms. These were the single largest miss class in the go/no-go.
 id = "orm.raw"
+framework = "django"
 cwe = "CWE-89"
-calls = ["objects.raw", "raw", "RawSQL", "extra", "text", "from_statement"]
+calls = ["objects.raw", "raw", "RawSQL", "extra"]
+rule_ids = []
+
+[[sink]]
+id = "orm.raw"
+library = "sqlalchemy"
+cwe = "CWE-89"
+calls = ["text", "from_statement"]
 rule_ids = []
 
 [[sink]]
@@ -109,7 +127,21 @@ rule_ids = []
 # send_file/send_from_directory and Django's FileResponse.
 id = "path.open"
 cwe = "CWE-22"
-calls = ["open", "send_file", "send_from_directory", "FileResponse", "os.remove", "os.unlink", "shutil.copy", "shutil.move", "shutil.rmtree"]
+calls = ["open", "os.remove", "os.unlink", "shutil.copy", "shutil.move", "shutil.rmtree"]
+rule_ids = []
+
+[[sink]]
+id = "path.open"
+framework = "flask"
+cwe = "CWE-22"
+calls = ["send_file", "send_from_directory"]
+rule_ids = []
+
+[[sink]]
+id = "path.open"
+framework = "django"
+cwe = "CWE-22"
+calls = ["FileResponse"]
 rule_ids = []
 
 [[sink]]
@@ -117,8 +149,16 @@ rule_ids = []
 # Markup, Django's mark_safe and format_html. Rendering a template *file* is not a sink; rendering a
 # caller-supplied *string* is.
 id = "html.unescaped"
+framework = "flask"
 cwe = "CWE-79"
-calls = ["render_template_string", "Markup", "mark_safe", "format_html", "HttpResponse"]
+calls = ["render_template_string", "Markup"]
+rule_ids = []
+
+[[sink]]
+id = "html.unescaped"
+framework = "django"
+cwe = "CWE-79"
+calls = ["mark_safe", "format_html", "HttpResponse"]
 rule_ids = []
 
 [[sink]]
@@ -126,14 +166,40 @@ rule_ids = []
 # destination. requests/urllib/httpx are the documented HTTP clients; redirect is Flask's and Django's.
 id = "outbound.request"
 cwe = "CWE-918"
-calls = ["requests.get", "requests.post", "requests.request", "urlopen", "urlretrieve", "httpx.get", "httpx.post"]
+calls = ["urlopen", "urlretrieve"]
+rule_ids = []
+prefix_fixes_origin = true
+
+[[sink]]
+id = "outbound.request"
+library = "requests"
+cwe = "CWE-918"
+calls = ["requests.get", "requests.post", "requests.request"]
+rule_ids = []
+prefix_fixes_origin = true
+
+[[sink]]
+id = "outbound.request"
+library = "httpx"
+cwe = "CWE-918"
+calls = ["httpx.get", "httpx.post"]
+rule_ids = []
+prefix_fixes_origin = true
+
+# `redirect` is Flask's (Django's shortcut shares the name; the Flask row carries it).
+[[sink]]
+id = "redirect"
+framework = "flask"
+cwe = "CWE-601"
+calls = ["redirect", "url_for"]
 rule_ids = []
 prefix_fixes_origin = true
 
 [[sink]]
 id = "redirect"
+framework = "django"
 cwe = "CWE-601"
-calls = ["redirect", "HttpResponseRedirect", "url_for"]
+calls = ["HttpResponseRedirect"]
 rule_ids = []
 # Django's `reverse` builds an in-site path from a route NAME; request data can only fill its path segments.
 prefix_fixes_origin = true
@@ -143,5 +209,6 @@ origin_anchors = ["reverse", "reverse_lazy"]
 # redirect is `if not url_has_allowed_host_and_scheme(next_url, ...): next_url = reverse(...)`.
 [[sanitizer]]
 id = "url_allowlist"
+framework = "django"
 calls = ["url_has_allowed_host_and_scheme", "is_safe_url"]
 guard = true

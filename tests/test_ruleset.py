@@ -19,7 +19,7 @@ from openultrasast.ruleset import (
 def test_default_ruleset_loads_as_data() -> None:
     rules = load_ruleset(DEFAULT_RULESET_DIR)
     php = [rule for rule in rules if rule.languages == ("php",)]
-    assert len(rules) == 32 + len(php) and len(php) == 13
+    assert len(rules) == 32 + len(php) and len(php) == 14  # php-unserialize split in two (decision-engine task 2)
     assert all(rule.status == "enabled" for rule in rules if rule not in php), "PHP rules carry their measured status"
     assert all(not hasattr(rule, "severity") for rule in rules)  # severity is policy-governed, not rule-local
 

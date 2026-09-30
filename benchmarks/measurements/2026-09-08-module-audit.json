@@ -1,7 +1,7 @@
 {
-  "modules": 139,
+  "modules": 140,
   "counts": {
-    "load_bearing": 132,
+    "load_bearing": 133,
     "standalone_capability": 7
   },
   "orphaned": [],
@@ -1199,7 +1199,18 @@
         "plane.tasks.alerts",
         "plane.tasks.features",
         "plane.tasks.loop",
+        "ruleset.store",
+        "semantic.facts",
         "stage_processors"
+      ]
+    },
+    {
+      "module": "ruleset.frameworks",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
+        "ruleset.store",
+        "semantic.facts"
       ]
     },
     {

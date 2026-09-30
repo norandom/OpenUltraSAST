@@ -80,6 +80,7 @@ status = "enabled"
 min_evidence_level = "static_corroboration"
 precision_estimate = 0.0
 version = "1"
+framework = "flask"
 pattern = '''\b(render_template_string)\s*\('''
 
 [[rule]]
@@ -92,7 +93,22 @@ status = "enabled"
 min_evidence_level = "static_corroboration"
 precision_estimate = 0.0
 version = "1"
+library = "pyyaml"
 pattern = '''\b(pickle\.loads|pickle\.load|cPickle\.loads|yaml\.load|marshal\.loads)\s*\('''
+
+# Active only when the rule above is dropped (priors off); status and precision are the tagged rule's measurement.
+[[rule]]
+rule_id = "python-unsafe-deserialization-language"
+title = "Unsafe Python deserialization needs review (language-level)"
+languages = ["python"]
+cwe = "CWE-502"
+tags = ["deserialization"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+fallback_for = "python-unsafe-deserialization"
+pattern = '''\b(pickle\.loads|pickle\.load|cPickle\.loads|marshal\.loads)\s*\('''
 
 [[rule]]
 rule_id = "python-unsafe-eval"

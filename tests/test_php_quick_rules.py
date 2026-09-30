@@ -31,7 +31,7 @@ def _benchmark(name: str, *, reported_only: bool):  # type: ignore[no-untyped-de
 
 def test_php_rules_load_compile_and_are_php_scoped() -> None:
     rules = _php_rules()
-    assert len(rules) == 13
+    assert len(rules) == 14, "13 measured rules; php-unserialize split into its language and WordPress parts (task 2)"
     for rule in rules.values():
         assert rule.languages == ("php",) and rule.status in {"enabled", "shadow"}
         re.compile(rule.pattern)
@@ -52,6 +52,7 @@ def test_every_php_rule_sink_is_in_the_engines_vocabulary() -> None:
 def test_status_and_precision_are_the_committed_measurement() -> None:
     measured = json.loads(MEASUREMENT.read_text())["rules"]
     for rule_id, rule in _php_rules().items():
+        rule_id = "php-unserialize" if rule_id == "php-maybe-unserialize" else rule_id  # split from it, keeps its numbers
         assert rule.status == measured[rule_id]["status"], rule_id
         assert rule.precision_estimate == measured[rule_id]["precision_lower_bound"], rule_id
 

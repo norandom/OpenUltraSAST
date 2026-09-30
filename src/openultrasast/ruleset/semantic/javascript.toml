@@ -3,6 +3,7 @@ language = "javascript"
 
 [[source]]
 id = "req"
+framework = "express"
 patterns = ["req.query", "req.body", "req.params", "req.cookies", "req.headers", "request.query"]
 
 [[sink]]
@@ -56,14 +57,35 @@ patterns = ["req.url", "request.url", "req.rawHeaders", "url.parse", "parsedUrl"
 # dynamic key. These are the documented merge helpers plus the assignment forms.
 id = "prototype.merge"
 cwe = "CWE-1321"
-calls = ["merge", "mergeDeep", "extend", "defaultsDeep", "Object.assign", "set", "setWith"]
+calls = ["Object.assign"]
+rule_ids = []
+
+[[sink]]
+id = "prototype.merge"
+library = "lodash"
+cwe = "CWE-1321"
+calls = ["merge", "mergeDeep", "extend", "defaultsDeep", "set", "setWith"]
 rule_ids = []
 
 [[sink]]
 # CWE-79. The documented "trusted HTML" sinks in the DOM and the major frameworks.
 id = "html.unescaped"
 cwe = "CWE-79"
-calls = ["innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "dangerouslySetInnerHTML", "v-html"]
+calls = ["innerHTML", "outerHTML", "insertAdjacentHTML", "document.write"]
+rule_ids = []
+
+[[sink]]
+id = "html.unescaped"
+framework = "react"
+cwe = "CWE-79"
+calls = ["dangerouslySetInnerHTML"]
+rule_ids = []
+
+[[sink]]
+id = "html.unescaped"
+framework = "vue"
+cwe = "CWE-79"
+calls = ["v-html"]
 rule_ids = []
 
 [[sink]]
@@ -79,14 +101,28 @@ rule_ids = []
 # limit on this family rather than guessed at here.
 id = "html.response"
 cwe = "CWE-79"
-calls = ["res.write", "res.end", "res.send", "response.write", "response.end", "response.send"]
+calls = ["res.write", "res.end", "response.write", "response.end"]
+rule_ids = []
+
+[[sink]]
+id = "html.response"
+framework = "express"
+cwe = "CWE-79"
+calls = ["res.send", "response.send"]
 rule_ids = []
 
 [[sink]]
 # CWE-22. Node filesystem entry points that accept a caller-supplied path.
 id = "path.open"
 cwe = "CWE-22"
-calls = ["readFile", "readFileSync", "createReadStream", "sendFile", "unlink", "unlinkSync"]
+calls = ["readFile", "readFileSync", "createReadStream", "unlink", "unlinkSync"]
+rule_ids = []
+
+[[sink]]
+id = "path.open"
+framework = "express"
+cwe = "CWE-22"
+calls = ["sendFile"]
 rule_ids = []
 
 [[sink]]
@@ -109,13 +145,6 @@ rule_ids = []
 id = "outbound.request"
 cwe = "CWE-918"
 calls = [
-  "axios",      # axios, and axios.get/.post/.put/.patch/.delete/.head/.request through it
-  "got",        # got
-  "needle",     # needle
-  "request",    # request / request-promise
-  "superagent", # superagent
-  "unirest",    # unirest
-  "undici",     # undici, and undici.fetch/.request through it
   "fetch",      # global fetch, node-fetch, cross-fetch
   "http.get",
   "http.request",
@@ -126,9 +155,33 @@ rule_ids = []
 prefix_fixes_origin = true
 
 [[sink]]
+id = "outbound.request"
+library = "node-http-clients"
+cwe = "CWE-918"
+calls = [
+  "axios",      # axios, and axios.get/.post/.put/.patch/.delete/.head/.request through it
+  "got",        # got
+  "needle",     # needle
+  "request",    # request / request-promise
+  "superagent", # superagent
+  "unirest",    # unirest
+  "undici",     # undici, and undici.fetch/.request through it
+]
+rule_ids = []
+prefix_fixes_origin = true
+
+[[sink]]
+id = "redirect"
+framework = "express"
+cwe = "CWE-601"
+calls = ["redirect"]
+rule_ids = []
+prefix_fixes_origin = true
+
+[[sink]]
 id = "redirect"
 cwe = "CWE-601"
-calls = ["redirect", "location.assign", "location.replace"]
+calls = ["location.assign", "location.replace"]
 rule_ids = []
 prefix_fixes_origin = true
 
@@ -146,7 +199,22 @@ calls = ["path.normalize", "path.resolve"]
 [[sanitizer]]
 # CWE-79. The standard encoders: the DOM/global URI encoders and the common escaping helpers.
 id = "html.escape"
-calls = ["encodeURIComponent", "encodeURI", "escapeHtml", "escape", "sanitizeHtml", "DOMPurify.sanitize"]
+calls = ["encodeURIComponent", "encodeURI", "escape"]
+
+[[sanitizer]]
+id = "html.escape"
+library = "escape-html"
+calls = ["escapeHtml"]
+
+[[sanitizer]]
+id = "html.escape"
+library = "sanitize-html"
+calls = ["sanitizeHtml"]
+
+[[sanitizer]]
+id = "html.escape"
+library = "dompurify"
+calls = ["DOMPurify.sanitize"]
 
 
 [[layout]]

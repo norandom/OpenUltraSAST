@@ -104,7 +104,22 @@ status = "enabled"
 min_evidence_level = "static_corroboration"
 precision_estimate = 0.0
 version = "1"
+library = "node-http-clients"
 pattern = '''\b(axios|fetch|got)\s*[.(][^\n]*\b(?:req|request)\.'''
+
+# Active only when the rule above is dropped (priors off); status and precision are the tagged rule's measurement.
+[[rule]]
+rule_id = "js-ssrf-language"
+title = "JavaScript outbound request with external input needs review (language-level)"
+languages = ["javascript", "typescript"]
+cwe = "CWE-918"
+tags = ["network_entry"]
+status = "enabled"
+min_evidence_level = "static_corroboration"
+precision_estimate = 0.0
+version = "1"
+fallback_for = "js-ssrf"
+pattern = '''\b(fetch)\s*[.(][^\n]*\b(?:req|request)\.'''
 
 [[rule]]
 rule_id = "js-weak-hash"

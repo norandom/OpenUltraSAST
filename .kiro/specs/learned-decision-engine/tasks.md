@@ -11,7 +11,7 @@ the maintainer confirms its budget.
     allow-list and the exclusion of label-carrying fields.
   - _Requirements: 1.1, 1.2, 1.3, 7.2_
 
-- [ ] 2. Framework tags
+- [x] 2. Framework tags
   - `ruleset/frameworks.toml`; tag and split every framework/library entry listed in design section 2; `priors=`
     in the semantic and quick loaders (default `all`, so today's scan is unchanged -- the golden benchmark test
     stays byte-identical); a lint test that no untagged framework entry remains.
