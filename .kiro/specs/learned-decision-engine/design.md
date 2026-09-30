@@ -913,3 +913,10 @@ commit 9 adopts a model, and without an adopted model every path is today's.
   extending an experiment after looking.
 - **Pure-Python numerics.** Newton on near-separable data (a feature that alone separates a small family) can
   diverge. L2 with lambda >= 0.01 and the iteration cap bound it, and the sklearn cross-check catches drift.
+
+## Maintainer decisions at design approval (2026-09-30)
+
+- Design approved as written.
+- Benign pushes: ordinary non-security commits are mined as **assumed-benign** pushes (no security keyword, no later
+  fix touching the same lines), kept as their own label source (`assumed_benign`), reported separately from the
+  verified negatives, and never merged with them.
