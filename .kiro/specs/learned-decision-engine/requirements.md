@@ -130,3 +130,24 @@ rule hits.
    family.
 5. Any adaptation to a user's own repository (facts reuse, their dismissals) is opt-in, separate from the
    generalisation model, and never contributes to its reported numbers.
+
+### Requirement 8: No framework or application knowledge as a prerequisite
+
+**User Story:** As the maintainer, I want the safety net to work on any application in a language, because "if
+there is hardcoded application specification needed to build trees this is problematic. wordpress isn't the only
+php application. same for python, js etc" (maintainer, 2026-09-30).
+
+#### Acceptance Criteria
+
+1. Hand-written knowledge is limited to the language level (built-ins, superglobals, process execution, raw
+   database drivers, deserialisers). Roles specific to a framework or application (its request objects, query
+   builders, hooks, sanitisers, guards) are inferred per repository at scan time from its own source and its
+   dependencies, not required from a hand-written table.
+2. Existing framework-specific entries (WordPress, Django, Flask, Express, Spring and others in `ruleset/semantic/`
+   and `ruleset/<lang>/`) are tagged with their framework and enter the engine only as optional prior features; a
+   prior is kept only if an A/B experiment on held-out repositories shows it helps, and the engine must still work
+   with every prior switched off.
+3. Evaluation is stratified by framework and includes leave-one-framework-out folds (for example: train without any
+   WordPress repository, evaluate on WordPress), so a number never depends on having seen the target's framework;
+   results are reported per framework and for "framework unseen in training".
+4. The share of each reported result that depends on framework priors is stated (with priors vs without).
