@@ -44,9 +44,19 @@
 #
 # Licences marked "verify" must be checked before any result is published. Kirby is under a proprietary licence:
 # it stays in the population, but its results are unpublishable without the licensor's permission.
+#
+# FROZEN 2026-09-30 (freeze.py, freeze-v3-php.json; git history, file lists and fix diffs only). No case dropped:
+# both inferred fixes change a declared site function (pagible: proxy and isValidUrl; podlove: create_link_item,
+# while GenerationGuard::__destruct is not in the diff). Sites resolved from the fix diff are marked in
+# `site_basis`; a file the fix does not change stays unresolved (`site_files_unresolved`). Benign controls come
+# from freeze.py's strict proposal (single-language population: PHP change, merges judged with everything they
+# bring in, history before the vulnerable pin when nothing after the fix qualifies), reviewed on commit messages
+# and file names; five proposals were replaced by hand, with the reason in `how`.
 
 schema_version = 1
-status = "reserved"
+status = "frozen"
+frozen_on = "2026-09-30"
+freeze_record = "freeze-v3-php.json"
 language = "php"
 reserved_on = "2026-09-30"
 selected_by = "maintainer"
@@ -80,6 +90,7 @@ privilege = "not stated ('remotely')"
 license = "BSD-3-Clause"
 confidence = "medium"
 caveats = ["VulDB auto-generated description; the fix message ('Prevent textconv') suggests git config/attribute abuse rather than shell metacharacters, and the patched lines may not be in getDefaultBranch -- verify at freeze"]
+benign = { base = "ce5806c849f453d7200c1f488ee6aba19eef9a4c", tip = "ecc8e18e03d9b547e82b7c7c148cb00ba01c0cc9", subject = "Merge pull request #902 from zoredache/sort_repositories", how = "automatic proposal (before the vulnerable pin), reviewed" }
 
 [[case]]
 id = "qloapps-customermessage-bo-query-sqli"
@@ -97,13 +108,15 @@ ancestry = "parent"
 fix_named_by_advisory = true
 sink = "database query in CustomerMessage.php built from the `bo_query` parameter"
 source = "`bo_query` request parameter"
-sites = []
+sites = ["classes/CustomerMessage.php::searchByName"]
 site_files = ["classes/CustomerMessage.php"]
+site_basis = { "classes/CustomerMessage.php::searchByName" = "resolved-from-fix-diff" }
 site_derivation = "the advisory names 'CustomerMessage.php' (basename) and the parameter; the classes/ path is from the fix commit; no function named"
 privilege = "administrator"
 license = "OSL-3.0"
 confidence = "medium"
 caveats = ["one fix covers two advisories (Address.php is GHSA-mj48); repo 129 MB, near the size cap", "function-level site to be resolved at freeze"]
+benign = { base = "5c52b864878848a625a5d9cfbb6e3925ab853ad1", tip = "a8f6071627bf97a77d715c861c1157fded5e9e60", subject = "Merge pull request #1813 from Azhar-Webkul/gli-3095", how = "chosen by hand after review: proposal e43b4500 changes payment-status logic; next passing change taken" }
 
 [[case]]
 id = "roundcube-markasjunk-cmd-learn-rce"
@@ -121,13 +134,15 @@ ancestry = "parent; ancestor of tag 1.6.18"
 fix_named_by_advisory = true
 sink = "the markasjunk plugin's cmd_learn driver runs a shell command with placeholder replacement values"
 source = "crafted placeholder replacement values (message/user data) when a message is marked as junk"
-sites = []
+sites = ["plugins/markasjunk/drivers/cmd_learn.php::_do_salearn"]
 site_files = ["plugins/markasjunk/drivers/cmd_learn.php"]
+site_basis = { "plugins/markasjunk/drivers/cmd_learn.php::_do_salearn" = "resolved-from-fix-diff" }
 site_derivation = "the advisory names 'the cmd_learn driver of the markasjunk plugin'; the file path follows from that name and is confirmed by the fix commit; no function named"
 privilege = "authenticated webmail user"
 license = "GPL-3.0"
 confidence = "medium"
 caveats = ["only instances that enable the markasjunk plugin with the cmd_learn driver"]
+benign = { base = "1cddafded973c4bf6faa173accaf8f52ca1ac0d0", tip = "747f544708ed1d698b677d333346164a9451aeda", subject = "Simplify", how = "automatic proposal (after the fix), reviewed" }
 
 [[case]]
 id = "maccms10-template-blacklist-rce"
@@ -145,13 +160,15 @@ ancestry = "parent"
 fix_named_by_advisory = true
 sink = "ThinkPHP `{if condition=...}` compiled into raw PHP; the admin template editor only blocks a function blacklist"
 source = "template content saved through the admin template editor"
-sites = []
+sites = ["application/admin/controller/Template.php::info"]
 site_files = ["application/admin/controller/Template.php"]
+site_basis = { "application/admin/controller/Template.php::info" = "resolved-from-fix-diff" }
 site_derivation = "file path quoted by the advisory; no function named"
 privilege = "administrator"
 license = "GitHub: NOASSERTION; no licence declared by the project [verify before publishing]"
 confidence = "medium"
 caveats = ["guard bypass (incomplete blacklist); the fix is still a blacklist", "licence not declared on GitHub"]
+benign = { base = "6ace264920bc50a07944c163b17a8fd8a3f7687f", tip = "c9f8d0e848489a2dc73daf1106748d2cd94d8138", subject = "修复 meilisearch 排序规则语法兼容问题", how = "chosen by hand after review: proposal 668ba418 fixes a registration-API validator (input validation); rejected" }
 
 [[case]]
 id = "mantisbt-tokenizer-eval-rce"
@@ -169,14 +186,17 @@ ancestry = "parent; ancestor of tag release-2.28.4"
 fix_named_by_advisory = true
 sink = "`Tokenizer` (reached through `ConfigParser`) calls `eval()` with a `return;` prefix; PHP hoists class declarations past the return"
 source = "non-string configuration value submitted to adm_config_set.php (Manage Configuration)"
-sites = []
+sites = ["core/classes/Tokenizer.class.php::__construct"]
 site_files = ["core/classes/Tokenizer.class.php", "adm_config_set.php"]
+site_basis = { "core/classes/Tokenizer.class.php::__construct" = "resolved-from-fix-diff" }
+site_files_unresolved = { "adm_config_set.php" = "the fix does not change this file" }
 sink_evidence = "eval("
 site_derivation = "the advisory names adm_config_set.php, ConfigParser, Tokenizer and eval(); the Tokenizer file path and the enclosing function are not named (path from the fix commit)"
 privilege = "administrator"
 license = "GitHub: none; GPL per project [verify before publishing]"
 confidence = "high"
 caveats = ["function-level site must be resolved at freeze by reading the file (the advisory names only the class)"]
+benign = { base = "088fa767bce246b6d2f083f32d937f22c8de4767", tip = "d6ca719b591f70acfa711fc41705388557b6ac04", subject = "Improve Workflow Graph display.", how = "automatic proposal (after the fix), reviewed" }
 
 [[case]]
 id = "sharp-editor-iframe-srcdoc-xss"
@@ -194,14 +214,16 @@ ancestry = "parent; ancestor of tag v9.22.5"
 fix_named_by_advisory = true
 sink = "Symfony HtmlSanitizer config allows the iframe `srcdoc` attribute; the value is rendered as live HTML"
 source = "Editor field content saved by a user with edit permission"
-sites = []
+sites = ["src/Utils/Sanitization/FormatsSanitizedValue.php::sanitizer", "src/Utils/Sanitization/FormatsSanitizedValue.php::isEncodingNeeded"]
 site_files = ["src/Utils/Sanitization/FormatsSanitizedValue.php"]
+site_basis = { "src/Utils/Sanitization/FormatsSanitizedValue.php::sanitizer" = "resolved-from-fix-diff", "src/Utils/Sanitization/FormatsSanitizedValue.php::isEncodingNeeded" = "resolved-from-fix-diff" }
 sink_evidence = "srcdoc"
 site_derivation = "file path quoted by the advisory; no function named"
 privilege = "authenticated editor"
 license = "MIT"
 confidence = "medium"
 caveats = ["the flaw is a sanitizer allow-list entry, not a missing escape call"]
+benign = { base = "ec509a22c808a5bd9dfad6a0a85c92ce6f411e21", tip = "7c601fffe930fc321a5d8bcb25cb072d50a6fc08", subject = "Update version to v9.22.5", how = "automatic proposal (after the fix), reviewed" }
 
 [[case]]
 id = "privatebin-jsonld-request-uri-injection"
@@ -226,6 +248,7 @@ privilege = "unauthenticated"
 license = "GitHub: NOASSERTION; project files state a zlib-style licence [verify before publishing]"
 confidence = "high"
 caveats = ["the fix changes Request.php only; Controller::_jsonld is a declared site outside the diff", "response type is JSON-LD, not HTML", "licence NOASSERTION on GitHub (zlib-style per project, verify)"]
+benign = { base = "75f056dcda955d94c17ec5a4f8c54a9b7bfcee07", tip = "3035d6e5d3cceb7f06f7b7bb80968727879c52b0", subject = "incrementing version", how = "automatic proposal (after the fix), reviewed" }
 
 [[case]]
 id = "openstamanager-group-name-html-injection"
@@ -251,6 +274,7 @@ privilege = "authenticated user able to create groups"
 license = "GPL-3.0"
 confidence = "high"
 caveats = ["second advisory commit (7c9eafe9, global GET/POST filtering) is not in the pinned pair"]
+benign = { base = "0b88ad1963871abfa5e134004ca0c74c496d8d2f", tip = "1832b85d0e570e0b873c7c23dcfcb6b5d1365a28", subject = "fix: ricerca riferimenti in importazione fattura per riga con articolo non esistente", how = "automatic proposal (after the fix), reviewed" }
 
 [[case]]
 id = "wp-geo-my-wp-info-window-lfi"
@@ -268,13 +292,15 @@ ancestry = "parent"
 fix_named_by_advisory = true
 sink = "include of a file chosen through `gmw_posts_locator_ajax_info_window_loader`"
 source = "AJAX request parameters (unauthenticated)"
-sites = ["plugins/posts-locator/includes/gmw-posts-locator-functions.php::gmw_posts_locator_ajax_info_window_loader"]
+sites = ["plugins/posts-locator/includes/gmw-posts-locator-functions.php::gmw_posts_locator_ajax_info_window_loader", "includes/gmw-functions.php::gmw_ajax_info_window_init"]
 site_files = ["includes/gmw-functions.php"]
+site_basis = { "plugins/posts-locator/includes/gmw-posts-locator-functions.php::gmw_posts_locator_ajax_info_window_loader" = "advisory-named", "includes/gmw-functions.php::gmw_ajax_info_window_init" = "resolved-from-fix-diff" }
 site_derivation = "function named by the advisory text; files from the advisory's own trac reference links (gmw-functions.php#L1945/L1987, gmw-posts-locator-functions.php#L964/L975); the function-to-file pairing is an assumption to confirm at freeze"
 privilege = "unauthenticated"
 license = "GitHub: none; GPL per project [verify before publishing]"
 confidence = "medium"
 caveats = ["WordPress plugin; GitHub shows no licence (plugin header GPL presumed, verify)", "release commit (small)"]
+benign = { base = "9c394482d1509ca9222365a91117a10b19619be8", tip = "85bcd85541c777b6fd8580cb1915504a2a2b84cf", subject = "Release 4.5.5.2", how = "automatic proposal (before the vulnerable pin), reviewed" }
 
 [[case]]
 id = "kirby-realpath-sibling-traversal"
@@ -299,6 +325,7 @@ privilege = "unauthenticated"
 license = "Kirby licence (proprietary, GitHub NOASSERTION) -- not OSI; results unpublishable without permission"
 confidence = "medium"
 caveats = ["only deployments whose index root has a sibling directory with the same name prefix", "Kirby is under a proprietary licence (GitHub NOASSERTION); must be cleared before publishing"]
+benign = { base = "7ee5b79dd8eea6aa3d5a7eb0c5411a6631af88f1", tip = "d333470b9d9df7a48ee8d0bc2249db36aa9dd68c", subject = "style: Fix coding style", how = "chosen by hand after review: proposals 65dfca05/0901d0cb concern the content salt, 7bbefc1e updates vendored dependencies; rejected" }
 
 [[case]]
 id = "mineadmin-appstore-identifier-traversal"
@@ -323,6 +350,7 @@ privilege = "authenticated admin with app-store access (verify)"
 license = "Apache-2.0"
 confidence = "high"
 caveats = ["Hyperf framework (not Laravel/Symfony)"]
+benign = { base = "c57753e3f547683dc3e14836c3563a51ba4edaee", tip = "ff33969ef5ee378654dacab89e6f4b1928f4edd1", subject = "Fix/service logstash namespace (#663)", how = "chosen by hand after review: proposal 15deedde is a framework/dependency upgrade; rejected" }
 
 [[case]]
 id = "pagible-admin-proxy-dns-rebinding-ssrf"
@@ -338,6 +366,7 @@ vulnerable = "03f03b2f81b20b1c1625ff227235c43791ddbb33"
 fixed = "09a8205d513ec89ed22cdd7bdae0f4c181cee082"
 ancestry = "parent; ancestor of tag 0.10.4"
 fix_named_by_advisory = false
+inferred_fix_confirmed = ["admin/src/Controllers/AdminController.php::proxy", "core/src/Utils.php::isValidUrl"]
 sink = "`AdminController::proxy` → Guzzle request after `\\Aimeos\\Cms\\Utils::isValidUrl($url)`"
 source = "`url` query parameter of `/cmsproxy`"
 sites = ["admin/src/Controllers/AdminController.php::proxy", "core/src/Utils.php::isValidUrl"]
@@ -347,6 +376,7 @@ privilege = "authenticated (proxy token)"
 license = "MIT"
 confidence = "medium"
 caveats = ["guard bypass (DNS rebinding)"]
+benign = { base = "981b8d63e52e7ba8875a9a52c1865eb3bc662154", tip = "d7577efd68e9c5e36436c8572bfed0df2be2c634", subject = "Publish related items (#210)", how = "automatic proposal (after the fix), reviewed" }
 
 [[case]]
 id = "wp-graphql-updatepost-publish-bypass"
@@ -364,13 +394,15 @@ ancestry = "parent; ancestor of tag wp-graphql/v2.22.2"
 fix_named_by_advisory = true
 sink = "`updatePost` mutation checks only `$post_type_object->cap->edit_posts`"
 source = "GraphQL `updatePost` mutation input (status PUBLISH, published post id)"
-sites = []
+sites = ["plugins/wp-graphql/src/Mutation/PostObjectUpdate.php::mutate_and_get_payload"]
 site_files = ["plugins/wp-graphql/src/Mutation/PostObjectUpdate.php"]
+site_basis = { "plugins/wp-graphql/src/Mutation/PostObjectUpdate.php::mutate_and_get_payload" = "resolved-from-fix-diff" }
 site_derivation = "the advisory names src/Mutation/PostObjectUpdate.php; the repository is a monorepo (plugins/wp-graphql/ prefix from the fix commit); no function named"
 privilege = "Contributor"
 license = "GPL-3.0"
 confidence = "medium"
 caveats = ["fix commit also carries an unrelated Model.php change", "function-level site to resolve at freeze"]
+benign = { base = "b583bb6ec87016965085afc7ea586f114c711c68", tip = "cc12aed380414545a005048bfcebe4ba50e9c8f9", subject = "fix: point acf.wpgraphql.com links at the wpgraphql.com docs portal (#4251)", how = "automatic proposal (before the vulnerable pin), reviewed" }
 
 [[case]]
 id = "sylius-mollie-thankyou-order-idor"
@@ -395,6 +427,7 @@ privilege = "unauthenticated"
 license = "MIT"
 confidence = "high"
 caveats = ["merge commit; one fix covers two advisories (webhook forgery GHSA-rc52 is the other)"]
+benign = { base = "19f22cd673fde2b6ac750326fecbfe5fc4c06b9e", tip = "91254cc9c9821acbb3c785918759feedd827bdb9", subject = "Add support for Swish gateway (#324)", how = "chosen by hand after review: proposal 45b01569 is a branch upmerge; rejected" }
 
 [[case]]
 id = "wp-podlove-generation-guard-poi"
@@ -410,12 +443,15 @@ vulnerable = "4eedbd66796942ab052de2dbd6311a24cc75c4a7"
 fixed = "ea878175f2612d54888d9e2aa49ae4db93b724fd"
 ancestry = "linear chain of 3 commits (4eedbd66 → d49c4d7f → b59d7962 → ea878175); ancestor of tag 4.5.4"
 fix_named_by_advisory = false
+inferred_fix_confirmed = ["lib/modules/shownotes/rest_api.php::create_link_item"]
 sink = "unserialize() of model data (lib/model/base.php#L552) instantiating `Podlove\\ImageCache\\GenerationGuard`, whose `__destruct()` calls `wp_delete_file()`"
 source = "shownotes REST input handled by `create_link_item` (contributor+)"
-sites = ["lib/modules/shownotes/rest_api.php::create_link_item", "lib/image_cache/generation_guard.php::__destruct"]
+sites = ["lib/modules/shownotes/rest_api.php::create_link_item", "lib/image_cache/generation_guard.php::__destruct", "lib/model/base.php::to_array"]
 site_files = ["lib/model/base.php"]
+site_basis = { "lib/modules/shownotes/rest_api.php::create_link_item" = "advisory-named", "lib/image_cache/generation_guard.php::__destruct" = "advisory-named", "lib/model/base.php::to_array" = "resolved-from-fix-diff" }
 site_derivation = "create_link_item and GenerationGuard::__destruct named by the advisory; files from the advisory's own trac reference links"
 privilege = "Contributor"
 license = "MIT"
 confidence = "medium"
 caveats = ["fix inferred from file history (three commits)", "the advisory text describes the impact (file deletion) under CWE-502"]
+benign = { base = "af187ad4bba2739839a0aa1e6cf2cabd6f9b99f5", tip = "50da8db0f5a85afaf27cd6199940be0403b368ec", subject = "fix PHP warning", how = "automatic proposal (after the fix), reviewed" }

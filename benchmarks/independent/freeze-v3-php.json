@@ -1,0 +1,561 @@
+{
+  "schema_version": 1,
+  "population": "population-v3-php.toml",
+  "cases": [
+    {
+      "id": "gitlist-commandline-cmdi",
+      "repo": "https://github.com/klaussilveira/gitlist",
+      "vulnerable": "f67609d52c1812fa8a7ed80eae5e795cfd72115f",
+      "fixed": "88cf2866083d5f7c20d9d565c45f828a7ad1516b",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "src/SCM/System/Git/CommandLine.php",
+      "sink_functions": [
+        "getDefaultBranch"
+      ],
+      "sink_sha256_vulnerable": "a0aa9125dabc9748274b3762b9bd1ad117400b1b8d446593afdc3e6f38951e26",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "3f1c45d9f0ee68c517bf89fa3fe65c0ead84351ed5d9329ac5d6a4b53d575344",
+      "fix_changed_files": 2,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "ce5806c849f453d7200c1f488ee6aba19eef9a4c",
+        "tip": "ecc8e18e03d9b547e82b7c7c148cb00ba01c0cc9",
+        "subject": "Merge pull request #902 from zoredache/sort_repositories",
+        "files": [
+          "src/App/Controller/Repository.php"
+        ],
+        "lines": 2,
+        "side": "before the vulnerable pin"
+      }
+    },
+    {
+      "id": "qloapps-customermessage-bo-query-sqli",
+      "repo": "https://github.com/Qloapps/QloApps",
+      "vulnerable": "5b4d65cbb8570a4ba46364ee0f2ded79d294ab84",
+      "fixed": "123c97c110b7053ea3297d8e58fe95b3c3536560",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sites": [
+        "classes/CustomerMessage.php::searchByName"
+      ],
+      "site_basis": {
+        "classes/CustomerMessage.php::searchByName": "resolved-from-fix-diff"
+      },
+      "site_files_unresolved": {},
+      "sink_file": "classes/CustomerMessage.php",
+      "sink_functions": [
+        "searchByName"
+      ],
+      "sink_sha256_vulnerable": "f4037f17c83d248639dbb6cce36f35e3b7eaae557dd631bc9268a97415c46534",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "0464ba7047c393a2c873f301717258397bfc50c2b4f423e98f33d0c954678d41",
+      "fix_changed_files": 5,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "884563ccff83fe42b4689ba32e605276278c3989",
+        "tip": "e43b45009508eb1465709d4af0f549faacd1d817",
+        "subject": "Merge pull request #1735 from amitsharma322/gli-3007",
+        "files": [
+          "classes/PaymentModule.php",
+          "controllers/admin/AdminOrdersController.php"
+        ],
+        "lines": 23,
+        "side": "after the fix"
+      }
+    },
+    {
+      "id": "roundcube-markasjunk-cmd-learn-rce",
+      "repo": "https://github.com/roundcube/roundcubemail",
+      "vulnerable": "a1afb8fd1f00ed4cb9376c072bb5ca5ded64495e",
+      "fixed": "b8f90e28a46d42e79a69568cba897f8f4223d9cd",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sites": [
+        "plugins/markasjunk/drivers/cmd_learn.php::_do_salearn"
+      ],
+      "site_basis": {
+        "plugins/markasjunk/drivers/cmd_learn.php::_do_salearn": "resolved-from-fix-diff"
+      },
+      "site_files_unresolved": {},
+      "sink_file": "plugins/markasjunk/drivers/cmd_learn.php",
+      "sink_functions": [
+        "_do_salearn"
+      ],
+      "sink_sha256_vulnerable": "f4f46e54fa8a19d20ab4000e0f363afd544c6f9f73b806c7b8176fd8348dea83",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "3082db4ed8a79b472ebc2b7d42e34db054737297a81cf595b652a6ba4e34f8eb",
+      "fix_changed_files": 2,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "1cddafded973c4bf6faa173accaf8f52ca1ac0d0",
+        "tip": "747f544708ed1d698b677d333346164a9451aeda",
+        "subject": "Simplify",
+        "files": [
+          "tests/Framework/TnefDecoderTest.php"
+        ],
+        "lines": 6,
+        "side": "after the fix"
+      }
+    },
+    {
+      "id": "maccms10-template-blacklist-rce",
+      "repo": "https://github.com/magicblack/maccms10",
+      "vulnerable": "2cabecda29947e8f9ea7cd3aa47ab90ed817605b",
+      "fixed": "71ad3bb29570e110d8e973acff68040a3050ddf0",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sites": [
+        "application/admin/controller/Template.php::info"
+      ],
+      "site_basis": {
+        "application/admin/controller/Template.php::info": "resolved-from-fix-diff"
+      },
+      "site_files_unresolved": {},
+      "sink_file": "application/admin/controller/Template.php",
+      "sink_functions": [
+        "info"
+      ],
+      "sink_sha256_vulnerable": "02e0ff0d172a25fc35b5b386c4280cf65bf3980a612cd833020e43f2dddb5d3c",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "310d667aa2a99f554f49649b0ff1549b0c7f35bf1a0c167a86569c49167f5cc9",
+      "fix_changed_files": 1,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "d9f09011a1523d0bfaed5dea9b2139461f2b0ea8",
+        "tip": "668ba418e50e96ab32ac612f3b6528beb172b3b7",
+        "subject": "fix #1356 \u4fee\u6b63\u6ce8\u518cAPI\u6821\u9a8c\u5668\u89e3\u6790\u9519\u8bef\u53ca\u7f3a\u53c2\u62a5\u9519",
+        "files": [
+          "application/api/controller/User.php",
+          "application/common/model/User.php",
+          "tests/regression/user_register_validate.php",
+          "\"\\350\\257\\264\\346\\230\\216\\346\\226\\207\\346\\241\\243/API\\346\\216\\245\\345\\217\\243\\350\\257\\264\\346\\230\\216V2.txt\""
+        ],
+        "lines": 166,
+        "side": "after the fix"
+      }
+    },
+    {
+      "id": "mantisbt-tokenizer-eval-rce",
+      "repo": "https://github.com/mantisbt/mantisbt",
+      "vulnerable": "e7041ecc80c8d35f76a7ea1027a8a231244f7dc5",
+      "fixed": "78c0af63d1fe0118004744cab21ca3bf2cea0f5c",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sites": [
+        "core/classes/Tokenizer.class.php::__construct"
+      ],
+      "site_basis": {
+        "core/classes/Tokenizer.class.php::__construct": "resolved-from-fix-diff"
+      },
+      "site_files_unresolved": {
+        "adm_config_set.php": "the fix does not change this file"
+      },
+      "sink_file": "core/classes/Tokenizer.class.php",
+      "sink_functions": [
+        "__construct"
+      ],
+      "sink_sha256_vulnerable": "cda7f81f7fcb4675c7bf5fc3f8dfd41ccb48ad891e95a85cf5edae90f0cbb1df",
+      "sink_evidence_found": true,
+      "sink_sha256_fixed": "f555c63e2dc15dbef7ff2c4db8d7c47848c8bc7abe981364a11f65c5e44b8fb0",
+      "fix_changed_files": 1,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "088fa767bce246b6d2f083f32d937f22c8de4767",
+        "tip": "d6ca719b591f70acfa711fc41705388557b6ac04",
+        "subject": "Improve Workflow Graph display.",
+        "files": [
+          "workflow_graph_img.php"
+        ],
+        "lines": 14,
+        "side": "after the fix"
+      }
+    },
+    {
+      "id": "sharp-editor-iframe-srcdoc-xss",
+      "repo": "https://github.com/code16/sharp",
+      "vulnerable": "67743149309054493ec8f5505173fc57aaff760f",
+      "fixed": "ec509a22c808a5bd9dfad6a0a85c92ce6f411e21",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sites": [
+        "src/Utils/Sanitization/FormatsSanitizedValue.php::sanitizer",
+        "src/Utils/Sanitization/FormatsSanitizedValue.php::isEncodingNeeded"
+      ],
+      "site_basis": {
+        "src/Utils/Sanitization/FormatsSanitizedValue.php::sanitizer": "resolved-from-fix-diff",
+        "src/Utils/Sanitization/FormatsSanitizedValue.php::isEncodingNeeded": "resolved-from-fix-diff"
+      },
+      "site_files_unresolved": {},
+      "sink_file": "src/Utils/Sanitization/FormatsSanitizedValue.php",
+      "sink_functions": [
+        "sanitizer",
+        "isEncodingNeeded"
+      ],
+      "sink_sha256_vulnerable": "7e65b0fbcd481c6322f83ae46523b069c4a62383cbf088e7be60be6ace4bcc9a",
+      "sink_evidence_found": true,
+      "sink_sha256_fixed": "59a2845f4a8b419f8504b2cb539087eb3dc3fb8bb0ec7c950330ba951c6c75ad",
+      "fix_changed_files": 2,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "ec509a22c808a5bd9dfad6a0a85c92ce6f411e21",
+        "tip": "7c601fffe930fc321a5d8bcb25cb072d50a6fc08",
+        "subject": "Update version to v9.22.5",
+        "files": [
+          "src/SharpInternalServiceProvider.php"
+        ],
+        "lines": 2,
+        "side": "after the fix"
+      }
+    },
+    {
+      "id": "privatebin-jsonld-request-uri-injection",
+      "repo": "https://github.com/PrivateBin/PrivateBin",
+      "vulnerable": "e0dd4c025c19a182b6a4c6fb77a8bf81ceff6899",
+      "fixed": "75f056dcda955d94c17ec5a4f8c54a9b7bfcee07",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "lib/Request.php",
+      "sink_functions": [
+        "getRequestUri"
+      ],
+      "sink_sha256_vulnerable": "bd35439be97ac659d94b1d0cde13f70644f99468bfc16ddc2fb214a845bdb7b4",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "ea17a346372b8259bad1ac7edb1268378168d0de0628cd53b948f52038fd9c1e",
+      "fix_changed_files": 4,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "75f056dcda955d94c17ec5a4f8c54a9b7bfcee07",
+        "tip": "3035d6e5d3cceb7f06f7b7bb80968727879c52b0",
+        "subject": "incrementing version",
+        "files": [
+          "CHANGELOG.md",
+          "Makefile",
+          "README.md",
+          "SECURITY.md",
+          "doc/Installation.md",
+          "js/package.json",
+          "lib/Controller.php"
+        ],
+        "lines": 18,
+        "side": "after the fix"
+      }
+    },
+    {
+      "id": "openstamanager-group-name-html-injection",
+      "repo": "https://github.com/devcode-it/openstamanager",
+      "vulnerable": "57a2734e2121aa8fcd456eff7c59f03e29e69176",
+      "fixed": "0b88ad1963871abfa5e134004ca0c74c496d8d2f",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "modules/utenti/edit.php",
+      "sink_functions": [],
+      "sink_sha256_vulnerable": "8524dd092b2fdbf68339b80e374c4108fd6925a146223b325370f4ee8414a016",
+      "sink_evidence_found": true,
+      "sink_sha256_fixed": "290d5fde2df7713eb592361f3b0abfd3524a3b83bf99ef0fafdf80f0ee29612b",
+      "fix_changed_files": 4,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "0b88ad1963871abfa5e134004ca0c74c496d8d2f",
+        "tip": "1832b85d0e570e0b873c7c23dcfcb6b5d1365a28",
+        "subject": "fix: ricerca riferimenti in importazione fattura per riga con articolo non esistente",
+        "files": [
+          "plugins/importFE/actions.php"
+        ],
+        "lines": 2,
+        "side": "after the fix"
+      }
+    },
+    {
+      "id": "wp-geo-my-wp-info-window-lfi",
+      "repo": "https://github.com/Fitoussi/geo-my-wp",
+      "vulnerable": "1dbb7b1672a45a8f88fdcd379ceb07b6cf2beceb",
+      "fixed": "5a768bf1c6e44ded83a65be8789f3587515665ac",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sites": [
+        "plugins/posts-locator/includes/gmw-posts-locator-functions.php::gmw_posts_locator_ajax_info_window_loader",
+        "includes/gmw-functions.php::gmw_ajax_info_window_init"
+      ],
+      "site_basis": {
+        "plugins/posts-locator/includes/gmw-posts-locator-functions.php::gmw_posts_locator_ajax_info_window_loader": "advisory-named",
+        "includes/gmw-functions.php::gmw_ajax_info_window_init": "resolved-from-fix-diff"
+      },
+      "site_files_unresolved": {},
+      "sink_file": "plugins/posts-locator/includes/gmw-posts-locator-functions.php",
+      "sink_functions": [
+        "gmw_posts_locator_ajax_info_window_loader"
+      ],
+      "sink_sha256_vulnerable": "605e777dab7653792d5ae2f2ef6c776f76d1fb1a271d0446c65f6ebf1dfb8461",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "32166bf3941e0a5048b58c49884d513a1be9b11722245f3b7d4d072846400ec2",
+      "fix_changed_files": 5,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "9c394482d1509ca9222365a91117a10b19619be8",
+        "tip": "85bcd85541c777b6fd8580cb1915504a2a2b84cf",
+        "subject": "Release 4.5.5.2",
+        "files": [
+          "geo-my-wp.php",
+          "readme.txt"
+        ],
+        "lines": 17,
+        "side": "before the vulnerable pin"
+      }
+    },
+    {
+      "id": "kirby-realpath-sibling-traversal",
+      "repo": "https://github.com/getkirby/kirby",
+      "vulnerable": "e90257fd7504053e13e93a1e9a5a9a5137aed966",
+      "fixed": "2b6fab950bc89d505ea89576bf71c8de614cc3b2",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "src/Filesystem/Dir.php",
+      "sink_functions": [
+        "realpath"
+      ],
+      "sink_sha256_vulnerable": "d17a09853356ed1d2e08421e3130a4fd0e68dc6c40f3734c796d425ea135f8d3",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "e0ec9c78eff595b6076ca396646a097a7f37a4f49212c2bc7ef4aa0d68448652",
+      "fix_changed_files": 4,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "bbc7c251efcbb01a72f5786af15964e596dc6c4d",
+        "tip": "65dfca053d78bac574c277404adbc8175b2844d8",
+        "subject": "fix: Improve content salt message",
+        "files": [
+          "i18n/translations/en.json",
+          "tests/Panel/Areas/SystemTest.php"
+        ],
+        "lines": 4,
+        "side": "before the vulnerable pin"
+      }
+    },
+    {
+      "id": "mineadmin-appstore-identifier-traversal",
+      "repo": "https://github.com/mineadmin/MineAdmin",
+      "vulnerable": "ac0dcad616c5d304c249d1db4a6675f65cf736dc",
+      "fixed": "ca41902a2a5422676227e5088f4cc1dec06044f1",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "plugin/mine-admin/app-store/src/Service/Service.php",
+      "sink_functions": [
+        "download",
+        "install",
+        "unInstall"
+      ],
+      "sink_sha256_vulnerable": "d06a053c26f7918a179ead518f70d79d60c2211bcbe751185b95cead8a8af22e",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "b4f2cd97704d2eb76eae07287fd2251d5e072de1a5cba333857a7cc1fd23747c",
+      "fix_changed_files": 2,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "1f99cfd595f9621f4be572d970821f3509acfe33",
+        "tip": "15deedde8c106842d9c3584d8680e2f65adaaac1",
+        "subject": "Upgrade the MineAdmin to 3.2-alpha.1, and update Hyperf to the 3.2 release.",
+        "files": [
+          "composer.json",
+          "config/autoload/cache.php"
+        ],
+        "lines": 105,
+        "side": "after the fix"
+      }
+    },
+    {
+      "id": "pagible-admin-proxy-dns-rebinding-ssrf",
+      "repo": "https://github.com/aimeos/pagible",
+      "vulnerable": "03f03b2f81b20b1c1625ff227235c43791ddbb33",
+      "fixed": "09a8205d513ec89ed22cdd7bdae0f4c181cee082",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "inferred_fix_changes_sites": {
+        "admin/src/Controllers/AdminController.php::proxy": true,
+        "core/src/Utils.php::isValidUrl": true
+      },
+      "sink_file": "admin/src/Controllers/AdminController.php",
+      "sink_functions": [
+        "proxy"
+      ],
+      "sink_sha256_vulnerable": "cedb2973084f6ba825df0f4cf0d9edc1270c25e236155da0a1f7dddb8fa21340",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "eb6a56affa39cb0aa88e894227c2dc871f6a7dc508a8121d205cb8bb3c2105a9",
+      "fix_changed_files": 3,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "981b8d63e52e7ba8875a9a52c1865eb3bc662154",
+        "tip": "d7577efd68e9c5e36436c8572bfed0df2be2c634",
+        "subject": "Publish related items (#210)",
+        "files": [
+          "core/src/Commands/Publish.php",
+          "core/src/Models/Element.php",
+          "core/src/Models/Page.php",
+          "graphql/src/GraphQL/Mutations/PubElement.php",
+          "graphql/src/GraphQL/Mutations/PubPage.php",
+          "graphql/tests/GraphqlPageTest.php",
+          "mcp/src/Tools/PublishElement.php",
+          "mcp/src/Tools/PublishPage.php"
+        ],
+        "lines": 44,
+        "side": "after the fix"
+      }
+    },
+    {
+      "id": "wp-graphql-updatepost-publish-bypass",
+      "repo": "https://github.com/wp-graphql/wp-graphql",
+      "vulnerable": "d53b0e566f20a8df0664559cb6432d52a7cd285c",
+      "fixed": "55441663eaa33c3f2e05de038c8286c845916461",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sites": [
+        "plugins/wp-graphql/src/Mutation/PostObjectUpdate.php::mutate_and_get_payload"
+      ],
+      "site_basis": {
+        "plugins/wp-graphql/src/Mutation/PostObjectUpdate.php::mutate_and_get_payload": "resolved-from-fix-diff"
+      },
+      "site_files_unresolved": {},
+      "sink_file": "plugins/wp-graphql/src/Mutation/PostObjectUpdate.php",
+      "sink_functions": [
+        "mutate_and_get_payload"
+      ],
+      "sink_sha256_vulnerable": "e39fe898c11102ea902c0db1a97cfc641c676d88d54bbb12d50c67ac9f9e4447",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "744928c8eeefdd40b1c7f48ce6ae7fb71f07ff26a95b26321725eaf4bffebdde",
+      "fix_changed_files": 4,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "b583bb6ec87016965085afc7ea586f114c711c68",
+        "tip": "cc12aed380414545a005048bfcebe4ba50e9c8f9",
+        "subject": "fix: point acf.wpgraphql.com links at the wpgraphql.com docs portal (#4251)",
+        "files": [
+          "plugins/wp-graphql-acf/README.md",
+          "plugins/wp-graphql-acf/docs/field-types/advanced-link.md",
+          "plugins/wp-graphql-acf/docs/field-types/button-group.md",
+          "plugins/wp-graphql-acf/docs/field-types/checkbox.md",
+          "plugins/wp-graphql-acf/docs/field-types/code-editor.md",
+          "plugins/wp-graphql-acf/docs/field-types/color-picker.md",
+          "plugins/wp-graphql-acf/docs/field-types/countries.md",
+          "plugins/wp-graphql-acf/docs/field-types/currencies.md",
+          "plugins/wp-graphql-acf/docs/field-types/date-picker.md",
+          "plugins/wp-graphql-acf/docs/field-types/date-range-picker.md",
+          "plugins/wp-graphql-acf/docs/field-types/datetimepicker.md",
+          "plugins/wp-graphql-acf/docs/field-types/email.md",
+          "plugins/wp-graphql-acf/docs/field-types/file.md",
+          "plugins/wp-graphql-acf/docs/field-types/gallery.md",
+          "plugins/wp-graphql-acf/docs/field-types/google-map.md",
+          "plugins/wp-graphql-acf/docs/field-types/group.md",
+          "plugins/wp-graphql-acf/docs/field-types/image-selector.md",
+          "plugins/wp-graphql-acf/docs/field-types/image-sizes.md",
+          "plugins/wp-graphql-acf/docs/field-types/image.md",
+          "plugins/wp-graphql-acf/docs/field-types/languages.md",
+          "plugins/wp-graphql-acf/docs/field-types/link.md",
+          "plugins/wp-graphql-acf/docs/field-types/radio-button.md",
+          "plugins/wp-graphql-acf/docs/field-types/range.md",
+          "plugins/wp-graphql-acf/docs/field-types/select.md",
+          "plugins/wp-graphql-acf/docs/field-types/taxonomies.md",
+          "plugins/wp-graphql-acf/docs/field-types/taxonomy-terms.md",
+          "plugins/wp-graphql-acf/docs/field-types/taxonomy.md",
+          "plugins/wp-graphql-acf/docs/field-types/text-area.md",
+          "plugins/wp-graphql-acf/docs/field-types/text.md",
+          "plugins/wp-graphql-acf/docs/field-types/time-picker.md",
+          "plugins/wp-graphql-acf/docs/field-types/true-false.md",
+          "plugins/wp-graphql-acf/docs/field-types/url.md",
+          "plugins/wp-graphql-acf/docs/field-types/user-roles.md",
+          "plugins/wp-graphql-acf/docs/field-types/user.md",
+          "plugins/wp-graphql-acf/docs/field-types/wysiwyg.md",
+          "plugins/wp-graphql-acf/readme.txt",
+          "plugins/wp-graphql/docs/compatibility-guide.md",
+          "plugins/wp-graphql/src/Admin/AdminNotices.php",
+          "plugins/wp-graphql/src/Admin/Extensions/Registry.php"
+        ],
+        "lines": 90,
+        "side": "before the vulnerable pin"
+      }
+    },
+    {
+      "id": "sylius-mollie-thankyou-order-idor",
+      "repo": "https://github.com/Sylius/MolliePlugin",
+      "vulnerable": "7400f1489a4b699df97ced9499acde4faaa476d5",
+      "fixed": "01316b3ad3cf82e3c5ad160115d0a2cf89174e49",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sink_file": "src/Controller/Shop/PageRedirectController.php",
+      "sink_functions": [
+        "thankYouAction"
+      ],
+      "sink_sha256_vulnerable": "60578839af598e79b4f3792ad31e8a2c80a360c53fd75609bc25acfb68c4fcd9",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "950d09980903953d802456cafed8a3efb4f9f0e953cdf49482e9ab4a9ac68de6",
+      "fix_changed_files": 7,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "7cc02612b4c6b4403a2b0a1bcef1eb7c5382f505",
+        "tip": "45b01569853d16d04ffd50df281e2fd607650864",
+        "subject": "[UPMERGE] 3.2 -> 3.3 (#333)",
+        "files": [
+          "src/Client/MollieApiClient.php",
+          "src/SyliusMolliePlugin.php",
+          "src/Twig/Extension/MolliePluginLatestVersion.php"
+        ],
+        "lines": 21,
+        "side": "before the vulnerable pin"
+      }
+    },
+    {
+      "id": "wp-podlove-generation-guard-poi",
+      "repo": "https://github.com/podlove/podlove-publisher",
+      "vulnerable": "4eedbd66796942ab052de2dbd6311a24cc75c4a7",
+      "fixed": "ea878175f2612d54888d9e2aa49ae4db93b724fd",
+      "problems": [],
+      "vulnerable_is_ancestor_of_fixed": true,
+      "sites": [
+        "lib/modules/shownotes/rest_api.php::create_link_item",
+        "lib/image_cache/generation_guard.php::__destruct",
+        "lib/model/base.php::to_array"
+      ],
+      "site_basis": {
+        "lib/modules/shownotes/rest_api.php::create_link_item": "advisory-named",
+        "lib/image_cache/generation_guard.php::__destruct": "advisory-named",
+        "lib/model/base.php::to_array": "resolved-from-fix-diff"
+      },
+      "site_files_unresolved": {},
+      "inferred_fix_changes_sites": {
+        "lib/modules/shownotes/rest_api.php::create_link_item": true,
+        "lib/image_cache/generation_guard.php::__destruct": false
+      },
+      "sink_file": "lib/modules/shownotes/rest_api.php",
+      "sink_functions": [
+        "create_link_item"
+      ],
+      "sink_sha256_vulnerable": "5023f7950ad450c6f0e9ca9bec474f161a509b0b3ddbf8f9f495593738dd8a05",
+      "sink_functions_missing": [],
+      "sink_sha256_fixed": "316f85861d95e63a9a7cc1f089e2b6c3f1ac61aa92092e8b279534b226fe042f",
+      "fix_changed_files": 9,
+      "fix_touches_sink_file": true,
+      "fix_touches_fix_site": false,
+      "benign_proposal": {
+        "base": "af187ad4bba2739839a0aa1e6cf2cabd6f9b99f5",
+        "tip": "50da8db0f5a85afaf27cd6199940be0403b368ec",
+        "subject": "fix PHP warning",
+        "files": [
+          "lib/modules/contributors/contributor_list_table.php"
+        ],
+        "lines": 2,
+        "side": "after the fix"
+      }
+    }
+  ]
+}
