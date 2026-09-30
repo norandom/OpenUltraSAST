@@ -132,6 +132,9 @@ before the remaining concerns are converted.
    current $0.022 for two passes; otherwise the increment is reported as not met and the design revisited.
 3. The development transcript measure (`benchmarks/dev/token_report.py`) is run at the end of the increment and
    recorded next to the result.
+4. After the first measurement (plane-increment-1.json: 14/20 agreed, 19/20 in either pass), agreement is decided
+   2-of-3 with a third pass run only on candidates passes a and b dispute; the gate of 6.2 is re-evaluated on that
+   decision, and the result is recorded as plane-increment-2.json next to the first.
 
 ### Requirement 7: Routing is a declared concern of the plane
 

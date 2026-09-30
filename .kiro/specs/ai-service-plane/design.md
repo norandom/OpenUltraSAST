@@ -206,6 +206,11 @@ plane applies the recorded triage without a model call, so `cost_per_candidate` 
 not judged; the triage share is derived per file from the recorded spend minus the priced hunt usage (about $0.087
 of the $1.01) and labelled as derived in `case.json`. Sites are judged as `declared_sites_matched_agreed` against
 `declared_sites_in_set`, the reference's 16 of 20.
+The tie-break (Requirement 6.4) appends per case `<case>-vc`, `verify` pass c restricted by `OUSAST_INPUT_ONLY`
+to the agree task's `disputed.json` (an empty list is `done` with no model call), and `<case>-final`, `agree` over
+passes a, b and c, which decides 2-of-3 where pass c asked and keeps the a/b rule elsewhere, so pass c alone never
+decides and `metrics.tiebreak` counts the flips; the first 60 entries stay byte-identical, so a rerun keeps their
+`done` state, executes only the 30 new tasks, and pass c's cost adds to `usd_total` for the 6.2 judgement.
 
 ## Data Models
 

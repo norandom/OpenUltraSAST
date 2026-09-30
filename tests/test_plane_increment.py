@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
@@ -53,7 +54,7 @@ def test_model_prices_are_the_endpoint_prices() -> None:
 
 def test_validation_run_resolves_and_renders_every_task(tmp_path: Path) -> None:
     run, manifests = reconciler.load_run(RUN)
-    assert len(run.tasks) == 60
+    assert len(run.tasks) == 90
     population = {c["id"]: c for c in tomllib.loads(POPULATION.read_text())["case"]}
     ax_names: set[str] = set()
     for task in manifests.tasks.values():
@@ -69,7 +70,7 @@ def test_validation_run_resolves_and_renders_every_task(tmp_path: Path) -> None:
             for name, sha in workspace.pins.items():
                 case_id = binding.name.removesuffix("-vulnerable")
                 assert (name, sha) == ("repo", population[case_id]["vulnerable"])
-        if entry.name.endswith(("-va", "-vb")):
+        if entry.name.endswith(("-va", "-vb", "-vc")):
             assert model == "deepseek-flash" and entry.budget and entry.budget.usd and entry.budget.calls
             env = {e.name: e.value for e in task.env}
             assert env["OUSAST_PASS"] == entry.name[-1]
@@ -81,6 +82,34 @@ def test_validation_run_resolves_and_renders_every_task(tmp_path: Path) -> None:
         assert docs[-1]["kind"] == "Task"
         assert docs[-1]["metadata"]["name"] not in ax_names
         ax_names.add(docs[-1]["metadata"]["name"])
+
+
+# sha256 of the Run's entries as the first measurement ran them (plane-increment-1.json): the text after
+# ``  tasks:`` of plane/runs/validation-46.yaml at c5e6ed3. A rerun keeps their ``done`` state only while they match.
+FIRST_RUN_ENTRIES = "412ad6171cf096d5d7f6b8e7358374077e2beabf5f4dff35a2801d37c341b97e"
+
+
+def test_tiebreak_appends_thirty_tasks_and_keeps_the_first_sixty_byte_identical() -> None:
+    text = RUN.read_text().split("  tasks:\n", 1)[1]
+    first = text.split("  - name: budibase-mongo-template-nosqli-vc\n", 1)[0]
+    assert hashlib.sha256(first.encode()).hexdigest() == FIRST_RUN_ENTRIES
+    run, manifests = reconciler.load_run(RUN)
+    old, new = run.tasks[:60], run.tasks[60:]
+    assert [e.name.rsplit("-", 1)[1] for e in old] == ["facts", "va", "vb", "agree"] * 15
+    assert [e.name.rsplit("-", 1)[1] for e in new] == ["vc", "final"] * 15
+    for vc, final in zip(new[::2], new[1::2], strict=True):
+        case = vc.name.removesuffix("-vc")
+        agree_entry = run.task(f"{case}-agree")
+        assert vc.inputs == {"facts": f"{case}-facts/facts.json", "only": f"{case}-agree/disputed.json"}
+        assert vc.depends_on == (f"{case}-agree",) and vc.budget == run.task(f"{case}-va").budget
+        env = {e.name: e.value for e in manifests.tasks[vc.task].env}
+        assert env["OUSAST_PASS"] == "c" and env["OUSAST_INPUT_CANDIDATES"] == "/workspace/inputs/candidates.json"
+        assert final.task == agree_entry.task, "the final agree binds the same static inputs as the first"
+        assert final.inputs == {**agree_entry.inputs, "pass_c": f"{case}-vc/units.jsonl"}
+        assert set(final.producers) == {f"{case}-va", f"{case}-vb", f"{case}-vc"}
+        for entry in (vc, final):
+            name = reconciler._ax_name(run.metadata.name, entry.name, limit=reconciler.TASK_NAME_LIMIT)
+            assert len(name) <= reconciler.TASK_NAME_LIMIT
 
 
 def test_inputs_carry_the_validation_set() -> None:
