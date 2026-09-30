@@ -1,0 +1,65 @@
+{
+  "measurement": "ai-service-plane increment re-measured after the design revisit (Requirement 6.4): passes a and b as recorded in plane-increment-1.json, plus a tie-break pass c on the 10 candidates a and b disputed; agreement 2-of-3. Executed on google/ax by rerunning the same Run (the 60 done tasks were reused, 30 new tasks ran).",
+  "date": "2026-09-30",
+  "run": {
+    "name": "validation-46",
+    "tasks": 90,
+    "status": "done",
+    "runner_image": "localhost:5001/ousast-runner@sha256:fb9a743027518976659fd11505e58cc3fc84fb42e07627196e13b76ac01d0617"
+  },
+  "previous": "benchmarks/independent/plane-increment-1.json",
+  "gate": {
+    "declared_sites_agreed": {
+      "plane": 16,
+      "reference": 16,
+      "of": 20,
+      "required": ">= 16",
+      "met": true
+    },
+    "cost_per_candidate_with_recorded_triage_usd": {
+      "plane_over_46": 0.0205,
+      "plane_over_43_after_triage": 0.02195,
+      "reference_over_46": 0.022,
+      "required": "< 0.022",
+      "met": true,
+      "note": "the reference divides by the 46 candidates before triage; on that basis the plane is 7% cheaper, on the 43 after triage it is 0.2% under"
+    },
+    "result": "MET"
+  },
+  "detail": {
+    "tiebreak": {
+      "asked": 10,
+      "flipped_to_agreed": 5,
+      "declared_sites_recovered": [
+        "froxlor listing",
+        "froxlor listingCount"
+      ],
+      "declared_site_still_disputed": "froxlor validateIpAddresses (b only)",
+      "non_declared_flipped_to_agreed": [
+        "pgadmin enable_disable",
+        "pgadmin get_job_args_value",
+        "pgadmin run_job"
+      ]
+    },
+    "agreed_candidates": {
+      "two_pass": 23,
+      "two_of_three": 28
+    },
+    "declared_sites_flagged_in_any_pass": {
+      "plane": 17,
+      "reference": 19,
+      "of": 20,
+      "missed_by_every_plane_pass": [
+        "budibase read",
+        "fuxa getDaqValue"
+      ]
+    },
+    "usd": {
+      "plane": 0.8567,
+      "recorded_triage": 0.0872,
+      "with_triage": 0.9439,
+      "reference": 1.0123
+    }
+  },
+  "reading": "The plane on ax matches the script pipeline's pre-registered recall (16/20 agreed) at 7% lower cost, so Requirement 6.2 is met after the 6.4 revisit. Two caveats travel with the result: (1) the tie-break is a design change chosen after seeing the first measurement on the same validation set, so this compares plane with script like for like and qualifies nothing on an independent population; (2) the plane's passes flag fewer declared sites than the reference's (17 vs 19 in any pass), and 2-of-3 also promoted three non-declared pgadmin candidates, whose truth is unassessed (an earlier pgadmin spot check found 3 of 5 findings truly privileged). Precision is not part of this gate and remains the open problem."
+}

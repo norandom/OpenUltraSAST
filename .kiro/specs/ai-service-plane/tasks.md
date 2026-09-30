@@ -130,7 +130,7 @@ mypy are clean, and the commit is gated on pytest's own exit code. Script-level 
     if not met, revise the design before task 9.
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ] 8.1 Tie-break pass and re-measurement
+- [x] 8.1 Tie-break pass and re-measurement
   - `verify` takes `OUSAST_INPUT_ONLY` (pass c on the disputed candidates only); `agree` takes
     `OUSAST_INPUT_PASS_C` and decides 2-of-3 where pass c asked, the a/b rule elsewhere (`metrics.tiebreak`).
   - `validation-46` gains `<case>-vc` and `<case>-final` per case, appended so the first 60 entries keep their
