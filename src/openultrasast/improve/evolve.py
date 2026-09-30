@@ -5,8 +5,8 @@ edits (auto-shadow precision-draggers) -> validate -> replay smoke -> re-benchma
 hard acceptance gate (recall >= floor AND FP < ceiling AND project score not regressed
 AND no matched-finding regression) -> accept (persist the ledger) or revert byte-for-byte.
 
-The edit *proposer* here is the benchmark's per-rule signal; the LLM ``MetaAgent.evolve``
-proposer plugs into this same validated/gated machinery when the HarnessX extra is present.
+The edit *proposers* are the benchmark's per-rule signal and, opt-in, the plane's memory store
+(:mod:`.memory`, ``run_round(proposals=...)``); both go through this same validator and gate.
 The project score is the optimization reward; the recall/FP gate is a separate hard
 feasibility constraint that is never folded into the reward.
 """
@@ -27,6 +27,7 @@ from ..rank import rank_targets
 from ..ruleset import DEFAULT_RULESET_DIR, PatternRule, load_ruleset, read_rule_ledger, write_rule_ledger
 from ..scoring import build_score_artifact
 from .journal import append_round, load_journal, next_round_index, reverted_edit_keys
+from .memory import MemoryProposal, applicable, proposal_id_of, write_sidecar
 from .validator import EvolveValidator, RuleStatusEdit, StrictValidationError, edits_to_ledger
 
 
@@ -159,6 +160,7 @@ def run_round(
     pair_cases: Sequence[object] | None = None,
     profile_tolerance: float = 0.0,
     min_holdout_pairs: int = 5,
+    proposals: Sequence[MemoryProposal] = (),
 ) -> RoundOutcome:
     policy = policy if policy is not None else load_policy()
     rounds = load_journal(journal_path)
@@ -173,6 +175,14 @@ def run_round(
 
     ruleset_by_id = {rule.rule_id: rule for rule in before_rules}
     edits = propose_status_edits(before.result.metrics.per_rule, ruleset_by_id, current_ledger, blocked)
+    if proposals:
+        # harnessx-removal Req 6.2: memory proposals join after the benchmark's edits; the first edit per key wins.
+        taken = {edit.key() for edit in edits}
+        for proposal in applicable(proposals, ruleset_by_id, current_ledger, rounds):
+            if proposal.edit.key() not in taken:
+                taken.add(proposal.edit.key())
+                edits.append(proposal.edit)
+        write_sidecar(journal_path, round_index, [p for p in proposals if p.edit in edits])
     refusals: list[dict[str, object]] = []
     if not edits:
         return _outcome(round_index, accepted=False, reason="no_proposals", edits=[], before=before, after=before, degradations=refusals)
@@ -260,6 +270,7 @@ def run_improvement(
     pair_cases: Sequence[object] | None = None,
     profile_tolerance: float = 0.0,
     min_holdout_pairs: int = 5,
+    proposals: Sequence[MemoryProposal] = (),
 ) -> list[RoundOutcome]:
     """Run improvement rounds until convergence (no new proposals) or ``max_rounds``."""
     outcomes: list[RoundOutcome] = []
@@ -276,6 +287,7 @@ def run_improvement(
             pair_cases=pair_cases,
             profile_tolerance=profile_tolerance,
             min_holdout_pairs=min_holdout_pairs,
+            proposals=proposals,
         )
         outcomes.append(outcome)
         if outcome.reason == "no_proposals":
@@ -382,10 +394,7 @@ def _record(
             "reason": reason or outcome,
             "profile_regressions": list(profile_regressions or []),
             "profiles_under_minimum": list(profiles_under_minimum or []),
-            "edits": [
-                {"key": e.key(), "lever": e.lever, "rule_id": e.rule_id, "from": e.from_status, "to": e.to_status, "rationale": e.rationale}
-                for e in edits
-            ],
+            "edits": [_journal_edit(e) for e in edits],
             "recall_before": round(before.recall, 4),
             "recall_after": round(after.recall, 4),
             "fp_before": round(before.fp_rate, 4),
@@ -394,3 +403,14 @@ def _record(
             "score_after": after.score,
         },
     )
+
+
+def _journal_edit(edit: RuleStatusEdit) -> dict[str, object]:
+    entry: dict[str, object] = {
+        "key": edit.key(), "lever": edit.lever, "rule_id": edit.rule_id, "from": edit.from_status, "to": edit.to_status,
+        "rationale": edit.rationale,
+    }  # fmt: skip
+    proposal_id = proposal_id_of(edit)
+    if proposal_id is not None:
+        entry["evidence"] = proposal_id  # only a memory edit carries it; every other entry is unchanged byte for byte
+    return entry

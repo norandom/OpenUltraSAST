@@ -205,6 +205,22 @@ def main(argv: list[str] | None = None) -> int:
         "--profile-tolerance", type=float, default=0.0, help="allowed per-profile drop in pair_correct/Youden before rejecting"
     )
     improve.add_argument("--min-holdout-pairs", type=int, default=5, help="profiles with fewer holdout pairs are reported, not gated")
+    improve.add_argument(
+        "--memory",
+        nargs="?",
+        const="",
+        default=None,
+        metavar="STORE",
+        help="also propose rule-status edits from the plane memory store (a directory, file:// or minio:// URL; "
+        "no value: OUSAST_MEMORY or the default store); off by default",
+    )
+    improve.add_argument(
+        "--qualify-population",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="population a memory proposal will be qualified on; its rows never propose (repeatable)",
+    )
 
     pairs = subparsers.add_parser(
         "pairs",
@@ -367,6 +383,9 @@ def main(argv: list[str] | None = None) -> int:
             pair_catalog=None if args.no_pair_gate else args.pair_catalog,
             profile_tolerance=args.profile_tolerance,
             min_holdout_pairs=args.min_holdout_pairs,
+            memory=args.memory,
+            qualify_populations=tuple(args.qualify_population),
+            guard_catalog=args.pair_catalog,
         )
     if args.command == "pairs":
         return _pairs(
@@ -929,6 +948,9 @@ def _improve(
     pair_catalog: Path | None = None,
     profile_tolerance: float = 0.0,
     min_holdout_pairs: int = 5,
+    memory: str | None = None,
+    qualify_populations: tuple[str, ...] = (),
+    guard_catalog: Path | None = None,
 ) -> int:
     if not manifest_path.exists() or not manifest_path.is_file():
         raise SystemExit(f"benchmark manifest is not a file: {manifest_path}")
@@ -940,6 +962,7 @@ def _improve(
     manifest = load_benchmark_manifest(manifest_path)
     target = resolve_benchmark_source(manifest_path, manifest)
     policy = load_policy()
+    session = _memory_session(memory, manifest, target, ruleset_dir, qualify_populations, guard_catalog) if memory is not None else None
 
     # The loop writes its accepted ledger where `scan`/`benchmark` read it, so a
     # subsequent scan of this target automatically picks up the improved ruleset.
@@ -965,9 +988,20 @@ def _improve(
             pair_cases=pair_cases,
             profile_tolerance=profile_tolerance,
             min_holdout_pairs=min_holdout_pairs,
+            proposals=session.proposals(ledger_path, journal_path) if session else (),
         )
         _print_improve_outcomes(outcomes, manifest_path, target, ledger_path, dry_run=dry_run)
+        if session is not None:
+            session.finish(outcomes, journal_path, dry_run=dry_run)
     return 0
+
+
+def _memory_session(
+    memory: str, manifest: object, target: Path, ruleset_dir: Path, populations: tuple[str, ...], catalog: Path | None
+) -> Any:
+    from .improve.memory import MemorySession  # lazy: the default `improve` path never touches the store
+
+    return MemorySession.open(memory, manifest, target, ruleset_dir, populations, catalog)
 
 
 def _pairs(

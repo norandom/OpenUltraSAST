@@ -1,7 +1,7 @@
 {
-  "modules": 134,
+  "modules": 135,
   "counts": {
-    "load_bearing": 125,
+    "load_bearing": 126,
     "standalone_capability": 9
   },
   "orphaned": [],
@@ -313,7 +313,8 @@
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
-        "improve.evolve"
+        "improve.evolve",
+        "improve.memory"
       ]
     },
     {
@@ -330,6 +331,16 @@
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "improve",
+        "improve.evolve",
+        "improve.memory"
+      ]
+    },
+    {
+      "module": "improve.memory",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
+        "cli",
         "improve.evolve"
       ]
     },
@@ -339,7 +350,8 @@
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "improve",
-        "improve.evolve"
+        "improve.evolve",
+        "improve.memory"
       ]
     },
     {
@@ -652,6 +664,7 @@
         "cli",
         "improve",
         "improve.evolve",
+        "improve.memory",
         "model.candidates",
         "pair_gate"
       ]
@@ -662,6 +675,7 @@
       "reason": "ai-service-plane Req 1-4: the service plane package; runner and reconciler integration in tasks 3-4",
       "importers": [
         "cli",
+        "improve.memory",
         "plane.egress",
         "plane.generate",
         "plane.memory",
@@ -724,6 +738,7 @@
       "classification": "load_bearing",
       "reason": "harnessx-removal Req 6.1/6.4: the memory store (file, MinIO), ingest and fact reuse; `ousast plane remember`",
       "importers": [
+        "improve.memory",
         "plane.generate",
         "plane.tasks.remember"
       ]
@@ -1118,6 +1133,7 @@
         "hunter",
         "hunter_harness",
         "improve.evolve",
+        "improve.memory",
         "improve.validator",
         "pairs",
         "stage_processors"

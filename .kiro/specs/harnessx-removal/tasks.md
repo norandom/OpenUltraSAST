@@ -22,7 +22,7 @@ and passed its fixture test. Every task is a commit gated on the full suite's ow
   - Fixture tests: rows from a recorded Run, reuse on an unchanged pin, recompute on a changed one, disk refusal.
   - _Requirements: 6.1, 6.4_
 
-- [ ] 3. Proposals from memory
+- [x] 3. Proposals from memory
   - `improve/memory.py` with rules M1 (demote) and M2 (promote) and the advisory disputed-family signal;
     `run_round(proposals=...)`; `ousast improve --memory` (opt-in; default output byte-identical); provenance per
     proposal in the sidecar and journal; the train-on-test guard (qualification population, gated benchmark cases,
