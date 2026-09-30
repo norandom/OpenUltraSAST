@@ -10,6 +10,7 @@ Status: brief only, gated. Not started until `ai-service-plane` Requirement 6 re
   30,243 lines (1.9%). Every path falls back deterministically when the extra is absent and records a
   degradation (`harnessx_extra_unavailable`; fallbacks `run_hunter_pool`, `structural_verifier`,
   `deterministic_panels`). `evolve`, `regress`, `benchmark`, `gate` and quick mode do not depend on it.
+- Comment-only mentions (re-verified 2026-09-30): `gate.py:174`, `improve/evolve.py:9`, `slot_contract.py:7-13`.
 - Packaging: `pyproject.toml` extra `harnessx` pinned to a git commit; mypy override; `uv.lock` entry.
 - Tests: 14 files touch it; dedicated `test_harness_ext.py`, `test_hunter_harness.py`, `test_cli_hx_dispatch.py`,
   `test_verify_judge.py`; `tests/conftest.py` fixture `assert_cold_of_harnessx`.
