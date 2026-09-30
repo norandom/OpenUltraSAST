@@ -1,0 +1,12 @@
+[
+ {
+  "cwe": "CWE-89",
+  "evidence": "execute runs a SQL query string built from request input on a prior line",
+  "failed_stage": "benchmark_ground_truth_matching",
+  "next_improvement_candidate": "language_hunter",
+  "path": "app.py",
+  "reason": "no OpenUltraSAST finding matched the expected benchmark vulnerability",
+  "rule_id": null,
+  "vulnerability_class": "sql injection"
+ }
+]

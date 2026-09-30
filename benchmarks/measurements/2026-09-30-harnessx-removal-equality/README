@@ -1,0 +1,16 @@
+Equality proof for harnessx-removal (task 7, Requirement 3.2), recorded 2026-09-30.
+
+candidate/      `harnessx_removal_equality.py record` from a `git archive` export of b9afb66 (tasks 1-6 landed),
+                same venv (freeze sha256 0e5ad419... identical to the baseline's), no API keys, empty config.
+suite-map.json  the suite ids deleted (29), renamed (2) and added (83) since the baseline, each deleted or renamed
+                id justified by the design's Tests table and commit cbadc38 or b9afb66.
+comparison.json `compare ../2026-09-30-harnessx-removal-baseline candidate --suite-map suite-map.json`:
+                equal=True differences=0.
+
+Beyond the comparison: every output file (pairs, benchmark, scan, improve) is raw-byte identical to the baseline
+(`diff -rq` differs only in suite.json and env.json; determinism.json is baseline-only), and every surviving test id keeps its outcome.
+
+Instrument note: the first record failed the two test_push_hook cases (exit 1, prior-input never written) because
+the recording shell's PATH lacked .venv/bin, so the hook's `exec ousast` could not start. Same failure at b9afb66
+in the worktree, gone with .venv/bin on PATH (5 passed). The recorded run has .venv/bin on PATH; the baseline
+passed these tests, so its PATH had `ousast` too.

@@ -1,0 +1,461 @@
+{
+ "artifacts": {
+  "complexity_map": "complexity_map.json",
+  "findings": "findings.json",
+  "fusion": "fusion.json",
+  "markdown": "report.md",
+  "overlay": "overlay.json",
+  "sarif": "report.sarif",
+  "score": "score.json",
+  "trajectories": "traces/hunter_trajectories.jsonl",
+  "verification": "verification.json"
+ },
+ "complexity": {
+  "heuristic_only": true,
+  "hotspot_count": 14
+ },
+ "degradations": [
+  {
+   "detail": "no path records; obligations evaluated within entry-point handlers only",
+   "files": [
+    "app.py",
+    "safe.py"
+   ],
+   "language": "python",
+   "reason": "obligations_function_local",
+   "stage": "obligations"
+  },
+  {
+   "detail": "no hunter client or model",
+   "reason": "intent_adjudication_unavailable",
+   "stage": "obligations"
+  },
+  {
+   "reason": "cpg_unavailable",
+   "stage": "model"
+  },
+  {
+   "reason": "hunter_model_unavailable",
+   "stage": "map"
+  }
+ ],
+ "findings": [
+  {
+   "artifact_refs": {
+    "findings_json": "findings.json",
+    "markdown": "report.md",
+    "sarif": "report.sarif",
+    "trajectories_jsonl": "traces/hunter_trajectories.jsonl",
+    "verification_json": "verification.json"
+   },
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-flask-debug:app.py:81",
+   "line": 81,
+   "path": "app.py",
+   "rung": "suspicion",
+   "severity": "medium",
+   "verification_status": "rejected"
+  },
+  {
+   "artifact_refs": {
+    "findings_json": "findings.json",
+    "markdown": "report.md",
+    "sarif": "report.sarif",
+    "trajectories_jsonl": "traces/hunter_trajectories.jsonl",
+    "verification_json": "verification.json"
+   },
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-os-command:app.py:17",
+   "line": 17,
+   "path": "app.py",
+   "rung": "suspicion",
+   "severity": "critical",
+   "verification_status": "accepted"
+  },
+  {
+   "artifact_refs": {
+    "findings_json": "findings.json",
+    "markdown": "report.md",
+    "sarif": "report.sarif",
+    "trajectories_jsonl": "traces/hunter_trajectories.jsonl",
+    "verification_json": "verification.json"
+   },
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-path-traversal:app.py:55",
+   "line": 55,
+   "path": "app.py",
+   "rung": "suspicion",
+   "severity": "medium",
+   "verification_status": "accepted"
+  },
+  {
+   "artifact_refs": {
+    "findings_json": "findings.json",
+    "markdown": "report.md",
+    "sarif": "report.sarif",
+    "trajectories_jsonl": "traces/hunter_trajectories.jsonl",
+    "verification_json": "verification.json"
+   },
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-shell-true:app.py:23",
+   "line": 23,
+   "path": "app.py",
+   "rung": "suspicion",
+   "severity": "critical",
+   "verification_status": "accepted"
+  },
+  {
+   "artifact_refs": {
+    "findings_json": "findings.json",
+    "markdown": "report.md",
+    "sarif": "report.sarif",
+    "trajectories_jsonl": "traces/hunter_trajectories.jsonl",
+    "verification_json": "verification.json"
+   },
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-sql-injection:app.py:44",
+   "line": 44,
+   "path": "app.py",
+   "rung": "suspicion",
+   "severity": "high",
+   "verification_status": "accepted"
+  },
+  {
+   "artifact_refs": {
+    "findings_json": "findings.json",
+    "markdown": "report.md",
+    "sarif": "report.sarif",
+    "trajectories_jsonl": "traces/hunter_trajectories.jsonl",
+    "verification_json": "verification.json"
+   },
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-sql-injection:app.py:50",
+   "line": 50,
+   "path": "app.py",
+   "rung": "suspicion",
+   "severity": "high",
+   "verification_status": "accepted"
+  },
+  {
+   "artifact_refs": {
+    "findings_json": "findings.json",
+    "markdown": "report.md",
+    "sarif": "report.sarif",
+    "trajectories_jsonl": "traces/hunter_trajectories.jsonl",
+    "verification_json": "verification.json"
+   },
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-ssrf:app.py:60",
+   "line": 60,
+   "path": "app.py",
+   "rung": "suspicion",
+   "severity": "medium",
+   "verification_status": "accepted"
+  },
+  {
+   "artifact_refs": {
+    "findings_json": "findings.json",
+    "markdown": "report.md",
+    "sarif": "report.sarif",
+    "trajectories_jsonl": "traces/hunter_trajectories.jsonl",
+    "verification_json": "verification.json"
+   },
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-ssti:app.py:70",
+   "line": 70,
+   "path": "app.py",
+   "rung": "suspicion",
+   "severity": "medium",
+   "verification_status": "accepted"
+  },
+  {
+   "artifact_refs": {
+    "findings_json": "findings.json",
+    "markdown": "report.md",
+    "sarif": "report.sarif",
+    "trajectories_jsonl": "traces/hunter_trajectories.jsonl",
+    "verification_json": "verification.json"
+   },
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-unsafe-deserialization:app.py:33",
+   "line": 33,
+   "path": "app.py",
+   "rung": "suspicion",
+   "severity": "medium",
+   "verification_status": "accepted"
+  },
+  {
+   "artifact_refs": {
+    "findings_json": "findings.json",
+    "markdown": "report.md",
+    "sarif": "report.sarif",
+    "trajectories_jsonl": "traces/hunter_trajectories.jsonl",
+    "verification_json": "verification.json"
+   },
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-unsafe-deserialization:app.py:38",
+   "line": 38,
+   "path": "app.py",
+   "rung": "suspicion",
+   "severity": "medium",
+   "verification_status": "accepted"
+  },
+  {
+   "artifact_refs": {
+    "findings_json": "findings.json",
+    "markdown": "report.md",
+    "sarif": "report.sarif",
+    "trajectories_jsonl": "traces/hunter_trajectories.jsonl",
+    "verification_json": "verification.json"
+   },
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-unsafe-eval:app.py:28",
+   "line": 28,
+   "path": "app.py",
+   "rung": "suspicion",
+   "severity": "critical",
+   "verification_status": "accepted"
+  },
+  {
+   "artifact_refs": {
+    "findings_json": "findings.json",
+    "markdown": "report.md",
+    "sarif": "report.sarif",
+    "trajectories_jsonl": "traces/hunter_trajectories.jsonl",
+    "verification_json": "verification.json"
+   },
+   "evidence_level": "static_corroboration",
+   "finding_id": "python-weak-hash:app.py:65",
+   "line": 65,
+   "path": "app.py",
+   "rung": "suspicion",
+   "severity": "medium",
+   "verification_status": "accepted"
+  },
+  {
+   "artifact_refs": {
+    "findings_json": "findings.json",
+    "markdown": "report.md",
+    "sarif": "report.sarif",
+    "trajectories_jsonl": "traces/hunter_trajectories.jsonl",
+    "verification_json": "verification.json"
+   },
+   "evidence_level": "static_corroboration",
+   "finding_id": "overlay-coverage:app.py:77:execute",
+   "line": 77,
+   "path": "app.py",
+   "rung": "suspicion",
+   "severity": "high",
+   "verification_status": "not_run"
+  },
+  {
+   "artifact_refs": {
+    "findings_json": "findings.json",
+    "markdown": "report.md",
+    "sarif": "report.sarif",
+    "trajectories_jsonl": "traces/hunter_trajectories.jsonl",
+    "verification_json": "verification.json"
+   },
+   "evidence_level": "static_corroboration",
+   "finding_id": "overlay-coverage:safe.py:11:os.system",
+   "line": 11,
+   "path": "safe.py",
+   "rung": "suspicion",
+   "severity": "critical",
+   "verification_status": "not_run"
+  },
+  {
+   "artifact_refs": {
+    "findings_json": "findings.json",
+    "markdown": "report.md",
+    "sarif": "report.sarif",
+    "trajectories_jsonl": "traces/hunter_trajectories.jsonl",
+    "verification_json": "verification.json"
+   },
+   "evidence_level": "suspicion",
+   "finding_id": "obligation:protected_read:app.py:44:identity_constraint",
+   "line": 44,
+   "path": "app.py",
+   "rung": "suspicion",
+   "severity": "high",
+   "verification_status": "not_run"
+  },
+  {
+   "artifact_refs": {
+    "findings_json": "findings.json",
+    "markdown": "report.md",
+    "sarif": "report.sarif",
+    "trajectories_jsonl": "traces/hunter_trajectories.jsonl",
+    "verification_json": "verification.json"
+   },
+   "evidence_level": "suspicion",
+   "finding_id": "obligation:protected_read:app.py:50:identity_constraint",
+   "line": 50,
+   "path": "app.py",
+   "rung": "suspicion",
+   "severity": "high",
+   "verification_status": "not_run"
+  },
+  {
+   "artifact_refs": {
+    "findings_json": "findings.json",
+    "markdown": "report.md",
+    "sarif": "report.sarif",
+    "trajectories_jsonl": "traces/hunter_trajectories.jsonl",
+    "verification_json": "verification.json"
+   },
+   "evidence_level": "suspicion",
+   "finding_id": "obligation:protected_read:app.py:77:identity_constraint",
+   "line": 77,
+   "path": "app.py",
+   "rung": "suspicion",
+   "severity": "high",
+   "verification_status": "not_run"
+  }
+ ],
+ "fusion": [
+  {
+   "decision_source": "deterministic-reconciler",
+   "disposition": "accepted",
+   "finding_id": "python-os-command:app.py:17",
+   "triggers": [
+    "gates_risky_fix",
+    "severity:critical"
+   ]
+  },
+  {
+   "decision_source": "deterministic-reconciler",
+   "disposition": "accepted",
+   "finding_id": "python-shell-true:app.py:23",
+   "triggers": [
+    "gates_risky_fix",
+    "severity:critical"
+   ]
+  },
+  {
+   "decision_source": "deterministic-reconciler",
+   "disposition": "accepted",
+   "finding_id": "python-sql-injection:app.py:44",
+   "triggers": [
+    "gates_risky_fix",
+    "severity:high"
+   ]
+  },
+  {
+   "decision_source": "deterministic-reconciler",
+   "disposition": "accepted",
+   "finding_id": "python-sql-injection:app.py:50",
+   "triggers": [
+    "gates_risky_fix",
+    "severity:high"
+   ]
+  },
+  {
+   "decision_source": "deterministic-reconciler",
+   "disposition": "accepted",
+   "finding_id": "python-unsafe-eval:app.py:28",
+   "triggers": [
+    "gates_risky_fix",
+    "severity:critical"
+   ]
+  }
+ ],
+ "model": {
+  "by_rung": {},
+  "cost_usd": 0.0,
+  "coverage": [],
+  "family_coverage": [],
+  "model_calls": 0,
+  "partitions": [],
+  "query_seconds_by_kind": {},
+  "question_outcomes": [],
+  "regions_scanned": 0,
+  "regions_unasked": 0,
+  "regions_unjudged": 0,
+  "scope": null,
+  "seconds": 0.0,
+  "skipped": "cpg_unavailable",
+  "unjudged_sample": []
+ },
+ "obligations": {
+  "degradations": [
+   {
+    "detail": "no path records; obligations evaluated within entry-point handlers only",
+    "files": [
+     "app.py",
+     "safe.py"
+    ],
+    "language": "python",
+    "reason": "obligations_function_local",
+    "stage": "obligations"
+   },
+   {
+    "detail": "no hunter client or model",
+    "reason": "intent_adjudication_unavailable",
+    "stage": "obligations"
+   }
+  ],
+  "findings_by_label": {
+   "function_local": 3
+  },
+  "operations": 4,
+  "policy_version": null,
+  "sets": [
+   {
+    "handlers": 1,
+    "module": "app",
+    "resource": "reports"
+   },
+   {
+    "handlers": 1,
+    "module": "app",
+    "resource": "users"
+   }
+  ],
+  "sibling_sets": 2,
+  "under_populated": 2
+ },
+ "provenance": {
+  "agent_commits": 0,
+  "sampled_commits": 0,
+  "signals": [
+   "git:unavailable"
+  ],
+  "value": "human"
+ },
+ "score": {
+  "by_category": {
+   "Code Injection": 2,
+   "Code Quality": 1,
+   "Command or Argument Injection": 2,
+   "Cryptographic Issues": 1,
+   "Directory Traversal": 1,
+   "Encapsulation": 2,
+   "Information Leakage": 1,
+   "SQL Injection": 2
+  },
+  "gate": {
+   "block_severity_reachable": 5,
+   "blocking": false,
+   "min_score": 80,
+   "passed": false
+  },
+  "max_severity": 5,
+  "out_of_scope_dynamic_only": 0,
+  "penalty_total": 105.6,
+  "project_score": 17,
+  "unmapped_cwe": []
+ },
+ "stages": {
+  "completed": [
+   "static",
+   "map"
+  ],
+  "requested": [
+   "static",
+   "map"
+  ],
+  "skipped": []
+ },
+ "target": "<ROOT>/benchmarks/fixtures/python-vulnerable"
+}

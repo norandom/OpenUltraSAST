@@ -50,7 +50,7 @@ and passed its fixture test. Every task is a commit gated on the full suite's ow
     reference search test (Req 2.4).
   - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-- [ ] 7. Equality proof
+- [x] 7. Equality proof
   - Rerun the baseline script; commit the comparison record next to the baseline; any difference outside the
     exclusion list blocks the merge.
   - _Requirements: 3.2_

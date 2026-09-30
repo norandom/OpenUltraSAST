@@ -1,0 +1,15 @@
+{
+ "baseline": "benchmarks/measurements/2026-09-30-harnessx-removal-baseline",
+ "candidate": "benchmarks/measurements/2026-09-30-harnessx-removal-equality/candidate",
+ "differences": [],
+ "equal": true,
+ "exclusions": [
+  "JSON keys: created_at, finished, generated_at, runtime_seconds, scan_id, started, timestamp",
+  "JSON keys ending in: _seconds, _ms",
+  "run directory names / run ids (<timestamp>-<8 hex>, benchmark.py create_benchmark_run, run.py create_scan_run) -> <RUN_ID>",
+  "trace/events.jsonl as a whole (timings); never copied",
+  "the export's absolute root path -> <ROOT>; the children's TMPDIR -> <TMP>",
+  "suite: only the outcome per test id is kept (junit durations dropped)",
+  "env.json is a provenance record (commit, freeze hash, instrument checks), not compared"
+ ]
+}

@@ -1,0 +1,5 @@
+manifest=benchmarks/manifests/java-spring-boot-vulnerable.toml
+target=<ROOT>/benchmarks/fixtures/java-spring-boot-vulnerable
+round 1: no_proposals | recall 100.00%->100.00% fp 0.00%->0.00% score 73->73 | edits: -
+rounds=1 accepted=0
+dry_run=true (no ledger or mechanism store written)
