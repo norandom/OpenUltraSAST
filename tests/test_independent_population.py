@@ -17,7 +17,9 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 POPULATIONS = sorted((ROOT / "benchmarks" / "independent").glob("population-v*.toml"))
 POPULATION = POPULATIONS[0]
-FAMILIES = {"injection", "untrusted_destination", "config_secrets"}
+# v1 and v2 score injection, untrusted_destination and config_secrets; v3 (PHP) adds the other four families that
+# protocol-v3.md pre-registers matching rules for.
+FAMILIES = {"injection", "untrusted_destination", "config_secrets", "path", "output_encoding", "access_control", "deserialization"}
 SHA = re.compile(r"[0-9a-f]{40}")
 
 
@@ -28,7 +30,7 @@ def _population(path: Path = POPULATION) -> dict:
 @pytest.mark.parametrize("path", POPULATIONS, ids=lambda p: p.stem)
 def test_the_reservation_is_well_formed(path: Path) -> None:
     data = _population(path)
-    assert data["status"] in {"reserved-unscanned", "frozen"}
+    assert data["status"] in {"reserved-unscanned", "reserved", "frozen"}
     cases = data["case"]
     ids = [case["id"] for case in cases]
     assert len(ids) == len(set(ids)) >= 10
@@ -46,7 +48,11 @@ def test_the_reservation_is_well_formed(path: Path) -> None:
             assert SHA.fullmatch(benign.get("base", "")) and SHA.fullmatch(benign.get("tip", "")), case["id"]
         assert (path.parent / data["freeze_record"]).is_file()
     languages = {case["language"] for case in cases}
-    assert {"php", "python"} <= languages and languages & {"javascript", "typescript"}
+    if "language" in data:
+        # A single-language population (v3: PHP) declares its language, and every case is in it.
+        assert languages == {data["language"]}
+    else:
+        assert {"php", "python"} <= languages and languages & {"javascript", "typescript"}
 
 
 @pytest.mark.parametrize("path", POPULATIONS, ids=lambda p: p.stem)

@@ -1,0 +1,1808 @@
+{
+  "schema_version": 1,
+  "status": "candidates (not reserved, not frozen)",
+  "research": "research-2026-09-30-php.md",
+  "researched_on": "2026-09-30",
+  "note": "Web research only: GitHub advisory records and commit/compare metadata via gh api. No candidate repository was cloned, scanned or run through any project tool. `sites` come from the advisory text; where only a file (or only a class) is named, `site_files` and `sink_evidence` carry what the advisory states and the function must be resolved at freeze. `benign.proposal` is an API-side proposal made with freeze.py's filter; freeze.py and a reviewer decide.",
+  "recommended_selection": [
+    "gitlist-commandline-cmdi",
+    "qloapps-customermessage-bo-query-sqli",
+    "roundcube-markasjunk-cmd-learn-rce",
+    "winter-filter-numberrange-sqli",
+    "maccms10-template-blacklist-rce",
+    "sharp-editor-iframe-srcdoc-xss",
+    "privatebin-jsonld-request-uri-injection",
+    "openstamanager-group-name-html-injection",
+    "wp-geo-my-wp-info-window-lfi",
+    "kirby-realpath-sibling-traversal",
+    "mineadmin-appstore-identifier-traversal",
+    "elfinder-fsock-dns-rebinding-ssrf",
+    "easyappointments-caldav-ssrf",
+    "wp-graphql-updatepost-publish-bypass",
+    "sylius-mollie-thankyou-order-idor",
+    "wp-podlove-generation-guard-poi"
+  ],
+  "cases": [
+    {
+      "id": "grav-blueprint-bare-function-rce",
+      "repo": "https://github.com/getgrav/grav",
+      "language": "php",
+      "also": [],
+      "wordpress": false,
+      "family": "injection",
+      "subtype": "code injection (callable allow-list bypass → arbitrary PHP function)",
+      "advisory": [
+        "CVE-2026-75827",
+        "GHSA-f8wv-xp27-6gq7"
+      ],
+      "published": "2026-09-17",
+      "lane": "A (reviewed, composer)",
+      "vulnerable_versions": "<= 2.0.14",
+      "fixed_version": "2.0.15",
+      "vulnerable": "24e8717ae317d50941472479f748b974f4034c51",
+      "fixed": "af31066e9b6a5e6b5e675cc3368f4a741fe3ea21",
+      "ancestry": "parent; ancestor of tag 2.0.15",
+      "fix_named_by_advisory": false,
+      "fix_note": "The advisory links no commit. Found in the release compare 2.0.14...2.0.15 (14 commits, each security fix labelled): `af31066e` '[security] Gate the blueprint bare-function data directive on a positive allowlist', 1 file (Blueprint.php +11-1). A later commit in the same release, `c51987f5` 'Trust blueprint dynamic-data providers by provenance, not by allowlist', reworks the same gate.",
+      "fix_changed_files": [
+        "system/src/Grav/Common/Data/Blueprint.php"
+      ],
+      "sink": "system/src/Grav/Common/Data/Blueprint.php:455-458 `call_user_func_array($o, $params)` (bare-function dynamic-data provider), gated by `Blueprint::isSafeDynamicCall()` (Blueprint.php:514-536), whose bare-function branch uses only the denylist `Utils::isDangerousFunction()`; twin sink system/src/Grav/Framework/Flex/FlexDirectory.php:936-938 `call_user_func_array($function, $params)`",
+      "source": "a blueprint `data-*@` directive naming a bare PHP function (e.g. `error_log`) with attacker parameters, resolved by `Blueprint::init()`",
+      "sites": [
+        "system/src/Grav/Common/Data/Blueprint.php::isSafeDynamicCall",
+        "system/src/Grav/Common/Data/Blueprint.php::init"
+      ],
+      "site_files": [
+        "system/src/Grav/Framework/Flex/FlexDirectory.php"
+      ],
+      "sink_evidence": "call_user_func_array($o, $params)",
+      "site_derivation": "file paths and function names quoted by the advisory",
+      "privilege": "authenticated account that can edit pages/blueprint data (per the advisory's root-cause section; verify)",
+      "license": "MIT",
+      "repo_size_mb": 34,
+      "default_branch": "develop",
+      "languages_pct": {
+        "PHP": 100
+      },
+      "confidence": "high",
+      "caveats": [
+        "guard bypass: the vulnerable pin already has a denylist check",
+        "the enclosing function of the call_user_func_array line is not named by this advisory (sink_evidence is used instead)"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "4f1340631b9d28d119986f43f65887c92a21959b",
+          "tip": "8661b3b5644821235c7f669a073db6bfa551f4d0",
+          "subject": "Deduplicate repeated debugger deprecation traces",
+          "files": [
+            "CHANGELOG.md",
+            "system/src/Grav/Common/Debugger.php",
+            "tests/unit/Grav/Common/DebuggerDeprecationsTest.php"
+          ],
+          "lines": 172,
+          "branch": "develop",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": ""
+        },
+        "idea": null
+      },
+      "recommended": false
+    },
+    {
+      "id": "backpack-stats-host-header-cmdi",
+      "repo": "https://github.com/Laravel-Backpack/CRUD",
+      "language": "php",
+      "also": [],
+      "wordpress": false,
+      "family": "injection",
+      "subtype": "OS command injection",
+      "advisory": [
+        "CVE-2026-54182",
+        "GHSA-mrc5-3mm3-45c5"
+      ],
+      "published": "2026-08-20",
+      "lane": "A",
+      "vulnerable_versions": "7.x < 7.0.36 (also 4.1.x < 4.1.72, 5.x < 5.6.2, 6.x < 6.8.13)",
+      "fixed_version": "7.0.36",
+      "vulnerable": "baae0420b6ebefaf5fe4cd88c1fc358feb9c2816",
+      "fixed": "282ba2a0b88749fb1888b3836678ba462d7023f0",
+      "ancestry": "parent; the fixed commit is tag 7.0.36",
+      "fix_named_by_advisory": false,
+      "fix_note": "The advisory links only release tags. The compare 7.0.35...7.0.36 contains exactly one commit, `282ba2a0` 'refactor stats to use guzzle only' (src/Stats.php +6-31), matching the advisory's 'makeCurlRequest was replaced with the Guzzle-based path'.",
+      "fix_changed_files": [
+        "src/Stats.php"
+      ],
+      "sink": "`Backpack\\CRUD\\Stats::makeCurlRequest` builds a shell command and passes it to `exec()`",
+      "source": "HTTP `Host` header, on every production request through `BackpackServiceProvider::boot()` (1-in-100 random gate)",
+      "sites": [
+        "src/Stats.php::makeCurlRequest"
+      ],
+      "site_files": [
+        "src/BackpackServiceProvider.php"
+      ],
+      "sink_evidence": "",
+      "site_derivation": "class and method named by the advisory; the path src/Stats.php follows from the PSR-4 class name and is confirmed only by the fix commit's file list",
+      "privilege": "unauthenticated",
+      "license": "MIT",
+      "repo_size_mb": 76,
+      "default_branch": "main",
+      "languages_pct": {
+        "PHP": 80,
+        "Blade": 17
+      },
+      "confidence": "high",
+      "caveats": [
+        "needs exec() and curl available, and a Host header that the web server passes through (the advisory rates AC:H)"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "dd25c2086b8ea2cb765993b65876c66ab824eef0",
+          "tip": "608652b1020ba274781f222d2959d7780a559a08",
+          "subject": "fix color display (#5992)",
+          "files": [
+            "src/resources/views/crud/columns/color.blade.php"
+          ],
+          "lines": 8,
+          "branch": "main",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": ""
+        },
+        "idea": null
+      },
+      "recommended": false
+    },
+    {
+      "id": "winter-filter-numberrange-sqli",
+      "repo": "https://github.com/wintercms/winter",
+      "language": "php",
+      "also": [
+        "javascript"
+      ],
+      "wordpress": false,
+      "family": "injection",
+      "subtype": "SQL injection",
+      "advisory": [
+        "CVE-2026-32593",
+        "GHSA-m7jc-g4rc-jmvh"
+      ],
+      "published": "2026-08-12",
+      "lane": "A",
+      "vulnerable_versions": "<= 1.2.12",
+      "fixed_version": "1.2.13",
+      "vulnerable": "555e67c84b503b60aa0a5775382087c5da97b7ca",
+      "fixed": "50713de95adf5298536d93f4d999652525d36d43",
+      "ancestry": "parent; ancestor of tag v1.2.13, not of v1.2.12",
+      "fix_named_by_advisory": true,
+      "fix_note": "Advisory workaround names commit `50713de9` 'Use parameter binding for filter scope values in conditions statements' (modules/backend/widgets/Filter.php +64-24, plus a test).",
+      "fix_changed_files": [
+        "modules/backend/tests/widgets/FilterWidgetTest.php",
+        "modules/backend/widgets/Filter.php"
+      ],
+      "sink": "`Backend\\Widgets\\Filter` builds SQL for a `numberrange` scope configured with a `conditions` key",
+      "source": "the filter widget's AJAX handler (`numbersFromAjax`, per the advisory title)",
+      "sites": [
+        "modules/backend/widgets/Filter.php::numbersFromAjax"
+      ],
+      "site_files": [],
+      "sink_evidence": "",
+      "site_derivation": "class `Backend\\Widgets\\Filter` and `numbersFromAjax` named by the advisory; path confirmed by the fix commit",
+      "privilege": "authenticated backend user with access to an affected list view",
+      "license": "MIT",
+      "repo_size_mb": 68,
+      "default_branch": "develop",
+      "languages_pct": {
+        "PHP": 70,
+        "JavaScript": 19,
+        "Less": 8
+      },
+      "confidence": "medium",
+      "caveats": [
+        "no built-in view uses the vulnerable scope/config combination: exploitable only with a plugin that registers a numberrange scope with `conditions` (the sink is in core, the configuration is not)"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "555e67c84b503b60aa0a5775382087c5da97b7ca",
+          "tip": "2a342f94ae7cc9d20852337aa980f075106420d6",
+          "subject": "Improved Ukrainian translation (#1467)",
+          "files": [
+            "modules/backend/lang/uk/lang.php"
+          ],
+          "lines": 46,
+          "branch": "develop",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": ""
+        },
+        "idea": null
+      },
+      "recommended": true
+    },
+    {
+      "id": "mantisbt-tokenizer-eval-rce",
+      "repo": "https://github.com/mantisbt/mantisbt",
+      "language": "php",
+      "also": [],
+      "wordpress": false,
+      "family": "injection",
+      "subtype": "code injection (eval)",
+      "advisory": [
+        "CVE-2026-49273",
+        "GHSA-v84x-qvhg-f36r"
+      ],
+      "published": "2026-07-15",
+      "lane": "A",
+      "vulnerable_versions": ">= 1.3.0, <= 2.28.3",
+      "fixed_version": "2.28.4",
+      "vulnerable": "e7041ecc80c8d35f76a7ea1027a8a231244f7dc5",
+      "fixed": "78c0af63d1fe0118004744cab21ca3bf2cea0f5c",
+      "ancestry": "parent; ancestor of tag release-2.28.4",
+      "fix_named_by_advisory": true,
+      "fix_note": "Advisory patch link `78c0af63` 'Remove use of eval() in Tokenizer class' (core/classes/Tokenizer.class.php +2-6).",
+      "fix_changed_files": [
+        "core/classes/Tokenizer.class.php"
+      ],
+      "sink": "`Tokenizer` (reached through `ConfigParser`) calls `eval()` with a `return;` prefix; PHP hoists class declarations past the return",
+      "source": "non-string configuration value submitted to adm_config_set.php (Manage Configuration)",
+      "sites": [],
+      "site_files": [
+        "core/classes/Tokenizer.class.php",
+        "adm_config_set.php"
+      ],
+      "sink_evidence": "eval(",
+      "site_derivation": "the advisory names adm_config_set.php, ConfigParser, Tokenizer and eval(); the Tokenizer file path and the enclosing function are not named (path from the fix commit)",
+      "privilege": "administrator",
+      "license": "GitHub: none [verify]",
+      "repo_size_mb": 89,
+      "default_branch": "master",
+      "languages_pct": {
+        "PHP": 82,
+        "CSS": 10
+      },
+      "confidence": "high",
+      "caveats": [
+        "function-level site must be resolved at freeze by reading the file (the advisory names only the class)"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "f734bff6ea55d50d62db4ce518aae1536ab3da72",
+          "tip": "c867fcc0c1198298bf90b3e29bc63410aaefc9e0",
+          "subject": "Web UI: use project category commands",
+          "files": [
+            "manage_proj_cat_add.php",
+            "manage_proj_cat_copy.php",
+            "manage_proj_cat_delete.php",
+            "manage_proj_cat_update.php"
+          ],
+          "lines": 58,
+          "branch": "master",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": ""
+        },
+        "idea": null
+      },
+      "recommended": false
+    },
+    {
+      "id": "gitlist-commandline-cmdi",
+      "repo": "https://github.com/klaussilveira/gitlist",
+      "language": "php",
+      "also": [],
+      "wordpress": false,
+      "family": "injection",
+      "subtype": "OS command / argument injection",
+      "advisory": [
+        "CVE-2026-82668",
+        "GHSA-v64j-pgc3-qgc9"
+      ],
+      "published": "2026-08-31",
+      "lane": "B (unreviewed, GitHub fix reference)",
+      "vulnerable_versions": "2.0.0",
+      "fixed_version": "3.0.0-beta",
+      "vulnerable": "f67609d52c1812fa8a7ed80eae5e795cfd72115f",
+      "fixed": "88cf2866083d5f7c20d9d565c45f828a7ad1516b",
+      "ancestry": "parent; ancestor of tag 3.0.0-beta",
+      "fix_named_by_advisory": true,
+      "fix_note": "Advisory names patch `88cf2866` 'Prevent textconv. Fixes #947.' (src/SCM/System/Git/CommandLine.php +2-2, plus a test).",
+      "fix_changed_files": [
+        "src/SCM/System/Git/CommandLine.php",
+        "tests/unit/SCM/System/Git/CommandLineTest.php"
+      ],
+      "sink": "`getDefaultBranch` of src/SCM/System/Git/CommandLine.php (git command line)",
+      "source": "repository content/arguments reaching the git command line (not stated precisely)",
+      "sites": [
+        "src/SCM/System/Git/CommandLine.php::getDefaultBranch"
+      ],
+      "site_files": [],
+      "sink_evidence": "",
+      "site_derivation": "file and function quoted by the advisory (VulDB-generated text)",
+      "privilege": "not stated ('remotely')",
+      "license": "BSD-3-Clause",
+      "repo_size_mb": 6,
+      "default_branch": "master",
+      "languages_pct": {
+        "PHP": 87,
+        "Twig": 9
+      },
+      "confidence": "medium",
+      "caveats": [
+        "VulDB auto-generated description; the fix message ('Prevent textconv') suggests git config/attribute abuse rather than shell metacharacters, and the patched lines may not be in getDefaultBranch -- verify at freeze"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": null,
+        "idea": "no API proposal passed the freeze.py filter within 60 commits after the fix; let freeze.py propose one from the clone, or pick by hand (a small non-security PHP change on the default branch that does not touch the sink file)"
+      },
+      "recommended": true
+    },
+    {
+      "id": "qloapps-customermessage-bo-query-sqli",
+      "repo": "https://github.com/Qloapps/QloApps",
+      "language": "php",
+      "also": [
+        "javascript"
+      ],
+      "wordpress": false,
+      "family": "injection",
+      "subtype": "SQL injection",
+      "advisory": [
+        "CVE-2026-75497",
+        "GHSA-5w6r-2mxc-fq3v"
+      ],
+      "published": "2026-08-25",
+      "lane": "B",
+      "vulnerable_versions": "not stated ('Fixed in 123c97c')",
+      "fixed_version": "commit 123c97c",
+      "vulnerable": "5b4d65cbb8570a4ba46364ee0f2ded79d294ab84",
+      "fixed": "123c97c110b7053ea3297d8e58fe95b3c3536560",
+      "ancestry": "parent",
+      "fix_named_by_advisory": true,
+      "fix_note": "Advisory names `123c97c1` 'Fixed: validate request parameters before database query' (PR #1783): classes/CustomerMessage.php +1-1, classes/Address.php +8-8 (twin advisory GHSA-mj48-jjc7-6wqr) and three hotel-module classes.",
+      "fix_changed_files": [
+        "classes/Address.php",
+        "classes/CustomerMessage.php",
+        "modules/hotelreservationsystem/classes/HotelBranchRefundRules.php",
+        "modules/hotelreservationsystem/classes/HotelRoomTypeFeaturePricing.php",
+        "modules/hotelreservationsystem/classes/HotelRoomTypeGlobalDemandAdvanceOption.php"
+      ],
+      "sink": "database query in CustomerMessage.php built from the `bo_query` parameter",
+      "source": "`bo_query` request parameter",
+      "sites": [],
+      "site_files": [
+        "classes/CustomerMessage.php"
+      ],
+      "sink_evidence": "",
+      "site_derivation": "the advisory names 'CustomerMessage.php' (basename) and the parameter; the classes/ path is from the fix commit; no function named",
+      "privilege": "administrator",
+      "license": "OSL-3.0",
+      "repo_size_mb": 129,
+      "default_branch": "develop",
+      "languages_pct": {
+        "PHP": 80,
+        "Smarty": 9,
+        "JavaScript": 7
+      },
+      "confidence": "medium",
+      "caveats": [
+        "one fix covers two advisories (Address.php is GHSA-mj48); repo 129 MB, near the size cap",
+        "function-level site to be resolved at freeze"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "2ae1b491672aa8c6ca0eb766a81bab3cd9a20487",
+          "tip": "54c12b4efe41fe3d8bc55e43923fbd917e525b10",
+          "subject": "fixed issues",
+          "files": [
+            "classes/order/Order.php",
+            "classes/order/OrderPayment.php",
+            "modules/hotelreservationsystem/classes/HotelBookingDetail.php",
+            "modules/hotelreservationsystem/classes/HotelRoomInformation.php",
+            "modules/hotelreservationsystem/classes/ServiceProductOrderDetail.php",
+            "modules/qlohotelreports/qlohotelreports.php",
+            "modules/qlohotelreports/views/templates/hook/group-bookings.tpl",
+            "modules/qlohotelreports/views/templates/hook/group-channels.tpl",
+            "modules/qlohotelreports/views/templates/hook/group-guests.tpl",
+            "modules/qlohotelreports/views/templates/hook/group-occupancy.tpl",
+            "modules/qlohotelreports/views/templates/hook/group-property.tpl",
+            "modules/qlohotelreports/views/templates/hook/group-revenue.tpl"
+          ],
+          "lines": 106,
+          "branch": "develop",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": ""
+        },
+        "idea": null
+      },
+      "recommended": true
+    },
+    {
+      "id": "roundcube-markasjunk-cmd-learn-rce",
+      "repo": "https://github.com/roundcube/roundcubemail",
+      "language": "php",
+      "also": [
+        "javascript"
+      ],
+      "wordpress": false,
+      "family": "injection",
+      "subtype": "OS command injection",
+      "advisory": [
+        "CVE-2026-74997",
+        "GHSA-q5rh-mmp4-ppgq"
+      ],
+      "published": "2026-08-17",
+      "lane": "B",
+      "vulnerable_versions": "< 1.6.18; 1.7.x < 1.7.3",
+      "fixed_version": "1.6.18 / 1.7.3",
+      "vulnerable": "a1afb8fd1f00ed4cb9376c072bb5ca5ded64495e",
+      "fixed": "b8f90e28a46d42e79a69568cba897f8f4223d9cd",
+      "ancestry": "parent; ancestor of tag 1.6.18",
+      "fix_named_by_advisory": true,
+      "fix_note": "Advisory links `14044f84` (master) and `b8f90e28` (1.6 line), both 'Fix RCE via cmd_learn driver of markasjunk plugin' (plugins/markasjunk/drivers/cmd_learn.php +14-10), and a follow-up warning fix `495d2116`. The 1.6-line pin is used because it is an ancestor of tag 1.6.18.",
+      "fix_changed_files": [
+        "CHANGELOG.md",
+        "plugins/markasjunk/drivers/cmd_learn.php"
+      ],
+      "sink": "the markasjunk plugin's cmd_learn driver runs a shell command with placeholder replacement values",
+      "source": "crafted placeholder replacement values (message/user data) when a message is marked as junk",
+      "sites": [],
+      "site_files": [
+        "plugins/markasjunk/drivers/cmd_learn.php"
+      ],
+      "sink_evidence": "",
+      "site_derivation": "the advisory names 'the cmd_learn driver of the markasjunk plugin'; the file path follows from that name and is confirmed by the fix commit; no function named",
+      "privilege": "authenticated webmail user",
+      "license": "GPL-3.0",
+      "repo_size_mb": 67,
+      "default_branch": "master",
+      "languages_pct": {
+        "PHP": 90,
+        "JavaScript": 7
+      },
+      "confidence": "medium",
+      "caveats": [
+        "only instances that enable the markasjunk plugin with the cmd_learn driver"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "1cddafded973c4bf6faa173accaf8f52ca1ac0d0",
+          "tip": "747f544708ed1d698b677d333346164a9451aeda",
+          "subject": "Simplify",
+          "files": [
+            "tests/Framework/TnefDecoderTest.php"
+          ],
+          "lines": 6,
+          "branch": "master",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": "tests-only change, on master (the fixed pin is on the 1.6 line)"
+        },
+        "idea": null
+      },
+      "recommended": true
+    },
+    {
+      "id": "maccms10-template-blacklist-rce",
+      "repo": "https://github.com/magicblack/maccms10",
+      "language": "php",
+      "also": [
+        "javascript"
+      ],
+      "wordpress": false,
+      "family": "injection",
+      "subtype": "code injection (template → PHP, blacklist bypass)",
+      "advisory": [
+        "CVE-2026-71232",
+        "GHSA-cv48-22qx-mpmx"
+      ],
+      "published": "2026-08-05",
+      "lane": "B",
+      "vulnerable_versions": "before commit 71ad3bb (2026-06-22)",
+      "fixed_version": "commit 71ad3bb",
+      "vulnerable": "2cabecda29947e8f9ea7cd3aa47ab90ed817605b",
+      "fixed": "71ad3bb29570e110d8e973acff68040a3050ddf0",
+      "ancestry": "parent",
+      "fix_named_by_advisory": true,
+      "fix_note": "Advisory names `71ad3bb2` (application/admin/controller/Template.php +1-1: adds the missing functions to the blacklist regex).",
+      "fix_changed_files": [
+        "application/admin/controller/Template.php"
+      ],
+      "sink": "ThinkPHP `{if condition=...}` compiled into raw PHP; the admin template editor only blocks a function blacklist",
+      "source": "template content saved through the admin template editor",
+      "sites": [],
+      "site_files": [
+        "application/admin/controller/Template.php"
+      ],
+      "sink_evidence": "",
+      "site_derivation": "file path quoted by the advisory; no function named",
+      "privilege": "administrator",
+      "license": "GitHub: NOASSERTION [verify]",
+      "repo_size_mb": 29,
+      "default_branch": "master",
+      "languages_pct": {
+        "PHP": 66,
+        "HTML": 23,
+        "JavaScript": 9
+      },
+      "confidence": "medium",
+      "caveats": [
+        "guard bypass (incomplete blacklist); the fix is still a blacklist",
+        "licence not declared on GitHub"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "d9f09011a1523d0bfaed5dea9b2139461f2b0ea8",
+          "tip": "668ba418e50e96ab32ac612f3b6528beb172b3b7",
+          "subject": "fix #1356 修正注册API校验器解析错误及缺参报错",
+          "files": [
+            "application/api/controller/User.php",
+            "application/common/model/User.php",
+            "tests/regression/user_register_validate.php",
+            "说明文档/API接口说明V2.txt"
+          ],
+          "lines": 166,
+          "branch": "master",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": "review: subject says it fixes a register-API validator"
+        },
+        "idea": null
+      },
+      "recommended": true
+    },
+    {
+      "id": "kirby-realpath-sibling-traversal",
+      "repo": "https://github.com/getkirby/kirby",
+      "language": "php",
+      "also": [],
+      "wordpress": false,
+      "family": "path",
+      "subtype": "path traversal (prefix containment check)",
+      "advisory": [
+        "CVE-2026-75592",
+        "GHSA-6j4c-mgqr-qv76"
+      ],
+      "published": "2026-09-02",
+      "lane": "A",
+      "vulnerable_versions": "< 4.9.5; 5.0.0 - 5.5.1",
+      "fixed_version": "4.9.5 / 5.5.2",
+      "vulnerable": "e90257fd7504053e13e93a1e9a5a9a5137aed966",
+      "fixed": "2b6fab950bc89d505ea89576bf71c8de614cc3b2",
+      "ancestry": "parent; ancestor of tag 4.9.5 (not of 5.5.2)",
+      "fix_named_by_advisory": true,
+      "fix_note": "Advisory links `2b6fab95` 'fix: Ensure containment in ::realpath()' (4.x line: src/Filesystem/Dir.php, src/Filesystem/F.php) and `e0dca5f7` (5.x line, which also carries the Media::thumb fix of GHSA-9vx2-j98c-p72w). The 4.x pin keeps the case to this advisory alone.",
+      "fix_changed_files": [
+        "src/Filesystem/Dir.php",
+        "src/Filesystem/F.php",
+        "tests/Filesystem/DirTest.php",
+        "tests/Filesystem/FTest.php"
+      ],
+      "sink": "`Dir::realpath()` / `F::realpath()` containment check accepts a sibling directory sharing the prefix (site vs site2)",
+      "source": "media handler request path for not-yet-generated thumbnails",
+      "sites": [
+        "src/Filesystem/Dir.php::realpath",
+        "src/Filesystem/F.php::realpath"
+      ],
+      "site_files": [],
+      "sink_evidence": "",
+      "site_derivation": "`Dir::realpath()` and `F::realpath()` named by the advisory; paths confirmed by the fix commit",
+      "privilege": "unauthenticated",
+      "license": "GitHub: NOASSERTION [verify]",
+      "repo_size_mb": 66,
+      "default_branch": "main",
+      "languages_pct": {
+        "PHP": 77,
+        "Vue": 15
+      },
+      "confidence": "medium",
+      "caveats": [
+        "only deployments whose index root has a sibling directory with the same name prefix",
+        "Kirby is under a proprietary licence (GitHub NOASSERTION); must be cleared before publishing"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "99e6aaa1dbcc997ebf2725b11f87a4bcaed9933c",
+          "tip": "3989964ac1cb32fdfce69b2410280093f6ede46c",
+          "subject": "fix: Stuck unsaved changes for untouched fields (#8355)",
+          "files": [
+            "config/fields/object.php",
+            "config/fields/toggle.php",
+            "src/Form/Field.php",
+            "tests/Form/Field/ObjectFieldTest.php",
+            "tests/Form/Field/ToggleFieldTest.php",
+            "tests/Form/FieldTest.php"
+          ],
+          "lines": 80,
+          "branch": "main",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": "on the default branch (5.x); the fixed pin is on the 4.x line"
+        },
+        "idea": null
+      },
+      "recommended": true
+    },
+    {
+      "id": "mineadmin-appstore-identifier-traversal",
+      "repo": "https://github.com/mineadmin/MineAdmin",
+      "language": "php",
+      "also": [],
+      "wordpress": false,
+      "family": "path",
+      "subtype": "path traversal",
+      "advisory": [
+        "CVE-2026-55224",
+        "GHSA-59xm-4m8c-g3xj"
+      ],
+      "published": "2026-08-18",
+      "lane": "A",
+      "vulnerable_versions": "< 3.2.0-alpha.2",
+      "fixed_version": "3.2.0-alpha.2",
+      "vulnerable": "ac0dcad616c5d304c249d1db4a6675f65cf736dc",
+      "fixed": "ca41902a2a5422676227e5088f4cc1dec06044f1",
+      "ancestry": "parent; the fixed commit is tag v3.2.0-alpha.2",
+      "fix_named_by_advisory": true,
+      "fix_note": "Advisory links `ca41902a` 'fix(app-store): 修复app-store几处安全风险。 (#728)' (Service.php +81-9, IndexController.php +4-0).",
+      "fix_changed_files": [
+        "plugin/mine-admin/app-store/src/Controller/IndexController.php",
+        "plugin/mine-admin/app-store/src/Service/Service.php"
+      ],
+      "sink": "`BASE_PATH . '/plugin/' . $params['identifier']` in download()/install()/unInstall(), then `Plugin::install($params['identifier'])`",
+      "source": "`identifier` request parameter of the app-store plugin endpoints",
+      "sites": [
+        "plugin/mine-admin/app-store/src/Service/Service.php::download",
+        "plugin/mine-admin/app-store/src/Service/Service.php::install",
+        "plugin/mine-admin/app-store/src/Service/Service.php::unInstall"
+      ],
+      "site_files": [],
+      "sink_evidence": "",
+      "site_derivation": "file path and methods quoted by the advisory",
+      "privilege": "authenticated admin with app-store access (verify)",
+      "license": "Apache-2.0",
+      "repo_size_mb": 53,
+      "default_branch": "3.2",
+      "languages_pct": {
+        "PHP": 99
+      },
+      "confidence": "high",
+      "caveats": [
+        "Hyperf framework (not Laravel/Symfony)"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "243956c6d08532ff0a6f36a4cfbb7c6b499c1de2",
+          "tip": "c2f97b772c101053fb8606215ac8676f8e50896c",
+          "subject": "feat(install): 添加前端项目下载与依赖安装功能 (#735)",
+          "files": [
+            "app/Command/InstallCommand.php"
+          ],
+          "lines": 193,
+          "branch": "3.2",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": ""
+        },
+        "idea": null
+      },
+      "recommended": true
+    },
+    {
+      "id": "facturascripts-uploadedfile-move-traversal",
+      "repo": "https://github.com/NeoRazorX/facturascripts",
+      "language": "php",
+      "also": [],
+      "wordpress": false,
+      "family": "path",
+      "subtype": "path traversal (arbitrary file write)",
+      "advisory": [
+        "GHSA-hgjx-r89m-m7v4"
+      ],
+      "published": "2026-07-14",
+      "lane": "A",
+      "vulnerable_versions": ">= 2025, <= 2026.2",
+      "fixed_version": "not stated",
+      "vulnerable": "6baefcdc00c24970a568ff86d971b46be0fd7d75",
+      "fixed": "d3770be64a3e1516a32aa9eb36e8907c53e28b14",
+      "ancestry": "parent",
+      "fix_named_by_advisory": false,
+      "fix_note": "The advisory links no commit and states no patched version. File history of Core/UploadedFile.php has `d3770be6` 'Fix uploaded file path traversal' (2026-05-19; UploadedFile.php +38-4 plus tests). Inferred, not confirmed by the advisory.",
+      "fix_changed_files": [
+        "Core/UploadedFile.php",
+        "Test/Core/UploadedFileTest.php"
+      ],
+      "sink": "`UploadedFile::move($destiny, $destinyName)` concatenates the client filename into `move_uploaded_file()`",
+      "source": "`getClientOriginalName()` of an uploaded file",
+      "sites": [
+        "Core/UploadedFile.php::move"
+      ],
+      "site_files": [],
+      "sink_evidence": "",
+      "site_derivation": "file and method quoted by the advisory",
+      "privilege": "authenticated user",
+      "license": "LGPL-3.0",
+      "repo_size_mb": 60,
+      "default_branch": "master",
+      "languages_pct": {
+        "PHP": 90,
+        "Twig": 9
+      },
+      "confidence": "medium",
+      "caveats": [
+        "fix commit inferred from file history",
+        "the advisory's affected range ends at 2026.2 while the inferred fix is dated 2026-05-19 -- confirm at freeze that the fixed pin is really unaffected"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "d6fc3f051781c83041c7318a980c915daeb00d50",
+          "tip": "add96d2bbee5a391bc123dfcf263e57bb53ad6f5",
+          "subject": "test: add API smoke test",
+          "files": [
+            "Test/Core/Controller/ApiSmokeTest.php"
+          ],
+          "lines": 192,
+          "branch": "master",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": "tests-only change"
+        },
+        "idea": null
+      },
+      "recommended": false
+    },
+    {
+      "id": "wp-geo-my-wp-info-window-lfi",
+      "repo": "https://github.com/Fitoussi/geo-my-wp",
+      "language": "php",
+      "also": [
+        "javascript"
+      ],
+      "wordpress": true,
+      "family": "path",
+      "subtype": "local file inclusion",
+      "advisory": [
+        "CVE-2026-85200",
+        "GHSA-6hw9-7gx5-mw88"
+      ],
+      "published": "2026-09-12",
+      "lane": "B",
+      "vulnerable_versions": "<= 4.5.5.3",
+      "fixed_version": "4.5.5.4",
+      "vulnerable": "1dbb7b1672a45a8f88fdcd379ceb07b6cf2beceb",
+      "fixed": "5a768bf1c6e44ded83a65be8789f3587515665ac",
+      "ancestry": "parent",
+      "fix_named_by_advisory": true,
+      "fix_note": "Advisory links `5a768bf1` 'Release 4.5.5.4' (5 files: includes/gmw-functions.php +93-6, the posts/members locator functions files, version bumps). A release commit, but small and on-topic.",
+      "fix_changed_files": [
+        "geo-my-wp.php",
+        "includes/gmw-functions.php",
+        "plugins/members-locator/includes/gmw-members-locator-functions.php",
+        "plugins/posts-locator/includes/gmw-posts-locator-functions.php",
+        "readme.txt"
+      ],
+      "sink": "include of a file chosen through `gmw_posts_locator_ajax_info_window_loader`",
+      "source": "AJAX request parameters (unauthenticated)",
+      "sites": [
+        "plugins/posts-locator/includes/gmw-posts-locator-functions.php::gmw_posts_locator_ajax_info_window_loader"
+      ],
+      "site_files": [
+        "includes/gmw-functions.php"
+      ],
+      "sink_evidence": "",
+      "site_derivation": "function named by the advisory text; files from the advisory's own trac reference links (gmw-functions.php#L1945/L1987, gmw-posts-locator-functions.php#L964/L975); the function-to-file pairing is an assumption to confirm at freeze",
+      "privilege": "unauthenticated",
+      "license": "GitHub: none [verify]",
+      "repo_size_mb": 9,
+      "default_branch": "master",
+      "languages_pct": {
+        "PHP": 47,
+        "JavaScript": 44,
+        "CSS": 9
+      },
+      "confidence": "medium",
+      "caveats": [
+        "WordPress plugin; GitHub shows no licence (plugin header GPL presumed, verify)",
+        "release commit (small)"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": null,
+        "idea": "no API proposal passed the freeze.py filter within 60 commits after the fix; let freeze.py propose one from the clone, or pick by hand (a small non-security PHP change on the default branch that does not touch the sink file)"
+      },
+      "recommended": true
+    },
+    {
+      "id": "elfinder-fsock-dns-rebinding-ssrf",
+      "repo": "https://github.com/Studio-42/elFinder",
+      "language": "php",
+      "also": [
+        "javascript"
+      ],
+      "wordpress": false,
+      "family": "untrusted_destination",
+      "subtype": "SSRF (DNS rebinding guard bypass)",
+      "advisory": [
+        "CVE-2026-81889",
+        "GHSA-8x3q-jpjh-qh5c"
+      ],
+      "published": "2026-08-31",
+      "lane": "A",
+      "vulnerable_versions": "<= 2.1.69",
+      "fixed_version": "2.1.70",
+      "vulnerable": "dd73e702820c146a192969800ee674ecdb208365",
+      "fixed": "6d997386cd0f1abab4706c220b46b0aea0ecff51",
+      "ancestry": "parent; ancestor of tag 2.1.70-src (tag 2.1.70 is a build branch with no common history)",
+      "fix_named_by_advisory": true,
+      "fix_note": "Advisory links `6d997386` 'Merge commit from fork' (php/elFinder.class.php +113-12, i18n) and the build commit `191372c1`. `6d997386` has a single parent `dd73e702` (the fix of the sibling ZIP-extraction advisory).",
+      "fix_changed_files": [
+        "js/i18n/elfinder.en.js",
+        "js/i18n/elfinder.ja.js",
+        "php/elFinder.class.php"
+      ],
+      "sink": "`fsock_get_contents()` fallback reconnects by hostname after the URL validation resolved it (TOCTOU)",
+      "source": "URL submitted for server-side upload",
+      "sites": [
+        "php/elFinder.class.php::fsock_get_contents"
+      ],
+      "site_files": [],
+      "sink_evidence": "",
+      "site_derivation": "function named by the advisory, file linked by the advisory",
+      "privilege": "depends on the integrating connector",
+      "license": "GitHub: NOASSERTION [verify]",
+      "repo_size_mb": 43,
+      "default_branch": "master",
+      "languages_pct": {
+        "JavaScript": 65,
+        "PHP": 29
+      },
+      "confidence": "medium",
+      "caveats": [
+        "only when PHP lacks cURL",
+        "guard bypass (DNS rebinding); repository is 65% JavaScript",
+        "licence NOASSERTION on GitHub (verify)"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": null,
+        "idea": "no API proposal passed the freeze.py filter within 60 commits after the fix; let freeze.py propose one from the clone, or pick by hand (a small non-security PHP change on the default branch that does not touch the sink file)"
+      },
+      "recommended": true
+    },
+    {
+      "id": "easyappointments-caldav-ssrf",
+      "repo": "https://github.com/alextselegidis/easyappointments",
+      "language": "php",
+      "also": [
+        "javascript"
+      ],
+      "wordpress": false,
+      "family": "untrusted_destination",
+      "subtype": "SSRF",
+      "advisory": [
+        "CVE-2026-52840",
+        "GHSA-pm5p-7w5h-jm5q"
+      ],
+      "published": "2026-07-29",
+      "lane": "A",
+      "vulnerable_versions": "<= 1.5.2",
+      "fixed_version": "1.6.0",
+      "vulnerable": "725eafa647308846ce887657db12771a829e42ef",
+      "fixed": "4abb10545d83ac1a57d03f6502376ee67696ea7c",
+      "ancestry": "parent of 4abb1054; ancestor of tag 1.6.0",
+      "fix_named_by_advisory": true,
+      "fix_note": "Advisory links four linear commits of 2026-05-26: `4abb1054` 'fix: harden caldav url validation against ssrf' (the validation), then `6b34b78c`, `2da2baed`, `6eb9336a` (opt-in private-host toggle and its relocation). The first carries the fix and is used as the fixed pin; `6eb9336a` is the end of the chain if the maintainer prefers it.",
+      "fix_changed_files": [
+        "CHANGELOG.md",
+        "application/controllers/Caldav.php",
+        "application/libraries/Caldav_sync.php"
+      ],
+      "sink": "`$this->caldav_sync->test_connection($caldav_url, ...)` → Guzzle REPORT request",
+      "source": "`caldav_url` request parameter of Caldav::connect_to_server",
+      "sites": [
+        "application/controllers/Caldav.php::connect_to_server",
+        "application/libraries/Caldav_sync.php::test_connection"
+      ],
+      "site_files": [],
+      "sink_evidence": "",
+      "site_derivation": "controller path and method quoted by the advisory; the library path follows from `$this->caldav_sync` and the fix commit",
+      "privilege": "authenticated backend user (admin, provider or secretary)",
+      "license": "GPL-3.0",
+      "repo_size_mb": 49,
+      "default_branch": "main",
+      "languages_pct": {
+        "PHP": 89,
+        "JavaScript": 9
+      },
+      "confidence": "high",
+      "caveats": [
+        "fix spread over four linear commits (v2 allowed up to three; the first commit alone is the fix)"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "6084d99b59bd060d64506b3981e0bdddff59418f",
+          "tip": "1b51132026c78ebec3e732e045587306853d77be",
+          "subject": "Minor translation change.",
+          "files": [
+            "application/language/german/translations_lang.php"
+          ],
+          "lines": 2,
+          "branch": "main",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": ""
+        },
+        "idea": null
+      },
+      "recommended": true
+    },
+    {
+      "id": "koel-podcast-enclosure-ipv6-ssrf",
+      "repo": "https://github.com/koel/koel",
+      "language": "php",
+      "also": [
+        "typescript"
+      ],
+      "wordpress": false,
+      "family": "untrusted_destination",
+      "subtype": "SSRF (guard bypass via IPv6 transition addresses)",
+      "advisory": [
+        "CVE-2026-54494",
+        "GHSA-rjg7-r26h-cfp2"
+      ],
+      "published": "2026-07-15",
+      "lane": "A",
+      "vulnerable_versions": "<= 9.7.0",
+      "fixed_version": "9.7.1",
+      "vulnerable": "8ee1de0f5589ef34d3e3bbb9c9555a5de69eaf06",
+      "fixed": "5f6ce2cefd08f437a269236b677ad971517ccbb6",
+      "ancestry": "parent; ancestor of tag v9.7.1",
+      "fix_named_by_advisory": true,
+      "fix_note": "Advisory links `5f6ce2ce` 'fix: close remaining SSRF advisories (DNS rebinding, IPv6 transition, bail) (#2549)', 28 files; one commit that closes several SSRF advisories (same family).",
+      "fix_changed_files": [
+        "app/Ai/Tools/AddRadioStation.php",
+        "app/Helpers/Network.php",
+        "app/Helpers/SafeHttp.php",
+        "app/Http/Requests/API/Radio/RadioStationStoreRequest.php",
+        "app/Http/Requests/API/Radio/RadioStationUpdateRequest.php",
+        "app/Http/Requests/Subsonic/CreateInternetRadioStationRequest.php",
+        "app/Http/Requests/Subsonic/UpdateInternetRadioStationRequest.php",
+        "app/Providers/AppServiceProvider.php",
+        "app/Rules/HasAudioContentType.php",
+        "app/Rules/SafeUrl.php",
+        "app/Services/DownloadService.php",
+        "app/Services/Network/Network.php",
+        "app/Services/Network/SafeHttp.php",
+        "app/Services/Podcast/PodcastService.php",
+        "app/Services/Radio/RadioStreamProxy.php",
+        "app/Services/Streamer/Adapters/PodcastStreamerAdapter.php",
+        "app/Values/Podcast/EpisodePlayable.php",
+        "composer.json",
+        "composer.lock",
+        "tests/Fakes/FakeNetwork.php",
+        "tests/Feature/RadioStationTest.php",
+        "tests/Integration/Services/Podcast/PodcastServiceTest.php",
+        "tests/Integration/Values/EpisodePlayableTest.php",
+        "tests/TestCase.php",
+        "tests/Unit/Helpers/SafeHttpTest.php",
+        "tests/Unit/Services/Network/NetworkTest.php",
+        "tests/Unit/Services/Network/SafeHttpTest.php",
+        "tests/Unit/Services/Radio/RadioStreamProxyTest.php"
+      ],
+      "sink": "`EpisodePlayable::createForEpisode()` → `Http::sink($file)->get($url)`, guarded only by `Network::isPublicHost()`",
+      "source": "`<enclosure url>` of an attacker-hosted RSS feed subscribed by any user",
+      "sites": [
+        "app/Helpers/Network.php::isPublicHost",
+        "app/Values/Podcast/EpisodePlayable.php::createForEpisode"
+      ],
+      "site_files": [],
+      "sink_evidence": "",
+      "site_derivation": "app/Helpers/Network.php and isPublicHost quoted by the advisory; EpisodePlayable path from the class name `App\\Values\\Podcast\\EpisodePlayable`",
+      "privilege": "authenticated user",
+      "license": "MIT",
+      "repo_size_mb": 29,
+      "default_branch": "master",
+      "languages_pct": {
+        "PHP": 55,
+        "TypeScript": 27,
+        "Vue": 18
+      },
+      "confidence": "medium",
+      "caveats": [
+        "large multi-advisory fix commit (28 files), same family",
+        "exploitation needs NAT64/6to4 routing"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "74d949b28b9a830b1e917d5790bdd0ef3a0dfd1f",
+          "tip": "eafb61deaad021b4a4d934d278bfbb937a053715",
+          "subject": "test: serve a real response to the radio stream connector (#2671)",
+          "files": [
+            "tests/Integration/Services/Radio/RadioStreamConnectorTest.php",
+            "tests/Unit/Services/Radio/RadioStreamConnectorTest.php"
+          ],
+          "lines": 178,
+          "branch": "master",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": "tests-only change"
+        },
+        "idea": null
+      },
+      "recommended": false
+    },
+    {
+      "id": "pagible-admin-proxy-dns-rebinding-ssrf",
+      "repo": "https://github.com/aimeos/pagible",
+      "language": "php",
+      "also": [
+        "javascript"
+      ],
+      "wordpress": false,
+      "family": "untrusted_destination",
+      "subtype": "SSRF (DNS rebinding guard bypass)",
+      "advisory": [
+        "CVE-2026-49262",
+        "GHSA-mmj8-wcvw-6789"
+      ],
+      "published": "2026-06-26",
+      "lane": "A",
+      "vulnerable_versions": "< 0.10.4",
+      "fixed_version": "0.10.4",
+      "vulnerable": "03f03b2f81b20b1c1625ff227235c43791ddbb33",
+      "fixed": "09a8205d513ec89ed22cdd7bdae0f4c181cee082",
+      "ancestry": "parent; ancestor of tag 0.10.4",
+      "fix_named_by_advisory": false,
+      "fix_note": "The advisory links no commit. The compare 0.10.3...0.10.4 has three commits; `09a8205d` 'Fixed SSRF via DNS rebinding in admin proxy' (admin/src/Controllers/AdminController.php +21-7, core/src/Utils.php +22-4).",
+      "fix_changed_files": [
+        "admin/src/Controllers/AdminController.php",
+        "admin/tests/AdminControllerTest.php",
+        "core/src/Utils.php"
+      ],
+      "sink": "`AdminController::proxy` → Guzzle request after `\\Aimeos\\Cms\\Utils::isValidUrl($url)`",
+      "source": "`url` query parameter of `/cmsproxy`",
+      "sites": [
+        "admin/src/Controllers/AdminController.php::proxy",
+        "core/src/Utils.php::isValidUrl"
+      ],
+      "site_files": [],
+      "sink_evidence": "",
+      "site_derivation": "class::method names quoted by the advisory; paths from the fix commit",
+      "privilege": "authenticated (proxy token)",
+      "license": "MIT",
+      "repo_size_mb": 73,
+      "default_branch": "master",
+      "languages_pct": {
+        "PHP": 57,
+        "JavaScript": 16,
+        "CSS": 12,
+        "Vue": 11
+      },
+      "confidence": "medium",
+      "caveats": [
+        "guard bypass (DNS rebinding)"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "36cbcdb6ea44c9b4eab019887656ed76c57b44cb",
+          "tip": "bc5a10a515bd4413bd336bab5f7952f2da876393",
+          "subject": "Fixed admin test",
+          "files": [
+            "admin/tests/AdminControllerTest.php"
+          ],
+          "lines": 2,
+          "branch": "master",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": "tests-only change"
+        },
+        "idea": null
+      },
+      "recommended": false
+    },
+    {
+      "id": "wp-graphql-updatepost-publish-bypass",
+      "repo": "https://github.com/wp-graphql/wp-graphql",
+      "language": "php",
+      "also": [
+        "javascript"
+      ],
+      "wordpress": true,
+      "family": "access_control",
+      "subtype": "missing object-level capability check",
+      "advisory": [
+        "CVE-2026-88974",
+        "GHSA-5mmc-8pc9-wggg"
+      ],
+      "published": "2026-09-23",
+      "lane": "A",
+      "vulnerable_versions": "< 2.22.2 (confirmed 2.19.0)",
+      "fixed_version": "2.22.2",
+      "vulnerable": "d53b0e566f20a8df0664559cb6432d52a7cd285c",
+      "fixed": "55441663eaa33c3f2e05de038c8286c845916461",
+      "ancestry": "parent; ancestor of tag wp-graphql/v2.22.2",
+      "fix_named_by_advisory": true,
+      "fix_note": "Advisory links `55441663` (PR #4270) whose subject is 'do not invoke bare callable-string field definitions in Model'; it also changes plugins/wp-graphql/src/Mutation/PostObjectUpdate.php (+27-0) -- two fixes in one commit.",
+      "fix_changed_files": [
+        "plugins/wp-graphql/src/Model/Model.php",
+        "plugins/wp-graphql/src/Mutation/PostObjectUpdate.php",
+        "plugins/wp-graphql/tests/wpunit/ModelFieldMemoizationTest.php",
+        "plugins/wp-graphql/tests/wpunit/PostObjectMutationsTest.php"
+      ],
+      "sink": "`updatePost` mutation checks only `$post_type_object->cap->edit_posts`",
+      "source": "GraphQL `updatePost` mutation input (status PUBLISH, published post id)",
+      "sites": [],
+      "site_files": [
+        "plugins/wp-graphql/src/Mutation/PostObjectUpdate.php"
+      ],
+      "sink_evidence": "",
+      "site_derivation": "the advisory names src/Mutation/PostObjectUpdate.php; the repository is a monorepo (plugins/wp-graphql/ prefix from the fix commit); no function named",
+      "privilege": "Contributor",
+      "license": "GPL-3.0",
+      "repo_size_mb": 120,
+      "default_branch": "main",
+      "languages_pct": {
+        "PHP": 68,
+        "JavaScript": 26
+      },
+      "confidence": "medium",
+      "caveats": [
+        "fix commit also carries an unrelated Model.php change",
+        "function-level site to resolve at freeze"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": null,
+        "idea": "no API proposal passed the freeze.py filter within 60 commits after the fix; let freeze.py propose one from the clone, or pick by hand (a small non-security PHP change on the default branch that does not touch the sink file)"
+      },
+      "recommended": true
+    },
+    {
+      "id": "sylius-mollie-thankyou-order-idor",
+      "repo": "https://github.com/Sylius/MolliePlugin",
+      "language": "php",
+      "also": [],
+      "wordpress": false,
+      "family": "access_control",
+      "subtype": "IDOR (missing ownership check)",
+      "advisory": [
+        "CVE-2026-68501",
+        "GHSA-x83g-979r-f5fh"
+      ],
+      "published": "2026-07-31",
+      "lane": "A",
+      "vulnerable_versions": "< 2.2.8; 3.0.0-3.2.3; 3.3.0",
+      "fixed_version": "2.2.8 / 3.2.4 / 3.3.1",
+      "vulnerable": "7400f1489a4b699df97ced9499acde4faaa476d5",
+      "fixed": "01316b3ad3cf82e3c5ad160115d0a2cf89174e49",
+      "ancestry": "first parent of a merge; ancestor of tag v3.3.1",
+      "fix_named_by_advisory": true,
+      "fix_note": "Advisory links three merge commits (one per branch). `01316b3a` (PR #354, 3.3 line) is used: PageRedirectController.php +17-6, QrCodeAction.php +9-11, PaymentWebhookController.php (the sibling webhook advisory GHSA-rc52-c4hv-w89p).",
+      "fix_changed_files": [
+        "UPGRADE-3.3.md",
+        "assets/shop/js/mollie/app.js",
+        "src/Controller/Shop/PageRedirectController.php",
+        "src/Controller/Shop/PaymentWebhookController.php",
+        "src/Controller/Shop/QrCodeAction.php",
+        "tests/Unit/Controller/Shop/PageRedirectControllerTest.php",
+        "tests/Unit/Controller/Shop/PaymentWebhookControllerTest.php"
+      ],
+      "sink": "`findOneBy(['id' => $orderId])` without ownership/session check, returning the order token (302 Location) and QR code",
+      "source": "`orderId` of GET /{_locale}/thank-you and /{_locale}/get-code",
+      "sites": [
+        "src/Controller/Shop/PageRedirectController.php::thankYouAction",
+        "src/Controller/Shop/QrCodeAction.php::fetchQrCodeFromOrder"
+      ],
+      "site_files": [],
+      "sink_evidence": "",
+      "site_derivation": "Class::method names quoted by the advisory; paths from the fix commit",
+      "privilege": "unauthenticated",
+      "license": "MIT",
+      "repo_size_mb": 9,
+      "default_branch": "3.4",
+      "languages_pct": {
+        "PHP": 90
+      },
+      "confidence": "high",
+      "caveats": [
+        "merge commit; one fix covers two advisories (webhook forgery GHSA-rc52 is the other)"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "5ffb17c6fa4a254a62ef7285b4fd57a1a9619deb",
+          "tip": "ad215c9c0fc3df201c196d2ef893a1e8c9ff3aab",
+          "subject": "Refactor `PaymentMethodLogoUploader` to use `FilesystemAdapterInterface` instead of `Gaufrette\\Filesystem`.",
+          "files": [
+            "config/services/uploader.xml",
+            "src/Uploader/PaymentMethodLogoUploader.php"
+          ],
+          "lines": 15,
+          "branch": "3.4",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": ""
+        },
+        "idea": null
+      },
+      "recommended": true
+    },
+    {
+      "id": "paymenter-checkout-config-override",
+      "repo": "https://github.com/Paymenter/Paymenter",
+      "language": "php",
+      "also": [],
+      "wordpress": false,
+      "family": "access_control",
+      "subtype": "unvalidated URL-writable properties override provisioning parameters",
+      "advisory": [
+        "CVE-2026-47198",
+        "GHSA-5q4q-834j-g8g4"
+      ],
+      "published": "2026-06-30",
+      "lane": "A",
+      "vulnerable_versions": "< 1.5.1",
+      "fixed_version": "1.5.1",
+      "vulnerable": "9d305ea444f7aa3a73f84583c28be0f06da61969",
+      "fixed": "75719ae46b4096505a252e24c302961b700251f1",
+      "ancestry": "parent; ancestor of tag v1.5.1",
+      "fix_named_by_advisory": false,
+      "fix_note": "The advisory links no commit. The compare v1.5.0...v1.5.1 has 17 commits; `75719ae4` 'Merge commit from fork' changes only app/Livewire/Products/Checkout.php (+7-1).",
+      "fix_changed_files": [
+        "app/Livewire/Products/Checkout.php"
+      ],
+      "sink": "`$checkoutConfig` (`#[Url]`, alias `config`) keys stored by Cart.php into service properties, later passed to createServer()",
+      "source": "`config[...]` query parameters of the checkout page",
+      "sites": [],
+      "site_files": [
+        "app/Livewire/Products/Checkout.php",
+        "app/Livewire/Cart.php"
+      ],
+      "sink_evidence": "",
+      "site_derivation": "file paths quoted by the advisory; no function named",
+      "privilege": "authenticated customer",
+      "license": "MIT",
+      "repo_size_mb": 15,
+      "default_branch": "master",
+      "languages_pct": {
+        "PHP": 87,
+        "Blade": 12
+      },
+      "confidence": "medium",
+      "caveats": [
+        "mass-assignment shape (CWE-20/639); classed access_control by its CWE",
+        "fix commit inferred from the release compare"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "8299b27e37e263b9b6b5fd0c166c762120719830",
+          "tip": "e60567981acfb12e3c8d13e513e2959edd8b9d1c",
+          "subject": "fix: reCAPTCHA v3 not working after Livewire navigation",
+          "files": [
+            "themes/default/views/components/captcha/recaptcha-v3.blade.php"
+          ],
+          "lines": 24,
+          "branch": "master",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": "review: subject mentions reCAPTCHA (anti-abuse)"
+        },
+        "idea": null
+      },
+      "recommended": false
+    },
+    {
+      "id": "wp-buddypress-messages-rest-idor",
+      "repo": "https://github.com/buddypress/buddypress",
+      "language": "php",
+      "also": [],
+      "wordpress": true,
+      "family": "access_control",
+      "subtype": "IDOR in REST permission callback",
+      "advisory": [
+        "CVE-2026-53673",
+        "GHSA-j3j5-5m8v-7gvc"
+      ],
+      "published": "2026-06-10",
+      "lane": "A",
+      "vulnerable_versions": "< 14.5.0 (confirmed 14.4.0)",
+      "fixed_version": "14.5.0",
+      "vulnerable": "56b1fd3b40549f542936b12e265fd08a59df72ae",
+      "fixed": "27d41e9749a878103b3a673b37dfc92b7f8f2cb7",
+      "ancestry": "parent",
+      "fix_named_by_advisory": true,
+      "fix_note": "Advisory links `27d41e97` 'Improve security of messages endpoint.' (class-bp-messages-rest-controller.php +113-42, tests). The commit is dated 2026-07-07, after the advisory; confirm at freeze that the release carrying it is 14.5.0.",
+      "fix_changed_files": [
+        "src/bp-messages/classes/class-bp-messages-rest-controller.php",
+        "tests/phpunit/testcases/messages/test-controller.php"
+      ],
+      "sink": "`get_item_permissions_check` validates the supplied user_id instead of the logged-in user; reused by update/delete",
+      "source": "`user_id` parameter of the messages REST API",
+      "sites": [
+        "src/bp-messages/classes/class-bp-messages-rest-controller.php::get_item_permissions_check"
+      ],
+      "site_files": [],
+      "sink_evidence": "",
+      "site_derivation": "method named by the advisory; file path from the fix commit",
+      "privilege": "authenticated (any user)",
+      "license": "GitHub: none [verify]",
+      "repo_size_mb": 79,
+      "default_branch": "master",
+      "languages_pct": {
+        "PHP": 76,
+        "CSS": 14,
+        "SCSS": 6
+      },
+      "confidence": "medium",
+      "caveats": [
+        "the GitHub repository is the project's own mirror of its development SVN",
+        "no GitHub licence metadata (GPL-2.0+ per project, verify)"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "e530c9c056200bdcc55442ce81eb3372d20d7879",
+          "tip": "ea5cb85f4d8a86bc518fff5e22a83abd07eb727b",
+          "subject": "PHPDoc: Improve parameter descriptions.",
+          "files": [
+            "src/bp-activity/bp-activity-embeds.php",
+            "src/bp-activity/bp-activity-filters.php",
+            "src/bp-activity/bp-activity-functions.php",
+            "src/bp-activity/bp-activity-template.php",
+            "src/bp-activity/classes/class-bp-activity-activity.php",
+            "src/bp-activity/classes/class-bp-activity-oembed-extension.php",
+            "src/bp-blogs/bp-blogs-functions.php",
+            "src/bp-blogs/classes/class-bp-blogs-template.php",
+            "src/bp-core/bp-core-attachments.php",
+            "src/bp-friends/bp-friends-activity.php",
+            "src/bp-groups/bp-groups-activity.php",
+            "src/bp-groups/bp-groups-functions.php",
+            "src/bp-groups/bp-groups-template.php",
+            "src/bp-groups/classes/class-bp-groups-invitation-manager.php",
+            "src/bp-groups/classes/class-bp-groups-membership-requests-template.php",
+            "src/bp-members/bp-members-membership-requests.php",
+            "src/bp-members/bp-members-template.php",
+            "src/bp-members/classes/class-bp-members-invitation-manager.php",
+            "src/bp-members/classes/class-bp-members-invitations-template.php",
+            "src/bp-messages/classes/class-bp-messages-notices-list-table.php",
+            "src/bp-notifications/bp-notifications-template.php",
+            "src/bp-notifications/classes/class-bp-notifications-template.php",
+            "src/bp-templates/bp-legacy/buddypress-functions.php",
+            "src/bp-templates/bp-nouveau/includes/activity/functions.php",
+            "src/bp-templates/bp-nouveau/includes/blogs/functions.php",
+            "src/bp-templates/bp-nouveau/includes/classes/class-bp-buttons-group.php",
+            "src/bp-templates/bp-nouveau/includes/functions.php",
+            "src/bp-templates/bp-nouveau/includes/groups/functions.php",
+            "src/bp-templates/bp-nouveau/includes/members/template-tags.php",
+            "src/bp-templates/bp-nouveau/includes/messages/functions.php",
+            "src/bp-templates/bp-nouveau/includes/notifications/functions.php",
+            "src/bp-templates/bp-nouveau/includes/template-tags.php",
+            "src/bp-templates/bp-nouveau/includes/xprofile/functions.php",
+            "src/bp-xprofile/bp-xprofile-template.php"
+          ],
+          "lines": 132,
+          "branch": "master",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": ""
+        },
+        "idea": null
+      },
+      "recommended": false
+    },
+    {
+      "id": "sharp-editor-iframe-srcdoc-xss",
+      "repo": "https://github.com/code16/sharp",
+      "language": "php",
+      "also": [
+        "typescript"
+      ],
+      "wordpress": false,
+      "family": "output_encoding",
+      "subtype": "stored XSS (sanitizer allow-list)",
+      "advisory": [
+        "CVE-2026-61823",
+        "GHSA-qxg3-46rw-79j8"
+      ],
+      "published": "2026-09-25",
+      "lane": "A",
+      "vulnerable_versions": "< 9.22.5",
+      "fixed_version": "9.22.5",
+      "vulnerable": "67743149309054493ec8f5505173fc57aaff760f",
+      "fixed": "ec509a22c808a5bd9dfad6a0a85c92ce6f411e21",
+      "ancestry": "parent; ancestor of tag v9.22.5",
+      "fix_named_by_advisory": true,
+      "fix_note": "Advisory links `ec509a22` 'Improve sanitization' (src/Utils/Sanitization/FormatsSanitizedValue.php +4-2, test). The same commit fixes the sibling GHSA-vj3q-vp3g-j9c8.",
+      "fix_changed_files": [
+        "src/Utils/Sanitization/FormatsSanitizedValue.php",
+        "tests/Unit/Form/Fields/Formatters/EditorFormatterTest.php"
+      ],
+      "sink": "Symfony HtmlSanitizer config allows the iframe `srcdoc` attribute; the value is rendered as live HTML",
+      "source": "Editor field content saved by a user with edit permission",
+      "sites": [],
+      "site_files": [
+        "src/Utils/Sanitization/FormatsSanitizedValue.php"
+      ],
+      "sink_evidence": "srcdoc",
+      "site_derivation": "file path quoted by the advisory; no function named",
+      "privilege": "authenticated editor",
+      "license": "MIT",
+      "repo_size_mb": 109,
+      "default_branch": "9.x",
+      "languages_pct": {
+        "PHP": 66,
+        "Vue": 23,
+        "TypeScript": 9
+      },
+      "confidence": "medium",
+      "caveats": [
+        "the flaw is a sanitizer allow-list entry, not a missing escape call"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "ec509a22c808a5bd9dfad6a0a85c92ce6f411e21",
+          "tip": "7c601fffe930fc321a5d8bcb25cb072d50a6fc08",
+          "subject": "Update version to v9.22.5",
+          "files": [
+            "src/SharpInternalServiceProvider.php"
+          ],
+          "lines": 2,
+          "branch": "9.x",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": ""
+        },
+        "idea": null
+      },
+      "recommended": true
+    },
+    {
+      "id": "privatebin-jsonld-request-uri-injection",
+      "repo": "https://github.com/PrivateBin/PrivateBin",
+      "language": "php",
+      "also": [
+        "javascript"
+      ],
+      "wordpress": false,
+      "family": "output_encoding",
+      "subtype": "reflected JSON injection (CWE-116)",
+      "advisory": [
+        "CVE-2026-55891",
+        "GHSA-xrjc-c68j-hp7w"
+      ],
+      "published": "2026-08-28",
+      "lane": "A",
+      "vulnerable_versions": "<= 2.0.4",
+      "fixed_version": "2.0.5",
+      "vulnerable": "e0dd4c025c19a182b6a4c6fb77a8bf81ceff6899",
+      "fixed": "75f056dcda955d94c17ec5a4f8c54a9b7bfcee07",
+      "ancestry": "first parent of a merge; ancestor of tag 2.0.5",
+      "fix_named_by_advisory": true,
+      "fix_note": "Advisory links `75f056dc` 'Merge commit from fork' (first-parent diff: lib/Request.php +2-2, lib/Configuration.php, CHANGELOG, test). Its first parent `e0dd4c02` is the fix of the sibling attachment-XSS advisory GHSA-f2xf-7x3g-4272.",
+      "fix_changed_files": [
+        "CHANGELOG.md",
+        "lib/Configuration.php",
+        "lib/Request.php",
+        "tst/RequestTest.php"
+      ],
+      "sink": "`Controller::_jsonld()` splices `$_urlBase` into a .jsonld template with `str_replace()`",
+      "source": "`$_SERVER['REQUEST_URI']` via `Request::getRequestUri()` (FILTER_SANITIZE_URL keeps quotes and angle brackets)",
+      "sites": [
+        "lib/Request.php::getRequestUri",
+        "lib/Controller.php::_jsonld"
+      ],
+      "site_files": [],
+      "sink_evidence": "",
+      "site_derivation": "Class::method names quoted by the advisory; paths lib/*.php from the fix commit",
+      "privilege": "unauthenticated",
+      "license": "GitHub: NOASSERTION [verify]",
+      "repo_size_mb": 16,
+      "default_branch": "master",
+      "languages_pct": {
+        "PHP": 46,
+        "JavaScript": 38,
+        "CSS": 16
+      },
+      "confidence": "high",
+      "caveats": [
+        "the fix changes Request.php only; Controller::_jsonld is a declared site outside the diff",
+        "response type is JSON-LD, not HTML",
+        "licence NOASSERTION on GitHub (zlib-style per project, verify)"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "5bbb4e00788d2ba32212341e54313098f86a0817",
+          "tip": "48ae4ed5d3d4dde0d0026878a4e2ba3408686277",
+          "subject": "fix: quote administration storage path",
+          "files": [
+            "bin/administration",
+            "tst/AdministrationEmptyDirsTest.php"
+          ],
+          "lines": 54,
+          "branch": "master",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": "review: 'quote administration storage path' may be a shell-quoting fix"
+        },
+        "idea": null
+      },
+      "recommended": true
+    },
+    {
+      "id": "openstamanager-group-name-html-injection",
+      "repo": "https://github.com/devcode-it/openstamanager",
+      "language": "php",
+      "also": [
+        "javascript"
+      ],
+      "wordpress": false,
+      "family": "output_encoding",
+      "subtype": "stored HTML injection",
+      "advisory": [
+        "CVE-2026-44701",
+        "GHSA-crx4-7mmq-j74j"
+      ],
+      "published": "2026-08-26",
+      "lane": "A",
+      "vulnerable_versions": "<= 2.10.1",
+      "fixed_version": "2.11-beta",
+      "vulnerable": "57a2734e2121aa8fcd456eff7c59f03e29e69176",
+      "fixed": "0b88ad1963871abfa5e134004ca0c74c496d8d2f",
+      "ancestry": "parent; ancestor of tag v2.11-beta",
+      "fix_named_by_advisory": true,
+      "fix_note": "Advisory links `0b88ad19` 'fix: HTML Injection in modules/utenti/edit.php' (edit.php +2-2, ajax/select.php, src/AJAX.php, src/Modules.php) and a broader input-filter refactor `7c9eafe9`. The first is used.",
+      "fix_changed_files": [
+        "modules/utenti/ajax/select.php",
+        "modules/utenti/edit.php",
+        "src/AJAX.php",
+        "src/Modules.php"
+      ],
+      "sink": "`'<span class=\"text-primary\">'.$group->getTranslation('title').'</span>'` in modules/utenti/edit.php",
+      "source": "group name saved when creating a user group",
+      "sites": [
+        "modules/utenti/edit.php::<global>"
+      ],
+      "site_files": [],
+      "sink_evidence": "$group->getTranslation('title')",
+      "site_derivation": "file and code quoted by the advisory",
+      "privilege": "authenticated user able to create groups",
+      "license": "GPL-3.0",
+      "repo_size_mb": 43,
+      "default_branch": "master",
+      "languages_pct": {
+        "PHP": 80,
+        "JavaScript": 17
+      },
+      "confidence": "high",
+      "caveats": [
+        "second advisory commit (7c9eafe9, global GET/POST filtering) is not in the pinned pair"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "a99b8f921dfbc53c2290316925a4e01ce1333eee",
+          "tip": "570eff68c5049b3a336a83e5de5d5b09e6cb219a",
+          "subject": "fix: definizione variabile",
+          "files": [
+            "modules/fatture/src/Gestori/Scadenze.php"
+          ],
+          "lines": 2,
+          "branch": "master",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": ""
+        },
+        "idea": null
+      },
+      "recommended": true
+    },
+    {
+      "id": "symfony-ux-live-child-tag-xss",
+      "repo": "https://github.com/symfony/ux",
+      "language": "php",
+      "also": [
+        "typescript",
+        "javascript"
+      ],
+      "wordpress": false,
+      "family": "output_encoding",
+      "subtype": "XSS (unescaped tag name)",
+      "advisory": [
+        "CVE-2026-49210",
+        "GHSA-38x5-rcv4-xf7x"
+      ],
+      "published": "2026-06-19",
+      "lane": "A",
+      "vulnerable_versions": "ux-live-component >= 2.8.0, < 2.36.0; >= 3.0.0, < 3.1.0",
+      "fixed_version": "2.36.0 / 3.1.0",
+      "vulnerable": "a6e9bf808476ae43895cf80f088af392a79537ea",
+      "fixed": "fbc5e9a1bda7e4556be21bb1d970f382760ed9a9",
+      "ancestry": "parent; ancestor of tag v2.36.0",
+      "fix_named_by_advisory": true,
+      "fix_note": "Advisory links `fbc5e9a1` '[LiveComponent] Reject malicious child component tags' (ChildComponentPartialRenderer.php +7-0, test).",
+      "fix_changed_files": [
+        "src/LiveComponent/src/Util/ChildComponentPartialRenderer.php",
+        "src/LiveComponent/tests/Functional/EventListener/InterceptChildComponentRenderSubscriberTest.php"
+      ],
+      "sink": "`ChildComponentPartialRenderer::createHtml()` interpolates `$childTag` into HTML",
+      "source": "client JSON `children[id].tag` parsed by `LiveComponentSubscriber` and passed through `InterceptChildComponentRenderSubscriber`",
+      "sites": [
+        "src/LiveComponent/src/Util/ChildComponentPartialRenderer.php::createHtml"
+      ],
+      "site_files": [],
+      "sink_evidence": "",
+      "site_derivation": "FQCN::method quoted by the advisory; monorepo path from the fix commit",
+      "privilege": "unauthenticated (Accept header gate; CORS or same-origin needed)",
+      "license": "MIT",
+      "repo_size_mb": 59,
+      "default_branch": "3.x",
+      "languages_pct": {
+        "PHP": 61,
+        "TypeScript": 22,
+        "JavaScript": 10,
+        "Twig": 7
+      },
+      "confidence": "medium",
+      "caveats": [
+        "the advisory calls it primarily defense in depth (custom Accept header cannot be sent cross-origin without preflight)",
+        "component framework in a monorepo (UX packages)"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": null,
+        "idea": "no API proposal passed the freeze.py filter within 60 commits after the fix; let freeze.py propose one from the clone, or pick by hand (a small non-security PHP change on the default branch that does not touch the sink file)"
+      },
+      "recommended": false
+    },
+    {
+      "id": "wp-podlove-generation-guard-poi",
+      "repo": "https://github.com/podlove/podlove-publisher",
+      "language": "php",
+      "also": [
+        "javascript",
+        "typescript"
+      ],
+      "wordpress": true,
+      "family": "deserialization",
+      "subtype": "PHP object injection → arbitrary file deletion (in-plugin POP chain)",
+      "advisory": [
+        "CVE-2026-16099",
+        "GHSA-q83h-6954-x259"
+      ],
+      "published": "2026-08-16",
+      "lane": "C (WordPress, deserialization)",
+      "vulnerable_versions": "<= 4.5.3",
+      "fixed_version": "4.5.4 (not stated in the advisory; first release after the fix)",
+      "vulnerable": "4eedbd66796942ab052de2dbd6311a24cc75c4a7",
+      "fixed": "ea878175f2612d54888d9e2aa49ae4db93b724fd",
+      "ancestry": "linear chain of 3 commits (4eedbd66 → d49c4d7f → b59d7962 → ea878175); ancestor of tag 4.5.4",
+      "fix_named_by_advisory": false,
+      "fix_note": "The advisory links wp.org trac only. The GitHub history of the referenced files has three consecutive commits of 2026-07-26: `d49c4d7f` 'fix: constrain image lock deletion' (generation_guard.php), `b59d7962` 'fix: harden shownotes REST input' (rest_api.php +173-20), `ea878175` 'fix: limit model unserialization' (lib/model/base.php). The pair spans all three (vulnerable = parent of d49c4d7f).",
+      "fix_changed_files": [
+        "lib/model/base.php",
+        "lib/model/job.php",
+        "tests/phpunit/integration/BaseModelSerializationTest.php"
+      ],
+      "sink": "unserialize() of model data (lib/model/base.php#L552) instantiating `Podlove\\ImageCache\\GenerationGuard`, whose `__destruct()` calls `wp_delete_file()`",
+      "source": "shownotes REST input handled by `create_link_item` (contributor+)",
+      "sites": [
+        "lib/modules/shownotes/rest_api.php::create_link_item",
+        "lib/image_cache/generation_guard.php::__destruct"
+      ],
+      "site_files": [
+        "lib/model/base.php"
+      ],
+      "sink_evidence": "",
+      "site_derivation": "create_link_item and GenerationGuard::__destruct named by the advisory; files from the advisory's own trac reference links",
+      "privilege": "Contributor",
+      "license": "MIT",
+      "repo_size_mb": 33,
+      "default_branch": "master",
+      "languages_pct": {
+        "PHP": 63,
+        "JavaScript": 18,
+        "Vue": 10,
+        "TypeScript": 6
+      },
+      "confidence": "medium",
+      "caveats": [
+        "fix inferred from file history (three commits)",
+        "the advisory text describes the impact (file deletion) under CWE-502"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "af187ad4bba2739839a0aa1e6cf2cabd6f9b99f5",
+          "tip": "50da8db0f5a85afaf27cd6199940be0403b368ec",
+          "subject": "fix PHP warning",
+          "files": [
+            "lib/modules/contributors/contributor_list_table.php"
+          ],
+          "lines": 2,
+          "branch": "master",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": ""
+        },
+        "idea": null
+      },
+      "recommended": true
+    },
+    {
+      "id": "wp-admin-columns-ids-to-collection-poi",
+      "repo": "https://github.com/codepress/admin-columns",
+      "language": "php",
+      "also": [
+        "javascript",
+        "typescript"
+      ],
+      "wordpress": true,
+      "family": "deserialization",
+      "subtype": "PHP object injection (bundled POP chain)",
+      "advisory": [
+        "CVE-2026-7654",
+        "GHSA-h6x4-229g-5f43"
+      ],
+      "published": "2026-06-06",
+      "lane": "C",
+      "vulnerable_versions": "<= 7.0.18",
+      "fixed_version": "7.0.19 (not stated; first release after the fix)",
+      "vulnerable": "ea6db9a02e014fdde69c24b809ad3711f2a691e3",
+      "fixed": "c64e9aaecd202ea9e8c0e110b10a06e7441f9863",
+      "ancestry": "parent; ancestor of tag 7.0.19",
+      "fix_named_by_advisory": false,
+      "fix_note": "The advisory links wp.org trac only. The compare 7.0.18...7.0.19 has one commit touching the named file: `c64e9aae` 'Update IdsToCollection.php' (+1-1). An identical change `25e276e0` sits on the 7.1 development line. Inferred; the commit message does not say what changed.",
+      "fix_changed_files": [
+        "classes/Formatter/IdsToCollection.php"
+      ],
+      "sink": "`unserialize()` without `allowed_classes` in `IdsToCollection::get_ids_from_string()`",
+      "source": "post meta values set by a Contributor",
+      "sites": [
+        "classes/Formatter/IdsToCollection.php::get_ids_from_string"
+      ],
+      "site_files": [
+        "classes/Formatter/Meta.php"
+      ],
+      "sink_evidence": "unserialize(",
+      "site_derivation": "Class::method named by the advisory; files from its trac reference links",
+      "privilege": "Contributor",
+      "license": "GPL-3.0",
+      "repo_size_mb": 37,
+      "default_branch": "main",
+      "languages_pct": {
+        "PHP": 69,
+        "Svelte": 10,
+        "SCSS": 7,
+        "JavaScript": 6,
+        "TypeScript": 6
+      },
+      "confidence": "medium",
+      "caveats": [
+        "fix inferred (one-line change, uninformative message) -- confirm at freeze that it adds allowed_classes"
+      ],
+      "benign": {
+        "fixed_side": "the fixed pin (both runs) is the fixed-side control",
+        "proposal": {
+          "base": "7d20b2c8ab843d265e0b3561d3c33e6dddb58dc5",
+          "tip": "e998321863c4842445d8c71e48aaf4510cbfa498",
+          "subject": "Todo ans PHP code fixer",
+          "files": [
+            "classes/ColumnCollection.php",
+            "classes/DI/Container.php",
+            "classes/Exception/IteratorException.php",
+            "classes/Formatter/ImplodeRecursive.php",
+            "classes/Formatter/Post/DatePublishFormatted.php",
+            "classes/Formatter/Post/DescriptivePostStatus.php",
+            "classes/Formatter/Post/PostStatusIcon.php",
+            "classes/ListScreenCollection.php",
+            "classes/ListTable/RenderColumnTrait.php",
+            "classes/Table/TableScreenCollection.php"
+          ],
+          "lines": 40,
+          "branch": "main",
+          "how": "API proposal (freeze.py filter applied to default-branch commits after the fix date); confirm at freeze",
+          "flag": ""
+        },
+        "idea": null
+      },
+      "recommended": false
+    }
+  ]
+}

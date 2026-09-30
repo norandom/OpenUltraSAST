@@ -1,0 +1,421 @@
+# Independent evaluation population v3 (PHP). Reserved 2026-09-30.
+#
+# RESERVED, NOT SCANNED. Chosen by web research alone (research-2026-09-30-php.md, candidates-v3-php.json):
+# advisories published 2026-06-01 or later, taken newest first per family under criteria fixed before any
+# advisory was read, never by how easy a case looks for this analyzer; 470 advisories examined, 26 candidates.
+# No repository was cloned, no scanner or project tooling run on any of them, and none is referenced anywhere in
+# this project's development tree (checked against every github.com URL under benchmarks/, src/, tests/ and
+# .kiro/, which includes populations v1 and v2).
+#
+# Why a v3: the PHP quick-mode rules were written on 2026-09-30 while looking at PMPro, population-v1's PHP cases,
+# Ultimate Member, MediaWiki and WP Statistics, so no PHP number measured so far qualifies them, and population v2
+# is reserved for other qualification. v3 is PHP cases nobody in this project has looked at.
+#
+# HOLD-OUT RULES (v1's and v2's): no scanner, quick rule, engine, plane task or model is run on any of these
+# repositories, and no trace, probe or census of them is made, before the population is FROZEN and protocol-v3.md
+# is committed. Freezing reads git history, file lists and the fix commit's diff only. No rule, fact, query,
+# prompt or scoring change may cite these cases before their evaluation is recorded; any analyzer change made
+# after a v3 result is a retune that v3 cannot qualify. tests/test_independent_population.py fails the moment one
+# of these repositories is named anywhere under benchmarks/, src/ or tests/ outside this directory.
+#
+# SELECTION RULE (research-2026-09-30-php.md, "Recommended balanced selection"), applied mechanically: family
+# targets injection 5, output_encoding 3, path 3, untrusted_destination 2, access_control 2, deserialization 1;
+# within a family, candidates whose fix commit the advisory names come first, then newest first by publication;
+# take the first n.
+#
+# Maintainer's decision 2026-09-30, "Recommended 16, minus v2 mentions": the advisories that
+# research-2026-09-26.md (population v2's research) names in its passed-over note are excluded, and each slot
+# they held goes to the next candidate in its family by the same rule. Excluded as v2 mentions: Winter, elFinder,
+# Easy!Appointments (all three in the recommended 16), and Grav, Backpack CRUD and Koel (alternates).
+#   - injection: winter-filter-numberrange-sqli -> mantisbt-tokenizer-eval-rce (next named fix, 2026-07-15).
+#   - untrusted_destination: elfinder-fsock-dns-rebinding-ssrf -> pagible-admin-proxy-dns-rebinding-ssrf (koel,
+#     next in line, is a v2 mention; pagible's fix is inferred). easyappointments-caldav-ssrf -> EMPTY: the family
+#     has no remaining candidate among the 26 (the research's further alternates were never verified and hold no
+#     record), so the slot is left empty rather than bending the rule. The population holds 15 cases.
+#
+# `sites` are the sink or execution locations the ADVISORY names (`path::function`, `<global>` for file scope),
+# declared before any scan. Where an advisory names only a file (`site_files`), the function is resolved at
+# freeze from the fix commit's diff of that file (maintainer's decision 2, "Resolve the function at freeze"), and
+# the freeze record gives each site's basis. Protocol v3 credits a finding at a declared site as well as one
+# matching the fix's changed lines.
+#
+# Fixes the advisory does not name (`fix_named_by_advisory = false`) are confirmed at freeze: the diff must change
+# the declared sink file and function, or the case is dropped and the next candidate taken by the rule.
+#
+# Licences marked "verify" must be checked before any result is published. Kirby is under a proprietary licence:
+# it stays in the population, but its results are unpublishable without the licensor's permission.
+
+schema_version = 1
+status = "reserved"
+language = "php"
+reserved_on = "2026-09-30"
+selected_by = "maintainer"
+selection = "Recommended 16, minus v2 mentions (15 cases; one untrusted_destination slot empty)"
+research = "research-2026-09-30-php.md"
+candidates = "candidates-v3-php.json"
+protocol = "protocol-v3.md"
+multi_language_members = ["wp-geo-my-wp-info-window-lfi", "wp-graphql-updatepost-publish-bypass", "wp-podlove-generation-guard-poi"]
+also_reserved = ["population-v1.toml", "population-v2.toml", "../push/ghost-reserved.toml"]
+
+[[case]]
+id = "gitlist-commandline-cmdi"
+repo = "https://github.com/klaussilveira/gitlist"
+language = "php"
+also = []
+wordpress = false
+family = "injection"
+subtype = "OS command / argument injection"
+advisory = ["CVE-2026-82668", "GHSA-v64j-pgc3-qgc9"]
+published = "2026-08-31"
+vulnerable = "f67609d52c1812fa8a7ed80eae5e795cfd72115f"
+fixed = "88cf2866083d5f7c20d9d565c45f828a7ad1516b"
+ancestry = "parent; ancestor of tag 3.0.0-beta"
+fix_named_by_advisory = true
+sink = "`getDefaultBranch` of src/SCM/System/Git/CommandLine.php (git command line)"
+source = "repository content/arguments reaching the git command line (not stated precisely)"
+sites = ["src/SCM/System/Git/CommandLine.php::getDefaultBranch"]
+site_files = []
+site_derivation = "file and function quoted by the advisory (VulDB-generated text)"
+privilege = "not stated ('remotely')"
+license = "BSD-3-Clause"
+confidence = "medium"
+caveats = ["VulDB auto-generated description; the fix message ('Prevent textconv') suggests git config/attribute abuse rather than shell metacharacters, and the patched lines may not be in getDefaultBranch -- verify at freeze"]
+
+[[case]]
+id = "qloapps-customermessage-bo-query-sqli"
+repo = "https://github.com/Qloapps/QloApps"
+language = "php"
+also = ["javascript"]
+wordpress = false
+family = "injection"
+subtype = "SQL injection"
+advisory = ["CVE-2026-75497", "GHSA-5w6r-2mxc-fq3v"]
+published = "2026-08-25"
+vulnerable = "5b4d65cbb8570a4ba46364ee0f2ded79d294ab84"
+fixed = "123c97c110b7053ea3297d8e58fe95b3c3536560"
+ancestry = "parent"
+fix_named_by_advisory = true
+sink = "database query in CustomerMessage.php built from the `bo_query` parameter"
+source = "`bo_query` request parameter"
+sites = []
+site_files = ["classes/CustomerMessage.php"]
+site_derivation = "the advisory names 'CustomerMessage.php' (basename) and the parameter; the classes/ path is from the fix commit; no function named"
+privilege = "administrator"
+license = "OSL-3.0"
+confidence = "medium"
+caveats = ["one fix covers two advisories (Address.php is GHSA-mj48); repo 129 MB, near the size cap", "function-level site to be resolved at freeze"]
+
+[[case]]
+id = "roundcube-markasjunk-cmd-learn-rce"
+repo = "https://github.com/roundcube/roundcubemail"
+language = "php"
+also = ["javascript"]
+wordpress = false
+family = "injection"
+subtype = "OS command injection"
+advisory = ["CVE-2026-74997", "GHSA-q5rh-mmp4-ppgq"]
+published = "2026-08-17"
+vulnerable = "a1afb8fd1f00ed4cb9376c072bb5ca5ded64495e"
+fixed = "b8f90e28a46d42e79a69568cba897f8f4223d9cd"
+ancestry = "parent; ancestor of tag 1.6.18"
+fix_named_by_advisory = true
+sink = "the markasjunk plugin's cmd_learn driver runs a shell command with placeholder replacement values"
+source = "crafted placeholder replacement values (message/user data) when a message is marked as junk"
+sites = []
+site_files = ["plugins/markasjunk/drivers/cmd_learn.php"]
+site_derivation = "the advisory names 'the cmd_learn driver of the markasjunk plugin'; the file path follows from that name and is confirmed by the fix commit; no function named"
+privilege = "authenticated webmail user"
+license = "GPL-3.0"
+confidence = "medium"
+caveats = ["only instances that enable the markasjunk plugin with the cmd_learn driver"]
+
+[[case]]
+id = "maccms10-template-blacklist-rce"
+repo = "https://github.com/magicblack/maccms10"
+language = "php"
+also = ["javascript"]
+wordpress = false
+family = "injection"
+subtype = "code injection (template → PHP, blacklist bypass)"
+advisory = ["CVE-2026-71232", "GHSA-cv48-22qx-mpmx"]
+published = "2026-08-05"
+vulnerable = "2cabecda29947e8f9ea7cd3aa47ab90ed817605b"
+fixed = "71ad3bb29570e110d8e973acff68040a3050ddf0"
+ancestry = "parent"
+fix_named_by_advisory = true
+sink = "ThinkPHP `{if condition=...}` compiled into raw PHP; the admin template editor only blocks a function blacklist"
+source = "template content saved through the admin template editor"
+sites = []
+site_files = ["application/admin/controller/Template.php"]
+site_derivation = "file path quoted by the advisory; no function named"
+privilege = "administrator"
+license = "GitHub: NOASSERTION; no licence declared by the project [verify before publishing]"
+confidence = "medium"
+caveats = ["guard bypass (incomplete blacklist); the fix is still a blacklist", "licence not declared on GitHub"]
+
+[[case]]
+id = "mantisbt-tokenizer-eval-rce"
+repo = "https://github.com/mantisbt/mantisbt"
+language = "php"
+also = []
+wordpress = false
+family = "injection"
+subtype = "code injection (eval)"
+advisory = ["CVE-2026-49273", "GHSA-v84x-qvhg-f36r"]
+published = "2026-07-15"
+vulnerable = "e7041ecc80c8d35f76a7ea1027a8a231244f7dc5"
+fixed = "78c0af63d1fe0118004744cab21ca3bf2cea0f5c"
+ancestry = "parent; ancestor of tag release-2.28.4"
+fix_named_by_advisory = true
+sink = "`Tokenizer` (reached through `ConfigParser`) calls `eval()` with a `return;` prefix; PHP hoists class declarations past the return"
+source = "non-string configuration value submitted to adm_config_set.php (Manage Configuration)"
+sites = []
+site_files = ["core/classes/Tokenizer.class.php", "adm_config_set.php"]
+sink_evidence = "eval("
+site_derivation = "the advisory names adm_config_set.php, ConfigParser, Tokenizer and eval(); the Tokenizer file path and the enclosing function are not named (path from the fix commit)"
+privilege = "administrator"
+license = "GitHub: none; GPL per project [verify before publishing]"
+confidence = "high"
+caveats = ["function-level site must be resolved at freeze by reading the file (the advisory names only the class)"]
+
+[[case]]
+id = "sharp-editor-iframe-srcdoc-xss"
+repo = "https://github.com/code16/sharp"
+language = "php"
+also = ["typescript"]
+wordpress = false
+family = "output_encoding"
+subtype = "stored XSS (sanitizer allow-list)"
+advisory = ["CVE-2026-61823", "GHSA-qxg3-46rw-79j8"]
+published = "2026-09-25"
+vulnerable = "67743149309054493ec8f5505173fc57aaff760f"
+fixed = "ec509a22c808a5bd9dfad6a0a85c92ce6f411e21"
+ancestry = "parent; ancestor of tag v9.22.5"
+fix_named_by_advisory = true
+sink = "Symfony HtmlSanitizer config allows the iframe `srcdoc` attribute; the value is rendered as live HTML"
+source = "Editor field content saved by a user with edit permission"
+sites = []
+site_files = ["src/Utils/Sanitization/FormatsSanitizedValue.php"]
+sink_evidence = "srcdoc"
+site_derivation = "file path quoted by the advisory; no function named"
+privilege = "authenticated editor"
+license = "MIT"
+confidence = "medium"
+caveats = ["the flaw is a sanitizer allow-list entry, not a missing escape call"]
+
+[[case]]
+id = "privatebin-jsonld-request-uri-injection"
+repo = "https://github.com/PrivateBin/PrivateBin"
+language = "php"
+also = ["javascript"]
+wordpress = false
+family = "output_encoding"
+subtype = "reflected JSON injection (CWE-116)"
+advisory = ["CVE-2026-55891", "GHSA-xrjc-c68j-hp7w"]
+published = "2026-08-28"
+vulnerable = "e0dd4c025c19a182b6a4c6fb77a8bf81ceff6899"
+fixed = "75f056dcda955d94c17ec5a4f8c54a9b7bfcee07"
+ancestry = "first parent of a merge; ancestor of tag 2.0.5"
+fix_named_by_advisory = true
+sink = "`Controller::_jsonld()` splices `$_urlBase` into a .jsonld template with `str_replace()`"
+source = "`$_SERVER['REQUEST_URI']` via `Request::getRequestUri()` (FILTER_SANITIZE_URL keeps quotes and angle brackets)"
+sites = ["lib/Request.php::getRequestUri", "lib/Controller.php::_jsonld"]
+site_files = []
+site_derivation = "Class::method names quoted by the advisory; paths lib/*.php from the fix commit"
+privilege = "unauthenticated"
+license = "GitHub: NOASSERTION; project files state a zlib-style licence [verify before publishing]"
+confidence = "high"
+caveats = ["the fix changes Request.php only; Controller::_jsonld is a declared site outside the diff", "response type is JSON-LD, not HTML", "licence NOASSERTION on GitHub (zlib-style per project, verify)"]
+
+[[case]]
+id = "openstamanager-group-name-html-injection"
+repo = "https://github.com/devcode-it/openstamanager"
+language = "php"
+also = ["javascript"]
+wordpress = false
+family = "output_encoding"
+subtype = "stored HTML injection"
+advisory = ["CVE-2026-44701", "GHSA-crx4-7mmq-j74j"]
+published = "2026-08-26"
+vulnerable = "57a2734e2121aa8fcd456eff7c59f03e29e69176"
+fixed = "0b88ad1963871abfa5e134004ca0c74c496d8d2f"
+ancestry = "parent; ancestor of tag v2.11-beta"
+fix_named_by_advisory = true
+sink = "`'<span class=\"text-primary\">'.$group->getTranslation('title').'</span>'` in modules/utenti/edit.php"
+source = "group name saved when creating a user group"
+sites = ["modules/utenti/edit.php::<global>"]
+site_files = []
+sink_evidence = "$group->getTranslation('title')"
+site_derivation = "file and code quoted by the advisory"
+privilege = "authenticated user able to create groups"
+license = "GPL-3.0"
+confidence = "high"
+caveats = ["second advisory commit (7c9eafe9, global GET/POST filtering) is not in the pinned pair"]
+
+[[case]]
+id = "wp-geo-my-wp-info-window-lfi"
+repo = "https://github.com/Fitoussi/geo-my-wp"
+language = "php"
+also = ["javascript"]
+wordpress = true
+family = "path"
+subtype = "local file inclusion"
+advisory = ["CVE-2026-85200", "GHSA-6hw9-7gx5-mw88"]
+published = "2026-09-12"
+vulnerable = "1dbb7b1672a45a8f88fdcd379ceb07b6cf2beceb"
+fixed = "5a768bf1c6e44ded83a65be8789f3587515665ac"
+ancestry = "parent"
+fix_named_by_advisory = true
+sink = "include of a file chosen through `gmw_posts_locator_ajax_info_window_loader`"
+source = "AJAX request parameters (unauthenticated)"
+sites = ["plugins/posts-locator/includes/gmw-posts-locator-functions.php::gmw_posts_locator_ajax_info_window_loader"]
+site_files = ["includes/gmw-functions.php"]
+site_derivation = "function named by the advisory text; files from the advisory's own trac reference links (gmw-functions.php#L1945/L1987, gmw-posts-locator-functions.php#L964/L975); the function-to-file pairing is an assumption to confirm at freeze"
+privilege = "unauthenticated"
+license = "GitHub: none; GPL per project [verify before publishing]"
+confidence = "medium"
+caveats = ["WordPress plugin; GitHub shows no licence (plugin header GPL presumed, verify)", "release commit (small)"]
+
+[[case]]
+id = "kirby-realpath-sibling-traversal"
+repo = "https://github.com/getkirby/kirby"
+language = "php"
+also = []
+wordpress = false
+family = "path"
+subtype = "path traversal (prefix containment check)"
+advisory = ["CVE-2026-75592", "GHSA-6j4c-mgqr-qv76"]
+published = "2026-09-02"
+vulnerable = "e90257fd7504053e13e93a1e9a5a9a5137aed966"
+fixed = "2b6fab950bc89d505ea89576bf71c8de614cc3b2"
+ancestry = "parent; ancestor of tag 4.9.5 (not of 5.5.2)"
+fix_named_by_advisory = true
+sink = "`Dir::realpath()` / `F::realpath()` containment check accepts a sibling directory sharing the prefix (site vs site2)"
+source = "media handler request path for not-yet-generated thumbnails"
+sites = ["src/Filesystem/Dir.php::realpath", "src/Filesystem/F.php::realpath"]
+site_files = []
+site_derivation = "`Dir::realpath()` and `F::realpath()` named by the advisory; paths confirmed by the fix commit"
+privilege = "unauthenticated"
+license = "Kirby licence (proprietary, GitHub NOASSERTION) -- not OSI; results unpublishable without permission"
+confidence = "medium"
+caveats = ["only deployments whose index root has a sibling directory with the same name prefix", "Kirby is under a proprietary licence (GitHub NOASSERTION); must be cleared before publishing"]
+
+[[case]]
+id = "mineadmin-appstore-identifier-traversal"
+repo = "https://github.com/mineadmin/MineAdmin"
+language = "php"
+also = []
+wordpress = false
+family = "path"
+subtype = "path traversal"
+advisory = ["CVE-2026-55224", "GHSA-59xm-4m8c-g3xj"]
+published = "2026-08-18"
+vulnerable = "ac0dcad616c5d304c249d1db4a6675f65cf736dc"
+fixed = "ca41902a2a5422676227e5088f4cc1dec06044f1"
+ancestry = "parent; the fixed commit is tag v3.2.0-alpha.2"
+fix_named_by_advisory = true
+sink = "`BASE_PATH . '/plugin/' . $params['identifier']` in download()/install()/unInstall(), then `Plugin::install($params['identifier'])`"
+source = "`identifier` request parameter of the app-store plugin endpoints"
+sites = ["plugin/mine-admin/app-store/src/Service/Service.php::download", "plugin/mine-admin/app-store/src/Service/Service.php::install", "plugin/mine-admin/app-store/src/Service/Service.php::unInstall"]
+site_files = []
+site_derivation = "file path and methods quoted by the advisory"
+privilege = "authenticated admin with app-store access (verify)"
+license = "Apache-2.0"
+confidence = "high"
+caveats = ["Hyperf framework (not Laravel/Symfony)"]
+
+[[case]]
+id = "pagible-admin-proxy-dns-rebinding-ssrf"
+repo = "https://github.com/aimeos/pagible"
+language = "php"
+also = ["javascript"]
+wordpress = false
+family = "untrusted_destination"
+subtype = "SSRF (DNS rebinding guard bypass)"
+advisory = ["CVE-2026-49262", "GHSA-mmj8-wcvw-6789"]
+published = "2026-06-26"
+vulnerable = "03f03b2f81b20b1c1625ff227235c43791ddbb33"
+fixed = "09a8205d513ec89ed22cdd7bdae0f4c181cee082"
+ancestry = "parent; ancestor of tag 0.10.4"
+fix_named_by_advisory = false
+sink = "`AdminController::proxy` → Guzzle request after `\\Aimeos\\Cms\\Utils::isValidUrl($url)`"
+source = "`url` query parameter of `/cmsproxy`"
+sites = ["admin/src/Controllers/AdminController.php::proxy", "core/src/Utils.php::isValidUrl"]
+site_files = []
+site_derivation = "class::method names quoted by the advisory; paths from the fix commit"
+privilege = "authenticated (proxy token)"
+license = "MIT"
+confidence = "medium"
+caveats = ["guard bypass (DNS rebinding)"]
+
+[[case]]
+id = "wp-graphql-updatepost-publish-bypass"
+repo = "https://github.com/wp-graphql/wp-graphql"
+language = "php"
+also = ["javascript"]
+wordpress = true
+family = "access_control"
+subtype = "missing object-level capability check"
+advisory = ["CVE-2026-88974", "GHSA-5mmc-8pc9-wggg"]
+published = "2026-09-23"
+vulnerable = "d53b0e566f20a8df0664559cb6432d52a7cd285c"
+fixed = "55441663eaa33c3f2e05de038c8286c845916461"
+ancestry = "parent; ancestor of tag wp-graphql/v2.22.2"
+fix_named_by_advisory = true
+sink = "`updatePost` mutation checks only `$post_type_object->cap->edit_posts`"
+source = "GraphQL `updatePost` mutation input (status PUBLISH, published post id)"
+sites = []
+site_files = ["plugins/wp-graphql/src/Mutation/PostObjectUpdate.php"]
+site_derivation = "the advisory names src/Mutation/PostObjectUpdate.php; the repository is a monorepo (plugins/wp-graphql/ prefix from the fix commit); no function named"
+privilege = "Contributor"
+license = "GPL-3.0"
+confidence = "medium"
+caveats = ["fix commit also carries an unrelated Model.php change", "function-level site to resolve at freeze"]
+
+[[case]]
+id = "sylius-mollie-thankyou-order-idor"
+repo = "https://github.com/Sylius/MolliePlugin"
+language = "php"
+also = []
+wordpress = false
+family = "access_control"
+subtype = "IDOR (missing ownership check)"
+advisory = ["CVE-2026-68501", "GHSA-x83g-979r-f5fh"]
+published = "2026-07-31"
+vulnerable = "7400f1489a4b699df97ced9499acde4faaa476d5"
+fixed = "01316b3ad3cf82e3c5ad160115d0a2cf89174e49"
+ancestry = "first parent of a merge; ancestor of tag v3.3.1"
+fix_named_by_advisory = true
+sink = "`findOneBy(['id' => $orderId])` without ownership/session check, returning the order token (302 Location) and QR code"
+source = "`orderId` of GET /{_locale}/thank-you and /{_locale}/get-code"
+sites = ["src/Controller/Shop/PageRedirectController.php::thankYouAction", "src/Controller/Shop/QrCodeAction.php::fetchQrCodeFromOrder"]
+site_files = []
+site_derivation = "Class::method names quoted by the advisory; paths from the fix commit"
+privilege = "unauthenticated"
+license = "MIT"
+confidence = "high"
+caveats = ["merge commit; one fix covers two advisories (webhook forgery GHSA-rc52 is the other)"]
+
+[[case]]
+id = "wp-podlove-generation-guard-poi"
+repo = "https://github.com/podlove/podlove-publisher"
+language = "php"
+also = ["javascript", "typescript"]
+wordpress = true
+family = "deserialization"
+subtype = "PHP object injection → arbitrary file deletion (in-plugin POP chain)"
+advisory = ["CVE-2026-16099", "GHSA-q83h-6954-x259"]
+published = "2026-08-16"
+vulnerable = "4eedbd66796942ab052de2dbd6311a24cc75c4a7"
+fixed = "ea878175f2612d54888d9e2aa49ae4db93b724fd"
+ancestry = "linear chain of 3 commits (4eedbd66 → d49c4d7f → b59d7962 → ea878175); ancestor of tag 4.5.4"
+fix_named_by_advisory = false
+sink = "unserialize() of model data (lib/model/base.php#L552) instantiating `Podlove\\ImageCache\\GenerationGuard`, whose `__destruct()` calls `wp_delete_file()`"
+source = "shownotes REST input handled by `create_link_item` (contributor+)"
+sites = ["lib/modules/shownotes/rest_api.php::create_link_item", "lib/image_cache/generation_guard.php::__destruct"]
+site_files = ["lib/model/base.php"]
+site_derivation = "create_link_item and GenerationGuard::__destruct named by the advisory; files from the advisory's own trac reference links"
+privilege = "Contributor"
+license = "MIT"
+confidence = "medium"
+caveats = ["fix inferred from file history (three commits)", "the advisory text describes the impact (file deletion) under CWE-502"]
