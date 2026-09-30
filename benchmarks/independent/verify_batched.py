@@ -1,4 +1,8 @@
-"""Stage 2, second design: triage per file, verify per file, report only what two passes agree on.
+"""Reference-only since 2026-09-30: the ai-service-plane tasks `plane/tasks/verify.py` and `agree.py`, run on google/ax
+through `ousast plane run plane/runs/validation-46.yaml`, replace this script (benchmarks/independent/
+plane-increment-2.json). It stays as the reference behaviour the plane was measured against.
+
+Stage 2, second design: triage per file, verify per file, report only what two passes agree on.
 
 The first verifier (`verify_sinks.py`) asked one 6-step tool hunt per candidate function. Measured on pgAdmin
 (verifier-check-2026-09-29.json): $0.014-0.020 per candidate, and on 180 candidates verified twice the two runs

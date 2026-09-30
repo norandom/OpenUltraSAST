@@ -139,7 +139,7 @@ mypy are clean, and the commit is gated on pytest's own exit code. Script-level 
     `benchmarks/independent/plane-increment-2.json` next to the first.
   - _Requirements: 6.2, 6.4_
 
-- [ ] 9. Handover
+- [x] 9. Handover
   - `ops/README.md`: how to run a Run locally and what an ax deployment would need (Kubernetes, Agent
     Substrate, the runner image, the provider extension); memory note updated; scripts that the tasks replaced
     marked as reference-only in their docstrings.

@@ -1,4 +1,8 @@
-"""Exploratory score of a batched-verifier run against the population's cases (protocol v2 matching).
+"""Reference-only since 2026-09-30: the ai-service-plane tasks `plane/tasks/verify.py` and `agree.py`, run on google/ax
+through `ousast plane run plane/runs/validation-46.yaml`, replace this script (benchmarks/independent/
+plane-increment-2.json). It stays as the reference behaviour the plane was measured against.
+
+Exploratory score of a batched-verifier run against the population's cases (protocol v2 matching).
 
 The batched verifier writes one vulnerable-pin result per case (and a fixed-pin recheck with --fixed), not the
 six pins protocol v2 scores, so this applies the same matching rule (`evaluate.matches_v2`) to what exists:

@@ -369,3 +369,7 @@ recomputed after admission and never reuses a cached model decision.
 Pre-push does not implicitly read the working tree's `.env`. Supply any configured
 credential variable in the Git process environment. Explicit model configuration is
 read under the same analysis deadline.
+
+## The agentic service plane on ax
+
+Model-driven pipeline stages run as tasks on google/ax over Agent Substrate (`.kiro/specs/ai-service-plane/`). Bring-up, the smoke Run, the measured footprint and the lessons from the live cluster are in [`ops/ax/README.md`](ax/README.md); `ousast plane run|status|doctor|workspaces` drives it.
