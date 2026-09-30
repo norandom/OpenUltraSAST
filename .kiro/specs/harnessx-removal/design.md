@@ -218,6 +218,40 @@ Ingest is idempotent: an `index.jsonl` hit skips the delivery, and rows carry a 
 refuses to write when `shutil.disk_usage` reports less than 1 GiB free. The disk is at 98% today, so it names
 the store path in the error.
 
+**Storage backends (maintainer, 2026-09-30: "think of using minio features, including its json support. i have a
+server").** The store is written against one interface, `MemoryStore` (`put_row`, `put_facts`, `get_facts`,
+`rows(repo=..., pin=..., kind=..., where=...)`, `index`), with two backends of identical behaviour:
+
+- `FileStore`: the layout above, for this laptop and the unit tests.
+- `MinioStore`: the maintainer's MinIO server, and the store of record once the plane runs on a separate
+  Kubernetes cluster. The layout maps onto one bucket with the same key paths:
+  - **Object metadata and tags** on every row object: `repo`, `pin`, `kind`, `family`, `run`, `population`,
+    `split`. Rules list by prefix (`repos/<repo>/`) and filter by tag instead of scanning the bucket.
+  - **Server-side JSON queries**: `rows(where=...)` pushes the filter down with S3 Select
+    (`SelectObjectContent`, JSON Lines input, JSON output), so a proposal rule reads matching rows, not whole
+    files. Support is probed once per process against the server (a small Select on a known object); when the
+    server lacks it (some MinIO releases removed S3 Select), the backend fetches and filters locally, logs the
+    fallback once, and returns the same rows. A query never silently returns nothing because a feature is
+    missing.
+  - **Versioning** on the bucket: each proposal's provenance records the object key and version id of every
+    memory row it cites, so its evidence cannot change underneath it (Req 6.4). Object lock (governance mode) is
+    optional for the `proposals/` prefix.
+  - **Lifecycle rules**: raw run outputs under `runs/` expire after a configurable number of days; `repos/`,
+    `facts/` and `proposals/` are kept. The near-full laptop disk stops being the store's limit.
+  - **Presigned URLs** (the step that removes the host receiver for the Kubernetes move, not built in this
+    spec): the reconciler can hand a task presigned PUT URLs for its outputs and GET URLs for its inputs in the
+    start request, so tasks write to MinIO directly and never hold credentials. The interface keeps
+    `presign_put`/`presign_get` so that follow-on changes the reconciler, not the store.
+  - **Bucket notifications** (follow-on): an event on new `repos/` rows can trigger the loop Run
+    (event-driven loop engineering).
+- **Configuration**: `OUSAST_MEMORY` selects the backend (`file:///path` or `minio://<bucket>`); the MinIO
+  endpoint and credentials come from `.env` (`MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`,
+  `MINIO_SECURE`), never from a manifest, never printed. Client: the `minio` Python SDK as an optional extra
+  (`openultrasast[minio]`); the core install stays PyYAML-only.
+- **Tests**: the same contract tests run against `FileStore` and against `MinioStore` pointed at a MinIO
+  endpoint (skipped unless `OUSAST_MEMORY_TEST_MINIO` is set), including the Select probe with its fallback
+  forced, versioned provenance, and metadata filters. The disk-space refusal applies to `FileStore` only.
+
 **`remember` task** (`plane/tasks/remember.py`, no Model, budget `{usd: 0, calls: 0}`, one per case). It reads the
 case's delivered artifacts as inputs: `facts.json`, the `units.jsonl` of `va`/`vb`/`vc`, `final/agreed.json` and
 `final/disputed.json` with the per-candidate rows, and `alerts.jsonl`. It takes the repository URL and pin from

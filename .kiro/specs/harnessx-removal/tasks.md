@@ -13,7 +13,10 @@ and passed its fixture test. Every task is a commit gated on the full suite's ow
   - _Requirements: 3.1, 5.1_
 
 - [ ] 2. Memory store and the `remember` task
-  - `plane/memory.py` (JSON rows per repository + pin, facts by content hash, ingest refuses below 1 GiB free),
+  - `plane/memory.py`: the `MemoryStore` interface with `FileStore` and `MinioStore` (object metadata/tags,
+    S3 Select JSON queries probed with a local fallback, versioned provenance, lifecycle, presign stubs;
+    `OUSAST_MEMORY` selects; MinIO settings from `.env`; `minio` SDK as an optional extra); JSON rows per
+    repository + pin, facts by content hash, `FileStore` ingest refuses below 1 GiB free,
     `plane/tasks/remember.py` (model-free), `reconciler.mark_done` under the run lock, seed and ingest wiring in
     `cli._plane`, generator annotations; fact reuse when repository, pin, candidate set and runner image match.
   - Fixture tests: rows from a recorded Run, reuse on an unchanged pin, recompute on a changed one, disk refusal.
