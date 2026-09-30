@@ -149,6 +149,34 @@ def test_m2_stays_silent_on_a_fixed_pin_alert_or_rejected_candidates() -> None:
     assert propose([*site_hits(), *rejected], rules) == []
 
 
+# ---- coverage: no rule could fire, so no evidence either way -------------------------------------------------------
+
+
+def covered(repo: str, pin: str, kind: str, language: str = "python", role: str = "vulnerable") -> dict[str, Any]:
+    return _row("coverage", repo, pin, f"{language}:{role}:{kind}", language=language, coverage=kind, files=3, pin_role=role)
+
+
+def test_m1_skips_a_repository_and_pin_whose_coverage_for_the_rules_language_is_none() -> None:
+    blind = [*false_alerts(), covered("r2", P["a"], "none")]
+    assert propose(blind, [_rule("noisy")]) == [], "r2's alert could not be evidence: one repository is left"
+    wider = [*false_alerts(repos=("r1", "r1", "r2", "r3")), covered("r3", P["a"], "none")]
+    [proposal] = propose(wider, [_rule("noisy")])
+    assert proposal.provenance["counts"] == {"false_alerts": 3, "repos": 2, "agreed_hits": 0}
+    assert proposal.provenance["excluded"]["coverage_none"] == {f"github.com/o/r3@{P['a']}": 1}
+
+
+def test_coverage_none_of_another_language_or_beside_engine_coverage_is_no_skip() -> None:
+    other = [*false_alerts(), covered("r2", P["a"], "none", language="php")]
+    assert len(propose(other, [_rule("noisy")])) == 1, "the rule's language (python) was covered there"
+    engine = [*false_alerts(), covered("r2", P["a"], "none"), covered("r2", P["a"], "engine")]
+    assert len(propose(engine, [_rule("noisy")])) == 1, "a later run covered the pin: its alerts are evidence"
+
+
+def test_m2_skips_a_blind_repository_and_pin() -> None:
+    rules = [_rule("quiet", status="shadow"), _rule("other")]
+    assert propose([*site_hits(), covered("r2", P["b"], "none")], rules) == []
+
+
 # ---- M3: advisory only ---------------------------------------------------------------------------------------------
 
 

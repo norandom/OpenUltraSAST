@@ -2,8 +2,9 @@
 
 No model, budget ``{usd: 0, calls: 0}``, one per case. It reads the case's `facts.json`, the `units.jsonl` of the
 verify passes a, b and c, the final `agreed.json` (its per-candidate rows and `disputed` list) and, when present,
-`alerts.jsonl`, and writes `memory.jsonl` -- rows of the kinds `facts`, `verdict`, `unit_cost` and `alert` (the
-fifth kind, `proposal_outcome`, comes from the loop) -- and passes `facts.json` through. Task code interprets the
+`alerts.jsonl` with the alerts' `summary.json`, and writes `memory.jsonl` -- rows of the kinds `facts`, `verdict`,
+`unit_cost`, `alert` and `coverage` (per language and pin: whether any rule could have fired there; the kind
+`proposal_outcome` comes from the loop) -- and passes `facts.json` through. Task code interprets the
 artifacts, so the reconciler and the runner stay content-blind (ai-service-plane Req 3.4).
 
 Every row carries `id` (deterministic: :func:`..memory.row_id`), `kind`, `repo`, `pin`, `run`, `task`,
@@ -12,7 +13,8 @@ Every row carries `id` (deterministic: :func:`..memory.row_id`), `kind`, `repo`,
 Env contract in a Run: `OUSAST_OUTPUT_DIR`, `OUSAST_RUN`, `OUSAST_TASK`, `OUSAST_INPUT_FACTS` (and `OUSAST_INPUT_FACTS_SUMMARY`,
 whose reused or recorded `image` the facts row carries; without one named, the row is omitted),
 `OUSAST_INPUT_PASS_A`/`_B`, optional `OUSAST_INPUT_PASS_C`, `OUSAST_INPUT_SUMMARY_A`/`_B`/`_C` (the passes'
-`summary.json`, for the model), `OUSAST_INPUT_AGREED`, `OUSAST_INPUT_ALERTS`; the repository and pin from the bound
+`summary.json`, for the model), `OUSAST_INPUT_AGREED`, `OUSAST_INPUT_ALERTS` (and `OUSAST_INPUT_ALERTS_SUMMARY`,
+the coverage); the repository and pin from the bound
 Workspace (`AX_WORKSPACES_YAML`, `OUSAST_GIT_PINS`), the image from `AX_TASK_YAML`, the population and split from
 `OUSAST_POPULATION`/`OUSAST_SPLIT` (the generator copies the Run's `openultrasast.io/population` and
 `openultrasast.io/split` annotations). Exit 0 done, 2 failed.
@@ -74,6 +76,26 @@ def _final(row: Mapping[str, Any], disputed: set[str]) -> str:
     return "disputed" if str(row["candidate"]) in disputed else "rejected"
 
 
+def coverage_rows(ctx: Context, alerts_summary: Mapping[str, Any] | None) -> list[dict[str, Any]]:
+    """One ``coverage`` row per language and pin of the alerts' ``summary.json``: ``quick``, ``engine`` or ``none``
+    (no rule could fire, so no alert there is evidence of anything), with the files read in that language. A summary
+    from before coverage was recorded yields none: unknown stays unknown."""
+    if not alerts_summary or not isinstance(alerts_summary.get("coverage"), Mapping):
+        return []
+    recorded = alerts_summary.get("pins")
+    pins: Mapping[str, Any] = recorded if isinstance(recorded, Mapping) else {}
+    rows: list[dict[str, Any]] = []
+    for language, entry in sorted(alerts_summary["coverage"].items()):
+        for role, files in sorted((entry.get("files") or {}).items()):
+            fields: dict[str, Any] = {"language": language, "coverage": entry.get("coverage"), "files": files, "pin_role": role}
+            if pins.get(role):
+                fields["pin"] = str(pins[role])
+            if alerts_summary.get("source"):
+                fields["source"] = str(alerts_summary["source"])
+            rows.append(ctx.row("coverage", f"{language}:{role}", **fields))
+    return rows
+
+
 def rows_for(
     ctx: Context,
     *,
@@ -82,8 +104,9 @@ def rows_for(
     models: Mapping[str, str | None],
     agreed: Mapping[str, Any] | None,
     alerts: Sequence[Mapping[str, Any]] = (),
+    alerts_summary: Mapping[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    """The memory rows of one case: facts, verdicts, unit costs, alerts."""
+    """The memory rows of one case: facts, verdicts, unit costs, alerts, and the alerts' coverage per language and pin."""
     rows: list[dict[str, Any]] = []
     if facts is not None:
         loaded = json.loads(facts)
@@ -115,8 +138,11 @@ def rows_for(
             fields["in_fix_range"] = alert["in_fix_range"]
         if alert.get("pin"):  # a fixed-pin alert is a row of the pin it was raised on, not of the case's vulnerable pin
             fields["pin"] = str(alert["pin"])
+        if alert.get("source"):  # `engine` when `ousast plane alerts-engine` produced it on the host
+            fields["source"] = str(alert["source"])
         subject = f"{fields['rule_id']}:{fields['path']}:{fields['line']}" + (":fixed" if fields.get("pin_role") == "fixed" else "")
         rows.append(ctx.row("alert", subject, **fields))
+    rows.extend(coverage_rows(ctx, alerts_summary))
     return [validate_row(r, f"{ctx.task} {r['kind']}") for r in rows]
 
 
@@ -185,7 +211,9 @@ def case_rows(base: Path, case: str, *, population: str, split: str) -> tuple[li
     passes = {p: _jsonl(base / f"{case}-v{p}" / "units.jsonl") for p in PASSES}
     models = {p: _model(_json(base / f"{case}-v{p}" / "summary.json")) for p in PASSES}
     alerts = _jsonl(base / f"{case}-alerts" / "alerts.jsonl")
-    return rows_for(ctx, facts=facts, passes=passes, models=models, agreed=agreed, alerts=alerts), facts
+    alerts_summary = _json(base / f"{case}-alerts" / "summary.json")
+    rows = rows_for(ctx, facts=facts, passes=passes, models=models, agreed=agreed, alerts=alerts, alerts_summary=alerts_summary)
+    return rows, facts
 
 
 def remember_run(run_dir: Path, store: MemoryStore, *, population: str = UNKNOWN, split: str = UNKNOWN) -> list[IngestResult]:
@@ -246,7 +274,8 @@ def main(environ: Mapping[str, str] | None = None) -> int:
         passes = {p: _units(_path(env, f"OUSAST_INPUT_PASS_{p.upper()}")) for p in PASSES}
         models = {p: _model(_json(_path(env, f"OUSAST_INPUT_SUMMARY_{p.upper()}"))) for p in PASSES}
         agreed = _json(_path(env, "OUSAST_INPUT_AGREED"))
-        rows = rows_for(ctx, facts=None, passes=passes, models=models, agreed=agreed, alerts=_jsonl(_path(env, "OUSAST_INPUT_ALERTS")))
+        alerts, alerts_summary = _jsonl(_path(env, "OUSAST_INPUT_ALERTS")), _json(_path(env, "OUSAST_INPUT_ALERTS_SUMMARY"))
+        rows = rows_for(ctx, facts=None, passes=passes, models=models, agreed=agreed, alerts=alerts, alerts_summary=alerts_summary)
         facts_image = _facts_image(env, ctx.image)
         if facts is not None and facts_image is not None:  # the facts row carries the image the facts were computed on
             facts_ctx = Context(ctx.run, ctx.task, ctx.repo, ctx.pin, facts_image, ctx.population, ctx.split)
@@ -265,7 +294,7 @@ def main(environ: Mapping[str, str] | None = None) -> int:
     return 0 if summary["status"] == "done" else 2
 
 
-__all__ = ["Context", "candidates_digest", "case_rows", "context_from", "main", "remember_run", "rows_for"]
+__all__ = ["Context", "candidates_digest", "case_rows", "context_from", "coverage_rows", "main", "remember_run", "rows_for"]
 
 
 if __name__ == "__main__":

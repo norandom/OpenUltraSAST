@@ -15,6 +15,15 @@ of ``case.json`` on the vulnerable pin, the new-side ``fixed_ranges`` on the fix
 none). A fixed-pin alert inside the fix is a false alert on code the fix wrote: rule M1 of ``improve/memory.py``
 counts it.
 
+**Coverage** (an honest zero): quick mode has rules only for the languages its ruleset declares
+(:func:`quick_languages`, derived from the bundled ruleset directory, never listed by hand). ``summary.json`` records
+per language of the files the scan read whether quick mode covers it -- ``coverage: {language: {"coverage": "quick" |
+"none", "files": {role: n}}}`` -- and ``uncovered``, the languages with ``none``. Zero alerts on an uncovered
+language is not a clean result: nothing could have fired. ``remember`` turns the coverage into ``coverage`` rows,
+and M1/M2 skip a repository and pin whose coverage for a rule's language is ``none``. The deterministic engine covers
+more languages (:func:`engine_languages`, PHP among them); ``ousast plane alerts-engine`` (:mod:`..engine_alerts`)
+produces those alerts on the host, where the engine image runs, and marks this task done.
+
 Env: ``OUSAST_OUTPUT_DIR``, ``OUSAST_WORKSPACE_DIR`` (vulnerable checkout), ``OUSAST_FIXED_DIR`` (fixed checkout),
 ``OUSAST_INPUT_CASE`` (``case.json``), ``OUSAST_VULNERABLE_PIN``, ``OUSAST_FIXED_PIN``. A pin whose checkout yields no
 source file fails the task: an unread tree and a silent one are indistinguishable afterwards. Exit 0 done, 2 failed.
@@ -26,7 +35,7 @@ import json
 import os
 import sys
 import traceback
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -34,12 +43,53 @@ from ...findings import quick_scan_findings
 from ...mapping import analyze_entry_points, attach_reachability_hints
 from ...preprocess import detect_language, preprocess_repository
 from ...rank import rank_targets
+from ...ruleset import DEFAULT_RULESET_DIR, load_ruleset
 from .repo_facts import DECLARATION, GLOBAL, enclosing
 
 ROLES = ("vulnerable", "fixed")
 DIRS = ("OUSAST_WORKSPACE_DIR", "OUSAST_FIXED_DIR")
 PINS = ("OUSAST_VULNERABLE_PIN", "OUSAST_FIXED_PIN")
+ANY_LANGUAGE = "*"  # a rule that names no language runs on every file
 Ranges = Mapping[str, Sequence[Sequence[int]]]
+
+
+def quick_languages(directory: Path = DEFAULT_RULESET_DIR) -> frozenset[str]:
+    """The languages quick mode has a rule for: the ``languages`` of every rule the ruleset directory holds that is
+    not disabled (``*`` when a rule names none: it runs on every file)."""
+    covered: set[str] = set()
+    for rule in load_ruleset(directory):
+        if rule.status != "disabled":
+            covered.update(rule.languages or (ANY_LANGUAGE,))
+    return frozenset(covered)
+
+
+def engine_languages(directory: Path = DEFAULT_RULESET_DIR) -> frozenset[str]:
+    """The languages the deterministic engine has a semantic model for: one ``semantic/<language>.toml`` each."""
+    return frozenset(path.stem for path in (directory / "semantic").glob("*.toml"))
+
+
+def covers(covered: Iterable[str], language: str) -> bool:
+    languages = set(covered)
+    return ANY_LANGUAGE in languages or language in languages
+
+
+def coverage(files: Mapping[str, Mapping[str, int]], quick: Iterable[str], engine: Iterable[str] = ()) -> dict[str, dict[str, Any]]:
+    """Per language of the files read (``{role: {language: n}}``): ``quick`` when quick mode has a rule for it,
+    ``engine`` when the engine's alerts were produced for it, else ``none``, with the file count per role."""
+    quick, engine = set(quick), set(engine)
+    result: dict[str, dict[str, Any]] = {}
+    for role in sorted(files):
+        for language, number in files[role].items():
+            if language == "unknown":
+                continue
+            kind = "quick" if covers(quick, language) else "engine" if language in engine else "none"
+            entry = result.setdefault(language, {"coverage": kind, "files": {}})
+            entry["files"][role] = int(number)
+    return dict(sorted(result.items()))
+
+
+def uncovered(cov: Mapping[str, Mapping[str, Any]]) -> list[str]:
+    return sorted(language for language, entry in cov.items() if entry.get("coverage") == "none")
 
 
 def _lines(path: Path) -> list[str]:
@@ -55,24 +105,35 @@ def in_range(ranges: Ranges | None, path: str, line: int | None) -> bool | None:
     return line is not None and any(int(lo) <= line <= int(hi) for lo, hi in ranges.get(path, []))
 
 
-def scan(root: Path, role: str, pin: str, ranges: Ranges | None) -> tuple[list[dict[str, Any]], dict[str, int]]:
-    """(rows, what was read) of one pin: the quick-mode findings as alert rows, one per rule, file, line."""
+def function_at(root: Path, path: str, line: int | None, fallback: str | None, cache: dict[str, list[str]]) -> str:
+    """The enclosing declaration of ``path:line`` by the ``repo-facts`` patterns, else ``fallback`` (``<global>``)."""
+    lines = cache.setdefault(path, _lines(root / path))
+    language = detect_language(root / path)
+    if language in DECLARATION and line and 0 < line <= len(lines):
+        return enclosing(lines, line - 1, language)
+    return fallback or GLOBAL
+
+
+def scan(root: Path, role: str, pin: str, ranges: Ranges | None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """(rows, what was read) of one pin: the quick-mode findings as alert rows, one per rule, file, line; what was read
+    counts files and bytes, and files per language."""
     _, targets = preprocess_repository(root)
     targets = attach_reachability_hints(targets, analyze_entry_points(root, targets))
     findings = quick_scan_findings(root, targets, rank_targets(targets))
-    read = {"files": len(targets), "bytes": sum((root / t.path).stat().st_size for t in targets if (root / t.path).is_file())}
+    languages: dict[str, int] = {}
+    for target in targets:
+        languages[target.language] = languages.get(target.language, 0) + 1
+    read = {
+        "files": len(targets), "bytes": sum((root / t.path).stat().st_size for t in targets if (root / t.path).is_file()),
+        "languages": dict(sorted(languages.items())),
+    }  # fmt: skip
     cache: dict[str, list[str]] = {}
     rows: dict[tuple[str, str, int | None], dict[str, Any]] = {}
     for finding in findings:
         rule_id = finding.finding_id.split(":", 1)[0]
-        lines = cache.setdefault(finding.path, _lines(root / finding.path))
-        language = detect_language(root / finding.path)
-        if language in DECLARATION and finding.line and 0 < finding.line <= len(lines):
-            function = enclosing(lines, finding.line - 1, language)
-        else:
-            function = finding.function_name or GLOBAL
         row = {
-            "rule_id": rule_id, "rule_status": finding.status, "path": finding.path, "line": finding.line, "function": function,
+            "rule_id": rule_id, "rule_status": finding.status, "path": finding.path, "line": finding.line,
+            "function": function_at(root, finding.path, finding.line, finding.function_name, cache),
             "pin_role": role, "pin": pin, "in_fix_range": in_range(ranges, finding.path, finding.line),
         }  # fmt: skip
         rows.setdefault((rule_id, finding.path, finding.line), row)
@@ -80,8 +141,12 @@ def scan(root: Path, role: str, pin: str, ranges: Ranges | None) -> tuple[list[d
     return ordered, read
 
 
-def _summary(output_dir: Path, summary: Mapping[str, Any]) -> None:
+def write_summary(output_dir: Path, summary: Mapping[str, Any]) -> None:
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def write_rows(output_dir: Path, rows: Iterable[Mapping[str, Any]]) -> None:
+    (output_dir / "alerts.jsonl").write_text("".join(json.dumps(r, sort_keys=True) + "\n" for r in rows), encoding="utf-8")
 
 
 def main(environ: Mapping[str, str] | None = None) -> int:
@@ -95,6 +160,7 @@ def main(environ: Mapping[str, str] | None = None) -> int:
         case = json.loads(Path(env["OUSAST_INPUT_CASE"]).read_text(encoding="utf-8")) if env.get("OUSAST_INPUT_CASE") else {}
         ranges = {"vulnerable": case.get("ranges"), "fixed": case.get("fixed_ranges")}
         rows: list[dict[str, Any]] = []
+        files: dict[str, dict[str, int]] = {}
         for role, directory, pin in zip(ROLES, DIRS, PINS, strict=True):
             root = Path(env.get(directory) or "")
             if not env.get(directory) or not root.is_dir():
@@ -102,21 +168,27 @@ def main(environ: Mapping[str, str] | None = None) -> int:
             found, read = scan(root, role, str(env.get(pin) or ""), ranges[role])
             if read["files"] == 0:
                 raise ValueError(f"the {role} checkout {root} has no source file the scan reads: an unread tree is not a clean one")
+            files[role] = read.pop("languages")
             summary.setdefault("read", {})[role] = read
             summary.setdefault("alerts", {})[role] = len(found)
+            summary.setdefault("pins", {})[role] = str(env.get(pin) or "")
             rows.extend(found)
             summary["units_done"] += 1
-        (output / "alerts.jsonl").write_text("".join(json.dumps(r, sort_keys=True) + "\n" for r in rows), encoding="utf-8")
+        quick = quick_languages()
+        summary["quick_languages"] = sorted(quick)
+        summary["coverage"] = coverage(files, quick)
+        summary["uncovered"] = uncovered(summary["coverage"])
+        write_rows(output, rows)
         summary["status"] = "done"
     except Exception:  # noqa: BLE001 -- a crash is `failed` with its traceback
         summary["reason"] = traceback.format_exc()[-2000:]
     if output is not None:
-        _summary(output, summary)
-    print(json.dumps({k: summary.get(k) for k in ("status", "alerts", "read")}), file=sys.stderr)
+        write_summary(output, summary)
+    print(json.dumps({k: summary.get(k) for k in ("status", "alerts", "read", "uncovered")}), file=sys.stderr)
     return 0 if summary["status"] == "done" else 2
 
 
-__all__ = ["in_range", "main", "scan"]
+__all__ = ["coverage", "covers", "engine_languages", "function_at", "in_range", "main", "quick_languages", "scan", "uncovered"]
 
 
 if __name__ == "__main__":

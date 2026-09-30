@@ -1,0 +1,22 @@
+{
+ "wp-gopay-log-filter-sqli": [
+  [
+   "admin/views/log.php",
+   "<global>"
+  ]
+ ],
+ "froxlor-admin-ip-second-order-sqli": [
+  [
+   "lib/Froxlor/Api/Commands/Domains.php",
+   "validateIpAddresses"
+  ],
+  [
+   "lib/Froxlor/Api/Commands/IpsAndPorts.php",
+   "listing"
+  ],
+  [
+   "lib/Froxlor/Api/Commands/IpsAndPorts.php",
+   "listingCount"
+  ]
+ ]
+}

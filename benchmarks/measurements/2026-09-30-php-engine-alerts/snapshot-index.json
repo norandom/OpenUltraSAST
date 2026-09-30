@@ -1,0 +1,18 @@
+{
+  "excluded": {
+    "gated_case": {},
+    "holdout_pair": {},
+    "population": {},
+    "rows": 0
+  },
+  "guard": {
+    "catalog": "benchmarks/pairs/catalog.toml",
+    "manifest": "benchmarks/manifests/java-spring-boot-vulnerable.toml",
+    "populations": []
+  },
+  "index_digest": "5e9299a551eea21289224ee063b2eb8cdf3f845a69967baf8b8c02d5be9cfc74",
+  "index_entries": 19,
+  "kept": 191,
+  "rows": 191,
+  "store": "file:///tmp/claude-1000/-home-mc-Source-OpenUltraSAST/c09e30b2-39a4-4564-bc31-6ea71ffaa198/scratchpad/hxr2/memory"
+}

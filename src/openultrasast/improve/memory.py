@@ -19,6 +19,11 @@ final counts as no evidence in either direction.
 - **M3, disputed families**: families with at least :data:`M3_MIN_CANDIDATES` candidates and a dispute rate of at
   least :data:`M3_MIN_DISPUTE_RATE`. Advisory (``signals.json``); never an edit, never shown to the validator.
 
+**Coverage**: M1 and M2 skip every repository and pin whose ``coverage`` rows record the rule's language only as
+``none`` (quick mode had no rule for it and no engine alerts were produced): a rule cannot be demoted or promoted
+on evidence that could not exist. The skipped alerts are counted per ``repo@pin`` under ``coverage_none`` in the
+proposal's ``excluded``.
+
 **Train-on-test guard** (:class:`Guard`), applied before any rule sees a row: a row is dropped when its population
 is one the proposal will be qualified on, its (repo, pin) is a case of the gated benchmark manifest, or its
 repository is a holdout pair's repository. The pair catalog records a holdout pair's *fix* commit, not the
@@ -142,6 +147,7 @@ class _View:
     verdicts: dict[tuple[str, str, str], Record] = field(default_factory=dict)  # (repo, pin, candidate)
     sites: set[tuple[str, str]] = field(default_factory=set)  # (repo, candidate) with site_match true
     alerts: dict[str, list[Record]] = field(default_factory=dict)  # rule_id -> alerts
+    coverage: dict[tuple[str, str, str], set[str]] = field(default_factory=dict)  # (repo, pin, language) -> recorded kinds
 
     @classmethod
     def of(cls, records: Sequence[Record]) -> _View:
@@ -151,7 +157,9 @@ class _View:
         seen: set[tuple[object, ...]] = set()
         for rec in records:
             row = rec.row
-            if row["kind"] == "verdict":
+            if row["kind"] == "coverage" and row.get("language"):
+                view.coverage.setdefault((row["repo"], row["pin"], str(row["language"])), set()).add(str(row.get("coverage")))
+            elif row["kind"] == "verdict":
                 view.verdicts[(row["repo"], row["pin"], str(row.get("candidate")))] = rec
                 if row.get("site_match") is True:
                     view.sites.add((row["repo"], str(row.get("candidate"))))
@@ -170,6 +178,26 @@ class _View:
             return False
         flag = alert.get("in_fix_range")
         return bool(flag) if flag is not None else (alert["repo"], _cand(alert)) in self.sites
+
+    def blind(self, repo: str, pin: str, languages: Iterable[str]) -> bool:
+        """True when a language of the rule was recorded at this repository and pin with coverage ``none`` only: no
+        rule could fire there, so what the rule did or did not say there is no evidence either way."""
+        return any(self.coverage.get((repo, pin, language)) == {"none"} for language in languages)
+
+    def seeing(self, languages_by_rule: Mapping[str, Sequence[str]]) -> tuple[_View, dict[str, int]]:
+        """This view without the alerts at a repository and pin blind to their rule's language, and how many were
+        dropped per ``repo@pin``."""
+        kept: dict[str, list[Record]] = {}
+        dropped: dict[str, int] = {}
+        for rule_id, alerts in self.alerts.items():
+            languages = languages_by_rule.get(rule_id, ())
+            for alert in alerts:
+                if self.blind(alert.row["repo"], alert.row["pin"], languages):
+                    label = f"{alert.row['repo']}@{alert.row['pin']}"
+                    dropped[label] = dropped.get(label, 0) + 1
+                else:
+                    kept.setdefault(rule_id, []).append(alert)
+        return _View(self.verdicts, self.sites, kept, self.coverage), dict(sorted(dropped.items()))
 
 
 def _m1(rule_id: str, view: _View) -> tuple[list[Record], dict[str, int]] | None:
@@ -262,7 +290,9 @@ def propose_from_memory(
 ) -> list[MemoryProposal]:
     """M1 and M2 over the rows the guard keeps, minus proposals already reverted on the same evidence."""
     kept, dropped = excluded.apply(rows)
-    view = _View.of(kept)
+    view, blind = _View.of(kept).seeing({rid: rule.languages for rid, rule in ruleset_by_id.items()})
+    if blind:
+        dropped = {**dropped, "coverage_none": blind}
     statuses = {rid: _status(rid, ruleset_by_id, current_ledger) for rid in ruleset_by_id}
     enabled = {rid for rid, status in statuses.items() if status == "enabled"}
     proposals: list[MemoryProposal] = []

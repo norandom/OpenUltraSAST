@@ -5,9 +5,9 @@ metadata:
   name: repo-facts-budibase-mongo-template-nosqli
   atespace: default
   annotations:
-    openultrasast.io/memory-key: '{"candidates":"b4ef709df34ab08c","image":"sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9","pin":"b7e63df737eede85d951aa9665b0c0778ece7ccb","repo":"github.com/Budibase/budibase"}'
+    openultrasast.io/memory-key: '{"candidates":"b4ef709df34ab08c","image":"sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8","pin":"b7e63df737eede85d951aa9665b0c0778ece7ccb","repo":"github.com/Budibase/budibase"}'
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - repo-facts
   env:
@@ -36,7 +36,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -67,7 +67,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -96,7 +96,7 @@ metadata:
   name: agree-budibase-mongo-template-nosqli
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - agree
   env:
@@ -123,9 +123,9 @@ metadata:
   name: repo-facts-cct-studio-server-cmdi
   atespace: default
   annotations:
-    openultrasast.io/memory-key: '{"candidates":"6c9fa4a6e47cda37","image":"sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9","pin":"acdb5893412a81eaec9862ee24a4613bf296ab45","repo":"github.com/davila7/claude-code-templates"}'
+    openultrasast.io/memory-key: '{"candidates":"6c9fa4a6e47cda37","image":"sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8","pin":"acdb5893412a81eaec9862ee24a4613bf296ab45","repo":"github.com/davila7/claude-code-templates"}'
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - repo-facts
   env:
@@ -154,7 +154,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -185,7 +185,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -214,7 +214,7 @@ metadata:
   name: agree-cct-studio-server-cmdi
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - agree
   env:
@@ -241,9 +241,9 @@ metadata:
   name: repo-facts-contextforge-prompt-ssti
   atespace: default
   annotations:
-    openultrasast.io/memory-key: '{"candidates":"b272af6456664ebc","image":"sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9","pin":"0f8e0ad679f1fff685f486e17f642ac863c8ca9e","repo":"github.com/IBM/mcp-context-forge"}'
+    openultrasast.io/memory-key: '{"candidates":"b272af6456664ebc","image":"sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8","pin":"0f8e0ad679f1fff685f486e17f642ac863c8ca9e","repo":"github.com/IBM/mcp-context-forge"}'
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - repo-facts
   env:
@@ -272,7 +272,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -303,7 +303,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -332,7 +332,7 @@ metadata:
   name: agree-contextforge-prompt-ssti
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - agree
   env:
@@ -359,9 +359,9 @@ metadata:
   name: repo-facts-froxlor-admin-ip-second-order-sqli
   atespace: default
   annotations:
-    openultrasast.io/memory-key: '{"candidates":"c52240d980ef0105","image":"sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9","pin":"9bf03de643a2edee4642bfc6c94db1f05253da02","repo":"github.com/froxlor/froxlor"}'
+    openultrasast.io/memory-key: '{"candidates":"c52240d980ef0105","image":"sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8","pin":"9bf03de643a2edee4642bfc6c94db1f05253da02","repo":"github.com/froxlor/froxlor"}'
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - repo-facts
   env:
@@ -390,7 +390,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -421,7 +421,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -450,7 +450,7 @@ metadata:
   name: agree-froxlor-admin-ip-second-order-sqli
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - agree
   env:
@@ -477,9 +477,9 @@ metadata:
   name: repo-facts-fuxa-tdengine-escape-sqli
   atespace: default
   annotations:
-    openultrasast.io/memory-key: '{"candidates":"ec699ee54d38a8ee","image":"sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9","pin":"193a888f8e3f805325072829b1644a2c768c948b","repo":"github.com/frangoteam/FUXA"}'
+    openultrasast.io/memory-key: '{"candidates":"ec699ee54d38a8ee","image":"sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8","pin":"193a888f8e3f805325072829b1644a2c768c948b","repo":"github.com/frangoteam/FUXA"}'
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - repo-facts
   env:
@@ -508,7 +508,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -539,7 +539,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -568,7 +568,7 @@ metadata:
   name: agree-fuxa-tdengine-escape-sqli
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - agree
   env:
@@ -595,9 +595,9 @@ metadata:
   name: repo-facts-lmdeploy-media-url-ssrf
   atespace: default
   annotations:
-    openultrasast.io/memory-key: '{"candidates":"1337c9c717f5ac87","image":"sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9","pin":"71648d239c978452720a6d6692fe914efc8a7b94","repo":"github.com/InternLM/lmdeploy"}'
+    openultrasast.io/memory-key: '{"candidates":"1337c9c717f5ac87","image":"sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8","pin":"71648d239c978452720a6d6692fe914efc8a7b94","repo":"github.com/InternLM/lmdeploy"}'
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - repo-facts
   env:
@@ -626,7 +626,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -657,7 +657,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -686,7 +686,7 @@ metadata:
   name: agree-lmdeploy-media-url-ssrf
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - agree
   env:
@@ -713,9 +713,9 @@ metadata:
   name: repo-facts-medplum-external-auth-open-redirect
   atespace: default
   annotations:
-    openultrasast.io/memory-key: '{"candidates":"17ba609d5b1a1a00","image":"sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9","pin":"5d4a8654b02aa67c444f96ae1eb5663c09854006","repo":"github.com/medplum/medplum"}'
+    openultrasast.io/memory-key: '{"candidates":"17ba609d5b1a1a00","image":"sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8","pin":"5d4a8654b02aa67c444f96ae1eb5663c09854006","repo":"github.com/medplum/medplum"}'
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - repo-facts
   env:
@@ -744,7 +744,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -775,7 +775,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -804,7 +804,7 @@ metadata:
   name: agree-medplum-external-auth-open-redirect
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - agree
   env:
@@ -831,9 +831,9 @@ metadata:
   name: repo-facts-pgadmin-maintenance-sqli
   atespace: default
   annotations:
-    openultrasast.io/memory-key: '{"candidates":"7f1b83a88024c2d4","image":"sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9","pin":"d112dc3b962218efc3613fa727d54f0fc5b1d527","repo":"github.com/pgadmin-org/pgadmin4"}'
+    openultrasast.io/memory-key: '{"candidates":"7f1b83a88024c2d4","image":"sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8","pin":"d112dc3b962218efc3613fa727d54f0fc5b1d527","repo":"github.com/pgadmin-org/pgadmin4"}'
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - repo-facts
   env:
@@ -862,7 +862,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -893,7 +893,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -922,7 +922,7 @@ metadata:
   name: agree-pgadmin-maintenance-sqli
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - agree
   env:
@@ -949,9 +949,9 @@ metadata:
   name: repo-facts-qwed-sympy-eval
   atespace: default
   annotations:
-    openultrasast.io/memory-key: '{"candidates":"f071e8db5f5517ab","image":"sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9","pin":"06801f68cbf9c9b5e54cc17f2a61cb2792da7a26","repo":"github.com/QWED-AI/qwed-verification"}'
+    openultrasast.io/memory-key: '{"candidates":"f071e8db5f5517ab","image":"sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8","pin":"06801f68cbf9c9b5e54cc17f2a61cb2792da7a26","repo":"github.com/QWED-AI/qwed-verification"}'
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - repo-facts
   env:
@@ -980,7 +980,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1011,7 +1011,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1040,7 +1040,7 @@ metadata:
   name: agree-qwed-sympy-eval
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - agree
   env:
@@ -1067,9 +1067,9 @@ metadata:
   name: repo-facts-reactpress-findall-column-sqli
   atespace: default
   annotations:
-    openultrasast.io/memory-key: '{"candidates":"ecb82a10249c6fed","image":"sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9","pin":"c3dd10681b3d2b5e224f7ac647b3769557603975","repo":"github.com/fecommunity/reactpress"}'
+    openultrasast.io/memory-key: '{"candidates":"ecb82a10249c6fed","image":"sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8","pin":"c3dd10681b3d2b5e224f7ac647b3769557603975","repo":"github.com/fecommunity/reactpress"}'
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - repo-facts
   env:
@@ -1098,7 +1098,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1129,7 +1129,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1158,7 +1158,7 @@ metadata:
   name: agree-reactpress-findall-column-sqli
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - agree
   env:
@@ -1185,9 +1185,9 @@ metadata:
   name: repo-facts-unleash-addon-webhook-ssrf
   atespace: default
   annotations:
-    openultrasast.io/memory-key: '{"candidates":"4d3debd51fd86f9c","image":"sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9","pin":"b9f3217d327f24094b4352130baa30387f85cffe","repo":"github.com/Unleash/unleash"}'
+    openultrasast.io/memory-key: '{"candidates":"4d3debd51fd86f9c","image":"sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8","pin":"b9f3217d327f24094b4352130baa30387f85cffe","repo":"github.com/Unleash/unleash"}'
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - repo-facts
   env:
@@ -1216,7 +1216,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1247,7 +1247,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1276,7 +1276,7 @@ metadata:
   name: agree-unleash-addon-webhook-ssrf
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - agree
   env:
@@ -1303,9 +1303,9 @@ metadata:
   name: repo-facts-winml-cli-serve-cors
   atespace: default
   annotations:
-    openultrasast.io/memory-key: '{"candidates":"e3b0c44298fc1c14","image":"sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9","pin":"02179d185f0e3ac23518236b5ca1f61fd37ef680","repo":"github.com/microsoft/winml-cli"}'
+    openultrasast.io/memory-key: '{"candidates":"e3b0c44298fc1c14","image":"sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8","pin":"02179d185f0e3ac23518236b5ca1f61fd37ef680","repo":"github.com/microsoft/winml-cli"}'
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - repo-facts
   env:
@@ -1334,7 +1334,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1365,7 +1365,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1394,7 +1394,7 @@ metadata:
   name: agree-winml-cli-serve-cors
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - agree
   env:
@@ -1421,9 +1421,9 @@ metadata:
   name: repo-facts-wp-directorist-avatar-ssrf
   atespace: default
   annotations:
-    openultrasast.io/memory-key: '{"candidates":"d6963021f588f39e","image":"sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9","pin":"77cfc9bc8b453f97ab7e720330706fa4ef056867","repo":"github.com/sovware/directorist"}'
+    openultrasast.io/memory-key: '{"candidates":"d6963021f588f39e","image":"sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8","pin":"77cfc9bc8b453f97ab7e720330706fa4ef056867","repo":"github.com/sovware/directorist"}'
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - repo-facts
   env:
@@ -1452,7 +1452,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1483,7 +1483,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1512,7 +1512,7 @@ metadata:
   name: agree-wp-directorist-avatar-ssrf
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - agree
   env:
@@ -1539,9 +1539,9 @@ metadata:
   name: repo-facts-wp-gopay-log-filter-sqli
   atespace: default
   annotations:
-    openultrasast.io/memory-key: '{"candidates":"fde4d17144a13d73","image":"sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9","pin":"626bc8b5f8d33de6eefd921e3a05ed52ac320bcd","repo":"github.com/gopaycommunity/gopay-woocommerce-integration"}'
+    openultrasast.io/memory-key: '{"candidates":"fde4d17144a13d73","image":"sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8","pin":"626bc8b5f8d33de6eefd921e3a05ed52ac320bcd","repo":"github.com/gopaycommunity/gopay-woocommerce-integration"}'
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - repo-facts
   env:
@@ -1570,7 +1570,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1601,7 +1601,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1630,7 +1630,7 @@ metadata:
   name: agree-wp-gopay-log-filter-sqli
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - agree
   env:
@@ -1657,9 +1657,9 @@ metadata:
   name: repo-facts-wp-groundhogg-confirm-redirect
   atespace: default
   annotations:
-    openultrasast.io/memory-key: '{"candidates":"fde4d17144a13d73","image":"sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9","pin":"9472a1dd79d4556c40eece501a61930793f170d3","repo":"github.com/groundhoggwp/groundhogg"}'
+    openultrasast.io/memory-key: '{"candidates":"fde4d17144a13d73","image":"sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8","pin":"9472a1dd79d4556c40eece501a61930793f170d3","repo":"github.com/groundhoggwp/groundhogg"}'
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - repo-facts
   env:
@@ -1688,7 +1688,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1719,7 +1719,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1748,7 +1748,7 @@ metadata:
   name: agree-wp-groundhogg-confirm-redirect
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - agree
   env:
@@ -1777,7 +1777,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1808,7 +1808,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1839,7 +1839,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1870,7 +1870,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1901,7 +1901,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1932,7 +1932,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1963,7 +1963,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -1994,7 +1994,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -2025,7 +2025,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -2056,7 +2056,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -2087,7 +2087,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -2118,7 +2118,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -2149,7 +2149,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -2180,7 +2180,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -2211,7 +2211,7 @@ metadata:
   annotations:
     openultrasast.io/model: deepseek-flash
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - verify
   env:
@@ -2240,7 +2240,7 @@ metadata:
   name: remember-budibase-mongo-template-nosqli
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - remember
   env:
@@ -2265,7 +2265,7 @@ metadata:
   name: remember-cct-studio-server-cmdi
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - remember
   env:
@@ -2290,7 +2290,7 @@ metadata:
   name: remember-contextforge-prompt-ssti
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - remember
   env:
@@ -2315,7 +2315,7 @@ metadata:
   name: remember-froxlor-admin-ip-second-order-sqli
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - remember
   env:
@@ -2340,7 +2340,7 @@ metadata:
   name: remember-fuxa-tdengine-escape-sqli
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - remember
   env:
@@ -2365,7 +2365,7 @@ metadata:
   name: remember-lmdeploy-media-url-ssrf
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - remember
   env:
@@ -2390,7 +2390,7 @@ metadata:
   name: remember-medplum-external-auth-open-redirect
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - remember
   env:
@@ -2415,7 +2415,7 @@ metadata:
   name: remember-pgadmin-maintenance-sqli
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - remember
   env:
@@ -2440,7 +2440,7 @@ metadata:
   name: remember-qwed-sympy-eval
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - remember
   env:
@@ -2465,7 +2465,7 @@ metadata:
   name: remember-reactpress-findall-column-sqli
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - remember
   env:
@@ -2490,7 +2490,7 @@ metadata:
   name: remember-unleash-addon-webhook-ssrf
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - remember
   env:
@@ -2515,7 +2515,7 @@ metadata:
   name: remember-winml-cli-serve-cors
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - remember
   env:
@@ -2540,7 +2540,7 @@ metadata:
   name: remember-wp-directorist-avatar-ssrf
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - remember
   env:
@@ -2565,7 +2565,7 @@ metadata:
   name: remember-wp-gopay-log-filter-sqli
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - remember
   env:
@@ -2590,7 +2590,7 @@ metadata:
   name: remember-wp-groundhogg-confirm-redirect
   atespace: default
 spec:
-  image: localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9
+  image: localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8
   command:
   - remember
   env:

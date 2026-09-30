@@ -274,6 +274,18 @@ def _main(argv: list[str] | None) -> int:
     plane_remember.add_argument("--plane", type=Path, default=Path("plane"), help="where runs/<run>.yaml names population and split")
     plane_remember.add_argument("--population", help="the population the run measured (default: the Run's annotation)")
     plane_remember.add_argument("--split", help="the split of that population (default: the Run's annotation)")
+    plane_engine = plane_sub.add_parser(
+        "alerts-engine", help="a Run's `alerts` for languages quick mode does not cover (PHP), from the engine image on this host"
+    )
+    plane_engine.add_argument("run_manifest", type=Path)
+    plane_engine.add_argument(
+        "--source", type=Path, required=True, help="a frozen export: git archive HEAD src benchmarks/push/finding_dump.py"
+    )
+    plane_engine.add_argument("--cases", default="", help="comma-separated case ids (default: every alerts case of the Run)")
+    plane_engine.add_argument("--deadline", type=float, default=1800.0, help="the engine's scan deadline per pin, seconds")
+    plane_engine.add_argument("--image", default="openultrasast:dev")
+    plane_engine.add_argument("--repos", type=Path, help="the case cache (default ~/.cache/openultrasast/independent)")
+    plane_engine.add_argument("--work", type=Path, help="where pins are exported and results land (default: a temporary directory)")
     plane_ws = plane_sub.add_parser("workspaces", help="one Workspace manifest per case pin of a population file")
     plane_ws.add_argument("population", type=Path)
     plane_ws.add_argument("--out", type=Path, default=Path("plane/workspaces"))
@@ -1318,6 +1330,8 @@ def _plane(args: argparse.Namespace) -> int:
     if args.plane_command == "status":
         print(reconciler.status(args.run, units=args.units))
         return 0
+    if args.plane_command == "alerts-engine":
+        return _plane_alerts_engine(args)
     if args.plane_command == "doctor":
         checks = reconciler.doctor()
         for name, ok, text in checks:
@@ -1329,6 +1343,24 @@ def _plane(args: argparse.Namespace) -> int:
 
     written = workspaces(args.population, args.out)
     print(f"{len(written)} Workspace manifests written to {args.out}")
+    return 0
+
+
+def _plane_alerts_engine(args: argparse.Namespace) -> int:
+    from .plane import engine_alerts
+
+    only = [c.strip() for c in args.cases.split(",") if c.strip()]
+    try:
+        results = engine_alerts.alerts_engine(
+            args.run_manifest, source=args.source, only=only, work=args.work, cache=args.repos or engine_alerts.CACHE,
+            deadline=args.deadline, image=args.image,
+        )  # fmt: skip
+    except (engine_alerts.EngineAlertsError, OSError, ValueError, subprocess.CalledProcessError) as exc:
+        print(f"alerts-engine failed: {exc}", file=sys.stderr)
+        return 2
+    keys = ("case", "status", "reason", "alerts", "alerts_engine", "in_fix_range", "engine", "uncovered", "seconds")
+    for result in results:
+        print(json.dumps({k: result[k] for k in keys if k in result}, sort_keys=True))
     return 0
 
 

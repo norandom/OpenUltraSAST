@@ -1,0 +1,8 @@
+{
+  "advisory": true,
+  "disputed_families": [],
+  "thresholds": {
+    "min_candidates": 5,
+    "min_dispute_rate": 0.3
+  }
+}

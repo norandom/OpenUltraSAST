@@ -119,6 +119,10 @@ def metrics(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         tally_a = alerts.setdefault(str(a.get("rule_id")), {"vulnerable": 0, "fixed": 0, "fixed_in_fix_range": 0})
         tally_a[role] += 1
         tally_a["fixed_in_fix_range"] += role == "fixed" and a.get("in_fix_range") is True
+    coverage: dict[str, dict[str, int]] = {}  # language -> pins per coverage kind: a `none` pin's zero alerts mean nothing
+    for c in (r for r in rows if r["kind"] == "coverage"):
+        tally_c = coverage.setdefault(str(c.get("language")), {"quick": 0, "engine": 0, "none": 0})
+        tally_c[str(c.get("coverage"))] = tally_c.get(str(c.get("coverage")), 0) + 1
     return {
         "cases": len({(v["repo"], v["pin"]) for v in verdicts}),
         "candidates": len(verdicts),
@@ -130,6 +134,7 @@ def metrics(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         "usd_per_candidate": None if usd is None or not verdicts else round(usd / len(verdicts), 6),
         "dispute_rate": {f: {"candidates": n, "disputed": d, "rate": round(d / n, 4)} for f, (n, d) in sorted(families.items())},
         "alerts": dict(sorted(alerts.items())),
+        "coverage": dict(sorted(coverage.items())),
     }
 
 

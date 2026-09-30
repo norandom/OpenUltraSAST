@@ -1,7 +1,7 @@
 {
-  "modules": 134,
+  "modules": 135,
   "counts": {
-    "load_bearing": 127,
+    "load_bearing": 128,
     "standalone_capability": 7
   },
   "orphaned": [],
@@ -662,6 +662,7 @@
         "cli",
         "improve.memory",
         "plane.egress",
+        "plane.engine_alerts",
         "plane.generate",
         "plane.memory",
         "plane.reconciler",
@@ -697,6 +698,12 @@
       "importers": [
         "plane.reconciler"
       ]
+    },
+    {
+      "module": "plane.engine_alerts",
+      "classification": "load_bearing",
+      "reason": "harnessx-removal Req 6.3: engine alerts where quick mode has no rules (PHP), on the host",
+      "importers": []
     },
     {
       "module": "plane.generate",
@@ -761,6 +768,7 @@
       "reason": "ai-service-plane Req 4.1: the task entrypoint package the runner imports by name; runner integration pending (task 3)",
       "importers": [
         "cli",
+        "plane.engine_alerts",
         "plane.generate",
         "plane.memory",
         "plane.tasks.agree",
@@ -778,7 +786,9 @@
       "module": "plane.tasks.alerts",
       "classification": "load_bearing",
       "reason": "harnessx-removal Req 6.3: quick-mode alerts on a case's vulnerable and fixed pins, model-free",
-      "importers": []
+      "importers": [
+        "plane.engine_alerts"
+      ]
     },
     {
       "module": "plane.tasks.loop",
@@ -1139,6 +1149,7 @@
         "improve.memory",
         "improve.validator",
         "pairs",
+        "plane.tasks.alerts",
         "plane.tasks.loop",
         "stage_processors"
       ]

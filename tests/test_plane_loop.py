@@ -97,6 +97,39 @@ def test_alerts_attribute_functions_and_mark_the_fix_on_both_pins(tmp_path: Path
     assert "an unread tree is not a clean one" in json.loads((out / "summary.json").read_text())["reason"]
 
 
+def test_quick_coverage_is_derived_from_the_ruleset_directory(tmp_path: Path) -> None:
+    shipped = alerts.quick_languages()
+    assert {"python", "javascript", "typescript", "java", "c", "groovy"} <= shipped and "php" not in shipped
+    assert "php" in alerts.engine_languages(), "the engine's semantic models cover PHP"
+    rules = tmp_path / "ruleset" / "php"
+    rules.mkdir(parents=True)
+    rule = 'rule_id = "php-x"\ntitle = "x"\nlanguages = ["php"]\ncwe = "CWE-89"\ntags = []\npattern = "x"\n'
+    (rules / "rules.toml").write_text(f"[[rule]]\n{rule}")
+    assert alerts.quick_languages(tmp_path / "ruleset") == {"php"}, "a ruleset added for a language covers it"
+    (rules / "rules.toml").write_text(f'[[rule]]\n{rule}status = "disabled"\n')
+    assert alerts.quick_languages(tmp_path / "ruleset") == set(), "a disabled rule fires nowhere"
+
+
+def test_alerts_on_an_uncovered_language_record_coverage_none_not_a_clean_zero(tmp_path: Path) -> None:
+    for side in ("v", "f"):
+        (tmp_path / side).mkdir()
+        (tmp_path / side / "index.php").write_text('<?php\n$id = $_GET["id"];\nmysqli_query($c, "SELECT " . $id);\n')
+        (tmp_path / side / "app.js").write_text("module.exports = 1;\n")
+    out = tmp_path / "out"
+    env = {
+        "OUSAST_OUTPUT_DIR": str(out), "OUSAST_WORKSPACE_DIR": str(tmp_path / "v"), "OUSAST_FIXED_DIR": str(tmp_path / "f"),
+        "OUSAST_VULNERABLE_PIN": VULNERABLE, "OUSAST_FIXED_PIN": FIXED,
+    }  # fmt: skip
+    assert alerts.main(env) == 0
+    summary = json.loads((out / "summary.json").read_text())
+    assert (out / "alerts.jsonl").read_text() == "" and summary["alerts"] == {"vulnerable": 0, "fixed": 0}
+    assert summary["coverage"] == {
+        "javascript": {"coverage": "quick", "files": {"fixed": 1, "vulnerable": 1}},
+        "php": {"coverage": "none", "files": {"fixed": 1, "vulnerable": 1}},
+    }
+    assert summary["uncovered"] == ["php"] and summary["pins"] == {"vulnerable": VULNERABLE, "fixed": FIXED}
+
+
 def test_fix_ranges_new_side_are_the_fixed_pins_lines(tmp_path: Path) -> None:
     repo = tmp_path / "r"
     repo.mkdir()
@@ -129,6 +162,7 @@ def test_every_case_ends_in_remember_and_the_loop_is_model_free(tmp_path: Path) 
     names = [e.name for e in run.tasks]
     assert names[:6] == [f"{CASE}-{step}" for step in CHAIN] and names[6:] == [f"{CASE}-alerts", f"{CASE}-remember", *LOOP_TASKS]
     assert run.task(f"{CASE}-remember").inputs["alerts"] == f"{CASE}-alerts/alerts.jsonl"
+    assert run.task(f"{CASE}-remember").inputs["alerts_summary"] == f"{CASE}-alerts/summary.json", "the coverage travels too"
     measure_inputs = {f"remember_{CASE}": f"{CASE}-remember/memory.jsonl", "snapshot": "memory-snapshot/rows.jsonl"}
     assert run.task("loop-measure").inputs == measure_inputs
     assert run.task("loop-improve").producers == ("loop-propose",)

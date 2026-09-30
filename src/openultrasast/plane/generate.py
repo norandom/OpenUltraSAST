@@ -314,6 +314,7 @@ def _remember(item: CaseInputs, templates: Mapping[str, Task], population: str, 
     inputs["agreed"] = f"{case_id}-final/agreed.json"
     if alerts:
         inputs["alerts"] = f"{case_id}-alerts/alerts.jsonl"
+        inputs["alerts_summary"] = f"{case_id}-alerts/summary.json"  # the coverage: whether a zero could mean clean
     entry = {"name": f"{case_id}-remember", "task": f"remember-{case_id}", "inputs": inputs, "outputs": ["memory.jsonl"], "budget": _free()}
     return task, entry
 
@@ -332,7 +333,7 @@ def _alerts(item: CaseInputs, templates: Mapping[str, Task]) -> tuple[dict, dict
         "OUSAST_FIXED_PIN": str(case["fixed"]),
     }  # fmt: skip
     task = _task(templates["alerts"], f"alerts-{case['id']}", env, bindings)
-    entry = {"name": f"{case['id']}-alerts", "task": f"alerts-{case['id']}", "outputs": ["alerts.jsonl"], "budget": _free()}
+    entry = {"name": f"{case['id']}-alerts", "task": f"alerts-{case['id']}", "outputs": ["alerts.jsonl", "summary.json"], "budget": _free()}
     entry["serialize"] = "engine"
     return fixed, task, entry
 

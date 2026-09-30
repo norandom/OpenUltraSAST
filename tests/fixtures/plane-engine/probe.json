@@ -1,0 +1,29 @@
+{
+  "root": "/case",
+  "families": [
+    "injection"
+  ],
+  "seconds": 58.6,
+  "questions": 1,
+  "completed": 1,
+  "completed_regions": [
+    "app/index.php:"
+  ],
+  "degradations": [],
+  "findings": [
+    {
+      "site": "app/index.php:3:<global>",
+      "family": "injection",
+      "rung": "model_entailed",
+      "witness": "$_GET[\"id\"] -> mysqli_query($conn, \"SELECT * FROM users WHERE id = \" . $id) in app/index.php (line 3, 4 steps)",
+      "reached_from": 1
+    },
+    {
+      "site": "app/index.php:5:<global>",
+      "family": "injection",
+      "rung": "model_entailed",
+      "witness": "$_GET[\"host\"] -> system(\"ping \" . $_GET[\"host\"]) in app/index.php (line 5, 2 steps)",
+      "reached_from": 1
+    }
+  ]
+}

@@ -7,7 +7,7 @@ metadata:
   name: remember
   atespace: default
 spec:
-  image: "localhost:5001/ousast-runner@sha256:7fbd523f127f1e15eddc48b06e73acf75fa70f741d36e0749e74ca883797f6c9"
+  image: "localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8"
   command: ["remember"]
   resources:
     requests:

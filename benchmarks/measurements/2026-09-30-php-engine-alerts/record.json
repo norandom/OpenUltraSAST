@@ -1,0 +1,391 @@
+{
+ "engine_image": "sha256:e6f8dc6cc7547f7118bd058687de676e0fcf741799d1d3839b3e8648ce190fbb",
+ "host_resources_during_engine_runs": {
+  "disk_free_mb_min": 2102,
+  "engine_container_gib_peak": 2.129,
+  "host_available_mb_min": 1952,
+  "host_total_mb": 7877,
+  "host_used_mb_peak": 5924,
+  "samples": 61
+ },
+ "new_spend_usd": 0.0,
+ "note": "Engine alerts for the two PHP loop cases of validation-46, produced on the host by `ousast plane alerts-engine` (openultrasast:dev, frozen export of f4bd984's src + finding_dump.py, --network none --memory 3g, one container at a time, deadline 1800 s per pin), then the loop's remember -> measure -> propose -> improve on the local ax with the rebuilt runner image. The quick-mode alerts these cases had before (0 per pin) were a zero on an uncovered language.",
+ "runner_image": "localhost:5001/ousast-runner@sha256:ebb40a9a0985bb0665a74cbaf3db5ab0c31efda369a5f5366c51f7c12fad68c8",
+ "tasks": {
+  "froxlor-admin-ip-second-order-sqli-alerts": {
+   "finished": "2026-09-30T11:32:02+00:00",
+   "model": null,
+   "reason": null,
+   "reused": {
+    "alerts": {
+     "fixed": 6,
+     "vulnerable": 6
+    },
+    "host": true,
+    "image": "sha256:e6f8dc6cc7547f7118bd058687de676e0fcf741799d1d3839b3e8648ce190fbb",
+    "seconds": 789.1,
+    "source": "engine"
+   },
+   "started": "2026-09-30T09:50:49+00:00",
+   "status": "done",
+   "summary": {
+    "alerts": {
+     "fixed": 6,
+     "vulnerable": 6
+    },
+    "alerts_engine": {
+     "fixed": 6,
+     "vulnerable": 6
+    },
+    "calls": 0,
+    "coverage": {
+     "javascript": {
+      "coverage": "quick",
+      "files": {
+       "fixed": 18,
+       "vulnerable": 18
+      }
+     },
+     "php": {
+      "coverage": "engine",
+      "files": {
+       "fixed": 348,
+       "vulnerable": 348
+      }
+     }
+    },
+    "deadline": 1800.0,
+    "engine": {
+     "fixed": {
+      "bytes": 4256572,
+      "completed": 130,
+      "degradations": [
+       "cross_partition_semantics_unresolved"
+      ],
+      "exit": 0,
+      "files": 366,
+      "findings": 6,
+      "questions": 130,
+      "seconds": 383.2
+     },
+     "vulnerable": {
+      "bytes": 4256094,
+      "completed": 130,
+      "degradations": [
+       "cross_partition_semantics_unresolved"
+      ],
+      "exit": 0,
+      "files": 366,
+      "findings": 6,
+      "questions": 130,
+      "seconds": 398.2
+     }
+    },
+    "engine_languages": [
+     "php"
+    ],
+    "family": "injection",
+    "host": true,
+    "image": "sha256:e6f8dc6cc7547f7118bd058687de676e0fcf741799d1d3839b3e8648ce190fbb",
+    "in_fix_range": {
+     "fixed": 0,
+     "vulnerable": 0
+    },
+    "model": null,
+    "pins": {
+     "fixed": "a1eaca5a1601c8a30e00814a4fc73ad0c185f89e",
+     "vulnerable": "9bf03de643a2edee4642bfc6c94db1f05253da02"
+    },
+    "quick_languages": [
+     "c",
+     "cpp",
+     "groovy",
+     "java",
+     "javascript",
+     "python",
+     "typescript"
+    ],
+    "read": {
+     "fixed": {
+      "bytes": 4256572,
+      "files": 366
+     },
+     "vulnerable": {
+      "bytes": 4256094,
+      "files": 366
+     }
+    },
+    "seconds": 789.1,
+    "source": "engine",
+    "status": "done",
+    "uncovered": [],
+    "units_done": 2,
+    "units_total": 2,
+    "usage": {},
+    "usd": 0
+   },
+   "usd": null
+  },
+  "froxlor-admin-ip-second-order-sqli-remember": {
+   "finished": "2026-09-30T11:38:01+00:00",
+   "model": null,
+   "reason": null,
+   "started": "2026-09-30T11:37:32+00:00",
+   "status": "done",
+   "summary": {
+    "calls": 0,
+    "facts_row": "omitted: the facts task's summary names no image, and a reuse key must not guess it",
+    "model": null,
+    "rows": 25,
+    "status": "done",
+    "units_done": 1,
+    "units_total": 1,
+    "usage": {},
+    "usd": 0
+   },
+   "usd": 0
+  },
+  "loop-improve": {
+   "finished": "2026-09-30T11:39:55+00:00",
+   "model": null,
+   "reason": null,
+   "started": "2026-09-30T11:39:24+00:00",
+   "status": "done",
+   "summary": {
+    "accepted": false,
+    "calls": 0,
+    "edits": 0,
+    "memory_edits": 0,
+    "model": null,
+    "reason": "no_proposals",
+    "status": "done",
+    "step": "improve",
+    "units_done": 1,
+    "units_total": 1,
+    "usage": {},
+    "usd": 0
+   },
+   "usd": 0
+  },
+  "loop-measure": {
+   "finished": "2026-09-30T11:38:54+00:00",
+   "model": null,
+   "reason": null,
+   "started": "2026-09-30T11:38:28+00:00",
+   "status": "done",
+   "summary": {
+    "calls": 0,
+    "model": null,
+    "rows": {
+     "run": 32,
+     "snapshot": 191,
+     "union": 211
+    },
+    "status": "done",
+    "step": "measure",
+    "units_done": 1,
+    "units_total": 1,
+    "usage": {},
+    "usd": 0
+   },
+   "usd": 0
+  },
+  "loop-propose": {
+   "finished": "2026-09-30T11:39:24+00:00",
+   "model": null,
+   "reason": null,
+   "started": "2026-09-30T11:38:54+00:00",
+   "status": "done",
+   "summary": {
+    "calls": 0,
+    "excluded": 0,
+    "kept": 211,
+    "model": null,
+    "proposals": 0,
+    "rows": 211,
+    "status": "done",
+    "step": "propose",
+    "units_done": 1,
+    "units_total": 1,
+    "usage": {},
+    "usd": 0
+   },
+   "usd": 0
+  },
+  "memory-snapshot": {
+   "finished": "2026-09-30T11:37:31+00:00",
+   "model": null,
+   "reused": {
+    "index_digest": "5e9299a551eea21289224ee063b2eb8cdf3f845a69967baf8b8c02d5be9cfc74",
+    "kept": 191,
+    "rows": 191,
+    "snapshot": "file:///tmp/claude-1000/-home-mc-Source-OpenUltraSAST/c09e30b2-39a4-4564-bc31-6ea71ffaa198/scratchpad/hxr2/memory"
+   },
+   "started": null,
+   "status": "done",
+   "summary": {
+    "calls": 0,
+    "model": null,
+    "reused": {
+     "excluded": {
+      "gated_case": {},
+      "holdout_pair": {},
+      "population": {},
+      "rows": 0
+     },
+     "guard": {
+      "catalog": "benchmarks/pairs/catalog.toml",
+      "manifest": "benchmarks/manifests/java-spring-boot-vulnerable.toml",
+      "populations": []
+     },
+     "index_digest": "5e9299a551eea21289224ee063b2eb8cdf3f845a69967baf8b8c02d5be9cfc74",
+     "index_entries": 19,
+     "kept": 191,
+     "rows": 191,
+     "store": "file:///tmp/claude-1000/-home-mc-Source-OpenUltraSAST/c09e30b2-39a4-4564-bc31-6ea71ffaa198/scratchpad/hxr2/memory"
+    },
+    "status": "done",
+    "units_done": 1,
+    "units_total": 1,
+    "usage": {},
+    "usd": null
+   },
+   "usd": null
+  },
+  "wp-gopay-log-filter-sqli-alerts": {
+   "finished": "2026-09-30T11:36:07+00:00",
+   "model": null,
+   "reason": null,
+   "reused": {
+    "alerts": {
+     "fixed": 0,
+     "vulnerable": 0
+    },
+    "host": true,
+    "image": "sha256:e6f8dc6cc7547f7118bd058687de676e0fcf741799d1d3839b3e8648ce190fbb",
+    "seconds": 245.2,
+    "source": "engine"
+   },
+   "started": "2026-09-30T09:52:27+00:00",
+   "status": "done",
+   "summary": {
+    "alerts": {
+     "fixed": 0,
+     "vulnerable": 0
+    },
+    "alerts_engine": {
+     "fixed": 0,
+     "vulnerable": 0
+    },
+    "calls": 0,
+    "coverage": {
+     "javascript": {
+      "coverage": "quick",
+      "files": {
+       "fixed": 4,
+       "vulnerable": 4
+      }
+     },
+     "php": {
+      "coverage": "engine",
+      "files": {
+       "fixed": 15,
+       "vulnerable": 15
+      }
+     }
+    },
+    "deadline": 1800.0,
+    "engine": {
+     "fixed": {
+      "bytes": 150539,
+      "completed": 101,
+      "degradations": [
+       "cross_partition_semantics_unresolved",
+       "vendor_semantics_unresolved"
+      ],
+      "exit": 0,
+      "files": 19,
+      "findings": 0,
+      "questions": 101,
+      "seconds": 122.0
+     },
+     "vulnerable": {
+      "bytes": 150528,
+      "completed": 101,
+      "degradations": [
+       "cross_partition_semantics_unresolved",
+       "vendor_semantics_unresolved"
+      ],
+      "exit": 0,
+      "files": 19,
+      "findings": 0,
+      "questions": 101,
+      "seconds": 120.2
+     }
+    },
+    "engine_languages": [
+     "php"
+    ],
+    "family": "injection",
+    "host": true,
+    "image": "sha256:e6f8dc6cc7547f7118bd058687de676e0fcf741799d1d3839b3e8648ce190fbb",
+    "in_fix_range": {
+     "fixed": 0,
+     "vulnerable": 0
+    },
+    "model": null,
+    "pins": {
+     "fixed": "7190c985370f9758f226c2f2addd79532a2f93d5",
+     "vulnerable": "626bc8b5f8d33de6eefd921e3a05ed52ac320bcd"
+    },
+    "quick_languages": [
+     "c",
+     "cpp",
+     "groovy",
+     "java",
+     "javascript",
+     "python",
+     "typescript"
+    ],
+    "read": {
+     "fixed": {
+      "bytes": 150539,
+      "files": 19
+     },
+     "vulnerable": {
+      "bytes": 150528,
+      "files": 19
+     }
+    },
+    "seconds": 245.2,
+    "source": "engine",
+    "status": "done",
+    "uncovered": [],
+    "units_done": 2,
+    "units_total": 2,
+    "usage": {},
+    "usd": 0
+   },
+   "usd": null
+  },
+  "wp-gopay-log-filter-sqli-remember": {
+   "finished": "2026-09-30T11:38:28+00:00",
+   "model": null,
+   "reason": null,
+   "started": "2026-09-30T11:38:01+00:00",
+   "status": "done",
+   "summary": {
+    "calls": 0,
+    "facts_row": "omitted: the facts task's summary names no image, and a reuse key must not guess it",
+    "model": null,
+    "rows": 7,
+    "status": "done",
+    "units_done": 1,
+    "units_total": 1,
+    "usage": {},
+    "usd": 0
+   },
+   "usd": 0
+  }
+ }
+}

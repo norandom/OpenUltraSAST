@@ -1,7 +1,7 @@
 """The plane's memory store (harnessx-removal Requirement 6.1/6.4, design section 4).
 
 One store, keyed by repository and pin, holds what plane runs learned: repository facts by content hash, and rows
-of five kinds (``facts``, ``verdict``, ``unit_cost``, ``alert``, ``proposal_outcome``) that the ``remember`` task
+of six kinds (``facts``, ``verdict``, ``unit_cost``, ``alert``, ``coverage``, ``proposal_outcome``) that ``remember``
 (:mod:`.tasks.remember`) derives from a run's delivered artifacts. Layout, identical for both backends::
 
     index.jsonl                               one row per ingested (run, task): sha256 of its rows, row count
@@ -49,7 +49,7 @@ MEMORY_KEY_ANNOTATION = "openultrasast.io/memory-key"
 POPULATION_ANNOTATION = "openultrasast.io/population"
 SPLIT_ANNOTATION = "openultrasast.io/split"
 SNAPSHOT_ANNOTATION = "openultrasast.io/memory-snapshot"  # the loop's guard: {"catalog", "manifest", "populations"}
-KINDS = ("facts", "verdict", "unit_cost", "alert", "proposal_outcome")
+KINDS = ("facts", "verdict", "unit_cost", "alert", "coverage", "proposal_outcome")
 ROW_FIELDS = ("id", "kind", "repo", "pin", "run", "task", "population", "split", "image")
 TAG_FIELDS = ("repo", "pin", "kind", "family", "run", "population", "split")
 MIN_FREE_BYTES = 1 << 30

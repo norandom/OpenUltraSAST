@@ -99,6 +99,38 @@ def test_rows_carry_every_final_the_tiebreak_and_alerts() -> None:
     assert rows == rows_for(ctx, facts=None, passes={}, models={}, agreed=agreed, alerts=[alert]), "deterministic"
 
 
+COVERAGE_SUMMARY = {
+    "status": "done", "pins": {"vulnerable": "0" * 40, "fixed": "f" * 40},
+    "coverage": {
+        "javascript": {"coverage": "quick", "files": {"vulnerable": 2}},
+        "php": {"coverage": "none", "files": {"vulnerable": 9, "fixed": 9}},
+    },
+}  # fmt: skip
+
+
+def test_the_alerts_coverage_becomes_one_row_per_language_and_pin() -> None:
+    ctx = Context("r", "c-remember", "https://github.com/o/r.git", "0" * 40, "sha256:" + "1" * 64)
+    rows = rows_for(ctx, facts=None, passes={}, models={}, agreed=None, alerts=[], alerts_summary=COVERAGE_SUMMARY)
+    got = sorted((r["language"], r["pin_role"], r["pin"], r["coverage"], r["files"]) for r in rows if r["kind"] == "coverage")
+    assert got == [
+        ("javascript", "vulnerable", "0" * 40, "quick", 2), ("php", "fixed", "f" * 40, "none", 9),
+        ("php", "vulnerable", "0" * 40, "none", 9),
+    ]  # fmt: skip
+    assert rows_for(ctx, facts=None, passes={}, models={}, agreed=None, alerts_summary={"status": "done"}) == [], "unknown stays unknown"
+
+
+def test_remember_run_carries_the_alerts_coverage_into_the_store(run_dir: Path, tmp_path: Path) -> None:
+    (run_dir / f"{CASE}-alerts").mkdir()
+    (run_dir / f"{CASE}-alerts" / "alerts.jsonl").write_text("")  # zero alerts: meaningful only through the coverage
+    summary = {**COVERAGE_SUMMARY, "pins": {"vulnerable": PIN, "fixed": "f" * 40}}
+    (run_dir / f"{CASE}-alerts" / "summary.json").write_text(json.dumps(summary))
+    store = FileStore(tmp_path / "memory")
+    [result] = remember_run(run_dir, store)
+    assert result.kinds["coverage"] == 3
+    php = sorted((r["pin"], r["coverage"]) for r in _by_kind(store)["coverage"] if r["language"] == "php")
+    assert php == [(PIN, "none"), ("f" * 40, "none")]
+
+
 def test_the_task_entrypoint_writes_memory_and_passes_facts_through(run_dir: Path, tmp_path: Path) -> None:
     docs = list(yaml.safe_load_all((run_dir / f"{CASE}-facts" / "task.yaml").read_text()))
     task = next(d for d in docs if d["kind"] == "Task")

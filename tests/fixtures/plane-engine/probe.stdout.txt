@@ -1,0 +1,2 @@
+read 1 files, 145 bytes; 1 regions offer ('injection',)
+{"root": "/case", "families": ["injection"], "seconds": 58.6, "questions": 1, "completed": 1, "degradations": [], "findings": 2}

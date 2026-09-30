@@ -1,0 +1,96 @@
+{
+  "alerts": {
+    "fixed": 6,
+    "vulnerable": 6
+  },
+  "alerts_engine": {
+    "fixed": 6,
+    "vulnerable": 6
+  },
+  "calls": 0,
+  "coverage": {
+    "javascript": {
+      "coverage": "quick",
+      "files": {
+        "fixed": 18,
+        "vulnerable": 18
+      }
+    },
+    "php": {
+      "coverage": "engine",
+      "files": {
+        "fixed": 348,
+        "vulnerable": 348
+      }
+    }
+  },
+  "deadline": 1800.0,
+  "engine": {
+    "fixed": {
+      "bytes": 4256572,
+      "completed": 130,
+      "degradations": [
+        "cross_partition_semantics_unresolved"
+      ],
+      "exit": 0,
+      "files": 366,
+      "findings": 6,
+      "questions": 130,
+      "seconds": 383.2
+    },
+    "vulnerable": {
+      "bytes": 4256094,
+      "completed": 130,
+      "degradations": [
+        "cross_partition_semantics_unresolved"
+      ],
+      "exit": 0,
+      "files": 366,
+      "findings": 6,
+      "questions": 130,
+      "seconds": 398.2
+    }
+  },
+  "engine_languages": [
+    "php"
+  ],
+  "family": "injection",
+  "host": true,
+  "image": "sha256:e6f8dc6cc7547f7118bd058687de676e0fcf741799d1d3839b3e8648ce190fbb",
+  "in_fix_range": {
+    "fixed": 0,
+    "vulnerable": 0
+  },
+  "model": null,
+  "pins": {
+    "fixed": "a1eaca5a1601c8a30e00814a4fc73ad0c185f89e",
+    "vulnerable": "9bf03de643a2edee4642bfc6c94db1f05253da02"
+  },
+  "quick_languages": [
+    "c",
+    "cpp",
+    "groovy",
+    "java",
+    "javascript",
+    "python",
+    "typescript"
+  ],
+  "read": {
+    "fixed": {
+      "bytes": 4256572,
+      "files": 366
+    },
+    "vulnerable": {
+      "bytes": 4256094,
+      "files": 366
+    }
+  },
+  "seconds": 789.1,
+  "source": "engine",
+  "status": "done",
+  "uncovered": [],
+  "units_done": 2,
+  "units_total": 2,
+  "usage": {},
+  "usd": 0
+}
