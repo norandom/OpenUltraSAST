@@ -1,8 +1,9 @@
 """The plane's memory store (harnessx-removal Requirement 6.1/6.4, design section 4).
 
 One store, keyed by repository and pin, holds what plane runs learned: repository facts by content hash, and rows
-of six kinds (``facts``, ``verdict``, ``unit_cost``, ``alert``, ``coverage``, ``proposal_outcome``) that ``remember``
-(:mod:`.tasks.remember`) derives from a run's delivered artifacts. Layout, identical for both backends::
+of the kinds in ``KINDS`` (``facts``, ``verdict``, ``unit_cost``, ``alert``, ``coverage``, ``features``, ...) that
+``remember`` (:mod:`.tasks.remember`) derives from a run's delivered artifacts, plus the loop's and the decision
+engine's own. Layout, identical for both backends::
 
     index.jsonl                               one row per ingested (run, task): sha256 of its rows, row count
     facts/<sha256>.json                       facts.json by content (identical facts stored once)
@@ -49,7 +50,12 @@ MEMORY_KEY_ANNOTATION = "openultrasast.io/memory-key"
 POPULATION_ANNOTATION = "openultrasast.io/population"
 SPLIT_ANNOTATION = "openultrasast.io/split"
 SNAPSHOT_ANNOTATION = "openultrasast.io/memory-snapshot"  # the loop's guard: {"catalog", "manifest", "populations"}
-KINDS = ("facts", "verdict", "unit_cost", "alert", "coverage", "proposal_outcome")
+# The decision engine's kinds (learned-decision-engine, Data Models): `features` from the `features` task through
+# `remember`; `label`, `decision`, `experiment`, `arm_outcome` and `experiment_result` for the later tasks.
+KINDS = (
+    "facts", "verdict", "unit_cost", "alert", "coverage", "proposal_outcome",
+    "features", "label", "decision", "experiment", "arm_outcome", "experiment_result",
+)  # fmt: skip
 ROW_FIELDS = ("id", "kind", "repo", "pin", "run", "task", "population", "split", "image")
 TAG_FIELDS = ("repo", "pin", "kind", "family", "run", "population", "split")
 MIN_FREE_BYTES = 1 << 30

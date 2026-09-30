@@ -56,7 +56,8 @@ def test_model_prices_are_the_endpoint_prices() -> None:
 
 def test_validation_run_resolves_and_renders_every_task(tmp_path: Path) -> None:
     run, manifests = reconciler.load_run(RUN)
-    assert len(run.tasks) == 105  # per case: facts, va, vb, agree, then vc, final, then remember (harnessx-removal task 4)
+    # per case: facts, va, vb, agree, then vc, final, then features (learned-decision-engine task 1) and remember
+    assert len(run.tasks) == 120
     population = {c["id"]: c for c in tomllib.loads(POPULATION.read_text())["case"]}
     ax_names: set[str] = set()
     for task in manifests.tasks.values():
@@ -96,7 +97,9 @@ def test_tiebreak_appends_thirty_tasks_and_keeps_the_first_sixty_byte_identical(
     first = text.split("  - name: budibase-mongo-template-nosqli-vc\n", 1)[0]
     assert hashlib.sha256(first.encode()).hexdigest() == FIRST_RUN_ENTRIES
     run, manifests = reconciler.load_run(RUN)
-    old, new, remembered = run.tasks[:60], run.tasks[60:90], run.tasks[90:]
+    old, new, appended = run.tasks[:60], run.tasks[60:90], run.tasks[90:]
+    assert [e.name.rsplit("-", 1)[1] for e in appended] == ["features", "remember"] * 15
+    remembered = appended[1::2]
     assert [e.name.rsplit("-", 1)[1] for e in old] == ["facts", "va", "vb", "agree"] * 15
     assert [e.name.rsplit("-", 1)[1] for e in new] == ["vc", "final"] * 15
     for vc, final in zip(new[::2], new[1::2], strict=True):
@@ -112,9 +115,15 @@ def test_tiebreak_appends_thirty_tasks_and_keeps_the_first_sixty_byte_identical(
         for entry in (vc, final):
             name = reconciler._ax_name(run.metadata.name, entry.name, limit=reconciler.TASK_NAME_LIMIT)
             assert len(name) <= reconciler.TASK_NAME_LIMIT
+    for entry in appended[::2]:  # learned-decision-engine task 1: model-free, the chain's artifacts in, records out
+        case = entry.name.removesuffix("-features")
+        assert entry.inputs["agreed"] == f"{case}-final/agreed.json" and entry.outputs == ("features.jsonl", "summary.json")
+        assert entry.budget is not None and (entry.budget.usd, entry.budget.calls) == (0, 0)
+        assert reconciler.MODEL_ANNOTATION not in manifests.tasks[entry.task].metadata.annotations
     for entry in remembered:  # harnessx-removal task 4: appended after the tie-break, model-free
         case = entry.name.removesuffix("-remember")
         assert entry.inputs["agreed"] == f"{case}-final/agreed.json" and entry.inputs["pass_c"] == f"{case}-vc/units.jsonl"
+        assert entry.inputs["features"] == f"{case}-features/features.jsonl"
         assert entry.budget is not None and (entry.budget.usd, entry.budget.calls) == (0, 0)
         assert reconciler.MODEL_ANNOTATION not in manifests.tasks[entry.task].metadata.annotations
         assert len(reconciler._ax_name(run.metadata.name, entry.name, limit=reconciler.TASK_NAME_LIMIT)) <= reconciler.TASK_NAME_LIMIT

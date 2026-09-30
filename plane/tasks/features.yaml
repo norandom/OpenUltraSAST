@@ -1,0 +1,18 @@
+# features (learned-decision-engine design section 1): one allow-listed feature record per candidate. No model.
+# The template of the per-case Tasks (bound to the case's vulnerable Workspace for the functions' spans and the
+# entry-point distance); `remember` stores the records as `features` rows. The image is digest-pinned.
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: features
+  atespace: default
+spec:
+  image: "localhost:5001/ousast-runner@sha256:e9964977659c4dcea7d8b25390ca0e16368ac901dd076aa6138df8303a0bb699"
+  command: ["features"]
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"

@@ -1,7 +1,7 @@
 {
-  "modules": 135,
+  "modules": 139,
   "counts": {
-    "load_bearing": 128,
+    "load_bearing": 132,
     "standalone_capability": 7
   },
   "orphaned": [],
@@ -347,6 +347,33 @@
       ]
     },
     {
+      "module": "learn",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
+        "learn.features",
+        "plane.tasks.features",
+        "plane.tasks.remember"
+      ]
+    },
+    {
+      "module": "learn.features",
+      "classification": "load_bearing",
+      "reason": "imported by plane.tasks.features",
+      "importers": [
+        "plane.tasks.features"
+      ]
+    },
+    {
+      "module": "learn.schema",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
+        "learn.features",
+        "plane.tasks.remember"
+      ]
+    },
+    {
       "module": "map_gate",
       "classification": "load_bearing",
       "reason": "entry point",
@@ -361,6 +388,7 @@
         "gate",
         "hunter_tools",
         "improve.evolve",
+        "learn.features",
         "map_gate",
         "model.scan",
         "pairs",
@@ -386,6 +414,7 @@
         "cli",
         "cpg.backend",
         "cpg.session",
+        "learn.features",
         "model.candidates",
         "model.config_value",
         "model.dominance",
@@ -401,6 +430,7 @@
         "model.taint",
         "plane.budget",
         "plane.generate",
+        "plane.tasks.features",
         "plane.tasks.repo_facts",
         "preprocess",
         "push.assistance",
@@ -626,10 +656,12 @@
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
+        "learn.features",
         "model.candidates",
         "model.report",
         "model.scan",
-        "model.specs"
+        "model.specs",
+        "plane.tasks.features"
       ]
     },
     {
@@ -768,11 +800,13 @@
       "reason": "ai-service-plane Req 4.1: the task entrypoint package the runner imports by name; runner integration pending (task 3)",
       "importers": [
         "cli",
+        "learn.features",
         "plane.engine_alerts",
         "plane.generate",
         "plane.memory",
         "plane.tasks.agree",
         "plane.tasks.alerts",
+        "plane.tasks.features",
         "plane.tasks.remember"
       ]
     },
@@ -787,8 +821,16 @@
       "classification": "load_bearing",
       "reason": "harnessx-removal Req 6.3: quick-mode alerts on a case's vulnerable and fixed pins, model-free",
       "importers": [
-        "plane.engine_alerts"
+        "learn.features",
+        "plane.engine_alerts",
+        "plane.tasks.features"
       ]
+    },
+    {
+      "module": "plane.tasks.features",
+      "classification": "load_bearing",
+      "reason": "learned-decision-engine Req 1.1-1.3/7.2: one allow-listed feature record per candidate, model-free",
+      "importers": []
     },
     {
       "module": "plane.tasks.loop",
@@ -811,8 +853,10 @@
       "classification": "load_bearing",
       "reason": "ai-service-plane Req 5.1/5.2: source-only functions and callers per file; runner integration pending",
       "importers": [
+        "learn.features",
         "plane.generate",
         "plane.tasks.alerts",
+        "plane.tasks.features",
         "plane.tasks.remember"
       ]
     },
@@ -872,6 +916,7 @@
         "hunter_tools",
         "improve.evolve",
         "index",
+        "learn.features",
         "map_gate",
         "mapping",
         "model.candidates",
@@ -879,6 +924,7 @@
         "model.scan",
         "pairs",
         "plane.tasks.alerts",
+        "plane.tasks.features",
         "plane.tasks.repo_facts",
         "push.runner",
         "rank",
@@ -1148,8 +1194,10 @@
         "improve.evolve",
         "improve.memory",
         "improve.validator",
+        "learn.features",
         "pairs",
         "plane.tasks.alerts",
+        "plane.tasks.features",
         "plane.tasks.loop",
         "stage_processors"
       ]
@@ -1229,6 +1277,7 @@
         "cli",
         "cpg.capability",
         "hunter_tools",
+        "learn.features",
         "mapping",
         "model.candidates",
         "model.layout",
@@ -1283,6 +1332,7 @@
       "importers": [
         "cli",
         "hunter_tools",
+        "learn.features",
         "mapping",
         "model.candidates",
         "model.layout",

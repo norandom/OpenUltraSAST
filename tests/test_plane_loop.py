@@ -169,15 +169,18 @@ def test_fix_ranges_new_side_are_the_fixed_pins_lines(tmp_path: Path) -> None:
 def test_every_case_ends_in_remember_and_the_loop_is_model_free(tmp_path: Path) -> None:
     plain = render([_case()], _templates(), "validation-46", "t", population="population-v2", split="validation")
     run, _ = reconciler.load_run(_write(tmp_path / "plain", plain))
-    assert [e.name.removeprefix(f"{CASE}-") for e in run.tasks] == [*CHAIN[:4], "vc", "final", "remember"]
+    assert [e.name.removeprefix(f"{CASE}-") for e in run.tasks] == [*CHAIN[:4], "vc", "final", "features", "remember"]
     remember = run.task(f"{CASE}-remember")
     assert remember.inputs["agreed"] == f"{CASE}-final/agreed.json" and "alerts" not in remember.inputs
-    assert set(remember.producers) == {f"{CASE}-{step}" for step in ("facts", "va", "vb", "vc", "final")}
+    assert set(remember.producers) == {f"{CASE}-{step}" for step in ("facts", "va", "vb", "vc", "final", "features")}
+    assert set(run.task(f"{CASE}-features").producers) == {f"{CASE}-{step}" for step in ("facts", "va", "vb", "vc", "final")}
 
     files = render([_case(fixed_ranges={"x.py": [(1, 2)]})], _templates(), "validation-46", "t", population="p", split="s", loop=LOOP)
     run, manifests = reconciler.load_run(_write(tmp_path / "loop", files))
     names = [e.name for e in run.tasks]
-    assert names[:6] == [f"{CASE}-{step}" for step in CHAIN] and names[6:] == [f"{CASE}-alerts", f"{CASE}-remember", *LOOP_TASKS]
+    assert names[:6] == [f"{CASE}-{step}" for step in CHAIN]
+    assert names[6:] == [f"{CASE}-alerts", f"{CASE}-features", f"{CASE}-remember", *LOOP_TASKS]
+    assert run.task(f"{CASE}-features").inputs["alerts"] == f"{CASE}-alerts/alerts.jsonl", "features read the alerts"
     assert run.task(f"{CASE}-remember").inputs["alerts"] == f"{CASE}-alerts/alerts.jsonl"
     assert run.task(f"{CASE}-remember").inputs["alerts_summary"] == f"{CASE}-alerts/summary.json", "the coverage travels too"
     measure_inputs = {f"remember_{CASE}": f"{CASE}-remember/memory.jsonl", "snapshot": "memory-snapshot/rows.jsonl"}
@@ -262,6 +265,7 @@ def test_the_loop_runs_as_one_plane_run_and_the_gate_rejects_a_demotion_that_cos
     fake.script({
         f"{CASE}-alerts": {"exec": {"env": {"PYTHONPATH": SRC, "OUSAST_WORKSPACE_DIR": str(vulnerable), "OUSAST_FIXED_DIR": str(fixed),
                                             "OUSAST_INPUT_CASE": str(tmp_path / "case.json")}}},
+        f"{CASE}-features": {"exec": {"env": {"PYTHONPATH": SRC, "OUSAST_WORKSPACE_DIR": str(vulnerable)}}},
         f"{CASE}-remember": {"exec": {"env": {"PYTHONPATH": SRC}}},
         "loop-measure": {"exec": {"env": {"PYTHONPATH": SRC}}},
         "loop-propose": {"exec": {"env": project_env}},
@@ -271,10 +275,10 @@ def test_the_loop_runs_as_one_plane_run_and_the_gate_rejects_a_demotion_that_cos
     assert cli.main(["plane", "run", str(manifest), "--ax", str(fake.ax)]) == 0, (fake.root / "ax.log").read_text()[-3000:]
 
     statuses = {name: info["status"] for name, info in json.loads((base / "state.json").read_text())["tasks"].items()}
-    assert set(statuses.values()) == {"done"} and len(statuses) == 12
+    assert set(statuses.values()) == {"done"} and len(statuses) == 13
     assert json.loads((base / "memory-snapshot" / "index.json").read_text())["kept"] == 4, "seeded on the host, not run"
     delivered = [name for _, name in fake.events("delivered")]
-    assert delivered == [f"{CASE}-alerts", f"{CASE}-remember", "loop-measure", "loop-propose", "loop-improve"]
+    assert delivered == [f"{CASE}-alerts", f"{CASE}-features", f"{CASE}-remember", "loop-measure", "loop-propose", "loop-improve"]
 
     measure = json.loads((base / "loop-measure" / "measure.json").read_text())
     assert measure["run_metrics"]["declared_sites_agreed"] == 1 and measure["run_metrics"]["candidates"] == 1
@@ -297,10 +301,13 @@ def test_the_loop_runs_as_one_plane_run_and_the_gate_rejects_a_demotion_that_cos
 
     report = reconciler.attribution("validation-46")
     for row in report["tasks"]:
-        if row["task"] in (f"{CASE}-alerts", f"{CASE}-remember", *LOOP_TASKS):
+        if row["task"] in (f"{CASE}-alerts", f"{CASE}-features", f"{CASE}-remember", *LOOP_TASKS):
             assert row["model"] is None and row["usd"] in (0, None) and row["calls"] in (0, None), row
     ingested = FileStore(store.root)
     outcomes = ingested.rows(kind="proposal_outcome")
     assert {r.row["outcome"] for r in outcomes} == {"reverted"} and len(outcomes) == 2, "one per (repo, pin) of the evidence"
     [fixed_alert] = ingested.rows(repo="example.com/reserved/lmdeploy", pin=FIXED, kind="alert")
+    features = {r.row["candidate"]: r.row for r in ingested.rows(kind="features")}
+    assert set(features) == {"lmdeploy/vl/media/connection.py::_load_http_url"}, "no fixed-pin alert became a candidate"
+    assert all(r["pin"] == VULNERABLE and "in_fix_range" not in json.dumps(r["x"]) for r in features.values())
     assert fixed_alert.row["in_fix_range"] is True and fixed_alert.row["function"] == "load"

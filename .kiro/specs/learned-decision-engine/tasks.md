@@ -5,7 +5,7 @@ Order follows the design's commit sequence. Every task is a commit gated on the 
 adopted model every path is today's. Tasks 5, 7 and 10 spend model money or host hours: each starts only after
 the maintainer confirms its budget.
 
-- [ ] 1. Schema and features
+- [x] 1. Schema and features
   - `learn/schema.py` (closed, typed allow-list; no identities; missing != zero), `learn/features.py` (host
     builder), new memory `KINDS`, `plane/tasks/features.py` and the `remember` input; tests enforcing the
     allow-list and the exclusion of label-carrying fields.
