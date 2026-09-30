@@ -171,7 +171,7 @@ def within_tolerance(
 ) -> bool:
     """True if ``candidate`` recall/FP stay within tolerance of ``baseline``.
 
-    Used to confirm a HarnessX-backed stage does not drift detection beyond the
+    Used to confirm a model-backed stage does not drift detection beyond the
     configured band of the zero-dependency baseline. Recall may not fall more than
     ``recall_tolerance`` below baseline; FP may not rise more than ``fp_tolerance``
     above it.

@@ -20,7 +20,7 @@ RUN apt-get update \
 WORKDIR /opt/openultrasast
 COPY pyproject.toml README.md ./
 COPY src ./src
-# Core install only: PyYAML for the manifests, no extras (no HarnessX, no tree-sitter).
+# Core install only: PyYAML for the manifests, no extras (no tree-sitter).
 RUN pip install --no-cache-dir . \
  && printf '#!/bin/sh\nexec python -m openultrasast.plane.runner "$@"\n' > /usr/local/bin/ax-task-runner \
  && chmod 0755 /usr/local/bin/ax-task-runner

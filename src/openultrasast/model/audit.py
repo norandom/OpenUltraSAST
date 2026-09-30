@@ -77,9 +77,7 @@ STANDALONE = {
     "mcp": "narrow MCP server over stdio; its own `ousast mcp` entry point and OpenCode integration",
     "skills": "skill router; consumed by mcp and by the OpenCode integration, not by the scan path",
     "fusion": "two-panel adjudication engine; reached from the scan's report stage and used standalone",
-    "harness_ext": "HarnessX extension surface; loaded by name when the optional harness is present",
-    "hunter_harness": "harness wiring for the tool hunter; used by the hunter path and by mcp",
-    "stage_processors": "HarnessX slot-contracted scan stages; pinned by the zero-dependency guard in test_gate",
+    "stage_processors": "deterministic slot-contracted scan stages; pinned by the zero-dependency guard in test_gate",
     "slot_contract": "the slot/contract protocol stage_processors implements",
 }
 

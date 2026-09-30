@@ -25,13 +25,15 @@ def test_every_module_is_classified() -> None:
 
 
 def test_the_named_subsystems_each_carry_an_explicit_decision() -> None:
-    """Req 3.3: the five older-phase subsystems get a decision, not silence."""
+    """Req 3.3: the older-phase subsystems still in the tree get a decision, not silence."""
     from openultrasast.model.audit import audit
 
     rows = {row.module: row for row in audit(SRC)}
-    for name in ("fusion", "mcp", "skills", "harness_ext", "hunter_harness"):
+    for name in ("fusion", "mcp", "skills"):
         assert name in rows, f"{name} vanished without a recorded decision"
         assert rows[name].reason, f"{name} has no stated reason"
+    # The removed agentic plane's modules are gone from the tree, not carried as rows (harnessx-removal Req 2.1).
+    assert not {"harness_ext", "hunter_harness", "verify_judge"} & set(rows)
 
 
 def test_the_manifest_matches_the_tree() -> None:

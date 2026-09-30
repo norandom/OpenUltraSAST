@@ -2,14 +2,14 @@
 
 8.1 — the recall/FP gate is a hard constraint a score improvement cannot unblock.
 8.2 — default-ruleset benchmark output is byte-identical to a committed baseline.
-8.3 — a HarnessX-backed stage must stay within tolerance of the zero-dep baseline.
-8.4 — the governance/scoring/benchmark planes never import the HarnessX extra.
+8.3 — the tolerance band a changed stage is held to against the zero-dep baseline.
+8.4 — the governance/scoring/benchmark planes import only stdlib, the package and PyYAML at module scope.
 """
 
+import ast
 import json
+import sys
 from pathlib import Path
-
-import pytest
 
 from openultrasast.gate import (
     FALSE_POSITIVE_CEILING,
@@ -20,7 +20,6 @@ from openultrasast.gate import (
     merge_gate,
     within_tolerance,
 )
-from openultrasast.harness_ext import has_harnessx
 
 GOLDEN = Path("tests/golden/detection_baseline.json")
 
@@ -108,7 +107,7 @@ def test_benchmark_output_is_byte_identical_to_golden_baseline() -> None:
     )
 
 
-# ---- 8.3 HarnessX-backed stage stays within detection tolerance -------------
+# ---- 8.3 detection tolerance band -------------------------------------------
 
 
 def test_within_tolerance_band_logic() -> None:
@@ -119,15 +118,6 @@ def test_within_tolerance_band_logic() -> None:
     assert not within_tolerance(base, DetectionMetrics(100, 80, 80, 0), recall_tolerance=0.05, fp_tolerance=0.05)
     # An FP rise beyond the band fails.
     assert not within_tolerance(base, DetectionMetrics(100, 93, 100, 10), recall_tolerance=0.05, fp_tolerance=0.05)
-
-
-@pytest.mark.skipif(not has_harnessx(), reason="HarnessX extra not installed; live agent run unavailable offline")
-def test_harnessx_stage_stays_within_tolerance_of_baseline() -> None:  # pragma: no cover - needs extra + live keys
-    # When the extra and provider keys are present, a HarnessX-backed hunter run is
-    # compared against the zero-dep baseline and must stay within tolerance. Live
-    # LLM execution is unavailable in CI, so this gates on the capability.
-    baseline = detection_gate(evaluate_corpus()).overall
-    assert within_tolerance(baseline, baseline)
 
 
 # ---- 8.4 zero-dependency guard ----------------------------------------------
@@ -152,24 +142,33 @@ GOVERNANCE_SCORING_BENCHMARK_PLANES = (
 )
 
 
-def test_governance_scoring_benchmark_planes_never_import_harnessx(assert_cold_of_harnessx) -> None:  # type: ignore[no-untyped-def]
-    # Hermetic: a fresh interpreter imports every plane and must pull no harnessx.
-    imports = "\n".join(f"import {module}" for module in GOVERNANCE_SCORING_BENCHMARK_PLANES)
-    assert_cold_of_harnessx(imports)
+_ALLOWED_TOP_LEVEL = frozenset(sys.stdlib_module_names) | {"openultrasast", "yaml"}
 
 
-def test_planes_have_no_module_level_harnessx_import() -> None:
-    # Flags only column-0 (module-level) imports; an indented lazy import inside a
-    # capability-guarded function (e.g. stage_processors.host_under_harnessx) is fine.
+def _module_level_imports(tree: ast.Module) -> list[str]:
+    """Top-level names imported outside any function or class body (a lazy import inside a function is fine)."""
+    names: list[str] = []
+    pending: list[ast.AST] = list(tree.body)
+    while pending:
+        node = pending.pop()
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+            continue
+        if isinstance(node, ast.Import):
+            names.extend(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            names.append("openultrasast" if node.level else (node.module or "").split(".")[0])
+        else:
+            pending.extend(ast.iter_child_nodes(node))
+    return names
+
+
+def test_governance_planes_import_only_stdlib_and_declared_dependencies() -> None:
+    # An allow-list, not a deny-list: any optional extra at module scope fails without being named here.
     src = Path("src/openultrasast")
     offenders = []
     for module in GOVERNANCE_SCORING_BENCHMARK_PLANES:
         rel = module.removeprefix("openultrasast.").replace(".", "/")
-        candidates = [src / f"{rel}.py", src / rel / "__init__.py"]
-        path = next((c for c in candidates if c.exists()), None)
-        if path is None:
-            continue
-        for line in path.read_text().splitlines():
-            if line.startswith(("import harnessx", "from harnessx")):
-                offenders.append(f"{path}: {line}")
-    assert offenders == [], f"plane modules import HarnessX at module scope: {offenders}"
+        path = next((c for c in (src / f"{rel}.py", src / rel / "__init__.py") if c.exists()), None)
+        assert path is not None, f"{module} vanished from the guard's list"
+        offenders += [f"{module}: {name}" for name in _module_level_imports(ast.parse(path.read_text())) if name not in _ALLOWED_TOP_LEVEL]
+    assert offenders == [], f"governance planes import beyond stdlib, openultrasast and yaml at module scope: {offenders}"

@@ -11,15 +11,6 @@ requires-python = ">=3.11"
 dependencies = ["pyyaml>=6.0"]
 
 [project.optional-dependencies]
-# HarnessX is the optional agentic plane (LLM hunter/verifier + self-improvement).
-# SHA-pinned for reproducibility; the heavy transitive footprint (see
-# .kiro/specs/harnessx-self-improving-rulesets/dependency-audit.md) lands ONLY when
-# this extra is installed. The core install declares only PyYAML (plane manifests) and every HarnessX
-# import is guarded by openultrasast.harness_ext (lazy). pip does not pull the
-# recipe/verl_harnessX submodule (it is outside the packaged harnessx* modules).
-harnessx = [
-    "harnessx @ git+https://github.com/Darwin-Agent/HarnessX.git@274c512eea67c64701f992d3b6fe06f0fd590ef0",
-]
 # The plane's memory store on MinIO (OUSAST_MEMORY=minio://<bucket>, plane/memory.py). Imported lazily; the
 # core install and the file store need nothing beyond PyYAML.
 minio = [
@@ -68,12 +59,6 @@ no_implicit_optional = true
 warn_redundant_casts = true
 warn_return_any = true
 warn_unused_configs = true
-
-# HarnessX is an optional extra, absent in the type-check environment; its lazy
-# imports inside guarded functions must not fail mypy.
-[[tool.mypy.overrides]]
-module = "harnessx.*"
-ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "tree_sitter"

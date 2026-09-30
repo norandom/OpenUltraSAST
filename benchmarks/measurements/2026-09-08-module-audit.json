@@ -1,20 +1,18 @@
 {
-  "modules": 136,
+  "modules": 134,
   "counts": {
     "load_bearing": 127,
-    "standalone_capability": 9
+    "standalone_capability": 7
   },
   "orphaned": [],
   "standalone": {
     "fusion": "two-panel adjudication engine; reached from the scan's report stage and used standalone",
-    "harness_ext": "HarnessX extension surface; loaded by name when the optional harness is present",
-    "hunter_harness": "harness wiring for the tool hunter; used by the hunter path and by mcp",
     "mcp": "narrow MCP server over stdio; its own `ousast mcp` entry point and OpenCode integration",
     "push_inputs": "pre-push-safety-net task 1.2: offline input provenance validator; python -m openultrasast.push_inputs",
     "push_scoring": "pre-push-safety-net task 1.3: frozen-profile diagnostic outcome scorer; python -m openultrasast.push_scoring",
     "skills": "skill router; consumed by mcp and by the OpenCode integration, not by the scan path",
     "slot_contract": "the slot/contract protocol stage_processors implements",
-    "stage_processors": "HarnessX slot-contracted scan stages; pinned by the zero-dependency guard in test_gate"
+    "stage_processors": "deterministic slot-contracted scan stages; pinned by the zero-dependency guard in test_gate"
   },
   "rows": [
     {
@@ -226,7 +224,6 @@
         "fusion",
         "gate",
         "hunter",
-        "hunter_harness",
         "hunter_tools",
         "improve.evolve",
         "map_gate",
@@ -273,27 +270,12 @@
       ]
     },
     {
-      "module": "harness_ext",
-      "classification": "standalone_capability",
-      "reason": "HarnessX extension surface; loaded by name when the optional harness is present",
-      "importers": [
-        "hunter_harness"
-      ]
-    },
-    {
       "module": "hunter",
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
-        "cli",
-        "hunter_harness"
+        "cli"
       ]
-    },
-    {
-      "module": "hunter_harness",
-      "classification": "standalone_capability",
-      "reason": "harness wiring for the tool hunter; used by the hunter path and by mcp",
-      "importers": []
     },
     {
       "module": "hunter_tools",
@@ -849,7 +831,6 @@
         "cli",
         "findings",
         "hunter",
-        "hunter_harness",
         "improve.evolve",
         "improve.validator",
         "plane.tasks.loop",
@@ -878,7 +859,6 @@
         "findings",
         "gate",
         "hunter",
-        "hunter_harness",
         "hunter_tools",
         "improve.evolve",
         "index",
@@ -1064,7 +1044,6 @@
         "findings",
         "gate",
         "hunter",
-        "hunter_harness",
         "hunter_tools",
         "improve.evolve",
         "map_gate",
@@ -1156,7 +1135,6 @@
         "cli",
         "findings",
         "hunter",
-        "hunter_harness",
         "improve.evolve",
         "improve.memory",
         "improve.validator",
@@ -1468,8 +1446,7 @@
       "classification": "standalone_capability",
       "reason": "skill router; consumed by mcp and by the OpenCode integration, not by the scan path",
       "importers": [
-        "hunter",
-        "hunter_harness"
+        "hunter"
       ]
     },
     {
@@ -1483,7 +1460,7 @@
     {
       "module": "stage_processors",
       "classification": "standalone_capability",
-      "reason": "HarnessX slot-contracted scan stages; pinned by the zero-dependency guard in test_gate",
+      "reason": "deterministic slot-contracted scan stages; pinned by the zero-dependency guard in test_gate",
       "importers": []
     },
     {

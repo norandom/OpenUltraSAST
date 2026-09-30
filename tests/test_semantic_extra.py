@@ -25,14 +25,14 @@ def test_core_dependencies_are_pyyaml_only_and_semantic_is_optional() -> None:
     assert "semantic:" in " ".join(payload["tool"]["pytest"]["ini_options"]["markers"])
 
 
-def test_cli_import_does_not_load_tree_sitter(assert_cold_of_harnessx) -> None:  # type: ignore[no-untyped-def]
+def test_cli_import_does_not_load_tree_sitter(assert_cold_import) -> None:  # type: ignore[no-untyped-def]
     proc_code = (
         "import sys\n"
         "import openultrasast.cli\n"
         "leaked = sorted(m for m in sys.modules if m == 'tree_sitter' or m.startswith('tree_sitter_'))\n"
         "assert not leaked, leaked\n"
     )
-    assert_cold_of_harnessx(proc_code)
+    assert_cold_import(proc_code)
 
 
 def test_probe_off_yields_no_javascript_grammar(monkeypatch: pytest.MonkeyPatch) -> None:

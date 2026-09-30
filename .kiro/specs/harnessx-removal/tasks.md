@@ -44,7 +44,7 @@ and passed its fixture test. Every task is a commit gated on the full suite's ow
     tagged retirement text allowed in `src`, enforced by a test); tests renamed to the behaviour they assert.
   - _Requirements: 1.1, 1.2, 1.3, 3.3_
 
-- [ ] 6. Delete HarnessX code and packaging
+- [x] 6. Delete HarnessX code and packaging
   - Delete `harness_ext.py`, `hunter_harness.py`, `verify_judge.py`'s judge path, the HarnessX-only tests; remove
     the extra, the mypy override and the `uv.lock` entry; rename the conftest fixture; audit rows and manifest; the
     reference search test (Req 2.4).
