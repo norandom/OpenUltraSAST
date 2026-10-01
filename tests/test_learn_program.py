@@ -75,9 +75,40 @@ def test_prompts_hold_no_excluded_field_and_no_candidate_label() -> None:
 
 
 def test_missing_instruments_are_said_in_words() -> None:
-    prompt, _ = program().prepare(candidate(engine="none"), FOLD)
+    prompt, _ = program(inputs="full").prepare(candidate(engine="none"), FOLD)
     tail = str(prompt.messages[-1]["content"]).rsplit("Candidate:\n", 1)[1]
     assert "engine: no coverage" in tail and "delta: not applicable" in tail and "eng.findings" not in tail
+
+
+ENGINE_FIELD = re.compile(r"^(engine:|eng\.)", re.MULTILINE)
+
+
+@pytest.mark.parametrize("engine", ["ran", "failed", "none"])
+def test_v1_prompts_contain_no_engine_field(engine: str) -> None:
+    """v1 (the default input profile) withholds the engine -- state and values -- from every rendered message: the
+    candidate, the retrieved examples and the demonstrations, as the scripted client receives them."""
+    assert ProgramSpec().inputs == "v1"
+    demo_example = EXAMPLES[0]
+    demo = Demo(demo_example.id, demo_example.excerpt_sha, 0, "injection", "not_vulnerable", 0.8, "Line 11 escapes q.", (11,))
+    chat = ScriptedChat()
+    caller = Caller(MeteredClient(chat, prices=PRICES), "deepseek-flash", PRICES)
+    program(demos=(demo,), k=2).decide(candidate(engine=engine, findings=2 if engine == "ran" else 0), FOLD, caller)
+    assert len(chat.calls) == 2
+    for call in chat.calls:
+        text = "\n".join(str(m["content"]) for m in call["messages"])
+        assert "Demonstration 1:" in text and text.count("(label: ") == 6 and "Candidate:" in text
+        assert not ENGINE_FIELD.search(text), ENGINE_FIELD.search(text)
+        assert "qr.enabled_hits:" in text and "delta: not applicable" in text  # the other instruments still show
+    full, _ = program(demos=(demo,), inputs="full").prepare(candidate(engine=engine), FOLD)
+    assert ENGINE_FIELD.search("\n".join(str(m["content"]) for m in full.messages))
+
+
+def test_v1_proposer_summary_contains_no_engine_field() -> None:
+    from openultrasast.learn.compile import _signal_summary
+
+    leaky = replace(EXAMPLES[0], **{k: v for k, v in x_record(hits=2, findings=3).items() if k in ("x", "instruments")})
+    assert not any(k.startswith("eng.") for k in _signal_summary(leaky))
+    assert any(k.startswith("eng.") for k in _signal_summary(leaky, "full"))
 
 
 def test_the_prefix_is_byte_identical_across_candidates() -> None:

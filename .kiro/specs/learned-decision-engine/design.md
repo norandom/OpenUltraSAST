@@ -1163,6 +1163,15 @@ start only after the maintainer confirms their budget against the balance read j
   near-duplicate drop at cosine >= 0.98 in evaluation, and `test_boundary`. Demonstrations from the compile split
   are, by construction, from repositories never evaluated. The seed for plane Runs filters on the host, where the
   labels are; the sandbox never receives an example of its own case's group.
+- **Label-tracking signals (maintainer decision 2026-10-01: "Neutralise both for v1").** The harvest found two
+  signals that follow the pair label instead of the code: verify candidates on fixed sides named functions the side
+  no longer declares (now never produced: a side's candidates are only the functions it declares, the rest counted
+  `absent_on_side`), and the engine's "read the file, asked no question" state, which a fixed side reaches by losing
+  its sink. The v1 program withholds the engine instrument entirely -- state and values -- from prompts,
+  demonstrations, the instruction proposer and the retrieval distance (input profile `v1`, `ProgramSpec.inputs`);
+  the stored record keeps it. The engine returns only through a pre-registered A/B evaluated on assumed-benign and
+  benign-control negatives, where it cannot track a fix. `ousast learn audit-leaks` reports how well every signal
+  alone separates the sides of a pair and flags any above 0.20 (counts under `benchmarks/measurements/`).
 - **Earlier leakage paths still apply.** Hand rules and framework priors written after seeing a training repository
   (the `$wpdb` rule from PMPro, the hook source from WP Statistics, `taint.sc:911-949`): priors off by default,
   leave-one-framework-out, best-effort `taught_by = [repo]`. The mechanism exporter's train-on-test leak

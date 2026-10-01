@@ -1,0 +1,6600 @@
+{
+ "flagged": [
+  {
+   "correct": 13,
+   "differ": 13,
+   "direction": "higher on vulnerable",
+   "instrument": "source",
+   "pairs": 13,
+   "scope": "access_control",
+   "separation": 1.0,
+   "signal": "facts.function_lines",
+   "wrong": 0
+  },
+  {
+   "correct": 20,
+   "differ": 20,
+   "direction": "higher on vulnerable",
+   "instrument": "source",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 1.0,
+   "signal": "facts.function_lines",
+   "wrong": 0
+  },
+  {
+   "correct": 20,
+   "differ": 20,
+   "direction": "higher on vulnerable",
+   "instrument": "model_sinks",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 1.0,
+   "signal": "ms.flagged",
+   "wrong": 0
+  },
+  {
+   "correct": 20,
+   "differ": 20,
+   "instrument": "model_sinks",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 1.0,
+   "signal": "ms.operation",
+   "wrong": 0
+  },
+  {
+   "correct": 13,
+   "differ": 13,
+   "direction": "higher on vulnerable",
+   "instrument": "roles",
+   "pairs": 13,
+   "scope": "access_control",
+   "separation": 1.0,
+   "signal": "roles.source_in_function",
+   "wrong": 0
+  },
+  {
+   "correct": 20,
+   "differ": 20,
+   "direction": "higher on vulnerable",
+   "instrument": "roles",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 1.0,
+   "signal": "roles.source_in_function",
+   "wrong": 0
+  },
+  {
+   "correct": 13,
+   "differ": 13,
+   "instrument": "roles",
+   "pairs": 13,
+   "scope": "access_control",
+   "separation": 1.0,
+   "signal": "state.roles",
+   "wrong": 0
+  },
+  {
+   "correct": 20,
+   "differ": 20,
+   "instrument": "roles",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 1.0,
+   "signal": "state.roles",
+   "wrong": 0
+  },
+  {
+   "correct": 13,
+   "differ": 13,
+   "instrument": "source",
+   "pairs": 13,
+   "scope": "access_control",
+   "separation": 1.0,
+   "signal": "state.source",
+   "wrong": 0
+  },
+  {
+   "correct": 20,
+   "differ": 20,
+   "instrument": "source",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 1.0,
+   "signal": "state.source",
+   "wrong": 0
+  },
+  {
+   "correct": 19,
+   "differ": 19,
+   "direction": "higher on vulnerable",
+   "instrument": "engine",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 0.95,
+   "signal": "eng.completion",
+   "wrong": 0
+  },
+  {
+   "correct": 19,
+   "differ": 19,
+   "direction": "higher on vulnerable",
+   "instrument": "engine",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 0.95,
+   "signal": "eng.degraded",
+   "wrong": 0
+  },
+  {
+   "correct": 19,
+   "differ": 19,
+   "direction": "higher on vulnerable",
+   "instrument": "engine",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 0.95,
+   "signal": "eng.findings",
+   "wrong": 0
+  },
+  {
+   "correct": 19,
+   "differ": 19,
+   "instrument": "engine",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 0.95,
+   "signal": "eng.rung_max",
+   "wrong": 0
+  },
+  {
+   "correct": 19,
+   "differ": 19,
+   "instrument": "engine",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 0.95,
+   "signal": "eng.sink_kind",
+   "wrong": 0
+  },
+  {
+   "correct": 19,
+   "differ": 19,
+   "instrument": "engine",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 0.95,
+   "signal": "eng.sink_origin",
+   "wrong": 0
+  },
+  {
+   "correct": 19,
+   "differ": 19,
+   "instrument": "engine",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 0.95,
+   "signal": "eng.source_kind",
+   "wrong": 0
+  },
+  {
+   "correct": 19,
+   "differ": 19,
+   "instrument": "engine",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 0.95,
+   "signal": "eng.source_origin",
+   "wrong": 0
+  },
+  {
+   "correct": 19,
+   "differ": 19,
+   "direction": "higher on vulnerable",
+   "instrument": "engine",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 0.95,
+   "signal": "eng.witness_steps_min",
+   "wrong": 0
+  },
+  {
+   "correct": 19,
+   "differ": 19,
+   "direction": "higher on vulnerable",
+   "instrument": "quick",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 0.95,
+   "signal": "qr.enabled_hits",
+   "wrong": 0
+  },
+  {
+   "correct": 19,
+   "differ": 19,
+   "direction": "higher on vulnerable",
+   "instrument": "quick",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 0.95,
+   "signal": "qr.max_precision_estimate",
+   "wrong": 0
+  },
+  {
+   "correct": 19,
+   "differ": 19,
+   "direction": "higher on vulnerable",
+   "instrument": "quick",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 0.95,
+   "signal": "qr.mechanism.source_reaches_sink",
+   "wrong": 0
+  },
+  {
+   "correct": 19,
+   "differ": 19,
+   "direction": "higher on vulnerable",
+   "instrument": "quick",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 0.95,
+   "signal": "qr.prior_hits",
+   "wrong": 0
+  },
+  {
+   "correct": 19,
+   "differ": 19,
+   "direction": "higher on vulnerable",
+   "instrument": "roles",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 0.95,
+   "signal": "roles.sink_confidence",
+   "wrong": 0
+  },
+  {
+   "correct": 19,
+   "differ": 19,
+   "instrument": "engine",
+   "pairs": 20,
+   "scope": "deserialization",
+   "separation": 0.95,
+   "signal": "state.engine",
+   "wrong": 0
+  },
+  {
+   "correct": 29,
+   "differ": 29,
+   "direction": "higher on vulnerable",
+   "instrument": "verify",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.8056,
+   "signal": "verify.flag_a",
+   "wrong": 0
+  },
+  {
+   "correct": 11,
+   "differ": 11,
+   "direction": "higher on vulnerable",
+   "instrument": "roles",
+   "pairs": 14,
+   "scope": "path",
+   "separation": 0.7857,
+   "signal": "roles.source_in_function",
+   "wrong": 0
+  },
+  {
+   "correct": 11,
+   "differ": 11,
+   "instrument": "roles",
+   "pairs": 14,
+   "scope": "path",
+   "separation": 0.7857,
+   "signal": "state.roles",
+   "wrong": 0
+  },
+  {
+   "correct": 11,
+   "differ": 11,
+   "instrument": "source",
+   "pairs": 14,
+   "scope": "path",
+   "separation": 0.7857,
+   "signal": "state.source",
+   "wrong": 0
+  },
+  {
+   "correct": 28,
+   "differ": 28,
+   "instrument": "agree",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.7778,
+   "signal": "agree.final",
+   "wrong": 0
+  },
+  {
+   "correct": 28,
+   "differ": 28,
+   "direction": "higher on vulnerable",
+   "instrument": "verify",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.7778,
+   "signal": "verify.votes",
+   "wrong": 0
+  },
+  {
+   "correct": 27,
+   "differ": 27,
+   "instrument": "model_sinks",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.75,
+   "signal": "ms.operation",
+   "wrong": 0
+  },
+  {
+   "correct": 29,
+   "differ": 31,
+   "direction": "higher on vulnerable",
+   "instrument": "verify",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.75,
+   "signal": "verify.site_offset",
+   "wrong": 2
+  },
+  {
+   "correct": 26,
+   "differ": 26,
+   "direction": "higher on vulnerable",
+   "instrument": "model_sinks",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.7222,
+   "signal": "ms.flagged",
+   "wrong": 0
+  },
+  {
+   "correct": 26,
+   "differ": 26,
+   "direction": "higher on vulnerable",
+   "instrument": "roles",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.7222,
+   "signal": "roles.source_in_function",
+   "wrong": 0
+  },
+  {
+   "correct": 26,
+   "differ": 26,
+   "instrument": "roles",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.7222,
+   "signal": "state.roles",
+   "wrong": 0
+  },
+  {
+   "correct": 26,
+   "differ": 26,
+   "instrument": "source",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.7222,
+   "signal": "state.source",
+   "wrong": 0
+  },
+  {
+   "correct": 27,
+   "differ": 28,
+   "direction": "higher on vulnerable",
+   "instrument": "verify",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.7222,
+   "signal": "verify.flag_b",
+   "wrong": 1
+  },
+  {
+   "correct": 11,
+   "differ": 12,
+   "direction": "higher on vulnerable",
+   "instrument": "source",
+   "pairs": 14,
+   "scope": "path",
+   "separation": 0.7143,
+   "signal": "facts.function_lines",
+   "wrong": 1
+  },
+  {
+   "correct": 11,
+   "differ": 12,
+   "direction": "higher on vulnerable",
+   "instrument": "model_sinks",
+   "pairs": 14,
+   "scope": "path",
+   "separation": 0.7143,
+   "signal": "ms.flagged",
+   "wrong": 1
+  },
+  {
+   "correct": 11,
+   "differ": 12,
+   "instrument": "model_sinks",
+   "pairs": 14,
+   "scope": "path",
+   "separation": 0.7143,
+   "signal": "ms.operation",
+   "wrong": 1
+  },
+  {
+   "correct": 26,
+   "differ": 34,
+   "direction": "higher on vulnerable",
+   "instrument": "source",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.5,
+   "signal": "facts.function_lines",
+   "wrong": 8
+  },
+  {
+   "correct": 20,
+   "differ": 22,
+   "direction": "higher on vulnerable",
+   "instrument": "verify",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.5,
+   "signal": "verify.turns_mean",
+   "wrong": 2
+  },
+  {
+   "correct": 6,
+   "differ": 6,
+   "direction": "higher on vulnerable",
+   "instrument": "model_sinks",
+   "pairs": 13,
+   "scope": "access_control",
+   "separation": 0.4615,
+   "signal": "ms.flagged",
+   "wrong": 0
+  },
+  {
+   "correct": 6,
+   "differ": 6,
+   "instrument": "model_sinks",
+   "pairs": 13,
+   "scope": "access_control",
+   "separation": 0.4615,
+   "signal": "ms.operation",
+   "wrong": 0
+  },
+  {
+   "correct": 16,
+   "differ": 16,
+   "direction": "higher on vulnerable",
+   "instrument": "engine",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.4444,
+   "signal": "eng.completion",
+   "wrong": 0
+  },
+  {
+   "correct": 24,
+   "differ": 26,
+   "direction": "higher on vulnerable",
+   "instrument": "engine",
+   "pairs": 56,
+   "scope": "output_encoding",
+   "separation": 0.3929,
+   "signal": "eng.witness_steps_min",
+   "wrong": 2
+  },
+  {
+   "correct": 14,
+   "differ": 14,
+   "direction": "higher on vulnerable",
+   "instrument": "engine",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.3889,
+   "signal": "eng.degraded",
+   "wrong": 0
+  },
+  {
+   "correct": 14,
+   "differ": 14,
+   "instrument": "engine",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.3889,
+   "signal": "state.engine",
+   "wrong": 0
+  },
+  {
+   "correct": 35,
+   "differ": 49,
+   "direction": "higher on vulnerable",
+   "instrument": "source",
+   "pairs": 56,
+   "scope": "output_encoding",
+   "separation": 0.375,
+   "signal": "facts.function_lines",
+   "wrong": 14
+  },
+  {
+   "correct": 14,
+   "differ": 15,
+   "direction": "higher on vulnerable",
+   "instrument": "engine",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.3611,
+   "signal": "eng.findings",
+   "wrong": 1
+  },
+  {
+   "correct": 14,
+   "differ": 15,
+   "instrument": "engine",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.3611,
+   "signal": "eng.rung_max",
+   "wrong": 1
+  },
+  {
+   "correct": 14,
+   "differ": 15,
+   "instrument": "engine",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.3611,
+   "signal": "eng.sink_kind",
+   "wrong": 1
+  },
+  {
+   "correct": 14,
+   "differ": 15,
+   "instrument": "engine",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.3611,
+   "signal": "eng.sink_origin",
+   "wrong": 1
+  },
+  {
+   "correct": 14,
+   "differ": 15,
+   "instrument": "engine",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.3611,
+   "signal": "eng.source_kind",
+   "wrong": 1
+  },
+  {
+   "correct": 14,
+   "differ": 15,
+   "instrument": "engine",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.3611,
+   "signal": "eng.source_origin",
+   "wrong": 1
+  },
+  {
+   "correct": 14,
+   "differ": 15,
+   "direction": "higher on vulnerable",
+   "instrument": "engine",
+   "pairs": 36,
+   "scope": "untrusted_destination",
+   "separation": 0.3611,
+   "signal": "eng.witness_steps_min",
+   "wrong": 1
+  },
+  {
+   "correct": 21,
+   "differ": 22,
+   "direction": "higher on vulnerable",
+   "instrument": "engine",
+   "pairs": 56,
+   "scope": "output_encoding",
+   "separation": 0.3571,
+   "signal": "eng.findings",
+   "wrong": 1
+  },
+  {
+   "correct": 21,
+   "differ": 22,
+   "instrument": "engine",
+   "pairs": 56,
+   "scope": "output_encoding",
+   "separation": 0.3571,
+   "signal": "eng.rung_max",
+   "wrong": 1
+  },
+  {
+   "correct": 21,
+   "differ": 22,
+   "instrument": "engine",
+   "pairs": 56,
+   "scope": "output_encoding",
+   "separation": 0.3571,
+   "signal": "eng.sink_kind",
+   "wrong": 1
+  },
+  {
+   "correct": 21,
+   "differ": 22,
+   "instrument": "engine",
+   "pairs": 56,
+   "scope": "output_encoding",
+   "separation": 0.3571,
+   "signal": "eng.sink_origin",
+   "wrong": 1
+  },
+  {
+   "correct": 21,
+   "differ": 22,
+   "instrument": "engine",
+   "pairs": 56,
+   "scope": "output_encoding",
+   "separation": 0.3571,
+   "signal": "eng.source_kind",
+   "wrong": 1
+  },
+  {
+   "correct": 21,
+   "differ": 22,
+   "instrument": "engine",
+   "pairs": 56,
+   "scope": "output_encoding",
+   "separation": 0.3571,
+   "signal": "eng.source_origin",
+   "wrong": 1
+  },
+  {
+   "correct": 25,
+   "differ": 29,
+   "instrument": "agree",
+   "pairs": 66,
+   "scope": "injection",
+   "separation": 0.3182,
+   "signal": "agree.final",
+   "wrong": 4
+  },
+  {
+   "correct": 25,
+   "differ": 29,
+   "direction": "higher on vulnerable",
+   "instrument": "verify",
+   "pairs": 66,
+   "scope": "injection",
+   "separation": 0.3182,
+   "signal": "verify.votes",
+   "wrong": 4
+  },
+  {
+   "correct": 5,
+   "differ": 5,
+   "instrument": "agree",
+   "pairs": 16,
+   "scope": "config_secrets",
+   "separation": 0.3125,
+   "signal": "agree.final",
+   "wrong": 0
+  },
+  {
+   "correct": 10,
+   "differ": 15,
+   "direction": "higher on fixed",
+   "instrument": "source",
+   "pairs": 16,
+   "scope": "config_secrets",
+   "separation": 0.3125,
+   "signal": "facts.function_lines",
+   "wrong": 5
+  },
+  {
+   "correct": 5,
+   "differ": 5,
+   "direction": "higher on vulnerable",
+   "instrument": "verify",
+   "pairs": 16,
+   "scope": "config_secrets",
+   "separation": 0.3125,
+   "signal": "verify.flag_a",
+   "wrong": 0
+  },
+  {
+   "correct": 5,
+   "differ": 5,
+   "direction": "higher on vulnerable",
+   "instrument": "verify",
+   "pairs": 16,
+   "scope": "config_secrets",
+   "separation": 0.3125,
+   "signal": "verify.site_offset",
+   "wrong": 0
+  },
+  {
+   "correct": 8,
+   "differ": 11,
+   "direction": "higher on fixed",
+   "instrument": "verify",
+   "pairs": 16,
+   "scope": "config_secrets",
+   "separation": 0.3125,
+   "signal": "verify.turns_mean",
+   "wrong": 3
+  },
+  {
+   "correct": 5,
+   "differ": 5,
+   "direction": "higher on vulnerable",
+   "instrument": "verify",
+   "pairs": 16,
+   "scope": "config_secrets",
+   "separation": 0.3125,
+   "signal": "verify.votes",
+   "wrong": 0
+  },
+  {
+   "correct": 21,
+   "differ": 23,
+   "instrument": "model_sinks",
+   "pairs": 66,
+   "scope": "injection",
+   "separation": 0.2879,
+   "signal": "ms.operation",
+   "wrong": 2
+  },
+  {
+   "correct": 22,
+   "differ": 25,
+   "direction": "higher on vulnerable",
+   "instrument": "verify",
+   "pairs": 66,
+   "scope": "injection",
+   "separation": 0.2879,
+   "signal": "verify.flag_b",
+   "wrong": 3
+  },
+  {
+   "correct": 16,
+   "differ": 16,
+   "direction": "higher on vulnerable",
+   "instrument": "model_sinks",
+   "pairs": 56,
+   "scope": "output_encoding",
+   "separation": 0.2857,
+   "signal": "ms.flagged",
+   "wrong": 0
+  },
+  {
+   "correct": 16,
+   "differ": 16,
+   "instrument": "model_sinks",
+   "pairs": 56,
+   "scope": "output_encoding",
+   "separation": 0.2857,
+   "signal": "ms.operation",
+   "wrong": 0
+  },
+  {
+   "correct": 16,
+   "differ": 16,
+   "direction": "higher on vulnerable",
+   "instrument": "roles",
+   "pairs": 56,
+   "scope": "output_encoding",
+   "separation": 0.2857,
+   "signal": "roles.source_in_function",
+   "wrong": 0
+  },
+  {
+   "correct": 16,
+   "differ": 16,
+   "instrument": "roles",
+   "pairs": 56,
+   "scope": "output_encoding",
+   "separation": 0.2857,
+   "signal": "state.roles",
+   "wrong": 0
+  },
+  {
+   "correct": 16,
+   "differ": 16,
+   "instrument": "source",
+   "pairs": 56,
+   "scope": "output_encoding",
+   "separation": 0.2857,
+   "signal": "state.source",
+   "wrong": 0
+  },
+  {
+   "correct": 108,
+   "differ": 108,
+   "direction": "higher on vulnerable",
+   "instrument": "roles",
+   "pairs": 396,
+   "scope": "all",
+   "separation": 0.2727,
+   "signal": "roles.source_in_function",
+   "wrong": 0
+  },
+  {
+   "correct": 18,
+   "differ": 18,
+   "direction": "higher on vulnerable",
+   "instrument": "roles",
+   "pairs": 66,
+   "scope": "injection",
+   "separation": 0.2727,
+   "signal": "roles.source_in_function",
+   "wrong": 0
+  },
+  {
+   "correct": 108,
+   "differ": 108,
+   "instrument": "roles",
+   "pairs": 396,
+   "scope": "all",
+   "separation": 0.2727,
+   "signal": "state.roles",
+   "wrong": 0
+  },
+  {
+   "correct": 18,
+   "differ": 18,
+   "instrument": "roles",
+   "pairs": 66,
+   "scope": "injection",
+   "separation": 0.2727,
+   "signal": "state.roles",
+   "wrong": 0
+  },
+  {
+   "correct": 108,
+   "differ": 108,
+   "instrument": "source",
+   "pairs": 396,
+   "scope": "all",
+   "separation": 0.2727,
+   "signal": "state.source",
+   "wrong": 0
+  },
+  {
+   "correct": 18,
+   "differ": 18,
+   "instrument": "source",
+   "pairs": 66,
+   "scope": "injection",
+   "separation": 0.2727,
+   "signal": "state.source",
+   "wrong": 0
+  },
+  {
+   "correct": 114,
+   "differ": 124,
+   "instrument": "model_sinks",
+   "pairs": 396,
+   "scope": "all",
+   "separation": 0.2626,
+   "signal": "ms.operation",
+   "wrong": 10
+  },
+  {
+   "correct": 19,
+   "differ": 21,
+   "direction": "higher on vulnerable",
+   "instrument": "model_sinks",
+   "pairs": 66,
+   "scope": "injection",
+   "separation": 0.2576,
+   "signal": "ms.flagged",
+   "wrong": 2
+  },
+  {
+   "correct": 27,
+   "differ": 37,
+   "direction": "higher on vulnerable",
+   "instrument": "verify",
+   "pairs": 66,
+   "scope": "injection",
+   "separation": 0.2576,
+   "signal": "verify.site_offset",
+   "wrong": 10
+  },
+  {
+   "correct": 110,
+   "differ": 119,
+   "direction": "higher on vulnerable",
+   "instrument": "model_sinks",
+   "pairs": 396,
+   "scope": "all",
+   "separation": 0.2551,
+   "signal": "ms.flagged",
+   "wrong": 9
+  },
+  {
+   "correct": 4,
+   "differ": 4,
+   "direction": "higher on vulnerable",
+   "instrument": "roles",
+   "pairs": 16,
+   "scope": "config_secrets",
+   "separation": 0.25,
+   "signal": "roles.source_in_function",
+   "wrong": 0
+  },
+  {
+   "correct": 4,
+   "differ": 4,
+   "instrument": "roles",
+   "pairs": 16,
+   "scope": "config_secrets",
+   "separation": 0.25,
+   "signal": "state.roles",
+   "wrong": 0
+  },
+  {
+   "correct": 4,
+   "differ": 4,
+   "instrument": "source",
+   "pairs": 16,
+   "scope": "config_secrets",
+   "separation": 0.25,
+   "signal": "state.source",
+   "wrong": 0
+  },
+  {
+   "correct": 18,
+   "differ": 21,
+   "direction": "higher on vulnerable",
+   "instrument": "verify",
+   "pairs": 66,
+   "scope": "injection",
+   "separation": 0.2273,
+   "signal": "verify.flag_a",
+   "wrong": 3
+  },
+  {
+   "correct": 138,
+   "differ": 192,
+   "direction": "higher on vulnerable",
+   "instrument": "source",
+   "pairs": 396,
+   "scope": "all",
+   "separation": 0.2121,
+   "signal": "facts.function_lines",
+   "wrong": 54
+  }
+ ],
+ "flagged_signals": [
+  "agree.final",
+  "eng.completion",
+  "eng.degraded",
+  "eng.findings",
+  "eng.rung_max",
+  "eng.sink_kind",
+  "eng.sink_origin",
+  "eng.source_kind",
+  "eng.source_origin",
+  "eng.witness_steps_min",
+  "facts.function_lines",
+  "ms.flagged",
+  "ms.operation",
+  "qr.enabled_hits",
+  "qr.max_precision_estimate",
+  "qr.mechanism.source_reaches_sink",
+  "qr.prior_hits",
+  "roles.sink_confidence",
+  "roles.source_in_function",
+  "state.engine",
+  "state.roles",
+  "state.source",
+  "verify.flag_a",
+  "verify.flag_b",
+  "verify.site_offset",
+  "verify.turns_mean",
+  "verify.votes"
+ ],
+ "kind": "features",
+ "min_pairs": 10,
+ "pairs": {
+  "access_control": 13,
+  "all": 396,
+  "config_secrets": 16,
+  "deserialization": 20,
+  "injection": 66,
+  "memory": 173,
+  "output_encoding": 56,
+  "path": 14,
+  "unknown": 2,
+  "untrusted_destination": 36
+ },
+ "profile": "plane",
+ "rows_read": 1712,
+ "signals": {
+  "agree.final": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 58,
+    "differ": 62,
+    "pairs": 396,
+    "separation": 0.1364,
+    "wrong": 4
+   },
+   "config_secrets": {
+    "correct": 5,
+    "differ": 5,
+    "pairs": 16,
+    "separation": 0.3125,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 25,
+    "differ": 29,
+    "pairs": 66,
+    "separation": 0.3182,
+    "wrong": 4
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 28,
+    "differ": 28,
+    "pairs": 36,
+    "separation": 0.7778,
+    "wrong": 0
+   }
+  },
+  "delta.changed_lines": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "delta.novelty": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "delta.sanitizer_removed": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "eng.completion": {
+   "access_control": {
+    "correct": 1,
+    "differ": 1,
+    "direction": "higher on vulnerable",
+    "pairs": 13,
+    "separation": 0.0769,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 56,
+    "differ": 57,
+    "direction": "higher on vulnerable",
+    "pairs": 396,
+    "separation": 0.1389,
+    "wrong": 1
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 19,
+    "differ": 19,
+    "direction": "higher on vulnerable",
+    "pairs": 20,
+    "separation": 0.95,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 13,
+    "differ": 14,
+    "direction": "higher on vulnerable",
+    "pairs": 66,
+    "separation": 0.1818,
+    "wrong": 1
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 6,
+    "differ": 6,
+    "direction": "higher on vulnerable",
+    "pairs": 56,
+    "separation": 0.1071,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 1,
+    "differ": 1,
+    "direction": "higher on vulnerable",
+    "pairs": 14,
+    "separation": 0.0714,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 16,
+    "differ": 16,
+    "direction": "higher on vulnerable",
+    "pairs": 36,
+    "separation": 0.4444,
+    "wrong": 0
+   }
+  },
+  "eng.degraded": {
+   "access_control": {
+    "correct": 1,
+    "differ": 1,
+    "direction": "higher on vulnerable",
+    "pairs": 13,
+    "separation": 0.0769,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 54,
+    "differ": 55,
+    "direction": "higher on vulnerable",
+    "pairs": 396,
+    "separation": 0.1338,
+    "wrong": 1
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 19,
+    "differ": 19,
+    "direction": "higher on vulnerable",
+    "pairs": 20,
+    "separation": 0.95,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 13,
+    "differ": 14,
+    "direction": "higher on vulnerable",
+    "pairs": 66,
+    "separation": 0.1818,
+    "wrong": 1
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 6,
+    "differ": 6,
+    "direction": "higher on vulnerable",
+    "pairs": 56,
+    "separation": 0.1071,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 1,
+    "differ": 1,
+    "direction": "higher on vulnerable",
+    "pairs": 14,
+    "separation": 0.0714,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 14,
+    "differ": 14,
+    "direction": "higher on vulnerable",
+    "pairs": 36,
+    "separation": 0.3889,
+    "wrong": 0
+   }
+  },
+  "eng.findings": {
+   "access_control": {
+    "correct": 1,
+    "differ": 1,
+    "direction": "higher on vulnerable",
+    "pairs": 13,
+    "separation": 0.0769,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 73,
+    "differ": 77,
+    "direction": "higher on vulnerable",
+    "pairs": 396,
+    "separation": 0.1742,
+    "wrong": 4
+   },
+   "config_secrets": {
+    "correct": 2,
+    "differ": 2,
+    "direction": "higher on vulnerable",
+    "pairs": 16,
+    "separation": 0.125,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 19,
+    "differ": 19,
+    "direction": "higher on vulnerable",
+    "pairs": 20,
+    "separation": 0.95,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 14,
+    "differ": 16,
+    "direction": "higher on vulnerable",
+    "pairs": 66,
+    "separation": 0.1818,
+    "wrong": 2
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 21,
+    "differ": 22,
+    "direction": "higher on vulnerable",
+    "pairs": 56,
+    "separation": 0.3571,
+    "wrong": 1
+   },
+   "path": {
+    "correct": 2,
+    "differ": 2,
+    "direction": "higher on vulnerable",
+    "pairs": 14,
+    "separation": 0.1429,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 14,
+    "differ": 15,
+    "direction": "higher on vulnerable",
+    "pairs": 36,
+    "separation": 0.3611,
+    "wrong": 1
+   }
+  },
+  "eng.rung_max": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 60,
+    "differ": 63,
+    "pairs": 396,
+    "separation": 0.1439,
+    "wrong": 3
+   },
+   "config_secrets": {
+    "correct": 2,
+    "differ": 2,
+    "pairs": 16,
+    "separation": 0.125,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 19,
+    "differ": 19,
+    "pairs": 20,
+    "separation": 0.95,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 3,
+    "differ": 4,
+    "pairs": 66,
+    "separation": 0.0303,
+    "wrong": 1
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 21,
+    "differ": 22,
+    "pairs": 56,
+    "separation": 0.3571,
+    "wrong": 1
+   },
+   "path": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 14,
+    "separation": 0.0714,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 14,
+    "differ": 15,
+    "pairs": 36,
+    "separation": 0.3611,
+    "wrong": 1
+   }
+  },
+  "eng.sanitizer_on_path": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "eng.sink_kind": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 55,
+    "differ": 57,
+    "pairs": 396,
+    "separation": 0.1338,
+    "wrong": 2
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 19,
+    "differ": 19,
+    "pairs": 20,
+    "separation": 0.95,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 66,
+    "separation": 0.0152,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 21,
+    "differ": 22,
+    "pairs": 56,
+    "separation": 0.3571,
+    "wrong": 1
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 14,
+    "differ": 15,
+    "pairs": 36,
+    "separation": 0.3611,
+    "wrong": 1
+   }
+  },
+  "eng.sink_origin": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 55,
+    "differ": 57,
+    "pairs": 396,
+    "separation": 0.1338,
+    "wrong": 2
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 19,
+    "differ": 19,
+    "pairs": 20,
+    "separation": 0.95,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 66,
+    "separation": 0.0152,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 21,
+    "differ": 22,
+    "pairs": 56,
+    "separation": 0.3571,
+    "wrong": 1
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 14,
+    "differ": 15,
+    "pairs": 36,
+    "separation": 0.3611,
+    "wrong": 1
+   }
+  },
+  "eng.source_kind": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 58,
+    "differ": 61,
+    "pairs": 396,
+    "separation": 0.1389,
+    "wrong": 3
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 19,
+    "differ": 19,
+    "pairs": 20,
+    "separation": 0.95,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 3,
+    "differ": 4,
+    "pairs": 66,
+    "separation": 0.0303,
+    "wrong": 1
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 21,
+    "differ": 22,
+    "pairs": 56,
+    "separation": 0.3571,
+    "wrong": 1
+   },
+   "path": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 14,
+    "separation": 0.0714,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 14,
+    "differ": 15,
+    "pairs": 36,
+    "separation": 0.3611,
+    "wrong": 1
+   }
+  },
+  "eng.source_origin": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 58,
+    "differ": 61,
+    "pairs": 396,
+    "separation": 0.1389,
+    "wrong": 3
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 19,
+    "differ": 19,
+    "pairs": 20,
+    "separation": 0.95,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 3,
+    "differ": 4,
+    "pairs": 66,
+    "separation": 0.0303,
+    "wrong": 1
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 21,
+    "differ": 22,
+    "pairs": 56,
+    "separation": 0.3571,
+    "wrong": 1
+   },
+   "path": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 14,
+    "separation": 0.0714,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 14,
+    "differ": 15,
+    "pairs": 36,
+    "separation": 0.3611,
+    "wrong": 1
+   }
+  },
+  "eng.unstable": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "eng.witness_steps_min": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 61,
+    "differ": 65,
+    "direction": "higher on vulnerable",
+    "pairs": 396,
+    "separation": 0.1439,
+    "wrong": 4
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 19,
+    "differ": 19,
+    "direction": "higher on vulnerable",
+    "pairs": 20,
+    "separation": 0.95,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 3,
+    "differ": 4,
+    "direction": "higher on vulnerable",
+    "pairs": 66,
+    "separation": 0.0303,
+    "wrong": 1
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 24,
+    "differ": 26,
+    "direction": "higher on vulnerable",
+    "pairs": 56,
+    "separation": 0.3929,
+    "wrong": 2
+   },
+   "path": {
+    "correct": 1,
+    "differ": 1,
+    "direction": "higher on vulnerable",
+    "pairs": 14,
+    "separation": 0.0714,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 14,
+    "differ": 15,
+    "direction": "higher on vulnerable",
+    "pairs": 36,
+    "separation": 0.3611,
+    "wrong": 1
+   }
+  },
+  "facts.caller_files": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "facts.callers": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "facts.entry_distance": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 1,
+    "differ": 2,
+    "direction": "higher on vulnerable",
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 1
+   },
+   "config_secrets": {
+    "correct": 1,
+    "differ": 1,
+    "direction": "higher on vulnerable",
+    "pairs": 16,
+    "separation": 0.0625,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 1,
+    "differ": 1,
+    "direction": "higher on fixed",
+    "pairs": 66,
+    "separation": 0.0152,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "facts.function_lines": {
+   "access_control": {
+    "correct": 13,
+    "differ": 13,
+    "direction": "higher on vulnerable",
+    "pairs": 13,
+    "separation": 1.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 138,
+    "differ": 192,
+    "direction": "higher on vulnerable",
+    "pairs": 396,
+    "separation": 0.2121,
+    "wrong": 54
+   },
+   "config_secrets": {
+    "correct": 10,
+    "differ": 15,
+    "direction": "higher on fixed",
+    "pairs": 16,
+    "separation": 0.3125,
+    "wrong": 5
+   },
+   "deserialization": {
+    "correct": 20,
+    "differ": 20,
+    "direction": "higher on vulnerable",
+    "pairs": 20,
+    "separation": 1.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 28,
+    "differ": 49,
+    "direction": "higher on vulnerable",
+    "pairs": 66,
+    "separation": 0.1061,
+    "wrong": 21
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 35,
+    "differ": 49,
+    "direction": "higher on vulnerable",
+    "pairs": 56,
+    "separation": 0.375,
+    "wrong": 14
+   },
+   "path": {
+    "correct": 11,
+    "differ": 12,
+    "direction": "higher on vulnerable",
+    "pairs": 14,
+    "separation": 0.7143,
+    "wrong": 1
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 26,
+    "differ": 34,
+    "direction": "higher on vulnerable",
+    "pairs": 36,
+    "separation": 0.5,
+    "wrong": 8
+   }
+  },
+  "facts.is_global": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "lang.c": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "lang.cpp": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "lang.groovy": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "lang.java": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "lang.javascript": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "lang.other": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "lang.php": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "lang.python": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "lang.typescript": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "ms.flagged": {
+   "access_control": {
+    "correct": 6,
+    "differ": 6,
+    "direction": "higher on vulnerable",
+    "pairs": 13,
+    "separation": 0.4615,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 110,
+    "differ": 119,
+    "direction": "higher on vulnerable",
+    "pairs": 396,
+    "separation": 0.2551,
+    "wrong": 9
+   },
+   "config_secrets": {
+    "correct": 2,
+    "differ": 2,
+    "direction": "higher on vulnerable",
+    "pairs": 16,
+    "separation": 0.125,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 20,
+    "differ": 20,
+    "direction": "higher on vulnerable",
+    "pairs": 20,
+    "separation": 1.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 19,
+    "differ": 21,
+    "direction": "higher on vulnerable",
+    "pairs": 66,
+    "separation": 0.2576,
+    "wrong": 2
+   },
+   "memory": {
+    "correct": 10,
+    "differ": 16,
+    "direction": "higher on vulnerable",
+    "pairs": 173,
+    "separation": 0.0231,
+    "wrong": 6
+   },
+   "output_encoding": {
+    "correct": 16,
+    "differ": 16,
+    "direction": "higher on vulnerable",
+    "pairs": 56,
+    "separation": 0.2857,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 11,
+    "differ": 12,
+    "direction": "higher on vulnerable",
+    "pairs": 14,
+    "separation": 0.7143,
+    "wrong": 1
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 26,
+    "differ": 26,
+    "direction": "higher on vulnerable",
+    "pairs": 36,
+    "separation": 0.7222,
+    "wrong": 0
+   }
+  },
+  "ms.operation": {
+   "access_control": {
+    "correct": 6,
+    "differ": 6,
+    "pairs": 13,
+    "separation": 0.4615,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 114,
+    "differ": 124,
+    "pairs": 396,
+    "separation": 0.2626,
+    "wrong": 10
+   },
+   "config_secrets": {
+    "correct": 2,
+    "differ": 2,
+    "pairs": 16,
+    "separation": 0.125,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 20,
+    "differ": 20,
+    "pairs": 20,
+    "separation": 1.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 21,
+    "differ": 23,
+    "pairs": 66,
+    "separation": 0.2879,
+    "wrong": 2
+   },
+   "memory": {
+    "correct": 13,
+    "differ": 18,
+    "pairs": 173,
+    "separation": 0.0462,
+    "wrong": 5
+   },
+   "output_encoding": {
+    "correct": 16,
+    "differ": 16,
+    "pairs": 56,
+    "separation": 0.2857,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 11,
+    "differ": 12,
+    "pairs": 14,
+    "separation": 0.7143,
+    "wrong": 1
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 27,
+    "differ": 27,
+    "pairs": 36,
+    "separation": 0.75,
+    "wrong": 0
+   }
+  },
+  "qr.enabled_hits": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 30,
+    "differ": 30,
+    "direction": "higher on vulnerable",
+    "pairs": 396,
+    "separation": 0.0758,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 19,
+    "differ": 19,
+    "direction": "higher on vulnerable",
+    "pairs": 20,
+    "separation": 0.95,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 11,
+    "differ": 11,
+    "direction": "higher on vulnerable",
+    "pairs": 66,
+    "separation": 0.1667,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.max_precision_estimate": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 30,
+    "differ": 30,
+    "direction": "higher on vulnerable",
+    "pairs": 396,
+    "separation": 0.0758,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 19,
+    "differ": 19,
+    "direction": "higher on vulnerable",
+    "pairs": 20,
+    "separation": 0.95,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 11,
+    "differ": 11,
+    "direction": "higher on vulnerable",
+    "pairs": 66,
+    "separation": 0.1667,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.config_sink_weak_literal": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.container_taint": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.cross_artifact": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.fixed_buffer_capacity": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.identity_from_request_body": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.missing_auth_guard": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.null_deref_unguarded": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.other": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.path_join_user_input": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.permissive_default": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.prototype_pollution": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.redos": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.secret_in_client": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.signed_size_operand": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.source_reaches_sink": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 30,
+    "differ": 30,
+    "direction": "higher on vulnerable",
+    "pairs": 396,
+    "separation": 0.0758,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 19,
+    "differ": 19,
+    "direction": "higher on vulnerable",
+    "pairs": 20,
+    "separation": 0.95,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 11,
+    "differ": 11,
+    "direction": "higher on vulnerable",
+    "pairs": 66,
+    "separation": 0.1667,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.type_confusion": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.uaf": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.unchecked_alloc_size": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.unchecked_length_copy": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.unconstrained_protected_read": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.unconstrained_protected_write": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.unguarded_privileged_action": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.validation_strength": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.prior_hits": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 21,
+    "differ": 21,
+    "direction": "higher on vulnerable",
+    "pairs": 396,
+    "separation": 0.053,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 19,
+    "differ": 19,
+    "direction": "higher on vulnerable",
+    "pairs": 20,
+    "separation": 0.95,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 2,
+    "differ": 2,
+    "direction": "higher on vulnerable",
+    "pairs": 66,
+    "separation": 0.0303,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.shadow_hits": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "roles.sink_confidence": {
+   "access_control": {
+    "correct": 2,
+    "differ": 2,
+    "direction": "higher on vulnerable",
+    "pairs": 13,
+    "separation": 0.1538,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 35,
+    "differ": 35,
+    "direction": "higher on vulnerable",
+    "pairs": 396,
+    "separation": 0.0884,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 19,
+    "differ": 19,
+    "direction": "higher on vulnerable",
+    "pairs": 20,
+    "separation": 0.95,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 13,
+    "differ": 13,
+    "direction": "higher on vulnerable",
+    "pairs": 66,
+    "separation": 0.197,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 1,
+    "differ": 1,
+    "direction": "higher on vulnerable",
+    "pairs": 14,
+    "separation": 0.0714,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "roles.source_in_function": {
+   "access_control": {
+    "correct": 13,
+    "differ": 13,
+    "direction": "higher on vulnerable",
+    "pairs": 13,
+    "separation": 1.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 108,
+    "differ": 108,
+    "direction": "higher on vulnerable",
+    "pairs": 396,
+    "separation": 0.2727,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 4,
+    "differ": 4,
+    "direction": "higher on vulnerable",
+    "pairs": 16,
+    "separation": 0.25,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 20,
+    "differ": 20,
+    "direction": "higher on vulnerable",
+    "pairs": 20,
+    "separation": 1.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 18,
+    "differ": 18,
+    "direction": "higher on vulnerable",
+    "pairs": 66,
+    "separation": 0.2727,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 16,
+    "differ": 16,
+    "direction": "higher on vulnerable",
+    "pairs": 56,
+    "separation": 0.2857,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 11,
+    "differ": 11,
+    "direction": "higher on vulnerable",
+    "pairs": 14,
+    "separation": 0.7857,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 26,
+    "differ": 26,
+    "direction": "higher on vulnerable",
+    "pairs": 36,
+    "separation": 0.7222,
+    "wrong": 0
+   }
+  },
+  "state.agree": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "state.delta": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "state.engine": {
+   "access_control": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 13,
+    "separation": 0.0769,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 54,
+    "differ": 55,
+    "pairs": 396,
+    "separation": 0.1338,
+    "wrong": 1
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 19,
+    "differ": 19,
+    "pairs": 20,
+    "separation": 0.95,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 13,
+    "differ": 14,
+    "pairs": 66,
+    "separation": 0.1818,
+    "wrong": 1
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 6,
+    "differ": 6,
+    "pairs": 56,
+    "separation": 0.1071,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 14,
+    "separation": 0.0714,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 14,
+    "differ": 14,
+    "pairs": 36,
+    "separation": 0.3889,
+    "wrong": 0
+   }
+  },
+  "state.entry_points": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "state.facts": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "state.model_sinks": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "state.quick": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "state.roles": {
+   "access_control": {
+    "correct": 13,
+    "differ": 13,
+    "pairs": 13,
+    "separation": 1.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 108,
+    "differ": 108,
+    "pairs": 396,
+    "separation": 0.2727,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 4,
+    "differ": 4,
+    "pairs": 16,
+    "separation": 0.25,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 20,
+    "differ": 20,
+    "pairs": 20,
+    "separation": 1.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 18,
+    "differ": 18,
+    "pairs": 66,
+    "separation": 0.2727,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 16,
+    "differ": 16,
+    "pairs": 56,
+    "separation": 0.2857,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 11,
+    "differ": 11,
+    "pairs": 14,
+    "separation": 0.7857,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 26,
+    "differ": 26,
+    "pairs": 36,
+    "separation": 0.7222,
+    "wrong": 0
+   }
+  },
+  "state.source": {
+   "access_control": {
+    "correct": 13,
+    "differ": 13,
+    "pairs": 13,
+    "separation": 1.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 108,
+    "differ": 108,
+    "pairs": 396,
+    "separation": 0.2727,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 4,
+    "differ": 4,
+    "pairs": 16,
+    "separation": 0.25,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 20,
+    "differ": 20,
+    "pairs": 20,
+    "separation": 1.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 18,
+    "differ": 18,
+    "pairs": 66,
+    "separation": 0.2727,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 16,
+    "differ": 16,
+    "pairs": 56,
+    "separation": 0.2857,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 11,
+    "differ": 11,
+    "pairs": 14,
+    "separation": 0.7857,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 26,
+    "differ": 26,
+    "pairs": 36,
+    "separation": 0.7222,
+    "wrong": 0
+   }
+  },
+  "state.verify": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "verify.flag_a": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 52,
+    "differ": 55,
+    "direction": "higher on vulnerable",
+    "pairs": 396,
+    "separation": 0.1237,
+    "wrong": 3
+   },
+   "config_secrets": {
+    "correct": 5,
+    "differ": 5,
+    "direction": "higher on vulnerable",
+    "pairs": 16,
+    "separation": 0.3125,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 18,
+    "differ": 21,
+    "direction": "higher on vulnerable",
+    "pairs": 66,
+    "separation": 0.2273,
+    "wrong": 3
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 29,
+    "differ": 29,
+    "direction": "higher on vulnerable",
+    "pairs": 36,
+    "separation": 0.8056,
+    "wrong": 0
+   }
+  },
+  "verify.flag_b": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 52,
+    "differ": 56,
+    "direction": "higher on vulnerable",
+    "pairs": 396,
+    "separation": 0.1212,
+    "wrong": 4
+   },
+   "config_secrets": {
+    "correct": 3,
+    "differ": 3,
+    "direction": "higher on vulnerable",
+    "pairs": 16,
+    "separation": 0.1875,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 22,
+    "differ": 25,
+    "direction": "higher on vulnerable",
+    "pairs": 66,
+    "separation": 0.2879,
+    "wrong": 3
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 27,
+    "differ": 28,
+    "direction": "higher on vulnerable",
+    "pairs": 36,
+    "separation": 0.7222,
+    "wrong": 1
+   }
+  },
+  "verify.flag_c": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 396,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 16,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 66,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 36,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "verify.site_offset": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 61,
+    "differ": 73,
+    "direction": "higher on vulnerable",
+    "pairs": 396,
+    "separation": 0.1237,
+    "wrong": 12
+   },
+   "config_secrets": {
+    "correct": 5,
+    "differ": 5,
+    "direction": "higher on vulnerable",
+    "pairs": 16,
+    "separation": 0.3125,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 27,
+    "differ": 37,
+    "direction": "higher on vulnerable",
+    "pairs": 66,
+    "separation": 0.2576,
+    "wrong": 10
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 29,
+    "differ": 31,
+    "direction": "higher on vulnerable",
+    "pairs": 36,
+    "separation": 0.75,
+    "wrong": 2
+   }
+  },
+  "verify.turns_mean": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 38,
+    "differ": 57,
+    "direction": "higher on vulnerable",
+    "pairs": 396,
+    "separation": 0.048,
+    "wrong": 19
+   },
+   "config_secrets": {
+    "correct": 8,
+    "differ": 11,
+    "direction": "higher on fixed",
+    "pairs": 16,
+    "separation": 0.3125,
+    "wrong": 3
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 15,
+    "differ": 24,
+    "direction": "higher on vulnerable",
+    "pairs": 66,
+    "separation": 0.0909,
+    "wrong": 9
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 20,
+    "differ": 22,
+    "direction": "higher on vulnerable",
+    "pairs": 36,
+    "separation": 0.5,
+    "wrong": 2
+   }
+  },
+  "verify.votes": {
+   "access_control": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 13,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "all": {
+    "correct": 58,
+    "differ": 62,
+    "direction": "higher on vulnerable",
+    "pairs": 396,
+    "separation": 0.1364,
+    "wrong": 4
+   },
+   "config_secrets": {
+    "correct": 5,
+    "differ": 5,
+    "direction": "higher on vulnerable",
+    "pairs": 16,
+    "separation": 0.3125,
+    "wrong": 0
+   },
+   "deserialization": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 20,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 25,
+    "differ": 29,
+    "direction": "higher on vulnerable",
+    "pairs": 66,
+    "separation": 0.3182,
+    "wrong": 4
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 173,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 56,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 14,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 28,
+    "differ": 28,
+    "direction": "higher on vulnerable",
+    "pairs": 36,
+    "separation": 0.7778,
+    "wrong": 0
+   }
+  }
+ },
+ "skipped": {
+  "one side only": 64
+ },
+ "threshold": 0.2
+}

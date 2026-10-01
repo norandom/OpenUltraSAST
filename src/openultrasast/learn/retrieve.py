@@ -8,7 +8,8 @@ profile, computed per instrument block so that missing is explicit, never impute
   both is ``0``, in one is ``1``;
 - different states (``ran`` vs ``none``/``failed``/``not_applicable``, or ``failed`` vs ``none``): ``1``; the
   same non-``ran`` state: ``0``;
-- ``D`` is the uniform mean over the profile's blocks; prior features are dropped with ``priors = "off"``.
+- ``D`` is the uniform mean over the profile's blocks; prior features are dropped with ``priors = "off"``, and the blocks
+  of instruments the input profile withholds (``inputs``, default ``v1``: the engine) are left out entirely.
 
 Ties break by ``sha256(example id + seed)``; the first ``n1 = 40`` go to stage 2, a cosine re-rank of the code
 embeddings, ``r = lam (1 - D) + (1 - lam) cos``. Without the target's vector the whole retrieval is
@@ -34,7 +35,7 @@ from .embeddings import cosine
 from .examples import Example
 from .folds import Fold
 from .labels import repo_name
-from .schema import UNBOUNDED_FLOATS, FeatureSpec, features_for, instruments_for
+from .schema import DEFAULT_INPUTS, UNBOUNDED_FLOATS, FeatureSpec, features_for, instruments_for, withheld
 
 N1 = 40
 K_RET = 6
@@ -91,9 +92,12 @@ def gower(
     profile: str,
     *,
     priors: str = "off",
+    inputs: str = DEFAULT_INPUTS,
 ) -> float:
-    """The per-instrument Gower distance of two records of ``profile`` (module docstring), in [0, 1]."""
-    total, blocks = 0.0, _blocks(profile, priors)
+    """The per-instrument Gower distance of two records of ``profile`` (module docstring), in [0, 1]. The blocks of
+    instruments the input profile withholds (v1: the engine) are not compared, so neighbours cannot carry them."""
+    hidden = withheld(inputs)
+    total, blocks = 0.0, [(name, specs) for name, specs in _blocks(profile, priors) if name not in hidden]
     for name, specs in blocks:
         sa, sb = a_instruments.get(name, {}).get("state", "none"), b_instruments.get(name, {}).get("state", "none")
         if sa != sb:
@@ -192,11 +196,12 @@ def retrieve(
     lam: float = LAM,
     seed: int = 0,
     priors: str = "off",
+    inputs: str = DEFAULT_INPUTS,
 ) -> Retrieval:
     """The ``k`` balanced examples for ``target`` from the eligible part of ``pool`` (module docstring)."""
     candidates = [e for e in pool if e.profile == target.profile and eligible(e, target, fold)]
     scored = sorted(
-        ((gower(target.x, target.instruments, e.x, e.instruments, target.profile, priors=priors), e) for e in candidates),
+        ((gower(target.x, target.instruments, e.x, e.instruments, target.profile, priors=priors, inputs=inputs), e) for e in candidates),
         key=lambda pair: (pair[0], _tie(pair[1].id, seed)),
     )[:n1]
     mode = "signals+embeddings" if target.vector is not None and vectors else "signals_only"

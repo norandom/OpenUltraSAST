@@ -1,0 +1,4708 @@
+{
+ "flagged": [
+  {
+   "correct": 8,
+   "differ": 8,
+   "direction": "higher on fixed",
+   "instrument": "source",
+   "pairs": 10,
+   "scope": "untrusted_destination",
+   "separation": 0.8,
+   "signal": "facts.function_lines",
+   "wrong": 0
+  },
+  {
+   "correct": 10,
+   "differ": 11,
+   "direction": "higher on fixed",
+   "instrument": "source",
+   "pairs": 12,
+   "scope": "config_secrets",
+   "separation": 0.75,
+   "signal": "facts.function_lines",
+   "wrong": 1
+  },
+  {
+   "correct": 8,
+   "differ": 8,
+   "direction": "higher on fixed",
+   "instrument": "verify",
+   "pairs": 12,
+   "scope": "config_secrets",
+   "separation": 0.6667,
+   "signal": "verify.turns_mean",
+   "wrong": 0
+  },
+  {
+   "correct": 18,
+   "differ": 20,
+   "direction": "higher on vulnerable",
+   "instrument": "engine",
+   "pairs": 40,
+   "scope": "output_encoding",
+   "separation": 0.4,
+   "signal": "eng.witness_steps_min",
+   "wrong": 2
+  },
+  {
+   "correct": 15,
+   "differ": 16,
+   "direction": "higher on vulnerable",
+   "instrument": "engine",
+   "pairs": 40,
+   "scope": "output_encoding",
+   "separation": 0.35,
+   "signal": "eng.findings",
+   "wrong": 1
+  },
+  {
+   "correct": 15,
+   "differ": 16,
+   "instrument": "engine",
+   "pairs": 40,
+   "scope": "output_encoding",
+   "separation": 0.35,
+   "signal": "eng.rung_max",
+   "wrong": 1
+  },
+  {
+   "correct": 15,
+   "differ": 16,
+   "instrument": "engine",
+   "pairs": 40,
+   "scope": "output_encoding",
+   "separation": 0.35,
+   "signal": "eng.sink_kind",
+   "wrong": 1
+  },
+  {
+   "correct": 15,
+   "differ": 16,
+   "instrument": "engine",
+   "pairs": 40,
+   "scope": "output_encoding",
+   "separation": 0.35,
+   "signal": "eng.sink_origin",
+   "wrong": 1
+  },
+  {
+   "correct": 15,
+   "differ": 16,
+   "instrument": "engine",
+   "pairs": 40,
+   "scope": "output_encoding",
+   "separation": 0.35,
+   "signal": "eng.source_kind",
+   "wrong": 1
+  },
+  {
+   "correct": 15,
+   "differ": 16,
+   "instrument": "engine",
+   "pairs": 40,
+   "scope": "output_encoding",
+   "separation": 0.35,
+   "signal": "eng.source_origin",
+   "wrong": 1
+  },
+  {
+   "correct": 3,
+   "differ": 3,
+   "direction": "higher on vulnerable",
+   "instrument": "verify",
+   "pairs": 10,
+   "scope": "untrusted_destination",
+   "separation": 0.3,
+   "signal": "verify.flag_a",
+   "wrong": 0
+  },
+  {
+   "correct": 21,
+   "differ": 31,
+   "direction": "higher on fixed",
+   "instrument": "source",
+   "pairs": 43,
+   "scope": "injection",
+   "separation": 0.2558,
+   "signal": "facts.function_lines",
+   "wrong": 10
+  },
+  {
+   "correct": 3,
+   "differ": 3,
+   "instrument": "agree",
+   "pairs": 12,
+   "scope": "config_secrets",
+   "separation": 0.25,
+   "signal": "agree.final",
+   "wrong": 0
+  },
+  {
+   "correct": 3,
+   "differ": 3,
+   "direction": "higher on vulnerable",
+   "instrument": "verify",
+   "pairs": 12,
+   "scope": "config_secrets",
+   "separation": 0.25,
+   "signal": "verify.flag_a",
+   "wrong": 0
+  },
+  {
+   "correct": 3,
+   "differ": 3,
+   "direction": "higher on vulnerable",
+   "instrument": "verify",
+   "pairs": 12,
+   "scope": "config_secrets",
+   "separation": 0.25,
+   "signal": "verify.site_offset",
+   "wrong": 0
+  },
+  {
+   "correct": 3,
+   "differ": 3,
+   "direction": "higher on vulnerable",
+   "instrument": "verify",
+   "pairs": 12,
+   "scope": "config_secrets",
+   "separation": 0.25,
+   "signal": "verify.votes",
+   "wrong": 0
+  },
+  {
+   "correct": 2,
+   "differ": 2,
+   "instrument": "agree",
+   "pairs": 10,
+   "scope": "untrusted_destination",
+   "separation": 0.2,
+   "signal": "agree.final",
+   "wrong": 0
+  },
+  {
+   "correct": 2,
+   "differ": 2,
+   "direction": "higher on vulnerable",
+   "instrument": "engine",
+   "pairs": 10,
+   "scope": "untrusted_destination",
+   "separation": 0.2,
+   "signal": "eng.completion",
+   "wrong": 0
+  },
+  {
+   "correct": 2,
+   "differ": 2,
+   "direction": "higher on vulnerable",
+   "instrument": "verify",
+   "pairs": 10,
+   "scope": "untrusted_destination",
+   "separation": 0.2,
+   "signal": "verify.votes",
+   "wrong": 0
+  }
+ ],
+ "flagged_signals": [
+  "agree.final",
+  "eng.completion",
+  "eng.findings",
+  "eng.rung_max",
+  "eng.sink_kind",
+  "eng.sink_origin",
+  "eng.source_kind",
+  "eng.source_origin",
+  "eng.witness_steps_min",
+  "facts.function_lines",
+  "verify.flag_a",
+  "verify.site_offset",
+  "verify.turns_mean",
+  "verify.votes"
+ ],
+ "kind": "features",
+ "min_pairs": 10,
+ "pairs": {
+  "all": 279,
+  "config_secrets": 12,
+  "injection": 43,
+  "memory": 171,
+  "output_encoding": 40,
+  "path": 1,
+  "unknown": 2,
+  "untrusted_destination": 10
+ },
+ "profile": "plane",
+ "rows_read": 1460,
+ "signals": {
+  "agree.final": {
+   "all": {
+    "correct": 16,
+    "differ": 20,
+    "pairs": 279,
+    "separation": 0.043,
+    "wrong": 4
+   },
+   "config_secrets": {
+    "correct": 3,
+    "differ": 3,
+    "pairs": 12,
+    "separation": 0.25,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 11,
+    "differ": 15,
+    "pairs": 43,
+    "separation": 0.1628,
+    "wrong": 4
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 2,
+    "differ": 2,
+    "pairs": 10,
+    "separation": 0.2,
+    "wrong": 0
+   }
+  },
+  "delta.changed_lines": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "delta.novelty": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "delta.sanitizer_removed": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "eng.completion": {
+   "all": {
+    "correct": 6,
+    "differ": 6,
+    "direction": "higher on vulnerable",
+    "pairs": 279,
+    "separation": 0.0215,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 4,
+    "differ": 4,
+    "direction": "higher on vulnerable",
+    "pairs": 43,
+    "separation": 0.093,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 2,
+    "differ": 2,
+    "direction": "higher on vulnerable",
+    "pairs": 10,
+    "separation": 0.2,
+    "wrong": 0
+   }
+  },
+  "eng.degraded": {
+   "all": {
+    "correct": 4,
+    "differ": 4,
+    "direction": "higher on vulnerable",
+    "pairs": 279,
+    "separation": 0.0143,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 4,
+    "differ": 4,
+    "direction": "higher on vulnerable",
+    "pairs": 43,
+    "separation": 0.093,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "eng.findings": {
+   "all": {
+    "correct": 20,
+    "differ": 23,
+    "direction": "higher on vulnerable",
+    "pairs": 279,
+    "separation": 0.0609,
+    "wrong": 3
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 4,
+    "differ": 5,
+    "direction": "higher on vulnerable",
+    "pairs": 43,
+    "separation": 0.0698,
+    "wrong": 1
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 15,
+    "differ": 16,
+    "direction": "higher on vulnerable",
+    "pairs": 40,
+    "separation": 0.35,
+    "wrong": 1
+   },
+   "path": {
+    "correct": 1,
+    "differ": 1,
+    "direction": "higher on vulnerable",
+    "pairs": 1,
+    "separation": 1.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 1,
+    "differ": 1,
+    "direction": "higher on fixed",
+    "pairs": 10,
+    "separation": 0.1,
+    "wrong": 0
+   }
+  },
+  "eng.rung_max": {
+   "all": {
+    "correct": 16,
+    "differ": 19,
+    "pairs": 279,
+    "separation": 0.0466,
+    "wrong": 3
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 43,
+    "separation": 0.0233,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 15,
+    "differ": 16,
+    "pairs": 40,
+    "separation": 0.35,
+    "wrong": 1
+   },
+   "path": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 1,
+    "separation": 1.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 10,
+    "separation": 0.1,
+    "wrong": 0
+   }
+  },
+  "eng.sanitizer_on_path": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "eng.sink_kind": {
+   "all": {
+    "correct": 16,
+    "differ": 17,
+    "pairs": 279,
+    "separation": 0.0538,
+    "wrong": 1
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 15,
+    "differ": 16,
+    "pairs": 40,
+    "separation": 0.35,
+    "wrong": 1
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 10,
+    "separation": 0.1,
+    "wrong": 0
+   }
+  },
+  "eng.sink_origin": {
+   "all": {
+    "correct": 15,
+    "differ": 17,
+    "pairs": 279,
+    "separation": 0.0466,
+    "wrong": 2
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 15,
+    "differ": 16,
+    "pairs": 40,
+    "separation": 0.35,
+    "wrong": 1
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 10,
+    "separation": 0.1,
+    "wrong": 0
+   }
+  },
+  "eng.source_kind": {
+   "all": {
+    "correct": 16,
+    "differ": 19,
+    "pairs": 279,
+    "separation": 0.0466,
+    "wrong": 3
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 43,
+    "separation": 0.0233,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 15,
+    "differ": 16,
+    "pairs": 40,
+    "separation": 0.35,
+    "wrong": 1
+   },
+   "path": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 1,
+    "separation": 1.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 10,
+    "separation": 0.1,
+    "wrong": 0
+   }
+  },
+  "eng.source_origin": {
+   "all": {
+    "correct": 16,
+    "differ": 19,
+    "pairs": 279,
+    "separation": 0.0466,
+    "wrong": 3
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 43,
+    "separation": 0.0233,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 15,
+    "differ": 16,
+    "pairs": 40,
+    "separation": 0.35,
+    "wrong": 1
+   },
+   "path": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 1,
+    "separation": 1.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 10,
+    "separation": 0.1,
+    "wrong": 0
+   }
+  },
+  "eng.unstable": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "eng.witness_steps_min": {
+   "all": {
+    "correct": 19,
+    "differ": 23,
+    "direction": "higher on vulnerable",
+    "pairs": 279,
+    "separation": 0.0538,
+    "wrong": 4
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 1,
+    "differ": 1,
+    "direction": "higher on fixed",
+    "pairs": 43,
+    "separation": 0.0233,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 18,
+    "differ": 20,
+    "direction": "higher on vulnerable",
+    "pairs": 40,
+    "separation": 0.4,
+    "wrong": 2
+   },
+   "path": {
+    "correct": 1,
+    "differ": 1,
+    "direction": "higher on vulnerable",
+    "pairs": 1,
+    "separation": 1.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 1,
+    "differ": 1,
+    "direction": "higher on fixed",
+    "pairs": 10,
+    "separation": 0.1,
+    "wrong": 0
+   }
+  },
+  "facts.caller_files": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "facts.callers": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "facts.entry_distance": {
+   "all": {
+    "correct": 1,
+    "differ": 2,
+    "direction": "higher on vulnerable",
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 1
+   },
+   "config_secrets": {
+    "correct": 1,
+    "differ": 1,
+    "direction": "higher on vulnerable",
+    "pairs": 12,
+    "separation": 0.0833,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 1,
+    "differ": 1,
+    "direction": "higher on fixed",
+    "pairs": 43,
+    "separation": 0.0233,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "facts.function_lines": {
+   "all": {
+    "correct": 54,
+    "differ": 84,
+    "direction": "higher on fixed",
+    "pairs": 279,
+    "separation": 0.086,
+    "wrong": 30
+   },
+   "config_secrets": {
+    "correct": 10,
+    "differ": 11,
+    "direction": "higher on fixed",
+    "pairs": 12,
+    "separation": 0.75,
+    "wrong": 1
+   },
+   "injection": {
+    "correct": 21,
+    "differ": 31,
+    "direction": "higher on fixed",
+    "pairs": 43,
+    "separation": 0.2558,
+    "wrong": 10
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 19,
+    "differ": 33,
+    "direction": "higher on vulnerable",
+    "pairs": 40,
+    "separation": 0.125,
+    "wrong": 14
+   },
+   "path": {
+    "correct": 1,
+    "differ": 1,
+    "direction": "higher on fixed",
+    "pairs": 1,
+    "separation": 1.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 8,
+    "differ": 8,
+    "direction": "higher on fixed",
+    "pairs": 10,
+    "separation": 0.8,
+    "wrong": 0
+   }
+  },
+  "facts.is_global": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "lang.c": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "lang.cpp": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "lang.groovy": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "lang.java": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "lang.javascript": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "lang.other": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "lang.php": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "lang.python": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "lang.typescript": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "ms.flagged": {
+   "all": {
+    "correct": 12,
+    "differ": 20,
+    "direction": "higher on vulnerable",
+    "pairs": 279,
+    "separation": 0.0143,
+    "wrong": 8
+   },
+   "config_secrets": {
+    "correct": 1,
+    "differ": 1,
+    "direction": "higher on vulnerable",
+    "pairs": 12,
+    "separation": 0.0833,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 2,
+    "differ": 3,
+    "direction": "higher on fixed",
+    "pairs": 43,
+    "separation": 0.0233,
+    "wrong": 1
+   },
+   "memory": {
+    "correct": 10,
+    "differ": 16,
+    "direction": "higher on vulnerable",
+    "pairs": 171,
+    "separation": 0.0234,
+    "wrong": 6
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "ms.operation": {
+   "all": {
+    "correct": 19,
+    "differ": 25,
+    "pairs": 279,
+    "separation": 0.0466,
+    "wrong": 6
+   },
+   "config_secrets": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 12,
+    "separation": 0.0833,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 4,
+    "differ": 5,
+    "pairs": 43,
+    "separation": 0.0698,
+    "wrong": 1
+   },
+   "memory": {
+    "correct": 13,
+    "differ": 18,
+    "pairs": 171,
+    "separation": 0.0468,
+    "wrong": 5
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 1,
+    "differ": 1,
+    "pairs": 10,
+    "separation": 0.1,
+    "wrong": 0
+   }
+  },
+  "qr.enabled_hits": {
+   "all": {
+    "correct": 6,
+    "differ": 6,
+    "direction": "higher on vulnerable",
+    "pairs": 279,
+    "separation": 0.0215,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 6,
+    "differ": 6,
+    "direction": "higher on vulnerable",
+    "pairs": 43,
+    "separation": 0.1395,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.max_precision_estimate": {
+   "all": {
+    "correct": 6,
+    "differ": 6,
+    "direction": "higher on vulnerable",
+    "pairs": 279,
+    "separation": 0.0215,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 6,
+    "differ": 6,
+    "direction": "higher on vulnerable",
+    "pairs": 43,
+    "separation": 0.1395,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.config_sink_weak_literal": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.container_taint": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.cross_artifact": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.fixed_buffer_capacity": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.identity_from_request_body": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.missing_auth_guard": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.null_deref_unguarded": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.other": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.path_join_user_input": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.permissive_default": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.prototype_pollution": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.redos": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.secret_in_client": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.signed_size_operand": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.source_reaches_sink": {
+   "all": {
+    "correct": 6,
+    "differ": 6,
+    "direction": "higher on vulnerable",
+    "pairs": 279,
+    "separation": 0.0215,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 6,
+    "differ": 6,
+    "direction": "higher on vulnerable",
+    "pairs": 43,
+    "separation": 0.1395,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.type_confusion": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.uaf": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.unchecked_alloc_size": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.unchecked_length_copy": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.unconstrained_protected_read": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.unconstrained_protected_write": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.unguarded_privileged_action": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.mechanism.validation_strength": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.prior_hits": {
+   "all": {
+    "correct": 2,
+    "differ": 2,
+    "direction": "higher on vulnerable",
+    "pairs": 279,
+    "separation": 0.0072,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 2,
+    "differ": 2,
+    "direction": "higher on vulnerable",
+    "pairs": 43,
+    "separation": 0.0465,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "qr.shadow_hits": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "roles.sink_confidence": {
+   "all": {
+    "correct": 2,
+    "differ": 2,
+    "direction": "higher on vulnerable",
+    "pairs": 279,
+    "separation": 0.0072,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 2,
+    "differ": 2,
+    "direction": "higher on vulnerable",
+    "pairs": 43,
+    "separation": 0.0465,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "roles.source_in_function": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "state.agree": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "state.delta": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "state.engine": {
+   "all": {
+    "correct": 4,
+    "differ": 4,
+    "pairs": 279,
+    "separation": 0.0143,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 4,
+    "differ": 4,
+    "pairs": 43,
+    "separation": 0.093,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "state.entry_points": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "state.facts": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "state.model_sinks": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "state.quick": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "state.roles": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "state.source": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "state.verify": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "verify.flag_a": {
+   "all": {
+    "correct": 14,
+    "differ": 17,
+    "direction": "higher on vulnerable",
+    "pairs": 279,
+    "separation": 0.0394,
+    "wrong": 3
+   },
+   "config_secrets": {
+    "correct": 3,
+    "differ": 3,
+    "direction": "higher on vulnerable",
+    "pairs": 12,
+    "separation": 0.25,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 8,
+    "differ": 11,
+    "direction": "higher on vulnerable",
+    "pairs": 43,
+    "separation": 0.1163,
+    "wrong": 3
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 3,
+    "differ": 3,
+    "direction": "higher on vulnerable",
+    "pairs": 10,
+    "separation": 0.3,
+    "wrong": 0
+   }
+  },
+  "verify.flag_b": {
+   "all": {
+    "correct": 11,
+    "differ": 15,
+    "direction": "higher on vulnerable",
+    "pairs": 279,
+    "separation": 0.0251,
+    "wrong": 4
+   },
+   "config_secrets": {
+    "correct": 2,
+    "differ": 2,
+    "direction": "higher on vulnerable",
+    "pairs": 12,
+    "separation": 0.1667,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 8,
+    "differ": 11,
+    "direction": "higher on vulnerable",
+    "pairs": 43,
+    "separation": 0.1163,
+    "wrong": 3
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 1,
+    "differ": 2,
+    "direction": "higher on vulnerable",
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 1
+   }
+  },
+  "verify.flag_c": {
+   "all": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 279,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "config_secrets": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 12,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 43,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 10,
+    "separation": 0.0,
+    "wrong": 0
+   }
+  },
+  "verify.site_offset": {
+   "all": {
+    "correct": 20,
+    "differ": 31,
+    "direction": "higher on vulnerable",
+    "pairs": 279,
+    "separation": 0.0323,
+    "wrong": 11
+   },
+   "config_secrets": {
+    "correct": 3,
+    "differ": 3,
+    "direction": "higher on vulnerable",
+    "pairs": 12,
+    "separation": 0.25,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 14,
+    "differ": 23,
+    "direction": "higher on vulnerable",
+    "pairs": 43,
+    "separation": 0.1163,
+    "wrong": 9
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 3,
+    "differ": 5,
+    "direction": "higher on vulnerable",
+    "pairs": 10,
+    "separation": 0.1,
+    "wrong": 2
+   }
+  },
+  "verify.turns_mean": {
+   "all": {
+    "correct": 11,
+    "differ": 17,
+    "direction": "higher on fixed",
+    "pairs": 279,
+    "separation": 0.0179,
+    "wrong": 6
+   },
+   "config_secrets": {
+    "correct": 8,
+    "differ": 8,
+    "direction": "higher on fixed",
+    "pairs": 12,
+    "separation": 0.6667,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 5,
+    "differ": 8,
+    "direction": "higher on vulnerable",
+    "pairs": 43,
+    "separation": 0.0465,
+    "wrong": 3
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 1,
+    "differ": 1,
+    "direction": "higher on vulnerable",
+    "pairs": 10,
+    "separation": 0.1,
+    "wrong": 0
+   }
+  },
+  "verify.votes": {
+   "all": {
+    "correct": 16,
+    "differ": 20,
+    "direction": "higher on vulnerable",
+    "pairs": 279,
+    "separation": 0.043,
+    "wrong": 4
+   },
+   "config_secrets": {
+    "correct": 3,
+    "differ": 3,
+    "direction": "higher on vulnerable",
+    "pairs": 12,
+    "separation": 0.25,
+    "wrong": 0
+   },
+   "injection": {
+    "correct": 11,
+    "differ": 15,
+    "direction": "higher on vulnerable",
+    "pairs": 43,
+    "separation": 0.1628,
+    "wrong": 4
+   },
+   "memory": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 171,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "output_encoding": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 40,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "path": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 1,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "unknown": {
+    "correct": 0,
+    "differ": 0,
+    "pairs": 2,
+    "separation": 0.0,
+    "wrong": 0
+   },
+   "untrusted_destination": {
+    "correct": 2,
+    "differ": 2,
+    "direction": "higher on vulnerable",
+    "pairs": 10,
+    "separation": 0.2,
+    "wrong": 0
+   }
+  }
+ },
+ "skipped": {
+  "one side only": 172
+ },
+ "threshold": 0.2
+}

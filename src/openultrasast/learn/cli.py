@@ -53,8 +53,19 @@ def add_commands(learn_sub: Any) -> None:
         if name == "curve":
             sub.add_argument("--subset", type=int, default=200)
 
+    leaks = learn_sub.add_parser("audit-leaks", help="how well each signal alone separates the sides of a pair (no model)")
+    leaks.add_argument("--memory", help="the store (default OUSAST_MEMORY, then results_root()/memory)")
+    leaks.add_argument("--units", type=Path, help="the harvest units.json (unit -> case and side) for feature rows without a side")
+    leaks.add_argument("--profile", choices=("static", "plane"), default="plane")
+    leaks.add_argument("--kind", default="features", help="the row kind to audit (features, or example)")
+    leaks.add_argument("--threshold", type=float, help="flag a separation at least this (default 0.20)")
+    leaks.add_argument("--min-pairs", type=int, help="over at least this many pairs (default 10)")
+    leaks.add_argument("--out", type=Path, help="write the counts-only report here")
+
 
 def run(args: argparse.Namespace) -> int:
+    if args.learn_command == "audit-leaks":
+        return _audit_leaks(args)
     if args.learn_command == "memory" and args.memory_command == "build":
         return _memory_build(args)
     if args.learn_command == "memory" and args.memory_command == "embed":
@@ -222,6 +233,33 @@ def _memory_build(args: argparse.Namespace) -> int:
             f"learn memory build: more than 10% of the recorded candidates have no excerpt in {summary['failing_sources']}", file=sys.stderr
         )
         return 2
+    return 0
+
+
+def _audit_leaks(args: argparse.Namespace) -> int:
+    """Exit 2 when the store holds no pair to audit (an unread store is not a clean one)."""
+    from ..plane.memory import open_store
+    from .leaks import MIN_PAIRS, THRESHOLD, audit, pair_rows, sides_from_units
+
+    store = open_store(args.memory)
+    rows = [r.row for r in store.rows(kind=args.kind)]
+    units = json.loads(args.units.read_text(encoding="utf-8")) if args.units is not None else {}
+    pairs, skipped = pair_rows(rows, sides_from_units(units), args.profile)
+    if not pairs:
+        print(f"learn audit-leaks: {len(rows)} {args.kind} rows in {store.describe()}, no pair to audit {skipped}", file=sys.stderr)
+        return 2
+    threshold = THRESHOLD if args.threshold is None else args.threshold
+    report = audit(pairs, args.profile, threshold=threshold, min_pairs=MIN_PAIRS if args.min_pairs is None else args.min_pairs)
+    report = {"rows_read": len(rows), "kind": args.kind, "skipped": skipped, **report}
+    text = json.dumps(report, indent=1, sort_keys=True) + "\n"
+    if args.out is not None:
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(text, encoding="utf-8")
+    print(json.dumps({"rows_read": len(rows), "pairs": report["pairs"], "flagged_signals": report["flagged_signals"]}, sort_keys=True))
+    for cell in report["flagged"]:
+        print(
+            f"  {cell['separation']:.3f}  {cell['signal']}  [{cell['scope']}]  {cell['correct']}-{cell['wrong']} of {cell['pairs']} pairs"
+        )
     return 0
 
 

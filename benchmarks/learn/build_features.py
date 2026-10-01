@@ -12,6 +12,10 @@ from:
   ``validation-46`` Run; model roles from ``harvest-roles``;
 - callers and entry-point distance on a repository (``not_applicable`` on a pair excerpt: no repository exists).
 
+A pair side yields a record only for a labelled function that side declares (the excerpt builder's matcher,
+:func:`openultrasast.plane.harvest.declares`); a name taken from the other side is counted as ``absent_on_side``, its
+recorded verify verdicts are left unused, and its earlier row is dropped from the store (``dropped_stale_rows``).
+
 An instrument that has not run for a unit yet (the engine job still running, a Run task not done) is recorded as
 ``failed`` with version ``missing:not-run`` -- null features, never zeros -- and counted as *missing*. Rows go to the
 memory store (``OUSAST_MEMORY``, default ``~/ousast-results/plane/memory``) as kind ``features``; a rerun replaces
@@ -60,6 +64,7 @@ from openultrasast.learn.features import (
 from openultrasast.learn.roles import RoleSet, from_model_roles, infer_for_checkout
 from openultrasast.pairs import DEFAULT_CATALOG, _materialize_side, _targets, load_pair_catalog
 from openultrasast.plane import memory
+from openultrasast.plane.harvest import declares
 from openultrasast.plane.tasks.alerts import covers
 from openultrasast.plane.tasks.alerts import engine_languages as _engine_languages
 from openultrasast.plane.tasks.alerts import quick_languages as _quick_languages
@@ -268,6 +273,8 @@ def main() -> int:
     tally: Counter[tuple[str, ...]] = Counter()
     coverage: dict[str, Counter[str]] = defaultdict(Counter)
     skipped: Counter[str] = Counter()
+    absent: Counter[str] = Counter()  # family -> labelled pair candidates their side does not declare
+    dropped = 0
     args.scratch.mkdir(parents=True, exist_ok=True)
     chosen = [(k, r) for k, r in sorted(targets.items()) if k[0] in args.kinds.split(",")]
     for number, ((kind, ref, role_or_pin), rows) in enumerate(chosen):
@@ -327,6 +334,10 @@ def main() -> int:
                     continue
                 seen.add((candidate, family))
                 path, _, function = candidate.partition("::")
+                if kind == "pairs" and not declares(index.lines(path), path, function):
+                    skipped["absent_on_side"] += 1  # a name from the other side: no candidate here, its verdicts unused
+                    absent[family] += 1
+                    continue
                 cand_line = next((c[2] for n in ([owner] if kind == "pairs" else by_pin[(repo, pin)]) for c in units[n]["candidates"]
                                   if f"{c[0]}::{c[1]}" == candidate), None)  # fmt: skip
                 parts = static_parts(root, index, quick, engine, engine_state, engine_result, inferred, rules, quick_version, path,
@@ -347,8 +358,14 @@ def main() -> int:
                             state = "missing" if info.get("version") == "missing:not-run" else info["state"]
                             coverage[f"{family}:{inst}"][state] += 1
             store.ingest_rows("harvest", f"features:{owner}", out_rows)
-            print(json.dumps({"target": owner, "rows": len(out_rows)}), flush=True)
+            built = {r["id"] for r in out_rows}
+            stored = store.rows(repo=memory.repo_key(repo), pin=pin, kind="features", where={"run": "harvest", "task": owner})
+            stale = [r.row["id"] for r in stored if r.row["id"] not in built]
+            dropped += store.drop_rows(memory.repo_key(repo), pin, stale)
+            print(json.dumps({"target": owner, "rows": len(out_rows), "dropped": len(stale)}), flush=True)
     counts = {
+        "absent_on_side": dict(sorted(absent.items())),
+        "dropped_stale_rows": dropped,
         "records": {f"{p}:{f}": n for (p, f), n in sorted(tally.items())},
         "instrument_states_plane": {k: dict(sorted(v.items())) for k, v in sorted(coverage.items())},
         "skipped_label_rows": dict(skipped),

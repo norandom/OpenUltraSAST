@@ -94,6 +94,15 @@ EXCLUDED_FIELDS = frozenset(
 )  # fmt: skip
 
 
+# What the classifier may see of a record (design, Risks: label-tracking signals, 2026-10-01). A record is stored whole;
+# an input profile names the instruments whose state and values are withheld from the prompt, the demonstrations, the
+# instruction proposer and the retrieval distance. On the pairs the engine's "read the file, asked no question" state
+# tracks the label (a fixed side loses its sink), so v1 withholds the engine entirely; it returns only through a
+# pre-registered A/B on negatives where it cannot track a fix.
+INPUT_PROFILES: Mapping[str, tuple[str, ...]] = {"v1": ("engine",), "full": ()}
+DEFAULT_INPUTS = "v1"
+
+
 class FeatureRecordError(ValueError):
     """A record names a feature outside the allow-list, a value outside its type, or a label/identity field."""
 
@@ -170,6 +179,13 @@ def features_for(profile: str) -> tuple[FeatureSpec, ...]:
 def instruments_for(profile: str) -> tuple[str, ...]:
     used = {spec.instrument for spec in features_for(profile)}
     return tuple(name for name in INSTRUMENTS if name in used)
+
+
+def withheld(inputs: str) -> frozenset[str]:
+    """The instruments an input profile withholds from the classifier (:data:`INPUT_PROFILES`)."""
+    if inputs not in INPUT_PROFILES:
+        raise FeatureRecordError(f"unknown input profile {inputs!r} (one of {', '.join(INPUT_PROFILES)})")
+    return frozenset(INPUT_PROFILES[inputs])
 
 
 def feature_set_digest() -> str:
@@ -251,8 +267,9 @@ def names(specs: Iterable[FeatureSpec] = FEATURES) -> tuple[str, ...]:
 
 
 __all__ = [
-    "BY_NAME", "EXCLUDED_FIELDS", "FEATURES", "FINALS", "INSTRUMENTS", "LANGUAGES", "MECHANISMS", "NOVELTY", "OPERATIONS",
+    "BY_NAME", "DEFAULT_INPUTS", "EXCLUDED_FIELDS", "FEATURES", "FINALS", "INPUT_PROFILES", "INSTRUMENTS", "LANGUAGES", "MECHANISMS",
+    "NOVELTY", "OPERATIONS",
     "ORIGINS", "PROFILES", "RULE_TAG_MECHANISM", "RUNGS", "SCHEMA_VERSION", "SOURCE_KINDS", "STATES", "UNITS",
     "FeatureRecordError", "FeatureSpec", "feature_set_digest", "features_for", "instruments_for", "names",
-    "validate_record", "validate_x",
+    "validate_record", "validate_x", "withheld",
 ]  # fmt: skip

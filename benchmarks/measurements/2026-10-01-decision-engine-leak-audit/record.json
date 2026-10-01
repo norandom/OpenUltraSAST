@@ -1,0 +1,236 @@
+{
+ "audit": {
+  "after_rebuild": {
+   "flagged": [
+    {
+     "correct": 8,
+     "direction": "higher on fixed",
+     "pairs": 10,
+     "scope": "untrusted_destination",
+     "separation": 0.8,
+     "signal": "facts.function_lines",
+     "wrong": 0
+    },
+    {
+     "correct": 8,
+     "direction": "higher on fixed",
+     "pairs": 12,
+     "scope": "config_secrets",
+     "separation": 0.6667,
+     "signal": "verify.turns_mean",
+     "wrong": 0
+    },
+    {
+     "correct": 18,
+     "direction": "higher on vulnerable",
+     "pairs": 40,
+     "scope": "output_encoding",
+     "separation": 0.4,
+     "signal": "eng.witness_steps_min",
+     "wrong": 2
+    },
+    {
+     "correct": 15,
+     "direction": "higher on vulnerable",
+     "pairs": 40,
+     "scope": "output_encoding",
+     "separation": 0.35,
+     "signal": "eng.findings",
+     "wrong": 1
+    },
+    {
+     "correct": 15,
+     "direction": null,
+     "pairs": 40,
+     "scope": "output_encoding",
+     "separation": 0.35,
+     "signal": "eng.rung_max",
+     "wrong": 1
+    },
+    {
+     "correct": 15,
+     "direction": null,
+     "pairs": 40,
+     "scope": "output_encoding",
+     "separation": 0.35,
+     "signal": "eng.sink_kind",
+     "wrong": 1
+    },
+    {
+     "correct": 15,
+     "direction": null,
+     "pairs": 40,
+     "scope": "output_encoding",
+     "separation": 0.35,
+     "signal": "eng.sink_origin",
+     "wrong": 1
+    },
+    {
+     "correct": 15,
+     "direction": null,
+     "pairs": 40,
+     "scope": "output_encoding",
+     "separation": 0.35,
+     "signal": "eng.source_kind",
+     "wrong": 1
+    },
+    {
+     "correct": 15,
+     "direction": null,
+     "pairs": 40,
+     "scope": "output_encoding",
+     "separation": 0.35,
+     "signal": "eng.source_origin",
+     "wrong": 1
+    },
+    {
+     "correct": 3,
+     "direction": "higher on vulnerable",
+     "pairs": 10,
+     "scope": "untrusted_destination",
+     "separation": 0.3,
+     "signal": "verify.flag_a",
+     "wrong": 0
+    },
+    {
+     "correct": 3,
+     "direction": null,
+     "pairs": 12,
+     "scope": "config_secrets",
+     "separation": 0.25,
+     "signal": "agree.final",
+     "wrong": 0
+    },
+    {
+     "correct": 3,
+     "direction": "higher on vulnerable",
+     "pairs": 12,
+     "scope": "config_secrets",
+     "separation": 0.25,
+     "signal": "verify.site_offset",
+     "wrong": 0
+    },
+    {
+     "correct": 3,
+     "direction": "higher on vulnerable",
+     "pairs": 12,
+     "scope": "config_secrets",
+     "separation": 0.25,
+     "signal": "verify.votes",
+     "wrong": 0
+    },
+    {
+     "correct": 2,
+     "direction": "higher on vulnerable",
+     "pairs": 10,
+     "scope": "untrusted_destination",
+     "separation": 0.2,
+     "signal": "eng.completion",
+     "wrong": 0
+    }
+   ],
+   "pairs": {
+    "all": 279,
+    "config_secrets": 12,
+    "injection": 43,
+    "memory": 171,
+    "output_encoding": 40,
+    "path": 1,
+    "unknown": 2,
+    "untrusted_destination": 10
+   }
+  },
+  "before_rebuild": {
+   "flagged_signals": [
+    "agree.final",
+    "eng.completion",
+    "eng.degraded",
+    "eng.findings",
+    "eng.rung_max",
+    "eng.sink_kind",
+    "eng.sink_origin",
+    "eng.source_kind",
+    "eng.source_origin",
+    "eng.witness_steps_min",
+    "facts.function_lines",
+    "ms.flagged",
+    "ms.operation",
+    "qr.enabled_hits",
+    "qr.max_precision_estimate",
+    "qr.mechanism.source_reaches_sink",
+    "qr.prior_hits",
+    "roles.sink_confidence",
+    "roles.source_in_function",
+    "state.engine",
+    "state.roles",
+    "state.source",
+    "verify.flag_a",
+    "verify.flag_b",
+    "verify.site_offset",
+    "verify.turns_mean",
+    "verify.votes"
+   ],
+   "pairs": {
+    "access_control": 13,
+    "all": 396,
+    "config_secrets": 16,
+    "deserialization": 20,
+    "injection": 66,
+    "memory": 173,
+    "output_encoding": 56,
+    "path": 14,
+    "unknown": 2,
+    "untrusted_destination": 36
+   }
+  },
+  "command": "ousast learn audit-leaks --profile plane --units <harvest units.json> (threshold 0.20, min 10 pairs)",
+  "metric": "separation = (pairs the signal alone puts on the right side - on the wrong side) / pairs; see learn/leaks.py"
+ },
+ "created": "2026-10-01",
+ "label_snapshot_sha256_prefix": "18337014d8a5c8df",
+ "note": "Maintainer decision 'Neutralise both for v1' (learned-decision-engine). COUNTS ONLY. (1) Pair-side candidates come only from functions the side declares (plane/harvest.py `declares`, the excerpt builder's function_bounds); the harvest feature records were rebuilt with benchmarks/learn/build_features.py --kinds pairs from the recorded signals (no model call): label rows whose side does not declare the function are skipped (absent_on_side) and their earlier rows dropped from the store. (2) The v1 program withholds the engine instrument from prompts and the retrieval distance. (3) `ousast learn audit-leaks` on the plane profile of the memory store, before and after the rebuild.",
+ "rebuild": {
+  "absent_on_side_by_side": {
+   "fixed": 117,
+   "vulnerable": 9
+  },
+  "absent_on_side_label_rows_by_family": {
+   "access_control": 13,
+   "config_secrets": 4,
+   "deserialization": 20,
+   "injection": 28,
+   "memory": 4,
+   "output_encoding": 16,
+   "path": 15,
+   "untrusted_destination": 26
+  },
+  "feature_rows_after": 1460,
+  "feature_rows_before": 1712,
+  "feature_rows_changed_otherwise": 0,
+  "feature_rows_dropped": 252,
+  "phantom_verify_candidates_in_recorded_units": {
+   "fixed": 53,
+   "vulnerable": 5
+  },
+  "records_after_rebuild_pairs": {
+   "plane:access_control": 13,
+   "plane:config_secrets": 4,
+   "plane:deserialization": 20,
+   "plane:injection": 42,
+   "plane:memory": 342,
+   "plane:output_encoding": 96,
+   "plane:path": 13,
+   "plane:unknown": 4,
+   "plane:untrusted_destination": 26,
+   "static:access_control": 13,
+   "static:config_secrets": 4,
+   "static:deserialization": 20,
+   "static:injection": 42,
+   "static:memory": 342,
+   "static:output_encoding": 96,
+   "static:path": 13,
+   "static:unknown": 4,
+   "static:untrusted_destination": 26
+  }
+ }
+}

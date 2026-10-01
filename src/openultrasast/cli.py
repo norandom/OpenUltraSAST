@@ -1418,6 +1418,9 @@ def _plane_harvest(args: argparse.Namespace) -> int:
     )  # fmt: skip
     for relative in sorted(k for k in files if k.startswith("runs/")):
         print(f"{args.plane / relative}: {files[relative].splitlines()[1].lstrip('# ')}")
+    index = json.loads(files["units.json"])
+    absent = sum(len(u.get("absent_on_side") or ()) for u in index.values())
+    print(f"absent_on_side: {absent} labelled candidates not declared on their side (not asked there)")
     return 0
 
 

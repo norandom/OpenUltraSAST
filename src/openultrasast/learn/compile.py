@@ -52,7 +52,7 @@ from .program import (
     ProgramSpec,
     label_word,
 )
-from .schema import SCHEMA_VERSION, feature_set_digest
+from .schema import BY_NAME, DEFAULT_INPUTS, SCHEMA_VERSION, feature_set_digest, withheld
 
 DEFAULT_SPEC = Path(__file__).resolve().parent / "compile.toml"
 KIND = "llm-program"
@@ -152,8 +152,13 @@ class Bootstrap:
         self.rejected[why] = self.rejected.get(why, 0) + 1
 
 
-def _signal_summary(example: Example) -> dict[str, Any]:
-    ran = {k: v for k, v in example.x.items() if v not in (None, 0, False) and not k.startswith("lang.")}
+def _signal_summary(example: Example, inputs: str = DEFAULT_INPUTS) -> dict[str, Any]:
+    """The non-zero signals of a mistake for the instruction proposer, without the instruments ``inputs`` withholds."""
+    hidden = withheld(inputs)
+    ran = {
+        k: v for k, v in example.x.items()
+        if v not in (None, 0, False) and not k.startswith("lang.") and not (k in BY_NAME and BY_NAME[k].instrument in hidden)
+    }  # fmt: skip
     return dict(sorted(ran.items())[:12])
 
 
@@ -179,7 +184,7 @@ def bootstrap(
         right = decision.verdict == label_word(example.label)
         if not right:
             out.errors.append({"family": example.family, "label": label_word(example.label), "verdict": decision.verdict,
-                               "confidence": answer.confidence, "signals": _signal_summary(example)})  # fmt: skip
+                               "confidence": answer.confidence, "signals": _signal_summary(example, program.spec.inputs)})  # fmt: skip
             out.reject("wrong or unsure")
             continue
         if answer.parse_failed or answer.confidence < min_confidence:
@@ -370,6 +375,7 @@ def compile_program(
     base = ProgramSpec(
         profile=profile, model=str(classify.get("model", "deepseek-flash")), k=int(classify.get("k", 1)), k_ret=int(retrieval.get("k", 6)),
         lam=float(retrieval.get("lam", 0.5)), n1=int(retrieval.get("n1", 40)), priors=str(retrieval.get("priors", "off")),
+        inputs=str(classify.get("inputs", DEFAULT_INPUTS)),
         max_output_tokens=int(classify.get("max_output_tokens", 300)),
     )  # fmt: skip
     from .evaluate import candidate_from_example
@@ -434,6 +440,8 @@ def compile_program(
             "temperature": [0.0, 0.7],
             "confidence": "vote_mean",
             "max_output_tokens": base.max_output_tokens,
+            "inputs": base.inputs,
+            "withheld": sorted(withheld(base.inputs)),
         },
         "calibration": None,
         "operating_points": None,
@@ -491,6 +499,7 @@ def spec_of(artifact: Mapping[str, Any]) -> ProgramSpec:
         lam=float(retrieval["lam"]),
         n1=int(retrieval["n1"]),
         priors=str(retrieval.get("priors", "off")),
+        inputs=str(classify.get("inputs", DEFAULT_INPUTS)),
         max_output_tokens=int(classify.get("max_output_tokens", 300)),
     )
 

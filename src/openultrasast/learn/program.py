@@ -13,7 +13,9 @@ sentences citing at least one line of the code. The **modules** are ``Retrieve -
   ``not_vulnerable``, 0.5 for ``unsure``); the verdict is the majority (ties are ``unsure``), and a majority
   ``unsure`` can never BLOCK.
 
-Signals reach the prompt only through :func:`.schema.validate_x` (no ``EXCLUDED_FIELDS``, no free text); a missing
+Signals reach the prompt only through :func:`.schema.validate_x` (no ``EXCLUDED_FIELDS``, no free text) and the input
+profile (``ProgramSpec.inputs``, default ``v1``: the engine instrument is withheld from prompts and from the retrieval
+distance, see :data:`.schema.INPUT_PROFILES`); a missing
 instrument is shown in words. Every model call goes through :class:`Caller`: a response cache keyed by
 ``sha256(model, Model parameters digest, messages, temperature, sample, json_object)`` stored as
 ``responses/<sha>.json``, so a rerun on the same inputs replays at $0 and reproduces byte for byte. Before a call the
@@ -35,7 +37,7 @@ from ..plane.memory import MemoryStore
 from .examples import Example
 from .folds import Fold
 from .retrieve import Retrieval, Target, assert_boundary, demonstrations_for, retrieve
-from .schema import features_for, instruments_for, validate_x
+from .schema import DEFAULT_INPUTS, features_for, instruments_for, validate_x, withheld
 
 VERDICTS = ("vulnerable", "not_vulnerable", "unsure")
 UNSURE = "unsure"
@@ -70,7 +72,12 @@ class Signature:
 SIGNATURE = Signature(
     (
         Field("code", "in", "excerpt", "numbered lines, <= 80 lines and 4,000 characters; a delta adds the diff (<= 40 lines)"),
-        Field("signals", "in", "record", "the allow-listed features as name: value lines; a missing instrument in words"),
+        Field(
+            "signals",
+            "in",
+            "record",
+            "the allow-listed features the input profile shows, as name: value lines; a missing instrument in words",
+        ),
         Field("roles", "in", "roles", "inferred roles of the function: role, operation, line, origin"),
         Field("family", "in", "family", "the candidate's family, or unknown"),
         Field("verdict", "out", "enum", "vulnerable | not_vulnerable | unsure"),
@@ -95,13 +102,16 @@ BASELINE_INSTRUCTION = (
 # --- rendering ---------------------------------------------------------------------------------------------------------
 
 
-def render_signals(x: Mapping[str, Any], instruments: Mapping[str, Mapping[str, Any]], profile: str) -> str:
+def render_signals(x: Mapping[str, Any], instruments: Mapping[str, Mapping[str, Any]], profile: str, inputs: str = DEFAULT_INPUTS) -> str:
     """``name: value`` per feature of an instrument that ran; ``<instrument>: no coverage | failed | not applicable``
-    otherwise. The record is validated first: an unknown, label or identity field never reaches a prompt."""
+    otherwise. The record is validated first: an unknown, label or identity field never reaches a prompt. An
+    instrument the input profile withholds (:data:`.schema.INPUT_PROFILES`; v1: the engine) is not rendered at all --
+    neither its state nor its values -- though the stored record keeps it."""
     validate_x(x, instruments, profile)
+    hidden = withheld(inputs)
     lines: list[str] = []
     for name in instruments_for(profile):
-        if name == "language":
+        if name == "language" or name in hidden:
             continue
         state = str(instruments[name]["state"])
         if state != "ran":
@@ -129,8 +139,9 @@ def _case(
     family: str,
     profile: str,
     language: str,
+    inputs: str = DEFAULT_INPUTS,
 ) -> str:
-    signals = render_signals(x, instruments, profile)
+    signals = render_signals(x, instruments, profile, inputs)
     return f"Family: {family}\nLanguage: {language}\nCode:\n{code.rstrip()}\nSignals:\n{signals}\nRoles:\n{render_roles(roles)}"
 
 
@@ -181,6 +192,7 @@ class ProgramSpec:
     lam: float = 0.5
     n1: int = 40
     priors: str = "off"
+    inputs: str = DEFAULT_INPUTS  # the input profile: which instruments the classifier never sees (v1: the engine)
     max_output_tokens: int = MAX_OUTPUT_TOKENS
 
 
@@ -228,7 +240,7 @@ def render_prefix(spec: ProgramSpec, demos: Sequence[Demo], examples: Mapping[st
                   "cited_lines": list(demo.cited_lines)}  # fmt: skip
         parts.append(
             f"Demonstration {number}:\n"
-            + _case(code, example.x, example.instruments, example.roles, example.family, spec.profile, example.language)
+            + _case(code, example.x, example.instruments, example.roles, example.family, spec.profile, example.language, spec.inputs)
             + f"\nAnswer: {json.dumps(answer, sort_keys=True)}"
         )
     return "\n\n".join(parts)
@@ -249,10 +261,12 @@ def render(
         code = excerpt_text(example.excerpt_sha) or ""
         blocks.append(
             f"Example {number} (label: {label_word(example.label)}):\n"
-            + _case(code, example.x, example.instruments, example.roles, example.family, spec.profile, example.language)
+            + _case(code, example.x, example.instruments, example.roles, example.family, spec.profile, example.language, spec.inputs)
         )
     t = candidate.target
-    blocks.append("Candidate:\n" + _case(candidate.code, t.x, t.instruments, candidate.roles, t.family, spec.profile, candidate.language))
+    blocks.append(
+        "Candidate:\n" + _case(candidate.code, t.x, t.instruments, candidate.roles, t.family, spec.profile, candidate.language, spec.inputs)
+    )
     messages: list[dict[str, object]] = [
         {"role": "system", "content": render_prefix(spec, demos, examples, excerpt_text)},
         {"role": "user", "content": "\n\n".join(blocks)},
@@ -454,7 +468,7 @@ class Program:
     def prepare(self, candidate: Candidate, fold: Fold, *, seed: int = 0) -> tuple[Prompt, Retrieval]:
         target = candidate.target
         got = retrieve(target, self.memory, fold, vectors=self.vectors, n1=self.spec.n1, k=self.spec.k_ret, lam=self.spec.lam, seed=seed,
-                       priors=self.spec.priors)  # fmt: skip
+                       priors=self.spec.priors, inputs=self.spec.inputs)  # fmt: skip
         usable = [Demo.from_dict(d) for d in demonstrations_for([d.as_dict() for d in self.spec.demos], self.index, target, fold)]
         prompt = render(self.spec, candidate, got.examples, usable, self.index, self.excerpt_text)
         assert_boundary([*prompt.example_ids, *prompt.demo_ids], self.index, target, fold, vectors=self.vectors)

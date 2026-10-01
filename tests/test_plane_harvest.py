@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
+import pytest
 import yaml
 
 from openultrasast.plane import reconciler
@@ -98,3 +100,28 @@ def test_blob_sha1_is_gits_and_declaration_lines() -> None:
     lines = text.splitlines()
     assert declaration_line(lines, "m.py", "b") == 4
     assert declaration_line(lines, "m.py", "missing") == 1 and declaration_line(None, "m.py", "a") == 1
+
+
+def test_pair_sides_ask_only_the_functions_they_declare(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A fixed side whose fix removed a labelled function never gets it as a candidate (no phantom verify candidate);
+    it is listed under ``absent_on_side``. A side declaring none of its verify family's functions is no verify unit."""
+    from openultrasast import pairs
+    from openultrasast.plane.harvest import pair_units
+
+    vuln, fixed = tmp_path / "vuln.py", tmp_path / "fixed.py"
+    vuln.write_text("import os\n\ndef run(cmd):\n    os.system(cmd)\n\ndef keep(x):\n    return x\n")
+    fixed.write_text("import shlex\n\ndef keep(x):\n    return shlex.quote(x)\n")
+    case = SimpleNamespace(name="p-cwe-078", vuln_file=vuln, fixed_file=fixed, relpath="app.py", context_files=(), repo="", slice="s")
+    monkeypatch.setattr(pairs, "load_pair_catalog", lambda _catalog: [case])
+    rows = [{"source": "pairs", "unit": "pin", "source_ref": "p-cwe-078", "family": "injection", "candidate": f"app.py::{fn}"}
+            for fn in ("run", "keep")]  # fmt: skip
+    labels = tmp_path / "labels.jsonl"
+    labels.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    by_side = {u.side: u for u in pair_units(labels, tmp_path / "catalog.toml")}
+    assert [c[1] for c in by_side["vulnerable"].candidates] == ["keep", "run"] and by_side["vulnerable"].absent_on_side == ()
+    assert [c[1] for c in by_side["fixed"].candidates] == ["keep"] and [c[1] for c in by_side["fixed"].verify] == ["keep"]
+    assert by_side["fixed"].absent_on_side == ("app.py::run",)
+    assert by_side["fixed"].index_row()["absent_on_side"] == ["app.py::run"]
+    fixed.write_text("import shlex\n\ndef other(x):\n    return shlex.quote(x)\n")
+    gone = next(u for u in pair_units(labels, tmp_path / "catalog.toml") if u.side == "fixed")
+    assert gone.candidates == () and gone.verify == () and gone.family == "" and len(gone.absent_on_side) == 2

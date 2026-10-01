@@ -325,6 +325,24 @@ class MemoryStore(ABC):
             ordered = [merged[i] for i in sorted(merged)]
             self._put(key, "".join(_line(r) + "\n" for r in ordered).encode("utf-8"), _labels(ordered))
 
+    def drop_rows(self, repo: str, pin: str, ids: Iterable[str]) -> int:
+        """Remove the rows ``ids`` from one repository + pin object (a rebuild that no longer produces them); returns
+        how many were removed. The object is deleted when it ends up empty."""
+        key = f"repos/{repo_dir(repo)}/{pin}.jsonl"
+        found = self._get(key)
+        unwanted = set(ids)
+        if found is None or not unwanted:
+            return 0
+        rows = _parse_lines(found[0], key)
+        kept = [r for r in rows if str(r["id"]) not in unwanted]
+        if len(kept) == len(rows):
+            return 0
+        if kept:
+            self._put(key, "".join(_line(r) + "\n" for r in kept).encode("utf-8"), _labels(kept))
+        else:
+            self._delete(key)
+        return len(rows) - len(kept)
+
     def ingest_rows(self, run: str, task: str, rows: Sequence[Mapping[str, Any]], facts: bytes | None = None) -> IngestResult:
         """One (run, task)'s rows and facts; a repeat of the same rows is skipped by the index."""
         checked = [validate_row(dict(r), f"{run}/{task} row {i + 1}") for i, r in enumerate(rows)]

@@ -30,6 +30,8 @@ QUICK_ALL = [s for s in features_for("static") if s.instrument == "quick"]
 
 
 def _d(a: dict, b: dict, **kw: str) -> float:
+    """The full distance (every block, the engine included): the definition. v1 withholds the engine (below)."""
+    kw.setdefault("inputs", "full")
     return gower(a["x"], a["instruments"], b["x"], b["instruments"], "static", **kw)
 
 
@@ -51,6 +53,22 @@ def test_prior_features_are_dropped_with_priors_off() -> None:
     plain, prior = x_record(prior_hits=0), x_record(prior_hits=5)
     assert _d(plain, prior) == 0.0
     assert _d(plain, prior, priors="on") == pytest.approx(5 / 10 / len(QUICK_ALL) / BLOCKS)
+
+
+def test_v1_distance_contains_no_engine_field() -> None:
+    """v1 (the default) withholds the engine: neither its state nor its values move the distance, so neighbours cannot
+    carry it; every other block still counts, over one block fewer."""
+    ran, failed, none = x_record(findings=3), x_record(engine="failed"), x_record(engine="none")
+    for a, b in ((ran, failed), (ran, none), (failed, none), (x_record(findings=0), ran)):
+        assert gower(a["x"], a["instruments"], b["x"], b["instruments"], "static") == 0.0
+        assert _d(a, b) > 0.0
+    hits = x_record(hits=10, engine="failed")
+    expected = (10 / 20 + 10 / 10) / len(QUICK_NO_PRIOR) / (BLOCKS - 1)
+    assert gower(ran["x"], ran["instruments"], hits["x"], hits["instruments"], "static") == pytest.approx(expected)
+    same, other = example("same-engine", group="g1", label=0, engine="failed"), example("other-engine", group="g2", label=1, findings=4)
+    v1 = [gower(failed["x"], failed["instruments"], e.x, e.instruments, "static") for e in (same, other)]
+    full = [gower(failed["x"], failed["instruments"], e.x, e.instruments, "static", inputs="full") for e in (same, other)]
+    assert v1[0] == v1[1] and full[0] < full[1]  # the engine state ranked them; in v1 it cannot
 
 
 def _target(**kw: object) -> Target:

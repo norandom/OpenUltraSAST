@@ -31,6 +31,7 @@ val_candidates = 60
 model = "deepseek-flash"
 k = 1                        # k and lam are A/B variants (design section 6), not searched here
 max_output_tokens = 300
+inputs = "v1"                # the input profile: the engine instrument is withheld from prompts and retrieval (2026-10-01)
 
 [retrieval]
 n1 = 40

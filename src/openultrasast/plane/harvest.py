@@ -14,8 +14,11 @@ root: the excerpts and candidates are inputs, never committed):
 Units carry no label. A pair side is a files-only Workspace holding the excerpt (and the documents that register
 it) under ``repo/`` and the candidates under ``inputs/`` -- outside the hunt's root, so the tools cannot read them;
 its name is opaque (``h-<sha>``): the pair's name says its CWE and its side. ``agree`` gets no declared sites, so
-no ``site_match`` is computed. ``units.json`` maps each unit name to its source, reference, side, repository, pin
-and candidates for the host-side feature build; it names functions and stays local.
+no ``site_match`` is computed. A side's candidates are only the functions that side declares (the excerpt builder's
+matcher, :func:`declares`): a labelled function absent from a side -- a fixed side whose fix removed or renamed it --
+is never asked there and is listed under ``absent_on_side`` instead. ``units.json`` maps each unit name to its
+source, reference, side, repository, pin and candidates for the host-side feature build; it names functions and stays
+local.
 
 Every Run entry has a budget; the sum over each Run is held under ``ceiling`` (USD) by construction: verify gets
 :data:`USD_PER_HUNT` per hunt of an excerpt or a repository (scaled down when the hunts would exceed the ceiling),
@@ -44,7 +47,7 @@ from .tasks.repo_facts import DECLARATION, GLOBAL, _declared_name
 from .tasks.roles import CHUNK_LINES
 from .tasks.verify import OPERATIONS, units_of
 
-__all__ = ["Unit", "declaration_line", "pair_units", "population_units", "render_harvest", "write_harvest"]
+__all__ = ["Unit", "declaration_line", "declares", "pair_units", "population_units", "render_harvest", "write_harvest"]
 
 Candidate = tuple[str, str, int]
 REPO = "repo"
@@ -79,14 +82,18 @@ class Unit:
     files: tuple[tuple[str, str], ...] = field(default=())
     verify: tuple[Candidate, ...] = field(default=())  # the candidates of ``family`` (all of them when empty)
     sizes: tuple[tuple[str, int, int], ...] = field(default=())  # (path, characters, lines) of a pin's candidate files
+    absent_on_side: tuple[str, ...] = field(default=())  # labelled ``path::function`` names this side does not declare
 
     @property
     def paths(self) -> list[str]:
         return sorted({c[0] for c in self.candidates})
 
     def index_row(self) -> dict[str, Any]:
-        return {"source": self.source, "ref": self.ref, "side": self.side, "repo": self.repo, "pin": self.pin,
-                "family": self.family, "candidates": [list(c) for c in self.candidates]}  # fmt: skip
+        row: dict[str, Any] = {"source": self.source, "ref": self.ref, "side": self.side, "repo": self.repo, "pin": self.pin,
+                               "family": self.family, "candidates": [list(c) for c in self.candidates]}  # fmt: skip
+        if self.absent_on_side:
+            row["absent_on_side"] = list(self.absent_on_side)
+        return row
 
 
 def _opaque(*parts: str) -> str:
@@ -104,6 +111,14 @@ def declaration_line(lines: Sequence[str] | None, path: str, function: str) -> i
     if not lines or pattern is None or function == GLOBAL:
         return 1
     return next((i + 1 for i, line in enumerate(lines) if _declared_name(pattern, line) == function), 1)
+
+
+def declares(lines: Sequence[str] | None, path: str, function: str) -> bool:
+    """Whether a side's file declares ``function``, by the excerpt builder's matcher
+    (:func:`..learn.excerpt.function_bounds`): a candidate is asked only where an excerpt of it exists."""
+    from ..learn.excerpt import function_bounds
+
+    return bool(lines) and function_bounds(lines or (), detect_language(Path(path)) or "", function) is not None
 
 
 def _read_labels(labels: Path) -> list[dict[str, Any]]:
@@ -135,13 +150,18 @@ def pair_units(labels: Path, catalog: Path) -> list[Unit]:
             lines = {path: text.splitlines() for path, text in texts.items()}
 
             def located(names: Iterable[str], lines: Mapping[str, list[str]] = lines) -> tuple[Candidate, ...]:
-                return tuple(sorted({(p, fn, declaration_line(lines.get(p), p, fn)) for c in names for p, _, fn in [c.partition("::")]}))
+                """The candidates this side declares: a name taken from the other side is never asked here."""
+                split = [(p, fn) for c in names for p, _, fn in [c.partition("::")]]
+                return tuple(sorted({(p, fn, declaration_line(lines.get(p), p, fn)) for p, fn in split if declares(lines.get(p), p, fn)}))
 
+            labelled = set().union(*families.values())
+            absent = tuple(sorted(c for c in labelled if not declares(lines.get(c.partition("::")[0]), *c.partition("::")[::2])))
+            asked = located(families[verify[0]]) if verify else ()  # none declared here: no verify unit on this side
             role = "vulnerable" if side == "vuln" else "fixed"
             out.append(Unit(
                 _opaque("pairs", name, side), "pairs", name, role, case.repo or f"pairs/{case.slice}/{name}",
-                blob_sha1(texts[case.relpath]), verify[0] if verify else "", located(set().union(*families.values())),
-                tuple(sorted(texts.items())), located(families[verify[0]]) if verify else (),
+                blob_sha1(texts[case.relpath]), verify[0] if asked else "", located(labelled),
+                tuple(sorted(texts.items())), asked, absent_on_side=absent,
             ))  # fmt: skip
     return out
 
