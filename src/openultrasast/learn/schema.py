@@ -99,7 +99,10 @@ EXCLUDED_FIELDS = frozenset(
 # instruction proposer and the retrieval distance. On the pairs the engine's "read the file, asked no question" state
 # tracks the label (a fixed side loses its sink), so v1 withholds the engine entirely; it returns only through a
 # pre-registered A/B on negatives where it cannot track a fix.
-INPUT_PROFILES: Mapping[str, tuple[str, ...]] = {"v1": ("engine",), "full": ()}
+# Entries name an instrument (all its state and values) or a single feature. v1 withholds the engine and the function
+# length: both separate fixed from vulnerable pair sides by construction (a fix removes a sink, a guard lengthens the
+# function), not by anything that holds on unseen code (leak audit 2026-10-01).
+INPUT_PROFILES: Mapping[str, tuple[str, ...]] = {"v1": ("engine", "facts.function_lines"), "full": ()}
 DEFAULT_INPUTS = "v1"
 
 

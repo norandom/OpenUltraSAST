@@ -118,7 +118,7 @@ def render_signals(x: Mapping[str, Any], instruments: Mapping[str, Mapping[str, 
             lines.append(f"{name}: {STATE_WORDS[state]}")
             continue
         for spec in features_for(profile):
-            if spec.instrument == name:
+            if spec.instrument == name and spec.name not in hidden:
                 value = x[spec.name]
                 lines.append(f"{spec.name}: {'null' if value is None else json.dumps(value)}")
     return "\n".join(lines)

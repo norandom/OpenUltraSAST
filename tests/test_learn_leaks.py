@@ -92,3 +92,24 @@ def test_drop_rows_removes_only_the_named_rows(tmp_path: Path) -> None:
     assert store.drop_rows("github.com/o/r", "0" * 40, ["u1v:a.py::g", "absent"]) == 1
     assert [r.row["id"] for r in store.rows(kind="features")] == ["u1v:a.py::f"]
     assert store.drop_rows("github.com/o/r", "0" * 40, ["u1v:a.py::f"]) == 1 and store.rows(kind="features") == []
+
+
+def test_v1_withholds_function_length_from_prompts_and_distance() -> None:
+    """The leak audit (2026-10-01) found facts.function_lines separating pair sides by construction (a fix's guard
+    lengthens the function): v1 renders it nowhere and it cannot move the retrieval distance; ``full`` keeps it."""
+    from learn_fixtures import x_record
+
+    from openultrasast.learn.program import render_signals
+    from openultrasast.learn.retrieve import gower
+    from openultrasast.learn.schema import features_for
+
+    a = x_record()
+    a["instruments"]["source"] = {"state": "ran"}
+    for spec in features_for("static"):
+        if spec.instrument == "source":
+            a["x"][spec.name] = 42
+    b = {"x": {**a["x"], "facts.function_lines": 400}, "instruments": a["instruments"]}
+    assert "facts.function_lines" not in render_signals(a["x"], a["instruments"], "static")
+    assert "facts.function_lines: 42" in render_signals(a["x"], a["instruments"], "static", inputs="full")
+    assert gower(a["x"], a["instruments"], b["x"], b["instruments"], "static") == 0.0
+    assert gower(a["x"], a["instruments"], b["x"], b["instruments"], "static", inputs="full") > 0.0

@@ -157,7 +157,8 @@ def _signal_summary(example: Example, inputs: str = DEFAULT_INPUTS) -> dict[str,
     hidden = withheld(inputs)
     ran = {
         k: v for k, v in example.x.items()
-        if v not in (None, 0, False) and not k.startswith("lang.") and not (k in BY_NAME and BY_NAME[k].instrument in hidden)
+        if v not in (None, 0, False) and not k.startswith("lang.") and k not in hidden
+        and not (k in BY_NAME and BY_NAME[k].instrument in hidden)
     }  # fmt: skip
     return dict(sorted(ran.items())[:12])
 

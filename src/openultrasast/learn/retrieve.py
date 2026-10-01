@@ -97,13 +97,15 @@ def gower(
     """The per-instrument Gower distance of two records of ``profile`` (module docstring), in [0, 1]. The blocks of
     instruments the input profile withholds (v1: the engine) are not compared, so neighbours cannot carry them."""
     hidden = withheld(inputs)
-    total, blocks = 0.0, [(name, specs) for name, specs in _blocks(profile, priors) if name not in hidden]
+    # a withheld feature leaves its instrument's block in place: the state still counts, as it is still rendered
+    total = 0.0
+    blocks = [(name, [s for s in specs if s.name not in hidden]) for name, specs in _blocks(profile, priors) if name not in hidden]
     for name, specs in blocks:
         sa, sb = a_instruments.get(name, {}).get("state", "none"), b_instruments.get(name, {}).get("state", "none")
         if sa != sb:
             total += 1.0
         elif sa == "ran":
-            total += sum(_feature_distance(s, a_x.get(s.name), b_x.get(s.name)) for s in specs) / len(specs)
+            total += sum(_feature_distance(s, a_x.get(s.name), b_x.get(s.name)) for s in specs) / len(specs) if specs else 0.0
     return total / len(blocks) if blocks else 0.0
 
 
