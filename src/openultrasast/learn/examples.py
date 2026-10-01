@@ -15,8 +15,11 @@ Memory examples carry **no rationale** (code, signals, roles, family and label o
 - conditional rows (``benign_control``, ``assumed_benign``) are skipped until their condition is evaluated;
 - a candidate whose excerpt is empty or whose function is not found is never stored; when more than 10% of a
   source's recorded candidates have no excerpt the build fails that source (exit 2 in the CLI): an unread clone is
-  not a small memory. A fixed side whose file was read but no longer declares the labelled function (a pointer
-  pair whose fix lives in another function) is a label defect, counted apart as ``absent_fixed_side``.
+  not a small memory. A fixed side whose file was read but no longer declares the labelled function is a label
+  defect, counted apart as ``absent_fixed_side`` (the label builder emits a fixed-side negative only where the fixed
+  side declares its candidate function, so this count should stay 0). A pair label names the function its side
+  declares -- the labelled one, or the renamed one of a ``fixed_side_moved`` negative -- never the catalog's
+  ``fix_function`` (a different handler of the same snapshot).
 
 Pair labels have no commit pin (the corpus holds excerpts); their envelope pin is :func:`label_pin`, a stable
 40-hex digest of the pair and its side, so the vulnerable and the fixed side stay distinct rows.
@@ -254,13 +257,6 @@ class SideReader:
             source = next(s for s in self.sources.sources if s.kind == "pairs")
             self._pairs = {case.name: case for case in load_pair_catalog(self.root / source.files[0])}
         return self._pairs
-
-    def function(self, label: Mapping[str, Any], pin_role: str) -> str | None:
-        """The function a pair's fixed side holds when it is not the labelled one (``fix_function``)."""
-        if label.get("source") != "pairs" or pin_role != "fixed":
-            return None
-        case = self._pair_cases().get(str(label.get("source_ref")))
-        return str(getattr(case, "fix_function", "") or "") or None
 
     def license(self, label: Mapping[str, Any]) -> str:
         if label.get("source") != "pairs":

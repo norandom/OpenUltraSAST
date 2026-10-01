@@ -247,11 +247,34 @@ def test_repository_groups_merge_urls_forks_and_advisories() -> None:
     assert L.advisories("fix for cve-2024-0001 and GHSA-mh7h-gpmx-fggj") == {"CVE-2024-0001", "GHSA-MH7H-GPMX-FGGJ"}
 
 
-def _pair(name: str, *, tier: str = "advisory", unscorable: str | None = None, function: str | None = "f", repo: str = "") -> PairCase:
+VULN_PY = "def f(q):\n    return db.execute('SELECT ' + q)\n"
+FIXED_PY = "def f(q):\n    return db.execute('SELECT ?', (q,))\n"
+
+
+def _pair(
+    name: str,
+    *,
+    tier: str = "advisory",
+    unscorable: str | None = None,
+    function: str | None = "f",
+    repo: str = "",
+    root: Path | None = None,
+    vuln: str = VULN_PY,
+    fixed: str = FIXED_PY,
+    parent: str = "a" * 40,
+    commit: str = "b" * 40,
+) -> PairCase:
     expected = (ExpectedFinding(cwe="CWE-89", vulnerability_class="sqli", path="a.py", evidence="e", function=function),)
+    folder = (root or Path("/nonexistent")) / "pairs" / name
+    if root is not None:
+        folder.mkdir(parents=True, exist_ok=True)
+        header = f"# Provenance: fixture\n# commit: {commit}\n# parent: {parent}\n# function: {function}\n"
+        (folder / "vuln.py").write_text(header + vuln)
+        (folder / "fixed.py").write_text(header + fixed)
     return PairCase(
-        name=name, slice="vfc", language="python", origin="o", vuln_file=Path("v"), fixed_file=Path("f"), relpath="a.py",
-        expected=expected, min_recall=1.0, fix_policy="p", repo=repo, cve="CVE-2024-0001", review_tier=tier, unscorable=unscorable,
+        name=name, slice="vfc", language="python", origin="o", vuln_file=folder / "vuln.py", fixed_file=folder / "fixed.py",
+        relpath="a.py", expected=expected, min_recall=1.0, fix_policy="p", repo=repo, commit=commit, cve="CVE-2024-0001",
+        review_tier=tier, unscorable=unscorable,
     )  # fmt: skip
 
 
@@ -262,8 +285,9 @@ def test_pairs_exclude_unscorable_and_title_and_group_by_repository(tmp_path: Pa
         '[[source]]\nid = "pairs"\nkind = "pairs"\nfile = "pairs/catalog.toml"\nrecorded = "x"\nstatus = "x"\nexclude_tiers = ["title"]\n'
     )
     cases = (
-        _pair("ok", repo="https://github.com/o/r"), _pair("twin", unscorable="identical_twin"), _pair("titled", tier="title"),
-        _pair("nofn", function=None), _pair("fork", repo="https://github.com/x/r-fork"),
+        _pair("ok", repo="https://github.com/o/r", root=tmp_path), _pair("twin", unscorable="identical_twin"),
+        _pair("titled", tier="title", root=tmp_path), _pair("nofn", function=None),
+        _pair("fork", repo="https://github.com/x/r-fork", root=tmp_path),
     )  # fmt: skip
     monkeypatch.setattr("openultrasast.pairs.load_pair_catalog", lambda path: cases)
     build, record = L.build_labels(tmp_path, sources_path=tmp_path / "s.toml", cache=tmp_path, assumed_benign=False)
@@ -281,6 +305,78 @@ def test_pairs_exclude_unscorable_and_title_and_group_by_repository(tmp_path: Pa
     assert family["positive_groups"] == family["negative_groups"] == 1 and family["model"] == "insufficient"
     titled, _ = L.build_labels(tmp_path, sources_path=tmp_path / "s.toml", cache=tmp_path, assumed_benign=False, include_title=True)
     assert "titled" in {r.source_ref for r in titled.labels}
+
+
+def _pair_build(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *cases: PairCase) -> tuple[L.Build, dict[str, Any]]:
+    (tmp_path / "pairs").mkdir(exist_ok=True)
+    (tmp_path / "pairs" / "catalog.toml").write_text("")
+    source = '[[source]]\nid = "pairs"\nkind = "pairs"\nfile = "pairs/catalog.toml"\nrecorded = "x"\nstatus = "x"\n'
+    (tmp_path / "s.toml").write_text(source)
+    monkeypatch.setattr("openultrasast.pairs.load_pair_catalog", lambda path: cases)
+    return L.build_labels(tmp_path, sources_path=tmp_path / "s.toml", cache=tmp_path, assumed_benign=False)
+
+
+def _fixed_rows(build: L.Build, name: str) -> list[L.Label]:
+    return [r for r in build.labels if r.source_ref == name and r.pin_role == "fixed"]
+
+
+GATE = "def _gate(q):\n    return bool(q)\n"  # a guard helper of the same snapshot, same parameter list as the labelled f
+
+
+def test_a_fixed_side_without_the_function_gives_no_negative(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    snapshot = "c" * 40
+    cases = (
+        _pair("gate", root=tmp_path, fixed=GATE, parent=snapshot, commit=snapshot),  # the kolega-ai-dev pointer shape
+        _pair("other", root=tmp_path, fixed="def g(a, b):\n    return a\n"),  # a real fix, but no renamed equivalent
+        _pair("unread", root=None),
+    )
+    build, record = _pair_build(tmp_path, monkeypatch, *cases)
+    for name in ("gate", "other", "unread"):
+        assert _fixed_rows(build, name) == [], name
+        assert {(r.unit, r.label) for r in build.labels if r.source_ref == name} == {("pin", 1), ("delta", 1)}, "positives stay"
+    assert record["pair_fixed_side"] == {"absent_fixed_side": {"labels": 3, "by_family": {"injection": 3}}, "fixed_side_moved": 0}
+    assert record["skipped"] == {
+        f"pairs: no fixed-side negative ({L.ABSENT_SAME_SNAPSHOT})": 1,
+        f"pairs: no fixed-side negative ({L.ABSENT_NO_EQUIVALENT})": 1,
+        f"pairs: no fixed-side negative ({L.ABSENT_UNREAD})": 1,
+    }
+    assert record["verified_pin_labels"]["by_family"]["injection"]["negative_groups"] == 0
+
+
+def test_a_renamed_function_at_a_real_fix_is_a_moved_negative(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    moved = "def f_safe(q):\n    return db.execute('SELECT ?', (q,))\n"
+    build, record = _pair_build(tmp_path, monkeypatch, _pair("moved", root=tmp_path, fixed=moved, repo="https://github.com/o/r"))
+    rows = _fixed_rows(build, "moved")
+    assert {(r.unit, r.label, r.candidate, r.provenance) for r in rows} == {
+        ("pin", 0, "a.py::f_safe", L.FIXED_MOVED),
+        ("delta", 0, "a.py::f_safe", L.FIXED_MOVED),
+    }
+    assert all("f -> f_safe" in r.evidence for r in rows)
+    assert record["pair_fixed_side"]["fixed_side_moved"] == 1 and record["pair_fixed_side"]["absent_fixed_side"]["labels"] == 0
+    # the same rename in one snapshot (no fix commit) is a sibling function, never a negative
+    snapshot = "d" * 40
+    same, _ = _pair_build(tmp_path, monkeypatch, _pair("sibling", root=tmp_path, fixed=moved, parent=snapshot, commit=snapshot))
+    assert _fixed_rows(same, "sibling") == []
+    # two candidate renames are ambiguous: no negative
+    two = moved + "\n\ndef f_other(q):\n    return q\n"
+    ambiguous, _ = _pair_build(tmp_path, monkeypatch, _pair("two", root=tmp_path, fixed=two))
+    assert _fixed_rows(ambiguous, "two") == []
+
+
+def test_ordinary_pairs_and_matcher_limits_keep_their_negative(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    js_vuln, js_fixed = (
+        "module.exports = {\n  ps: function(pid) {\n    exec('ps ' + pid)\n  }\n}\n",
+        ("module.exports = {\n  ps: function(pid) {\n    execFile('ps', [pid])\n  }\n}\n"),
+    )
+    cache = tmp_path / "pointer-cache"
+    monkeypatch.setenv("OPENULTRASAST_PAIR_CACHE", str(cache))
+    js = _pair("js", root=cache, function="ps", vuln=js_vuln, fixed=js_fixed)
+    js = PairCase(**{**js.__dict__, "language": "javascript"})
+    build, record = _pair_build(tmp_path, monkeypatch, _pair("plain", root=tmp_path), js)
+    assert {(r.unit, r.candidate, r.provenance) for r in _fixed_rows(build, "plain")} == {("pin", "a.py::f", ""), ("delta", "a.py::f", "")}
+    assert {r.candidate for r in _fixed_rows(build, "js")} == {"a.py::ps"}, "the pointer file in the pair cache was read"
+    assert record["pair_fixed_side"]["absent_fixed_side"]["labels"] == 0
+    assert record["verified_pin_labels"]["by_family"]["injection"]["negative_rows"] == 2
 
 
 def test_the_snapshot_carries_counts_only(tmp_path: Path) -> None:

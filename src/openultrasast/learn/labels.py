@@ -13,7 +13,11 @@ Rules per source (design section 3):
   protocol assumption, **conditional** on a candidate there having a signal at the tip and none at the base
   (``benign_control``). A vulnerable-pin candidate matching no site is unlabelled, never negative.
 - *Pairs*: the labelled function on the vulnerable side (positive) and on the fixed side (negative); unscorable
-  pairs and the ``title`` tier are excluded (the tier is a sensitivity arm, ``--include-title``).
+  pairs and the ``title`` tier are excluded (the tier is a sensitivity arm, ``--include-title``). The negative is
+  emitted only where the fixed side's source declares the function (the excerpt builder's matcher) or a
+  deterministic rename at a distinct fix commit replaces it (``provenance = fixed_side_moved``); a fixed side that
+  holds another function of the same snapshot (a guard helper, a sibling handler) gives no negative and is counted
+  as ``absent_fixed_side``.
 - *Recipes* (dev-php): the reviewed ``[[known]]`` function at the recipe commit (positive).
 - *Adjudications*: recorded ``True``/``TP`` verdicts positive (``privileged`` kept), ``False``/``FP`` negative, with
   the recorded reason as evidence.
@@ -41,7 +45,7 @@ from pathlib import Path
 from typing import Any
 
 from ..model.taxonomy import load_families
-from ..plane.tasks.repo_facts import _EXCLUDED_DIRS, _NOT_PRODUCT, DECLARATION, GLOBAL, enclosing
+from ..plane.tasks.repo_facts import _EXCLUDED_DIRS, _NOT_PRODUCT, DECLARATION, GLOBAL, _declared_name, declared_functions, enclosing
 from ..preprocess import detect_language
 from ..ruleset.frameworks import load_frameworks
 
@@ -134,6 +138,10 @@ class SourceGuard:
                 self.files.add(resolved)
                 if source.kind == "pairs":
                     self.trees.add(resolved.parent)
+        if any(source.kind == "pairs" for source in sources.sources):
+            from ..pairs import pair_cache_dir
+
+            self.trees.add(pair_cache_dir().resolve())  # pointer pairs: the catalog's sides, materialised outside the tree
         self.opened: list[Path] = []
 
     def check(self, path: Path) -> Path:
@@ -317,6 +325,7 @@ class Label:
     conditional: str | None = None
     design_informed: bool = False
     privileged: bool = False
+    provenance: str = ""  # how a negative was derived when it is not the labelled function itself (``fixed_side_moved``)
 
 
 def _family_of(cwe: str | None, family: str | None) -> str:
@@ -432,6 +441,50 @@ def changed_functions(clone: Clone, pin: str, ranges: Mapping[str, Sequence[tupl
     return out
 
 
+# --- the fixed side of a pair ----------------------------------------------------------------------------------------
+
+FIXED_DECLARED = "declared"
+FIXED_MOVED = "fixed_side_moved"
+ABSENT_UNREAD = "fixed side unread"
+ABSENT_UNMATCHED = "fixed side does not declare the function"
+ABSENT_SAME_SNAPSHOT = "fixed side is another function of the same snapshot"
+ABSENT_NO_EQUIVALENT = "fixed side does not declare the function, no renamed equivalent"
+_HEADER = re.compile(r"^\s*(?:#|//|/\*|\*)")  # comment lines: the excerpt header names the labelled function
+_PIN_LINE = re.compile(r"^\W*(commit|parent):\s*([0-9a-f]{7,40})\b", re.IGNORECASE)
+
+
+@dataclass(frozen=True)
+class FixedSide:
+    verdict: str
+    function: str = ""
+
+
+def _fix_commits(case: Any, fixed_lines: Sequence[str]) -> tuple[str, str] | None:
+    """``(vulnerable, fix)`` commits of a pair: the recipe's ``parent``/``commit`` (pointer pairs) or the excerpt
+    header's; ``None`` when either is unrecorded (a fix that cannot be told apart from its snapshot)."""
+    recorded = dict(getattr(case, "recipe", ()) or ())
+    header = {m.group(1).lower(): m.group(2) for line in fixed_lines[:20] if (m := _PIN_LINE.match(line))}
+    parent = str(recorded.get("parent") or header.get("parent") or "")
+    commit = str(getattr(case, "commit", "") or recorded.get("commit") or header.get("commit") or "")
+    return (parent.lower(), commit.lower()) if parent and commit else None
+
+
+def _signature(lines: Sequence[str], start: int, function: str) -> str | None:
+    """The parameter list after ``function`` on its declaration (up to 5 lines), whitespace-normalised."""
+    text = "\n".join(lines[start : start + 5])
+    at = re.search(rf"(?<![\w$]){re.escape(function)}\s*\(", text)
+    if at is None:
+        return None
+    depth, out = 0, []
+    for char in text[at.end() - 1 :]:
+        depth += char == "("
+        depth -= char == ")"
+        out.append(char)
+        if depth == 0:
+            return re.sub(r"\s+", " ", "".join(out))
+    return None
+
+
 @dataclass
 class Build:
     """The rows of one build and what it could not label (reported, never silent)."""
@@ -439,6 +492,7 @@ class Build:
     labels: list[Label] = field(default_factory=list)
     skipped: dict[str, int] = field(default_factory=dict)
     history: dict[str, Any] = field(default_factory=dict)
+    absent_fixed_side: dict[str, int] = field(default_factory=dict)  # family -> pair labels with no fixed-side negative
 
     def skip(self, reason: str, n: int = 1) -> None:
         self.skipped[reason] = self.skipped.get(reason, 0) + n
@@ -584,8 +638,71 @@ class LabelBuilder:
                 }  # fmt: skip
                 self._row(label=1, unit="pin", **common)
                 self._row(label=1, unit="delta", direction="introduce", **common)
-                self._row(label=0, unit="pin", pin_role="fixed", **common)
-                self._row(label=0, unit="delta", direction="repair", pin_role="fixed", **common)
+                fixed = self._fixed_side(case, expected.function)
+                if fixed.verdict == FIXED_DECLARED:
+                    self._row(label=0, unit="pin", pin_role="fixed", **common)
+                    self._row(label=0, unit="delta", direction="repair", pin_role="fixed", **common)
+                elif fixed.verdict == FIXED_MOVED:
+                    rename = f"{FIXED_MOVED}: {expected.function} -> {fixed.function} (same file, same signature, body changed)"
+                    moved = {
+                        **common, "candidate": f"{path}::{fixed.function}", "provenance": FIXED_MOVED,
+                        "evidence": f"{common['evidence']}; {rename}",
+                    }  # fmt: skip
+                    self._row(label=0, unit="pin", pin_role="fixed", **moved)
+                    self._row(label=0, unit="delta", direction="repair", pin_role="fixed", **moved)
+                else:
+                    family = str(common["family"])
+                    self.build.absent_fixed_side[family] = self.build.absent_fixed_side.get(family, 0) + 1
+                    self.build.skip(f"pairs: no fixed-side negative ({fixed.verdict})")
+
+    def _pair_lines(self, file: Path) -> list[str] | None:
+        """A pair side's lines through the guard (catalog excerpts, or pointer files in the pair cache); ``None`` unread."""
+        try:
+            return self.guard.text(file).splitlines() if Path(file).is_file() else None
+        except (OSError, UnicodeDecodeError):
+            return None
+
+    def _fixed_side(self, case: Any, function: str) -> FixedSide:
+        """Whether the fixed side gives a defensible negative for ``function`` (Req 2.1: the same function at the fix).
+
+        Verified from the fixed side's source with the excerpt builder's own matcher: the fixed side must declare the
+        labelled function. Where it does not, the only other negative accepted is a deterministic rename at a real
+        fix (a fix commit distinct from the vulnerable one): exactly one function the fixed side declares that the
+        vulnerable side does not, with the labelled function's parameter list and a changed body (``fixed_side_moved``).
+        A different function of the same snapshot (a guard helper, a sibling handler) is never a negative."""
+        from .excerpt import LANGUAGE_ALIASES, function_bounds
+
+        fixed_lines, vuln_lines = self._pair_lines(case.fixed_file), self._pair_lines(case.vuln_file)
+        if not fixed_lines:
+            return FixedSide(ABSENT_UNREAD)
+        language = LANGUAGE_ALIASES.get(case.language, case.language)
+        if function_bounds(fixed_lines, language, function):
+            return FixedSide(FIXED_DECLARED)
+        vuln_span = function_bounds(vuln_lines or (), language, function)
+        if vuln_span is None:
+            # the matcher resolves the function on neither side: its limit, not evidence of absence. The fixed side
+            # still declares it when its name is on a code line (the excerpt header names it in a comment).
+            named = re.compile(rf"(?<![\w$]){re.escape(function)}(?![\w$])")
+            code = [line for line in fixed_lines if not _HEADER.match(line)]
+            return FixedSide(FIXED_DECLARED if any(named.search(line) for line in code) else ABSENT_UNMATCHED)
+        commits = _fix_commits(case, fixed_lines)
+        if commits is not None and commits[0] == commits[1]:
+            return FixedSide(ABSENT_SAME_SNAPSHOT)
+        pattern = DECLARATION.get(language)
+        if pattern is None or vuln_lines is None or commits is None:
+            return FixedSide(ABSENT_NO_EQUIVALENT)
+        vulnerable_names = set(declared_functions(vuln_lines, language))
+        fixed_names = [name for name in (_declared_name(pattern, line) for line in fixed_lines) if name]
+        signature = _signature(vuln_lines, vuln_span[0], function)
+        body = "\n".join(vuln_lines[slice(*vuln_span)][1:]).strip()
+        moved = []
+        for name in dict.fromkeys(fixed_names):
+            span = function_bounds(fixed_lines, language, name)
+            if name in vulnerable_names or fixed_names.count(name) != 1 or span is None or signature is None:
+                continue
+            if _signature(fixed_lines, span[0], name) == signature and "\n".join(fixed_lines[slice(*span)][1:]).strip() != body:
+                moved.append(name)
+        return FixedSide(FIXED_MOVED, moved[0]) if len(moved) == 1 else FixedSide(ABSENT_NO_EQUIVALENT)
 
     # -- development recipes ------------------------------------------------------------------------------------------
 
@@ -795,6 +912,13 @@ def snapshot(build: Build, sources: Sources) -> dict[str, Any]:
             for source in sorted({r.source for r in conditional})
         },
         "assumed_benign_history": build.history,
+        "pair_fixed_side": {
+            "absent_fixed_side": {
+                "labels": sum(build.absent_fixed_side.values()),
+                "by_family": dict(sorted(build.absent_fixed_side.items())),
+            },
+            "fixed_side_moved": sum(1 for r in pins if r.provenance == FIXED_MOVED),
+        },
         "skipped": dict(sorted(build.skipped.items())),
         "floors": {
             "per_family": PER_FAMILY_FLOOR,

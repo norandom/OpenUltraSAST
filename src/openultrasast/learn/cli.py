@@ -211,7 +211,6 @@ def _memory_build(args: argparse.Namespace) -> int:
     try:
         build = build_examples(
             labels, records_by_key(rows), reader, sources=sources, store=store, profile=args.profile, license_of=reader.license,
-            function_of=reader.function,
         )  # fmt: skip
     except ExampleBuildError as exc:
         print(f"learn memory build: {exc}", file=sys.stderr)
