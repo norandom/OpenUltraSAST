@@ -49,22 +49,31 @@ single hand-written rule or prompt decides whether code is vulnerable.
 3. Every label records its source (population, pair, adjudication), split, and the date it was created; labels from
    a reserved or frozen population are unusable for training until that population's evaluation is recorded.
 
-### Requirement 3: A trained, calibrated, versioned decision engine
+### Requirement 3: An AI classifier with local memory, compiled DSPy-style
 
-**User Story:** As the maintainer, I want one engine that decides from the signals, retrained as data grows, so
-that detection improves without hand edits.
+**User Story:** As the maintainer, I want the decision made by an AI classifier that learns from a small, growing
+memory of labelled cases, because "We will not be able to scale up data" and "we need to have the decision
+engine on AI classifier not ML. with local memory, dspy style" (maintainer, 2026-10-01).
 
 #### Acceptance Criteria
 
-1. The engine is a simple, inspectable model (regularised logistic regression or shallow gradient-boosted trees),
-   trained per family where data allows and pooled otherwise; its output is a calibrated probability.
-2. Training is reproducible from the memory store and a recorded split: the same inputs give the same model, and
-   every model version records its data snapshot, feature set, hyperparameters and metrics.
-3. Evaluation uses population-level folds (leave-one-population-out, and pairs grouped by repository): no
-   repository appears in both training and evaluation of a reported number.
-4. Operating points (block, report, drop) are thresholds chosen on training folds for stated precision targets and
-   reported with the recall they give; the M4 gates (>= 95% precision, >= 90% recall) are the targets, not assumed.
-5. The engine explains each decision by its top contributing features, stored with the finding.
+1. The decision engine is a declared language-model program (DSPy-style signature: candidate code, instrument
+   signals, inferred repository roles in; verdict, family, confidence and rationale out), built in-house on the
+   plane's metered client so every call stays within per-task budgets, attribution and Model routing; no
+   statistical model is trained.
+2. For each candidate the program retrieves similar labelled cases from the local memory store as in-context
+   examples: nearest neighbours by the repository-agnostic signal profile, re-ranked by code embeddings
+   (OpenRouter, embeddings only); identities are never used for retrieval.
+3. The program is compiled, not fitted: its instructions and example-selection policy are optimised against a
+   pre-registered metric on training folds (bootstrap few-shot and instruction search); each compiled program is
+   versioned in the memory store with its data snapshot, model, prompts, retrieval settings and metrics, and the
+   same inputs reproduce it.
+4. Retrieval never crosses the evaluation boundary: when a number is reported for a repository, examples come
+   only from other repositories (and other frameworks in leave-one-framework-out folds); a test proves it.
+5. The confidence the program reports is calibrated on held-out repositories before operating points are set;
+   where it does not calibrate, only ADVISORY is offered (Req 7.4).
+6. New labels (adjudications, dismissals in the opt-in adaptation layer) improve decisions by entering memory,
+   without retraining; their effect is measured by A/B experiments like any other change.
 
 ### Requirement 4: Pipeline changes are chosen by A/B experiments
 
@@ -91,7 +100,7 @@ and without tuning on it.
 
 #### Acceptance Criteria
 
-1. Learning curves: engine metrics as a function of training data size and number of populations, per family,
+1. Learning curves: engine metrics as a function of memory size (labelled cases available for retrieval) and number of populations, per family,
    with confidence bands.
 2. Expected recall and precision on unseen code are reported per family and language as intervals from the
    population-level folds; a family with too few labels is reported as "insufficient data", never as a number.
