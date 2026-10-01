@@ -121,11 +121,20 @@ class MeteredClient:
         tools: list[dict[str, object]],
         timeout_seconds: int = 60,
         json_object: bool = False,
+        temperature: float | None = None,
+        logprobs: bool = False,
     ) -> ChatResponse:
+        """One metered call. ``temperature`` and ``logprobs`` pass through only when set, so a wrapped client that
+        does not take them (a scripted one) is called as before."""
         self.check()
+        extra: dict[str, Any] = {}
+        if temperature is not None:
+            extra["temperature"] = temperature
+        if logprobs:
+            extra["logprobs"] = True
         try:
             response = self.inner.complete(
-                model=model, messages=messages, tools=tools, timeout_seconds=timeout_seconds, json_object=json_object
+                model=model, messages=messages, tools=tools, timeout_seconds=timeout_seconds, json_object=json_object, **extra
             )
         except Exception as exc:
             self._absorb_rows()

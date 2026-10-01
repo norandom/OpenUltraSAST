@@ -61,7 +61,7 @@ a model or embedding call.
     - Tests: `test_learn_retrieve.py` including `test_boundary` (every rendered example and demonstration eligible,
       for all fold kinds; `memory.seed` excludes the case's group), `test_learn_folds.py`.
     - _Requirements: 3.2, 3.4, 7.1, 8.3_
-  - [ ] 6.4 The program (no model in tests)
+  - [x] 6.4 The program (no model in tests)
     - `learn/program.py`: the signature, prompt rendering (instruction + demonstrations as a byte-identical prefix,
       then retrieved examples, then the candidate), JSON parsing with one retry -> `unsure, parse_failed`,
       `Classify(k)` with temperature 0 then 0.7, the score `s` and majority verdict; `responses/<sha>.json` cache

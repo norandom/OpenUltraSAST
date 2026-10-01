@@ -106,13 +106,26 @@ class DeepSeekChatClient:
         timeout_seconds: int = 60,
         json_object: bool = False,
         logprobs: bool = False,
+        temperature: float | None = None,
     ) -> ChatResponse:
         response = self._call(
-            model=model, messages=messages, tools=tools, timeout_seconds=timeout_seconds, json_object=json_object, logprobs=logprobs
+            model=model,
+            messages=messages,
+            tools=tools,
+            timeout_seconds=timeout_seconds,
+            json_object=json_object,
+            logprobs=logprobs,
+            temperature=temperature,
         )
         if json_object and not (response.content or "").strip():
             response = self._call(
-                model=model, messages=messages, tools=tools, timeout_seconds=timeout_seconds, json_object=json_object, logprobs=logprobs
+                model=model,
+                messages=messages,
+                tools=tools,
+                timeout_seconds=timeout_seconds,
+                json_object=json_object,
+                logprobs=logprobs,
+                temperature=temperature,
             )  # documented behaviour: JSON mode occasionally returns empty content. One retry, never a loop.
         return response
 
@@ -131,10 +144,13 @@ class DeepSeekChatClient:
         timeout_seconds: int,
         json_object: bool,
         logprobs: bool,
+        temperature: float | None = None,
     ) -> ChatResponse:
         extra: dict[str, object] = {}
         if self._disable_thinking:
             extra["thinking"] = {"type": "disabled"}  # otherwise temperature is silently ignored
+        if temperature is not None:
+            extra["temperature"] = temperature  # overrides the raw call's default 0
         if json_object:
             extra["response_format"] = {"type": "json_object"}
         if logprobs:

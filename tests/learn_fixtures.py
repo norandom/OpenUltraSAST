@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Mapping, Sequence
+import json
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 from openultrasast.learn.examples import Example
 from openultrasast.learn.features import NOT_APPLICABLE, Part, engine_part, quick_part, record
+from openultrasast.tool_hunter import ChatResponse
 
 
 def x_record(*, hits: int = 0, engine: str = "ran", findings: int = 0, language: str = "python", prior_hits: int = 0) -> dict[str, Any]:
@@ -62,3 +64,47 @@ def corpus(groups: int = 12, per_group: int = 4) -> list[Example]:
 
 def by_id(examples: Sequence[Example]) -> Mapping[str, Example]:
     return {e.id: e for e in examples}
+
+
+def candidate_lines(messages: Sequence[Mapping[str, object]]) -> list[int]:
+    """The line numbers of the candidate's code in a rendered prompt."""
+    text = str(messages[-1]["content"]).rsplit("Candidate:\n", 1)[1]
+    code = text.split("Code:\n", 1)[1].split("\nSignals:\n", 1)[0]
+    return [int(line.split()[0]) for line in code.splitlines() if line.strip() and line.split()[0].isdigit()]
+
+
+def default_answer(messages: Sequence[Mapping[str, object]], temperature: float | None) -> str:
+    """Vulnerable when the candidate's code executes something, else not; cites the candidate's first line."""
+    text = str(messages[-1]["content"]).rsplit("Candidate:\n", 1)[1]
+    vulnerable = "execute(" in text
+    lines = candidate_lines(messages)
+    return json.dumps(
+        {
+            "verdict": "vulnerable" if vulnerable else "not_vulnerable", "family": "injection", "confidence": 0.8 if vulnerable else 0.7,
+            "rationale": "The value reaches the call on the cited line.", "cited_lines": lines[:1],
+        }
+    )  # fmt: skip
+
+
+class ScriptedChat:
+    """A chat client whose answers a function of the prompt scripts; records every call and a usage row per call."""
+
+    def __init__(self, answer: Callable[[Sequence[Mapping[str, object]], float | None], str] = default_answer) -> None:
+        self.answer = answer
+        self.calls: list[dict[str, Any]] = []
+        self.usage: list[dict[str, object]] = []
+
+    def complete(
+        self,
+        *,
+        model: str,
+        messages: list[dict[str, object]],
+        tools: list[dict[str, object]],
+        timeout_seconds: int = 60,
+        json_object: bool = False,
+        temperature: float | None = None,
+    ) -> ChatResponse:
+        self.calls.append({"model": model, "messages": messages, "temperature": temperature, "json_object": json_object})
+        prompt = sum(len(str(m["content"])) for m in messages) // 4
+        self.usage.append({"prompt_tokens": prompt, "prompt_cache_hit_tokens": prompt // 2, "completion_tokens": 60})
+        return ChatResponse(content=self.answer(messages, temperature))
