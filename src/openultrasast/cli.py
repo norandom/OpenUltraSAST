@@ -296,6 +296,21 @@ def _main(argv: list[str] | None) -> int:
     plane_engine.add_argument("--image", default="openultrasast:dev")
     plane_engine.add_argument("--repos", type=Path, help="the case cache (default ~/.cache/openultrasast/independent)")
     plane_engine.add_argument("--work", type=Path, help="where pins are exported and results land (default: a temporary directory)")
+    plane_harvest = plane_sub.add_parser(
+        "harvest", help="the decision engine's harvest Runs (verify a/b + agree, model roles) over a label snapshot"
+    )
+    plane_harvest.add_argument("--labels", type=Path, required=True, help="the full label rows (`ousast learn labels --out`)")
+    plane_harvest.add_argument(
+        "--plane", type=Path, required=True, help="where to write runs/, tasks/, workspaces/, models/, units.json (scratch)"
+    )
+    plane_harvest.add_argument("--name", default="harvest", help="Run name prefix: <name>-verify and <name>-roles")
+    plane_harvest.add_argument("--templates", type=Path, default=Path("plane"), help="the plane root holding tasks/ and models/ templates")
+    plane_harvest.add_argument("--catalog", type=Path, default=Path("benchmarks/pairs/catalog.toml"))
+    plane_harvest.add_argument(
+        "--cache", type=Path, default=Path.home() / ".cache" / "openultrasast", help="case clones and recipe checkouts"
+    )
+    plane_harvest.add_argument("--ceiling", type=float, default=10.0, help="USD: each Run's task budgets sum to at most this")
+    plane_harvest.add_argument("--runner-image", type=Path, help="re-pin the task templates to the image in this file first (ops/ax/up.sh)")
     plane_ws = plane_sub.add_parser("workspaces", help="one Workspace manifest per case pin of a population file")
     plane_ws.add_argument("population", type=Path)
     plane_ws.add_argument("--out", type=Path, default=Path("plane/workspaces"))
@@ -1371,6 +1386,8 @@ def _plane(args: argparse.Namespace) -> int:
         return 0
     if args.plane_command == "alerts-engine":
         return _plane_alerts_engine(args)
+    if args.plane_command == "harvest":
+        return _plane_harvest(args)
     if args.plane_command == "doctor":
         checks = reconciler.doctor()
         for name, ok, text in checks:
@@ -1382,6 +1399,22 @@ def _plane(args: argparse.Namespace) -> int:
 
     written = workspaces(args.population, args.out)
     print(f"{len(written)} Workspace manifests written to {args.out}")
+    return 0
+
+
+def _plane_harvest(args: argparse.Namespace) -> int:
+    from .plane.generate import repin_templates
+    from .plane.harvest import write_harvest
+
+    if args.runner_image is not None:
+        repin_templates(args.templates, args.runner_image)
+    command = f"ousast plane harvest --labels {args.labels.name} --name {args.name} --ceiling {args.ceiling:g}"
+    files = write_harvest(
+        args.labels, args.plane, name=args.name, command=command, catalog=args.catalog, cache=args.cache, templates=args.templates,
+        ceiling=args.ceiling,
+    )  # fmt: skip
+    for relative in sorted(k for k in files if k.startswith("runs/")):
+        print(f"{args.plane / relative}: {files[relative].splitlines()[1].lstrip('# ')}")
     return 0
 
 

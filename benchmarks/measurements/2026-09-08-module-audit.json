@@ -1,7 +1,7 @@
 {
-  "modules": 143,
+  "modules": 144,
   "counts": {
-    "load_bearing": 136,
+    "load_bearing": 137,
     "standalone_capability": 7
   },
   "orphaned": [],
@@ -354,6 +354,7 @@
         "cli",
         "learn.features",
         "learn.roles",
+        "plane.harvest",
         "plane.tasks.features",
         "plane.tasks.remember",
         "plane.tasks.roles"
@@ -372,13 +373,14 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
-        "cli"
+        "cli",
+        "plane.harvest"
       ]
     },
     {
       "module": "learn.roles",
       "classification": "load_bearing",
-      "reason": "imported by learn.features, plane.tasks.features, plane.tasks.roles",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "learn.features",
         "plane.tasks.features",
@@ -709,6 +711,7 @@
         "learn.labels",
         "model.candidates",
         "pair_gate",
+        "plane.harvest",
         "plane.tasks.loop"
       ]
     },
@@ -722,6 +725,7 @@
         "plane.egress",
         "plane.engine_alerts",
         "plane.generate",
+        "plane.harvest",
         "plane.memory",
         "plane.reconciler",
         "plane.router",
@@ -770,6 +774,15 @@
       "classification": "load_bearing",
       "reason": "ai-service-plane task 7: an increment's Workspaces, per-case Tasks and Run from a recorded set",
       "importers": [
+        "cli",
+        "plane.harvest"
+      ]
+    },
+    {
+      "module": "plane.harvest",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
         "cli"
       ]
     },
@@ -780,6 +793,7 @@
       "importers": [
         "plane.egress",
         "plane.generate",
+        "plane.harvest",
         "plane.reconciler",
         "plane.router",
         "plane.runner",
@@ -803,6 +817,7 @@
       "reason": "ai-service-plane Req 3.1-3.5, 7.3: ax-backed Run execution, status attribution and doctor; `ousast plane`",
       "importers": [
         "plane.generate",
+        "plane.harvest",
         "plane.memory",
         "plane.workspaces"
       ]
@@ -833,6 +848,7 @@
         "learn.roles",
         "plane.engine_alerts",
         "plane.generate",
+        "plane.harvest",
         "plane.memory",
         "plane.tasks.agree",
         "plane.tasks.alerts",
@@ -888,6 +904,7 @@
         "learn.labels",
         "learn.roles",
         "plane.generate",
+        "plane.harvest",
         "plane.tasks.alerts",
         "plane.tasks.features",
         "plane.tasks.remember",
@@ -898,7 +915,9 @@
       "module": "plane.tasks.roles",
       "classification": "load_bearing",
       "reason": "learned-decision-engine Req 8.1: model role classification per file chunk (model_sinks.py moved in); its Run template comes with the harvest (task 5)",
-      "importers": []
+      "importers": [
+        "plane.harvest"
+      ]
     },
     {
       "module": "plane.tasks.verify",
@@ -906,6 +925,7 @@
       "reason": "ai-service-plane Req 5.3/2.1-2.3/7.2: the batched hunt with known callers, metered and resumable per file hunt",
       "importers": [
         "plane.generate",
+        "plane.harvest",
         "plane.tasks.agree",
         "plane.tasks.roles"
       ]
@@ -966,6 +986,7 @@
         "model.partitions",
         "model.scan",
         "pairs",
+        "plane.harvest",
         "plane.tasks.alerts",
         "plane.tasks.features",
         "plane.tasks.repo_facts",

@@ -28,10 +28,14 @@ the maintainer confirms its budget.
     commits (separate, never merged); a first label snapshot committed as counts only.
   - _Requirements: 2.1, 2.2, 2.3, 7.1_
 
-- [ ] 5. Harvest (needs budget go-ahead)
+- [x] 5. Harvest (needs budget go-ahead)
   - A plane Run of verify a/b on the verify-family pairs and development cases (~$6, ceiling $10), model roles on
     the candidate files (ceiling $10), engine features for the pair corpus on the host (frozen source, one
     container at a time, background).
+  - Done 2026-10-01 (`benchmarks/measurements/2026-10-01-decision-engine-harvest/record.json`): verify $2.54 and roles
+    $1.40 by attribution. The engine part was PARTIAL at commit (384 of 686 pair sides recorded, the job still
+    running): unfinished sides are `missing` in the feature records; rebuild them with
+    `benchmarks/learn/build_features.py` once `benchmarks/learn/engine_pairs.py` has finished.
   - _Requirements: 1.1_
 
 - [ ] 6. Train, calibrate, evaluate

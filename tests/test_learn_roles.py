@@ -156,6 +156,18 @@ def test_roles_feature_part(tmp_path: Path) -> None:
     assert [f.name for f in functions_of("a.php", lines, "php")][:2] == ["run_sql", "fetch_rows"]
 
 
+def test_a_language_without_declarations_is_none_not_failed() -> None:
+    """C has no declaration pattern: the span and wrapper roles cannot run there (no coverage), which is not a broken
+    instrument (harvest 2026-10-01: every memory pair read as `failed`)."""
+    from openultrasast.learn.features import source_part
+    from openultrasast.learn.roles import RoleSet
+
+    lines = ["int f(char *s) {", "  return strcpy(buf, s);", "}"]
+    assert source_part(lines, "c", "f").state == "none"
+    assert roles_part(None, RoleSet(sources=("inferred_wrapper",)), "c").state == "none"
+    assert source_part(["def g():", "    pass"], "python", "missing").state == "failed"
+
+
 def test_build_for_scan_records_the_roles_instrument(tmp_path: Path) -> None:
     from openultrasast.findings import quick_scan_findings
     from openultrasast.preprocess import preprocess_repository
