@@ -87,15 +87,20 @@ SIGNATURE = Signature(
     )
 )
 
-BASELINE_INSTRUCTION = (
-    "You decide whether a function contains an exploitable security vulnerability of the given family.\n"
-    "You see the function's code (numbered lines), the signals static instruments emitted for it, and the roles\n"
-    "inferred for its calls. Signals are evidence, not verdicts: rules over-report, and a missing instrument is not a\n"
-    "negative. Similar labelled functions from other repositories follow as examples; reason about this code.\n"
+# The answer contract is part of the signature, not of the searched instruction: a proposed instruction that leaves it
+# out still gets it (``render_prefix``), so every prompt asks for JSON (DeepSeek's JSON mode refuses a prompt that
+# never says "json") and every answer can parse.
+ANSWER_FORMAT = (
     'Answer with one JSON object: {"verdict": "vulnerable" | "not_vulnerable" | "unsure", "family": <family or\n'
     '"none">, "confidence": <probability in [0, 1] that your verdict is right>, "rationale": <at most 3 sentences>,\n'
     '"cited_lines": [<line numbers of the code that support the verdict>]}. Cite at least one line. Say "unsure"\n'
     "when the code does not decide it."
+)
+BASELINE_INSTRUCTION = (
+    "You decide whether a function contains an exploitable security vulnerability of the given family.\n"
+    "You see the function's code (numbered lines), the signals static instruments emitted for it, and the roles\n"
+    "inferred for its calls. Signals are evidence, not verdicts: rules over-report, and a missing instrument is not a\n"
+    "negative. Similar labelled functions from other repositories follow as examples; reason about this code.\n" + ANSWER_FORMAT
 )
 
 
@@ -232,7 +237,8 @@ ExcerptText = Callable[[str], str | None]
 
 def render_prefix(spec: ProgramSpec, demos: Sequence[Demo], examples: Mapping[str, Example], excerpt_text: ExcerptText) -> str:
     """The instruction and the demonstrations: identical for every candidate of one program and fold."""
-    parts = [spec.instruction.strip()]
+    instruction = spec.instruction.strip()
+    parts = [instruction if ANSWER_FORMAT in instruction else f"{instruction}\n{ANSWER_FORMAT}"]
     for number, demo in enumerate(demos, 1):
         example = examples[demo.example_id]
         code = excerpt_text(demo.excerpt_sha) or ""
@@ -481,7 +487,8 @@ class Program:
 
 
 __all__ = [
-    "BASELINE_INSTRUCTION", "PARSE_FAILED", "SIGNATURE", "UNSURE", "VERDICTS", "Answer", "Caller", "Candidate", "Decision", "Demo",
+    "ANSWER_FORMAT", "BASELINE_INSTRUCTION", "PARSE_FAILED", "SIGNATURE", "UNSURE", "VERDICTS", "Answer", "Caller", "Candidate",
+    "Decision", "Demo",
     "Program", "ProgramSpec", "Prompt", "ReplayMiss", "aggregate", "classify", "label_word", "line_numbers",
     "params_digest", "parse_answer", "render", "render_prefix", "render_roles", "render_signals", "request_key",
 ]  # fmt: skip

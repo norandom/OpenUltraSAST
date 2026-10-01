@@ -25,6 +25,7 @@ def add_commands(learn_sub: Any) -> None:
     build.add_argument("--cache", type=Path, help="clones and checkouts (default ~/.cache/openultrasast)")
     build.add_argument("--memory", help="the store (default OUSAST_MEMORY, then results_root()/memory)")
     build.add_argument("--profile", choices=("static", "plane"), default="static")
+    build.add_argument("--units", type=Path, help="the harvest units.json: the pin each pair side's record is stored under")
     build.add_argument("--dry-run", action="store_true", help="count, write nothing")
     embed = memory_sub.add_parser("embed", help="embed the stored excerpts (OpenRouter, metered; cached by excerpt sha)")
     embed.add_argument("--memory", help="the store (default OUSAST_MEMORY, then results_root()/memory)")
@@ -209,19 +210,21 @@ def _memory_embed(args: argparse.Namespace) -> int:
 def _memory_build(args: argparse.Namespace) -> int:
     """Exit 2 on a refused label (``origin: user``, a source outside the list) or a source with >10% unread excerpts."""
     from ..plane.memory import open_store
-    from .examples import ExampleBuildError, SideReader, build_examples, read_jsonl, records_by_key
+    from .examples import ExampleBuildError, SideReader, build_examples, pair_pins, read_jsonl, records_by_key
     from .labels import DEFAULT_CACHE, DEFAULT_SOURCES, load_sources
 
     sources = load_sources(args.sources or DEFAULT_SOURCES)
     labels = read_jsonl(args.labels)
     store = None if args.dry_run else open_store(args.memory)
-    rows = [row for path in args.features for row in read_jsonl(path)]
+    rows = [row for path in args.features for row in read_jsonl(path) if row.get("profile", args.profile) == args.profile]
     if store is not None:
-        rows += [r.row for r in store.rows(kind="features")]
+        # one profile only: the static and plane records of a candidate share a key, and the other would overwrite it
+        rows += [r.row for r in store.rows(kind="features") if r.row.get("profile") == args.profile]
     reader = SideReader(args.root, args.cache or DEFAULT_CACHE, sources, labels)
     try:
         build = build_examples(
             labels, records_by_key(rows), reader, sources=sources, store=store, profile=args.profile, license_of=reader.license,
+            pins=pair_pins(json.loads(args.units.read_text(encoding="utf-8"))) if args.units is not None else None,
         )  # fmt: skip
     except ExampleBuildError as exc:
         print(f"learn memory build: {exc}", file=sys.stderr)

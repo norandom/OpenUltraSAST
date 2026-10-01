@@ -29,7 +29,9 @@ val_candidates = 60
 
 [classify]
 model = "deepseek-flash"
-k = 1                        # k and lam are A/B variants (design section 6), not searched here
+k = 5                        # fixed by the smoke run before any compile spend (task 6.6): samples 2..5 hit the
+                             # provider prefix cache for 0.96 of their prompt tokens (>= 0.8), 2026-10-01. k and lam
+                             # remain A/B variants (design section 6), not searched here
 max_output_tokens = 300
 inputs = "v1"                # the input profile: the engine instrument is withheld from prompts and retrieval (2026-10-01)
 

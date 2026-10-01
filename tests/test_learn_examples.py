@@ -18,6 +18,7 @@ from openultrasast.learn.examples import (
     build_examples,
     label_pin,
     load_examples,
+    pair_pins,
     record_key,
     records_by_key,
 )
@@ -155,3 +156,18 @@ def test_a_fixed_side_without_the_function_is_a_label_defect_not_an_unread_side(
     assert count.absent_fixed_side == 1 and count.no_excerpt == 0 and build.failing() == []
     unread = build_examples([fixed], records_by_key([feature(fixed)]), lambda lab, role: None, sources=SOURCES)
     assert unread.sources["population-v1"].unread == 1 and unread.failing() == ["population-v1"]
+
+
+def test_pair_sides_join_the_record_stored_under_their_harvest_unit_pin() -> None:
+    """The harvest stores a pair side's record under its unit pin (the blob sha1 of the side's excerpt), not under
+    :func:`label_pin`; ``pins`` from the harvest ``units.json`` joins them, and without it the record is not found."""
+    lab = label(source="pairs", source_ref="case-9", pin="")
+    unit_pin = "a" * 40
+    stored = {**feature(lab), "pin": unit_pin}
+    units = {"h-1": {"source": "pairs", "ref": "case-9", "side": "vulnerable", "pin": unit_pin, "repo": lab["repo"]},
+             "h-2": {"source": "population-v1", "ref": "case-9", "side": "vulnerable", "pin": PIN, "repo": lab["repo"]}}  # fmt: skip
+    pins = pair_pins(units)
+    assert pins == {("case-9", "vulnerable"): unit_pin}
+    assert build_examples([lab], records_by_key([stored]), lines_of, sources=SOURCES).summary()["examples"] == 0
+    build = build_examples([lab], records_by_key([stored]), lines_of, sources=SOURCES, pins=pins)
+    assert build.summary()["examples"] == 1 and build.rows[0]["pin"] == unit_pin

@@ -15,6 +15,8 @@ from learn_fixtures import ScriptedChat, by_id, corpus, x_record
 from openultrasast.learn import program as program_module
 from openultrasast.learn.folds import outer_folds
 from openultrasast.learn.program import (
+    ANSWER_FORMAT,
+    BASELINE_INSTRUCTION,
     PARSE_FAILED,
     Answer,
     Caller,
@@ -119,6 +121,15 @@ def test_the_prefix_is_byte_identical_across_candidates() -> None:
     b, _ = prog.prepare(candidate("    7  def other(x):\n    8      return x\n", hits=3), FOLD)
     assert a.messages[0] == b.messages[0] and a.prefix.encode() == b.prefix.encode()
     assert "Demonstration 1:" in a.prefix and a.messages[1] != b.messages[1]
+
+
+def test_every_instruction_carries_the_answer_contract() -> None:
+    """A proposed instruction rarely restates the JSON contract; the prefix adds it, once, so JSON mode is accepted
+    (DeepSeek refuses a prompt without the word "json") and the answer parses. The baseline prefix is unchanged."""
+    proposed, _ = program(instruction="Weigh the sanitiser before the sink.").prepare(candidate(), FOLD)
+    baseline, _ = program().prepare(candidate(), FOLD)
+    assert proposed.prefix.startswith("Weigh the sanitiser before the sink.\n") and proposed.prefix.count(ANSWER_FORMAT) == 1
+    assert baseline.prefix.count(ANSWER_FORMAT) == 1 and baseline.prefix.startswith(BASELINE_INSTRUCTION)
 
 
 def test_parsing_valid_invalid_and_out_of_range_citations() -> None:

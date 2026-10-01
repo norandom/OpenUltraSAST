@@ -22,7 +22,9 @@ Memory examples carry **no rationale** (code, signals, roles, family and label o
   ``fix_function`` (a different handler of the same snapshot).
 
 Pair labels have no commit pin (the corpus holds excerpts); their envelope pin is :func:`label_pin`, a stable
-40-hex digest of the pair and its side, so the vulnerable and the fixed side stay distinct rows.
+40-hex digest of the pair and its side, so the vulnerable and the fixed side stay distinct rows. The harvest keyed a
+pair side's feature record by its unit's pin instead (the blob sha1 of the side's excerpt, ``plane/harvest.py``):
+:func:`pair_pins` reads that mapping from the harvest ``units.json`` and the build uses it when given.
 """
 
 from __future__ import annotations
@@ -60,6 +62,11 @@ def label_pin(label: Mapping[str, Any]) -> str:
         return pin
     subject = f"{label.get('source')}:{label.get('source_ref')}:{label.get('pin_role', 'vulnerable')}"
     return hashlib.sha1(subject.encode("utf-8")).hexdigest()  # noqa: S324 -- a name, not a security digest
+
+
+def pair_pins(units: Mapping[str, Mapping[str, Any]]) -> dict[tuple[str, str], str]:
+    """Harvest ``units.json`` -> ``(case reference, side) -> pin`` for the pair units (the pin their records carry)."""
+    return {(str(u["ref"]), str(u["side"])): str(u["pin"]) for u in units.values() if u.get("source") == "pairs"}
 
 
 def record_key(repo: str, pin: str, candidate: str, family: str, unit: str) -> tuple[str, str, str, str, str]:
@@ -127,9 +134,11 @@ def build_examples(
     license_of: Callable[[Mapping[str, Any]], str] | None = None,
     function_of: Callable[[Mapping[str, Any], str], str | None] | None = None,
     bounds: Bounds = EXAMPLE,
+    pins: Mapping[tuple[str, str], str] | None = None,
 ) -> MemoryBuild:
     """Example rows for the verified labels that have a feature record (``records`` by :func:`record_key`) and an
-    excerpt; with ``store`` the excerpt blobs and the rows are written. Delta units append the base->head diff."""
+    excerpt; with ``store`` the excerpt blobs and the rows are written. Delta units append the base->head diff.
+    ``pins`` (:func:`pair_pins`) gives a pair side the pin its harvest record was stored under."""
     rows = [_as_dict(label) for label in labels]
     allowed = {s.id for s in sources.sources} | {d for d, kind in DERIVED_SOURCES.items() if any(s.kind == kind for s in sources.sources)}
     for row in rows:
@@ -145,7 +154,9 @@ def build_examples(
             continue
         count = build.sources.setdefault(str(label["source"]), SourceCount())
         count.labels += 1
-        pin = label_pin(label)
+        side = (str(label.get("source_ref")), str(label.get("pin_role") or "vulnerable"))
+        pin = (pins or {}).get(side) if label.get("source") == "pairs" else None
+        pin = pin or label_pin(label)
         candidate, family, unit = str(label["candidate"]), str(label["family"]), str(label["unit"])
         record = records.get(record_key(str(label["repo"]), pin, candidate, family, unit))
         if record is None or record.get("profile") != profile:
@@ -307,5 +318,5 @@ def records_by_key(rows: Iterable[Mapping[str, Any]]) -> dict[tuple[str, str, st
 
 __all__ = [
     "EXAMPLE_KIND", "NO_EXCERPT_LIMIT", "Example", "ExampleBuildError", "MemoryBuild", "SideReader", "build_examples",
-    "label_pin", "label_set_digest", "load_examples", "read_jsonl", "record_key", "records_by_key",
+    "label_pin", "label_set_digest", "load_examples", "pair_pins", "read_jsonl", "record_key", "records_by_key",
 ]  # fmt: skip

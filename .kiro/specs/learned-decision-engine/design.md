@@ -529,7 +529,8 @@ explicit rather than imputed:
   block). Prior features (`FeatureSpec.prior`) are dropped when `priors = off`. Weights are a compile-time
   setting only if an A/B shows a gain; the default is uniform.
 - Candidates in the eligible pool (after the boundary filter) are ranked by `D`, ties by `sha256(example_id +
-  seed)`; the first `n1 = 40` go to stage 2.
+  seed)`; the first `n1 = 40` of the candidate's family and the first `n1` of the other families go to stage 2
+  (per side since 2026-10-01, so a minority family reaches stage 2; Risks, "First paid slice").
 
 **Stage 2: code-embedding re-rank.** Cosine similarity of the candidate's excerpt embedding with each stage-1
 example's. The re-rank score is `r = lam * (1 - D) + (1 - lam) * cos`, with `lam` a compiled setting in {0, 0.5}
@@ -1204,6 +1205,27 @@ start only after the maintainer confirms their budget against the balance read j
 - **Experiments will often be inconclusive.** With 41 development repositories the MDE is about 15 points.
   Pre-registering that and recording "inconclusive" is the intended behaviour. The failure mode to avoid is
   extending an experiment after looking.
+
+- **First paid slice, 2026-10-01 (tasks 6.2, 6.6; injection only).** Four instrument defects surfaced before any
+  number was believed, each fixed with a test:
+  - *The memory build joined no pair.* The harvest stores a pair side's record under its unit pin (the blob sha1 of
+    the side's excerpt), not under `label_pin`; `ousast learn memory build --units <harvest units.json>` joins them.
+    And a candidate's `static` and `plane` records share a key, so reading both let one overwrite the other and
+    silently drop about half the examples; the build now reads its own profile only. 85 -> 724 examples.
+  - *Contrast was unbounded.* The balance rule padded a short pick with other families (up to 5 of 6), and stage 1
+    took the 40 nearest of all families, so a minority family often never reached stage 2. Now stage 1 takes the
+    `n1` nearest of the candidate's family and the `n1` nearest others, and at most 2 contrast examples are shown
+    whenever the pool holds the family (maintainer: "allow 2 contrast"); never padded.
+  - *Proposed instructions dropped the answer contract*, and DeepSeek's JSON mode refuses a prompt without the word
+    "json" (HTTP 400, the first compile stopped there). The contract (`ANSWER_FORMAT`) is now part of the signature
+    and appended to any instruction that lacks it; the baseline prefix is byte-identical.
+  - The adjudication source fails the 10% excerpt gate: 9 of its 43 candidates are anonymous functions (`<lambda>N`,
+    `<module>`) that `function_span` cannot find by name; the clones were read. Open.
+  The memory is small: 724 static examples (only harvested candidates have feature records; the 97 advisory-fix pairs
+  have none yet), injection 140 (75/65), so `C_val` had 13 injection candidates and the compile metric is noisy.
+  The measured ranking signal is real but weak at the recall target: AUC 0.74 out of repository, ADVISORY at recall
+  0.90 has precision 0.54 (prevalence 0.53); the majority `vulnerable` verdict alone has precision 0.86, recall 0.43.
+  Canary re-ask agreement at temperature 0 was 0.83, below the 0.9 the adoption check requires.
 
 ## Maintainer decisions at design approval (2026-09-30)
 

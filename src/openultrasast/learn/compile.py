@@ -354,12 +354,14 @@ def compile_program(
     vectors: Mapping[str, Sequence[float]] | None = None,
     identities: Callable[[Example], Iterable[str]] | None = None,
     families: Sequence[str] = (),
+    candidate_families: Sequence[str] = (),
     store: MemoryStore | None = None,
     created: str = "",
     code_commit: str = "",
 ) -> CompileResult:
     """Compile one profile's program from ``memory`` (module docstring). Deterministic given the memory, the spec and
-    the response cache."""
+    the response cache. ``candidate_families`` limits the bootstrap and validation candidates to those families (a
+    one-family slice); retrieval still draws on every family of the compile split, for contrast examples."""
     seed = spec.seed
     pool = [e for e in memory if e.profile == profile]
     split: CompileSplit = compile_split(pool, fraction=float(spec["split"].get("compile_fraction", 0.25)),
@@ -368,8 +370,9 @@ def compile_program(
     assert_disjoint(split, evaluation)
     compile_memory = [e for e in pool if e.group in split.groups]
     fold = Fold("compile", "compile", frozenset(), phase="compile")
-    boot = _order([e for e in compile_memory if e.group in split.boot], seed, "boot")[: int(spec["bootstrap"].get("max_candidates", 150))]
-    val = _order([e for e in compile_memory if e.group in split.val], seed, "val")[: int(spec["search"].get("val_candidates", 60))]
+    asked = [e for e in compile_memory if not candidate_families or e.family in candidate_families]
+    boot = _order([e for e in asked if e.group in split.boot], seed, "boot")[: int(spec["bootstrap"].get("max_candidates", 150))]
+    val = _order([e for e in asked if e.group in split.val], seed, "val")[: int(spec["search"].get("val_candidates", 60))]
     if not boot or not val:
         raise CompileError(f"compile split too small: {len(boot)} bootstrap and {len(val)} validation candidates")
     retrieval, classify = spec["retrieval"], spec["classify"]

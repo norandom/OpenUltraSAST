@@ -6,7 +6,7 @@ byte for byte at $0 (``test_reproducible_from_cache``); the permissive-licence f
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path
 
 import pytest
@@ -30,6 +30,7 @@ from openultrasast.learn.compile import (
     permissive,
     program_id,
 )
+from openultrasast.learn.examples import Example
 from openultrasast.learn.folds import Fold, FoldError
 from openultrasast.learn.program import Caller, Demo
 from openultrasast.plane.budget import MeteredClient
@@ -191,3 +192,23 @@ def test_only_permissively_licensed_demonstrations_are_packaged() -> None:
     assert [d["example_id"] for d in packaged["demos"]] == [mit.id, apache.id]
     assert packaged["program_id"] == program_id(packaged) != artifact["program_id"]
     assert packaged["packaged"]["from"] == artifact["program_id"]
+
+
+def test_a_one_family_compile_asks_only_that_family(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``candidate_families`` limits the bootstrap and validation candidates; the compile memory keeps every family
+    (retrieval's contrast examples), so the artifact's data counts are those of the whole pool."""
+    asked: dict[str, set[str]] = {}
+    real = compile_module._order
+
+    def spy(items: Iterable[Example], seed: int, salt: str) -> list[Example]:
+        items = list(items)
+        asked.setdefault(salt, set()).update(e.family for e in items)
+        return real(items, seed, salt)
+
+    monkeypatch.setattr(compile_module, "_order", spy)
+    result = compile_program(MEMORY, _caller(ScriptedChat(answer)), excerpt_text, spec=SPEC, candidate_families=("injection",))
+    assert result.status == "done" and result.artifact is not None
+    assert asked["boot"] == asked["val"] == {"injection"}
+    assert result.artifact["data"]["examples"] == len(MEMORY)
+    with pytest.raises(CompileError, match="compile split too small"):
+        compile_program(MEMORY, _caller(ScriptedChat(answer)), excerpt_text, spec=SPEC, candidate_families=("memory",))

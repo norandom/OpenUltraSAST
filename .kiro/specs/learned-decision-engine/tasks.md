@@ -54,6 +54,8 @@ a model or embedding call.
       `plane/budget.py`, usage kept by `parse_embedding_response`; cache `embeddings/<model>/<excerpt_sha>.json`;
       `ousast learn memory embed`; scripted-client tests.
     - **(budget go-ahead)** embedding the store: ~5.0 M tokens, ~$0.10, ceiling $1 (OpenRouter account).
+      Done 2026-10-01: 616 distinct excerpts of the 724 static examples, 198,819 tokens, 20 calls, $0.0040 metered
+      (`benchmarks/measurements/2026-10-01-decision-engine-injection-slice/record.json`).
     - _Requirements: 3.2_
   - [x] 6.3 Retrieval and the evaluation boundary (no model)
     - `learn/retrieve.py`: per-instrument Gower distance with explicit missing, `n1 = 40`, embedding re-rank
@@ -82,13 +84,21 @@ a model or embedding call.
     - Tests: `test_learn_compile.py` (`test_reproducible_from_cache` on both backends), `test_learn_calibrate.py`,
       `test_learn_decide.py`.
     - _Requirements: 3.3, 3.5, 5.2, 7.3, 7.4_
-  - [ ] 6.6 First paid slice **(budget go-ahead: ~$5 expected, ceiling $7)**
+  - [x] 6.6 First paid slice **(budget go-ahead: ~$5 expected, ceiling $7)**
     - Smoke run on 20 candidates (~$0.10): real token counts, prefix-cache hit share, parse rate; it fixes `k`
       (5 if samples 2..k hit the cache for >= 80% of their prompt tokens, else 1) before anything else is spent.
     - One compile per profile with data (`static` first; ~$2.2, ceiling $3).
     - Outer-fold evaluation, priors off, evaluable families only (675 candidates: ~$2.0 at k = 1, ~$3.0 at k = 5),
       with the 30-candidate canary set; report under `benchmarks/measurements/<date>-decision-engine-v1/` (counts
       and intervals only, no identities).
+    - Done 2026-10-01 for family **injection only** (the maintainer's scope for this slice; memory holds every family,
+      at most 2 contrast examples per prompt): smoke fixed `k = 5` (repeat hit share 0.96); program `c1237a49...`
+      (proposed instruction 5, balanced Brier 0.128 on 13 `C_val` candidates vs 0.199 baseline); 110 out-of-repository
+      candidates in 29 groups: ADVISORY recall 0.90 [0.82, 0.97], precision 0.54 [0.44, 0.65]; AUC of `s` 0.74 [0.65,
+      0.85]; BLOCK not offered (ECE 0.064 > 0.05, and no fold reached a Wilson lower bound of 0.95); canary agreement
+      0.83; $0.91 metered at list price (provider balance $18.20 -> $17.90). Record:
+      `benchmarks/measurements/2026-10-01-decision-engine-injection-slice/record.json`. The other evaluable families
+      are not evaluated yet.
     - _Requirements: 3.1-3.5, 5.2, 7.3, 7.4_
   - [ ] 6.7 Second paid slice **(budget go-ahead: ~$7 expected, ceiling $10; needs a top-up)**
     - Leave-one-source-out (~$1.4-2.1), leave-one-framework-out where a framework reaches 10 groups ($0 today),

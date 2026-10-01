@@ -11,12 +11,13 @@ profile, computed per instrument block so that missing is explicit, never impute
 - ``D`` is the uniform mean over the profile's blocks; prior features are dropped with ``priors = "off"``, and the blocks
   of instruments the input profile withholds (``inputs``, default ``v1``: the engine) are left out entirely.
 
-Ties break by ``sha256(example id + seed)``; the first ``n1 = 40`` go to stage 2, a cosine re-rank of the code
+Ties break by ``sha256(example id + seed)``; the first ``n1 = 40`` of the candidate's family and the first ``n1``
+of the other families go to stage 2, a cosine re-rank of the code
 embeddings, ``r = lam (1 - D) + (1 - lam) cos``. Without the target's vector the whole retrieval is
 ``signals_only``; an example without a vector scores ``cos = 1 - D`` (its signal similarity, so it keeps its
 stage-1 standing). The **balance rule** then takes ``k_ret = 6``: at most ``k/2`` per label, at most 2 per
-repository group, at most 2 from other families while the candidate's family has examples left; ``short`` when
-the pool cannot fill it.
+repository group, at most 2 contrast examples from other families whenever the pool holds the candidate's family
+(never padded with more); ``short`` when the pool cannot fill it.
 
 **The boundary.** :func:`eligible` is the only way an example enters a prompt -- retrieved examples and compiled
 demonstrations alike: not the target's group, not a group the fold evaluates, not the held-out source, not the
@@ -43,6 +44,7 @@ LAM = 0.5
 NEAR_DUPLICATE_COS = 0.98
 UNBOUNDED_CAP = 10.0
 PER_GROUP = 2
+CONTRAST = 2  # contrast examples from other families, at most, while the pool holds the target's family
 
 
 class BoundaryViolation(AssertionError):
@@ -153,35 +155,26 @@ def _tie(example_id: str, seed: int) -> str:
 
 
 def balance(ranked: Sequence[Example], family: str, k: int = K_RET) -> tuple[list[Example], str]:
-    """Take up to ``k`` in rank order: <= k/2 per label, <= 2 per group, <= 2 other families while the target's family
-    has examples left; then, if short, fill from other families under the label and group caps."""
-    per_label, other_cap = k // 2, min(2, k)
+    """Take up to ``k`` in rank order: <= k/2 per label, <= 2 per group, and at most 2 contrast examples from other
+    families whenever the pool holds any example of the target's family (maintainer, 2026-10-01: "allow 2 contrast").
+    A pool without the target's family takes from the others under the label and group caps. ``short`` when the
+    pool cannot fill ``k`` or a label minimum: what exists is taken, never padded with more contrast."""
+    per_label = k // 2
+    other_cap = min(CONTRAST, k) if any(e.family == family for e in ranked) else k
     taken: list[Example] = []
     labels: dict[int, int] = {}
     groups: dict[str, int] = {}
-
-    def fits(example: Example) -> bool:
-        return labels.get(example.label, 0) < per_label and groups.get(example.group, 0) < PER_GROUP
-
-    def take(example: Example) -> None:
-        taken.append(example)
-        labels[example.label] = labels.get(example.label, 0) + 1
-        groups[example.group] = groups.get(example.group, 0) + 1
-
     others = 0
     for example in ranked:
         if len(taken) == k:
             break
         if example.family != family and others >= other_cap:
             continue
-        if fits(example):
+        if labels.get(example.label, 0) < per_label and groups.get(example.group, 0) < PER_GROUP:
             others += example.family != family
-            take(example)
-    for example in ranked:
-        if len(taken) == k:
-            break
-        if example.id not in {e.id for e in taken} and fits(example):
-            take(example)
+            taken.append(example)
+            labels[example.label] = labels.get(example.label, 0) + 1
+            groups[example.group] = groups.get(example.group, 0) + 1
     pool_labels = {e.label for e in ranked}
     short = len(taken) < k or any(labels.get(lab, 0) < min(2, per_label) for lab in (0, 1) if lab in pool_labels)
     return taken, "short" if short else "ok"
@@ -202,10 +195,14 @@ def retrieve(
 ) -> Retrieval:
     """The ``k`` balanced examples for ``target`` from the eligible part of ``pool`` (module docstring)."""
     candidates = [e for e in pool if e.profile == target.profile and eligible(e, target, fold)]
-    scored = sorted(
+    ranked_all = sorted(
         ((gower(target.x, target.instruments, e.x, e.instruments, target.profile, priors=priors, inputs=inputs), e) for e in candidates),
         key=lambda pair: (pair[0], _tie(pair[1].id, seed)),
-    )[:n1]
+    )
+    # stage 1 per side: the n1 nearest of the target's family and the n1 nearest contrast examples, so a family that is a
+    # minority of the memory still reaches stage 2 (the balance rule then takes at most 2 contrast examples)
+    own = [pair for pair in ranked_all if pair[1].family == target.family][:n1]
+    scored = own + [pair for pair in ranked_all if pair[1].family != target.family][:n1]
     mode = "signals+embeddings" if target.vector is not None and vectors else "signals_only"
     near = without = 0
     reranked: list[tuple[float, str, Example]] = []

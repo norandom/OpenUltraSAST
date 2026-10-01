@@ -8,7 +8,7 @@ from dataclasses import replace
 import pytest
 from learn_fixtures import by_id, corpus, example, x_record
 
-from openultrasast.learn.folds import compile_split, leave_one_framework_out, leave_one_source_out, outer_folds
+from openultrasast.learn.folds import Fold, compile_split, leave_one_framework_out, leave_one_source_out, outer_folds
 from openultrasast.learn.retrieve import (
     BoundaryViolation,
     Target,
@@ -102,6 +102,25 @@ def test_balance_caps_labels_groups_and_other_families() -> None:
     crowded = [example(f"c{i}", group="one/repo", label=i % 2) for i in range(10)]
     taken, state = balance(crowded, "injection", 6)
     assert len(taken) == 2 and state == "short"  # at most 2 per repository group
+    scarce = [example("own", group="own/repo", label=1)] + [
+        example(f"o{i}", group=f"o{i}/r", label=i % 2, family="path") for i in range(10)
+    ]
+    taken, state = balance(scarce, "injection", 6)
+    assert sum(e.family != "injection" for e in taken) == 2 and len(taken) == 3 and state == "short"  # never padded
+    absent = [example(f"a{i}", group=f"a{i}/r", label=i % 2, family="path") for i in range(10)]
+    taken, state = balance(absent, "injection", 6)
+    assert len(taken) == 6 and state == "ok"  # no example of the family at all: the others fill under the caps
+
+
+def test_a_minority_family_reaches_stage_two_and_contrast_stays_at_two() -> None:
+    """Stage 1 keeps the n1 nearest of the target's family beside the n1 nearest others: 50 contrast examples nearer
+    in signals cannot push the family out, and the balance rule takes at most 2 of them."""
+    others = [example(f"o{i}", group=f"o{i}/r", label=i % 2, family="path", hits=0) for i in range(50)]
+    own = [example(f"own{i}", group=f"own{i}/r", label=i % 2, hits=6) for i in range(4)]
+    fold = Fold("compile", "compile", frozenset(), phase="compile")
+    got = retrieve(_target(hits=0), [*others, *own], fold, n1=40, k=6)
+    assert sum(e.family == "injection" for e in got.examples) == 4
+    assert sum(e.family != "injection" for e in got.examples) == 2
 
 
 def test_near_duplicates_drop_in_evaluation_and_stay_in_deployment() -> None:
