@@ -1219,3 +1219,6 @@ Open for the maintainer at design approval:
 - The second slice (leave-one-source-out, memory-size curves): ~$7, ceiling $10, and the top-up it needs.
 - Which corpus licences allow demonstrations to ship in the package (section 5).
 
+
+- 2026-10-01: revised design approved; packaged demonstrations limited to permissive licences (MIT, BSD, Apache-2.0,
+  ISC, zlib); copyleft and unknown-licence code is used for evaluation and local memory only, never packaged.
