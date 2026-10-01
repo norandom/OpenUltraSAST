@@ -46,7 +46,7 @@ a model or embedding call.
       10% of a source has no excerpt); `example` added to `KINDS`; `put_blob`/`get_blob` on both backends.
     - Tests: `test_learn_excerpt.py`, example-builder refusals, blob round trip on FileStore (MinIO gated).
     - _Requirements: 3.2, 3.6, 7.2_
-  - [ ] 6.2 Metered embeddings and the cache
+  - [x] 6.2 Metered embeddings and the cache
     - `plane/models/openrouter-embedding.yaml` (`input_per_m: 0.02`), `MeteredEmbeddingClient` in
       `plane/budget.py`, usage kept by `parse_embedding_response`; cache `embeddings/<model>/<excerpt_sha>.json`;
       `ousast learn memory embed`; scripted-client tests.

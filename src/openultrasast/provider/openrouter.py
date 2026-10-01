@@ -8,7 +8,7 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TypeVar, cast
 
 
@@ -135,10 +135,11 @@ class OpenRouterChatClient:
 
 @dataclass(frozen=True)
 class OpenRouterEmbeddingClient:
-    api_key: str
+    api_key: str = field(repr=False)
     base_url: str = "https://openrouter.ai/api/v1"
     max_attempts: int = 3
     retry_base_delay: float = 0.5
+    usage: list[dict[str, object]] = field(default_factory=list, compare=False, repr=False)  # one per call, for the meter
 
     @classmethod
     def from_env(cls) -> OpenRouterEmbeddingClient:
@@ -167,7 +168,16 @@ class OpenRouterEmbeddingClient:
             response_payload = call_with_retry(_do, attempts=self.max_attempts, base_delay=self.retry_base_delay)
         except (urllib.error.URLError, TimeoutError, http.client.HTTPException, json.JSONDecodeError) as exc:
             raise OpenRouterError(f"OpenRouter embedding request failed: {type(exc).__name__}: {exc}") from exc
-        return parse_embedding_response(response_payload)
+        vectors, usage = parse_embedding_payload(response_payload)
+        self.usage.append(usage)
+        return vectors
+
+
+def parse_embedding_payload(payload: object) -> tuple[list[list[float]], dict[str, object]]:
+    """The vectors and the provider's ``usage`` (``{}`` when absent: the meter treats that as unmetered, not free)."""
+    vectors = parse_embedding_response(payload)
+    usage = payload.get("usage") if isinstance(payload, dict) else None
+    return vectors, dict(usage) if isinstance(usage, dict) else {}
 
 
 def parse_embedding_response(payload: object) -> list[list[float]]:

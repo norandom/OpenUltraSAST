@@ -39,7 +39,7 @@ def test_every_manifest_under_plane_loads() -> None:
     paths = sorted(PLANE.rglob("*.yaml"))
     assert len(paths) >= 36, paths
     manifests = load_manifests(paths)
-    assert set(manifests.models) == {"deepseek-flash"}
+    assert set(manifests.models) == {"deepseek-flash", "openrouter-embedding"}  # the second: embeddings only (decision engine)
     assert set(TEMPLATES) <= set(manifests.tasks)
     assert len(manifests.workspaces) == 30 and "validation-46" in manifests.runs
     full = {t.name for t in manifests.runs["validation-46"].tasks}

@@ -370,7 +370,7 @@ def test_deepseek_without_extension_annotation_is_rejected() -> None:
 def test_unknown_provider_is_rejected_even_with_annotation() -> None:
     document = doc(MODEL_YAML)
     document["spec"]["provider"] = "openai"
-    assert rejected(document, 'spec.provider "openai" is not one of anthropic, deepseek, google')
+    assert rejected(document, 'spec.provider "openai" is not one of anthropic, deepseek, google, openrouter')
 
 
 def test_model_requires_model_name() -> None:

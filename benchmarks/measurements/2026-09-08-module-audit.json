@@ -1,7 +1,7 @@
 {
-  "modules": 146,
+  "modules": 147,
   "counts": {
-    "load_bearing": 139,
+    "load_bearing": 140,
     "standalone_capability": 7
   },
   "orphaned": [],
@@ -353,6 +353,7 @@
       "importers": [
         "cli",
         "learn.cli",
+        "learn.embeddings",
         "learn.examples",
         "learn.excerpt",
         "learn.features",
@@ -371,6 +372,14 @@
       ]
     },
     {
+      "module": "learn.embeddings",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
+        "learn.cli"
+      ]
+    },
+    {
       "module": "learn.examples",
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
@@ -383,6 +392,7 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
+        "learn.embeddings",
         "learn.examples"
       ]
     },
@@ -752,6 +762,7 @@
         "cli",
         "improve.memory",
         "learn.cli",
+        "learn.embeddings",
         "learn.examples",
         "plane.egress",
         "plane.engine_alerts",
@@ -772,6 +783,8 @@
       "classification": "load_bearing",
       "reason": "ai-service-plane Req 2.3/2.4: metered chat client with usd and calls ceilings; task integration in tasks 3, 6",
       "importers": [
+        "learn.cli",
+        "learn.embeddings",
         "plane.generate",
         "plane.tasks.roles",
         "plane.tasks.verify"
@@ -812,6 +825,7 @@
       "classification": "load_bearing",
       "reason": "ai-service-plane Req 1.1-1.4: ax-shaped Task/Workspace/Model and the Run kind, validated before anything runs",
       "importers": [
+        "learn.cli",
         "plane.egress",
         "plane.generate",
         "plane.reconciler",
@@ -827,6 +841,7 @@
       "importers": [
         "improve.memory",
         "learn.cli",
+        "learn.embeddings",
         "learn.examples",
         "plane.generate",
         "plane.tasks.loop",
@@ -1036,6 +1051,7 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
+        "learn.cli",
         "model.endpoint",
         "tool_hunter"
       ]
@@ -1045,6 +1061,7 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
+        "learn.cli",
         "model.endpoint",
         "tool_hunter"
       ]

@@ -1,0 +1,24 @@
+# The embedding model of the decision engine's local memory (learned-decision-engine design 4.1-4.2, Req 3.2).
+# OpenRouter serves embeddings only; the chat model stays DeepSeek. `openrouter` is not an ax provider, so the
+# annotation declares the extension. `secretKey` names the Kubernetes Secret and key that hold OPENROUTER_API_KEY;
+# the key itself is never in a manifest. Prices in USD per million tokens: embeddings bill input only, so the cache
+# and output rates are 0 and `plane.budget.MeteredEmbeddingClient` prices the provider's `usage.prompt_tokens`.
+apiVersion: ax.io/v1alpha1
+kind: Model
+metadata:
+  name: openrouter-embedding
+  atespace: default   # ax's own name for the namespace field (plane/manifests.py)
+  annotations:
+    openultrasast.io/provider-extension: "true"
+    openultrasast.io/egress-hosts: "openrouter.ai"   # provider.openrouter base URL; the embed task's only model egress
+spec:
+  provider: openrouter
+  model: openai/text-embedding-3-small
+  secretKey:
+    name: openrouter
+    key: OPENROUTER_API_KEY
+  parameters:
+    cache_hit_per_m: 0
+    input_per_m: 0.02
+    output_per_m: 0
+    dimensions: 1536

@@ -59,7 +59,7 @@ GIT_COMMITS_ANNOTATION = "openultrasast.io/git-commits"
 EGRESS_HOSTS_ANNOTATION = "openultrasast.io/egress-hosts"  # the Model API hosts a bound task may reach
 _DNS_NAME = re.compile(r"^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$")
 AX_PROVIDERS = frozenset({"google", "anthropic"})
-EXTENSION_PROVIDERS = frozenset({"deepseek"})
+EXTENSION_PROVIDERS = frozenset({"deepseek", "openrouter"})  # openrouter: embeddings only (decision engine)
 
 _API_VERSIONS = {"Task": AX_API_VERSION, "Workspace": AX_API_VERSION, "Model": AX_API_VERSION, "Run": RUN_API_VERSION}
 
