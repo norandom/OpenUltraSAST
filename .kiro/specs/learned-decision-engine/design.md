@@ -2,11 +2,15 @@
 
 ## Overview
 
-Detection decisions move out of hand edits and into a trained, calibrated model. The instruments stay and emit
-signals. A model-free feature builder turns those signals into one record per candidate. A label builder attaches
-ground truth from sources we can defend. A small logistic model, evaluated only on repositories it never saw,
-turns a record into a probability, and two thresholds on that probability (BLOCK, ADVISORY) are what `pre-push`,
-`scan` and plane Runs report. Pipeline changes are variants in pre-registered, paired experiments.
+Detection decisions move out of hand edits and into an AI classifier with local memory. The instruments stay and
+emit signals. A model-free feature builder turns those signals into one record per candidate. A label builder
+attaches ground truth from sources we can defend, and labelled cases become a local memory of examples. A
+language-model program, compiled DSPy-style in-house (Req 3, changed 2026-10-01: "We will not be able to scale up
+data"), reads the candidate's code, its signals and its inferred roles together with similar labelled cases
+retrieved from memory, and answers a verdict with a confidence. That confidence is calibrated only on repositories
+the program never saw, and two thresholds on it (BLOCK, ADVISORY) are what `pre-push`, `scan` and plane Runs report.
+No statistical model is fitted. Pipeline changes, program variants included, are pre-registered, paired
+experiments.
 
 Six facts from the repository and the recorded results shape the design:
 
@@ -23,10 +27,12 @@ Six facts from the repository and the recorded results shape the design:
   labelled findings in the catalog today, 317/342 in the 2026-09-30 baseline
   `benchmarks/measurements/2026-09-30-harnessx-removal-baseline/pairs.json` `overall`). Measured by
   repository rather than by row, it is 146 groups, and two families are nearly single-repository (section 3). A
-  model over verify signals cannot be trained today. The design trains on the signals every labelled row can
-  have, and harvests the rest at a stated cost.
+  classifier over verify signals cannot be evaluated today. The design starts from the signals every labelled row
+  can have, harvests the rest at a stated cost, and accepts that data will stay small: the engine learns by
+  memory and compilation, not by fitting parameters.
 - **The core install is PyYAML only** (`pyproject.toml:11`). numpy, scipy and scikit-learn are not installed in
-  `.venv`. Inference must be pure Python, and training should be too (section 4).
+  `.venv`. Retrieval (a Gower distance and a cosine over at most 40 vectors) and calibration (two-parameter Platt)
+  stay pure Python; the model calls go through the plane's metered client (section 4).
 - **`pre-push` already has the decision seam.** `admit_candidates` (`push/policy.py:879`) applies one evidence
   bar to `CandidateDelta`s with `novelty` (`push/policy.py:61-74`). Its capability registry is empty by design
   (`push/policy.py:802-823`: "No shipped declaration is enabled"), so `pre-push` blocks nothing today. The
@@ -49,11 +55,16 @@ Decisions in one place:
 | Features | allow-listed, typed, repository-agnostic; explicit `null` + instrument state for missing; two profiles (`static`, `plane`) |
 | Where features are built | plane task `features` (no model) after `agree`/`final` and `alerts`; host path `learn.features.build_for_scan` for `scan`/`pre-push` |
 | Labels | host-only `ousast learn labels`; site/fix-range matcher for populations, vulnerable/fixed side for pairs, benign deltas, adjudications; fail-closed source allow-list keeps v3 out |
-| Model | L2-regularised logistic regression, pure Python (Newton/IRLS), per family at >= 20 positive and >= 20 negative repositories, pooled at >= 10, otherwise "insufficient data" |
-| Calibration | Platt scaling on inner grouped out-of-fold scores; checked per outer fold (reliability, slope, intercept); if it fails, ADVISORY only |
-| Folds | outer grouped K-fold by repository (repeated), plus leave-one-source-out and leave-one-framework-out; nested inner folds for lambda, calibration, thresholds |
-| Operating points | BLOCK: lowest threshold whose inner-fold Wilson lower bound on precision is >= 0.95; ADVISORY: threshold reaching 0.90 inner-fold recall; reported with repository-bootstrap intervals |
-| Artifacts | content-addressed JSON under `models/` in the store; adopted version exported into the package by a maintainer commit |
+| Engine | a language-model program, in-house DSPy-style: signature (code excerpt, signals, roles, family -> verdict, family, confidence, rationale with cited lines), modules `Retrieve -> Classify(k)`, every call through `MeteredClient` bound to a Model per task; no statistical model is fitted |
+| Models | DeepSeek (`deepseek-flash`) for classification; OpenRouter (`openai/text-embedding-3-small`) for embeddings only |
+| Memory | `example` rows (label + record + excerpt) in the MemoryStore; stage 1 Gower nearest neighbours on the signal profile with explicit missing, stage 2 code-embedding re-rank, 6 examples under a label/family/repository balance rule; an evaluation-boundary filter with a test |
+| Compilation | pre-registered balanced Brier score on a compile split of repositories never evaluated; bootstrap few-shot (3 demonstrations) and instruction search (6 proposed + baseline); ceiling $3 per compile; responses cached for byte-identical replay |
+| Families | one program for all families; calibration and operating points per family at >= 20 positive and >= 20 negative repositories, pooled at >= 10, otherwise "insufficient data" |
+| Calibration | Platt scaling of the program's score, cross-fitted over outer folds; checked per fold (reliability, slope, intercept, ECE); if it fails, ADVISORY only |
+| Folds | outer grouped 5-fold by repository (one repetition), plus leave-one-source-out and leave-one-framework-out; compile split disjoint from every evaluation fold |
+| Operating points | BLOCK: lowest threshold whose Wilson lower bound on precision is >= 0.95, chosen on the other folds' predictions, never on a majority `unsure`; ADVISORY: threshold reaching 0.90 recall; reported with repository-bootstrap intervals |
+| Artifacts | content-addressed compiled-program JSON under `programs/` in the store; adopted version exported into the package by a maintainer commit |
+| Cost | ~$0.003 per candidate (k = 1), ~$0.0045 (k = 5, cached); ~$2.2 per compile; ~$3.4-5.2 per full evaluation; first slice ~$5, $7 ceiling, within today's balance |
 | Experiments | manifest `plane/experiments/<id>.yaml` + Run annotation `openultrasast.io/experiment`; paired; repository-cluster bootstrap CI (primary), exact McNemar (secondary); O'Brien-Fleming two-look stopping |
 | First experiment | `exp-001-known-callers`: callers line on vs off, development corpus (v1, pmpro, MediaWiki, WP Statistics, full-repository pointer pairs), about $8 expected, $15 ceiling |
 | Framework knowledge | tagged `framework`/`library` priors, off by default; roles inferred by a `roles` plane task (model) + deterministic wrapper inference; leave-one-framework-out evaluation |
@@ -73,29 +84,34 @@ Decisions in one place:
                                            |
                      +---------------------+----------------------+
                      |                                            |
-   labels (new, host only, never in a sandbox)                decide (new, no model)
-   populations: matches_v2 / fix ranges                       load adopted model -> p, operating point,
-   pairs: vulnerable vs fixed side                            top features -> decision rows / report fields
-   benign deltas, adjudications                                  ^
-   source allow-list: v3 absent                                   |
+   labels (new, host only, never in a sandbox)        embed (new, Model: OpenRouter embeddings)
+   populations: matches_v2 / fix ranges                       |
+   pairs: vulnerable vs fixed side                    decide (new, Model: DeepSeek, metered)
+   benign deltas, adjudications                       Retrieve (signals -> embeddings, boundary filter)
+   source allow-list: v3 absent                       -> Classify(k) -> calibrated p, operating point,
+                     |                                rationale -> decision rows / report fields
+   memory build/embed (host) -> example rows,             ^           ^ seeded, boundary-filtered memory
+   excerpts, embeddings in the store ---------------------+-----------+
                      |                                            |
-   learn train/evaluate (host, pure Python) ---- model artifact (models/<sha>.json) ---- adopt (maintainer)
-   grouped folds, Platt, thresholds, curves                       |
-                     |                                    packaged: ruleset/decision/<family>-<profile>.json
+   learn compile/evaluate (host, metered) ---- program artifact (programs/<sha>.json) ---- adopt (maintainer)
+   compile split, bootstrap demos, instruction search,            |
+   grouped folds, cross-fitted Platt, thresholds, curves  packaged: ruleset/decision/program-<profile>.json
    experiments (plane Runs with arms) -> arm_outcome rows -> analysis -> adopt | reject | inconclusive
 ```
 
-A plane Run per case becomes `facts -> va, vb -> agree -> vc -> final -> alerts -> roles? -> features -> decide
--> remember`. `roles` is optional and Model-bound. `features` and `decide` are model-free with budget
-`{usd: 0, calls: 0}`, as `remember` and the loop steps are (`plane/tasks/loop.py:1-5`). `remember` ingests the new
-`features` and `decision` rows. Labels are never computed in a Run. They are built on the host from ground-truth
-files the sandbox never receives, so no task that produces a feature can read a label.
+A plane Run per case becomes `facts -> va, vb -> agree -> vc -> final -> alerts -> roles? -> features -> embed ->
+decide -> remember`. `roles` is optional and Model-bound. `features` is model-free with budget `{usd: 0, calls: 0}`,
+as `remember` and the loop steps are (`plane/tasks/loop.py:1-5`). `embed` and `decide` are Model-bound (one Model
+per Task, `plane/egress.py:87`) and metered. `remember` ingests the new `features` and `decision` rows. Labels are
+never computed in a Run. They are built on the host from ground-truth files the sandbox never receives, so no task
+that produces a feature can read a label.
 
-New code: `src/openultrasast/learn/` (`schema.py`, `features.py`, `roles.py`, `labels.py`, `folds.py`,
-`train.py`, `calibrate.py`, `evaluate.py`, `decide.py`, `experiments.py`, `sources.toml`),
-`src/openultrasast/plane/tasks/{features,decide,roles}.py`, `ruleset/frameworks.toml`,
-`ruleset/decision/`, and CLI groups `ousast learn ...` and `ousast plane experiment ...`. The reconciler is not
-touched. Its 500-line budget stays (`tests/test_plane_reconciler.py`).
+New code: `src/openultrasast/learn/` (`schema.py`, `features.py`, `roles.py`, `labels.py`, `sources.toml` -- done --
+and `excerpt.py`, `examples.py` (example store), `retrieve.py`, `program.py`, `compile.py`, `folds.py`,
+`calibrate.py`, `evaluate.py`, `decide.py`, `experiments.py`, `compile.toml`),
+`src/openultrasast/plane/tasks/{features,roles,embed,decide}.py`, `plane/models/openrouter-embedding.yaml`,
+`ruleset/frameworks.toml`, `ruleset/decision/`, and CLI groups `ousast learn ...` and `ousast plane experiment ...`.
+The reconciler is not touched. Its 500-line budget stays (`tests/test_plane_reconciler.py`).
 
 ## Components and Interfaces
 
@@ -174,14 +190,14 @@ would otherwise identify that case.
 the instrument broke or did not read its input: the engine-alert rule "no result file, no `read N files` line, or
 `questions == 0` fails the case loudly" (`plane/engine_alerts.py` docstring) maps here, never to zero findings.
 `not_applicable` covers two cases: `delta.*` on a whole-repository scan, and `facts.*` on a pair excerpt, where no
-repository exists. Every feature of an instrument whose state is not `ran` is `null`. At training time a `null`
-becomes 0 plus a per-instrument indicator `missing.<instrument>` (one indicator per instrument, not per feature,
-to keep the parameter count down).
+repository exists. Every feature of an instrument whose state is not `ran` is `null`. The engine never imputes a
+`null`: retrieval compares instrument states block by block (section 4.2), and the prompt shows "no coverage",
+"failed" or "not applicable" in words.
 
 **Profiles.** `static` is what `pre-push` and `scan` can compute locally without a model: quick rules, engine,
-facts, deterministic roles and delta. `plane` adds verify, agree and model roles. A model is trained per
-(family, profile). A `static` model never sees verify features, so it cannot learn to lean on an instrument that
-is absent in deployment.
+facts, deterministic roles and delta. `plane` adds verify, agree and model roles. A program is compiled and
+calibrated per profile. A `static` program never sees verify features, in its prompt or its memory, so it cannot
+learn to lean on an instrument that is absent in deployment.
 
 **Enforcement (Req 7.2).** The builder emits only `FEATURES` names. `validate_record` rejects any other key, any
 string value outside an enum's vocabulary, and any number outside its type. Tests:
@@ -296,7 +312,8 @@ model-labelled sink alone is not a finding.
 `pom.xml`/`build.gradle`) matched against `frameworks.toml`. This is envelope metadata for folds and reports,
 never a feature.
 
-**Evaluation (Req 8.2-8.4).** The engine is always trained and reported with `priors=off`. A prior group (one
+**Evaluation (Req 8.2-8.4).** The engine is always compiled and reported with `priors=off` (prior features hidden
+from the prompt and from the retrieval distance). A prior group (one
 framework id) is kept only through an engine-level A/B (section 6): priors on vs off, paired on the same outer
 folds, metric recall at the BLOCK operating point. It is adopted only if the repository-bootstrap CI excludes zero.
 Every report carries, per family, the metric with priors off, with the adopted priors, and the difference: the
@@ -387,9 +404,9 @@ rows are mostly negative: v1 1/12 true, v2 0/17, v2 hunter 2/14 (`results-v1.jso
 
 What this means:
 
-- The `static` profile can be trained for six families, pooled for output_encoding, and not at all for memory or
+- The `static` profile can be evaluated for six families, pooled for output_encoding, and not at all for memory or
   prototype.
-- The `plane` profile cannot be trained until verify has run on labelled units. The harvest Run in the commit
+- The `plane` profile cannot be evaluated until verify has run on labelled units. The harvest Run in the commit
   sequence (step 5) runs passes a and b on the 78 scorable, non-title pairs in the verify families (injection,
   untrusted_destination, config_secrets; `verify.OPERATIONS`, `plane/tasks/verify.py:38-50`) on both sides, and on
   the development cases. That is about 312 + 110 hunts at $0.014 each (validation-46: $0.8567 over 61 hunts),
@@ -397,132 +414,326 @@ What this means:
 - PHP is reported as its own stratum only where it reaches 10 positive repositories. Today that is injection at
   the boundary, and untrusted_destination is "insufficient data".
 
-### 4. The decision engine (Requirements 3, 7.1, 7.3, 7.4)
+### 4. The decision engine: an AI classifier with local memory (Requirements 3, 7.1, 7.3, 7.4)
 
-**Model family.** L2-regularised logistic regression on standardised features plus the instrument-missing
-indicators. There are about 40 parameters per model. Reasons:
+The engine is a declared language-model program, compiled DSPy-style, not a fitted statistical model (Req 3.1).
+Maintainer, 2026-10-01: "We will not be able to scale up data" and "we need to have the decision engine on AI
+classifier not ML. with local memory, dspy style". Choices: DSPy-style **in-house** (the DSPy library is not a
+dependency), and retrieval by **signals + code embeddings**. DeepSeek is the LLM; OpenRouter serves embeddings
+only (memory note "Model calling was broken 2026-09").
 
-- With 20-60 repositories per family, a shallow gradient-boosted model fits interactions the folds cannot
-  validate and calibrates worse on small data.
-- A linear model's contributions are its explanation (Req 3.5).
-- Inference is a dot product, so `scan` and `pre-push` need no dependency.
+What it builds on:
 
-Gradient-boosted trees stay a possible future arm of an engine-level experiment, not a default.
+- the metered client `MeteredClient` (`plane/budget.py:66-152`): usd and calls ceilings, `BudgetExhausted` ->
+  `unfinished`, `AccountError` -> `failed`, prices from a Model manifest (`prices_from`, `plane/budget.py:45-54`;
+  `plane/models/deepseek-flash.yaml`: $0.014 cache hit, $0.44 miss, $1.32 output per million tokens);
+- the Model-bound task pattern of `plane/tasks/roles.py:141-241` (injected client, units log, restart skip, exit
+  codes 0/2/3), and `build_client` (`plane/tasks/verify.py:335`);
+- `DeepSeekChatClient` (`model/endpoint.py:91-150`): thinking disabled so temperature is honoured, JSON mode with
+  one empty-content retry, optional logprobs (`ChatResponse.mean_logprob`, `tool_hunter.py:160, 287`);
+- `OpenRouterEmbeddingClient.embed` (`provider/openrouter.py:137-170`) and `[embeddings] model` /
+  `OPENROUTER_EMBEDDING_MODEL` (`config.py:85-88, 294-298`; `.env.example`: `openai/text-embedding-3-small`);
+- the feature record (`learn/features.py:78-115` `record`, `learn/schema.py:231` `validate_record`, the
+  `EXCLUDED_FIELDS` deny-list at `learn/schema.py:88-95`), roles (`learn/roles.py`), labels and groups
+  (`learn/labels.py:296-320` `Label`, `:182` `Groups`, floors at `:53-54`), and `function_span`
+  (`learn/features.py:234`) for excerpts;
+- the store (`plane/memory.py:182-298`, `KINDS` at `:55-58`, `put_facts`/`get_facts` at `:225-262`, the 1 GiB
+  free-space refusal at `:347`) and the host seed of a Run's memory snapshot (`memory.seed`, `plane/memory.py:642`;
+  the sandbox cannot read the store, `plane/tasks/loop.py:8-11`).
 
-**Dependency trade-off.**
+#### 4.1 The program
 
-- *scikit-learn as an optional extra* (`openultrasast[learn]`) brings numpy, scipy and joblib, about 100 MB in
-  the runner image, and a second numerical stack whose version changes model bytes.
-- *Pure Python (chosen)*: `learn/train.py` fits by Newton/IRLS with a dense solve of a matrix of about 40x40
-  (Gaussian elimination with partial pivoting). At about 2,000 rows that is milliseconds. It is deterministic with
-  no seeds inside the fit, and it is about 200 lines.
+**Signature** (`learn/program.py`, a frozen dataclass rendered into the prompt and used to parse the answer):
 
-scikit-learn is a **test-only** extra: `test_learn_train.py::test_matches_sklearn` (skipped unless installed)
-checks coefficients against `LogisticRegression(penalty="l2", solver="lbfgs")` to 1e-6. Training and inference
-stay pure Python in core.
+| Field | Direction | Type and bound |
+| --- | --- | --- |
+| `code` | in | the candidate function, numbered lines, at most 80 lines and 4,000 characters (section 4.2 excerpt rules); for a `delta` unit, also the base->head diff of the function, at most 40 lines |
+| `signals` | in | the allow-listed record `x` and `instruments` states, rendered as `name: value` lines, `null` shown as "<instrument>: no coverage / failed / not applicable"; validated by `validate_record` before rendering; nothing from `EXCLUDED_FIELDS` |
+| `roles` | in | inferred roles of the function (`learn/roles.py` wrapper roles; model roles in the `plane` profile): role, operation, line, origin (`ORIGINS`, `learn/schema.py:83`) |
+| `family` | in | the candidate's family (from the rule or engine family; `unknown` allowed) |
+| `verdict` | out | `vulnerable` \| `not_vulnerable` \| `unsure` |
+| `family` | out | one of the families, or `none` |
+| `confidence` | out | float in [0, 1], the model's stated probability that its verdict is right |
+| `rationale` | out | at most 3 sentences; must cite at least one line number of `code` (`cited_lines`), and may name signals |
 
-**Per family vs pooled.** A (family, profile) model is trained when the training data holds at least 20
-repositories with a positive and 20 with a negative in that family. A pooled model (all families, with a family
-one-hot) serves families with 10-19. Below 10 the family is "insufficient data": no engine decision, and the
-fallback applies (section 8). The same 10-repository floor applies to any reported stratum (family x language,
-family x framework).
+The answer is JSON (`json_object=True`). A reply that does not parse, or cites no line in range, is retried once
+at temperature 0; if it still fails it becomes `unsure` with `parse_failed: true` in the decision row, never
+`not_vulnerable` ("verify the instrument": a broken answer is not a clean result).
 
-**Weights.** One repository must not dominate (openssl has 132 pairs, OWASP BenchmarkJava 43). A row weighs
-`w_source * min(1, 5 / n_rows(repo, family, label))`, so each repository contributes at most 5 effective positives
-and 5 effective negatives per family. `benign_history` has `w_source = 0.5`.
+**Modules**, composed as `Program = Retrieve -> Classify(k)`:
 
-**Folds (Req 3.3, 7.1).** Every split is by `group` (repository), across all corpora at once. A repository in an
-evaluation fold contributes no row, from any corpus, to training.
+- `Retrieve(record, excerpt, boundary) -> examples` (section 4.2), model-free except for one embedding of the
+  candidate excerpt (cached).
+- `Classify(k)`: the prompt is `instruction + fixed demonstrations` (the compiled prefix, identical for every
+  candidate so the provider's prefix cache hits) `+ retrieved examples + the candidate`. Sample 1 runs at
+  temperature 0; samples 2..k at temperature 0.7, issued concurrently. `k` is a compiled setting in {1, 3, 5}.
+- The raw score is `s = mean_j p_j` with `p_j = confidence_j` for `vulnerable`, `1 - confidence_j` for
+  `not_vulnerable`, and 0.5 for `unsure`/`parse_failed`. The reported verdict is the majority (ties -> `unsure`);
+  a majority `unsure` can never reach BLOCK.
 
-- *Outer*: grouped K-fold with K = min(10, repositories in the family), stratified by family and label, repeated 5
-  times with seeds 0-4. This gives the reported out-of-repository numbers.
-- *Leave-one-source-out*: each population (v1, v2, dev-php) and each pair slice (vfc, vibe-py, owasp, vfc-js,
-  agent-vfc, sast, github, local) held out whole, with its repositories removed from training. This is the
-  "population-level fold" of Req 3.3 and the data behind the learning curve over the number of sources.
-- *Leave-one-framework-out*: all repositories tagged with framework F held out, including WordPress, Django,
-  Flask and Express wherever that framework has at least 10 repositories. This gives the "framework unseen" row of
-  Req 8.3.
-- *Inner* (inside each outer training set): grouped 5-fold. It selects lambda from {0.01, 0.1, 1, 10} by grouped
-  log-loss, produces the out-of-fold scores for calibration, and picks thresholds. Nothing is tuned on an outer
-  fold.
-- The v2 fold is marked *design-informed*: the tie-break and the callers line were chosen after seeing v2
-  (`plane-increment-2.json` `reading`). Plane-profile numbers are reported with and without it.
+**Client plumbing (small, explicit changes).** `MeteredClient.complete` (`plane/budget.py:117-136`) forwards only
+`json_object`; it gains `temperature` and `logprobs` pass-through. `DeepSeekChatClient._call`
+(`model/endpoint.py:127-142`) adds `temperature` to `extra` beside `thinking`. No provider seed is relied on.
+Embedding calls get a metered wrapper `MeteredEmbeddingClient` in `plane/budget.py` that reads the response's
+`usage.prompt_tokens` (OpenRouter returns it; `parse_embedding_response`, `provider/openrouter.py:173`, keeps only
+the vectors today and is extended to keep usage) and prices it from an embedding Model manifest.
 
-**Calibration (Req 3.1, 7.4).** Platt scaling (a two-parameter logistic on the model's logit) is fit on the inner
-out-of-fold logits. Isotonic regression is not used: too few positives per family. The check is per outer fold
-and pooled:
+**Plane tasks.** One Model per Task (`egress.policy_for(task, workspaces, model)`, `plane/egress.py:87`), so:
 
-- a reliability table with 5 quantile bins;
-- calibration slope and intercept (a logistic of the label on the calibrated logit), with repository-bootstrap
-  95% CIs;
-- the expected calibration error.
+- `embed` (new, Model `openrouter-embedding`, egress `openrouter.ai`): embeds the case's candidate excerpts
+  missing from the cache, writes `embeddings.jsonl`. Budget default `{usd: 0.05, calls: 20}` per case.
+- `decide` (new, Model `deepseek-flash`): reads `features`, `roles`, `embeddings.jsonl` and the **seeded memory
+  snapshot** (the host writes the boundary-filtered examples and the adopted program into the Run's inputs, the
+  `loop snapshot` pattern), runs the program, writes `decisions.jsonl`. Budget default `{usd: 0.25, calls: 300}`
+  per case. Exit codes as `roles`.
 
-Calibration **holds** for a family when the slope CI contains 1, the intercept CI contains 0, and the pooled
-out-of-fold expected calibration error is at most 0.05. If it fails, the model is recalibrated once on grouped
-out-of-fold scores of the full training set. If it still fails, the family gets **ADVISORY only**, the artifact
-records `block.offered = false, reason = "calibration"`, and the report says so.
+A plane Run per case becomes `facts -> va, vb -> agree -> vc -> final -> alerts -> roles? -> features -> embed ->
+decide -> remember`.
 
-**Prevalence.** Training mixes are enriched: pairs are 1:1, and validation-46 is 19/43. In a push, real
-vulnerabilities are rare: v2 has 25 declared sites among 4,757 model-sink candidates. So the probability is
-reported as calibrated **on the labelled mix**. The safety-net figures that do not depend on the mix are primary:
+**Host path.** `learn/decide.py: decide_all(records, excerpts, program, memory, client, embedder, budget)` for
+`scan` and `pre-push`, with the same program code. It needs `[models]` (a DeepSeek key) and either a store
+(`OUSAST_MEMORY`) or the packaged program; otherwise the fallback (section 8).
 
-- recall at an operating point, and
-- false BLOCKs per 100 benign deltas (population benign pins, pmpro-benign, benign history).
+#### 4.2 Local memory retrieval (Req 3.2, 3.4, 3.6)
 
-Precision at BLOCK is also reported at the benign-delta false-alarm rate, as `precision(pi) = pi*TPR /
-(pi*TPR + (1-pi)*FPR)` for pi in {0.01, 0.05}.
+**The example store.** One `example` row (a new kind in `KINDS`) per labelled candidate that has both a label
+(`ousast learn labels`, `learn/labels.py`) and a feature record: envelope + `{candidate, family, language, profile,
+label, source, group, frameworks, unit, x, instruments, roles, excerpt_sha, label_set_digest}`. The excerpt is a
+content-addressed blob `excerpts/<sha>.txt`; the embedding is `embeddings/<model-slug>/<excerpt_sha>.json` (float32
+vector in base64, model id, dimensions, tokens, created). Both use the new `put_blob(prefix, data) -> sha` /
+`get_blob(prefix, sha)`, generalising `put_facts`/`get_facts`. Examples are built on the host by `ousast learn
+memory build` (model-free) and `ousast learn memory embed` (metered). The snapshot: `verified_pin_labels` 424
+positive / 436 negative rows in 105 groups, plus conditional negatives (benign_control 72, assumed_benign 4,671)
+that become examples only once their condition (a candidate signal at the tip and none at the base) is evaluated
+(`benchmarks/measurements/2026-09-30-decision-engine-labels/labels.json`). Rows name functions and hold third-party
+code: the store is local, nothing is committed but counts.
 
-**Operating points (Req 3.4, 7.3).** Both are chosen on inner out-of-fold scores only:
+**Excerpt rules** (`learn/excerpt.py`): the function body at the label's pin from the clone (`labels.Clone`,
+`learn/labels.py:365`) via `function_span`; numbered lines; no path, repository or commit; comments kept, but
+advisory ids (`_ADVISORY`, `learn/labels.py:59`) and lines matching `security_reason` (`learn/labels.py:277`)
+inside comments are replaced by `<redacted>`. Candidate excerpts: at most 80 lines / 4,000 characters, centred on
+the changed lines of a delta or the engine/quick hit line. Memory examples: at most 40 lines / 2,000 characters.
+Memory examples carry **no rationale**: code, signals, roles, family and label only (cheaper, and no generated text
+that could leak the label; only the compiled demonstrations carry rationales, section 4.3).
 
-- **BLOCK**: the lowest threshold whose inner-fold precision has a Wilson 95% lower bound of at least 0.95, among
-  delta units. If none exists (expected today for most families), `block.offered = false, reason =
-  "precision_unreachable"`.
-- **ADVISORY**: the highest threshold whose inner-fold recall is at least 0.90 (the M4 recall target). Its
-  precision is reported, not assumed.
+**Stage 1: signal-profile nearest neighbours.** A Gower distance over the allow-listed features of the active
+profile (`features_for(profile)`, `learn/schema.py:163`), computed per instrument block so that "missing" is
+explicit rather than imputed:
+
+- For instrument `i`, if both records have `state == ran`: `d_i` = mean over its features of `d_f`, where a
+  numeric feature is `|a - b| / cap` (the `FeatureSpec.cap`; floats in [0, 1] use 1), a bool or enum is `0` if
+  equal else `1`, null in both is `0` and null in one is `1`.
+- If the states differ (`ran` vs `none`/`failed`/`not_applicable`): `d_i = 1`. If both are the same non-`ran`
+  state: `d_i = 0`. `failed` vs `none` counts as different (`1`).
+- `D = sum_i w_i d_i / sum_i w_i`, with `w_i = 1` for every instrument block in the profile (language is one
+  block). Prior features (`FeatureSpec.prior`) are dropped when `priors = off`. Weights are a compile-time
+  setting only if an A/B shows a gain; the default is uniform.
+- Candidates in the eligible pool (after the boundary filter) are ranked by `D`, ties by `sha256(example_id +
+  seed)`; the first `n1 = 40` go to stage 2.
+
+**Stage 2: code-embedding re-rank.** Cosine similarity of the candidate's excerpt embedding with each stage-1
+example's. The re-rank score is `r = lam * (1 - D) + (1 - lam) * cos`, with `lam` a compiled setting in {0, 0.5}
+(default 0.5). An example or candidate without an embedding (budget, provider failure) keeps its stage-1 order,
+and the decision row records `retrieval: "signals_only"`. Embedding model: `openai/text-embedding-3-small` via
+OpenRouter (1,536 dimensions; $0.02 per million input tokens at list price, confirmed by the smoke run's `usage`).
+Cache key `sha256(normalised excerpt)` per embedding model, so the store is embedded once (~5,600 excerpts x ~900
+tokens = ~5.0 M tokens, **about $0.10**) and each new candidate costs ~1,200 tokens (**$0.000024**).
+
+**Balance rule** (`k_ret = 6`, a compiled setting in {4, 6, 8}): walk the re-ranked list and take examples subject
+to: at most `k_ret/2` per label, at least 2 of each label when the pool has them; at most 2 per repository group;
+at least `k_ret - 2` of the candidate's family when the pool has them (the rest from other families as contrast).
+If the pool cannot satisfy a minimum, take what exists and record `balance: "short"`.
+
+**The evaluation boundary (Req 3.4, 7.1).** `learn/retrieve.py: eligible(example, target, fold)` is the only way
+an example enters a prompt, for retrieved examples and for the compiled demonstrations alike:
+
+- `example.group` is not in the fold's evaluation groups (all of them, not just the target's), and not the
+  target's group after the CVE/alias merge (`Groups`, `learn/labels.py:182`);
+- leave-one-source-out: `example.source` is not the held-out source;
+- leave-one-framework-out on F: `F not in example.frameworks`; a compiled demonstration tagged F is swapped for its
+  pre-computed alternate (section 4.3);
+- in evaluation, an example whose embedding cosine with the target is >= 0.98 is also dropped as a near-duplicate
+  (a vendored copy or fork the group merge missed); the count dropped is reported. In deployment it is kept.
+- In deployment (`scan`, `pre-push`), a repository whose normalised name matches a corpus group excludes that group
+  from retrieval, and the report says "repository is in the corpus: its own cases excluded".
+
+`tests/test_learn_retrieve.py::test_boundary` builds fixture folds (outer, leave-one-source-out,
+leave-one-framework-out) and asserts, for every target and fold, that every retrieved id and every demonstration id
+in the rendered prompt is eligible; a second test asserts that `memory.seed` for a plane Run writes no example of
+the case's group. A pre-call assertion in `Classify` repeats the check on the ids actually rendered.
+
+**New labels enter memory (Req 3.6).** Adding an example row changes retrieval at once; nothing is recompiled. Each
+decision records the `memory_snapshot_digest` (`improve.memory.index_digest`, `improve/memory.py:351`) so the
+effect of new labels is an A/B with two memory snapshots as arms (section 6).
+
+#### 4.3 Compilation, DSPy-style and in-house (Req 3.3)
+
+`ousast learn compile --profile P --spec learn/compile.toml` produces a compiled program from a frozen data
+snapshot. The compile spec is committed before the compile runs (pre-registration).
+
+**Compile split.** 25% of repository groups (seeded, stratified by family) form the compile split `C`. `C` is
+never an evaluation fold; it remains memory for the evaluation of other repositories. Inside `C`, groups are split
+60/40 into `C_boot` (demonstration source) and `C_val` (scoring). One compile per profile, not one per outer fold:
+nested compiles per fold would cost five times as much, and `C` being disjoint from every evaluation fold keeps the
+reported numbers out-of-repository.
+
+**Metric (pre-registered, `compile.toml`).** Primary: the **balanced Brier score** of the raw score `s` on `C_val`,
+each (family, label) cell weighted equally and each repository capped at 5 effective rows per cell (the weight rule
+of the earlier design). Lower is better; `unsure` and `parse_failed` score as 0.5. Secondary (reported, not
+optimised): recall at precision 0.90 and the share of `unsure`. Tie (within 0.005): fewer prompt tokens wins.
+
+**Bootstrap few-shot.** Run the program with no demonstrations (retrieval on, `k = 1`, temperature 0) on up to 150
+candidates of `C_boot`. Keep as demonstration candidates those whose verdict is right with `confidence >= 0.7`
+and whose rationale cites a line in range and names no identity (repository, path, CVE id: scanned and refused).
+The rationale was produced without seeing the label, so a demonstration teaches reasoning, not the answer. From the
+pool, draw 4 demonstration sets of `m = 3` (one positive, one negative, one of either; families mixed), seeded. For
+every demonstration, an alternate from a different framework is stored for leave-one-framework-out folds.
+
+**Instruction search.** One proposal call gives the model the signature, a glossary of the signals, and 20
+summarised bootstrap errors (signals and verdicts, no code), and asks for 6 candidate instructions. With the
+hand-written baseline instruction that is 7. Scoring on `C_val` (60 candidates, `k = 1`): the 7 instructions with
+demo set 1, then the best instruction with demo sets 2-4: 10 configurations x 60 = 600 calls. Then `k` in {1, 3, 5}
+and `lam` in {0, 0.5} are **not** searched in the compile: they are A/B variants (section 6), so compile spend stays
+bounded.
+
+**Budget.** About $2.2 per compile (section 4.6); ceiling **$3.00** per compile through `MeteredClient`. A compile
+that hits its ceiling records `unfinished` and produces no artifact.
+
+**Reproducibility (Req 3.3).** Every model and embedding response is cached as `responses/<sha>.json`, keyed by
+`sha256(model id, Model parameters digest, messages, temperature, sample index, json_object)`. Every random choice
+(compile split, demo draws, tie-breaks, subsets) is seeded from `compile.toml`. Re-running a compile on the same
+store snapshot with the cache reproduces the artifact byte for byte at $0 (`test_learn_compile.py::
+test_reproducible_from_cache`, on FileStore and on MinioStore gated as today). Without the cache, temperature 0 is
+not a determinism guarantee at the provider; the artifact records the cache digest so a re-run can say whether it
+was replayed or re-asked.
+
+#### 4.4 Folds and calibration (Req 3.5, 7.1, 7.4)
+
+**Folds.** Every split is by `group` (repository), across all corpora; the label builder's merges hold.
+
+- *Outer*: grouped K = 5 over the groups outside `C`, stratified by family and label, **one** repetition (cost);
+  intervals come from the repository-cluster bootstrap, not from repetitions.
+- *Leave-one-source-out* and *leave-one-framework-out* as in the earlier design (each population and pair slice
+  held out whole; framework F held out where F has >= 10 groups). The label snapshot has no framework at 10 groups
+  today (`by_framework`: express 4, flask 2, django 1), so leave-one-framework-out is expected to print
+  "insufficient data" until the corpus grows; it costs nothing until then.
+- The v2 fold stays marked *design-informed*.
+- Families below the floors (`PER_FAMILY_FLOOR = 20`, `POOLED_FLOOR = 10`, `learn/labels.py:53-54`) are not
+  evaluated at all and get no engine decision: memory, config_secrets and unknown today (385 rows not spent on).
+
+**Calibration.** The raw score `s` is mapped by Platt scaling on `logit(clip(s, 0.01, 0.99))`. It is
+**cross-fitted** over outer folds: the map applied to fold j is fitted on the out-of-fold predictions of the other
+folds (each of which was itself made with memory excluding its own fold), so no map is fitted on the fold it is
+checked on. Per family at the per-family floor; pooled with a per-family intercept between the floors. Isotonic and
+binned maps are not used: too few positives per family. The adopted map is refitted on all out-of-fold
+predictions. The check is unchanged: reliability table (5 quantile bins), slope and intercept with
+repository-bootstrap CIs, expected calibration error. **Holds** when the slope CI contains 1, the intercept CI
+contains 0 and ECE <= 0.05; otherwise ADVISORY only, recorded as `block.offered = false, reason = "calibration"`.
+The probability stays "calibrated on the labelled mix"; the prevalence-free figures (recall at a point, false
+BLOCKs per 100 benign deltas, precision at pi in {0.01, 0.05}) remain primary.
+
+Confidence source alternatives (each an A/B variant, not a default): the verdict token's probability from
+`logprobs` (no extra cost), and the verbal confidence alone at `k = 1`. The default is the self-consistency mean
+at `k = 5` if the smoke run measures prefix-cache hits on samples 2..k (hit share >= 0.8 of their prompt tokens);
+otherwise `k = 1` with verbal confidence, because uncached repeats cost 5x (section 4.6).
+
+#### 4.5 Operating points and explanations (Req 7.3, 6.1)
+
+Operating points are read from the calibrated probability, chosen on the cross-fitted predictions of the folds
+other than the one reported (nested, as before):
+
+- **BLOCK**: the lowest threshold whose precision has a Wilson 95% lower bound >= 0.95 among delta units, and the
+  majority verdict is not `unsure`. If none exists, `block.offered = false, reason = "precision_unreachable"`.
+- **ADVISORY**: the highest threshold reaching recall >= 0.90. Its precision is reported, not assumed.
 - **DROP**: below ADVISORY.
 
-Both points are reported on outer folds with recall, precision and false BLOCKs per 100 benign deltas. Each has a
-repository-cluster bootstrap 95% interval (2,000 resamples of repositories) and a Wilson interval as a
-cross-check when each repository gives one unit.
+Both are reported on outer folds with recall, precision and false BLOCKs per 100 benign deltas, each with a
+repository-cluster bootstrap 95% interval (2,000 resamples).
 
-**Explanations (Req 3.5).** A feature's contribution is `coef_i * (x_i - mean_i) / sd_i`, and a missing
-instrument contributes through its indicator. The top 5 by absolute contribution, with sign and the feature's
-display value, are stored in the `decision` row and on the finding. Missing-instrument indicators are shown as,
-for example, "engine: no coverage".
+Each decision carries: the calibrated `p`, the operating point, the program id, the majority `rationale` and its
+`cited_lines`, the signals the rationale names (checked against the record; names not in the record are dropped),
+the retrieved neighbours as counts by label and family (never identities), and `retrieval` mode. These replace the
+logistic "top contributing features" of the earlier design in reports (Req 6.1).
 
-### 5. Model artifacts and versioning (Requirement 3.2)
+#### 4.6 Cost model
 
-A trained model is one canonical JSON (sorted keys, floats rendered with `repr`), stored as a content-addressed
-blob `models/<sha256>.json`. The store gains `put_blob(prefix, data) -> sha` and `get_blob(prefix, sha)`,
-generalising `put_facts`/`get_facts` (`plane/memory.py:219-255`). Both backends get it unchanged. On MinIO the
-object has tags `kind=model`, `family` and `profile`, and bucket versioning records the version id.
-`models/index.jsonl` lists every version. `models/adopted.json` maps (family, profile) to a sha: a single
-overwritten object (a new version under MinIO versioning, and history kept in `index.jsonl` on FileStore).
+Prices: `deepseek-flash` $0.014 / $0.44 / $1.32 per million cache-hit / miss / output tokens; embeddings $0.02 per
+million. Token sizes are estimates to be replaced by the smoke run's measured `usage`:
+
+| Prompt part | Tokens | Cached |
+| --- | --- | --- |
+| instruction | ~500 | yes (shared prefix) |
+| 3 compiled demonstrations (40-line excerpt, signals, label, rationale) | ~2,250 | yes |
+| 6 retrieved examples (~750 each) | ~4,500 | no |
+| candidate (80-line excerpt ~1,100, signals and roles ~300) | ~1,400 | no |
+| output (JSON, rationale <= 3 sentences) | ~200 | -- |
+
+- **Per candidate, `k = 1`**: 2,750 x 0.014 + 5,950 x 0.44 + 200 x 1.32 per million = **$0.0029**.
+- **Each extra sample** (same prompt, fully cached): 8,700 x 0.014 + 200 x 1.32 per million = **$0.0004**. So
+  `k = 5` is **$0.0045** with cache hits, and $0.0146 if the cache does not hit (the smoke run decides the default).
+- **Embedding**: $0.000024 per candidate; the whole store about $0.10 once.
+- **Per compile**: bootstrap 150 x $0.0029 = $0.44; proposals ~$0.01; scoring 600 x $0.0029 = $1.74; total
+  **~$2.2, ceiling $3.00**.
+- **Per full evaluation** of one program, evaluated families only (475 verified rows outside memory,
+  config_secrets and unknown) plus a 200-unit benign-delta sample for false BLOCKs:
+  - outer folds: 675 candidates, **$2.0 at k = 1, $3.0 at k = 5** (cached);
+  - leave-one-source-out: 475 more, **$1.4 / $2.1**;
+  - leave-one-framework-out: $0 today (no framework at the floor);
+  - total **~$3.4 (k = 1) to $5.2 (k = 5)**, ceiling $7.
+- **Learning curves** (section 7): 6 memory-size points + 3 source-count points on a fixed 200-candidate subset at
+  `k = 1`: 9 x 200 x $0.0029 = **~$5.2**, ceiling $7.
+- **A program-variant A/B** on 300 paired candidates: arm A replays cached responses from the evaluation ($0);
+  arm B costs **$0.9 (k = 1) to $1.35 (k = 5)**.
+- **Deployment**: `pre-push` with ~5 candidates is ~$0.02 per push at `k = 5`; a plane Run case with ~30 candidates
+  ~$0.14.
+
+**Against the balance.** DeepSeek was ~$19.6 before the harvest; the harvest's verify passes are ~$6 expected and
+model roles up to their $10 ceiling, so **~$4-14 remains** depending on what the harvest actually spends (read the
+provider balance after it ends; do not assume). Affordable now, as one go-ahead of **~$4.5-5.5 expected, $7 ceiling**:
+the smoke run (20 candidates, ~$0.10, measures cache hits and real token counts), embedding the store (~$0.10,
+OpenRouter, separate account), one compile (~$2.2), and the outer-fold evaluation at the cheaper confirmed `k`
+(~$2-3). Leave-one-source-out, the learning curves, program A/Bs and exp-001 (~$7.7) together need **~$18-20 more**
+and a top-up. No single run may start whose ceiling exceeds the balance read just before it.
+
+### 5. Compiled program artifacts and versioning (Requirement 3.3)
+
+A compiled program is one canonical JSON (sorted keys, floats with `repr`), a content-addressed blob
+`programs/<sha256>.json`, with `programs/index.jsonl` (every version) and `programs/adopted.json` (profile -> sha;
+a single overwritten object, versioned under MinIO, history in the index on FileStore). On MinIO the object is
+tagged `kind=program` and `profile`.
 
 ```
-{"model_id": "<sha256>", "schema_version": 1, "feature_set_digest": "...", "family": "injection" | "pooled",
- "profile": "static" | "plane", "kind": "logistic-l2", "lambda": 1.0, "features": [{"name", "mean", "sd"}],
- "coef": {...}, "intercept": ..., "calibration": {"method": "platt", "a": ..., "b": ..., "check": {...}},
- "operating_points": {"block": {"threshold", "offered", "reason", "target_precision": 0.95},
-                      "advisory": {"threshold", "target_recall": 0.90}},
+{"program_id": "<sha256>", "kind": "llm-program", "schema_version": 1, "feature_set_digest": "...",
+ "profile": "static" | "plane", "signature": {"digest": "...", "fields": [...]},
+ "instruction": "<text>", "instruction_source": "baseline" | "proposed:<n>",
+ "demos": [{"example_id", "excerpt_sha", "label", "family", "rationale", "alternate": "<example_id>"}],
+ "retrieval": {"distance": "gower-v1", "n1": 40, "k": 6, "lam": 0.5, "balance": {...},
+               "embedding_model": "openai/text-embedding-3-small", "near_duplicate_cos": 0.98,
+               "excerpt": {"candidate_lines": 80, "candidate_chars": 4000, "example_lines": 40, "example_chars": 2000}},
+ "classify": {"model": "deepseek-flash", "model_params_digest": "...", "k": 5, "temperature": [0.0, 0.7],
+              "confidence": "vote_mean" | "verbal" | "logprob", "max_output_tokens": 300},
+ "calibration": {"method": "platt-crossfit", "per_family": {...}, "check": {...}},
+ "operating_points": {"<family>": {"block": {"threshold", "offered", "reason", "target_precision": 0.95},
+                                   "advisory": {"threshold", "target_recall": 0.90}}},
  "priors": "off" | ["wordpress", ...], "roles": "off" | "deterministic" | "model",
- "data": {"store_index_digest", "label_set_digest", "sources": [...], "excluded": {...}, "rows", "repositories"},
+ "data": {"memory_snapshot_digest", "label_set_digest", "compile_groups_digest", "sources": [...], "excluded": {...}},
+ "compile": {"spec_sha256", "metric": "balanced_brier_v1", "configurations": [{"instruction", "demo_set", "score"}],
+             "usd", "calls", "response_cache_digest", "replayed": true | false},
  "evaluation": {"folds_digest", "outer": {...}, "leave_one_source_out": {...}, "leave_one_framework_out": {...},
                 "strata": {...}, "curves": "curves/<sha>.json"},
  "instruments": {"ruleset_digest", "engine_image", "runner_image", "verify_model", "prompt_digest", "roles_model"},
  "seed": 0, "code_commit": "<git sha>", "created": "<iso>"}
 ```
 
-`store_index_digest` is `improve.memory.index_digest` (`improve/memory.py:351`), and `label_set_digest` is the
-sha256 of the sorted label rows used. Training reads rows through the store, so the same digests with the same
-code commit give the same bytes (Req 3.2). `test_learn_train.py::test_reproducible` asserts this on both
-backends, with the MinIO contract test gated as today.
+The memory itself is not in the artifact; `memory_snapshot_digest` pins which memory the evaluation used. A
+decision made later with a different memory snapshot records its own digest.
 
-**Adoption** is a maintainer commit. `ousast learn adopt <model_id>` writes `models/adopted.json` and exports the
-artifact to `src/openultrasast/ruleset/decision/<family>-<profile>.json`, the copy that ships to users who have no
-store. The mirror is the existing ledger rule: "adopting an accepted ledger stays a maintainer commit"
-(`plane/tasks/loop.py:22-23`). A model whose feature set enables a prior group, or changes `roles`, can be adopted
-only with a recorded `adopt` result of the engine-level experiment that justified it (section 6).
+**Adoption** stays a maintainer commit: `ousast learn adopt <program_id>` writes `programs/adopted.json` and exports
+the artifact to `src/openultrasast/ruleset/decision/program-<profile>.json`. The packaged copy holds demonstrations
+with third-party code excerpts: only demonstrations from repositories with a recorded permissive licence are
+exported; others are replaced by their alternates or dropped, and the exported program is re-evaluated as its own
+variant (the memory-size-0 configuration of section 7 if no store ships). A program whose priors or roles setting
+differs from the incumbent is adopted only with a recorded A/B result (section 6).
 
 ### 6. A/B experiments (Requirement 4)
 
@@ -571,9 +782,17 @@ arm): outcome, usd from `unit_cost`, and pass details. Spend per arm is also in 
 - *Decision*: **adopt B** if the final CI excludes 0 in B's favour, and **reject B** if it excludes 0 against it.
   For a cost-only change, **equivalent** means the TOST 90% CI of the detection difference lies within +-0.05 and
   the cost CI shows a saving. Otherwise **inconclusive**, and the incumbent stays.
-- *Engine-level experiments* (priors on/off, roles, feature groups, model variants) cost no model spend. The arms
-  are two training configurations evaluated on the same outer folds, and the unit is the repository. The metric is
-  recall at BLOCK (or at ADVISORY where BLOCK is not offered), plus false BLOCKs per 100 benign deltas.
+- *Engine-level experiments* compare **compiled program variants**: priors on/off, roles, `k` in {1, 3, 5}, the
+  confidence source (vote mean, verbal, logprob), `lam` in {0, 0.5}, `k_ret`, comments kept vs stripped in
+  excerpts, two instructions, two memory snapshots (Req 3.6: the effect of new labels), or a different chat model.
+  They are no longer free. The arms are two programs run on the same candidates in the same outer folds (paired),
+  the unit is the candidate and the resampling cluster the repository. Arm A replays the incumbent's cached
+  responses from its evaluation ($0); arm B is paid: about $0.9-1.35 per 300 paired candidates (section 4.6), with
+  the arm's ceiling in the manifest's `budget_usd`. The metric is recall at BLOCK (or at ADVISORY where BLOCK is
+  not offered), plus false BLOCKs per 100 benign deltas; the balanced Brier score is secondary. A variant that only
+  changes compile-time choices is compiled on the same compile split with the same seed, so the two arms differ in
+  exactly the declared setting. Because model calls are stochastic, each arm records its response-cache digest; a
+  re-analysis replays both arms at $0.
 
 **Where results land.** An `experiment_result` row, and `benchmarks/experiments/<id>/result.json` (arms, units,
 the estimates at each look, decision, spend, manifest digest, code commit) in the same commit that records the
@@ -617,16 +836,24 @@ stochastic passes, v2 is where it was seen).
 
 ### 7. Extrapolation and the one-time v3 check (Requirement 5)
 
-**Learning curves (5.1).** `ousast learn curve --family F --profile P` works in two directions:
+**Learning curves over memory size (5.1).** `ousast learn curve --profile P` varies what the program may
+retrieve, not what it was compiled with (the compiled instruction and demonstrations stay fixed, so the curve
+measures memory):
 
-- *By repositories*: training on random subsets of 20, 40, 60, 80 and 100% of the outer-training repositories,
-  20 subsets per size, each evaluated on the same outer folds.
-- *By sources*: training on 1..S of the leave-one-source-out sources, in all orders, capped at 50.
+- *By memory size*: the eligible memory restricted to a random share of its repository groups, 0%, 25%, 50% and
+  100%, with two seeded draws at 25% and 50% (6 points). 0% is the program with its demonstrations only, which is
+  also the configuration a user without a store gets (section 5).
+- *By sources*: memory restricted to 1, 2 and all of the label sources (pairs, populations, adjudications), 3
+  points.
+- Every point is evaluated on the same fixed, stratified 200-candidate subset of the outer folds, at `k = 1`, with
+  the boundary filter applied (about $5.2 for all 9 points, ceiling $7; section 4.6).
 
-Per point: recall at ADVISORY, recall at BLOCK (where offered), PR-AUC, Brier score, and false BLOCKs per 100
-benign deltas. Bands are the 2.5/97.5% quantiles over subsets x repository bootstrap. An inverse power law
-`m(n) = a - b * n^-c` is fit to each curve. The projection to 1.5x and 2x the repositories is reported only as a
-band, and only where the fit's own bootstrap CI for `c` excludes 0.
+Per point: recall at ADVISORY, recall at BLOCK (where offered), PR-AUC, balanced Brier score, false BLOCKs per 100
+benign deltas, and the share of `unsure`, per family where the family has the floor. Bands are the 2.5/97.5%
+quantiles over the draws x a repository-cluster bootstrap. An inverse power law `m(n) = a - b * n^-c` in the
+number of memory groups is fit to each curve; a projection to 1.5x and 2x the memory is reported only as a band,
+and only where the bootstrap CI for `c` excludes 0. A flat curve is a finding: it says memory does not help that
+family and the demonstrations carry the result.
 
 **Expected detection on unseen code (5.2).** Per family and per language (and per framework, Req 8.3): the
 outer-fold and leave-one-source-out intervals at both operating points, with priors off and with adopted priors.
@@ -639,7 +866,7 @@ memory, prototype, PHP untrusted_destination, and every plane-profile family unt
 1. *Before.* The engine and every operating point are adopted, and population v3 is still reserved and unread by
    this spec's code (it is absent from `learn/sources.toml`). `ousast learn predict --population-name
    population-v3-php` writes `benchmarks/independent/prediction-v3.json` and it is committed:
-   - the adopted model ids and shas per (family, profile);
+   - the adopted program id per profile, its `memory_snapshot_digest` and the chat and embedding model ids;
    - `feature_set_digest`, priors and roles settings;
    - the operating points;
    - the frozen analyzer source hash (`benchmarks/push/freeze_source.sh`);
@@ -650,34 +877,40 @@ memory, prototype, PHP untrusted_destination, and every plane-profile family unt
 
    Only the population's name is needed; its file is not opened.
 2. *Run.* v3 is scored under protocol v3, once, by its owner's runner, with the engine's decisions added to the
-   recorded outputs.
+   recorded outputs. The engine's spend on v3 is a model cost (about $0.0045 per candidate at `k = 5`); its
+   ceiling is fixed in `prediction-v3.json` from the candidate count the owner reports, never by opening v3 files
+   from this spec's code, and needs the maintainer's go-ahead.
 3. *After.* `benchmarks/independent/result-v3-engine.json` holds, per family, the measured point and interval
    beside the predicted interval, `inside | outside`, the calibration check on v3, and the reach misses. v3 is
-   then added to `learn/sources.toml` as spent, and the next model may train on it. Its numbers never again
+   then added to `learn/sources.toml` as spent, and its cases may enter memory. Its numbers never again
    qualify anything.
 
 ### 8. Integration (Requirements 6, 7.3, 7.5)
 
-**Lookup.** The model comes from, in order:
+**Lookup.** The compiled program comes from, in order:
 
-1. `[decision] model` in the config (a path);
-2. the store's `models/adopted.json` when `OUSAST_MEMORY` is set;
-3. the packaged `ruleset/decision/<family>-<profile>.json`;
+1. `[decision] program` in the config (a path);
+2. the store's `programs/adopted.json` when `OUSAST_MEMORY` is set (with the store's memory for retrieval);
+3. the packaged `ruleset/decision/program-<profile>.json` (demonstrations only, no retrieval memory unless a store is
+   configured; its own calibration, section 5);
 4. none.
 
-`learn/decide.py` is pure Python: `load_models(...) -> Models` and `decide(record, models) -> Decision(p,
-operating_point, model_id, top, offered)`.
+The program also needs a chat Model: `[models]` with a DeepSeek key on the host, the bound Model in a plane Run.
+Embeddings are optional: without an OpenRouter key retrieval runs `signals_only` and says so.
+`learn/decide.py`: `load_program(...) -> Program` and `decide_all(records, excerpts, program, memory, client,
+embedder, budget) -> list[Decision(p, operating_point, program_id, verdict, rationale, cited_lines, signals,
+neighbours, retrieval, offered)]`, all calls through `MeteredClient`.
 
 **`ousast scan`.** A `decide` stage runs after the findings are complete and before `findings.json` is written
 (`cli.py:517-520`). It builds `static` records with `build_for_scan` from the quick findings, the engine result,
 `analyze_entry_points` and the `repo-facts` functions (source-only), plus deterministic roles. It scores each
-candidate and attaches `decision` to the finding: `{p, operating_point: block|advisory|drop, model_id,
-top_features, offered}`. Candidates at or above ADVISORY are reported. Dropped ones go to `dropped_by_engine.json`,
-beside `shadow_findings.json`. Shadow-status findings enter as candidates too, so a rule's enabled/shadow status
-changes the report only if the decision changes (Req 6.3). The shadow split at `cli.py:503-508` applies only in
-the fallback. `--fail-on blocked` is a new choice (exit 1 on any BLOCK), and `findings` keeps its meaning.
-Markdown, SARIF (`properties.decision`) and `manifest.json` (`decision: {model_ids, fallback, reason}`) carry the
-fields.
+candidate and attaches `decision` to the finding: `{p, operating_point: block|advisory|drop, program_id, verdict,
+rationale, cited_lines, signals, offered}`. Candidates at or above ADVISORY are reported. Dropped ones go to
+`dropped_by_engine.json`, beside `shadow_findings.json`. Shadow-status findings enter as candidates too, so a rule's
+enabled/shadow status changes the report only if the decision changes (Req 6.3). The shadow split at
+`cli.py:503-508` applies only in the fallback. `--fail-on blocked` is a new choice (exit 1 on any BLOCK), and
+`findings` keeps its meaning. Markdown, SARIF (`properties.decision`) and `manifest.json` (`decision: {program_id,
+usd, fallback, reason}`) carry the fields.
 
 **`ousast pre-push`.** Candidates are the `CandidateDelta`s from `compare_evidence`, enriched with quick-rule
 hits and deterministic roles on the changed functions of head and base. `admit_candidates` (`push/policy.py:879`)
@@ -693,25 +926,32 @@ gains `engine: Models | None`:
 - With no capability, consequence and repair come from family-level templates shipped beside the model:
   language-level text, never framework text.
 - `--mode blocking` blocks only on BLOCK. `--mode advisory` lists ADVISORY and above. Each disposition carries
-  `{p, operating_point, model_id, top_features}` in the artifact and one line in the compact report
+  `{p, operating_point, program_id, verdict, rationale, cited_lines}` in the artifact and one line in the compact report
   (`render_report`, `push/report.py:214`).
-- The 30 s default deadline (`cli.py`, `--deadline 30.0`) covers feature building. Everything in the `static`
-  profile is source-only or already computed by the scan. Model roles run only with `--model-config`.
+- The 30 s default deadline (`cli.py`, `--deadline 30.0`) covers feature building and `decide`. Everything in the
+  `static` profile is source-only or already computed by the scan. Model roles run only with `--model-config`.
+  `decide` issues candidates and their `k` samples concurrently (at most 8 requests in flight); a candidate not
+  decided by the deadline is reported `undecided: deadline` and listed as ADVISORY-unscored, never dropped and never
+  blocked. A push's decide budget defaults to `{usd: 0.10, calls: 120}`.
 
-**Plane Runs.** The `decide` task (no model) writes `decisions.jsonl`, `remember` stores `decision` rows, and
-`ousast plane status` prints BLOCK/ADVISORY counts per case.
+**Plane Runs.** The `embed` and `decide` tasks (Model-bound, section 4.1) write `embeddings.jsonl` and
+`decisions.jsonl`; the host seeds `decide` with the adopted program and the case's boundary-filtered memory;
+`remember` stores `decision` rows, and `ousast plane status` prints BLOCK/ADVISORY counts per case.
 
-**Fallback (6.2).** With no model, or a family below the floor, today's behaviour applies unchanged: rule
+**Fallback (6.2).** With no adopted program, no chat Model or key, an exhausted budget, or a family below the
+floor, today's behaviour applies unchanged: rule
 statuses, quick/engine findings as they are, pre-push with the empty capability registry. The report says so in
-one line: "decision engine: not used (no adopted model | family insufficient data | calibration failed) --
+one line: "decision engine: not used (no adopted program | no model key | budget exhausted | family insufficient data |
+calibration failed) --
 findings are today's rule output". A family whose BLOCK is not offered still gets ADVISORY decisions.
 
 **User adaptation (7.5)** is opt-in: `[decision] adapt = true`. It keeps the user's dismissals in
-`.openultrasast/decisions/dismissals.jsonl` in their repository, as finding fingerprints with the model id, and
-applies them after the engine: a dismissed fingerprint is suppressed, and optionally a per-repository intercept
-offset is fitted on at least 10 dismissals. It never writes to the memory store. The label builder refuses any row
-with `origin: user`. It is evaluated separately: on held-out training repositories, by replaying the first half
-of their labels as dismissals and measuring the second half. It is reported as "adaptation", never merged into the
+`.openultrasast/decisions/dismissals.jsonl` in their repository, as finding fingerprints with the program id and the
+excerpt sha. Dismissed fingerprints are suppressed after the engine, and, with at least 10 dismissals, they enter a
+**user-local memory** (examples labelled `not_vulnerable`, `origin: user`) that `Retrieve` reads for that repository
+only, beside the corpus memory. It never writes to the memory store; the label builder and the example builder
+refuse any row with `origin: user`. It is evaluated separately: on held-out repositories, by replaying the first half
+of their labels as dismissals and measuring the second half, and reported as "adaptation", never merged into the
 generalisation numbers.
 
 ## Data Models
@@ -720,16 +960,22 @@ generalisation numbers.
   language, profile, schema_version, feature_set_digest, unit, base?, x, instruments}`.
 - `label` row: envelope + `{candidate, family, label, source, source_ref, unit, direction?, weight, split, group,
   frameworks, created, evidence}`. Written only by `ousast learn labels`.
-- `decision` row: envelope + `{candidate, family, profile, model_id, p, operating_point, offered, top: [{feature,
-  value, contribution}]}`.
+- `example` row: envelope + `{candidate, family, language, profile, label, source, group, frameworks, unit, x,
+  instruments, roles, excerpt_sha, label_set_digest}`. Written only by `ousast learn memory build`; refuses
+  `origin: user` and any source not in `sources.toml`.
+- `decision` row: envelope + `{candidate, family, profile, program_id, memory_snapshot_digest, p, raw_score,
+  operating_point, offered, verdict, votes, rationale, cited_lines, signals, neighbours: {label: n, family: n},
+  retrieval: "signals+embeddings" | "signals_only", parse_failed, usd, calls}`.
 - `experiment` row: `{experiment, manifest_sha256, units_sha256, registered, code_commit}`. `arm_outcome` row:
-  `{experiment, arm, unit, outcome, passes, usd}`. `experiment_result` row: `{experiment, look, estimate, ci,
-  mcnemar_p, decision, spend}`.
-- `KINDS` (`plane/memory.py:52`) gains `features, label, decision, experiment, arm_outcome, experiment_result`,
-  and `TAG_FIELDS` is unchanged (`family` is already a tag).
-- Blobs: `models/<sha>.json`, `models/index.jsonl`, `models/adopted.json`, `curves/<sha>.json`,
-  `labels/<sha>.jsonl`.
-- Files: `learn/sources.toml`, `ruleset/frameworks.toml`, `ruleset/decision/*.json`,
+  `{experiment, arm, unit, outcome, passes, usd, response_cache_digest}`. `experiment_result` row: `{experiment,
+  look, estimate, ci, mcnemar_p, decision, spend}`.
+- `KINDS` (`plane/memory.py:55-58`) already holds `features, label, decision, experiment, arm_outcome,
+  experiment_result` (task 1) and gains `example`. `TAG_FIELDS` is unchanged (`family` is already a tag).
+- Blobs: `programs/<sha>.json`, `programs/index.jsonl`, `programs/adopted.json`, `excerpts/<sha>.txt`,
+  `embeddings/<model-slug>/<sha>.json`, `responses/<sha>.json`, `curves/<sha>.json`, `labels/<sha>.jsonl`.
+- Models: `plane/models/openrouter-embedding.yaml` (provider extension `openrouter`, egress `openrouter.ai`,
+  `secretKey` OPENROUTER_API_KEY, `parameters.input_per_m: 0.02`, cache and output rates 0).
+- Files: `learn/sources.toml`, `learn/compile.toml`, `ruleset/frameworks.toml`, `ruleset/decision/program-*.json`,
   `plane/experiments/<id>.yaml` + `.units.jsonl`, `benchmarks/experiments/<id>/result.json`,
   `benchmarks/independent/prediction-v3.json`, `result-v3-engine.json`.
 
@@ -739,23 +985,35 @@ generalisation numbers.
   failed`, and a Run's `features` task fails when every instrument failed for a case. A plausible all-zero record
   is impossible because zero requires `state: ran`.
 - `validate_record` rejects unknown features, out-of-vocabulary enums and label fields, naming the feature and the
-  source file.
+  source file. The prompt renderer refuses a record that did not pass it.
 - The label builder exits 2 on a source that is not in `sources.toml`, a population whose status is not recorded,
   or a group that straddles an outer fold after the merges. The error names the repository.
-- Training refuses a (family, profile) below the floor and writes an "insufficient data" artifact stub, so
-  `decide` can say why. It refuses when a label's `group` appears in both an outer training and evaluation fold,
-  as an assertion before fitting. Newton non-convergence after 50 iterations fails with the lambda and the
-  condition number.
-- `decide` with a model whose `schema_version` or `feature_set_digest` differs from the builder's falls back,
-  with the reason in the report, and never scores a mismatched vector.
+- The example builder fails a candidate whose excerpt is empty or whose function span is not found (it never
+  stores an empty excerpt as an example), and reports the count per source; `memory build` exits 2 if more than 10%
+  of a source's labels have no excerpt (an unread clone is not a small memory).
+- Compile and evaluation refuse a family below the floor and write an "insufficient data" stub, so `decide` can say
+  why. They assert before every call that no rendered example or demonstration is outside the boundary (section
+  4.2), and before a compile that the compile split and the evaluation folds share no group.
+- A model answer that does not parse is retried once, then recorded `unsure, parse_failed`. A run where more than 5%
+  of answers are `parse_failed` is reported as an instrument failure, not as a result.
+- A smoke check precedes every paid run: 3 candidates, the provider's `usage` present and non-zero, the reply
+  parsed, the embedding dimension as declared. A run whose first calls report zero tokens stops (memory note
+  "Model calling was broken 2026-09": a working-looking zero).
+- `BudgetExhausted` ends a compile or evaluation `unfinished` with no artifact and no number; `AccountError` ends it
+  `failed` (`plane/budget.py:22-38`).
+- `decide` with a program whose `schema_version`, `feature_set_digest` or signature digest differs from the
+  builder's falls back, with the reason in the report, and never renders a mismatched record.
 - Experiments: a registration mismatch refuses the Run. A budget ceiling ends an arm `unfinished` (`budget.py`),
   and the analysis then reports "incomplete: arm B stopped at $x" and records no decision.
-- `put_blob` on FileStore applies the 1 GiB free-space refusal (`plane/memory.py:341`).
+- `put_blob` on FileStore applies the 1 GiB free-space refusal (`plane/memory.py:347`).
 
 ## Testing Strategy
 
+No test makes a model or embedding call: the chat and embedding clients are scripted fakes (the
+`tool_hunter.ChatClient` protocol, `index.EmbeddingClient` at `index.py:56`) that record what was asked.
+
 - `tests/test_learn_schema.py`: allow-list, name invariance, label fields excluded, missing vs zero (section 1).
-- `tests/test_learn_labels.py`, on fixture populations and pairs:
+- `tests/test_learn_labels.py`, on fixture populations and pairs (done, task 4):
   - positives and negatives per rule, including a fixed-pin function the fix did not touch (not a negative), and
     an unmatched vulnerable-pin candidate (unlabelled);
   - `unscorable` and title-tier exclusion;
@@ -763,40 +1021,50 @@ generalisation numbers.
   - a source not in `sources.toml`, which cannot label, checked with a fixture population named like v3 and a test
     that asserts the builder never opens its file (`open` monkeypatched);
   - CVE-based group merge.
-- `tests/test_learn_folds.py`:
-  - no group in both train and test, for outer, leave-one-source-out and leave-one-framework-out folds;
-  - inner folds nested;
-  - determinism by seed.
-- `tests/test_learn_train.py`:
-  - Newton fit on a separable-with-noise fixture;
-  - `test_matches_sklearn` (optional extra);
-  - reproducible bytes from the same store snapshot on FileStore and on MinioStore (gated as today);
-  - weights cap per repository;
-  - floor refusals.
-- `tests/test_learn_calibrate.py`: Platt on a known miscalibration, the slope/intercept check, and the
-  ADVISORY-only downgrade.
-- `tests/test_learn_decide.py`: operating points, explanations (top-5 order and signs), the missing-instrument
-  display, and version-mismatch fallback.
+- `tests/test_learn_excerpt.py`: bounds (lines, characters), centring on changed lines, no path or repository in
+  the excerpt, advisory ids and security wording in comments redacted, delta diff rendering.
+- `tests/test_learn_retrieve.py`:
+  - Gower distance on hand-computed fixtures: both `ran`, state mismatch = 1, same non-`ran` state = 0, null in one
+    = 1, prior features dropped with `priors = off`;
+  - re-rank with `lam` in {0, 0.5}, `signals_only` without embeddings;
+  - the balance rule (label, family and per-repository caps; `short` recorded);
+  - `test_boundary`: for outer, leave-one-source-out and leave-one-framework-out fixture folds, every rendered
+    example and demonstration is eligible; `memory.seed` writes no example of the case's group; the near-duplicate
+    drop in evaluation only; the deployment self-exclusion.
+- `tests/test_learn_program.py`: the rendered prompt contains no `EXCLUDED_FIELDS` name or label value; the shared
+  prefix is byte-identical across candidates; parsing (valid, invalid -> one retry -> `unsure, parse_failed`;
+  cited line out of range); majority and score `s`; `unsure` cannot BLOCK; `MeteredClient` receives `temperature`
+  and stops at its ceiling; the response cache key and replay.
+- `tests/test_learn_compile.py`: bootstrap keeps only correct, confident, identity-free rationales; instruction
+  candidates scored by the balanced Brier metric with ties to fewer tokens; compile split disjoint from evaluation
+  folds; `test_reproducible_from_cache` (byte-identical artifact on FileStore, and on MinioStore gated as today);
+  ceiling -> `unfinished`, no artifact.
+- `tests/test_learn_folds.py`: no group in both an evaluation fold and the compile split or retrieval pool, for
+  outer, leave-one-source-out and leave-one-framework-out folds; determinism by seed.
+- `tests/test_learn_calibrate.py`: Platt on a known miscalibration, cross-fitting (fold j's map never saw fold j),
+  the slope/intercept/ECE check, and the ADVISORY-only downgrade.
+- `tests/test_learn_decide.py`: operating points from cross-fitted predictions, explanation fields (signals named in
+  the rationale but absent from the record are dropped), version-mismatch fallback, deadline -> `undecided`.
 - `tests/test_learn_experiments.py`:
   - registration digest and refusal;
   - paired bootstrap CI on a fixture with a known difference;
   - exact McNemar values against hand-computed binomials;
   - O'Brien-Fleming boundaries;
-  - adopt / reject / inconclusive / equivalent decisions.
-- `tests/test_semantic_priors.py`:
-  - the lint test (no untagged entry contains a `frameworks.toml` symbol);
-  - `priors="off"` removes exactly the tagged entries;
-  - the split entries keep their language-level calls.
-- `tests/test_learn_roles.py`: wrapper inference to depth 3 on a fixture, and unclassified chunks are never "no
-  roles".
-- `tests/test_plane_features.py`, `test_plane_decide.py`: fixture run directories from the validation-46 shapes.
-  `features` drops `site_match`/`in_fix_range`, and `remember` stores `features`/`decision` rows.
+  - adopt / reject / inconclusive / equivalent decisions;
+  - a program-variant experiment whose arm A replays cached responses at $0.
+- `tests/test_semantic_priors.py` (done, task 2): the lint test, `priors="off"` removes exactly the tagged entries,
+  the split entries keep their language-level calls.
+- `tests/test_learn_roles.py` (done, task 3): wrapper inference to depth 3 on a fixture, and unclassified chunks are
+  never "no roles".
+- `tests/test_plane_features.py`, `test_plane_embed.py`, `test_plane_decide.py`: fixture run directories from the
+  validation-46 shapes. `features` drops `site_match`/`in_fix_range`; `embed` and `decide` meter, honour budgets and
+  exit 0/2/3; `remember` stores `features`/`decision` rows.
 - `tests/test_push_decision.py`: admission with an engine replaces only the capability reasons, and every
   structural reason still blocks admission. `PushReport` invariants hold with engine templates.
-- `tests/test_scan_decision.py`: the scan fallback line, `dropped_by_engine.json`, and that a shadow/enabled
-  status flip without a decision change leaves the report unchanged.
+- `tests/test_scan_decision.py`: the scan fallback line (no program, no key, budget), `dropped_by_engine.json`, and
+  that a shadow/enabled status flip without a decision change leaves the report unchanged.
 - Regression net: the existing gate, pair and plane tests. `test_benchmark_output_is_byte_identical_to_golden_baseline`
-  holds with no model adopted (the fallback is today's path).
+  holds with no program adopted (the fallback is today's path).
 - Joern-gated tests run only with the mount recipe (memory note "Joern-gated tests run nowhere"). The engine-alert
   harvest is verified by its own read-count check, not assumed.
 
@@ -805,114 +1073,128 @@ generalisation numbers.
 | Requirement | Design section | Verified by |
 | --- | --- | --- |
 | 1.1 one record per candidate from every instrument | 1 | `test_plane_features.py`, `test_learn_schema.py` |
-| 1.2 missing is not negative | 1 (instrument state, `null`) | `test_missing_is_not_zero` |
-| 1.3 versions and digests for rebuild | 1 (versioning), 5 | `test_learn_train.py::test_reproducible` |
+| 1.2 missing is not negative | 1 (instrument state, `null`), 4.2 (distance) | `test_missing_is_not_zero`; `test_learn_retrieve.py` |
+| 1.3 versions and digests for rebuild | 1 (versioning), 5 | `test_learn_compile.py::test_reproducible_from_cache` |
 | 2.1 positives/negatives by source | 3 | `test_learn_labels.py` |
 | 2.2 plane verdict is a feature, not a label | 1, 3 | `test_label_fields_never_reach_features`; label rules |
 | 2.3 provenance; reserved populations unusable | 3 (`sources.toml`, fail-closed) | `test_learn_labels.py` (v3-named fixture never opened) |
-| 3.1 simple, calibrated, per family or pooled | 4 | `test_learn_train.py`, `test_learn_calibrate.py` |
-| 3.2 reproducible, versioned | 5 | reproducibility test on both backends |
-| 3.3 population-level folds, no repository in both | 4 (folds) | `test_learn_folds.py` + pre-fit assertion |
-| 3.4 operating points on training folds | 4 | `test_learn_decide.py` |
-| 3.5 explanations stored | 4, 8 | `test_learn_decide.py`, `test_scan_decision.py` |
+| 3.1 declared LM program on the metered client; no statistical model | 4.1 | `test_learn_program.py`, `test_plane_decide.py` |
+| 3.2 retrieval by signals re-ranked by code embeddings; no identities | 4.2 | `test_learn_retrieve.py`, `test_learn_excerpt.py` |
+| 3.3 compiled on training folds; versioned; reproducible | 4.3, 5 | `test_learn_compile.py` |
+| 3.4 retrieval never crosses the evaluation boundary | 4.2 (boundary), 4.4 | `test_learn_retrieve.py::test_boundary`, `test_learn_folds.py`, pre-call assertion |
+| 3.5 confidence calibrated on held-out repositories; else ADVISORY only | 4.4 | `test_learn_calibrate.py` |
+| 3.6 new labels improve via memory, measured by A/B | 4.2, 6 | memory-snapshot experiment; `memory_snapshot_digest` on decisions |
 | 4.1 pre-registered experiment | 6 (manifest, register) | `test_learn_experiments.py` |
 | 4.2 paired, assignment and spend recorded | 6 | `arm_outcome` rows; `ousast plane status` |
 | 4.3 adopt only on a CI excluding zero or equivalence | 6 (decision rule) | `test_learn_experiments.py` |
-| 4.4 known-callers experiment first | 6 (exp-001) | commit 7 record |
-| 5.1 learning curves with bands | 7 | `ousast learn curve` output; unit test on a fixture |
+| 4.4 known-callers experiment first | 6 (exp-001) | task 7 record |
+| 5.1 learning curves over memory size and sources, with bands | 7 | `ousast learn curve` output; unit test on a fixture |
 | 5.2 intervals per family and language; insufficient data | 7 | `test_learn_decide.py` (floor), report fixture |
 | 5.3 v3 checked once, after freezing | 7 | `prediction-v3.json` committed before `result-v3-engine.json` |
-| 6.1 probability, operating point, top features in reports | 8 | `test_scan_decision.py`, `test_push_decision.py`, `test_plane_decide.py` |
+| 6.1 probability, operating point, contributing evidence in reports | 4.5, 8 | `test_scan_decision.py`, `test_push_decision.py`, `test_plane_decide.py` |
 | 6.2 fallback said in report | 8 | `test_scan_decision.py` |
 | 6.3 rule status no longer changes output alone | 8 | status-flip test |
-| 7.1 repository-grouped folds across corpora | 3 (group, CVE merge), 4 | `test_learn_folds.py` |
-| 7.2 repository-agnostic allow-list with test | 1 | `test_learn_schema.py` |
-| 7.3 BLOCK/ADVISORY on unseen repositories; delta unit | 1 (delta), 4, 8 | outer-fold report; `test_push_decision.py` |
-| 7.4 calibration checked out of repository; else ADVISORY only | 4 | `test_learn_calibrate.py` |
-| 7.5 opt-in adaptation outside the numbers | 8 | label builder refuses `origin: user`; separate report |
+| 7.1 repository-grouped folds across corpora | 3 (group, CVE merge), 4.4 | `test_learn_folds.py` |
+| 7.2 repository-agnostic allow-list with test | 1, 4.2 (excerpt rules) | `test_learn_schema.py`, `test_learn_excerpt.py` |
+| 7.3 BLOCK/ADVISORY on unseen repositories; delta unit | 1 (delta), 4.5, 8 | outer-fold report; `test_push_decision.py` |
+| 7.4 calibration checked out of repository; else ADVISORY only | 4.4 | `test_learn_calibrate.py` |
+| 7.5 opt-in adaptation outside the numbers | 8 | builders refuse `origin: user`; separate report |
 | 8.1 language-level knowledge; roles inferred | 2 | `test_learn_roles.py` |
-| 8.2 tagged priors, off by default, kept by A/B | 2, 6 | `test_semantic_priors.py`; engine-level experiment records |
-| 8.3 leave-one-framework-out, per framework | 2, 4 | `test_learn_folds.py`; report strata |
+| 8.2 tagged priors, off by default, kept by A/B | 2, 6 | `test_semantic_priors.py`; program-variant experiment records |
+| 8.3 leave-one-framework-out, per framework | 2, 4.4 | `test_learn_folds.py`; report strata |
 | 8.4 share depending on priors | 2, 7 | report columns priors off / adopted / difference |
 
 ## Commit sequence, mapped to future tasks
 
 Each commit is gated on the full suite's own exit code, `ruff` and `mypy`. None changes a reported number until
-commit 9 adopts a model, and without an adopted model every path is today's.
+commit 9 adopts a program, and without an adopted program every path is today's. Steps that spend model money
+start only after the maintainer confirms their budget against the balance read just before.
 
-1. **Schema and features** (1.1-1.3, 7.2): `learn/schema.py`, `learn/features.py` (host builder), the new
-   `KINDS`, and `plane/tasks/features.py` + the `remember` input, with tests.
-2. **Framework tags** (8.2, 8.4): `ruleset/frameworks.toml`, the tags and splits of section 2, `priors=` in the
-   semantic and quick loaders (default `all` for today's scan), and the lint test. Verify that
-   `test_benchmark_output_is_byte_identical_to_golden_baseline` is unchanged with `priors=all`.
-3. **Roles** (8.1): `learn/roles.py` (wrapper inference), `plane/tasks/roles.py` (model roles from
-   `model_sinks.py`), and the vocabulary overlay for the engine. Fixture tests, no model call in tests.
-4. **Labels** (2.1-2.3, 7.1): `learn/sources.toml`, `learn/labels.py`, `ousast learn labels`, group
-   normalisation and CVE merge, and a first label snapshot committed as a measurement record (counts only).
-5. **Harvest** (1.1, data): a plane Run of verify a/b on the 78 verify-family pairs and the development cases
-   (about $6, ceiling $10), model roles on the candidate files (ceiling $10), and engine features for the pair
-   corpus on the host (frozen source, one container at a time, in the background).
-6. **Train, calibrate, evaluate** (3.1-3.5, 5.1-5.2, 7.3-7.4, 8.3): `learn/{folds,train,calibrate,evaluate}.py`,
-   the model blob API in `plane/memory.py`, `ousast learn train|evaluate|curve`, and the first evaluation report
-   (priors off), committed under `benchmarks/measurements/<date>-decision-engine-v1/`.
-7. **Experiments** (4.1-4.4): `learn/experiments.py`, the `register` command, `experiment-outcome`, the Run
-   annotation checks, `OUSAST_VERIFY_CALLERS`, and exp-001 registered, run and recorded.
-8. **Integration** (6.1-6.3, 7.3, 7.5): the `decide` task, the `scan` stage, `pre-push` admission with the engine,
-   report fields, the fallback line, and the opt-in adaptation layer.
-9. **Adopt** (3.2, 8.2): `ousast learn adopt`, the packaged models for families that pass, and the priors-on/off
-   engine experiment per framework with a recorded decision.
+1. **Schema and features** (1.1-1.3, 7.2) -- done.
+2. **Framework tags** (8.2, 8.4) -- done.
+3. **Roles** (8.1) -- done.
+4. **Labels** (2.1-2.3, 7.1) -- done.
+5. **Harvest** (1.1, data) -- in progress: verify a/b on the verify-family pairs and the development cases (about
+   $6, ceiling $10), model roles on the candidate files (ceiling $10), engine features on the host.
+6. **Program, memory, compile, first evaluation** (3.1-3.6, 5.1-5.2, 7.3-7.4, 8.3): excerpts and the example
+   store, metered embeddings and the cache, retrieval with the boundary test, the program and response cache, folds,
+   compile, cross-fitted calibration; then the paid slice (smoke, embed, compile, outer evaluation, ~$5, ceiling $7)
+   and, after a second go-ahead, leave-one-source-out and the memory-size curves (~$7, ceiling $10), committed under
+   `benchmarks/measurements/<date>-decision-engine-v1/`.
+7. **Experiments** (4.1-4.4): `learn/experiments.py`, `register`, `experiment-outcome`, the Run annotation checks,
+   `OUSAST_VERIFY_CALLERS`, exp-001 registered, run and recorded, and the program-variant experiment machinery.
+8. **Integration** (6.1-6.3, 7.3, 7.5): the `embed` and `decide` tasks with the seeded memory, the `scan` stage,
+   `pre-push` admission with the engine, report fields, the fallback line, and the opt-in adaptation layer.
+9. **Adopt** (3.3, 8.2): `ousast learn adopt`, the packaged program with the licence filter, the priors-on/off and
+   `k` experiments with recorded decisions.
 10. **v3 check** (5.3): `prediction-v3.json` is committed first, then v3 is run by its owner under protocol v3, and
-    `result-v3-engine.json` is committed. Nothing between the two commits may touch the engine, features, priors
-    or thresholds.
+    `result-v3-engine.json` is committed. Nothing between the two commits may touch the program, memory snapshot,
+    features, priors or thresholds.
 
 ## Risks
 
-- **Label scarcity decides what can be trained.** The status of each family today:
-  - memory (7 repositories, 172 of its 176 pairs from openssl and curl) and prototype (6) are **insufficient
-    data**. Users get today's behaviour there, labelled as such.
-  - PHP has no pairs, and only about 13 population repositories. The v3 prediction will mostly be the pooled
-    interval, marked "no PHP stratum", and it will be wide.
+- **Label scarcity decides what can be evaluated.** The status of each family today:
+  - memory (5 repository groups, 173/173 rows, almost all openssl and curl), config_secrets (5) and prototype are
+    **insufficient data** (`labels.json` `verified_pin_labels`). Users get today's behaviour there, labelled as
+    such, and no money is spent evaluating them.
+  - PHP has no pairs and 13 positive population groups. The v3 prediction will mostly be the pooled interval,
+    marked "no PHP stratum", and it will be wide.
   - The plane profile has 43 rows from one population until the harvest Run.
   - BLOCK at 95% precision is likely **not reachable** for most families on this data. The design reports "BLOCK
     not offered" instead of lowering the target.
-- **Weak signals.** The pair baseline has quick-rule labelled recall 0.24 and Youden -0.013 overall
-  (`pairs.json` `overall`). The v2 engine recall is 0/17 (`results-v2.json`). A calibrated model over weak signals
-  is honest but may be close to the base rate. Recall at ADVISORY 0.90 may need an ADVISORY threshold so low that
-  precision is poor. That is reported, not tuned away on outer folds.
-- **Leakage paths and their guards.**
-  - Label fields in features (`site_match`, `in_fix_range`, fixed-pin alerts): the allow-list and test.
-  - The same repository under two names or corpora: normalised group plus CVE merge.
-  - Hand rules and framework priors written after seeing a training repository (the `$wpdb` rule from PMPro, the
-    hook source from WP Statistics, `taint.sc:911-949`): the priors-off default, and leave-one-framework-out.
-    Rules may also carry `taught_by = [repo]`, which masks their features in folds that evaluate those
-    repositories. It is backfilled best-effort from comments and git history, and its absence is stated.
-  - The mechanism exporter's train-on-test leak (`closed-loop-train-on-test-leak.md`): no exporter output is a
-    feature, and mechanism buckets come from the fixed vocabulary.
-  - Verify and tie-break design fitted on v2: the v2 fold is marked design-informed.
-  - Threshold and lambda selection on outer folds: nested folds, and a pre-fit assertion.
-  - v3: fail-closed sources, never opened.
-  - User dismissals: refused by the label builder.
-- **Prevalence shift.** Calibration on 1:1 pairs overstates the probability in a real push. The primary safety-net
-  figures (recall; false BLOCKs per 100 benign deltas) do not depend on the mix. The benign-delta sample is small:
-  28 population benign deltas plus pmpro, so the 95% upper bound for 0 false BLOCKs is about 0.12 per push. Benign
-  history deltas are the planned remedy and are reported with and without.
+- **Weak signals, strong code.** The pair baseline has quick-rule labelled recall 0.24 and Youden -0.013 overall
+  (`pairs.json` `overall`); the v2 engine recall is 0/17 (`results-v2.json`). The program reads the code, so it
+  can beat the signals, but the verify history says the model over-flags (v1 1/12, v2 0/17 adjudicated true). A
+  calibrated classifier that mostly says "advisory" is honest; recall at ADVISORY 0.90 may need a threshold with
+  poor precision. That is reported, not tuned away on outer folds.
+- **LLM nondeterminism.** The same prompt can answer differently, and temperature 0 is not a provider guarantee.
+  Guards: every response cached and replayable (numbers reproduce at $0); sample 1 at temperature 0; the vote mean
+  over `k` samples as the score; the A/B unit is paired and both arms' caches are recorded; a re-ask agreement rate
+  on a fixed 30-candidate canary set is reported with each evaluation.
+- **Label leakage into prompts.**
+  - Through rationales: memory examples carry no rationale; demonstration rationales are produced without the label
+    and scanned for identities and advisory ids; the candidate's prompt never holds `EXCLUDED_FIELDS` (test).
+  - Through code: fixed-side excerpts can carry fix comments ("prevent XSS", a CVE id). Advisory ids and security
+    wording in comments are redacted; a comments-stripped arm measures what remains. Delta excerpts show the diff of
+    the change under test, never the later fix.
+  - Through memorisation: the chat model may have seen public CVE fixes in pre-training. Not removable; the v3
+    check (unpublished fixes are rarer there) and per-source numbers expose it, and the report names it.
+- **Retrieval leakage.** Same repository under another name or corpus: group normalisation, CVE merge, the
+  near-duplicate drop at cosine >= 0.98 in evaluation, and `test_boundary`. Demonstrations from the compile split
+  are, by construction, from repositories never evaluated. The seed for plane Runs filters on the host, where the
+  labels are; the sandbox never receives an example of its own case's group.
+- **Earlier leakage paths still apply.** Hand rules and framework priors written after seeing a training repository
+  (the `$wpdb` rule from PMPro, the hook source from WP Statistics, `taint.sc:911-949`): priors off by default,
+  leave-one-framework-out, best-effort `taught_by = [repo]`. The mechanism exporter's train-on-test leak
+  (`closed-loop-train-on-test-leak.md`): no exporter output is a feature. Verify and tie-break fitted on v2: the v2
+  fold is design-informed. Thresholds and instructions chosen on reported folds: cross-fitting and the compile
+  split. v3: fail-closed sources, never opened. User dismissals: refused by both builders.
+- **Cost.** Model spend is now per candidate and per evaluation, not one-off. Measured (section 4.6) the first
+  slice fits today's balance; everything after it needs a top-up. Guards: `MeteredClient` ceilings on every task
+  and command, a smoke check that measures real tokens and cache hits before any paid run, cached replay for
+  re-analysis, unevaluable families skipped, `k = 1` if the prefix cache does not hit. Deployment cost (~$0.02 per
+  push) is a user-facing change: `pre-push` without a key falls back, and the report states the spend.
+- **Model and version drift.** `deepseek-flash` is an alias whose weights can change, and so can OpenRouter's
+  embedding route. The artifact records model ids, the Model parameters digest and the response `model` field;
+  before adoption and before the v3 prediction the canary set is re-asked, and agreement below 0.9 with the
+  cached answers, or an embedding dimension change, invalidates the evaluation (re-embed, re-evaluate) rather than
+  being averaged in. Prices are data in the Model manifest; a price change changes only cost reports.
+- **Latency.** A model call per candidate is slower than a dot product. The 30 s `pre-push` deadline is met by
+  concurrency and the `undecided: deadline` state; a push with many candidates gets partial decisions, stated.
+- **Packaging third-party code.** Demonstrations and memory hold excerpts of corpus repositories. Only
+  permissively licensed excerpts may ship in the package; the store is never shipped. A user without a store gets
+  the demonstrations-only program, whose own curve point (memory 0%) and calibration are what they are told.
 - **Framework inference is itself a model.** Model roles cost money and can be wrong. `scan` without `[models]`
   gets only wrapper inference, whose reach on framework-heavy code without dependency source is poor. The report
-  says which role source ran. Both are measured by the roles-on/off engine experiment. Nothing assumes they help.
-- **Cost on the 7 GB host.**
-  - Model spend is small: the harvest about $6, exp-001 about $8, model roles on candidate files about $10, all
-    under task ceilings.
-  - Engine features are the time cost: about 427 pairs x 2 sides x 30-60 s of JVM and CPG per excerpt is 7-14
-    hours serial, plus dev-php full-repository scans of 200-2,000 s each (`results-v1.json` `seconds`). They run
-    once per engine image, from a frozen source export, one container at `--memory 3g` at a time, never beside the
-    kind cluster's verify pods. Results are cached by (content sha, image id) in the store. The home volume was at
-    98%, and records are small (about 1 KB per candidate), but each engine run's scratch output must be cleaned
-    per case.
+  says which role source ran. Both are measured by the roles-on/off experiment. Nothing assumes they help.
+- **Host time on the 7 GB host.** Engine features remain the time cost (7-14 hours serial for the pair corpus,
+  dev-php scans of 200-2,000 s each), run once per engine image from a frozen source export, one container at
+  `--memory 3g` at a time, never beside the kind cluster's verify pods, cached by (content sha, image id). Model
+  calls add wall time but no memory pressure; excerpts and embeddings are small (~8 KB per example with a 1,536-float
+  vector, ~45 MB for 5,600 examples).
 - **Experiments will often be inconclusive.** With 41 development repositories the MDE is about 15 points.
   Pre-registering that and recording "inconclusive" is the intended behaviour. The failure mode to avoid is
   extending an experiment after looking.
-- **Pure-Python numerics.** Newton on near-separable data (a feature that alone separates a small family) can
-  diverge. L2 with lambda >= 0.01 and the iteration cap bound it, and the sklearn cross-check catches drift.
 
 ## Maintainer decisions at design approval (2026-09-30)
 
@@ -920,3 +1202,20 @@ commit 9 adopts a model, and without an adopted model every path is today's.
 - Benign pushes: ordinary non-security commits are mined as **assumed-benign** pushes (no security keyword, no later
   fix touching the same lines), kept as their own label source (`assumed_benign`), reported separately from the
   verified negatives, and never merged with them.
+
+## Maintainer decisions for the Requirement 3 change (2026-10-01)
+
+- The decision engine is an AI classifier with local memory, not ML: "We will not be able to scale up data" and
+  "we need to have the decision engine on AI classifier not ML. with local memory, dspy style".
+- DSPy-style **in-house** (signature, modules, bootstrap few-shot, instruction search on the plane's metered
+  client), not the DSPy library.
+- Retrieval by **signals + code embeddings**: signal-profile nearest neighbours re-ranked by OpenRouter code
+  embeddings. DeepSeek is the LLM; OpenRouter is used for embeddings only.
+
+Open for the maintainer at design approval:
+
+- The first paid slice of task 6 (smoke, embed, one compile, outer evaluation): ~$5 expected, $7 ceiling, against
+  the balance read after the harvest.
+- The second slice (leave-one-source-out, memory-size curves): ~$7, ceiling $10, and the top-up it needs.
+- Which corpus licences allow demonstrations to ship in the package (section 5).
+
