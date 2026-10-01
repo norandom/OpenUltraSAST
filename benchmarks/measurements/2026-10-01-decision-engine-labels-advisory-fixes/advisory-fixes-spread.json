@@ -1,0 +1,187 @@
+{
+  "created": "2026-10-01",
+  "note": "Counts only. The advisory-fix catalog (benchmarks/pairs/advisory-fixes/catalog.toml) per family: one pair = one repository group, each a real fix (fix commit != parent, the advisory-named function declared on both sides, body changed; verification.json). framework is the catalog's informational field ('none' = a library or no web framework); the label builder itself records no framework for pair rows.",
+  "families": {
+    "access_control": {
+      "pairs": 20,
+      "language": {
+        "go": 4,
+        "python": 4,
+        "java": 3,
+        "javascript/typescript": 3,
+        "csharp": 2,
+        "php": 2,
+        "ruby": 2
+      },
+      "framework": {
+        "none": 5,
+        "django": 3,
+        "aspnetcore": 2,
+        "rails": 2,
+        "echo": 1,
+        "hono": 1,
+        "jenkins": 1,
+        "payload": 1,
+        "spring": 1,
+        "starlette": 1,
+        "symfony": 1,
+        "winter": 1
+      },
+      "licence": {
+        "MIT": 8,
+        "Apache-2.0": 5,
+        "BSD-3-Clause": 4,
+        "AGPL-3.0": 2,
+        "GPL-2.0": 1
+      },
+      "split": {
+        "holdout": 10,
+        "train": 10
+      }
+    },
+    "deserialization": {
+      "pairs": 21,
+      "language": {
+        "python": 5,
+        "java": 4,
+        "php": 4,
+        "csharp": 3,
+        "ruby": 3,
+        "javascript/typescript": 2
+      },
+      "framework": {
+        "none": 12,
+        "typo3": 2,
+        "aiohttp": 1,
+        "asp.net": 1,
+        "jooby": 1,
+        "karaf": 1,
+        "laravel": 1,
+        "rails": 1,
+        "react-router": 1
+      },
+      "licence": {
+        "MIT": 10,
+        "Apache-2.0": 7,
+        "GPL-2.0": 1,
+        "GPL-3.0": 1,
+        "MPL-1.1": 1,
+        "MPL-2.0": 1
+      },
+      "split": {
+        "train": 11,
+        "holdout": 10
+      }
+    },
+    "output_encoding": {
+      "pairs": 21,
+      "language": {
+        "javascript/typescript": 4,
+        "php": 4,
+        "python": 4,
+        "java": 3,
+        "csharp": 2,
+        "go": 2,
+        "ruby": 2
+      },
+      "framework": {
+        "none": 10,
+        "django": 1,
+        "express": 1,
+        "fiber": 1,
+        "hono": 1,
+        "jenkins": 1,
+        "jquery": 1,
+        "jsf": 1,
+        "laravel": 1,
+        "rails": 1,
+        "silverstripe": 1,
+        "tornado": 1
+      },
+      "licence": {
+        "MIT": 13,
+        "Apache-2.0": 5,
+        "BSD-3-Clause": 3
+      },
+      "split": {
+        "train": 11,
+        "holdout": 10
+      }
+    },
+    "path": {
+      "pairs": 18,
+      "language": {
+        "java": 4,
+        "go": 3,
+        "javascript/typescript": 3,
+        "ruby": 3,
+        "php": 2,
+        "python": 2,
+        "csharp": 1
+      },
+      "framework": {
+        "none": 4,
+        "fastify": 2,
+        "spring": 2,
+        "aspnet": 1,
+        "express": 1,
+        "flask": 1,
+        "jenkins": 1,
+        "laravel": 1,
+        "rack": 1,
+        "rails": 1,
+        "tornado": 1,
+        "wicket": 1,
+        "yii": 1
+      },
+      "licence": {
+        "MIT": 11,
+        "Apache-2.0": 5,
+        "BSD-2-Clause": 1,
+        "BSD-3-Clause": 1
+      },
+      "split": {
+        "holdout": 9,
+        "train": 9
+      }
+    },
+    "untrusted_destination": {
+      "pairs": 17,
+      "language": {
+        "php": 4,
+        "python": 4,
+        "javascript/typescript": 3,
+        "go": 2,
+        "java": 2,
+        "csharp": 1,
+        "ruby": 1
+      },
+      "framework": {
+        "jenkins": 2,
+        "net/http": 2,
+        "none": 2,
+        "cakephp": 1,
+        "django": 1,
+        "feathers": 1,
+        "flask": 1,
+        "grav": 1,
+        "koa": 1,
+        "laravel": 1,
+        "nuxt": 1,
+        "rails": 1,
+        "symfony": 1,
+        "tornado": 1
+      },
+      "licence": {
+        "MIT": 13,
+        "Apache-2.0": 2,
+        "BSD-3-Clause": 2
+      },
+      "split": {
+        "train": 9,
+        "holdout": 8
+      }
+    }
+  },
+  "pairs": 97
+}

@@ -1,0 +1,507 @@
+{
+  "assumed_benign_history": {
+    "accepted": 969,
+    "commits_scanned": 36000,
+    "rejected": {
+      "bulk change": 278,
+      "dependency": 2206,
+      "english": 4251,
+      "later fix touches its files": 3168,
+      "near_fix": 4911,
+      "no changed function": 50,
+      "no product source": 2368,
+      "other_language": 2,
+      "protocol pin": 55,
+      "reference": 77
+    },
+    "repositories": 28
+  },
+  "conditional_negatives": {
+    "assumed_benign": {
+      "by_language": {
+        "go": 18,
+        "javascript": 2136,
+        "php": 832,
+        "python": 1049,
+        "typescript": 636
+      },
+      "groups": 27,
+      "pushes": 969,
+      "rows": 4671
+    },
+    "benign_control": {
+      "by_language": {
+        "javascript": 7,
+        "php": 27,
+        "python": 23,
+        "typescript": 15
+      },
+      "groups": 24,
+      "pushes": 24,
+      "rows": 72
+    }
+  },
+  "created": "2026-10-01",
+  "excluded_unread": [
+    "candidates-v3-php.json",
+    "freeze-v3-php.json",
+    "population-v3-php.toml",
+    "protocol-v3.md",
+    "research-2026-09-30-php.md"
+  ],
+  "floors": {
+    "per_family": 20,
+    "pooled": 10,
+    "unit": "repository groups with positive and with negative pin labels"
+  },
+  "group_merges": {
+    "advisory": 0,
+    "alias": 0,
+    "commit": 0
+  },
+  "groups": 202,
+  "note": "Label snapshot after adding the advisory-fixes source (benchmarks/pairs/advisory-fixes, 97 real fix-commit pairs, one repository each, none already named under benchmarks/ and none reserved). COUNTS ONLY, same builder and sources as 2026-10-01-decision-engine-labels plus that one source. Every new pair gave a fixed-side negative (pair_fixed_side.absent_fixed_side is unchanged at 108); groups 105 -> 202 with no merges. All five short families now reach the per-family floor of 20 negative groups. Language/framework spread of the new pairs: advisory-fixes-spread.json. Supersedes 2026-10-01-decision-engine-labels for the per-family floors.",
+  "pair_fixed_side": {
+    "absent_fixed_side": {
+      "by_family": {
+        "access_control": 13,
+        "config_secrets": 4,
+        "deserialization": 20,
+        "injection": 18,
+        "output_encoding": 16,
+        "path": 11,
+        "untrusted_destination": 26
+      },
+      "labels": 108
+    },
+    "fixed_side_moved": 0
+  },
+  "rows": 6589,
+  "schema": 1,
+  "skipped": {
+    "pairs: label names no function": 44,
+    "pairs: no fixed-side negative (fixed side is another function of the same snapshot)": 108,
+    "pairs: title tier (sensitivity arm)": 58,
+    "pairs: unscorable pair": 7,
+    "population: positive the fix did not change (no negative)": 22
+  },
+  "sources": [
+    "adjudications",
+    "advisory-fixes",
+    "assumed_benign",
+    "dev-php",
+    "pairs",
+    "population-v1",
+    "population-v2"
+  ],
+  "verified_delta_labels": {
+    "access_control:introduce": {
+      "negative_groups": 0,
+      "negative_rows": 0,
+      "positive_groups": 32,
+      "positive_rows": 33
+    },
+    "access_control:repair": {
+      "negative_groups": 20,
+      "negative_rows": 20,
+      "positive_groups": 0,
+      "positive_rows": 0
+    },
+    "config_secrets:introduce": {
+      "negative_groups": 0,
+      "negative_rows": 0,
+      "positive_groups": 5,
+      "positive_rows": 18
+    },
+    "config_secrets:repair": {
+      "negative_groups": 2,
+      "negative_rows": 12,
+      "positive_groups": 0,
+      "positive_rows": 0
+    },
+    "deserialization:introduce": {
+      "negative_groups": 0,
+      "negative_rows": 0,
+      "positive_groups": 41,
+      "positive_rows": 41
+    },
+    "deserialization:repair": {
+      "negative_groups": 21,
+      "negative_rows": 21,
+      "positive_groups": 0,
+      "positive_rows": 0
+    },
+    "injection:introduce": {
+      "negative_groups": 0,
+      "negative_rows": 0,
+      "positive_groups": 42,
+      "positive_rows": 77
+    },
+    "injection:repair": {
+      "negative_groups": 33,
+      "negative_rows": 48,
+      "positive_groups": 0,
+      "positive_rows": 0
+    },
+    "memory:introduce": {
+      "negative_groups": 0,
+      "negative_rows": 0,
+      "positive_groups": 5,
+      "positive_rows": 173
+    },
+    "memory:repair": {
+      "negative_groups": 5,
+      "negative_rows": 173,
+      "positive_groups": 0,
+      "positive_rows": 0
+    },
+    "output_encoding:introduce": {
+      "negative_groups": 0,
+      "negative_rows": 0,
+      "positive_groups": 36,
+      "positive_rows": 77
+    },
+    "output_encoding:repair": {
+      "negative_groups": 22,
+      "negative_rows": 61,
+      "positive_groups": 0,
+      "positive_rows": 0
+    },
+    "path:introduce": {
+      "negative_groups": 0,
+      "negative_rows": 0,
+      "positive_groups": 32,
+      "positive_rows": 32
+    },
+    "path:repair": {
+      "negative_groups": 21,
+      "negative_rows": 21,
+      "positive_groups": 0,
+      "positive_rows": 0
+    },
+    "unknown:introduce": {
+      "negative_groups": 0,
+      "negative_rows": 0,
+      "positive_groups": 2,
+      "positive_rows": 2
+    },
+    "unknown:repair": {
+      "negative_groups": 2,
+      "negative_rows": 2,
+      "positive_groups": 0,
+      "positive_rows": 0
+    },
+    "untrusted_destination:introduce": {
+      "negative_groups": 0,
+      "negative_rows": 0,
+      "positive_groups": 52,
+      "positive_rows": 62
+    },
+    "untrusted_destination:repair": {
+      "negative_groups": 24,
+      "negative_rows": 27,
+      "positive_groups": 0,
+      "positive_rows": 0
+    }
+  },
+  "verified_pin_labels": {
+    "by_family": {
+      "access_control": {
+        "model": "per_family",
+        "negative_groups": 20,
+        "negative_rows": 20,
+        "positive_groups": 32,
+        "positive_rows": 33
+      },
+      "config_secrets": {
+        "model": "insufficient",
+        "negative_groups": 2,
+        "negative_rows": 13,
+        "positive_groups": 5,
+        "positive_rows": 18
+      },
+      "deserialization": {
+        "model": "per_family",
+        "negative_groups": 21,
+        "negative_rows": 21,
+        "positive_groups": 41,
+        "positive_rows": 41
+      },
+      "injection": {
+        "model": "per_family",
+        "negative_groups": 33,
+        "negative_rows": 71,
+        "positive_groups": 44,
+        "positive_rows": 81
+      },
+      "memory": {
+        "model": "insufficient",
+        "negative_groups": 5,
+        "negative_rows": 173,
+        "positive_groups": 5,
+        "positive_rows": 173
+      },
+      "output_encoding": {
+        "model": "per_family",
+        "negative_groups": 22,
+        "negative_rows": 61,
+        "positive_groups": 36,
+        "positive_rows": 77
+      },
+      "path": {
+        "model": "per_family",
+        "negative_groups": 21,
+        "negative_rows": 21,
+        "positive_groups": 33,
+        "positive_rows": 33
+      },
+      "unknown": {
+        "model": "insufficient",
+        "negative_groups": 2,
+        "negative_rows": 2,
+        "positive_groups": 2,
+        "positive_rows": 2
+      },
+      "untrusted_destination": {
+        "model": "per_family",
+        "negative_groups": 25,
+        "negative_rows": 43,
+        "positive_groups": 52,
+        "positive_rows": 63
+      }
+    },
+    "by_framework": {
+      "django": {
+        "negative_groups": 1,
+        "negative_rows": 2,
+        "positive_groups": 1,
+        "positive_rows": 2
+      },
+      "express": {
+        "negative_groups": 3,
+        "negative_rows": 6,
+        "positive_groups": 4,
+        "positive_rows": 12
+      },
+      "flask": {
+        "negative_groups": 2,
+        "negative_rows": 3,
+        "positive_groups": 2,
+        "positive_rows": 3
+      },
+      "httpx": {
+        "negative_groups": 3,
+        "negative_rows": 4,
+        "positive_groups": 3,
+        "positive_rows": 6
+      },
+      "lodash": {
+        "negative_groups": 5,
+        "negative_rows": 9,
+        "positive_groups": 6,
+        "positive_rows": 15
+      },
+      "node-http-clients": {
+        "negative_groups": 4,
+        "negative_rows": 8,
+        "positive_groups": 5,
+        "positive_rows": 9
+      },
+      "none": {
+        "negative_groups": 8,
+        "negative_rows": 25,
+        "positive_groups": 9,
+        "positive_rows": 36
+      },
+      "pyyaml": {
+        "negative_groups": 3,
+        "negative_rows": 5,
+        "positive_groups": 3,
+        "positive_rows": 6
+      },
+      "react": {
+        "negative_groups": 4,
+        "negative_rows": 4,
+        "positive_groups": 4,
+        "positive_rows": 5
+      },
+      "requests": {
+        "negative_groups": 5,
+        "negative_rows": 8,
+        "positive_groups": 5,
+        "positive_rows": 10
+      },
+      "sanitize-html": {
+        "negative_groups": 0,
+        "negative_rows": 0,
+        "positive_groups": 1,
+        "positive_rows": 1
+      },
+      "sqlalchemy": {
+        "negative_groups": 2,
+        "negative_rows": 2,
+        "positive_groups": 2,
+        "positive_rows": 3
+      },
+      "unknown": {
+        "negative_groups": 137,
+        "negative_rows": 372,
+        "positive_groups": 174,
+        "positive_rows": 443
+      },
+      "vue": {
+        "negative_groups": 3,
+        "negative_rows": 5,
+        "positive_groups": 4,
+        "positive_rows": 6
+      },
+      "wordpress": {
+        "negative_groups": 5,
+        "negative_rows": 8,
+        "positive_groups": 9,
+        "positive_rows": 13
+      }
+    },
+    "by_language": {
+      "c_cpp": {
+        "negative_groups": 5,
+        "negative_rows": 173,
+        "positive_groups": 5,
+        "positive_rows": 173
+      },
+      "csharp": {
+        "negative_groups": 9,
+        "negative_rows": 9,
+        "positive_groups": 9,
+        "positive_rows": 9
+      },
+      "go": {
+        "negative_groups": 11,
+        "negative_rows": 11,
+        "positive_groups": 11,
+        "positive_rows": 11
+      },
+      "java": {
+        "negative_groups": 17,
+        "negative_rows": 56,
+        "positive_groups": 17,
+        "positive_rows": 56
+      },
+      "javascript": {
+        "negative_groups": 30,
+        "negative_rows": 35,
+        "positive_groups": 27,
+        "positive_rows": 36
+      },
+      "php": {
+        "negative_groups": 25,
+        "negative_rows": 42,
+        "positive_groups": 29,
+        "positive_rows": 38
+      },
+      "python": {
+        "negative_groups": 29,
+        "negative_rows": 42,
+        "positive_groups": 78,
+        "positive_rows": 151
+      },
+      "ruby": {
+        "negative_groups": 11,
+        "negative_rows": 11,
+        "positive_groups": 11,
+        "positive_rows": 11
+      },
+      "typescript": {
+        "negative_groups": 17,
+        "negative_rows": 43,
+        "positive_groups": 17,
+        "positive_rows": 33
+      },
+      "unknown": {
+        "negative_groups": 1,
+        "negative_rows": 3,
+        "positive_groups": 1,
+        "positive_rows": 3
+      }
+    },
+    "by_source": {
+      "adjudications": {
+        "negative_groups": 15,
+        "negative_rows": 40,
+        "positive_groups": 3,
+        "positive_rows": 3
+      },
+      "dev-php": {
+        "negative_groups": 0,
+        "negative_rows": 0,
+        "positive_groups": 3,
+        "positive_rows": 3
+      },
+      "pairs": {
+        "negative_groups": 122,
+        "negative_rows": 332,
+        "positive_groups": 171,
+        "positive_rows": 440
+      },
+      "population-v1": {
+        "negative_groups": 11,
+        "negative_rows": 35,
+        "positive_groups": 11,
+        "positive_rows": 50
+      },
+      "population-v2": {
+        "negative_groups": 14,
+        "negative_rows": 18,
+        "positive_groups": 17,
+        "positive_rows": 25
+      }
+    },
+    "by_split": {
+      "dev-php": {
+        "negative_groups": 0,
+        "negative_rows": 0,
+        "positive_groups": 3,
+        "positive_rows": 3
+      },
+      "holdout": {
+        "negative_groups": 59,
+        "negative_rows": 182,
+        "positive_groups": 110,
+        "positive_rows": 236
+      },
+      "population-v1": {
+        "negative_groups": 11,
+        "negative_rows": 46,
+        "positive_groups": 11,
+        "positive_rows": 51
+      },
+      "population-v2": {
+        "negative_groups": 15,
+        "negative_rows": 47,
+        "positive_groups": 17,
+        "positive_rows": 27
+      },
+      "train": {
+        "negative_groups": 66,
+        "negative_rows": 150,
+        "positive_groups": 115,
+        "positive_rows": 204
+      }
+    },
+    "design_informed": {
+      "adjudications": {
+        "negative_groups": 13,
+        "negative_rows": 29,
+        "positive_groups": 2,
+        "positive_rows": 2
+      },
+      "population-v2": {
+        "negative_groups": 14,
+        "negative_rows": 18,
+        "positive_groups": 17,
+        "positive_rows": 25
+      }
+    },
+    "privileged_positives": 2
+  }
+}

@@ -1,0 +1,491 @@
+{
+  "pairs": [
+    {
+      "name": "grav-redirect-2eae104",
+      "ok": true,
+      "bytes_read": 3496
+    },
+    {
+      "name": "cas-plugin-determinetargeturl-8ac536a",
+      "ok": true,
+      "bytes_read": 3368
+    },
+    {
+      "name": "spirit-custom-login-8f32f89",
+      "ok": true,
+      "bytes_read": 1749
+    },
+    {
+      "name": "archivy-login-2d8cb29",
+      "ok": true,
+      "bytes_read": 2273
+    },
+    {
+      "name": "google-login-plugin-docommencelogin-532d714",
+      "ok": true,
+      "bytes_read": 2790
+    },
+    {
+      "name": "truelayer-dotnet-getpayment-75e436e",
+      "ok": true,
+      "bytes_read": 2335
+    },
+    {
+      "name": "koa-back-422c551",
+      "ok": true,
+      "bytes_read": 1916
+    },
+    {
+      "name": "miniflux-checklogin-76df99f",
+      "ok": true,
+      "bytes_read": 5899
+    },
+    {
+      "name": "taguette-go-to-next-67de2d2",
+      "ok": true,
+      "bytes_read": 1163
+    },
+    {
+      "name": "weasyprint-default-url-fetcher-b6a14f0",
+      "ok": true,
+      "bytes_read": 2240
+    },
+    {
+      "name": "feathers-getredirect-ee19a0a",
+      "ok": true,
+      "bytes_read": 2305
+    },
+    {
+      "name": "mailpit-dohead-10ad4df",
+      "ok": true,
+      "bytes_read": 3086
+    },
+    {
+      "name": "devise-redirect-url-025fe21",
+      "ok": true,
+      "bytes_read": 1463
+    },
+    {
+      "name": "koel-createforepisode-8708f07",
+      "ok": true,
+      "bytes_read": 1867
+    },
+    {
+      "name": "authentication-getloginredirect-1c1e29c",
+      "ok": true,
+      "bytes_read": 3975
+    },
+    {
+      "name": "og-image-resolve-243cac2",
+      "ok": true,
+      "bytes_read": 3634
+    },
+    {
+      "name": "koillection-fetchwithhttpclient-4d445e2",
+      "ok": true,
+      "bytes_read": 2383
+    },
+    {
+      "name": "elfinderaspnet-extractasync-675049b",
+      "ok": true,
+      "bytes_read": 6621
+    },
+    {
+      "name": "hsweb-framework-createstaticsavepath-8009845",
+      "ok": true,
+      "bytes_read": 3682
+    },
+    {
+      "name": "changedetectionio-static-content-9d38b45",
+      "ok": true,
+      "bytes_read": 11606
+    },
+    {
+      "name": "rack-check-forbidden-75c5745",
+      "ok": true,
+      "bytes_read": 1659
+    },
+    {
+      "name": "camaleon-cms-fetch-file-f54a77e",
+      "ok": true,
+      "bytes_read": 1497
+    },
+    {
+      "name": "wicket-save-7247098",
+      "ok": true,
+      "bytes_read": 2030
+    },
+    {
+      "name": "yii2-renderphpfile-109878b",
+      "ok": true,
+      "bytes_read": 4027
+    },
+    {
+      "name": "yard-check-static-cache-f78c19f",
+      "ok": true,
+      "bytes_read": 1844
+    },
+    {
+      "name": "thumbor-load-3b986d1",
+      "ok": true,
+      "bytes_read": 3659
+    },
+    {
+      "name": "filebrowser-subtitleshandler-f3f4bbe",
+      "ok": true,
+      "bytes_read": 6180
+    },
+    {
+      "name": "laravel-mediable-sanitizepath-6d1e7fb",
+      "ok": true,
+      "bytes_read": 2128
+    },
+    {
+      "name": "external-workspace-manager-plugin-computecustompath-2fccbbd",
+      "ok": true,
+      "bytes_read": 3066
+    },
+    {
+      "name": "openhop-filepath-c8190fb",
+      "ok": true,
+      "bytes_read": 1049
+    },
+    {
+      "name": "handlebarsjava-getresource-61f4342",
+      "ok": true,
+      "bytes_read": 2946
+    },
+    {
+      "name": "fastify-static-pumpsendtoreply-db4276f",
+      "ok": true,
+      "bytes_read": 14100
+    },
+    {
+      "name": "goshs-upload-f3ef599",
+      "ok": true,
+      "bytes_read": 8431
+    },
+    {
+      "name": "knowns-get-09c5a96",
+      "ok": true,
+      "bytes_read": 4453
+    },
+    {
+      "name": "webpack-dev-middleware-getfilenamefromurl-13344e7",
+      "ok": true,
+      "bytes_read": 6586
+    },
+    {
+      "name": "template-load-28cff3a",
+      "ok": true,
+      "bytes_read": 5799
+    },
+    {
+      "name": "zeppelin-fromjson-8368579",
+      "ok": true,
+      "bytes_read": 1869
+    },
+    {
+      "name": "moonshine-resolvepreview-f108f4e",
+      "ok": true,
+      "bytes_read": 2705
+    },
+    {
+      "name": "chrome-construct-34b2b8d",
+      "ok": true,
+      "bytes_read": 1244
+    },
+    {
+      "name": "prosemirror-to-html-render-opening-tag-4d59f94",
+      "ok": true,
+      "bytes_read": 2004
+    },
+    {
+      "name": "algernon-htmllink-cd88320",
+      "ok": true,
+      "bytes_read": 1524
+    },
+    {
+      "name": "tornado-write-error-9c163ae",
+      "ok": true,
+      "bytes_read": 3094
+    },
+    {
+      "name": "htmlsanitizer-dosanitize-0ac53dc",
+      "ok": true,
+      "bytes_read": 35736
+    },
+    {
+      "name": "logging-log4net-formatxml-42a77cb",
+      "ok": true,
+      "bytes_read": 9153
+    },
+    {
+      "name": "mistune-render-admonition-a3cb6e5",
+      "ok": true,
+      "bytes_read": 1394
+    },
+    {
+      "name": "slippers-attr-string-16cc4ef",
+      "ok": true,
+      "bytes_read": 2209
+    },
+    {
+      "name": "schema-org-toscript-be389b4",
+      "ok": true,
+      "bytes_read": 1252
+    },
+    {
+      "name": "htmlpublisher-plugin-publishreports-1034d47",
+      "ok": true,
+      "bytes_read": 18179
+    },
+    {
+      "name": "jquery-autocomplete-formatgroup-63ff096",
+      "ok": true,
+      "bytes_read": 1257
+    },
+    {
+      "name": "view-component-render-in-48e5fd2",
+      "ok": true,
+      "bytes_read": 6953
+    },
+    {
+      "name": "etherpad-gethtmlfromatext-86c56cf",
+      "ok": true,
+      "bytes_read": 3857
+    },
+    {
+      "name": "silverstripe-versioned-getrestoremessage-6e30a2c",
+      "ok": true,
+      "bytes_read": 6474
+    },
+    {
+      "name": "dicebear-addrotate-922946d",
+      "ok": true,
+      "bytes_read": 1368
+    },
+    {
+      "name": "omnifaces-getupdatescript-c43eef0",
+      "ok": true,
+      "bytes_read": 1491
+    },
+    {
+      "name": "tablib-export-book-b0ff39f",
+      "ok": true,
+      "bytes_read": 1683
+    },
+    {
+      "name": "hono-resolvechildearly-2b8ed40",
+      "ok": true,
+      "bytes_read": 3041
+    },
+    {
+      "name": "serialize-to-js-deserialize-1cd4339",
+      "ok": true,
+      "bytes_read": 1158
+    },
+    {
+      "name": "jmespath-rb-search-e884128",
+      "ok": true,
+      "bytes_read": 1554
+    },
+    {
+      "name": "opensearch-ruby-verify-open-search-d74a98b",
+      "ok": true,
+      "bytes_read": 2402
+    },
+    {
+      "name": "c1-cms-foundation-bindtotype-af856ab",
+      "ok": true,
+      "bytes_read": 2368
+    },
+    {
+      "name": "litedb-deserialize-4382ff4",
+      "ok": true,
+      "bytes_read": 11509
+    },
+    {
+      "name": "kredis-cast-value-d576b7a",
+      "ok": true,
+      "bytes_read": 928
+    },
+    {
+      "name": "redisson-resolveclass-fe6a257",
+      "ok": true,
+      "bytes_read": 1832
+    },
+    {
+      "name": "activemq-nms-openwire-bindtotype-8944c41",
+      "ok": true,
+      "bytes_read": 2649
+    },
+    {
+      "name": "jooby-strtoobject-3e13562",
+      "ok": true,
+      "bytes_read": 2061
+    },
+    {
+      "name": "powsybl-core-read-8ed16ce",
+      "ok": true,
+      "bytes_read": 2386
+    },
+    {
+      "name": "docling-core-load-from-yaml-3e8d628",
+      "ok": true,
+      "bytes_read": 1989
+    },
+    {
+      "name": "karaf-decanter-loggingeventobjectinputstream-9d7058d",
+      "ok": true,
+      "bytes_read": 1807
+    },
+    {
+      "name": "mailqueue-fromfile-0f7a137",
+      "ok": true,
+      "bytes_read": 1889
+    },
+    {
+      "name": "epyt-flow-my-load-from-json-3fff915",
+      "ok": true,
+      "bytes_read": 2443
+    },
+    {
+      "name": "laravel-magiclink-getactionattribute-19fa820",
+      "ok": true,
+      "bytes_read": 1556
+    },
+    {
+      "name": "json-serializer-unserializeobject-bf26227",
+      "ok": true,
+      "bytes_read": 6764
+    },
+    {
+      "name": "aiohttp-load-dcf40f3",
+      "ok": true,
+      "bytes_read": 1923
+    },
+    {
+      "name": "datapizza-ai-get-e83beeb",
+      "ok": true,
+      "bytes_read": 1549
+    },
+    {
+      "name": "react-router-hydrate-5981192",
+      "ok": true,
+      "bytes_read": 12741
+    },
+    {
+      "name": "vcrpy-deserialize-045acb1",
+      "ok": true,
+      "bytes_read": 998
+    },
+    {
+      "name": "crawler-fetchurlcontents-be7dbe7",
+      "ok": true,
+      "bytes_read": 4607
+    },
+    {
+      "name": "aedes-finish-ffbc170",
+      "ok": true,
+      "bytes_read": 2269
+    },
+    {
+      "name": "publify-update-c0aba87",
+      "ok": true,
+      "bytes_read": 2413
+    },
+    {
+      "name": "xblock-lti-consumer-publish-grade-on-score-update-252f94b",
+      "ok": true,
+      "bytes_read": 6984
+    },
+    {
+      "name": "oqtaneframework-isauthorized-e83399a",
+      "ok": true,
+      "bytes_read": 1500
+    },
+    {
+      "name": "apollo-get-362735d",
+      "ok": true,
+      "bytes_read": 1826
+    },
+    {
+      "name": "payload-puck-createdeletehandler-9148201",
+      "ok": true,
+      "bytes_read": 2861
+    },
+    {
+      "name": "sqladmin-ajax-lookup-b0d3a19",
+      "ok": true,
+      "bytes_read": 2514
+    },
+    {
+      "name": "nebula-mesh-handlegetauditlog-8baaace",
+      "ok": true,
+      "bytes_read": 2578
+    },
+    {
+      "name": "gittensory-getcontributorprofile-811ef5f",
+      "ok": true,
+      "bytes_read": 2415
+    },
+    {
+      "name": "filebrowser-resourcedeletehandler-0231b7e",
+      "ok": true,
+      "bytes_read": 3010
+    },
+    {
+      "name": "winter-getfilerecord-9cb0ae5",
+      "ok": true,
+      "bytes_read": 1894
+    },
+    {
+      "name": "migration-planner-getsourcedownloadurl-ec47a33",
+      "ok": true,
+      "bytes_read": 2759
+    },
+    {
+      "name": "mcp-server-plugin-getreplayscripts-ffe5ae7",
+      "ok": true,
+      "bytes_read": 3796
+    },
+    {
+      "name": "openwisp-ipam-export-view-04a2ef9",
+      "ok": true,
+      "bytes_read": 1596
+    },
+    {
+      "name": "alchemy-cms-nested-8417a2e",
+      "ok": true,
+      "bytes_read": 2057
+    },
+    {
+      "name": "django-cms-render-object-structure-9c82abf",
+      "ok": true,
+      "bytes_read": 3771
+    },
+    {
+      "name": "perses-proxyunsavedglobaldatasource-2368c9e",
+      "ok": true,
+      "bytes_read": 2158
+    },
+    {
+      "name": "moquette-publishwill-e23df01",
+      "ok": true,
+      "bytes_read": 2894
+    },
+    {
+      "name": "easyadminbundle-getsymfonycontrollerfqcn-03be45c",
+      "ok": true,
+      "bytes_read": 4391
+    },
+    {
+      "name": "jellyfin-assertcancontrol-420d44f",
+      "ok": true,
+      "bytes_read": 2462
+    }
+  ],
+  "verified": 97,
+  "bytes_read": 367053
+}

@@ -56,6 +56,20 @@ recorded = "2026-09-30"
 status = "development"
 exclude_tiers = ["title"]  # labels read from advisory titles; a sensitivity arm only (`--include-title`)
 
+# Real fix-commit pairs for the families the pair corpus left without negatives (untrusted_destination, path,
+# output_encoding, deserialization, access_control). Each pair is a public advisory fix commit distinct from its parent;
+# the advisory-named function is declared on both sides and its body changes. Pointer pairs: both sides are
+# materialised into the pair cache by benchmarks/pairs/advisory-fixes/materialize.py (shallow blobless fetch, one
+# file per side); `evaluation` is the committed per-pair verification record (bytes read, declared both sides).
+[[source]]
+id = "advisory-fixes"
+kind = "pairs"
+file = "benchmarks/pairs/advisory-fixes/catalog.toml"
+evaluation = ["benchmarks/pairs/advisory-fixes/verification.json"]
+recorded = "2026-10-01"
+status = "development"
+exclude_tiers = ["title"]
+
 [[source]]
 id = "adjudications"
 kind = "adjudications"
