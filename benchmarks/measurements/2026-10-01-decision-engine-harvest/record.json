@@ -14,13 +14,13 @@
   "image": "openultrasast:dev sha256:e6f8dc6cc7547f7118bd058687de676e0fcf741799d1d3839b3e8648ce190fbb",
   "pair_sides_total": 686,
   "population_engine": "recorded protocol scans of independent-v1/v2 (vulnerable and fixed pins); dev-php not run (missing)",
-  "sides_missing": 302,
+  "sides_missing": 4,
   "sides_recorded": {
-   "failed (read its input, asked no question)": 286,
-   "none": 6,
-   "ran": 92
+   "failed (read its input, asked no question)": 475,
+   "none": 8,
+   "ran": 199
   },
-  "status": "running in the background at commit time; unfinished sides are `missing` in the records, never zero"
+  "status": "finished 2026-10-01 16:30; the 4 sides of the 2 family-unknown pairs were not run (missing); features rebuilt after"
  },
  "features": {
   "instrument_states_plane": {
@@ -31,8 +31,8 @@
     "not_applicable": 26
    },
    "access_control:engine": {
-    "missing": 6,
-    "ran": 20
+    "failed": 1,
+    "ran": 25
    },
    "access_control:entry_points": {
     "not_applicable": 26
@@ -146,10 +146,10 @@
     "not_applicable": 168
    },
    "injection:engine": {
-    "failed": 22,
-    "missing": 78,
+    "failed": 35,
+    "missing": 44,
     "none": 16,
-    "ran": 52
+    "ran": 73
    },
    "injection:entry_points": {
     "not_applicable": 70,
@@ -192,8 +192,7 @@
     "not_applicable": 346
    },
    "memory:engine": {
-    "failed": 116,
-    "missing": 218,
+    "failed": 334,
     "none": 6,
     "ran": 6
    },
@@ -230,9 +229,8 @@
     "not_applicable": 112
    },
    "output_encoding:engine": {
-    "failed": 24,
-    "missing": 82,
-    "ran": 6
+    "failed": 26,
+    "ran": 86
    },
    "output_encoding:entry_points": {
     "not_applicable": 112
@@ -267,9 +265,9 @@
     "not_applicable": 29
    },
    "path:engine": {
-    "failed": 22,
-    "missing": 5,
-    "ran": 2
+    "failed": 25,
+    "missing": 1,
+    "ran": 3
    },
    "path:entry_points": {
     "not_applicable": 28,
