@@ -52,7 +52,7 @@ a model or embedding call.
       `ousast learn memory embed`; scripted-client tests.
     - **(budget go-ahead)** embedding the store: ~5.0 M tokens, ~$0.10, ceiling $1 (OpenRouter account).
     - _Requirements: 3.2_
-  - [ ] 6.3 Retrieval and the evaluation boundary (no model)
+  - [x] 6.3 Retrieval and the evaluation boundary (no model)
     - `learn/retrieve.py`: per-instrument Gower distance with explicit missing, `n1 = 40`, embedding re-rank
       `r = lam(1 - D) + (1 - lam)cos`, `signals_only` mode, balance rule (`k_ret = 6`), `eligible(example, target,
       fold)`, near-duplicate drop in evaluation, deployment self-exclusion.

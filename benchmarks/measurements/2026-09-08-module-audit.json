@@ -1,7 +1,7 @@
 {
-  "modules": 147,
+  "modules": 149,
   "counts": {
-    "load_bearing": 140,
+    "load_bearing": 142,
     "standalone_capability": 7
   },
   "orphaned": [],
@@ -357,6 +357,8 @@
         "learn.examples",
         "learn.excerpt",
         "learn.features",
+        "learn.folds",
+        "learn.retrieve",
         "learn.roles",
         "plane.tasks.features",
         "plane.tasks.remember",
@@ -376,7 +378,8 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
-        "learn.cli"
+        "learn.cli",
+        "learn.retrieve"
       ]
     },
     {
@@ -384,7 +387,9 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
-        "learn.cli"
+        "learn.cli",
+        "learn.folds",
+        "learn.retrieve"
       ]
     },
     {
@@ -406,6 +411,14 @@
       ]
     },
     {
+      "module": "learn.folds",
+      "classification": "load_bearing",
+      "reason": "imported by learn.retrieve",
+      "importers": [
+        "learn.retrieve"
+      ]
+    },
+    {
       "module": "learn.labels",
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
@@ -413,8 +426,15 @@
         "cli",
         "learn.cli",
         "learn.examples",
-        "learn.excerpt"
+        "learn.excerpt",
+        "learn.retrieve"
       ]
+    },
+    {
+      "module": "learn.retrieve",
+      "classification": "load_bearing",
+      "reason": "learned-decision-engine Req 3.2/3.4: retrieval from the local memory and the evaluation boundary; the program (task 6.4) and `ousast learn compile` (6.5) are its callers",
+      "importers": []
     },
     {
       "module": "learn.roles",
@@ -432,6 +452,7 @@
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "learn.features",
+        "learn.retrieve",
         "learn.roles",
         "plane.tasks.remember",
         "plane.tasks.roles"

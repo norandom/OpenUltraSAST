@@ -73,6 +73,10 @@ SPEC_OWNED = {
         "learned-decision-engine Req 8.1: model role classification per file chunk (model_sinks.py moved in); "
         "its Run template comes with the harvest (task 5)"
     ),
+    "learn.retrieve": (
+        "learned-decision-engine Req 3.2/3.4: retrieval from the local memory and the evaluation boundary; "
+        "the program (task 6.4) and `ousast learn compile` (6.5) are its callers"
+    ),
     "plane.workspaces": "ai-service-plane task 4: Workspace manifests per case pin of a population; `ousast plane workspaces`",
     "plane.runner": "ai-service-plane Req 4.1-4.4: the ax-task-runner entrypoint (PID 1 of the task image); delivers the output directory",
 }
