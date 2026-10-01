@@ -38,7 +38,7 @@ a model or embedding call.
   - _Requirements: 1.1_
 
 - [ ] 6. Program, local memory and compilation (design sections 4-5)
-  - [ ] 6.1 Excerpts and the example store (no model)
+  - [x] 6.1 Excerpts and the example store (no model)
     - `learn/excerpt.py` (function span at the label's pin, bounds 80/4,000 for candidates and 40/2,000 for
       examples, numbered lines, no path/repository/commit, advisory ids and security wording in comments
       redacted, delta diff); `learn/examples.py` and `ousast learn memory build` (label + feature record +

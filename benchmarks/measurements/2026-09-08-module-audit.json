@@ -1,7 +1,7 @@
 {
-  "modules": 143,
+  "modules": 146,
   "counts": {
-    "load_bearing": 136,
+    "load_bearing": 139,
     "standalone_capability": 7
   },
   "orphaned": [],
@@ -352,6 +352,9 @@
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "cli",
+        "learn.cli",
+        "learn.examples",
+        "learn.excerpt",
         "learn.features",
         "learn.roles",
         "plane.tasks.features",
@@ -360,10 +363,35 @@
       ]
     },
     {
+      "module": "learn.cli",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
+        "cli"
+      ]
+    },
+    {
+      "module": "learn.examples",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
+        "learn.cli"
+      ]
+    },
+    {
+      "module": "learn.excerpt",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
+      "importers": [
+        "learn.examples"
+      ]
+    },
+    {
       "module": "learn.features",
       "classification": "load_bearing",
-      "reason": "imported by plane.tasks.features",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
+        "learn.excerpt",
         "plane.tasks.features"
       ]
     },
@@ -372,13 +400,16 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
-        "cli"
+        "cli",
+        "learn.cli",
+        "learn.examples",
+        "learn.excerpt"
       ]
     },
     {
       "module": "learn.roles",
       "classification": "load_bearing",
-      "reason": "imported by learn.features, plane.tasks.features, plane.tasks.roles",
+      "reason": "reachable from gate, map_gate, pair_gate or the CLI",
       "importers": [
         "learn.features",
         "plane.tasks.features",
@@ -706,6 +737,7 @@
         "improve",
         "improve.evolve",
         "improve.memory",
+        "learn.examples",
         "learn.labels",
         "model.candidates",
         "pair_gate",
@@ -719,6 +751,8 @@
       "importers": [
         "cli",
         "improve.memory",
+        "learn.cli",
+        "learn.examples",
         "plane.egress",
         "plane.engine_alerts",
         "plane.generate",
@@ -792,6 +826,8 @@
       "reason": "harnessx-removal Req 6.1/6.4: the memory store (file, MinIO), ingest and fact reuse; `ousast plane remember`",
       "importers": [
         "improve.memory",
+        "learn.cli",
+        "learn.examples",
         "plane.generate",
         "plane.tasks.loop",
         "plane.tasks.remember"
@@ -828,6 +864,7 @@
       "reason": "ai-service-plane Req 4.1: the task entrypoint package the runner imports by name; runner integration pending (task 3)",
       "importers": [
         "cli",
+        "learn.excerpt",
         "learn.features",
         "learn.labels",
         "learn.roles",
@@ -884,6 +921,7 @@
       "classification": "load_bearing",
       "reason": "ai-service-plane Req 5.1/5.2: source-only functions and callers per file; runner integration pending",
       "importers": [
+        "learn.excerpt",
         "learn.features",
         "learn.labels",
         "learn.roles",

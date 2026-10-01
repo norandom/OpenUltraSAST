@@ -44,6 +44,8 @@ from .harness import HarnessRuntime, HarnessTraceWriter, write_harness_config
 from .hunter import run_hunter_pool, write_hunter_trajectories
 from .improve import RoundOutcome, run_improvement
 from .index import build_code_chunks
+from .learn.cli import add_commands as add_learn_commands
+from .learn.cli import run as run_learn
 from .mapping import analyze_entry_points, attach_reachability_hints, ingest_sarif, write_entry_points, write_static_hints
 from .pair_gate import print_pair_metrics
 from .pairs import (
@@ -269,6 +271,7 @@ def _main(argv: list[str] | None) -> int:
     learn_labels.add_argument("--snapshot", type=Path, help="write the counts-only snapshot (the committable record) here")
     learn_labels.add_argument("--include-title", action="store_true", help="the title-tier pairs as well (a sensitivity arm)")
     learn_labels.add_argument("--no-assumed-benign", action="store_true", help="skip mining the assumed-benign history source")
+    add_learn_commands(learn_sub)
     plane = subparsers.add_parser("plane", help="maintainer: the ax-backed service plane on this host's kind cluster")
     plane_sub = plane.add_subparsers(dest="plane_command", required=True)
     plane_run = plane_sub.add_parser("run", help="execute a Run manifest on ax; a rerun skips done tasks")
@@ -440,7 +443,7 @@ def _main(argv: list[str] | None) -> int:
     if args.command == "plane":
         return _plane(args)
     if args.command == "learn":
-        return _learn_labels(args)
+        return _learn_labels(args) if args.learn_command == "labels" else run_learn(args)
     if args.command == "mcp":
         from .mcp import serve  # lazy: keeps the import cycle (mcp -> cli) one-directional
 

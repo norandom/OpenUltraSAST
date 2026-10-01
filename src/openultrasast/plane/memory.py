@@ -8,6 +8,8 @@ engine's own. Layout, identical for both backends::
     index.jsonl                               one row per ingested (run, task): sha256 of its rows, row count
     facts/<sha256>.json                       facts.json by content (identical facts stored once)
     repos/<host>__<owner>__<name>/<pin>.jsonl the rows of one repository + 40-hex pin, sorted by id
+    <prefix>/<sha256>.<ext>                   blobs (``put_blob``): excerpts/*.txt by content, embeddings/<model>/*.json
+                                              by excerpt sha, responses/*.json by request sha, programs/*.json
 
 ``OUSAST_MEMORY`` selects the backend: ``file:///path`` (:class:`FileStore`, default ``results_root()/memory``) or
 ``minio://<bucket>[/<prefix>]`` (:class:`MinioStore`, the ``minio`` extra). MinIO's endpoint and credentials come
@@ -51,11 +53,16 @@ POPULATION_ANNOTATION = "openultrasast.io/population"
 SPLIT_ANNOTATION = "openultrasast.io/split"
 SNAPSHOT_ANNOTATION = "openultrasast.io/memory-snapshot"  # the loop's guard: {"catalog", "manifest", "populations"}
 # The decision engine's kinds (learned-decision-engine, Data Models): `features` from the `features` task through
-# `remember`; `label`, `decision`, `experiment`, `arm_outcome` and `experiment_result` for the later tasks.
+# `remember`; `label`, `decision`, `experiment`, `arm_outcome` and `experiment_result` for the later tasks; `example`
+# (a labelled case of the local memory: label + feature record + excerpt sha) from `ousast learn memory build`.
 KINDS = (
     "facts", "verdict", "unit_cost", "alert", "coverage", "proposal_outcome",
-    "features", "label", "decision", "experiment", "arm_outcome", "experiment_result",
+    "features", "label", "decision", "experiment", "arm_outcome", "experiment_result", "example",
 )  # fmt: skip
+# Blobs (`put_blob`): a top-level prefix, optionally one sub-directory (`embeddings/<model-slug>`), and a 64-hex name.
+_BLOB_PREFIX = re.compile(r"[a-z]+(?:/[A-Za-z0-9._-]+)?")
+_BLOB_NAME = re.compile(r"[0-9a-f]{64}")
+BLOB_SUFFIX = {"excerpts": ".txt", "labels": ".jsonl"}  # every other prefix holds JSON
 ROW_FIELDS = ("id", "kind", "repo", "pin", "run", "task", "population", "split", "image")
 TAG_FIELDS = ("repo", "pin", "kind", "family", "run", "population", "split")
 MIN_FREE_BYTES = 1 << 30
@@ -110,6 +117,15 @@ def parse_memory_key(text: str) -> dict[str, str]:
     if not isinstance(key, dict) or set(key) != {"candidates", "image", "pin", "repo"}:
         raise ValueError(f"{MEMORY_KEY_ANNOTATION} must name candidates, image, pin and repo: {text[:200]!r}")
     return {k: str(v) for k, v in key.items()}
+
+
+def blob_key(prefix: str, name: str) -> str:
+    """The key of a blob: ``<prefix>/<name><suffix>``; a prefix or name outside the layout is refused."""
+    if not _BLOB_PREFIX.fullmatch(prefix) or ".." in prefix or prefix.split("/", 1)[0] in ("repos", "facts", "index.jsonl"):
+        raise MemoryStoreError(f"blob prefix {prefix!r} is not a blob prefix of the layout")
+    if not _BLOB_NAME.fullmatch(name):
+        raise MemoryStoreError(f"blob name {name!r} is not a 64-hex sha256")
+    return f"{prefix}/{name}{BLOB_SUFFIX.get(prefix.split('/', 1)[0], '.json')}"
 
 
 def validate_row(row: object, where: str = "row") -> dict[str, Any]:
@@ -235,6 +251,20 @@ class MemoryStore(ABC):
             return None
         return found[0]
 
+    def get_blob(self, prefix: str, name: str, *, verify: bool = True) -> bytes | None:
+        """The blob ``<prefix>/<name>``. With ``verify`` (a content-addressed blob) one whose content no longer hashes
+        to its name is dropped with a warning and reported absent; keyed blobs (an embedding by its excerpt's sha, a
+        response by its request's sha) pass ``verify=False``."""
+        key = blob_key(prefix, name)
+        found = self._get(key)
+        if found is None:
+            return None
+        if verify and hashlib.sha256(found[0]).hexdigest() != name:
+            log.warning("memory %s: %s no longer matches its sha256; dropped", self.describe(), key)
+            self._delete(key)
+            return None
+        return found[0]
+
     def rows(
         self, repo: str | None = None, pin: str | None = None, kind: str | None = None, where: Mapping[str, Any] | None = None
     ) -> list[Record]:
@@ -259,6 +289,23 @@ class MemoryStore(ABC):
             self._check_space()
             self._put(key, data)
         return sha
+
+    def put_blob(self, prefix: str, data: bytes, *, name: str | None = None) -> str:
+        """Store ``data`` under ``<prefix>/<sha256(data)>`` (content-addressed; identical data stored once) or under
+        ``name`` when the blob is keyed by something else (the excerpt an embedding is of). A blob already present is
+        not rewritten: a key names one content. Returns the name."""
+        name = name or hashlib.sha256(data).hexdigest()
+        key = blob_key(prefix, name)
+        if self._get(key) is None:
+            self._check_space()
+            self._put(key, data)
+        return name
+
+    def blob_names(self, prefix: str) -> list[str]:
+        """The names of the blobs under ``prefix``, sorted."""
+        blob_key(prefix, "0" * 64)
+        suffix = BLOB_SUFFIX.get(prefix.split("/", 1)[0], ".json")
+        return sorted(k.rsplit("/", 1)[1].removesuffix(suffix) for k in self._keys(prefix + "/") if k.count("/") == prefix.count("/") + 1)
 
     def put_row(self, row: Mapping[str, Any]) -> None:
         self.put_rows([row])
