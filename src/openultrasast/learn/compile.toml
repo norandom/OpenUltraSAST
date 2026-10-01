@@ -1,0 +1,44 @@
+# The pre-registered compile specification of the decision engine's program (learned-decision-engine design 4.3).
+# Committed before any compile runs: the metric, the seeds, the search space and the budget are fixed here, and the
+# compiled artifact records this file's sha256. Changing anything below after looking at a result is a new spec.
+version = 1
+seed = 0
+
+[metric]
+name = "balanced_brier_v1"   # Brier score of the raw score s on C_val, each (family, label) cell weighted equally
+repository_cap = 5           # each repository counts at most 5 effective rows per cell
+unsure_score = 0.5           # unsure and parse_failed answers score as s = 0.5
+tie_tolerance = 0.005        # within this, fewer prompt tokens wins, then the earlier configuration
+secondary = ["recall_at_precision_0.90", "unsure_share"]   # reported, never optimised
+
+[split]
+compile_fraction = 0.25      # of the repository groups, per primary family; never an evaluation fold
+boot_fraction = 0.6          # C_boot (demonstrations) vs C_val (scoring)
+retrieval = "compile_only"   # during the compile, memory is the compile split only: no evaluated group shapes it
+
+[bootstrap]
+max_candidates = 150
+min_confidence = 0.7
+demo_sets = 4
+demos_per_set = 3            # one positive, one negative, one of either; families mixed
+
+[search]
+proposals = 6                # instructions proposed in one call, scored with the hand-written baseline (7)
+errors_shown = 20            # summarised bootstrap errors in the proposal prompt (signals and verdicts, no code)
+val_candidates = 60
+
+[classify]
+model = "deepseek-flash"
+k = 1                        # k and lam are A/B variants (design section 6), not searched here
+max_output_tokens = 300
+
+[retrieval]
+n1 = 40
+k = 6
+lam = 0.5
+near_duplicate_cos = 0.98
+priors = "off"
+
+[budget]
+usd = 3.0                    # a compile that reaches it is `unfinished` and writes no artifact
+calls = 1200

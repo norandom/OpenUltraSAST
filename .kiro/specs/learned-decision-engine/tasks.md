@@ -69,7 +69,7 @@ a model or embedding call.
     - Tests: `test_learn_program.py` (no `EXCLUDED_FIELDS` in prompts, prefix identity, parsing, `unsure` cannot
       BLOCK, budget ceiling, replay).
     - _Requirements: 3.1, 3.3_
-  - [ ] 6.5 Compile, calibrate, evaluate (no model in tests)
+  - [x] 6.5 Compile, calibrate, evaluate (no model in tests)
     - `learn/compile.toml` (pre-registered metric: balanced Brier score; seeds; budget), `learn/compile.py`
       (bootstrap few-shot on `C_boot`, 6 proposed + baseline instructions scored on `C_val`, 4 demonstration sets,
       alternates for leave-one-framework-out, artifact `programs/<sha>.json`), `learn/calibrate.py` (cross-fitted
