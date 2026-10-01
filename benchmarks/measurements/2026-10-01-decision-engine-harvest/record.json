@@ -1,0 +1,475 @@
+{
+ "balance_usd": {
+  "after_roles": 18.23,
+  "after_verify": 18.75,
+  "before": 19.63
+ },
+ "ceilings_usd": {
+  "roles": 10.0,
+  "verify": 10.0
+ },
+ "created": "2026-10-01",
+ "engine": {
+  "frozen_source_commit": "e6ed7854bb8ef17d6a4c39971ea253b4e385af23",
+  "image": "openultrasast:dev sha256:e6f8dc6cc7547f7118bd058687de676e0fcf741799d1d3839b3e8648ce190fbb",
+  "pair_sides_total": 686,
+  "population_engine": "recorded protocol scans of independent-v1/v2 (vulnerable and fixed pins); dev-php not run (missing)",
+  "sides_missing": 4,
+  "sides_recorded": {
+   "failed (read its input, asked no question)": 475,
+   "none": 8,
+   "ran": 199
+  },
+  "status": "finished 2026-10-01 16:30; the 4 sides of the 2 family-unknown pairs were not run (missing); features rebuilt after"
+ },
+ "features": {
+  "instrument_states_plane": {
+   "access_control:agree": {
+    "none": 26
+   },
+   "access_control:delta": {
+    "not_applicable": 26
+   },
+   "access_control:engine": {
+    "failed": 1,
+    "ran": 25
+   },
+   "access_control:entry_points": {
+    "not_applicable": 26
+   },
+   "access_control:facts": {
+    "not_applicable": 26
+   },
+   "access_control:language": {
+    "ran": 26
+   },
+   "access_control:model_sinks": {
+    "ran": 26
+   },
+   "access_control:quick": {
+    "ran": 26
+   },
+   "access_control:roles": {
+    "failed": 13,
+    "ran": 13
+   },
+   "access_control:source": {
+    "failed": 13,
+    "ran": 13
+   },
+   "access_control:verify": {
+    "none": 26
+   },
+   "config_secrets:agree": {
+    "none": 4,
+    "ran": 31
+   },
+   "config_secrets:delta": {
+    "not_applicable": 35
+   },
+   "config_secrets:engine": {
+    "missing": 4,
+    "none": 23,
+    "ran": 8
+   },
+   "config_secrets:entry_points": {
+    "not_applicable": 8,
+    "ran": 27
+   },
+   "config_secrets:facts": {
+    "not_applicable": 8,
+    "ran": 27
+   },
+   "config_secrets:language": {
+    "ran": 35
+   },
+   "config_secrets:model_sinks": {
+    "ran": 35
+   },
+   "config_secrets:quick": {
+    "ran": 35
+   },
+   "config_secrets:roles": {
+    "failed": 14,
+    "ran": 21
+   },
+   "config_secrets:source": {
+    "failed": 4,
+    "ran": 31
+   },
+   "config_secrets:verify": {
+    "none": 4,
+    "ran": 31
+   },
+   "deserialization:agree": {
+    "none": 40
+   },
+   "deserialization:delta": {
+    "not_applicable": 40
+   },
+   "deserialization:engine": {
+    "failed": 21,
+    "ran": 19
+   },
+   "deserialization:entry_points": {
+    "not_applicable": 40
+   },
+   "deserialization:facts": {
+    "not_applicable": 40
+   },
+   "deserialization:language": {
+    "ran": 40
+   },
+   "deserialization:model_sinks": {
+    "ran": 40
+   },
+   "deserialization:quick": {
+    "ran": 40
+   },
+   "deserialization:roles": {
+    "failed": 20,
+    "ran": 20
+   },
+   "deserialization:source": {
+    "failed": 20,
+    "ran": 20
+   },
+   "deserialization:verify": {
+    "none": 40
+   },
+   "injection:agree": {
+    "missing": 4,
+    "none": 25,
+    "ran": 139
+   },
+   "injection:delta": {
+    "not_applicable": 168
+   },
+   "injection:engine": {
+    "failed": 35,
+    "missing": 44,
+    "none": 16,
+    "ran": 73
+   },
+   "injection:entry_points": {
+    "not_applicable": 70,
+    "ran": 98
+   },
+   "injection:facts": {
+    "not_applicable": 70,
+    "ran": 98
+   },
+   "injection:language": {
+    "ran": 168
+   },
+   "injection:model_sinks": {
+    "missing": 4,
+    "ran": 164
+   },
+   "injection:quick": {
+    "none": 2,
+    "ran": 166
+   },
+   "injection:roles": {
+    "failed": 44,
+    "none": 2,
+    "ran": 122
+   },
+   "injection:source": {
+    "failed": 36,
+    "none": 2,
+    "ran": 130
+   },
+   "injection:verify": {
+    "missing": 4,
+    "none": 25,
+    "ran": 139
+   },
+   "memory:agree": {
+    "none": 346
+   },
+   "memory:delta": {
+    "not_applicable": 346
+   },
+   "memory:engine": {
+    "failed": 334,
+    "none": 6,
+    "ran": 6
+   },
+   "memory:entry_points": {
+    "not_applicable": 346
+   },
+   "memory:facts": {
+    "not_applicable": 346
+   },
+   "memory:language": {
+    "ran": 346
+   },
+   "memory:model_sinks": {
+    "missing": 4,
+    "ran": 342
+   },
+   "memory:quick": {
+    "none": 4,
+    "ran": 342
+   },
+   "memory:roles": {
+    "none": 346
+   },
+   "memory:source": {
+    "none": 346
+   },
+   "memory:verify": {
+    "none": 346
+   },
+   "output_encoding:agree": {
+    "none": 112
+   },
+   "output_encoding:delta": {
+    "not_applicable": 112
+   },
+   "output_encoding:engine": {
+    "failed": 26,
+    "ran": 86
+   },
+   "output_encoding:entry_points": {
+    "not_applicable": 112
+   },
+   "output_encoding:facts": {
+    "not_applicable": 112
+   },
+   "output_encoding:language": {
+    "ran": 112
+   },
+   "output_encoding:model_sinks": {
+    "ran": 112
+   },
+   "output_encoding:quick": {
+    "ran": 112
+   },
+   "output_encoding:roles": {
+    "failed": 16,
+    "ran": 96
+   },
+   "output_encoding:source": {
+    "failed": 16,
+    "ran": 96
+   },
+   "output_encoding:verify": {
+    "none": 112
+   },
+   "path:agree": {
+    "none": 29
+   },
+   "path:delta": {
+    "not_applicable": 29
+   },
+   "path:engine": {
+    "failed": 25,
+    "missing": 1,
+    "ran": 3
+   },
+   "path:entry_points": {
+    "not_applicable": 28,
+    "ran": 1
+   },
+   "path:facts": {
+    "not_applicable": 28,
+    "ran": 1
+   },
+   "path:language": {
+    "ran": 29
+   },
+   "path:model_sinks": {
+    "ran": 29
+   },
+   "path:quick": {
+    "ran": 29
+   },
+   "path:roles": {
+    "failed": 15,
+    "ran": 14
+   },
+   "path:source": {
+    "failed": 15,
+    "ran": 14
+   },
+   "path:verify": {
+    "none": 29
+   },
+   "unknown:agree": {
+    "none": 4
+   },
+   "unknown:delta": {
+    "not_applicable": 4
+   },
+   "unknown:engine": {
+    "missing": 2,
+    "none": 2
+   },
+   "unknown:entry_points": {
+    "not_applicable": 4
+   },
+   "unknown:facts": {
+    "not_applicable": 4
+   },
+   "unknown:language": {
+    "ran": 4
+   },
+   "unknown:model_sinks": {
+    "ran": 4
+   },
+   "unknown:quick": {
+    "ran": 4
+   },
+   "unknown:roles": {
+    "none": 4
+   },
+   "unknown:source": {
+    "none": 4
+   },
+   "unknown:verify": {
+    "none": 4
+   },
+   "untrusted_destination:agree": {
+    "none": 11,
+    "ran": 85
+   },
+   "untrusted_destination:delta": {
+    "not_applicable": 96
+   },
+   "untrusted_destination:engine": {
+    "failed": 38,
+    "missing": 12,
+    "none": 17,
+    "ran": 29
+   },
+   "untrusted_destination:entry_points": {
+    "not_applicable": 52,
+    "ran": 44
+   },
+   "untrusted_destination:facts": {
+    "not_applicable": 52,
+    "ran": 44
+   },
+   "untrusted_destination:language": {
+    "ran": 96
+   },
+   "untrusted_destination:model_sinks": {
+    "ran": 96
+   },
+   "untrusted_destination:quick": {
+    "ran": 96
+   },
+   "untrusted_destination:roles": {
+    "failed": 39,
+    "ran": 57
+   },
+   "untrusted_destination:source": {
+    "failed": 33,
+    "ran": 63
+   },
+   "untrusted_destination:verify": {
+    "none": 11,
+    "ran": 85
+   }
+  },
+  "records": {
+   "plane:access_control": 26,
+   "plane:config_secrets": 35,
+   "plane:deserialization": 40,
+   "plane:injection": 168,
+   "plane:memory": 346,
+   "plane:output_encoding": 112,
+   "plane:path": 29,
+   "plane:unknown": 4,
+   "plane:untrusted_destination": 96,
+   "static:access_control": 26,
+   "static:config_secrets": 35,
+   "static:deserialization": 40,
+   "static:injection": 168,
+   "static:memory": 346,
+   "static:output_encoding": 112,
+   "static:path": 29,
+   "static:unknown": 4,
+   "static:untrusted_destination": 96
+  },
+  "skipped_label_rows": {},
+  "store": "file://~/ousast-results/plane/memory (kind features, run harvest)"
+ },
+ "host_peaks": {
+  "disk_free_mb_min": 960,
+  "disk_incident": "Substrate kept every golden actor (~24 MB each, deletion failing on a missing snapshot bucket); free disk fell to 0.95 GB, runs were stopped, the bucket created and orphaned actor directories removed",
+  "mem_available_mb_min": 1990
+ },
+ "label_snapshot_sha256": "18337014d8a5c8df67e06f4e9d8e72c1fb8f82b1ed1b9a18836ab37e6cf4fdc9",
+ "note": "Harvest of the learned decision engine (task 5), COUNTS ONLY. Spend is the plane's attribution table (`ousast plane status`, task meters priced at plane/models/deepseek-flash.yaml); the DeepSeek account moved less (balance below). Feature records are in the local memory store (kind `features`, run `harvest`); the label rows, the units index and the manifests name functions and stay local.",
+ "roles": {
+  "attribution": {
+   "cache_hit_tokens": null,
+   "calls": 1034,
+   "output_tokens": null,
+   "prompt_tokens": null,
+   "usd": 1.4036
+  },
+  "cache_hit_tokens": 329600,
+  "chunks": 1034,
+  "files": 799,
+  "output_tokens": 370155,
+  "prompt_tokens": 2398669,
+  "task_budget_sum_usd": 4.917,
+  "tasks_done": 151,
+  "unclassified_chunks": 0
+ },
+ "runner_image": "localhost:5001/ousast-runner@sha256:412db0a1504af8f1b23a395af8d1dcbd152c1bb6d16594f2b733067163a31884",
+ "verify": {
+  "attribution": {
+   "cache_hit_tokens": 6275060,
+   "calls": 1961,
+   "output_tokens": 306941,
+   "prompt_tokens": 10921167,
+   "usd": 2.5373
+  },
+  "file_hunts_done": 364,
+  "flagged_by_pass_units": {
+   "dev-php:vulnerable": {
+    "both": 2
+   },
+   "pairs:fixed": {
+    "both": 4,
+    "none": 58,
+    "one": 1
+   },
+   "pairs:vulnerable": {
+    "both": 45,
+    "none": 11,
+    "one": 7
+   },
+   "population-v1:fixed": {
+    "both": 5,
+    "none": 2,
+    "one": 4
+   },
+   "population-v1:vulnerable": {
+    "both": 8,
+    "none": 2,
+    "one": 1
+   }
+  },
+  "hunts_per_pass": 182,
+  "infrastructure_failures": "ax apply / actor template not found for Workspaces over the inline limit (units then skipped); two tasks interrupted by a disk stop were re-run",
+  "skipped_units": {
+   "pairs": 4,
+   "reason": "excerpt over the 20 KB inline Workspace limit"
+  },
+  "task_budget_sum_usd": 8.624,
+  "tasks_done": 474,
+  "units": {
+   "dev-php:vulnerable": 2,
+   "pairs:fixed": 63,
+   "pairs:vulnerable": 63,
+   "population-v1:fixed": 11,
+   "population-v1:vulnerable": 11
+  }
+ }
+}

@@ -1,0 +1,22 @@
+# roles (learned-decision-engine design section 2, Req 8.1): the model reads a repository's source files and names
+# their roles (sink, source, sanitizer, guard, dispatch), no vocabulary and no framework table. Bound to its Model by
+# the `openultrasast.io/model` annotation, which the reconciler strips and renders as OUSAST_MODEL /
+# OUSAST_MODEL_PARAMS. The template of the per-pin Tasks of a harvest Run (`ousast plane harvest`), which name the
+# files to classify as OUSAST_INPUT_FILES. The image is digest-pinned.
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata:
+  name: roles
+  atespace: default
+  annotations:
+    openultrasast.io/model: deepseek-flash
+spec:
+  image: "localhost:5001/ousast-runner@sha256:412db0a1504af8f1b23a395af8d1dcbd152c1bb6d16594f2b733067163a31884"
+  command: ["roles"]
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "384Mi"
+    limits:
+      cpu: "1"
+      memory: "1Gi"

@@ -254,7 +254,9 @@ def function_span(lines: Sequence[str], language: str, function: str) -> int | N
 
 
 def source_part(lines: Sequence[str] | None, language: str, function: str) -> Part:
-    if lines is None:
+    """The function's span; ``none`` without the file or a declaration pattern for its language (C, say: no coverage,
+    not a failure), ``failed`` when a covered file does not declare the function."""
+    if lines is None or (function != GLOBAL and language not in DECLARATION):
         return NONE
     span = function_span(lines, language, function)
     return Part("ran", {"facts.function_lines": span}) if span is not None else Part("failed")
@@ -294,8 +296,9 @@ def agree_part(final: str | None) -> Part:
 
 def roles_part(function: Function | None, roles: RoleSet | None, language: str) -> Part:
     """The deterministic roles of the candidate's function (language-level entries plus wrapper inference; priors
-    off): ``none`` when inference did not run, ``failed`` when the function's body could not be found."""
-    if roles is None or "inferred_wrapper" not in roles.sources:
+    off): ``none`` when inference did not run or cannot read the language's declarations, ``failed`` when the
+    function's body could not be found."""
+    if roles is None or "inferred_wrapper" not in roles.sources or language not in DECLARATION:
         return NONE
     if function is None:
         return Part("failed", version=VERSION)

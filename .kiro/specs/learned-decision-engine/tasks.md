@@ -31,10 +31,13 @@ a model or embedding call.
     commits (separate, never merged); a first label snapshot committed as counts only.
   - _Requirements: 2.1, 2.2, 2.3, 7.1_
 
-- [ ] 5. Harvest (in progress)
+- [x] 5. Harvest (needs budget go-ahead)
   - A plane Run of verify a/b on the verify-family pairs and development cases (~$6, ceiling $10), model roles on
     the candidate files (ceiling $10), engine features for the pair corpus on the host (frozen source, one
     container at a time, background).
+  - Done 2026-10-01 (`benchmarks/measurements/2026-10-01-decision-engine-harvest/record.json`): verify $2.54 and roles
+    $1.40 by attribution. The engine job finished the same day (682 of 686 pair sides; the 2 family-unknown pairs
+    not run) and the feature records were rebuilt; dev-php pins have no engine run (`missing`).
   - _Requirements: 1.1_
 
 - [ ] 6. Program, local memory and compilation (design sections 4-5)

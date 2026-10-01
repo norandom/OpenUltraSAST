@@ -41,6 +41,13 @@ afterwards (`go clean -cache -modcache`); rerunning the full Substrate install o
   only; the gateway dials the address the actor connected to, so the receiver is a Service dialled by ClusterIP
   with its name as Host. The Envoy gateway needs a Rust build; the agentgateway variant needs none.
 - Apply a Task after the Workspaces it binds; ax copies them at create time.
+- Every Task is its own actor template with a golden actor (~24 MB under `/var/lib/ate/actors` on the node). Deleting
+  them failed while the snapshot bucket ax's templates name (`dberkov-gke-dev3`, from `AX_SNAPSHOTS_BUCKET`) did not
+  exist in rustfs: golden actors piled up in `DELETING` and filled the disk during a 600-task harvest (2026-10-01).
+  Create that bucket in rustfs (an aws-cli pod with the `rustfs-bucket-init` env); even then a deleted actor's
+  directory stays on the node, so long Runs need a janitor that removes directories no live actor owns.
+- A Workspace's `files` reach the actor inline in one environment variable: above ~20 KB of content the template
+  fails with "actor template not found" (an 86 KB and a 31 KB excerpt did; 7 KB ran).
 
 ## Moving to a separate Kubernetes cluster (planned)
 
