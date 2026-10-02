@@ -1,0 +1,61 @@
+#!/bin/sh
+# OpenUltraSAST in Docker, callable from a Git hook. A script, not a shell function: Git runs
+# hooks non-interactively and never sees functions from ~/.bashrc.
+#
+#   OUSAST_COMMAND=/path/to/ousast-docker git push      # or: ousast pre-push install --docker
+#
+# The repository is mounted READ-ONLY at its own absolute path and the artifact directory
+# read-write at its own path, so every path in the arguments and in the output ("Details: ...")
+# means the same thing inside and outside the container. The push input on stdin is passed
+# through (-i). The container runs as your user, with no network and --memory 3g.
+#
+# Advisory like the hook: when Docker or the image is missing, it says the check did not run
+# and exits 0. Pull the image once first; a hook never downloads ~3 GB on its own:
+#
+#   docker pull ghcr.io/norandom/openultrasast:2.0.1
+#
+# --engine background does not work through this wrapper: the container ends with the hook.
+image=${OUSAST_IMAGE:-ghcr.io/norandom/openultrasast:2.0.1}
+if ! command -v docker >/dev/null 2>&1; then
+    echo "ousast-docker: check did not run: docker is not installed. Push continues."
+    exit 0
+fi
+if ! docker image inspect "$image" >/dev/null 2>&1; then
+    echo "ousast-docker: check did not run: image $image is not present." \
+        "Run 'docker pull $image' once. Push continues."
+    exit 0
+fi
+repo=$(pwd -P)
+artifact_dir=${OUSAST_ARTIFACT_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/openultrasast/push}
+previous=
+for argument in "$@"; do
+    if [ "$previous" = "--artifact" ]; then
+        artifact_dir=$(dirname -- "$argument")
+    fi
+    previous=$argument
+done
+mkdir -p -- "$artifact_dir" || exit 0
+artifact_dir=$(cd -- "$artifact_dir" && pwd -P)
+# A linked worktree keeps its objects in the main repository's git directory: mount that too.
+common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo "$repo/.git")
+case "$common" in
+    "$repo"/*) extra_mount= ;;
+    *) extra_mount="-v $common:$common:ro" ;;
+esac
+# shellcheck disable=SC2086 # OUSAST_DOCKER_ARGS and extra_mount are deliberately word-split
+docker run --rm -i --network none --memory "${OUSAST_DOCKER_MEMORY:-3g}" \
+    --user "$(id -u):$(id -g)" -e HOME=/tmp -e TMPDIR=/work --tmpfs /work:size=4g \
+    -v "$repo:$repo:ro" -w "$repo" -v "$artifact_dir:$artifact_dir" $extra_mount \
+    ${OUSAST_DOCKER_ARGS:-} "$image" "$@"
+status=$?
+if [ "$status" -ge 125 ]; then
+    echo "ousast-docker: check did not run: the container could not start (docker exit $status). Push continues."
+    exit 0
+fi
+# Only an explicit blocking opt-in may turn the container's exit into a rejected push; an older
+# image that rejects a newer argument must not block either.
+if [ "$status" -ne 0 ] && [ "${OUSAST_PUSH_MODE:-advisory}" != blocking ]; then
+    echo "ousast-docker: the check exited with status $status; push continues (advisory)."
+    exit 0
+fi
+exit "$status"

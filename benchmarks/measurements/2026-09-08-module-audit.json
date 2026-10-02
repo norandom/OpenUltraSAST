@@ -1,7 +1,7 @@
 {
-  "modules": 154,
+  "modules": 155,
   "counts": {
-    "load_bearing": 149,
+    "load_bearing": 150,
     "standalone_capability": 5
   },
   "orphaned": [],
@@ -1260,6 +1260,14 @@
       "importers": [
         "push.report",
         "push.runner"
+      ]
+    },
+    {
+      "module": "push.install",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate, cli",
+      "importers": [
+        "cli"
       ]
     },
     {

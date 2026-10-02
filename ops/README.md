@@ -291,12 +291,19 @@ The default capability registry is empty pending independent qualification. Inst
 this interface does not make the project rollout-ready. Advisory is the default;
 blocking and strict incomplete-coverage handling are separate explicit choices.
 
-Put the installed `ousast` executable on the Git process's PATH. From this tool's
-checkout, explicitly install into the desired repository:
+The supported install is `ousast pre-push install [REPO] [--force] [--docker]`, shipped in
+the wheel; `ousast pre-push uninstall [REPO]` removes it. The first-run guide, settings, skip
+reasons and a CI recipe are in [Scanning](../scanning.md#first-run-install-the-hook-on-any-repository).
+If `ousast` is not on the Git process's PATH, the hook prints one line and lets the push through.
+From this tool's checkout, the script installer remains available:
 
 ```sh
 ops/install-pre-push /absolute/path/to/repository
 ```
+
+`ops/ousast-docker` is the hook-callable Docker wrapper (`OUSAST_COMMAND=/path/to/ops/ousast-docker`,
+or installed beside the hook by `--docker`). It is a script, not a shell function, so Git can run
+it. It passes the push input through and mounts the artifact directory at its own path.
 
 The installer resolves Git's effective hook directory (including `core.hooksPath`),
 leaves that configuration untouched, and refuses to overwrite any existing hook.

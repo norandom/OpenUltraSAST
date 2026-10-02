@@ -58,6 +58,13 @@ uv run ousast scan . --mode quick --fail-on verified   # CI: exit 1 on any evide
 This runs the language-scoped pattern rules, entry-point reachability hints, ranking,
 verification and scoring. It is deterministic and reproducible. It needs no network and no keys.
 
+The same install gives you the advisory pre-push hook for any repository. It runs the quick rules
+on the lines a push changes, names every check it could not run, and never blocks a push:
+
+```bash
+cd /path/to/your/repository && ousast pre-push install    # remove: ousast pre-push uninstall
+```
+
 What it cannot do:
 
 - There is no engine. Nothing follows a value across statements or files.
@@ -70,12 +77,20 @@ the overlay.
 
 ### Tier 2: standard and deep scans (Docker)
 
-`standard` and `deep` need Joern. The Docker image `openultrasast:dev` ships three things in one
-image: the tool, Joern v4.0.625 and `php-cli` (the PHP frontend needs it). You build it locally
-from the `Dockerfile`; there is no published image yet. It is big: a JRE plus about 2 GB of Joern.
+`standard` and `deep` need Joern. The Docker image ships three things in one image: the tool,
+Joern v4.0.625 and `php-cli` (the PHP frontend needs it). Each release publishes it to GHCR. It is
+big: a JRE plus about 2 GB of Joern. Pull it instead of building, and tag it with the name the
+shell wrapper uses:
 
-The shell wrapper builds the image on first use. Then it runs `ousast` in the container. Your
-directory is mounted read-only and the container network is off.
+```bash
+docker pull ghcr.io/norandom/openultrasast:2.0.1
+docker tag ghcr.io/norandom/openultrasast:2.0.1 openultrasast:dev   # or build: docker compose build
+```
+
+The shell wrapper runs `ousast` in the container. It builds the image only if `openultrasast:dev`
+is missing. Your directory is mounted read-only and the container network is off. For the pre-push
+hook, use `ousast pre-push install --docker`: Git cannot call a shell function, so it installs the
+script `ousast-docker` beside the hook.
 
 ```bash
 source /path/to/OpenUltraSAST/ops/shell/ousast.sh   # PowerShell: ops/shell/ousast.ps1
@@ -158,8 +173,11 @@ loads settings. Every run writes these files under `<target>/.openultrasast/runs
 and `trace/events.jsonl`.
 
 `ousast pre-push` (experimental) analyses the commits a push would publish against their base.
-Only new or worsened defects become candidates. It is advisory by default. Its capability registry
-is empty, so it emits no normal alert today.
+First, the quick rules run on the changed lines. Then the engine compares head with base, and only
+new or worsened defects become candidates. It is advisory by default, and it prints one line per
+check it could not run. Its capability registry is empty, so it emits no normal alert today. An
+engine finding the push introduced is shown as advisory. Install, settings, skip reasons and a CI
+recipe: [docs/scanning.md](docs/scanning.md#first-run-install-the-hook-on-any-repository).
 
 Flows and the per-language rule table: [docs/scanning.md](docs/scanning.md).
 

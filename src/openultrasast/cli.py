@@ -132,28 +132,71 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _main(argv: list[str] | None) -> int:
-    if (argv if argv is not None else sys.argv[1:])[:1] != ["pre-push"]:
+    given = list(argv if argv is not None else sys.argv[1:])
+    if given[:1] == ["pre-push"] and given[1:2] in (["install"], ["uninstall"]):
+        return _hook_install(given[1], given[2:])
+    if given[:1] != ["pre-push"]:
         load_dotenv()
     parser = argparse.ArgumentParser(prog="ousast")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    replay_parser = subparsers.add_parser("pre-push", help="check Git push input or replay local revisions (experimental)")
-    replay_parser.add_argument("path", type=Path)
-    replay_parser.add_argument("--base")
-    replay_parser.add_argument("--head")
-    replay_parser.add_argument("--remote", nargs=2, metavar=("NAME", "URL"))
-    replay_parser.add_argument("--comparison-base")
+    replay_parser = subparsers.add_parser(
+        "pre-push",
+        help="check Git push input or replay local revisions (experimental, advisory)",
+        description="Check what a push changes: quick rules on the changed lines, then the Joern engine on head and base "
+        "within one deadline. Advisory: exit 0 unless --mode blocking. Install the Git hook with "
+        "'ousast pre-push install [REPO] [--force] [--docker]'; remove it with 'ousast pre-push uninstall [REPO]'.",
+    )
+    replay_parser.add_argument("path", type=Path, help="the repository to check (the hook passes '.')")
+    replay_parser.add_argument("--base", help="explicit replay: the base revision (with --head; instead of --remote)")
+    replay_parser.add_argument("--head", help="explicit replay: the head revision to check against --base")
+    replay_parser.add_argument(
+        "--remote",
+        nargs=2,
+        metavar=("NAME", "URL"),
+        help="Git hook mode: the remote name and URL Git passes to pre-push; the push input is read from stdin",
+    )
+    replay_parser.add_argument(
+        "--comparison-base",
+        help="hook mode: a local ref to compare a NEW branch against (the remote has no base for it); "
+        "the hook reads OUSAST_COMPARISON_BASE",
+    )
     replay_parser.add_argument("--model-config", type=Path, help="explicit optional witness selection endpoint configuration")
     replay_parser.add_argument("--prior-hook", type=Path, help="explicitly chain an existing hook with the same input and arguments")
-    replay_parser.add_argument("--artifact", type=Path, required=True)
+    replay_parser.add_argument(
+        "--artifact", type=Path, required=True, help="where to write the complete JSON result; must be outside the repository"
+    )
     replay_parser.add_argument(
         "--cache-dir", type=Path, help="reuse compatible local artifacts in a private directory outside the repository"
     )
-    replay_parser.add_argument("--deadline", type=float, default=30.0)
-    replay_parser.add_argument("--cancellation-allowance", type=float, default=2.0)
-    replay_parser.add_argument("--max-regions", type=int, default=500)
-    replay_parser.add_argument("--mode", choices=("advisory", "blocking"), default="advisory")
-    replay_parser.add_argument("--incomplete-coverage", choices=("allow", "block"), default="allow")
+    replay_parser.add_argument(
+        "--deadline",
+        type=float,
+        default=30.0,
+        help="seconds for the whole check: resolution, quick rules, engine and reporting (default 30; hook: OUSAST_PUSH_DEADLINE)",
+    )
+    replay_parser.add_argument(
+        "--cancellation-allowance",
+        type=float,
+        default=2.0,
+        help="seconds after the deadline to stop work and save the result (default 2)",
+    )
+    replay_parser.add_argument(
+        "--max-regions", type=int, default=500, help="most code regions the engine examines, highest-ranked first (default 500)"
+    )
+    replay_parser.add_argument(
+        "--mode",
+        choices=("advisory", "blocking"),
+        default="advisory",
+        help="advisory (default) never blocks; blocking is the explicit opt-in that rejects a push for an admitted "
+        "alert (hook: OUSAST_PUSH_MODE)",
+    )
+    replay_parser.add_argument(
+        "--incomplete-coverage",
+        choices=("allow", "block"),
+        default="allow",
+        help="with --mode blocking only: also block when coverage is incomplete (hook: OUSAST_INCOMPLETE_COVERAGE)",
+    )
     replay_parser.add_argument(
         "--engine",
         choices=("inline", "background", "off"),
@@ -419,6 +462,45 @@ def _main(argv: list[str] | None) -> int:
 
         return serve()
     return 2
+
+
+def _hook_install(action: str, argv: list[str]) -> int:
+    """`ousast pre-push install|uninstall [REPO]` from the hook shipped in the package (task 17.6)."""
+    from .push.install import install, uninstall
+
+    parser = argparse.ArgumentParser(
+        prog=f"ousast pre-push {action}",
+        description="Install the advisory OpenUltraSAST pre-push hook into a repository's effective hook directory "
+        "(core.hooksPath is honoured, never edited)."
+        if action == "install"
+        else "Remove the OpenUltraSAST pre-push hook and restore a chained previous hook.",
+    )
+    parser.add_argument("repository", nargs="?", type=Path, default=Path("."), help="the repository (default: current directory)")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="install: replace our hook, or move a foreign hook to pre-push.before-ousast and chain it; "
+        "uninstall: remove a hook this tool did not write",
+    )
+    if action == "install":
+        parser.add_argument(
+            "--docker",
+            action="store_true",
+            help="also install the ousast-docker wrapper beside the hook, so the check runs in the container image",
+        )
+    args = parser.parse_args(argv)
+    try:
+        code, lines = (
+            install(args.repository, force=args.force, docker=args.docker)
+            if action == "install"
+            else uninstall(args.repository, force=args.force)
+        )
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        print(f"ousast pre-push {action}: {error}", file=sys.stderr)
+        return 1
+    for line in lines:
+        print(line, file=sys.stderr if code else sys.stdout)
+    return code
 
 
 def _advisory_hook(argv: list[str]) -> bool:

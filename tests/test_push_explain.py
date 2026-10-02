@@ -39,6 +39,19 @@ def test_audit_reasons_become_one_plain_line_each():
     assert sum("could not be established" in line for line in lines) == 1
 
 
+def test_every_glossary_reason_is_documented_for_users():
+    """17.6: the skip-reason glossary in docs/scanning.md names every reason the terminal explains."""
+    from pathlib import Path
+
+    from openultrasast.push.explain import _NOVELTY_REASONS, _RESOLUTION, GLOSSARY
+
+    docs = (Path(__file__).resolve().parents[1] / "docs" / "scanning.md").read_text()
+    missing = [key for key in GLOSSARY if key not in docs]
+    missing += [f"resolution:{key}" for key in _RESOLUTION if f"`resolution:{key}`" not in docs]
+    assert not missing, missing
+    assert "base_incomplete" in docs and _NOVELTY_REASONS
+
+
 def test_unknown_reason_is_still_printed():
     assert explain(("some_future_reason",)) == ["some future reason (see the details file)"]
 
