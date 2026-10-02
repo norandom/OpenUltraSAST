@@ -4,8 +4,8 @@ Everything before this module built an *arbiter* — something that judges a flo
 found on its own. Nothing proposed candidates to it, which is why the arbiter's recall was never comparable to
 a detector's: it could only report what it happened to find unaided.
 
-This is the wiring the architecture was designed around, and it turns on a distinction that `judge` alone
-conflated:
+This is the wiring the architecture was designed around, and it turns on a distinction that the first judge
+(`model/judge.py`, deleted 2026-10-02 because this module replaced it) conflated:
 
     the model CONTRADICTS    it has coverage at this site and says no — a sanitizer lies on the path, or the
                              sink is written in its declared-safe shape. The claim is dropped (Req 8.2).

@@ -1,11 +1,11 @@
-"""Fusion adjudication — OpenUltraCode-style two-panel deepening (Phase 13).
+"""Fusion adjudication — OpenUltraCode-style two-panel deepening (Phase 13 of the retired openrouter-sast-harness plan).
 
 Fusion is the deepening mechanism for findings that need more reasoning than the
 ranker → hunter → verifier → mapping loop provides: critical/high severity, verifier
 disagreement, static-vs-semantic evidence conflict, findings that gate a risky fix or
 disclosure, or an explicit high-assurance request. Two panels independently review the
 bounded evidence (one steel-manning the vulnerability case, one the false-positive
-case), critique and revise, vote, and a decider issues the final disposition.
+case) and vote, and a decider issues the final disposition.
 
 The panels and the decider are deterministic and auditable. Every fused finding receives
 exactly one of the five dispositions, and the decision discloses panel roles, votes and the

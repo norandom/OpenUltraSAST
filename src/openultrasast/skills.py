@@ -1,4 +1,4 @@
-"""Trail of Bits skill index + router (Phase 14).
+"""Trail of Bits skill index + router (Phase 14 of the retired openrouter-sast-harness plan).
 
 Security skills are scoped expertise, not global prompt bloat. Each skill is a small
 descriptor with routing metadata (languages, tags, vulnerability classes, stages) and
