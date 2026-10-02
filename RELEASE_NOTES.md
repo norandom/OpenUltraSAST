@@ -1,3 +1,16 @@
+# Unreleased
+
+- **Documentation audited against v2.0.0** (no behaviour change). New `docs/deployment.md`: where the plane runs
+  today, this host's setup, and step-by-step guidance for a separate Kubernetes cluster with what is implemented
+  and what is planned; no cluster deployment has been made, and the kube context (`kind-$KIND_CLUSTER_NAME`) and
+  `doctor`'s registry check (`localhost:5001`) are still hard-coded. The decision-engine pages state slice 2
+  (six families, `benchmarks/measurements/2026-10-02-decision-engine-slice-2/record.json`: pooled AUC 0.77-0.96,
+  within-pair 0.72-0.93, BLOCK offered nowhere, canary below 0.9 for three families) and that the engine is not
+  adopted. The model layer's residual question is documented at `model/pipeline.py` (`model/judge.py` was
+  deleted); a missing provider key is described as it behaves (no question asked, entailed findings reported),
+  not as a recorded degradation. The `.env` reference lists `OPENROUTER_EMBEDDING_MODEL` and the memory-store
+  variables; `ousast plane memory-normalise` and `ousast index` are listed.
+
 # v2.0.0 (2026-10-02)
 
 A new major release: the agentic plane runs on google/ax, HarnessX is gone, detection decisions move

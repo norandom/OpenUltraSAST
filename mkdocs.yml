@@ -64,4 +64,5 @@ nav:
   - Operations (maintainers):
       - Engine and pre-push: ops/README.md
       - ax on this host: ops/ax/README.md
+      - Deployment: deployment.md
       - RustFS setup for the memory store: rustfs.md

@@ -59,9 +59,10 @@ LLM/embedding calls retry transient failures (HTTP 429/5xx, connection errors, t
 with exponential backoff; non-transient errors (e.g. 4xx, malformed JSON) fail fast.
 
 ### Visible degradation & determinism
-When an optional capability is missing (Joern, Docker, a model, a provider key), the scan
-falls back to its deterministic equivalent and records a `degradations` entry in the
-manifest — it is never silently downgraded. Runs are reproducible: fixed config,
+When an optional engine is missing (Joern: `cpg_unavailable`; Docker: `sandbox_unavailable`),
+the scan falls back to its deterministic equivalent and records a `degradations` entry in the
+manifest — it is never silently downgraded. Without a provider key the model layer asks no
+question and reports only what the graph entailed. Runs are reproducible: fixed config,
 artifact manifests, prompt hashes, and model identifiers are recorded.
 
 ### MCP surface

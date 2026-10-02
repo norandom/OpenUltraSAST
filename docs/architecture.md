@@ -46,9 +46,12 @@ model_corroborated    the graph found the shape; a judge agreed on the residual 
 suspicion             proposed, nothing corroborated it
 ```
 
-The LLM (`model/judge.py`) is asked only the residual question the graph cannot settle, for a
-flow the graph already found; it can confirm or contradict, never create a flow. Without a
-provider key only the `suspicion` band goes unasked.
+The LLM (`model/pipeline.py`, `residual_question`) is asked only the residual question the graph
+cannot settle, for a flow the graph already found; it can confirm or contradict, never create a
+flow. When the graph resolved nothing, the enumerator's candidates (at most
+`MAX_JUDGED_CANDIDATES`, 8) are put to it, and anything it affirms is reported at `suspicion`.
+Without a provider key neither question is asked and only the graph's entailed findings are
+reported.
 
 **REGRESS** (`regress/`, `sandbox/`) runs only when `docker info` succeeds. Each promoted
 candidate gets a small language recipe (Python, JavaScript, C) that loads the candidate's

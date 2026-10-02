@@ -30,7 +30,7 @@ flowchart TD
 | Mode | Adds | Needs | Without it |
 | --- | --- | --- | --- |
 | `quick` | pattern rules, entry-point hints, ranking, verification, score | nothing | - |
-| `standard` | MAP: complexity map, semantic overlay, authorization obligations, the Joern model layer; `fusion` (deterministic) | Joern; a provider key for the residual LLM question | `cpg_unavailable` degradation; the LLM parts are skipped and recorded |
+| `standard` | MAP: complexity map, semantic overlay, authorization obligations, the Joern model layer; `fusion` (deterministic) | Joern; a provider key for the residual LLM question | `cpg_unavailable` degradation; the LLM's questions are skipped and only the graph's entailed findings are reported |
 | `deep` | REGRESS: promoted candidates loaded in a sandbox with no network, read-only source, non-root | a working `docker` | `sandbox_unavailable` degradation |
 
 Sources: `README.md` (scan modes), `src/openultrasast/cli.py` (`run_stage` calls),

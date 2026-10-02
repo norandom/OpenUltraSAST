@@ -151,7 +151,9 @@ $0) is on [Token ergonomics](token-ergonomics.md#measured-costs).
 | ADVISORY | recall 0.90 (0.82 - 0.97), precision 0.54 (0.44 - 0.65) | precision is at the positive share (0.53), so at this threshold ADVISORY is **not discriminating**: it flags nearly as indiscriminately as flagging everything would |
 | BLOCK | not offered | calibration does not hold (ECE 0.064 > 0.05), and every outer fold reported `precision_unreachable` |
 
-**The engine is not adopted.** These numbers come from one family and one slice; the other
-families, the leave-one-source-out and leave-one-framework-out evaluations, integration into scan
-and pre-push, and the one-time check on population v3 are still ahead
-([Decision engine](decision-engine.md#first-measured-slice-2026-10-01)).
+**The engine is not adopted.** A second slice (2026-10-02) evaluated the six evaluable families
+the same way: pooled AUC 0.77 to 0.96 per family, within-pair AUC 0.72 to 0.93, BLOCK offered for
+none, re-run agreement below 0.9 for three families
+([Decision engine](decision-engine.md#second-slice-six-families-2026-10-02)). Leave-one-source-out
+and leave-one-framework-out, integration into scan and pre-push, and the one-time check on
+population v3 are still ahead.

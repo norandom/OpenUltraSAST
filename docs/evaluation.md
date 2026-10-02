@@ -83,8 +83,9 @@ flowchart TD
 
 `assert_disjoint` runs before a compile: the compile split and the evaluation folds share no
 group. A framework with fewer than 10 groups gets `insufficient data` instead of a fold. As of
-2026-10-02 only the outer folds of the injection family have been run
-([decision-engine.md](decision-engine.md#first-measured-slice-2026-10-01)).
+2026-10-02 the outer folds have been run for the six evaluable families; leave-one-source-out
+and leave-one-framework-out have not
+([decision-engine.md](decision-engine.md#second-slice-six-families-2026-10-02)).
 
 ## The plane increment
 
@@ -111,8 +112,10 @@ gate: at least 16 of 20 declared sites agreed, at a cost per candidate under $0.
 
 ## The decision engine
 
-The first measured slice of the learned decision engine (injection family, out-of-repository
-evaluation) is described with its numbers in [decision-engine.md](decision-engine.md).
+Two slices of the learned decision engine have been measured out of repository: injection alone
+(2026-10-01) and the six evaluable families (2026-10-02: pooled AUC 0.77 to 0.96 per family,
+within-pair AUC 0.72 to 0.93, BLOCK offered for none). The numbers and their records are in
+[decision-engine.md](decision-engine.md). The engine is not adopted.
 
 ## Removal of the earlier agentic extra
 

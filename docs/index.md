@@ -49,6 +49,8 @@ flowchart LR
 - Understand a finding's evidence and score: [Architecture](architecture.md).
 - Operate the plane and its store: [ax on this host](ops/ax/README.md) and
   [RustFS setup](rustfs.md).
+- Where the plane runs today and what a separate Kubernetes cluster would take (planned, not
+  done): [Deployment](deployment.md).
 - Where the model spend goes, per Task at runtime and in the maintainers' own coding sessions,
   and what is reused instead of paid again: [Token ergonomics](token-ergonomics.md).
 - Trust boundaries and hardening: [Threat model](threat-model.md).

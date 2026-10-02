@@ -21,8 +21,8 @@ ousast scan . --mode standard       # Joern model layer, container network off: 
 ousast-with-judge scan . --mode standard   # network on, so the model is asked (needs DEEPSEEK_API_KEY)
 ```
 
-Without a key the graph still decides; only the `suspicion` band goes unasked, and the manifest
-records the degradation.
+Without a key the graph still decides: its entailed findings are reported, and the LLM's residual
+and suspicion questions go unasked.
 
 ## 3. CI gate
 

@@ -27,8 +27,10 @@ uv run ousast scan /path/to/repo --mode quick
 uv run ousast scan . --mode quick --fail-on verified
 ```
 
-The core install depends only on PyYAML. Optional extras: `semantic` (tree-sitter grammars
-for the overlay) and `s3` (the plane's memory store on an S3-compatible bucket, boto3).
+The core install depends only on PyYAML. Optional extras (`pyproject.toml`): `semantic`
+(tree-sitter grammars for the overlay), `s3` (boto3, for the plane's memory store on an
+S3-compatible bucket) and `docs` (MkDocs with the Material theme, for the documentation site);
+install one with `uv sync --extra s3`.
 
 For `standard` and `deep` scans, use the Docker image, which ships Joern (with `php-cli` for
 the PHP frontend) next to the tool. Source the shell wrapper once and `ousast` runs in the
@@ -50,7 +52,7 @@ Every run writes auditable artifacts under `<target>/.openultrasast/runs/<scan-i
 | Mode | What runs | Needs |
 | --- | --- | --- |
 | `quick` | Language-scoped pattern rules, entry-point reachability hints, ranking, verification, scoring. Deterministic and reproducible. | nothing |
-| `standard` | `quick` plus the MAP stage: complexity map, semantic overlay, authorization obligations, and the model layer, which builds one Joern code property graph per repository and decides taint, guard-dominance and configuration questions on it. An LLM is asked only the residual question the graph cannot settle (a `suspicion`); `[models] hunter` adds the tool hunter. | Joern for the model layer (else a `cpg_unavailable` degradation); a provider key for the LLM parts (else they are skipped and recorded) |
+| `standard` | `quick` plus the MAP stage: complexity map, semantic overlay, authorization obligations, and the model layer, which builds one Joern code property graph per repository and decides taint, guard-dominance and configuration questions on it. An LLM is asked only the residual question the graph cannot settle (a `suspicion`); `[models] hunter` adds the tool hunter. | Joern for the model layer (else a `cpg_unavailable` degradation); a provider key for the LLM parts (else they are skipped and only the graph's entailed findings are reported) |
 | `deep` | The MAP stage of `standard` plus REGRESS: promoted candidates are loaded by a small snippet inside a Docker sandbox (no network, read-only source, non-root, memory/pid/time limits) and get a `triggerable` / `not_triggerable` / ... verdict. | a working `docker` (else a `sandbox_unavailable` degradation) |
 
 `--fail-on never|findings|verified|worth-fixing` sets the exit code: `findings` fails on any
@@ -119,15 +121,28 @@ candidate stays diagnostic in the artifact. Installation into a repository's hoo
 
 ## Model providers and keys
 
-Keys live in `.env` in the working directory (gitignored, never committed):
+Keys and store settings live in `.env` in the working directory (gitignored, never committed;
+`.env.example` lists the names):
 
 ```bash
-DEEPSEEK_API_KEY=...      # every LLM call: model layer, tool hunter, plane tasks
-OPENROUTER_API_KEY=...    # only OpenAI embeddings (openai/text-embedding-3-small)
+DEEPSEEK_API_KEY=...              # every LLM call: model layer, tool hunter, plane tasks, decision engine
+OPENROUTER_API_KEY=...            # embeddings only
+OPENROUTER_EMBEDDING_MODEL=openai/text-embedding-3-small
+
+# Plane memory store (maintainers). Unset: a local file store under ~/ousast-results/plane/memory.
+OUSAST_MEMORY=s3://<bucket>       # or s3://<bucket>/<prefix>; needs the s3 extra
+S3_ENDPOINT=https://host[:port]   # the full URL
+S3_REGION=us-east-1               # optional; spares a GetBucketLocation call
+S3_BUCKET=<bucket>                # the bucket `OUSAST_MEMORY=s3://` alone names
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
 ```
 
 The project uses DeepSeek (`deepseek-flash`) for LLM calls and OpenRouter only for embeddings.
-Set `DEEPSEEK_API_KEY`: without it, chat calls fall back to OpenRouter when that key is set.
+Set `DEEPSEEK_API_KEY`: without it, chat calls fall back to OpenRouter when that key is set
+(`tool_hunter.resolve_hunter_client`). The S3 bucket is set up once by an admin and verified
+by the store at every start ([docs/rustfs.md](docs/rustfs.md)). `ousast pre-push` does not read
+`.env`; it takes credentials from the Git process environment.
 
 **`.env` never overrides a variable already exported in your shell.** A stale
 `export DEEPSEEK_API_KEY=...` in your profile wins over the `.env` file silently; `unset` it
@@ -171,20 +186,30 @@ any `--qualify-population` are dropped first. Details:
 ## The agentic plane (maintainers)
 
 Model work over whole repositories runs as a Run manifest on [google/ax](ops/ax/README.md)
-over Agent Substrate (a kind cluster on the maintainer's host), one isolated actor per task.
-Each task binds its own Model and its own `usd`/`calls` budget, egress is deny-by-default per
-task, and the provider key travels only in the task's start request.
+over Agent Substrate, one isolated actor per task. ax is the only agentic executor: there is
+no local subprocess path, and a scan needs none of it. Each task binds its own Model and its
+own `usd`/`calls` budget; egress is deny-by-default per task (one EgressPolicy per actor,
+hostnames only: the artifact receiver, the Workspaces' Git hosts, the Model's declared host);
+and the provider key travels only in the task's start request, sent through Substrate's
+`atenet-router` to that task's actor, never in a manifest or an image.
+
+What runs where today: the reconciler (`ousast plane run`) and the artifact receiver run on
+the operator's host; the tasks run in gVisor sandboxes on Agent Substrate in a single-node kind
+cluster on the maintainer's host; the memory store is a local file store or an S3-compatible
+bucket (`OUSAST_MEMORY=s3://<bucket>`; RustFS is the tested server).
 
 ```bash
 uv run ousast plane doctor                               # kind, Agent Substrate, ax controller, runner image
-uv run ousast plane run plane/runs/validation-46.yaml    # a rerun skips tasks already done
-uv run ousast plane status validation-46                 # per-task status and token attribution
+uv run ousast plane run plane/runs/validation-46.yaml    # a rerun skips tasks already done; --workers bounds tasks in flight
+uv run ousast plane status validation-46                 # per-task status and the token attribution table (--units per unit)
 uv run ousast plane remember validation-46               # ingest the run's rows into the memory store
+uv run ousast plane memory-normalise --dry-run           # count the stored rows a rewrite to the fixed schema would touch
 ```
 
-`ousast plane workspaces`, `alerts-engine` and `harvest` generate Runs and inputs. Bring-up,
-the task catalogue, the memory store (`OUSAST_MEMORY`) and the checklist for moving the plane
-to another Kubernetes cluster are in [ops/ax/README.md](ops/ax/README.md).
+`ousast plane workspaces`, `harvest` and `alerts-engine` generate Runs and their inputs.
+Bring-up, the task catalogue, the memory store (`OUSAST_MEMORY`) and the host's lessons are in
+[ops/ax/README.md](ops/ax/README.md); what runs where, this host's setup and the guidance for a
+separate Kubernetes cluster (planned, not done) are in [docs/deployment.md](docs/deployment.md).
 
 > HarnessX, the earlier optional agentic extra, was retired 2026-09-30, and a leftover
 > `[harnessx]` section (retired 2026-09-30) is ignored with one warning. `[models] verifier`,
@@ -198,8 +223,11 @@ A learned decision engine is being built to replace hand-tuned detection edits: 
 instrument (quick rules, the Joern engine, model sink classification, verify passes, repository
 facts) produces signals, never verdicts, and a compiled AI classifier with local memory turns
 them into a calibrated probability per candidate with BLOCK and ADVISORY operating points.
-No scan, pre-push or report uses it yet. Status and the first measured slice:
-[docs/decision-engine.md](docs/decision-engine.md).
+No scan, pre-push or report uses it yet, and it is not adopted. Measured so far out of
+repository (slice 2, 2026-10-02, six families): pooled AUC 0.77 to 0.96 per family, within-pair
+AUC 0.72 to 0.93, BLOCK offered for no family, re-run agreement below 0.9 for three of the six
+(`benchmarks/measurements/2026-10-02-decision-engine-slice-2/record.json`). Status and the
+numbers: [docs/decision-engine.md](docs/decision-engine.md).
 
 ## Agent integrations
 
@@ -227,6 +255,8 @@ Documentation site with flow diagrams (`docs/`, `mkdocs.yml`): `uv sync --extra 
   and project score, and the self-improving loops.
 - [docs/evaluation.md](docs/evaluation.md): independent populations, the qualification gates,
   pair corpora and the plane increment results.
+- [docs/deployment.md](docs/deployment.md): the plane on this host, and the guidance for a
+  separate Kubernetes cluster (planned) with what is implemented and what is not.
 - [docs/decision-engine.md](docs/decision-engine.md): the learned decision engine.
 - [docs/threat-model.md](docs/threat-model.md): trust boundaries, sandbox and hardening.
 - [docs/token-ergonomics.md](docs/token-ergonomics.md): model spend at runtime (budgets, reuse,
@@ -246,5 +276,6 @@ uv run python dagger/ci.py    # containerized CI pipeline
 ```
 
 Maintainer commands not covered above: `ousast repos` (pinned known-vulnerable checkouts),
-`ousast model candidates` (what the candidate enumerator can reach) and `ousast learn`
-(the decision engine's data; see [docs/decision-engine.md](docs/decision-engine.md)).
+`ousast index` (chunk a repository for embedding-index construction), `ousast model candidates`
+(what the candidate enumerator can reach) and `ousast learn` (the decision engine's data; see
+[docs/decision-engine.md](docs/decision-engine.md)).

@@ -5,8 +5,11 @@ Model-driven work over whole repositories runs on a separate agentic plane: a **
 an ax **Task** (`plane/tasks/`) that binds its Workspaces (`plane/workspaces/`), at most one ax
 **Model** (`plane/models/`: `deepseek-flash` for chat, `openrouter-embedding` for embeddings) and
 its own `budget: {usd, calls}`. ax (google/ax over Agent Substrate, in a single-node kind cluster
-on the maintainer's host) is the only executor. Bring-up and the host's lessons are in
-[ax on this host](ops/ax/README.md); this page draws the flow.
+on the maintainer's host) is the only executor; there is no local subprocess path. Bring-up and
+the host's lessons are in [ax on this host](ops/ax/README.md); where each part runs today (the
+reconciler and the receiver on the host, the tasks in gVisor on Agent Substrate) and what a
+separate Kubernetes cluster would take (planned) are on [Deployment](deployment.md); this page
+draws the flow.
 
 Sources: `src/openultrasast/plane/reconciler.py`, `router.py`, `egress.py`, `runner.py`,
 `generate.py`, `memory.py`, and `src/openultrasast/plane/tasks/`.

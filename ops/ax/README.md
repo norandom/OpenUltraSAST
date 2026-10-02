@@ -183,16 +183,18 @@ The real-server contract tests (`OUSAST_MEMORY_TEST_S3=1`, bucket `OUSAST_MEMORY
 `S3_BUCKET`) verify the bucket at its root and write only under a fresh `contract-<id>/` prefix. They never
 configure the bucket.
 
-## Moving to a separate Kubernetes cluster (planned)
+## Moving to a separate Kubernetes cluster (planned, not done)
 
-The maintainer will deploy the plane to its own Kubernetes environment. The manifests under `plane/` move as they
-are; these parts assume this laptop and must change first (checked 2026-09-30):
+No deployment outside this host's kind cluster has been made. The step-by-step guidance, with what is implemented
+and what is planned, is `docs/deployment.md` (the site page "Deployment"). The Model and Workspace manifests under
+`plane/` move as they are and the Task templates need their image reference re-pinned to your registry; these parts
+assume this laptop and must change first (checked 2026-10-02):
 
 | Assumption | Where | Needed in a real cluster |
 |---|---|---|
 | Artifact receiver runs on the developer host, reached through the `ousast-receiver` Service with an EndpointSlice to the kind gateway `172.19.0.1:18090` | `egress.py`, `receiver-service.yaml.tmpl` | the receiver as an in-cluster Deployment (or object storage, e.g. Substrate's S3-compatible store), with the reconciler reading from it |
-| Registry `localhost:5001`, rewritten by Substrate for kind | `up.sh`, `doctor.py:45`, runner digest pin | a registry the workers can pull from; keep digest pins (Substrate rejects tags) |
-| kubectl context `kind-$KIND_CLUSTER_NAME` | `doctor.py:39`, `egress.py`, `router.py` | one configurable context (for example `OUSAST_KUBE_CONTEXT`) |
+| Registry `localhost:5001`, rewritten by Substrate for kind | `up.sh` (`KO_DOCKER_REPO`), `doctor.py:45` (hard-coded check), the runner digest pin, the `image` of every template under `plane/tasks/` | a registry the workers can pull from; keep digest pins (Substrate rejects tags); `--runner-image FILE` re-pins generated Tasks |
+| kubectl context `kind-$KIND_CLUSTER_NAME` | `doctor.py:39`, `egress.py:115` and `:148`, `router.py:145`, `up.sh:24` | one configurable context (for example `OUSAST_KUBE_CONTEXT`); not yet configurable |
 | ax's snapshot bucket: `AX_SNAPSHOTS_BUCKET` in ax's `deploy/ax-server.yaml` points at the ax authors' GCS bucket | ax deploy manifest | your own bucket, set before deploying ax |
 | Egress gateway applied by hand (agentgateway variant, no Rust build) | this README | the Substrate-installed gateway; per-task EgressPolicies work unchanged |
 | Worker pool of 2 x 1 CPU / 1.5 GiB for the 7 GB host | `workerpool.yaml.tmpl` | sized to the cluster; `--workers` to match |
@@ -203,6 +205,8 @@ a port-forward to any cluster.
 
 ## What a larger ax deployment needs
 
-A Kubernetes cluster with Agent Substrate (and its egress gateway), the ax control plane, a registry the workers
-can pull from, the runner image pinned by digest, the receiver reachable as a Service, and the provider host
-allowed per task. The manifests under `plane/` move unchanged; only `OUSAST_ARTIFACT_*` and the context change.
+A Kubernetes cluster with Agent Substrate (and its egress gateway), the ax control plane with `AX_SNAPSHOTS_BUCKET`
+pointing at your own bucket, a registry the workers can pull from, the runner image pinned by digest, the receiver
+reachable as a Service, and the provider host allowed per task (which each task's EgressPolicy already does). The
+Model and Workspace manifests under `plane/` move unchanged; the Task templates get a new image reference; the kube
+context and `doctor`'s registry check are not configurable yet (the table above). Step by step: `docs/deployment.md`.

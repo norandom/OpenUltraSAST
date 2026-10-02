@@ -1,0 +1,283 @@
+# Deployment
+
+How the agentic plane is deployed today, and what moving it to a separate Kubernetes cluster
+would take. State as of 2026-10-02 (v2.0.0). A scan needs none of this: `ousast scan` and
+`ousast pre-push` run from the Python package (and the Docker image for Joern, see
+[Engine and pre-push](ops/README.md)). The plane is the maintainers' surface for model work over
+whole repositories, driven by `ousast plane`.
+
+Two words are used strictly on this page. **Implemented** means the code on `main` does it and it
+has run on the maintainer's host. **Planned** means it has not been done; the guidance is derived
+from the code and the host's lessons, and the code changes it needs are named with their file paths.
+
+**No deployment of the plane to a cluster other than the maintainer's single-node kind cluster has
+been made.** Section B is guidance, not a record.
+
+## What runs where today (implemented)
+
+```mermaid
+flowchart LR
+    subgraph host ["Operator's host"]
+        rec["Reconciler: ousast plane run"]
+        rcv["Artifact receiver: in-process HTTP server, port 18090"]
+        env[".env or exported variables: provider keys, S3 settings"]
+    end
+    subgraph cluster ["kind cluster on the same host"]
+        ax["ax control plane (ax-system)"]
+        sub["Agent Substrate (ate-system): atenet-router, atenet-egress"]
+        act["Task actors in gVisor workers (WorkerPool ousast-pool)"]
+        svc["Service ousast-receiver + EndpointSlice to the host"]
+        reg["Registry localhost:5001: runner image by digest"]
+    end
+    mem[("Memory store: file store on the host, or an S3 bucket (RustFS tested)")]
+    rec -- "ax apply, resume, get, delete" --> ax
+    rec -- "EgressPolicy per actor; start request via port-forward" --> sub
+    sub --> act
+    act -- "HTTP by Service name through the gateway" --> svc
+    svc --> rcv
+    rec --> mem
+    reg -. "pull by digest" .-> act
+```
+
+| Part | Where it runs | Code or manifest |
+| --- | --- | --- |
+| Reconciler (`ousast plane run`, `status`, `remember`) | the operator's host | `src/openultrasast/plane/reconciler.py` |
+| Artifact receiver | an HTTP server inside the reconciler process, on the host, port `OUSAST_ARTIFACT_PORT` (18090) | `src/openultrasast/plane/egress.py` (`Receiver`, `RECEIVER_PORT`) |
+| How actors reach the receiver | the Service `ousast-receiver.ax-system` (port 80) with a selector-less EndpointSlice whose endpoint is the kind network's gateway address on the host; the runner dials the ClusterIP with the Service name as `Host`, which the egress gateway allows by hostname | `ops/ax/receiver-service.yaml.tmpl`, rendered by `up.sh` |
+| ax control plane, Agent Substrate, egress gateway, router | the kind cluster (`ax-system`, `ate-system`) | installed by `ops/ax/up.sh` from the upstream checkouts under `~/.cache/ousast/ax-src/` |
+| Tasks | one actor per Task in a gVisor worker; two warm workers of 1 CPU / 1.5 GiB | `ops/ax/workerpool.yaml.tmpl` |
+| Runner image | the kind-local registry `localhost:5001`, pinned by digest (`~/.cache/ousast/ax-src/runner-image`) | `plane/Dockerfile.runner`; the `image` of every template under `plane/tasks/` |
+| Provider keys | read from the operator's environment or `.env` (which never overrides an exported variable), sent only in the start request through a `kubectl port-forward` to `svc/atenet-router` | `src/openultrasast/plane/router.py` |
+| Memory store | `OUSAST_MEMORY`: a file store under `~/ousast-results/plane/memory` by default, or `s3://<bucket>[/<prefix>]` on any reachable S3-compatible server (RustFS is the tested one) | `src/openultrasast/plane/memory.py`, [Memory](memory.md), [RustFS setup](rustfs.md) |
+| Run state and artifacts | `$OUSAST_RESULTS/plane/<run>/` on the host (default `~/ousast-results/plane/`) | `reconciler.py` (`run_dir`) |
+
+Only the reconciler talks to the memory store: a sandboxed task cannot read it, so the loop's
+`memory-snapshot` is seeded by the reconciler before the Run ([The plane on ax](plane.md)).
+
+## A. This host: the local setup (implemented)
+
+What `ops/ax/up.sh` needs on the PATH: `docker`, `go`, `kubectl`, `kind`, `ko` and `ax` (it
+refuses to start when one is missing). Tools live in `~/go/bin` and `~/.local/bin`; sources and
+rendered files in `~/.cache/ousast/ax-src/` (`OUSAST_AX_SRC`).
+
+1. **Bring up the cluster and the plane.**
+
+    ```bash
+    ops/ax/up.sh
+    ```
+
+    Idempotent: each step is skipped when already done. It creates the kind cluster
+    (`KIND_CLUSTER_NAME`, default `ousast`) with its registry (`KO_DOCKER_REPO`, default
+    `localhost:5001`), installs Agent Substrate, applies the egress gateway (the agentgateway
+    variant, one prebuilt image) when the install left it out, deploys the ax control plane, applies
+    the receiver Service with the host's kind-gateway address as its endpoint, applies the gVisor
+    worker pool, builds and pushes the runner image and writes its digest pin to
+    `~/.cache/ousast/ax-src/runner-image`, installs the `ax` CLI from the deployed checkout (a release
+    CLI skews from the server), and runs one smoke Task. It ends by printing the host's memory and the
+    kind containers' usage.
+
+2. **Check it.**
+
+    ```bash
+    uv run ousast plane doctor
+    ```
+
+    Four checks: the kind context is reachable, every pod in `ate-system` and in `ax-system` is ready,
+    and the registry at `localhost:5001` holds `ousast-runner`. Each failing line names
+    `ops/ax/up.sh` as the fix. `doctor` is informational: `ousast plane run` does not call it.
+
+3. **Run the end-to-end smoke Run.**
+
+    ```bash
+    ops/ax/smoke-run.sh
+    ```
+
+    It renders `ops/ax/smoke-run.yaml.tmpl` with the current runner digest and submits the Run
+    `ax-e2e-smoke` through the reconciler: one model-free `repo-facts` Task (`budget: {usd: 0,
+    calls: 0}`) over a files-only Workspace, resumed, started through the router, its `facts.json` and
+    `summary.json` delivered to the host, then `ousast plane status ax-e2e-smoke` prints the attribution
+    table. The script calls the repository's `.venv/bin/ousast`, so `uv sync` first.
+
+4. **Keys and the store.** Put `DEEPSEEK_API_KEY` (chat) and `OPENROUTER_API_KEY` (embeddings) in
+    `.env` or export them; a Task's Model names the variable (`secretKey.key`), and the key travels
+    only in that Task's start request. Set `OUSAST_MEMORY=s3://<bucket>` with `S3_ENDPOINT`,
+    `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (optional `S3_REGION`, `S3_BUCKET`) for the S3 store;
+    the bucket must be set up once by an admin as [RustFS setup](rustfs.md) describes, and the store
+    verifies it at every start.
+
+5. **Run a real Run**, as in [Examples](examples.md#7-running-the-agentic-plane): `ousast plane run
+    plane/runs/validation-46.yaml`, then `status` and `remember`.
+
+6. **Tear down** with `ops/ax/down.sh`, which deletes the cluster and its registry.
+
+**Footprint** (measured 2026-09-29, idle, two workers; [ax on this host](ops/ax/README.md#measured-footprint-2026-09-29-idle-two-workers)):
+
+| Item | Value |
+| --- | --- |
+| kind node container memory | 1.7 GiB (27% of the 7.7 GiB host) |
+| registry container memory | 34 MiB |
+| node volume (images, containerd) | 4.9 GB on disk |
+| worker pool | 2 gVisor workers, 1 CPU / 1.5 GiB limit each |
+
+Disk is the binding constraint: the Substrate install and the `ko` builds need several GB of Go
+caches (`go clean -cache -modcache` afterwards), and every Task is its own actor template with a
+golden actor (about 24 MB each under `/var/lib/ate/actors` on the node). The failures the host
+produced, and what each one taught, are listed in
+[ax on this host](ops/ax/README.md#what-this-host-taught-each-one-cost-a-failed-live-run).
+
+## B. A separate Kubernetes cluster (planned)
+
+The target: a cluster that runs Agent Substrate with its egress gateway and the ax control plane,
+pulls the runner image from a registry of yours, receives task artifacts without a developer
+laptop in the path, and keeps its memory in your S3 bucket. The provider key already travels only
+in the start request through `atenet-router`, which works the same through a port-forward to any
+cluster. Everything else below is either a step you take or a code change that is not made yet.
+
+### B.1 Cluster with Agent Substrate, its egress gateway and ax
+
+- Install Agent Substrate on the cluster following its own instructions. `ops/ax/up.sh` uses
+  Substrate's kind helpers (`hack/create-kind-cluster.sh`, `hack/install-ate-kind.sh`), which do
+  not apply to another cluster.
+- Apply the egress gateway. On this host it is the agentgateway variant
+  (`manifests/ate-install/agentgateway-egress` in the Substrate checkout, applied with
+  `kubectl kustomize --load-restrictor=LoadRestrictionsNone`), which needs no Rust build; the
+  Envoy variant does. Without the gateway an actor has no network at all, and the per-task
+  EgressPolicies the reconciler writes (`src/openultrasast/plane/egress.py`) work unchanged
+  against the Substrate-installed gateway: deny by default, hostnames only, plain HTTP to the
+  receiver, TLS passthrough to the Workspaces' Git hosts and the Model's declared hosts.
+- Deploy ax (`make deploy AX_IMAGE_REPO=<your registry>` in the ax checkout) **after** B.2.
+- Apply a WorkerPool (B.6). Substrate installs none by itself ("no free workers").
+
+### B.2 ax's snapshot bucket: `AX_SNAPSHOTS_BUCKET`
+
+ax's deploy manifest (`deploy/ax-server.yaml` in the ax checkout) sets `AX_SNAPSHOTS_BUCKET` to
+the ax authors' own bucket (`gs://dberkov-gke-dev3/ate-env/` in the checkout used here). Point it
+at **your own bucket before deploying ax**. On this host the bucket named there did not exist in
+the S3 server, deleted golden actors piled up in `DELETING` and filled the disk during a 600-task
+harvest (2026-10-01); creating the bucket let deletes complete, and even then a deleted actor's
+directory stays on the node, so long Runs need a janitor that removes directories no live actor
+owns.
+
+### B.3 A registry the workers can pull from, the runner image pinned by digest
+
+- Build the runner from the repository root and push it to your registry:
+
+    ```bash
+    docker build -f plane/Dockerfile.runner -t <registry>/ousast-runner:dev .
+    docker push <registry>/ousast-runner:dev
+    docker inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' <registry>/ousast-runner:dev
+    ```
+
+- Substrate rejects tags: every Task's `image` must be the `<registry>/ousast-runner@sha256:...`
+  reference. Write it into a file (on this host, `~/.cache/ousast/ax-src/runner-image`) and pass
+  `--runner-image FILE` to `ousast plane workspaces` and `ousast plane harvest`, which re-pin the
+  Tasks they generate. The committed templates under `plane/tasks/` and the generated
+  `plane/tasks/validation-46.yaml` carry `localhost:5001/ousast-runner@sha256:...` and need the same
+  re-pin (regenerate, or replace the reference) before they run elsewhere.
+- Workers must be able to pull from the registry (credentials, if any, are the cluster's concern;
+  ax's default runner image on `gcr.io` needs credentials and is not used here).
+- **Not yet configurable:** `ousast plane doctor` checks the registry at `localhost:5001` by name
+  (`src/openultrasast/plane/doctor.py:45`), so its fourth check fails on another cluster even when
+  the image is in place. `doctor` is informational, `plane run` does not depend on it.
+
+### B.4 One configurable kube context
+
+The reconciler, the egress client and the router port-forward all use the context
+`kind-$KIND_CLUSTER_NAME` (`kind-ousast` by default). **Not yet configurable**: the prefix `kind-`
+is hard-coded in `src/openultrasast/plane/doctor.py:39`, `src/openultrasast/plane/egress.py:115`
+and `:148`, and `src/openultrasast/plane/router.py:145`; `ops/ax/up.sh:24` builds the same name.
+The planned change is one variable (for example `OUSAST_KUBE_CONTEXT`) read in those three
+modules. Until then the only way to drive another cluster from the unchanged code is to give its
+kubeconfig context a name of that form (`kubectl config rename-context <ctx> kind-<name>` and
+`KIND_CLUSTER_NAME=<name>`), which is a workaround, not a supported configuration. The egress
+client also needs `kubectl-ate` (or the executable `OUSAST_KUBECTL_ATE` names) able to use that
+context.
+
+### B.5 The receiver: in-cluster instead of on the host
+
+Today the receiver is a thread inside the reconciler process (`egress.py`, `Receiver`), and the
+reconciler learns of a task's completion by watching that object's `delivered` set in memory
+(`reconciler.py`). Actors reach it through the Service `ousast-receiver.ax-system` whose
+EndpointSlice points at the host. Three paths, in order of effort:
+
+1. **Interim, works with the unchanged code:** keep the host receiver and render
+   `ops/ax/receiver-service.yaml.tmpl` with an endpoint address the egress gateway pod can reach
+   (`KIND_GATEWAY` is just an IPv4 address in the template, `OUSAST_ARTIFACT_PORT` the port). The
+   reconciler's host must be reachable from the cluster (a VPN or a routed address), and the
+   gateway dials the address the actor connected to, so the Service's ClusterIP must still map to it.
+2. **Planned: the receiver as an in-cluster Deployment** behind the same Service name, with the
+   reconciler reading deliveries and serving inputs from it instead of from its own thread. This
+   needs code: the receiver and its `delivered`/`inputs` state are in-process today, and the
+   runner's `GET /inputs/<producer>/<artifact>` is served by that same process.
+3. **Follow-on: presigned-URL delivery to the S3 store.** The runner would `PUT` its output tar to a
+   presigned URL on the memory store's bucket and fetch inputs the same way, and the reconciler
+   would read from the bucket. Nothing of this exists; the EgressPolicy would then have to allow
+   the store's hostname for the task.
+
+### B.6 Worker pool sizing
+
+`ops/ax/workerpool.yaml.tmpl` declares two warm gVisor workers of 1 CPU / 1.5 GiB (requests 250m /
+1.5 GiB) for the 7 GB host, selected onto nodes by `ate.dev/substrate-version`. An actor occupies a
+whole worker, so the pool size is the number of tasks that can run at once; set `--workers` on
+`ousast plane run` to match. Size the workers above the largest Task's limits (`verify`: requests
+250m / 384Mi, limits 1 CPU / 1 GiB; `roles` and the others are in `plane/tasks/`), and keep the
+golden-actor storage on the node in mind (B.2).
+
+### B.7 The S3 memory store reachable from where the reconciler runs
+
+The `s3://` store already works against any reachable S3-compatible server with versioning,
+lifecycle rules, object tags and S3 Select (RustFS is the tested one; the bucket setup and the
+agent policy are on [RustFS setup](rustfs.md)). Only the reconciler reads and writes it, so today
+it must be reachable from the operator's host; if the reconciler moves into the cluster, from its
+pod. No Task talks to the store directly; the day one does (B.5, path 3), that Task's EgressPolicy
+must allow the store's hostname (the policies allow hostnames only, never addresses), the way a
+Model declares its hosts today through `openultrasast.io/egress-hosts`.
+
+### B.8 Secrets in Kubernetes Secrets, injected into the reconciler's environment
+
+The reconciler reads the variable a Model's `secretKey.key` names (`DEEPSEEK_API_KEY`,
+`OPENROUTER_API_KEY`) and the store's `S3_ENDPOINT`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+(optional `AWS_SESSION_TOKEN`, `S3_REGION`, `S3_BUCKET`) from its own environment or `.env`. When
+the reconciler runs in the cluster, keep them in Kubernetes Secrets and inject them into **the
+reconciler's** pod environment (`envFrom` with `secretRef`, or `valueFrom.secretKeyRef` per
+variable). Never put a value into a manifest: the Model manifests name a variable, the rendered
+Task carries no key, and the key reaches an actor only in the start request, where the runner keeps
+it in memory and redacts it from echoed stderr. The `secretKey.name` values in `plane/models/`
+(`deepseek`, `openrouter`) are the names such Secrets would carry. Running the reconciler
+in-cluster is itself planned: today it is a host process, and its state directory
+(`OUSAST_RESULTS`) would need a persistent volume.
+
+### What is implemented and what is planned
+
+| Item | Status |
+| --- | --- |
+| ax as the only executor; `plane run|status|doctor|remember|memory-normalise|workspaces|harvest|alerts-engine` | implemented, run on this host |
+| Per-task EgressPolicy, credentials only in the start request, per-task budgets and attribution | implemented |
+| S3 memory store against any reachable S3-compatible server, verified at startup | implemented (RustFS tested) |
+| Local bring-up, doctor, smoke Run (`ops/ax/`) | implemented |
+| Re-pinning generated Tasks to another registry (`--runner-image`) | implemented; the committed templates still name `localhost:5001` |
+| Deployment to a cluster other than this host's kind cluster | **not done** |
+| One configurable kube context | **planned**; `kind-` hard-coded in `doctor.py`, `egress.py`, `router.py` |
+| `doctor` registry check against a configurable registry | **planned**; `localhost:5001` hard-coded in `doctor.py:45` |
+| Receiver as an in-cluster Deployment | **planned** (code change) |
+| Presigned-URL delivery to the S3 store | **follow-on**, not started |
+| Reconciler running in-cluster with Secrets injected into its environment | **planned** |
+| `AX_SNAPSHOTS_BUCKET` on your own bucket, worker pool sized to the cluster | your deployment's setting; documented, nothing to change in this repository |
+
+## C. The manifests under `plane/`
+
+| Path | Moves unchanged? | What changes |
+| --- | --- | --- |
+| `plane/models/*.yaml` | yes | nothing: provider, prices, `secretKey` variable names and `openultrasast.io/egress-hosts` are cluster-independent |
+| `plane/tasks/*.yaml` (templates) | no | only the `image` reference: `<your registry>/ousast-runner@sha256:<digest>` (B.3); resources stay unless the pool is sized differently |
+| `plane/tasks/validation-46.yaml`, `plane/runs/*.yaml` | regenerate | generated by `ousast plane workspaces --validation-set ... --runner-image FILE`; the Run spec itself (steps, inputs, outputs, budgets) is cluster-independent |
+| `plane/workspaces/*.yaml` | yes | nothing: Git sources at pinned commits; their hosts enter each task's EgressPolicy automatically; inline `files` stay under the ~20 KB limit the actor template tolerates |
+| `plane/Dockerfile.runner` | yes | nothing; build from the repository root and push to your registry |
+| `ops/ax/receiver-service.yaml.tmpl` | no | the endpoint address (B.5, path 1), or replaced by an in-cluster receiver (path 2) |
+| `ops/ax/workerpool.yaml.tmpl` | no | replicas and limits (B.6) |
+| `ops/ax/smoke-task.yaml.tmpl`, `smoke-run.yaml.tmpl` | yes | rendered with `RUNNER_IMAGE` from your pin file |
+| `ops/ax/up.sh`, `down.sh` | no | kind-specific; they do not apply to another cluster |
+
+The Run and Task contract itself (`plane/runner.py` as PID 1 of the runner image, `AX_TASK_YAML`
+and `AX_WORKSPACES_YAML`, `/healthz` and `/readyz`, the start request, the tar delivery as
+completion) does not depend on where the cluster is: [The plane on ax](plane.md).

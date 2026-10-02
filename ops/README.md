@@ -47,7 +47,7 @@ TARGET=/path/to/repo docker compose run --rm ousast scan /target
 
 The target is mounted read-only; `/work` is a tmpfs so CPG scratch never outlives the run. The LLM endpoint
 is optional and passed through the environment, never baked into a layer — without it the model layer still
-entails and only the `suspicion` band goes unasked. `network_mode` defaults to `none`; set it to `bridge`
+entails, and its residual and suspicion questions go unasked. `network_mode` defaults to `none`; set it to `bridge`
 (`OUSAST_NETWORK=bridge`, which `ousast-with-judge` does) only when the model layer should reach the model
 endpoint. Compose passes `DEEPSEEK_API_KEY` and `OPENROUTER_API_KEY` through from the environment.
 
@@ -377,4 +377,5 @@ read under the same analysis deadline.
 Model-driven work over whole repositories runs as tasks on google/ax over Agent Substrate. Bring-up, the task
 catalogue, the memory store, the measured footprint, the lessons from the live cluster and the checklist for a
 separate Kubernetes cluster are in [`ops/ax/README.md`](ax/README.md);
-`ousast plane run|status|doctor|workspaces|remember|alerts-engine|harvest` drives it.
+`ousast plane run|status|doctor|remember|memory-normalise|alerts-engine|harvest|workspaces` drives it. Where each part
+runs today and the guidance for a separate Kubernetes cluster (planned, not done) are in `docs/deployment.md`.
