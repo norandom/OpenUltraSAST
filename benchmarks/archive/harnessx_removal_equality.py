@@ -5,8 +5,8 @@
 non-zero on the first difference outside the exclusion list, naming the file and key.
 
 Usage:
-    python benchmarks/harnessx_removal_equality.py record <out-dir> [--tree-ish HEAD] [--workdir DIR]
-    python benchmarks/harnessx_removal_equality.py compare <baseline-dir> <candidate-dir> \\
+    python benchmarks/archive/harnessx_removal_equality.py record <out-dir> [--tree-ish HEAD] [--workdir DIR]
+    python benchmarks/archive/harnessx_removal_equality.py compare <baseline-dir> <candidate-dir> \\
         [--suite-map map.json] [--record comparison.json]
 
 The instrument checks come first and fail loudly: ``harnessx`` must not be importable, ``tree_sitter`` must be,
@@ -30,7 +30,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]  # archived under benchmarks/archive/
 
 # Design section 3 "Comparison": timestamps, durations and run identifiers are excluded; nothing else is.
 EXCLUDED_KEYS = frozenset({"runtime_seconds", "scan_id", "timestamp", "started", "finished", "created_at", "generated_at"})

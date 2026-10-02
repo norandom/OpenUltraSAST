@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-_SPEC = importlib.util.spec_from_file_location("hxr_equality", ROOT / "benchmarks" / "harnessx_removal_equality.py")
+_SPEC = importlib.util.spec_from_file_location("hxr_equality", ROOT / "benchmarks" / "archive" / "harnessx_removal_equality.py")
 assert _SPEC is not None and _SPEC.loader is not None
 equality = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(equality)
