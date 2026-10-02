@@ -158,6 +158,16 @@ def test_a_fixed_side_without_the_function_is_a_label_defect_not_an_unread_side(
     assert unread.sources["population-v1"].unread == 1 and unread.failing() == ["population-v1"]
 
 
+def test_the_excerpt_matcher_falls_back_to_the_labels_language_when_the_records_resolves_nothing() -> None:
+    """A feature record carries the closed vocabulary's language (``other`` for Ruby, Go, C#); a Python ``def`` under
+    ``other`` has no brace body, so the matcher gets the label's language instead. The record's field is kept."""
+    lab = label()
+    other = {**feature(lab), "language": "other"}
+    build = build_examples([lab], records_by_key([other]), lambda lab, role: CODE[role], sources=SOURCES)
+    assert build.summary()["examples"] == 1 and build.rows[0]["language"] == "other"  # the row keeps the vocabulary language
+    assert build.sources["population-v1"].no_excerpt == 0
+
+
 def test_pair_sides_join_the_record_stored_under_their_harvest_unit_pin() -> None:
     """The harvest stores a pair side's record under its unit pin (the blob sha1 of the side's excerpt), not under
     :func:`label_pin`; ``pins`` from the harvest ``units.json`` joins them, and without it the record is not found."""
