@@ -4,8 +4,20 @@
   "store": "s3://sast-memory",
   "manifest": "plane/experiments/exp-002-retrieval-ensemble.yaml",
   "manifest_digest": "f5004fb8618b1f7cc7dcf298d42b4ac1b6c0c1aa72a97299c77f937bd6175148",
-  "pin": "fbc3220bbe1c8a4f8afa0a724fd41a51b390dd22",
-  "units_status": "pending",
-  "units_note": "`ousast learn experiment units` could not freeze the slice-2 candidates on 2026-10-02: all 904 example rows in the store carry null for the plane-only instruments (agree, model_sinks, verify) and learn.examples.load_examples (unchanged since a90e570) raises on them; freeze, commit and register again once the rows read",
-  "status": "registered, not run"
+  "pin": "9213e5ffd978b387439e5568d32f4269dd81c021",
+  "units_status": "frozen",
+  "units_file": "plane/experiments/exp-002-retrieval-ensemble.units.jsonl",
+  "units_digest": "0de66bfa3ff844825e06f4f4227a14210d1b77f1cc08c0441c6d23e23fa5d91f",
+  "units": {
+    "total": 160,
+    "paired": 108,
+    "groups": 56,
+    "by_family": {
+      "injection": {"units": 119, "paired": 76, "pairs": 38, "groups": 34, "labels": {"1": 63, "0": 56}},
+      "access_control": {"units": 41, "paired": 32, "pairs": 16, "groups": 24, "labels": {"1": 25, "0": 16}}
+    },
+    "note": "frozen on the 937-example static memory (slice 2 evaluated 110 + 37 candidates on the 904-example memory of the same day; the recovered negatives of ef6945e moved the seeded compile split and the outer folds). Freezing needed two repairs first: example rows carried the plane-only features as null in x and the renderer refused them (1f525ff), and the RustFS store held none of the 788 embedding vectors the file store had (copied over with put_blob, no embedding call)."
+  },
+  "first_registration": {"registered": "2026-10-02", "pin": "fbc3220bbe1c8a4f8afa0a724fd41a51b390dd22", "units_status": "pending"},
+  "status": "registered, units frozen; run pending"
 }
