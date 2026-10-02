@@ -2,7 +2,7 @@
 
 ``command: ["loop", <step>]``; every step is model-free with budget ``{usd: 0, calls: 0}`` (``budget.py`` refuses any
 call, so a stray one fails loudly), and each writes ``summary.json`` under the task contract. Records travel as
-``{"key", "version", "row"}`` lines: the store object a row came from and its version (MinIO's version id, a file's
+``{"key", "version", "row"}`` lines: the store object a row came from and its version (the bucket's object version id, a file's
 content hash), which a proposal's provenance cites (Req 6.4).
 
 - ``snapshot``: never runs in the sandbox, which cannot read the host's store. ``ousast plane run`` seeds it before

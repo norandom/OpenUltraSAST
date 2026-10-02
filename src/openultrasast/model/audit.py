@@ -63,7 +63,7 @@ SPEC_OWNED = {
     "plane.tasks.agree": "ai-service-plane Req 5.3/2.1: agreement across two verify passes with per-candidate cost, turns and site match",
     "plane.reconciler": "ai-service-plane Req 3.1-3.5, 7.3: ax-backed Run execution, status attribution and doctor; `ousast plane`",
     "plane.generate": "ai-service-plane task 7: an increment's Workspaces, per-case Tasks and Run from a recorded set",
-    "plane.memory": "harnessx-removal Req 6.1/6.4: the memory store (file, MinIO), ingest and fact reuse; `ousast plane remember`",
+    "plane.memory": "harnessx-removal Req 6.1/6.4: the memory store (file, S3), ingest and fact reuse; `ousast plane remember`",
     "plane.tasks.remember": "harnessx-removal Req 6.1: a case's delivered artifacts as memory rows, model-free",
     "plane.tasks.alerts": "harnessx-removal Req 6.3: quick-mode alerts on a case's vulnerable and fixed pins, model-free",
     "plane.engine_alerts": "harnessx-removal Req 6.3: engine alerts where quick mode has no rules (PHP), on the host",

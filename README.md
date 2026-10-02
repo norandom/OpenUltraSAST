@@ -28,7 +28,7 @@ uv run ousast scan . --mode quick --fail-on verified
 ```
 
 The core install depends only on PyYAML. Optional extras: `semantic` (tree-sitter grammars
-for the overlay) and `minio` (the plane's MinIO memory store).
+for the overlay) and `s3` (the plane's memory store on an S3-compatible bucket, boto3).
 
 For `standard` and `deep` scans, use the Docker image, which ships Joern (with `php-cli` for
 the PHP frontend) next to the tool. Source the shell wrapper once and `ousast` runs in the

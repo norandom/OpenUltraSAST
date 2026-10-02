@@ -12,11 +12,13 @@ engine's own. Layout, identical for both backends::
                                               by excerpt sha, responses/*.json by request sha, programs/*.json
 
 ``OUSAST_MEMORY`` selects the backend: ``file:///path`` (:class:`FileStore`, default ``results_root()/memory``) or
-``minio://<bucket>[/<prefix>]`` (:class:`MinioStore`, the ``minio`` extra; MinIO or RustFS). The endpoint and
-credentials come from ``.env`` (``MINIO_ENDPOINT``, ``MINIO_ACCESS_KEY``, ``MINIO_SECRET_KEY``, ``MINIO_SECURE``,
-``MINIO_REGION``), never from a manifest, and are never printed. The store never configures its bucket: an admin
-enables versioning and the ``runs/`` expiry rule once, and opening a ``MinioStore`` verifies them and S3 Select
-(:meth:`MinioStore.verify_bucket`), refusing to start otherwise.
+``s3://<bucket>[/<prefix>]`` (:class:`S3Store`, the ``s3`` extra: boto3 against any S3-compatible server with
+versioning, lifecycle rules, object tags and S3 Select; RustFS is the server this is tested on). ``s3://`` without a
+bucket names ``S3_BUCKET``. The endpoint and credentials come from ``.env`` (``S3_ENDPOINT``, a full URL;
+``AWS_ACCESS_KEY_ID``, ``AWS_SECRET_ACCESS_KEY``; optional ``AWS_SESSION_TOKEN``, ``S3_REGION``), never from a
+manifest, and are never printed. The store never configures its bucket: an admin enables versioning and the
+``runs/`` expiry rule once, and opening an ``S3Store`` verifies them and S3 Select (:meth:`S3Store.verify_bucket`),
+refusing to start otherwise.
 
 Every row carries every queryable field (``QUERY_FIELDS``: strings, ``""`` where one does not apply, never ``null``):
 the store fills them in on every write, ``rows`` refuses a ``where`` field no kind declared, and ``ousast plane
@@ -102,7 +104,7 @@ if tuple(QUERY_FIELDS) != KINDS:  # pragma: no cover -- a kind added without its
 QUERYABLE = tuple(sorted({f for fields in QUERY_FIELDS.values() for f in fields} - set(ROW_FIELDS)))
 TAG_FIELDS = ("repo", "pin", "kind", "family", "run", "population", "split")
 MIN_FREE_BYTES = 1 << 30
-MINIO_KEYS = ("MINIO_ENDPOINT", "MINIO_ACCESS_KEY", "MINIO_SECRET_KEY")
+S3_KEYS = ("S3_ENDPOINT", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY")
 _PIN = re.compile(r"[0-9a-f]{40}")
 _FIELD = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 _TAG_VALUE = re.compile(r"[^A-Za-z0-9 +\-=._:/@]")
@@ -549,12 +551,12 @@ class FileStore(MemoryStore):
         return self._path(key).as_uri()
 
 
-# --- the MinIO backend ---------------------------------------------------------------------------------------------
+# --- the S3 backend ------------------------------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
 class ExpiryRule:
-    """One bucket lifecycle rule as :meth:`MinioStore.verify_bucket` reads it: ``prefix`` is the filter's key prefix
+    """One bucket lifecycle rule as :meth:`S3Store.verify_bucket` reads it: ``prefix`` is the filter's key prefix
     (``""`` for a bucket-wide rule), ``tagged`` whether tags also narrow it, ``days`` its current-version
     expiration in days (None: no expiration by days), ``expires`` whether it expires current versions at all."""
 
@@ -567,8 +569,8 @@ class ExpiryRule:
 
 
 class ObjectClient(Protocol):
-    """The object operations :class:`MinioStore` needs; :class:`SdkClient` adapts the ``minio`` SDK, tests fake it.
-    The bucket-configuration calls only read: the store never configures its bucket."""
+    """The object operations :class:`S3Store` needs; :class:`S3Client` adapts boto3, tests fake it. The
+    bucket-configuration calls only read: the store never configures its bucket."""
 
     def get(self, key: str) -> tuple[bytes, str | None] | None: ...
     def put(self, key: str, data: bytes, labels: Mapping[str, str]) -> None: ...
@@ -589,11 +591,21 @@ RUNS_RULE_ID = "ousast-runs-expiry"
 RUNS_EXPIRE_DAYS = 30
 
 
+def _code(exc: Exception) -> str | None:
+    """The server's error code: a ``code`` attribute, or botocore's ``response["Error"]["Code"]``."""
+    code = getattr(exc, "code", None)
+    if code is None:
+        response = getattr(exc, "response", None)
+        if isinstance(response, Mapping):
+            code = (response.get("Error") or {}).get("Code")
+    return None if code is None else str(code)
+
+
 def _failure(exc: Exception) -> str:
-    return f"{getattr(exc, 'code', None) or type(exc).__name__}: {str(exc)[:200]}"
+    return f"{_code(exc) or type(exc).__name__}: {str(exc)[:200]}"
 
 
-class MinioStore(MemoryStore):
+class S3Store(MemoryStore):
     """The layout in one bucket (optionally under a prefix): object metadata and tags on every row object, S3
     Select pushdown for every filtered read, bucket versioning for provenance, lifecycle expiry for ``runs/``,
     presigned URLs. An admin configures the bucket once; opening a store verifies it (:meth:`verify_bucket`) and
@@ -606,7 +618,7 @@ class MinioStore(MemoryStore):
             _VERIFIED.add(self.describe())
 
     def describe(self) -> str:
-        return f"minio://{self.bucket}" + (f"/{self.prefix}" if self.prefix else "")
+        return f"s3://{self.bucket}" + (f"/{self.prefix}" if self.prefix else "")
 
     def _k(self, key: str) -> str:
         return f"{self.prefix}/{key}" if self.prefix else key
@@ -637,7 +649,7 @@ class MinioStore(MemoryStore):
         over JSON Lines, and the probe's object tags readable. Every missing piece is named with its admin action
         in one :class:`MemoryStoreError`."""
         runs = self._k(RUNS_PREFIX)
-        endpoint = '--endpoint-url "$MINIO_ENDPOINT"'
+        endpoint = '--endpoint-url "$S3_ENDPOINT"'
         missing: list[str] = []
         try:
             status = self.client.versioning()
@@ -696,7 +708,7 @@ class MinioStore(MemoryStore):
             missing.append(
                 f"S3 Select (SelectObjectContent over JSON Lines) does not answer on {self._k(PROBE_KEY)} "
                 f"({select_error}). The store requires it and has no local fallback: use a server with S3 Select "
-                "(RustFS has it; some MinIO releases removed it) and let the agent s3:PutObject and s3:GetObject"
+                "(RustFS has it; not every S3-compatible server does) and let the agent s3:PutObject and s3:GetObject"
             )
         if missing:
             raise MemoryStoreError(
@@ -714,7 +726,7 @@ class MinioStore(MemoryStore):
             return _parse_lines(self.client.select(self._k(key), where_sql(where)), key), version
         except Exception as exc:
             hint = ""
-            if getattr(exc, "code", None) == "EvaluatorBindingDoesNotExist":
+            if _code(exc) == "EvaluatorBindingDoesNotExist":
                 # RustFS infers an object's JSON schema from its leading rows: a field missing there is unbound even
                 # when later rows carry it, so "no rows" would be a guess. Measured 2026-10-02 (field at row 5000).
                 hint = f" (a field of {sorted(where)} is absent from the object's leading rows, which the server reads as its schema)"
@@ -729,130 +741,195 @@ class MinioStore(MemoryStore):
         return self.client.presign("GET", self._k(key), expires)
 
 
-class SdkClient:
-    """:class:`ObjectClient` over ``minio.Minio``; imported lazily so the core install needs no SDK."""
+_MISSING_OBJECT = ("NoSuchKey", "NoSuchObject", "NotFound", "404")
 
-    def __init__(self, endpoint: str, access_key: str, secret_key: str, secure: bool, bucket: str, region: str | None = None) -> None:
+
+class S3Client:
+    """:class:`ObjectClient` over boto3's S3 client; imported lazily so the core install needs no SDK. Path-style
+    addressing and SigV4, as RustFS needs; the SDK's own checksum trailers stay off because not every S3-compatible
+    server accepts them."""
+
+    def __init__(
+        self, endpoint: str, access_key: str, secret_key: str, bucket: str, region: str | None = None, session_token: str | None = None
+    ) -> None:
         try:
-            from minio import Minio
+            import boto3
+            from botocore.config import Config
         except ImportError as exc:
-            raise MemoryStoreError("OUSAST_MEMORY=minio://... needs the minio SDK: install openultrasast[minio]") from exc
-        self.sdk = Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=secure, region=region)
+            raise MemoryStoreError("OUSAST_MEMORY=s3://... needs boto3: install openultrasast[s3]") from exc
+        options: dict[str, Any] = {"signature_version": "s3v4", "s3": {"addressing_style": "path"}}
+        try:
+            config = Config(request_checksum_calculation="when_required", response_checksum_validation="when_required", **options)
+        except TypeError:  # botocore before 1.36 has no checksum options and sends no trailers either
+            config = Config(**options)
+        self.sdk = boto3.client(
+            "s3", endpoint_url=endpoint, aws_access_key_id=access_key, aws_secret_access_key=secret_key,
+            aws_session_token=session_token, region_name=region or "us-east-1", config=config,
+        )  # fmt: skip
         self.bucket = bucket
 
+    @staticmethod
+    def _missing(exc: Exception) -> bool:
+        return _code(exc) in _MISSING_OBJECT
+
     def get(self, key: str) -> tuple[bytes, str | None] | None:
-        from minio.error import S3Error
+        from botocore.exceptions import ClientError
 
         try:
-            response = self.sdk.get_object(self.bucket, key)
-        except S3Error as exc:
-            if exc.code in ("NoSuchKey", "NoSuchObject"):
+            response = self.sdk.get_object(Bucket=self.bucket, Key=key)
+        except ClientError as exc:
+            if self._missing(exc):
                 return None
             raise
+        body = response["Body"]
         try:
-            return response.read(), response.headers.get("x-amz-version-id")
+            data: bytes = body.read()
         finally:
-            response.close()
-            response.release_conn()
+            body.close()
+        version = response.get("VersionId")
+        return data, None if version in (None, "null") else str(version)
 
     def put(self, key: str, data: bytes, labels: Mapping[str, str]) -> None:
-        import io
+        from urllib.parse import quote, urlencode
 
-        from minio.commonconfig import Tags
-
-        tags = Tags(for_object=True)
-        for name, value in labels.items():
-            tags[name] = value
-        metadata: dict[str, str | list[str] | tuple[str]] = dict(labels)
-        self.sdk.put_object(
-            self.bucket, key, io.BytesIO(data), len(data), content_type="application/x-ndjson",
-            metadata=metadata or None, tags=tags if labels else None,
-        )  # fmt: skip
+        extra: dict[str, Any] = {}
+        if labels:
+            extra["Metadata"] = dict(labels)
+            extra["Tagging"] = urlencode(dict(labels), quote_via=quote)
+        self.sdk.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType="application/x-ndjson", **extra)
 
     def delete(self, key: str) -> None:
-        self.sdk.remove_object(self.bucket, key)
+        self.sdk.delete_object(Bucket=self.bucket, Key=key)
 
     def keys(self, prefix: str) -> list[str]:
-        return sorted(str(o.object_name) for o in self.sdk.list_objects(self.bucket, prefix=prefix, recursive=True))
+        found: list[str] = []
+        for page in self.sdk.get_paginator("list_objects_v2").paginate(Bucket=self.bucket, Prefix=prefix):
+            found.extend(str(o["Key"]) for o in page.get("Contents") or [])
+        return sorted(found)
+
+    def versions(self, prefix: str) -> list[tuple[str, str]]:
+        """Every (key, version id) under ``prefix``, delete markers included."""
+        found: list[tuple[str, str]] = []
+        for page in self.sdk.get_paginator("list_object_versions").paginate(Bucket=self.bucket, Prefix=prefix):
+            for entry in [*(page.get("Versions") or []), *(page.get("DeleteMarkers") or [])]:
+                found.append((str(entry["Key"]), str(entry["VersionId"])))
+        return sorted(found)
+
+    def delete_version(self, key: str, version: str) -> None:
+        self.sdk.delete_object(Bucket=self.bucket, Key=key, VersionId=version)
+
+    def purge(self, prefix: str) -> int:
+        """Remove every version and delete marker under ``prefix`` (a test prefix, a copy that is not wanted);
+        returns how many were removed. Nothing of the kind runs on a store's own layout."""
+        removed = 0
+        for key, version in self.versions(prefix):
+            self.delete_version(key, version)
+            removed += 1
+        return removed
 
     def tags(self, key: str) -> dict[str, str]:
-        return dict(self.sdk.get_object_tags(self.bucket, key) or {})
+        response = self.sdk.get_object_tagging(Bucket=self.bucket, Key=key)
+        return {str(t["Key"]): str(t["Value"]) for t in response.get("TagSet") or []}
 
     def version(self, key: str) -> str | None:
-        from minio.error import S3Error
+        from botocore.exceptions import ClientError
 
         try:
-            version = self.sdk.stat_object(self.bucket, key).version_id
-            return None if version is None else str(version)
-        except S3Error as exc:
-            if exc.code in ("NoSuchKey", "NoSuchObject"):
+            version = self.sdk.head_object(Bucket=self.bucket, Key=key).get("VersionId")
+        except ClientError as exc:
+            if self._missing(exc):
                 return None
             raise
+        return None if version in (None, "null") else str(version)
 
     def select(self, key: str, expression: str) -> bytes:
-        from minio.select import JSONInputSerialization, JSONOutputSerialization, SelectRequest
-
-        request = SelectRequest(expression, JSONInputSerialization(json_type="LINES"), JSONOutputSerialization(), request_progress=False)
-        with self.sdk.select_object_content(self.bucket, key, request) as result:
-            return b"".join(result.stream())
+        response = self.sdk.select_object_content(
+            Bucket=self.bucket, Key=key, ExpressionType="SQL", Expression=expression,
+            InputSerialization={"JSON": {"Type": "LINES"}}, OutputSerialization={"JSON": {"RecordDelimiter": "\n"}},
+        )  # fmt: skip
+        chunks: list[bytes] = []
+        for event in response["Payload"]:  # an error frame mid-stream raises botocore's EventStreamError
+            records = event.get("Records")
+            if records:
+                chunks.append(records["Payload"])
+        return b"".join(chunks)
 
     def presign(self, method: str, key: str, expires: timedelta) -> str:
-        if method == "PUT":
-            return str(self.sdk.presigned_put_object(self.bucket, key, expires=expires))
-        return str(self.sdk.presigned_get_object(self.bucket, key, expires=expires))
+        operation = "put_object" if method == "PUT" else "get_object"
+        return str(
+            self.sdk.generate_presigned_url(
+                operation, Params={"Bucket": self.bucket, "Key": key}, ExpiresIn=int(expires.total_seconds()), HttpMethod=method
+            )
+        )
 
     def versioning(self) -> str:
-        return str(self.sdk.get_bucket_versioning(self.bucket).status_string)
+        return str(self.sdk.get_bucket_versioning(Bucket=self.bucket).get("Status") or "Off")
 
     def lifecycle(self) -> list[ExpiryRule]:
-        config = self.sdk.get_bucket_lifecycle(self.bucket)
+        from botocore.exceptions import ClientError
+
+        try:
+            config = self.sdk.get_bucket_lifecycle_configuration(Bucket=self.bucket)
+        except ClientError as exc:
+            if _code(exc) == "NoSuchLifecycleConfiguration":
+                return []
+            raise
         rules: list[ExpiryRule] = []
-        for rule in config.rules if config else []:
-            found = rule.rule_filter
-            joined = found.and_operator if found else None
-            prefix = (joined.prefix if joined else found.prefix if found else None) or ""
-            tagged = bool(found and (found.tag or (joined and joined.tags)))
-            expiration = rule.expiration
-            expires = bool(expiration and (expiration.days or expiration.date))
-            days = expiration.days if expiration else None
-            rules.append(ExpiryRule(str(rule.rule_id or ""), prefix, days, rule.status == "Enabled", tagged, expires))
+        for rule in config.get("Rules") or []:
+            found = rule.get("Filter") or {}
+            joined = found.get("And") or {}
+            prefix = joined.get("Prefix") or found.get("Prefix") or rule.get("Prefix") or ""
+            tagged = bool(found.get("Tag") or joined.get("Tags"))
+            expiration = rule.get("Expiration") or {}
+            expires = bool(expiration.get("Days") or expiration.get("Date"))
+            days = expiration.get("Days")
+            rules.append(ExpiryRule(str(rule.get("ID") or ""), prefix, days, rule.get("Status") == "Enabled", tagged, expires))
         return rules
 
 
-def minio_settings(environ: Mapping[str, str] | None = None) -> dict[str, Any]:
-    """Endpoint, keys and TLS from ``.env``/the environment; a missing key is named, a value never is."""
+def s3_settings(environ: Mapping[str, str] | None = None) -> dict[str, Any]:
+    """Endpoint, keys, region and session token from ``.env``/the environment; a missing key is named, a value
+    never is. ``S3_ENDPOINT`` is a full URL (``https://host[:port]``)."""
     if environ is None:
         from ..config import load_dotenv
 
         load_dotenv()
         environ = os.environ
-    missing = [k for k in MINIO_KEYS if not environ.get(k)]
+    missing = [k for k in S3_KEYS if not environ.get(k)]
     if missing:
-        raise MemoryStoreError(f"OUSAST_MEMORY=minio://... needs {', '.join(missing)} in .env or the environment")
-    secure = (environ.get("MINIO_SECURE") or "true").strip().lower() not in ("0", "false", "no", "off")
+        raise MemoryStoreError(f"OUSAST_MEMORY=s3://... needs {', '.join(missing)} in .env or the environment")
+    endpoint = environ["S3_ENDPOINT"].strip()
+    if urlsplit(endpoint).scheme not in ("http", "https") or not urlsplit(endpoint).netloc:
+        raise MemoryStoreError("S3_ENDPOINT must be a URL with a scheme (https://host[:port])")
     settings: dict[str, Any] = {
-        "endpoint": environ["MINIO_ENDPOINT"], "access_key": environ["MINIO_ACCESS_KEY"],
-        "secret_key": environ["MINIO_SECRET_KEY"], "secure": secure,
+        "endpoint": endpoint, "access_key": environ["AWS_ACCESS_KEY_ID"], "secret_key": environ["AWS_SECRET_ACCESS_KEY"],
     }  # fmt: skip
-    if environ.get("MINIO_REGION"):
-        settings["region"] = environ["MINIO_REGION"]  # spares a GetBucketLocation the agent may not be allowed
+    if environ.get("S3_REGION"):
+        settings["region"] = environ["S3_REGION"]  # spares a GetBucketLocation the agent may not be allowed
+    if environ.get("AWS_SESSION_TOKEN"):
+        settings["session_token"] = environ["AWS_SESSION_TOKEN"]
     return settings
 
 
 def open_store(spec: str | None = None, environ: Mapping[str, str] | None = None) -> MemoryStore:
-    """The store ``spec`` (else ``OUSAST_MEMORY``, else ``file://<results_root()>/memory``) names."""
+    """The store ``spec`` (else ``OUSAST_MEMORY``, else ``file://<results_root()>/memory``) names. ``s3://`` with no
+    bucket uses ``S3_BUCKET``."""
     from .reconciler import results_root
 
-    text = spec or (environ if environ is not None else os.environ).get("OUSAST_MEMORY") or ""
+    env = environ if environ is not None else os.environ
+    text = spec or env.get("OUSAST_MEMORY") or ""
     if not text:
         return FileStore(results_root() / "memory")
     parts = urlsplit(text)
     if parts.scheme == "file" and parts.path:
         return FileStore(Path(parts.path))
-    if parts.scheme == "minio" and parts.netloc:
-        settings = minio_settings(environ)
-        return MinioStore(SdkClient(bucket=parts.netloc, **settings), parts.netloc, parts.path)
-    raise MemoryStoreError(f"OUSAST_MEMORY must be file:///<path> or minio://<bucket>[/<prefix>], got {text!r}")
+    if parts.scheme == "s3":
+        bucket = parts.netloc or env.get("S3_BUCKET") or ""
+        if not bucket:
+            raise MemoryStoreError("OUSAST_MEMORY=s3:// names no bucket and S3_BUCKET is unset: set one of them")
+        settings = s3_settings(environ)
+        return S3Store(S3Client(bucket=bucket, **settings), bucket, parts.path)
+    raise MemoryStoreError(f"OUSAST_MEMORY must be file:///<path> or s3://<bucket>[/<prefix>], got {text!r}")
 
 
 # --- ingest and seed -----------------------------------------------------------------------------------------------
@@ -950,11 +1027,11 @@ __all__ = [
     "IngestResult",
     "MemoryStore",
     "MemoryStoreError",
-    "MinioStore",
     "ObjectClient",
+    "S3Client",
+    "S3Store",
     "ExpiryRule",
     "Record",
-    "SdkClient",
     "check_query",
     "counts",
     "image_digest",
@@ -965,6 +1042,7 @@ __all__ = [
     "parse_memory_key",
     "repo_key",
     "row_id",
+    "s3_settings",
     "seed",
     "validate_row",
     "where_sql",

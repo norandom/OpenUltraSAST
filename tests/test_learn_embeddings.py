@@ -23,7 +23,7 @@ from openultrasast.learn.embeddings import (
 from openultrasast.learn.excerpt import excerpt_sha
 from openultrasast.plane.budget import BudgetExhausted, MeteredEmbeddingClient, UnmeteredUsage
 from openultrasast.plane.manifests import load_manifests
-from openultrasast.plane.memory import FileStore, MemoryStore, MinioStore
+from openultrasast.plane.memory import FileStore, MemoryStore, S3Store
 from openultrasast.provider.openrouter import parse_embedding_payload
 
 PRICES = {"cache_hit_per_m": 0, "input_per_m": 0.02, "output_per_m": 0}
@@ -43,9 +43,9 @@ class ScriptedEmbedder:
         return [[float(len(text) % 7 + i) for i in range(self.dims)] for text in inputs]
 
 
-@pytest.fixture(params=["file", "fake-minio"])
+@pytest.fixture(params=["file", "fake-s3-select"])
 def store(request: pytest.FixtureRequest, tmp_path: Path) -> Iterator[MemoryStore]:
-    yield FileStore(tmp_path / "memory") if request.param == "file" else MinioStore(FakeObjects("works"), "bucket", "p")
+    yield FileStore(tmp_path / "memory") if request.param == "file" else S3Store(FakeObjects("works"), "bucket", "p")
 
 
 def _excerpts(store: MemoryStore, n: int) -> list[str]:

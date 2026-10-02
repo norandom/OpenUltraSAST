@@ -24,7 +24,7 @@ from openultrasast.learn.examples import (
 )
 from openultrasast.learn.features import Part, quick_part, record
 from openultrasast.learn.labels import Source, Sources
-from openultrasast.plane.memory import FileStore, MemoryStore, MemoryStoreError, MinioStore
+from openultrasast.plane.memory import FileStore, MemoryStore, MemoryStoreError, S3Store
 
 PIN = "0123456789abcdef0123456789abcdef01234567"
 SOURCES = Sources(
@@ -39,9 +39,9 @@ CODE = {
 }
 
 
-@pytest.fixture(params=["file", "fake-minio"])
+@pytest.fixture(params=["file", "fake-s3-select"])
 def store(request: pytest.FixtureRequest, tmp_path: Path) -> Iterator[MemoryStore]:
-    yield FileStore(tmp_path / "memory") if request.param == "file" else MinioStore(FakeObjects("works"), "bucket", "p")
+    yield FileStore(tmp_path / "memory") if request.param == "file" else S3Store(FakeObjects("works"), "bucket", "p")
 
 
 def label(**kw: Any) -> dict[str, Any]:

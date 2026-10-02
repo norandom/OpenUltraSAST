@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 from learn_fixtures import ScriptedChat, by_id, corpus, default_answer, example
-from test_plane_memory import FakeObjects, _real_minio
+from test_plane_memory import FakeObjects, _real_s3
 
 from openultrasast.learn import compile as compile_module
 from openultrasast.learn.compile import (
@@ -34,7 +34,7 @@ from openultrasast.learn.examples import Example
 from openultrasast.learn.folds import Fold, FoldError
 from openultrasast.learn.program import Caller, Demo
 from openultrasast.plane.budget import MeteredClient
-from openultrasast.plane.memory import FileStore, MemoryStore, MinioStore
+from openultrasast.plane.memory import FileStore, MemoryStore, S3Store
 
 PRICES = {"cache_hit_per_m": 0.014, "input_per_m": 0.44, "output_per_m": 1.32}
 MEMORY = corpus(groups=24, per_group=4)
@@ -58,14 +58,14 @@ def answer(messages: Sequence[Mapping[str, object]], temperature: float | None) 
     return json.dumps(data)
 
 
-@pytest.fixture(params=["file", "fake-minio", "minio"])
+@pytest.fixture(params=["file", "fake-s3-select", "s3"])
 def store(request: pytest.FixtureRequest, tmp_path: Path) -> Iterator[MemoryStore]:
     if request.param == "file":
         yield FileStore(tmp_path / "memory")
-    elif request.param == "minio":
-        yield from _real_minio()
+    elif request.param == "s3":
+        yield from _real_s3()
     else:
-        yield MinioStore(FakeObjects("works"), "bucket", "p")
+        yield S3Store(FakeObjects("works"), "bucket", "p")
 
 
 def _caller(chat: ScriptedChat, store: MemoryStore | None = None, **budget: object) -> Caller:

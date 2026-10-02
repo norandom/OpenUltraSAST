@@ -119,8 +119,8 @@ def test_rustfs_page_lists_the_complete_policy_and_no_secret() -> None:
     for needle in (
         '"Sid": "BucketSettingsReadOnly"', '"Sid": "ObjectsReadWrite"', '"arn:aws:s3:::sast-memory"', '"arn:aws:s3:::sast-memory/*"',
         "put-bucket-versioning", "put-bucket-lifecycle-configuration", "--endpoint-url https://files.because-security.com",
-        "--bucket sast-memory", '"Prefix":"runs/"', '"Days":30', "OUSAST_MEMORY", "minio://sast-memory", "MINIO_ENDPOINT",
-        "MINIO_ACCESS_KEY", "MINIO_SECRET_KEY", "MINIO_SECURE", "MINIO_REGION", "EvaluatorBindingDoesNotExist",
+        "--bucket sast-memory", '"Prefix":"runs/"', '"Days":30', "OUSAST_MEMORY", "s3://sast-memory", "S3_ENDPOINT",
+        "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "S3_REGION", "S3_BUCKET", "EvaluatorBindingDoesNotExist",
     ):  # fmt: skip
         assert needle in text, f"rustfs.md lacks {needle!r}"
     for shape in SECRET_SHAPES:

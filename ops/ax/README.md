@@ -76,9 +76,9 @@ is skipped by the index. A facts entry is reused for the same repository, pin, c
 `OUSAST_MEMORY` selects the backend:
 
 - `file:///path` (`FileStore`), default `$OUSAST_RESULTS/plane/memory`; it refuses to write below 1 GiB free;
-- `minio://<bucket>[/<prefix>]` (`MinioStore`, the `minio` extra), used on the maintainer's MinIO. Endpoint and
-  credentials come from `.env` or the environment (`MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`,
-  `MINIO_SECURE`), never from a manifest, and are never printed.
+- `s3://<bucket>[/<prefix>]` (`S3Store`, the `s3` extra: boto3 against any S3-compatible server; RustFS is the
+  tested one). Endpoint and credentials come from `.env` or the environment (`S3_ENDPOINT`, `AWS_ACCESS_KEY_ID`,
+  `AWS_SECRET_ACCESS_KEY`), never from a manifest, and are never printed.
 
 `ousast improve --memory [STORE]` and the `ousast learn` commands (`--memory`) read the same store.
 
@@ -117,15 +117,16 @@ afterwards (`go clean -cache -modcache`); rerunning the full Substrate install o
 - A Workspace's `files` reach the actor inline in one environment variable: above ~20 KB of content the template
   fails with "actor template not found" (an 86 KB and a 31 KB excerpt did; 7 KB ran).
 
-## Memory store on S3 (MinIO or RustFS)
+## Memory store on S3 (RustFS is the tested server)
 
-`OUSAST_MEMORY=minio://<bucket>[/<prefix>]` puts the plane's memory store (`plane/memory.py`) in an
-S3-compatible bucket. MinIO and RustFS both work; the maintainer's server is RustFS. Endpoint and credentials
-come from `.env` (`MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_SECURE`, optional
-`MINIO_REGION`, which avoids a GetBucketLocation call) and are never printed.
+`OUSAST_MEMORY=s3://<bucket>[/<prefix>]` (or `s3://` for the bucket in `S3_BUCKET`) puts the plane's memory store
+(`plane/memory.py`) in an S3-compatible bucket through boto3 (the `s3` extra). Any store with versioning,
+lifecycle rules, object tags and S3 Select works; RustFS is what the contract tests run against. Endpoint and
+credentials come from `.env` (`S3_ENDPOINT` as a full URL, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, optional
+`AWS_SESSION_TOKEN` and `S3_REGION`, which avoids a GetBucketLocation call) and are never printed.
 
-**The store never configures its bucket.** An admin sets it up once. Each time a `MinioStore` is opened it
-checks the setup (`MinioStore.verify_bucket`), using reads plus one small probe object at
+**The store never configures its bucket.** An admin sets it up once. Each time an `S3Store` is opened it
+checks the setup (`S3Store.verify_bucket`), using reads plus one small probe object at
 `<prefix>/_probe/select.jsonl`. If anything is missing, it refuses to start with a `MemoryStoreError` that lists
 each missing piece and the admin command that fixes it. Nothing is skipped quietly. The store needs:
 
@@ -134,14 +135,14 @@ each missing piece and the admin command that fixes it. Nothing is skipped quiet
   default. The rule must be a plain prefix filter, and no rule may expire the whole store (`repos/`, `facts/`,
   `index.jsonl` and the blobs are kept);
 - **S3 Select** (`SelectObjectContent` over JSON Lines). Every filtered read is pushed down to the server, and
-  there is no fetch-and-filter fallback. A server without Select (some MinIO releases removed it) is refused;
+  there is no fetch-and-filter fallback. A server without Select is refused;
 - **object tags readable**, because rows are filtered by their `kind` tag.
 
 One-time admin setup (admin credentials, bucket `sast-memory`, store at the bucket root):
 
-    aws s3api put-bucket-versioning --endpoint-url "$MINIO_ENDPOINT" --bucket sast-memory \
+    aws s3api put-bucket-versioning --endpoint-url "$S3_ENDPOINT" --bucket sast-memory \
         --versioning-configuration Status=Enabled
-    aws s3api put-bucket-lifecycle-configuration --endpoint-url "$MINIO_ENDPOINT" --bucket sast-memory \
+    aws s3api put-bucket-lifecycle-configuration --endpoint-url "$S3_ENDPOINT" --bucket sast-memory \
         --lifecycle-configuration '{"Rules":[{"ID":"ousast-runs-expiry","Status":"Enabled",
           "Filter":{"Prefix":"runs/"},"Expiration":{"Days":30}}]}'
 
@@ -178,8 +179,8 @@ before any read: a new query declares its field first. Rows written before the r
 it writes new object versions, and versioning keeps the old ones. Run it when a store moves to RustFS. The store
 never answers "no rows" for a failed Select; it raises a `MemoryStoreError` naming the object and the cause.
 
-The real-server contract tests (`OUSAST_MEMORY_TEST_MINIO=1`, bucket `OUSAST_MEMORY_TEST_BUCKET`, else
-`MINIO_BUCKET`) verify the bucket at its root and write only under a fresh `contract-<id>/` prefix. They never
+The real-server contract tests (`OUSAST_MEMORY_TEST_S3=1`, bucket `OUSAST_MEMORY_TEST_BUCKET`, else
+`S3_BUCKET`) verify the bucket at its root and write only under a fresh `contract-<id>/` prefix. They never
 configure the bucket.
 
 ## Moving to a separate Kubernetes cluster (planned)
@@ -195,7 +196,7 @@ are; these parts assume this laptop and must change first (checked 2026-09-30):
 | ax's snapshot bucket: `AX_SNAPSHOTS_BUCKET` in ax's `deploy/ax-server.yaml` points at the ax authors' GCS bucket | ax deploy manifest | your own bucket, set before deploying ax |
 | Egress gateway applied by hand (agentgateway variant, no Rust build) | this README | the Substrate-installed gateway; per-task EgressPolicies work unchanged |
 | Worker pool of 2 x 1 CPU / 1.5 GiB for the 7 GB host | `workerpool.yaml.tmpl` | sized to the cluster; `--workers` to match |
-| Plane memory store and results under `~/ousast-results/` on the host | `reconciler.py` (`OUSAST_RESULTS`), `memory.py` (`OUSAST_MEMORY`) | a persistent volume or bucket shared by the reconciler; the `minio://` store already works against any reachable MinIO |
+| Plane memory store and results under `~/ousast-results/` on the host | `reconciler.py` (`OUSAST_RESULTS`), `memory.py` (`OUSAST_MEMORY`) | a persistent volume or bucket shared by the reconciler; the `s3://` store already works against any reachable S3-compatible server |
 
 The provider key already travels only in the start request through `atenet-router`, which works the same through
 a port-forward to any cluster.

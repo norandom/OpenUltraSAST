@@ -218,7 +218,7 @@ def _main(argv: list[str] | None) -> int:
         const="",
         default=None,
         metavar="STORE",
-        help="also propose rule-status edits from the plane memory store (a directory, file:// or minio:// URL; "
+        help="also propose rule-status edits from the plane memory store (a directory, file:// or s3:// URL; "
         "no value: OUSAST_MEMORY or the default store); off by default",
     )
     improve.add_argument(
@@ -290,7 +290,7 @@ def _main(argv: list[str] | None) -> int:
     plane_normalise = plane_sub.add_parser(
         "memory-normalise", help='rewrite the store\'s rows to the fixed schema (every queryable field, "" where absent); idempotent'
     )
-    plane_normalise.add_argument("--store", help="the store URL (default OUSAST_MEMORY): file:///<path> or minio://<bucket>[/<prefix>]")
+    plane_normalise.add_argument("--store", help="the store URL (default OUSAST_MEMORY): file:///<path> or s3://<bucket>[/<prefix>]")
     plane_normalise.add_argument("--dry-run", action="store_true", help="count what would be rewritten, write nothing")
     plane_engine = plane_sub.add_parser(
         "alerts-engine", help="a Run's `alerts` for PHP and languages quick mode does not cover, from the engine image on this host"

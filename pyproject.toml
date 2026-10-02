@@ -16,10 +16,10 @@ docs = [
     "mkdocs>=1.6,<2",
     "mkdocs-material>=9.5,<10",
 ]
-# The plane's memory store on MinIO (OUSAST_MEMORY=minio://<bucket>, plane/memory.py). Imported lazily; the
-# core install and the file store need nothing beyond PyYAML.
-minio = [
-    "minio>=7.2,<8",
+# The plane's memory store on an S3-compatible bucket (OUSAST_MEMORY=s3://<bucket>, plane/memory.py; RustFS is the
+# tested server). Imported lazily; the core install and the file store need nothing beyond PyYAML.
+s3 = [
+    "boto3>=1.35,<2",
 ]
 # Structured parse for overlay (JS/C/C++/Java/Python). Core install stays empty.
 # Wheels are MIT; import is lazy via openultrasast.semantic.extra.
@@ -69,9 +69,10 @@ warn_unused_configs = true
 module = "tree_sitter"
 ignore_missing_imports = true
 
-# The minio SDK is an optional extra, absent in the type-check environment (plane/memory.py imports it lazily).
+# boto3 is an optional extra without inline types, absent in the type-check environment (plane/memory.py imports
+# it lazily).
 [[tool.mypy.overrides]]
-module = ["minio", "minio.*"]
+module = ["boto3", "botocore.*"]
 ignore_missing_imports = true
 
 # PyYAML ships no inline types and types-PyYAML is not a dev dependency.

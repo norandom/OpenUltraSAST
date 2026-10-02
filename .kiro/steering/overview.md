@@ -15,7 +15,7 @@ User-facing documentation: `README.md`, `docs/architecture.md`, `docs/evaluation
 - **Agentic plane.** google/ax over Agent Substrate on kind is the only executor of model work over whole
   repositories (`ousast plane run|status|doctor|workspaces|remember|alerts-engine|harvest`). Credentials travel
   only in the start request through `atenet-router`; egress is per task; budgets are per task; rows go to the
-  memory store (`OUSAST_MEMORY`: FileStore, or MinioStore on the maintainer's MinIO).
+  memory store (`OUSAST_MEMORY`: FileStore, or S3Store on an S3-compatible bucket; RustFS is the tested server).
 - **Removed.** HarnessX (retired 2026-09-30): its config keys fail, a `[harnessx]` section warns. The LLM judge
   of the verifier and the LLM fusion panels are gone; fusion is deterministic.
 - **Improvement.** `ousast improve --memory` proposes rule-status edits from plane memory through the unchanged

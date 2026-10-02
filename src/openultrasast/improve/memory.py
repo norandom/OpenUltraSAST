@@ -32,7 +32,7 @@ rule the closed-loop leak broke, where a holdout pair taught the shape that then
 
 **Provenance**: each proposal's rationale is ``memory:<proposal_id>``, ``proposal_id`` being the sha256 of (rule,
 edit key, sorted evidence row ids, thresholds). The sidecar ``memory_proposals.jsonl`` next to the journal carries
-the evidence rows (id, repo, pin, run, task, object key and version -- MinIO's version id, a file's content hash),
+the evidence rows (id, repo, pin, run, task, object key and version -- the bucket's object version id, a file's content hash),
 the counts that met each threshold, what the guard excluded and the store's index digest.
 """
 

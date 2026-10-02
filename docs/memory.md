@@ -96,17 +96,17 @@ flowchart LR
 
 `OUSAST_MEMORY` selects the backend (`open_store`):
 
-| | `FileStore` | `MinioStore` (S3: RustFS or MinIO) |
+| | `FileStore` | `S3Store` (any S3-compatible store; RustFS is the tested server) |
 | --- | --- | --- |
-| Selected by | `file:///path`, or nothing (default `$OUSAST_RESULTS/plane/memory`) | `minio://<bucket>[/<prefix>]` |
-| Needs | a local disk; refuses to write below 1 GiB free | the `minio` extra, `MINIO_*` settings from `.env` or the environment |
+| Selected by | `file:///path`, or nothing (default `$OUSAST_RESULTS/plane/memory`) | `s3://<bucket>[/<prefix>]`, or `s3://` for the bucket in `S3_BUCKET` |
+| Needs | a local disk; refuses to write below 1 GiB free | the `s3` extra (boto3); `S3_ENDPOINT`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (optional `S3_REGION`, `AWS_SESSION_TOKEN`) from `.env` or the environment |
 | Filtered reads | read and filter locally | S3 Select pushdown (`SelectObjectContent` over JSON Lines); kind filter by object tag |
 | Object version cited by provenance | the file's content hash | the bucket's object version id |
 | Bucket setup | none | done once by an admin, verified at every start ([RustFS setup](rustfs.md)) |
 
 ### Verify at startup, no fallback
 
-The S3 store never configures its bucket. Each time a `MinioStore` is opened for a bucket and
+The S3 store never configures its bucket. Each time an `S3Store` is opened for a bucket and
 prefix (once per process), `verify_bucket()` checks, using reads plus one small probe object at
 `<prefix>/_probe/select.jsonl`:
 
@@ -125,7 +125,7 @@ messages are listed on [RustFS setup](rustfs.md#what-the-store-verifies-at-start
 
 RustFS's Select infers an object's JSON schema from its leading rows, so a `where` field missing
 there fails with `EvaluatorBindingDoesNotExist` even when a later row has it (measured
-2026-10-02; `memory.py`, `MinioStore._select`). On main today the store turns that failure into a
+2026-10-02; `memory.py`, `S3Store._select`). On main today the store turns that failure into a
 `MemoryStoreError` naming the field, never into an empty answer. A fixed set of queryable fields
 per row kind, so that every filtered field is present in every row of its kind, is in progress
 and not on main as of this page.

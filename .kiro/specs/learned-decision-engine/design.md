@@ -38,7 +38,7 @@ Six facts from the repository and the recorded results shape the design:
   (`push/policy.py:802-823`: "No shipped declaration is enabled"), so `pre-push` blocks nothing today. The
   engine's operating point replaces the capability-eligibility reasons, and the structural reasons stay.
 - **The memory store is the system of record and has the needed shape.** Rows are keyed by repository and pin,
-  with a closed `KINDS` tuple (`plane/memory.py:52`). There are two backends (FileStore, MinioStore) behind one
+  with a closed `KINDS` tuple (`plane/memory.py:52`). There are two backends (FileStore, S3Store) behind one
   interface (`plane/memory.py:176-291`), content-addressed blobs (`put_facts`, `plane/memory.py:249-255`), and a
   train-on-test `Guard` (`improve/memory.py:95-133`). Features, labels, decisions, model artifacts and experiment
   outcomes become new row kinds and blob prefixes. No second store is added.
@@ -604,7 +604,7 @@ that hits its ceiling records `unfinished` and produces no artifact.
 `sha256(model id, Model parameters digest, messages, temperature, sample index, json_object)`. Every random choice
 (compile split, demo draws, tie-breaks, subsets) is seeded from `compile.toml`. Re-running a compile on the same
 store snapshot with the cache reproduces the artifact byte for byte at $0 (`test_learn_compile.py::
-test_reproducible_from_cache`, on FileStore and on MinioStore gated as today). Without the cache, temperature 0 is
+test_reproducible_from_cache`, on FileStore and on S3Store gated as today). Without the cache, temperature 0 is
 not a determinism guarantee at the provider; the artifact records the cache digest so a re-run can say whether it
 was replayed or re-asked.
 
@@ -700,7 +700,7 @@ and a top-up. No single run may start whose ceiling exceeds the balance read jus
 
 A compiled program is one canonical JSON (sorted keys, floats with `repr`), a content-addressed blob
 `programs/<sha256>.json`, with `programs/index.jsonl` (every version) and `programs/adopted.json` (profile -> sha;
-a single overwritten object, versioned under MinIO, history in the index on FileStore). On MinIO the object is
+a single overwritten object, versioned on S3, history in the index on FileStore). On S3 the object is
 tagged `kind=program` and `profile`.
 
 ```
@@ -1038,7 +1038,7 @@ No test makes a model or embedding call: the chat and embedding clients are scri
   and stops at its ceiling; the response cache key and replay.
 - `tests/test_learn_compile.py`: bootstrap keeps only correct, confident, identity-free rationales; instruction
   candidates scored by the balanced Brier metric with ties to fewer tokens; compile split disjoint from evaluation
-  folds; `test_reproducible_from_cache` (byte-identical artifact on FileStore, and on MinioStore gated as today);
+  folds; `test_reproducible_from_cache` (byte-identical artifact on FileStore, and on S3Store gated as today);
   ceiling -> `unfinished`, no artifact.
 - `tests/test_learn_folds.py`: no group in both an evaluation fold and the compile split or retrieval pool, for
   outer, leave-one-source-out and leave-one-framework-out folds; determinism by seed.
