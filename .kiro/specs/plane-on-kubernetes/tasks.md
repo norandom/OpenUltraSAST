@@ -36,7 +36,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
     `ax-tunnel`; fails listing `path:line`.
   - Evidence: the test passes on this commit and fails when a literal is reinserted (shown once in the record).
   - _Requirements: 1.3_
-- [ ] 1.4 `up.sh` by profile
+- [x] 1.4 `up.sh` by profile
   - `ops/ax/up.sh`: `KO_DOCKER_REPO` and the context from `kind.toml` (read with `python -m
     openultrasast.plane.profile --print registry|kube_context`); writes `kind-images.json` instead of
     `runner-image`; `generate.repin_templates` accepts that file (runner key only until task 4.3).

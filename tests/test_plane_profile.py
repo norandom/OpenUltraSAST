@@ -144,6 +144,8 @@ def test_print_for_shell_scripts(capsys: pytest.CaptureFixture[str], tmp_path: P
     fields = ["registry", "kube_context", "images.runner", "pools.default.replicas"]
     assert profile_module.main(["--profile", str(path), "--print", *fields]) == 0
     assert capsys.readouterr().out.splitlines() == ["registry.test:5000", "kind-test", f"registry.test:5000/ousast-runner@{DIGEST}", "3"]
+    assert profile_module.main(["--profile", str(path), "--print", "images"]) == 0, "the images file's path itself (up.sh writes it)"
+    assert capsys.readouterr().out.strip() == str(tmp_path / "images.json")
     assert profile_module.main(["--profile", str(path), "--print", "images.engine"]) == 2
     assert "no image named 'engine'" in capsys.readouterr().err
     assert profile_module.main(["--profile", str(path), "--print", "nothing"]) == 2

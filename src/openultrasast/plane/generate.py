@@ -45,8 +45,9 @@ The recorded triage cost is derived per file: a batched-check record's ``usd`` p
 hunts, and its ``usage`` counts only the hunts (``verify_sinks._Recording`` slices the client's usage from the
 first hunt on), so the triage share is ``usd`` minus that usage priced at the reference model's list price.
 
-``--runner-image FILE`` (``~/.cache/ousast/ax-src/runner-image``, written by ``ops/ax/up.sh``) re-pins the
-templates' ``image:`` to the digest in that file before generating, so a rebuilt image is one command.
+``--runner-image FILE`` (the profile's images file, ``ops/k8s/profiles/kind-images.json``, written by ``ops/ax/up.sh``;
+the older one-line pin file still reads) re-pins the templates' ``image:`` to the runner digest in that file before
+generating, so a rebuilt image is one command.
 """
 
 from __future__ import annotations
@@ -485,11 +486,18 @@ _IMAGE_LINE = re.compile(r'^(\s*image:\s*)"?[^"\s]+"?\s*$', re.MULTILINE)
 
 
 def repin_templates(plane: Path, image_file: Path) -> str:
-    """Set every template's ``image:`` to the digest-pinned reference in ``image_file`` (as ``ops/ax/up.sh``
-    writes it); comments and layout are kept. Returns the reference."""
-    image = image_file.read_text(encoding="utf-8").strip()
-    if not re.fullmatch(r"\S+@sha256:[0-9a-f]{64}", image):
-        raise ValueError(f"{image_file}: expected a digest-pinned image reference, got {image!r}")
+    """Set every template's ``image:`` to the runner reference of ``image_file``: a profile images file
+    (``{"runner": "<registry>/<name>@sha256:..."}``, as ``ops/ax/up.sh`` writes it) or the older one-line pin; a
+    reference without a digest is refused. Comments and layout are kept. Returns the reference. (Task 4.3 gives
+    the engine template ``images["engine"]``; until then only the runner key is read.)"""
+    from .profile import ProfileError, load_images
+
+    try:
+        image = load_images(image_file)["runner"]
+    except ProfileError as exc:
+        raise ValueError(str(exc)) from None
+    except KeyError:
+        raise ValueError(f"{image_file}: no runner image in the images file") from None
     for name in TEMPLATES:
         path = plane / "tasks" / f"{name}.yaml"
         text = path.read_text(encoding="utf-8")

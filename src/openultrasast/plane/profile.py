@@ -229,7 +229,7 @@ def load_profile(name: str | None = None, environ: Mapping[str, str] | None = No
 
 def _lookup(profile: PlaneProfile, dotted: str) -> str:
     head, _, rest = dotted.partition(".")
-    if head == "images":
+    if head == "images" and rest:
         images = profile.load_images()
         if rest not in images:
             raise ProfileError(f"{profile.images}: no image named {rest!r} (have {', '.join(sorted(images))})")

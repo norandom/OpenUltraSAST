@@ -7,7 +7,7 @@ metadata:
   name: alerts
   atespace: default
 spec:
-  image: "localhost:5001/ousast-runner@sha256:412db0a1504af8f1b23a395af8d1dcbd152c1bb6d16594f2b733067163a31884"
+  image: "localhost:5001/ousast-runner@sha256:95edc7ed562189180a472df8115e6a90c8b4fcea47c06593395634bd56041bcb"
   command: ["alerts"]
   resources:
     requests:

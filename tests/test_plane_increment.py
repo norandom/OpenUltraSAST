@@ -292,6 +292,23 @@ def test_case_record_carries_sites_in_set_and_cost_and_the_image_is_repinned(tmp
         repin_templates(paths["plane"], tmp_path / "runner-image")
 
 
+def test_repin_reads_the_profiles_images_file(tmp_path: Path) -> None:
+    """plane-on-kubernetes 1.4: ``ops/ax/up.sh`` writes ``kind-images.json`` ({"runner": ...}); repin reads it, the
+    older one-line pin still reads, and a file without a runner key or without a digest is refused by name."""
+    paths = _fixture(tmp_path)
+    digest = "localhost:5001/ousast-runner@sha256:" + "cd" * 32
+    images = tmp_path / "kind-images.json"
+    images.write_text(json.dumps({"runner": digest}) + "\n")
+    assert repin_templates(paths["plane"], images) == digest
+    assert {t.image for t in load_manifests(sorted((paths["plane"] / "tasks").glob("*.yaml"))).tasks.values()} == {digest}
+    images.write_text(json.dumps({"engine": digest}))
+    with pytest.raises(ValueError, match="no runner image"):
+        repin_templates(paths["plane"], images)
+    images.write_text(json.dumps({"runner": "localhost:5001/ousast-runner:dev"}))
+    with pytest.raises(ValueError, match="not digest-pinned"):
+        repin_templates(paths["plane"], images)
+
+
 def test_workspaces_go_to_the_profiles_atespace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """plane-on-kubernetes 1.2: ``generate.ATESPACE`` is a default; ``increment`` takes the profile's atespace."""
     paths = _fixture(tmp_path)

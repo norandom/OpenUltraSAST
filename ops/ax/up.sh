@@ -1,13 +1,21 @@
 #!/usr/bin/env bash
 # Bring up ax on this host: kind cluster + local registry, Agent Substrate, the ax control plane, one smoke
-# Task. Idempotent enough to rerun; `down.sh` removes everything. Requires docker, go, kubectl, kind, ko, ax.
+# Task. Idempotent: every step is skipped when already done; `down.sh` removes everything. Requires docker, go,
+# kubectl, kind, ko, ax. The cluster's context, the registry and the pool sizes come from the kind profile
+# (ops/k8s/profiles/kind.toml; OUSAST_PLANE_PROFILE selects another file with exec = "local"). This script may
+# name the kind cluster because it creates it; the code reads the profile (tests/test_plane_literals.py).
 set -euo pipefail
 trap 'rc=$?; echo "up.sh FAILED at line $LINENO (exit $rc)"' ERR
 trap 'echo "up.sh exit $?"' EXIT
 export PATH="$HOME/go/bin:$HOME/.local/bin:$PATH"
 export GOTOOLCHAIN=auto
-export KIND_CLUSTER_NAME="${KIND_CLUSTER_NAME:-ousast}"
-export KO_DOCKER_REPO="${KO_DOCKER_REPO:-localhost:5001}"
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+PY="${OUSAST_PYTHON:-$REPO_ROOT/.venv/bin/python}"
+profile() { PYTHONPATH="$REPO_ROOT/src" "$PY" -m openultrasast.plane.profile --profile "${OUSAST_PLANE_PROFILE:-kind}" --print "$@"; }
+CTX="$(profile kube_context)"                       # kind names its context kind-<cluster>
+export KIND_CLUSTER_NAME="${CTX#kind-}"
+export KO_DOCKER_REPO="${KO_DOCKER_REPO:-$(profile registry)}"
+IMAGES_FILE="$(profile images)"                     # the digest pins the reconciler and the templates read
 SRC="${OUSAST_AX_SRC:-$HOME/.cache/ousast/ax-src}"
 
 for t in docker go kubectl kind ko ax; do
@@ -19,9 +27,8 @@ clone substrate https://github.com/agent-substrate/substrate.git
 clone ax https://github.com/google/ax.git
 step() { printf '\n== %s (%s)\n' "$1" "$(date +%H:%M:%S)"; }
 
-step "kind cluster '$KIND_CLUSTER_NAME' + registry $KO_DOCKER_REPO"
+step "kind cluster '$KIND_CLUSTER_NAME' (context $CTX) + registry $KO_DOCKER_REPO"
 # Each step is skipped when already done: the substrate helper DELETES an existing cluster before creating one.
-CTX="kind-$KIND_CLUSTER_NAME"
 ready() { kubectl --context "$CTX" -n "$1" get pods --no-headers 2>/dev/null | awk '$2 ~ /^[0-9]+\/[0-9]+$/ {n++; split($2,a,"/"); if (a[1]!=a[2] && $3!="Completed") bad++} END {exit !(n>0 && bad==0)}'; }
 if kind get clusters 2>/dev/null | grep -qx "$KIND_CLUSTER_NAME"; then
   echo "cluster exists; kept"
@@ -56,25 +63,36 @@ KIND_GATEWAY="$(docker network inspect kind --format '{{range .IPAM.Config}}{{if
 export KIND_GATEWAY OUSAST_ARTIFACT_PORT="${OUSAST_ARTIFACT_PORT:-18090}"   # the reconciler's fixed receiver port
 envsubst < "$(dirname "$0")/receiver-service.yaml.tmpl" | kubectl --context "$CTX" apply -f -
 
-step "worker pool (gVisor)"
+step "worker pool (gVisor): pools.default of the profile"
+# `ko apply` builds the worker image from the Substrate checkout (several GB of Go caches): only when the pool
+# is absent. A size change in the profile is applied with `kubectl patch` or by deleting the pool first.
+export POOL_NAME=ousast-pool POOL_REPLICAS="$(profile pools.default.replicas)" POOL_CPU="$(profile pools.default.cpu)" POOL_MEMORY="$(profile pools.default.memory)"
+export WORKER_IMAGE="ko://github.com/agent-substrate/substrate/cmd/ateom-gvisor"
 SUBSTRATE_VERSION="$(kubectl --context "$CTX" get nodes -o jsonpath='{.items[0].metadata.labels.ate\.dev/substrate-version}')"
 export SUBSTRATE_VERSION
 envsubst < "$(dirname "$0")/workerpool.yaml.tmpl" > "$SRC/workerpool.yaml"
-(cd "$SRC/substrate" && KO_DOCKER_REPO="$KO_DOCKER_REPO" ko apply -f "$SRC/workerpool.yaml")
-kubectl --context "$CTX" -n ax-system wait --for=condition=Ready pod -l ate.dev/worker-pool=ousast-pool --timeout=600s \
+if kubectl --context "$CTX" -n ax-system get workerpool "$POOL_NAME" >/dev/null 2>&1; then
+  echo "pool $POOL_NAME exists ($(kubectl --context "$CTX" -n ax-system get workerpool "$POOL_NAME" -o jsonpath='{.status.readyReplicas}/{.spec.replicas}') ready); kept"
+else
+  (cd "$SRC/substrate" && KO_DOCKER_REPO="$KO_DOCKER_REPO" ko apply -f "$SRC/workerpool.yaml")
+fi
+kubectl --context "$CTX" -n ax-system wait --for=condition=Ready pod -l "ate.dev/worker-pool=$POOL_NAME" --timeout=600s \
   || kubectl --context "$CTX" -n ax-system get pods
 
 step "runner image $KO_DOCKER_REPO/ousast-runner"
-REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 docker build -q -f "$REPO_ROOT/plane/Dockerfile.runner" -t "$KO_DOCKER_REPO/ousast-runner:dev" "$REPO_ROOT"
 docker push -q "$KO_DOCKER_REPO/ousast-runner:dev"
 RUNNER_IMAGE="$(docker inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$KO_DOCKER_REPO/ousast-runner:dev" | grep "^$KO_DOCKER_REPO/ousast-runner@" | head -1)"
 [ -n "$RUNNER_IMAGE" ] || { echo "no digest for the runner image" >&2; exit 2; }
-export RUNNER_IMAGE; echo "$RUNNER_IMAGE" > "$SRC/runner-image"   # the reconciler reads this pin
-echo "runner image $RUNNER_IMAGE"
+export RUNNER_IMAGE
+printf '{\n  "runner": "%s"\n}\n' "$RUNNER_IMAGE" > "$IMAGES_FILE"   # the profile's images file: commit it with the templates
+echo "runner image $RUNNER_IMAGE -> $IMAGES_FILE"
+echo "re-pin the templates with: ousast plane workspaces ... --runner-image $IMAGES_FILE (or ousast plane repin, task 4.3)"
 
 step "ax CLI from the deployed checkout (a release CLI skews from the server)"
-(cd "$SRC/ax" && go install ./cmd/ax)
+if [ -x "$HOME/go/bin/ax" ] && [ "$HOME/go/bin/ax" -nt "$SRC/ax/.git/HEAD" ]; then echo "ax CLI newer than the checkout; kept"; else
+  (cd "$SRC/ax" && go install ./cmd/ax)
+fi
 
 step "smoke task"
 ax delete task ousast-smoke >/dev/null 2>&1 || true

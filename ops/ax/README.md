@@ -12,7 +12,10 @@ single-node kind cluster. ax is the only executor; `ousast plane run` submits, r
     ops/ax/down.sh        # deletes the cluster and its registry
 
 Tools live in `~/go/bin` (kind, ax, ko, kubectl-ate) and `~/.local/bin` (kubectl); sources and rendered files
-in `~/.cache/ousast/ax-src/` (the runner digest pin is `runner-image` there).
+in `~/.cache/ousast/ax-src/`. The cluster's context, registry and pool sizes come from the kind profile
+(`ops/k8s/profiles/kind.toml`); `up.sh` writes the runner's digest pin to that profile's images file
+(`ops/k8s/profiles/kind-images.json`), which the templates are re-pinned from and which is committed with them.
+`up.sh` and `smoke-run.sh` run the checkout's code with `OUSAST_PYTHON` (default `.venv/bin/python`).
 
 ## How a Run executes
 
