@@ -1,51 +1,77 @@
 # The learned decision engine (in development)
 
-**Status 2026-10-02: in development, not adopted.** No scan, pre-push check or report uses it;
-every user-facing path is today's deterministic one until a compiled program is adopted. The
-design is the `learned-decision-engine` specification (maintainer tooling); the code is in
+**Status 2026-10-02: in development, not adopted.** No scan, pre-push check or report uses it.
+Every user-facing path stays on today's deterministic one until a compiled program is adopted.
+The design is the `learned-decision-engine` specification (maintainer tooling). The code is in
 `src/openultrasast/learn/`.
 
 ## Why
 
-Every detection gain before the engine was a hand edit tuned on the cases that exposed it, and
-engine tuning measured on population v1 did not transfer to v2. The reasoning, and the step-by-step
-chain that replaced hand edits, are on [Where we stand](where-we-stand.md#2-our-approach-to-detection-step-by-step).
+Before the engine, every detection gain was a hand edit. Each edit was tuned on the cases that
+exposed the miss. Engine tuning measured on population v1 did not transfer to v2. [Where we
+stand](where-we-stand.md#2-our-approach-to-detection-step-by-step) gives the reasoning and the
+step-by-step chain that replaced hand edits.
 
 ## Design
 
-- **Signals, not verdicts.** Every instrument (quick rules, the Joern engine, model sink and
-  role classification, the plane's verify passes and agreement, repository facts such as
-  callers) contributes a feature record per candidate `(path, function, family)`, including an
-  explicit state when it did not run or failed. None decides alone.
+- **Signals, not verdicts.** Every instrument contributes a feature record per candidate
+  `(path, function, family)`. The instruments are quick rules, the Joern engine, model sink and
+  role classification, the plane's verify passes and agreement, and repository facts such as
+  callers. The record includes an explicit state when an instrument did not run or failed. No
+  instrument decides alone.
 - **Labels from ground truth.** `ousast learn labels` derives labels only from sources on a
-  fail-closed allow-list (`learn/sources.toml`): the vulnerable and fixed sides of pairs, the
-  declared sites and fix ranges of spent populations, benign deltas and recorded adjudications.
+  fail-closed allow-list (`learn/sources.toml`). Fail-closed means a source not on the list is
+  never used. The sources are:
+  - the vulnerable and fixed sides of pairs;
+  - the declared sites and fix ranges of spent populations;
+  - benign deltas;
+  - recorded adjudications.
+
   "Rejected by the plane" is never a negative. Reserved populations (v3) are not on the list.
-- **An AI classifier with local memory, compiled in house in the DSPy style.** The program is an
-  instruction, a few demonstrations and up to six retrieved labelled examples, then the
-  candidate's code excerpt and signals; the model (`deepseek-flash`) answers
-  vulnerable / not vulnerable / unsure with a rationale, sampled `k` times, giving a score `s`.
-  Compilation bootstraps demonstrations and searches instructions on a compile split, scored by
-  a pre-registered balanced Brier score (`learn/compile.toml`).
-- **Retrieval** from the memory store: nearest neighbours by Gower distance on the signal
-  profile, re-ranked by cosine similarity of code embeddings (OpenAI `text-embedding-3-small`
-  through OpenRouter, cached by excerpt hash), under a label/family/repository balance rule. An
-  evaluation-boundary filter keeps a candidate's own repository group out of what it is shown.
+- **An AI classifier with local memory, compiled in house in the DSPy style.** The program has
+  an instruction, a few demonstrations and up to six retrieved labelled examples. Then come the
+  candidate's code excerpt and signals. The model (`deepseek-flash`) answers vulnerable / not
+  vulnerable / unsure with a rationale. It is sampled `k` times, which gives a score `s`.
+  Compilation bootstraps demonstrations and searches instructions on a compile split. A
+  pre-registered balanced Brier score (`learn/compile.toml`) scores the candidates. The Brier score
+  measures how far predicted probabilities are from the true labels.
+- **Retrieval** from the memory store works in three steps:
+  1. find nearest neighbours by Gower distance (a distance over mixed feature types) on the
+     signal profile;
+  2. re-rank them by cosine similarity of code embeddings (OpenAI `text-embedding-3-small`
+     through OpenRouter, cached by excerpt hash);
+  3. apply a label/family/repository balance rule.
+
+  An evaluation-boundary filter keeps a candidate's own repository group out of what it is
+  shown.
 - **Repository-grouped evaluation.** The compile split (25% of repository groups) is never
-  evaluated. The rest is evaluated by outer grouped 5-fold cross-validation: the Platt
-  calibration map is cross-fitted on the other folds and the operating points are chosen on the
-  other folds (nested). One compile per profile, not one per fold. Intervals are 95%
-  repository-cluster bootstrap.
-- **Two operating points.** BLOCK is offered only when calibration holds (slope CI contains 1,
-  intercept CI contains 0, ECE <= 0.05) and a fold reaches the required precision; otherwise the
-  engine is ADVISORY only. An `unsure` answer can never BLOCK.
+  evaluated. The rest is evaluated by outer grouped 5-fold cross-validation:
+  - the Platt calibration map (which turns the score into a probability) is cross-fitted on
+    the other folds;
+  - the operating points are chosen on the other folds (nested).
+
+  There is one compile per profile, not one per fold. Intervals are 95% repository-cluster
+  bootstrap.
+- **Two operating points.** BLOCK is offered only when both of these hold:
+  - calibration holds: slope CI contains 1, intercept CI contains 0, ECE <= 0.05;
+  - a fold reaches the required precision.
+
+  Otherwise the engine is ADVISORY only. An `unsure` answer can never BLOCK. ECE (expected
+  calibration error) is the average gap between predicted and observed rates.
 
 ## First measured slice (2026-10-01)
 
 Record: `benchmarks/measurements/2026-10-01-decision-engine-injection-slice/record.json` (counts
-only). Family **injection** only; memory of 724 static examples from all families; input profile
-v1 with the engine signals and function length withheld (a leak audit found them separating the
-sides of a pair by construction: `2026-10-01-decision-engine-leak-audit/`); framework priors off.
+only). The setup:
+
+- family **injection** only;
+- memory of 724 static examples from all families;
+- input profile v1, with the engine signals and function length withheld;
+- framework priors off.
+
+The signals were withheld because a leak audit found them separating the sides of a pair by
+construction (`2026-10-01-decision-engine-leak-audit/`). AUC below is the chance the engine
+ranks a real bug above a fixed one.
 
 | Measure | Value (95% repository-cluster CI) |
 | --- | --- |
@@ -62,11 +88,17 @@ sides of a pair by construction: `2026-10-01-decision-engine-leak-audit/`); fram
 ## Second slice: six families (2026-10-02)
 
 Record: `benchmarks/measurements/2026-10-02-decision-engine-slice-2/record.json` (counts only).
-After the advisory-fix harvest the memory holds 904 static examples (724 before). One program was
-compiled per evaluable family (injection recompiled, since the memory changed) and evaluated on
-that family's own candidates, out of repository as above: compile split never evaluated, outer
-grouped 5-fold, calibration cross-fitted, operating points nested, 95% repository-cluster
-bootstrap intervals (2,000 resamples); input profile v1, priors off, k = 5.
+After the advisory-fix harvest, the memory holds 904 static examples (724 before).
+
+One program was compiled per evaluable family. Injection was recompiled, since the memory
+changed. Each program was evaluated on its family's own candidates, out of repository as above:
+
+- compile split never evaluated;
+- outer grouped 5-fold;
+- calibration cross-fitted;
+- operating points nested;
+- 95% repository-cluster bootstrap intervals (2,000 resamples);
+- input profile v1, priors off, k = 5.
 
 | Family | Candidates (groups; positive) | Pooled AUC of `s` (95% CI) | Within-pair AUC (paired groups) | ADVISORY recall / precision | Canary agreement |
 | --- | --- | --- | --- | --- | --- |
@@ -77,45 +109,53 @@ bootstrap intervals (2,000 resamples); input profile v1, priors off, k = 5.
 | path | 35 (21; 21) | 0.89 (0.79 - 0.97) | 0.83 (14) | 0.86 / 0.69 | 0.90 |
 | untrusted destination | 62 (37; 38) | 0.85 (0.76 - 0.94) | 0.72 (18) | 0.84 / 0.73 | 0.87 |
 
-- **BLOCK is offered for no family.** Calibration holds only for output encoding (ECE 0.045), and
-  there no fold reaches the required precision (`precision_unreachable`: no fold reaches a Wilson
-  lower bound of 0.95). For the other five families calibration does not hold (ECE 0.071 to 0.119).
-- **The pooled AUC is the more favourable number.** Every family's pool includes candidates that
-  carry only a positive label, with no fixed-side counterpart (7 to 19 per family; there are no
-  single-label negatives), so the pooled AUC is inflated by positives that never had to be told
-  apart from their own fix. The within-pair AUC over the paired groups, 0.72 to 0.93, is the
-  stricter reading (`paired_groups_check` in the record).
+- **BLOCK is offered for no family.** Calibration holds only for output encoding (ECE 0.045).
+  There, no fold reaches the required precision (`precision_unreachable`: no fold reaches a
+  Wilson lower bound of 0.95). For the other five families, calibration does not hold (ECE
+  0.071 to 0.119).
+- **The pooled AUC is the more favourable number.** Every family's pool includes candidates
+  that carry only a positive label, with no fixed-side counterpart (7 to 19 per family; there
+  are no single-label negatives). These positives never had to be told apart from their own
+  fix, so they inflate the pooled AUC. The within-pair AUC over the paired groups, 0.72 to
+  0.93, is the stricter reading (`paired_groups_check` in the record).
 - **Re-run agreement (canary, 30 candidates per family) is below 0.9 for three families:**
   injection 0.77, access control 0.83, untrusted destination 0.87.
-- **One memory-size point for injection** (paired: the same program, candidates and folds, with a
-  retrieval memory of 724 vs 904 examples): AUC 0.76 vs 0.77, within the intervals. No injection
-  example was added, so the new examples reach an injection prompt only as contrast.
-- **Spend:** $2.88 metered at list price for DeepSeek under an $8 ceiling, $0.0009 for
-  embeddings; $0.0027 to $0.0032 per evaluated candidate. The access-control evaluation replayed
-  from the response cache at $0 with identical predictions.
-- **An instrument fix is recorded:** compiled demonstrations ignored the near-duplicate rule
-  (cosine >= 0.98) until the pre-call boundary assertion stopped the untrusted-destination
-  evaluation; demonstrations are now swapped or dropped like retrieved examples, and the stopped
-  part was replayed after the fix.
+- **One memory-size point for injection.** This run is paired: the same program, candidates
+  and folds, with a retrieval memory of 724 vs 904 examples. AUC was 0.76 vs 0.77, within the
+  intervals. No injection example was added. So the new examples reach an injection prompt
+  only as contrast.
+- **Spend:** $2.88 metered at list price for DeepSeek under an $8 ceiling, and $0.0009 for
+  embeddings. That is $0.0027 to $0.0032 per evaluated candidate. The access-control
+  evaluation replayed from the response cache at $0 with identical predictions.
+- **An instrument fix is recorded.** Compiled demonstrations ignored the near-duplicate rule
+  (cosine >= 0.98). The pre-call boundary assertion caught this and stopped the
+  untrusted-destination evaluation. Demonstrations are now swapped or dropped like retrieved
+  examples. The stopped part was replayed after the fix.
 
-**Not adopted.** What is still ahead is listed once, on
-[Where we stand](where-we-stand.md#5-open-items).
+**Not adopted.** [Where we stand](where-we-stand.md#5-open-items) lists, in one place, what is
+still ahead.
 
 ## Experiments
 
 Changes to prompts, models, pass counts, features or sampling are compared by controlled
-experiments from a pre-registered manifest (`plane/experiments/<id>.yaml`), so nothing is adopted
-on one run's number. Two are registered. exp-001 (known callers) has not run. exp-002 (a retrieval
-ensemble against today's temperature sampling) ran on 160 paired candidates in 56 repository
-groups and was **rejected**: within-pair AUC 0.815 against 0.741 and $0.0021 against $0.0051 per
-candidate, with re-run agreement 0.875 against 0.906 and an interval spanning zero
-(`benchmarks/experiments/exp-002-retrieval-ensemble/result.json`). The reading is on
-[Where we stand](where-we-stand.md#2-our-approach-to-detection-step-by-step).
+experiments. Each experiment comes from a pre-registered manifest
+(`plane/experiments/<id>.yaml`). This way nothing is adopted on one run's number.
+
+Two experiments are registered:
+
+- exp-001 (known callers) has not run.
+- exp-002 compared a retrieval ensemble against today's temperature sampling. It ran on 160
+  paired candidates in 56 repository groups and was **rejected**. Within-pair AUC was 0.815
+  against 0.741 and the cost was $0.0021 against $0.0051 per candidate. The record shows re-run agreement
+  0.875 against 0.906 and an interval spanning zero
+  (`benchmarks/experiments/exp-002-retrieval-ensemble/result.json`).
+
+The reading is on [Where we stand](where-we-stand.md#2-our-approach-to-detection-step-by-step).
 
 ## Commands
 
 `ousast learn` is a maintainer command group over the engine's data. Paid steps take
-`--budget-usd`; `--replay-only` answers every call from the response cache at no cost.
+`--budget-usd`. `--replay-only` answers every call from the response cache at no cost.
 
 | Command | Does |
 | --- | --- |
@@ -130,5 +170,5 @@ candidate, with re-run agreement 0.875 against 0.906 and an interval spanning ze
 
 The memory store is the plane's (`OUSAST_MEMORY`; see [ops/ax/README.md](ops/ax/README.md)).
 The harvests that produced the plane signals ran as plane Runs generated by
-`ousast plane harvest` (`benchmarks/measurements/2026-10-01-decision-engine-harvest/record.json`
-and, for the advisory-fix pairs, `2026-10-02-decision-engine-harvest-advisory/record.json`).
+`ousast plane harvest`. Records: `benchmarks/measurements/2026-10-01-decision-engine-harvest/record.json`
+and, for the advisory-fix pairs, `2026-10-02-decision-engine-harvest-advisory/record.json`.
