@@ -9,7 +9,7 @@ production entry point (a delta Run for a push) is added. Context: `brief.md`, `
 
 ## Boundary Context
 
-- **In scope**: the reconciler as an in-cluster workload; receiver and router addressed as Services; configurable
+- **In scope**: two profiles of one code base, `kind` (local, kept) and `k3s` (production); the reconciler as an in-cluster workload; receiver and router addressed as Services; configurable
   cluster context, registry and image pins; our own snapshot and memory buckets; the Joern engine as a plane task
   on a larger worker pool; worker pool sizing and autoscaling; a delta Run command and Workspaces from URL +
   commit; a deployment runbook with a proof on kind and a checklist for the target cluster.
@@ -59,8 +59,9 @@ push from CI, not a laptop session, drives the plane.
    in the image.
 3. Provider and store credentials come from Kubernetes Secrets into the reconciler's environment, never into a
    manifest, an ActorTemplate or a log; the start-request path is unchanged.
-4. `ousast plane run` from a laptop still works against the kind cluster for development (it is the same code
-   with the development defaults).
+4. kind stays a first-class local execution mode, not a stepping stone: `ousast plane run` from a laptop
+   against the kind cluster keeps working with the development profile (same code, same manifests, local
+   registry, host reconciler), and every release is proven on it before anything is applied to k3s.
 
 ### Requirement 3: Receiver and artifacts without a host
 
