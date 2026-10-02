@@ -43,7 +43,7 @@ it may inform changes, but it can no longer qualify anything.
 | v1 (11 cases) | spent | engine: recall 1/11, precision 1/12, 4 fixed-side and 1 benign false alert; every M4 gate failed. Eight of eleven cases completed no question at the vulnerable pin. | `benchmarks/independent/results-v1.json` |
 | v2 (17 cases) | spent | engine: recall 0/17, 3 benign alerts, completion 13,206 of 108,374. Tool hunter: recall 1/17, precision 2/14, 1 fixed-side and 16 benign alerts, $8.88. No M4 gate met by either. | `results-v2.json`, `results-v2-hunter.json` |
 | v2, model-driven pipeline | exploratory (v2 already spent) | stopped after 7 of 17 cases when the account emptied: recall 4/7; precision not adjudicated; no gate measurable | `results-v2-model-pipeline.json` |
-| v3 (PHP, 16 cases) | frozen, untouched | none: it is the one-time final check, run once under `protocol-v3.md` after a prediction is committed | `population-v3-php.toml`, `freeze-v3-php.json` |
+| v3 (PHP, 15 cases; one SSRF slot left empty by the selection rule) | frozen, untouched | none: it is the one-time final check, run once under `protocol-v3.md` after a prediction is committed | `population-v3-php.toml`, `freeze-v3-php.json` |
 
 v3 is reserved: development and analysis work never reads its cases, and
 `tests/test_independent_population.py` fails when anything in the development tree (a recipe,
