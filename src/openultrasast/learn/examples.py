@@ -208,7 +208,7 @@ def build_examples(
                 "frameworks": list(label["frameworks"]) if label.get("frameworks") is not None else None, "unit": unit,
                 "direction": label.get("direction"), "pin_role": label.get("pin_role", "vulnerable"),
                 "weight": float(label.get("weight", 1.0)), "license": (license_of(label) if license_of else "") or "",
-                "x": dict(record["x"]), "instruments": dict(record["instruments"]),
+                "x": dict(record["x"]), "instruments": {k: dict(v) for k, v in record["instruments"].items() if v is not None},
                 "roles": list(roles_of(label)) if roles_of else [], "excerpt_sha": shown.sha, "label_set_digest": digest,
             }
         )  # fmt: skip
@@ -238,12 +238,14 @@ class Example:
     license: str = ""
 
     @classmethod
+    # An instrument that is not part of the row's profile may be stored as null (feature records carry every
+    # instrument name); it is not a table and is skipped, both when a row is written and when it is read.
     def from_row(cls, row: Mapping[str, Any]) -> Example:
         return cls(
             id=str(row["id"]), group=str(row.get("group") or ""), source=str(row["source"]), frameworks=tuple(row.get("frameworks") or ()),
             family=str(row["family"]), label=int(row["label"]), language=str(row.get("language") or "other"),
             profile=str(row.get("profile") or "static"), unit=str(row.get("unit") or "pin"), x=dict(row["x"]),
-            instruments={k: dict(v) for k, v in row["instruments"].items()}, roles=tuple(row.get("roles") or ()),
+            instruments={k: dict(v) for k, v in row["instruments"].items() if v is not None}, roles=tuple(row.get("roles") or ()),
             excerpt_sha=str(row["excerpt_sha"]), license=str(row.get("license") or ""),
         )  # fmt: skip
 

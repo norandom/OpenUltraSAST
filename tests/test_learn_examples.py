@@ -212,3 +212,20 @@ def test_side_reader_reads_every_pair_kind_source(tmp_path: Path, monkeypatch: p
         lab = label(source="pairs", source_ref=name, pin="")
         assert reader(lab, "vulnerable") == ["def handler(request):", "    return 1"]
         assert reader.license(lab) == "MIT"
+
+
+def test_null_instruments_are_skipped_when_reading_and_writing() -> None:
+    """Static-profile feature records carry the plane-only instruments as null; an example row must load (the live
+    store had 937 unreadable rows on 2026-10-02) and never write such a null itself."""
+    from openultrasast.learn.examples import Example
+
+    row = {
+        "id": "x", "kind": "example", "repo": "o/r", "pin": "p", "run": "learn-memory", "task": "build", "population": "pairs",
+        "split": "train", "image": "host", "candidate": "a.py::f", "family": "injection", "language": "python",
+        "profile": "static", "label": 1, "source": "pairs", "group": "o/r", "frameworks": None, "unit": "pin",
+        "direction": None, "pin_role": "vulnerable", "weight": 1.0, "license": "MIT", "x": {},
+        "instruments": {"language": {"state": "ran"}, "verify": None, "agree": None, "model_sinks": None},
+        "roles": [], "excerpt_sha": "0" * 64, "label_set_digest": "1" * 64,
+    }  # fmt: skip
+    example = Example.from_row(row)
+    assert set(example.instruments) == {"language"}
