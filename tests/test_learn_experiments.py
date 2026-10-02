@@ -483,3 +483,33 @@ def test_verify_callers_line_switch(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "Known callers: web.py:12 in handler()" in verify.hunt_prompt("app.py", group, "injection", facts)
     monkeypatch.setenv("OUSAST_VERIFY_CALLERS", "off")
     assert "Known callers" not in verify.hunt_prompt("app.py", group, "injection", facts)
+
+
+def _json_shape(value: object) -> str:
+    """The JSON type of a value, with an array's element types: what an S3 Select schema inference sees."""
+    if isinstance(value, list):
+        return "array<" + ",".join(sorted({_json_shape(v) for v in value})) + ">"
+    return type(value).__name__
+
+
+def test_experiment_rows_share_one_json_type_per_column(tmp_path: Path) -> None:
+    """The register, run and result rows of one experiment land in one object with its outcome rows; RustFS's S3
+    Select infers one schema per object and fails the whole object on a column with two types (ops/ax/README.md).
+    exp-002's result row carried ``units`` as an object beside the run row's integer, and no row of the experiment
+    could be read afterwards (2026-10-02)."""
+    manifest = ex.load_manifest(write_manifest(tmp_path, "0" * 64))
+    outcomes = crafted(groups=4, b_better=True)
+    report = ex.analyse(manifest, outcomes, resamples=20, provenance={"code_commit": COMMIT})
+    store = FileStore(tmp_path / "memory")
+    registration = ex.register(store, manifest, commit_of=lambda _p: COMMIT, created="2026-10-02")
+    run_row = {
+        **registration, "id": "run-row", "task": ex.RUN_TASK,
+        **ex.RunSummary(manifest.id, "done", 4, {"A": 4, "B": 4}, {"A": 0, "B": 0}, {}, "f" * 64).as_dict(),
+    }  # fmt: skip
+    rows = [registration, run_row, ex.result_row(manifest, COMMIT, report), *(ex.outcome_row(manifest.id, COMMIT, o) for o in outcomes)]
+    shapes: dict[str, set[str]] = {}
+    for row in rows:
+        for name, value in row.items():
+            if value is not None:
+                shapes.setdefault(name, set()).add(_json_shape(value))
+    assert {name: sorted(s) for name, s in shapes.items() if len(s) > 1} == {}

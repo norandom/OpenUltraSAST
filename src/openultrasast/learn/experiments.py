@@ -755,14 +755,18 @@ def analyse(
 
 
 def result_row(manifest: Manifest, pin: str, result: Mapping[str, Any]) -> dict[str, Any]:
+    """The ``experiment_result`` row. It shares one object with the experiment's register, run and outcome rows, and
+    an S3 Select schema is inferred per object, so a column keeps one JSON type across those rows: the unit counts
+    are ``unit_counts`` (the run row's ``units`` is an integer) and the looks ``looks_taken`` (the register row's
+    ``looks`` are the fractions)."""
     tests = result["tests"]
     return {
         "id": row_id(RESULT_KIND, f"experiment-{manifest.id}", "analyse", manifest.id), "kind": RESULT_KIND,
         "repo": experiment_repo(manifest.id), "pin": pin, "run": f"experiment-{manifest.id}", "task": "analyse", "population": POPULATION,
         "split": manifest.id, "image": "host", "experiment": manifest.id, "manifest_digest": manifest.digest,
-        "decision": result["decision"], "reason": result["reason"], "units": result["units"], "spend_usd": result["spend_usd"],
+        "decision": result["decision"], "reason": result["reason"], "unit_counts": result["units"], "spend_usd": result["spend_usd"],
         "tests": {n: {"diff": t["estimate"]["diff"], "ci": t["estimate"]["ci"], "ci_vs_zero": t["ci_vs_zero"]} for n, t in tests.items()},
-        "looks": [{"fraction": look["fraction"], "z": look["z"], "crossed": look["crossed"]} for look in result["looks"]],
+        "looks_taken": [{"fraction": look["fraction"], "z": look["z"], "crossed": look["crossed"]} for look in result["looks"]],
     }  # fmt: skip
 
 
