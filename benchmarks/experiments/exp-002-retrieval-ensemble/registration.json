@@ -1,0 +1,11 @@
+{
+  "experiment": "exp-002-retrieval-ensemble",
+  "registered": "2026-10-02",
+  "store": "s3://sast-memory",
+  "manifest": "plane/experiments/exp-002-retrieval-ensemble.yaml",
+  "manifest_digest": "f5004fb8618b1f7cc7dcf298d42b4ac1b6c0c1aa72a97299c77f937bd6175148",
+  "pin": "fbc3220bbe1c8a4f8afa0a724fd41a51b390dd22",
+  "units_status": "pending",
+  "units_note": "`ousast learn experiment units` could not freeze the slice-2 candidates on 2026-10-02: all 904 example rows in the store carry null for the plane-only instruments (agree, model_sinks, verify) and learn.examples.load_examples (unchanged since a90e570) raises on them; freeze, commit and register again once the rows read",
+  "status": "registered, not run"
+}

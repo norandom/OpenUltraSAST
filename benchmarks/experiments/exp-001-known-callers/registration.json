@@ -1,0 +1,11 @@
+{
+  "experiment": "exp-001-known-callers",
+  "registered": "2026-10-02",
+  "store": "s3://sast-memory",
+  "manifest": "plane/experiments/exp-001-known-callers.yaml",
+  "manifest_digest": "76b54aa5ae908a4cd7797f3b4654acf03b90e5ad5d068216036e722104313929",
+  "pin": "fbc3220bbe1c8a4f8afa0a724fd41a51b390dd22",
+  "units_status": "pending",
+  "units_note": "model-free candidate generation on the 41 development repositories is not built; the plane's experiment-outcome task and Run annotation checks are not written",
+  "status": "registered, not run"
+}

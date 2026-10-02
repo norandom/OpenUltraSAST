@@ -133,7 +133,10 @@ a model or embedding call.
     annotation checks / the `experiment-outcome` task are not written) and `exp-002-retrieval-ensemble` (arm A today's
     k = 5 temperature sampling, arm B the retrieval ensemble; primary canary agreement (target 0.90) and within-pair
     AUC, secondary usd per candidate, AUC, ADVISORY recall/precision; families injection and access_control on the
-    slice-2 candidates; ceiling $4: A $1, B $3).
+    slice-2 candidates; ceiling $4: A $1, B $3). Both registered in `s3://sast-memory` at fbc3220
+    (`benchmarks/experiments/<id>/registration.json`). exp-002's units are `pending` too: on 2026-10-02 every example
+    row in the store carried null plane-only instruments (`agree`, `model_sinks`, `verify`) and `load_examples` raised
+    on them, so `ousast learn experiment units` could not freeze the candidates.
   - [ ] 7.3 exp-001 run and recorded (~$7.7 expected, ceiling $15) -- an inconclusive result is pre-registered as
     likely; needs the frozen units file first.
   - [ ] 7.4 exp-002 run and recorded **(budget go-ahead: ~$2 expected, ceiling $4)**; further program variants
