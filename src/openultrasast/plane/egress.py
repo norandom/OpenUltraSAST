@@ -84,17 +84,32 @@ def git_hosts(workspaces: Iterable[Workspace]) -> tuple[list[str], list[str]]:
     return sorted(tls), sorted(plain)
 
 
-def policy_for(task: Task, workspaces: Iterable[Workspace], model: Model | None, receiver_host: str | None) -> dict[str, Any]:
-    """The task's EgressPolicy body: the receiver over HTTP/80, Git and Model hosts as TLS passthrough on 443."""
+def policy_for(
+    task: Task,
+    workspaces: Iterable[Workspace],
+    model: Model | None,
+    store_host: str | None,
+    receiver_host: str | None = None,
+) -> dict[str, Any]:
+    """The task's EgressPolicy body (plane-on-kubernetes design section 3): one ``tlsPassthrough`` rule on 443 over
+    the sorted union of the store's hostname (``store_host``: where the runner PUTs its tar and GETs its inputs), the
+    bound Workspaces' https Git hosts and the bound Model's ``openultrasast.io/egress-hosts``. No ``http`` rule, unless
+    ``receiver_host`` names the old receiver (the path task 2.6 removes). An http Git repo cannot be reached under
+    this policy and is refused; a store given as an address is refused naming ``S3_ENDPOINT`` (the gateway allows
+    hostnames only)."""
     tls, plain = git_hosts(workspaces)
-    tls = sorted(set(tls) | set(model.egress_hosts if model else ()))
-    if receiver_host and not _is_ip(receiver_host):  # an address cannot be allowed; only the direct test mode has one
-        plain = sorted({*plain, receiver_host.lower()})
-    rules: list[dict[str, Any]] = []
     if plain:
-        rules.append({"http": {"hostnames": plain, "ports": {"numbers": [80]}}})
-    if tls:
-        rules.append({"tlsPassthrough": {"hostnames": tls, "ports": {"numbers": [443]}}})
+        raise ValueError(f"Task/{task.metadata.name}: http Git repos ({', '.join(plain)}) cannot be reached: the policy grants TLS only")
+    hosts = set(tls) | set(model.egress_hosts if model else ())
+    if store_host:
+        if _is_ip(store_host):
+            raise ValueError(f"Task/{task.metadata.name}: the store endpoint is an address ({store_host}); S3_ENDPOINT must be a hostname")
+        hosts.add(store_host.lower())
+    rules: list[dict[str, Any]] = []
+    if receiver_host and not _is_ip(receiver_host):  # the receiver path, kept for group 2 only (task 2.6 deletes it)
+        rules.append({"http": {"hostnames": [receiver_host.lower()], "ports": {"numbers": [80]}}})
+    if hosts:
+        rules.append({"tlsPassthrough": {"hostnames": sorted(hosts), "ports": {"numbers": [443]}}})
     return {"rules": rules}
 
 

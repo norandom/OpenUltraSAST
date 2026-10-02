@@ -341,7 +341,7 @@ def _execute(
     docs = render_task(run, entry, manifests, receiver.url, receiver.dial)
     manifest.write_text(yaml.safe_dump_all(docs, sort_keys=False), encoding="utf-8")
     model = manifests.models.get(task.metadata.annotations.get(MODEL_ANNOTATION) or "")
-    policy = policy_for(task, [manifests.workspaces[b.name] for b in task.workspaces], model, urlsplit(receiver.url).hostname)
+    policy = policy_for(task, [manifests.workspaces[b.name] for b in task.workspaces], model, None, urlsplit(receiver.url).hostname)
     try:  # Req 4.6: the bound Model's credential is read here and only ever sent in the start request
         start = router.starter(atespace, ax_name, run.metadata.name, credentials(model))
         ax.apply(manifest)  # creates the Substrate actor; its egress is denied until the policy exists

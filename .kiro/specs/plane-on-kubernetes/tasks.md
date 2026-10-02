@@ -86,7 +86,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
   - `tests/test_plane_runner.py`: accepted body with `delivery`; 400 on an `http` or IP URL; PUT to a local
     server; inputs fetched from presigned-shaped URLs; the marker and retry-only boot unchanged.
   - _Requirements: 3.1_
-- [ ] 2.3 Egress without the receiver
+- [x] 2.3 Egress without the receiver
   - `src/openultrasast/plane/egress.py`: `policy_for(task, workspaces, model, store_host)` emits one
     `tlsPassthrough` rule on 443 over the sorted union of store host, Git hosts, Model hosts; no `http` rule; an
     IP store host raises naming `S3_ENDPOINT`.
