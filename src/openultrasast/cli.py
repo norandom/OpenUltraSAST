@@ -339,6 +339,20 @@ def _main(argv: list[str] | None) -> int:
         "--qualify-population", action="append", default=[], metavar="NAME", help="with --loop: a population whose rows never propose"
     )
 
+    raw = list(argv if argv is not None else sys.argv[1:])
+    if _advisory_hook(raw):
+        # Git hook mode (stdin) without an explicit blocking opt-in: a check that cannot run must
+        # never reject the push. Say so in one line and allow it (Requirement 9.1).
+        try:
+            return _hook_main(parser, argv)
+        except SystemExit as stop:
+            if stop.code in (0, None):
+                raise
+            print("ousast: pre-push check did not run: invalid arguments or settings (message above). Push continues.")
+            return 0
+        except Exception as error:  # noqa: BLE001 -- an advisory hook reports a crash, it never blocks on one
+            print(f"ousast: pre-push check did not run: unexpected {type(error).__name__}. Push continues.")
+            return 0
     args = parser.parse_args(argv)
     # Diagnosis needs the stage costs, and nothing configures logging, so the default root level of
     # WARNING silently dropped every informational line. A run that reports nothing is
@@ -347,77 +361,7 @@ def _main(argv: list[str] | None) -> int:
     _configure_logging()
     start_profiling()  # only when OUSAST_SAMPLE_PROFILE names a file
     if args.command == "pre-push":
-        from .config import PushConfig
-        from .push.runner import push, replay
-
-        try:
-            if bool(args.base) != bool(args.head) or bool(args.base) == bool(args.remote):
-                parser.error("provide --base and --head together, or --remote NAME URL for Git stdin")
-            settings = PushConfig(
-                comparison_base=args.comparison_base,
-                deadline_seconds=args.deadline,
-                cancellation_allowance_seconds=args.cancellation_allowance,
-                mode=args.mode,
-                incomplete_coverage_policy=args.incomplete_coverage,
-            )
-            options: dict[str, Any] = dict(
-                artifact=args.artifact,
-                config=settings,
-                max_regions=args.max_regions,
-                cache_dir=args.cache_dir,
-                model_config=args.model_config,
-            )
-            if args.base and args.prior_hook:
-                parser.error("--prior-hook requires Git stdin mode")
-            if args.experimental_record_vetoes and not args.base:
-                parser.error("--experimental-record-vetoes requires explicit --base/--head replay; it is never a hook capability")
-            if args.experimental_declarations and not args.experimental_record_vetoes:
-                parser.error("--experimental-declarations requires --experimental-record-vetoes")
-            prior_data = None
-            if args.base:
-                delivery = replay(
-                    args.path,
-                    base=args.base,
-                    head=args.head,
-                    record_vetoes=args.experimental_record_vetoes,
-                    declarations=args.experimental_declarations,
-                    **options,
-                )
-            else:
-                # multiprocessing closes sys.stdin in its child; duplicate the Git pipe first.
-                with os.fdopen(os.dup(0), "rb") as stream:
-                    if args.prior_hook:
-                        from .model.contracts import ExecutionBudget
-                        from .push.runner import _prepare
-
-                        shared = ExecutionBudget(time.monotonic() + settings.deadline_seconds, settings.cancellation_allowance_seconds)
-                        try:
-                            prior_data = _prepare(lambda: stream.read(1024 * 1024 + 1), shared)
-                            if len(prior_data) > 1024 * 1024:
-                                raise ValueError("input exceeds hook integration limit")
-                        except (ValueError, RuntimeError, TimeoutError):
-                            print("Hook input could not be retained for all consumers. Retry with complete input and sufficient time.")
-                            return 1
-                        options["execution_budget"] = shared
-
-                    def updates() -> str:
-                        return (prior_data if prior_data is not None else stream.read(1024 * 1024 + 1)).decode("utf-8")
-
-                    delivery = push(args.path, updates=updates, remote_name=args.remote[0], remote_url=args.remote[1], **options)
-        except ValueError as error:
-            parser.error(str(error))
-        print(delivery.text, end="", flush=True)
-        if args.prior_hook and prior_data is not None:
-            # This is the explicitly chained hook's own behavior, outside analysis.
-            # Never replace its rejection with our advisory success or impose our timeout on it.
-            try:
-                prior = subprocess.run([str(args.prior_hook.resolve()), *args.remote], input=prior_data, cwd=args.path)
-            except OSError:
-                print("Existing hook could not be started. Restore its executable path before retrying.")
-                return 1
-            if prior.returncode:
-                return prior.returncode if prior.returncode > 0 else 128 - prior.returncode
-        return delivery.exit_code
+        return _pre_push(args, parser)
     if args.command == "scan":
         return _scan(args.path, args.config, args.mode, args.fail_on)
     if args.command == "benchmark":
@@ -461,6 +405,96 @@ def _main(argv: list[str] | None) -> int:
 
         return serve()
     return 2
+
+
+def _advisory_hook(argv: list[str]) -> bool:
+    """A Git hook invocation (`--remote NAME URL`, stdin input) that did not opt into blocking."""
+    if argv[:1] != ["pre-push"] or "--remote" not in argv:
+        return False
+    blocking = any(a == "--mode=blocking" for a in argv) or any(
+        a == "--mode" and i + 1 < len(argv) and argv[i + 1] == "blocking" for i, a in enumerate(argv)
+    )
+    return not blocking
+
+
+def _hook_main(parser: argparse.ArgumentParser, argv: list[str] | None) -> int:
+    args = parser.parse_args(argv)
+    _configure_logging()
+    return _pre_push(args, parser)
+
+
+def _pre_push(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    from .config import PushConfig
+    from .push.runner import push, replay
+
+    try:
+        if bool(args.base) != bool(args.head) or bool(args.base) == bool(args.remote):
+            parser.error("provide --base and --head together, or --remote NAME URL for Git stdin")
+        settings = PushConfig(
+            comparison_base=args.comparison_base,
+            deadline_seconds=args.deadline,
+            cancellation_allowance_seconds=args.cancellation_allowance,
+            mode=args.mode,
+            incomplete_coverage_policy=args.incomplete_coverage,
+        )
+        options: dict[str, Any] = dict(
+            artifact=args.artifact,
+            config=settings,
+            max_regions=args.max_regions,
+            cache_dir=args.cache_dir,
+            model_config=args.model_config,
+        )
+        if args.base and args.prior_hook:
+            parser.error("--prior-hook requires Git stdin mode")
+        if args.experimental_record_vetoes and not args.base:
+            parser.error("--experimental-record-vetoes requires explicit --base/--head replay; it is never a hook capability")
+        if args.experimental_declarations and not args.experimental_record_vetoes:
+            parser.error("--experimental-declarations requires --experimental-record-vetoes")
+        prior_data = None
+        if args.base:
+            delivery = replay(
+                args.path,
+                base=args.base,
+                head=args.head,
+                record_vetoes=args.experimental_record_vetoes,
+                declarations=args.experimental_declarations,
+                **options,
+            )
+        else:
+            # multiprocessing closes sys.stdin in its child; duplicate the Git pipe first.
+            with os.fdopen(os.dup(0), "rb") as stream:
+                if args.prior_hook:
+                    from .model.contracts import ExecutionBudget
+                    from .push.runner import _prepare
+
+                    shared = ExecutionBudget(time.monotonic() + settings.deadline_seconds, settings.cancellation_allowance_seconds)
+                    try:
+                        prior_data = _prepare(lambda: stream.read(1024 * 1024 + 1), shared)
+                        if len(prior_data) > 1024 * 1024:
+                            raise ValueError("input exceeds hook integration limit")
+                    except (ValueError, RuntimeError, TimeoutError):
+                        print("Hook input could not be retained for all consumers. Retry with complete input and sufficient time.")
+                        return 1
+                    options["execution_budget"] = shared
+
+                def updates() -> str:
+                    return (prior_data if prior_data is not None else stream.read(1024 * 1024 + 1)).decode("utf-8")
+
+                delivery = push(args.path, updates=updates, remote_name=args.remote[0], remote_url=args.remote[1], **options)
+    except ValueError as error:
+        parser.error(str(error))
+    print(delivery.text, end="", flush=True)
+    if args.prior_hook and prior_data is not None:
+        # This is the explicitly chained hook's own behavior, outside analysis.
+        # Never replace its rejection with our advisory success or impose our timeout on it.
+        try:
+            prior = subprocess.run([str(args.prior_hook.resolve()), *args.remote], input=prior_data, cwd=args.path)
+        except OSError:
+            print("Existing hook could not be started. Restore its executable path before retrying.")
+            return 1
+        if prior.returncode:
+            return prior.returncode if prior.returncode > 0 else 128 - prior.returncode
+    return delivery.exit_code
 
 
 def _scan(path: Path, config_path: Path, mode: str, fail_on: str) -> int:

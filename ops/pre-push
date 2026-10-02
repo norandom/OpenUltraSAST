@@ -1,16 +1,27 @@
 #!/bin/sh
-# Explicitly copy using the non-overwriting recipe in ops/README.md.
-# A prior hook is chained only after you explicitly move it to this sibling path.
+# OpenUltraSAST pre-push safety net. Advisory: nothing here rejects a push unless
+# OUSAST_PUSH_MODE=blocking is set explicitly. Install with `ousast pre-push install`
+# (or ops/install-pre-push from a checkout); remove with `ousast pre-push uninstall`.
+# A prior hook is chained only after it was moved to the sibling path "$0.before-ousast".
 artifact_dir=${OUSAST_ARTIFACT_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/openultrasast/push}
 prior="$0.before-ousast"
+command=${OUSAST_COMMAND:-ousast}
+if ! command -v "$command" >/dev/null 2>&1; then
+    echo "ousast: pre-push check did not run: '$command' is not on PATH." \
+        "Install it with 'pip install openultrasast' or set OUSAST_COMMAND. Push continues."
+    if [ -e "$prior" ] || [ -L "$prior" ]; then
+        exec "$prior" "$@"
+    fi
+    exit 0
+fi
 if [ -e "$prior" ] || [ -L "$prior" ]; then
-    exec ousast pre-push . --artifact "$artifact_dir/push-$$.json" \
+    exec "$command" pre-push . --artifact "$artifact_dir/push-$$.json" \
         --deadline "${OUSAST_PUSH_DEADLINE:-30}" \
         --mode "${OUSAST_PUSH_MODE:-advisory}" \
         --incomplete-coverage "${OUSAST_INCOMPLETE_COVERAGE:-allow}" \
         --prior-hook "$prior" --remote "$1" "$2"
 fi
-exec ousast pre-push . --artifact "$artifact_dir/push-$$.json" \
+exec "$command" pre-push . --artifact "$artifact_dir/push-$$.json" \
     --deadline "${OUSAST_PUSH_DEADLINE:-30}" \
     --mode "${OUSAST_PUSH_MODE:-advisory}" \
     --incomplete-coverage "${OUSAST_INCOMPLETE_COVERAGE:-allow}" \
