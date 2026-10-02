@@ -9,6 +9,7 @@ import os
 import pickle
 import selectors
 import time
+from collections import Counter
 from collections.abc import Callable, Sequence
 from contextlib import nullcontext
 from dataclasses import asdict, replace
@@ -28,6 +29,7 @@ from openultrasast.preprocess import build_file_target, enumerate_source_files
 from openultrasast.push.cache import ArtifactCache, SemanticKeys
 from openultrasast.push.contracts import ComparisonAnalysis, PushComparison, PushResult, SnapshotManifest
 from openultrasast.push.eligibility import fingerprint, load_registry
+from openultrasast.push.explain import language_reason
 from openultrasast.push.policy import (
     ActionableDefect,
     AdmissionCandidate,
@@ -206,6 +208,30 @@ def _record(
     return report.to_payload()
 
 
+def _uncovered_languages(manifest: SnapshotManifest, context: ChangeContext) -> list[str]:
+    """`language_not_covered` reasons for changed languages with no engine frontend and no quick rules.
+
+    Only a language this push changes is named: a Go helper nobody touched is not this push's gap.
+    """
+    from openultrasast.findings import PATTERN_RULES
+    from openultrasast.model.partitions import FRONTENDS
+    from openultrasast.preprocess import LANGUAGE_BY_EXTENSION
+
+    covered = set(FRONTENDS) | {language for rule in PATTERN_RULES if rule.status != "disabled" for language in rule.languages}
+    if any(not rule.languages for rule in PATTERN_RULES if rule.status != "disabled"):
+        return []
+
+    def language(path: str) -> str | None:
+        return LANGUAGE_BY_EXTENSION.get(os.path.splitext(path)[1].lower())
+
+    totals = Counter(language(os.fsdecode(bytes.fromhex(item.path_hex))) for item in manifest.files)
+    changed = Counter(language(context.decode_path(path)) for path in context.changed_paths if path not in context.deleted_paths)
+    return [
+        language_reason(name, count, totals.get(name, 0))
+        for name, count in sorted((k, v) for k, v in changed.items() if k is not None and k not in covered)
+    ]
+
+
 def _discovery_identity() -> str:
     root = Path(__file__).resolve().parents[1]
     # Discovery invokes the shipped mapper, preprocessing, layout and family specs.
@@ -347,6 +373,7 @@ def _analyze(
                 context = adapter.compare(comparison, declaration_paths=tuple(set(head_declarations + base_declarations)), budget=budget)
                 context = replace(context, unresolved_boundaries=tuple(dict.fromkeys((*context.unresolved_boundaries, *reasons))))
                 reasons.extend(context.unresolved_boundaries)
+                reasons.extend(_uncovered_languages(tip.manifest, context))
                 stage_started = _stage(timings, stage, stage_started)
                 stage = "head"
                 head_scan = scan_repository(

@@ -1,7 +1,7 @@
 {
-  "modules": 151,
+  "modules": 152,
   "counts": {
-    "load_bearing": 146,
+    "load_bearing": 147,
     "standalone_capability": 5
   },
   "orphaned": [],
@@ -229,6 +229,7 @@
         "model.report",
         "pairs",
         "plane.tasks.alerts",
+        "push.runner",
         "rank",
         "regress.candidate",
         "reports",
@@ -579,6 +580,7 @@
         "cli",
         "cpg.backend",
         "cpg.session",
+        "findings",
         "learn.cli",
         "learn.features",
         "learn.labels",
@@ -716,7 +718,9 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate, cli",
       "importers": [
-        "model.scan"
+        "findings",
+        "model.scan",
+        "push.runner"
       ]
     },
     {
@@ -1231,6 +1235,15 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate, cli",
       "importers": [
+        "push.runner"
+      ]
+    },
+    {
+      "module": "push.explain",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate, cli",
+      "importers": [
+        "push.report",
         "push.runner"
       ]
     },

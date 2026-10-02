@@ -14,15 +14,16 @@ if ! command -v "$command" >/dev/null 2>&1; then
     fi
     exit 0
 fi
-if [ -e "$prior" ] || [ -L "$prior" ]; then
-    exec "$command" pre-push . --artifact "$artifact_dir/push-$$.json" \
-        --deadline "${OUSAST_PUSH_DEADLINE:-30}" \
-        --mode "${OUSAST_PUSH_MODE:-advisory}" \
-        --incomplete-coverage "${OUSAST_INCOMPLETE_COVERAGE:-allow}" \
-        --prior-hook "$prior" --remote "$1" "$2"
-fi
-exec "$command" pre-push . --artifact "$artifact_dir/push-$$.json" \
+remote_name=$1
+remote_url=$2
+set -- pre-push . --artifact "$artifact_dir/push-$$.json" \
     --deadline "${OUSAST_PUSH_DEADLINE:-30}" \
     --mode "${OUSAST_PUSH_MODE:-advisory}" \
-    --incomplete-coverage "${OUSAST_INCOMPLETE_COVERAGE:-allow}" \
-    --remote "$1" "$2"
+    --incomplete-coverage "${OUSAST_INCOMPLETE_COVERAGE:-allow}"
+if [ -n "${OUSAST_COMPARISON_BASE:-}" ]; then
+    set -- "$@" --comparison-base "$OUSAST_COMPARISON_BASE"
+fi
+if [ -e "$prior" ] || [ -L "$prior" ]; then
+    set -- "$@" --prior-hook "$prior"
+fi
+exec "$command" "$@" --remote "$remote_name" "$remote_url"

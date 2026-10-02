@@ -37,7 +37,7 @@ from .calibration import (
 from .complexity import map as complexity_map
 from .complexity.ledger import persist_verdicts
 from .config import ModelLayerConfig, ObligationsConfig, ResolvedConfig, RetiredConfigError, load_config, load_dotenv
-from .findings import StaticFinding, quick_scan_findings, write_findings
+from .findings import StaticFinding, quick_scan_findings, uncovered_languages, write_findings
 from .fusion import FusionDecision, fuse_findings
 from .gate import FALSE_POSITIVE_CEILING, RECALL_FLOOR
 from .harness import HarnessRuntime, HarnessTraceWriter, write_harness_config
@@ -103,6 +103,7 @@ class ScanOutcome:
     finding_count: int
     calibrations_applied: int
     exit_code: int
+    notices: tuple[str, ...] = ()
 
 
 if TYPE_CHECKING:
@@ -529,6 +530,17 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         "preprocess",
         lambda: preprocess_repository(run.target, run.root / "preprocess" / "file_targets.json", static_hints),
     )
+    # A language nothing here covers is named, never a silent zero (pre-push 17.2, Requirement 9.2).
+    for language, count in uncovered_languages(targets, ruleset, engine=mode != "quick"):
+        runtime.state["degradations"].append(
+            {
+                "stage": "quick_findings",
+                "reason": "language_not_covered",
+                "language": language,
+                "count": count,
+                "engine": "" if mode == "quick" else " and no engine frontend",
+            }
+        )
     entry_points = runtime.run_stage("entry_point_mapping", lambda: analyze_entry_points(run.target, targets))
     write_entry_points(entry_points, run.root / "mapping" / "entry_points.json")
     targets = attach_reachability_hints(targets, entry_points)
@@ -827,6 +839,11 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         finding_count=len(findings),
         calibrations_applied=len(applied_calibrations),
         exit_code=scan_exit_code(findings, verifications, fail_on, worth_fixing_verdicts=verdict_records),
+        notices=tuple(
+            f"language not covered: {item['language']} ({item['count']} files)"
+            for item in runtime.state["degradations"]
+            if item.get("reason") == "language_not_covered"
+        ),
     )
 
 
@@ -901,6 +918,8 @@ def _print_scan_outcome(outcome: ScanOutcome) -> None:
     print(f"ranked_targets={outcome.ranked_target_count}")
     print(f"findings={outcome.finding_count}")
     print(f"calibrations_applied={outcome.calibrations_applied}")
+    for notice in outcome.notices:
+        print(f"notice: {notice}")
 
 
 def _load_static_hints(sarif_paths: tuple[str, ...]) -> list[object]:

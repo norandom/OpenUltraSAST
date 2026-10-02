@@ -18,6 +18,7 @@ from typing import Literal
 from openultrasast.model.contracts import ChangeContext, ExecutionBudget
 from openultrasast.model.scan import ModelScanResult
 from openultrasast.push.contracts import PushComparison, PushResolution, PushResult, SnapshotManifest
+from openultrasast.push.explain import explain
 from openultrasast.push.policy import AdmissionResult, _context_boundaries
 from openultrasast.redaction import redact_secrets
 
@@ -187,6 +188,10 @@ def _save(report: PushReport, target: Path, budget: ExecutionBudget) -> str | No
                 process.close()
 
 
+# Distinct skip kinds shown in the terminal; the artifact keeps every reason.
+_SKIP_LINES = 12
+
+
 def _short(value: str, limit: int = 180) -> str:
     # Bound before escaping: repository-controlled names/witnesses cannot add lines
     # or terminal escapes. Full spelling and every witness remain in the artifact.
@@ -260,8 +265,14 @@ def render_report(report: PushReport, *, artifact: Path | None, error: str | Non
     notices = []
     if report.result.coverage_status in ("incomplete", "unavailable"):
         reasons = report.admission.coverage_reasons
+        # One plain line per distinct skipped check (Requirement 9.2); the artifact keeps the raw values.
+        deadline = report.timings.get("deadline_seconds")
+        for skipped in explain(reasons, deadline=float(deadline) if deadline is not None else None)[:_SKIP_LINES]:
+            lines.append("Skipped: " + _short(skipped, 400))
         if any("deadline" in reason for reason in reasons):
             notices.append("Analysis did not finish. Rerun with a longer analysis deadline.")
+        elif any(reason in ("cpg_build_failed", "cpg_unavailable") for reason in reasons):
+            notices.append("Engine checks did not run. Install Joern, or run the hook through ops/ousast-docker. Review the details.")
         elif any("capability" in reason for reason in reasons):
             notices.append("Some checks are not enabled for normal alerts. Review capability coverage in the details.")
         else:
