@@ -13,7 +13,7 @@ fi
 command=${OUSAST_COMMAND:-ousast}
 if ! command -v "$command" >/dev/null 2>&1; then
     echo "ousast: pre-push check did not run: '$command' is not on PATH." \
-        "Install it with 'pip install openultrasast' or set OUSAST_COMMAND. Push continues."
+        "Install it (pip install git+https://github.com/norandom/OpenUltraSAST) or set OUSAST_COMMAND. Push continues."
     if [ -e "$prior" ] || [ -L "$prior" ]; then
         exec "$prior" "$@"
     fi
