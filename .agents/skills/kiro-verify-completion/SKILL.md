@@ -61,7 +61,8 @@ Use the language specified in `spec.json`.
 4. Check exit code, failure count, skipped scope, and missing coverage.
 5. Reject claims that are broader than the evidence.
 6. If mandatory validation cannot be completed, return `MANUAL_VERIFY_REQUIRED`.
-7. Only then allow the claim.
+7. Verify the instrument before you believe the measurement: prove the tool read its input (it opened one file and printed the size; the stage list names what ran). A plausible zero -- "0 findings, 0 errors, exit 0" from a tree the tool never read, or a Joern script that "finished" before a JVM could start -- is a failed instrument, not evidence. For pytest, judge only by the printed exit code (`pytest -q -p no:cacheprovider < /dev/null; echo "exit=$?"`), never by a summary line.
+8. Only then allow the claim.
 
 ## Claim-Specific Rules
 
@@ -116,6 +117,7 @@ Return `NOT_VERIFIED` when:
 | “Build should be fine because lint passed” | Lint does not prove build success. |
 | “Tests passed and build succeeded, so it must run” | Type erasure, module loading, native ABI, and boot-time config issues can still fail at runtime. |
 | “The feature is done because all tasks are checked off” | `FEATURE_GO` also requires coverage, integration, and design alignment. |
+| “The scan found nothing, so the code is clean” | An unread input and clean code both report zero. Prove the tool read its input first. |
 
 ## Output Format
 

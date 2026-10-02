@@ -84,7 +84,11 @@ Never include:
 
 ## File-Specific Focus
 
-- **product.md**: Purpose, value, business context (not exhaustive features)
-- **tech.md**: Key frameworks, standards, conventions (not all dependencies)
-- **structure.md**: Organization patterns, naming rules (not directory trees)
-- **Custom files**: Specialized patterns (API, testing, security, etc.)
+This repository's core steering files:
+
+- **overview.md**: What the project is and what is actually true of it; a dated current-state section wins over older history
+- **roadmap.md**: Milestones, their measured status, and the accepted order of work (not a task list)
+- **safety-net.md**: Product direction and acceptance criteria (not feature catalogs)
+- **Custom files**: Specialized patterns (API, testing, security, etc.); they may exist beside the core files and carry equal weight
+
+(The generic bootstrap templates `product.md`, `tech.md`, `structure.md` under `.kiro/settings/templates/steering/` cover purpose, key frameworks and organization patterns for a fresh project.)

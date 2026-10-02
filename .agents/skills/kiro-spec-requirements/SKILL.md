@@ -24,7 +24,7 @@ metadata:
    - Read `.kiro/specs/$1/spec.json` for language and metadata
    - Read `.kiro/specs/$1/brief.md` if it exists (discovery context: problem, approach, scope decisions, boundary candidates)
    - Read `.kiro/specs/$1/requirements.md` for project description
-   - Core steering context: `product.md`, `tech.md`, `structure.md`
+   - Core steering context: `overview.md`, `roadmap.md`, `safety-net.md` (custom steering files may also exist in `.kiro/steering/`)
    - Additional steering files only when directly relevant to feature scope, user personas, business/domain rules, compliance/security constraints, operational constraints, or existing product boundaries
    - Relevant local agent skills or playbooks only when they clearly match the feature's host environment or use case and contain domain terminology or workflow rules that shape user-observable requirements
 
@@ -40,7 +40,7 @@ The following research areas are independent. Decide the optimal decomposition b
 **In main context** (essential for requirements generation):
 - Spec files: spec.json, brief.md, requirements.md (project description)
 - EARS format rules, requirements review gate, requirements template
-- Core steering: product.md, tech.md (directly inform scope and constraints)
+- Core steering: overview.md, safety-net.md (directly inform scope and constraints)
 
 **Delegate to sub-agent** (keeps exploration out of main context):
 - **Codebase hints** (brownfield projects): Spawn a sub-agent to explore existing implementations that inform requirement scope. Ask it to summarize: (1) what already exists, (2) relevant interfaces/APIs, (3) patterns that new requirements should align with. Return a summary under 150 lines.
@@ -133,7 +133,7 @@ Provide output in the language specified in spec.json with:
 **If Requirements Approved**:
 - Review generated requirements at `.kiro/specs/$1/requirements.md`
 - **Optional Gap Analysis** (for existing codebases):
-  - Run `/kiro-validate-gap $1` to analyze implementation gap with current code
+  - Run `/kiro-spec-design $1 --gap` to analyze the implementation gap with the current code before designing
   - Identifies existing components, integration points, and implementation strategy
   - Recommended for brownfield projects; skip for greenfield
 - Then `/kiro-spec-design $1 -y` to proceed to design phase

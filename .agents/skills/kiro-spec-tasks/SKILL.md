@@ -25,7 +25,7 @@ metadata:
 **Read all necessary context**:
 - `.kiro/specs/$1/spec.json`, `requirements.md`, `design.md`
 - `.kiro/specs/$1/tasks.md` (if exists, for merge mode)
-- Core steering context: `product.md`, `tech.md`, `structure.md`
+- Core steering context: `overview.md`, `roadmap.md`, `safety-net.md` (custom steering files may also exist in `.kiro/steering/`)
 - Additional steering files only when directly relevant to requirements coverage, design boundaries, runtime prerequisites, or team conventions that affect task executability
 
 **Validate approvals**:

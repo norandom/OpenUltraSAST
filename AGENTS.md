@@ -28,17 +28,14 @@ Project memory keeps persistent guidance (steering, specs notes, component docs)
 - Think in English, generate responses in English. All Markdown content written to project files (e.g., requirements.md, design.md, tasks.md, research.md, validation reports) MUST be written in the target language configured for this specification (see spec.json.language).
 
 ## Minimal Workflow
-- Phase 0 (optional): `/kiro-steering`, `/kiro-steering-custom`
+- Phase 0 (optional): `/kiro-steering` (bootstrap, sync, or a custom steering document)
 - Discovery: `/kiro-discovery "idea"` — determines action path, writes brief.md + roadmap.md for multi-spec projects
-- Phase 1 (Specification):
-  - Single spec: `/kiro-spec-quick {feature} [--auto]` or step by step:
-    - `/kiro-spec-init "description"`
-    - `/kiro-spec-requirements {feature}`
-    - `/kiro-validate-gap {feature}` (optional: for existing codebase)
-    - `/kiro-spec-design {feature} [-y]`
-    - `/kiro-validate-design {feature}` (optional: design review)
-    - `/kiro-spec-tasks {feature} [-y]`
-  - Multi-spec: `/kiro-spec-batch` — creates all specs from roadmap.md in parallel by dependency wave
+- Phase 1 (Specification), one spec at a time, each phase human-reviewed:
+  - `/kiro-spec-init "description"`
+  - `/kiro-spec-requirements {feature}`
+  - `/kiro-spec-design {feature} [-y | --gap | --review]` (`--gap`: optional gap analysis against the existing code first; `--review`: optional interactive review of an existing design; the design-review gate always runs)
+  - `/kiro-spec-tasks {feature} [-y]`
+  - Multi-spec projects: the specs of roadmap.md in dependency order, with the same steps each
 - Phase 2 (Implementation): `/kiro-impl {feature} [tasks]`
   - Without task numbers: autonomous mode (subagent per task + independent review + final validation)
   - With task numbers: manual mode (selected tasks in main context, still reviewer-gated before completion)
@@ -46,14 +43,17 @@ Project memory keeps persistent guidance (steering, specs notes, component docs)
 - Progress check: `/kiro-spec-status {feature}` (use anytime)
 
 ## Skills Structure
-Skills are located in `.agent/skills/kiro-*/SKILL.md` (moved from `.opencode/skills` on 2026-10-02; point OpenCode at this path)
+Skills are located in `.agents/skills/*/SKILL.md` (the plural directory OpenCode searches by default; moved from `.opencode/skills` on 2026-10-02)
 - Each skill is a directory with a `SKILL.md` file
 - Use `/skills` to inspect currently available skills
 - Invoke a skill directly with `/kiro-<skill-name>`
 - **If there is even a 1% chance a skill applies to the current task, invoke it.** Do not skip skills because the task seems simple.
+- Workflow skills: `kiro-steering`, `kiro-discovery`, `kiro-spec-init`, `kiro-spec-requirements`, `kiro-spec-design`, `kiro-spec-tasks`, `kiro-impl`, `kiro-validate-impl`, `kiro-spec-status`
 - `kiro-review` — task-local adversarial review protocol used by reviewer subagents
-- `kiro-debug` — root-cause-first debug protocol used by debugger subagents
-- `kiro-verify-completion` — fresh-evidence gate before success or completion claims
+- `kiro-debug` — root-cause-first debug protocol used by debugger subagents; carries the instrument rule below
+- `kiro-verify-completion` — fresh-evidence gate before success or completion claims; carries the instrument rule below
+- Product skills for users of the tool (the only ones user documentation names): `openultrasast-scan`, `openultrasast-triage`
+- Reviewed 2026-10-02: `kiro-spec-quick`, `kiro-spec-batch` removed (no fast-track or parallel spec creation); `kiro-validate-gap` and `kiro-validate-design` merged into `kiro-spec-design` (`--gap`, `--review`); `kiro-steering-custom` merged into `kiro-steering`; `openultrasast-fix-audit` merged into `openultrasast-triage`
 
 ## Development Rules
 - 3-phase approval workflow: Requirements → Design → Tasks → Implementation
@@ -81,5 +81,5 @@ So, before reporting any measurement:
 
 ## Steering Configuration
 - Load entire `.kiro/steering/` as project memory
-- Default files: `product.md`, `tech.md`, `structure.md`
-- Custom files are supported (managed via `/kiro-steering-custom`)
+- Core files in this repository: `overview.md` (current state wins over dated history), `roadmap.md`, `safety-net.md`
+- Custom files may exist beside them and carry equal weight (created via `/kiro-steering`, templates under `.kiro/settings/templates/steering-custom/`)

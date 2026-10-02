@@ -26,7 +26,7 @@ You operate in two modes:
 If steering/spec context is already available from conversation, skip redundant file reads.
 Otherwise, load all necessary context:
 - `.kiro/specs/{feature}/spec.json`, `requirements.md`, `design.md`, `tasks.md`
-- Core steering context: `product.md`, `tech.md`, `structure.md`
+- Core steering context: `overview.md`, `roadmap.md`, `safety-net.md` (custom steering files may also exist in `.kiro/steering/`)
 - Additional steering files only when directly relevant to the selected task's boundary, runtime prerequisites, integrations, domain rules, security/performance constraints, or team conventions that affect implementation or validation
 - Relevant local agent skills or playbooks only when they clearly match the task's host environment or use case; read the specific artifact(s) you need, not entire directories
 
