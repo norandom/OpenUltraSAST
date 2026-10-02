@@ -68,7 +68,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
   - _Requirements: 1.1, 1.2, 1.3, 7.1_
 
 - [ ] 2. Store delivery, receiver-less egress (design section 3)
-- [ ] 2.1 Presigned URLs and the store run directory
+- [x] 2.1 Presigned URLs and the store run directory
   - `src/openultrasast/plane/delivery.py`: `Delivery(store, run)` mints presigned PUT for
     `runs/<run>/<task>/output.tar` and GET for `runs/<run>/<producer>/<artifact>` (boto3 `generate_presigned_url`
     on `S3Client.sdk`, expiry `OUSAST_TASK_TIMEOUT + 600`); `delivered(task)` HEADs the tar; `collect(task)`

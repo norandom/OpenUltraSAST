@@ -1,7 +1,7 @@
 {
- "modules": 152,
+ "modules": 153,
  "counts": {
-  "load_bearing": 147,
+  "load_bearing": 148,
   "standalone_capability": 5
  },
  "orphaned": [],
@@ -848,6 +848,7 @@
     "learn.examples",
     "learn.experiments",
     "learn.program",
+    "plane.delivery",
     "plane.doctor",
     "plane.egress",
     "plane.engine_alerts",
@@ -877,6 +878,14 @@
     "plane.generate",
     "plane.tasks.roles",
     "plane.tasks.verify"
+   ]
+  },
+  {
+   "module": "plane.delivery",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "plane.reconciler"
    ]
   },
   {
@@ -948,8 +957,10 @@
     "learn.examples",
     "learn.experiments",
     "learn.program",
+    "plane.delivery",
     "plane.doctor",
     "plane.generate",
+    "plane.reconciler",
     "plane.tasks.loop",
     "plane.tasks.remember"
    ]

@@ -832,9 +832,13 @@ def test_mark_done_sets_the_state_under_the_run_lock(tmp_path: Path) -> None:
     assert not (base / "lock").exists(), "the lock is released"
 
 
-def test_reconciler_is_under_500_lines_and_holds_no_pipeline_logic() -> None:
+def test_reconciler_is_under_550_lines_and_holds_no_pipeline_logic() -> None:
     text = RECONCILER.read_text(encoding="utf-8")
-    assert len(text.splitlines()) < 500, "Req 3.4: the reconciler stays under 500 lines"
+    assert len(text.splitlines()) < 550, (
+        "Req 3.4: the reconciler stays under 500 lines; plane-on-kubernetes 1.6/2.1 moved the bound to 550 while the "
+        "store-delivery wiring (Delivery, state mirror and seed, the start-body delivery) sits beside the receiver path "
+        "that task 2.6 removes -- 2.6 records the count and returns the bound to 500 if it allows"
+    )
     for word in ("prompt(", "openai", "ChatClient", "score(", "system_prompt"):
         assert word not in text, f"Req 3.4: no pipeline logic in the reconciler ({word})"
     assert "Popen" not in text and "openultrasast.plane.tasks" not in text, "ax is the only executor"
@@ -979,3 +983,33 @@ def test_ax_task_names_leave_room_for_the_template_suffix() -> None:
     assert other != long, "no collision between tasks sharing a long prefix"
     assert reconciler._ax_name("run", "facts", limit=reconciler.TASK_NAME_LIMIT) == "run-facts"
     assert re.fullmatch(r"[a-z0-9]([a-z0-9-]*[a-z0-9])?", long)
+
+
+# --- the store is the state of record (plane-on-kubernetes 2.1, design section 2) -----------------------------------
+
+
+def test_state_is_mirrored_to_the_store_and_seeds_a_rerun_from_an_empty_results_root(
+    fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert reconciler.run(write_run(tmp_path, "mir"), ax=str(fake.ax)) == "done"
+    mirrored = tmp_path / "memory" / "runs" / "mir" / "state.json"  # the profile's file:// store
+    assert mirrored.is_file() and json.loads(mirrored.read_text()) == state_of("mir"), "mirrored after the last change"
+    assert json.loads(mirrored.read_text())["status"] == "done"
+    applies = len(fake.events("apply"))
+    monkeypatch.setenv("OUSAST_RESULTS", str(tmp_path / "elsewhere"))  # another machine: no local state at all
+    assert reconciler.run(write_run(tmp_path, "mir"), ax=str(fake.ax)) == "done"
+    assert statuses("mir") == {"repo-facts": "done", "verify": "done", "agree": "done"}, "seeded from the store"
+    assert len(fake.events("apply")) == applies, "nothing was submitted again"
+
+
+def test_a_store_that_cannot_open_stops_the_run_before_ax_and_leaves_no_lock(
+    fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from openultrasast.plane.memory import MemoryStoreError
+
+    monkeypatch.setenv("OUSAST_MEMORY", "s3://nowhere")  # the profile's override; no S3_* in the test environment
+    for key in ("S3_ENDPOINT", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"):
+        monkeypatch.delenv(key, raising=False)
+    with pytest.raises(MemoryStoreError, match="S3_ENDPOINT"):
+        reconciler.run(write_run(tmp_path, "nostore"), ax=str(fake.ax))
+    assert fake.events("apply") == [] and not (reconciler.run_dir("nostore") / "lock").exists()

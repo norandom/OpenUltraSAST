@@ -1394,8 +1394,14 @@ def _plane(args: argparse.Namespace) -> int:
         print(f"plane: {exc}", file=sys.stderr)
         return 2
     if args.plane_command == "run":
+        from .plane.memory import MemoryStoreError
+
         _plane_memory("seed", args.run_manifest)
-        result = reconciler.run(args.run_manifest, workers=args.workers, ax=args.ax, profile=profile)
+        try:
+            result = reconciler.run(args.run_manifest, workers=args.workers, ax=args.ax, profile=profile)
+        except MemoryStoreError as exc:  # the store is the state of record: no fallback, the Run is not submitted
+            print(f"memory store {profile.memory}: {exc}", file=sys.stderr)
+            return 1
         print(f"run finished: {result}")
         _plane_memory("ingest", args.run_manifest)
         return 0 if result == "done" else 1

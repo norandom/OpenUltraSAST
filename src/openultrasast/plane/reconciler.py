@@ -18,7 +18,10 @@ task as ``OUSAST_MODEL`` plus ``OUSAST_MODEL_PARAMS`` (Req 7.1), each Workspace'
 inputs only). The receiver takes the runner's tar (``X-Ousast-Run``, ``X-Ousast-Task``) on
 ``OUSAST_ARTIFACT_PORT`` (18090), reached by its Service name through the egress gateway; between ``ax apply`` and
 resume the task's egress policy is written (``egress.py``).
-State: ``~/ousast-results/plane/<run>/`` (``OUSAST_RESULTS``), polled every ``OUSAST_POLL_SECONDS`` (3).
+State: ``~/ousast-results/plane/<run>/`` (``OUSAST_RESULTS``), polled every ``OUSAST_POLL_SECONDS`` (3); ``state.json``
+is mirrored to ``runs/<run>/state.json`` on the memory store after every change and a rerun with no local state
+seeds it from there (``delivery.py``; plane-on-kubernetes design section 2). The store is opened first and is
+required: there is no fallback.
 """
 
 from __future__ import annotations
@@ -42,9 +45,11 @@ from urllib.parse import urlsplit
 
 import yaml
 
+from .delivery import Delivery
 from .doctor import doctor
 from .egress import RECEIVER_PORT, Egress, Receiver, policy_for
 from .manifests import AX_API_VERSION, Manifests, Model, Run, RunTask, Task, Workspace, load_manifests
+from .memory import open_store
 from .profile import PlaneProfile, load_profile
 from .router import Router, credentials, open_router
 
@@ -226,12 +231,25 @@ class _State:
     path: Path
     data: dict[str, Any]
     lock: threading.Lock = field(default_factory=threading.Lock)
+    mirror: Callable[[Mapping[str, Any]], None] | None = None  # the store copy; a failure is reported, never fatal
 
     def set(self, task: str, **fields: object) -> None:
         with self.lock:
             self.data["tasks"].setdefault(task, {"status": "pending", "started": None, "finished": None, "usd": None, "model": None})
             self.data["tasks"][task].update(fields)
-            _write_json(self.path, self.data)
+            self._flush()
+
+    def flush(self) -> None:
+        with self.lock:
+            self._flush()
+
+    def _flush(self) -> None:
+        _write_json(self.path, self.data)
+        if self.mirror is not None:
+            try:
+                self.mirror(self.data)
+            except Exception as exc:  # noqa: BLE001 - the local file is written; the mirror is reported, the run goes on
+                print(f"state mirror to the store failed: {exc}", file=sys.stderr)
 
     def status(self, task: str) -> str:
         return str(self.data["tasks"].get(task, {}).get("status", "pending"))
@@ -357,8 +375,18 @@ def run(
     run_spec, manifests = load_run(Path(run_manifest))
     base = run_dir(run_spec.metadata.name, results_root)
     base.mkdir(parents=True, exist_ok=True)
+    store = open_store(profile.memory)  # first, before the lock and before ax sees anything: no fallback
+    delivery = Delivery(store, run_spec.metadata.name, base)
+    if not (base / "state.json").exists():
+        seeded = delivery.load_state()  # a rerun from another machine or an empty results root
+        if seeded is not None:
+            _write_json(base / "state.json", seeded)
     lock = _acquire_lock(base)
-    state = _State(base / "state.json", _read_json(base / "state.json") or {"run": run_spec.metadata.name, "started": _now(), "tasks": {}})
+    state = _State(
+        base / "state.json",
+        _read_json(base / "state.json") or {"run": run_spec.metadata.name, "started": _now(), "tasks": {}},
+        mirror=delivery.save_state,
+    )
     port = os.environ.get("OUSAST_ARTIFACT_PORT") or (0 if os.environ.get("OUSAST_ARTIFACT_HOST") else RECEIVER_PORT)
     receiver = Receiver(run_spec.metadata.name, base, int(port), profile.kube_context)  # the Service targets RECEIVER_PORT
     threading.Thread(target=receiver.serve_forever, daemon=True).start()
@@ -409,7 +437,7 @@ def run(
     statuses = [state.status(t.name) for t in run_spec.tasks]
     result = "failed" if "failed" in statuses else "done" if all(s == "done" for s in statuses) else "unfinished"
     state.data.update(status=result, finished=_now())
-    _write_json(state.path, state.data)
+    state.flush()
     return result
 
 
