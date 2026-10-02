@@ -1,7 +1,7 @@
 {
-  "modules": 150,
+  "modules": 151,
   "counts": {
-    "load_bearing": 145,
+    "load_bearing": 146,
     "standalone_capability": 5
   },
   "orphaned": [],
@@ -355,6 +355,7 @@
         "learn.evaluate",
         "learn.examples",
         "learn.excerpt",
+        "learn.experiments",
         "learn.features",
         "learn.folds",
         "learn.labels",
@@ -390,7 +391,8 @@
       "reason": "reachable from gate, map_gate, pair_gate, cli",
       "importers": [
         "learn.cli",
-        "learn.evaluate"
+        "learn.evaluate",
+        "learn.experiments"
       ]
     },
     {
@@ -408,7 +410,8 @@
       "reason": "reachable from gate, map_gate, pair_gate, cli",
       "importers": [
         "learn.cli",
-        "learn.compile"
+        "learn.compile",
+        "learn.experiments"
       ]
     },
     {
@@ -419,6 +422,7 @@
         "learn.cli",
         "learn.compile",
         "learn.evaluate",
+        "learn.experiments",
         "learn.folds",
         "learn.program",
         "learn.retrieve"
@@ -433,6 +437,14 @@
         "learn.examples",
         "learn.labels",
         "plane.harvest"
+      ]
+    },
+    {
+      "module": "learn.experiments",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate, cli",
+      "importers": [
+        "learn.cli"
       ]
     },
     {
@@ -452,6 +464,7 @@
         "learn.cli",
         "learn.compile",
         "learn.evaluate",
+        "learn.experiments",
         "learn.program",
         "learn.retrieve"
       ]
@@ -487,7 +500,8 @@
       "importers": [
         "learn.cli",
         "learn.compile",
-        "learn.evaluate"
+        "learn.evaluate",
+        "learn.experiments"
       ]
     },
     {
@@ -831,6 +845,7 @@
         "learn.compile",
         "learn.embeddings",
         "learn.examples",
+        "learn.experiments",
         "learn.program",
         "plane.egress",
         "plane.engine_alerts",
@@ -855,6 +870,7 @@
         "learn.cli",
         "learn.compile",
         "learn.embeddings",
+        "learn.experiments",
         "learn.program",
         "plane.generate",
         "plane.tasks.roles",
@@ -920,7 +936,7 @@
     {
       "module": "plane.memory",
       "classification": "load_bearing",
-      "reason": "harnessx-removal Req 6.1/6.4: the memory store (file, MinIO), ingest and fact reuse; `ousast plane remember`",
+      "reason": "harnessx-removal Req 6.1/6.4: the memory store (file, S3), ingest and fact reuse; `ousast plane remember`",
       "importers": [
         "cli",
         "improve.memory",
@@ -928,6 +944,7 @@
         "learn.compile",
         "learn.embeddings",
         "learn.examples",
+        "learn.experiments",
         "learn.program",
         "plane.generate",
         "plane.tasks.loop",

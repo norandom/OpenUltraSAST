@@ -116,12 +116,28 @@ a model or embedding call.
     - _Requirements: 5.1, 5.2, 8.3_
 
 - [ ] 7. Experiments (exp-001 and program variants need budget go-ahead)
-  - `learn/experiments.py`, `register`, `experiment-outcome`, Run annotation checks, `OUSAST_VERIFY_CALLERS`;
-    exp-001 (known-callers line on/off, ~$7.7 expected, ceiling $15) registered, run and recorded -- an
-    inconclusive result is pre-registered as likely.
-  - Program-variant experiments (paired on candidates, repository cluster, arm A replayed from cache at $0): the
-    machinery and its test; the first variant (`k = 5` vs `k = 1`, or the confidence source) **(budget go-ahead:
-    ~$0.9-1.35 per arm-B pass of 300 candidates, ceiling $2 each)**.
+  - [x] 7.1 Machinery (no model in tests): `learn/experiments.py` -- YAML manifests under `plane/experiments/<id>.yaml`
+    (hypothesis, arms as program-spec overrides or plane `task_env`, unit, pairing, repository cluster, metrics with
+    `[label=]` selectors and targets, MDE, two looks with O'Brien-Fleming boundaries, budget ceiling, families, folds,
+    frozen units file), `register` (`experiment` row with both digests; refuses an uncommitted, modified or re-declared
+    manifest), `units` (freeze the families' evaluation candidates, paired by candidate across pins; no model), `run`
+    (paired arms in a seeded repository order, a seeded coin per unit for which arm goes first, `arm_outcome` rows,
+    resumable, arm A replay-only at $0, canary replicates under a fresh cache salt, the first look during the run),
+    `analyse` (paired repository bootstrap, exact McNemar, the looks, adopt / reject / equivalent / inconclusive,
+    `experiment_result` row + `benchmarks/experiments/<id>/result.json`), `ousast learn experiment
+    register|units|run|analyse`; `OUSAST_VERIFY_CALLERS=off` in `plane/tasks/verify.py`; the retrieval-ensemble
+    sampling variant (`ProgramSpec.sampling = retrieval_ensemble`: `k` samples at temperature 0 over `k` disjoint
+    retrieved example sets; default unchanged). Tests: `test_learn_experiments.py` (18, scripted clients, FileStore).
+  - [x] 7.2 Registered, not run: `exp-001-known-callers` (plane arms, `flag_rate[label=1]`, MDE 0.15, ceiling $15;
+    units `pending` -- model-free candidate generation on the 41 development repositories is not built, and plane Run
+    annotation checks / the `experiment-outcome` task are not written) and `exp-002-retrieval-ensemble` (arm A today's
+    k = 5 temperature sampling, arm B the retrieval ensemble; primary canary agreement (target 0.90) and within-pair
+    AUC, secondary usd per candidate, AUC, ADVISORY recall/precision; families injection and access_control on the
+    slice-2 candidates; ceiling $4: A $1, B $3).
+  - [ ] 7.3 exp-001 run and recorded (~$7.7 expected, ceiling $15) -- an inconclusive result is pre-registered as
+    likely; needs the frozen units file first.
+  - [ ] 7.4 exp-002 run and recorded **(budget go-ahead: ~$2 expected, ceiling $4)**; further program variants
+    (`k = 5` vs `k = 1`, the confidence source) as new manifests.
   - _Requirements: 3.6, 4.1-4.4_
 
 - [ ] 8. Integration

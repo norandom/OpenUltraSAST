@@ -54,6 +54,30 @@ def add_commands(learn_sub: Any) -> None:
         if name == "curve":
             sub.add_argument("--subset", type=int, default=200)
 
+    experiment = learn_sub.add_parser("experiment", help="A/B experiments: register a manifest, run its arms paired, analyse")
+    experiment_sub = experiment.add_subparsers(dest="experiment_command", required=True)
+    for name, text in (
+        ("register", "record the manifest's and the units file's sha256 as the experiment row (both committed at HEAD)"),
+        ("units", "freeze the units of a program experiment from the memory (no model): the families' evaluation candidates"),
+        ("run", "run every arm on every unit, paired; arm A replays from the response cache when the manifest says so"),
+        ("analyse", "paired cluster bootstrap, exact McNemar, the two looks and the adoption verdict (counts and intervals only)"),
+    ):
+        sub = experiment_sub.add_parser(name, help=text)
+        sub.add_argument("manifest", type=Path, help="plane/experiments/<id>.yaml")
+        sub.add_argument("--memory", help="the store (default OUSAST_MEMORY, then results_root()/memory)")
+        if name in ("units", "run"):
+            sub.add_argument("--profile", choices=("static", "plane"), default="static")
+        if name == "run":
+            sub.add_argument(
+                "--manifest-model", type=Path, default=Path("plane/models/deepseek-flash.yaml"), help="the chat Model (prices)"
+            )
+            sub.add_argument("--no-early-stop", action="store_true", help="take no first look during the run")
+        if name in ("run", "analyse"):
+            sub.add_argument("--resamples", type=int, help="bootstrap resamples (default: the manifest's)")
+            sub.add_argument("--out", type=Path, help="write the counts-only report here (analyse --record: benchmarks/experiments/<id>/)")
+        if name == "analyse":
+            sub.add_argument("--record", action="store_true", help="also write the experiment_result row")
+
     leaks = learn_sub.add_parser("audit-leaks", help="how well each signal alone separates the sides of a pair (no model)")
     leaks.add_argument("--memory", help="the store (default OUSAST_MEMORY, then results_root()/memory)")
     leaks.add_argument("--units", type=Path, help="the harvest units.json (unit -> case and side) for feature rows without a side")
@@ -73,8 +97,97 @@ def run(args: argparse.Namespace) -> int:
         return _memory_embed(args)
     if args.learn_command in ("compile", "evaluate", "curve"):
         return _program_command(args)
+    if args.learn_command == "experiment":
+        return _experiment(args)
     print(f"learn: unknown command {args.learn_command}", file=sys.stderr)
     return 2
+
+
+def _experiment(args: argparse.Namespace) -> int:
+    """register | units | run | analyse. Exit 2 on a refused manifest (unregistered, modified, uncommitted), 3 when a
+    ceiling stops the run (``unfinished``: a rerun resumes from the outcome rows)."""
+    from datetime import date
+
+    from ..plane.budget import MeteredClient
+    from ..plane.memory import open_store
+    from . import experiments as ex
+    from .program import Caller
+
+    store = open_store(args.memory)
+    try:
+        manifest = ex.load_manifest(args.manifest)
+        if args.experiment_command == "register":
+            row = ex.register(store, manifest, created=date.today().isoformat())
+            shown = ("experiment", "manifest_digest", "units_status", "units_digest", "pin", "arms")
+            print(json.dumps({k: row[k] for k in shown}, indent=2))
+            return 0
+        if args.experiment_command == "analyse":
+            row = ex.check_registered(store, manifest, need_units=False)
+            provenance = {"code_commit": ex.committed_at_head(manifest.path)}
+            report = ex.analyse(manifest, ex.load_outcomes(store, manifest.id), resamples=args.resamples, provenance=provenance)
+            if args.record:
+                store.put_row(ex.result_row(manifest, str(row["pin"]), report))
+            _write(report, args.out or (ex.RESULT_DIR / manifest.id / "result.json" if args.record else None))
+            return 0
+        from .embeddings import EmbeddingCache
+        from .examples import load_examples
+
+        memory = load_examples(store, args.profile)
+        if args.experiment_command == "units":
+            units = ex.freeze_units(store, manifest, memory)
+            digest = ex.write_units(manifest.units_file, units)
+            paired = sum(1 for u in units if u.pair)
+            print(json.dumps({"units": len(units), "paired": paired, "groups": len({u.group for u in units}), "sha256": digest,
+                              "path": str(manifest.units_file), "next": "commit the file, then register again"}, indent=2))  # fmt: skip
+            return 0
+        cache = EmbeddingCache(store)
+        vectors = {sha: v for sha in cache.names() if (v := cache.get(sha)) is not None} or None
+        parameters = _model_parameters(args.manifest_model)
+        callers: dict[str, Caller] = {}
+        for name, arm in manifest.arms.items():
+            if arm.replay_only:
+                callers[name] = Caller(None, _arm_model(manifest, arm, store), parameters, store=store)
+                continue
+            from ..config import load_config
+            from ..model.endpoint import resolve_chat_endpoint
+
+            resolved = resolve_chat_endpoint(load_config(None))
+            if resolved is None:
+                raise SystemExit("learn experiment run: no chat endpoint configured (DEEPSEEK_API_KEY); nothing was spent")
+            client = MeteredClient(resolved[0], prices=parameters, budget_usd=arm.budget_usd)
+            callers[name] = Caller(client, _arm_model(manifest, arm, store), parameters, store=store)
+
+        def excerpt_text(sha: str) -> str | None:
+            data = store.get_blob("excerpts", sha)
+            return data.decode("utf-8") if data is not None else None
+
+        early = not args.no_early_stop
+        summary = ex.run(store, manifest, memory, callers, excerpt_text, vectors, stop_early=early, resamples=args.resamples)
+    except ex.ExperimentError as exc:
+        print(f"learn experiment {args.experiment_command}: {exc}", file=sys.stderr)
+        return 2
+    _write(summary.as_dict(), args.out)
+    if summary.status == "unfinished":
+        print(f"learn experiment run: unfinished -- {summary.reason}", file=sys.stderr)
+        return 3
+    return 0
+
+
+def _arm_model(manifest: Any, arm: Any, store: Any) -> str:
+    from .compile import load_program
+
+    if "model" in arm.spec:
+        return str(arm.spec["model"])
+    pid = next(iter({**manifest.programs, **arm.programs}.values()), None)
+    return str(load_program(store, pid)["classify"]["model"]) if pid else "deepseek-flash"
+
+
+def _write(report: dict[str, Any], out: Path | None) -> None:
+    text = json.dumps(report, indent=2, sort_keys=True, default=str) + "\n"
+    if out is not None:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text, encoding="utf-8")
+    print(text, end="")
 
 
 def _caller(args: argparse.Namespace, store: Any, model: str) -> Any:

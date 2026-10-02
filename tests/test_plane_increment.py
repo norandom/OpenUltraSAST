@@ -36,7 +36,7 @@ def _mebibytes(quantity: str) -> float:
 
 
 def test_every_manifest_under_plane_loads() -> None:
-    paths = sorted(PLANE.rglob("*.yaml"))
+    paths = sorted(p for p in PLANE.rglob("*.yaml") if "experiments" not in p.parts)  # experiment manifests are not ax manifests
     assert len(paths) >= 36, paths
     manifests = load_manifests(paths)
     assert set(manifests.models) == {"deepseek-flash", "openrouter-embedding"}  # the second: embeddings only (decision engine)

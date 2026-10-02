@@ -30,7 +30,10 @@ replaces itself. The kinds (`KINDS`) and who writes them:
 | `features` | `remember` task, from the `features` task | one feature record per candidate and family |
 | `proposal_outcome` | `ousast improve --memory` (not with `--dry-run`), and the loop's `improve` step | what happened to each memory proposal in a round |
 | `example` | `ousast learn memory build` | a labelled case: label + feature record + excerpt sha (no rationale) |
-| `label`, `decision`, `experiment`, `arm_outcome`, `experiment_result` | reserved for later decision-engine tasks | declared in `KINDS`; not written by the code on main yet |
+| `experiment` | `ousast learn experiment register` (task `register`) and `run` (task `run`) | a registered manifest's digests and provenance; a run's counts-only summary. Repo `experiments/<id>`, pin the registering commit |
+| `arm_outcome` | `ousast learn experiment run` | one decision per (unit, arm, replicate): score, verdict, usd, order |
+| `experiment_result` | `ousast learn experiment analyse --record` | the paired estimates, the looks and the adoption verdict (counts and intervals only) |
+| `label`, `decision` | reserved for later decision-engine tasks | declared in `KINDS`; not written by the code on main yet |
 
 **Blobs** (`put_blob`) are content-addressed: a 64-hex name under a fixed prefix. Excerpts are
 written by `learn memory build` (`learn/examples.py`), embeddings by `learn memory embed`
