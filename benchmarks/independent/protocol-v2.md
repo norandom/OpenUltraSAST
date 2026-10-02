@@ -81,3 +81,10 @@ and zero fixed or benign false alerts. A gate that is not met is reported as not
 - No rule, fact, query or scoring change informed by these results before the result is committed.
 - Any change made after it is a retune. A retune can only be qualified on a NEW untouched population.
 - No result of a case whose licence is marked "verify" is published until the licence is checked.
+  - 2026-10-02: the five v2 cases that carried the "verify" marker were checked read-only at their pinned
+    vulnerable commits (LICENSE / license.txt / plugin header `License:` line via the GitHub API) and the
+    `license` field now records the SPDX id with the evidence: pgadmin-maintenance-sqli is PostgreSQL;
+    wp-gopay-log-filter-sqli is GPL-2.0-or-later; wp-user-registration-login-redirect, wp-directorist-avatar-ssrf
+    and wp-groundhogg-confirm-redirect are GPL-3.0-or-later. All five are OSI-approved. The OpenCVE case in v1
+    is BSL-1.1, which is not OSI-approved; non-production use is permitted by its Additional Use Grant, and its
+    change date is 2030-08-14 (to Apache-2.0).

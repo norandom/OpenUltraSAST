@@ -45,7 +45,7 @@ sink = "web/pgadmin/tools/maintenance/templates/maintenance/sql/command.sql (str
 source = "JSON body of POST /maintenance/job/<sid>/<did>"
 sites = ["web/pgadmin/tools/maintenance/__init__.py::create_maintenance_job"]
 privilege = "authenticated (tools_maintenance permission)"
-license = "PostgreSQL License (OSI; GitHub: NOASSERTION)  [verify before publishing]"
+license = "PostgreSQL (verified 2026-10-02: LICENSE, d112dc3b962218efc3613fa727d54f0fc5b1d527)"
 confidence = "high"
 benign = { base = "e7eaef0dc002c254e4dd15705df800c448e8eb4c", tip = "a50a553b0a7e529e5d87f52bdc6d3a5ee3e8b9e8", subject = "chore: feature tests use sys.executable; sync yarn.lock to package.json", how = "automatic proposal, reviewed" }
 
@@ -243,7 +243,7 @@ sink = "admin/views/log.php :: file scope (included by admin/class-gopay-gateway
 source = "filter_input(INPUT_GET, 'log_table_filter')"
 sites = ["admin/views/log.php::<global>"]
 privilege = "admin (shop manager, manage_woocommerce)"
-license = "GitHub: none; plugin header GPLv2 or later  [verify before publishing]"
+license = "GPL-2.0-or-later (verified 2026-10-02: gopay-gateway.php header, 626bc8b5f8d33de6eefd921e3a05ed52ac320bcd)"
 confidence = "high"
 benign = { base = "2b5fe58d6dadbfecb01ed34611aed8502d11e612", tip = "88b10bda704a37e88121e22dc22f4e5019097272", subject = "GPY025-136: fix i18n and remove translation calls on non-literal text", how = "automatic proposal, reviewed" }
 
@@ -261,7 +261,7 @@ sink = "includes/functions-ur-core.php :: ur_process_login() (wp_redirect(wp_val
 source = "$post['redirect'] (login form POST) or wp_get_raw_referer()"
 sites = ["includes/functions-ur-core.php::ur_process_login"]
 privilege = "unauthenticated attacker, victim logs in"
-license = "GitHub: NOASSERTION; repo has license.txt, plugin header GPLv3  [verify before publishing]"
+license = "GPL-3.0-or-later (verified 2026-10-02: license.txt, e52cf151cb229852e6209fb3a627aa51485139c1)"
 confidence = "high"
 benign = { base = "064dd7ab1585082b9b5cf078f2d22c0234f25e48", tip = "3b6acc4695e93d9d48969ed894c21419bd09b33a", subject = "Fix - Deactivate Licence button did nothing when the pro-activation transient was set (#1418)", how = "automatic proposal, reviewed" }
 
@@ -279,7 +279,7 @@ sink = "includes/rest-api/functions.php :: directorist_rest_upload_image_from_ur
 source = "$request['avater']['src'] in includes/rest-api/Version1/class-users-controller.php :: update_user_meta_fields() (REST user update)"
 sites = ["includes/rest-api/functions.php::directorist_rest_upload_image_from_url"]
 privilege = "authenticated (subscriber)"
-license = "GitHub: NOASSERTION; plugin header GPLv3  [verify before publishing]"
+license = "GPL-3.0-or-later (verified 2026-10-02: license.txt + directorist-base.php header, 77cfc9bc8b453f97ab7e720330706fa4ef056867)"
 confidence = "medium"
 benign = { base = "61ddcdf84f18cbe7749036a912d2931cef8cbd5a", tip = "986becd484f8f2d9b60604737d4fb4bf08fa6d1b", subject = "Replaced Location with Address on the All Listings map view (#2280)", how = "chosen by hand after review" }
 
@@ -297,7 +297,7 @@ sink = "templates/preferences.php :: file scope, case 'confirm': (wp_redirect($r
 source = "get_url_var('redirect_to') (query string, only through esc_url_raw(sanitize_text_field(...)))"
 sites = ["templates/preferences.php::<global>"]
 privilege = "unauthenticated (crafted preferences link)"
-license = "GitHub: none, no LICENSE file; plugin header GPLv3  [verify before publishing]"
+license = "GPL-3.0-or-later (verified 2026-10-02: groundhogg.php header, 9472a1dd79d4556c40eece501a61930793f170d3)"
 confidence = "high"
 benign = { base = "61c8a03f11b6030c630be6ae0b0c2ad641eb733a", tip = "e3a69f1c2814c6bebed940505894008748566b93", subject = "output a square image regardless of image dimensions", how = "automatic proposal, reviewed" }
 
