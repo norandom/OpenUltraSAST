@@ -49,6 +49,43 @@ v3 is reserved: development and analysis work never reads its cases, and
 `tests/test_independent_population.py` fails when anything in the development tree (a recipe,
 catalog, manifest or measurement) names one of its repositories.
 
+```mermaid
+stateDiagram-v2
+    [*] --> Frozen: cases selected and frozen before any scan
+    Frozen --> Scored: scored once under the pre-registered protocol
+    Scored --> Spent: result recorded
+    Spent --> [*]: may inform changes, can no longer qualify anything
+    note right of Frozen
+        v3 (PHP, 15 cases) waits here as the one-time final check,
+        run once after a prediction is committed
+    end note
+    note right of Spent
+        v1 and v2 are spent
+    end note
+```
+
+## Folds: how learned decisions are kept out of their own training data
+
+The decision engine is evaluated on repositories it was not shown (`src/openultrasast/learn/folds.py`).
+Every split is by repository group (the label builder's normalised `owner/name`, merged across
+URLs, forks and shared advisories), across all corpora, seeded and deterministic.
+
+```mermaid
+flowchart TD
+    groups["All repository groups with labels"] --> c["Compile split: 25% of groups, never evaluated"]
+    groups --> rest["The other 75%"]
+    c --> boot["C_boot 60%: demonstrations"]
+    c --> val["C_val 40%: instruction scoring"]
+    rest --> outer["Outer grouped 5-fold: calibration cross-fitted, operating points nested"]
+    rest --> loso["Leave-one-source-out: a source held out whole"]
+    rest --> lofo["Leave-one-framework-out: frameworks with at least 10 groups"]
+```
+
+`assert_disjoint` runs before a compile: the compile split and the evaluation folds share no
+group. A framework with fewer than 10 groups gets `insufficient data` instead of a fold. As of
+2026-10-02 only the outer folds of the injection family have been run
+([decision-engine.md](decision-engine.md#first-measured-slice-2026-10-01)).
+
 ## The plane increment
 
 The first increment of the agentic plane ran the model-driven pipeline's validation set (46

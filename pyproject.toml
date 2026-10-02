@@ -11,6 +11,11 @@ requires-python = ">=3.11"
 dependencies = ["pyyaml>=6.0"]
 
 [project.optional-dependencies]
+# The documentation site (mkdocs.yml, docs/). Mermaid renders client-side through Material's superfences fence.
+docs = [
+    "mkdocs>=1.6,<2",
+    "mkdocs-material>=9.5,<10",
+]
 # The plane's memory store on MinIO (OUSAST_MEMORY=minio://<bucket>, plane/memory.py). Imported lazily; the
 # core install and the file store need nothing beyond PyYAML.
 minio = [

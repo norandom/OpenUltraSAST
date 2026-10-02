@@ -69,7 +69,7 @@ uv run ousast improve benchmarks/manifests/java-spring-boot-vulnerable.toml     
 ## 7. Running the agentic plane
 
 Model work over whole repositories runs as a Run manifest on ax, one isolated actor
-per task (bring-up: [ops/ax/README.md](../ops/ax/README.md)). The provider key is
+per task (bring-up: [ops/ax/README.md](ops/ax/README.md)). The provider key is
 read from the environment (or `.env`, which never overrides an exported variable) by
 `ousast` and sent only in each task's start request.
 

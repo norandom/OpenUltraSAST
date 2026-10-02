@@ -1,0 +1,66 @@
+site_name: OpenUltraSAST
+site_description: An experimental static security analyser and repository safety net, with an agentic plane and a learned decision engine in development.
+repo_url: https://github.com/norandom/OpenUltraSAST
+edit_uri: edit/main/docs/
+docs_dir: docs
+site_dir: site
+strict: true
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-4
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-7
+        name: Light mode
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+nav:
+  - Overview: index.md
+  - How it works:
+      - Scanning: scanning.md
+      - Architecture: architecture.md
+      - The plane on ax: plane.md
+      - Memory: memory.md
+      - Memory and detection: memory-and-detection.md
+      - Decision engine: decision-engine.md
+  - Evaluation: evaluation.md
+  - Using it:
+      - Examples: examples.md
+      - Threat model: threat-model.md
+  - Operations (maintainers):
+      - Engine and pre-push: ops/README.md
+      - ax on this host: ops/ax/README.md
+      - RustFS setup for the memory store: rustfs.md
