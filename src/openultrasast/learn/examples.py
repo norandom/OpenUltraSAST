@@ -122,6 +122,17 @@ def _counter_role(label: Mapping[str, Any]) -> str:
     return "vulnerable" if label.get("pin_role") == "fixed" else "fixed"
 
 
+def _excerpt_language(record: Mapping[str, Any], label: Mapping[str, Any], lines: Sequence[str] | None, function: str) -> str:
+    """The language the excerpt matcher runs under: the record's (the closed feature vocabulary, ``other`` for Go,
+    Ruby, C#, Perl, ...), and the label's -- the catalog's or the clone's -- where the record's resolves nothing
+    (a Ruby ``def`` under ``other`` has no brace body). The record keeps its own language field."""
+    language = str(record.get("language") or label.get("language") or "other")
+    declared = str(label.get("language") or "")
+    if lines and declared and declared != language and function_bounds(lines, language, function) is None:
+        return declared
+    return language
+
+
 def build_examples(
     labels: Iterable[Label | Mapping[str, Any]],
     records: Mapping[tuple[str, str, str, str, str], Mapping[str, Any]],
@@ -165,16 +176,17 @@ def build_examples(
         count.recorded += 1
         path, _, function = candidate.partition("::")
         function = (function_of(label, str(label.get("pin_role") or "vulnerable")) if function_of else None) or function
-        language = str(record.get("language") or label.get("language") or "other")
         identities = identities_of(str(label.get("repo") or ""), path, [str(label.get("pin") or "")])
         lines = lines_of(label, str(label.get("pin_role") or "vulnerable"))
+        language = str(record.get("language") or label.get("language") or "other")
+        matcher = _excerpt_language(record, label, lines, function)
         diff = None
         if unit == "delta" and lines:
             base = lines_of(label, _counter_role(label))
-            head_span, base_span = function_bounds(lines, language, function), function_bounds(base or (), language, function)
+            head_span, base_span = function_bounds(lines, matcher, function), function_bounds(base or (), matcher, function)
             if base and head_span and base_span:
-                diff = delta_diff(base[slice(*base_span)], lines[slice(*head_span)], language, identities=identities)
-        shown = excerpt(lines, language, function, bounds=bounds, identities=identities, diff=diff)
+                diff = delta_diff(base[slice(*base_span)], lines[slice(*head_span)], matcher, identities=identities)
+        shown = excerpt(lines, matcher, function, bounds=bounds, identities=identities, diff=diff)
         if shown is None:
             if not lines:
                 count.unread += 1

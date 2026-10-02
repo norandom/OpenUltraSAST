@@ -1,0 +1,85 @@
+{
+ "created": "2026-10-02",
+ "note": "COUNTS ONLY. Labels, feature records and the static memory rebuilt after the excerpt matcher learned the declaration forms recorded in 2026-10-02-decision-engine-negatives-gap. No model or embedding call: feature records reuse the recorded engine, verify and roles outputs of the harvest Runs (instruments that never ran stay `missing`); the new and changed excerpts have no vector yet (`ousast learn memory embed`, estimated below). The memory store is the RustFS bucket (versioned: prior objects stay). Candidate, path, function, commit and repository names stay local.",
+ "labels": {
+  "command": "ousast learn labels --root . --out <scratch> --snapshot <scratch>",
+  "rows": 6589,
+  "groups": 202,
+  "labels_sha256_prefix": "c17daeac522090d4",
+  "same_as": "the 2026-10-02 regeneration recorded in 2026-10-02-decision-engine-harvest-advisory (identical sha): the label builder's fixed-side rule already accepted every pair the matcher now resolves (its name-on-a-code-line fallback), so no label row changed",
+  "pair_fixed_side": {"absent_fixed_side_labels": 108, "fixed_side_moved": 0}
+ },
+ "features": {
+  "command": "benchmarks/learn/build_features.py --labels <the 36 label rows of the 9 corpus pairs> --units <merged units.json> (defaults: harvest-engine, harvest-verify, harvest-roles)",
+  "targets": 18,
+  "records": {"static:injection": 10, "static:memory": 4, "static:path": 4, "plane:injection": 10, "plane:memory": 4, "plane:path": 4},
+  "absent_on_side": {},
+  "instrument_states_plane_new_records": {
+   "injection:engine": {"failed": 2, "none": 2, "ran": 6}, "injection:roles": {"failed": 8, "none": 2}, "injection:verify": {"missing": 2, "ran": 8},
+   "memory:engine": {"failed": 2, "none": 2}, "memory:roles": {"none": 4}, "memory:verify": {"none": 4},
+   "path:engine": {"failed": 4}, "path:roles": {"failed": 4}, "path:verify": {"none": 4}
+  },
+  "instrument_fix": "the store's ingest index remembered these 36 rows from the 2026-10-01 build (before the declares() gate) and skipped them as a repeat, although the 17:25 build had dropped them as stale: the first rebuild stored nothing (store rows 1,848 -> 1,848, memory 919). build_features now checks the rows are present after an index hit and restores them (restored_after_drop = 36). An index hit is not evidence the rows are there.",
+  "store_rows": {"before": 1848, "after": 1884, "static": 942, "plane": 942},
+  "advisory_ruby_pairs": "their 14 records were already in the store (language `other`); nothing rebuilt, the excerpt was the gap"
+ },
+ "memory": {
+  "command": "ousast learn memory build --labels <labels> --units <merged units.json> --profile static --root . (exit 2: adjudications 9 of 43 anonymous functions, unchanged since 2026-10-01; rows kept)",
+  "examples": {"before": 904, "after": 937, "added": 33},
+  "by_source_after": {"adjudications": 34, "dev-php": 3, "pairs": 772, "population-v1": 85, "population-v2": 43},
+  "pairs_build_counts": {"before": {"recorded": 754, "examples": 740, "absent_fixed_side": 7, "no_excerpt": 7}, "after": {"recorded": 772, "examples": 772, "absent_fixed_side": 0, "no_excerpt": 0}},
+  "added_examples": {
+   "advisory-fixes ruby pairs (record present, excerpt recovered)": {"pairs": 7, "positives": 7, "negatives": 7, "by_family": {"access_control": 2, "deserialization": 2, "output_encoding": 1, "path": 1, "untrusted_destination": 1}},
+   "corpus pairs (record and excerpt recovered)": {"pairs": 9, "positives": 9, "negatives": 9, "by_family": {"injection": 5, "path": 2, "memory": 2}},
+   "population-v2 (a `this.name = function (` assignment now matched)": {"positives": 1, "negatives": 0, "family": "injection", "note": "its fix did not change the function, so it has no negative label: one more positives-only group"}
+  },
+  "changed_excerpts": {"count": 9, "why": "4 advisory Ruby pairs (8 examples) had a `{ |x| ... }` block inside the method as their excerpt; 1 population-v2 TypeScript method (1 example) had the `{}` default value of a parameter as its body; both corrected by the paren-aware matcher. Their old vectors no longer name the content."},
+  "unchanged_excerpts": 895,
+  "vectors": {"distinct_excerpts_after": 821, "distinct_excerpts_before": 788, "without_vector_at_most": 42, "embed_dry_run_all_usd": 0.0043, "note": "no embedding call was made; `ousast learn memory embed` for the 33 new + 9 changed excerpts is a fraction of a cent. Retrieval scores an example without a vector by its signal similarity (retrieve.py), so they take part now."},
+  "per_family_before_after": {
+   "access_control": {"before": {"pos": 31, "neg": 18, "groups_pos": 30, "groups_neg": 18, "pos_only": 12}, "after": {"pos": 33, "neg": 20, "groups_pos": 32, "groups_neg": 20, "pos_only": 12}},
+   "config_secrets": {"before": {"pos": 18, "neg": 13, "groups_pos": 5, "groups_neg": 2, "pos_only": 3}, "after": {"pos": 18, "neg": 13, "groups_pos": 5, "groups_neg": 2, "pos_only": 3}},
+   "deserialization": {"before": {"pos": 39, "neg": 19, "groups_pos": 39, "groups_neg": 19, "pos_only": 20}, "after": {"pos": 41, "neg": 21, "groups_pos": 41, "groups_neg": 21, "pos_only": 20}},
+   "injection": {"before": {"pos": 75, "neg": 65, "groups_pos": 38, "groups_neg": 28, "pos_only": 10}, "after": {"pos": 81, "neg": 70, "groups_pos": 44, "groups_neg": 33, "pos_only": 11}},
+   "memory": {"before": {"pos": 171, "neg": 171, "groups_pos": 5, "groups_neg": 5, "pos_only": 0}, "after": {"pos": 173, "neg": 173, "groups_pos": 5, "groups_neg": 5, "pos_only": 0}},
+   "output_encoding": {"before": {"pos": 76, "neg": 60, "groups_pos": 35, "groups_neg": 21, "pos_only": 14}, "after": {"pos": 77, "neg": 61, "groups_pos": 36, "groups_neg": 22, "pos_only": 14}},
+   "path": {"before": {"pos": 30, "neg": 18, "groups_pos": 30, "groups_neg": 18, "pos_only": 12}, "after": {"pos": 33, "neg": 21, "groups_pos": 33, "groups_neg": 21, "pos_only": 12}},
+   "unknown": {"before": {"pos": 2, "neg": 2, "groups_pos": 2, "groups_neg": 2, "pos_only": 0}, "after": {"pos": 2, "neg": 2, "groups_pos": 2, "groups_neg": 2, "pos_only": 0}},
+   "untrusted_destination": {"before": {"pos": 61, "neg": 35, "groups_pos": 51, "groups_neg": 24, "pos_only": 27}, "after": {"pos": 62, "neg": 36, "groups_pos": 52, "groups_neg": 25, "pos_only": 27}}
+  },
+  "positives_only_groups": {
+   "before": 98,
+   "after": 99,
+   "by_reason_after": {
+    "fixed side lacks the function (pairs, vibe-py: another function of the same snapshot; 108 labels)": 94,
+    "no fixed pin recorded (dev-php recipes)": 3,
+    "fix did not change the function (population-v2)": 2,
+    "matcher cannot resolve the function on the fixed pin": 0,
+    "excerpt missing": 0
+   },
+   "reading": "every recovered pair adds a paired group (both sides); the positives-only groups are data gaps that the rule `a fixed-side negative only where the fixed side declares the function` keeps counted, never invented. The one new positives-only group is a population positive that was invisible before (no excerpt) and whose fix did not change its function."
+  }
+ },
+ "leak_audit": {
+  "command": "ousast learn audit-leaks --profile {static,plane} --units <merged units.json> (threshold 0.20, min 10 pairs)",
+  "pairs": {"before": {"all": 376, "injection": 43, "memory": 171, "path": 19}, "after": {"all": 385, "injection": 48, "memory": 173, "path": 21}, "unchanged": ["access_control 20", "config_secrets 12", "deserialization 21", "output_encoding 61", "unknown 2", "untrusted_destination 27"]},
+  "rows_read": {"before": 1848, "after": 1884},
+  "skipped": {"one side only": 172},
+  "static": {"new_flags": [], "gone_flags": [], "changed": {"facts.function_lines/path": [0.7368, 0.6667], "facts.function_lines/injection": [0.2558, 0.2292]}, "flagged": 13},
+  "plane": {
+   "new_flags": [
+    {"signal": "agree.final", "scope": "injection", "separation": 0.2292, "pairs": 48, "correct": 15, "wrong": 4, "differ": 19},
+    {"signal": "verify.votes", "scope": "injection", "separation": 0.2292, "pairs": 48, "correct": 15, "wrong": 4, "differ": 19, "direction": "higher on vulnerable"}
+   ],
+   "gone_flags": [],
+   "changed": {"facts.function_lines/path": [0.7368, 0.6667], "facts.function_lines/injection": [0.2558, 0.2292]},
+   "flagged": {"before": 25, "after": 27},
+   "reading": "the five injection pairs the matcher recovered carry verify verdicts (8 of 10 sides ran) that separate their sides; agree.final and verify.votes were already flagged for untrusted_destination and config_secrets and are the verifier doing its job, not a label leak. The v1 input profile is unchanged (it withholds engine, facts.function_lines, verify.flag_b and ms.operation); agree.final and verify.votes stay in, reported here for the profile's owner."
+  }
+ },
+ "instruments": {
+  "store_dumps": "store.rows(kind=example|features) read once before and once after (904/1,848 then 937/1,884 rows)",
+  "matcher_sweep_after": "function_bounds on both sides of every pairs pin label: vulnerable ok 440 (was 431), fixed ok 332 (was 323), the 108 vibe-py fixed sides still undeclared",
+  "dry_build_check": "a dry build_examples over the stored records before any write: 15 new rows, 9 changed shas, 0 gone -- as expected; the live build then matched it plus the 18 restored corpus records"
+ }
+}

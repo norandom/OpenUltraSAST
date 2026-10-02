@@ -14,6 +14,14 @@ otherwise tell the model the label. Both become ``<redacted>``. A delta unit add
 
 The text is normalised (trailing blanks dropped, ``\\n`` endings, one final newline) before it is hashed, so the sha
 names the content an embedding and a response cache key are of.
+
+Where a function is declared (:func:`function_bounds`): the repo-facts declaration pattern of the language first (its
+span runs to the next declaration), else the brace matcher, which knows ``name(...) {`` with any return type,
+qualifiers, generics or a parameter list spread over many lines (a prototype's ``;`` is not a body), object-literal
+methods ``name: function (`` / ``name: (a) =>``, assignments ``x.y.name = function (`` / ``= (a) =>`` / chained
+``const name = m.name = async a =>``, Perl ``sub name {`` and C# expression bodies. A file given as ``other`` or
+``unknown`` is sniffed for Perl and Ruby (:func:`resolve_language`), whose ``def``/``sub`` forms a brace matcher
+would miss or mistake for a block.
 """
 
 from __future__ import annotations
@@ -180,47 +188,123 @@ def identities_of(repo: str = "", path: str = "", commits: Iterable[str] = ()) -
 # --- spans and excerpts -----------------------------------------------------------------------------------------------
 
 
-def _brace_bounds(lines: Sequence[str], language: str, function: str) -> tuple[int, int] | None:
-    """A brace language's definition of ``function`` (``Class::name`` and ``a.b`` reduced to the last name): the first
-    line naming it before ``(`` whose ``{`` comes before any ``;``, to the matching ``}``. Comments are blanked
-    before braces are counted."""
-    name = re.split(r"::|\.|->", function)[-1]
-    if not re.fullmatch(r"[A-Za-z_]\w*", name):
-        return None
-    call = re.compile(r"(?<![\w.>$])" + re.escape(name) + r"\s*\(")
+_UNKNOWN_LANGUAGES = frozenset({"", "other", "unknown"})
+_PERL_LINE = re.compile(r"^\s*(?:sub\s+\w+\s*[{(;]|use\s+strict\s*;|my\s+[$@%]\w+)")
+_RUBY_DEF = re.compile(r"^\s*def\s+(?:self\.)?\w+[?!=]?(?:\s*\(|\s|$)")
+_RUBY_END = re.compile(r"^\s*end\s*$")
+_BODY_SCAN_LINES = 40  # how far past a declaration head the body's ``{`` (or a prototype's ``;``) may be
+_STATEMENT_HEAD = re.compile(r"\s*(return|if|while|for|switch|else|case|throw|await|yield)\b")
+_FUNCTION_EXPR = r"(?:async\s+)?(?:function\b\s*\*?\s*[\w$]*\s*)?(?=\(|[\w$]+\s*=>)"  # function (...) / (...) => / a =>
+
+
+def resolve_language(lines: Sequence[str], language: str) -> str:
+    """The alias-normalised language; a file given as unknown (``other``, the feature vocabulary's bucket for Go, Ruby,
+    C#, Perl, ...) is sniffed for Perl (``sub name {``, ``use strict;``) and Ruby (``def`` ... ``end``), whose
+    declaration forms a brace matcher never finds and whose ``#`` comments must be redacted."""
+    language = LANGUAGE_ALIASES.get(language, language)
+    if language in _UNKNOWN_LANGUAGES and lines:
+        if any(_PERL_LINE.match(line) for line in lines):
+            return "perl"
+        if any(_RUBY_DEF.match(line) for line in lines) and any(_RUBY_END.match(line) for line in lines):
+            return "ruby"
+    return language
+
+
+def _blank_comments(lines: Sequence[str], language: str) -> list[str]:
+    style = language if language in SLASH_COMMENTS or language in HASH_COMMENTS else "c"
     code: list[str] = []
     state: str | None = None
     for line in lines:
-        ranges, state = _comment_ranges(line, state, language if language in SLASH_COMMENTS else "c")
+        ranges, state = _comment_ranges(line, state, style)
         for start, end in reversed(ranges):
             line = line[:start] + " " * (end - start) + line[end:]
         code.append(line)
-    for i, line in enumerate(code):
-        found = call.search(line)
-        if found is None or re.match(r"\s*(return|if|while|for|switch|else)\b", line):
-            continue
-        tail = "\n".join([line[found.end() :], *code[i + 1 : i + 8]])
-        brace, semi = tail.find("{"), tail.find(";")
-        if brace < 0 or (0 <= semi < brace):
-            continue
-        depth, opened = 0, False
-        for j in range(i, len(code)):
-            for c in line[found.end() :] if j == i else code[j]:
+    return code
+
+
+def _declaration_heads(name: str) -> re.Pattern[str]:
+    """Where a brace language may declare ``name`` (the body follows): ``name(`` (a definition -- or a call, told
+    apart by :func:`_body_start`); Perl ``sub name {``; an object-literal method ``name: function (`` /
+    ``name: (a) =>``; an assignment ``x.y.name = function (`` / ``= (a) =>`` / ``const name = m.name = async a =>``
+    (any chain). ``$`` is an identifier character (``Glance$serveRequest``)."""
+    quoted = re.escape(name)
+    return re.compile(
+        rf"(?<![\w.>$]){quoted}\s*(?:<[^<>(){{}};]*>\s*)?(?=\()"
+        rf"|^\s*sub\s+{quoted}\s*(?=[{{(;])"
+        rf"|(?<![\w$]){quoted}\s*:\s*{_FUNCTION_EXPR}"
+        rf"|(?<![\w$]){quoted}\s*=\s*(?:[\w$.\[\]'\"]+\s*=\s*)*{_FUNCTION_EXPR}"
+    )
+
+
+def _body_start(code: Sequence[str], line: int, column: int) -> tuple[str, int, int] | None:
+    """Scan from a declaration head for its body: ``("brace", line, column)`` of the ``{`` at parenthesis depth 0,
+    ``("expression", line, column)`` of the ``;`` or ``,`` ending an arrow function's expression body, ``None`` for a
+    prototype (``;`` before any body), a call (a ``)`` closing an outer parenthesis, a ``}``) or no body within
+    :data:`_BODY_SCAN_LINES`. Parentheses are tracked so ``f(a, function () {})`` is not a definition of ``f``."""
+    depth, arrow = 0, False
+    for j in range(line, min(line + _BODY_SCAN_LINES, len(code))):
+        text = code[j]
+        k = column if j == line else 0
+        while k < len(text):
+            c = text[k]
+            if c == "(":
+                depth += 1
+            elif c == ")":
+                depth -= 1
+                if depth < 0:
+                    return None
+            elif depth == 0:
                 if c == "{":
-                    depth, opened = depth + 1, True
-                elif c == "}" and opened:
-                    depth -= 1
-                    if depth == 0:
-                        return i, j + 1
-        return i, len(code)
+                    return ("brace", j, k)
+                if arrow and c in ";,":
+                    return ("expression", j, k)
+                if c in "};":  # a statement ends (a call, a prototype) before any body opened
+                    return None
+                if text.startswith("=>", k):
+                    arrow = True
+                    k += 1
+            k += 1
+    return None
+
+
+def _brace_bounds(lines: Sequence[str], language: str, function: str) -> tuple[int, int] | None:
+    """A brace language's definition of ``function`` (``Class::name`` and ``a.b`` reduced to the last name): the first
+    declaration head (:func:`_declaration_heads`) whose body :func:`_body_start` finds, to the matching ``}`` (or the
+    end of an expression body). Comments are blanked before anything is matched or counted."""
+    name = re.split(r"::|\.|->", function)[-1]
+    if not re.fullmatch(r"[A-Za-z_$][\w$]*", name):
+        return None
+    heads = _declaration_heads(name)
+    code = _blank_comments(lines, language)
+    for i, line in enumerate(code):
+        if _STATEMENT_HEAD.match(line):
+            continue
+        for found in heads.finditer(line):
+            body = _body_start(code, i, found.end())
+            if body is None:
+                continue
+            kind, j, k = body
+            if kind == "expression":
+                return i, j + 1
+            depth = 0
+            for row in range(j, len(code)):
+                for c in code[row][k:] if row == j else code[row]:
+                    if c == "{":
+                        depth += 1
+                    elif c == "}":
+                        depth -= 1
+                        if depth == 0:
+                            return i, row + 1
+            return i, len(code)
     return None
 
 
 def function_bounds(lines: Sequence[str], language: str, function: str) -> tuple[int, int] | None:
     """0-based ``[start, end)`` of the first declaration of ``function`` (the whole file for ``<global>``), or
-    ``None`` when the file does not declare it. Languages without a repo-facts declaration pattern (C, C++, ...) and
-    brace languages whose pattern misses the name use the brace matcher."""
-    language = LANGUAGE_ALIASES.get(language, language)
+    ``None`` when the file does not declare it. Languages without a repo-facts declaration pattern (C, C++, C#, Perl,
+    ...) and brace languages whose pattern misses the name use the brace matcher; an unknown language is sniffed
+    (:func:`resolve_language`)."""
+    language = resolve_language(lines, language)
     if function == GLOBAL:
         return (0, len(lines)) if lines else None
     pattern = DECLARATION.get(language)
@@ -267,6 +351,7 @@ def excerpt(
     :func:`delta_diff`) is appended under a ``diff:`` line."""
     if not lines:
         return None
+    language = resolve_language(lines, language)
     span = function_bounds(lines, language, function)
     if span is None:
         return None
@@ -300,6 +385,7 @@ def delta_diff(
 ) -> str:
     """The base->head unified diff of a function (one line of context, no file headers), redacted, at most
     ``max_lines`` lines."""
+    language = resolve_language(head, language)
     diff = [line for line in difflib.unified_diff(list(base), list(head), lineterm="", n=1)][2:]
     out: list[str] = []
     for line in diff:
@@ -314,5 +400,5 @@ def delta_diff(
 
 __all__ = [
     "CANDIDATE", "DIFF_LINES", "EXAMPLE", "REDACTED", "Bounds", "Excerpt", "delta_diff", "excerpt", "excerpt_sha",
-    "function_bounds", "identities_of", "normalise", "redact",
+    "function_bounds", "identities_of", "normalise", "redact", "resolve_language",
 ]  # fmt: skip

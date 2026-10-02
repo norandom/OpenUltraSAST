@@ -136,3 +136,224 @@ def test_brace_languages_without_a_declaration_pattern() -> None:
     assert shown is not None and shown.first == 3 and shown.last == 7 and "other(void)" not in shown.text
     assert excerpt(c, "cpp", "Parser::parse_header") is not None
     assert excerpt(["int f(void);", "int g(void) { return f(); }"], "c", "f") is None  # a prototype is not a body
+
+
+# --- declaration forms the brace matcher must know (each form once; a call or prototype is never a declaration) -------
+
+
+def _span(code: list[str], language: str, function: str) -> tuple[int, int] | None:
+    found = excerpt(code, language, function)
+    return None if found is None else (found.first, found.last)
+
+
+def test_js_object_literal_methods() -> None:
+    js = [
+        "module.exports = {",
+        "  getInfo: function () {",
+        "    return this.exec('pdfinfo ' + this.path)",
+        "  },",
+        "  ps: function(pid, options, done) {",
+        "    var cmd = 'ps -o pcpu,rss -p ' + pid",
+        "    exec(cmd, done)",
+        "  },",
+        "  performAction: function anonymous(yytext, yyleng) {",
+        "    return eval(yytext)",
+        "  },",
+        "  short: (a) => a + 1,",
+        "  use: function () { return this.getInfo().then(function (info) { return info }) },",
+        "}",
+    ]
+    assert _span(js, "javascript", "getInfo") == (2, 4)
+    assert _span(js, "javascript", "ps") == (5, 8)
+    assert _span(js, "javascript", "performAction") == (9, 11)  # the key, not the expression's own name
+    assert _span(js, "javascript", "short") == (12, 12)  # an expression body ends at its comma
+    assert _span(js, "javascript", "then") is None  # a call inside a body is not a declaration
+
+
+def test_js_property_assignment_functions_and_arrows() -> None:
+    js = [
+        "module.exports.ConfigureFilePath = (Options, FilePath) => {",
+        "  return path.join(Options.root, FilePath)",
+        "}",
+        "const listProcessesOnPort = module.exports.listProcessesOnPort = async port => {",
+        "  return exec(`lsof -i :${port}`)",
+        "}",
+        "Glance.prototype.serveRequest = function Glance$serveRequest (req, res) {",
+        "  fs.createReadStream(req.url).pipe(res)",
+        "}",
+        "this.getDaqValue = function (tagid, fromts, tots) {",
+        "  return conn.query('SELECT ' + tagid)",
+        "}",
+        "const total = sum(prices)",
+    ]
+    assert _span(js, "javascript", "ConfigureFilePath") == (1, 3)
+    assert _span(js, "javascript", "listProcessesOnPort") == (4, 6)
+    assert _span(js, "javascript", "Glance$serveRequest") == (7, 9)  # `$` is an identifier character
+    assert _span(js, "javascript", "serveRequest") == (7, 9)
+    assert _span(js, "javascript", "getDaqValue") == (10, 12)
+    assert _span(js, "javascript", "sum") is None  # an assignment of a call result declares nothing
+
+
+def test_ts_class_methods_with_modifiers_and_multiline_parameters() -> None:
+    ts = [
+        "export class Client {",
+        "  private retries = 3",
+        "  private async fetchRetry(",
+        "    url: string,",
+        "    options: any = {},",
+        "  ): Promise<Response> {",
+        "    return fetch(url, options)",
+        "  }",
+        "  handle = async (req: Request): Promise<void> => {",
+        "    await this.fetchRetry(req.url)",
+        "  }",
+        "}",
+    ]
+    assert _span(ts, "typescript", "fetchRetry") == (3, 8)  # not the `{}` default value inside the parameter list
+    assert _span(ts, "typescript", "handle") == (9, 11)
+
+
+def test_perl_sub_under_an_unknown_language() -> None:
+    perl = [
+        "#!/usr/bin/perl",
+        "use strict;",
+        "sub link_hash_cert;",  # a forward declaration has no body
+        "# CVE-2022-1292: shell injection fixed",
+        "sub link_hash_cert {",
+        "    my $fname = $_[0];",
+        "    system(\"openssl x509 -in '$fname'\");",
+        "}",
+        "sub hash_dir { opendir(my $dh, $_[0]) or die; }",
+    ]
+    assert _span(perl, "unknown", "link_hash_cert") == (5, 8)
+    assert _span(perl, "other", "hash_dir") == (9, 9)
+    shown = excerpt(perl, "unknown", "link_hash_cert", focus=(4,))
+    assert shown is not None and "CVE-2022" not in shown.text  # `#` comments are redacted once the language is known
+
+
+def test_c_declaration_with_a_long_parameter_list_and_qualifiers() -> None:
+    c = [
+        "CURLcode Curl_add_custom_headers(struct Curl_easy *data, bool is_connect, void *req);",
+        "",
+        "CURLcode Curl_add_custom_headers(struct Curl_easy *data,",
+        "                                 bool is_connect,",
+        "#ifndef USE_HYPER",
+        "                                 struct dynbuf *req",
+        "#else",
+        "                                 void *req",
+        "#endif",
+        "  )",
+        "{",
+        "  return CURLE_OK;",
+        "}",
+        "std::string Parser::header(int index) const noexcept {",
+        "  return headers[index];",
+        "}",
+        "Parser::Parser(int n) : size_(n), data_(nullptr) {",
+        "  data_ = alloc(n);",
+        "}",
+        "int main(void) { if (check(1)) { return 1; } else if (header(2)) { return 2; } return 0; }",
+    ]
+    assert _span(c, "c", "Curl_add_custom_headers") == (3, 13)  # the prototype is skipped, the body is 9 lines down
+    assert _span(c, "cpp", "Parser::header") == (14, 16)
+    assert _span(c, "cpp", "Parser") == (17, 19)  # an initializer list's commas are not statement ends
+    assert _span(c, "c", "check") is None  # `if (check(1)) {` is a call: its `)` closes an outer parenthesis
+
+
+def test_php_methods_with_modifiers_and_return_types() -> None:
+    php = [
+        "<?php",
+        "class Export {",
+        "    public static function &byRef(array $rows): ?array",
+        "    {",
+        "        return $rows;",
+        "    }",
+        "    final protected function render(string $name): void { echo $name; }",
+        "}",
+    ]
+    assert _span(php, "php", "byRef") == (3, 6)
+    assert _span(php, "php", "render") == (7, 8)  # a pattern language's span runs to the next declaration or the end
+
+
+def test_go_receivers_and_rust_generics() -> None:
+    go = [
+        "package main",
+        "",
+        "func (s *Server) handle(w http.ResponseWriter, r *http.Request) {",
+        "\tio.Copy(w, r.Body)",
+        "}",
+        "",
+        "func main() {}",
+    ]
+    assert _span(go, "go", "handle") == (3, 6)  # the declaration pattern: to the next `func`
+    assert _span(go, "other", "handle") == (3, 5)  # the feature vocabulary's bucket for Go: brace-matched to the body
+    rust = ["pub fn parse<T: Read>(input: &mut T) -> Result<(), Error> {", "    Ok(())", "}"]
+    assert _span(rust, "rust", "parse") == (1, 3)
+
+
+def test_ruby_defs_under_the_other_language_are_sniffed() -> None:
+    ruby = [
+        "module Kredis",
+        "  class Type",
+        "    def self.cast_value(value)",
+        "      YAML.load(value)",
+        "    end",
+        "",
+        "    def fetch_file(path)",
+        "      files.each { |f| return f if f.name == path }",
+        "      nil",
+        "    end",
+        "  end",
+        "end",
+    ]
+    assert _span(ruby, "ruby", "cast_value") == (3, 6)
+    assert _span(ruby, "other", "cast_value") == (3, 6)  # not None: the file is sniffed as Ruby
+    assert _span(ruby, "other", "fetch_file") == _span(ruby, "ruby", "fetch_file") == (7, 12)  # to the end: no later `def`
+    assert _span(ruby, "c", "fetch_file") == (7, 8)  # what a brace matcher takes under a named brace language: the block
+
+
+def test_csharp_attributes_modifiers_and_expression_bodies() -> None:
+    cs = [
+        "public class UploadController : Controller",
+        "{",
+        "    [HttpPost]",
+        "    public async Task<IActionResult> Upload(IFormFile file)",
+        "    {",
+        "        var path = Path.Combine(root, file.FileName);",
+        "        return Ok(path);",
+        "    }",
+        "    protected override string Name(int index) => names[index];",
+        "    public abstract int Size(string key);",
+        "}",
+    ]
+    assert _span(cs, "csharp", "Upload") == (4, 8)
+    assert _span(cs, "csharp", "Name") == (9, 9)  # an expression-bodied member ends at its `;`
+    assert _span(cs, "csharp", "Size") is None  # abstract: no body
+
+
+def test_java_and_statement_heads_are_not_declarations() -> None:
+    java = [
+        "public class Handler {",
+        "    @Override",
+        "    public synchronized <T> List<T> load(String name, Class<T> type)",
+        "            throws IOException, SQLException {",
+        "        return run(name, type);",
+        "    }",
+        "    void other() {",
+        '        while (load("x", null) != null) { break; }',
+        "    }",
+        "}",
+    ]
+    assert _span(java, "java", "load") == (3, 6)  # `throws A, B {`: the comma is not a statement end
+    assert _span(java, "java", "run") is None
+    assert _span(java[2:], "java", "load") == _span(java[2:], "c", "load") == (1, 4)  # pattern and brace matcher agree
+
+
+def test_resolve_language_sniffs_only_unknown_languages() -> None:
+    from openultrasast.learn.excerpt import resolve_language
+
+    assert resolve_language(["sub x {", "}"], "unknown") == "perl"
+    assert resolve_language(["def x", "end"], "other") == "ruby"
+    assert resolve_language(["def x(a):", "    return a"], "other") == "other"  # Python has no `end` lines
+    assert resolve_language(["sub x {", "}"], "python") == "python"  # a named language is never second-guessed
+    assert resolve_language([], "unknown") == "unknown"

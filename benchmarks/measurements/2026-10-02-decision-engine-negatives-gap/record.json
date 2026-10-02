@@ -1,0 +1,69 @@
+{
+ "created": "2026-10-02",
+ "note": "COUNTS ONLY. Where the decision engine's positives-only repository groups come from, before any change. Memory = the static example rows of the RustFS store as of the 2026-10-02 slice-2 rebuild (904 examples); labels = the 2026-10-02 regeneration (6,589 rows, identical in counts to 2026-10-01-decision-engine-labels-advisory-fixes); feature records = the 924 static records of the store; harvest units = the merged units of the corpus and advisory harvests. Every (family, group) of the memory that holds positive and no negative example was traced back: negative label row present? feature record for it? excerpt of it? The reason is the first link that is missing. A second table accounts for the pair sides that have a label but no example at all (those groups are absent from the memory on BOTH sides, so they do not show as positives-only; they are where the fixed-side negatives the matcher owes come from). No candidate, path, function, commit or repository name is recorded here; the per-group detail stays in scratch.",
+ "memory_before": {
+  "examples": 904,
+  "profiles": {"static": 904, "plane": 0},
+  "by_family": {
+   "access_control": {"examples_pos": 31, "examples_neg": 18, "groups_pos": 30, "groups_neg": 18, "groups_both": 18, "groups_pos_only": 12},
+   "config_secrets": {"examples_pos": 18, "examples_neg": 13, "groups_pos": 5, "groups_neg": 2, "groups_both": 2, "groups_pos_only": 3},
+   "deserialization": {"examples_pos": 39, "examples_neg": 19, "groups_pos": 39, "groups_neg": 19, "groups_both": 19, "groups_pos_only": 20},
+   "injection": {"examples_pos": 75, "examples_neg": 65, "groups_pos": 38, "groups_neg": 28, "groups_both": 28, "groups_pos_only": 10},
+   "memory": {"examples_pos": 171, "examples_neg": 171, "groups_pos": 5, "groups_neg": 5, "groups_both": 5, "groups_pos_only": 0},
+   "output_encoding": {"examples_pos": 76, "examples_neg": 60, "groups_pos": 35, "groups_neg": 21, "groups_both": 21, "groups_pos_only": 14},
+   "path": {"examples_pos": 30, "examples_neg": 18, "groups_pos": 30, "groups_neg": 18, "groups_both": 18, "groups_pos_only": 12},
+   "unknown": {"examples_pos": 2, "examples_neg": 2, "groups_pos": 2, "groups_neg": 2, "groups_both": 2, "groups_pos_only": 0},
+   "untrusted_destination": {"examples_pos": 61, "examples_neg": 35, "groups_pos": 51, "groups_neg": 24, "groups_both": 24, "groups_pos_only": 27}
+  },
+  "groups_neg_only": 0
+ },
+ "positives_only_groups": {
+  "total": 98,
+  "by_family": {"access_control": 12, "config_secrets": 3, "deserialization": 20, "injection": 10, "output_encoding": 14, "path": 12, "untrusted_destination": 27},
+  "by_family_source_reason": [
+   {"family": "access_control", "source": "pairs", "slice": "vibe-py", "reason": "fixed side lacks the function: the label builder emitted no fixed-side negative (fixed side is another function of the same snapshot)", "groups": 12},
+   {"family": "config_secrets", "source": "pairs", "slice": "vibe-py", "reason": "fixed side lacks the function (same as above)", "groups": 3},
+   {"family": "deserialization", "source": "pairs", "slice": "vibe-py", "reason": "fixed side lacks the function (same as above)", "groups": 20},
+   {"family": "injection", "source": "pairs", "slice": "vibe-py", "reason": "fixed side lacks the function (same as above)", "groups": 8},
+   {"family": "injection", "source": "dev-php", "reason": "no fixed pin recorded: development recipes name a vulnerable checkout only", "groups": 2},
+   {"family": "output_encoding", "source": "pairs", "slice": "vibe-py", "reason": "fixed side lacks the function (same as above)", "groups": 14},
+   {"family": "path", "source": "pairs", "slice": "vibe-py", "reason": "fixed side lacks the function (same as above)", "groups": 11},
+   {"family": "path", "source": "dev-php", "reason": "no fixed pin recorded (development recipe)", "groups": 1},
+   {"family": "untrusted_destination", "source": "pairs", "slice": "vibe-py", "reason": "fixed side lacks the function (same as above)", "groups": 26},
+   {"family": "untrusted_destination", "source": "population-v2", "reason": "the fix did not change the labelled function: the same code at both pins is not a negative", "groups": 1}
+  ],
+  "by_reason": {
+   "fixed side lacks the function (pairs, vibe-py: 108 labels, 80 seeded pointer pairs whose fixed side is a guard helper of the same commit + 28 Real-Vuln-Benchmark traps whose fixed side is a sibling handler)": 94,
+   "no fixed pin recorded (dev-php recipes)": 3,
+   "fix did not change the function (population-v2)": 1,
+   "matcher cannot resolve the function on the fixed pin": 0,
+   "excerpt missing": 0
+  },
+  "check": "all 108 fixed sides of the vibe-py pairs were scanned for a `def <labelled name>` line: 0 hold one (the name occurs only in calls); these are data gaps, counted, never invented",
+  "advisory_fixes_note": "no advisory-fixes group is positives-only: every one of the 97 pairs gave a fixed-side negative label; 7 of them are absent from the memory on both sides (below)"
+ },
+ "pair_sides_with_a_label_but_no_example": {
+  "total_sides": 32,
+  "pairs": 16,
+  "by_catalog_state": {
+   "advisory-fixes: feature record present, excerpt missing": {"sides": 14, "pairs": 7, "language": "ruby", "by_family": {"access_control": 2, "deserialization": 2, "output_encoding": 1, "path": 1, "untrusted_destination": 1}},
+   "corpus (vfc, vfc-js): no feature record (declares() false on both sides)": {"sides": 18, "pairs": 9, "by_family": {"injection": 5, "path": 2, "memory": 2}, "by_language": {"javascript": 6, "c_cpp": 1, "perl (catalog: unknown)": 2}}
+  },
+  "reasons": {
+   "ruby under the record's language": "build_features stores the closed feature-vocabulary language (schema.LANGUAGES; `other` for Ruby, Go, C#); the memory build hands that `other` to the excerpt matcher, which then runs the brace matcher: a Ruby `def` has no brace body, so 7 pairs (14 sides) get no excerpt; 4 further Ruby pairs (8 stored examples) matched a `{ |x| ... }` block inside the method instead of the method -- 2-line excerpts, wrong spans. The 11 Go pairs (22 examples) under `other` are brace-matched to the exact body (a correct span) and 9 C# pairs likewise.",
+   "javascript object-literal method": {"pairs": 3, "form": "`name: function (...) {` and `name: function anonymous(...) {`"},
+   "javascript property-assignment arrow": {"pairs": 2, "form": "`module.exports.name = (a, b) => {` and `const name = module.exports.name = async a => {` (a chained assignment)"},
+   "javascript prototype named function expression": {"pairs": 1, "form": "`X.prototype.name = function Name$withDollar (req, res) {`: `$` is not a `\\w` character for the declaration pattern or the brace matcher"},
+   "c parameter list longer than the brace matcher's lookahead": {"pairs": 1, "form": "`Type name(a,\\n b,\\n#ifndef X\\n c\\n#else\\n d\\n#endif\\n )\\n{`: the `{` is 9 lines down, the matcher looks 8"},
+   "perl sub": {"pairs": 2, "form": "`sub name {` (no parameter list; catalog language `unknown`)"}
+  },
+  "recoverable_by_tooling": {"fixed_side_negatives": 16, "positives": 16, "by_family": {"access_control": 2, "deserialization": 2, "output_encoding": 1, "path": 3, "untrusted_destination": 1, "injection": 5, "memory": 2}},
+  "note": "each recovered pair adds a paired group (positive and negative), not a negative to a positives-only group; the 98 positives-only groups are data gaps and stay as they are"
+ },
+ "label_builder_fixed_side_rule": "a fixed-side negative only where the fixed side declares the labelled function (or a deterministic rename at a distinct fix commit, fixed_side_moved = 0); unchanged",
+ "instruments": {
+  "memory_rows": "store.rows(kind=example|features) dumped once to scratch, 904 + 1,848 rows read",
+  "matcher_sweep": "function_bounds on both sides of every `pairs` pin label: vulnerable ok 431, fixed ok 323, fixed side named-but-undeclared 108 (vibe-py, python), both sides unmatched 9 pairs",
+  "language_check": "every pair record whose language is `other`: span under the record's language vs the label's: csharp same 18 sides, go different 18 (brace body vs to-next-declaration; stored spans kept), ruby none 14 (unstored) and different 8 (stored, wrong)"
+ }
+}
