@@ -221,6 +221,8 @@ shell, Docker or a free-form command.
 
 ## Further reading
 
+Documentation site with flow diagrams (`docs/`, `mkdocs.yml`): `uv sync --extra docs && uv run mkdocs serve`.
+
 - [docs/architecture.md](docs/architecture.md): the scan pipeline, evidence ladder, CWE policy
   and project score, and the self-improving loops.
 - [docs/evaluation.md](docs/evaluation.md): independent populations, the qualification gates,
