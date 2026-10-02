@@ -179,10 +179,9 @@ drop matches; it raises:
 memory s3://sast-memory: S3 Select on <key> failed (EvaluatorBindingDoesNotExist: ...) (a field of [<fields>] is absent from the object's leading rows, which the server reads as its schema); the store has no local fallback
 ```
 
-The rule that follows: a field the store filters on must be present in every row of its kind
-from the first row on, i.e. each row kind has a fixed set of queryable fields. Enforcing that set
-per kind in the store is in progress and not on main as of this page (see
-[Memory](memory.md#queryable-fields-per-kind-in-progress)).
+The rule that follows: a field the store filters on is present in every row of its kind from
+the first row on, as `""` where it does not apply; each row kind has a fixed set of queryable
+fields, enforced at write time (see [Memory](memory.md#queryable-fields-per-kind)).
 
 ## Checks against the real server
 

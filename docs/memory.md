@@ -121,11 +121,11 @@ the store does not start. There is no local or fetch-and-filter fallback: a filt
 S3 Select cannot answer raises a `MemoryStoreError` instead of returning "no rows". The exact
 messages are listed on [RustFS setup](rustfs.md#what-the-store-verifies-at-startup).
 
-### Queryable fields per kind (in progress)
+### Queryable fields per kind
 
 RustFS's Select infers an object's JSON schema from its leading rows, so a `where` field missing
-there fails with `EvaluatorBindingDoesNotExist` even when a later row has it (measured
-2026-10-02; `memory.py`, `S3Store._select`). On main today the store turns that failure into a
-`MemoryStoreError` naming the field, never into an empty answer. A fixed set of queryable fields
-per row kind, so that every filtered field is present in every row of its kind, is in progress
-and not on main as of this page.
+there fails with `EvaluatorBindingDoesNotExist` even when a later row has it, and a column that is
+null in the first 1000 rows breaks Select on the whole object (measured 2026-10-02; `memory.py`,
+`S3Store._select`). The store therefore writes every row with its kind's full set of queryable
+fields (`QUERY_FIELDS`), using `""` where a field does not apply, and refuses a `where` on an
+undeclared field. Existing rows are rewritten once with `ousast plane memory-normalise`.
