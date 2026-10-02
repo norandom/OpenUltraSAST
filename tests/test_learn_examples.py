@@ -229,3 +229,27 @@ def test_null_instruments_are_skipped_when_reading_and_writing() -> None:
     }  # fmt: skip
     example = Example.from_row(row)
     assert set(example.instruments) == {"language"}
+
+
+def test_null_foreign_features_are_skipped_but_a_valued_one_stays() -> None:
+    """Every live static example row (937 on 2026-10-02) carried the nine plane-only features as null in ``x``; the
+    renderer's ``validate_x`` refused them all. A foreign feature with a value is a leak and must still reach it."""
+    from openultrasast.learn.examples import Example, profile_x
+    from openultrasast.learn.schema import features_for
+
+    static = {spec.name for spec in features_for("static")}
+    plane_only = sorted({spec.name for spec in features_for("plane")} - static)
+    kept = sorted(static)[0]  # a static feature stored as null (its instrument failed) is kept for validate_x
+    assert "verify.votes" in plane_only
+    x: dict[str, object] = {name: None for name in plane_only}
+    x[kept] = None
+    assert profile_x(x, "static") == {kept: None}
+    assert profile_x({**x, "verify.votes": 3}, "static") == {kept: None, "verify.votes": 3}
+    row = {
+        "id": "x", "kind": "example", "repo": "o/r", "pin": "p", "run": "learn-memory", "task": "build", "population": "pairs",
+        "split": "train", "image": "host", "candidate": "a.py::f", "family": "injection", "language": "python",
+        "profile": "static", "label": 1, "source": "pairs", "group": "o/r", "frameworks": None, "unit": "pin",
+        "direction": None, "pin_role": "vulnerable", "weight": 1.0, "license": "MIT", "x": x,
+        "instruments": {"language": {"state": "ran"}, "verify": None}, "roles": [], "excerpt_sha": "0" * 64, "label_set_digest": "1" * 64,
+    }  # fmt: skip
+    assert set(Example.from_row(row).x) == {kept}

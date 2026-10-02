@@ -40,6 +40,16 @@ from typing import Any
 from ..plane.memory import MemoryStore, repo_key, row_id
 from .excerpt import EXAMPLE, Bounds, delta_diff, excerpt, function_bounds, identities_of
 from .labels import Label, Sources
+from .schema import features_for
+
+
+def profile_x(x: Mapping[str, Any], profile: str) -> dict[str, Any]:
+    """``x`` without another profile's features stored as null: a static feature record carries the plane-only
+    features (``agree.*``, ``ms.*``, ``verify.*``) as null, and :func:`.schema.validate_x` refuses a name outside
+    the profile's allow-list whatever its value. A foreign feature with a value stays, so the refusal still fires."""
+    known = {spec.name for spec in features_for(profile)}
+    return {k: v for k, v in x.items() if v is not None or k in known}
+
 
 EXAMPLE_KIND = "example"
 RUN = "learn-memory"
@@ -208,7 +218,8 @@ def build_examples(
                 "frameworks": list(label["frameworks"]) if label.get("frameworks") is not None else None, "unit": unit,
                 "direction": label.get("direction"), "pin_role": label.get("pin_role", "vulnerable"),
                 "weight": float(label.get("weight", 1.0)), "license": (license_of(label) if license_of else "") or "",
-                "x": dict(record["x"]), "instruments": {k: dict(v) for k, v in record["instruments"].items() if v is not None},
+                "x": profile_x(record["x"], profile),
+                "instruments": {k: dict(v) for k, v in record["instruments"].items() if v is not None},
                 "roles": list(roles_of(label)) if roles_of else [], "excerpt_sha": shown.sha, "label_set_digest": digest,
             }
         )  # fmt: skip
@@ -238,13 +249,14 @@ class Example:
     license: str = ""
 
     @classmethod
-    # An instrument that is not part of the row's profile may be stored as null (feature records carry every
-    # instrument name); it is not a table and is skipped, both when a row is written and when it is read.
+    # An instrument or a feature that is not part of the row's profile may be stored as null (feature records carry
+    # every instrument and feature name); both are skipped when a row is written and when it is read.
     def from_row(cls, row: Mapping[str, Any]) -> Example:
+        profile = str(row.get("profile") or "static")
         return cls(
             id=str(row["id"]), group=str(row.get("group") or ""), source=str(row["source"]), frameworks=tuple(row.get("frameworks") or ()),
             family=str(row["family"]), label=int(row["label"]), language=str(row.get("language") or "other"),
-            profile=str(row.get("profile") or "static"), unit=str(row.get("unit") or "pin"), x=dict(row["x"]),
+            profile=profile, unit=str(row.get("unit") or "pin"), x=profile_x(row["x"], profile),
             instruments={k: dict(v) for k, v in row["instruments"].items() if v is not None}, roles=tuple(row.get("roles") or ()),
             excerpt_sha=str(row["excerpt_sha"]), license=str(row.get("license") or ""),
         )  # fmt: skip
