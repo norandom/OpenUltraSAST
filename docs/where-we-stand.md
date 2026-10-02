@@ -250,9 +250,8 @@ Infrastructure.
 
 Instrument gaps.
 
-- A missing provider key is a silent path in a scan. The plane refuses to start a Task whose Model
-  names an unset variable (`plane/router.py`, `StartError`), but a scan without a key asks the
-  model nothing, reports only the graph's entailed findings, and records no degradation for the
-  skipped model layer (`cli.py` writes degradations for `hunter_model_unavailable`,
-  `cpg_unavailable` and `learning_endpoint_unavailable` only). The rule that a scan which could
-  not look must say so does not yet cover this case.
+- A missing provider key is a quiet path in a scan. The plane refuses to start a Task whose Model
+  names an unset variable (`plane/router.py`, `StartError`). A scan without a key asks the model
+  nothing, reports only the graph's entailed findings, and records `learning_endpoint_unavailable`
+  in `manifest.json` (`cli.py`, after `resolve_chat_endpoint` returns nothing); `report.md` has no
+  line for that reason yet, so the report does not say the model layer was skipped.
