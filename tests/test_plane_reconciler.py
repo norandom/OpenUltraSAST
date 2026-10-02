@@ -517,7 +517,9 @@ def test_resume_retries_deadline_exceeded_and_completion_is_the_delivery(fake: F
 
 
 def test_resume_gives_up_after_the_resume_timeout_with_the_last_error(fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OUSAST_RESUME_TIMEOUT", "0.3")
+    # Long enough for two fake-ax resume calls (each a Python subprocess, ~0.3-1 s under host load) with the 0.02 s
+    # poll doubling between them; 0.3 s allowed only one on a loaded host and made the test flaky.
+    monkeypatch.setenv("OUSAST_RESUME_TIMEOUT", "4")
     fake.script({**SCRIPT, "repo-facts": {**SCRIPT["repo-facts"], "resume_failures": 1000}})
     assert reconciler.run(write_run(tmp_path, "stuck"), ax=str(fake.ax)) == "failed"
     reason = state_of("stuck")["tasks"]["repo-facts"]["reason"]
