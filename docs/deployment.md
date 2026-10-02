@@ -150,6 +150,14 @@ cluster. Everything else below is either a step you take or a code change that i
   receiver, TLS passthrough to the Workspaces' Git hosts and the Model's declared hosts.
 - Deploy ax (`make deploy AX_IMAGE_REPO=<your registry>` in the ax checkout) **after** B.2.
 - Apply a WorkerPool (B.6). Substrate installs none by itself ("no free workers").
+- **gVisor on the nodes (planned, checked by hand on the day k3s exists).** Substrate does not use a Kubernetes
+  `RuntimeClass`: the `ateom-gvisor` worker runs `runsc` itself, from the gVisor release tarball named in
+  `manifests/ate-install/sandboxconfig-gvisor.yaml` of the Substrate checkout
+  (`gs://gvisor/releases/nightly/2026-09-02/<arch>/gvisor.tar.zstd`, sha256-pinned per architecture), which
+  the atelet fetches on the worker node. The node must reach that URL, or a copied `SandboxConfig` must name a
+  mirrored copy with the same sha256 and the ActorTemplates must name that config. The check is the atelet's
+  fetch line in `kubectl -n ate-system logs` of the worker pod; it is labelled planned until that log has been
+  read on a k3s node (plane-on-kubernetes task 1.7, design open question 3).
 
 ### B.2 ax's snapshot bucket: `AX_SNAPSHOTS_BUCKET`
 

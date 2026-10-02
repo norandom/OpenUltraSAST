@@ -55,7 +55,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
     in `tests/test_plane_reconciler.py:803` moves to 550 in task 2.4 with the reason in the assertion message.
   - Evidence: the numbers in `record.json`.
   - _Requirements: 2.1_
-- [ ] 1.7 gvisor tarball reachability (open question 3) **manual**
+- [x] 1.7 gvisor tarball reachability (open question 3) **manual** -- documented as planned in `docs/deployment.md` B.1; the live check waits for k3s
   - `docs/deployment.md` (B.1, planned): the k3s node must fetch
     `gs://gvisor/releases/nightly/2026-09-02/<arch>/gvisor.tar.zstd` (`substrate/manifests/ate-install/sandboxconfig-gvisor.yaml`)
     or a mirrored copy named in a copied SandboxConfig; the check is `kubectl -n ate-system logs` of the worker
