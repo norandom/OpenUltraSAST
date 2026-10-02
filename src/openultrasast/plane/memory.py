@@ -18,6 +18,11 @@ credentials come from ``.env`` (``MINIO_ENDPOINT``, ``MINIO_ACCESS_KEY``, ``MINI
 enables versioning and the ``runs/`` expiry rule once, and opening a ``MinioStore`` verifies them and S3 Select
 (:meth:`MinioStore.verify_bucket`), refusing to start otherwise.
 
+Every row carries every queryable field (``QUERY_FIELDS``: strings, ``""`` where one does not apply, never ``null``):
+the store fills them in on every write, ``rows`` refuses a ``where`` field no kind declared, and ``ousast plane
+memory-normalise`` rewrites rows written before the rule. RustFS's S3 Select infers the schema from an object's first
+1000 rows only.
+
 Ingest is idempotent: an ``index.jsonl`` hit on (run, task, sha256) skips the delivery, and rows carry a
 deterministic ``id``, so a repeated row replaces itself. Every object is written whole (``FileStore``: a temporary
 file renamed) and the index last, so an interrupted ingest leaves nothing partial that a repeat would not repair.
@@ -68,6 +73,33 @@ _BLOB_PREFIX = re.compile(r"[a-z]+(?:/[A-Za-z0-9._-]+)?")
 _BLOB_NAME = re.compile(r"[0-9a-f]{64}")
 BLOB_SUFFIX = {"excerpts": ".txt", "labels": ".jsonl"}  # every other prefix holds JSON
 ROW_FIELDS = ("id", "kind", "repo", "pin", "run", "task", "population", "split", "image")
+# The fixed schema: every row carries every queryable field. RustFS's S3 Select infers an object's schema from its
+# first 1000 rows: a ``where`` field absent there raises ``EvaluatorBindingDoesNotExist`` although later rows carry it
+# (measured 2026-10-02: field only at row 5000, and absent everywhere), and a column that is ``null`` in all of them
+# but set later fails the whole object with ``JSONParsingError``, whatever the ``where`` (measured 2026-10-02: 999
+# leading nulls answer, 1000 fail; "" placeholders answer at 5000). So a queryable field is a string, and a row it
+# does not apply to carries the empty string, never ``null``. Per kind, the fields a server-side filter
+# (``rows(..., where=...)``) may name besides ``ROW_FIELDS`` (which every row carries already); a new query declares
+# its field here first. One object holds every kind of a repository + pin, so the store writes the union of these
+# fields (``QUERYABLE``) on every row (``normalise_row``).
+QUERY_FIELDS: Mapping[str, tuple[str, ...]] = {
+    "facts": ("candidates_digest",),  # seed(): candidates_digest + image
+    "verdict": ("candidate", "final"),
+    "unit_cost": (),
+    "alert": (),
+    "coverage": (),
+    "proposal_outcome": (),
+    "features": (),  # benchmarks/learn/build_features.py: run + task
+    "label": (),
+    "decision": (),
+    "experiment": (),
+    "arm_outcome": (),
+    "experiment_result": (),
+    "example": ("profile",),  # learn.examples.load_examples
+}
+if tuple(QUERY_FIELDS) != KINDS:  # pragma: no cover -- a kind added without its queryable fields
+    raise RuntimeError("QUERY_FIELDS must declare every kind of KINDS, in order")
+QUERYABLE = tuple(sorted({f for fields in QUERY_FIELDS.values() for f in fields} - set(ROW_FIELDS)))
 TAG_FIELDS = ("repo", "pin", "kind", "family", "run", "population", "split")
 MIN_FREE_BYTES = 1 << 30
 MINIO_KEYS = ("MINIO_ENDPOINT", "MINIO_ACCESS_KEY", "MINIO_SECRET_KEY")
@@ -143,6 +175,37 @@ def validate_row(row: object, where: str = "row") -> dict[str, Any]:
     if not _PIN.fullmatch(row["pin"]):
         raise MemoryStoreError(f"{where}: pin {row['pin']!r} is not a 40-hex commit")
     return row
+
+
+def normalise_row(row: Mapping[str, Any], where: str = "row") -> dict[str, Any]:
+    """``row`` with every ``QUERYABLE`` field present: absent or ``null`` becomes ``""`` (see ``QUERY_FIELDS``);
+    a string is kept; any other type is refused, since one column of two types fails the server's Select."""
+    out = dict(row)
+    for name in QUERYABLE:
+        value = out.get(name)
+        if value is None:
+            out[name] = ""
+        elif not isinstance(value, str):
+            raise MemoryStoreError(f"{where}: queryable field {name!r} must be a string, got {type(value).__name__}")
+    return out
+
+
+def check_query(kind: str | None, where: Mapping[str, Any] | None) -> None:
+    """Refuse a filter the fixed schema does not cover: an unknown kind, or a ``where`` field that ``kind`` (any kind
+    when None) does not declare in ``QUERY_FIELDS``; the server could not bind it on every object."""
+    if kind is not None and kind not in QUERY_FIELDS:
+        raise MemoryStoreError(f"rows: unknown kind {kind!r} (one of {', '.join(KINDS)})")
+    declared = set(ROW_FIELDS) | set(QUERY_FIELDS[kind] if kind is not None else QUERYABLE)
+    undeclared = sorted(set(where or {}) - declared)
+    if undeclared:
+        scope = f"kind {kind!r}" if kind is not None else "any kind"
+        raise MemoryStoreError(
+            f"rows: where field(s) {undeclared} are not queryable for {scope}: declare them in memory.QUERY_FIELDS "
+            '(every row then carries them, "" where they do not apply) and run `ousast plane memory-normalise`'
+        )
+    nulls = sorted(name for name, value in (where or {}).items() if value is None)
+    if nulls:
+        raise MemoryStoreError(f'rows: where {nulls} = null never matches: a queryable field that does not apply is ""')
 
 
 def _line(row: Mapping[str, Any]) -> str:
@@ -272,7 +335,9 @@ class MemoryStore(ABC):
     def rows(
         self, repo: str | None = None, pin: str | None = None, kind: str | None = None, where: Mapping[str, Any] | None = None
     ) -> list[Record]:
-        """Rows filtered by repository, pin, kind and top-level equality on ``where``, in key then id order."""
+        """Rows filtered by repository, pin, kind and top-level equality on ``where``, in key then id order. An unknown
+        kind or a ``where`` field the kind does not declare in ``QUERY_FIELDS`` is refused (:func:`check_query`)."""
+        check_query(kind, where)
         prefix = f"repos/{repo_dir(repo)}/" if repo else "repos/"
         keys = [k for k in self._keys(prefix) if k.endswith(".jsonl") and (pin is None or k.endswith(f"/{pin}.jsonl"))]
         wanted = {**(where or {}), **({"kind": kind} if kind else {})}
@@ -318,13 +383,13 @@ class MemoryStore(ABC):
         """Merge rows into their repository + pin objects by ``id`` (a repeated id replaces the stored row)."""
         groups: dict[str, dict[str, dict[str, Any]]] = {}
         for index, row in enumerate(rows):
-            checked = validate_row(dict(row), f"row {index}")
+            checked = normalise_row(validate_row(dict(row), f"row {index}"), f"row {index}")
             groups.setdefault(f"repos/{repo_dir(checked['repo'])}/{checked['pin']}.jsonl", {})[checked["id"]] = checked
         if groups:
             self._check_space()
         for key, new in sorted(groups.items()):
             found = self._get(key)
-            merged = {str(r["id"]): r for r in (_parse_lines(found[0], key) if found else [])}
+            merged = {str(r["id"]): normalise_row(r) for r in (_parse_lines(found[0], key) if found else [])}
             merged.update(new)
             ordered = [merged[i] for i in sorted(merged)]
             self._put(key, "".join(_line(r) + "\n" for r in ordered).encode("utf-8"), _labels(ordered))
@@ -338,7 +403,7 @@ class MemoryStore(ABC):
         if found is None or not unwanted:
             return 0
         rows = _parse_lines(found[0], key)
-        kept = [r for r in rows if str(r["id"]) not in unwanted]
+        kept = [normalise_row(r) for r in rows if str(r["id"]) not in unwanted]
         if len(kept) == len(rows):
             return 0
         if kept:
@@ -364,6 +429,31 @@ class MemoryStore(ABC):
         entry = {"run": run, "task": task, "sha256": digest, "rows": len(checked), "ingested": _now()}
         self._put("index.jsonl", "".join(_line(e) + "\n" for e in [*index, entry]).encode("utf-8"))
         return IngestResult(run, task, len(checked), False, kinds)
+
+    def normalise(self, *, dry_run: bool = False) -> dict[str, int]:
+        """Rewrite every row object to the fixed schema (every ``QUERYABLE`` field a string, ``""`` where it was
+        absent or ``null``), once, before a store moves to a server that infers its schema (RustFS). Idempotent: an
+        object already in the schema is not rewritten. On a versioned bucket a rewrite is a new object version; the
+        old stays citable. A queryable field of another type fails naming its object and row. Returns counts:
+        objects seen and rewritten, rows seen and changed, fields filled."""
+        out = {"objects": 0, "objects_rewritten": 0, "rows": 0, "rows_changed": 0, "fields_filled": 0}
+        for key in sorted(k for k in self._keys("repos/") if k.endswith(".jsonl")):
+            found = self._get(key)
+            if found is None:
+                continue
+            rows = _parse_lines(found[0], key)
+            fixed = [normalise_row(r, f"{key}:{n}") for n, r in enumerate(rows, 1)]
+            filled = [sum(r.get(f) is None for f in QUERYABLE) for r in rows]
+            out["objects"] += 1
+            out["rows"] += len(rows)
+            out["rows_changed"] += sum(1 for n in filled if n)
+            out["fields_filled"] += sum(filled)
+            if any(filled):
+                out["objects_rewritten"] += 1
+                if not dry_run:
+                    self._check_space()
+                    self._put(key, "".join(_line(r) + "\n" for r in fixed).encode("utf-8"), _labels(fixed))
+        return out
 
 
 def _now() -> str:
@@ -852,6 +942,8 @@ __all__ = [
     "KINDS",
     "MEMORY_KEY_ANNOTATION",
     "POPULATION_ANNOTATION",
+    "QUERYABLE",
+    "QUERY_FIELDS",
     "SNAPSHOT_ANNOTATION",
     "SPLIT_ANNOTATION",
     "FileStore",
@@ -863,10 +955,12 @@ __all__ = [
     "ExpiryRule",
     "Record",
     "SdkClient",
+    "check_query",
     "counts",
     "image_digest",
     "ingest",
     "memory_key",
+    "normalise_row",
     "open_store",
     "parse_memory_key",
     "repo_key",

@@ -287,6 +287,11 @@ def _main(argv: list[str] | None) -> int:
     plane_remember.add_argument("--plane", type=Path, default=Path("plane"), help="where runs/<run>.yaml names population and split")
     plane_remember.add_argument("--population", help="the population the run measured (default: the Run's annotation)")
     plane_remember.add_argument("--split", help="the split of that population (default: the Run's annotation)")
+    plane_normalise = plane_sub.add_parser(
+        "memory-normalise", help='rewrite the store\'s rows to the fixed schema (every queryable field, "" where absent); idempotent'
+    )
+    plane_normalise.add_argument("--store", help="the store URL (default OUSAST_MEMORY): file:///<path> or minio://<bucket>[/<prefix>]")
+    plane_normalise.add_argument("--dry-run", action="store_true", help="count what would be rewritten, write nothing")
     plane_engine = plane_sub.add_parser(
         "alerts-engine", help="a Run's `alerts` for PHP and languages quick mode does not cover, from the engine image on this host"
     )
@@ -1384,6 +1389,8 @@ def _plane(args: argparse.Namespace) -> int:
     if args.plane_command == "remember":
         manifest = args.plane / "runs" / f"{args.run}.yaml"
         return _plane_memory("ingest", manifest if manifest.is_file() else None, run=args.run, population=args.population, split=args.split)
+    if args.plane_command == "memory-normalise":
+        return _plane_memory_normalise(args)
     if args.plane_command == "status":
         print(reconciler.status(args.run, units=args.units))
         return 0
@@ -1439,6 +1446,25 @@ def _plane_alerts_engine(args: argparse.Namespace) -> int:
     keys = ("case", "status", "reason", "alerts", "alerts_engine", "in_fix_range", "engine", "uncovered", "seconds")
     for result in results:
         print(json.dumps({k: result[k] for k in keys if k in result}, sort_keys=True))
+    return 0
+
+
+def _plane_memory_normalise(args: argparse.Namespace) -> int:
+    """``ousast plane memory-normalise``: one pass over every row object; prints the counts."""
+    from .plane import memory
+
+    try:
+        store = memory.open_store(args.store)
+        got = store.normalise(dry_run=args.dry_run)
+    except (memory.MemoryStoreError, OSError, ValueError) as exc:
+        print(f"memory-normalise failed: {exc}", file=sys.stderr)
+        return 1
+    verb = "would rewrite" if args.dry_run else "rewrote"
+    print(
+        f"memory {store.describe()}: {verb} {got['objects_rewritten']}/{got['objects']} objects; "
+        f'{got["rows_changed"]}/{got["rows"]} rows filled {got["fields_filled"]} absent or null fields with "" '
+        f"({', '.join(memory.QUERYABLE)})"
+    )
     return 0
 
 
