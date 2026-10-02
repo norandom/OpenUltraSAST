@@ -31,9 +31,10 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from .manifests import Run
 from .memory import RUNS_PREFIX, MemoryStore
 
-__all__ = ["DONE", "GRACE_SECONDS", "OUTPUT_TAR", "STATE", "Delivery", "DeliveryError", "expiry", "input_var"]
+__all__ = ["DONE", "GRACE_SECONDS", "OUTPUT_TAR", "STATE", "Delivery", "DeliveryError", "declared", "expiry", "input_var"]
 
 OUTPUT_TAR = "output.tar"
 DONE = "done.json"
@@ -60,6 +61,18 @@ def input_var(name: str) -> str:
 
 def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
+
+
+def declared(run: Run) -> dict[str, list[str]]:
+    """Per Run task, the artifacts to publish as single objects: its ``outputs[]`` plus every ``<producer>/<artifact>``
+    a consumer declares as an input on it (``summary.json`` of a producer is a usual one), in declaration order."""
+    wanted: dict[str, list[str]] = {entry.name: list(entry.outputs) for entry in run.tasks}
+    for entry in run.tasks:
+        for ref in entry.inputs.values():
+            producer, _, artifact = ref.partition("/")
+            if producer in wanted and artifact and artifact not in wanted[producer]:
+                wanted[producer].append(artifact)
+    return wanted
 
 
 class Delivery:
@@ -97,6 +110,12 @@ class Delivery:
         return {"put": self.put_url(task), "inputs": self.input_urls(inputs)}
 
     # --- completion ----------------------------------------------------------------------------------------------
+
+    def reset(self, task: str) -> None:
+        """Before an attempt: remove the previous attempt's tar and ``done.json`` so a rerun (an unfinished task
+        resumed with a larger budget, an interrupted attempt) never completes on a stale object."""
+        for name in (OUTPUT_TAR, DONE):
+            self.store._delete(self.key(task, name))
 
     def delivered(self, task: str) -> bool:
         """Whether the runner's tar is in the store (an exact-key listing, the store's HEAD)."""

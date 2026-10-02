@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from plane_fake_store import HttpObjectStore
 
-from openultrasast.plane.delivery import GRACE_SECONDS, Delivery, DeliveryError, expiry, input_var
+from openultrasast.plane.delivery import GRACE_SECONDS, Delivery, DeliveryError, declared, expiry, input_var
 
 
 @pytest.fixture
@@ -92,6 +92,9 @@ def test_delivered_polls_the_store_and_collect_extracts_republishes_and_marks_do
     with urllib.request.urlopen(urls["FACTS"], timeout=10) as response:  # noqa: S310
         assert response.read() == b'{"a": 1}'
     assert "X-Amz" not in caplog.text and "fake-bucket" not in caplog.text, "URLs never appear in logs"
+    delivery.reset("facts")  # the next attempt must not complete on this attempt's tar
+    assert delivery.delivered("facts") is False and "runs/r/facts/done.json" not in store.objects
+    assert "runs/r/facts/facts.json" in store.objects, "a re-put output stays for its consumers until it is re-published"
 
 
 @pytest.mark.parametrize("bad", ["../escape.json", "/abs.json"])
@@ -134,6 +137,22 @@ def test_put_input_stores_a_file_no_task_produces(store: HttpObjectStore, tmp_pa
     assert store.objects["runs/r/inputs/candidates.json"] == b"[1, 2, 3]"
     with urllib.request.urlopen(url, timeout=10) as response:  # noqa: S310
         assert response.read() == b"[1, 2, 3]"
+
+
+def test_declared_artifacts_are_outputs_plus_what_consumers_name(tmp_path: Path) -> None:
+    """A consumer may declare a producer's summary.json (every task writes one) without the producer listing it."""
+    from openultrasast.plane.manifests import load_manifests
+
+    text = (
+        "apiVersion: ax.io/v1alpha1\nkind: Task\nmetadata: {name: t}\nspec: {command: [repo-facts]}\n---\n"
+        "apiVersion: openultrasast.io/v1alpha1\nkind: Run\nmetadata: {name: r}\nspec:\n  tasks:\n"
+        "    - {name: facts, task: t, outputs: [facts.json]}\n"
+        "    - {name: verify, task: t, inputs: {facts: facts/facts.json, facts_summary: facts/summary.json}, outputs: [units.jsonl]}\n"
+        "    - {name: agree, task: t, inputs: {pass: verify/units.jsonl, pass_summary: verify/summary.json}}\n"
+    )
+    (tmp_path / "run.yaml").write_text(text, encoding="utf-8")
+    run = next(iter(load_manifests([tmp_path / "run.yaml"]).runs.values()))
+    assert declared(run) == {"facts": ["facts.json", "summary.json"], "verify": ["units.jsonl", "summary.json"], "agree": []}
 
 
 def test_publish_reputs_only_declared_files_under_the_task_directory(store: HttpObjectStore, tmp_path: Path) -> None:

@@ -93,7 +93,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
   - `tests/test_plane_egress.py`: for every committed template under `plane/tasks/` the rendered policy is the
     expected set; the IP refusal.
   - _Requirements: 3.2_
-- [ ] 2.4 Reconciler on `Delivery`
+- [x] 2.4 Reconciler on `Delivery`
   - `src/openultrasast/plane/reconciler.py`: `run()` opens the store first (no fallback), builds `Delivery`,
     passes `delivery` to `router.starter`/`start_task` (body extended in `router.py`), `_await` on
     `Delivery.delivered`, outcome from the collected `summary.json`; the receiver thread is kept behind
