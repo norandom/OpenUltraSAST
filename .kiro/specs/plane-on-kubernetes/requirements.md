@@ -15,7 +15,7 @@ production entry point (a delta Run for a push) is added. Context: `brief.md`, `
   commit; a deployment runbook with a proof on kind and a checklist for the target cluster.
 - **Out of scope**: provisioning or operating the target cluster; modifying Agent Substrate or ax; any change to
   detection, scoring, populations or the decision engine; replacing the `ax` CLI with a bespoke client beyond what
-  in-cluster addressing needs.
+  remote submission needs.
 - **Adjacent expectations**: `ai-service-plane` requirements (one Model + budget per task, attribution,
   credentials only in the start request, egress policies, verify-at-startup memory store) keep holding;
   `harnessx-removal` Req 6 (memory on the S3 store) keeps holding; nothing is deleted before its replacement
@@ -28,7 +28,7 @@ production entry point (a delta Run for a push) is added. Context: `brief.md`, `
   and local-path storage, and single-node k3s is close enough to kind that the kind proof transfers.
 - **Images and source: GitHub.** Images are published to GitHub Container Registry (`ghcr.io/norandom/...`),
   built by GitHub Actions from tagged commits, digest-pinned in the manifests; private packages need an
-  `imagePullSecret` on the worker and reconciler ServiceAccounts. Substrate's and ax's own images are built with
+  `imagePullSecret` on the worker ServiceAccounts and the CI principal. Substrate's and ax's own images are built with
   `ko` from their checkouts and pushed to the same registry.
 
 ## Requirements
@@ -128,7 +128,7 @@ be reachable from the cluster.
 
 #### Acceptance Criteria
 
-1. Every requirement above is exercised end to end on the kind cluster (the in-cluster reconciler included), with
+1. Every requirement above is exercised end to end on the kind cluster (remote mode included, with the kind cluster as the remote target), with
    a recorded run under `benchmarks/measurements/`.
 2. `docs/deployment.md` becomes the runbook: prerequisites for the target cluster (Substrate, ax, registry,
    buckets, Secrets, node requirements for gVisor workers), the profile switch, and a checklist whose every item
