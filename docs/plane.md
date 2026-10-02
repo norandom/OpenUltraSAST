@@ -1,23 +1,34 @@
 # The plane on ax
 
-Model-driven work over whole repositories runs on a separate agentic plane: a **Run**
-(`plane/runs/*.yaml`, kind `openultrasast.io/v1alpha1 Run`) is a DAG of steps, and each step is
-an ax **Task** (`plane/tasks/`) that binds its Workspaces (`plane/workspaces/`), at most one ax
-**Model** (`plane/models/`: `deepseek-flash` for chat, `openrouter-embedding` for embeddings) and
-its own `budget: {usd, calls}`. ax (google/ax over Agent Substrate, in a single-node kind cluster
-on the maintainer's host) is the only executor; there is no local subprocess path. Bring-up and
-the host's lessons are in [ax on this host](ops/ax/README.md); where each part runs today (the
-reconciler and the receiver on the host, the tasks in gVisor on Agent Substrate) and what a
-separate Kubernetes cluster would take (planned) are on [Deployment](deployment.md); this page
-draws the flow.
+Model-driven work over whole repositories runs on a separate agentic plane. The plane has these parts:
+
+- A **Run** (`plane/runs/*.yaml`, kind `openultrasast.io/v1alpha1 Run`) is a DAG (a graph of steps
+  with no cycles).
+- Each step is an ax **Task** (`plane/tasks/`).
+- A Task binds its Workspaces (`plane/workspaces/`).
+- A Task binds at most one ax **Model** (`plane/models/`). `deepseek-flash` serves chat.
+  `openrouter-embedding` serves embeddings.
+- A Task carries its own `budget: {usd, calls}`.
+
+ax is the only executor. It is google/ax, Google's controller that runs agent tasks, over Agent Substrate (its
+sandboxed actor runtime). It runs in a single-node kind cluster (Kubernetes in Docker) on the maintainer's host.
+There is no local subprocess path.
+
+Where to read more:
+
+- Bring-up and the host's lessons are in [ax on this host](ops/ax/README.md).
+- [Deployment](deployment.md) shows where each part runs today. The reconciler and the receiver run on the host.
+  The tasks run in gVisor (a sandboxing kernel) on Agent Substrate. It also covers what a separate Kubernetes
+  cluster would take (planned).
+- This page draws the flow.
 
 Sources: `src/openultrasast/plane/reconciler.py`, `router.py`, `egress.py`, `runner.py`,
 `generate.py`, `memory.py`, and `src/openultrasast/plane/tasks/`.
 
 ## One task, end to end
 
-`ousast plane run RUN.yaml` (the reconciler) does this for every ready task; `--workers` bounds
-the tasks in flight, and a rerun skips tasks already done.
+`ousast plane run RUN.yaml` (the reconciler) does this for every ready task. `--workers` bounds the
+tasks in flight. A rerun skips tasks already done.
 
 ```mermaid
 sequenceDiagram
@@ -48,44 +59,55 @@ sequenceDiagram
 
 What each step guarantees:
 
-- **Credentials** (`router.py`, `runner.py`). The reconciler reads the variable the Model's
-  `secretKey.key` names from the operator's environment or `.env` (which never overrides an
-  exported variable). The key exists only in the start request; the runner keeps it in memory,
-  passes it to the command's environment, redacts it from echoed stderr and never writes it.
-- **Egress** (`egress.py`). One EgressPolicy per actor, deny by default, hostnames only: plain
-  HTTP to the artifact receiver, TLS passthrough to the source hosts of the bound Workspaces and
-  to the hosts the bound Model declares (`openultrasast.io/egress-hosts`). It is written between
-  `ax apply` and the resume, and deleted with the actor.
-- **Inputs** (`reconciler.py`). Artifacts other tasks produced are never rendered into the
-  manifest; the runner fetches them from the receiver after the start, and the receiver serves a
-  running task its declared inputs only.
-- **Completion** (`runner.py`). ax has no Completed phase: the runner's delivery of the output tar
-  is the task's completion. A completion marker stops a resumed actor from repeating billed work;
-  when the marker says the delivery failed, a later boot retries the delivery alone.
-- **Budgets** (`plane/budget.py`). The metered client refuses the next call once a task's `usd` or
-  `calls` ceiling is reached; the task ends `unfinished` and resumes on a rerun with a larger
-  budget. Model-free tasks run with `{usd: 0, calls: 0}`, so a stray call fails loudly.
-- **Attribution.** `ousast plane status RUN` prints per task its status, `calls`, `prompt`,
-  `cache_hit` and `output` tokens and `usd` from the tasks' `summary.json`, and writes
-  `attribution.json` in the run directory (`$OUSAST_RESULTS/plane/RUN/`, default
-  `~/ousast-results/plane/`).
+- **Credentials** (`router.py`, `runner.py`).
+  - The reconciler reads the variable that the Model's `secretKey.key` names.
+  - It reads it from the operator's environment or `.env`. `.env` never overrides an exported variable.
+  - The key exists only in the start request.
+  - The runner keeps it in memory and passes it to the command's environment.
+  - The runner redacts it from echoed stderr and never writes it.
+- **Egress** (`egress.py`). Egress means outbound network traffic.
+  - Each actor gets one EgressPolicy. It denies by default and names hostnames only.
+  - It allows plain HTTP to the artifact receiver.
+  - It allows TLS passthrough to the source hosts of the bound Workspaces.
+  - It allows TLS passthrough to the hosts the bound Model declares (`openultrasast.io/egress-hosts`).
+  - The reconciler writes it between `ax apply` and the resume. It is deleted with the actor.
+- **Inputs** (`reconciler.py`).
+  - Artifacts that other tasks produced are never rendered into the manifest.
+  - The runner fetches them from the receiver after the start.
+  - The receiver serves a running task its declared inputs only.
+- **Completion** (`runner.py`).
+  - ax has no Completed phase. The runner's delivery of the output tar is the task's completion.
+  - A completion marker stops a resumed actor from repeating billed work.
+  - If the marker says the delivery failed, a later boot retries only the delivery.
+- **Budgets** (`plane/budget.py`).
+  - The metered client refuses the next call once a task reaches its `usd` or `calls` ceiling.
+  - The task then ends `unfinished`. It resumes on a rerun with a larger budget.
+  - Model-free tasks run with `{usd: 0, calls: 0}`, so a stray call fails loudly.
+- **Attribution.**
+  - `ousast plane status RUN` prints these per task: status, `calls`, `prompt`, `cache_hit` and
+    `output` tokens, and `usd`. It reads them from the tasks' `summary.json`.
+  - It writes `attribution.json` in the run directory (`$OUSAST_RESULTS/plane/RUN/`, default
+    `~/ousast-results/plane/`).
 
 !!! note "The golden snapshot"
-    Agent Substrate boots every new actor template once as a *golden* actor to snapshot it, with
-    the same image, Task and environment, and inside the sandbox nothing tells that boot from the
-    real one. So the runner's command never starts by itself: it waits for the start request,
-    which the reconciler sends through `atenet-router` to the task's actor, never to the golden
-    one. Workspaces are prepared only after the start, so the golden boot touches no network and a
-    started actor already runs under its egress policy (a clone at boot failed on the live cluster
-    while the actor was being restored, 2026-09-29; `runner.py`, `_run_once`). The first resume of
-    a new image can time out while the snapshot is built, which is why the reconciler retries it
+    Agent Substrate boots every new actor template once as a *golden* actor and snapshots it. That boot
+    uses the same image, Task and environment. Inside the sandbox, nothing tells that boot from the real one.
+
+    So the runner's command never starts by itself. It waits for the start request. The reconciler sends
+    that request through `atenet-router` to the task's actor, never to the golden one.
+
+    Workspaces are prepared only after the start. So the golden boot touches no network. A started actor
+    already runs under its egress policy. A clone at boot once failed on the live cluster while the actor
+    was being restored (2026-09-29; `runner.py`, `_run_once`).
+
+    The first resume of a new image can time out while the snapshot is built. So the reconciler retries it
     for up to `OUSAST_RESUME_TIMEOUT` seconds (900).
 
 ## The Runs: validation and loop
 
-`ousast plane workspaces POPULATION --validation-set ...` (`generate.py`) writes one chain per
-case; `--loop` adds the `alerts` step per case and the loop's singleton steps. Every step except
-the verify passes (and `roles` in harvest Runs) is model-free.
+`ousast plane workspaces POPULATION --validation-set ...` (`generate.py`) writes one chain per case.
+`--loop` adds the `alerts` step per case and the loop's singleton steps. Every step is model-free
+except the verify passes (and `roles` in harvest Runs).
 
 ### Per case
 
@@ -119,23 +141,27 @@ flowchart LR
     improve --> outcome["gate.json, journal.json, and rule_policy.json only if accepted"]
 ```
 
-- **Before the Run** `ousast plane run` seeds from the store (`memory.seed`): a task whose
-  `openultrasast.io/memory-key` (repository, pin, candidates digest, runner image digest) has
-  stored facts gets them and is marked done, and the sandboxed `memory-snapshot` task gets the
-  store's rows after the guard. **After the Run** it ingests every delivered `memory.jsonl`
-  (`ousast plane remember RUN` repeats this by hand). See [Memory](memory.md).
-- The loop's rules and its guard are described in
-  [Architecture](architecture.md#proposals-from-plane-memory). Adopting an accepted ledger stays a
-  maintainer commit (`src/openultrasast/plane/tasks/loop.py`).
+- **Before the Run**, `ousast plane run` seeds from the store (`memory.seed`).
+  - Each task has an `openultrasast.io/memory-key`: repository, pin, candidates digest and runner image digest.
+  - If the store has facts for that key, the task gets them and is marked done.
+  - The sandboxed `memory-snapshot` task gets the store's rows after the guard.
+- **After the Run**, it ingests every delivered `memory.jsonl`. `ousast plane remember RUN` repeats
+  this by hand. See [Memory](memory.md).
+- [Architecture](architecture.md#proposals-from-plane-memory) describes the loop's rules and its guard.
+  Adopting an accepted ledger stays a maintainer commit (`src/openultrasast/plane/tasks/loop.py`).
 - `ousast plane harvest` writes the decision engine's harvest Runs (verify a/b with agree, and
-  model `roles`); `ousast plane alerts-engine` produces a Run's `alerts` from the Joern engine
-  image on the host for PHP and other languages quick mode does not cover.
+  model `roles`).
+- `ousast plane alerts-engine` produces a Run's `alerts` from the Joern engine image on the host. It
+  covers PHP and other languages that quick mode does not cover.
 
 ## Where this runs in production
 
-ax is a Kubernetes application over Agent Substrate, every Task runs the one runner image as an actor that
-occupies a whole worker, and two profiles of this code base are the target: `kind` on a laptop (today) and `k3s`
-in production (planned), where the same CLI submits Runs remotely and the tasks deliver to the S3 store:
+ax is a Kubernetes application over Agent Substrate. Every Task runs the one runner image as an actor. Each actor
+occupies a whole worker. This code base targets two profiles:
+
+- `kind` on a laptop (today).
+- `k3s` in production (planned). There the same CLI submits Runs remotely, and the tasks deliver to the S3 store.
+
 [Production topology: ax on a Kubernetes cluster](deployment.md#production-topology-ax-on-a-kubernetes-cluster)
 draws it and sizes the pre-push hook at scale.
 
