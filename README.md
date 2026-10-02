@@ -158,7 +158,7 @@ uv run ousast plane remember validation-46               # ingest the run's rows
 the store's rewrites. The flow and the task catalogue: [docs/plane.md](docs/plane.md); what runs
 where today and what a separate cluster would take: [docs/deployment.md](docs/deployment.md).
 
-HarnessX, the earlier agentic extra, was retired on 2026-09-30: a `[harnessx]` section is ignored
+HarnessX, the earlier agentic extra, was retired 2026-09-30: a `[harnessx]` section is ignored
 with one warning, and `[models] verifier`, `[fusion] panel_model` and `[fusion] decider_model` fail
 naming the plane replacement, as do config keys nothing ever read. Fusion is deterministic.
 
@@ -246,9 +246,7 @@ candidate enumerator can reach).
 
 ## Licence
 
-The repository carries no licence file yet (checked 2026-10-02: no `LICENSE` at the root and no
-`license` field in `pyproject.toml`), so until one is added, treat the code as all rights reserved
-and ask the maintainer before reusing it. Third-party material keeps its own terms: Joern is
-downloaded at image build time under its own licence, the tree-sitter wheels of the `semantic`
-extra are MIT, and the published benchmark cases were licence-checked one by one (v1's OpenCVE
-case is BUSL-1.1, see [RELEASE_NOTES.md](RELEASE_NOTES.md)).
+OpenUltraSAST is licensed under the [Apache License 2.0](LICENSE). Third-party material keeps its
+own terms: Joern (Apache-2.0) is downloaded at image build time, the tree-sitter wheels of the
+`semantic` extra are MIT, and the published benchmark cases were licence-checked one by one (v1's
+OpenCVE case is BUSL-1.1, see [RELEASE_NOTES.md](RELEASE_NOTES.md)).

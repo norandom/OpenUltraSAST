@@ -10,6 +10,8 @@
 # contributor a working tool from `docker compose run` with nothing installed on their machine.
 
 FROM eclipse-temurin:21-jre-noble
+LABEL org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.source="https://github.com/norandom/OpenUltraSAST"
 
 ARG JOERN_VERSION=v4.0.625
 ARG ARCHIVE=joern-cli-linux-x86_64.zip

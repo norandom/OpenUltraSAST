@@ -1,4 +1,22 @@
-# Unreleased
+# v2.0.1 (2026-10-02)
+
+v2.0.0 was tagged but never published: its release job stopped at the format check (see below). v2.0.1 is
+the first published 2.x release and carries everything listed under v2.0.0 plus the following.
+
+- **Licence: Apache-2.0.** `LICENSE` added; `pyproject.toml` declares `license = "Apache-2.0"`; both images
+  carry the `org.opencontainers.image.licenses` label.
+- **Container images on GHCR.** Each version tag pushes `ghcr.io/norandom/openultrasast` (the scan image:
+  Joern and php-cli) and `ghcr.io/norandom/openultrasast-runner` (the plane's task runner), tagged with the
+  version and, for full releases, `latest`. The digests are in the release job's summary; pin by digest
+  (Agent Substrate rejects tags).
+- **CI green again.** CI and the release job check formatting and lint over the whole repository; eight
+  benchmark scripts had drifted. They were reformatted (two `noqa` comments, one renamed loop variable; no
+  script computes anything differently), and the local gate now runs the same whole-tree commands.
+- **Front-door README.** Install in four tiers (quick scan without Docker; standard and deep with the scan
+  image; the plane on kind; Kubernetes on k3s, planned), every claim checked against the CLI, and links to
+  every documentation page.
+
+## Also in this release (previously listed as Unreleased)
 
 - **Documentation audited against v2.0.0** (no behaviour change). New `docs/deployment.md`: where the plane runs
   today, this host's setup, and step-by-step guidance for a separate Kubernetes cluster with what is implemented

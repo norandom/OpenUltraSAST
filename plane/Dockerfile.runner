@@ -12,6 +12,8 @@
 # `ops/ax/up.sh` builds it and loads it into kind; nothing here is exercised by the unit tests.
 
 FROM python:3.12-slim
+LABEL org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.source="https://github.com/norandom/OpenUltraSAST"
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends git ca-certificates \
