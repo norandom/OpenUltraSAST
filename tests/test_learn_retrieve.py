@@ -136,6 +136,24 @@ def test_near_duplicates_drop_in_evaluation_and_stay_in_deployment() -> None:
     assert kept.near_duplicates == 0 and twin.id in {e.id for e in kept.examples}
 
 
+def test_a_near_duplicate_demonstration_is_swapped_in_evaluation_and_kept_in_deployment() -> None:
+    """A compiled demonstration whose excerpt is a near-duplicate of the target's (cos >= 0.98) is ineligible in
+    evaluation, like a retrieved one: swapped for its alternate, or dropped. Before 2026-10-02 only the pre-call
+    assertion checked it, and the advisory-fix slice stopped there (BoundaryViolation: near duplicate)."""
+    twin = example("demo-twin", group="fork/repo", label=1)
+    alt = example("demo-alt", group="a/b", label=1)
+    vectors = {twin.excerpt_sha: [1.0, 0.0], alt.excerpt_sha: [0.0, 1.0]}
+    target = replace(_target(), vector=[1.0, 0.0])
+    evaluation = replace(outer_folds([twin], k=1)[0], eval_groups=frozenset())
+    demos = [{"example_id": twin.id, "alternate": {"example_id": alt.id}}]
+    usable = demonstrations_for(demos, by_id([twin, alt]), target, evaluation, vectors=vectors)
+    assert [d["example_id"] for d in usable] == [alt.id]
+    assert_boundary([d["example_id"] for d in usable], by_id([twin, alt]), target, evaluation, vectors=vectors)
+    assert demonstrations_for([{"example_id": twin.id, "alternate": None}], by_id([twin]), target, evaluation, vectors=vectors) == []
+    deployed, _ = deployment_fold("https://github.com/someone/else", ["fork/repo"])
+    assert [d["example_id"] for d in demonstrations_for(demos, by_id([twin, alt]), target, deployed, vectors=vectors)] == [twin.id]
+
+
 def test_deployment_excludes_the_scanned_repository_when_it_is_a_corpus_group() -> None:
     own = example("own", group="acme/webapp", label=1)
     fold, note = deployment_fold("https://github.com/Acme/WebApp.git", ["acme/webapp", "x/y"])

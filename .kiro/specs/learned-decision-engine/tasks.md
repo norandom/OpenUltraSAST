@@ -38,6 +38,10 @@ a model or embedding call.
   - Done 2026-10-01 (`benchmarks/measurements/2026-10-01-decision-engine-harvest/record.json`): verify $2.54 and roles
     $1.40 by attribution. The engine job finished the same day (682 of 686 pair sides; the 2 family-unknown pairs
     not run) and the feature records were rebuilt; dev-php pins have no engine run (`missing`).
+  - Advisory-fix pairs harvested 2026-10-02 (`benchmarks/measurements/2026-10-02-decision-engine-harvest-advisory/record.json`):
+    194 sides, verify a/b on the 34 untrusted_destination sides and model roles on all ($0.38 metered, ceiling $5),
+    engine on the host (54 ran, 58 asked no question, 82 no language model); static memory 724 -> 904 examples. The
+    leak audit flags nothing new in the static profile; the plane profile newly flags `verify.flag_b` and `ms.operation`.
   - _Requirements: 1.1_
 
 - [ ] 6. Program, local memory and compilation (design sections 4-5)
@@ -103,6 +107,12 @@ a model or embedding call.
   - [ ] 6.7 Second paid slice **(budget go-ahead: ~$7 expected, ceiling $10; needs a top-up)**
     - Leave-one-source-out (~$1.4-2.1), leave-one-framework-out where a framework reaches 10 groups ($0 today),
       learning curves over memory size (0/25/50/100%) and number of sources (~$5.2), recorded beside 6.6.
+    - Partial 2026-10-02 (`benchmarks/measurements/2026-10-02-decision-engine-slice-2/record.json`): after the
+      advisory-fix harvest (memory 724 -> 904), one compile per evaluable family and its outer-fold evaluation for all
+      six (injection, untrusted_destination, path, output_encoding, deserialization, access_control); out-of-repository
+      AUC 0.77-0.96, BLOCK offered for none (calibration holds only for output_encoding, where no fold reaches the
+      Wilson bound); one memory-size point for injection (724 vs 904 examples, paired: AUC 0.76 vs 0.77). $2.88
+      metered (ceiling $8). Not done: leave-one-source-out, the 0/25/50% curve points, the source-count curve.
     - _Requirements: 5.1, 5.2, 8.3_
 
 - [ ] 7. Experiments (exp-001 and program variants need budget go-ahead)

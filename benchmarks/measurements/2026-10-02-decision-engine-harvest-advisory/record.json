@@ -1,0 +1,778 @@
+{
+ "created": "2026-10-02",
+ "embeddings": {
+  "cached": 616,
+  "calls": 6,
+  "embedded": 172,
+  "model": "openai/text-embedding-3-small",
+  "requested": 788,
+  "tokens": 43397,
+  "usd": 0.0008679400000000001
+ },
+ "engine": {
+  "by_side_state": {
+   "fixed:failed": 30,
+   "fixed:none": 41,
+   "fixed:ran": 26,
+   "vuln:failed": 28,
+   "vuln:none": 41,
+   "vuln:ran": 28
+  },
+  "frozen_source_commit": "7b17eacd44fa22ba56d96da3af1491cef2331987",
+  "image": [
+   "sha256:e6f8dc6cc7547f7118bd058687de676e0fcf741799d1d3839b3e8648ce190fbb"
+  ],
+  "not_ran_reasons": {
+   "failed (read its input, asked no question)": 58,
+   "no engine model for csharp": 18,
+   "no engine model for go": 22,
+   "no engine model for ruby": 22,
+   "no engine model for typescript": 20
+  },
+  "note": "none = no engine model for the language; failed = read its input and asked no question (never zero findings)",
+  "ran_with_findings": 3,
+  "seconds_total": 7400,
+  "sides": 194,
+  "state": {
+   "failed": 58,
+   "none": 82,
+   "ran": 54
+  }
+ },
+ "features": {
+  "absent_on_side": {},
+  "dropped_stale_rows": 0,
+  "instrument_states_plane": {
+   "access_control:agree": {
+    "none": 40
+   },
+   "access_control:delta": {
+    "not_applicable": 40
+   },
+   "access_control:engine": {
+    "failed": 10,
+    "none": 20,
+    "ran": 10
+   },
+   "access_control:entry_points": {
+    "not_applicable": 40
+   },
+   "access_control:facts": {
+    "not_applicable": 40
+   },
+   "access_control:language": {
+    "ran": 40
+   },
+   "access_control:model_sinks": {
+    "ran": 40
+   },
+   "access_control:quick": {
+    "none": 16,
+    "ran": 24
+   },
+   "access_control:roles": {
+    "failed": 4,
+    "none": 4,
+    "ran": 32
+   },
+   "access_control:source": {
+    "failed": 4,
+    "none": 4,
+    "ran": 32
+   },
+   "access_control:verify": {
+    "none": 40
+   },
+   "deserialization:agree": {
+    "none": 42
+   },
+   "deserialization:delta": {
+    "not_applicable": 42
+   },
+   "deserialization:engine": {
+    "failed": 15,
+    "none": 14,
+    "ran": 13
+   },
+   "deserialization:entry_points": {
+    "not_applicable": 42
+   },
+   "deserialization:facts": {
+    "not_applicable": 42
+   },
+   "deserialization:language": {
+    "ran": 42
+   },
+   "deserialization:model_sinks": {
+    "ran": 42
+   },
+   "deserialization:quick": {
+    "none": 12,
+    "ran": 30
+   },
+   "deserialization:roles": {
+    "none": 6,
+    "ran": 36
+   },
+   "deserialization:source": {
+    "none": 6,
+    "ran": 36
+   },
+   "deserialization:verify": {
+    "none": 42
+   },
+   "output_encoding:agree": {
+    "none": 42
+   },
+   "output_encoding:delta": {
+    "not_applicable": 42
+   },
+   "output_encoding:engine": {
+    "failed": 15,
+    "none": 20,
+    "ran": 7
+   },
+   "output_encoding:entry_points": {
+    "not_applicable": 42
+   },
+   "output_encoding:facts": {
+    "not_applicable": 42
+   },
+   "output_encoding:language": {
+    "ran": 42
+   },
+   "output_encoding:model_sinks": {
+    "ran": 42
+   },
+   "output_encoding:quick": {
+    "none": 12,
+    "ran": 30
+   },
+   "output_encoding:roles": {
+    "failed": 2,
+    "none": 4,
+    "ran": 36
+   },
+   "output_encoding:source": {
+    "failed": 2,
+    "none": 4,
+    "ran": 36
+   },
+   "output_encoding:verify": {
+    "none": 42
+   },
+   "path:agree": {
+    "none": 36
+   },
+   "path:delta": {
+    "not_applicable": 36
+   },
+   "path:engine": {
+    "failed": 6,
+    "none": 16,
+    "ran": 14
+   },
+   "path:entry_points": {
+    "not_applicable": 36
+   },
+   "path:facts": {
+    "not_applicable": 36
+   },
+   "path:language": {
+    "ran": 36
+   },
+   "path:model_sinks": {
+    "ran": 36
+   },
+   "path:quick": {
+    "none": 14,
+    "ran": 22
+   },
+   "path:roles": {
+    "none": 2,
+    "ran": 34
+   },
+   "path:source": {
+    "none": 2,
+    "ran": 34
+   },
+   "path:verify": {
+    "none": 36
+   },
+   "untrusted_destination:agree": {
+    "ran": 34
+   },
+   "untrusted_destination:delta": {
+    "not_applicable": 34
+   },
+   "untrusted_destination:engine": {
+    "failed": 12,
+    "none": 12,
+    "ran": 10
+   },
+   "untrusted_destination:entry_points": {
+    "not_applicable": 34
+   },
+   "untrusted_destination:facts": {
+    "not_applicable": 34
+   },
+   "untrusted_destination:language": {
+    "ran": 34
+   },
+   "untrusted_destination:model_sinks": {
+    "ran": 34
+   },
+   "untrusted_destination:quick": {
+    "none": 8,
+    "ran": 26
+   },
+   "untrusted_destination:roles": {
+    "failed": 2,
+    "none": 2,
+    "ran": 30
+   },
+   "untrusted_destination:source": {
+    "failed": 2,
+    "none": 2,
+    "ran": 30
+   },
+   "untrusted_destination:verify": {
+    "ran": 34
+   }
+  },
+  "records": {
+   "plane:access_control": 40,
+   "plane:deserialization": 42,
+   "plane:output_encoding": 42,
+   "plane:path": 36,
+   "plane:untrusted_destination": 34,
+   "static:access_control": 40,
+   "static:deserialization": 42,
+   "static:output_encoding": 42,
+   "static:path": 36,
+   "static:untrusted_destination": 34
+  },
+  "skipped_label_rows": {}
+ },
+ "host_peaks": {
+  "disk_free_mb_min": 2630,
+  "mem_available_mb_min": 2341
+ },
+ "labels": {
+  "advisory_pin_rows": 194,
+  "note": "regenerated 2026-10-02; identical to the 2026-10-01 snapshot apart from the `created` field",
+  "rows": 6589,
+  "same_counts_as": "2026-10-01-decision-engine-labels-advisory-fixes/labels.json"
+ },
+ "leak_audit": {
+  "command": "ousast learn audit-leaks --profile {plane,static} --units <merged units.json> (threshold 0.20, min 10 pairs)",
+  "pairs": {
+   "access_control": 20,
+   "all": 376,
+   "config_secrets": 12,
+   "deserialization": 21,
+   "injection": 43,
+   "memory": 171,
+   "output_encoding": 61,
+   "path": 19,
+   "unknown": 2,
+   "untrusted_destination": 27
+  },
+  "plane": {
+   "flagged": [
+    {
+     "correct": 10,
+     "direction": "higher on fixed",
+     "pairs": 12,
+     "scope": "config_secrets",
+     "separation": 0.75,
+     "signal": "facts.function_lines",
+     "wrong": 1
+    },
+    {
+     "correct": 16,
+     "direction": "higher on fixed",
+     "pairs": 19,
+     "scope": "path",
+     "separation": 0.7368,
+     "signal": "facts.function_lines",
+     "wrong": 2
+    },
+    {
+     "correct": 8,
+     "direction": "higher on fixed",
+     "pairs": 12,
+     "scope": "config_secrets",
+     "separation": 0.6667,
+     "signal": "verify.turns_mean",
+     "wrong": 0
+    },
+    {
+     "correct": 13,
+     "direction": "higher on fixed",
+     "pairs": 20,
+     "scope": "access_control",
+     "separation": 0.6,
+     "signal": "facts.function_lines",
+     "wrong": 1
+    },
+    {
+     "correct": 15,
+     "direction": null,
+     "pairs": 27,
+     "scope": "untrusted_destination",
+     "separation": 0.5556,
+     "signal": "agree.final",
+     "wrong": 0
+    },
+    {
+     "correct": 18,
+     "direction": "higher on fixed",
+     "pairs": 27,
+     "scope": "untrusted_destination",
+     "separation": 0.5556,
+     "signal": "facts.function_lines",
+     "wrong": 3
+    },
+    {
+     "correct": 15,
+     "direction": "higher on vulnerable",
+     "pairs": 27,
+     "scope": "untrusted_destination",
+     "separation": 0.5556,
+     "signal": "verify.votes",
+     "wrong": 0
+    },
+    {
+     "correct": 14,
+     "direction": "higher on vulnerable",
+     "pairs": 27,
+     "scope": "untrusted_destination",
+     "separation": 0.5185,
+     "signal": "verify.flag_a",
+     "wrong": 0
+    },
+    {
+     "correct": 15,
+     "direction": "higher on vulnerable",
+     "pairs": 27,
+     "scope": "untrusted_destination",
+     "separation": 0.4815,
+     "signal": "verify.site_offset",
+     "wrong": 2
+    },
+    {
+     "correct": 12,
+     "direction": "higher on vulnerable",
+     "pairs": 27,
+     "scope": "untrusted_destination",
+     "separation": 0.4074,
+     "signal": "verify.flag_b",
+     "wrong": 1
+    },
+    {
+     "correct": 6,
+     "direction": null,
+     "pairs": 20,
+     "scope": "access_control",
+     "separation": 0.3,
+     "signal": "ms.operation",
+     "wrong": 0
+    },
+    {
+     "correct": 9,
+     "direction": "higher on fixed",
+     "pairs": 21,
+     "scope": "deserialization",
+     "separation": 0.2857,
+     "signal": "facts.function_lines",
+     "wrong": 3
+    },
+    {
+     "correct": 18,
+     "direction": "higher on vulnerable",
+     "pairs": 61,
+     "scope": "output_encoding",
+     "separation": 0.2623,
+     "signal": "eng.witness_steps_min",
+     "wrong": 2
+    },
+    {
+     "correct": 7,
+     "direction": null,
+     "pairs": 27,
+     "scope": "untrusted_destination",
+     "separation": 0.2593,
+     "signal": "ms.operation",
+     "wrong": 0
+    },
+    {
+     "correct": 21,
+     "direction": "higher on fixed",
+     "pairs": 43,
+     "scope": "injection",
+     "separation": 0.2558,
+     "signal": "facts.function_lines",
+     "wrong": 10
+    },
+    {
+     "correct": 3,
+     "direction": null,
+     "pairs": 12,
+     "scope": "config_secrets",
+     "separation": 0.25,
+     "signal": "agree.final",
+     "wrong": 0
+    },
+    {
+     "correct": 3,
+     "direction": "higher on vulnerable",
+     "pairs": 12,
+     "scope": "config_secrets",
+     "separation": 0.25,
+     "signal": "verify.flag_a",
+     "wrong": 0
+    },
+    {
+     "correct": 3,
+     "direction": "higher on vulnerable",
+     "pairs": 12,
+     "scope": "config_secrets",
+     "separation": 0.25,
+     "signal": "verify.site_offset",
+     "wrong": 0
+    },
+    {
+     "correct": 3,
+     "direction": "higher on vulnerable",
+     "pairs": 12,
+     "scope": "config_secrets",
+     "separation": 0.25,
+     "signal": "verify.votes",
+     "wrong": 0
+    },
+    {
+     "correct": 15,
+     "direction": null,
+     "pairs": 61,
+     "scope": "output_encoding",
+     "separation": 0.2295,
+     "signal": "eng.rung_max",
+     "wrong": 1
+    },
+    {
+     "correct": 15,
+     "direction": null,
+     "pairs": 61,
+     "scope": "output_encoding",
+     "separation": 0.2295,
+     "signal": "eng.sink_kind",
+     "wrong": 1
+    },
+    {
+     "correct": 15,
+     "direction": null,
+     "pairs": 61,
+     "scope": "output_encoding",
+     "separation": 0.2295,
+     "signal": "eng.sink_origin",
+     "wrong": 1
+    },
+    {
+     "correct": 15,
+     "direction": null,
+     "pairs": 61,
+     "scope": "output_encoding",
+     "separation": 0.2295,
+     "signal": "eng.source_kind",
+     "wrong": 1
+    },
+    {
+     "correct": 15,
+     "direction": null,
+     "pairs": 61,
+     "scope": "output_encoding",
+     "separation": 0.2295,
+     "signal": "eng.source_origin",
+     "wrong": 1
+    },
+    {
+     "correct": 15,
+     "direction": "higher on vulnerable",
+     "pairs": 61,
+     "scope": "output_encoding",
+     "separation": 0.2131,
+     "signal": "eng.findings",
+     "wrong": 2
+    }
+   ],
+   "flagged_signals": [
+    "agree.final",
+    "eng.findings",
+    "eng.rung_max",
+    "eng.sink_kind",
+    "eng.sink_origin",
+    "eng.source_kind",
+    "eng.source_origin",
+    "eng.witness_steps_min",
+    "facts.function_lines",
+    "ms.operation",
+    "verify.flag_a",
+    "verify.flag_b",
+    "verify.site_offset",
+    "verify.turns_mean",
+    "verify.votes"
+   ],
+   "new_signal_names_vs_2026_10_01": [
+    "ms.operation",
+    "verify.flag_b"
+   ]
+  },
+  "reading": "The static profile (the one slice 2 runs) flags only engine signals and facts.function_lines, both withheld by input profile v1. The plane profile newly flags verify.flag_b and ms.operation (plane-only instruments, never in a static/v1 prompt); verify flags point to the vulnerable side, as a real detector would, but whether they track the label must be decided before any plane-profile program runs.",
+  "static": {
+   "flagged": [
+    {
+     "correct": 10,
+     "direction": "higher on fixed",
+     "pairs": 12,
+     "scope": "config_secrets",
+     "separation": 0.75,
+     "signal": "facts.function_lines",
+     "wrong": 1
+    },
+    {
+     "correct": 16,
+     "direction": "higher on fixed",
+     "pairs": 19,
+     "scope": "path",
+     "separation": 0.7368,
+     "signal": "facts.function_lines",
+     "wrong": 2
+    },
+    {
+     "correct": 13,
+     "direction": "higher on fixed",
+     "pairs": 20,
+     "scope": "access_control",
+     "separation": 0.6,
+     "signal": "facts.function_lines",
+     "wrong": 1
+    },
+    {
+     "correct": 18,
+     "direction": "higher on fixed",
+     "pairs": 27,
+     "scope": "untrusted_destination",
+     "separation": 0.5556,
+     "signal": "facts.function_lines",
+     "wrong": 3
+    },
+    {
+     "correct": 9,
+     "direction": "higher on fixed",
+     "pairs": 21,
+     "scope": "deserialization",
+     "separation": 0.2857,
+     "signal": "facts.function_lines",
+     "wrong": 3
+    },
+    {
+     "correct": 18,
+     "direction": "higher on vulnerable",
+     "pairs": 61,
+     "scope": "output_encoding",
+     "separation": 0.2623,
+     "signal": "eng.witness_steps_min",
+     "wrong": 2
+    },
+    {
+     "correct": 21,
+     "direction": "higher on fixed",
+     "pairs": 43,
+     "scope": "injection",
+     "separation": 0.2558,
+     "signal": "facts.function_lines",
+     "wrong": 10
+    },
+    {
+     "correct": 15,
+     "direction": null,
+     "pairs": 61,
+     "scope": "output_encoding",
+     "separation": 0.2295,
+     "signal": "eng.rung_max",
+     "wrong": 1
+    },
+    {
+     "correct": 15,
+     "direction": null,
+     "pairs": 61,
+     "scope": "output_encoding",
+     "separation": 0.2295,
+     "signal": "eng.sink_kind",
+     "wrong": 1
+    },
+    {
+     "correct": 15,
+     "direction": null,
+     "pairs": 61,
+     "scope": "output_encoding",
+     "separation": 0.2295,
+     "signal": "eng.sink_origin",
+     "wrong": 1
+    },
+    {
+     "correct": 15,
+     "direction": null,
+     "pairs": 61,
+     "scope": "output_encoding",
+     "separation": 0.2295,
+     "signal": "eng.source_kind",
+     "wrong": 1
+    },
+    {
+     "correct": 15,
+     "direction": null,
+     "pairs": 61,
+     "scope": "output_encoding",
+     "separation": 0.2295,
+     "signal": "eng.source_origin",
+     "wrong": 1
+    },
+    {
+     "correct": 15,
+     "direction": "higher on vulnerable",
+     "pairs": 61,
+     "scope": "output_encoding",
+     "separation": 0.2131,
+     "signal": "eng.findings",
+     "wrong": 2
+    }
+   ],
+   "flagged_signals": [
+    "eng.findings",
+    "eng.rung_max",
+    "eng.sink_kind",
+    "eng.sink_origin",
+    "eng.source_kind",
+    "eng.source_origin",
+    "eng.witness_steps_min",
+    "facts.function_lines"
+   ],
+   "outside_v1_withheld": []
+  }
+ },
+ "memory_build": {
+  "advisory_sides_not_examples": {
+   "absent_fixed_side": 7,
+   "no_excerpt": 7
+  },
+  "by_source": {
+   "adjudications": {
+    "absent_fixed_side": 0,
+    "examples": 34,
+    "labels": 43,
+    "no_excerpt": 9,
+    "no_record": 0,
+    "recorded": 43,
+    "unread": 0
+   },
+   "dev-php": {
+    "absent_fixed_side": 0,
+    "examples": 3,
+    "labels": 3,
+    "no_excerpt": 0,
+    "no_record": 0,
+    "recorded": 3,
+    "unread": 0
+   },
+   "pairs": {
+    "absent_fixed_side": 7,
+    "examples": 740,
+    "labels": 1544,
+    "no_excerpt": 7,
+    "no_record": 790,
+    "recorded": 754,
+    "unread": 0
+   },
+   "population-v1": {
+    "absent_fixed_side": 0,
+    "examples": 85,
+    "labels": 170,
+    "no_excerpt": 0,
+    "no_record": 85,
+    "recorded": 85,
+    "unread": 0
+   },
+   "population-v2": {
+    "absent_fixed_side": 0,
+    "examples": 42,
+    "labels": 86,
+    "no_excerpt": 1,
+    "no_record": 43,
+    "recorded": 43,
+    "unread": 0
+   }
+  },
+  "examples": 904,
+  "examples_added": 180,
+  "examples_before": 724,
+  "failing_reason": "adjudications: 9 of 43 anonymous functions, unchanged since 2026-10-01 (exit 2 recorded, rows kept)",
+  "failing_sources": [
+   "adjudications"
+  ],
+  "instrument_fix": "SideReader read only the first pair-kind source, so all 194 advisory sides were `unread` (0 examples) on the first rebuild; fixed in learn/examples.py with a test; the rebuild then read every side",
+  "profile": "static"
+ },
+ "note": "Decision-engine harvest of the 97 advisory-fix pairs (benchmarks/pairs/advisory-fixes, 194 sides), COUNTS ONLY. Plane Runs hadv-verify (verify a/b + agree; verify families only: untrusted_destination) and hadv-roles (model roles, every side) on ax, generated by `ousast plane harvest --catalog benchmarks/pairs/advisory-fixes/catalog.toml --ceiling 2` from the label rows of those pairs; host engine features (benchmarks/learn/engine_pairs.py, frozen source, one container, --memory 3g); feature records (benchmarks/learn/build_features.py); static memory rebuilt with --units (old + new harvest units merged). Unit lists, label rows and excerpts name functions and stay local.",
+ "roles": {
+  "files_classified": 194,
+  "role_rows": 660,
+  "sides": 194,
+  "skipped_units": {
+   "oversized_over_20KB_inline": 0
+  },
+  "tasks_done": 20
+ },
+ "runner_image": "localhost:5001/ousast-runner@sha256:412db0a1504af8f1b23a395af8d1dcbd152c1bb6d16594f2b733067163a31884 (not rebuilt: no change under plane/tasks since it was built)",
+ "spend": {
+  "ceiling_usd": 5.0,
+  "deepseek_balance_usd": {
+   "after_features": 17.73,
+   "after_runs": 17.75,
+   "before": 17.88
+  },
+  "embeddings_openrouter_usd": 0.000868,
+  "metered_usd": {
+   "pilot_included": true,
+   "roles": 0.1285,
+   "total": 0.3802,
+   "verify": 0.2517
+  },
+  "smoke": "plain JSON + one tool call through verify.build_client before any Run (one reply carried a stray `<|OPENAI|>` token in JSON mode on a trivial prompt; 0/16 on a classifier-shaped probe)",
+  "task_budget_sum_usd": {
+   "roles": 0.669,
+   "verify": 0.816
+  }
+ },
+ "verify": {
+  "flagged_by_pass_units": {
+   "fixed:none": 16,
+   "fixed:one": 1,
+   "vulnerable:both": 10,
+   "vulnerable:none": 4,
+   "vulnerable:one": 3
+  },
+  "hunts_per_pass": 34,
+  "skipped_units": {
+   "oversized_over_20KB_inline": 0
+  },
+  "tasks_done": 102,
+  "units": 34,
+  "usage": {
+   "completion_tokens": 66734,
+   "prompt_cache_hit_tokens": 444926,
+   "prompt_tokens": 802586
+  }
+ }
+}

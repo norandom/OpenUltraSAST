@@ -240,19 +240,32 @@ def assert_boundary(
 
 
 def demonstrations_for(
-    demos: Sequence[Mapping[str, Any]], examples: Mapping[str, Example], target: Target, fold: Fold
+    demos: Sequence[Mapping[str, Any]],
+    examples: Mapping[str, Example],
+    target: Target,
+    fold: Fold,
+    *,
+    vectors: Mapping[str, Sequence[float]] | None = None,
 ) -> list[Mapping[str, Any]]:
     """The compiled demonstrations usable for ``target``: an ineligible one is swapped for its alternate when that
-    is eligible, and dropped otherwise (leave-one-framework-out on a demonstration's framework)."""
+    is eligible, and dropped otherwise (leave-one-framework-out on a demonstration's framework; in evaluation, a
+    demonstration whose excerpt is a near-duplicate of the target's, the same rule as retrieval and
+    :func:`assert_boundary`)."""
+
+    def ok(example: Example | None) -> bool:
+        if example is None:
+            return False
+        vector = (vectors or {}).get(example.excerpt_sha)
+        cos = cosine(target.vector, vector) if target.vector is not None and vector is not None else None
+        return eligible(example, target, fold, cos=cos)
+
     out: list[Mapping[str, Any]] = []
     for demo in demos:
-        example = examples.get(str(demo["example_id"]))
-        if example is not None and eligible(example, target, fold):
+        if ok(examples.get(str(demo["example_id"]))):
             out.append(demo)
             continue
         alternate = demo.get("alternate")
-        alt = examples.get(str(alternate.get("example_id"))) if isinstance(alternate, Mapping) else None
-        if isinstance(alternate, Mapping) and alt is not None and eligible(alt, target, fold):
+        if isinstance(alternate, Mapping) and ok(examples.get(str(alternate.get("example_id")))):
             out.append(alternate)
     return out
 

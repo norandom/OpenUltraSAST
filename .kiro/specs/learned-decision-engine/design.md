@@ -1227,6 +1227,15 @@ start only after the maintainer confirms their budget against the balance read j
   0.90 has precision 0.54 (prevalence 0.53); the majority `vulnerable` verdict alone has precision 0.86, recall 0.43.
   Canary re-ask agreement at temperature 0 was 0.83, below the 0.9 the adoption check requires.
 
+- **Slice 2, 2026-10-02 (six families, after the advisory-fix harvest).** Two instrument defects stopped runs before any
+  number: the memory build's side reader knew only the first pair-kind source (all 194 advisory sides unread), and
+  compiled demonstrations skipped the near-duplicate rule that retrieval and the pre-call assertion apply (the
+  assertion stopped the untrusted_destination evaluation). Both fixed with tests. A confound to read with the new
+  families' numbers: every single-label repository group in their evaluation holds positives only (the pre-advisory
+  corpus had no negatives there), so pooled AUC mixes "vulnerable vs its own fix" with "vulnerable vs another
+  repository's fix"; the record reports the paired-group AUC beside it (0.72-0.93, lower than pooled 0.77-0.96).
+  Memorisation is visible: a verify pass named the advisory's CVE id for a public fix.
+
 ## Maintainer decisions at design approval (2026-09-30)
 
 - Design approved as written.

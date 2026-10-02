@@ -475,7 +475,8 @@ class Program:
         target = candidate.target
         got = retrieve(target, self.memory, fold, vectors=self.vectors, n1=self.spec.n1, k=self.spec.k_ret, lam=self.spec.lam, seed=seed,
                        priors=self.spec.priors, inputs=self.spec.inputs)  # fmt: skip
-        usable = [Demo.from_dict(d) for d in demonstrations_for([d.as_dict() for d in self.spec.demos], self.index, target, fold)]
+        demos = demonstrations_for([d.as_dict() for d in self.spec.demos], self.index, target, fold, vectors=self.vectors)
+        usable = [Demo.from_dict(d) for d in demos]
         prompt = render(self.spec, candidate, got.examples, usable, self.index, self.excerpt_text)
         assert_boundary([*prompt.example_ids, *prompt.demo_ids], self.index, target, fold, vectors=self.vectors)
         return prompt, got
