@@ -10,7 +10,7 @@ its kind proof and the record it writes under `benchmarks/measurements/<date>-k8
 go-ahead** with a ceiling; steps that need a hand on a cluster that does not exist yet are marked **manual**.
 
 - [ ] 1. Profile and literals (design section 1; open-question checks 2, 3, 7)
-- [ ] 1.1 `PlaneProfile`
+- [x] 1.1 `PlaneProfile`
   - `src/openultrasast/plane/profile.py`: frozen dataclass with the fields of design section 1; `load_profile()`
     reads `ops/k8s/profiles/<OUSAST_PLANE_PROFILE>.toml` (a name or a path; default `kind`), then applies
     `OUSAST_<FIELD>` overrides; rejects an unknown key, a secret-looking key (`*_KEY`, `*_SECRET`), an `exec`

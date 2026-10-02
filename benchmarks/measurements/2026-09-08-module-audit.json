@@ -1,1770 +1,1777 @@
 {
-  "modules": 151,
-  "counts": {
-    "load_bearing": 146,
-    "standalone_capability": 5
+ "modules": 152,
+ "counts": {
+  "load_bearing": 147,
+  "standalone_capability": 5
+ },
+ "orphaned": [],
+ "standalone": {
+  "fusion": "two-panel adjudication engine; reached from the scan's report stage and used standalone",
+  "mcp": "narrow MCP server over stdio; its own `ousast mcp` entry point and OpenCode integration",
+  "push_inputs": "pre-push-safety-net task 1.2: offline input provenance validator; python -m openultrasast.push_inputs",
+  "push_scoring": "pre-push-safety-net task 1.3: frozen-profile diagnostic outcome scorer; python -m openultrasast.push_scoring",
+  "skills": "skill router; consumed by mcp and by the OpenCode integration, not by the scan path"
+ },
+ "rows": [
+  {
+   "module": "benchmark",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "gate",
+    "improve.evolve",
+    "map_gate",
+    "mcp",
+    "pairs",
+    "plane.tasks.loop"
+   ]
   },
-  "orphaned": [],
-  "standalone": {
-    "fusion": "two-panel adjudication engine; reached from the scan's report stage and used standalone",
-    "mcp": "narrow MCP server over stdio; its own `ousast mcp` entry point and OpenCode integration",
-    "push_inputs": "pre-push-safety-net task 1.2: offline input provenance validator; python -m openultrasast.push_inputs",
-    "push_scoring": "pre-push-safety-net task 1.3: frozen-profile diagnostic outcome scorer; python -m openultrasast.push_scoring",
-    "skills": "skill router; consumed by mcp and by the OpenCode integration, not by the scan path"
+  {
+   "module": "calibration",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli"
+   ]
   },
-  "rows": [
-    {
-      "module": "benchmark",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "gate",
-        "improve.evolve",
-        "map_gate",
-        "mcp",
-        "pairs",
-        "plane.tasks.loop"
-      ]
-    },
-    {
-      "module": "calibration",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli"
-      ]
-    },
-    {
-      "module": "cli",
-      "classification": "load_bearing",
-      "reason": "entry point",
-      "importers": [
-        "mcp"
-      ]
-    },
-    {
-      "module": "complexity",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "complexity.hints",
-        "complexity.ledger",
-        "complexity.map",
-        "map_gate",
-        "plane.tasks.verify",
-        "regress.candidate",
-        "semantic.prove_filter",
-        "tool_hunter"
-      ]
-    },
-    {
-      "module": "complexity.hints",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "complexity",
-        "complexity.map"
-      ]
-    },
-    {
-      "module": "complexity.ledger",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "complexity",
-        "complexity.map",
-        "regress.candidate"
-      ]
-    },
-    {
-      "module": "complexity.map",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "complexity",
-        "complexity.hints",
-        "complexity.ledger",
-        "map_gate",
-        "plane.tasks.verify",
-        "regress.candidate",
-        "semantic.prove_filter",
-        "tool_hunter"
-      ]
-    },
-    {
-      "module": "complexity.signals",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "complexity",
-        "complexity.hints",
-        "complexity.map"
-      ]
-    },
-    {
-      "module": "config",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "harness",
-        "hunter_tools",
-        "learn.cli",
-        "model.endpoint",
-        "pairs",
-        "plane.memory",
-        "push.assistance",
-        "push.policy",
-        "push.runner",
-        "regress.candidate",
-        "regress.recipes",
-        "run"
-      ]
-    },
-    {
-      "module": "contracts",
-      "classification": "load_bearing",
-      "reason": "pre-push-safety-net Req 7.3: strict shared manifest serialization, independent of push",
-      "importers": [
-        "config",
-        "cpg.artifact",
-        "model.contracts",
-        "push.cache",
-        "push.contracts",
-        "push.policy",
-        "push.vetoes"
-      ]
-    },
-    {
-      "module": "cpg",
-      "classification": "load_bearing",
-      "reason": "model-grounded-detection Req 4: the CPG seam package",
-      "importers": [
-        "cli",
-        "cpg.artifact",
-        "cpg.backend",
-        "model.config_value",
-        "model.dominance",
-        "model.partitions",
-        "model.pipeline",
-        "model.scan",
-        "model.taint",
-        "push.cache",
-        "push.eligibility",
-        "push.policy",
-        "push.reuse",
-        "push.runner"
-      ]
-    },
-    {
-      "module": "cpg.artifact",
-      "classification": "load_bearing",
-      "reason": "pre-push-safety-net Req 4.3/7.3: backend graph identity and live lease contract; validation integration pending",
-      "importers": [
-        "cpg.backend",
-        "push.cache",
-        "push.eligibility",
-        "push.policy",
-        "push.reuse",
-        "push.runner"
-      ]
-    },
-    {
-      "module": "cpg.backend",
-      "classification": "load_bearing",
-      "reason": "model-grounded-detection Req 4.1/4.5: the single Joern subprocess boundary",
-      "importers": [
-        "cli",
-        "cpg.artifact",
-        "model.config_value",
-        "model.dominance",
-        "model.partitions",
-        "model.pipeline",
-        "model.scan",
-        "model.taint",
-        "push.cache",
-        "push.policy",
-        "push.reuse",
-        "push.runner"
-      ]
-    },
-    {
-      "module": "cpg.capability",
-      "classification": "load_bearing",
-      "reason": "model-grounded-detection Req 4.2/4.3: the engine probe that degrades to suspicion",
-      "importers": [
-        "cpg.backend"
-      ]
-    },
-    {
-      "module": "cpg.session",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cpg.backend"
-      ]
-    },
-    {
-      "module": "findings",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "benchmark",
-        "calibration",
-        "cli",
-        "complexity.ledger",
-        "complexity.map",
-        "complexity.signals",
-        "fusion",
-        "gate",
-        "hunter",
-        "hunter_tools",
-        "improve.evolve",
-        "map_gate",
-        "model.ladder",
-        "model.report",
-        "pairs",
-        "plane.tasks.alerts",
-        "rank",
-        "regress.candidate",
-        "reports",
-        "scoring.project_score",
-        "semantic.obligations.check",
-        "semantic.overlay",
-        "semantic.prove_filter",
-        "tool_hunter",
-        "verification"
-      ]
-    },
-    {
-      "module": "fusion",
-      "classification": "standalone_capability",
-      "reason": "two-panel adjudication engine; reached from the scan's report stage and used standalone",
-      "importers": [
-        "cli"
-      ]
-    },
-    {
-      "module": "gate",
-      "classification": "load_bearing",
-      "reason": "entry point",
-      "importers": [
-        "cli",
-        "plane.tasks.loop"
-      ]
-    },
-    {
-      "module": "harness",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli"
-      ]
-    },
-    {
-      "module": "hunter",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli"
-      ]
-    },
-    {
-      "module": "hunter_tools",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "tool_hunter"
-      ]
-    },
-    {
-      "module": "improve",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "improve.evolve",
-        "improve.memory",
-        "plane.tasks.loop"
-      ]
-    },
-    {
-      "module": "improve.evolve",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "improve",
-        "plane.tasks.loop"
-      ]
-    },
-    {
-      "module": "improve.journal",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "improve",
-        "improve.evolve",
-        "improve.memory",
-        "plane.tasks.loop"
-      ]
-    },
-    {
-      "module": "improve.memory",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "improve.evolve",
-        "plane.tasks.loop"
-      ]
-    },
-    {
-      "module": "improve.validator",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "improve",
-        "improve.evolve",
-        "improve.memory",
-        "plane.tasks.loop"
-      ]
-    },
-    {
-      "module": "index",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "skills"
-      ]
-    },
-    {
-      "module": "learn",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "learn.calibrate",
-        "learn.cli",
-        "learn.compile",
-        "learn.embeddings",
-        "learn.evaluate",
-        "learn.examples",
-        "learn.excerpt",
-        "learn.experiments",
-        "learn.features",
-        "learn.folds",
-        "learn.labels",
-        "learn.leaks",
-        "learn.program",
-        "learn.retrieve",
-        "learn.roles",
-        "plane.harvest",
-        "plane.tasks.features",
-        "plane.tasks.remember",
-        "plane.tasks.roles"
-      ]
-    },
-    {
-      "module": "learn.calibrate",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "learn.evaluate"
-      ]
-    },
-    {
-      "module": "learn.cli",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli"
-      ]
-    },
-    {
-      "module": "learn.compile",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "learn.cli",
-        "learn.evaluate",
-        "learn.experiments"
-      ]
-    },
-    {
-      "module": "learn.embeddings",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "learn.cli",
-        "learn.retrieve"
-      ]
-    },
-    {
-      "module": "learn.evaluate",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "learn.cli",
-        "learn.compile",
-        "learn.experiments"
-      ]
-    },
-    {
-      "module": "learn.examples",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "learn.cli",
-        "learn.compile",
-        "learn.evaluate",
-        "learn.experiments",
-        "learn.folds",
-        "learn.program",
-        "learn.retrieve"
-      ]
-    },
-    {
-      "module": "learn.excerpt",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "learn.embeddings",
-        "learn.examples",
-        "learn.labels",
-        "plane.harvest"
-      ]
-    },
-    {
-      "module": "learn.experiments",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "learn.cli"
-      ]
-    },
-    {
-      "module": "learn.features",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "learn.excerpt",
-        "plane.tasks.features"
-      ]
-    },
-    {
-      "module": "learn.folds",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "learn.cli",
-        "learn.compile",
-        "learn.evaluate",
-        "learn.experiments",
-        "learn.program",
-        "learn.retrieve"
-      ]
-    },
-    {
-      "module": "learn.labels",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "learn.calibrate",
-        "learn.cli",
-        "learn.compile",
-        "learn.evaluate",
-        "learn.examples",
-        "learn.excerpt",
-        "learn.retrieve",
-        "plane.harvest"
-      ]
-    },
-    {
-      "module": "learn.leaks",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "learn.cli"
-      ]
-    },
-    {
-      "module": "learn.program",
-      "classification": "load_bearing",
-      "reason": "learned-decision-engine Req 3.1/3.3: the AI classifier program (signature, Retrieve -> Classify(k), response cache); `ousast learn compile` (task 6.5) and the decide task (task 8) are its callers",
-      "importers": [
-        "learn.cli",
-        "learn.compile",
-        "learn.evaluate",
-        "learn.experiments"
-      ]
-    },
-    {
-      "module": "learn.retrieve",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "learn.evaluate",
-        "learn.program"
-      ]
-    },
-    {
-      "module": "learn.roles",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "learn.features",
-        "plane.tasks.features",
-        "plane.tasks.roles"
-      ]
-    },
-    {
-      "module": "learn.schema",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "learn.compile",
-        "learn.evaluate",
-        "learn.features",
-        "learn.leaks",
-        "learn.program",
-        "learn.retrieve",
-        "learn.roles",
-        "plane.tasks.remember",
-        "plane.tasks.roles"
-      ]
-    },
-    {
-      "module": "map_gate",
-      "classification": "load_bearing",
-      "reason": "entry point",
-      "importers": []
-    },
-    {
-      "module": "mapping",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "gate",
-        "hunter_tools",
-        "improve.evolve",
-        "learn.features",
-        "map_gate",
-        "model.scan",
-        "pairs",
-        "plane.tasks.alerts",
-        "preprocess",
-        "push.runner"
-      ]
-    },
-    {
-      "module": "mcp",
-      "classification": "standalone_capability",
-      "reason": "narrow MCP server over stdio; its own `ousast mcp` entry point and OpenCode integration",
-      "importers": [
-        "cli"
-      ]
-    },
-    {
-      "module": "model",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "cpg.backend",
-        "cpg.session",
-        "learn.cli",
-        "learn.features",
-        "learn.labels",
-        "model.candidates",
-        "model.config_value",
-        "model.dominance",
-        "model.layout",
-        "model.partitions",
-        "model.pipeline",
-        "model.regions",
-        "model.report",
-        "model.scan",
-        "model.specs",
-        "model.taint",
-        "plane.budget",
-        "plane.generate",
-        "plane.tasks.features",
-        "plane.tasks.repo_facts",
-        "preprocess",
-        "push.assistance",
-        "push.cache",
-        "push.contracts",
-        "push.policy",
-        "push.report",
-        "push.reuse",
-        "push.runner",
-        "push.snapshot",
-        "push.vetoes",
-        "tool_hunter"
-      ]
-    },
-    {
-      "module": "model.audit",
-      "classification": "load_bearing",
-      "reason": "model-grounded-detection Req 3: this classifier; run by the maintainer, not by the scan",
-      "importers": []
-    },
-    {
-      "module": "model.candidates",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "model.scan"
-      ]
-    },
-    {
-      "module": "model.config_value",
-      "classification": "load_bearing",
-      "reason": "model-grounded-detection Req 6.3: constant abstraction for the configuration families",
-      "importers": [
-        "model.pipeline",
-        "model.scan"
-      ]
-    },
-    {
-      "module": "model.contracts",
-      "classification": "load_bearing",
-      "reason": "pre-push-safety-net Req 4.1/7.3: generic deadline, change and exact scope contracts; integration pending",
-      "importers": [
-        "cli",
-        "cpg.backend",
-        "cpg.session",
-        "model.partitions",
-        "model.regions",
-        "model.scan",
-        "push.assistance",
-        "push.cache",
-        "push.contracts",
-        "push.policy",
-        "push.report",
-        "push.reuse",
-        "push.runner",
-        "push.snapshot",
-        "push.vetoes"
-      ]
-    },
-    {
-      "module": "model.dominance",
-      "classification": "load_bearing",
-      "reason": "model-grounded-detection Req 6.2: guard dominance, the arbiter for bugs that never crash",
-      "importers": [
-        "model.pipeline",
-        "model.scan"
-      ]
-    },
-    {
-      "module": "model.endpoint",
-      "classification": "load_bearing",
-      "reason": "model-grounded-detection Req 8: the bounded model client the hunter, the plane and the CLI share",
-      "importers": [
-        "cli",
-        "learn.cli",
-        "plane.budget",
-        "plane.generate",
-        "push.assistance",
-        "tool_hunter"
-      ]
-    },
-    {
-      "module": "model.evidence",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "model.scan"
-      ]
-    },
-    {
-      "module": "model.ladder",
-      "classification": "load_bearing",
-      "reason": "model-grounded-detection Req 5: the evidence ladder every finding carries",
-      "importers": [
-        "model.config_value",
-        "model.dominance",
-        "model.pipeline",
-        "model.scan",
-        "model.taint",
-        "push.policy"
-      ]
-    },
-    {
-      "module": "model.layout",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "model.partitions",
-        "model.scan",
-        "plane.tasks.repo_facts",
-        "preprocess",
-        "push.runner"
-      ]
-    },
-    {
-      "module": "model.partitions",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "model.scan"
-      ]
-    },
-    {
-      "module": "model.pipeline",
-      "classification": "load_bearing",
-      "reason": "model-grounded-detection Req 8: the enumerator proposes, the LLM answers, the model disposes",
-      "importers": [
-        "model.scan",
-        "push.policy"
-      ]
-    },
-    {
-      "module": "model.regions",
-      "classification": "load_bearing",
-      "reason": "contributor-scan Req 2: regions from entry points, with the families each admits",
-      "importers": [
-        "cli",
-        "model.layout",
-        "model.scan",
-        "push.policy",
-        "push.reuse",
-        "push.runner"
-      ]
-    },
-    {
-      "module": "model.report",
-      "classification": "load_bearing",
-      "reason": "model-grounded-detection Req 9.3/11.1: per-slice reporting with the overfitting gap",
-      "importers": [
-        "cli"
-      ]
-    },
-    {
-      "module": "model.scan",
-      "classification": "load_bearing",
-      "reason": "contributor-scan Req 3: the repository driver -- one CPG, one budget, ranked spend",
-      "importers": [
-        "cli",
-        "push.policy",
-        "push.report",
-        "push.runner",
-        "push.vetoes"
-      ]
-    },
-    {
-      "module": "model.shipped",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "push.runner"
-      ]
-    },
-    {
-      "module": "model.specs",
-      "classification": "load_bearing",
-      "reason": "model-grounded-detection Req 7.2-7.4: the security vocabularies the CPG queries are parameterised by",
-      "importers": [
-        "model.config_value",
-        "model.dominance",
-        "model.pipeline",
-        "model.regions",
-        "model.report",
-        "model.scan",
-        "model.taint",
-        "push.policy"
-      ]
-    },
-    {
-      "module": "model.taint",
-      "classification": "load_bearing",
-      "reason": "model-grounded-detection Req 6.1: taint reachability over the CPG, the flow-family arbiter",
-      "importers": [
-        "model.pipeline",
-        "model.scan"
-      ]
-    },
-    {
-      "module": "model.taxonomy",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "learn.features",
-        "learn.labels",
-        "model.candidates",
-        "model.report",
-        "model.scan",
-        "model.specs",
-        "plane.tasks.features"
-      ]
-    },
-    {
-      "module": "pair_gate",
-      "classification": "load_bearing",
-      "reason": "entry point",
-      "importers": [
-        "cli"
-      ]
-    },
-    {
-      "module": "pairs",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "improve",
-        "improve.evolve",
-        "improve.memory",
-        "learn.examples",
-        "learn.labels",
-        "model.candidates",
-        "pair_gate",
-        "plane.harvest",
-        "plane.tasks.loop"
-      ]
-    },
-    {
-      "module": "plane",
-      "classification": "load_bearing",
-      "reason": "ai-service-plane Req 1-4: the service plane package; runner and reconciler integration in tasks 3-4",
-      "importers": [
-        "cli",
-        "improve.memory",
-        "learn.cli",
-        "learn.compile",
-        "learn.embeddings",
-        "learn.examples",
-        "learn.experiments",
-        "learn.program",
-        "plane.egress",
-        "plane.engine_alerts",
-        "plane.generate",
-        "plane.harvest",
-        "plane.memory",
-        "plane.reconciler",
-        "plane.router",
-        "plane.runner",
-        "plane.tasks.loop",
-        "plane.tasks.remember",
-        "plane.tasks.roles",
-        "plane.tasks.verify",
-        "plane.workspaces"
-      ]
-    },
-    {
-      "module": "plane.budget",
-      "classification": "load_bearing",
-      "reason": "ai-service-plane Req 2.3/2.4: metered chat client with usd and calls ceilings; task integration in tasks 3, 6",
-      "importers": [
-        "learn.cli",
-        "learn.compile",
-        "learn.embeddings",
-        "learn.experiments",
-        "learn.program",
-        "plane.generate",
-        "plane.tasks.roles",
-        "plane.tasks.verify"
-      ]
-    },
-    {
-      "module": "plane.doctor",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "plane.reconciler"
-      ]
-    },
-    {
-      "module": "plane.egress",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "plane.reconciler"
-      ]
-    },
-    {
-      "module": "plane.engine_alerts",
-      "classification": "load_bearing",
-      "reason": "harnessx-removal Req 6.3: engine alerts where quick mode has no rules (PHP), on the host",
-      "importers": [
-        "cli"
-      ]
-    },
-    {
-      "module": "plane.generate",
-      "classification": "load_bearing",
-      "reason": "ai-service-plane task 7: an increment's Workspaces, per-case Tasks and Run from a recorded set",
-      "importers": [
-        "cli",
-        "plane.harvest"
-      ]
-    },
-    {
-      "module": "plane.harvest",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli"
-      ]
-    },
-    {
-      "module": "plane.manifests",
-      "classification": "load_bearing",
-      "reason": "ai-service-plane Req 1.1-1.4: ax-shaped Task/Workspace/Model and the Run kind, validated before anything runs",
-      "importers": [
-        "learn.cli",
-        "plane.egress",
-        "plane.generate",
-        "plane.harvest",
-        "plane.reconciler",
-        "plane.router",
-        "plane.runner",
-        "plane.workspaces"
-      ]
-    },
-    {
-      "module": "plane.memory",
-      "classification": "load_bearing",
-      "reason": "harnessx-removal Req 6.1/6.4: the memory store (file, S3), ingest and fact reuse; `ousast plane remember`",
-      "importers": [
-        "cli",
-        "improve.memory",
-        "learn.cli",
-        "learn.compile",
-        "learn.embeddings",
-        "learn.examples",
-        "learn.experiments",
-        "learn.program",
-        "plane.generate",
-        "plane.tasks.loop",
-        "plane.tasks.remember"
-      ]
-    },
-    {
-      "module": "plane.reconciler",
-      "classification": "load_bearing",
-      "reason": "ai-service-plane Req 3.1-3.5, 7.3: ax-backed Run execution, status attribution and doctor; `ousast plane`",
-      "importers": [
-        "cli",
-        "plane.engine_alerts",
-        "plane.generate",
-        "plane.harvest",
-        "plane.memory",
-        "plane.workspaces"
-      ]
-    },
-    {
-      "module": "plane.router",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "plane.reconciler",
-        "plane.runner"
-      ]
-    },
-    {
-      "module": "plane.runner",
-      "classification": "load_bearing",
-      "reason": "ai-service-plane Req 4.1-4.4: the ax-task-runner entrypoint (PID 1 of the task image); delivers the output directory",
-      "importers": []
-    },
-    {
-      "module": "plane.tasks",
-      "classification": "load_bearing",
-      "reason": "ai-service-plane Req 4.1: the task entrypoint package the runner imports by name; runner integration pending (task 3)",
-      "importers": [
-        "cli",
-        "learn.excerpt",
-        "learn.features",
-        "learn.labels",
-        "learn.roles",
-        "plane.engine_alerts",
-        "plane.generate",
-        "plane.harvest",
-        "plane.memory",
-        "plane.tasks.agree",
-        "plane.tasks.alerts",
-        "plane.tasks.features",
-        "plane.tasks.remember",
-        "plane.tasks.roles"
-      ]
-    },
-    {
-      "module": "plane.tasks.agree",
-      "classification": "load_bearing",
-      "reason": "ai-service-plane Req 5.3/2.1: agreement across two verify passes with per-candidate cost, turns and site match",
-      "importers": []
-    },
-    {
-      "module": "plane.tasks.alerts",
-      "classification": "load_bearing",
-      "reason": "harnessx-removal Req 6.3: quick-mode alerts on a case's vulnerable and fixed pins, model-free",
-      "importers": [
-        "learn.features",
-        "plane.engine_alerts",
-        "plane.tasks.features"
-      ]
-    },
-    {
-      "module": "plane.tasks.features",
-      "classification": "load_bearing",
-      "reason": "learned-decision-engine Req 1.1-1.3/7.2: one allow-listed feature record per candidate, model-free",
-      "importers": []
-    },
-    {
-      "module": "plane.tasks.loop",
-      "classification": "load_bearing",
-      "reason": "harnessx-removal Req 6.3: the improvement loop's snapshot, measure, propose and improve steps",
-      "importers": [
-        "plane.memory"
-      ]
-    },
-    {
-      "module": "plane.tasks.remember",
-      "classification": "load_bearing",
-      "reason": "harnessx-removal Req 6.1: a case's delivered artifacts as memory rows, model-free",
-      "importers": [
-        "cli"
-      ]
-    },
-    {
-      "module": "plane.tasks.repo_facts",
-      "classification": "load_bearing",
-      "reason": "ai-service-plane Req 5.1/5.2: source-only functions and callers per file; runner integration pending",
-      "importers": [
-        "learn.excerpt",
-        "learn.features",
-        "learn.labels",
-        "learn.roles",
-        "plane.generate",
-        "plane.harvest",
-        "plane.tasks.alerts",
-        "plane.tasks.features",
-        "plane.tasks.remember",
-        "plane.tasks.roles"
-      ]
-    },
-    {
-      "module": "plane.tasks.roles",
-      "classification": "load_bearing",
-      "reason": "learned-decision-engine Req 8.1: model role classification per file chunk (model_sinks.py moved in); its Run template comes with the harvest (task 5)",
-      "importers": [
-        "plane.harvest"
-      ]
-    },
-    {
-      "module": "plane.tasks.verify",
-      "classification": "load_bearing",
-      "reason": "ai-service-plane Req 5.3/2.1-2.3/7.2: the batched hunt with known callers, metered and resumable per file hunt",
-      "importers": [
-        "plane.generate",
-        "plane.harvest",
-        "plane.tasks.agree",
-        "plane.tasks.roles"
-      ]
-    },
-    {
-      "module": "plane.workspaces",
-      "classification": "load_bearing",
-      "reason": "ai-service-plane task 4: Workspace manifests per case pin of a population; `ousast plane workspaces`",
-      "importers": [
-        "cli"
-      ]
-    },
-    {
-      "module": "policy",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "findings",
-        "hunter",
-        "improve.evolve",
-        "improve.validator",
-        "plane.tasks.loop",
-        "scoring.project_score",
-        "semantic.overlay"
-      ]
-    },
-    {
-      "module": "policy.verycode",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "policy"
-      ]
-    },
-    {
-      "module": "preprocess",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "complexity.hints",
-        "complexity.map",
-        "complexity.signals",
-        "findings",
-        "gate",
-        "hunter",
-        "hunter_tools",
-        "improve.evolve",
-        "index",
-        "learn.features",
-        "learn.labels",
-        "learn.roles",
-        "map_gate",
-        "mapping",
-        "model.candidates",
-        "model.partitions",
-        "model.scan",
-        "pairs",
-        "plane.harvest",
-        "plane.tasks.alerts",
-        "plane.tasks.features",
-        "plane.tasks.repo_facts",
-        "push.runner",
-        "rank",
-        "regress.candidate",
-        "semantic.overlay",
-        "skills"
-      ]
-    },
-    {
-      "module": "profiling",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli"
-      ]
-    },
-    {
-      "module": "provenance",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli"
-      ]
-    },
-    {
-      "module": "provider",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "learn.cli",
-        "learn.compile",
-        "learn.program",
-        "model.endpoint",
-        "tool_hunter"
-      ]
-    },
-    {
-      "module": "provider.openrouter",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "learn.cli",
-        "learn.compile",
-        "learn.program",
-        "model.endpoint",
-        "tool_hunter"
-      ]
-    },
-    {
-      "module": "push",
-      "classification": "load_bearing",
-      "reason": "pre-push-safety-net Req 5.5/7.3: experimental push contract package; no hook installed",
-      "importers": [
-        "cli",
-        "push.assistance",
-        "push.eligibility",
-        "push.policy",
-        "push.report",
-        "push.reuse",
-        "push.runner",
-        "push.snapshot",
-        "push.vetoes"
-      ]
-    },
-    {
-      "module": "push.assistance",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "push.runner"
-      ]
-    },
-    {
-      "module": "push.cache",
-      "classification": "load_bearing",
-      "reason": "pre-push-safety-net task 6.2: bounded artifact publication and leased eviction; runner integration in 6.4",
-      "importers": [
-        "push.policy",
-        "push.reuse",
-        "push.runner"
-      ]
-    },
-    {
-      "module": "push.contracts",
-      "classification": "load_bearing",
-      "reason": "pre-push-safety-net Req 5.5/7.3: immutable comparisons and independent result statuses; runner pending",
-      "importers": [
-        "push.policy",
-        "push.report",
-        "push.reuse",
-        "push.runner",
-        "push.snapshot",
-        "push.vetoes"
-      ]
-    },
-    {
-      "module": "push.eligibility",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "push.runner"
-      ]
-    },
-    {
-      "module": "push.policy",
-      "classification": "load_bearing",
-      "reason": "pre-push-safety-net Req 2.4/3.1/3.4/4.1: targeted same-semantics base comparison; replay integration pending",
-      "importers": [
-        "push.eligibility",
-        "push.report",
-        "push.runner",
-        "push.vetoes"
-      ]
-    },
-    {
-      "module": "push.report",
-      "classification": "load_bearing",
-      "reason": "pre-push-safety-net Req 5.1/5.2/5.5/7.3: compact output and complete artifacts; runner integration pending",
-      "importers": [
-        "push.assistance",
-        "push.runner"
-      ]
-    },
-    {
-      "module": "push.reuse",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "push.runner"
-      ]
-    },
-    {
-      "module": "push.runner",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "push.assistance"
-      ]
-    },
-    {
-      "module": "push.snapshot",
-      "classification": "load_bearing",
-      "reason": "pre-push-safety-net Req 1.1/1.3/1.4/7.1: local immutable ref resolution; runner integration pending",
-      "importers": [
-        "push.runner"
-      ]
-    },
-    {
-      "module": "push.vetoes",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "push.runner"
-      ]
-    },
-    {
-      "module": "push_inputs",
-      "classification": "standalone_capability",
-      "reason": "pre-push-safety-net task 1.2: offline input provenance validator; python -m openultrasast.push_inputs",
-      "importers": []
-    },
-    {
-      "module": "push_scoring",
-      "classification": "standalone_capability",
-      "reason": "pre-push-safety-net task 1.3: frozen-profile diagnostic outcome scorer; python -m openultrasast.push_scoring",
-      "importers": [
-        "push.eligibility"
-      ]
-    },
-    {
-      "module": "rank",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "calibration",
-        "cli",
-        "findings",
-        "gate",
-        "hunter",
-        "hunter_tools",
-        "improve.evolve",
-        "map_gate",
-        "pairs",
-        "plane.tasks.alerts"
-      ]
-    },
-    {
-      "module": "redaction",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "harness",
-        "model.pipeline",
-        "push.assistance",
-        "push.report",
-        "reports",
-        "semantic.obligations.intent"
-      ]
-    },
-    {
-      "module": "regress",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "regress.candidate"
-      ]
-    },
-    {
-      "module": "regress.candidate",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "regress"
-      ]
-    },
-    {
-      "module": "regress.recipes",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "regress",
-        "regress.candidate"
-      ]
-    },
-    {
-      "module": "regress.safety",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "regress",
-        "regress.candidate"
-      ]
-    },
-    {
-      "module": "regress.verdict",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "regress",
-        "regress.candidate"
-      ]
-    },
-    {
-      "module": "reports",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli"
-      ]
-    },
-    {
-      "module": "repos",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "push_inputs"
-      ]
-    },
-    {
-      "module": "ruleset",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "findings",
-        "hunter",
-        "improve.evolve",
-        "improve.memory",
-        "improve.validator",
-        "learn.features",
-        "learn.labels",
-        "learn.roles",
-        "pairs",
-        "plane.tasks.alerts",
-        "plane.tasks.features",
-        "plane.tasks.loop",
-        "ruleset.store",
-        "semantic.facts"
-      ]
-    },
-    {
-      "module": "ruleset.frameworks",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "learn.labels",
-        "learn.roles",
-        "ruleset.store",
-        "semantic.facts"
-      ]
-    },
-    {
-      "module": "ruleset.store",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "improve.validator",
-        "ruleset"
-      ]
-    },
-    {
-      "module": "run",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "reports"
-      ]
-    },
-    {
-      "module": "sandbox",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "regress.candidate",
-        "regress.recipes",
-        "regress.safety",
-        "regress.verdict"
-      ]
-    },
-    {
-      "module": "sandbox.probe",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "sandbox"
-      ]
-    },
-    {
-      "module": "sandbox.runner",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "regress.candidate",
-        "regress.recipes",
-        "regress.safety",
-        "sandbox"
-      ]
-    },
-    {
-      "module": "scoring",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "improve.evolve"
-      ]
-    },
-    {
-      "module": "scoring.project_score",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "scoring"
-      ]
-    },
-    {
-      "module": "semantic",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "cpg.capability",
-        "hunter_tools",
-        "learn.features",
-        "learn.roles",
-        "mapping",
-        "model.candidates",
-        "model.layout",
-        "model.scan",
-        "model.specs",
-        "pairs",
-        "semantic.cst",
-        "semantic.engines",
-        "semantic.functions",
-        "semantic.ir",
-        "semantic.obligations.check",
-        "semantic.obligations.facts",
-        "semantic.obligations.operations",
-        "semantic.obligations.shapes",
-        "semantic.overlay",
-        "semantic.prove_filter",
-        "semantic.taint"
-      ]
-    },
-    {
-      "module": "semantic.cst",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "semantic.ir"
-      ]
-    },
-    {
-      "module": "semantic.engines",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cpg.capability",
-        "semantic",
-        "semantic.overlay"
-      ]
-    },
-    {
-      "module": "semantic.extra",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "semantic",
-        "semantic.cst",
-        "semantic.engines"
-      ]
-    },
-    {
-      "module": "semantic.facts",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "hunter_tools",
-        "learn.features",
-        "learn.roles",
-        "mapping",
-        "model.candidates",
-        "model.layout",
-        "model.scan",
-        "model.specs",
-        "pairs",
-        "semantic",
-        "semantic.obligations.check",
-        "semantic.obligations.facts",
-        "semantic.obligations.operations",
-        "semantic.obligations.shapes",
-        "semantic.overlay",
-        "semantic.taint"
-      ]
-    },
-    {
-      "module": "semantic.functions",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "hunter_tools",
-        "pairs",
-        "semantic.obligations.shapes",
-        "semantic.overlay"
-      ]
-    },
-    {
-      "module": "semantic.ir",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "hunter_tools",
-        "model.candidates",
-        "pairs",
-        "semantic.cst",
-        "semantic.functions",
-        "semantic.obligations.check",
-        "semantic.obligations.operations",
-        "semantic.obligations.shapes",
-        "semantic.overlay",
-        "semantic.taint"
-      ]
-    },
-    {
-      "module": "semantic.obligations",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "hunter_tools",
-        "model.candidates",
-        "model.specs",
-        "pairs",
-        "semantic.obligations.check",
-        "semantic.obligations.dominance",
-        "semantic.obligations.intent",
-        "semantic.obligations.operations",
-        "semantic.obligations.policy",
-        "semantic.obligations.shapes",
-        "semantic.obligations.siblings"
-      ]
-    },
-    {
-      "module": "semantic.obligations.check",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "semantic.obligations",
-        "semantic.obligations.intent"
-      ]
-    },
-    {
-      "module": "semantic.obligations.dominance",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "hunter_tools",
-        "pairs",
-        "semantic.obligations.check"
-      ]
-    },
-    {
-      "module": "semantic.obligations.facts",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "model.specs",
-        "pairs",
-        "semantic.obligations",
-        "semantic.obligations.check",
-        "semantic.obligations.operations",
-        "semantic.obligations.policy",
-        "semantic.obligations.shapes",
-        "semantic.obligations.siblings"
-      ]
-    },
-    {
-      "module": "semantic.obligations.intent",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli"
-      ]
-    },
-    {
-      "module": "semantic.obligations.operations",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "model.candidates",
-        "semantic.obligations.check",
-        "semantic.obligations.dominance",
-        "semantic.obligations.siblings"
-      ]
-    },
-    {
-      "module": "semantic.obligations.policy",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "semantic.obligations.check"
-      ]
-    },
-    {
-      "module": "semantic.obligations.shapes",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "semantic.obligations",
-        "semantic.obligations.operations"
-      ]
-    },
-    {
-      "module": "semantic.obligations.siblings",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "semantic.obligations.check"
-      ]
-    },
-    {
-      "module": "semantic.overlay",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "semantic",
-        "semantic.prove_filter"
-      ]
-    },
-    {
-      "module": "semantic.prove_filter",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "semantic"
-      ]
-    },
-    {
-      "module": "semantic.taint",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "semantic.overlay"
-      ]
-    },
-    {
-      "module": "skills",
-      "classification": "standalone_capability",
-      "reason": "skill router; consumed by mcp and by the OpenCode integration, not by the scan path",
-      "importers": [
-        "hunter"
-      ]
-    },
-    {
-      "module": "stages",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli"
-      ]
-    },
-    {
-      "module": "tool_hunter",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "cli",
-        "model.endpoint",
-        "plane.budget",
-        "plane.tasks.roles",
-        "plane.tasks.verify"
-      ]
-    },
-    {
-      "module": "verification",
-      "classification": "load_bearing",
-      "reason": "reachable from gate, map_gate, pair_gate, cli",
-      "importers": [
-        "calibration",
-        "cli",
-        "fusion",
-        "reports"
-      ]
-    }
-  ]
+  {
+   "module": "cli",
+   "classification": "load_bearing",
+   "reason": "entry point",
+   "importers": [
+    "mcp"
+   ]
+  },
+  {
+   "module": "complexity",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "complexity.hints",
+    "complexity.ledger",
+    "complexity.map",
+    "map_gate",
+    "plane.tasks.verify",
+    "regress.candidate",
+    "semantic.prove_filter",
+    "tool_hunter"
+   ]
+  },
+  {
+   "module": "complexity.hints",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "complexity",
+    "complexity.map"
+   ]
+  },
+  {
+   "module": "complexity.ledger",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "complexity",
+    "complexity.map",
+    "regress.candidate"
+   ]
+  },
+  {
+   "module": "complexity.map",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "complexity",
+    "complexity.hints",
+    "complexity.ledger",
+    "map_gate",
+    "plane.tasks.verify",
+    "regress.candidate",
+    "semantic.prove_filter",
+    "tool_hunter"
+   ]
+  },
+  {
+   "module": "complexity.signals",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "complexity",
+    "complexity.hints",
+    "complexity.map"
+   ]
+  },
+  {
+   "module": "config",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "harness",
+    "hunter_tools",
+    "learn.cli",
+    "model.endpoint",
+    "pairs",
+    "plane.memory",
+    "push.assistance",
+    "push.policy",
+    "push.runner",
+    "regress.candidate",
+    "regress.recipes",
+    "run"
+   ]
+  },
+  {
+   "module": "contracts",
+   "classification": "load_bearing",
+   "reason": "pre-push-safety-net Req 7.3: strict shared manifest serialization, independent of push",
+   "importers": [
+    "config",
+    "cpg.artifact",
+    "model.contracts",
+    "push.cache",
+    "push.contracts",
+    "push.policy",
+    "push.vetoes"
+   ]
+  },
+  {
+   "module": "cpg",
+   "classification": "load_bearing",
+   "reason": "model-grounded-detection Req 4: the CPG seam package",
+   "importers": [
+    "cli",
+    "cpg.artifact",
+    "cpg.backend",
+    "model.config_value",
+    "model.dominance",
+    "model.partitions",
+    "model.pipeline",
+    "model.scan",
+    "model.taint",
+    "push.cache",
+    "push.eligibility",
+    "push.policy",
+    "push.reuse",
+    "push.runner"
+   ]
+  },
+  {
+   "module": "cpg.artifact",
+   "classification": "load_bearing",
+   "reason": "pre-push-safety-net Req 4.3/7.3: backend graph identity and live lease contract; validation integration pending",
+   "importers": [
+    "cpg.backend",
+    "push.cache",
+    "push.eligibility",
+    "push.policy",
+    "push.reuse",
+    "push.runner"
+   ]
+  },
+  {
+   "module": "cpg.backend",
+   "classification": "load_bearing",
+   "reason": "model-grounded-detection Req 4.1/4.5: the single Joern subprocess boundary",
+   "importers": [
+    "cli",
+    "cpg.artifact",
+    "model.config_value",
+    "model.dominance",
+    "model.partitions",
+    "model.pipeline",
+    "model.scan",
+    "model.taint",
+    "push.cache",
+    "push.policy",
+    "push.reuse",
+    "push.runner"
+   ]
+  },
+  {
+   "module": "cpg.capability",
+   "classification": "load_bearing",
+   "reason": "model-grounded-detection Req 4.2/4.3: the engine probe that degrades to suspicion",
+   "importers": [
+    "cpg.backend"
+   ]
+  },
+  {
+   "module": "cpg.session",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cpg.backend"
+   ]
+  },
+  {
+   "module": "findings",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "benchmark",
+    "calibration",
+    "cli",
+    "complexity.ledger",
+    "complexity.map",
+    "complexity.signals",
+    "fusion",
+    "gate",
+    "hunter",
+    "hunter_tools",
+    "improve.evolve",
+    "map_gate",
+    "model.ladder",
+    "model.report",
+    "pairs",
+    "plane.tasks.alerts",
+    "rank",
+    "regress.candidate",
+    "reports",
+    "scoring.project_score",
+    "semantic.obligations.check",
+    "semantic.overlay",
+    "semantic.prove_filter",
+    "tool_hunter",
+    "verification"
+   ]
+  },
+  {
+   "module": "fusion",
+   "classification": "standalone_capability",
+   "reason": "two-panel adjudication engine; reached from the scan's report stage and used standalone",
+   "importers": [
+    "cli"
+   ]
+  },
+  {
+   "module": "gate",
+   "classification": "load_bearing",
+   "reason": "entry point",
+   "importers": [
+    "cli",
+    "plane.tasks.loop"
+   ]
+  },
+  {
+   "module": "harness",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli"
+   ]
+  },
+  {
+   "module": "hunter",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli"
+   ]
+  },
+  {
+   "module": "hunter_tools",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "tool_hunter"
+   ]
+  },
+  {
+   "module": "improve",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "improve.evolve",
+    "improve.memory",
+    "plane.tasks.loop"
+   ]
+  },
+  {
+   "module": "improve.evolve",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "improve",
+    "plane.tasks.loop"
+   ]
+  },
+  {
+   "module": "improve.journal",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "improve",
+    "improve.evolve",
+    "improve.memory",
+    "plane.tasks.loop"
+   ]
+  },
+  {
+   "module": "improve.memory",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "improve.evolve",
+    "plane.tasks.loop"
+   ]
+  },
+  {
+   "module": "improve.validator",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "improve",
+    "improve.evolve",
+    "improve.memory",
+    "plane.tasks.loop"
+   ]
+  },
+  {
+   "module": "index",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "skills"
+   ]
+  },
+  {
+   "module": "learn",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "learn.calibrate",
+    "learn.cli",
+    "learn.compile",
+    "learn.embeddings",
+    "learn.evaluate",
+    "learn.examples",
+    "learn.excerpt",
+    "learn.experiments",
+    "learn.features",
+    "learn.folds",
+    "learn.labels",
+    "learn.leaks",
+    "learn.program",
+    "learn.retrieve",
+    "learn.roles",
+    "plane.harvest",
+    "plane.tasks.features",
+    "plane.tasks.remember",
+    "plane.tasks.roles"
+   ]
+  },
+  {
+   "module": "learn.calibrate",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "learn.evaluate"
+   ]
+  },
+  {
+   "module": "learn.cli",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli"
+   ]
+  },
+  {
+   "module": "learn.compile",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "learn.cli",
+    "learn.evaluate",
+    "learn.experiments"
+   ]
+  },
+  {
+   "module": "learn.embeddings",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "learn.cli",
+    "learn.retrieve"
+   ]
+  },
+  {
+   "module": "learn.evaluate",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "learn.cli",
+    "learn.compile",
+    "learn.experiments"
+   ]
+  },
+  {
+   "module": "learn.examples",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "learn.cli",
+    "learn.compile",
+    "learn.evaluate",
+    "learn.experiments",
+    "learn.folds",
+    "learn.program",
+    "learn.retrieve"
+   ]
+  },
+  {
+   "module": "learn.excerpt",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "learn.embeddings",
+    "learn.examples",
+    "learn.labels",
+    "plane.harvest"
+   ]
+  },
+  {
+   "module": "learn.experiments",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "learn.cli"
+   ]
+  },
+  {
+   "module": "learn.features",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "learn.excerpt",
+    "plane.tasks.features"
+   ]
+  },
+  {
+   "module": "learn.folds",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "learn.cli",
+    "learn.compile",
+    "learn.evaluate",
+    "learn.experiments",
+    "learn.program",
+    "learn.retrieve"
+   ]
+  },
+  {
+   "module": "learn.labels",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "learn.calibrate",
+    "learn.cli",
+    "learn.compile",
+    "learn.evaluate",
+    "learn.examples",
+    "learn.excerpt",
+    "learn.retrieve",
+    "plane.harvest"
+   ]
+  },
+  {
+   "module": "learn.leaks",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "learn.cli"
+   ]
+  },
+  {
+   "module": "learn.program",
+   "classification": "load_bearing",
+   "reason": "learned-decision-engine Req 3.1/3.3: the AI classifier program (signature, Retrieve -> Classify(k), response cache); `ousast learn compile` (task 6.5) and the decide task (task 8) are its callers",
+   "importers": [
+    "learn.cli",
+    "learn.compile",
+    "learn.evaluate",
+    "learn.experiments"
+   ]
+  },
+  {
+   "module": "learn.retrieve",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "learn.evaluate",
+    "learn.program"
+   ]
+  },
+  {
+   "module": "learn.roles",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "learn.features",
+    "plane.tasks.features",
+    "plane.tasks.roles"
+   ]
+  },
+  {
+   "module": "learn.schema",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "learn.compile",
+    "learn.evaluate",
+    "learn.examples",
+    "learn.features",
+    "learn.leaks",
+    "learn.program",
+    "learn.retrieve",
+    "learn.roles",
+    "plane.tasks.remember",
+    "plane.tasks.roles"
+   ]
+  },
+  {
+   "module": "map_gate",
+   "classification": "load_bearing",
+   "reason": "entry point",
+   "importers": []
+  },
+  {
+   "module": "mapping",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "gate",
+    "hunter_tools",
+    "improve.evolve",
+    "learn.features",
+    "map_gate",
+    "model.scan",
+    "pairs",
+    "plane.tasks.alerts",
+    "preprocess",
+    "push.runner"
+   ]
+  },
+  {
+   "module": "mcp",
+   "classification": "standalone_capability",
+   "reason": "narrow MCP server over stdio; its own `ousast mcp` entry point and OpenCode integration",
+   "importers": [
+    "cli"
+   ]
+  },
+  {
+   "module": "model",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "cpg.backend",
+    "cpg.session",
+    "learn.cli",
+    "learn.features",
+    "learn.labels",
+    "model.candidates",
+    "model.config_value",
+    "model.dominance",
+    "model.layout",
+    "model.partitions",
+    "model.pipeline",
+    "model.regions",
+    "model.report",
+    "model.scan",
+    "model.specs",
+    "model.taint",
+    "plane.budget",
+    "plane.generate",
+    "plane.tasks.features",
+    "plane.tasks.repo_facts",
+    "preprocess",
+    "push.assistance",
+    "push.cache",
+    "push.contracts",
+    "push.policy",
+    "push.report",
+    "push.reuse",
+    "push.runner",
+    "push.snapshot",
+    "push.vetoes",
+    "tool_hunter"
+   ]
+  },
+  {
+   "module": "model.audit",
+   "classification": "load_bearing",
+   "reason": "model-grounded-detection Req 3: this classifier; run by the maintainer, not by the scan",
+   "importers": []
+  },
+  {
+   "module": "model.candidates",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "model.scan"
+   ]
+  },
+  {
+   "module": "model.config_value",
+   "classification": "load_bearing",
+   "reason": "model-grounded-detection Req 6.3: constant abstraction for the configuration families",
+   "importers": [
+    "model.pipeline",
+    "model.scan"
+   ]
+  },
+  {
+   "module": "model.contracts",
+   "classification": "load_bearing",
+   "reason": "pre-push-safety-net Req 4.1/7.3: generic deadline, change and exact scope contracts; integration pending",
+   "importers": [
+    "cli",
+    "cpg.backend",
+    "cpg.session",
+    "model.partitions",
+    "model.regions",
+    "model.scan",
+    "push.assistance",
+    "push.cache",
+    "push.contracts",
+    "push.policy",
+    "push.report",
+    "push.reuse",
+    "push.runner",
+    "push.snapshot",
+    "push.vetoes"
+   ]
+  },
+  {
+   "module": "model.dominance",
+   "classification": "load_bearing",
+   "reason": "model-grounded-detection Req 6.2: guard dominance, the arbiter for bugs that never crash",
+   "importers": [
+    "model.pipeline",
+    "model.scan"
+   ]
+  },
+  {
+   "module": "model.endpoint",
+   "classification": "load_bearing",
+   "reason": "model-grounded-detection Req 8: the bounded model client the hunter, the plane and the CLI share",
+   "importers": [
+    "cli",
+    "learn.cli",
+    "plane.budget",
+    "plane.generate",
+    "push.assistance",
+    "tool_hunter"
+   ]
+  },
+  {
+   "module": "model.evidence",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "model.scan"
+   ]
+  },
+  {
+   "module": "model.ladder",
+   "classification": "load_bearing",
+   "reason": "model-grounded-detection Req 5: the evidence ladder every finding carries",
+   "importers": [
+    "model.config_value",
+    "model.dominance",
+    "model.pipeline",
+    "model.scan",
+    "model.taint",
+    "push.policy"
+   ]
+  },
+  {
+   "module": "model.layout",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "model.partitions",
+    "model.scan",
+    "plane.tasks.repo_facts",
+    "preprocess",
+    "push.runner"
+   ]
+  },
+  {
+   "module": "model.partitions",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "model.scan"
+   ]
+  },
+  {
+   "module": "model.pipeline",
+   "classification": "load_bearing",
+   "reason": "model-grounded-detection Req 8: the enumerator proposes, the LLM answers, the model disposes",
+   "importers": [
+    "model.scan",
+    "push.policy"
+   ]
+  },
+  {
+   "module": "model.regions",
+   "classification": "load_bearing",
+   "reason": "contributor-scan Req 2: regions from entry points, with the families each admits",
+   "importers": [
+    "cli",
+    "model.layout",
+    "model.scan",
+    "push.policy",
+    "push.reuse",
+    "push.runner"
+   ]
+  },
+  {
+   "module": "model.report",
+   "classification": "load_bearing",
+   "reason": "model-grounded-detection Req 9.3/11.1: per-slice reporting with the overfitting gap",
+   "importers": [
+    "cli"
+   ]
+  },
+  {
+   "module": "model.scan",
+   "classification": "load_bearing",
+   "reason": "contributor-scan Req 3: the repository driver -- one CPG, one budget, ranked spend",
+   "importers": [
+    "cli",
+    "push.policy",
+    "push.report",
+    "push.runner",
+    "push.vetoes"
+   ]
+  },
+  {
+   "module": "model.shipped",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "push.runner"
+   ]
+  },
+  {
+   "module": "model.specs",
+   "classification": "load_bearing",
+   "reason": "model-grounded-detection Req 7.2-7.4: the security vocabularies the CPG queries are parameterised by",
+   "importers": [
+    "model.config_value",
+    "model.dominance",
+    "model.pipeline",
+    "model.regions",
+    "model.report",
+    "model.scan",
+    "model.taint",
+    "push.policy"
+   ]
+  },
+  {
+   "module": "model.taint",
+   "classification": "load_bearing",
+   "reason": "model-grounded-detection Req 6.1: taint reachability over the CPG, the flow-family arbiter",
+   "importers": [
+    "model.pipeline",
+    "model.scan"
+   ]
+  },
+  {
+   "module": "model.taxonomy",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "learn.features",
+    "learn.labels",
+    "model.candidates",
+    "model.report",
+    "model.scan",
+    "model.specs",
+    "plane.tasks.features"
+   ]
+  },
+  {
+   "module": "pair_gate",
+   "classification": "load_bearing",
+   "reason": "entry point",
+   "importers": [
+    "cli"
+   ]
+  },
+  {
+   "module": "pairs",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "improve",
+    "improve.evolve",
+    "improve.memory",
+    "learn.examples",
+    "learn.labels",
+    "model.candidates",
+    "pair_gate",
+    "plane.harvest",
+    "plane.tasks.loop"
+   ]
+  },
+  {
+   "module": "plane",
+   "classification": "load_bearing",
+   "reason": "ai-service-plane Req 1-4: the service plane package; runner and reconciler integration in tasks 3-4",
+   "importers": [
+    "cli",
+    "improve.memory",
+    "learn.cli",
+    "learn.compile",
+    "learn.embeddings",
+    "learn.examples",
+    "learn.experiments",
+    "learn.program",
+    "plane.egress",
+    "plane.engine_alerts",
+    "plane.generate",
+    "plane.harvest",
+    "plane.memory",
+    "plane.reconciler",
+    "plane.router",
+    "plane.runner",
+    "plane.tasks.loop",
+    "plane.tasks.remember",
+    "plane.tasks.roles",
+    "plane.tasks.verify",
+    "plane.workspaces"
+   ]
+  },
+  {
+   "module": "plane.budget",
+   "classification": "load_bearing",
+   "reason": "ai-service-plane Req 2.3/2.4: metered chat client with usd and calls ceilings; task integration in tasks 3, 6",
+   "importers": [
+    "learn.cli",
+    "learn.compile",
+    "learn.embeddings",
+    "learn.experiments",
+    "learn.program",
+    "plane.generate",
+    "plane.tasks.roles",
+    "plane.tasks.verify"
+   ]
+  },
+  {
+   "module": "plane.doctor",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "plane.reconciler"
+   ]
+  },
+  {
+   "module": "plane.egress",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "plane.reconciler"
+   ]
+  },
+  {
+   "module": "plane.engine_alerts",
+   "classification": "load_bearing",
+   "reason": "harnessx-removal Req 6.3: engine alerts where quick mode has no rules (PHP), on the host",
+   "importers": [
+    "cli"
+   ]
+  },
+  {
+   "module": "plane.generate",
+   "classification": "load_bearing",
+   "reason": "ai-service-plane task 7: an increment's Workspaces, per-case Tasks and Run from a recorded set",
+   "importers": [
+    "cli",
+    "plane.harvest"
+   ]
+  },
+  {
+   "module": "plane.harvest",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli"
+   ]
+  },
+  {
+   "module": "plane.manifests",
+   "classification": "load_bearing",
+   "reason": "ai-service-plane Req 1.1-1.4: ax-shaped Task/Workspace/Model and the Run kind, validated before anything runs",
+   "importers": [
+    "learn.cli",
+    "plane.egress",
+    "plane.generate",
+    "plane.harvest",
+    "plane.reconciler",
+    "plane.router",
+    "plane.runner",
+    "plane.workspaces"
+   ]
+  },
+  {
+   "module": "plane.memory",
+   "classification": "load_bearing",
+   "reason": "harnessx-removal Req 6.1/6.4: the memory store (file, S3), ingest and fact reuse; `ousast plane remember`",
+   "importers": [
+    "cli",
+    "improve.memory",
+    "learn.cli",
+    "learn.compile",
+    "learn.embeddings",
+    "learn.examples",
+    "learn.experiments",
+    "learn.program",
+    "plane.generate",
+    "plane.tasks.loop",
+    "plane.tasks.remember"
+   ]
+  },
+  {
+   "module": "plane.profile",
+   "classification": "load_bearing",
+   "reason": "python -m openultrasast.plane.profile",
+   "importers": []
+  },
+  {
+   "module": "plane.reconciler",
+   "classification": "load_bearing",
+   "reason": "ai-service-plane Req 3.1-3.5, 7.3: ax-backed Run execution, status attribution and doctor; `ousast plane`",
+   "importers": [
+    "cli",
+    "plane.engine_alerts",
+    "plane.generate",
+    "plane.harvest",
+    "plane.memory",
+    "plane.workspaces"
+   ]
+  },
+  {
+   "module": "plane.router",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "plane.reconciler",
+    "plane.runner"
+   ]
+  },
+  {
+   "module": "plane.runner",
+   "classification": "load_bearing",
+   "reason": "ai-service-plane Req 4.1-4.4: the ax-task-runner entrypoint (PID 1 of the task image); delivers the output directory",
+   "importers": []
+  },
+  {
+   "module": "plane.tasks",
+   "classification": "load_bearing",
+   "reason": "ai-service-plane Req 4.1: the task entrypoint package the runner imports by name; runner integration pending (task 3)",
+   "importers": [
+    "cli",
+    "learn.excerpt",
+    "learn.features",
+    "learn.labels",
+    "learn.roles",
+    "plane.engine_alerts",
+    "plane.generate",
+    "plane.harvest",
+    "plane.memory",
+    "plane.tasks.agree",
+    "plane.tasks.alerts",
+    "plane.tasks.features",
+    "plane.tasks.remember",
+    "plane.tasks.roles"
+   ]
+  },
+  {
+   "module": "plane.tasks.agree",
+   "classification": "load_bearing",
+   "reason": "ai-service-plane Req 5.3/2.1: agreement across two verify passes with per-candidate cost, turns and site match",
+   "importers": []
+  },
+  {
+   "module": "plane.tasks.alerts",
+   "classification": "load_bearing",
+   "reason": "harnessx-removal Req 6.3: quick-mode alerts on a case's vulnerable and fixed pins, model-free",
+   "importers": [
+    "learn.features",
+    "plane.engine_alerts",
+    "plane.tasks.features"
+   ]
+  },
+  {
+   "module": "plane.tasks.features",
+   "classification": "load_bearing",
+   "reason": "learned-decision-engine Req 1.1-1.3/7.2: one allow-listed feature record per candidate, model-free",
+   "importers": []
+  },
+  {
+   "module": "plane.tasks.loop",
+   "classification": "load_bearing",
+   "reason": "harnessx-removal Req 6.3: the improvement loop's snapshot, measure, propose and improve steps",
+   "importers": [
+    "plane.memory"
+   ]
+  },
+  {
+   "module": "plane.tasks.remember",
+   "classification": "load_bearing",
+   "reason": "harnessx-removal Req 6.1: a case's delivered artifacts as memory rows, model-free",
+   "importers": [
+    "cli"
+   ]
+  },
+  {
+   "module": "plane.tasks.repo_facts",
+   "classification": "load_bearing",
+   "reason": "ai-service-plane Req 5.1/5.2: source-only functions and callers per file; runner integration pending",
+   "importers": [
+    "learn.excerpt",
+    "learn.features",
+    "learn.labels",
+    "learn.roles",
+    "plane.generate",
+    "plane.harvest",
+    "plane.tasks.alerts",
+    "plane.tasks.features",
+    "plane.tasks.remember",
+    "plane.tasks.roles"
+   ]
+  },
+  {
+   "module": "plane.tasks.roles",
+   "classification": "load_bearing",
+   "reason": "learned-decision-engine Req 8.1: model role classification per file chunk (model_sinks.py moved in); its Run template comes with the harvest (task 5)",
+   "importers": [
+    "plane.harvest"
+   ]
+  },
+  {
+   "module": "plane.tasks.verify",
+   "classification": "load_bearing",
+   "reason": "ai-service-plane Req 5.3/2.1-2.3/7.2: the batched hunt with known callers, metered and resumable per file hunt",
+   "importers": [
+    "plane.generate",
+    "plane.harvest",
+    "plane.tasks.agree",
+    "plane.tasks.roles"
+   ]
+  },
+  {
+   "module": "plane.workspaces",
+   "classification": "load_bearing",
+   "reason": "ai-service-plane task 4: Workspace manifests per case pin of a population; `ousast plane workspaces`",
+   "importers": [
+    "cli"
+   ]
+  },
+  {
+   "module": "policy",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "findings",
+    "hunter",
+    "improve.evolve",
+    "improve.validator",
+    "plane.tasks.loop",
+    "scoring.project_score",
+    "semantic.overlay"
+   ]
+  },
+  {
+   "module": "policy.verycode",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "policy"
+   ]
+  },
+  {
+   "module": "preprocess",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "complexity.hints",
+    "complexity.map",
+    "complexity.signals",
+    "findings",
+    "gate",
+    "hunter",
+    "hunter_tools",
+    "improve.evolve",
+    "index",
+    "learn.features",
+    "learn.labels",
+    "learn.roles",
+    "map_gate",
+    "mapping",
+    "model.candidates",
+    "model.partitions",
+    "model.scan",
+    "pairs",
+    "plane.harvest",
+    "plane.tasks.alerts",
+    "plane.tasks.features",
+    "plane.tasks.repo_facts",
+    "push.runner",
+    "rank",
+    "regress.candidate",
+    "semantic.overlay",
+    "skills"
+   ]
+  },
+  {
+   "module": "profiling",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli"
+   ]
+  },
+  {
+   "module": "provenance",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli"
+   ]
+  },
+  {
+   "module": "provider",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "learn.cli",
+    "learn.compile",
+    "learn.program",
+    "model.endpoint",
+    "tool_hunter"
+   ]
+  },
+  {
+   "module": "provider.openrouter",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "learn.cli",
+    "learn.compile",
+    "learn.program",
+    "model.endpoint",
+    "tool_hunter"
+   ]
+  },
+  {
+   "module": "push",
+   "classification": "load_bearing",
+   "reason": "pre-push-safety-net Req 5.5/7.3: experimental push contract package; no hook installed",
+   "importers": [
+    "cli",
+    "push.assistance",
+    "push.eligibility",
+    "push.policy",
+    "push.report",
+    "push.reuse",
+    "push.runner",
+    "push.snapshot",
+    "push.vetoes"
+   ]
+  },
+  {
+   "module": "push.assistance",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "push.runner"
+   ]
+  },
+  {
+   "module": "push.cache",
+   "classification": "load_bearing",
+   "reason": "pre-push-safety-net task 6.2: bounded artifact publication and leased eviction; runner integration in 6.4",
+   "importers": [
+    "push.policy",
+    "push.reuse",
+    "push.runner"
+   ]
+  },
+  {
+   "module": "push.contracts",
+   "classification": "load_bearing",
+   "reason": "pre-push-safety-net Req 5.5/7.3: immutable comparisons and independent result statuses; runner pending",
+   "importers": [
+    "push.policy",
+    "push.report",
+    "push.reuse",
+    "push.runner",
+    "push.snapshot",
+    "push.vetoes"
+   ]
+  },
+  {
+   "module": "push.eligibility",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "push.runner"
+   ]
+  },
+  {
+   "module": "push.policy",
+   "classification": "load_bearing",
+   "reason": "pre-push-safety-net Req 2.4/3.1/3.4/4.1: targeted same-semantics base comparison; replay integration pending",
+   "importers": [
+    "push.eligibility",
+    "push.report",
+    "push.runner",
+    "push.vetoes"
+   ]
+  },
+  {
+   "module": "push.report",
+   "classification": "load_bearing",
+   "reason": "pre-push-safety-net Req 5.1/5.2/5.5/7.3: compact output and complete artifacts; runner integration pending",
+   "importers": [
+    "push.assistance",
+    "push.runner"
+   ]
+  },
+  {
+   "module": "push.reuse",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "push.runner"
+   ]
+  },
+  {
+   "module": "push.runner",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "push.assistance"
+   ]
+  },
+  {
+   "module": "push.snapshot",
+   "classification": "load_bearing",
+   "reason": "pre-push-safety-net Req 1.1/1.3/1.4/7.1: local immutable ref resolution; runner integration pending",
+   "importers": [
+    "push.runner"
+   ]
+  },
+  {
+   "module": "push.vetoes",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "push.runner"
+   ]
+  },
+  {
+   "module": "push_inputs",
+   "classification": "standalone_capability",
+   "reason": "pre-push-safety-net task 1.2: offline input provenance validator; python -m openultrasast.push_inputs",
+   "importers": []
+  },
+  {
+   "module": "push_scoring",
+   "classification": "standalone_capability",
+   "reason": "pre-push-safety-net task 1.3: frozen-profile diagnostic outcome scorer; python -m openultrasast.push_scoring",
+   "importers": [
+    "push.eligibility"
+   ]
+  },
+  {
+   "module": "rank",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "calibration",
+    "cli",
+    "findings",
+    "gate",
+    "hunter",
+    "hunter_tools",
+    "improve.evolve",
+    "map_gate",
+    "pairs",
+    "plane.tasks.alerts"
+   ]
+  },
+  {
+   "module": "redaction",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "harness",
+    "model.pipeline",
+    "push.assistance",
+    "push.report",
+    "reports",
+    "semantic.obligations.intent"
+   ]
+  },
+  {
+   "module": "regress",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "regress.candidate"
+   ]
+  },
+  {
+   "module": "regress.candidate",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "regress"
+   ]
+  },
+  {
+   "module": "regress.recipes",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "regress",
+    "regress.candidate"
+   ]
+  },
+  {
+   "module": "regress.safety",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "regress",
+    "regress.candidate"
+   ]
+  },
+  {
+   "module": "regress.verdict",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "regress",
+    "regress.candidate"
+   ]
+  },
+  {
+   "module": "reports",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli"
+   ]
+  },
+  {
+   "module": "repos",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "push_inputs"
+   ]
+  },
+  {
+   "module": "ruleset",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "findings",
+    "hunter",
+    "improve.evolve",
+    "improve.memory",
+    "improve.validator",
+    "learn.features",
+    "learn.labels",
+    "learn.roles",
+    "pairs",
+    "plane.tasks.alerts",
+    "plane.tasks.features",
+    "plane.tasks.loop",
+    "ruleset.store",
+    "semantic.facts"
+   ]
+  },
+  {
+   "module": "ruleset.frameworks",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "learn.labels",
+    "learn.roles",
+    "ruleset.store",
+    "semantic.facts"
+   ]
+  },
+  {
+   "module": "ruleset.store",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "improve.validator",
+    "ruleset"
+   ]
+  },
+  {
+   "module": "run",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "reports"
+   ]
+  },
+  {
+   "module": "sandbox",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "regress.candidate",
+    "regress.recipes",
+    "regress.safety",
+    "regress.verdict"
+   ]
+  },
+  {
+   "module": "sandbox.probe",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "sandbox"
+   ]
+  },
+  {
+   "module": "sandbox.runner",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "regress.candidate",
+    "regress.recipes",
+    "regress.safety",
+    "sandbox"
+   ]
+  },
+  {
+   "module": "scoring",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "improve.evolve"
+   ]
+  },
+  {
+   "module": "scoring.project_score",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "scoring"
+   ]
+  },
+  {
+   "module": "semantic",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "cpg.capability",
+    "hunter_tools",
+    "learn.features",
+    "learn.roles",
+    "mapping",
+    "model.candidates",
+    "model.layout",
+    "model.scan",
+    "model.specs",
+    "pairs",
+    "semantic.cst",
+    "semantic.engines",
+    "semantic.functions",
+    "semantic.ir",
+    "semantic.obligations.check",
+    "semantic.obligations.facts",
+    "semantic.obligations.operations",
+    "semantic.obligations.shapes",
+    "semantic.overlay",
+    "semantic.prove_filter",
+    "semantic.taint"
+   ]
+  },
+  {
+   "module": "semantic.cst",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "semantic.ir"
+   ]
+  },
+  {
+   "module": "semantic.engines",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cpg.capability",
+    "semantic",
+    "semantic.overlay"
+   ]
+  },
+  {
+   "module": "semantic.extra",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "semantic",
+    "semantic.cst",
+    "semantic.engines"
+   ]
+  },
+  {
+   "module": "semantic.facts",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "hunter_tools",
+    "learn.features",
+    "learn.roles",
+    "mapping",
+    "model.candidates",
+    "model.layout",
+    "model.scan",
+    "model.specs",
+    "pairs",
+    "semantic",
+    "semantic.obligations.check",
+    "semantic.obligations.facts",
+    "semantic.obligations.operations",
+    "semantic.obligations.shapes",
+    "semantic.overlay",
+    "semantic.taint"
+   ]
+  },
+  {
+   "module": "semantic.functions",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "hunter_tools",
+    "pairs",
+    "semantic.obligations.shapes",
+    "semantic.overlay"
+   ]
+  },
+  {
+   "module": "semantic.ir",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "hunter_tools",
+    "model.candidates",
+    "pairs",
+    "semantic.cst",
+    "semantic.functions",
+    "semantic.obligations.check",
+    "semantic.obligations.operations",
+    "semantic.obligations.shapes",
+    "semantic.overlay",
+    "semantic.taint"
+   ]
+  },
+  {
+   "module": "semantic.obligations",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "hunter_tools",
+    "model.candidates",
+    "model.specs",
+    "pairs",
+    "semantic.obligations.check",
+    "semantic.obligations.dominance",
+    "semantic.obligations.intent",
+    "semantic.obligations.operations",
+    "semantic.obligations.policy",
+    "semantic.obligations.shapes",
+    "semantic.obligations.siblings"
+   ]
+  },
+  {
+   "module": "semantic.obligations.check",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "semantic.obligations",
+    "semantic.obligations.intent"
+   ]
+  },
+  {
+   "module": "semantic.obligations.dominance",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "hunter_tools",
+    "pairs",
+    "semantic.obligations.check"
+   ]
+  },
+  {
+   "module": "semantic.obligations.facts",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "model.specs",
+    "pairs",
+    "semantic.obligations",
+    "semantic.obligations.check",
+    "semantic.obligations.operations",
+    "semantic.obligations.policy",
+    "semantic.obligations.shapes",
+    "semantic.obligations.siblings"
+   ]
+  },
+  {
+   "module": "semantic.obligations.intent",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli"
+   ]
+  },
+  {
+   "module": "semantic.obligations.operations",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "model.candidates",
+    "semantic.obligations.check",
+    "semantic.obligations.dominance",
+    "semantic.obligations.siblings"
+   ]
+  },
+  {
+   "module": "semantic.obligations.policy",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "semantic.obligations.check"
+   ]
+  },
+  {
+   "module": "semantic.obligations.shapes",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "semantic.obligations",
+    "semantic.obligations.operations"
+   ]
+  },
+  {
+   "module": "semantic.obligations.siblings",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "semantic.obligations.check"
+   ]
+  },
+  {
+   "module": "semantic.overlay",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "semantic",
+    "semantic.prove_filter"
+   ]
+  },
+  {
+   "module": "semantic.prove_filter",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "semantic"
+   ]
+  },
+  {
+   "module": "semantic.taint",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "semantic.overlay"
+   ]
+  },
+  {
+   "module": "skills",
+   "classification": "standalone_capability",
+   "reason": "skill router; consumed by mcp and by the OpenCode integration, not by the scan path",
+   "importers": [
+    "hunter"
+   ]
+  },
+  {
+   "module": "stages",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli"
+   ]
+  },
+  {
+   "module": "tool_hunter",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "cli",
+    "model.endpoint",
+    "plane.budget",
+    "plane.tasks.roles",
+    "plane.tasks.verify"
+   ]
+  },
+  {
+   "module": "verification",
+   "classification": "load_bearing",
+   "reason": "reachable from gate, map_gate, pair_gate, cli",
+   "importers": [
+    "calibration",
+    "cli",
+    "fusion",
+    "reports"
+   ]
+  }
+ ]
 }
