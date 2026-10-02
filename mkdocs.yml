@@ -52,6 +52,7 @@ nav:
   - How it works:
       - Where we stand: where-we-stand.md
       - Scanning: scanning.md
+      - Detection techniques: detection-techniques.md
       - Architecture: architecture.md
       - The plane on ax: plane.md
       - Memory: memory.md
