@@ -5,7 +5,7 @@ repositories it has never seen: it scans a checkout, or the commits a `git push`
 and separates what it can prove from what it merely suspects. A scan that could not look at
 something records a degradation instead of reporting a clean result.
 
-**State as of 2026-10-02 (v1.2.0-alpha.1):** the pre-push safety net is **NO-GO** for rollout.
+**State as of 2026-10-02 (v2.0.0):** the pre-push safety net is **NO-GO** for rollout.
 No hook capability is enabled, and no independent population has passed the qualification gates
 (see [Evaluation](evaluation.md)).
 

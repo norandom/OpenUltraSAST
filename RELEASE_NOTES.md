@@ -1,4 +1,33 @@
-# Unreleased
+# v2.0.0 (2026-10-02)
+
+A new major release: the agentic plane runs on google/ax, HarnessX is gone, detection decisions move
+toward a trained-by-memory AI classifier, and the plane memory lives in an S3-compatible store.
+
+- **Agentic plane on ax** (`ousast plane run|status|doctor|workspaces|remember|alerts-engine|harvest`): tasks
+  run in gVisor sandboxes on Agent Substrate; one Model and one budget per task; token attribution per task
+  and model; credentials only in the start request; per-task egress policies. First increment measured:
+  16/20 declared sites agreed at $0.0205 per candidate (`benchmarks/independent/plane-increment-2.json`).
+- **HarnessX removed.** Retired config keys fail with a reason; `[harnessx]` warns. Deterministic outputs
+  proven byte-identical (`benchmarks/measurements/2026-09-30-harnessx-removal-equality/`).
+- **Memory store** (`OUSAST_MEMORY`): local files or any S3-compatible store with versioning, lifecycle,
+  tags and S3 Select; RustFS is the tested server (`docs/rustfs.md`). The store verifies its bucket at
+  startup and never falls back; every row carries its kind's queryable fields. New extra `s3` (boto3).
+- **Decision engine (in development, not adopted):** an in-house DSPy-style AI classifier with local
+  memory; labels from ground truth; repository-grouped evaluation. Slice 2 on six families: out-of-repo
+  AUC 0.77-0.96 (within-pair 0.72-0.93); BLOCK not offered anywhere; see
+  `benchmarks/measurements/2026-10-02-decision-engine-slice-2/record.json` and `docs/memory-and-detection.md`.
+- **Improvement from memory:** `ousast improve --memory`; the loop as a plane Run.
+- **PHP quick-mode rules** (in-sample measurement only) beside the Joern engine; framework knowledge
+  tagged as optional priors (`ruleset/frameworks.toml`).
+- **Populations:** v3 (PHP, 15 cases) frozen and untouched as the one-time final check; 97 advisory-fix
+  pairs added for negatives; licences of published cases verified (v1's OpenCVE case is BUSL-1.1).
+- **Removed legacy:** dead modules (`model.judge`, `model.execution`, `model.calibrate`,
+  `stage_processors`, `slot_contract`); unread config keys `[dynamic]`, `[evidence]`, `[variants]`,
+  `[models] patcher` retired (`resolved_config.json` loses those sections); reference-only scripts under
+  `benchmarks/archive/`; the module audit now classifies by real imports.
+- **Docs:** MkDocs site (`mkdocs serve`), including token ergonomics and the RustFS setup.
+
+Detailed notes for this release follow.
 
 ## PHP quick-mode rules (2026-09-30)
 

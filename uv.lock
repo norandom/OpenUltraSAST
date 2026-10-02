@@ -1024,7 +1024,7 @@ wheels = [
 
 [[package]]
 name = "openultrasast"
-version = "1.2.0a1"
+version = "2.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "pyyaml" },

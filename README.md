@@ -1,6 +1,6 @@
 # OpenUltraSAST
 
-**v1.2.0-alpha.1 (Python package `1.2.0a1`), state as of 2026-10-02.** An experimental static
+**v2.0.0 (Python package `2.0.0`), state as of 2026-10-02.** An experimental static
 security analyser. The pre-push safety net is **NO-GO** for rollout: no hook capability is
 enabled and no independent population has passed the qualification gates (see
 [docs/evaluation.md](docs/evaluation.md)). See the [release notes](RELEASE_NOTES.md).
