@@ -47,6 +47,8 @@ class PushReport:
     experimental: Mapping[str, object] = field(default_factory=dict)
     # The quick-rule tier (task 17.3): one payload per comparison it ran for; advisory only.
     quick: tuple[Mapping[str, object], ...] = ()
+    # The background engine (task 17.5): what this run started, and earlier results shown now.
+    background: Mapping[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "model_assistance", MappingProxyType(dict(self.model_assistance)))
@@ -137,6 +139,7 @@ def _write_artifact(report: PushReport, target: Path, temporary: Path, connectio
                     "resolution": report.resolution.to_payload() if report.resolution else None,
                     "experimental": dict(report.experimental),
                     "quick_tier": [dict(item) for item in report.quick],
+                    "engine_background": dict(report.background),
                 }
                 json.dump(payload, stream, ensure_ascii=True, allow_nan=False, indent=2)
                 stream.write("\n")
@@ -222,7 +225,7 @@ def _experimental_line(experimental: Mapping[str, object]) -> str:
 # Vetoes that say only "this capability is not qualified yet". A candidate whose novelty is established
 # and whose only vetoes are these is shown as an advisory engine finding (task 17.4, Requirement 9.4);
 # any comparison, evidence or location veto keeps it out of the terminal.
-_CAPABILITY_VETOES = frozenset(
+CAPABILITY_VETOES = frozenset(
     {
         "capability_unavailable",
         "capability_disabled",
@@ -243,7 +246,7 @@ def _advisory_engine_lines(report: PushReport) -> list[str]:
         if (
             disposition.admitted
             or delta.novelty not in ("new", "worsened")
-            or not set(disposition.reasons) <= _CAPABILITY_VETOES
+            or not set(disposition.reasons) <= CAPABILITY_VETOES
             or op is None
             or delta.witness is None
             or delta.defect_id in shown
@@ -261,6 +264,46 @@ def _advisory_engine_lines(report: PushReport) -> list[str]:
     if len(shown) > 3:
         lines.append(f"{len(shown) - 3} more advisory engine findings retained in the detailed result.")
     return lines
+
+
+def _previous_engine_lines(background: Mapping[str, object]) -> list[str]:
+    """Background engine results from an earlier push, shown once (task 17.5)."""
+    lines: list[str] = []
+    earlier = background.get("previous")
+    for item in earlier if isinstance(earlier, list) else []:
+        if not isinstance(item, Mapping):
+            continue
+        advisory = item.get("advisory")
+        found = [a for a in advisory if isinstance(a, Mapping)] if isinstance(advisory, list) else []
+        state = (
+            "the engine did not run (Joern unavailable)"
+            if not item.get("engine_ran")
+            else f"{item.get('alerts', 0)} alert(s), {len(found)} advisory engine finding(s), coverage {item.get('coverage')}"
+            + ("" if item.get("finished") else ", did not finish within its deadline")
+        )
+        head = str(item.get("head", ""))[:12]
+        lines.append(f"Engine result for {_short(head)} from the previous push: {_short(state, 300)}.")
+        for entry in found[:3]:
+            lines.append(f"- {_short(str(entry.get('family')))} at {_short(str(entry.get('path')), 4096)}:{entry.get('line')}")
+        lines.append("  Details: " + _short(str(item.get("artifact", "")), 4096))
+    return lines
+
+
+def _background_lines(background: Mapping[str, object]) -> list[str]:
+    status = background.get("status")
+    head = _short(str(background.get("head", ""))[:12])
+    if status == "started":
+        return [
+            f"Engine: running in the background for {head} (deadline {background.get('deadline_seconds')} s); "
+            "the next push shows its result."
+        ]
+    if status == "busy":
+        return [f"Engine: a background engine run for {head} is still busy, so none was started for this push."]
+    if status == "failed":
+        return [f"Engine: the background run could not be started ({_short(str(background.get('reason')))})."]
+    if status == "not_started":
+        return [f"Engine: no background run was started ({_short(str(background.get('reason')))})."]
+    return []
 
 
 # Quick-rule matches shown per comparison; the artifact keeps every one.
@@ -329,6 +372,7 @@ def render_report(report: PushReport, *, artifact: Path | None, error: str | Non
         )
     if len(defects) > 3:
         lines.append(f"{len(defects) - 3} more actionable defects retained in the detailed result.")
+    lines.extend(_previous_engine_lines(report.background))
     lines.extend(_advisory_engine_lines(report))
     for payload in report.quick:
         lines.extend(_quick_lines(payload))
@@ -364,6 +408,7 @@ def render_report(report: PushReport, *, artifact: Path | None, error: str | Non
         notices.append("Details could not be saved. Choose an artifact path outside the analyzed repository.")
     elif error:
         notices.append("Details could not be saved. Retry with a writable artifact path and available reporting time.")
+    lines.extend(_background_lines(report.background))
     if notices:
         lines.append("Notice: " + " ".join(notices))
     if report.experimental:

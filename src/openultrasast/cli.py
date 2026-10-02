@@ -155,6 +155,19 @@ def _main(argv: list[str] | None) -> int:
     replay_parser.add_argument("--mode", choices=("advisory", "blocking"), default="advisory")
     replay_parser.add_argument("--incomplete-coverage", choices=("allow", "block"), default="allow")
     replay_parser.add_argument(
+        "--engine",
+        choices=("inline", "background", "off"),
+        default="inline",
+        help="inline (default): run the Joern engine inside the deadline; background: return after the quick rules and "
+        "run the engine detached, showing its result on the next run; off: quick rules only",
+    )
+    replay_parser.add_argument(
+        "--background-deadline",
+        type=float,
+        default=900.0,
+        help="seconds the detached engine run of --engine background may take (default 900)",
+    )
+    replay_parser.add_argument(
         "--experimental-declarations",
         type=Path,
         help="explicit --base/--head replay only: unreviewed capability declarations used to render the experimental "
@@ -459,6 +472,8 @@ def _pre_push(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
                 head=args.head,
                 record_vetoes=args.experimental_record_vetoes,
                 declarations=args.experimental_declarations,
+                engine=args.engine,
+                background_deadline=args.background_deadline,
                 **options,
             )
         else:
@@ -481,7 +496,15 @@ def _pre_push(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
                 def updates() -> str:
                     return (prior_data if prior_data is not None else stream.read(1024 * 1024 + 1)).decode("utf-8")
 
-                delivery = push(args.path, updates=updates, remote_name=args.remote[0], remote_url=args.remote[1], **options)
+                delivery = push(
+                    args.path,
+                    updates=updates,
+                    remote_name=args.remote[0],
+                    remote_url=args.remote[1],
+                    engine=args.engine,
+                    background_deadline=args.background_deadline,
+                    **options,
+                )
     except ValueError as error:
         parser.error(str(error))
     print(delivery.text, end="", flush=True)

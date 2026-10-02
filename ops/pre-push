@@ -19,7 +19,8 @@ remote_url=$2
 set -- pre-push . --artifact "$artifact_dir/push-$$.json" \
     --deadline "${OUSAST_PUSH_DEADLINE:-30}" \
     --mode "${OUSAST_PUSH_MODE:-advisory}" \
-    --incomplete-coverage "${OUSAST_INCOMPLETE_COVERAGE:-allow}"
+    --incomplete-coverage "${OUSAST_INCOMPLETE_COVERAGE:-allow}" \
+    --engine "${OUSAST_PUSH_ENGINE:-inline}"
 if [ -n "${OUSAST_COMPARISON_BASE:-}" ]; then
     set -- "$@" --comparison-base "$OUSAST_COMPARISON_BASE"
 fi

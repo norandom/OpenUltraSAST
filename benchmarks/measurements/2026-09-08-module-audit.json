@@ -1,7 +1,7 @@
 {
-  "modules": 153,
+  "modules": 154,
   "counts": {
-    "load_bearing": 148,
+    "load_bearing": 149,
     "standalone_capability": 5
   },
   "orphaned": [],
@@ -1196,6 +1196,7 @@
       "importers": [
         "cli",
         "push.assistance",
+        "push.background",
         "push.eligibility",
         "push.policy",
         "push.report",
@@ -1207,6 +1208,14 @@
     },
     {
       "module": "push.assistance",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate, cli",
+      "importers": [
+        "push.runner"
+      ]
+    },
+    {
+      "module": "push.background",
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate, cli",
       "importers": [
@@ -1278,6 +1287,7 @@
       "reason": "pre-push-safety-net Req 5.1/5.2/5.5/7.3: compact output and complete artifacts; runner integration pending",
       "importers": [
         "push.assistance",
+        "push.background",
         "push.runner"
       ]
     },

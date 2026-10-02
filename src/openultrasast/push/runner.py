@@ -268,7 +268,7 @@ def _analyze(
     resolved: PushComparison | None = None,
     record_vetoes: bool = False,
     declarations: Path | None = None,
-    engine: Literal["inline", "off"] = "inline",
+    engine: Literal["inline", "off", "background"] = "inline",
     quick_basis: Basis = "comparison",
 ) -> PushReport:
     """Run a single explicit comparison; exit policy never stands for coverage.
@@ -390,8 +390,8 @@ def _analyze(
                     quick = QuickTierResult("failed", quick_basis, reason=type(error).__name__)
                     reasons.append("quick_rules_failed:" + type(error).__name__)
                 stage_started = _stage(timings, stage, stage_started)
-                if engine == "off":
-                    reasons.append("engine_off")
+                if engine != "inline":
+                    reasons.append("engine_" + engine)
                 if engine == "inline":
                     stage = "head"
                     head_scan = scan_repository(
@@ -523,6 +523,40 @@ def _last_commit_quick(
     )
 
 
+def _background(
+    repository: Path,
+    pending: Sequence[tuple[str | None, str]],
+    artifact: Path,
+    deadline: float,
+    max_regions: int,
+    cache_dir: Path | None,
+) -> dict[str, object]:
+    """Earlier background results to show, and at most one new background engine run (task 17.5)."""
+    from openultrasast.push import background
+
+    state: dict[str, object] = {"previous": background.previous(artifact, repository)}
+    ready = [(base, head) for base, head in pending if base is not None]
+    if ready:
+        base, head = ready[0]
+        assert base is not None
+        state.update(
+            background.start(
+                repository,
+                base=base,
+                head=head,
+                artifact=artifact,
+                deadline_seconds=deadline,
+                max_regions=max_regions,
+                cache_dir=cache_dir,
+            )
+        )
+        if len(ready) > 1:
+            state["not_started"] = [h for _, h in ready[1:]]  # one engine at a time
+    elif pending:
+        state.update(status="not_started", reason="no base revision to compare against")
+    return state
+
+
 def _deliver(repository: Path, report: PushReport, artifact: Path, budget: ExecutionBudget) -> ReportDelivery:
     if artifact.resolve().is_relative_to(repository.resolve()):
         error = "artifact_inside_repository"
@@ -543,6 +577,8 @@ def replay(
     model_config: Path | None = None,
     record_vetoes: bool = False,
     declarations: Path | None = None,
+    engine: Literal["inline", "off", "background"] = "inline",
+    background_deadline: float = 900.0,
 ) -> ReportDelivery:
     config = config or PushConfig()
     if declarations is not None and not record_vetoes:
@@ -560,7 +596,10 @@ def replay(
         execution_budget=budget,
         record_vetoes=record_vetoes,
         declarations=declarations,
+        engine=engine,
     )
+    pending = [(base, head)] if engine == "background" else []
+    report = replace(report, background=_background(repository, pending, artifact, background_deadline, max_regions, cache_dir))
     from openultrasast.push.assistance import assist
 
     report = assist(report, config=model_config, budget=budget)
@@ -580,6 +619,8 @@ def push(
     cache_dir: Path | None = None,
     model_config: Path | None = None,
     execution_budget: ExecutionBudget | None = None,
+    engine: Literal["inline", "off", "background"] = "inline",
+    background_deadline: float = 900.0,
 ) -> ReportDelivery:
     """Consume one Git transaction. Resolution, every comparison and reporting share a deadline."""
     config = config or PushConfig()
@@ -623,6 +664,7 @@ def push(
                 cache_dir=cache_dir,
                 execution_budget=budget,
                 resolved=comparison,
+                engine=engine,
             )
             reports.append(report)
             analyses.extend(report.result.analyses)
@@ -674,6 +716,16 @@ def push(
         snapshots=tuple(s for r in reports for s in r.snapshots),
         change_contexts=tuple(r.change_context for r in reports if r.change_context is not None),
         quick=tuple(q for r in (*reports, *fallbacks) for q in r.quick),
+        background=_background(
+            repository,
+            [(r.change_context.base_revision, r.change_context.head_revision) for r in reports if r.change_context]
+            if engine == "background"
+            else [],
+            artifact,
+            background_deadline,
+            max_regions,
+            cache_dir,
+        ),
     )
     from openultrasast.push.assistance import assist
 

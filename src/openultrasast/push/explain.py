@@ -58,6 +58,7 @@ GLOSSARY: dict[str, str] = {
     "regions_truncated": "only the highest-ranked regions were examined (--max-regions)",
     "files_unparsed": "some files could not be parsed by the engine",
     "engine_off": "engine checks were switched off for this run (--engine off)",
+    "engine_background": "engine checks run in the background after this push; the next push shows their result",
     "cross_partition_semantics_unresolved": "flows between languages in this repository are not followed",
     "resolution": "the pushed ref could not be resolved ({detail})",
     "push_input_failed": "the push input could not be read ({detail})",
