@@ -25,7 +25,6 @@ def test_load_config_reads_toml(tmp_path: Path) -> None:
     config = load_config(config_path)
 
     assert config.models.ranker == "openrouter/test-ranker"
-    assert config.embeddings.store == "json-local"
     assert config.sandbox.memory_mb == 1024
 
 
@@ -74,6 +73,8 @@ def test_retired_llm_keys_fail_naming_the_replacement(tmp_path: Path, body: str,
         ('[evidence]\nminimum_patch = "root_cause_explained"\n', "`[evidence] minimum_patch`"),
         ("[variants]\nenabled = false\n", "`[variants] enabled`"),
         ("[variants]\nmax_mechanisms = 10\n", "`[variants] max_mechanisms`"),
+        ('[embeddings]\nmodel = "openai/text-embedding-3-small"\n', "`[embeddings] model`"),
+        ('[embeddings]\nstore = "json-local"\n', "`[embeddings] store`"),
     ],
 )
 def test_unread_keys_fail_naming_why(tmp_path: Path, body: str, key: str) -> None:
@@ -140,7 +141,7 @@ def test_write_resolved_config_creates_json(tmp_path: Path) -> None:
     payload = json.loads(output.read_text())
     assert payload["sandbox"]["memory_mb"] == 2048
     # retired 2026-10-02 (never read): the unread sections are not echoed as if they configured something
-    assert not {"dynamic", "evidence", "variants"} & set(payload) and "patcher" not in payload["models"]
+    assert not {"dynamic", "evidence", "variants", "embeddings"} & set(payload) and "patcher" not in payload["models"]
 
 
 def test_complexity_and_regress_defaults_when_section_absent() -> None:
@@ -208,17 +209,11 @@ def test_load_config_reads_regress_image_pins(tmp_path: Path) -> None:
 
 def test_load_dotenv_sets_missing_keys_only(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     env_file = tmp_path / ".env"
-    env_file.write_text("OPENROUTER_API_KEY=from-file\nOPENROUTER_EMBEDDING_MODEL=openai/text-embedding-3-small\n")
+    env_file.write_text("OPENROUTER_API_KEY=from-file\nS3_REGION=us-east-1\n")
     monkeypatch.setenv("OPENROUTER_API_KEY", "already-set")
-    monkeypatch.delenv("OPENROUTER_EMBEDDING_MODEL", raising=False)
+    monkeypatch.delenv("S3_REGION", raising=False)
 
     load_dotenv(env_file, force=True)
 
     assert os.environ["OPENROUTER_API_KEY"] == "already-set"
-    assert os.environ["OPENROUTER_EMBEDDING_MODEL"] == "openai/text-embedding-3-small"
-
-
-def test_embeddings_model_from_env(monkeypatch) -> None:  # type: ignore[no-untyped-def]
-    monkeypatch.setenv("OPENROUTER_EMBEDDING_MODEL", "openai/text-embedding-3-small")
-    config = load_config(None)
-    assert config.embeddings.model == "openai/text-embedding-3-small"
+    assert os.environ["S3_REGION"] == "us-east-1"

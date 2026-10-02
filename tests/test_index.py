@@ -1,80 +1,9 @@
-import json
-from pathlib import Path
-
 import pytest
 
-from openultrasast.index import (
-    CodeChunk,
-    build_code_chunks,
-    build_retrieval_package,
-    build_vector_index,
-    chunk_text_namespace,
-    index_reuse_key,
-    query_vector_index,
-    read_vector_index,
-    write_vector_index,
-)
-from openultrasast.preprocess import RepoSnapshot, preprocess_repository
+from openultrasast.index import chunk_text_namespace
 
 
-class FakeEmbeddingClient:
-    def embed(self, *, model: str, inputs: list[str], timeout_seconds: int = 60) -> list[list[float]]:
-        return [[float(len(text)), 1.0] for text in inputs]
-
-
-def test_build_code_chunks_preserves_metadata_filters(tmp_path: Path) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    (repo / "app.py").write_text("def login(user):\n    return user\n")
-    _, targets = preprocess_repository(repo)
-
-    chunks = build_code_chunks(repo, targets, max_lines=1)
-
-    assert len(chunks) == 2
-    assert chunks[0].metadata["path"] == "app.py"
-    assert chunks[0].metadata["language"] == "python"
-    assert chunks[0].start_line == 1
-
-
-def test_json_vector_index_round_trips_and_filters(tmp_path: Path) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    (repo / "app.py").write_text("def login(user):\n    return user\n")
-    snapshot, targets = preprocess_repository(repo)
-    chunks = build_code_chunks(repo, targets)
-    index = build_vector_index(snapshot=snapshot, chunks=chunks, embedding_model="openrouter/embed", client=FakeEmbeddingClient())
-    output = tmp_path / "index.json"
-
-    write_vector_index(index, output)
-    loaded = read_vector_index(output)
-    matches = query_vector_index(loaded, [20.0, 1.0], metadata_filter={"language": "python"})
-
-    assert loaded.embedding_model == "openrouter/embed"
-    assert matches[0][1].path == "app.py"
-    assert json.loads(output.read_text())["store"] == "json-local"
-
-
-def test_vector_index_rejects_embedding_count_mismatch() -> None:
-    class EmptyEmbeddingClient:
-        def embed(self, *, model: str, inputs: list[str], timeout_seconds: int = 60) -> list[list[float]]:
-            return []
-
-    chunk = CodeChunk(
-        chunk_id="chunk-1",
-        namespace="repo_code",
-        path="app.py",
-        language="python",
-        start_line=1,
-        end_line=1,
-        text="print('x')",
-        metadata={"path": "app.py", "language": "python"},
-    )
-    snapshot = RepoSnapshot(root="/repo", commit=None, file_count=0, languages={})
-    with pytest.raises(ValueError):
-        build_vector_index(snapshot=snapshot, chunks=[chunk], embedding_model="model", client=EmptyEmbeddingClient())
-
-
-def test_namespace_chunks_and_reuse_key_are_metadata_scoped() -> None:
+def test_namespace_chunks_are_metadata_scoped() -> None:
     chunks = chunk_text_namespace(
         namespace="skills",
         path="semgrep.md",
@@ -82,21 +11,23 @@ def test_namespace_chunks_and_reuse_key_are_metadata_scoped() -> None:
         metadata={"language": "markdown", "vulnerability_class": "mapping"},
         max_lines=1,
     )
-    snapshot = RepoSnapshot(root="/repo", commit="abc", file_count=1, languages={"python": 1})
 
     assert len(chunks) == 2
     assert chunks[0].namespace == "skills"
+    assert chunks[0].language == "markdown"
     assert chunks[0].metadata["vulnerability_class"] == "mapping"
-    assert index_reuse_key(snapshot, "embed-a") != index_reuse_key(snapshot, "embed-b")
+    assert (chunks[0].start_line, chunks[0].end_line) == (1, 1)
+    assert chunks[0].chunk_id != chunks[1].chunk_id
 
 
-def test_retrieval_package_is_bounded_by_character_budget() -> None:
-    chunks = chunk_text_namespace(namespace="docs", path="README.md", text="alpha\n" + "beta" * 100, max_lines=1)
-    snapshot = RepoSnapshot(root="/repo", commit=None, file_count=1, languages={"markdown": 1})
-    index = build_vector_index(snapshot=snapshot, chunks=chunks, embedding_model="model", client=FakeEmbeddingClient())
+def test_blank_blocks_are_skipped_and_the_language_defaults_to_text() -> None:
+    chunks = chunk_text_namespace(namespace="docs", path="README.md", text="alpha\n\n\nbeta\n", max_lines=1)
 
-    package = build_retrieval_package(role="verifier", index=index, query_embedding=[4.0, 1.0], max_chars=80)
+    assert [chunk.text for chunk in chunks] == ["alpha", "beta"]
+    assert chunks[0].language == "text"
 
-    assert package.role == "verifier"
-    assert package.hits
-    assert package.truncated is True
+
+@pytest.mark.parametrize(("namespace", "max_lines"), [("unknown", 80), ("docs", 0)])
+def test_invalid_namespace_or_window_is_rejected(namespace: str, max_lines: int) -> None:
+    with pytest.raises(ValueError):
+        chunk_text_namespace(namespace=namespace, path="x", text="y", max_lines=max_lines)

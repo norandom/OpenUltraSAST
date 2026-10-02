@@ -10,8 +10,6 @@ from typing import Literal
 
 from openultrasast.contracts import Contract
 
-DEFAULT_VECTOR_STORE = "json-local"
-
 # Retirement notes (harnessx-removal Req 1.3, 3.3). A key that asked for a retired LLM capability fails and names
 # the replacement, never a silent downgrade; the old budget section only warns. Every line below that names the
 # removed plane carries its retirement date, which the reference-search test holds the rest of the tree to.
@@ -26,6 +24,10 @@ _UNREAD_ON = "retired 2026-10-02 because nothing ever read it"
 _UNREAD_DYNAMIC = "no dynamic or deep tier exists; deep mode will define its own keys when it is built"
 _UNREAD_EVIDENCE = "evidence tiers come from the program model's ladder (model/ladder.py), not from configuration"
 _UNREAD_VARIANTS = "the structural variant search it configured was deleted with semantic/variants.py"
+_UNREAD_EMBEDDINGS = (
+    "the json-local vector index it configured and `ousast index` were deleted; the decision engine embeds through "
+    "`ousast learn memory embed --model` (learn/embeddings.py)"
+)
 RETIRED_KEYS: dict[tuple[str, str], str] = {
     ("models", "verifier"): f"{_RETIRED_ON}: LLM verification runs on the plane (`verify` + `agree`, {_PLANE_RUN})",
     ("fusion", "panel_model"): f"{_RETIRED_ON}: {_RETIRED_PANELS}",
@@ -38,6 +40,8 @@ RETIRED_KEYS: dict[tuple[str, str], str] = {
     ("evidence", "minimum_patch"): f"{_UNREAD_ON}: {_UNREAD_EVIDENCE}",
     ("variants", "enabled"): f"{_UNREAD_ON}: {_UNREAD_VARIANTS}",
     ("variants", "max_mechanisms"): f"{_UNREAD_ON}: {_UNREAD_VARIANTS}",
+    ("embeddings", "model"): f"{_UNREAD_ON}: {_UNREAD_EMBEDDINGS}",
+    ("embeddings", "store"): f"{_UNREAD_ON}: {_UNREAD_EMBEDDINGS}",
 }
 RETIRED_SECTION = "harnessx"  # retired 2026-09-30: loads with one warning and is otherwise ignored (Req 3.3)
 RETIRED_SECTION_WARNING = (
@@ -92,12 +96,6 @@ class ModelConfig:
     # disabled to make `temperature: 0` mean something. It did not — the measured run-to-run disagreement came
     # from the agentic path, not the decoder — which is why the model layer arbitrates instead of averaging.
     thinking: bool = False
-
-
-@dataclass(frozen=True)
-class EmbeddingConfig:
-    model: str | None = None
-    store: str = DEFAULT_VECTOR_STORE
 
 
 @dataclass(frozen=True)
@@ -205,7 +203,6 @@ class PushConfig(Contract):
 @dataclass(frozen=True)
 class ResolvedConfig:
     models: ModelConfig = ModelConfig()
-    embeddings: EmbeddingConfig = EmbeddingConfig()
     sandbox: SandboxConfig = SandboxConfig()
     static_analysis: StaticAnalysisConfig = StaticAnalysisConfig()
     score: ScoreConfig = ScoreConfig()
@@ -231,7 +228,6 @@ def load_config(config_path: Path | None = None, *, dotenv: bool = True) -> Reso
 
     return ResolvedConfig(
         models=_load_models(data.get("models", {})),
-        embeddings=_load_embeddings(data.get("embeddings", {})),
         sandbox=_load_sandbox(data.get("sandbox", {})),
         static_analysis=_load_static_analysis(data.get("static_analysis", {})),
         score=_load_score(data.get("score", {})),
@@ -274,14 +270,6 @@ def _load_models(value: object) -> ModelConfig:
         chat_base_url=_string(data.get("chat_base_url")),
         chat_api_key_env=_string(data.get("chat_api_key_env")),
         thinking=bool(data.get("thinking", False)),
-    )
-
-
-def _load_embeddings(value: object) -> EmbeddingConfig:
-    data = _section(value)
-    return EmbeddingConfig(
-        model=_string(data.get("model")) or _string(os.environ.get("OPENROUTER_EMBEDDING_MODEL")),
-        store=_string(data.get("store")) or DEFAULT_VECTOR_STORE,
     )
 
 

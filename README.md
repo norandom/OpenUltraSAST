@@ -126,8 +126,7 @@ Keys and store settings live in `.env` in the working directory (gitignored, nev
 
 ```bash
 DEEPSEEK_API_KEY=...              # every LLM call: model layer, tool hunter, plane tasks, decision engine
-OPENROUTER_API_KEY=...            # embeddings only
-OPENROUTER_EMBEDDING_MODEL=openai/text-embedding-3-small
+OPENROUTER_API_KEY=...            # embeddings only (`ousast learn memory embed`)
 
 # Plane memory store (maintainers). Unset: a local file store under ~/ousast-results/plane/memory.
 OUSAST_MEMORY=s3://<bucket>       # or s3://<bucket>/<prefix>; needs the s3 extra
@@ -276,6 +275,5 @@ uv run python dagger/ci.py    # containerized CI pipeline
 ```
 
 Maintainer commands not covered above: `ousast repos` (pinned known-vulnerable checkouts),
-`ousast index` (chunk a repository for embedding-index construction), `ousast model candidates`
-(what the candidate enumerator can reach) and `ousast learn` (the decision engine's data; see
+`ousast model candidates` (what the candidate enumerator can reach) and `ousast learn` (the decision engine's data; see
 [docs/decision-engine.md](docs/decision-engine.md)).

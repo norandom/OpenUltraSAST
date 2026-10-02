@@ -338,7 +338,6 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate, cli",
       "importers": [
-        "cli",
         "skills"
       ]
     },
@@ -530,6 +529,7 @@
       "importers": [
         "learn.compile",
         "learn.evaluate",
+        "learn.examples",
         "learn.features",
         "learn.leaks",
         "learn.program",
@@ -1119,7 +1119,6 @@
         "hunter",
         "hunter_tools",
         "improve.evolve",
-        "index",
         "learn.features",
         "learn.labels",
         "learn.roles",

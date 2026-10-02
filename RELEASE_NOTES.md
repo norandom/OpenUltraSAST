@@ -8,8 +8,11 @@
   within-pair 0.72-0.93, BLOCK offered nowhere, canary below 0.9 for three families) and that the engine is not
   adopted. The model layer's residual question is documented at `model/pipeline.py` (`model/judge.py` was
   deleted); a missing provider key is described as it behaves (no question asked, entailed findings reported),
-  not as a recorded degradation. The `.env` reference lists `OPENROUTER_EMBEDDING_MODEL` and the memory-store
-  variables; `ousast plane memory-normalise` and `ousast index` are listed.
+  not as a recorded degradation. The `.env` reference lists the memory-store variables; `ousast plane memory-normalise` is listed.
+- **Removed: the unused vector index, `ousast index` and `[embeddings]`** (legacy cleanup, 2026-10-02). `index.py`
+  keeps only the text chunker the skill router uses; the `VectorIndex` half had no caller, and nothing read the
+  `chunks.json` the subcommand wrote. `[embeddings] model`/`store` fail to load with the reason, like the other
+  retired keys; `OPENROUTER_EMBEDDING_MODEL` is no longer read (`ousast learn memory embed --model` names the model).
 
 # v2.0.0 (2026-10-02)
 
