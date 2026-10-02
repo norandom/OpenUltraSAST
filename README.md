@@ -20,6 +20,9 @@ something, it records a degradation. It does not report a clean result.
 This file is the front door. Each section links to its page of the documentation site (`docs/`,
 `mkdocs.yml`; `uv sync --extra docs && uv run mkdocs serve`).
 
+
+The documentation is published at <https://norandom.github.io/OpenUltraSAST/>; the pages below link to their sources in `docs/`.
+
 ## Status
 
 **v2.0.0, state as of 2026-10-02.** The pre-push safety net is **NO-GO** against every M4 gate.

@@ -1,5 +1,6 @@
 site_name: OpenUltraSAST
 site_description: An experimental static security analyser and repository safety net, with an agentic plane and a learned decision engine in development.
+site_url: https://norandom.github.io/OpenUltraSAST/
 repo_url: https://github.com/norandom/OpenUltraSAST
 edit_uri: edit/main/docs/
 docs_dir: docs
