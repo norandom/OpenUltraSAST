@@ -113,3 +113,13 @@ def test_v1_withholds_function_length_from_prompts_and_distance() -> None:
     assert "facts.function_lines: 42" in render_signals(a["x"], a["instruments"], "static", inputs="full")
     assert gower(a["x"], a["instruments"], b["x"], b["instruments"], "static") == 0.0
     assert gower(a["x"], a["instruments"], b["x"], b["instruments"], "static", inputs="full") > 0.0
+
+
+def test_v1_withholds_the_plane_profile_leak_signals() -> None:
+    """Slice-2 leak audit (2026-10-02): verify.flag_b and ms.operation track the pair label in the plane profile;
+    v1 renders neither and the distance ignores both, while ``full`` keeps them."""
+    from openultrasast.learn.schema import withheld
+
+    hidden = withheld("v1")
+    assert {"verify.flag_b", "ms.operation", "engine", "facts.function_lines"} <= hidden
+    assert withheld("full") == frozenset()

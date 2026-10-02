@@ -102,7 +102,12 @@ EXCLUDED_FIELDS = frozenset(
 # Entries name an instrument (all its state and values) or a single feature. v1 withholds the engine and the function
 # length: both separate fixed from vulnerable pair sides by construction (a fix removes a sink, a guard lengthens the
 # function), not by anything that holds on unseen code (leak audit 2026-10-01).
-INPUT_PROFILES: Mapping[str, tuple[str, ...]] = {"v1": ("engine", "facts.function_lines"), "full": ()}
+# The plane profile also withholds verify.flag_b and ms.operation in v1 (maintainer decision 2026-10-02 on the
+# slice-2 leak audit: they separate pair sides because a fix removes the sink, which does not hold on unseen code).
+INPUT_PROFILES: Mapping[str, tuple[str, ...]] = {
+    "v1": ("engine", "facts.function_lines", "verify.flag_b", "ms.operation"),
+    "full": (),
+}
 DEFAULT_INPUTS = "v1"
 
 
