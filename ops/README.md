@@ -1,7 +1,7 @@
 # ops
 
-Infrastructure for the optional engines. Nothing here is a project dependency: the core install is
-`dependencies = []` and every engine below degrades to a recorded reason when it is absent.
+Infrastructure for the optional engines. Nothing here is a project dependency: the core install needs only
+PyYAML, and every engine below degrades to a recorded reason when it is absent.
 
 ## Use it as a command
 
@@ -22,7 +22,7 @@ Then, from any directory:
 ```bash
 ousast scan .
 ousast scan src/api
-ousast-with-judge scan .     # opt into the LLM judge: needs network and a key
+ousast-with-judge scan . --mode standard   # container network on, so the model layer may ask its question (needs DEEPSEEK_API_KEY)
 ```
 
 The wrapper rewrites paths under your working directory to their mounted equivalents, so `src/api` means what
@@ -48,7 +48,8 @@ TARGET=/path/to/repo docker compose run --rm ousast scan /target
 The target is mounted read-only; `/work` is a tmpfs so CPG scratch never outlives the run. The LLM endpoint
 is optional and passed through the environment, never baked into a layer — without it the model layer still
 entails and only the `suspicion` band goes unasked. `network_mode` defaults to `none`; set it to `bridge`
-only when you want the judge.
+(`OUSAST_NETWORK=bridge`, which `ousast-with-judge` does) only when the model layer should reach the model
+endpoint. Compose passes `DEEPSEEK_API_KEY` and `OPENROUTER_API_KEY` through from the environment.
 
 **pyinfra (for a persistent host install).** Same engine, same pin, same checksum, but on the machine:
 
@@ -146,7 +147,8 @@ No Joern server mode, no workspace/project management, no `joern-scan`, no overl
 ## Languages
 
 Joern ships frontends for C/C++, Java (source and bytecode), JavaScript/TypeScript, Python, Kotlin, Go, C#,
-PHP, ABAP and Ghidra binaries. We currently model **python, javascript, java, c**.
+PHP, ABAP and Ghidra binaries. Taint facts ship for **python, javascript, java, c and php**
+(`src/openultrasast/ruleset/semantic/*.toml`).
 
 **PHP works but needs a PHP interpreter**: `php2cpg` drives PHP-Parser and shells out to `php`, so on a host
 without it a PHP tree fails to build with an opaque "Process exited with code 1". Set `php_frontend: True` in
@@ -372,4 +374,7 @@ read under the same analysis deadline.
 
 ## The agentic service plane on ax
 
-Model-driven pipeline stages run as tasks on google/ax over Agent Substrate (`.kiro/specs/ai-service-plane/`). Bring-up, the smoke Run, the measured footprint and the lessons from the live cluster are in [`ops/ax/README.md`](ax/README.md); `ousast plane run|status|doctor|workspaces` drives it.
+Model-driven work over whole repositories runs as tasks on google/ax over Agent Substrate. Bring-up, the task
+catalogue, the memory store, the measured footprint, the lessons from the live cluster and the checklist for a
+separate Kubernetes cluster are in [`ops/ax/README.md`](ax/README.md);
+`ousast plane run|status|doctor|workspaces|remember|alerts-engine|harvest` drives it.

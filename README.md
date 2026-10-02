@@ -1,159 +1,78 @@
 # OpenUltraSAST
 
-**v1.2.0-alpha.1:** experimental pre-push safety net. Integration and census repairs are
-verified; useful hook coverage, latency and independent capability qualification remain
-**NO-GO**. No real hook capability is enabled. See [release notes](RELEASE_NOTES.md) and
-[spec status](.kiro/specs/pre-push-safety-net/status.md).
+**v1.2.0-alpha.1 (Python package `1.2.0a1`), state as of 2026-10-02.** An experimental static
+security analyser. The pre-push safety net is **NO-GO** for rollout: no hook capability is
+enabled and no independent population has passed the qualification gates (see
+[docs/evaluation.md](docs/evaluation.md)). See the [release notes](RELEASE_NOTES.md).
 
-OpenUltraSAST is a command-line security analysis harness built around one
-goal: eliminating false positives by turning a suspicion into an
-evidence-backed finding, and learning from the claims that were rejected. A
-scan combines static rules, a semantic overlay, optional model-driven hunting
-and Docker-isolated proof, and every claim carries the evidence that earned its
-place.
+OpenUltraSAST separates what it can prove from what it merely suspects, and says which is which.
+A scan combines language-scoped pattern rules, a semantic overlay, a Joern-based taint engine
+and optional model calls; every finding carries the evidence that earned its place, and a scan
+that could not look at something records that as a degradation instead of reporting a clean
+result.
 
-The project began as an editor-agent skill and is now a CLI first. Agent
-integrations remain, but nothing requires one: `ousast` is the interface, and
-the model-driven parts are optional extras that degrade visibly when absent.
-
-> **Maturity legend:** ✅ implemented and tested · 🟡 primitive exists, not yet
-> auto-wired into the scan loop · 🧭 designed, on the roadmap. The current
-> verified gate is `usable_harness_mvp`.
+`ousast` is the interface. Model-driven work over whole repositories runs on a separate
+agentic plane (google/ax), and a learned decision engine that weighs all the signals is in
+development; neither is needed for a scan.
 
 ## Install and quickstart
 
 ```bash
 uv sync --group dev
 
-# Scan a local repository (quick mode = deterministic, no model calls)
+# Deterministic scan, no model calls
 uv run ousast scan /path/to/repo --mode quick
 
-# Build an embedding-ready chunk index
-uv run ousast index /path/to/repo
-
-# Score the detector against a benchmark manifest
-uv run ousast benchmark benchmarks/manifests/python-vulnerable.toml --mode quick
-
-# Differential pair eval: fire on vuln, stay silent on the fix (local + real GitHub VFCs)
-uv run ousast pairs
-uv run ousast pairs --slice sast   # OWASP Benchmark Java/Python + Juliet
-uv run ousast pairs --slice vibe-py --pointers   # nightly: also harvest non-vendored pointer pairs into ~/.cache
-uv run ousast mechanisms export --slice vibe-py   # seed mechanism candidates from trusted pairs (offline); `ousast improve` admits them under the holdout gate
-uv run ousast pairs --slice vibe-py --loo        # leave-one-out recall of the corpus as a teacher
-uv run python -m openultrasast.pair_gate
-
-# Run the bounded self-improvement loop over the ruleset (benchmark-driven)
-uv run ousast improve benchmarks/manifests/python-vulnerable.toml --dry-run
+# CI: exit 1 on any evidence-verified finding
+uv run ousast scan . --mode quick --fail-on verified
 ```
 
-Every run writes auditable artifacts under `.openultrasast/runs/<scan-id>/`
-(`manifest.json`, `findings.json`, `verification.json`, `report.md`,
-`report.sarif`, `trace/events.jsonl`, ranking/preprocess/mapping JSON).
-`--fail-on findings|verified` gives CI-friendly exit codes.
+The core install depends only on PyYAML. Optional extras: `semantic` (tree-sitter grammars
+for the overlay) and `minio` (the plane's MinIO memory store).
 
-## How a scan works
+For `standard` and `deep` scans, use the Docker image, which ships Joern (with `php-cli` for
+the PHP frontend) next to the tool. Source the shell wrapper once and `ousast` runs in the
+container with your directory mounted read-only:
 
-The CLI is thin; the `HarnessRuntime` owns the lifecycle and emits an event
-trace for every stage (`task_start … stage_start/stage_end … task_end`).
-
-```
-repo ──▶ preprocess (language, LOC, tags, fuzz entry points)
-     ──▶ static mapping (Semgrep/CodeQL SARIF ingest, normalized hints)
-     ──▶ entry-point + reachability mapping (routes, CLI, parsers, contracts)
-     ──▶ rank (surface·0.5 + influence·0.2 + reachability·0.3)
-     ──▶ findings  ─ quick: language-scoped pattern rules
-     │             └ standard: tiered hunter pool (retrieval + skill snippets)
-     ──▶ independent verifier (evidence ladder enforced)
-     ──▶ report.md + report.sarif + manifest.json (shared finding IDs)
+```bash
+source /path/to/OpenUltraSAST/ops/shell/ousast.sh   # PowerShell: ops/shell/ousast.ps1
+ousast scan . --mode standard
 ```
 
-- **quick** ✅: deterministic, language-scoped pattern rules + reachability +
-  verification. No model calls, fully reproducible.
-- **standard** ✅ scheduling / 🧭 LLM hunters: runs the tiered hunter pool
-  (A/B/C budgets, retrieval context, selected Trail of Bits skill snippets,
-  JSONL trajectories) and verification; language-aware LLM hunters are the next
-  upgrade (today standard reuses the deterministic findings per target).
-- **deep** 🧭: sandboxed build/fuzz/dynamic reproduction (not yet implemented).
+Details, including a pinned host install of Joern, are in [ops/README.md](ops/README.md).
 
-## Detection coverage
+Every run writes auditable artifacts under `<target>/.openultrasast/runs/<scan-id>/`:
+`manifest.json`, `findings.json`, `verification.json`, `score.json`, `report.md`,
+`report.sarif` and `trace/events.jsonl`, plus the stage artifacts of the mode.
 
-Language-scoped rule families (rules only run against matching languages, which
-removes cross-language false positives):
+## Scan modes
+
+| Mode | What runs | Needs |
+| --- | --- | --- |
+| `quick` | Language-scoped pattern rules, entry-point reachability hints, ranking, verification, scoring. Deterministic and reproducible. | nothing |
+| `standard` | `quick` plus the MAP stage: complexity map, semantic overlay, authorization obligations, and the model layer, which builds one Joern code property graph per repository and decides taint, guard-dominance and configuration questions on it. An LLM is asked only the residual question the graph cannot settle (a `suspicion`); `[models] hunter` adds the tool hunter. | Joern for the model layer (else a `cpg_unavailable` degradation); a provider key for the LLM parts (else they are skipped and recorded) |
+| `deep` | The MAP stage of `standard` plus REGRESS: promoted candidates are loaded by a small snippet inside a Docker sandbox (no network, read-only source, non-root, memory/pid/time limits) and get a `triggerable` / `not_triggerable` / ... verdict. | a working `docker` (else a `sandbox_unavailable` degradation) |
+
+`--fail-on never|findings|verified|worth-fixing` sets the exit code: `findings` fails on any
+reported finding, `verified` on any evidence-verified one, `worth-fixing` on a deep-mode
+verdict that is worth fixing. `--config openultrasast.toml` loads settings.
+
+## Detection coverage (quick rules)
+
+Rules run only against files of their language. The bundled ruleset lives in
+`src/openultrasast/ruleset/<language>/rules.toml`:
 
 | Language | Classes (CWE) |
 | --- | --- |
-| C / C++ | buffer overflow (120), format string (134), command injection (78) |
-| Python | command injection (78), code injection (95), deserialization (502), SQLi (89), path traversal (22), SSRF (918), weak hash (327), SSTI (94), insecure default (489) |
-| JavaScript / TS | command injection (78), code injection (95), reflected/DOM XSS (79), SQLi (89), path traversal (22), SSRF (918), weak hash (327), deserialization (502) |
-| Java + Groovy templates | command injection (78), SQLi via concatenation (89), weak hash (327), deserialization (502), unescaped template XSS (79) |
+| C / C++ | stack buffer overflow (121), format string (134), command injection (78) |
+| Python | command injection (78), code injection (95), SSTI (94), deserialization (502), SQLi (89), path traversal (22), SSRF (918), weak hash (327), insecure default (489) |
+| JavaScript / TS | command injection (78), code injection (95), XSS (79), SQLi (89), path traversal (22), SSRF (918), weak hash (327), deserialization (502) |
+| Java + Groovy templates | command injection (78), SQLi (89), weak hash (327), deserialization (502), unescaped template XSS (79) |
+| PHP | SQLi (89), command injection (78), file inclusion (98), path (22), open redirect (601), SSRF (918); code eval (95), unserialize (502) and echo XSS (79) ship as `shadow` rules |
 
-Cheat-sheet fixtures live under `benchmarks/fixtures/` and feed the 90/10 smoke
-gate. **Efficiency** is measured separately on isolated vuln-vs-fixed pairs
-(`ousast pairs`, `python -m openultrasast.pair_gate`): the harness must fire on
-the vulnerable snapshot and stay silent after the patch. Local fixture
-counterparts are a CI gate; vendored GitHub VFCs (SVEN, CWE-Bench-Java, NVD
-patterns) are the honesty dashboard and the miss/fp signals for `ousast improve`.
-Dataset pointers (CVEfixes, DiverseVul, PrimeVul, MegaVul, MoreFixes, Vul4J,
-GitHub Advisory Database, OSV) are in `benchmarks/pairs/datasets.toml`.
-
-## Project scores and central CWE policy
-
-Severity used to be whatever string a rule set on itself. It is now governed centrally: one CWE, one severity, decided by policy — not by the rule that fired.
-
-**Central CWE policy** ✅ (`policy/verycode.py`): a vendored `CWE_Score.tsv` (verycode-policies, ~167 CWEs) is the single source of truth. Each CWE carries a flaw category, a `severity` (0-5), and `static` / `dynamic` scope flags. `load_policy()` reads it positionally (the upstream file ships CRLF and a trailing space in the `Flaw Severity ` header), and `resolve_severity()` resolves a finding's severity *exclusively* from policy, keyed on CWE — any legacy rule-local severity is discarded. CWEs that are not `static` resolve to `0` and are report-only, never scored.
-
-**Fail-loud startup** ✅: `assert_rules_resolve(PATTERN_RULES, policy)` runs as the `policy_check` stage right after `policy_load`. If any *enabled* rule names a CWE the policy does not govern, it raises `PolicyError` and the scan aborts before doing work — you cannot ship a rule whose severity nobody decided.
-
-**0-100 project score** ✅ (`scoring/project_score.py`): each finding's penalty is `severity weight × reachability multiplier`, and the score is an exponential decay of the total (`100 · e^(−total/k)`, `k=60`).
-
-| Severity | Weight (`SEV_WEIGHT`) | | Reachability | Multiplier (`REACH_MULT`) |
-| --- | --- | --- | --- | --- |
-| 5 | 50 | | `reachable` | 1.0 |
-| 4 | 25 | | `inferred-file-surface` | 0.6 |
-| 3 | 10 | | `unknown` | 0.4 |
-| 2 / 1 / 0 | 2 / 1 / 0 | | | |
-
-No penalty → 100; one reachable severity-5 finding → ~43. The **reachability multiplier is the false-positive calibration knob**: a confirmed FP lowers a finding's effective reachability instead of deleting the rule, so the score moves without losing the detection.
-
-**Two-condition gate** ✅: a finding that is both severity-5 *and* `reachable` **always** fails the gate. The `score < min_score` threshold (default `min_score=80`) only fails when `blocking` is enabled — so scoring is **advisory-first by default** and turns into a CI gate when you opt in.
-
-**Artifacts** ✅: the `score` stage writes `score.json` (project score, `max_severity`, `penalty_total`, `by_category`, `out_of_scope_dynamic_only`, `unmapped_cwe`, gate verdict) and merges the same block into `manifest.json`. Scoring is zero-dependency (stdlib only). One mapping detail: verycode has no CWE-120 (generic buffer copy), so the C/C++ memory-unsafe rules listed under [Detection coverage](#detection-coverage) carry **CWE-121** (Stack-Based Buffer Overflow, severity 5), which the policy does govern.
-
-🧭 This is the first implemented slice of the self-improving ruleset work: a central, policy-governed severity model and a project score. Rules-as-data and the full self-improvement loop over rulesets are later phases.
-
-## Running the benchmarks
-
-Benchmarks wrap the same scan pipeline and score it against ground-truth
-manifests in `benchmarks/manifests/`. Each manifest lists the *known*
-vulnerabilities (CWE, file, line, sink, evidence) plus optional external
-baselines; fixtures live in `benchmarks/fixtures/` and include safe-API files so
-precision is measured honestly.
-
-```bash
-# One language
-uv run ousast benchmark benchmarks/manifests/cpp-damn-vulnerable.toml --mode quick
-
-# All in-scope corpora
-for m in c-cpp-smoke cpp-damn-vulnerable \
-         python-web-smoke python-vulnerable \
-         javascript-node-web-smoke javascript-vulnerable \
-         java-web-smoke java-spring-boot-vulnerable; do
-  uv run ousast benchmark "benchmarks/manifests/$m.toml" --mode quick
-done
-```
-
-Each run writes `.openultrasast/benchmarks/<id>/`:
-`benchmark_result.json` (recall, precision, misses, false positives, runtime),
-`calibration_records.json` (every miss as a next-improvement candidate), and
-`external_baseline_deltas.json` (tool-vs-tool comparison).
-
-### Latest results (`--mode quick`)
-
-The corpora are modeled on Damn Vulnerable C/C++, PyGoat/DVPWA and NodeGoat,
-plus the real [`kiview/damn-vulnerable-spring-boot-app`](https://github.com/kiview/damn-vulnerable-spring-boot-app)
-vendored verbatim (MIT). Three vulnerabilities are deliberately left in the
-ground truth that pattern matching *cannot* reach (integer overflow, second-order
-SQLi, prototype pollution) so recall is not self-fulfilling.
+The detection gate (`uv run python -m openultrasast.gate`, also `tests/test_detection_benchmarks.py`)
+enforces the project goal of **at least 90% recall and under 10% false positives** per language
+on the bundled corpora in `benchmarks/manifests/`. Its output on this tree:
 
 | Language | Recall | False-positive rate |
 | --- | --- | --- |
@@ -163,259 +82,152 @@ SQLi, prototype pollution) so recall is not self-fulfilling.
 | Java | 100% (4/4) | 0.0% |
 | **Overall** | **93.6% (44/47)** | **0.0%** |
 
-The project goal is **≥90% recall and <10% false positives** per language. The
-gate lives in `tests/test_detection_benchmarks.py`, so a rule change that drops
-recall or raises false positives fails CI.
+These corpora are cheat-sheet fixtures modelled on deliberately vulnerable applications. They
+show that a rule change did not break a known detection; they are not a recall estimate on
+real code. Real-code results are in [docs/evaluation.md](docs/evaluation.md).
 
-## Agent integrations, fusion, and ultra workflows
+**PHP is not in the gate, and its numbers are in-sample only.** The PHP rules were written and
+tightened while looking at the development corpus they were measured on
+(`benchmarks/measurements/2026-09-30-php-quick-rules/measurement.json`): 13 of 14 expected
+findings on the `php-vulnerable` fixture with no false positive, 2 false positives on
+`php-benign`, and per-rule precision lower bounds from 0.03 to 1.0 on the real pins. Treat
+them as development numbers, not as a holdout result.
 
-The `ousast` CLI is the interface. An agent that can run shell commands needs
-nothing else:
+**Framework knowledge is optional.** Rule and taint-fact entries that know a framework or
+library (WordPress, Flask, Django, Express, Spring, ...) carry a `framework` or `library` tag
+naming a row of `src/openultrasast/ruleset/frameworks.toml`. The loaders take `priors=`
+(`"all"`, the default and today's behaviour; `"off"`, language-level knowledge only; or a set
+of ids), so their contribution can be measured and switched off.
 
-```bash
-uv run ousast scan . --mode quick --fail-on verified
-```
+## Pre-push checks (experimental)
 
-For [OpenCode](https://opencode.ai) there are optional project skills that
-describe the workflows above, so the agent drives the same CLI
-(`.opencode/skills/`):
-
-| Skill | Purpose |
-| --- | --- |
-| `openultrasast-scan` ✅ | run/plan `ousast scan`, indexing, evidence-gated analysis |
-| `openultrasast-triage` ✅ | false-positive elimination, ranking calibration, verifier adjudication |
-| `openultrasast-fix-audit` ✅ | OpenUltraCode fix lifecycle and adversarial fix review |
-
-### MCP server (narrow surface) ✅
-
-`ousast mcp` runs a zero-dependency MCP server over stdio (newline-delimited
-JSON-RPC) exposing only stable, project-level operations — **never** arbitrary
-shell, Docker, or internal hunter tools. Point an MCP client (OpenCode, Claude
-Desktop, an IDE) at it:
-
-```jsonc
-// e.g. an MCP client config entry
-{ "command": "uv", "args": ["run", "ousast", "mcp"] }
-```
-
-Tools: `openultrasast.scan`, `status`, `findings`, `get_finding`, `evidence`,
-`artifacts`, `benchmark`, `explain`, `propose_patch` (degrades visibly — the patch
-oracle is a later phase), and `export_report`. The `scan`/`benchmark` tools run the
-bounded analysis pipeline; no tool accepts a free-form command. A typical flow:
-`scan {path}` → returns a `run_dir` → `findings {run_dir}` → `explain {run_dir, finding_id}`.
-
-**Ultra workflows (OpenUltraCode discipline):** fixes are never a one-shot patch
-prompt. `openultrasast-fix-audit` runs the bounded lifecycle
-`intake → plan → minimal patch → adversarial review → reconcile → fresh
-verification → ready`, and a patch can only reach `patch_validated` after
-sandboxed validation passes with no accepted blocking findings.
-
-**Fusion (deepening) ✅:** when a finding needs more reasoning than the normal
-ranker → hunter → verifier → mapping loop provides (critical/high severity,
-verifier disagreement, conflicting static vs semantic evidence, risky fixes, or
-an explicit high-assurance request), fusion runs two independent panels that
-steel-man the vulnerability and false-positive cases, vote, and a decider issues
-the disposition (accepted / rejected / mitigated / deferred / blocked) with votes
-and degradations disclosed. It runs automatically on triggered findings
-in `--mode standard`, writing `fusion.json` and a `fusion` block in the manifest.
-Fusion is deterministic (`fusion.py`); independent LLM agreement on a candidate
-is the plane's `agree` task (see [The agentic plane (ax)](#the-agentic-plane-ax)):
-
-```toml
-[fusion]
-enabled        = true       # default; runs on triggered findings in standard mode
-high_assurance = false      # true forces fusion on every finding
-```
-
-> The `kiro-*` skills, `AGENTS.md` and the `.kiro/` directory are the
-> maintainer's spec-driven development tooling. They are not part of using
-> OpenUltraSAST and can be ignored by users.
-
-## Evidence ladder: how a false positive is eliminated
-
-Evidence level is a state machine, not a label a model may assign. The verifier
-runs on independent context (it never sees hunter reasoning) and enforces:
-
-```
-suspicion ─▶ static_corroboration ─▶ crash_reproduced ─▶ root_cause_explained
-          ─▶ exploit_demonstrated ─▶ patch_validated
-```
-
-A finding is rejected or held back unless the *artifact* for the next level
-actually exists:
-
-- below `static_corroboration` → `NEEDS_EVIDENCE` (a model/heuristic suspicion is
-  never reported as verified);
-- `static_corroboration` but **reachability unknown** → `REJECTED` with a
-  tie-breaker demanding call-graph / route / CLI / parser / dynamic evidence
-  (this is what kills "pattern matched but nothing attacker-controlled reaches
-  it" findings);
-- `static_corroboration` **and** function-level reachability → `ACCEPTED`.
-
-When a finding is still rejected after review, `openultrasast-triage` records a
-**scoped false-positive learning** (`calibration.py`): a reason from a fixed
-taxonomy (`unreachable_path`, `missing_attacker_control`, `sanitizer_disproved`,
-`static_rule_mismatch`, `incorrect_model_assumption`, `duplicate`,
-`insufficient_impact`, `unsupported`, `contradicted`, `unverified`), evidence,
-and a **scope**. Scoping keeps the learning narrow: a rejected `syscall_entry`
-claim in `auth/` demotes only `auth/…`, never the whole vulnerability class. This
-is covered by `tests/test_calibration.py::test_scoped_false_positive_demotion_does_not_suppress_class_globally`.
-Demotion (with an audit trail) is preferred over deletion, so an analyst can
-always see *why* something was downgraded.
-
-## How a false negative is eliminated
-
-Misses are first-class signals, surfaced by the benchmark layer rather than
-hidden. Every expected vulnerability that no finding matched becomes a
-`BenchmarkCalibrationRecord` in `calibration_records.json`, e.g. the integer
-overflow the regex engine cannot see:
-
-```json
-{
-  "cwe": "CWE-190",
-  "vulnerability_class": "integer overflow",
-  "path": "src/buffer.cpp",
-  "failed_stage": "benchmark_ground_truth_matching",
-  "next_improvement_candidate": "rules_or_language_hunter",
-  "reason": "no OpenUltraSAST finding matched the expected benchmark vulnerability"
-}
-```
-
-The `next_improvement_candidate` routes the gap to the stage that should close
-it: a static rule, SARIF source, entry-point mapping, retrieval package, hunter
-prompt, dynamic reproducer, or skill route. Once a miss is
-addressed, it stays closed because the recall/precision gate runs in CI.
-`external_baseline_deltas.json` additionally shows where another tool found a
-vulnerability OpenUltraSAST missed (or vice-versa).
-
-## The agentic plane (ax)
-
-The core install is zero-dependency and `--mode quick` never calls a model. Model
-work that spans a whole repository runs on the **agentic plane**: a Run manifest
-of tasks executed on [ax](ops/ax/README.md) (Kubernetes with Agent Substrate), one
-isolated actor per task. What runs there today: `repo-facts`, two independent
-`verify` passes, `agree` with a 2-of-3 tie-break on disputed candidates, and
-`remember`, which writes each run's per-candidate rows into the plane memory.
+`ousast pre-push` analyses the commits a `git push` would publish, or an explicit
+`--base`/`--head` pair, and compares the head against its base so that only new or worsened
+defects are candidates. `--mode advisory` (the default) never blocks; `--mode blocking` and
+`--incomplete-coverage block` opt into enforcement. The artifact must be written outside the
+analysed repository.
 
 ```bash
-uv run ousast plane doctor                                   # kind, Agent Substrate, ax controller, runner image
-uv run ousast plane run plane/runs/validation-46.yaml        # a rerun skips tasks already done
-uv run ousast plane status <run>                             # per-task status and token attribution
-uv run ousast plane remember <run>                           # ingest the run's memory rows (OUSAST_MEMORY)
+uv run ousast pre-push /path/to/repo --base BASE --head HEAD \
+  --artifact /outside/the/repo/result.json
 ```
 
-Every task binds its own Model and its own budget (`usd`, `calls`), and a task
-that reaches its ceiling stops as `unfinished` instead of overspending. Egress is
-deny-by-default per task; the provider key travels only in the task's start
-request and is never written to an artifact. Bring-up, the egress policy and the
-host requirements are in [ops/ax/README.md](ops/ax/README.md).
+The default capability registry is empty, so no normal alert is emitted today; every
+candidate stays diagnostic in the artifact. Installation into a repository's hooks
+(`ops/install-pre-push`), caching and the optional witness model are documented in
+[ops/README.md](ops/README.md).
 
-In a local `ousast scan --mode standard`, `[models] hunter` still enables the
-MAP-stage tool hunter; verification and fusion are deterministic.
+## Model providers and keys
 
-> The earlier optional agentic extra, HarnessX, was retired 2026-09-30, and a
-> leftover `[harnessx]` section (retired 2026-09-30) is ignored with one warning.
-> `[models] verifier`, `[fusion] panel_model` and `[fusion] decider_model` fail with
-> a message naming the plane replacement. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
-
-## The self-improving cycle
-
-Each scan is a composed harness of typed processors with read/write **state
-contracts**. Strict mode fails the scan on a violation; warn mode records a
-degradation. The loop now runs inside the pipeline without an agent: every scan
-persists verifier rejections as scoped learnings, and the next scan loads them
-and demotes those scopes before findings are produced.
-
-```
-        ┌──────────── automatic ledger (no agent in the loop) ───────────┐
-        ▼                                                                 │
-  scan ──▶ verify ──▶ non-accepted findings ──▶ scoped learnings ─────────┤
-        │             (.openultrasast/calibration/                        │  loaded by
-        │              false_positive_learnings.json)                     │  the next
-  next scan ──▶ rank ──▶ calibrate (demote rejected scopes) ──▶ findings ──┘  scan
-```
-
-What runs automatically each scan (✅, `calibration.py` + `cli.py`):
-
-1. **`calibrate` stage** (after `rank`, before findings) loads the persistent
-   ledger and demotes the priority of every scope that previously produced a
-   rejected finding (`calibrate_rankings`), writing `applied_calibrations.json`.
-2. **`record_calibration` stage** (after `verify`) turns this run's non-accepted
-   verifier outcomes into scoped `FalsePositiveLearning` records
-   (`learnings_from_verifications`) and merges them into the ledger, de-duplicated
-   by finding ID so a repeat rejection does not compound without bound.
-
-Demotion is **scoped and reversible**: a rejection in `lib.py` demotes only that
-scope; an accepted (reachable) finding in `app.py` is never touched; and because
-priority is demoted rather than the finding deleted, the audit trail
-(`applied_calibrations.json`, the ledger) shows exactly why a surface lost
-attention. Covered by `tests/test_pipeline_calibration.py`.
-
-### Rule-level loop: `ousast improve`
-
-The ranking loop above adjusts *attention*. A second, bounded loop adjusts the
-**governed ruleset itself** from benchmark feedback — and writes its result to the
-same loop-owned ledger a scan reads, so the loop closes end-to-end:
+Keys live in `.env` in the working directory (gitignored, never committed):
 
 ```bash
-# Preview what the loop would change (writes nothing)
+DEEPSEEK_API_KEY=...      # every LLM call: model layer, tool hunter, plane tasks
+OPENROUTER_API_KEY=...    # only OpenAI embeddings (openai/text-embedding-3-small)
+```
+
+The project uses DeepSeek (`deepseek-flash`) for LLM calls and OpenRouter only for embeddings.
+Set `DEEPSEEK_API_KEY`: without it, chat calls fall back to OpenRouter when that key is set.
+
+**`.env` never overrides a variable already exported in your shell.** A stale
+`export DEEPSEEK_API_KEY=...` in your profile wins over the `.env` file silently; `unset` it
+when a key change in `.env` seems to have no effect.
+
+## Benchmarks and pair evaluation
+
+```bash
+# Score the scan against a ground-truth manifest
+uv run ousast benchmark benchmarks/manifests/python-vulnerable.toml --mode quick
+
+# Vulnerable-vs-fixed pairs: fire on the vulnerable side, stay silent on the fix
+uv run ousast pairs
+uv run ousast pairs --slice sast       # OWASP Benchmark + Juliet
+uv run ousast pairs --slice vibe-py --pointers   # also fetch non-vendored pointer pairs (network)
+uv run python -m openultrasast.pair_gate         # CI: local pairs must all pass
+```
+
+Each benchmark run writes `.openultrasast/benchmarks/<id>/` (`benchmark_result.json`,
+`calibration_records.json` with every miss, `external_baseline_deltas.json`). The pair
+catalogs live in `benchmarks/pairs/`.
+
+## Self-improvement
+
+`ousast improve` runs a bounded loop over the governed ruleset: benchmark, propose edits to
+rule status and score constants only, validate, re-benchmark, and accept a round only if
+recall stays at least 90%, false positives under 10%, the project score does not regress and
+no matched finding is lost. Accepted rounds land in
+`<target>/.openultrasast/calibration/rule_policy.json`, which the next scan of that target loads.
+
+```bash
 uv run ousast improve benchmarks/manifests/java-spring-boot-vulnerable.toml --dry-run
-
-# Apply: accepted rounds land in <target>/.openultrasast/calibration/rule_policy.json,
-# which the next `ousast scan`/`benchmark` of that target loads automatically.
-uv run ousast improve benchmarks/manifests/java-spring-boot-vulnerable.toml
-```
-
-Each round (`improve/evolve.py`): benchmark with the current ledger → per-rule
-signals (`rule_signals.json`) → propose **bounded** edits → validate → replay
-smoke → re-benchmark → a **hard acceptance gate** → accept or revert
-byte-for-byte. The loop may only pull two levers (rule status, score constants);
-it can never edit a rule's pattern text or the authoritative 0–5 CWE severity, and
-must stage `enabled → shadow` before `disabled`. A round is accepted only if
-**recall ≥ 90% AND FP < 10% AND the project score did not regress AND no matched
-finding was lost** — otherwise the ledger is never written. Auto-shadowing removes
-a precision-dragger's false-positive cost without deleting it (recall is
-preserved); persistent misses are *nominated* through the signal file, leaving
-pattern authoring to a human pull request. The project score is the optimization
-reward; the recall/FP gate is a separate hard constraint that is never folded into
-it — and the same gate runs in CI (`python -m openultrasast.gate`), so a loop
-result that breached it could never merge. Covered by `tests/test_improve.py` and
-`tests/test_cli_improve.py`.
-
-This is the deterministic substrate of the self-improvement loop. The **plane
-memory** is the richer proposer that plugs into it: with `--memory`, `ousast
-improve` also reads the rows that plane runs stored per repository and pin, and two
-deterministic rules turn them into rule-status proposals: a rule whose alerts are
-repeatedly false across repositories is shadowed, and a shadow rule that keeps
-hitting agreed, declared vulnerable sites is re-enabled. Rows from holdout pairs,
-from the gated manifest's own cases and from the qualifying population are dropped
-before any rule sees them, so the loop never learns from the cases it is judged on. Each
-proposal records the memory rows it came from (`memory_proposals.jsonl` next to the
-journal), and it goes through the same validator and gate as every other edit.
-
-```bash
 uv run ousast improve benchmarks/manifests/java-spring-boot-vulnerable.toml --dry-run --memory
 ```
 
-The whole loop (alerts, measure, propose, improve) can also run as a plane Run
-(generated by `ousast plane workspaces --validation-set ... --loop`), with its own tasks, Models
-and budgets; see [ops/ax/README.md](ops/ax/README.md).
+With `--memory`, proposals also come from the rows plane runs stored (see below), through the
+same validator and gate; rows from holdout pairs, from the gated manifest's own cases and from
+any `--qualify-population` are dropped first. Details:
+[docs/architecture.md](docs/architecture.md#self-improvement).
 
-Beyond these loops, the `openultrasast-triage` skill lets an agent adjust
-prompt constraints, retrieval filters, skill routing and benchmark-miss triage.
-Those `RankingCalibration` fields are already produced and will be consumed
-directly once the per-family detectors land.
+## The agentic plane (maintainers)
 
-## Security & hardening
+Model work over whole repositories runs as a Run manifest on [google/ax](ops/ax/README.md)
+over Agent Substrate (a kind cluster on the maintainer's host), one isolated actor per task.
+Each task binds its own Model and its own `usd`/`calls` budget, egress is deny-by-default per
+task, and the provider key travels only in the task's start request.
 
-OpenUltraSAST treats scanned code as **untrusted input and never executes it** (quick
-and standard modes). Scan artifacts are scrubbed of credentials before they are written
-(`[hardening] redact_secrets`, on by default), agentic spend and output size are bounded
-(per-task `usd`/`calls` budgets on the plane, `[hardening] max_findings`), provider calls
-retry transient failures with backoff, and missing capabilities degrade visibly in the
-manifest rather than silently. See [docs/threat-model.md](docs/threat-model.md) for the
-full trust boundaries and sandbox limits, and [docs/examples.md](docs/examples.md) for
-end-to-end walkthroughs.
+```bash
+uv run ousast plane doctor                               # kind, Agent Substrate, ax controller, runner image
+uv run ousast plane run plane/runs/validation-46.yaml    # a rerun skips tasks already done
+uv run ousast plane status validation-46                 # per-task status and token attribution
+uv run ousast plane remember validation-46               # ingest the run's rows into the memory store
+```
+
+`ousast plane workspaces`, `alerts-engine` and `harvest` generate Runs and inputs. Bring-up,
+the task catalogue, the memory store (`OUSAST_MEMORY`) and the checklist for moving the plane
+to another Kubernetes cluster are in [ops/ax/README.md](ops/ax/README.md).
+
+> HarnessX, the earlier optional agentic extra, was retired 2026-09-30, and a leftover
+> `[harnessx]` section (retired 2026-09-30) is ignored with one warning. `[models] verifier`,
+> `[fusion] panel_model` and `[fusion] decider_model` fail with a message naming the plane
+> replacement. The LLM judge and the LLM fusion panels were retired with it; fusion is
+> deterministic. See [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
+## Decision engine (in development, not adopted)
+
+A learned decision engine is being built to replace hand-tuned detection edits: each
+instrument (quick rules, the Joern engine, model sink classification, verify passes, repository
+facts) produces signals, never verdicts, and a compiled AI classifier with local memory turns
+them into a calibrated probability per candidate with BLOCK and ADVISORY operating points.
+No scan, pre-push or report uses it yet. Status and the first measured slice:
+[docs/decision-engine.md](docs/decision-engine.md).
+
+## Agent integrations
+
+An agent that can run shell commands needs nothing but the CLI. For
+[OpenCode](https://opencode.ai) there are optional project skills in `.opencode/skills/`:
+`openultrasast-scan`, `openultrasast-triage` and `openultrasast-fix-audit`.
+
+`ousast mcp` runs a narrow MCP server over stdio (newline-delimited JSON-RPC) with ten tools:
+`openultrasast.scan`, `status`, `findings`, `get_finding`, `evidence`, `artifacts`,
+`benchmark`, `explain`, `propose_patch` (degrades visibly) and `export_report`. No tool runs a
+shell, Docker or a free-form command.
+
+```jsonc
+{ "command": "uv", "args": ["run", "ousast", "mcp"] }
+```
+
+> The `kiro-*` skills, `AGENTS.md` and `.kiro/` are the maintainer's development tooling and
+> can be ignored by users.
+
+## Further reading
+
+- [docs/architecture.md](docs/architecture.md): the scan pipeline, evidence ladder, CWE policy
+  and project score, and the self-improving loops.
+- [docs/evaluation.md](docs/evaluation.md): independent populations, the qualification gates,
+  pair corpora and the plane increment results.
+- [docs/decision-engine.md](docs/decision-engine.md): the learned decision engine.
+- [docs/threat-model.md](docs/threat-model.md): trust boundaries, sandbox and hardening.
+- [docs/examples.md](docs/examples.md): end-to-end walkthroughs.
 
 ## Development
 
@@ -424,7 +236,11 @@ uv run pytest                 # tests, incl. the 90/10 detection gate
 uv run ruff check .           # lint
 uv run ruff format --check .  # format
 uv run mypy src/openultrasast # types
-uv run python -m openultrasast.gate  # standalone detection gate
-uv run python -m openultrasast.pair_gate  # local vuln-vs-fix efficiency + GitHub honesty
-uv run python dagger/ci.py    # full containerized CI pipeline
+uv run python -m openultrasast.gate       # standalone detection gate
+uv run python -m openultrasast.pair_gate  # local vuln-vs-fix pairs
+uv run python dagger/ci.py    # containerized CI pipeline
 ```
+
+Maintainer commands not covered above: `ousast repos` (pinned known-vulnerable checkouts),
+`ousast model candidates` (what the candidate enumerator can reach) and `ousast learn`
+(the decision engine's data; see [docs/decision-engine.md](docs/decision-engine.md)).

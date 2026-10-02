@@ -1,6 +1,17 @@
 # Roadmap
 
-## Current release path — 2026-09-14
+## Status, 2026-10-02
+
+The milestone table below dates from 2026-09-14. Since then (`.kiro/specs/pre-push-safety-net/release-milestones.md`):
+M1a and M1b are met, M2 is measured NO-GO, and M3 is next, with M4 population preparation in parallel; none of
+M1-M5 is verified and rollout remains NO-GO. Populations v1 and v2 were evaluated and failed every M4 gate
+(`benchmarks/independent/results-v1.json`, `results-v2.json`); v3 (PHP) is frozen for the one-time final check.
+
+Work since then moved to: the ax plane as the only agentic executor (`ai-service-plane`, HarnessX retired
+2026-09-30 by `harnessx-removal`), and the learned decision engine (`learned-decision-engine`, task 6 in
+progress, not adopted). See `overview.md` for the current-state summary.
+
+## Release path as accepted 2026-09-14
 
 Build an actionable pre-push security safety net for AI-accelerated development.
 The maintainer accepted the following order: **prove one useful detection, make it

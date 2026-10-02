@@ -14,6 +14,74 @@ single-node kind cluster. ax is the only executor; `ousast plane run` submits, r
 Tools live in `~/go/bin` (kind, ax, ko, kubectl-ate) and `~/.local/bin` (kubectl); sources and rendered files
 in `~/.cache/ousast/ax-src/` (the runner digest pin is `runner-image` there).
 
+## How a Run executes
+
+A Run (`plane/runs/*.yaml`, kind `openultrasast.io/v1alpha1 Run`) is a DAG of steps; each step names an ax Task
+(`plane/tasks/`), its inputs and outputs, and its own `budget: {usd, calls}`. Every Task binds its Workspaces
+(`plane/workspaces/`) and one ax Model (`plane/models/`): `deepseek-flash` for chat, `openrouter-embedding`
+(OpenAI `text-embedding-3-small` through OpenRouter) for embeddings. `ousast plane run` (`plane/reconciler.py`)
+applies Workspaces before the Tasks that bind them, resumes each Task, sends its start signal, collects its
+artifacts and records state under `$OUSAST_RESULTS/plane/<run>/` (default `~/ousast-results/plane/`); a rerun
+skips tasks already done, and `--workers` bounds the tasks in flight.
+
+**Runner contract** (`plane/runner.py`, PID 1 of the runner image). ax hands the Task in `AX_TASK_YAML` and the
+Workspaces in `AX_WORKSPACES_YAML`; the runner serves `/healthz` and `/readyz` (503 until every workspace is
+materialised). Agent Substrate boots each template once as a golden actor to snapshot it, so the command never
+starts by itself: it waits for `POST /ousast/v1/start` with `{run, task, credentials}`, which the reconciler sends
+through Substrate's `atenet-router` to that actor only (`plane/router.py`). **The provider key exists only in that
+request**: the runner keeps it in memory, passes it to the command's environment, redacts it from echoed stderr
+and never writes it. The reconciler reads the variable the Model's `secretKey.key` names from the operator's
+environment or `.env` (which never overrides an exported variable). After the command exits, the runner posts
+`OUSAST_OUTPUT_DIR` as a tar to the receiver; that delivery is the task's completion, and a completion marker
+stops a resumed actor from repeating billed work.
+
+**Budgets.** The metered client refuses the next call once a task's `usd` or `calls` ceiling is reached; the task
+ends `unfinished` and resumes on a rerun with a larger budget. An account or authentication error ends it
+`failed`. Model-free tasks run with `{usd: 0, calls: 0}`, so a stray call fails loudly.
+
+**Egress** (`plane/egress.py`). One EgressPolicy per actor through the `atenet-egress` gateway, deny by default,
+hostnames only: plain HTTP to the artifact receiver, TLS passthrough to the source hosts of the bound Workspaces
+and to the hosts the bound Model declares (`openultrasast.io/egress-hosts`). The policy is deleted with the actor.
+
+**Token attribution.** `ousast plane status <run>` prints per task its status and `calls`, `prompt`,
+`cache_hit` and `output` tokens and `usd` from the tasks' `summary.json`, and writes `<run dir>/attribution.json`;
+`--units` adds per-unit rows.
+
+## Tasks
+
+| Task | Model | Does |
+|---|---|---|
+| `repo-facts` | none | functions per product file, and each candidate's call sites in other files |
+| `verify` (passes a, b, c) | `deepseek-flash` | batched tool hunt per file over the candidates, with their known callers |
+| `agree` | none | a and b agreed or disputed; after pass c on the disputed, 2-of-3 (the step `final`) |
+| `features` | none | one feature record per candidate for the decision engine |
+| `remember` | none | the case's artifacts as memory rows (`facts`, `verdict`, `unit_cost`, `alert`, `coverage`, `features`) |
+| `alerts` | none | the quick scan on the vulnerable and fixed pins (loop Runs) |
+| `loop` | none | the steps `snapshot`, `measure`, `propose`, `improve`: the improvement loop as a Run |
+| `roles` | `deepseek-flash` | per-repository source, sink and sanitizer roles without a vocabulary (decision-engine harvest) |
+
+Generators: `ousast plane workspaces <population> --validation-set ...` writes the per-case chain
+(`facts -> va, vb -> agree -> vc -> final -> features -> remember`, plus `alerts` and the loop with `--loop`);
+`ousast plane harvest --labels ... --plane DIR` writes the decision engine's harvest Runs; `ousast plane
+alerts-engine` produces a Run's `alerts` from the Joern engine image on the host, for PHP and other languages
+quick mode does not cover.
+
+## Memory store
+
+`plane/memory.py`. One store keyed by repository and pin holds what runs learned: `index.jsonl`, `facts/` by
+content hash, `repos/<host>__<owner>__<name>/<pin>.jsonl` rows, and content-addressed blobs (excerpts, embeddings,
+cached model responses, compiled programs). `ousast plane remember <run>` ingests a run's rows; a repeated ingest
+is skipped by the index. A facts entry is reused for the same repository, pin, candidates and runner image.
+
+`OUSAST_MEMORY` selects the backend:
+
+- `file:///path` (`FileStore`), default `$OUSAST_RESULTS/plane/memory`; it refuses to write below 1 GiB free;
+- `minio://<bucket>[/<prefix>]` (`MinioStore`, the `minio` extra), used on the maintainer's MinIO. Endpoint and
+  credentials come from `.env` or the environment (`MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`,
+  `MINIO_SECURE`), never from a manifest, and are never printed.
+
+`ousast improve --memory [STORE]` and the `ousast learn` commands (`--memory`) read the same store.
+
 ## Measured footprint (2026-09-29, idle, two workers)
 
 | Item | Value |
@@ -62,7 +130,7 @@ are; these parts assume this laptop and must change first (checked 2026-09-30):
 | ax's snapshot bucket: `AX_SNAPSHOTS_BUCKET` in ax's `deploy/ax-server.yaml` points at the ax authors' GCS bucket | ax deploy manifest | your own bucket, set before deploying ax |
 | Egress gateway applied by hand (agentgateway variant, no Rust build) | this README | the Substrate-installed gateway; per-task EgressPolicies work unchanged |
 | Worker pool of 2 x 1 CPU / 1.5 GiB for the 7 GB host | `workerpool.yaml.tmpl` | sized to the cluster; `--workers` to match |
-| Plane memory store and results under `~/ousast-results/` on the host | reconciler, memory layer (harnessx-removal Req 6) | a persistent volume or bucket shared by the reconciler |
+| Plane memory store and results under `~/ousast-results/` on the host | `reconciler.py` (`OUSAST_RESULTS`), `memory.py` (`OUSAST_MEMORY`) | a persistent volume or bucket shared by the reconciler; the `minio://` store already works against any reachable MinIO |
 
 The provider key already travels only in the start request through `atenet-router`, which works the same through
 a port-forward to any cluster.

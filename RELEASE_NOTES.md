@@ -1,5 +1,39 @@
 # Unreleased
 
+## PHP quick-mode rules (2026-09-30)
+
+`ruleset/php/rules.toml` adds 18 PHP rules (SQL injection, command injection, file inclusion,
+path, open redirect, SSRF; code eval, unserialize and echo XSS as `shadow`). They were written
+on the development corpus, so their numbers are in-sample only
+(`benchmarks/measurements/2026-09-30-php-quick-rules/measurement.json`); PHP is not part of
+the detection gate. `ousast plane alerts-engine` produces a Run's `alerts` for PHP from the
+Joern engine image on the host.
+
+## Framework knowledge as optional priors (2026-09-30)
+
+Rule and taint-fact entries that know a framework or library carry a `framework`/`library`
+tag naming a row of `ruleset/frameworks.toml`; the loaders take `priors` (`"all"` by default,
+unchanged behaviour; `"off"`; or a set of ids). Scan output is unchanged.
+
+## Decision engine, in development (2026-10-01)
+
+The learned decision engine (signals from every instrument, labels from ground truth, an AI
+classifier with local memory compiled in house) is in development and **not adopted**: no scan,
+pre-push check or report uses it. New maintainer commands: `ousast learn labels|memory|compile|
+evaluate|curve|audit-leaks` and `ousast plane harvest`; new plane tasks `features` and `roles`;
+the `advisory-fixes` pair source (97 advisory fix commits). First slice (injection, 110
+out-of-repository candidates): ADVISORY recall 0.90, precision 0.54, BLOCK not offered
+(`benchmarks/measurements/2026-10-01-decision-engine-injection-slice/record.json`;
+[docs/decision-engine.md](docs/decision-engine.md)).
+
+## Documentation (2026-10-02)
+
+The README is reduced to user-facing material; scan internals moved to
+[docs/architecture.md](docs/architecture.md) and measured results to
+[docs/evaluation.md](docs/evaluation.md). Removed references to commands that no longer exist
+(`ousast mechanisms export`, `ousast pairs --loo`) and corrected the description of `deep`
+mode, which runs sandboxed regression snippets when Docker is available.
+
 ## HarnessX removed; the ax plane is the agentic path (2026-09-30)
 
 HarnessX, the optional agentic extra (`openultrasast[harnessx]`), is removed with its code,

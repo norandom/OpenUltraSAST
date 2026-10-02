@@ -1,6 +1,37 @@
 # Overview — what this is, and what is actually true of it
 
-**Current direction, 2026-09-12:** an actionable pre-push security safety net for AI-accelerated
+## Current state, 2026-10-02
+
+Everything below this section is dated history; where it disagrees with this section, this section wins.
+User-facing documentation: `README.md`, `docs/architecture.md`, `docs/evaluation.md`, `docs/decision-engine.md`,
+`ops/ax/README.md`.
+
+- **Scanning.** `ousast scan --mode quick|standard|deep`. Quick rules for C/C++, Python, JavaScript/TypeScript,
+  Java/Groovy and PHP (PHP numbers are in-sample only: `benchmarks/measurements/2026-09-30-php-quick-rules/`).
+  Standard adds the MAP stage with the Joern model layer (shipped in the Docker image); deep adds sandboxed
+  regression snippets when Docker is available. Framework knowledge is tagged as optional priors
+  (`ruleset/frameworks.toml`, `priors=`). `ousast pre-push` compares head against base; the capability registry
+  is empty, rollout NO-GO.
+- **Agentic plane.** google/ax over Agent Substrate on kind is the only executor of model work over whole
+  repositories (`ousast plane run|status|doctor|workspaces|remember|alerts-engine|harvest`). Credentials travel
+  only in the start request through `atenet-router`; egress is per task; budgets are per task; rows go to the
+  memory store (`OUSAST_MEMORY`: FileStore, or MinioStore on the maintainer's MinIO).
+- **Removed.** HarnessX (retired 2026-09-30): its config keys fail, a `[harnessx]` section warns. The LLM judge
+  of the verifier and the LLM fusion panels are gone; fusion is deterministic.
+- **Improvement.** `ousast improve --memory` proposes rule-status edits from plane memory through the unchanged
+  validator and gate; the loop also runs as a plane Run.
+- **Decision engine** (`learned-decision-engine`, implementation, not adopted). First slice, injection only:
+  ADVISORY recall 0.90, precision 0.54, BLOCK not offered
+  (`benchmarks/measurements/2026-10-01-decision-engine-injection-slice/record.json`).
+- **Evaluation.** Populations v1 and v2 are spent and failed every M4 gate (`benchmarks/independent/results-v1.json`,
+  `results-v2.json`); v3 (PHP) is frozen and untouched for the one-time final check. The plane increment met its
+  gate on the second measurement with a tie-break chosen after the first (`benchmarks/independent/plane-increment-2.json`).
+- **Providers.** DeepSeek for LLM calls, OpenRouter only for OpenAI embeddings; keys in `.env`, which never
+  overrides an exported shell variable.
+
+## History
+
+**Direction, 2026-09-12:** an actionable pre-push security safety net for AI-accelerated
 development across supported ecosystems. See `safety-net.md` and the approved `pre-push-safety-net`
 spec. The ranker remains the scope mechanism; third-party vendor code stays outside targets and
 graphs. Advisory must meet the same actionability bar as blocking.
@@ -177,4 +208,4 @@ function-level pairs could not see any of them, and a repository showed all nine
 > **Retired 2026-09-30:** HarnessX was removed by `harnessx-removal`; the agentic plane is ax (`ai-service-plane`),
 > and evolutionary proposals come from the plane memory. The HarnessX specs in the table above are history.
 
-97 source modules, 90 load-bearing and 7 standalone capabilities; 814 tests.
+As of 2026-09-09: 97 source modules, 90 load-bearing and 7 standalone capabilities; 814 tests.
