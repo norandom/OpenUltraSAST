@@ -1,5 +1,7 @@
 # Requirements Document: finding-feedback-loop
 
+> **Status 2026-10-02:** dormant. Requirements approved and design generated on 2026-09-09; the design was never approved and no tasks exist. It depends on `contributor-scan`, which is paused; reopen it with that spec.
+
 ## Introduction
 
 Nine engine defects were found in one session against two repositories. **Three were the same bug in three
