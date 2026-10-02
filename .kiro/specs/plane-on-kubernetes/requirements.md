@@ -21,6 +21,16 @@ production entry point (a delta Run for a push) is added. Context: `brief.md`, `
   `harnessx-removal` Req 6 (memory on the S3 store) keeps holding; nothing is deleted before its replacement
   passes its test (the `harnessx-removal` sequencing rule).
 
+## Target Environment (maintainer, 2026-10-02)
+
+- **Cluster: k3s.** Consequences: containerd (no Docker socket; the engine's host-Docker path does not exist there),
+  gVisor needs `runsc` and a `RuntimeClass` installed on the nodes Substrate's workers run on, k3s ships Traefik
+  and local-path storage, and single-node k3s is close enough to kind that the kind proof transfers.
+- **Images and source: GitHub.** Images are published to GitHub Container Registry (`ghcr.io/norandom/...`),
+  built by GitHub Actions from tagged commits, digest-pinned in the manifests; private packages need an
+  `imagePullSecret` on the worker and reconciler ServiceAccounts. Substrate's and ax's own images are built with
+  `ko` from their checkouts and pushed to the same registry.
+
 ## Requirements
 
 ### Requirement 1: Nothing assumes this host
@@ -30,7 +40,7 @@ configuration value, so the plane runs the same on kind and on the target cluste
 
 #### Acceptance Criteria
 
-1. The kube context, the registry, the ax-server address, the router address, the receiver address and the
+1. The kube context, the registry (GHCR in production), the ax-server address, the router address, the receiver address and the
    snapshot and memory buckets are configuration (environment or one config file), with the kind values as the
    documented defaults for development; no module names `kind-ousast`, `localhost:5001` or `172.19.0.1`.
 2. `ousast plane doctor` checks the configured cluster, not kind by name, and reports each configured address.
