@@ -1,0 +1,19 @@
+F..                                                                      [100%]
+=================================== FAILURES ===================================
+________ test_no_host_literal_outside_the_profile_and_the_kind_bring_up ________
+
+    def test_no_host_literal_outside_the_profile_and_the_kind_bring_up() -> None:
+        kind = load_profile("kind", environ={})
+        found = offenders(_files(), kind.registry)
+>       assert found == [], "host-only literals (Req 1.3):\n" + "\n".join(found)
+E       AssertionError: host-only literals (Req 1.3):
+E         src/openultrasast/plane/workspaces.py:37: [kind context] CONTEXT = "kind-ousast"  # reinserted for the record 01 demonstration
+E       assert ['src/openult...emonstration'] == []
+E         
+E         Left contains one more item: 'src/openultrasast/plane/workspaces.py:37: [kind context] CONTEXT = "kind-ousast"  # reinserted for the record 01 demonstration'
+E         Use -v to get more diff
+
+tests/test_plane_literals.py:81: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_plane_literals.py::test_no_host_literal_outside_the_profile_and_the_kind_bring_up
+1 failed, 2 passed in 0.26s

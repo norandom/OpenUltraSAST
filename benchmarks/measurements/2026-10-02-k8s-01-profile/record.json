@@ -10,9 +10,9 @@
     "1.3": "36f5927",
     "1.4": "8099b29",
     "1.5": "86ec237",
-    "1.6": "see git log: plane(1.6)",
-    "1.7": "see git log: plane(1.7)",
-    "1.8": "this commit"
+    "1.6": "2afa20e",
+    "1.7": "2cca03c",
+    "1.8": "the commit that adds this line (git log: plane(1.8))"
   },
   "images": {
     "runner_before": "localhost:5001/ousast-runner@sha256:412db0a1504af8f1b23a395af8d1dcbd152c1bb6d16594f2b733067163a31884",

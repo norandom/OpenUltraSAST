@@ -1,0 +1,7 @@
+[ok] profile kind: exec=local kube_context=kind-ousast registry=localhost:5001 images=/home/mc/Source/OpenUltraSAST/.claude/worktrees/agent-a7d4724e0c0c407a8/ops/k8s/profiles/kind-images.json router_url=(tunnel through the kube context) ax_server=(tunnel through the kube context) memory=s3://sast-memory atespace=default snapshots_bucket=s3://ax-snapshots image_pull_secret=(none)
+[ok] cluster kind-ousast: reachable
+[ok] agent substrate (ate-system): 9 pods ready
+[ok] ax controller (ax-system): 4 pods ready
+[ok] runner image in localhost:5001: ousast-runner@sha256:95edc7ed5621... present in localhost:5001
+[ok] memory store s3://sast-memory: s3://sast-memory opens (an S3 bucket is verified)
+exit=0 seconds=1.4

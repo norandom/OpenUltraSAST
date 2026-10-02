@@ -61,7 +61,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
     or a mirrored copy named in a copied SandboxConfig; the check is `kubectl -n ate-system logs` of the worker
     pod's atelet fetch line, run by hand on the day k3s exists. Labelled planned until then.
   - _Requirements: 7.2_
-- [ ] 1.8 Kind proof and record 01
+- [x] 1.8 Kind proof and record 01
   - `ousast plane doctor --profile kind` passes every line; `ousast plane doctor --profile k3s` fails only on the
     unreachable context (the expected line); `test_plane_literals` 0 offenders; the probe of 1.5; the bound of 1.6.
   - `benchmarks/measurements/<date>-k8s-01-profile/record.json`.
