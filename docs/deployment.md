@@ -268,46 +268,50 @@ in-cluster is itself planned: today it is a host process, and its state director
 
 The maintainer's questions, answered from the code and the upstream checkouts under
 `~/.cache/ousast/ax-src/`: how is it hosted in ax, is there one container, how does ax relate to
-Kubernetes, and what scaling the pre-push hook would take. Everything marked **planned** is not
-built; the rest is what runs on this host today.
+Kubernetes, and what scaling the pre-push hook would take. The decisions of 2026-10-02 set the
+target: **two profiles of one code base**, `kind` (this laptop, kept as a first-class local
+execution mode, where every change is proven first) and `k3s` (production). Everything marked
+**planned** is not built; the rest is what runs on this host today.
 
 ```mermaid
 flowchart LR
-    subgraph dev ["Developer or CI"]
-        hook["git push: ousast pre-push, local, 30 s deadline"]
-        submit["Delta Run submission (planned)"]
+    subgraph dev ["Laptop or CI job"]
+        hook["ousast pre-push: local, 30 s deadline"]
+        cli["ousast plane run, remote mode (planned)"]
     end
-    subgraph k8s ["Kubernetes cluster"]
+    subgraph k3s ["k3s cluster (the kind profile is the same picture on one laptop)"]
         subgraph axns ["Namespace ax-system"]
             axs["ax-server Deployment + Redis"]
-            rec["Reconciler Deployment (planned)"]
-            rcv["Receiver Deployment (planned)"]
         end
         subgraph atens ["Namespace ate-system: Agent Substrate"]
             ctl["ate-api-server, ate-controller, atelet"]
             rt["atenet-router"]
             eg["atenet-egress gateway"]
-            wp["WorkerPool: warm gVisor workers, HPA (planned)"]
+            wp["WorkerPool: gVisor workers, runsc RuntimeClass, HPA (planned)"]
+            ewp["Engine WorkerPool: Joern as a task (planned)"]
         end
     end
-    reg["Registry: the one runner image, by digest"]
-    s3[("S3: memory store, artifacts (planned)")]
-    eng["Joern engine: large worker or Job (planned)"]
+    ghcr["GHCR: runner and engine images by digest (planned)"]
+    s3[("S3 memory store: memory rows, task artifacts (planned)")]
     llm["Model provider"]
-    hook -. "today: nothing leaves the host" .-> submit
-    submit --> rec
-    rec -- "ax apply, resume, delete" --> axs
+    hook -. "calls the CLI in remote mode (planned)" .-> cli
+    cli -- "ax apply, resume, delete: ingress or kubeconfig" --> axs
     axs -- "ActorTemplate per Task" --> ctl
     ctl --> wp
-    rec -- "start request" --> rt
+    ctl --> ewp
+    cli -- "start request" --> rt
     rt --> wp
-    wp -- "HTTP by Service name" --> eg
-    eg --> rcv
+    wp -- "PUT artifacts, presigned" --> eg
+    eg --> s3
     eg -- "TLS passthrough" --> llm
-    reg -. "pull" .-> wp
-    rec --> s3
-    rec -. "alerts-engine" .-> eng
+    ghcr -. "pull by digest" .-> wp
+    cli -- "polls: status, attribution" --> s3
 ```
+
+No inbound path exists in this picture: the CLI reaches ax-server and the router from outside, the
+tasks push their artifacts to the store through the egress gateway, and the CLI reads the store.
+Today's EndpointSlice back to a laptop (`ops/ax/receiver-service.yaml.tmpl`) is the kind profile's
+device and does not appear in production.
 
 ### ax, Kubernetes and Agent Substrate in three sentences
 
@@ -315,8 +319,8 @@ flowchart LR
 namespace `ax-system` (`ax/deploy/ax-server.yaml` in the ax checkout; its controller runs with
 `--template=default-template --template-atespace=ax-system`), and the `ax` CLI reaches it through a
 `kubectl port-forward` to `svc/ax-server` (`ax/internal/tunnel/tunnel.go`), so `ousast plane run`
-needs a kube context, not a public endpoint. **ax does not run containers itself**: it turns every
-Task into an ActorTemplate on Agent Substrate (`ax/internal/substrate/client.go`,
+needs a kube context or an ingress, not a public endpoint. **ax does not run containers itself**:
+it turns every Task into an ActorTemplate on Agent Substrate (`ax/internal/substrate/client.go`,
 `CreateActorTemplate`), built from the Task's image and environment, and the image must be pinned
 by digest (Substrate's `SandboxConfig` validation rejects tags: "All images must include a
 digest"). **Agent Substrate is the layer that owns the machines**: in the namespace `ate-system`
@@ -329,6 +333,16 @@ sandbox inside one of those workers, booted from the golden snapshot that
 to 63 bytes (`MaxNameLength` in `ax/pkg/apis/v1alpha1/types.go`), which is why the generated Task
 names are short.
 
+**What k3s changes** (planned; nothing has been applied to a k3s cluster): k3s runs containerd
+with no Docker socket, so the host-Docker path of `ousast plane alerts-engine` does not exist
+there and the engine must become a task (below); Substrate's gVisor workers need `runsc` and a
+`RuntimeClass` on the nodes they are scheduled to; k3s ships Traefik (the ingress the CLI can use
+instead of a kubeconfig) and local-path storage. Images are built by GitHub Actions from tagged
+commits, published to GitHub Container Registry and digest-pinned in the manifests; a private
+package needs an `imagePullSecret` on the worker ServiceAccount. Substrate's and ax's own images
+are built with `ko` from their checkouts and pushed to the same registry. The kind profile keeps
+`localhost:5001` and `ops/ax/up.sh`.
+
 ### One image, and what concurrency equals
 
 There is **one container image** for every Task: `plane/Dockerfile.runner` (`python:3.12-slim`
@@ -337,28 +351,31 @@ plus this package, PID 1 `/usr/local/bin/ax-task-runner`, which is
 digest (the pin is kept in `~/.cache/ousast/ax-src/runner-image`) and selects its work with
 `spec.command`: the runner starts `python -m openultrasast.plane.tasks.<command[0]>`
 (`runner.py`, `task_module`). `repo-facts`, `verify`, `agree`, `features`, `remember`, `alerts`,
-`loop` and `roles` are modules in that image, not images of their own. So the production answer to
-"how many containers" is: one image, one actor per Task, and **an actor occupies a whole worker**
-(its limits are the ActorTemplate's, the worker holds one actor at a time). Concurrency is
-therefore the number of workers in the `WorkerPool`, nothing else: `ops/ax/workerpool.yaml.tmpl`
-declares `replicas: 2` of 1 CPU / 1.5 GiB, so at most two Tasks run at once on this host, and
-`ousast plane run --workers` must not exceed the pool. Substrate ships an autoscaled pool
+`loop` and `roles` are modules in that image, not images of their own; the engine would be the
+second image (planned). So the production answer to "how many containers" is: one image, one
+actor per Task, and **an actor occupies a whole worker** (its limits are the ActorTemplate's, the
+worker holds one actor at a time). Concurrency is therefore the number of workers in the
+`WorkerPool`, nothing else: `ops/ax/workerpool.yaml.tmpl` declares `replicas: 2` of 1 CPU /
+1.5 GiB, so at most two Tasks run at once on this host, and `ousast plane run --workers` must not
+exceed the pool. Substrate ships an autoscaled pool
 (`substrate/demos/autoscaled-workerpool/README.md`: an HPA on the external metric
 `ate_workerpool_workers{state=at_capacity}` through prometheus-adapter, writing
 `WorkerPool.spec.replicas`; its README says the demo is kind-only today) and request parking
 (`substrate/demos/parking/`: the router holds a resume until a worker frees up). Neither is
-applied by `ops/ax/up.sh`; using them in production is **planned**.
+applied by `ops/ax/up.sh`; the production profile's pool manifests and autoscaling rule are
+**planned**.
 
 ### The three components that are bound to the host today
 
-| Component | Today | Production replacement |
+| Component | Today (the kind profile) | Production (the k3s profile, planned) |
 | --- | --- | --- |
-| Reconciler (`ousast plane run`, `src/openultrasast/plane/reconciler.py`) | a process on the operator's host; calls `ax` and `kubectl`, holds the Run's state under `OUSAST_RESULTS` | **planned**: an in-cluster Deployment (long-lived, Runs submitted to it) or a Job per Run, with Secrets injected into its environment (B.8) and a persistent volume for its state; the `kind-` context prefix must become configurable first (B.4) |
-| Artifact receiver (`plane/egress.py`, the `Receiver` thread inside the reconciler) | reached through the Service `ousast-receiver.ax-system` whose EndpointSlice points at the kind gateway address on the host (`ops/ax/receiver-service.yaml.tmpl`) | **planned**: the receiver as an in-cluster Deployment behind the same Service name, or presigned-URL uploads straight to the S3 store (B.5, paths 2 and 3) |
-| Joern engine (`plane/engine_alerts.py`, the host's `openultrasast:dev` container, run with `--memory 3g`) | `ousast plane alerts-engine` runs it on the host, one container at a time, and marks the Run's `alerts` tasks done | **planned**: a second, larger `WorkerPool` (the engine does not fit a 1.5 GiB worker) with an engine image and an `alerts-engine` Task, or a Kubernetes Job the reconciler waits on |
+| Reconciler (`ousast plane run`, `src/openultrasast/plane/reconciler.py`) | a process on the operator's host; calls `ax` and `kubectl` against `kind-ousast`, holds the Run's state under `OUSAST_RESULTS` | **the reconciler stays the CLI.** An execution mode `local` or `remote`: in `remote`, the same `ousast plane run` from a laptop or a CI job submits the Run to ax-server in k3s (over the cluster's ingress or a kubeconfig), sends the start requests, then polls the store and prints the same `status` and attribution table. Credentials come from the caller's environment as today (CI secrets in a job; B.8's rule, no value in a manifest). An unattended in-cluster reconciler (a Deployment with a submit API, or a Job per Run) is a **later option**, not the first step |
+| Artifact receiver (`plane/egress.py`, the `Receiver` thread inside the reconciler) | reached through the Service `ousast-receiver.ax-system` whose EndpointSlice points at the kind gateway address on the host (`ops/ax/receiver-service.yaml.tmpl`) | **no receiver in remote mode.** Tasks deliver their artifacts and fetch their inputs through presigned URLs on the S3 memory store (B.5, path 3; the store's hostname enters each Task's EgressPolicy, B.7), and the CLI reads completion from the store. The kind profile keeps the receiver thread; an in-cluster receiver Deployment (B.5, path 2) is not the chosen direction |
+| Joern engine (`plane/engine_alerts.py`, the host's `openultrasast:dev` container, run with `--memory 3g`) | `ousast plane alerts-engine` runs it on the host, one container at a time, and marks the Run's `alerts` tasks done | **an `engine` task on a second, larger `WorkerPool`** (the engine does not fit a 1.5 GiB worker, and k3s has no Docker socket), from an engine image digest-pinned in GHCR, emitting the same `alerts.jsonl` rows and coverage; `alerts-engine` on the host stays as the development path |
 
-The S3 memory store (RustFS tested) is already external; only the reconciler talks to it (B.7),
-so it moves with the reconciler.
+The S3 memory store (RustFS tested) is already external; in remote mode it is also the artifact
+path, so it must be reachable from the CLI's host and, through the egress gateway, from the
+workers.
 
 ### Scaling the pre-push hook in production
 
@@ -375,12 +392,15 @@ all within `--deadline` (30 s by default) and in `--mode advisory` unless blocki
 1. **Blocking, inside the hook's deadline**: what runs today, the quick rules and the delta
    engine on the changed regions. It stays local and deterministic, so the push is never held for
    a model or a cluster.
-2. **Asynchronous, on the plane**: the hook or the CI job submits a *delta Run* whose candidates
-   are the functions the push changed, to the in-cluster reconciler; the Run is the per-case chain
+2. **Asynchronous, on the plane**: the hook or the CI job calls the CLI in remote mode with a
+   *delta Run* whose candidates are the functions the push changed; the Run is the per-case chain
    of [The plane on ax](plane.md#per-case) (`facts`, `verify` a and b, `agree`, `verify` c on the
-   disputed only, `final`), and its verdict comes back as a commit status check or a review
-   comment once the Tasks have delivered. The worker pool is sized to the push rate or autoscaled
-   on `at_capacity` workers.
+   disputed only, `final`). The caller either waits, with its own deadline, for the CLI to print
+   the status and attribution table, or returns at once and a later `ousast plane status <run>`
+   reports from the store; a commit status check or a review comment would be built on that. The
+   worker pool is sized to the push rate or autoscaled on `at_capacity` workers. An unattended
+   in-cluster reconciler that accepts submissions without a CLI session is the later option named
+   above.
 
 **Cost per push, estimated from measured rates.** Two measured per-candidate rates exist for one
 model verdict: `$0.003215` (`spend.cost_per_candidate_evaluate_usd` in
@@ -402,8 +422,12 @@ a push Run, and `ousast plane status` would print the real figure per Task.
 - Workspace generation from a URL and a commit outside a population. `plane/generate.py` is
   population-driven (`read_cases` reads a validation set and a population TOML), so a Run for a
   repository that is not in a population cannot be generated today.
-- The in-cluster reconciler, the in-cluster receiver and the engine's worker or Job, as in the
-  table above.
+- The remote execution mode itself: the `local`/`remote` switch, configurable cluster context,
+  ax-server and router addresses (the `kind-` prefix is hard-coded, B.4), presigned delivery from
+  the runner to the store, and the CLI reading completion and `summary.json` from the store
+  instead of its receiver thread.
+- The engine task and its WorkerPool, the GHCR build, the production pool and autoscaling
+  manifests, and the k3s runbook and checklist.
 - The check or comment that carries the asynchronous verdict back to the push.
 
 ### Sizing
@@ -420,6 +444,7 @@ occupies.
 | `features`, `remember` | 250m / 512Mi; 100m / 256Mi | 1 CPU / 1Gi; 1 CPU / 512Mi | optional, for the decision engine and the memory |
 | `alerts`, `loop` | 250m / 512Mi | 1 CPU / 1280Mi | not in a push Run (loop Runs only) |
 | `roles` | 250m / 384Mi | 1 CPU / 1Gi | not in a push Run (harvest Runs only) |
+| `engine` (planned) | from a measured run | above 3 GiB (the host run uses `--memory 3g`) | its own pool, not the default one |
 
 - **Actors per push**: 4 (`facts`, `va`, `vb`, `agree`), 6 with a tie-break (`vc`, `final`);
   `features` and `remember` add two more when the verdict is to be kept.

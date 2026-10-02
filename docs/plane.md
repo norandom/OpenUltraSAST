@@ -134,7 +134,8 @@ flowchart LR
 ## Where this runs in production
 
 ax is a Kubernetes application over Agent Substrate, every Task runs the one runner image as an actor that
-occupies a whole worker, and the reconciler, the receiver and the Joern engine are host processes today:
+occupies a whole worker, and two profiles of this code base are the target: `kind` on a laptop (today) and `k3s`
+in production (planned), where the same CLI submits Runs remotely and the tasks deliver to the S3 store:
 [Production topology: ax on a Kubernetes cluster](deployment.md#production-topology-ax-on-a-kubernetes-cluster)
 draws it and sizes the pre-push hook at scale.
 
