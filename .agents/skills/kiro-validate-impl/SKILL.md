@@ -68,10 +68,16 @@ For each detected feature:
 - Read `.kiro/specs/<feature>/requirements.md` for requirements
 - Read `.kiro/specs/<feature>/design.md` for design structure
 - Read `.kiro/specs/<feature>/tasks.md` for task list and Implementation Notes
-- Core steering context: `product.md`, `tech.md`, `structure.md`
+- Core steering context: `overview.md`, `roadmap.md`, `safety-net.md` (custom steering files may also exist in `.kiro/steering/`)
 - Additional steering files only when directly relevant to the validated boundaries, runtime prerequisites, integrations, domain rules, security/performance constraints, or team conventions that affect the GO/NO-GO call
 
-**Discover canonical validation commands**:
+**This repository's gates** (`.github/workflows/ci.yml`; run them as written, judge each by its own exit code):
+- `TEST_COMMANDS`: `pytest -q -p no:cacheprovider < /dev/null; echo "exit=$?"` -- judge ONLY by the printed exit code, never by a summary line; `ruff check src tests`; `ruff format --check src tests`; `mypy src/openultrasast`
+- Detection gates: `python -m openultrasast.gate` (>=90% recall, <10% FP per language; hard, score-independent), `python -m openultrasast.map_gate`, and the pair gate `python -m openultrasast.pair_gate` (local vuln vs fix). A ruleset change that fails a gate is NO-GO.
+- Docs: `mkdocs build --strict` when `docs/` or `mkdocs.yml` changed
+- `SMOKE_COMMANDS`: `ousast --help`, and for a scan change `ousast scan <fixture> --mode quick` whose `manifest.json` names the stages that ran and the files preprocess kept. A plausible zero (0 findings, 0 degradations) from a tool that never read its input is a failed instrument, not a pass: prove the tool read its input first.
+
+**Discover canonical validation commands** (for other repositories, or anything the list above does not cover):
 - Inspect repository-local sources of truth in this order: project scripts/manifests (`package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, app manifests), task runners (`Makefile`, `justfile`), CI/workflow files, existing e2e/integration configs, then `README*`
 - Derive a feature-level validation set for this repo: `TEST_COMMANDS`, `BUILD_COMMANDS`, and `SMOKE_COMMANDS`
 - Prefer commands already used by repo automation over ad hoc shell pipelines

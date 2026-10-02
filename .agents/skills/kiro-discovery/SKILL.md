@@ -20,7 +20,7 @@ description: Entry point for new work. Determines the best action path or work d
 Gather **only metadata** to determine the action path. Do NOT read full file contents yet.
 
 - **Specs inventory**: Scan `.kiro/specs/*/spec.json` for `name`, `phase` fields and `approvals` status. Note feature names and their current status.
-- **Steering existence**: Check which files exist in `.kiro/steering/` (product.md, tech.md, structure.md, roadmap.md). Do NOT read their contents yet.
+- **Steering existence**: Check which files exist in `.kiro/steering/` (core: overview.md, roadmap.md, safety-net.md; custom files may exist too). Do NOT read their contents yet.
 - **Roadmap check**: If `.kiro/steering/roadmap.md` exists, read it. This contains project-level context (approach, scope, constraints, spec list) from a previous discovery session. Use it to restore project context.
 - **Top-level structure**: List the project root directory to note key directories and files. Do NOT recurse into subdirectories.
 
@@ -60,7 +60,7 @@ For Path A/B, recommend the next action and stop.
 **Only for Path C, D, and E.** Now load the context needed for discovery.
 
 **In main context** (essential for dialogue with user):
-- **Steering documents**: Read product.md and tech.md (if they exist) for project goals, constraints, and tech stack
+- **Steering documents**: Read overview.md and safety-net.md (if they exist) for project goals, constraints, and the current state of the stack
 - **Relevant specs**: If the request is adjacent to an existing spec, read that spec's requirements.md to understand boundaries and avoid overlap
 
 **Delegate to sub-agent** (keeps exploration out of main context):
@@ -198,7 +198,7 @@ Use this roadmap structure:
 - [ ] feature-c -- [one-line description]. Dependencies: feature-a, feature-b
 ```
 
-Then write `.kiro/specs/<feature>/brief.md` for **every** feature listed under `## Specs (dependency order)` using the Path C brief format. This enables parallel spec creation via `/kiro-spec-batch`.
+Then write `.kiro/specs/<feature>/brief.md` for **every** feature listed under `## Specs (dependency order)` using the Path C brief format. Each spec is then created one at a time with `/kiro-spec-init`, in dependency order.
 
 **For Path E (mixed decomposition)**:
 
@@ -219,7 +219,7 @@ Use the same roadmap structure as Path D, plus these additional sections:
 ```
 
 Path E rules:
-- Keep `## Specs (dependency order)` reserved for **new specs only** so `/kiro-spec-batch` can still parse it unchanged
+- Keep `## Specs (dependency order)` reserved for **new specs only** so the list stays a plain, parseable creation order
 - Record existing-spec extensions under `## Existing Spec Updates`
 - Record true no-spec work under `## Direct Implementation Candidates`
 - Write `brief.md` only for the **new specs** listed under `## Specs (dependency order)`
@@ -235,15 +235,12 @@ Suggest the next command and stop. Do NOT automatically run downstream spec gene
 
 - Path A: `/kiro-spec-requirements {feature}` to update the existing spec
 - Path B: Recommend direct implementation without creating a spec
-- Path C: Default to `/kiro-spec-init <feature-name>`
-  - Optional fast path: `/kiro-spec-quick <feature-name>` when the user explicitly wants to continue immediately
-- Path D: Default to `/kiro-spec-batch` (creates all specs in parallel based on roadmap.md dependency order)
-  - Optional cautious path: `/kiro-spec-init <first-feature-name>` when the user wants to validate the first slice before batching the rest
+- Path C: `/kiro-spec-init <feature-name>`, then the step-by-step phases (requirements, design, tasks), each human-reviewed
+- Path D: `/kiro-spec-init <first-feature-name>` for the first spec in roadmap.md dependency order; validate that slice before the next one
 - Path E: Choose the next command based on the new-spec portion of the decomposition
-  - If there is exactly one new spec: `/kiro-spec-init <new-feature-name>`
-  - If there are multiple new specs: `/kiro-spec-batch`
+  - `/kiro-spec-init <new-feature-name>` for the first (or only) new spec, the rest in dependency order afterwards
   - Also note which existing specs should be revisited with `/kiro-spec-requirements <feature>`
-- Re-entry: `/kiro-spec-init <next-feature-name>` or `/kiro-spec-batch` if multiple specs remain
+- Re-entry: `/kiro-spec-init <next-feature-name>` for the next spec that remains
 
 If the decomposition contains only existing-spec updates plus direct implementation candidates, do NOT use Path E. Prefer Path A when one existing spec is the clear home, or recommend the existing-spec update plus direct implementation work without creating roadmap entries.
 

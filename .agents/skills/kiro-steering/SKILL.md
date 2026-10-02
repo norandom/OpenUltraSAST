@@ -1,6 +1,6 @@
 ---
 name: kiro-steering
-description: Manage .kiro/steering/ as persistent project knowledge
+description: Manage .kiro/steering/ as persistent project knowledge, including custom steering documents for specialized contexts
 metadata:
   shared-rules: "steering-principles.md"
 ---
@@ -11,9 +11,12 @@ metadata:
 <background_information>
 **Role**: Maintain `.kiro/steering/` as persistent project memory.
 
+**Core steering in this repository**: `overview.md` (what the project is and what is actually true of it, dated current state), `roadmap.md` (milestones and status), `safety-net.md` (product direction). Custom files may exist beside them (for example a domain or standards file); all `.kiro/steering/*.md` are loaded as project memory. The generic bootstrap templates under `.kiro/settings/templates/steering/` are named `product.md`, `tech.md`, `structure.md`; they are starting points for a fresh project, not this repository's file names.
+
 **Mission**:
 - Bootstrap: Generate core steering from codebase (first-time)
 - Sync: Keep steering and codebase aligned (maintenance)
+- Custom: Create specialized steering documents beyond the core files (optional, see below)
 - Preserve: User customizations are sacred, updates are additive
 
 **Success Criteria**:
@@ -27,8 +30,9 @@ metadata:
 
 Check `.kiro/steering/` status:
 
-**Bootstrap Mode**: Empty OR missing core files (product.md, tech.md, structure.md)  
-**Sync Mode**: All core files exist
+**Bootstrap Mode**: Empty OR missing core files (here `overview.md`, `roadmap.md`, `safety-net.md`; in a fresh project the template names `product.md`, `tech.md`, `structure.md`)  
+**Sync Mode**: All core files exist  
+**Custom Mode**: The user asks for a specialized steering document (see Custom Steering below)
 
 ---
 
@@ -75,6 +79,20 @@ After all parallel research completes, synthesize patterns for steering files.
 
 ---
 
+## Custom Steering (optional)
+
+Create a specialized steering document for one domain beyond the core files.
+
+1. **Ask the user** for the domain/topic (e.g. "API standards", "testing approach") and the specific patterns to document
+2. **Check for a template** in `.kiro/settings/templates/steering-custom/`: `api-standards.md`, `testing.md`, `security.md`, `database.md`, `error-handling.md`, `authentication.md`, `deployment.md`. Load the matching one as a starting point; without a template, generate from domain knowledge
+3. **Analyze the codebase** (JIT) for the domain's patterns with Glob/Grep/Read (template and principles in parallel with the domain analysis when multi-agent is available)
+4. **Generate** the document: follow the template structure if any, apply `rules/steering-principles.md`, patterns not exhaustive lists, one domain per file, 100-200 lines (a 2-3 minute read), never secrets
+5. **Create** `.kiro/steering/{name}.md`; ensure it does not duplicate core steering content
+
+Custom files are loaded as project memory like the core files and carry equal weight.
+
+---
+
 ## Granularity Principle
 
 From `rules/steering-principles.md` (in this skill's directory):
@@ -106,9 +124,9 @@ Chat summary only (files updated directly).
 ✅ Steering Created
 
 ## Generated:
-- product.md: [Brief description]
-- tech.md: [Key stack]
-- structure.md: [Organization]
+- overview.md: [What it is, current state]
+- roadmap.md: [Milestones, status]
+- safety-net.md: [Product direction]
 
 Review and approve as Source of Truth.
 ```
@@ -118,14 +136,28 @@ Review and approve as Source of Truth.
 ✅ Steering Updated
 
 ## Changes:
-- tech.md: React 18 → 19
-- structure.md: Added API pattern
+- overview.md: Current state dated, retired component removed
+- roadmap.md: Milestone status updated
 
 ## Code Drift:
 - Components not following import conventions
 
 ## Recommendations:
 - Consider api-standards.md
+```
+
+### Custom:
+```
+✅ Custom Steering Created
+
+## Created:
+- .kiro/steering/api-standards.md
+
+## Based On:
+- Template: api-standards.md
+- Analyzed: src/api/ directory patterns
+
+Review and customize as needed.
 ```
 
 ## Examples
@@ -136,7 +168,12 @@ Review and approve as Source of Truth.
 
 ### Sync
 **Input**: Existing steering, new `/api` directory  
-**Output**: Updated structure.md, flagged non-compliant files, suggested api-standards.md
+**Output**: Updated overview.md, flagged non-compliant files, suggested api-standards.md
+
+### Custom
+**Input**: "Create API standards steering"  
+**Action**: Load template, analyze src/api/, extract patterns  
+**Output**: api-standards.md with project-specific REST conventions
 
 ## Safety & Fallback
 

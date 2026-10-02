@@ -55,6 +55,14 @@ Extract:
 - The command that produced the failure
 - Whether the failure is deterministic or intermittent
 
+### 1b. Verify the Instrument Before You Believe the Measurement
+Every wrong diagnosis recorded in this project had the same shape: the input was unreadable and the tool reported a plausible zero (`file_exists()` false, the parser wrote nothing, the frontend exited 0), and "no errors, 0 findings" read exactly like a clean result. Before trusting any measurement in the failure report:
+- **Prove the tool read its input.** Make it open one file and print the size. A zero from an unread tree and a zero from clean code are indistinguishable afterwards.
+- **Distrust a number that is too good.** A Joern script "finishing" in 0.5 s when a JVM takes 15 s to start is a failed launch. A harness must fail loudly with the exit code.
+- **Prefer the shipped environment** (the Docker image has a native `php`); local wrappers that proxy stdio are not valid instruments for `php2cpg`.
+- **When a result contradicts a working baseline, suspect the instrument first.**
+A plausible zero is a failed instrument until proven otherwise; classify it as `CONFIG_GAP` or `RUNTIME_MISMATCH`, not as `LOGIC_ERROR` in the code under test.
+
 ### 2. Inspect Local Runtime and Repository State
 Inspect the repository for local evidence:
 - `package.json`, `pyproject.toml`, `go.mod`, `Makefile`, `README*`
@@ -134,6 +142,7 @@ If the issue is fixable by repo changes inside the current task plan, do not esc
 | “Let’s try a few fixes” | Multi-fix guessing hides root cause. |
 | “The spec is probably wrong, I’ll adapt it” | Spec conflicts must be surfaced explicitly. |
 | “The docs search is optional” | For runtime/dependency issues, docs and version issues often contain the shortest path to root cause. |
+| “It ran clean: no errors, zero findings” | A tool that never read its input reports the same. Prove the read (one file, its size) before believing the zero. |
 
 ## Output Format
 

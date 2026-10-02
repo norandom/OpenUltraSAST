@@ -1,12 +1,17 @@
 ---
 name: kiro-spec-design
-description: Create comprehensive technical design for a specification
+description: Create comprehensive technical design for a specification; optionally run the implementation gap analysis first (--gap) or an interactive design review of an existing design (--review)
 metadata:
-  shared-rules: "design-principles.md, design-discovery-full.md, design-discovery-light.md, design-synthesis.md, design-review-gate.md"
+  shared-rules: "design-principles.md, design-discovery-full.md, design-discovery-light.md, design-synthesis.md, design-review-gate.md, gap-analysis.md, design-review.md"
 ---
 
 
 # Technical Design Generator
+
+**Arguments**: `$1` is the feature. `$2` may be `-y` (auto-approve requirements), `--gap` (run the
+optional gap analysis of Step 1b before designing) or `--review` (run only the optional interactive
+design review of Step 7 on an existing `design.md`). The design review gate of Step 5 always runs
+when a design is generated; the optional steps never replace it.
 
 <background_information>
 - **Success Criteria**:
@@ -24,8 +29,8 @@ metadata:
 
 **Read all necessary context**:
 - `.kiro/specs/$1/spec.json`, `requirements.md`, `design.md` (if exists)
-- `.kiro/specs/$1/research.md` (if exists, contains gap analysis from `/kiro-validate-gap`)
-- Core steering context: `product.md`, `tech.md`, `structure.md`
+- `.kiro/specs/$1/research.md` (if exists, contains the gap analysis from Step 1b or an earlier run)
+- Core steering context: `overview.md`, `roadmap.md`, `safety-net.md` (this repository's core steering; custom steering files may also exist in `.kiro/steering/`)
 - Additional steering files only when directly relevant to requirement coverage, architecture boundaries, integrations, runtime prerequisites, security/performance constraints, or team conventions that affect implementation readiness
 - `.kiro/settings/templates/specs/design.md` for document structure
 - Read `rules/design-principles.md` from this skill's directory for design principles
@@ -34,6 +39,16 @@ metadata:
 **Validate requirements approval**:
 - If `-y` flag provided ($2 == "-y"): Auto-approve requirements in spec.json
 - Otherwise: Verify approval status (stop if unapproved, see Safety & Fallback)
+
+### Step 1b (optional, `--gap`): Implementation Gap Analysis
+
+Recommended for brownfield features; skip for greenfield. Analyze the gap between the approved requirements and the existing codebase to inform the design, following `rules/gap-analysis.md` from this skill's directory.
+
+1. Read `rules/gap-analysis.md` for the analysis framework.
+2. Research in parallel where possible (sub-agents if available, otherwise sequentially): existing implementations, architecture patterns, integration points and extension possibilities; external dependency compatibility and version constraints when needed; the requirements, core steering, task-relevant extra steering and relevant local agent skills or playbooks.
+3. Execute the gap analysis: Grep and Read the codebase, use WebSearch/WebFetch for external dependencies if needed, evaluate multiple implementation approaches (extend / new / hybrid) with trade-offs, flag areas needing further research. Provide information and options, not final implementation choices.
+4. Write the analysis to `.kiro/specs/$1/research.md` (append after a `---` rule if the file exists; never overwrite earlier research) and read it back to verify the write. Use the language specified in spec.json.
+5. Unapproved requirements are a warning here, not a stop: gap analysis can inform requirement revisions. Then continue with Step 2, or stop and report if the user asked for the gap analysis alone.
 
 ### Step 2: Discovery & Analysis
 
@@ -137,6 +152,15 @@ After all findings return, synthesize in main context before proceeding.
    - Set `approvals.requirements.approved: true`
    - Update `updated_at` timestamp
 
+### Step 7 (optional, `--review`): Interactive Design Review
+
+A human-paced quality review of an existing `.kiro/specs/$1/design.md`, in addition to the automatic gate of Step 5. Follow `rules/design-review.md` from this skill's directory.
+
+1. Gather context: spec.json, requirements.md, design.md, core steering, review-relevant extra steering and local playbooks; survey existing codebase patterns, naming conventions and component structure for reference (parallel sub-agents if available).
+2. Review: Analysis -> Critical Issues -> Strengths -> GO/NO-GO. Limit to the 3 most important concerns; recognize 1-2 strengths; engage interactively (clarifying questions, alternatives); leverage conversation history for requirements context and user intent. Quality assurance, not perfection seeking; accept acceptable risk; every suggestion must be implementable.
+3. Decide: a clear GO/NO-GO with rationale. GO: `/kiro-spec-tasks $1` (or `-y`). NO-GO: address the critical issues, re-run `/kiro-spec-design $1`, then `/kiro-spec-design $1 --review` again.
+4. If design.md does not exist, stop: "Run `/kiro-spec-design $1` first to generate design document". If the design phase is not marked generated in spec.json, warn but proceed.
+
 ## Critical Constraints
  - **Type Safety**:
    - Enforce strong typing aligned with the project's technology stack.
@@ -199,7 +223,7 @@ Provide brief summary in the language specified in spec.json:
 
 **If Design Approved**:
 - Review generated design at `.kiro/specs/$1/design.md`
-- **Optional**: Run `/kiro-validate-design $1` for interactive quality review
+- **Optional**: Run `/kiro-spec-design $1 --review` for the interactive quality review (Step 7)
 - Then `/kiro-spec-tasks $1 -y` to generate implementation tasks
 
 **If Modifications Needed**:
