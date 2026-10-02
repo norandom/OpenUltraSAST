@@ -275,6 +275,7 @@ def main() -> int:
     skipped: Counter[str] = Counter()
     absent: Counter[str] = Counter()  # family -> labelled pair candidates their side does not declare
     dropped = 0
+    reingested = 0  # rows the index remembered from an earlier build but a later one had dropped
     args.scratch.mkdir(parents=True, exist_ok=True)
     chosen = [(k, r) for k, r in sorted(targets.items()) if k[0] in args.kinds.split(",")]
     for number, ((kind, ref, role_or_pin), rows) in enumerate(chosen):
@@ -357,15 +358,24 @@ def main() -> int:
                         for inst, info in rec["instruments"].items():
                             state = "missing" if info.get("version") == "missing:not-run" else info["state"]
                             coverage[f"{family}:{inst}"][state] += 1
-            store.ingest_rows("harvest", f"features:{owner}", out_rows)
+            ingested = store.ingest_rows("harvest", f"features:{owner}", out_rows)
             built = {r["id"] for r in out_rows}
             stored = store.rows(repo=memory.repo_key(repo), pin=pin, kind="features", where={"run": "harvest", "task": owner})
+            present = {r.row["id"] for r in stored}
+            restored = 0
+            if ingested.skipped and not built <= present:
+                # the index remembers these very rows from an earlier build, but a later build dropped them as stale
+                # (the side did not declare the function then); an index hit is not evidence the rows are there
+                store.put_rows(out_rows)
+                restored = len(built - present)
+                reingested += restored
             stale = [r.row["id"] for r in stored if r.row["id"] not in built]
             dropped += store.drop_rows(memory.repo_key(repo), pin, stale)
-            print(json.dumps({"target": owner, "rows": len(out_rows), "dropped": len(stale)}), flush=True)
+            print(json.dumps({"target": owner, "rows": len(out_rows), "dropped": len(stale), "restored": restored}), flush=True)
     counts = {
         "absent_on_side": dict(sorted(absent.items())),
         "dropped_stale_rows": dropped,
+        "restored_after_drop": reingested,
         "records": {f"{p}:{f}": n for (p, f), n in sorted(tally.items())},
         "instrument_states_plane": {k: dict(sorted(v.items())) for k, v in sorted(coverage.items())},
         "skipped_label_rows": dict(skipped),
