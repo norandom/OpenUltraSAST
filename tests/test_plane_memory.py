@@ -1,5 +1,6 @@
 """The plane's memory store (harnessx-removal Req 6.1/6.4, design §4): one contract over every backend, the S3
-Select probe and its fallback on a fake object client, backend selection, fact reuse by ``seed``, disk refusal."""
+bucket verification (versioning, the ``runs/`` expiry rule, S3 Select; no fallback) on a fake object client, backend
+selection, fact reuse by ``seed``, disk refusal."""
 
 from __future__ import annotations
 
@@ -20,6 +21,7 @@ import pytest
 from openultrasast.plane import memory, reconciler
 from openultrasast.plane.memory import (
     MINIO_KEYS,
+    ExpiryRule,
     FileStore,
     MemoryStore,
     MemoryStoreError,
@@ -39,8 +41,9 @@ OTHER_PIN = "fedcba9876543210fedcba9876543210fedcba98"
 IMAGE = "sha256:" + "a" * 64
 FACTS = json.dumps({"callers": {"a.py::run": []}, "counts": {"files": 1}, "files": {"a.py": {"functions": ["run"]}}}).encode()
 MINIO_SKIP = (
-    "MinIO contract tests need OUSAST_MEMORY_TEST_MINIO=1 plus MINIO_ENDPOINT, MINIO_ACCESS_KEY and MINIO_SECRET_KEY "
-    "exported (optional: MINIO_SECURE, OUSAST_MEMORY_TEST_BUCKET, default ousast-memory-test) and the minio extra installed"
+    "MinIO/RustFS contract tests need OUSAST_MEMORY_TEST_MINIO=1 plus MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY "
+    "and a bucket (OUSAST_MEMORY_TEST_BUCKET, else MINIO_BUCKET) exported (optional: MINIO_SECURE, MINIO_REGION) and the "
+    "minio extra installed; the admin configures that bucket, the tests never do"
 )
 
 
@@ -54,12 +57,18 @@ def verdict(candidate: str, final: str, **fields: Any) -> dict[str, Any]:
     return row("verdict", candidate, candidate=candidate, family="injection", final=final, tiebreak=False, **fields)
 
 
+# The admin's rule for the prefixes these tests open stores under ("" and "p").
+RUNS_RULES = [ExpiryRule("ousast-runs-expiry", "runs/", 30, True), ExpiryRule("ousast-runs-expiry-p", "p/runs/", 30, True)]
+
+
 class FakeObjects:
     """An in-memory :class:`memory.ObjectClient`: versions per write, tags per object; ``select`` works, raises or
-    answers wrongly, evaluating the equality clauses :func:`where_sql` writes."""
+    answers wrongly, evaluating the equality clauses :func:`where_sql` writes. The bucket is configured as the admin
+    does it unless ``versioning``/``rules`` say otherwise (``"denied"``: the read is refused)."""
 
-    def __init__(self, select: str = "works") -> None:
+    def __init__(self, select: str = "works", versioning: str = "Enabled", rules: list[ExpiryRule] | str | None = None) -> None:
         self.mode, self.objects, self.versions = select, {}, {}
+        self.status, self.rules, self.tags_denied = versioning, RUNS_RULES if rules is None else rules, False
         self.selects: list[str] = []
         self.gets: list[str] = []
         self.calls: list[tuple[Any, ...]] = []
@@ -80,6 +89,8 @@ class FakeObjects:
         return sorted(k for k in self.objects if k.startswith(prefix))
 
     def tags(self, key: str) -> dict[str, str]:
+        if self.tags_denied:
+            raise PermissionError("Access Denied")
         return dict(self.objects[key][1])
 
     def version(self, key: str) -> str | None:
@@ -91,6 +102,8 @@ class FakeObjects:
             raise RuntimeError("NotImplemented: SelectObjectContent is not supported")
         if self.mode == "wrong":
             return b""
+        if self.mode == "unbound":  # RustFS: a field absent from the object's leading rows
+            raise type("S3Error", (Exception,), {"code": "EvaluatorBindingDoesNotExist"})("A column name ... does not exist")
         clauses = re.findall(r"s\.\"(\w+)\" = ('(?:[^']|'')*'|true|false|-?[\d.]+)", expression)
         want = {n: v[1:-1].replace("''", "'") if v.startswith("'") else json.loads(v) for n, v in clauses}
         rows = [json.loads(line) for line in self.objects[key][0].splitlines() if line.strip()]
@@ -99,41 +112,49 @@ class FakeObjects:
     def presign(self, method: str, key: str, expires: timedelta) -> str:
         return f"https://minio.test/{key}?method={method}&X-Amz-Expires={int(expires.total_seconds())}"
 
-    def expire(self, prefix: str, days: int, rule_id: str) -> None:
-        self.calls.append(("expire", prefix, days, rule_id))
+    def versioning(self) -> str:
+        if self.status == "denied":
+            raise PermissionError("Access Denied")
+        return self.status
 
-    def enable_versioning(self) -> None:
-        self.calls.append(("versioning",))
+    def lifecycle(self) -> list[ExpiryRule]:
+        if self.rules == "denied":
+            raise PermissionError("Access Denied")
+        return list(self.rules)
 
 
 @pytest.fixture(autouse=True)
-def fresh_probes(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(memory, "_SELECT_PROBES", {})
+def fresh_verification(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(memory, "_VERIFIED", set())
 
 
 def _real_minio() -> Iterator[MemoryStore]:
     if os.environ.get("OUSAST_MEMORY_TEST_MINIO") != "1" or any(not os.environ.get(k) for k in MINIO_KEYS):
         pytest.skip(MINIO_SKIP)
     pytest.importorskip("minio", reason=MINIO_SKIP)
-    bucket = os.environ.get("OUSAST_MEMORY_TEST_BUCKET") or "ousast-memory-test"
+    bucket = os.environ.get("OUSAST_MEMORY_TEST_BUCKET") or os.environ.get("MINIO_BUCKET")
+    if not bucket:
+        pytest.skip(MINIO_SKIP)
     client = SdkClient(bucket=bucket, **minio_settings(os.environ))
-    if not client.sdk.bucket_exists(bucket):
-        client.sdk.make_bucket(bucket)
-    store = MinioStore(client, bucket, f"contract-{uuid.uuid4().hex[:12]}")
-    client.enable_versioning()
+    MinioStore(client, bucket)  # verifies the admin's setup at the bucket root; the tests never configure the bucket
+    # The contract rows go under a fresh prefix so every test starts empty; the admin's expiry rule covers the root's
+    # runs/, not this prefix's, so the prefixed store counts as verified by the root's check above.
+    prefix = f"contract-{uuid.uuid4().hex[:12]}"
+    memory._VERIFIED.add(f"minio://{bucket}/{prefix}")
+    store = MinioStore(client, bucket, prefix)
     yield store
     for key in client.keys(store.prefix + "/"):
         client.delete(key)
 
 
-@pytest.fixture(params=["file", "fake-minio-select", "fake-minio-fallback", "minio"])
+@pytest.fixture(params=["file", "fake-minio", "minio"])
 def store(request: pytest.FixtureRequest, tmp_path: Path) -> Iterator[MemoryStore]:
     if request.param == "file":
         yield FileStore(tmp_path / "memory")
     elif request.param == "minio":
         yield from _real_minio()
     else:
-        yield MinioStore(FakeObjects("works" if request.param.endswith("select") else "raises"), "bucket", "p")
+        yield MinioStore(FakeObjects(), "bucket", "p")
 
 
 # --- the contract --------------------------------------------------------------------------------------------------
@@ -215,33 +236,92 @@ def test_select_is_pushed_down_when_the_probe_answers(caplog: pytest.LogCaptureF
     store = _filled(client)
     with caplog.at_level(logging.WARNING, logger="openultrasast.plane.memory"):
         got = [r.row["candidate"] for r in store.rows(kind="verdict", where={"final": "disputed"})]
-    assert got == ["a.py::x"] and store.select_supported() and "locally" not in caplog.text
+    assert got == ["a.py::x"] and "locally" not in caplog.text
     assert client.selects[0] == 'SELECT * FROM S3Object s WHERE s."probe" = 1'
     assert client.selects[1:] == ["SELECT * FROM S3Object s WHERE s.\"final\" = 'disputed' AND s.\"kind\" = 'verdict'"]
 
 
 @pytest.mark.parametrize("mode", ["raises", "wrong"])
-def test_without_select_the_same_rows_come_from_a_local_filter_logged_once(
-    mode: str, caplog: pytest.LogCaptureFixture, tmp_path: Path
-) -> None:
-    client = FakeObjects(mode)
-    store, reference = _filled(client), FileStore(tmp_path / "m")
-    reference.put_rows([r.row for r in store.rows()])
-    with caplog.at_level(logging.WARNING, logger="openultrasast.plane.memory"):
-        for where in ({"final": "disputed"}, {"final": "agreed"}, {"pass": "a"}):
-            assert [r.row for r in store.rows(where=where)] == [r.row for r in reference.rows(where=where)] != []
-    assert not store.select_supported() and len(client.selects) == 1, "one probe per process"
-    assert caplog.text.count("does not answer S3 Select") == 1
+def test_a_server_without_select_is_refused_at_open(mode: str) -> None:
+    with pytest.raises(MemoryStoreError, match=r"S3 Select .* does not answer on _probe/select.jsonl .*no local fallback") as caught:
+        MinioStore(FakeObjects(mode), "bucket")
+    assert "versioning" not in str(caught.value) and "lifecycle" not in str(caught.value)
 
 
-def test_a_failing_select_on_one_object_falls_back_for_that_object(caplog: pytest.LogCaptureFixture) -> None:
+def test_a_failing_select_on_one_object_raises_instead_of_filtering_locally() -> None:
     client = FakeObjects("works")
     store = _filled(client)
-    assert store.select_supported()
     client.mode = "raises"
-    with caplog.at_level(logging.WARNING, logger="openultrasast.plane.memory"):
-        assert [r.row["candidate"] for r in store.rows(where={"final": "agreed"})] == ["a.py::run"]
-    assert "filtering it locally" in caplog.text
+    with pytest.raises(MemoryStoreError, match=r"S3 Select on repos/github.com__o__r/\w+\.jsonl failed .*no local fallback"):
+        store.rows(where={"final": "agreed"})
+
+
+def test_an_unbound_field_on_rustfs_raises_naming_the_schema_inference_never_returning_no_rows() -> None:
+    client = FakeObjects("works")
+    store = _filled(client)
+    client.mode = "unbound"
+    with pytest.raises(MemoryStoreError, match=r"EvaluatorBindingDoesNotExist.*\['usd'\] is absent from the object's leading rows"):
+        store.rows(where={"usd": 0.5})
+
+
+# --- bucket verification: the admin configures once, the store only reads ------------------------------------------
+
+
+def test_verify_bucket_passes_on_the_admin_setup_and_writes_only_its_probe() -> None:
+    client = FakeObjects()
+    store = MinioStore(client, "bucket", "p")
+    assert sorted(client.objects) == ["p/_probe/select.jsonl"] and not hasattr(client, "enable_versioning")
+    store.verify_bucket()
+    MinioStore(client, "bucket", "p")
+    assert len(client.selects) == 2, "opening a verified store again does not re-verify in the same process"
+
+
+@pytest.mark.parametrize("status", ["Suspended", "Off"])
+def test_verify_bucket_refuses_versioning_off_naming_the_admin_command(status: str) -> None:
+    with pytest.raises(MemoryStoreError, match=rf"versioning is {status}, it must be Enabled") as caught:
+        MinioStore(FakeObjects(versioning=status), "sast-memory")
+    message = str(caught.value)
+    assert "never configures its bucket" in message and "lifecycle" not in message and "Select" not in message
+    assert 'aws s3api put-bucket-versioning --endpoint-url "$MINIO_ENDPOINT" --bucket sast-memory' in message
+
+
+@pytest.mark.parametrize(
+    "rules",
+    [
+        [],
+        [ExpiryRule("other", "logs/", 7, True)],
+        [ExpiryRule("ousast-runs-expiry", "runs/", 30, False)],
+        [ExpiryRule("ousast-runs-expiry", "runs/", 30, True, tagged=True)],
+        [ExpiryRule("ousast-runs-expiry", "runs/", None, True, expires=False)],
+    ],
+    ids=["none", "other-prefix", "disabled", "tag-narrowed", "no-expiration"],
+)
+def test_verify_bucket_refuses_a_missing_runs_expiry_rule(rules: list[ExpiryRule]) -> None:
+    with pytest.raises(MemoryStoreError, match=r"no enabled lifecycle rule expires runs/") as caught:
+        MinioStore(FakeObjects(rules=rules), "sast-memory")
+    assert "put-bucket-lifecycle-configuration" in str(caught.value)
+    assert '"Filter":{"Prefix":"runs/"},"Expiration":{"Days":30}' in str(caught.value)
+
+
+def test_verify_bucket_names_the_prefixed_runs_and_refuses_a_rule_expiring_the_whole_store() -> None:
+    with pytest.raises(MemoryStoreError, match=r"no enabled lifecycle rule expires mem/runs/"):
+        MinioStore(FakeObjects(rules=[ExpiryRule("r", "runs/", 30, True)]), "bucket", "mem")
+    wide = [ExpiryRule("everything", "", 30, True), ExpiryRule("ousast-runs-expiry", "runs/", 30, True)]
+    with pytest.raises(MemoryStoreError, match=r"lifecycle rule\(s\) everything expire the whole store"):
+        MinioStore(FakeObjects(rules=wide), "bucket")
+    MinioStore(FakeObjects(rules=[ExpiryRule("r", "mem/runs/", 14, True)]), "bucket", "mem")
+
+
+def test_verify_bucket_names_every_missing_piece_and_the_permissions_to_read_them() -> None:
+    client = FakeObjects("raises", versioning="denied", rules="denied")
+    client.tags_denied = True
+    with pytest.raises(MemoryStoreError) as caught:
+        MinioStore(client, "sast-memory")
+    message = str(caught.value)
+    assert "versioning cannot be read (PermissionError: Access Denied)" in message and "s3:GetBucketVersioning" in message
+    assert "lifecycle configuration cannot be read" in message and "s3:GetLifecycleConfiguration" in message
+    assert "object tags cannot be read" in message and "s3:GetObjectTagging" in message
+    assert "S3 Select" in message and message.count("\n  - ") == 4
 
 
 def test_row_objects_carry_tags_and_a_kind_tag_skips_objects_without_that_kind() -> None:
@@ -254,14 +334,6 @@ def test_row_objects_carry_tags_and_a_kind_tag_skips_objects_without_that_kind()
     client.gets.clear()
     assert [r.row["kind"] for r in store.rows(kind="unit_cost")] == ["unit_cost"]
     assert f"repos/github.com__o__r/{PIN}.jsonl" not in client.gets, "an object tagged without the kind is not read"
-
-
-def test_configure_turns_versioning_on_and_expires_runs_only() -> None:
-    client = FakeObjects()
-    MinioStore(client, "bucket", "memory").configure(14)
-    assert client.calls == [("versioning",), ("expire", "memory/runs/", 14, "ousast-runs-expiry")]
-    with pytest.raises(ValueError):
-        MinioStore(client, "bucket").configure(0)
 
 
 def test_where_sql_quotes_values_and_refuses_odd_fields() -> None:

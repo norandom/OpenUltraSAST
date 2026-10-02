@@ -12,12 +12,16 @@ engine's own. Layout, identical for both backends::
                                               by excerpt sha, responses/*.json by request sha, programs/*.json
 
 ``OUSAST_MEMORY`` selects the backend: ``file:///path`` (:class:`FileStore`, default ``results_root()/memory``) or
-``minio://<bucket>[/<prefix>]`` (:class:`MinioStore`, the ``minio`` extra). MinIO's endpoint and credentials come
-from ``.env`` (``MINIO_ENDPOINT``, ``MINIO_ACCESS_KEY``, ``MINIO_SECRET_KEY``, ``MINIO_SECURE``), never from a
-manifest, and are never printed. Ingest is idempotent: an ``index.jsonl`` hit on (run, task, sha256) skips the
-delivery, and rows carry a deterministic ``id``, so a repeated row replaces itself. Every object is written whole
-(``FileStore``: a temporary file renamed) and the index last, so an interrupted ingest leaves nothing partial that
-a repeat would not repair. ``FileStore`` refuses to write below 1 GiB free and names its path.
+``minio://<bucket>[/<prefix>]`` (:class:`MinioStore`, the ``minio`` extra; MinIO or RustFS). The endpoint and
+credentials come from ``.env`` (``MINIO_ENDPOINT``, ``MINIO_ACCESS_KEY``, ``MINIO_SECRET_KEY``, ``MINIO_SECURE``,
+``MINIO_REGION``), never from a manifest, and are never printed. The store never configures its bucket: an admin
+enables versioning and the ``runs/`` expiry rule once, and opening a ``MinioStore`` verifies them and S3 Select
+(:meth:`MinioStore.verify_bucket`), refusing to start otherwise.
+
+Ingest is idempotent: an ``index.jsonl`` hit on (run, task, sha256) skips the delivery, and rows carry a
+deterministic ``id``, so a repeated row replaces itself. Every object is written whole (``FileStore``: a temporary
+file renamed) and the index last, so an interrupted ingest leaves nothing partial that a repeat would not repair.
+``FileStore`` refuses to write below 1 GiB free and names its path.
 
 Fact reuse: a facts entry is valid for (repo, pin, candidates digest, runner image digest), the key the generator
 writes as the Task annotation ``openultrasast.io/memory-key``. :func:`seed` runs before a Run: for every entry whose
@@ -458,8 +462,23 @@ class FileStore(MemoryStore):
 # --- the MinIO backend ---------------------------------------------------------------------------------------------
 
 
+@dataclass(frozen=True)
+class ExpiryRule:
+    """One bucket lifecycle rule as :meth:`MinioStore.verify_bucket` reads it: ``prefix`` is the filter's key prefix
+    (``""`` for a bucket-wide rule), ``tagged`` whether tags also narrow it, ``days`` its current-version
+    expiration in days (None: no expiration by days), ``expires`` whether it expires current versions at all."""
+
+    rule_id: str
+    prefix: str
+    days: int | None
+    enabled: bool
+    tagged: bool = False
+    expires: bool = True
+
+
 class ObjectClient(Protocol):
-    """The object operations :class:`MinioStore` needs; :class:`SdkClient` adapts the ``minio`` SDK, tests fake it."""
+    """The object operations :class:`MinioStore` needs; :class:`SdkClient` adapts the ``minio`` SDK, tests fake it.
+    The bucket-configuration calls only read: the store never configures its bucket."""
 
     def get(self, key: str) -> tuple[bytes, str | None] | None: ...
     def put(self, key: str, data: bytes, labels: Mapping[str, str]) -> None: ...
@@ -469,21 +488,32 @@ class ObjectClient(Protocol):
     def version(self, key: str) -> str | None: ...
     def select(self, key: str, expression: str) -> bytes: ...
     def presign(self, method: str, key: str, expires: timedelta) -> str: ...
-    def expire(self, prefix: str, days: int, rule_id: str) -> None: ...
-    def enable_versioning(self) -> None: ...
+    def versioning(self) -> str: ...
+    def lifecycle(self) -> list[ExpiryRule]: ...
 
 
-_SELECT_PROBES: dict[str, bool] = {}
+_VERIFIED: set[str] = set()
 PROBE_KEY = "_probe/select.jsonl"
+RUNS_PREFIX = "runs/"
+RUNS_RULE_ID = "ousast-runs-expiry"
+RUNS_EXPIRE_DAYS = 30
+
+
+def _failure(exc: Exception) -> str:
+    return f"{getattr(exc, 'code', None) or type(exc).__name__}: {str(exc)[:200]}"
 
 
 class MinioStore(MemoryStore):
     """The layout in one bucket (optionally under a prefix): object metadata and tags on every row object, S3
-    Select pushdown when the server answers it (probed once per process) and a local filter otherwise, bucket
-    versioning for provenance, lifecycle expiry for ``runs/``, presigned URLs."""
+    Select pushdown for every filtered read, bucket versioning for provenance, lifecycle expiry for ``runs/``,
+    presigned URLs. An admin configures the bucket once; opening a store verifies it (:meth:`verify_bucket`) and
+    refuses a bucket without versioning, the ``runs/`` expiry rule or S3 Select. There is no local fallback."""
 
     def __init__(self, client: ObjectClient, bucket: str, prefix: str = "") -> None:
         self.client, self.bucket, self.prefix = client, bucket, prefix.strip("/")
+        if self.describe() not in _VERIFIED:
+            self.verify_bucket()
+            _VERIFIED.add(self.describe())
 
     def describe(self) -> str:
         return f"minio://{self.bucket}" + (f"/{self.prefix}" if self.prefix else "")
@@ -511,32 +541,96 @@ class MinioStore(MemoryStore):
         tagged = self.client.tags(self._k(key)).get("kind")
         return tagged is None or tagged == "*" or kind in tagged.split()
 
-    def select_supported(self) -> bool:
-        """Whether the server answers S3 Select over JSON Lines: one probe per bucket per process."""
-        name = self.describe()
-        if name not in _SELECT_PROBES:
-            try:
-                self.client.put(self._k(PROBE_KEY), b'{"probe":1}\n{"probe":2}\n', {})
-                got = _parse_lines(self.client.select(self._k(PROBE_KEY), where_sql({"probe": 1})), PROBE_KEY)
-                _SELECT_PROBES[name] = got == [{"probe": 1}]
-                detail = "" if _SELECT_PROBES[name] else f"; the probe returned {got!r}"
-            except Exception as exc:  # noqa: BLE001 -- any failure means "not supported"; the fallback is exact
-                _SELECT_PROBES[name], detail = False, f"; {type(exc).__name__}: {str(exc)[:200]}"
-            if not _SELECT_PROBES[name]:
-                log.warning("memory %s: the server does not answer S3 Select%s; filtering rows locally", name, detail)
-        return _SELECT_PROBES[name]
+    def verify_bucket(self) -> None:
+        """Read-only check that the admin's one-time setup is in place: versioning ``Enabled``, an enabled
+        lifecycle rule expiring ``<prefix>/runs/`` and none expiring the whole store, S3 Select answering a probe
+        over JSON Lines, and the probe's object tags readable. Every missing piece is named with its admin action
+        in one :class:`MemoryStoreError`."""
+        runs = self._k(RUNS_PREFIX)
+        endpoint = '--endpoint-url "$MINIO_ENDPOINT"'
+        missing: list[str] = []
+        try:
+            status = self.client.versioning()
+        except Exception as exc:  # noqa: BLE001 -- any failure is named; the store does not start
+            missing.append(
+                f"versioning cannot be read ({_failure(exc)}): the agent needs s3:GetBucketVersioning on "
+                f"arn:aws:s3:::{self.bucket}, and versioning must be Enabled"
+            )
+        else:
+            if status != "Enabled":
+                missing.append(
+                    f"versioning is {status or 'Off'}, it must be Enabled (provenance cites object versions). Admin: "
+                    f"aws s3api put-bucket-versioning {endpoint} --bucket {self.bucket} "
+                    "--versioning-configuration Status=Enabled"
+                )
+        rule_json = (
+            f'{{"Rules":[{{"ID":"{RUNS_RULE_ID}","Status":"Enabled","Filter":{{"Prefix":"{runs}"}},'
+            f'"Expiration":{{"Days":{RUNS_EXPIRE_DAYS}}}}}]}}'
+        )
+        lifecycle_admin = (
+            f"Admin (merged with any rules the bucket already has): aws s3api put-bucket-lifecycle-configuration "
+            f"{endpoint} --bucket {self.bucket} --lifecycle-configuration '{rule_json}'"
+        )
+        try:
+            rules = self.client.lifecycle()
+        except Exception as exc:  # noqa: BLE001
+            missing.append(
+                f"the lifecycle configuration cannot be read ({_failure(exc)}): the agent needs "
+                f"s3:GetLifecycleConfiguration on arn:aws:s3:::{self.bucket}, and a rule must expire {runs}"
+            )
+        else:
+            live = [r for r in rules if r.enabled and r.expires]
+            store_root = self._k("")
+            wide = [r.rule_id for r in live if store_root.startswith(r.prefix)]
+            if wide:
+                missing.append(
+                    f"lifecycle rule(s) {', '.join(wide)} expire the whole store (repos/, facts/ and the index would be "
+                    f"deleted); limit them to {runs}"
+                )
+            if not any(r.prefix in (runs, runs.rstrip("/")) and not r.tagged and r.days for r in live):
+                missing.append(f"no enabled lifecycle rule expires {runs} after a number of days. {lifecycle_admin}")
+        try:
+            self.client.put(self._k(PROBE_KEY), b'{"probe":1}\n{"probe":2}\n', {})
+            got = _parse_lines(self.client.select(self._k(PROBE_KEY), where_sql({"probe": 1})), PROBE_KEY)
+            select_error = "" if got == [{"probe": 1}] else f"the probe returned {got!r}"
+        except Exception as exc:  # noqa: BLE001
+            select_error = _failure(exc)
+        try:
+            self.client.tags(self._k(PROBE_KEY))
+        except Exception as exc:  # noqa: BLE001
+            missing.append(
+                f"object tags cannot be read on {self._k(PROBE_KEY)} ({_failure(exc)}): the store filters row objects by "
+                f"their kind tag, so the agent needs s3:GetObjectTagging on arn:aws:s3:::{self.bucket}/*"
+            )
+        if select_error:
+            missing.append(
+                f"S3 Select (SelectObjectContent over JSON Lines) does not answer on {self._k(PROBE_KEY)} "
+                f"({select_error}). The store requires it and has no local fallback: use a server with S3 Select "
+                "(RustFS has it; some MinIO releases removed it) and let the agent s3:PutObject and s3:GetObject"
+            )
+        if missing:
+            raise MemoryStoreError(
+                f"memory {self.describe()}: the bucket is not set up for the store. The store never configures its "
+                "bucket (an admin sets it once, the store verifies); missing:\n" + "\n".join(f"  - {m}" for m in missing)
+            )
 
     def _select(self, key: str, where: Mapping[str, Any]) -> tuple[list[dict[str, Any]], str | None] | None:
-        if not where or not self.select_supported():
-            return super()._select(key, where)
+        if not where:
+            return super()._select(key, where)  # no filter: the whole object is the answer
         version = self.client.version(self._k(key))  # stat, then select: Select takes no version id
         if version is None and self.client.get(self._k(key)) is None:
             return None
         try:
             return _parse_lines(self.client.select(self._k(key), where_sql(where)), key), version
-        except Exception as exc:  # noqa: BLE001 -- one object's Select failing never loses rows
-            log.warning("memory %s: S3 Select on %s failed (%s); filtering it locally", self.describe(), key, type(exc).__name__)
-            return super()._select(key, where)
+        except Exception as exc:
+            hint = ""
+            if getattr(exc, "code", None) == "EvaluatorBindingDoesNotExist":
+                # RustFS infers an object's JSON schema from its leading rows: a field missing there is unbound even
+                # when later rows carry it, so "no rows" would be a guess. Measured 2026-10-02 (field at row 5000).
+                hint = f" (a field of {sorted(where)} is absent from the object's leading rows, which the server reads as its schema)"
+            raise MemoryStoreError(
+                f"memory {self.describe()}: S3 Select on {key} failed ({_failure(exc)}){hint}; the store has no local fallback"
+            ) from exc
 
     def presign_put(self, key: str, expires: timedelta = timedelta(hours=1)) -> str:
         return self.client.presign("PUT", self._k(key), expires)
@@ -544,24 +638,17 @@ class MinioStore(MemoryStore):
     def presign_get(self, key: str, expires: timedelta = timedelta(hours=1)) -> str:
         return self.client.presign("GET", self._k(key), expires)
 
-    def configure(self, runs_expire_days: int = 30) -> None:
-        """Bucket versioning on (provenance) and the lifecycle rule expiring ``runs/`` after ``runs_expire_days``;
-        ``repos/``, ``facts/`` and ``proposals/`` are kept."""
-        if runs_expire_days < 1:
-            raise ValueError("runs_expire_days must be at least 1")
-        self.client.enable_versioning()
-        self.client.expire(self._k("runs/"), runs_expire_days, "ousast-runs-expiry")
-
 
 class SdkClient:
     """:class:`ObjectClient` over ``minio.Minio``; imported lazily so the core install needs no SDK."""
 
-    def __init__(self, endpoint: str, access_key: str, secret_key: str, secure: bool, bucket: str) -> None:
+    def __init__(self, endpoint: str, access_key: str, secret_key: str, secure: bool, bucket: str, region: str | None = None) -> None:
         try:
             from minio import Minio
         except ImportError as exc:
             raise MemoryStoreError("OUSAST_MEMORY=minio://... needs the minio SDK: install openultrasast[minio]") from exc
-        self.sdk, self.bucket = Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=secure), bucket
+        self.sdk = Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=secure, region=region)
+        self.bucket = bucket
 
     def get(self, key: str) -> tuple[bytes, str | None] | None:
         from minio.error import S3Error
@@ -624,18 +711,22 @@ class SdkClient:
             return str(self.sdk.presigned_put_object(self.bucket, key, expires=expires))
         return str(self.sdk.presigned_get_object(self.bucket, key, expires=expires))
 
-    def expire(self, prefix: str, days: int, rule_id: str) -> None:
-        from minio.commonconfig import ENABLED, Filter
-        from minio.lifecycleconfig import Expiration, LifecycleConfig, Rule
+    def versioning(self) -> str:
+        return str(self.sdk.get_bucket_versioning(self.bucket).status_string)
 
-        rule = Rule(ENABLED, rule_filter=Filter(prefix=prefix), rule_id=rule_id, expiration=Expiration(days=days))
-        self.sdk.set_bucket_lifecycle(self.bucket, LifecycleConfig([rule]))
-
-    def enable_versioning(self) -> None:
-        from minio.commonconfig import ENABLED
-        from minio.versioningconfig import VersioningConfig
-
-        self.sdk.set_bucket_versioning(self.bucket, VersioningConfig(ENABLED))
+    def lifecycle(self) -> list[ExpiryRule]:
+        config = self.sdk.get_bucket_lifecycle(self.bucket)
+        rules: list[ExpiryRule] = []
+        for rule in config.rules if config else []:
+            found = rule.rule_filter
+            joined = found.and_operator if found else None
+            prefix = (joined.prefix if joined else found.prefix if found else None) or ""
+            tagged = bool(found and (found.tag or (joined and joined.tags)))
+            expiration = rule.expiration
+            expires = bool(expiration and (expiration.days or expiration.date))
+            days = expiration.days if expiration else None
+            rules.append(ExpiryRule(str(rule.rule_id or ""), prefix, days, rule.status == "Enabled", tagged, expires))
+        return rules
 
 
 def minio_settings(environ: Mapping[str, str] | None = None) -> dict[str, Any]:
@@ -649,10 +740,13 @@ def minio_settings(environ: Mapping[str, str] | None = None) -> dict[str, Any]:
     if missing:
         raise MemoryStoreError(f"OUSAST_MEMORY=minio://... needs {', '.join(missing)} in .env or the environment")
     secure = (environ.get("MINIO_SECURE") or "true").strip().lower() not in ("0", "false", "no", "off")
-    return {
+    settings: dict[str, Any] = {
         "endpoint": environ["MINIO_ENDPOINT"], "access_key": environ["MINIO_ACCESS_KEY"],
         "secret_key": environ["MINIO_SECRET_KEY"], "secure": secure,
     }  # fmt: skip
+    if environ.get("MINIO_REGION"):
+        settings["region"] = environ["MINIO_REGION"]  # spares a GetBucketLocation the agent may not be allowed
+    return settings
 
 
 def open_store(spec: str | None = None, environ: Mapping[str, str] | None = None) -> MemoryStore:
@@ -766,6 +860,7 @@ __all__ = [
     "MemoryStoreError",
     "MinioStore",
     "ObjectClient",
+    "ExpiryRule",
     "Record",
     "SdkClient",
     "counts",

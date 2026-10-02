@@ -49,6 +49,58 @@ afterwards (`go clean -cache -modcache`); rerunning the full Substrate install o
 - A Workspace's `files` reach the actor inline in one environment variable: above ~20 KB of content the template
   fails with "actor template not found" (an 86 KB and a 31 KB excerpt did; 7 KB ran).
 
+## Memory store on S3 (MinIO or RustFS)
+
+`OUSAST_MEMORY=minio://<bucket>[/<prefix>]` puts the plane's memory store (`plane/memory.py`) in an
+S3-compatible bucket. MinIO and RustFS both work; the maintainer's server is RustFS. Endpoint and credentials
+come from `.env` (`MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_SECURE`, optional
+`MINIO_REGION`, which avoids a GetBucketLocation call) and are never printed.
+
+**The store never configures its bucket.** An admin sets it up once. Each time a `MinioStore` is opened it
+checks the setup (`MinioStore.verify_bucket`), using reads plus one small probe object at
+`<prefix>/_probe/select.jsonl`. If anything is missing, it refuses to start with a `MemoryStoreError` that lists
+each missing piece and the admin command that fixes it. Nothing is skipped quietly. The store needs:
+
+- **versioning `Enabled`**, because provenance cites object version ids;
+- **an enabled lifecycle rule expiring `<prefix>/runs/`** (raw run outputs) after a number of days, 30 by
+  default. The rule must be a plain prefix filter, and no rule may expire the whole store (`repos/`, `facts/`,
+  `index.jsonl` and the blobs are kept);
+- **S3 Select** (`SelectObjectContent` over JSON Lines). Every filtered read is pushed down to the server, and
+  there is no fetch-and-filter fallback. A server without Select (some MinIO releases removed it) is refused;
+- **object tags readable**, because rows are filtered by their `kind` tag.
+
+One-time admin setup (admin credentials, bucket `sast-memory`, store at the bucket root):
+
+    aws s3api put-bucket-versioning --endpoint-url "$MINIO_ENDPOINT" --bucket sast-memory \
+        --versioning-configuration Status=Enabled
+    aws s3api put-bucket-lifecycle-configuration --endpoint-url "$MINIO_ENDPOINT" --bucket sast-memory \
+        --lifecycle-configuration '{"Rules":[{"ID":"ousast-runs-expiry","Status":"Enabled",
+          "Filter":{"Prefix":"runs/"},"Expiration":{"Days":30}}]}'
+
+`put-bucket-lifecycle-configuration` replaces every rule on the bucket, so merge this rule with any rules
+already there. The agent account's policy can read the bucket's configuration but not change it. It reads and
+writes objects and their tags, and it gets no `Put*` on versioning or lifecycle:
+
+    {"Version": "2012-10-17", "Statement": [
+      {"Effect": "Allow", "Action": ["s3:ListBucket", "s3:GetBucketLocation", "s3:GetBucketVersioning",
+                                     "s3:GetLifecycleConfiguration"],
+       "Resource": ["arn:aws:s3:::sast-memory"]},
+      {"Effect": "Allow", "Action": ["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject", "s3:DeleteObject",
+                                     "s3:GetObjectTagging", "s3:PutObjectTagging"],
+       "Resource": ["arn:aws:s3:::sast-memory/*"]}]}
+
+Measured state on 2026-10-02 (agent `sast-memory-agent`): versioning was `Enabled` and a 30-day rule on `runs/`
+was in place. `verify_bucket` still refused, because `GetObjectTagging` returned AccessDenied for the agent.
+
+Known RustFS limit (measured 2026-10-02): Select infers an object's JSON schema from its leading rows. A
+`where` field that is missing there, even if row 5000 has it, fails with `EvaluatorBindingDoesNotExist` instead
+of matching. The store raises a `MemoryStoreError` that names the field. It does not answer "no rows", since
+that answer could silently drop matches.
+
+The real-server contract tests (`OUSAST_MEMORY_TEST_MINIO=1`, bucket `OUSAST_MEMORY_TEST_BUCKET`, else
+`MINIO_BUCKET`) verify the bucket at its root and write only under a fresh `contract-<id>/` prefix. They never
+configure the bucket.
+
 ## Moving to a separate Kubernetes cluster (planned)
 
 The maintainer will deploy the plane to its own Kubernetes environment. The manifests under `plane/` move as they
