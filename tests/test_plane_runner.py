@@ -23,6 +23,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
+from plane_fake_store import HttpObjectStore
 
 from openultrasast.plane import egress, runner
 from openultrasast.plane.manifests import GitSource
@@ -36,6 +37,7 @@ from openultrasast.plane.runner import (
     clone_destination,
     deliver,
     find_cached_checkout,
+    parse_delivery,
     start_health_server,
 )
 
@@ -850,3 +852,121 @@ def test_fetch_dials_the_override_and_sends_the_url_host(tmp_path: Path) -> None
         server.server_close()
     assert size == 2 and (tmp_path / "x" / "a.json").read_bytes() == b"ok"
     assert seen[0]["path"] == "/inputs/p/a.json" and seen[0]["Host"] == "receiver.example" and seen[0]["X-Ousast-Run"] == "r"
+
+
+# --- store delivery through the start body (plane-on-kubernetes 2.2, design section 3) ---------------------------
+
+
+@pytest.fixture
+def object_store() -> Iterator[HttpObjectStore]:
+    fake = HttpObjectStore()
+    try:
+        yield fake
+    finally:
+        fake.close()
+
+
+def test_the_start_body_may_carry_delivery_targets_and_refuses_unsafe_urls() -> None:
+    """``delivery {put, inputs}``: https to a hostname, never an address or http; the answer echoes no URL."""
+    gate = StartGate()
+    gate.arm("r", "t")
+    bad = [
+        ({"put": "http://store.example/b/k?sig=1"}, "delivery.put must be an https URL"),
+        ({"put": "https://10.0.0.7/b/k"}, "delivery.put must name a host, not an address"),
+        ({"put": "https://user:pw@store.example/k"}, "delivery.put must be an https URL"),
+        ({"inputs": {"FACTS": "ftp://store.example/k"}}, "delivery.inputs.FACTS must be an https URL"),
+        ({"inputs": {"lower": "https://store.example/k"}}, "delivery.inputs must map"),
+        ({"elsewhere": "x"}, "delivery must be an object"),
+        ("https://store.example/k", "delivery must be an object"),
+    ]
+    for delivery, message in bad:
+        status, text = gate.offer(json.dumps({"run": "r", "task": "t", "delivery": delivery}).encode())
+        assert status == 400 and message in text, (delivery, status, text)
+        assert "store.example" not in text and "10.0.0.7" not in text, "the answer never echoes a URL"
+    body = {
+        "run": "r",
+        "task": "t",
+        "delivery": {
+            "put": "https://store.example/b/t/output.tar?X-Amz-Signature=s",
+            "inputs": {"FACTS": "https://store.example/b/p/facts.json?X-Amz-Signature=s"},
+        },
+    }
+    assert gate.offer(json.dumps(body).encode()) == (202, "started")
+    start = gate.wait(threading.Event())
+    assert start is not None and start.delivery is not None
+    assert start.delivery.put == body["delivery"]["put"] and start.delivery.inputs == body["delivery"]["inputs"]
+    assert "X-Amz" not in repr(start) and "store.example" not in repr(start), "a Start never prints a URL"
+    assert parse_delivery(None) is None and parse_delivery({"put": "http://localhost:1/k"}, insecure=True) is not None
+    with pytest.raises(ValueError, match="must be an https URL"):
+        parse_delivery({"put": "http://localhost:1/k"})
+
+
+def test_output_is_put_to_the_presigned_url_and_inputs_are_fetched_from_theirs(
+    env: dict[str, str], object_store: HttpObjectStore, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """End to end against the S3-shaped fake: the start carries the URLs, the runner PUTs the tar and GETs the input;
+    no receiver, no OUSAST_ARTIFACT_URL, no URL in any log line."""
+    caplog.set_level(logging.DEBUG)
+    object_store._put("runs/run-1/repo-facts/facts.json", b'{"a.py": ["f"]}')
+    put_url = object_store.presign_put("runs/run-1/stub/output.tar")
+    facts_url = object_store.presign_get("runs/run-1/repo-facts/facts.json")
+    thread, environ, codes = main_in_thread(
+        tmp_path,
+        AX_RUNNER_INSECURE_DELIVERY="1",
+        OUSAST_TASK="stub",
+        OUSAST_INPUTS=json.dumps({"FACTS": "repo-facts/facts.json"}),
+        OUSAST_INPUT_FACTS=str(tmp_path / "ws" / "in" / "repo-facts" / "facts.json"),
+    )
+    body = {"run": "run-1", "task": "stub", "delivery": {"put": put_url, "inputs": {"FACTS": facts_url}}}
+    assert post_start(environ["AX_RUNNER_BOUND_PORT"], body) == (202, "started")
+    thread.join(timeout=30)
+    assert codes == [0]
+    assert (tmp_path / "ws" / "in" / "repo-facts" / "facts.json").read_bytes() == b'{"a.py": ["f"]}', "the input came by its URL"
+    assert ("GET", "runs/run-1/repo-facts/facts.json") in object_store.requests and (
+        "PUT",
+        "runs/run-1/stub/output.tar",
+    ) in object_store.requests
+    with tarfile.open(fileobj=io.BytesIO(object_store.objects["runs/run-1/stub/output.tar"]), mode="r:") as tar:
+        names = sorted(tar.getnames())
+    assert "facts.json" in names and "summary.json" in names, "the whole output directory, as a tar, in the store"
+    marker = json.loads((tmp_path / "state" / "stub.done.json").read_text())
+    assert marker["delivered"] is True and marker["status"] == "done"
+    assert "X-Amz" not in caplog.text and "fake-bucket" not in caplog.text, "no presigned URL in any log line"
+    assert files_containing(tmp_path, "X-Amz-Signature") == [], "nor in any file"
+
+
+def test_a_failed_put_is_retried_alone_on_the_next_start_with_a_fresh_url(
+    env: dict[str, str], object_store: HttpObjectStore, tmp_path: Path
+) -> None:
+    """The marker and retry-only boot are unchanged: a PUT that fails (wrong bucket: 404) ends the task failed with
+    the URL's host and path only; the next boot's start brings a working URL and only the delivery runs again."""
+    counter = tmp_path / "runs.txt"
+    wrong = object_store.presign_put("runs/run-1/stub/output.tar").replace("/fake-bucket/", "/no-such-bucket/")
+    thread, environ, codes = main_in_thread(
+        tmp_path, AX_RUNNER_INSECURE_DELIVERY="1", STUB_COUNTER=str(counter), OUSAST_DELIVERY_BACKOFF="0"
+    )
+    assert post_start(environ["AX_RUNNER_BOUND_PORT"], {"run": "run-1", "task": "stub", "delivery": {"put": wrong}})[0] == 202
+    thread.join(timeout=30)
+    assert codes == [EXIT_BY_STATUS["failed"]]
+    marker = json.loads((tmp_path / "state" / "stub.done.json").read_text())
+    assert marker["delivered"] is False and marker["status"] == "failed" and marker["exit"] == 0
+    assert "HTTP 404" in marker["reason"] and "X-Amz" not in marker["reason"], "the reason names the status, not the signature"
+    thread, environ, codes = main_in_thread(
+        tmp_path, AX_RUNNER_INSECURE_DELIVERY="1", STUB_COUNTER=str(counter), OUSAST_DELIVERY_BACKOFF="0"
+    )
+    good = object_store.presign_put("runs/run-1/stub/output.tar")
+    assert post_start(environ["AX_RUNNER_BOUND_PORT"], {"run": "run-1", "task": "stub", "delivery": {"put": good}})[0] == 202
+    thread.join(timeout=30)
+    assert codes == [0] and len(counter.read_text().splitlines()) == 1, "only the delivery is retried"
+    assert "runs/run-1/stub/output.tar" in object_store.objects
+    assert json.loads((tmp_path / "state" / "stub.done.json").read_text())["delivered"] is True
+
+
+def test_deliver_puts_and_names_only_the_safe_url_on_failure(object_store: HttpObjectStore) -> None:
+    url = object_store.presign_put("k/output.tar")
+    assert runner.deliver(url, b"tar", {"Content-Type": "application/x-tar"}, backoff=0, method="PUT") == 200
+    assert object_store.objects["k/output.tar"] == b"tar"
+    with pytest.raises(runner.DeliveryError) as caught:
+        runner.deliver(url.replace("/fake-bucket/", "/other/"), b"x", {}, attempts=2, backoff=0, method="PUT")
+    assert "HTTP 404" in str(caught.value) and "X-Amz" not in str(caught.value) and "/other/k/output.tar" in str(caught.value)
+    assert runner.safe_url("https://h:1/p/q?X-Amz-Signature=s") == "https://h:1/p/q"

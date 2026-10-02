@@ -10,18 +10,23 @@ not (ax docs/runner.md).
 The command never starts by itself (Requirements 4.5, 4.6). Agent Substrate boots every new ActorTemplate once as a
 "golden" actor to snapshot it, with this image and the same ``AX_TASK_YAML``/``AX_WORKSPACES_YAML``/env, and inside
 the sandbox nothing tells that boot from the real one. So after the workspaces are ready the runner waits for
-``POST /ousast/v1/start`` with ``{"run", "task", "credentials"}``, which the reconciler sends through Substrate's
+``POST /ousast/v1/start`` with ``{"run", "task", "credentials", "delivery"}``, which the reconciler sends through Substrate's
 router to the task's actor only (``plane/router.py``). ``run`` and ``task`` must match ``OUSAST_RUN`` and the Task's
 name (409 otherwise); one request per boot is accepted (202), later ones are 409, and a boot whose completion marker
 records a delivered run refuses every request (409 with the reason). Before the workspaces are ready the answer is
 503, which the reconciler retries. The credentials live in this process's memory and go into the command's
 environment only; they are never logged or written, and their values are redacted from the command's echoed stderr.
+``delivery`` (plane-on-kubernetes design section 3) is ``{"put": <presigned PUT URL for the output tar>, "inputs":
+{"<NAME>": <presigned GET URL>}}``: a presigned URL is a bearer capability, so it travels where the credentials do.
+Each URL must be ``https`` to a hostname (never an address; ``AX_RUNNER_INSECURE_DELIVERY=1`` admits ``http`` in unit
+tests only), the answer never echoes one, and no URL is logged.
 
 The command runs as a child process, ``python -m openultrasast.plane.tasks.<spec.command[0]> <spec.command[1:]>``,
 in its own process group, with the first workspace as its working directory and ``AX_METADATA_URL`` pointing at
 this server. ax has no artifact channel and never reports that a command finished, so after the child exits the
 runner reads ``summary.json`` (a crash without one becomes ``failed`` with the exit code and the stderr tail),
-posts the whole ``OUSAST_OUTPUT_DIR`` as a tar to ``OUSAST_ARTIFACT_URL`` -- that delivery is the task's
+PUTs the whole ``OUSAST_OUTPUT_DIR`` as a tar to ``delivery.put`` (or POSTs it to ``OUSAST_ARTIFACT_URL``, the receiver
+path kept until task 2.6 removes it) -- that delivery is the task's
 completion (Requirement 4.4); a failed one is reported ``failed``, never done -- and writes the completion marker
 ``<OUSAST_STATE_DIR>/<task>.done.json`` (``exit``, ``status``, ``delivered``). Then it keeps serving until SIGTERM,
 as ax requires of PID 1. A boot that finds the marker never reruns the command (a resumed actor must not repeat
@@ -38,6 +43,7 @@ Environment the runner reads, all optional except the two ax variables:
     AX_RUNNER_AUTOSTART                "1" runs the command without waiting for a start request (unit tests only;
                                        required with AX_RUNNER_HTTP=0, where no request could arrive)
     AX_RUNNER_TASK_PACKAGE             package the command's module is looked up in (unit tests only)
+    AX_RUNNER_INSECURE_DELIVERY        "1" admits http delivery URLs to a hostname (unit tests only; the image never sets it)
     OUSAST_STATE_DIR                   completion markers, default ``/workspace/.ousast-state`` (the durable volume)
     OUSAST_TERM_GRACE                  seconds between SIGTERM and SIGKILL of the command's group, default 10
     OUSAST_CASE_CACHE                  a directory of git checkouts (``benchmarks/independent`` cache layout)
@@ -47,8 +53,9 @@ Environment the runner reads, all optional except the two ax variables:
                                        ``Host`` (the egress gateway decides on and resolves that name)
     OUSAST_DELIVERY_BACKOFF            seconds before the second delivery attempt, doubled per retry
     OUSAST_INPUTS                      JSON ``{"<NAME>": "<producer>/<artifact>"}``: after the start and before the
-                                       command each is fetched from ``<OUSAST_ARTIFACT_URL>/inputs/<ref>`` (same
-                                       dial, headers and retries as delivery) to ``OUSAST_INPUT_<NAME>``; a failed
+                                       command each is fetched from ``delivery.inputs[NAME]`` (else from
+                                       ``<OUSAST_ARTIFACT_URL>/inputs/<ref>`` with the receiver's dial and headers)
+                                       to ``OUSAST_INPUT_<NAME>``, with the same retries as delivery; a failed
                                        fetch delivers a failed summary naming the input, the command never runs
 
 The runner exports ``OUSAST_WORKSPACE_DIR`` (the first bound workspace) when the Task's env leaves it unset,
@@ -60,6 +67,7 @@ from __future__ import annotations
 import contextlib
 import http.client
 import io
+import ipaddress
 import json
 import logging
 import os
@@ -76,7 +84,7 @@ import urllib.parse
 import urllib.request
 from collections import deque
 from collections.abc import Mapping, MutableMapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -207,13 +215,57 @@ _RESERVED_PREFIXES = ("AX_", "OUSAST_")  # the runner's own contract; a credenti
 
 
 @dataclass(frozen=True)
+class DeliveryTargets:
+    """Where this task PUTs its output tar and GETs each input (presigned URLs from the start request)."""
+
+    put: str | None = None
+    inputs: Mapping[str, str] = field(default_factory=dict)
+
+    def __repr__(self) -> str:  # a presigned URL is a credential: never print one
+        return f"DeliveryTargets(put={'yes' if self.put else 'no'}, inputs={sorted(self.inputs)})"
+
+
+@dataclass(frozen=True)
 class Start:
-    """An accepted start request: the credentials go to the command's environment and nowhere else."""
+    """An accepted start request: the credentials go to the command's environment and nowhere else; the delivery
+    targets go to the artifact PUT and the input GETs and nowhere else."""
 
     credentials: Mapping[str, str]
+    delivery: DeliveryTargets | None = None
 
     def __repr__(self) -> str:  # never print a value by accident
-        return f"Start(credentials={sorted(self.credentials)})"
+        return f"Start(credentials={sorted(self.credentials)}, delivery={self.delivery!r})"
+
+
+def _check_url(url: object, where: str, insecure: bool) -> str:
+    """``url`` is a string, ``https`` (``http`` only when ``insecure``) to a hostname that is not an address, without
+    userinfo; the error names the field and never echoes the value."""
+    if not isinstance(url, str):
+        raise ValueError(f"{where} must be a URL string")
+    parts = urlsplit(url)
+    allowed = ("https", "http") if insecure else ("https",)
+    host = parts.hostname or ""
+    if parts.scheme not in allowed or not host or parts.username is not None or parts.password is not None:
+        raise ValueError(f"{where} must be an https URL to a hostname")
+    try:
+        ipaddress.ip_address(host.strip("[]"))
+    except ValueError:
+        return url
+    raise ValueError(f"{where} must name a host, not an address")
+
+
+def parse_delivery(raw: object, insecure: bool = False) -> DeliveryTargets | None:
+    """The start body's ``delivery`` field validated: None when absent; :class:`ValueError` names the bad field."""
+    if raw is None:
+        return None
+    if not isinstance(raw, dict) or not set(raw) <= {"put", "inputs"}:
+        raise ValueError("delivery must be an object with put and/or inputs")
+    put = _check_url(raw["put"], "delivery.put", insecure) if raw.get("put") is not None else None
+    inputs_raw = raw.get("inputs") or {}
+    if not isinstance(inputs_raw, dict) or not all(isinstance(k, str) and _CREDENTIAL_NAME.fullmatch(k) for k in inputs_raw):
+        raise ValueError("delivery.inputs must map ^[A-Z][A-Z0-9_]*$ names to URLs")
+    inputs = {name: _check_url(url, f"delivery.inputs.{name}", insecure) for name, url in inputs_raw.items()}
+    return DeliveryTargets(put, inputs)
 
 
 class StartGate:
@@ -225,7 +277,8 @@ class StartGate:
     logged, and no answer echoes it.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, insecure: bool = False) -> None:
+        self._insecure = insecure  # AX_RUNNER_INSECURE_DELIVERY=1: http delivery URLs (unit tests only)
         self._lock = threading.Lock()
         self._accepted = threading.Event()
         self._expected: tuple[str, str] | None = None
@@ -267,10 +320,14 @@ class StartGate:
                 for k, v in creds.items()
             ):
                 return 400, "credentials must map ^[A-Z][A-Z0-9_]*$ names (not AX_/OUSAST_) to strings"
+            try:
+                delivery = parse_delivery(request.get("delivery"), self._insecure)
+            except ValueError as exc:
+                return 400, str(exc)
             run, task = self._expected
             if request.get("run") != run or request.get("task") != task:
                 return 409, f"this actor runs task {task!r} of run {run!r}"
-            self._start = Start(dict(creds))
+            self._start = Start(dict(creds), delivery)
             self._accepted.set()
             return 202, "started"
 
@@ -653,6 +710,12 @@ def _dialled(url: str, headers: Mapping[str, str], dial: str | None) -> tuple[st
     return parts._replace(netloc=dial).geturl(), out
 
 
+def safe_url(url: str) -> str:
+    """``scheme://host/path`` of a URL: what a log line or an error may carry (a presigned query is a credential)."""
+    parts = urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}{parts.path}"
+
+
 def deliver(
     url: str,
     payload: bytes,
@@ -661,15 +724,17 @@ def deliver(
     attempts: int = DELIVERY_ATTEMPTS,
     backoff: float = 1.0,
     dial: str | None = None,
+    method: str = "POST",
 ) -> int:
-    """POST ``payload`` to ``url`` with ``headers``; retry with doubling backoff; return the 2xx status.
+    """Send ``payload`` to ``url`` (``POST`` to the receiver, ``PUT`` to a presigned store URL) with ``headers``; retry
+    with doubling backoff; return the 2xx status. Log lines and errors carry the URL without its query.
 
     ``dial`` (``host:port``): connect there instead and send the URL's host as ``Host``, as the actor must -- it
     cannot resolve the receiver's cluster name, and the egress gateway decides on ``Host`` and resolves it itself.
     """
     last, (target, headers) = "no attempt made", _dialled(url, headers, dial)
     for attempt in range(1, attempts + 1):
-        request = urllib.request.Request(target, data=payload, method="POST", headers=headers)
+        request = urllib.request.Request(target, data=payload, method=method, headers=headers)
         try:
             with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310 - the reconciler's URL
                 status = int(response.status)
@@ -680,10 +745,10 @@ def deliver(
             last = f"HTTP {exc.code}"
         except (urllib.error.URLError, http.client.HTTPException, OSError, ValueError) as exc:
             last = f"{type(exc).__name__}: {exc}"
-        log.warning("artifact delivery attempt %d/%d to %s failed: %s", attempt, attempts, url, last)
+        log.warning("artifact delivery attempt %d/%d to %s failed: %s", attempt, attempts, safe_url(url), last)
         if attempt < attempts:
             time.sleep(backoff * (2 ** (attempt - 1)))
-    raise DeliveryError(f"{last} after {attempts} attempts to {url}")
+    raise DeliveryError(f"{last} after {attempts} attempts to {safe_url(url)}")
 
 
 def fetch(
@@ -711,14 +776,15 @@ def fetch(
         except (urllib.error.URLError, http.client.HTTPException, OSError, ValueError) as exc:
             last = f"{type(exc).__name__}: {exc}"
         partial.unlink(missing_ok=True)
-        log.warning("input fetch attempt %d/%d from %s failed: %s", attempt, attempts, url, last)
+        log.warning("input fetch attempt %d/%d from %s failed: %s", attempt, attempts, safe_url(url), last)
         if attempt < attempts:
             time.sleep(backoff * (2 ** (attempt - 1)))
-    raise DeliveryError(f"{last} after {attempts} attempts to {url}")
+    raise DeliveryError(f"{last} after {attempts} attempts to {safe_url(url)}")
 
 
-def fetch_inputs(environ: Mapping[str, str]) -> list[Path]:
-    """Fetch every ``OUSAST_INPUTS`` entry from the receiver to its ``OUSAST_INPUT_<NAME>`` path.
+def fetch_inputs(environ: Mapping[str, str], delivery: DeliveryTargets | None = None) -> list[Path]:
+    """Fetch every ``OUSAST_INPUTS`` entry to its ``OUSAST_INPUT_<NAME>`` path: from ``delivery.inputs[NAME]`` (a
+    presigned GET, no headers) when the start request carries one, else from the receiver.
 
     :class:`RunnerError` names the input when one cannot be fetched: a task never runs with an input missing."""
     raw = environ.get("OUSAST_INPUTS")
@@ -736,11 +802,15 @@ def fetch_inputs(environ: Mapping[str, str]) -> list[Path]:
     fetched: list[Path] = []
     for name, ref in sorted(inputs.items()):
         dest = environ.get(f"OUSAST_INPUT_{name}")
-        if not url or not dest or not isinstance(ref, str):
-            raise RunnerError(f"input {name} ({ref}) not fetched: OUSAST_ARTIFACT_URL or OUSAST_INPUT_{name} is unset")
-        source = f"{url.rstrip('/')}/inputs/{urllib.parse.quote(ref)}"
+        presigned = delivery.inputs.get(name) if delivery is not None else None
+        if not dest or not isinstance(ref, str) or not (presigned or url):
+            raise RunnerError(f"input {name} ({ref}) not fetched: no delivery URL, OUSAST_ARTIFACT_URL or OUSAST_INPUT_{name}")
         try:
-            size = fetch(source, headers, Path(dest), backoff=backoff, dial=environ.get("OUSAST_ARTIFACT_DIAL") or None)
+            if presigned:
+                size = fetch(presigned, {}, Path(dest), backoff=backoff)
+            else:
+                source = f"{str(url).rstrip('/')}/inputs/{urllib.parse.quote(ref)}"
+                size = fetch(source, headers, Path(dest), backoff=backoff, dial=environ.get("OUSAST_ARTIFACT_DIAL") or None)
         except DeliveryError as exc:
             raise RunnerError(f"input {name} ({ref}) not fetched: {exc}") from None
         log.info("input %s (%s): %d bytes to %s", name, ref, size, dest)
@@ -748,8 +818,13 @@ def fetch_inputs(environ: Mapping[str, str]) -> list[Path]:
     return fetched
 
 
-def _deliver_output(task: Task, output_dir: Path, environ: Mapping[str, str]) -> bool:
-    """POST the output directory; False when there is nowhere to deliver; :class:`DeliveryError` when it fails."""
+def _deliver_output(task: Task, output_dir: Path, environ: Mapping[str, str], delivery: DeliveryTargets | None = None) -> bool:
+    """PUT the output tar to ``delivery.put`` when the start request carried one, else POST it to the receiver;
+    False when there is nowhere to deliver; :class:`DeliveryError` when it fails."""
+    backoff = float(environ.get("OUSAST_DELIVERY_BACKOFF", "1.0"))
+    if delivery is not None and delivery.put:
+        deliver(delivery.put, build_tar(output_dir), {"Content-Type": "application/x-tar"}, backoff=backoff, method="PUT")
+        return True
     url = environ.get("OUSAST_ARTIFACT_URL")
     if not url:
         return False
@@ -758,7 +833,6 @@ def _deliver_output(task: Task, output_dir: Path, environ: Mapping[str, str]) ->
     run = environ.get("OUSAST_RUN")
     if run:
         headers["X-Ousast-Run"] = run
-    backoff = float(environ.get("OUSAST_DELIVERY_BACKOFF", "1.0"))
     deliver(url, build_tar(output_dir), headers, backoff=backoff, dial=environ.get("OUSAST_ARTIFACT_DIAL") or None)
     return True
 
@@ -810,14 +884,16 @@ def _exit_of(marker: Mapping[str, Any]) -> int:
     return EXIT_BY_STATUS.get(str(marker.get("status")), EXIT_BY_STATUS["failed"])
 
 
-def _finish(session: _Session, env: Mapping[str, str], exit_code: int | None, summary: Mapping[str, Any]) -> dict[str, Any]:
+def _finish(
+    session: _Session, env: Mapping[str, str], exit_code: int | None, summary: Mapping[str, Any], delivery: DeliveryTargets | None = None
+) -> dict[str, Any]:
     """Deliver the output directory and write the completion marker; a failed delivery reports ``failed``.
 
     The marker keeps the task's own summary so a later boot can put it back and retry the delivery alone.
     """
     marker: dict[str, Any] = {"exit": exit_code, "status": str(summary.get("status")), "delivered": False, "summary": dict(summary)}
     try:
-        marker["delivered"] = _deliver_output(session.task, session.output_dir, env)
+        marker["delivered"] = _deliver_output(session.task, session.output_dir, env, delivery)
     except DeliveryError as exc:
         log.error("artifact delivery failed: %s", exc)
         marker.update(status="failed", reason=f"artifact delivery failed: {exc}")
@@ -857,24 +933,24 @@ def _run_once(env: MutableMapping[str, str], ready: threading.Event, stop: threa
             stored = done.get("summary")
             kept: dict[str, Any] = stored if isinstance(stored, dict) else read_summary(session.output_dir) or {}
             write_summary(session.output_dir, kept)
-            return _exit_of(_finish(session, env, done.get("exit"), kept))
+            return _exit_of(_finish(session, env, done.get("exit"), kept, start.delivery))  # a re-minted URL, if any
         if stop.is_set():
             return 0
         try:
             _materialise_once(session, env)
-            fetch_inputs(env)  # after the start as well: the receiver serves a task its inputs only while it runs
+            fetch_inputs(env, start.delivery)  # after the start: the URLs arrive with it (and a receiver serves a running task only)
         except RunnerError as exc:
             log.error("runner failed: %s", exc)
             failed = _failed(f"runner failed: {exc}", read_summary(session.output_dir))
             write_summary(session.output_dir, failed)
-            return _exit_of(_finish(session, env, None, failed))
+            return _exit_of(_finish(session, env, None, failed, start.delivery))
         log.info("workspaces and inputs ready; running task %s: %s", session.task.metadata.name, list(session.task.command))
         grace = float(env.get("OUSAST_TERM_GRACE") or TERM_GRACE)
         code, summary = run_command(session.task, session.output_dir, env, stop, grace, start.credentials)
         if code is None:
             log.info("task %s was stopped before its command finished; a resume runs it again", session.task.metadata.name)
             return 0
-        return _exit_of(_finish(session, env, code, summary))
+        return _exit_of(_finish(session, env, code, summary, start.delivery))
     except RunnerError as exc:
         # The failure is reported, never acted on unasked: a start request is answered with it (409 without a
         # session, else 202 and the failed summary is delivered), so the golden boot delivers nothing either.
@@ -887,9 +963,10 @@ def _run_once(env: MutableMapping[str, str], ready: threading.Event, stop: threa
         write_summary(session.output_dir, summary)
         gate.arm(env.get("OUSAST_RUN", ""), session.task.metadata.name)
         ready.set()
-        if env.get("AX_RUNNER_AUTOSTART") != "1" and gate.wait(stop) is None:
+        late = gate.autostart() if env.get("AX_RUNNER_AUTOSTART") == "1" else gate.wait(stop)
+        if late is None:
             return 0
-        return _exit_of(_finish(session, env, None, summary))
+        return _exit_of(_finish(session, env, None, summary, late.delivery))
 
 
 def _materialise_once(session: _Session, env: Mapping[str, str]) -> None:
@@ -918,7 +995,7 @@ def main(argv: Sequence[str] | None = None, environ: MutableMapping[str, str] | 
     env = os.environ if environ is None else environ
     if argv:
         log.warning("ax-task-runner ignores command-line arguments %r; the Task manifest is the only input", list(argv))
-    ready, stop, gate = threading.Event(), threading.Event(), StartGate()
+    ready, stop, gate = threading.Event(), threading.Event(), StartGate(insecure=env.get("AX_RUNNER_INSECURE_DELIVERY") == "1")
     previous = _on_sigterm(stop)
     server: HealthServer | None = None
     if env.get("AX_RUNNER_HTTP", "1") != "0":

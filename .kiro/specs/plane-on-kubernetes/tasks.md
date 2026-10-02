@@ -78,7 +78,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
   - `tests/test_plane_delivery.py`: against a local S3-shaped fake (PUT/GET/HEAD by key); URLs never appear in
     logs; expiry; member rejection; declared-only re-put; state seeding.
   - _Requirements: 3.1, 2.1_
-- [ ] 2.2 Runner: `delivery` in the start body
+- [x] 2.2 Runner: `delivery` in the start body
   - `src/openultrasast/plane/runner.py`: `StartGate.offer` validates an optional `delivery {put, inputs}` (https,
     hostname, no echo); `_deliver_output` PUTs the tar to `delivery.put` (same retry and `DeliveryError`
     semantics); `fetch_inputs` GETs from `delivery.inputs[name]`; `OUSAST_ARTIFACT_URL` and `OUSAST_ARTIFACT_DIAL`
