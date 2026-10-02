@@ -49,6 +49,8 @@ flowchart LR
 - Understand a finding's evidence and score: [Architecture](architecture.md).
 - Operate the plane and its store: [ax on this host](ops/ax/README.md) and
   [RustFS setup](rustfs.md).
+- Where the model spend goes, per Task at runtime and in the maintainers' own coding sessions,
+  and what is reused instead of paid again: [Token ergonomics](token-ergonomics.md).
 - Trust boundaries and hardening: [Threat model](threat-model.md).
 
 Every number in these pages is quoted from a committed record whose path is given next to it.

@@ -229,6 +229,8 @@ Documentation site with flow diagrams (`docs/`, `mkdocs.yml`): `uv sync --extra 
   pair corpora and the plane increment results.
 - [docs/decision-engine.md](docs/decision-engine.md): the learned decision engine.
 - [docs/threat-model.md](docs/threat-model.md): trust boundaries, sandbox and hardening.
+- [docs/token-ergonomics.md](docs/token-ergonomics.md): model spend at runtime (budgets, reuse,
+  measured costs) and in coding sessions.
 - [docs/examples.md](docs/examples.md): end-to-end walkthroughs.
 
 ## Development

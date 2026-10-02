@@ -141,7 +141,8 @@ Record: `benchmarks/measurements/2026-10-01-decision-engine-injection-slice/reco
 only). Family **injection**; memory of 724 static examples from all families; input profile v1;
 framework priors off; out-of-repository evaluation (compile split never evaluated, outer grouped
 5-fold, calibration cross-fitted, operating points nested); 95% repository-cluster bootstrap
-intervals.
+intervals. The slice's spend ($0.003215 per candidate at evaluation, k = 5, and its replay at
+$0) is on [Token ergonomics](token-ergonomics.md#measured-costs).
 
 | Measure | Value | What it means |
 | --- | --- | --- |
