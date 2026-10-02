@@ -1,16 +1,22 @@
 # RustFS setup for the memory store
 
-The plane's memory store can live in an S3-compatible bucket: `OUSAST_MEMORY=s3://sast-memory`
-selects `S3Store` (`src/openultrasast/plane/memory.py`), which talks to the server through boto3.
-Any S3-compatible store with bucket versioning, lifecycle rules, object tags and S3 Select works;
-RustFS is the server the contract tests run against. The maintainer's server is RustFS at
-`files.because-security.com`, bucket `sast-memory`, store at the bucket root. What the store keeps
-there is described on [Memory](memory.md).
+The plane's memory store can live in an S3-compatible bucket. RustFS is an S3-compatible object
+storage server.
 
-**The store never configures its bucket.** An admin sets the bucket up once with admin
-credentials. The agent account the store runs as can read the bucket's settings but not change
-them, and reads and writes objects freely. Every time the store opens, it checks the setup and
-refuses to start if anything is missing.
+- `OUSAST_MEMORY=s3://sast-memory` selects `S3Store` (`src/openultrasast/plane/memory.py`).
+- `S3Store` talks to the server through boto3 (the AWS SDK for Python).
+- Any S3-compatible store works if it has bucket versioning, lifecycle rules, object tags and S3 Select
+  (a server-side query over JSON objects).
+- RustFS is the server the contract tests run against.
+- The maintainer's server is RustFS at `files.because-security.com`. The bucket is `sast-memory`. The
+  store sits at the bucket root.
+
+[Memory](memory.md) describes what the store keeps there.
+
+**The store never configures its bucket.** An admin sets the bucket up once with admin credentials.
+The store runs as an agent account. That account can read the bucket's settings but not change them.
+It reads and writes objects freely. Every time the store opens, it checks the setup. It refuses to start
+if anything is missing.
 
 ```mermaid
 flowchart LR
@@ -35,8 +41,8 @@ aws s3api put-bucket-versioning \
     --versioning-configuration Status=Enabled
 ```
 
-**2. Expire raw run outputs under `runs/` after 30 days.** Everything else (`repos/`, `facts/`,
-`index.jsonl` and the blobs) is kept, so the rule must be a plain prefix filter on `runs/`.
+**2. Expire raw run outputs under `runs/` after 30 days.** Everything else is kept: `repos/`, `facts/`,
+`index.jsonl` and the blobs. So the rule must be a plain prefix filter on `runs/`.
 
 ```bash
 aws s3api put-bucket-lifecycle-configuration \
@@ -46,9 +52,10 @@ aws s3api put-bucket-lifecycle-configuration \
 ```
 
 `put-bucket-lifecycle-configuration` **replaces every rule on the bucket**. If the bucket already
-has rules, merge this one into them first. The rule id `ousast-runs-expiry` and the 30 days are the
-store's defaults (`RUNS_RULE_ID`, `RUNS_EXPIRE_DAYS`); the store accepts any enabled, untagged
-prefix rule on `runs/` with a number of days.
+has rules, merge this one into them first.
+
+The rule id `ousast-runs-expiry` and the 30 days are the store's defaults (`RUNS_RULE_ID`,
+`RUNS_EXPIRE_DAYS`). The store accepts any enabled, untagged prefix rule on `runs/` with a number of days.
 
 To read the result back:
 
@@ -59,8 +66,8 @@ aws s3api get-bucket-lifecycle-configuration --endpoint-url https://files.becaus
 
 ## The agent policy
 
-Attach this policy to the agent account (the account whose keys go into `.env`). It is the
-complete policy: nothing else is needed, and it grants no `Put*` on versioning or lifecycle.
+Attach this policy to the agent account. That is the account whose keys go into `.env`. It is the
+complete policy, and nothing else is needed. It grants no `Put*` on versioning or lifecycle.
 
 ```json
 {
@@ -102,14 +109,14 @@ complete policy: nothing else is needed, and it grants no `Put*` on versioning o
 | `BucketSettingsReadOnly` | `arn:aws:s3:::sast-memory` | The agent can list the bucket and its versions and *read* its location, versioning and lifecycle settings, which is what the startup check needs; it cannot change them. |
 | `ObjectsReadWrite` | `arn:aws:s3:::sast-memory/*` | The agent reads, writes and deletes objects and their versions and reads and writes object tags; this covers row objects, blobs, the index, the Select probe, and the `kind` tag the store filters by. |
 
-So the agent writes objects freely but cannot change bucket settings: turning versioning off or
+So the agent writes objects freely but cannot change bucket settings. Turning versioning off or
 removing the expiry rule needs the admin.
 
 ## The `.env` settings
 
 The store reads its endpoint and credentials from `.env` in the working directory or from the
-environment (`s3_settings`), never from a manifest, and never prints them. The names are the ones
-the AWS SDKs and CLI use for credentials, so one `.env` serves both the store and `aws s3api`.
+environment (`s3_settings`). It never reads them from a manifest. It never prints them. The names are
+the ones the AWS SDKs and CLI use for credentials. So one `.env` serves both the store and `aws s3api`.
 
 | Variable | Value for this server | Notes |
 | --- | --- | --- |
@@ -121,26 +128,33 @@ the AWS SDKs and CLI use for credentials, so one `.env` serves both the store an
 | `S3_REGION` | optional (`us-east-1` when unset) | the SigV4 signing region; spares a GetBucketLocation call |
 | `S3_BUCKET` | `sast-memory` | the bucket `s3://` names when the URL has none; also the real-server tests' default bucket |
 
-The client signs with SigV4 and uses path-style addressing (`https://host/bucket/key`), which
-RustFS needs. The SDK's own checksum trailers are off, because not every S3-compatible server
-accepts them.
+The client signs with SigV4 (AWS's request-signing scheme). It uses path-style addressing
+(`https://host/bucket/key`), which RustFS needs. The SDK's own checksum trailers are off. Not every
+S3-compatible server accepts them.
 
 - **Never commit `.env`.** It is gitignored (`.gitignore`: `.env`, `.env.*`, except
   `.env.example`). `.env.example` lists these names with empty values.
 - **`.env` never overrides a variable already exported in your shell** (`config.load_dotenv`).
-  A stale `export AWS_SECRET_ACCESS_KEY=...` in your profile silently wins over the file; `unset`
+  A stale `export AWS_SECRET_ACCESS_KEY=...` in your profile silently wins over the file. `unset`
   it when a change in `.env` seems to have no effect.
-- The store needs the `s3` extra (`uv sync --extra s3`, which installs boto3); without it opening
-  the store fails with `OUSAST_MEMORY=s3://... needs boto3: install openultrasast[s3]`. A missing
-  variable fails with `OUSAST_MEMORY=s3://... needs S3_ENDPOINT, AWS_ACCESS_KEY_ID,
-  AWS_SECRET_ACCESS_KEY in .env or the environment` (naming only the missing ones); an endpoint
-  without a scheme fails with `S3_ENDPOINT must be a URL with a scheme (https://host[:port])`.
+- The store needs the `s3` extra (`uv sync --extra s3`, which installs boto3). These are the
+  startup errors:
+  - Without the extra, opening the store fails with
+    `OUSAST_MEMORY=s3://... needs boto3: install openultrasast[s3]`.
+  - A missing variable fails with `OUSAST_MEMORY=s3://... needs S3_ENDPOINT, AWS_ACCESS_KEY_ID,
+    AWS_SECRET_ACCESS_KEY in .env or the environment`. The message names only the missing ones.
+  - An endpoint without a scheme fails with
+    `S3_ENDPOINT must be a URL with a scheme (https://host[:port])`.
 
 ## What the store verifies at startup
 
-`S3Store.verify_bucket()` runs once per process for each bucket and prefix. It reads the
-versioning status and the lifecycle rules, writes a two-line probe object at
-`_probe/select.jsonl` (under the prefix, if any), queries it with S3 Select and reads its tags.
+`S3Store.verify_bucket()` runs once per process for each bucket and prefix. It does four things:
+
+1. It reads the versioning status.
+2. It reads the lifecycle rules.
+3. It writes a two-line probe object at `_probe/select.jsonl` (under the prefix, if any).
+4. It queries the probe with S3 Select and reads its tags.
+
 Every missing piece is collected into one error:
 
 ```text
@@ -148,8 +162,8 @@ memory s3://sast-memory: the bucket is not set up for the store. The store never
   - <one line per missing piece>
 ```
 
-The lines, exactly as the code writes them for this bucket at the root (`<failure>` is the
-server's error code and the first 200 characters of its message):
+The table lists the lines exactly as the code writes them for this bucket at the root. `<failure>` is
+the server's error code and the first 200 characters of its message.
 
 | Check | Refusal line |
 | --- | --- |
@@ -161,32 +175,42 @@ server's error code and the first 200 characters of its message):
 | tags unreadable | `object tags cannot be read on _probe/select.jsonl (<failure>): the store filters row objects by their kind tag, so the agent needs s3:GetObjectTagging on arn:aws:s3:::sast-memory/*` |
 | S3 Select missing | `S3 Select (SelectObjectContent over JSON Lines) does not answer on _probe/select.jsonl (<failure>). The store requires it and has no local fallback: use a server with S3 Select (RustFS has it; not every S3-compatible server does) and let the agent s3:PutObject and s3:GetObject` |
 
-The admin commands inside the messages use `--endpoint-url "$S3_ENDPOINT"`, which is the full
-URL from `.env`, so they run as written once `.env` is exported.
+The admin commands inside the messages use `--endpoint-url "$S3_ENDPOINT"`. That is the full URL from
+`.env`. So they run as written once `.env` is exported.
 
-There is **no fallback**: the store does not start in a degraded mode, does not drop to a local
-store, and does not fetch and filter objects itself.
+There is **no fallback**. The store does not:
+
+- start in a degraded mode;
+- drop to a local store;
+- fetch and filter objects itself.
 
 ## The RustFS Select limit and the fixed-schema rule
 
-RustFS's S3 Select infers an object's JSON schema from its leading rows. A `where` field that is
-absent from those rows is unbound, even if a later row has it: the query fails with
+RustFS's S3 Select infers an object's JSON schema from its leading rows. A `where` field absent from
+those rows is unbound, even if a later row has it. The query then fails with
 `EvaluatorBindingDoesNotExist` instead of matching (measured 2026-10-02 with the field first
-present at row 5000). The store does not read that as "no rows", since that answer could silently
-drop matches; it raises:
+present at row 5000).
+
+The store does not read that failure as "no rows". That answer could silently drop matches. It raises:
 
 ```text
 memory s3://sast-memory: S3 Select on <key> failed (EvaluatorBindingDoesNotExist: ...) (a field of [<fields>] is absent from the object's leading rows, which the server reads as its schema); the store has no local fallback
 ```
 
-The rule that follows: a field the store filters on is present in every row of its kind from
-the first row on, as `""` where it does not apply; each row kind has a fixed set of queryable
-fields, enforced at write time (see [Memory](memory.md#queryable-fields-per-kind)).
+The rule that follows has two parts (see [Memory](memory.md#queryable-fields-per-kind)):
+
+- A field the store filters on is present in every row of its kind from the first row on. It is `""`
+  where it does not apply.
+- Each row kind has a fixed set of queryable fields. The store enforces it at write time.
 
 ## Checks against the real server
 
-The contract tests that talk to a real server run only with `OUSAST_MEMORY_TEST_S3=1` (bucket
-`OUSAST_MEMORY_TEST_BUCKET`, else `S3_BUCKET`). They verify the bucket at its root, write only
-under a fresh `contract-<id>/` prefix, and remove every version and delete marker under it
-afterwards; they never configure the bucket. More on the host setup:
-[ax on this host](ops/ax/README.md).
+The contract tests that talk to a real server run only with `OUSAST_MEMORY_TEST_S3=1`. They use the
+bucket `OUSAST_MEMORY_TEST_BUCKET`, else `S3_BUCKET`. The tests:
+
+- verify the bucket at its root;
+- write only under a fresh `contract-<id>/` prefix;
+- remove every version and delete marker under it afterwards;
+- never configure the bucket.
+
+More on the host setup: [ax on this host](ops/ax/README.md).

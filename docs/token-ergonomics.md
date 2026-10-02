@@ -1,18 +1,26 @@
 # Token ergonomics
 
-Model tokens are the one running cost of this project, and they are spent in two places: by the
-**plane** when a Run verifies candidates or compiles the decision engine, and by the maintainers'
-own **agentic coding sessions**. The maintainer's framing (2026-09-29): "the token saving strategy
-is a routing concern. ax can handle that and structure our services in small components." So the
-runtime half is routing, one Model per Task with its own budget, and reuse of what was already
-paid for; the development half is tooling that keeps bulk file contents out of the session.
+Model tokens are the one running cost of this project. They are spent in two places:
 
-Every number on this page comes from a committed record, named next to it. Records are counts
-only; none holds code, prompts or responses.
+- by the **plane** (the system that runs scans as small tasks) when a Run verifies candidates
+  or compiles the decision engine;
+- by the maintainers' own **agentic coding sessions**.
 
-The before-and-after summary (script pipeline against plane, and the development share) is on
-[Where we stand](where-we-stand.md#4-token-economics-before-and-after); this page holds the
-mechanisms and the detail table.
+The maintainer's framing (2026-09-29): "the token saving strategy is a routing concern. ax can
+handle that and structure our services in small components." Here ax is Google's controller
+that runs agent tasks on Kubernetes. So the two halves look like this:
+
+- **Runtime** is routing: one Model per Task with its own budget, and reuse of what was
+  already paid for.
+- **Development** is tooling that keeps bulk file contents out of the session.
+
+Every number on this page comes from a committed record, named next to it. Records hold counts
+only. None holds code, prompts or responses.
+
+The before-and-after summary is on
+[Where we stand](where-we-stand.md#4-token-economics-before-and-after). It compares the script
+pipeline with the plane and gives the development share. This page holds the mechanisms and the
+detail table.
 
 ## A. Runtime: the plane's token economy
 
@@ -37,46 +45,67 @@ flowchart LR
 
 ### One Model per Task, one budget per Task
 
-A Run is a DAG of ax Tasks; each Task binds at most one Model and its own `budget: {usd, calls}`
-([The plane on ax](plane.md)). The budget is enforced by the metered client
-(`src/openultrasast/plane/budget.py`, `MeteredClient`): `check()` runs before every call and
-raises `BudgetExhausted` once the spent `usd` or the call count reaches the ceiling, so the call
-that crosses the ceiling completes and the next one is refused. The task then ends `unfinished`
-and resumes from its `units.jsonl` on a rerun with a larger budget; an HTTP 401/402 or
-"Insufficient Balance" is an `AccountError`, which fails the task and starts nothing further.
-Usage is attributed per call: the wrapped client appends one usage row per call
-(`prompt_tokens`, `prompt_cache_hit_tokens`, `completion_tokens`), rows are absorbed even when
-the call raises, and they are priced by the Model's price list. An unpriced Model cannot run
-under a `usd` budget, and `summary()` reports `usd: None` for it, never 0. Model-free tasks run
-with `{usd: 0, calls: 0}`, so a stray call fails loudly.
+A Run is a DAG (a graph of steps with no cycles) of ax Tasks. Each Task binds at most one Model.
+Each Task has its own `budget: {usd, calls}` ([The plane on ax](plane.md)).
 
-`ousast plane status RUN` is the attribution table: one row per task with `calls`, `prompt`,
-`cache_hit`, `output` and `usd` from each task's `summary.json`, a `subtotal` row per Model and a
-`total` (a missing value makes a sum `n/a`, never a smaller number); `--units` adds the per-unit
-rows. The same table is written as `attribution.json` in the run directory
-(`src/openultrasast/plane/reconciler.py`, `attribution()`/`status()`). Provider credentials
-reach a task only in the start request: `router.py` reads the variable the Model's
-`secretKey.key` names, the runner keeps the value in memory, passes it to the command's
-environment and redacts it from echoed stderr; it never appears in a manifest, a rendered Task
-or a file.
+The metered client enforces the budget (`src/openultrasast/plane/budget.py`, `MeteredClient`):
+
+1. `check()` runs before every call.
+2. It raises `BudgetExhausted` once the spent `usd` or the call count reaches the ceiling.
+3. So the call that crosses the ceiling completes, and the next one is refused.
+4. The task then ends `unfinished`. A rerun with a larger budget resumes from its `units.jsonl`.
+
+An HTTP 401/402 or "Insufficient Balance" is an `AccountError`. It fails the task and starts
+nothing further.
+
+Usage is attributed per call:
+
+- The wrapped client appends one usage row per call (`prompt_tokens`,
+  `prompt_cache_hit_tokens`, `completion_tokens`).
+- Rows are absorbed even when the call raises.
+- Rows are priced by the Model's price list.
+- An unpriced Model cannot run under a `usd` budget. `summary()` reports `usd: None` for it,
+  never 0.
+- Model-free tasks run with `{usd: 0, calls: 0}`, so a stray call fails loudly.
+
+`ousast plane status RUN` prints the attribution table. It reads each task's `summary.json`
+and shows:
+
+- one row per task with `calls`, `prompt`, `cache_hit`, `output` and `usd`;
+- a `subtotal` row per Model;
+- a `total`. A missing value makes a sum `n/a`, never a smaller number.
+
+`--units` adds the per-unit rows. The same table is written as `attribution.json` in the run
+directory (`src/openultrasast/plane/reconciler.py`, `attribution()`/`status()`).
+
+Provider credentials reach a task only in the start request:
+
+- `router.py` reads the variable that the Model's `secretKey.key` names.
+- The runner keeps the value in memory and passes it to the command's environment.
+- The runner redacts it from echoed stderr.
+- It never appears in a manifest, a rendered Task or a file.
 
 ### Pay once, reuse
 
-- **Repo facts are computed model-free and reused.** `repo-facts` reads source text only (no
-  model, no git) and its `facts.json` is byte-identical across runs over the same tree. The
-  memory store keeps a facts entry under the key `(repo, pin, candidates digest, runner image
-  digest)` (`src/openultrasast/plane/memory.py`, `memory_key()`); when a later Run's task
-  carries the same key, `seed()` writes the stored `facts.json`, a `done` summary with
-  `calls: 0` and no `usd`, and marks the task done without starting an actor. A changed pin,
-  candidate set or image finds nothing and recomputes.
-- **Content-addressed memory** (`src/openultrasast/learn/`). Excerpts are stored as
-  `excerpts/<sha256 of the normalised text>.txt`; an embedding lives at
-  `embeddings/<model>/<excerpt sha>.json` and "an excerpt is embedded once; a rerun makes no
-  call" (`embeddings.py`). Model responses are cached under the sha256 of
-  `{model, messages, params, temperature, sample}` (`program.py`, `request_key()`), and a
-  compiled program is `programs/<sha256 of its artifact>.json` with the digests of the memory
-  snapshot and of the response cache it was built from (`compile.py`).
-- **Replay is free.** With no client, the response cache replays at $0 and a miss raises
+- **Repo facts are computed model-free and reused.**
+  - `repo-facts` reads source text only (no model, no git).
+  - Its `facts.json` is byte-identical across runs over the same tree.
+  - The memory store keeps a facts entry under the key `(repo, pin, candidates digest, runner image
+  digest)` (`src/openultrasast/plane/memory.py`, `memory_key()`).
+  - A later Run's task may carry the same key. Then `seed()` writes the stored `facts.json` and a
+    `done` summary with `calls: 0` and no `usd`. It marks the task done without starting an
+    actor.
+  - A changed pin, candidate set or image finds nothing and recomputes.
+- **Content-addressed memory** (`src/openultrasast/learn/`). Each item is stored under a hash
+  of its content.
+  - Excerpts are stored as `excerpts/<sha256 of the normalised text>.txt`.
+  - An embedding lives at `embeddings/<model>/<excerpt sha>.json`. The source says: "an excerpt
+    is embedded once; a rerun makes no call" (`embeddings.py`).
+  - Model responses are cached under the sha256 of `{model, messages, params, temperature, sample}`
+    (`program.py`, `request_key()`).
+  - A compiled program is `programs/<sha256 of its artifact>.json`. It records the digests of
+    the memory snapshot and of the response cache it was built from (`compile.py`).
+- **Replay is free.** With no client, the response cache replays at $0. A miss raises
   `ReplayMiss` instead of calling. The injection-slice record states it: "evaluate re-run
   replay-only on the committed code: 550 responses replayed, $0, identical overall and
   calibration" (`benchmarks/measurements/2026-10-01-decision-engine-injection-slice/record.json`,
@@ -84,26 +113,35 @@ or a file.
 
 ### Cheap before expensive
 
-- **Triage first.** Verification runs only over the candidates the recorded triage kept; the
-  plane applies that recording without a model call and prices it as a separate line
-  (`recorded_triage_usd`), so every per-candidate cost below is reported both with and without
-  it (`src/openultrasast/plane/tasks/agree.py`).
+- **Triage first.** Verification runs only over the candidates the recorded triage kept.
+  - The plane applies that recording without a model call.
+  - It prices the recording as a separate line (`recorded_triage_usd`).
+  - So every per-candidate cost below is reported both with and without it
+    (`src/openultrasast/plane/tasks/agree.py`).
 - **Hunts are batched per file.** `verify` runs one tool hunt per file for up to `PER_HUNT = 6`
-  candidates, with the candidates' known callers (capped at 8) in the prompt
+  candidates. The prompt includes the candidates' known callers, capped at 8
   (`src/openultrasast/plane/tasks/verify.py`, `units_of()`).
-- **The tie-break pass runs only on disputes.** `agree` compares passes a and b; pass c is
-  started with `inputs.only` set to the case's `disputed.json`, an empty list ends it `done`
-  with no model call, and the final verdict is 2-of-3 ("pass c alone never decides",
-  `agree.py`).
-- **Cache-friendly prompt order.** The decision engine's prompt is the compiled prefix
-  (instruction and fixed demonstrations, identical for every candidate so the provider's
-  prefix cache hits), then the retrieved examples, then the candidate (`learn/program.py`).
-  Its self-consistency `k` is tied to that cache: "k = 5 when samples 2..k hit the prefix cache
-  for >= 0.8 of their prompt tokens"; the measured repeat-hit share was 0.96 (injection-slice
-  record, `smoke.k_rule`, `smoke.k5_repeat_hit_share_measured`). The verify hunts share a prefix
-  too: in the first plane increment 2,385,152 of 3,820,395 prompt tokens were cache hits
-  (`benchmarks/independent/plane-increment-1.json`, `detail.cache_hit_tokens`,
-  `detail.prompt_tokens`; its reading: "Cost fell 17% (62% of prompt tokens were cache hits)").
+- **The tie-break pass runs only on disputes.**
+  - `agree` compares passes a and b.
+  - Pass c starts with `inputs.only` set to the case's `disputed.json`.
+  - An empty list ends it `done` with no model call.
+  - The final verdict is 2-of-3 ("pass c alone never decides", `agree.py`).
+- **Cache-friendly prompt order.** The decision engine's prompt has three parts, in this order
+  (`learn/program.py`):
+  1. The compiled prefix: instruction and fixed demonstrations. It is identical for every
+     candidate, so the provider's prefix cache hits.
+  2. The retrieved examples.
+  3. The candidate.
+
+  The self-consistency `k` (the number of samples per candidate) is tied to that cache: "k = 5
+  when samples 2..k hit the prefix cache for >= 0.8 of their prompt tokens". The measured
+  repeat-hit share was 0.96 (injection-slice record, `smoke.k_rule`,
+  `smoke.k5_repeat_hit_share_measured`).
+
+  The verify hunts share a prefix too. In the first plane increment, 2,385,152 of 3,820,395
+  prompt tokens were cache hits (`benchmarks/independent/plane-increment-1.json`,
+  `detail.cache_hit_tokens`, `detail.prompt_tokens`). The record's reading: "Cost fell 17% (62%
+  of prompt tokens were cache hits)".
 
 ### Measured costs
 
@@ -116,37 +154,41 @@ or a file.
 | Decision engine harvest: `verify` part | $2.5373 over 1,961 calls, 474 tasks done, 10,921,167 prompt tokens of which 6,275,060 cache hits, 306,941 output tokens, task budgets summing to $8.624 under a $10 ceiling (`verify`) | `benchmarks/measurements/2026-10-01-decision-engine-harvest/record.json` |
 | Decision engine harvest: `roles` part | $1.4036 over 1,034 calls, 151 tasks done, 2,398,669 prompt tokens of which 329,600 cache hits, 370,155 output tokens, task budgets summing to $4.917 under a $10 ceiling (`roles`) | same record |
 
-The increment-2 record's note on the two denominators: "the reference divides by the 46
+The increment-2 record notes that the two denominators differ: "the reference divides by the 46
 candidates before triage; on that basis the plane is 7% cheaper, on the 43 after triage it is
 0.2% under".
 
 !!! note "The meter prices at list; the account moved less"
     The attribution table prices every call at the Model's list price
-    (`plane/models/deepseek-flash.yaml`). The harvest record: "Spend is the plane's attribution
-    table (`ousast plane status`, task meters priced at plane/models/deepseek-flash.yaml); the
-    DeepSeek account moved less (balance below)", with the balance at $19.63 before, $18.75
-    after `verify` and $18.23 after `roles`. The injection-slice record names the ratio: "the
-    provider charged ~1/3 of the list-price meter (balance moved $0.30 for $0.91 metered):
-    DeepSeek's off-peak discount window, presumably; the meter prices at list"
-    (`spend.balance_note`, balance $18.2 to $17.9). Budgets and gates are set against the
-    meter, never against the balance.
+    (`plane/models/deepseek-flash.yaml`). The harvest record says: "Spend is the plane's
+    attribution table (`ousast plane status`, task meters priced at
+    plane/models/deepseek-flash.yaml); the DeepSeek account moved less (balance below)".
+    The balance was $19.63 before, $18.75 after `verify` and $18.23 after `roles`.
+    The injection-slice record names the ratio: "the provider charged ~1/3 of the list-price
+    meter (balance moved $0.30 for $0.91 metered): DeepSeek's off-peak discount window,
+    presumably; the meter prices at list" (`spend.balance_note`, balance $18.2 to $17.9).
+    Budgets and gates are set against the meter, never against the balance.
 
 ### Not done yet
 
-- **No model-side token budget in ax itself.** The plane's requirements state what ax does
-  not yet carry: "task dependencies, artifacts, token budgets (on ax's roadmap), a DeepSeek
-  provider"; the thin `Run` layer carries them and dissolves into ax as ax gains them. Until
-  then the ceiling lives in the metered client, not in the executor.
-- **Triage is applied, not run.** The plane has no triage task; it filters by the recorded
-  triage and adds that recording's cost as its own line. A triage task is planned as a later
-  specification.
-- **`k` and the contrast examples are not knobs.** `k` is a compiled setting in {1, 3, 5}
-  (`learn/compile.toml`, "k and lam remain A/B variants"), changed only through the decision
-  engine's A/B experiments, its requirement that "changes to prompts, models, pass counts, rule
-  sets and features [are] compared by controlled experiments, so that nothing is adopted on one
-  run's number" (Requirement 4 of its specification). The retrieval cap of at most two
-  contrast examples from other families is a module constant (`learn/retrieve.py`,
-  `CONTRAST = 2`), a maintainer decision, not an experiment variant yet.
+- **No model-side token budget in ax itself.**
+  - The plane's requirements state what ax does not yet carry: "task dependencies, artifacts,
+    token budgets (on ax's roadmap), a DeepSeek provider".
+  - The thin `Run` layer carries them. It dissolves into ax as ax gains them.
+  - Until then the ceiling lives in the metered client, not in the executor.
+- **Triage is applied, not run.**
+  - The plane has no triage task.
+  - It filters by the recorded triage and adds that recording's cost as its own line.
+  - A triage task is planned as a later specification.
+- **`k` and the contrast examples are not knobs.**
+  - `k` is a compiled setting in {1, 3, 5} (`learn/compile.toml`, "k and lam remain A/B
+    variants").
+  - It changes only through the decision engine's A/B experiments. Requirement 4 of its
+    specification asks that "changes to prompts, models, pass counts, rule sets and features
+    [are] compared by controlled experiments, so that nothing is adopted on one run's number".
+  - Retrieval adds at most two contrast examples from other families. This cap is a module
+    constant (`learn/retrieve.py`, `CONTRAST = 2`).
+  - The cap is a maintainer decision, not an experiment variant yet.
 
 ## B. Development: the maintainers' own sessions
 
@@ -165,28 +207,47 @@ flowchart LR
 
 ### The measurement: tool I/O dominates
 
-`benchmarks/dev/token_report.py` reads a Claude Code session transcript (`.jsonl`; without an
-argument, the newest under `~/.claude/projects/`) and reports, per content kind, characters and
-share: `tool_use_input` (the tool call's input as JSON), `tool_result`, `thinking`,
-`assistant:text`, `user:text`, plus the tool-call count and the top five tools. Tokens are
-approximated at four characters each. It prints to stdout and writes nothing; what gets
-committed is the counts-only summary. The one in `benchmarks/independent/plane-increment-1.json`
-(`dev_token_report`, for "the whole development session (c09e30b2), not the increment alone"):
-7.3M unique characters (~1.81M tokens), `tool_use_input_pct` 45.4, `tool_result_pct` 40.1,
-`tool_io_pct` 85.5 against `previous_tool_io_pct` 90, over 2,701 tool calls. The reasoning the
-session is paid for (assistant text and thinking) is the small remainder. That is why the
-remedies below target file contents, not prose.
+`benchmarks/dev/token_report.py` reads a Claude Code session transcript (`.jsonl`). Without an
+argument it reads the newest one under `~/.claude/projects/`.
+
+It reports characters and share per content kind:
+
+- `tool_use_input` (the tool call's input as JSON);
+- `tool_result`;
+- `thinking`;
+- `assistant:text`;
+- `user:text`.
+
+It also reports the tool-call count and the top five tools. Tokens are approximated at four
+characters each. It prints to stdout and writes nothing. Only the counts-only summary is
+committed.
+
+The committed summary is in `benchmarks/independent/plane-increment-1.json`
+(`dev_token_report`). It covers "the whole development session (c09e30b2), not the increment
+alone". It counts 7.3M unique characters (~1.81M tokens). The shares
+are `tool_use_input_pct` 45.4, `tool_result_pct` 40.1, and `tool_io_pct` 85.5 against
+`previous_tool_io_pct` 90, over 2,701 tool calls.
+
+The reasoning the session is paid for (assistant text and thinking) is the small remainder.
+That is why the remedies below target file contents, not prose.
 
 ### The remedies in `benchmarks/dev/`
 
-**`read_guard.py`**, a `PreToolUse` hook for agentic coding sessions. It reads the hook event on
-stdin and, for the `Read` tool only, denies a whole-file read of a file longer than 350 lines
-(`LIMIT = 350`); a read with `offset` or `limit`, a missing path, an unreadable file or a file
-within the limit passes. It always exits 0 ("never fails the tool"). A denial is one JSON line
-whose `permissionDecisionReason` tells the agent to read a range or to ask the bulk reader. The
-script's docstring records that it is wired in `.claude/settings.local.json` (a local, untracked
-file) as `PreToolUse` with matcher `Read`; the setting has this shape, with the command
-repo-relative because hooks run from the project directory:
+**`read_guard.py`** is a `PreToolUse` hook (a script that runs before each tool call) for
+agentic coding sessions.
+
+- It reads the hook event on stdin.
+- For the `Read` tool only, it denies a whole-file read of a file longer than 350 lines
+  (`LIMIT = 350`).
+- These pass: a read with `offset` or `limit`, a missing path, an unreadable file, or a file
+  within the limit.
+- It always exits 0 ("never fails the tool").
+- A denial is one JSON line. Its `permissionDecisionReason` tells the agent to read a range or
+  to ask the bulk reader.
+
+The script's docstring records how it is wired. It sits in `.claude/settings.local.json` (a
+local, untracked file) as `PreToolUse` with matcher `Read`. The setting has this shape. The
+command is repo-relative because hooks run from the project directory:
 
 ```json
 {
@@ -203,37 +264,48 @@ repo-relative because hooks run from the project directory:
 }
 ```
 
-**`bulk_read.py`**, the portal pattern: a cheap model reads the files and answers one question,
-citing `path:line` for every claim; it reports what the files say and decides nothing.
+**`bulk_read.py`** follows the portal pattern. A cheap model reads the files and answers one
+question. It cites `path:line` for every claim. It reports what the files say and decides
+nothing.
 
 ```text
 .venv/bin/python benchmarks/dev/bulk_read.py "<question>" FILE [FILE ...] [--max-usd 0.05]
 ```
 
-Files go to the model in 400-line chunks with a `--- path (lines a-b)` header and numbered
-lines; the client is the project's detector client (`deepseek-flash` through `DEEPSEEK_API_KEY`,
-otherwise OpenRouter), each call has a 90 s timeout and no tools. `--max-usd` (default 0.05) is
-checked before every chunk; at the ceiling the answer ends with
-`[stopped at the $X ceiling before: <chunk header>]`. The answer goes to stdout, the summary
-`[bulk_read: N chunk(s), $X.XXXX]` to stderr. Without a chat client it exits 2.
+How it works:
+
+- Files go to the model in 400-line chunks, with a `--- path (lines a-b)` header and numbered
+  lines.
+- The client is the project's detector client: `deepseek-flash` through `DEEPSEEK_API_KEY`,
+  otherwise OpenRouter.
+- Each call has a 90 s timeout and no tools.
+- `--max-usd` (default 0.05) is checked before every chunk. At the ceiling the answer ends with
+  `[stopped at the $X ceiling before: <chunk header>]`.
+- The answer goes to stdout. The summary `[bulk_read: N chunk(s), $X.XXXX]` goes to stderr.
+- Without a chat client it exits 2.
 
 **`token_report.py`**: `python benchmarks/dev/token_report.py [TRANSCRIPT.jsonl]`, described
 above.
 
 ### Practices
 
-- **Scripts into files, not heredocs.** A heredoc is `tool_use_input` and its output
-  `tool_result`; both are paid again at every later turn of the session. A script on disk is
-  read once, by the interpreter.
-- **Terse outputs.** Commands print counts, exit codes and the lines that matter; a harness
-  fails loudly with the exit code rather than printing a table that has to be read back.
-- **Subagents with worktrees** for work whose output need not enter the main context: a
-  subagent's reads and command output stay in its own context and only its conclusion comes
-  back; a git worktree keeps its edits off the main checkout.
+- **Scripts into files, not heredocs.** A heredoc (a script typed inline in a shell command) is
+  `tool_use_input`, and its output is `tool_result`. Both are paid again at every later turn of
+  the session. A script on disk is read once, by the interpreter.
+- **Terse outputs.** Commands print counts, exit codes and the lines that matter. A harness
+  fails loudly with the exit code. It does not print a table that has to be read back.
+- **Subagents with worktrees** for work whose output need not enter the main context.
+  - A subagent's reads and command output stay in its own context.
+  - Only its conclusion comes back.
+  - A git worktree (a separate checkout of the same repository) keeps its edits off the main
+    checkout.
 - **Counts-only measurement records.** A record under `benchmarks/measurements/` or
-  `benchmarks/independent/` holds numbers and their keys, never code, prompts or responses, so
-  it can be quoted on a page like this one and reread by a model at a few hundred tokens.
+  `benchmarks/independent/` holds numbers and their keys. It never holds code, prompts or
+  responses. So it can be quoted on a page like this one. A model can reread it at a few
+  hundred tokens.
 
-Related: [The plane on ax](plane.md) for the Run and Task contract, [Memory](memory.md) for
-the store the reuse keys live in, [Evaluation](evaluation.md) for the gates these costs are
-measured against.
+Related:
+
+- [The plane on ax](plane.md) for the Run and Task contract;
+- [Memory](memory.md) for the store the reuse keys live in;
+- [Evaluation](evaluation.md) for the gates these costs are measured against.

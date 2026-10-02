@@ -1,8 +1,8 @@
 # Memory
 
-One store, keyed by repository and pin, holds what plane runs and the decision engine learned.
-The code is `src/openultrasast/plane/memory.py`; the same layout serves both backends.
-How the stored rows feed detection is on [Memory and detection](memory-and-detection.md).
+One store holds what plane runs and the decision engine learned. It is keyed by repository and pin
+(a fixed commit). The code is `src/openultrasast/plane/memory.py`. The same layout serves both backends.
+[Memory and detection](memory-and-detection.md) shows how the stored rows feed detection.
 
 ## What is stored
 
@@ -17,7 +17,7 @@ programs/<program id>.json                 compiled decision-engine programs
 ```
 
 **Rows.** Every row carries `id`, `kind`, `repo`, `pin`, `run`, `task`, `population`, `split`
-and `image` (`ROW_FIELDS`); `id` is the sha256 of (kind, run, task, subject), so a repeated row
+and `image` (`ROW_FIELDS`). `id` is the sha256 of (kind, run, task, subject). So a repeated row
 replaces itself. The kinds (`KINDS`) and who writes them:
 
 | Kind | Written by | Holds |
@@ -35,12 +35,15 @@ replaces itself. The kinds (`KINDS`) and who writes them:
 | `experiment_result` | `ousast learn experiment analyse --record` | the paired estimates, the looks and the adoption verdict (counts and intervals only) |
 | `label`, `decision` | reserved for later decision-engine tasks | declared in `KINDS`; not written by the code on main yet |
 
-**Blobs** (`put_blob`) are content-addressed: a 64-hex name under a fixed prefix. Excerpts are
-written by `learn memory build` (`learn/examples.py`), embeddings by `learn memory embed`
-(`learn/embeddings.py`, keyed by excerpt sha so an excerpt is embedded once), responses by the
-program's caller (`learn/program.py`, keyed by the sha256 of model, parameters digest, messages,
-temperature, sample and format, so a rerun replays at no cost), and compiled programs by
-`learn compile` (`learn/compile.py`).
+**Blobs** (`put_blob`) are content-addressed: each has a 64-hex name under a fixed prefix.
+Content-addressed means the name is the hash of the content. Who writes each blob:
+
+- Excerpts: `learn memory build` (`learn/examples.py`).
+- Embeddings: `learn memory embed` (`learn/embeddings.py`). They are keyed by excerpt sha, so an
+  excerpt is embedded once.
+- Responses: the program's caller (`learn/program.py`). The key is the sha256 of model, parameters
+  digest, messages, temperature, sample and format. So a rerun replays at no cost.
+- Compiled programs: `learn compile` (`learn/compile.py`).
 
 ## Write path
 
@@ -60,13 +63,14 @@ flowchart LR
     put --> store[("Memory store")]
 ```
 
-- `ingest` validates every row first: a malformed file fails before anything is written.
-- Rows are merged into their repository + pin object by `id`. Every object is written whole and the
-  index last, so an interrupted ingest leaves nothing a repeat would not repair.
+- `ingest` validates every row first. A malformed file fails before anything is written.
+- Rows are merged by `id` into their repository + pin object.
+- Every object is written whole, and the index last. So a repeat repairs anything an interrupted
+  ingest left behind.
 - Each row object carries tags (`TAG_FIELDS`: `repo`, `pin`, `kind`, `family`, `run`,
-  `population`, `split`) listing the distinct values of its rows (`*` when they exceed 256
-  characters).
-- The plane's store failures never change a run's result: an ingest can be repeated by hand
+  `population`, `split`). The tags list the distinct values of its rows. A tag is `*` when the
+  values exceed 256 characters.
+- The plane's store failures never change a run's result. An ingest can be repeated by hand
   (`cli.py`, `_plane_memory`).
 
 ## Read path
@@ -85,14 +89,14 @@ flowchart LR
     rules --> gate{"Unchanged validator and gate"}
 ```
 
-- **Seed** (`memory.seed`): a Run task whose `openultrasast.io/memory-key` matches stored facts gets
-  them and is marked done; a changed pin, candidate set or runner image finds nothing and
-  recomputes. The loop's `memory-snapshot` is seeded the same way, because a sandboxed task cannot
-  read the store.
+- **Seed** (`memory.seed`).
+  - A Run task gets stored facts when its `openultrasast.io/memory-key` matches them. It is then marked done.
+  - A changed pin, candidate set or runner image finds nothing and recomputes.
+  - The loop's `memory-snapshot` is seeded the same way. A sandboxed task cannot read the store.
 - **Retrieval** (`learn/retrieve.py`): see
   [Memory and detection](memory-and-detection.md#3-retrieval-of-similar-labelled-cases).
-- **`improve --memory`** (`improve/memory.py`): rows from holdout pairs, from the gated manifest's
-  own cases and from any `--qualify-population` are dropped before any rule sees them. See
+- **`improve --memory`** (`improve/memory.py`). Some rows are dropped before any rule sees them:
+  rows from holdout pairs, from the gated manifest's own cases, and from any `--qualify-population`. See
   [Architecture](architecture.md#proposals-from-plane-memory).
 
 ## Backends: FileStore and the S3 store
@@ -109,26 +113,32 @@ flowchart LR
 
 ### Verify at startup, no fallback
 
-The S3 store never configures its bucket. Each time an `S3Store` is opened for a bucket and
-prefix (once per process), `verify_bucket()` checks, using reads plus one small probe object at
-`<prefix>/_probe/select.jsonl`:
+The S3 store never configures its bucket. It only checks it. An `S3Store` is opened for a bucket and
+prefix once per process. Each time, `verify_bucket()` runs these checks. It uses reads plus one small
+probe object at `<prefix>/_probe/select.jsonl`.
 
-1. versioning is `Enabled` (provenance cites object versions);
-2. an enabled lifecycle rule expires `<prefix>/runs/` after a number of days, as a plain prefix
-   filter, and no enabled rule expires the whole store;
-3. S3 Select answers a probe query over JSON Lines;
-4. the probe's object tags are readable.
+1. Versioning is `Enabled`. Provenance cites object versions.
+2. An enabled lifecycle rule expires `<prefix>/runs/` after a number of days. It uses a plain prefix
+   filter. No enabled rule expires the whole store.
+3. S3 Select (a server-side query over JSON objects) answers a probe query over JSON Lines.
+4. The probe's object tags are readable.
 
-Anything missing is named, with the admin command that fixes it, in one `MemoryStoreError`, and
-the store does not start. There is no local or fetch-and-filter fallback: a filtered read that
-S3 Select cannot answer raises a `MemoryStoreError` instead of returning "no rows". The exact
-messages are listed on [RustFS setup](rustfs.md#what-the-store-verifies-at-startup).
+If anything is missing, the store does not start. One `MemoryStoreError` names each problem and the
+admin command that fixes it.
+
+There is no local or fetch-and-filter fallback. A filtered read that S3 Select cannot answer raises a
+`MemoryStoreError`. It does not return "no rows". [RustFS setup](rustfs.md#what-the-store-verifies-at-startup)
+lists the exact messages.
 
 ### Queryable fields per kind
 
-RustFS's Select infers an object's JSON schema from its leading rows, so a `where` field missing
-there fails with `EvaluatorBindingDoesNotExist` even when a later row has it, and a column that is
-null in the first 1000 rows breaks Select on the whole object (measured 2026-10-02; `memory.py`,
-`S3Store._select`). The store therefore writes every row with its kind's full set of queryable
-fields (`QUERY_FIELDS`), using `""` where a field does not apply, and refuses a `where` on an
-undeclared field. Existing rows are rewritten once with `ousast plane memory-normalise`.
+RustFS's Select infers an object's JSON schema from its leading rows. This causes two failures
+(measured 2026-10-02; `memory.py`, `S3Store._select`):
+
+- A `where` field missing from the leading rows fails with `EvaluatorBindingDoesNotExist`. This
+  happens even when a later row has the field.
+- A column that is null in the first 1000 rows breaks Select on the whole object.
+
+So the store writes every row with its kind's full set of queryable fields (`QUERY_FIELDS`). It uses
+`""` where a field does not apply. It refuses a `where` on an undeclared field. Existing rows are
+rewritten once with `ousast plane memory-normalise`.
