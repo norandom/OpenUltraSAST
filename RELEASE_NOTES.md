@@ -13,6 +13,10 @@
   keeps only the text chunker the skill router uses; the `VectorIndex` half had no caller, and nothing read the
   `chunks.json` the subcommand wrote. `[embeddings] model`/`store` fail to load with the reason, like the other
   retired keys; `OPENROUTER_EMBEDDING_MODEL` is no longer read (`ousast learn memory embed --model` names the model).
+- **Retired three config keys nothing read** (2026-10-02): `[sandbox] network`, `[sandbox] workspace_readonly` and
+  `[complexity] top_k` now fail to load naming why. The sandbox always ran with `--network none` and a read-only
+  workspace regardless of the first two; no stage read `top_k`. `memory_mb`, `timeout_seconds`, `pids_limit` and
+  `max_hunter_hotspots` are read and stay.
 
 # v2.0.0 (2026-10-02)
 
