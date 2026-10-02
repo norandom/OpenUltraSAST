@@ -43,7 +43,6 @@ from .gate import FALSE_POSITIVE_CEILING, RECALL_FLOOR
 from .harness import HarnessRuntime, HarnessTraceWriter, write_harness_config
 from .hunter import run_hunter_pool, write_hunter_trajectories
 from .improve import RoundOutcome, run_improvement
-from .index import build_code_chunks
 from .learn.cli import add_commands as add_learn_commands
 from .learn.cli import run as run_learn
 from .mapping import analyze_entry_points, attach_reachability_hints, ingest_sarif, write_entry_points, write_static_hints
@@ -172,11 +171,6 @@ def _main(argv: list[str] | None) -> int:
     scan.add_argument("--mode", choices=("quick", "standard", "deep"), default="quick")
     scan.add_argument("--config", type=Path, default=Path("openultrasast.toml"))
     scan.add_argument("--fail-on", choices=("never", "findings", "verified", "worth-fixing"), default="never")
-
-    index = subparsers.add_parser("index", help="chunk a local repository for embedding index construction")
-    index.add_argument("path", type=Path)
-    index.add_argument("--config", type=Path, default=Path("openultrasast.toml"))
-    index.add_argument("--chunk-lines", type=int, default=80)
 
     benchmark = subparsers.add_parser("benchmark", help="run a benchmark manifest and write scoreboard artifacts")
     benchmark.add_argument("manifest", type=Path)
@@ -426,8 +420,6 @@ def _main(argv: list[str] | None) -> int:
         return delivery.exit_code
     if args.command == "scan":
         return _scan(args.path, args.config, args.mode, args.fail_on)
-    if args.command == "index":
-        return _index(args.path, args.config, args.chunk_lines)
     if args.command == "benchmark":
         return _benchmark(args.manifest, args.config, args.mode)
     if args.command == "improve":
@@ -1561,31 +1553,6 @@ def _model_candidates(args: argparse.Namespace) -> int:
         for slice_name, block in sorted(coverage.per_slice.items()):
             ceiling_value = float(block["ceiling"]) if isinstance(block["ceiling"], int | float) else 0.0
             print(f"  slice {slice_name}: {ceiling_value:.1%} over {block['pairs']} pairs")
-    return 0
-
-
-def _index(path: Path, config_path: Path, chunk_lines: int) -> int:
-    if not path.exists() or not path.is_dir():
-        raise SystemExit(f"index path is not a directory: {path}")
-    config = load_config(config_path if config_path.exists() else None)
-    run = create_scan_run(path, config)
-    snapshot, targets = preprocess_repository(run.target, run.root / "preprocess" / "file_targets.json")
-    chunks = build_code_chunks(run.target, targets, max_lines=chunk_lines)
-    payload = {
-        "store": config.embeddings.store or "json-local",
-        "embedding_model": config.embeddings.model,
-        "repo_root": snapshot.root,
-        "repo_commit": snapshot.commit,
-        "chunk_count": len(chunks),
-        "chunks": [chunk.__dict__ for chunk in chunks],
-    }
-    path_out = run.root / "index" / "chunks.json"
-    path_out.parent.mkdir(parents=True, exist_ok=True)
-    path_out.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-    print(f"scan_id={run.scan_id}")
-    print(f"run_dir={run.root}")
-    print(f"chunks={len(chunks)}")
-    print(f"index_artifact={path_out}")
     return 0
 
 

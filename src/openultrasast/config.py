@@ -10,8 +10,6 @@ from typing import Literal
 
 from openultrasast.contracts import Contract
 
-DEFAULT_VECTOR_STORE = "json-local"
-
 # Retirement notes (harnessx-removal Req 1.3, 3.3). A key that asked for a retired LLM capability fails and names
 # the replacement, never a silent downgrade; the old budget section only warns. Every line below that names the
 # removed plane carries its retirement date, which the reference-search test holds the rest of the tree to.
@@ -26,6 +24,15 @@ _UNREAD_ON = "retired 2026-10-02 because nothing ever read it"
 _UNREAD_DYNAMIC = "no dynamic or deep tier exists; deep mode will define its own keys when it is built"
 _UNREAD_EVIDENCE = "evidence tiers come from the program model's ladder (model/ladder.py), not from configuration"
 _UNREAD_VARIANTS = "the structural variant search it configured was deleted with semantic/variants.py"
+_UNREAD_SANDBOX = (
+    "the sandbox always runs with `--network none` and a read-only workspace (sandbox/runner.py); that is an "
+    "invariant the runner enforces, not a knob"
+)
+_UNREAD_TOP_K = "no stage read it; `[complexity] max_hunter_hotspots` is the one complexity key the scan reads"
+_UNREAD_EMBEDDINGS = (
+    "the json-local vector index it configured and `ousast index` were deleted; the decision engine embeds through "
+    "`ousast learn memory embed --model` (learn/embeddings.py)"
+)
 RETIRED_KEYS: dict[tuple[str, str], str] = {
     ("models", "verifier"): f"{_RETIRED_ON}: LLM verification runs on the plane (`verify` + `agree`, {_PLANE_RUN})",
     ("fusion", "panel_model"): f"{_RETIRED_ON}: {_RETIRED_PANELS}",
@@ -38,6 +45,11 @@ RETIRED_KEYS: dict[tuple[str, str], str] = {
     ("evidence", "minimum_patch"): f"{_UNREAD_ON}: {_UNREAD_EVIDENCE}",
     ("variants", "enabled"): f"{_UNREAD_ON}: {_UNREAD_VARIANTS}",
     ("variants", "max_mechanisms"): f"{_UNREAD_ON}: {_UNREAD_VARIANTS}",
+    ("embeddings", "model"): f"{_UNREAD_ON}: {_UNREAD_EMBEDDINGS}",
+    ("embeddings", "store"): f"{_UNREAD_ON}: {_UNREAD_EMBEDDINGS}",
+    ("sandbox", "network"): f"{_UNREAD_ON}: {_UNREAD_SANDBOX}",
+    ("sandbox", "workspace_readonly"): f"{_UNREAD_ON}: {_UNREAD_SANDBOX}",
+    ("complexity", "top_k"): f"{_UNREAD_ON}: {_UNREAD_TOP_K}",
 }
 RETIRED_SECTION = "harnessx"  # retired 2026-09-30: loads with one warning and is otherwise ignored (Req 3.3)
 RETIRED_SECTION_WARNING = (
@@ -95,15 +107,7 @@ class ModelConfig:
 
 
 @dataclass(frozen=True)
-class EmbeddingConfig:
-    model: str | None = None
-    store: str = DEFAULT_VECTOR_STORE
-
-
-@dataclass(frozen=True)
 class SandboxConfig:
-    network: bool = False
-    workspace_readonly: bool = True
     memory_mb: int = 2048
     timeout_seconds: int = 300
     pids_limit: int = 512
@@ -148,8 +152,7 @@ class FusionConfig:
 
 @dataclass(frozen=True)
 class ComplexityConfig:
-    # Stage-2 map size and hunter attention. Small defaults keep PR/nightly map work cheap.
-    top_k: int = 20
+    # Hunter attention. A small default keeps PR/nightly map work cheap.
     max_hunter_hotspots: int = 8
 
 
@@ -205,7 +208,6 @@ class PushConfig(Contract):
 @dataclass(frozen=True)
 class ResolvedConfig:
     models: ModelConfig = ModelConfig()
-    embeddings: EmbeddingConfig = EmbeddingConfig()
     sandbox: SandboxConfig = SandboxConfig()
     static_analysis: StaticAnalysisConfig = StaticAnalysisConfig()
     score: ScoreConfig = ScoreConfig()
@@ -231,7 +233,6 @@ def load_config(config_path: Path | None = None, *, dotenv: bool = True) -> Reso
 
     return ResolvedConfig(
         models=_load_models(data.get("models", {})),
-        embeddings=_load_embeddings(data.get("embeddings", {})),
         sandbox=_load_sandbox(data.get("sandbox", {})),
         static_analysis=_load_static_analysis(data.get("static_analysis", {})),
         score=_load_score(data.get("score", {})),
@@ -277,19 +278,9 @@ def _load_models(value: object) -> ModelConfig:
     )
 
 
-def _load_embeddings(value: object) -> EmbeddingConfig:
-    data = _section(value)
-    return EmbeddingConfig(
-        model=_string(data.get("model")) or _string(os.environ.get("OPENROUTER_EMBEDDING_MODEL")),
-        store=_string(data.get("store")) or DEFAULT_VECTOR_STORE,
-    )
-
-
 def _load_sandbox(value: object) -> SandboxConfig:
     data = _section(value)
     return SandboxConfig(
-        network=bool(data.get("network", False)),
-        workspace_readonly=bool(data.get("workspace_readonly", True)),
         memory_mb=_int_value(data.get("memory_mb"), 2048),
         timeout_seconds=_int_value(data.get("timeout_seconds"), 300),
         pids_limit=_int_value(data.get("pids_limit"), 512),
@@ -349,7 +340,6 @@ def _load_fusion(value: object) -> FusionConfig:
 def _load_complexity(value: object) -> ComplexityConfig:
     data = _section(value)
     return ComplexityConfig(
-        top_k=_int_value(data.get("top_k"), 20),
         max_hunter_hotspots=_int_value(data.get("max_hunter_hotspots"), 8),
     )
 

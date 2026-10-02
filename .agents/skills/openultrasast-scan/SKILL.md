@@ -29,7 +29,6 @@ uv run ousast scan <repo> --mode quick
 uv run ousast scan <repo> --mode standard --fail-on verified
 uv run ousast scan <repo> --mode deep --fail-on worth-fixing
 uv run ousast scan <repo> --mode quick --config openultrasast.toml
-uv run ousast index <repo>        # chunk the checkout for the embedding index
 uv run ousast mcp                 # the MCP server over stdio, for agent hosts
 ```
 

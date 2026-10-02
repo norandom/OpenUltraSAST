@@ -35,7 +35,8 @@ Each instrument contributes one block to a candidate's feature record (`learn/sc
 `INSTRUMENTS`): `language`, `quick` (quick rules), `engine` (the Joern model layer), `facts` (repo
 facts, such as callers and function span), `source`, `entry_points`, `roles` (model source, sink
 and sanitizer roles), `delta`, `verify` and `agree` (the plane's verify passes and their
-agreement), and `model_sinks`. A candidate is `(path, function, family)` of one repository and pin
+agreement), and `model_sinks` (the archived stage-1 classifier, `benchmarks/archive/model_sinks.py`, whose
+logic now lives in `plane/tasks/roles.py`). A candidate is `(path, function, family)` of one repository and pin
 where at least one instrument emitted a signal of that family (`learn/features.py`).
 
 An instrument that did not run, had no coverage or failed records that state (`none`, `failed`,

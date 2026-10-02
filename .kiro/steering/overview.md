@@ -200,10 +200,10 @@ Counted 2026-10-02 from each spec's `tasks.md` checkboxes and `spec.json`.
 |---|---|---|
 | `learned-decision-engine` | implementation | 11 of 17 tasks done |
 | `pre-push-safety-net` | implementation | 67 of 79 tasks done |
-| `contributor-scan` | implementation | 27 of 51 tasks done |
-| `ai-service-plane` | implementation | 11 of 11 tasks done; the ax plane is the agentic path |
+| `contributor-scan` | paused | 27 of 51 tasks done; paused since 2026-09-23 (`v1.2.0-alpha.1` NO-GO), waits on pre-push M2/M3 |
+| `ai-service-plane` | complete | 11 of 11; the ax plane is the agentic path |
 | `harnessx-removal` | complete | 8 of 8; HarnessX removed 2026-09-30 |
-| `finding-feedback-loop` | design | requirements approved, design awaiting approval |
+| `finding-feedback-loop` | dormant | requirements approved, design unapproved since 2026-09-09; depends on `contributor-scan` |
 | `model-grounded-detection` | complete | 16 of 16; built the arbiter this all rests on |
 | `authorization-obligations` | dormant | tasks approved, 0 of 24 started; superseded in practice by the dominance arbiter |
 | `reachability-flow-model` | dormant | 23 tasks generated, nothing approved; largely delivered by adopting Joern |
@@ -214,6 +214,5 @@ Counted 2026-10-02 from each spec's `tasks.md` checkboxes and `spec.json`.
 > **Retired 2026-09-30:** HarnessX was removed by `harnessx-removal`; the agentic plane is ax (`ai-service-plane`),
 > and evolutionary proposals come from the plane memory. The HarnessX specs in the table above are history.
 
-As of 2026-09-09: 97 source modules, 90 load-bearing and 7 standalone capabilities; 814 tests.
 151 source modules, 146 load-bearing and 5 standalone capabilities, 0 orphaned
-(`benchmarks/measurements/2026-09-08-module-audit.json`, regenerated 2026-10-02); 2,009 tests collected.
+(`benchmarks/measurements/2026-09-08-module-audit.json`, regenerated 2026-10-02); 2,023 tests collected.

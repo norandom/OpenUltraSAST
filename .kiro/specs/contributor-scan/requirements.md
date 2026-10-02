@@ -1,5 +1,7 @@
 # Requirements Document: contributor-scan
 
+> **Status 2026-10-02:** paused since 2026-09-23 (its last change). 27 of 51 tasks done: the MAP integration was delivered and `v1.2.0-alpha.1` rolled out NO-GO (`census-repair-verification.md`); the remaining tasks wait on `pre-push-safety-net` M2/M3 and nothing here moved after the ax plane landed. Not active.
+
 ## Introduction
 
 `model-grounded-detection` built an arbiter and measured it: 41.3% of the corpus reaches `model_entailed`
