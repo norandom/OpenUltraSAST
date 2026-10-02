@@ -10,6 +10,10 @@ paid for; the development half is tooling that keeps bulk file contents out of t
 Every number on this page comes from a committed record, named next to it. Records are counts
 only; none holds code, prompts or responses.
 
+The before-and-after summary (script pipeline against plane, and the development share) is on
+[Where we stand](where-we-stand.md#4-token-economics-before-and-after); this page holds the
+mechanisms and the detail table.
+
 ## A. Runtime: the plane's token economy
 
 ```mermaid

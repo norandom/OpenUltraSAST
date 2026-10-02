@@ -112,10 +112,10 @@ gate: at least 16 of 20 declared sites agreed, at a cost per candidate under $0.
 
 ## The decision engine
 
-Two slices of the learned decision engine have been measured out of repository: injection alone
-(2026-10-01) and the six evaluable families (2026-10-02: pooled AUC 0.77 to 0.96 per family,
-within-pair AUC 0.72 to 0.93, BLOCK offered for none). The numbers and their records are in
-[decision-engine.md](decision-engine.md). The engine is not adopted.
+Two slices have been measured out of repository (injection, 2026-10-01; six families,
+2026-10-02). The engine is not adopted. The state against the gates, in one place with the plane
+increment and the populations above, is on [Where we stand](where-we-stand.md#1-detection-capability-and-goals-no-go-measured);
+the per-family tables are on [decision-engine.md](decision-engine.md).
 
 ## Removal of the earlier agentic extra
 
