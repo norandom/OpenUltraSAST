@@ -1,0 +1,377 @@
+{
+ "created": "2026-10-02",
+ "decision": "reject",
+ "instruments": {
+  "distinct_scores_by_arm": {
+   "A": 72,
+   "B": 57
+  },
+  "outcomes_by_arm_replicate": {
+   "A:r0": 160,
+   "A:r1": 160,
+   "B:r0": 160,
+   "B:r1": 160
+  },
+  "parse_failed_by_arm": {
+   "A": 0,
+   "B": 0
+  }
+ },
+ "looks": [
+  {
+   "boundary": 2.797,
+   "crossed": false,
+   "estimate": {
+    "a": 0.8611111111111112,
+    "b": 0.8888888888888888,
+    "ci": [
+     -0.08333333333333326,
+     0.1325301204819277
+    ],
+    "diff": 0.02777777777777768,
+    "groups": 28,
+    "metric": "canary_agreement",
+    "resamples": 10000,
+    "se": 0.05449719877526111,
+    "units": 72
+   },
+   "fraction": 0.5,
+   "groups": 28,
+   "z": 0.5097101943226363
+  },
+  {
+   "boundary": 1.977,
+   "crossed": false,
+   "estimate": {
+    "a": 0.875,
+    "b": 0.90625,
+    "ci": [
+     -0.03448275862068961,
+     0.0972972972972973
+    ],
+    "diff": 0.03125,
+    "groups": 56,
+    "metric": "canary_agreement",
+    "resamples": 10000,
+    "se": 0.0337315848833629,
+    "units": 160
+   },
+   "fraction": 1.0,
+   "groups": 56,
+   "z": 0.9264314175588332
+  }
+ ],
+ "note": "COUNTS ONLY. Experiment exp-002 (learned-decision-engine task 7.4): arm A = the slice-2 compiled programs as they are (k = 5, sample 1 at temperature 0, samples 2..5 at 0.7, one retrieved example set); arm B = the same programs with ProgramSpec.sampling = retrieval_ensemble (k = 5 at temperature 0, each sample over a disjoint retrieved example set). Paired on the frozen units (every unit in both arms, two replicates per arm under different response-cache salts; replicate 1 is the canary), seeded repository order and a seeded per-unit coin for which arm goes first, the incumbent folds' seed on the 937-example static memory, 788 embedding vectors. Intervals: repository-cluster paired bootstrap 95% (10,000 resamples); exact McNemar on discordant units for binary metrics; two looks (O'Brien-Fleming 2.797 / 1.977). The overall table is the runner's result.json; the per-family table here uses the same estimator on each family's pairs. Driver: `ousast learn experiment run|analyse` (learn/experiments.py). No candidate, path, function or repository name.",
+ "overall": {
+  "advisory_precision": {
+   "A": 0.8979591836734694,
+   "B": 0.9069767441860465,
+   "ci95": [
+    -0.02020202020202022,
+    0.05081826012058566
+   ],
+   "ci_vs_zero": "spans",
+   "diff_B_minus_A": 0.009017560512577072,
+   "mcnemar": null,
+   "target": null
+  },
+  "advisory_recall": {
+   "A": 0.5,
+   "B": 0.4431818181818182,
+   "ci95": [
+    -0.1235955056179775,
+    0.01010101010101011
+   ],
+   "ci_vs_zero": "spans",
+   "diff_B_minus_A": -0.05681818181818182,
+   "mcnemar": {
+    "b": 7,
+    "c": 2,
+    "concordant": 79,
+    "p_value": 0.1796875
+   },
+   "target": null
+  },
+  "auc": {
+   "A": 0.8012941919191919,
+   "B": 0.7802241161616161,
+   "ci95": [
+    -0.04139254385964919,
+    -0.0034279184917158645
+   ],
+   "ci_vs_zero": "against",
+   "diff_B_minus_A": -0.0210700757575758,
+   "mcnemar": null,
+   "target": null
+  },
+  "canary_agreement": {
+   "A": 0.875,
+   "B": 0.90625,
+   "ci95": [
+    -0.03448275862068961,
+    0.0972972972972973
+   ],
+   "ci_vs_zero": "spans",
+   "diff_B_minus_A": 0.03125,
+   "mcnemar": {
+    "b": 10,
+    "c": 15,
+    "concordant": 135,
+    "p_value": 0.42435622215270996
+   },
+   "target": {
+    "b_meets": true,
+    "level": 0.9
+   }
+  },
+  "usd_per_candidate": {
+   "A": 0.002131543750000001,
+   "B": 0.005102303125,
+   "ci95": [
+    0.002724568181818181,
+    0.00317872222222222
+   ],
+   "ci_vs_zero": "against",
+   "diff_B_minus_A": 0.002970759374999999,
+   "mcnemar": null,
+   "target": null
+  },
+  "within_pair_auc": {
+   "A": 0.8148148148148148,
+   "B": 0.7407407407407407,
+   "ci95": [
+    -0.12857142857142867,
+    -0.015151515151515138
+   ],
+   "ci_vs_zero": "against",
+   "diff_B_minus_A": -0.07407407407407407,
+   "mcnemar": null,
+   "target": null
+  }
+ },
+ "per_family": {
+  "access_control": {
+   "groups": 24,
+   "metrics": {
+    "advisory_precision": {
+     "A": 1.0,
+     "B": 1.0,
+     "ci95": [
+      0.0,
+      0.0
+     ],
+     "ci_vs_zero": "spans",
+     "diff_B_minus_A": 0.0,
+     "mcnemar": null
+    },
+    "advisory_recall": {
+     "A": 0.72,
+     "B": 0.68,
+     "ci95": [
+      -0.16666666666666674,
+      0.08333333333333337
+     ],
+     "ci_vs_zero": "spans",
+     "diff_B_minus_A": -0.039999999999999925,
+     "mcnemar": {
+      "b": 2,
+      "c": 1,
+      "concordant": 22,
+      "p_value": 1.0
+     }
+    },
+    "auc": {
+     "A": 0.94625,
+     "B": 0.95125,
+     "ci95": [
+      -0.023157894736842155,
+      0.02941176470588236
+     ],
+     "ci_vs_zero": "spans",
+     "diff_B_minus_A": 0.0050000000000000044,
+     "mcnemar": null
+    },
+    "canary_agreement": {
+     "A": 0.926829268292683,
+     "B": 0.8780487804878049,
+     "ci95": [
+      -0.18421052631578938,
+      0.08108108108108103
+     ],
+     "ci_vs_zero": "spans",
+     "diff_B_minus_A": -0.04878048780487809,
+     "mcnemar": {
+      "b": 5,
+      "c": 3,
+      "concordant": 33,
+      "p_value": 0.7265625
+     }
+    },
+    "usd_per_candidate": {
+     "A": 0.0019149512195121951,
+     "B": 0.0043439878048780484,
+     "ci95": [
+      0.0021030595238095253,
+      0.00275970731707317
+     ],
+     "ci_vs_zero": "against",
+     "diff_B_minus_A": 0.0024290365853658533,
+     "mcnemar": null
+    },
+    "within_pair_auc": {
+     "A": 0.9375,
+     "B": 0.875,
+     "ci95": [
+      -0.125,
+      0.0
+     ],
+     "ci_vs_zero": "spans",
+     "diff_B_minus_A": -0.0625,
+     "mcnemar": null
+    }
+   },
+   "paired_units": 41
+  },
+  "injection": {
+   "groups": 34,
+   "metrics": {
+    "advisory_precision": {
+     "A": 0.8387096774193549,
+     "B": 0.8461538461538461,
+     "ci95": [
+      -0.043269230769230727,
+      0.06763285024154597
+     ],
+     "ci_vs_zero": "spans",
+     "diff_B_minus_A": 0.007444168734491274,
+     "mcnemar": null
+    },
+    "advisory_recall": {
+     "A": 0.4126984126984127,
+     "B": 0.3492063492063492,
+     "ci95": [
+      -0.140625,
+      0.0
+     ],
+     "ci_vs_zero": "spans",
+     "diff_B_minus_A": -0.06349206349206349,
+     "mcnemar": {
+      "b": 5,
+      "c": 1,
+      "concordant": 57,
+      "p_value": 0.21875
+     }
+    },
+    "auc": {
+     "A": 0.7475907029478458,
+     "B": 0.7140022675736961,
+     "ci95": [
+      -0.061038961038961004,
+      -0.011363636363636465
+     ],
+     "ci_vs_zero": "against",
+     "diff_B_minus_A": -0.03358843537414968,
+     "mcnemar": null
+    },
+    "canary_agreement": {
+     "A": 0.8571428571428571,
+     "B": 0.9159663865546218,
+     "ci95": [
+      -0.016129032258064502,
+      0.1322314049586777
+     ],
+     "ci_vs_zero": "spans",
+     "diff_B_minus_A": 0.05882352941176472,
+     "mcnemar": {
+      "b": 5,
+      "c": 12,
+      "concordant": 102,
+      "p_value": 0.143463134765625
+     }
+    },
+    "usd_per_candidate": {
+     "A": 0.002206168067226891,
+     "B": 0.005363571428571428,
+     "ci95": [
+      0.0028887247706422007,
+      0.0033776267605633826
+     ],
+     "ci_vs_zero": "against",
+     "diff_B_minus_A": 0.003157403361344537,
+     "mcnemar": null
+    },
+    "within_pair_auc": {
+     "A": 0.7631578947368421,
+     "B": 0.6842105263157895,
+     "ci95": [
+      -0.15384615384615385,
+      0.0
+     ],
+     "ci_vs_zero": "spans",
+     "diff_B_minus_A": -0.07894736842105265,
+     "mcnemar": null
+    }
+   },
+   "paired_units": 119
+  }
+ },
+ "reason": "the CI of within_pair_auc excludes 0 against B",
+ "registration": "benchmarks/experiments/exp-002-retrieval-ensemble/registration.json",
+ "result": "benchmarks/experiments/exp-002-retrieval-ensemble/result.json",
+ "run": {
+  "decided": {
+   "A": 320,
+   "B": 320
+  },
+  "folds_digest": "a1f78e141a572a4adcc9cd57eb8a784c440c177f0b60d5ef5bed9e94c8753c5f",
+  "reason": "",
+  "skipped": {
+   "A": 0,
+   "B": 0
+  },
+  "status": "done",
+  "stopped_at_look": null,
+  "units": 160
+ },
+ "spend": {
+  "caller": {
+   "A": {
+    "cache_digest": "39ba875897ccbc9dee39b07029d26e1fee84392d230776b63bb6f8aa2189d7b9",
+    "client_calls": 1206,
+    "replayed": 395,
+    "usd": 0.682094
+   },
+   "B": {
+    "cache_digest": "5f6187e9445f180fe234b2f48a984eb8fbecf0000552a4acc0a412780c6e628a",
+    "client_calls": 1350,
+    "replayed": 250,
+    "usd": 1.632737
+   }
+  },
+  "deepseek_balance_usd": {
+   "after": 16.04,
+   "before": 16.72,
+   "metered_delta": 0.68
+  },
+  "note": "priced usage prices every response a decision used, a replayed one the same as a paid one (Caller.usd); client_calls are the paid calls and replayed the response-cache hits (arm A: 33 units whose slice-2 sample-0 request was still cached, plus identical prompts across identical-twin candidates and retries; arm B: twins and retries only). The provider balance is read at the run's end and lags; the metered spend is bounded by the arm meters (A $1, B $3).",
+  "priced_usage_usd_by_arm": {
+   "A": 0.6821,
+   "B": 1.6327
+  },
+  "priced_usage_usd_by_arm_replicate": {
+   "A:r0": 0.4299,
+   "A:r1": 0.2522,
+   "B:r0": 1.3797,
+   "B:r1": 0.253
+  }
+ },
+ "units": {
+  "by_label": {
+   "0": 72,
+   "1": 88
+  },
+  "groups": 56,
+  "outcomes": 640,
+  "paired": 160
+ }
+}

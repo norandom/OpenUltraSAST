@@ -139,8 +139,18 @@ a model or embedding call.
     on them, so `ousast learn experiment units` could not freeze the candidates.
   - [ ] 7.3 exp-001 run and recorded (~$7.7 expected, ceiling $15) -- an inconclusive result is pre-registered as
     likely; needs the frozen units file first.
-  - [ ] 7.4 exp-002 run and recorded **(budget go-ahead: ~$2 expected, ceiling $4)**; further program variants
-    (`k = 5` vs `k = 1`, the confidence source) as new manifests.
+  - [x] 7.4 exp-002 run and recorded 2026-10-02 (budget go-ahead ~$2 expected, ceiling $4): **reject B**. 160 paired
+    units (injection 119, access_control 41; 56 repositories; 108 units in 54 candidate pairs), both arms, two
+    replicates each, no early stop. Primary: canary agreement A 0.875 -> B 0.906 (diff +0.03, CI [-0.03, +0.10],
+    spans; B meets the 0.90 target), within-pair AUC A 0.815 -> B 0.741 (diff -0.07, CI [-0.13, -0.02], **against B**).
+    Secondary: AUC -0.02 (CI [-0.04, -0.003], against), ADVISORY recall -0.06 (spans; McNemar 7/2, p = 0.18),
+    precision +0.01 (spans), usd per candidate A $0.0021 -> B $0.0051 (CI [+0.0027, +0.0032], against: the five
+    disjoint example sets share only the prompt prefix in DeepSeek's cache). Priced usage A $0.68 (1206 paid calls,
+    395 replayed), B $1.63 (1350 paid, 250 replayed). Result: `benchmarks/experiments/exp-002-retrieval-ensemble/result.json`,
+    `benchmarks/measurements/2026-10-02-exp-002/record.json`. Three repairs on the way (each its own commit): example
+    rows' null plane-only features (1f525ff), the 788 embedding vectors absent from RustFS (copied from the file
+    store), the result row's column-type collision under S3 Select (780caaa). Further program variants (`k = 5` vs
+    `k = 1`, the confidence source) as new manifests.
   - _Requirements: 3.6, 4.1-4.4_
 
 - [ ] 8. Integration

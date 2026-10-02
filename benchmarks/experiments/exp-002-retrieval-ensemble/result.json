@@ -1,0 +1,241 @@
+{
+  "alpha": 0.05,
+  "arms": {
+    "A": {
+      "budget_usd": 1.0,
+      "label": "today's sampling -- k = 5, sample 1 at temperature 0 and samples 2..5 at 0.7, one retrieved example set",
+      "repeats": 2,
+      "replay_only": false
+    },
+    "B": {
+      "budget_usd": 3.0,
+      "label": "retrieval ensemble -- k = 5 at temperature 0, each sample over a disjoint retrieved example set",
+      "repeats": 2,
+      "replay_only": false
+    }
+  },
+  "code_commit": "780caaa558f2cc091fd6b0fd5c618c3b488030c2",
+  "decision": "reject",
+  "experiment": "exp-002-retrieval-ensemble",
+  "hypothesis": "Drawing the k = 5 samples from five disjoint retrieved example sets at temperature 0 (a retrieval ensemble) makes the decision more repeatable than five temperature samples over one example set, without hurting the ranking within a candidate pair, at no higher cost per candidate.\n",
+  "looks": [
+    {
+      "boundary": 2.797,
+      "crossed": false,
+      "estimate": {
+        "a": 0.8611111111111112,
+        "b": 0.8888888888888888,
+        "ci": [
+          -0.08333333333333326,
+          0.1325301204819277
+        ],
+        "diff": 0.02777777777777768,
+        "groups": 28,
+        "metric": "canary_agreement",
+        "resamples": 10000,
+        "se": 0.05449719877526111,
+        "units": 72
+      },
+      "fraction": 0.5,
+      "groups": 28,
+      "z": 0.5097101943226363
+    },
+    {
+      "boundary": 1.977,
+      "crossed": false,
+      "estimate": {
+        "a": 0.875,
+        "b": 0.90625,
+        "ci": [
+          -0.03448275862068961,
+          0.0972972972972973
+        ],
+        "diff": 0.03125,
+        "groups": 56,
+        "metric": "canary_agreement",
+        "resamples": 10000,
+        "se": 0.0337315848833629,
+        "units": 160
+      },
+      "fraction": 1.0,
+      "groups": 56,
+      "z": 0.9264314175588332
+    }
+  ],
+  "manifest_digest": "f5004fb8618b1f7cc7dcf298d42b4ac1b6c0c1aa72a97299c77f937bd6175148",
+  "mde": 0.1,
+  "primary": [
+    {
+      "name": "canary_agreement",
+      "target": 0.9
+    },
+    {
+      "name": "within_pair_auc"
+    }
+  ],
+  "reason": "the CI of within_pair_auc excludes 0 against B",
+  "resamples": 10000,
+  "secondary": [
+    {
+      "name": "usd_per_candidate"
+    },
+    {
+      "name": "auc"
+    },
+    {
+      "name": "advisory_recall"
+    },
+    {
+      "name": "advisory_precision"
+    }
+  ],
+  "spend_usd": {
+    "A": 0.682094,
+    "B": 1.632737
+  },
+  "tests": {
+    "advisory_precision": {
+      "ci_vs_zero": "spans",
+      "direction": 1,
+      "estimate": {
+        "a": 0.8979591836734694,
+        "b": 0.9069767441860465,
+        "ci": [
+          -0.02020202020202022,
+          0.05081826012058566
+        ],
+        "diff": 0.009017560512577072,
+        "groups": 56,
+        "metric": "advisory_precision",
+        "resamples": 10000,
+        "se": 0.018550028052620342,
+        "units": 160
+      },
+      "mcnemar": null,
+      "target": null
+    },
+    "advisory_recall": {
+      "ci_vs_zero": "spans",
+      "direction": 1,
+      "estimate": {
+        "a": 0.5,
+        "b": 0.4431818181818182,
+        "ci": [
+          -0.1235955056179775,
+          0.01010101010101011
+        ],
+        "diff": -0.05681818181818182,
+        "groups": 56,
+        "metric": "advisory_recall",
+        "resamples": 10000,
+        "se": 0.033343898686966876,
+        "units": 160
+      },
+      "mcnemar": {
+        "b": 7,
+        "c": 2,
+        "concordant": 79,
+        "p_value": 0.1796875
+      },
+      "target": null
+    },
+    "auc": {
+      "ci_vs_zero": "against",
+      "direction": 1,
+      "estimate": {
+        "a": 0.8012941919191919,
+        "b": 0.7802241161616161,
+        "ci": [
+          -0.04139254385964919,
+          -0.0034279184917158645
+        ],
+        "diff": -0.0210700757575758,
+        "groups": 56,
+        "metric": "auc",
+        "resamples": 10000,
+        "se": 0.009565373841115053,
+        "units": 160
+      },
+      "mcnemar": null,
+      "target": null
+    },
+    "canary_agreement": {
+      "ci_vs_zero": "spans",
+      "direction": 1,
+      "estimate": {
+        "a": 0.875,
+        "b": 0.90625,
+        "ci": [
+          -0.03448275862068961,
+          0.0972972972972973
+        ],
+        "diff": 0.03125,
+        "groups": 56,
+        "metric": "canary_agreement",
+        "resamples": 10000,
+        "se": 0.0337315848833629,
+        "units": 160
+      },
+      "mcnemar": {
+        "b": 10,
+        "c": 15,
+        "concordant": 135,
+        "p_value": 0.42435622215270996
+      },
+      "target": {
+        "b_meets": true,
+        "level": 0.9
+      }
+    },
+    "usd_per_candidate": {
+      "ci_vs_zero": "against",
+      "direction": -1,
+      "estimate": {
+        "a": 0.002131543750000001,
+        "b": 0.005102303125,
+        "ci": [
+          0.002724568181818181,
+          0.00317872222222222
+        ],
+        "diff": 0.002970759374999999,
+        "groups": 56,
+        "metric": "usd_per_candidate",
+        "resamples": 10000,
+        "se": 0.00011577410791736543,
+        "units": 160
+      },
+      "mcnemar": null,
+      "target": null
+    },
+    "within_pair_auc": {
+      "ci_vs_zero": "against",
+      "direction": 1,
+      "estimate": {
+        "a": 0.8148148148148148,
+        "b": 0.7407407407407407,
+        "ci": [
+          -0.12857142857142867,
+          -0.015151515151515138
+        ],
+        "diff": -0.07407407407407407,
+        "groups": 56,
+        "metric": "within_pair_auc",
+        "resamples": 10000,
+        "se": 0.029550669251750233,
+        "units": 160
+      },
+      "mcnemar": null,
+      "target": null
+    }
+  },
+  "tost": null,
+  "units": {
+    "by_label": {
+      "0": 72,
+      "1": 88
+    },
+    "groups": 56,
+    "outcomes": 640,
+    "paired": 160
+  }
+}
