@@ -70,6 +70,7 @@ class FakeObjects:
         self.mode, self.objects, self.versions = select, {}, {}
         self.status, self.rules, self.tags_denied = versioning, RUNS_RULES if rules is None else rules, False
         self.selects: list[str] = []
+        self.schema_rows = 2  # RustFS: a `where` field must be present in the object's leading rows, else it is unbound
         self.gets: list[str] = []
         self.calls: list[tuple[Any, ...]] = []
 
@@ -104,9 +105,16 @@ class FakeObjects:
             return b""
         if self.mode == "unbound":  # RustFS: a field absent from the object's leading rows
             raise type("S3Error", (Exception,), {"code": "EvaluatorBindingDoesNotExist"})("A column name ... does not exist")
+        rows = [json.loads(line) for line in self.objects[key][0].splitlines() if line.strip()]
+        for name in re.findall(r"s\.\"(\w+)\"", expression):
+            if any(name not in r for r in rows[: self.schema_rows]):  # RustFS infers the schema from the leading rows
+                raise type("S3Error", (Exception,), {"code": "EvaluatorBindingDoesNotExist"})(f"column {name} does not exist")
+        leading = rows[: self.schema_rows]
+        typeless = {k for r in leading for k, v in r.items() if v is None and all(x.get(k) is None for x in leading)}
+        if any(r.get(k) is not None for r in rows[self.schema_rows :] for k in typeless):  # null-typed, set later
+            raise type("MinioException", (Exception,), {})("JSONParsingError: An error occurred while parsing the JSON file")
         clauses = re.findall(r"s\.\"(\w+)\" = ('(?:[^']|'')*'|true|false|-?[\d.]+)", expression)
         want = {n: v[1:-1].replace("''", "'") if v.startswith("'") else json.loads(v) for n, v in clauses}
-        rows = [json.loads(line) for line in self.objects[key][0].splitlines() if line.strip()]
         return b"".join(json.dumps(r).encode() + b"\n" for r in rows if all(r.get(k) == v for k, v in want.items()))
 
     def presign(self, method: str, key: str, expires: timedelta) -> str:
@@ -185,7 +193,7 @@ def test_rows_filter_by_repo_pin_kind_and_where_with_their_object_version(store:
     assert len(store.rows()) == 5
     assert {r.row["candidate"] for r in store.rows("https://github.com/o/r", kind="verdict")} == {"a.py::run", "a.py::x", "b.py::y"}
     assert [r.row["candidate"] for r in store.rows("github.com/o/r", PIN, "verdict", {"final": "disputed"})] == ["a.py::x"]
-    assert [r.row["kind"] for r in store.rows(where={"usd": 0.5})] == ["unit_cost"]
+    assert [r.row["candidate"] for r in store.rows(where={"final": "disputed"})] == ["a.py::x"]
     assert store.rows(where={"final": "no such"}) == []
     record = store.rows("github.com/o/r", PIN, "verdict", {"candidate": "a.py::run"})[0]
     assert record.key == f"repos/github.com__o__r/{PIN}.jsonl" and record.version
@@ -220,6 +228,112 @@ def test_facts_that_no_longer_match_their_hash_are_dropped(store: MemoryStore, c
 def test_presigned_urls_name_the_object(store: MemoryStore) -> None:
     for url in (store.presign_put("runs/r1/x/units.jsonl"), store.presign_get("runs/r1/x/units.jsonl")):
         assert url.startswith(("file://", "http://", "https://")) and "runs/r1/x/units.jsonl" in url
+
+
+# --- the fixed schema: every row carries every queryable field ------------------------------------------------------
+
+
+def _late(field_kind: str = "example", n: int = 6) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """``n`` alert rows without any queryable field, and one ``field_kind`` row whose id sorts after them all (the
+    object is written in id order), so a declared field appears only after the object's leading rows."""
+    alerts = [row("alert", f"rule-{i}", rule=f"r{i}") for i in range(n)]
+    return alerts, {**row(field_kind, "late", profile="static"), "id": "f" * 64}
+
+
+def test_rows_written_without_optional_fields_gain_them_as_empty_strings(store: MemoryStore) -> None:
+    store.put_rows([verdict("a.py::run", "agreed"), row("unit_cost", "a:a.py", **{"pass": "a", "usd": 0.5})])
+    store.ingest_rows("r2", "c-remember", [row("alert", "rule-1", run="r2", rule="r1", profile=None)])
+    rows = {r.row["kind"]: r.row for r in store.rows()}
+    assert all(set(memory.QUERYABLE) <= set(r) for r in rows.values())
+    assert rows["unit_cost"]["final"] == "" and rows["alert"]["candidate"] == "" and rows["alert"]["profile"] == "", "null too"
+    assert rows["verdict"]["final"] == "agreed" and rows["verdict"]["candidate"] == "a.py::run", "present values stay"
+    assert rows["unit_cost"]["usd"] == 0.5, "a field nobody queries is not touched"
+    store.drop_rows("github.com/o/r", PIN, [rows["alert"]["id"]])
+    assert all(set(memory.QUERYABLE) <= set(r.row) for r in store.rows())
+
+
+def test_a_queryable_field_of_another_type_is_refused_on_write(store: MemoryStore) -> None:
+    with pytest.raises(MemoryStoreError, match=r"queryable field 'final' must be a string, got int"):
+        store.put_row(verdict("a.py::run", 1))  # type: ignore[arg-type]
+    assert store.rows() == []
+
+
+def test_a_declared_field_absent_from_the_leading_rows_is_queryable(store: MemoryStore) -> None:
+    alerts, late = _late(n=5000)  # RustFS measured: a field first at row 5000 was unbound before the rule
+    store.put_rows([*alerts, late])
+    assert [r.row["id"] for r in store.rows(kind="example", where={"profile": "static"})] == [late["id"]]
+    assert [r.row["id"] for r in store.rows(where={"profile": "static"})] == [late["id"]], "any kind: the union is written"
+    assert store.rows(kind="verdict", where={"final": "agreed"}) == []
+    assert len(store.rows(where={"run": "r1", "profile": ""})) == len(alerts), "'' is the empty value"
+
+
+def test_the_fake_client_mimics_rustfs_and_the_normaliser_repairs_a_pre_rule_object() -> None:
+    client = FakeObjects("works")
+    store = MinioStore(client, "bucket")
+    alerts, late = _late()
+    key = f"repos/github.com__o__r/{PIN}.jsonl"
+    legacy = sorted([*alerts, late], key=lambda r: str(r["id"]))  # written before the rule: no queryable fields
+    client.put(key, "".join(json.dumps(r) + "\n" for r in legacy).encode(), {})
+    with pytest.raises(MemoryStoreError, match=r"EvaluatorBindingDoesNotExist.*\['kind', 'profile'\] is absent"):
+        store.rows(kind="example", where={"profile": "static"})
+    nulls = [{**r, "profile": None} for r in alerts] + [late]  # the schema rows hold null, a later row a string
+    client.put(key, "".join(json.dumps(r) + "\n" for r in nulls).encode(), {})
+    with pytest.raises(MemoryStoreError, match=r"JSONParsingError"):
+        store.rows(kind="example", where={"run": "r1"})
+    assert store.normalise() == {"objects": 1, "objects_rewritten": 1, "rows": 7, "rows_changed": 7,
+                                 "fields_filled": 7 * len(memory.QUERYABLE) - 1}  # fmt: skip
+    assert client.versions[key] == 3, "a rewrite is a new object version; versioning keeps the old"
+    assert [r.row["id"] for r in store.rows(kind="example", where={"profile": "static"})] == [late["id"]]
+
+
+def test_a_where_on_an_undeclared_field_an_unknown_kind_or_null_is_refused_before_any_read() -> None:
+    client = FakeObjects("works")
+    store = _filled(client)
+    client.selects.clear()
+    with pytest.raises(MemoryStoreError, match=r"\['profile'\] are not queryable for kind 'verdict'.*QUERY_FIELDS"):
+        store.rows(kind="verdict", where={"profile": "static"})
+    with pytest.raises(MemoryStoreError, match=r"\['usd'\] are not queryable for any kind"):
+        store.rows(where={"usd": 0.5})
+    with pytest.raises(MemoryStoreError, match="unknown kind 'vibes'"):
+        store.rows(kind="vibes")
+    with pytest.raises(MemoryStoreError, match=r"\['final'\] = null never matches"):
+        store.rows(kind="verdict", where={"final": None})
+    assert client.selects == []
+    assert memory.QUERYABLE == ("candidate", "candidates_digest", "final", "profile")
+
+
+@pytest.mark.parametrize("backend", ["file", "fake-minio"])
+def test_the_normaliser_is_idempotent_and_keeps_every_value(backend: str, tmp_path: Path) -> None:
+    store: MemoryStore = FileStore(tmp_path / "memory") if backend == "file" else MinioStore(FakeObjects(), "bucket", "p")
+    legacy = [verdict("a.py::run", "agreed"), row("unit_cost", "a:a.py", **{"pass": "a", "usd": 0.5, "final": None})]
+    store._put(f"repos/github.com__o__r/{PIN}.jsonl", "".join(json.dumps(r) + "\n" for r in legacy).encode())
+    current = memory.normalise_row(row("alert", "x", pin=OTHER_PIN))
+    store._put(f"repos/github.com__o__r/{OTHER_PIN}.jsonl", (json.dumps(current) + "\n").encode())
+    first = store.normalise()
+    assert first == {"objects": 2, "objects_rewritten": 1, "rows": 3, "rows_changed": 2, "fields_filled": 2 + 4}
+    assert store.normalise() == {**first, "objects_rewritten": 0, "rows_changed": 0, "fields_filled": 0}
+    got = {r.row["kind"]: r.row for r in store.rows(repo="github.com/o/r", pin=PIN)}
+    assert got["verdict"] == memory.normalise_row(legacy[0]) and got["unit_cost"]["usd"] == 0.5
+
+
+def test_the_normaliser_names_a_queryable_field_of_another_type(tmp_path: Path) -> None:
+    store = FileStore(tmp_path / "memory")
+    store._put(f"repos/github.com__o__r/{PIN}.jsonl", (json.dumps({**verdict("a.py::run", "agreed"), "candidate": 3}) + "\n").encode())
+    with pytest.raises(MemoryStoreError, match=rf"repos/github.com__o__r/{PIN}.jsonl:1: queryable field 'candidate'"):
+        store.normalise()
+
+
+def test_the_memory_normalise_command_prints_its_counts(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    from openultrasast.cli import main
+
+    store = FileStore(tmp_path / "memory")
+    store._put(f"repos/github.com__o__r/{PIN}.jsonl", (json.dumps(verdict("a.py::run", "agreed")) + "\n").encode())
+    url = f"file://{tmp_path / 'memory'}"
+    assert main(["plane", "memory-normalise", "--store", url, "--dry-run"]) == 0
+    assert 'would rewrite 1/1 objects; 1/1 rows filled 2 absent or null fields with ""' in capsys.readouterr().out
+    assert main(["plane", "memory-normalise", "--store", url]) == 0
+    assert main(["plane", "memory-normalise", "--store", url]) == 0
+    assert "rewrote 0/1 objects; 0/1 rows filled 0 absent or null fields" in capsys.readouterr().out.splitlines()[-1]
 
 
 # --- MinIO specifics on the fake client ----------------------------------------------------------------------------
@@ -260,8 +374,8 @@ def test_an_unbound_field_on_rustfs_raises_naming_the_schema_inference_never_ret
     client = FakeObjects("works")
     store = _filled(client)
     client.mode = "unbound"
-    with pytest.raises(MemoryStoreError, match=r"EvaluatorBindingDoesNotExist.*\['usd'\] is absent from the object's leading rows"):
-        store.rows(where={"usd": 0.5})
+    with pytest.raises(MemoryStoreError, match=r"EvaluatorBindingDoesNotExist.*\['final'\] is absent from the object's leading rows"):
+        store.rows(where={"final": "agreed"})
 
 
 # --- bucket verification: the admin configures once, the store only reads ------------------------------------------

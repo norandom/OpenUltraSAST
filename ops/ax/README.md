@@ -154,16 +154,29 @@ writes objects and their tags, and it gets no `Put*` on versioning or lifecycle:
                                      "s3:GetLifecycleConfiguration"],
        "Resource": ["arn:aws:s3:::sast-memory"]},
       {"Effect": "Allow", "Action": ["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject", "s3:DeleteObject",
-                                     "s3:GetObjectTagging", "s3:PutObjectTagging"],
+                                     "s3:GetObjectTagging", "s3:PutObjectTagging", "s3:GetObjectVersionTagging"],
        "Resource": ["arn:aws:s3:::sast-memory/*"]}]}
 
 Measured state on 2026-10-02 (agent `sast-memory-agent`): versioning was `Enabled` and a 30-day rule on `runs/`
-was in place. `verify_bucket` still refused, because `GetObjectTagging` returned AccessDenied for the agent.
+was in place. `verify_bucket` first refused because `GetObjectTagging` returned AccessDenied for the agent; with
+the three tagging permissions above (`s3:GetObjectTagging`, `s3:PutObjectTagging`, `s3:GetObjectVersionTagging`)
+the real-server contract tests pass.
 
-Known RustFS limit (measured 2026-10-02): Select infers an object's JSON schema from its leading rows. A
-`where` field that is missing there, even if row 5000 has it, fails with `EvaluatorBindingDoesNotExist` instead
-of matching. The store raises a `MemoryStoreError` that names the field. It does not answer "no rows", since
-that answer could silently drop matches.
+**Fixed schema: every row carries every queryable field.** RustFS's Select infers an object's JSON schema from its
+first 1000 rows (measured 2026-10-02). Two failures follow:
+
+- a `where` field missing from those rows, even if row 5000 has it, fails with `EvaluatorBindingDoesNotExist`;
+- a column that is `null` in all of those rows and set in a later one fails the whole object with
+  `JSONParsingError`, whatever the `where` names (999 leading nulls answer, 1000 fail). A column holding two JSON
+  types (a string, then a number) fails the same way at any size.
+
+So `plane/memory.py` declares per kind the fields a `where` may name (`QUERY_FIELDS`, besides the fields every
+row has). They are strings, and the store writes all of them on every row at write time, `""` where one does not
+apply (never `null`). `rows()` refuses an unknown kind, a `where` on a field no kind declares, and `where` = null,
+before any read: a new query declares its field first. Rows written before the rule are rewritten once with
+`ousast plane memory-normalise [--store URL] [--dry-run]`, which is idempotent and prints its counts; on a bucket
+it writes new object versions, and versioning keeps the old ones. Run it when a store moves to RustFS. The store
+never answers "no rows" for a failed Select; it raises a `MemoryStoreError` naming the object and the cause.
 
 The real-server contract tests (`OUSAST_MEMORY_TEST_MINIO=1`, bucket `OUSAST_MEMORY_TEST_BUCKET`, else
 `MINIO_BUCKET`) verify the bucket at its root and write only under a fresh `contract-<id>/` prefix. They never
