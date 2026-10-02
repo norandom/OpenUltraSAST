@@ -107,6 +107,12 @@ a model or embedding call.
   - [ ] 6.7 Second paid slice **(budget go-ahead: ~$7 expected, ceiling $10; needs a top-up)**
     - Leave-one-source-out (~$1.4-2.1), leave-one-framework-out where a framework reaches 10 groups ($0 today),
       learning curves over memory size (0/25/50/100%) and number of sources (~$5.2), recorded beside 6.6.
+    - Partial 2026-10-02 (`benchmarks/measurements/2026-10-02-decision-engine-slice-2/record.json`): after the
+      advisory-fix harvest (memory 724 -> 904), one compile per evaluable family and its outer-fold evaluation for all
+      six (injection, untrusted_destination, path, output_encoding, deserialization, access_control); out-of-repository
+      AUC 0.77-0.96, BLOCK offered for none (calibration holds only for output_encoding, where no fold reaches the
+      Wilson bound); one memory-size point for injection (724 vs 904 examples, paired: AUC 0.76 vs 0.77). $2.88
+      metered (ceiling $8). Not done: leave-one-source-out, the 0/25/50% curve points, the source-count curve.
     - _Requirements: 5.1, 5.2, 8.3_
 
 - [ ] 7. Experiments (exp-001 and program variants need budget go-ahead)
