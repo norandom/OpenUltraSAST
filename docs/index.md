@@ -45,6 +45,9 @@ flowchart LR
 
 ## Where to go next
 
+- The current state in one page, every figure with its record: capability against the M4 gates, the
+  step-by-step approach, ax on the server, token economics before and after, and the open items:
+  [Where we stand](where-we-stand.md).
 - Run a scan: [Examples](examples.md), and the commands in [Scanning](scanning.md).
 - Understand a finding's evidence and score: [Architecture](architecture.md).
 - Operate the plane and its store: [ax on this host](ops/ax/README.md) and

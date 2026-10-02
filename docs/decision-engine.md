@@ -7,11 +7,9 @@ design is the `learned-decision-engine` specification (maintainer tooling); the 
 
 ## Why
 
-Every detection gain so far was a hand edit made after a miss: a rule, a taint vocabulary entry,
-a guard, a prompt line, a tie-break. Each was tuned on the cases that exposed it, and engine
-tuning measured on population v1 did not transfer to v2 (see [evaluation.md](evaluation.md)).
-The engine replaces that with a decision learned from labelled outcomes and checked out of
-repository.
+Every detection gain before the engine was a hand edit tuned on the cases that exposed it, and
+engine tuning measured on population v1 did not transfer to v2. The reasoning, and the step-by-step
+chain that replaced hand edits, are on [Where we stand](where-we-stand.md#2-our-approach-to-detection-step-by-step).
 
 ## Design
 
@@ -100,16 +98,19 @@ bootstrap intervals (2,000 resamples); input profile v1, priors off, k = 5.
   evaluation; demonstrations are now swapped or dropped like retrieved examples, and the stopped
   part was replayed after the fix.
 
-**Not adopted.** Still ahead: leave-one-source-out, leave-one-framework-out, the remaining
-learning-curve points (memory size 0/25/50%, number of sources), integration into scan and
-pre-push, adoption, and the one-time v3 check.
+**Not adopted.** What is still ahead is listed once, on
+[Where we stand](where-we-stand.md#5-open-items).
 
 ## Experiments
 
-Changes to prompts, models, pass counts or features are compared by controlled experiments, so
-nothing is adopted on one run's number. One is registered and has not run: exp-002 (variance
-reduction of the score). No result exists; this page carries one only once a record under
-`benchmarks/measurements/` does.
+Changes to prompts, models, pass counts, features or sampling are compared by controlled
+experiments from a pre-registered manifest (`plane/experiments/<id>.yaml`), so nothing is adopted
+on one run's number. Two are registered. exp-001 (known callers) has not run. exp-002 (a retrieval
+ensemble against today's temperature sampling) ran on 160 paired candidates in 56 repository
+groups and was **rejected**: within-pair AUC 0.815 against 0.741 and $0.0021 against $0.0051 per
+candidate, with re-run agreement 0.875 against 0.906 and an interval spanning zero
+(`benchmarks/experiments/exp-002-retrieval-ensemble/result.json`). The reading is on
+[Where we stand](where-we-stand.md#2-our-approach-to-detection-step-by-step).
 
 ## Commands
 
