@@ -47,6 +47,8 @@ flowchart LR
 
 - Run a scan: [Examples](examples.md), and the commands in [Scanning](scanning.md).
 - Understand a finding's evidence and score: [Architecture](architecture.md).
+- The program analysis under a scan, what each representation can see and what it misses:
+  [Detection techniques](detection-techniques.md).
 - Operate the plane and its store: [ax on this host](ops/ax/README.md) and
   [RustFS setup](rustfs.md).
 - Where the plane runs today and what a separate Kubernetes cluster would take (planned, not

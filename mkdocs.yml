@@ -51,6 +51,7 @@ nav:
   - Overview: index.md
   - How it works:
       - Scanning: scanning.md
+      - Detection techniques: detection-techniques.md
       - Architecture: architecture.md
       - The plane on ax: plane.md
       - Memory: memory.md

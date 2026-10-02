@@ -82,6 +82,8 @@ flowchart LR
 The Docker image ships Joern and `php-cli` (which the PHP frontend needs); without Joern the
 layer records `cpg_unavailable` and the scan is otherwise unchanged. Engine installation and the
 Joern features used are in [Engine and pre-push](ops/README.md).
+How the graph is built, queried and refined, with the records behind each refinement, is in
+[Detection techniques](detection-techniques.md).
 
 ## Framework priors
 

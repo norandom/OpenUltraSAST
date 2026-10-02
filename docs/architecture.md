@@ -34,7 +34,8 @@ graph per scan with Joern (`joern-parse`, then batched `joern --script` queries 
 operation) and configuration (constant abstraction over a value). Taint facts ship for C,
 Java, JavaScript, PHP and Python (`ruleset/semantic/*.toml`). Without Joern the layer records
 `cpg_unavailable` and the scan is otherwise unchanged; the Docker image ships Joern and
-`php-cli` (which the PHP frontend needs).
+`php-cli` (which the PHP frontend needs). The representations and techniques behind each stage
+are explained in [Detection techniques](detection-techniques.md).
 
 The model layer reports on a rung ladder:
 
