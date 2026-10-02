@@ -249,6 +249,7 @@ class SnapshotAdapter:
         boundaries = ["declaration_paths_unavailable"] if declaration_paths is None else []
         changed: list[str] = []
         deleted: list[str] = []
+        added: list[str] = []
         spans: list[ChangedSpan] = []
         renames: list[PathRename] = []
         mappings: list[LineCorrespondence] = []
@@ -305,6 +306,9 @@ class SnapshotAdapter:
                 if status == "D":
                     assert path_base is not None
                     deleted.append(path_base.hex())
+                if status == "A":
+                    assert path_head is not None
+                    added.append(path_head.hex())
                 if status == "R":
                     assert path_base is not None and path_head is not None
                     renames.append(PathRename(path_base.hex(), path_head.hex()))
@@ -432,6 +436,7 @@ class SnapshotAdapter:
             tuple(boundaries),
             "filesystem-bytes-hex",
             tuple(mappings),
+            tuple(added),
         )
 
     @contextmanager

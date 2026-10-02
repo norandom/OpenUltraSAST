@@ -111,6 +111,9 @@ class ChangeContext(Contract):
     # are not encoded or decoded by this field.
     path_encoding: Literal["text", "filesystem-bytes-hex"] = "text"
     line_correspondences: tuple[LineCorrespondence, ...] = ()
+    # Paths Git reports as added (status A) in head, in this context's path encoding. A rename
+    # target is not added. Only a lexical fact: novelty still needs complete head evidence.
+    added_paths: tuple[str, ...] = ()
 
     def decode_path(self, path: str) -> str:
         """Return the filesystem spelling for matching ordinary question paths.
@@ -130,6 +133,7 @@ class ChangeContext(Contract):
                 *(s.path for s in self.spans),
                 *(p for r in self.renames for p in (r.base_path, r.head_path)),
                 *(p for m in self.line_correspondences for p in (m.base_path, m.head_path)),
+                *self.added_paths,
             ]
             for path in paths:
                 try:

@@ -219,6 +219,50 @@ def _experimental_line(experimental: Mapping[str, object]) -> str:
     )
 
 
+# Vetoes that say only "this capability is not qualified yet". A candidate whose novelty is established
+# and whose only vetoes are these is shown as an advisory engine finding (task 17.4, Requirement 9.4);
+# any comparison, evidence or location veto keeps it out of the terminal.
+_CAPABILITY_VETOES = frozenset(
+    {
+        "capability_unavailable",
+        "capability_disabled",
+        "capability_unevaluated",
+        "capability_ambiguous",
+        "operation_semantics_mismatch",
+        "consequence_unsupported",
+        "repair_unsupported",
+    }
+)
+
+
+def _advisory_engine_lines(report: PushReport) -> list[str]:
+    shown: dict[str, list[str]] = {}
+    for disposition in report.admission.dispositions:
+        delta = disposition.candidate.delta
+        op = delta.head_operation
+        if (
+            disposition.admitted
+            or delta.novelty not in ("new", "worsened")
+            or not set(disposition.reasons) <= _CAPABILITY_VETOES
+            or op is None
+            or delta.witness is None
+            or delta.defect_id in shown
+        ):
+            continue
+        how = "new" if delta.novelty == "new" else "worsened"
+        shown[delta.defect_id] = [
+            f"- {_short(delta.family)} at {_short(op.path, 4096)}:{op.line} ({how}): {_short(redact_secrets(delta.witness))}"
+        ]
+    if not shown:
+        return []
+    lines = [f"Engine: {len(shown)} finding(s) this push introduced. Advisory: the capability is not yet qualified, so not an alert."]
+    for entry in list(shown.values())[:3]:
+        lines.extend(entry)
+    if len(shown) > 3:
+        lines.append(f"{len(shown) - 3} more advisory engine findings retained in the detailed result.")
+    return lines
+
+
 # Quick-rule matches shown per comparison; the artifact keeps every one.
 _QUICK_LINES = 5
 
@@ -285,6 +329,7 @@ def render_report(report: PushReport, *, artifact: Path | None, error: str | Non
         )
     if len(defects) > 3:
         lines.append(f"{len(defects) - 3} more actionable defects retained in the detailed result.")
+    lines.extend(_advisory_engine_lines(report))
     for payload in report.quick:
         lines.extend(_quick_lines(payload))
     if not defects:
