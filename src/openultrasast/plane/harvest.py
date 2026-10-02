@@ -210,17 +210,19 @@ def _reader(cache: Path, source: str, ref: str, pin: str) -> Any:
 # --- manifests -------------------------------------------------------------------------------------------------------
 
 
-def _git_workspace(unit: Unit) -> dict[str, Any]:
-    doc = _doc("Workspace", _ax_name(unit.name, "pin"), {"git": [{"name": REPO, "repo": unit.repo, "dir": REPO, "depth": 1}]}, ATESPACE)
+def _git_workspace(unit: Unit, atespace: str = ATESPACE) -> dict[str, Any]:
+    doc = _doc("Workspace", _ax_name(unit.name, "pin"), {"git": [{"name": REPO, "repo": unit.repo, "dir": REPO, "depth": 1}]}, atespace)
     doc["metadata"]["annotations"] = {GIT_COMMITS_ANNOTATION: f"{REPO}={unit.pin}"}
     return doc
 
 
-def _files_workspace(name: str, files: Mapping[str, str]) -> dict[str, Any]:
-    return _doc("Workspace", name, {"files": [{"path": k, "content": v} for k, v in sorted(files.items())]}, ATESPACE)
+def _files_workspace(name: str, files: Mapping[str, str], atespace: str = ATESPACE) -> dict[str, Any]:
+    return _doc("Workspace", name, {"files": [{"path": k, "content": v} for k, v in sorted(files.items())]}, atespace)
 
 
-def _verify_docs(unit: Unit, templates: Mapping[str, Task], usd_per_hunt: float) -> tuple[list[dict], list[dict], list[dict]]:
+def _verify_docs(
+    unit: Unit, templates: Mapping[str, Task], usd_per_hunt: float, atespace: str = ATESPACE
+) -> tuple[list[dict], list[dict], list[dict]]:
     """(Workspaces, Tasks, Run entries) of one verify unit."""
     asked = list(unit.verify or unit.candidates)
     candidates = {"family": unit.family, "candidates": [list(c) for c in asked]}
@@ -232,15 +234,15 @@ def _verify_docs(unit: Unit, templates: Mapping[str, Task], usd_per_hunt: float)
     entries: list[dict] = []
     if unit.files:
         files = {f"{REPO}/{path}": text for path, text in unit.files} | {"inputs/candidates.json": _json(candidates)}
-        workspace = _files_workspace(_ax_name(unit.name, "side"), files)
+        workspace = _files_workspace(_ax_name(unit.name, "side"), files, atespace)
         workspaces.append(workspace)
         bindings = [(workspace["metadata"]["name"], CASE_PATH)]
         inputs = f"{CASE_PATH}/inputs/candidates.json"
     else:
-        pinned = _git_workspace(unit)
+        pinned = _git_workspace(unit, atespace)
         functions = [{"path": p, "function": fn, "line": ln} for p, fn, ln in asked]
         files_doc = _files_workspace(
-            _ax_name(unit.name, "inputs"), {"candidates.json": _json(candidates), "functions.json": _json(functions)}
+            _ax_name(unit.name, "inputs"), {"candidates.json": _json(candidates), "functions.json": _json(functions)}, atespace
         )
         workspaces += [pinned, files_doc]
         bindings = [(pinned["metadata"]["name"], CASE_PATH), (files_doc["metadata"]["name"], INPUTS_PATH)]
@@ -309,7 +311,7 @@ def _roles_groups(units: Sequence[Unit]) -> list[list[Unit]]:
 
 
 def render_harvest(
-    units: Sequence[Unit], templates: Mapping[str, Task], name: str, command: str, *, ceiling: float = 10.0
+    units: Sequence[Unit], templates: Mapping[str, Task], name: str, command: str, *, ceiling: float = 10.0, atespace: str = ATESPACE
 ) -> dict[str, str]:
     """Relative path under the plane root -> file text: both Runs, their Workspaces and Tasks, and ``units.json``.
     A population file whose size is unknown is estimated at :data:`UNKNOWN_SIZE`."""
@@ -323,7 +325,7 @@ def render_harvest(
     tasks: list[dict] = []
     entries: list[dict] = []
     for unit in verify_units:
-        w, t, e = _verify_docs(unit, templates, USD_PER_HUNT[_kind(unit)] * scale)
+        w, t, e = _verify_docs(unit, templates, USD_PER_HUNT[_kind(unit)] * scale, atespace)
         workspaces += w
         tasks += t
         entries += e
@@ -333,7 +335,7 @@ def render_harvest(
     for group in _roles_groups([u for u in units if u.files and _inline(u, roles=True) <= MAX_INLINE_BYTES]):
         files = {f"{REPO}/{u.name}/{p}": t for u in group for p, t in u.files if p in u.paths}
         listing = sorted(f.removeprefix(f"{REPO}/") for f in files)
-        workspace = _files_workspace(_ax_name(name, "roles", group[0].name), files | {"inputs/files.json": _json(listing)})
+        workspace = _files_workspace(_ax_name(name, "roles", group[0].name), files | {"inputs/files.json": _json(listing)}, atespace)
         workspaces.append(workspace)
         estimates.append(_roles_estimate((len(text), len(text.splitlines())) for text in files.values()))
         bound = [(workspace["metadata"]["name"], CASE_PATH)]
@@ -350,8 +352,8 @@ def render_harvest(
         same = [u for u in units if not u.files and (u.repo, u.pin) == (unit.repo, unit.pin)]
         paths = sorted({p for u in same for p in u.paths})
         known = {p: (chars, lines) for u in same for p, chars, lines in u.sizes}
-        pinned = _git_workspace(unit)
-        files_doc = _files_workspace(_ax_name(unit.name, "roles-in"), {"files.json": _json(paths)})
+        pinned = _git_workspace(unit, atespace)
+        files_doc = _files_workspace(_ax_name(unit.name, "roles-in"), {"files.json": _json(paths)}, atespace)
         workspaces += [w for w in (pinned, files_doc) if w["metadata"]["name"] not in emitted]
         estimates.append(_roles_estimate(known.get(p, UNKNOWN_SIZE) for p in paths))
         bound = [(pinned["metadata"]["name"], CASE_PATH), (files_doc["metadata"]["name"], INPUTS_PATH)]
@@ -380,7 +382,16 @@ def _run_files(header: str, run: str, workspaces: list[dict], tasks: list[dict],
 
 
 def write_harvest(
-    labels: Path, plane: Path, *, name: str, command: str, catalog: Path, cache: Path, templates: Path, ceiling: float = 10.0
+    labels: Path,
+    plane: Path,
+    *,
+    name: str,
+    command: str,
+    catalog: Path,
+    cache: Path,
+    templates: Path,
+    ceiling: float = 10.0,
+    atespace: str = ATESPACE,
 ) -> dict[str, str]:
     """Build the units, render, write under ``plane`` (with the Model manifests copied beside); returns the rendered
     files."""
@@ -388,7 +399,7 @@ def write_harvest(
 
     units = pair_units(labels, catalog) + population_units(labels, cache)
     loaded = load_manifests([templates / "tasks" / f"{n}.yaml" for n in ("repo-facts", "verify", "agree", "roles")]).tasks
-    files = render_harvest(units, loaded, name, command, ceiling=ceiling)
+    files = render_harvest(units, loaded, name, command, ceiling=ceiling, atespace=atespace)
     for path in sorted((templates / "models").glob("*.yaml")):
         files[f"models/{path.name}"] = path.read_text(encoding="utf-8")
     for relative, text in files.items():

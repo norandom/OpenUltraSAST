@@ -65,11 +65,12 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 argv = sys.argv[1:]
+context = ""
 if argv[:1] == ["--context"]:
-    argv = argv[2:]
+    context, argv = argv[1], argv[2:]
 verb, actor, space = argv[0], argv[2], argv[argv.index("-a") + 1]
 with (HERE / "ax.log").open("a") as log:
-    log.write(f"{time.monotonic():.4f} egress {verb} {actor}\n")
+    log.write(f"{time.monotonic():.4f} egress {verb} {actor} {context}\n")
 record = HERE / "applied" / f"{actor}.json"
 alive = record.exists() and not json.loads(record.read_text()).get("gone")
 store = HERE / "policies" / f"{space}_{actor}.json"
@@ -103,3 +104,26 @@ def kubectl_ate(tmp_path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("OUSAST_KUBECTL_ATE", str(path))
     monkeypatch.setenv("OUSAST_EGRESS_SETTLE", "0")
     return path
+
+
+PROFILE_CONTEXT = "kind-test"  # the fakes must receive this, never a context a module built (plane-on-kubernetes 1.2)
+PROFILE_TOML = (
+    'exec = "local"\nkube_context = "{context}"\nregistry = "registry.test:5000"\nimages = "images.json"\n'
+    'memory = "file://{memory}"\natespace = "default"\n[pools.default]\nreplicas = 1\ncpu = "1"\nmemory = "1Gi"\n'
+)
+
+
+@pytest.fixture
+def plane_profile(tmp_path, monkeypatch: pytest.MonkeyPatch):
+    """A throwaway PlaneProfile under ``tmp_path`` (context ``kind-test``, a file:// memory store, a digest-pinned
+    images file), selected through ``OUSAST_PLANE_PROFILE`` so every plane module loads it."""
+    import json
+
+    root = tmp_path / "profile"
+    root.mkdir()
+    (root / "test.toml").write_text(PROFILE_TOML.format(context=PROFILE_CONTEXT, memory=tmp_path / "memory"), encoding="utf-8")
+    (root / "images.json").write_text(json.dumps({"runner": "registry.test:5000/ousast-runner@sha256:" + "ab" * 32}), encoding="utf-8")
+    monkeypatch.setenv("OUSAST_PLANE_PROFILE", str(root / "test.toml"))
+    for key in ("OUSAST_KUBE_CONTEXT", "OUSAST_MEMORY", "OUSAST_REGISTRY", "OUSAST_IMAGES", "OUSAST_EXEC"):
+        monkeypatch.delenv(key, raising=False)
+    return root / "test.toml"

@@ -33,6 +33,7 @@ from openultrasast.plane import reconciler
 from openultrasast.plane.workspaces import workspaces
 
 RECONCILER = Path("src/openultrasast/plane/reconciler.py")
+PROFILE_CONTEXT = "kind-test"  # conftest's plane_profile fixture: the context every fake must be handed
 PIN = "0123456789abcdef0123456789abcdef01234567"
 SECRET = "sk-reconciler-test-7a2b-only-in-the-start-request"
 
@@ -355,7 +356,7 @@ class _RouterHandler(BaseHTTPRequestHandler):
 
 
 @pytest.fixture
-def fake(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kubectl_ate: Path) -> Iterator[Fake]:
+def fake(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kubectl_ate: Path, plane_profile: Path) -> Iterator[Fake]:
     monkeypatch.setenv("OUSAST_RESULTS", str(tmp_path / "results"))
     monkeypatch.setenv("OUSAST_ARTIFACT_HOST", "127.0.0.1")
     monkeypatch.setenv("OUSAST_POLL_SECONDS", "0.02")
@@ -631,7 +632,8 @@ def tar_of(files: dict[str, bytes]) -> bytes:
     return buf.getvalue()
 
 
-def test_receiver_rejects_traversal_unknown_tasks_and_wrong_types(tmp_path: Path) -> None:
+def test_receiver_rejects_traversal_unknown_tasks_and_wrong_types(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OUSAST_ARTIFACT_HOST", "127.0.0.1")  # the direct test address: no Service lookup, no context needed
     receiver = reconciler.Receiver("r", tmp_path / "r", 0)
     receiver.running.add("t")
     headers = {"X-Ousast-Run": "r", "X-Ousast-Task": "t", "Content-Type": "application/x-tar"}
@@ -719,16 +721,31 @@ def test_status_of_an_unknown_run_says_so(fake: Fake) -> None:
 # --- doctor, workspaces, size ---------------------------------------------------------------------------------------
 
 
-def test_doctor_names_the_bring_up_script_when_nothing_is_reachable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("PATH", str(tmp_path))  # no kubectl, no curl
+def test_doctor_checks_the_profiles_cluster_and_reports_every_address(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, plane_profile: Path
+) -> None:
+    """Req 1.2: the configured context (never kind by name), the registry's runner reference, the memory store; the
+    namespaces are not checked behind an unreachable context, so only that line fails for it."""
+    monkeypatch.setenv("PATH", str(tmp_path))  # no kubectl, no docker
+    from openultrasast.plane import doctor as doctor_module
+
+    monkeypatch.setattr(doctor_module, "_registry_has", lambda image: (False, f"registry.test:5000 unreachable for {image}"))
     checks = reconciler.doctor()
-    assert [name for name, _, _ in checks] == [
-        "kind cluster",
-        "agent substrate (ate-system)",
-        "ax controller (ax-system)",
-        "runner image in kind registry",
+    names = [name for name, _, _ in checks]
+    assert names == [
+        "profile test",
+        "cluster kind-test",
+        "runner image in registry.test:5000",
+        f"memory store file://{tmp_path / 'memory'}",
     ]
-    assert all(not ok and "ops/ax/up.sh" in text for _, ok, text in checks)
+    by_name = {name: (ok, text) for name, ok, text in checks}
+    assert by_name["profile test"][0] and "kube_context=kind-test" in by_name["profile test"][1]
+    for address in ("registry=registry.test:5000", "exec=local", "atespace=default", "router_url=(tunnel"):
+        assert address in by_name["profile test"][1], address
+    assert not by_name["cluster kind-test"][0] and "kind-test unreachable" in by_name["cluster kind-test"][1]
+    assert not by_name["runner image in registry.test:5000"][0]
+    assert by_name[f"memory store file://{tmp_path / 'memory'}"][0], "a file store opens; an S3 store is verified"
+    assert not any("kind-" + "ousast" in text for _, _, text in checks), "nothing names the kind cluster"
 
 
 def test_workspaces_one_manifest_per_case_pin(tmp_path: Path) -> None:
@@ -753,6 +770,23 @@ def test_workspaces_one_manifest_per_case_pin(tmp_path: Path) -> None:
     loaded = load_manifests(written).workspaces
     assert set(loaded) == {p.stem for p in written}
     assert loaded["demo-sqli-benign-tip"].pins == {"repo": "d" * 40}
+
+
+def test_cli_doctor_takes_a_profile_and_fails_on_its_unreachable_context(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, plane_profile: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """plane-on-kubernetes 1.2: ``ousast plane doctor --profile`` drives the checks from that file, nothing built."""
+    from openultrasast.cli import main
+    from openultrasast.plane import doctor as doctor_module
+
+    monkeypatch.setenv("PATH", str(tmp_path))
+    monkeypatch.setattr(doctor_module, "_registry_has", lambda image: (True, "present"))
+    monkeypatch.delenv("OUSAST_PLANE_PROFILE")
+    assert main(["plane", "doctor", "--profile", str(plane_profile)]) == 1
+    out = capsys.readouterr().out
+    assert "[FAIL] cluster kind-test:" in out and "[ok] profile test:" in out and "[ok] runner image in registry.test:5000" in out
+    assert main(["plane", "doctor", "--profile", str(tmp_path / "missing.toml")]) == 2
+    assert "missing.toml" in capsys.readouterr().err
 
 
 def test_rendered_documents_carry_only_ax_fields(tmp_path: Path) -> None:
@@ -829,7 +863,7 @@ def test_doctor_treats_an_empty_namespace_as_not_ready(monkeypatch: pytest.Monke
     from openultrasast.plane import doctor
 
     monkeypatch.setattr(doctor, "_sh", lambda *a: (True, "No resources found in ax-system namespace."))
-    ok, text = doctor._pods_ready("ax-system", "kind-ousast")
+    ok, text = doctor._pods_ready("ax-system", "kind-test")
     assert not ok and "no pods" in text
     monkeypatch.setattr(doctor, "_sh", lambda *a: (True, "a-1 1/1 Running 0 1m\nb-2 0/1 Completed 0 1m"))
     assert doctor._pods_ready("ns", "ctx") == (True, "2 pods ready")
@@ -854,6 +888,8 @@ def test_egress_policy_between_apply_and_resume_and_checked_after_delete(fake: F
         order.append(first(prefix, order[-1] + 1))
     assert order == sorted(order)
     assert not (tmp_path / "policies" / "default_eg-verify.json").exists(), "the policy went with its actor"
+    contexts = {line.split()[-1] for line in lines if line.startswith("egress ")}
+    assert contexts == {PROFILE_CONTEXT}, "kubectl-ate received the profile's context, never a built one (1.2)"
     written = json.loads((tmp_path / "policies" / "default_eg-verify.written.json").read_text())
     tls = {"hostnames": ["api.deepseek.com", "example.invalid"], "ports": {"numbers": [443]}}
     assert written["rules"] == [{"tlsPassthrough": tls}], "the Model host and the Git host, nothing else"

@@ -82,7 +82,7 @@ TRIAGE_BASIS = (
 RANGES_BASIS = "git diff -U0 <vulnerable> <fixed>, old side: benchmarks/independent/evaluate.hunks(case, 'old')"
 HEADROOM = 1.5
 CALLS_PER_HUNT = MAX_STEPS + 2  # every tool step, the answer, one empty-content retry
-ATESPACE = "default"
+ATESPACE = "default"  # the default when no profile is given; ``increment`` takes ``profile.atespace``
 CASE_PATH = "/workspace/case"
 INPUTS_PATH = "/workspace/inputs"
 FIXED_PATH = "/workspace/fixed"
@@ -236,10 +236,10 @@ def _case_record(item: CaseInputs) -> dict[str, Any]:
     return record
 
 
-def _workspaces(item: CaseInputs) -> tuple[dict[str, Any], dict[str, Any]]:
+def _workspaces(item: CaseInputs, atespace: str = ATESPACE) -> tuple[dict[str, Any], dict[str, Any]]:
     case = item.case
     git = [{"name": "repo", "repo": case["repo"], "dir": "repo", "depth": 1}]
-    pinned = _doc("Workspace", _ax_name(case["id"], "vulnerable"), {"git": git}, ATESPACE)
+    pinned = _doc("Workspace", _ax_name(case["id"], "vulnerable"), {"git": git}, atespace)
     pinned["metadata"]["annotations"] = {GIT_COMMITS_ANNOTATION: f"repo={case['vulnerable']}"}
     files = {
         "candidates.json": _json({"id": case["id"], "family": case["family"], "candidates": [list(c) for c in item.kept]}),
@@ -249,7 +249,7 @@ def _workspaces(item: CaseInputs) -> tuple[dict[str, Any], dict[str, Any]]:
             {"candidates": [list(c) for c in item.candidates], "kept": [list(c) for c in item.kept], "triage": dict(item.triage)}
         ),
     }
-    inputs = _doc("Workspace", _ax_name(case["id"], "inputs"), {"files": [{"path": k, "content": v} for k, v in files.items()]}, ATESPACE)
+    inputs = _doc("Workspace", _ax_name(case["id"], "inputs"), {"files": [{"path": k, "content": v} for k, v in files.items()]}, atespace)
     return pinned, inputs
 
 
@@ -339,11 +339,11 @@ def _remember(item: CaseInputs, templates: Mapping[str, Task], population: str, 
     return task, entry
 
 
-def _alerts(item: CaseInputs, templates: Mapping[str, Task]) -> tuple[dict, dict, dict]:
+def _alerts(item: CaseInputs, templates: Mapping[str, Task], atespace: str = ATESPACE) -> tuple[dict, dict, dict]:
     """(fixed-pin Workspace, Task, Run entry) of the case's `alerts`: quick-mode rules on both pins."""
     case = item.case
     git = [{"name": "repo", "repo": case["repo"], "dir": "repo", "depth": 1}]
-    fixed = _doc("Workspace", _ax_name(case["id"], "fixed"), {"git": git}, ATESPACE)
+    fixed = _doc("Workspace", _ax_name(case["id"], "fixed"), {"git": git}, atespace)
     fixed["metadata"]["annotations"] = {GIT_COMMITS_ANNOTATION: f"repo={case['fixed']}"}
     bindings = [(_ax_name(case["id"], "vulnerable"), CASE_PATH), (fixed["metadata"]["name"], FIXED_PATH)]
     bindings.append((_ax_name(case["id"], "inputs"), INPUTS_PATH))
@@ -358,10 +358,12 @@ def _alerts(item: CaseInputs, templates: Mapping[str, Task]) -> tuple[dict, dict
     return fixed, task, entry
 
 
-def _loop(cases: Sequence[CaseInputs], templates: Mapping[str, Task], loop: Loop) -> tuple[dict, list[dict], list[dict]]:
+def _loop(
+    cases: Sequence[CaseInputs], templates: Mapping[str, Task], loop: Loop, atespace: str = ATESPACE
+) -> tuple[dict, list[dict], list[dict]]:
     """(project Workspace, Tasks, Run entries) of the loop's singletons: snapshot -> measure -> propose -> improve."""
     git = [{"name": "repo", "repo": loop.repo, "dir": "repo", "depth": 1}]
-    project = _doc("Workspace", _ax_name("openultrasast", loop.commit[:12]), {"git": git}, ATESPACE)
+    project = _doc("Workspace", _ax_name("openultrasast", loop.commit[:12]), {"git": git}, atespace)
     project["metadata"]["annotations"] = {GIT_COMMITS_ANNOTATION: f"repo={loop.commit}"}
     bound = [(project["metadata"]["name"], PROJECT_PATH)]
     env = {
@@ -399,6 +401,7 @@ def render(
     population: str = "",
     split: str = "",
     loop: Loop | None = None,
+    atespace: str = ATESPACE,
 ) -> dict[str, str]:
     """Relative path under the plane root -> file text, for every generated manifest. ``population`` and ``split``
     (the population file's and the set's stems) become the Run's annotations, which the memory rows carry. Each
@@ -411,7 +414,7 @@ def render(
     tiebreak: list[dict[str, Any]] = []
     for item in cases:
         case_id = item.case["id"]
-        pinned, inputs = _workspaces(item)
+        pinned, inputs = _workspaces(item, atespace)
         for doc in (pinned, inputs):
             out[f"workspaces/{doc['metadata']['name']}.yaml"] = _dump(header, [doc])
         repo = [(pinned["metadata"]["name"], CASE_PATH), (inputs["metadata"]["name"], INPUTS_PATH)]
@@ -451,7 +454,7 @@ def render(
     entries.extend(tiebreak)  # appended: the first Run's entries stay byte-identical, so a rerun keeps their state
     for item in cases:  # appended after the tie-break for the same reason
         if loop is not None:
-            fixed, alerts_task, alerts_entry = _alerts(item, templates)
+            fixed, alerts_task, alerts_entry = _alerts(item, templates, atespace)
             out[f"workspaces/{fixed['metadata']['name']}.yaml"] = _dump(header, [fixed])
             tasks.append(alerts_task)
             entries.append(alerts_entry)
@@ -462,7 +465,7 @@ def render(
         tasks.append(remember_task)
         entries.append(remember_entry)
     if loop is not None:
-        project, loop_tasks, loop_entries = _loop(cases, templates, loop)
+        project, loop_tasks, loop_entries = _loop(cases, templates, loop, atespace)
         out[f"workspaces/{project['metadata']['name']}.yaml"] = _dump(header, [project])
         tasks.extend(loop_tasks)
         entries.extend(loop_entries)
@@ -509,16 +512,24 @@ def increment(
     repos: Path | None = None,
     runner_image: Path | None = None,
     loop: Loop | None = None,
+    atespace: str | None = None,
 ) -> list[Path]:
     """Write the generated manifests under ``plane`` from the templates in ``plane/tasks`` (re-pinned first when
-    ``runner_image`` is given), with the improvement loop when ``loop`` is given; returns the paths."""
+    ``runner_image`` is given), with the improvement loop when ``loop`` is given; returns the paths. Workspaces go
+    to ``atespace`` (default: the profile's)."""
+    if atespace is None:
+        from .profile import load_profile
+
+        atespace = load_profile().atespace
     if loop is not None and repos is None:
         raise ValueError("--loop needs --repos: the alerts task marks fixed-pin alerts by the fix's new-side ranges")
     if runner_image is not None:
         repin_templates(plane, runner_image)
     loaded = load_manifests([plane / "tasks" / f"{name}.yaml" for name in TEMPLATES])
     cases = read_cases(validation_set, candidates_dir, triage_dir, population, repos, fixed_side=loop is not None)
-    files = render(cases, loaded.tasks, run_name, command, population=population.stem, split=validation_set.stem, loop=loop)
+    files = render(
+        cases, loaded.tasks, run_name, command, population=population.stem, split=validation_set.stem, loop=loop, atespace=atespace
+    )
     written: list[Path] = []
     for relative, text in files.items():
         path = plane / relative

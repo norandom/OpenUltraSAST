@@ -131,18 +131,20 @@ def _drain(stream: Iterable[str], lines: queue.Queue[str | None]) -> None:
 
 
 @contextlib.contextmanager
-def open_router(context: str | None = None, *, kubectl: str = "kubectl", ready_timeout: float = 30.0) -> Iterator[Router]:
+def open_router(context: str, *, url: str | None = None, kubectl: str = "kubectl", ready_timeout: float = 30.0) -> Iterator[Router]:
     """A :class:`Router` for the duration of the block.
 
-    ``OUSAST_ROUTER_URL`` set: that URL, nothing started. Otherwise ``kubectl port-forward svc/atenet-router :80``
-    in ``ate-system`` of ``context`` (default ``kind-$KIND_CLUSTER_NAME``, ``kind-ousast``), the local port read
-    from kubectl's ``Forwarding from 127.0.0.1:NNNN`` line; on exit that child process is terminated.
+    ``url`` (the profile's ``router_url``) or ``OUSAST_ROUTER_URL`` set: that URL, nothing started. Otherwise
+    ``kubectl port-forward svc/atenet-router :80`` in ``ate-system`` of the profile's ``context`` (ax-tunnel: the
+    Kubernetes API is the one authenticated door), the local port read from kubectl's ``Forwarding from
+    127.0.0.1:NNNN`` line; on exit that child process is terminated. No context is ever built here.
     """
-    override = os.environ.get("OUSAST_ROUTER_URL")
+    override = url or os.environ.get("OUSAST_ROUTER_URL")
     if override:
         yield Router(override)
         return
-    context = context or "kind-" + (os.environ.get("KIND_CLUSTER_NAME") or "ousast")
+    if not context:
+        raise StartError("open_router needs the profile's kube context (or router_url)")
     argv = [kubectl, "--context", context, "-n", NAMESPACE, "port-forward", SERVICE, ":80"]
     proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     try:

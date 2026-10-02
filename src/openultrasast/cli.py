@@ -272,16 +272,21 @@ def _main(argv: list[str] | None) -> int:
     learn_labels.add_argument("--include-title", action="store_true", help="the title-tier pairs as well (a sensitivity arm)")
     learn_labels.add_argument("--no-assumed-benign", action="store_true", help="skip mining the assumed-benign history source")
     add_learn_commands(learn_sub)
-    plane = subparsers.add_parser("plane", help="maintainer: the ax-backed service plane on this host's kind cluster")
+    plane = subparsers.add_parser("plane", help="maintainer: the ax-backed service plane on the profile's cluster (ops/k8s/profiles/)")
+    profile_help = "the PlaneProfile: a name under ops/k8s/profiles/ or a .toml path (default OUSAST_PLANE_PROFILE, else kind)"
     plane_sub = plane.add_subparsers(dest="plane_command", required=True)
     plane_run = plane_sub.add_parser("run", help="execute a Run manifest on ax; a rerun skips done tasks")
     plane_run.add_argument("run_manifest", type=Path)
     plane_run.add_argument("--workers", type=int, default=1, help="tasks in flight at once (serialize labels never overlap)")
     plane_run.add_argument("--ax", default="ax", help="path of the ax CLI")
+    plane_run.add_argument("--profile", help=profile_help)
     plane_status = plane_sub.add_parser("status", help="per-task status and the token attribution table of a run")
     plane_status.add_argument("run")
     plane_status.add_argument("--units", action="store_true", help="per-unit rows from each task's units.jsonl")
-    plane_sub.add_parser("doctor", help="check kind, Agent Substrate, the ax controller and the runner image")
+    plane_doctor = plane_sub.add_parser(
+        "doctor", help="check the profile's cluster, Agent Substrate, the ax controller, the runner image and the memory store"
+    )
+    plane_doctor.add_argument("--profile", help=profile_help)
     plane_remember = plane_sub.add_parser("remember", help="ingest a run's memory rows into the store (OUSAST_MEMORY)")
     plane_remember.add_argument("run")
     plane_remember.add_argument("--plane", type=Path, default=Path("plane"), help="where runs/<run>.yaml names population and split")
@@ -319,9 +324,11 @@ def _main(argv: list[str] | None) -> int:
     )
     plane_harvest.add_argument("--ceiling", type=float, default=10.0, help="USD: each Run's task budgets sum to at most this")
     plane_harvest.add_argument("--runner-image", type=Path, help="re-pin the task templates to the image in this file first (ops/ax/up.sh)")
+    plane_harvest.add_argument("--profile", help=profile_help)
     plane_ws = plane_sub.add_parser("workspaces", help="one Workspace manifest per case pin of a population file")
     plane_ws.add_argument("population", type=Path)
     plane_ws.add_argument("--out", type=Path, default=Path("plane/workspaces"))
+    plane_ws.add_argument("--profile", help=profile_help)
     plane_ws.add_argument("--validation-set", type=Path, help="JSON {case: [[path, function], ...]}: emit that set's increment instead")
     plane_ws.add_argument("--candidates", type=Path, help="with --validation-set: per-case candidate records (independent-v2-modelsinks)")
     plane_ws.add_argument("--triage", type=Path, help="with --validation-set: recorded batched-check scans (<case>--vulnerable_a.jsonl)")
@@ -1379,10 +1386,16 @@ def _learn_labels(args: argparse.Namespace) -> int:
 
 def _plane(args: argparse.Namespace) -> int:
     from .plane import reconciler  # lazy: the plane is a maintainer surface, not the scan path
+    from .plane.profile import ProfileError, load_profile
 
+    try:
+        profile = load_profile(getattr(args, "profile", None))
+    except ProfileError as exc:
+        print(f"plane: {exc}", file=sys.stderr)
+        return 2
     if args.plane_command == "run":
         _plane_memory("seed", args.run_manifest)
-        result = reconciler.run(args.run_manifest, workers=args.workers, ax=args.ax)
+        result = reconciler.run(args.run_manifest, workers=args.workers, ax=args.ax, profile=profile)
         print(f"run finished: {result}")
         _plane_memory("ingest", args.run_manifest)
         return 0 if result == "done" else 1
@@ -1397,14 +1410,14 @@ def _plane(args: argparse.Namespace) -> int:
     if args.plane_command == "alerts-engine":
         return _plane_alerts_engine(args)
     if args.plane_command == "harvest":
-        return _plane_harvest(args)
+        return _plane_harvest(args, profile.atespace)
     if args.plane_command == "doctor":
-        checks = reconciler.doctor()
+        checks = reconciler.doctor(profile)
         for name, ok, text in checks:
             print(f"[{'ok' if ok else 'FAIL'}] {name}: {text}")
         return 0 if all(ok for _, ok, _ in checks) else 1
     if args.validation_set is not None:
-        return _plane_increment(args)
+        return _plane_increment(args, profile.atespace)
     from .plane.workspaces import workspaces
 
     written = workspaces(args.population, args.out)
@@ -1412,7 +1425,7 @@ def _plane(args: argparse.Namespace) -> int:
     return 0
 
 
-def _plane_harvest(args: argparse.Namespace) -> int:
+def _plane_harvest(args: argparse.Namespace, atespace: str) -> int:
     from .plane.generate import repin_templates
     from .plane.harvest import write_harvest
 
@@ -1421,7 +1434,7 @@ def _plane_harvest(args: argparse.Namespace) -> int:
     command = f"ousast plane harvest --labels {args.labels.name} --name {args.name} --ceiling {args.ceiling:g}"
     files = write_harvest(
         args.labels, args.plane, name=args.name, command=command, catalog=args.catalog, cache=args.cache, templates=args.templates,
-        ceiling=args.ceiling,
+        ceiling=args.ceiling, atespace=atespace,
     )  # fmt: skip
     for relative in sorted(k for k in files if k.startswith("runs/")):
         print(f"{args.plane / relative}: {files[relative].splitlines()[1].lstrip('# ')}")
@@ -1502,7 +1515,7 @@ def _plane_memory(
     return 0
 
 
-def _plane_increment(args: argparse.Namespace) -> int:
+def _plane_increment(args: argparse.Namespace, atespace: str) -> int:
     from .plane.generate import LOOP_MANIFEST, Loop, increment
 
     if args.candidates is None or args.triage is None:
@@ -1528,7 +1541,7 @@ def _plane_increment(args: argparse.Namespace) -> int:
         command += "".join(f" --qualify-population {p}" for p in loop.populations)
     written = increment(
         args.population, args.validation_set, args.candidates, args.triage, plane=args.plane, run_name=args.run, command=command,
-        repos=args.repos, runner_image=args.runner_image, loop=loop,
+        repos=args.repos, runner_image=args.runner_image, loop=loop, atespace=atespace,
     )  # fmt: skip
     print(f"{len(written)} manifests written under {args.plane} (Run {args.run})")
     return 0

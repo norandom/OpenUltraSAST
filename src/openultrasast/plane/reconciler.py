@@ -1,9 +1,10 @@
 """ax-backed reconciler of a ``Run``: submission, resume, start, completion by delivery (ai-service-plane Req 3, 4, 7).
 
-ax executes every task on this host's kind cluster; nothing here runs a task locally or knows a prompt, a score or
-a model call. Per ready task: one rendered YAML file (the Task with its env extended, its Workspaces, the bound
-Model), ``ax apply -f``, ``ax resume task`` (retried on DeadlineExceeded/Unavailable -- a new image's first resume
-waits for Agent Substrate's golden snapshot -- for up to ``OUSAST_RESUME_TIMEOUT`` s, 900), and once ax says
+ax executes every task on the profile's cluster (``profile.py``: kube context, registry, store); nothing here runs a
+task locally or knows a prompt, a score or a model call. Per ready task: one rendered YAML file (the Task with its
+env extended, its Workspaces, the bound Model), ``ax apply -f``, ``ax resume task`` (retried on
+DeadlineExceeded/Unavailable -- a new image's first resume waits for Agent Substrate's golden snapshot -- for up to
+``OUSAST_RESUME_TIMEOUT`` s, 900), and once ax says
 ``Running`` one start request through Substrate's router (``router.py``, Req 4.5) carrying the bound Model's
 credential from this process's environment, never from a file (Req 4.6). Completion is the runner's artifact
 delivery (ax has no Completed phase); ``Failed``, the task vanishing, a refused start or ``OUSAST_TASK_TIMEOUT`` s
@@ -44,6 +45,7 @@ import yaml
 from .doctor import doctor
 from .egress import RECEIVER_PORT, Egress, Receiver, policy_for
 from .manifests import AX_API_VERSION, Manifests, Model, Run, RunTask, Task, Workspace, load_manifests
+from .profile import PlaneProfile, load_profile
 from .router import Router, credentials, open_router
 
 MODEL_ANNOTATION = "openultrasast.io/model"
@@ -340,17 +342,27 @@ def _execute(
     return ("failed", failure) if failure else outcome_of(_read_json(base / entry.name / "summary.json"))
 
 
-def run(run_manifest: Path, *, workers: int = 1, ax: str = "ax", results_root: Path | None = None, kubectl_ate: str | None = None) -> str:
-    """Execute a Run on ax and return its status: ``done``, ``unfinished`` or ``failed`` (Req 3.1-3.3, 2.2)."""
+def run(
+    run_manifest: Path,
+    *,
+    workers: int = 1,
+    ax: str = "ax",
+    results_root: Path | None = None,
+    kubectl_ate: str | None = None,
+    profile: PlaneProfile | None = None,
+) -> str:
+    """Execute a Run on ax and return its status: ``done``, ``unfinished`` or ``failed`` (Req 3.1-3.3, 2.2). Every
+    address comes from ``profile`` (default: the one ``OUSAST_PLANE_PROFILE`` names)."""
+    profile = profile or load_profile()
     run_spec, manifests = load_run(Path(run_manifest))
     base = run_dir(run_spec.metadata.name, results_root)
     base.mkdir(parents=True, exist_ok=True)
     lock = _acquire_lock(base)
     state = _State(base / "state.json", _read_json(base / "state.json") or {"run": run_spec.metadata.name, "started": _now(), "tasks": {}})
     port = os.environ.get("OUSAST_ARTIFACT_PORT") or (0 if os.environ.get("OUSAST_ARTIFACT_HOST") else RECEIVER_PORT)
-    receiver = Receiver(run_spec.metadata.name, base, int(port))  # the receiver Service targets RECEIVER_PORT
+    receiver = Receiver(run_spec.metadata.name, base, int(port), profile.kube_context)  # the Service targets RECEIVER_PORT
     threading.Thread(target=receiver.serve_forever, daemon=True).start()
-    cli, egress, finished = Ax(ax), Egress(kubectl_ate), queue.Queue[tuple[str, str, str]]()
+    cli, egress, finished = Ax(ax), Egress(kubectl_ate, profile.kube_context), queue.Queue[tuple[str, str, str]]()
     pending = [t for t in run_spec.tasks if state.status(t.name) != "done"]
     for entry in run_spec.tasks:
         state.set(entry.name, **({"status": "pending"} if entry in pending else {}))
@@ -364,7 +376,7 @@ def run(run_manifest: Path, *, workers: int = 1, ax: str = "ax", results_root: P
         finished.put((entry.name, *_execute(cli, egress, run_spec, entry, manifests, base, receiver, router)))
 
     try:
-        with open_router() as router:  # one port-forward to Substrate's router for the whole run
+        with open_router(profile.kube_context, url=profile.router_url or None) as router:  # one tunnel per run (ax-tunnel)
             while pending or running:
                 blocked = {t.serialize for t in running.values() if t.serialize}
                 for entry in list(pending):

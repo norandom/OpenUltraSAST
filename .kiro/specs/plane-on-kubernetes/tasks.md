@@ -19,7 +19,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
   - `tests/test_plane_profile.py`: defaults; file then env precedence; each rejection names the field; both
     committed profiles load; no field holds a value matching a credential pattern.
   - _Requirements: 1.1_
-- [ ] 1.2 Literals out of `doctor.py`, `egress.py`, `router.py`, `generate.py`
+- [x] 1.2 Literals out of `doctor.py`, `egress.py`, `router.py`, `generate.py`
   - `doctor(profile)`: context from `profile.kube_context`; the registry check resolves the `images` file's runner
     reference (`docker manifest inspect` for a remote registry, `/v2/_catalog` for a local one); `open_store`
     verifies `profile.memory`; prints every configured address (Req 1.2). `Egress(context=...)`,

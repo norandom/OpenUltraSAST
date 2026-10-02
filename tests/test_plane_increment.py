@@ -290,3 +290,25 @@ def test_case_record_carries_sites_in_set_and_cost_and_the_image_is_repinned(tmp
     (tmp_path / "runner-image").write_text("localhost:5001/ousast-runner:dev\n")
     with pytest.raises(ValueError, match="digest-pinned"):
         repin_templates(paths["plane"], tmp_path / "runner-image")
+
+
+def test_workspaces_go_to_the_profiles_atespace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """plane-on-kubernetes 1.2: ``generate.ATESPACE`` is a default; ``increment`` takes the profile's atespace."""
+    paths = _fixture(tmp_path)
+    (tmp_path / "p.toml").write_text('exec = "local"\nkube_context = "c"\nregistry = "r"\nimages = "i.json"\natespace = "team-a"\n')
+    monkeypatch.setenv("OUSAST_PLANE_PROFILE", str(tmp_path / "p.toml"))
+    increment(paths["population"], paths["set"], paths["candidates"], paths["scans"], plane=paths["plane"], run_name="sp", command="t")
+    manifests = load_manifests(sorted((paths["plane"] / "workspaces").glob("*.yaml")))
+    assert manifests.workspaces and {w.metadata.atespace for w in manifests.workspaces.values()} == {"team-a"}
+    increment(
+        paths["population"],
+        paths["set"],
+        paths["candidates"],
+        paths["scans"],
+        plane=paths["plane"],
+        run_name="sp",
+        command="t",
+        atespace="z",
+    )
+    manifests = load_manifests(sorted((paths["plane"] / "workspaces").glob("*.yaml")))
+    assert {w.metadata.atespace for w in manifests.workspaces.values()} == {"z"}, "an explicit atespace wins over the profile"

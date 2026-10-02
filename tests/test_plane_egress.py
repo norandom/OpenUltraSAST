@@ -134,10 +134,11 @@ def test_apply_creates_reads_back_and_delete_confirms_the_cascade(tmp_path: Path
     actor(tmp_path, "t1", gone=True)  # ax delete task: the actor, and with it the policy, is gone
     assert cli.delete("t1", "default") is None
     assert calls(tmp_path) == ["get t1", "create t1", "get t1", "get t1", "get t1", "get t1"]
+    assert {line.split()[-1] for line in (tmp_path / "ax.log").read_text().splitlines()} == {"kind-test"}, "the given context"
 
 
 def test_apply_replaces_an_existing_policy(tmp_path: Path, kubectl_ate: Path) -> None:
-    cli = egress.Egress(str(kubectl_ate))
+    cli = egress.Egress(str(kubectl_ate), context="kind-test")
     actor(tmp_path, "t2")
     cli.apply("t2", "default", {"rules": []})
     cli.apply("t2", "default", POLICY)
@@ -146,7 +147,7 @@ def test_apply_replaces_an_existing_policy(tmp_path: Path, kubectl_ate: Path) ->
 
 
 def test_apply_waits_for_the_actor_then_gives_up(tmp_path: Path, kubectl_ate: Path) -> None:
-    cli = egress.Egress(str(kubectl_ate))
+    cli = egress.Egress(str(kubectl_ate), context="kind-test")
     with pytest.raises(RuntimeError, match="not found"):
         cli.apply("missing", "default", POLICY, timeout=0.2)
     timer = threading.Timer(0.3, actor, args=(tmp_path, "late"))
@@ -157,10 +158,13 @@ def test_apply_waits_for_the_actor_then_gives_up(tmp_path: Path, kubectl_ate: Pa
 
 def test_receiver_address_modes(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OUSAST_ARTIFACT_HOST", "127.0.0.1")
-    assert egress.receiver_address(4242) == ("http://127.0.0.1:4242/", None)
+    assert egress.receiver_address(4242, None) == ("http://127.0.0.1:4242/", None)
     monkeypatch.delenv("OUSAST_ARTIFACT_HOST")
     monkeypatch.setenv("OUSAST_ARTIFACT_DIAL", "172.19.0.1:80")
-    assert egress.receiver_address(18090) == (f"http://{egress.RECEIVER_HOST}/", "172.19.0.1:80")
+    assert egress.receiver_address(18090, "kind-test") == (f"http://{egress.RECEIVER_HOST}/", "172.19.0.1:80")
+    monkeypatch.delenv("OUSAST_ARTIFACT_DIAL")
+    with pytest.raises(RuntimeError, match="kube context"):
+        egress.receiver_address(18090, None)  # no context to look the Service up in: never a built one
 
 
 # --- the runner dials the gateway address with the receiver's name as Host ----------------------------------------

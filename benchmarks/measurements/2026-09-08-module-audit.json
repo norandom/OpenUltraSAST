@@ -848,6 +848,7 @@
     "learn.examples",
     "learn.experiments",
     "learn.program",
+    "plane.doctor",
     "plane.egress",
     "plane.engine_alerts",
     "plane.generate",
@@ -947,6 +948,7 @@
     "learn.examples",
     "learn.experiments",
     "learn.program",
+    "plane.doctor",
     "plane.generate",
     "plane.tasks.loop",
     "plane.tasks.remember"
@@ -956,7 +958,12 @@
    "module": "plane.profile",
    "classification": "load_bearing",
    "reason": "python -m openultrasast.plane.profile",
-   "importers": []
+   "importers": [
+    "cli",
+    "plane.doctor",
+    "plane.generate",
+    "plane.reconciler"
+   ]
   },
   {
    "module": "plane.reconciler",

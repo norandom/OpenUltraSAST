@@ -110,9 +110,11 @@ def rules_of(policy: Mapping[str, Any]) -> list[dict[str, Any]]:
     return sorted(out, key=lambda r: json.dumps(r, sort_keys=True))
 
 
-def receiver_cluster_ip(context: str | None = None) -> str | None:
-    """The ClusterIP of the ``ousast-receiver`` Service (``kubectl get svc``); None when kubectl cannot say."""
-    context = context or "kind-" + (os.environ.get("KIND_CLUSTER_NAME") or "ousast")
+def receiver_cluster_ip(context: str) -> str | None:
+    """The ClusterIP of the ``ousast-receiver`` Service (``kubectl get svc`` in the profile's ``context``); None when
+    kubectl cannot say."""
+    if not context:
+        raise RuntimeError("receiver_cluster_ip needs the profile's kube context")
     argv = ["kubectl", "--context", context, "-n", "ax-system", "get", "svc", "ousast-receiver", "-o", "jsonpath={.spec.clusterIP}"]
     try:
         proc = subprocess.run(argv, capture_output=True, text=True, check=False, timeout=20)
@@ -122,8 +124,9 @@ def receiver_cluster_ip(context: str | None = None) -> str | None:
     return address if proc.returncode == 0 and _is_ip(address) else None
 
 
-def receiver_address(port: int) -> tuple[str, str | None]:
-    """(``OUSAST_ARTIFACT_URL``, ``OUSAST_ARTIFACT_DIAL``) for a receiver bound on ``port``.
+def receiver_address(port: int, context: str | None) -> tuple[str, str | None]:
+    """(``OUSAST_ARTIFACT_URL``, ``OUSAST_ARTIFACT_DIAL``) for a receiver bound on ``port``; ``context`` is the
+    profile's kube context the Service's ClusterIP is looked up in.
 
     ``OUSAST_ARTIFACT_HOST`` set: the old direct URL ``http://<host>:<port>/`` and no dial (tests, a host the actor
     reaches without the gateway). Otherwise the receiver Service's name, dialled at ``OUSAST_ARTIFACT_DIAL`` or the
@@ -135,7 +138,9 @@ def receiver_address(port: int) -> tuple[str, str | None]:
         return f"http://{host}:{port}/", None
     dial = os.environ.get("OUSAST_ARTIFACT_DIAL")
     if not dial:
-        address = receiver_cluster_ip()
+        if not context:
+            raise RuntimeError("receiver_address needs the profile's kube context to look the receiver Service up")
+        address = receiver_cluster_ip(context)
         dial = f"{address}:80" if address else None
     return f"http://{RECEIVER_HOST}/", dial
 
@@ -143,9 +148,11 @@ def receiver_address(port: int) -> tuple[str, str | None]:
 class Egress:
     """``kubectl ate`` for one actor's egress policy; the executable is injectable so tests use a fake."""
 
-    def __init__(self, executable: str | None = None, context: str | None = None) -> None:
+    def __init__(self, executable: str | None, context: str) -> None:
+        if not context:
+            raise ValueError("Egress needs the profile's kube context; it never builds one")
         self.executable = executable or os.environ.get("OUSAST_KUBECTL_ATE") or "kubectl-ate"
-        self.context = context or "kind-" + (os.environ.get("KIND_CLUSTER_NAME") or "ousast")
+        self.context = context
 
     def _run(self, *args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
         argv = [self.executable, "--context", self.context, *args]
@@ -214,12 +221,12 @@ class Receiver(ThreadingHTTPServer):
 
     daemon_threads = True
 
-    def __init__(self, run_name: str, base: Path, port: int) -> None:
+    def __init__(self, run_name: str, base: Path, port: int, context: str | None = None) -> None:
         super().__init__(("0.0.0.0", port), _Handler)
         self.run_name, self.base, self.running, self.delivered = run_name, base, set[str](), set[str]()
         self.inputs: dict[str, frozenset[str]] = {}
         self.lock = threading.Lock()
-        self.url, self.dial = receiver_address(self.server_address[1])
+        self.url, self.dial = receiver_address(self.server_address[1], context)
 
     def _task(self, headers: Any) -> str | None:
         """The ``X-Ousast-Task`` of a request naming this run and a task that is running now, else None."""
