@@ -545,11 +545,13 @@ def test_a_task_that_vanishes_before_delivery_is_failed(fake: Fake, tmp_path: Pa
 
 
 def test_no_delivery_within_the_task_timeout_is_failed(fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OUSAST_TASK_TIMEOUT", "0.5")
+    # The fake ax is a Python subprocess per call (~0.3-1 s under host load); the task must reach Running before the
+    # timeout, so leave room for apply + resume. 0.5 s raced that on a loaded host.
+    monkeypatch.setenv("OUSAST_TASK_TIMEOUT", "3")
     fake.script({**SCRIPT, "repo-facts": {**SCRIPT["repo-facts"], "deliver": False}})
     started = time.monotonic()
     assert reconciler.run(write_run(tmp_path, "silent"), ax=str(fake.ax)) == "failed"
-    assert time.monotonic() - started >= 0.5
+    assert time.monotonic() - started >= 3
     reason = state_of("silent")["tasks"]["repo-facts"]["reason"]
     assert "OUSAST_TASK_TIMEOUT" in reason and "Running" in reason, "Running forever is not completion"
     assert [n for _, n in fake.events("delete")] == ["silent-repo-facts"], "ax delete follows every task"
