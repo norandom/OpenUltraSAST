@@ -131,6 +131,13 @@ flowchart LR
   model `roles`); `ousast plane alerts-engine` produces a Run's `alerts` from the Joern engine
   image on the host for PHP and other languages quick mode does not cover.
 
+## Where this runs in production
+
+ax is a Kubernetes application over Agent Substrate, every Task runs the one runner image as an actor that
+occupies a whole worker, and the reconciler, the receiver and the Joern engine are host processes today:
+[Production topology: ax on a Kubernetes cluster](deployment.md#production-topology-ax-on-a-kubernetes-cluster)
+draws it and sizes the pre-push hook at scale.
+
 ## Tasks
 
 | Task | Model | Does |
