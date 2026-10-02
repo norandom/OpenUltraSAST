@@ -17,11 +17,9 @@ something, it records a degradation. It does not report a clean result.
 `ousast` is the interface. Model work over whole repositories runs on a separate agentic plane
 (google/ax). A learned decision engine is in development. A scan needs neither of them.
 
-This file is the front door. Each section links to its page of the documentation site (`docs/`,
-`mkdocs.yml`; `uv sync --extra docs && uv run mkdocs serve`).
-
-
-The documentation is published at <https://norandom.github.io/OpenUltraSAST/>; the pages below link to their sources in `docs/`.
+This file is the front door. Each section links to its page of the documentation site.
+The site is published at <https://norandom.github.io/OpenUltraSAST/>. Its sources are in `docs/` and
+`mkdocs.yml`; to preview it locally, run `uv sync --extra docs && uv run mkdocs serve`.
 
 ## Status
 
