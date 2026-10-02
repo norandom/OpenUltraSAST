@@ -1,0 +1,132 @@
+{
+  "record": "k8s-01-profile",
+  "spec": "plane-on-kubernetes",
+  "tasks": ["1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.8"],
+  "date": "2026-10-02",
+  "host": "the maintainer's laptop: 7.9 GiB, single-node kind cluster, RustFS store reachable over https",
+  "commits": {
+    "1.1": "8eac1b2",
+    "1.2": "77a03ba",
+    "1.3": "36f5927",
+    "1.4": "8099b29",
+    "1.5": "86ec237",
+    "1.6": "see git log: plane(1.6)",
+    "1.7": "see git log: plane(1.7)",
+    "1.8": "this commit"
+  },
+  "images": {
+    "runner_before": "localhost:5001/ousast-runner@sha256:412db0a1504af8f1b23a395af8d1dcbd152c1bb6d16594f2b733067163a31884",
+    "runner_after_up_sh": "localhost:5001/ousast-runner@sha256:95edc7ed562189180a472df8115e6a90c8b4fcea47c06593395634bd56041bcb",
+    "pin_file": "ops/k8s/profiles/kind-images.json (written by ops/ax/up.sh; the templates re-pinned to it, 128 image lines)"
+  },
+  "instrument_checks": {
+    "code_under_test": "PYTHONPATH=<worktree>/src first; `python -c 'import openultrasast; print(openultrasast.__file__)'` printed the worktree path before every gate",
+    "store_reached": {
+      "how": "scratch store_probe.py: open_store('s3://sast-memory') through the worktree code (verify_bucket runs), then read the probe object",
+      "open_and_verify_seconds": 0.62,
+      "probe_key": "_probe/select.jsonl",
+      "probe_bytes": 24,
+      "probe_version_id_present": true
+    },
+    "smoke_delivery_sizes_bytes": {"facts.json": 451, "summary.json": 238, "units.jsonl": 291, "task.yaml": 1148},
+    "registry_resolution": "doctor HEADs /v2/ousast-runner/manifests/<digest> on the kind registry: HTTP 2xx for the new digest"
+  },
+  "doctor": {
+    "kind": {
+      "command": "ousast plane doctor --profile kind",
+      "exit": 0,
+      "seconds": 1.4,
+      "lines": [
+        "[ok] profile kind: exec=local kube_context=... registry=... images=... router_url=(tunnel) ax_server=(tunnel) memory=s3://sast-memory atespace=default snapshots_bucket=s3://ax-snapshots image_pull_secret=(none)",
+        "[ok] cluster <kind context>: reachable",
+        "[ok] agent substrate (ate-system): 9 pods ready",
+        "[ok] ax controller (ax-system): 4 pods ready",
+        "[ok] runner image in <kind registry>: ousast-runner@sha256:95edc7ed5621... present",
+        "[ok] memory store s3://sast-memory: opens (an S3 bucket is verified)"
+      ],
+      "file": "doctor-kind.txt"
+    },
+    "k3s": {
+      "command": "ousast plane doctor --profile k3s",
+      "exit": 1,
+      "seconds": 1.1,
+      "failing_lines": [
+        "cluster ousast-k3s: context does not exist (expected: the cluster does not exist yet)",
+        "runner image in ghcr.io/norandom: images file ops/k8s/profiles/images.json missing (expected: the release asset is published by task 4.1)"
+      ],
+      "passing_lines": ["profile k3s: every address reported", "memory store s3://sast-memory: opens"],
+      "note": "two expected failures, not one: the images file is the release asset and does not exist before group 4; the namespaces are not checked behind an unreachable context, so no third line fails for the same cause",
+      "file": "doctor-k3s.txt"
+    }
+  },
+  "literal_scan": {
+    "test": "tests/test_plane_literals.py",
+    "scope": "src/, plane/, ops/ (minus ops/ax/up.sh, ops/k8s/profiles/), docs/",
+    "patterns": ["kind context", "kind registry", "kind gateway 172.19.", "loopback with port", "port-forward"],
+    "exemptions": [
+      "router.py for loopback-with-port and port-forward",
+      "lines tagged ax-tunnel or loopback (two: the runner's own health URL, the Joern session's query URL)",
+      "digest-pinned image: lines under plane/tasks/ whose registry equals the kind profile's (a third test asserts every one does)"
+    ],
+    "offenders_at_1_3": 0,
+    "offenders_before_1_3": 23,
+    "reinsertion_demo": {
+      "inserted": "a kind-context literal appended to src/openultrasast/plane/workspaces.py",
+      "pytest_exit_with_literal": 1,
+      "named": "src/openultrasast/plane/workspaces.py:37: [kind context]",
+      "restored": "byte for byte (cmp)",
+      "pytest_exit_restored": 0,
+      "files": ["literal-reinserted-fail.txt", "literal-restored-pass.txt"]
+    }
+  },
+  "up_sh_rerun": {
+    "command": "OUSAST_PYTHON=<main venv python> ops/ax/up.sh",
+    "exit": 0,
+    "seconds": 38,
+    "kept": ["cluster", "substrate", "egress gateway", "ax control plane", "worker pool ousast-pool (2/2 ready)", "ax CLI (newer than the checkout)"],
+    "done": ["receiver Service re-applied", "runner image rebuilt and pushed (new digest above)", "kind-images.json written", "smoke Task applied and resumed"],
+    "first_attempt_failure": "`profile --print images` answered `no image named ''`; fixed in profile._lookup (an images path with no sub-key is the file path) and covered by test_plane_profile",
+    "disk_gb_free_before_after": [1.7, 1.5],
+    "file": "up-sh-rerun.txt"
+  },
+  "smoke_run_1_4": {
+    "command": "ops/ax/smoke-run.sh (receiver delivery: the path group 2 replaces)",
+    "exit": 0,
+    "seconds": 24,
+    "status": "done",
+    "delivered": "facts.json 451 B, summary.json 238 B, units.jsonl 291 B; summary.image = the new digest, units 2/2",
+    "file": "smoke-run-1.4.txt"
+  },
+  "placement_probe_1_5": {
+    "script": "ops/ax/probe-placement.sh",
+    "pools": {"ousast-pool": "scaled to 1 worker, 1 CPU / 1536Mi", "probe-pool": "1 worker, 2 CPU / 3Gi, the already-built ateom-gvisor image (no ko build)"},
+    "big_actor": {"requests_memory": "2560Mi", "limits_memory": "3Gi", "landed_on": "ousast-pool (1536Mi worker): status.allocated.actors=1; probe-pool 0"},
+    "small_actor": {"requests_memory": "256Mi", "limits_memory": "512Mi", "landed_on": "ousast-pool: allocated.actors=1; probe-pool 0"},
+    "placement": "any",
+    "consequence": "design.md section 4: group 5 takes the fallback (an engine atespace with engine-pool as its only pool if Substrate scopes pools by atespace; else a plain Kubernetes Job on k3s and alerts-engine on kind)",
+    "resume_latency_seconds": "first resume of each new template succeeded at once (golden snapshot built within the resume deadline); whole probe 46 s",
+    "cleanup": "probe tasks deleted, probe-pool deleted, ousast-pool back to 2/2 (verified by kubectl get workerpool)",
+    "files": ["probe/probe.log", "probe/workers-before.json", "probe/workers-ousast-probe-big.json", "probe/workers-ousast-probe-small.json", "probe/ousast-probe-big.yaml", "probe/ousast-probe-small.yaml", "probe/probe-pool.yaml"]
+  },
+  "reconciler_bound_1_6": {
+    "lines_at_spec_commit_6bd44ca": 477,
+    "lines_after_1_2": 489,
+    "added_by_1_2": "the profile parameter of run() and its docstring (+12)",
+    "estimate_2_4": "Delivery wiring: open the store, build Delivery, pass the delivery body to the starter, delivered() and collect() in the await/execute path, state mirroring, the OUSAST_DELIVERY=receiver switch: about +25 while the receiver is kept (group 2 keeps both paths), about -20 when 2.6 removes the receiver wiring",
+    "projected_during_group_2": 514,
+    "projected_after_2_6": 494,
+    "decision": "the estimate crosses 500 while both paths coexist: task 2.4 moves the bound in tests/test_plane_reconciler.py to 550 with the reason in the assertion message, and 2.6 records the final count"
+  },
+  "gvisor_tarball_1_7": {
+    "status": "planned, manual",
+    "where": "docs/deployment.md B.1",
+    "url": "gs://gvisor/releases/nightly/2026-09-02/<arch>/gvisor.tar.zstd (sha256-pinned in substrate/manifests/ate-install/sandboxconfig-gvisor.yaml)",
+    "check": "the atelet's fetch line in `kubectl -n ate-system logs` of a worker pod on the k3s node; labelled planned until read there"
+  },
+  "gates": {
+    "1.1": "pytest 2002 passed + module-audit manifest regenerated (test_module_audit 6 passed), ruff 0, format 0, mypy 0",
+    "1.2": "pytest 2006 passed, 42 skipped, exit 0; ruff 0; format 0; mypy 0",
+    "1.3": "pytest 2009 passed, 42 skipped, exit 0; ruff 0; format 0; mypy 0; mkdocs --strict 0",
+    "1.4": "see the commit message"
+  }
+}

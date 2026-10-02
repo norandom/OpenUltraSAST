@@ -49,7 +49,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
   - Evidence: `record.json` says whether Substrate places by resource fit (`placement: fit|any`). `any` selects
     the design's fallback for group 5 and is written into `design.md` section 4 before group 5 starts.
   - _Requirements: 4.1_
-- [ ] 1.6 Reconciler bound (open question 7)
+- [x] 1.6 Reconciler bound (open question 7) -- 489 lines after 1.2; projected 514 during group 2: the bound moves to 550 in 2.4
   - Record `wc -l src/openultrasast/plane/reconciler.py` (477 at 17ac7ad) and the lines task 2.4 may add
     (receiver wiring removed: `-12`, `Delivery` calls: `+8` estimated). If the estimate crosses 500, the bound
     in `tests/test_plane_reconciler.py:803` moves to 550 in task 2.4 with the reason in the assertion message.
