@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 from dataclasses import replace
@@ -17,9 +18,6 @@ def test_load_config_reads_toml(tmp_path: Path) -> None:
                 'ranker = "openrouter/test-ranker"',
                 "[sandbox]",
                 "memory_mb = 1024",
-                "[dynamic]",
-                "enabled = true",
-                'network_scope = ["127.0.0.1:8080"]',
             ]
         )
     )
@@ -29,8 +27,6 @@ def test_load_config_reads_toml(tmp_path: Path) -> None:
     assert config.models.ranker == "openrouter/test-ranker"
     assert config.embeddings.store == "json-local"
     assert config.sandbox.memory_mb == 1024
-    assert config.dynamic.enabled is True
-    assert config.dynamic.network_scope == ("127.0.0.1:8080",)
 
 
 def test_retired_agentic_section_loads_with_one_warning(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
@@ -65,6 +61,31 @@ def test_retired_llm_keys_fail_naming_the_replacement(tmp_path: Path, body: str,
 
     message = str(raised.value)
     assert key in message and replacement in message and "ousast plane run" in message and "Remove the key" in message
+
+
+@pytest.mark.parametrize(
+    ("body", "key"),
+    [
+        ('[models]\npatcher = "gpt-4o"\n', "`[models] patcher`"),
+        ("[dynamic]\nenabled = true\n", "`[dynamic] enabled`"),
+        ('[dynamic]\nnetwork_scope = ["127.0.0.1:8080"]\n', "`[dynamic] network_scope`"),
+        ('[evidence]\nminimum_report_verified = "static_corroboration"\n', "`[evidence] minimum_report_verified`"),
+        ('[evidence]\nminimum_exploit = "crash_reproduced"\n', "`[evidence] minimum_exploit`"),
+        ('[evidence]\nminimum_patch = "root_cause_explained"\n', "`[evidence] minimum_patch`"),
+        ("[variants]\nenabled = false\n", "`[variants] enabled`"),
+        ("[variants]\nmax_mechanisms = 10\n", "`[variants] max_mechanisms`"),
+    ],
+)
+def test_unread_keys_fail_naming_why(tmp_path: Path, body: str, key: str) -> None:
+    """Keys that loaded but were never read are retired (2026-10-02) the same way, each naming its reason."""
+    config_path = tmp_path / "openultrasast.toml"
+    config_path.write_text(body)
+
+    with pytest.raises(RetiredConfigError) as raised:
+        load_config(config_path)
+
+    message = str(raised.value)
+    assert key in message and "retired 2026-10-02 because nothing ever read it" in message and "Remove the key" in message
 
 
 def test_the_cli_exits_2_on_a_retired_key(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -116,7 +137,10 @@ def test_write_resolved_config_creates_json(tmp_path: Path) -> None:
     write_resolved_config(load_config(None), output)
 
     assert output.exists()
-    assert '"minimum_report_verified": "static_corroboration"' in output.read_text()
+    payload = json.loads(output.read_text())
+    assert payload["sandbox"]["memory_mb"] == 2048
+    # retired 2026-10-02 (never read): the unread sections are not echoed as if they configured something
+    assert not {"dynamic", "evidence", "variants"} & set(payload) and "patcher" not in payload["models"]
 
 
 def test_complexity_and_regress_defaults_when_section_absent() -> None:
