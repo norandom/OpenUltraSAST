@@ -11,7 +11,6 @@ SRC = Path("src/openultrasast")
 MANIFEST = Path("benchmarks/measurements/2026-09-08-module-audit.json")
 
 
-@pytest.mark.xfail(strict=True, reason="five dead modules the fixed audit found; removed in the next commit")
 def test_no_module_in_the_tree_is_orphaned() -> None:
     from openultrasast.model.audit import audit
 
@@ -37,6 +36,8 @@ def test_the_named_subsystems_each_carry_an_explicit_decision() -> None:
         assert rows[name].reason, f"{name} has no stated reason"
     # The removed agentic plane's modules are gone from the tree, not carried as rows (harnessx-removal Req 2.1).
     assert not {"harness_ext", "hunter_harness", "verify_judge"} & set(rows)
+    # The five the reachability-first audit found orphaned are gone too (legacy cleanup 2026-10-02).
+    assert not {"model.judge", "model.execution", "model.calibrate", "stage_processors", "slot_contract"} & set(rows)
 
 
 def test_the_manifest_matches_the_tree() -> None:
@@ -47,7 +48,7 @@ def test_the_manifest_matches_the_tree() -> None:
     committed = json.loads(MANIFEST.read_text())
     current = to_dict(audit(SRC))
     assert committed["counts"] == current["counts"], "the tree drifted from its committed audit"
-    assert committed["orphaned"] == current["orphaned"]
+    assert committed["orphaned"] == current["orphaned"] == []
 
 
 def _tree(root: Path, files: dict[str, str]) -> Path:

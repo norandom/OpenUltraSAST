@@ -1,17 +1,10 @@
 {
-  "modules": 155,
+  "modules": 150,
   "counts": {
     "load_bearing": 145,
-    "orphaned": 5,
     "standalone_capability": 5
   },
-  "orphaned": [
-    "model.calibrate",
-    "model.execution",
-    "model.judge",
-    "slot_contract",
-    "stage_processors"
-  ],
+  "orphaned": [],
   "standalone": {
     "fusion": "two-panel adjudication engine; reached from the scan's report stage and used standalone",
     "mcp": "narrow MCP server over stdio; its own `ousast mcp` entry point and OpenCode integration",
@@ -156,7 +149,6 @@
         "cpg.backend",
         "model.config_value",
         "model.dominance",
-        "model.judge",
         "model.partitions",
         "model.pipeline",
         "model.scan",
@@ -190,7 +182,6 @@
         "cpg.artifact",
         "model.config_value",
         "model.dominance",
-        "model.judge",
         "model.partitions",
         "model.pipeline",
         "model.scan",
@@ -245,7 +236,6 @@
         "semantic.obligations.check",
         "semantic.overlay",
         "semantic.prove_filter",
-        "stage_processors",
         "tool_hunter",
         "verification"
       ]
@@ -272,8 +262,7 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate, cli",
       "importers": [
-        "cli",
-        "slot_contract"
+        "cli"
       ]
     },
     {
@@ -557,8 +546,7 @@
         "pairs",
         "plane.tasks.alerts",
         "preprocess",
-        "push.runner",
-        "stage_processors"
+        "push.runner"
       ]
     },
     {
@@ -583,8 +571,6 @@
         "model.candidates",
         "model.config_value",
         "model.dominance",
-        "model.execution",
-        "model.judge",
         "model.layout",
         "model.partitions",
         "model.pipeline",
@@ -614,12 +600,6 @@
       "module": "model.audit",
       "classification": "load_bearing",
       "reason": "model-grounded-detection Req 3: this classifier; run by the maintainer, not by the scan",
-      "importers": []
-    },
-    {
-      "module": "model.calibrate",
-      "classification": "orphaned",
-      "reason": "no import path from an entry point or a python -m module; listed as: model-grounded-detection Req 9: the corpus as the model's calibration set",
       "importers": []
     },
     {
@@ -674,7 +654,7 @@
     {
       "module": "model.endpoint",
       "classification": "load_bearing",
-      "reason": "model-grounded-detection Req 8: the judge client, wired by model/judge.py in group 3",
+      "reason": "model-grounded-detection Req 8: the bounded model client the hunter, the plane and the CLI share",
       "importers": [
         "cli",
         "learn.cli",
@@ -693,26 +673,12 @@
       ]
     },
     {
-      "module": "model.execution",
-      "classification": "orphaned",
-      "reason": "no import path from an entry point or a python -m module; listed as: model-grounded-detection Req 10: the deferred execution tier seam, adopted not built",
-      "importers": []
-    },
-    {
-      "module": "model.judge",
-      "classification": "orphaned",
-      "reason": "no import path from an entry point or a python -m module; listed as: model-grounded-detection Req 8: one bounded question, checked against the model",
-      "importers": []
-    },
-    {
       "module": "model.ladder",
       "classification": "load_bearing",
       "reason": "model-grounded-detection Req 5: the evidence ladder every finding carries",
       "importers": [
         "model.config_value",
         "model.dominance",
-        "model.execution",
-        "model.judge",
         "model.pipeline",
         "model.scan",
         "model.taint",
@@ -797,7 +763,6 @@
       "importers": [
         "model.config_value",
         "model.dominance",
-        "model.judge",
         "model.pipeline",
         "model.regions",
         "model.report",
@@ -811,7 +776,6 @@
       "classification": "load_bearing",
       "reason": "model-grounded-detection Req 6.1: taint reachability over the CPG, the flow-family arbiter",
       "importers": [
-        "model.judge",
         "model.pipeline",
         "model.scan"
       ]
@@ -1113,8 +1077,7 @@
         "improve.validator",
         "plane.tasks.loop",
         "scoring.project_score",
-        "semantic.overlay",
-        "stage_processors"
+        "semantic.overlay"
       ]
     },
     {
@@ -1157,8 +1120,7 @@
         "rank",
         "regress.candidate",
         "semantic.overlay",
-        "skills",
-        "stage_processors"
+        "skills"
       ]
     },
     {
@@ -1337,8 +1299,7 @@
         "improve.evolve",
         "map_gate",
         "pairs",
-        "plane.tasks.alerts",
-        "stage_processors"
+        "plane.tasks.alerts"
       ]
     },
     {
@@ -1347,7 +1308,6 @@
       "reason": "reachable from gate, map_gate, pair_gate, cli",
       "importers": [
         "harness",
-        "model.judge",
         "model.pipeline",
         "push.assistance",
         "push.report",
@@ -1435,8 +1395,7 @@
         "plane.tasks.features",
         "plane.tasks.loop",
         "ruleset.store",
-        "semantic.facts",
-        "stage_processors"
+        "semantic.facts"
       ]
     },
     {
@@ -1505,8 +1464,7 @@
       "reason": "reachable from gate, map_gate, pair_gate, cli",
       "importers": [
         "cli",
-        "improve.evolve",
-        "stage_processors"
+        "improve.evolve"
       ]
     },
     {
@@ -1759,20 +1717,6 @@
       "importers": [
         "hunter"
       ]
-    },
-    {
-      "module": "slot_contract",
-      "classification": "orphaned",
-      "reason": "no import path from an entry point or a python -m module (imported only by unreachable stage_processors); listed as: the slot/contract protocol stage_processors implements",
-      "importers": [
-        "stage_processors"
-      ]
-    },
-    {
-      "module": "stage_processors",
-      "classification": "orphaned",
-      "reason": "no import path from an entry point or a python -m module; listed as: deterministic slot-contracted scan stages; pinned by the zero-dependency guard in test_gate",
-      "importers": []
     },
     {
       "module": "stages",

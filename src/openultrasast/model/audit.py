@@ -41,16 +41,13 @@ SPEC_OWNED = {
     "push": "pre-push-safety-net Req 5.5/7.3: experimental push contract package; no hook installed",
     "push.contracts": "pre-push-safety-net Req 5.5/7.3: immutable comparisons and independent result statuses; runner pending",
     "model.specs": "model-grounded-detection Req 7.2-7.4: the security vocabularies the CPG queries are parameterised by",
-    "model.endpoint": "model-grounded-detection Req 8: the judge client, wired by model/judge.py in group 3",
+    "model.endpoint": "model-grounded-detection Req 8: the bounded model client the hunter, the plane and the CLI share",
     "model.audit": "model-grounded-detection Req 3: this classifier; run by the maintainer, not by the scan",
     "model.ladder": "model-grounded-detection Req 5: the evidence ladder every finding carries",
     "model.taint": "model-grounded-detection Req 6.1: taint reachability over the CPG, the flow-family arbiter",
-    "model.judge": "model-grounded-detection Req 8: one bounded question, checked against the model",
     "model.dominance": "model-grounded-detection Req 6.2: guard dominance, the arbiter for bugs that never crash",
     "model.config_value": "model-grounded-detection Req 6.3: constant abstraction for the configuration families",
-    "model.calibrate": "model-grounded-detection Req 9: the corpus as the model's calibration set",
     "model.report": "model-grounded-detection Req 9.3/11.1: per-slice reporting with the overfitting gap",
-    "model.execution": "model-grounded-detection Req 10: the deferred execution tier seam, adopted not built",
     "model.pipeline": "model-grounded-detection Req 8: the enumerator proposes, the LLM answers, the model disposes",
     "model.regions": "contributor-scan Req 2: regions from entry points, with the families each admits",
     "model.scan": "contributor-scan Req 3: the repository driver -- one CPG, one budget, ranked spend",
@@ -91,8 +88,6 @@ STANDALONE = {
     "mcp": "narrow MCP server over stdio; its own `ousast mcp` entry point and OpenCode integration",
     "skills": "skill router; consumed by mcp and by the OpenCode integration, not by the scan path",
     "fusion": "two-panel adjudication engine; reached from the scan's report stage and used standalone",
-    "stage_processors": "deterministic slot-contracted scan stages; pinned by the zero-dependency guard in test_gate",
-    "slot_contract": "the slot/contract protocol stage_processors implements",
 }
 
 
