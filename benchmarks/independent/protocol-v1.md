@@ -58,4 +58,6 @@ and zero fixed or benign false alerts. A gate that is not met is reported as not
 - No rule, fact, query or scoring change informed by these results before the result is committed.
 - Any change made after it is a retune. A retune can only be qualified on a NEW untouched population, as
   release-milestones M4 requires.
-- The OpenCVE case is not published until its licence is checked.
+- The OpenCVE case is not published until its licence is checked. Checked 2026-10-02: BUSL-1.1 (not OSI; non-production
+  use permitted; converts to Apache-2.0 on 2030-08-14). The maintainer decided to publish the case record, which holds
+  metadata only (repository, pins, detection) and no OpenCVE code.

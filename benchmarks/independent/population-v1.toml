@@ -184,6 +184,6 @@ vulnerable = "928bbadbb1672051bcfc2a6289a9e6a8f029c106"
 fixed = "0af7f894debc95c67fa53e7ba5a6cdecb10c34f0"
 sink = "web/projects/notifications.py :: _http_post_json (webhook and Slack test POST to a user-supplied URL)"
 privilege = "authenticated (can configure project notifications)"
-license = "unverified (GitHub reports NOASSERTION; possibly non-OSS BSL) -- verify before publishing any result"
+license = "BUSL-1.1 (verified 2026-10-02: github.com/opencve/opencve LICENSE -- Business Source License 1.1, not OSI; non-production use permitted by the Additional Use Grant; change date 2030-08-14 to Apache-2.0). Published by maintainer decision 2026-10-02: the record holds metadata only (repository, pins, detection), no OpenCVE code."
 notes = "Selected by the maintainer despite the licence question; results must not be redistributed until it is checked."
 benign = { base = "0c8101082ba20628b28fcec9c4611745d32202c2", tip = "965dc348e225308edabdfef3ecb76f7d73a0c162", subject = "fix: unlink automation executions before cleaning expired reports" }
