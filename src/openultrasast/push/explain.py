@@ -57,6 +57,7 @@ GLOSSARY: dict[str, str] = {
     "query_too_expensive": "some engine questions were too expensive to answer",
     "regions_truncated": "only the highest-ranked regions were examined (--max-regions)",
     "files_unparsed": "some files could not be parsed by the engine",
+    "engine_off": "engine checks were switched off for this run (--engine off)",
     "cross_partition_semantics_unresolved": "flows between languages in this repository are not followed",
     "resolution": "the pushed ref could not be resolved ({detail})",
     "push_input_failed": "the push input could not be read ({detail})",

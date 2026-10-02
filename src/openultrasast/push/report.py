@@ -45,6 +45,8 @@ class PushReport:
     # Labeled M1a recorded-veto evaluation. Present only under the explicit replay flag;
     # it is retained beside the decision and never feeds admission or enforcement.
     experimental: Mapping[str, object] = field(default_factory=dict)
+    # The quick-rule tier (task 17.3): one payload per comparison it ran for; advisory only.
+    quick: tuple[Mapping[str, object], ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "model_assistance", MappingProxyType(dict(self.model_assistance)))
@@ -134,6 +136,7 @@ def _write_artifact(report: PushReport, target: Path, temporary: Path, connectio
                     "timing_scope": "Caller stage measurements; publication and rendering duration is returned in ReportDelivery.",
                     "resolution": report.resolution.to_payload() if report.resolution else None,
                     "experimental": dict(report.experimental),
+                    "quick_tier": [dict(item) for item in report.quick],
                 }
                 json.dump(payload, stream, ensure_ascii=True, allow_nan=False, indent=2)
                 stream.write("\n")
@@ -216,6 +219,37 @@ def _experimental_line(experimental: Mapping[str, object]) -> str:
     )
 
 
+# Quick-rule matches shown per comparison; the artifact keeps every one.
+_QUICK_LINES = 5
+
+
+def _quick_lines(payload: Mapping[str, object]) -> list[str]:
+    """The quick tier in the terminal: advisory pattern matches, never presented as alerts."""
+    files = payload.get("files")
+    count = len(files) if isinstance(files, list) else 0
+    read = f"{count} file(s), {payload.get('bytes_read', 0)} bytes read"
+    lines: list[str] = []
+    if payload.get("basis") == "last_commit":
+        commit = str(payload.get("basis_commit") or "")[:7]
+        lines.append(f"New branch: instead, quick rules checked the files its last commit changed (compared with {commit}).")
+    if payload.get("status") != "completed":
+        return [*lines, f"Quick rules did not run ({_short(str(payload.get('reason') or 'unknown'))})."]
+    findings = payload.get("findings")
+    found = [item for item in findings if isinstance(item, Mapping)] if isinstance(findings, list) else []
+    if not found:
+        return [*lines, f"Quick rules: no pattern match on changed code ({read})."]
+    lines.append(f"Quick rules: {len(found)} pattern match(es) on changed code ({read}). Advisory: not verified by the engine.")
+    for item in found[:_QUICK_LINES]:
+        cwe = f"{item.get('cwe')}, " if item.get("cwe") else ""
+        lines.append(
+            f"- {_short(str(item.get('rule')))} ({cwe}{_short(str(item.get('severity')))}) at "
+            f"{_short(str(item.get('path')), 4096)}:{item.get('line')}: {_short(str(item.get('title')))}"
+        )
+    if len(found) > _QUICK_LINES:
+        lines.append(f"{len(found) - _QUICK_LINES} more quick-rule matches retained in the detailed result.")
+    return lines
+
+
 def render_report(report: PushReport, *, artifact: Path | None, error: str | None = None) -> str:
     lines: list[str] = []
     defects = report.admission.defects
@@ -251,6 +285,8 @@ def render_report(report: PushReport, *, artifact: Path | None, error: str | Non
         )
     if len(defects) > 3:
         lines.append(f"{len(defects) - 3} more actionable defects retained in the detailed result.")
+    for payload in report.quick:
+        lines.extend(_quick_lines(payload))
     if not defects:
         coverage = report.result.coverage_status
         if coverage == "complete_within_scope":

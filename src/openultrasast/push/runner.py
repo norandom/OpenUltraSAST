@@ -42,6 +42,7 @@ from openultrasast.push.policy import (
     dependency_gaps,
     semantics_digest,
 )
+from openultrasast.push.quick import Basis, QuickTierResult, head_spans, run_quick_tier
 from openultrasast.push.report import PushReport, ReportDelivery, ScanRecord, _completed_scan, deliver_report, render_report
 from openultrasast.push.reuse import ReusingBackend, declaration_identity, discovery
 from openultrasast.push.snapshot import SnapshotAdapter
@@ -267,6 +268,8 @@ def _analyze(
     resolved: PushComparison | None = None,
     record_vetoes: bool = False,
     declarations: Path | None = None,
+    engine: Literal["inline", "off"] = "inline",
+    quick_basis: Basis = "comparison",
 ) -> PushReport:
     """Run a single explicit comparison; exit policy never stands for coverage.
 
@@ -295,6 +298,7 @@ def _analyze(
     comparison = resolved
     context = None
     experimental: dict[str, object] = {"label": LABEL, "flag": FLAG, "status": "not_evaluated"} if record_vetoes else {}
+    quick: QuickTierResult | None = None
     timings: dict[str, float] = {
         "deadline_seconds": config.deadline_seconds,
         "cancellation_allowance_seconds": config.cancellation_allowance_seconds,
@@ -375,68 +379,82 @@ def _analyze(
                 reasons.extend(context.unresolved_boundaries)
                 reasons.extend(_uncovered_languages(tip.manifest, context))
                 stage_started = _stage(timings, stage, stage_started)
-                stage = "head"
-                head_scan = scan_repository(
-                    tip.root,
-                    head_regions,
-                    backend=head_backend,
-                    budget=scan_budget,
-                    execution_budget=budget,
-                    ranking_mode="evidence",
-                    unit="repository",
-                    population_complete=all(m.complete for m in manifests),
-                    change_context=context,
-                )
-                records.append(ScanRecord(comparison, "head", head_scan))
+                stage = "quick"
+                # The fast first tier: pattern rules over the changed head lines, before the engine
+                # and inside the same deadline (Requirement 9.3). Advisory, never admitted.
+                try:
+                    spans = head_spans(context)
+                    basis_commit = comparison.base_oid if quick_basis == "last_commit" else None
+                    quick = _prepare(lambda: run_quick_tier(tip.root, spans, basis=quick_basis, basis_commit=basis_commit), budget)
+                except Exception as error:  # noqa: BLE001 -- a failed quick tier is a stated gap, never the end of the check
+                    quick = QuickTierResult("failed", quick_basis, reason=type(error).__name__)
+                    reasons.append("quick_rules_failed:" + type(error).__name__)
                 stage_started = _stage(timings, stage, stage_started)
-                stage = "base"
-                delta = compare_targeted_base(
-                    old.root,
-                    head=head_scan,
-                    head_regions=head_regions,
-                    base_regions=base_regions,
-                    context=context,
-                    backend=base_backend,
-                    execution_budget=budget,
-                    scan_budget=scan_budget,
-                    head_semantics=provenance["semantics"],
-                    base_semantics=provenance["semantics"],
-                    cache=cache,
-                    cache_semantics=cache_semantics,
-                )
-                if delta.base_scan is not None:
-                    records.append(ScanRecord(comparison, "base", delta.base_scan))
-                reasons.extend(delta.coverage_reasons)
-                stage_started = _stage(timings, stage, stage_started)
-                stage = "admission"
-                candidates = tuple(
-                    AdmissionCandidate(
-                        c,
-                        CapabilityKey(
-                            c.head_operation.question.language if c.head_operation else "unknown",
-                            "unspecified",
-                            "unspecified",
-                            c.family,
-                            c.head_operation.mechanism if c.head_operation else "taint",
-                            "unreviewed",
-                            delta.semantics,
-                        ),
-                        comparison,
-                        dependency_gaps(c, context=context, head=head_scan, base=delta.base_scan),
+                if engine == "off":
+                    reasons.append("engine_off")
+                if engine == "inline":
+                    stage = "head"
+                    head_scan = scan_repository(
+                        tip.root,
+                        head_regions,
+                        backend=head_backend,
+                        budget=scan_budget,
+                        execution_budget=budget,
+                        ranking_mode="evidence",
+                        unit="repository",
+                        population_complete=all(m.complete for m in manifests),
+                        change_context=context,
                     )
-                    for c in delta.candidates
-                )
-                admission = _prepare(lambda: _admit(candidates, provenance), budget)
-                stage_started = _stage(timings, stage, stage_started)
-                if record_vetoes:
-                    stage, stage_started = "recorded_vetoes", time.monotonic()
-                    assert context is not None
-                    recorded = _prepare(
-                        lambda: _record(head_scan, delta, context, comparison, tuple(reasons), admission, provenance, declarations),
-                        budget,
-                    )
-                    experimental = {**recorded, "status": "evaluated"}
+                    records.append(ScanRecord(comparison, "head", head_scan))
                     stage_started = _stage(timings, stage, stage_started)
+                    stage = "base"
+                    delta = compare_targeted_base(
+                        old.root,
+                        head=head_scan,
+                        head_regions=head_regions,
+                        base_regions=base_regions,
+                        context=context,
+                        backend=base_backend,
+                        execution_budget=budget,
+                        scan_budget=scan_budget,
+                        head_semantics=provenance["semantics"],
+                        base_semantics=provenance["semantics"],
+                        cache=cache,
+                        cache_semantics=cache_semantics,
+                    )
+                    if delta.base_scan is not None:
+                        records.append(ScanRecord(comparison, "base", delta.base_scan))
+                    reasons.extend(delta.coverage_reasons)
+                    stage_started = _stage(timings, stage, stage_started)
+                    stage = "admission"
+                    candidates = tuple(
+                        AdmissionCandidate(
+                            c,
+                            CapabilityKey(
+                                c.head_operation.question.language if c.head_operation else "unknown",
+                                "unspecified",
+                                "unspecified",
+                                c.family,
+                                c.head_operation.mechanism if c.head_operation else "taint",
+                                "unreviewed",
+                                delta.semantics,
+                            ),
+                            comparison,
+                            dependency_gaps(c, context=context, head=head_scan, base=delta.base_scan),
+                        )
+                        for c in delta.candidates
+                    )
+                    admission = _prepare(lambda: _admit(candidates, provenance), budget)
+                    stage_started = _stage(timings, stage, stage_started)
+                    if record_vetoes:
+                        stage, stage_started = "recorded_vetoes", time.monotonic()
+                        assert context is not None
+                        recorded = _prepare(
+                            lambda: _record(head_scan, delta, context, comparison, tuple(reasons), admission, provenance, declarations),
+                            budget,
+                        )
+                        experimental = {**recorded, "status": "evaluated"}
+                        stage_started = _stage(timings, stage, stage_started)
                 stage = "cleanup"
         timings[stage + "_seconds"] = time.monotonic() - stage_started
     except Exception as error:
@@ -478,6 +496,30 @@ def _analyze(
         snapshots=tuple(manifests),
         change_context=context,
         experimental=experimental,
+        quick=(quick.to_payload(),) if quick is not None else (),
+    )
+
+
+def _last_commit_quick(
+    repository: Path, comparison: PushComparison, *, artifact: Path, config: PushConfig, budget: ExecutionBudget
+) -> PushReport | None:
+    """Quick rules over the files the pushed head's last commit changed; None for a root commit."""
+    try:
+        parent = SnapshotAdapter(repository, execution_budget=budget).resolve_replay(comparison.head_oid + "^", comparison.head_oid)
+    except Exception:  # noqa: BLE001 -- a root commit has no parent to compare with
+        return None
+    resolved = PushComparison(comparison.head_oid, parent.base_oid, "new_branch_last_commit", comparison.refs)
+    assert resolved.base_oid is not None
+    return _analyze(
+        repository,
+        base=resolved.base_oid,
+        head=resolved.head_oid,
+        artifact=artifact,
+        config=config,
+        execution_budget=budget,
+        resolved=resolved,
+        engine="off",
+        quick_basis="last_commit",
     )
 
 
@@ -549,6 +591,7 @@ def push(
     budget = execution_budget or ExecutionBudget(started + config.deadline_seconds, config.cancellation_allowance_seconds)
     reports: list[PushReport] = []
     analyses: list[ComparisonAnalysis] = []
+    fallbacks: list[PushReport] = []
     reasons: list[str] = []
     resolution = None
     try:
@@ -562,6 +605,12 @@ def push(
             if comparison.base_oid is None or time.monotonic() >= budget.deadline_monotonic:
                 analyses.append(ComparisonAnalysis(comparison, (), (), "unavailable"))
                 reasons.append("base_comparison_unavailable" if comparison.base_oid is None else "deadline_exhausted")
+                if comparison.base_oid is None:
+                    # A new branch has no remote base. Say what was checked instead: the quick rules
+                    # over the files its last commit changed (Requirement 9.2, 9.3).
+                    fallback = _last_commit_quick(repository, comparison, artifact=artifact, config=config, budget=budget)
+                    if fallback is not None:
+                        fallbacks.append(fallback)
                 continue
             report = _analyze(
                 repository,
@@ -624,6 +673,7 @@ def push(
         resolution=resolution,
         snapshots=tuple(s for r in reports for s in r.snapshots),
         change_contexts=tuple(r.change_context for r in reports if r.change_context is not None),
+        quick=tuple(q for r in (*reports, *fallbacks) for q in r.quick),
     )
     from openultrasast.push.assistance import assist
 

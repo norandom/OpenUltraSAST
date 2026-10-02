@@ -1,7 +1,7 @@
 {
-  "modules": 152,
+  "modules": 153,
   "counts": {
-    "load_bearing": 147,
+    "load_bearing": 148,
     "standalone_capability": 5
   },
   "orphaned": [],
@@ -229,6 +229,7 @@
         "model.report",
         "pairs",
         "plane.tasks.alerts",
+        "push.quick",
         "push.runner",
         "rank",
         "regress.candidate",
@@ -561,6 +562,7 @@
         "pairs",
         "plane.tasks.alerts",
         "preprocess",
+        "push.quick",
         "push.runner"
       ]
     },
@@ -604,6 +606,7 @@
         "push.cache",
         "push.contracts",
         "push.policy",
+        "push.quick",
         "push.report",
         "push.reuse",
         "push.runner",
@@ -651,6 +654,7 @@
         "push.cache",
         "push.contracts",
         "push.policy",
+        "push.quick",
         "push.report",
         "push.reuse",
         "push.runner",
@@ -1097,6 +1101,7 @@
         "improve.evolve",
         "improve.validator",
         "plane.tasks.loop",
+        "push.quick",
         "scoring.project_score",
         "semantic.overlay"
       ]
@@ -1136,6 +1141,7 @@
         "plane.tasks.alerts",
         "plane.tasks.features",
         "plane.tasks.repo_facts",
+        "push.quick",
         "push.runner",
         "rank",
         "regress.candidate",
@@ -1259,6 +1265,14 @@
       ]
     },
     {
+      "module": "push.quick",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate, cli",
+      "importers": [
+        "push.runner"
+      ]
+    },
+    {
       "module": "push.report",
       "classification": "load_bearing",
       "reason": "pre-push-safety-net Req 5.1/5.2/5.5/7.3: compact output and complete artifacts; runner integration pending",
@@ -1328,7 +1342,8 @@
         "improve.evolve",
         "map_gate",
         "pairs",
-        "plane.tasks.alerts"
+        "plane.tasks.alerts",
+        "push.quick"
       ]
     },
     {
