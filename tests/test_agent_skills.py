@@ -2,7 +2,7 @@ from pathlib import Path
 
 
 def test_project_agent_skills_have_required_frontmatter() -> None:
-    skills_root = Path(".agent/skills")
+    skills_root = Path(".agents/skills")
     # Scope to the project's own skills; third-party tooling (e.g. kiro-*) lives
     # alongside them and uses a different frontmatter convention.
     skill_files = sorted(skills_root.glob("openultrasast-*/SKILL.md"))

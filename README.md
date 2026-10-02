@@ -232,7 +232,7 @@ numbers: [docs/decision-engine.md](docs/decision-engine.md).
 ## Agent integrations
 
 An agent that can run shell commands needs nothing but the CLI. For
-[OpenCode](https://opencode.ai) there are optional project skills in `.agent/skills/`:
+[OpenCode](https://opencode.ai) there are optional project skills in `.agents/skills/`:
 `openultrasast-scan`, `openultrasast-triage` and `openultrasast-fix-audit`.
 
 `ousast mcp` runs a narrow MCP server over stdio (newline-delimited JSON-RPC) with ten tools:

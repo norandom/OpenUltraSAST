@@ -67,7 +67,7 @@ real capability; task 8.3 still owns actual eligibility. Task 4.2 brings progres
 ## Task 4.3 verification
 
 The agent service rejected the task 4.3 dispatch with `agent thread limit reached`.
-The [kiro-impl skill](../../../.agent/skills/kiro-impl/SKILL.md) explicitly provides:
+The [kiro-impl skill](../../../.agents/skills/kiro-impl/SKILL.md) explicitly provides:
 “If multi-agent is not available, fall back to manual mode execution for all tasks.”
 Implementation, review and completion checks therefore ran in the main context.
 This is a manual review record, not an independent-review claim.

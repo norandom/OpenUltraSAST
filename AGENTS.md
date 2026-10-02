@@ -46,7 +46,7 @@ Project memory keeps persistent guidance (steering, specs notes, component docs)
 - Progress check: `/kiro-spec-status {feature}` (use anytime)
 
 ## Skills Structure
-Skills are located in `.agent/skills/kiro-*/SKILL.md` (moved from `.opencode/skills` on 2026-10-02; point OpenCode at this path)
+Skills are located in `.agents/skills/kiro-*/SKILL.md` (moved from `.opencode/skills` on 2026-10-02; OpenCode searches `.agents/skills` by default)
 - Each skill is a directory with a `SKILL.md` file
 - Use `/skills` to inspect currently available skills
 - Invoke a skill directly with `/kiro-<skill-name>`
