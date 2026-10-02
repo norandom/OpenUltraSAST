@@ -1,5 +1,7 @@
 # Brief: ir-consolidation — stop maintaining an IR we did not need, and adopt one we do
 
+> **Status 2026-10-02:** dormant. Brief only and unapproved. The subtraction it asks for still needs a measured recall comparison before the flat IR goes.
+
 **Status:** brief only, unapproved.
 
 ## Why now

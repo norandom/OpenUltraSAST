@@ -1,5 +1,7 @@
 # Requirements Document
 
+> **Status 2026-10-02:** superseded by `pair-corpus-honesty` (spec.json `superseded_by`); its 12 tasks were done and the vfc pairs live on in that spec's corpus. Kept as decision history; nothing in src, tests or CI points here.
+
 ## Introduction
 
 AppSec engineers cannot tell whether OpenUltraSAST improved on real product code. The labeled pair slices today are in-tree fixtures (`local`), small GitHub/SVEN functions (`github`), and textbook OWASP/Juliet files (`sast`). Operators care whether the harness fires on a real buggy snapshot of OpenSSL, Firefox, or Chromium and stays quiet after the patch. This spec adds a reviewed, isolated-function **vfc** slice drawn from public vulnerability-fixing commits in those projects, scored as an honesty dashboard (not a merge gate), so the tool can be evolved against labeled product code instead of cheat-sheet recall.

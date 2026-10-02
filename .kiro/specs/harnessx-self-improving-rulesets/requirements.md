@@ -1,5 +1,7 @@
 # Requirements Document
 
+> **Status 2026-10-02:** retired with HarnessX (see the note below). Its task 6.3 modules `stage_processors.py` and `slot_contract.py` were deleted on 2026-10-02: nothing imported them. Kept as decision history; nothing in src, tests or CI points here.
+
 > **Retired 2026-09-30:** HarnessX was removed by `harnessx-removal`; the agentic plane is ax
 > (`ai-service-plane`), and evolutionary proposals come from the plane memory. History below is unchanged.
 

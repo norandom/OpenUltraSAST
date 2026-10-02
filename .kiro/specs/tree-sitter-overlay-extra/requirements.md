@@ -1,5 +1,7 @@
 # Requirements Document
 
+> **Status 2026-10-02:** complete, 13 of 13 tasks (spec.json phase corrected from `tasks-generated` to `implementation-complete`).
+
 ## Introduction
 
 AppSec engineers scanning mixed working trees need overlay adjudication on Python, JavaScript, C/C++, and Java, not only on files a Python stdlib parse can read. Today a `standard` or `deep` scan leaves JS/C/Java inventory as `language_unsupported` even when a host parser CLI is present, so those proposals never promote or demote. This spec makes an **optional semantic extra** the way to turn on a real structured parse for those languages, while `quick` stays usable with no extra packages and a missing extra stays fail-closed.

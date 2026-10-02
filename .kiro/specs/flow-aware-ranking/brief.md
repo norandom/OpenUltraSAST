@@ -1,5 +1,7 @@
 # Brief: flow-aware-ranking — spend the expensive query where the cheap evidence is strongest
 
+> **Status 2026-10-02:** dormant. Brief only and unapproved; its 2026-09-12 amendment placed ranking inside the pre-push safety net, where the ranker now lives.
+
 **Status:** brief only, unapproved.
 
 ## Current amendment — 2026-09-12

@@ -1,5 +1,7 @@
 # Requirements Document
 
+> **Status 2026-10-02:** complete, 22 of 22 tasks (spec.json phase corrected to `implementation-complete`).
+
 ## Introduction
 
 OpenUltraSAST users scan **working trees they are writing**: mixed files, incomplete edits, generated code, framework wrappers, and no labels. Today the harness still *decides* with pattern inventory. The complexity map ranks; the sandbox can run; neither adjudicates “this sink is fed by a source” versus “this sink is hardcoded, sanitized, or unreadable.”

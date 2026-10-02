@@ -1,5 +1,7 @@
 # Requirements Document
 
+> **Status 2026-10-02:** superseded by `model-grounded-detection` (spec.json `superseded_by`). 4 of 20 tasks were done and the tasks were never approved; none will be. Kept as decision history; nothing in src, tests or CI points here.
+
 ## Introduction
 
 The detector's instability is structural, not statistical. Measured on 2026-09-06 over twelve injection pairs at

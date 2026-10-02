@@ -1,5 +1,7 @@
 # Requirements Document
 
+> **Status 2026-10-02:** retired (see the note below); all 31 tasks were done before HarnessX was removed. Kept as decision history; nothing in src, tests or CI points here.
+
 > **Retired 2026-09-30:** HarnessX was removed by `harnessx-removal`; the agentic plane is ax
 > (`ai-service-plane`), and evolutionary proposals come from the plane memory. History below is unchanged.
 

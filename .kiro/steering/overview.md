@@ -163,18 +163,25 @@ function-level pairs could not see any of them, and a repository showed all nine
 
 ## Where the specs stand
 
+Counted 2026-10-02 from each spec's `tasks.md` checkboxes and `spec.json`.
+
 | spec | phase | state |
 |---|---|---|
-| `contributor-scan` | implementation | 14 done, 15 open — **the active one** |
+| `learned-decision-engine` | implementation | 11 of 17 tasks done |
+| `pre-push-safety-net` | implementation | 67 of 79 tasks done |
+| `contributor-scan` | implementation | 27 of 51 tasks done |
+| `ai-service-plane` | implementation | 11 of 11 tasks done; the ax plane is the agentic path |
+| `harnessx-removal` | complete | 8 of 8; HarnessX removed 2026-09-30 |
 | `finding-feedback-loop` | design | requirements approved, design awaiting approval |
-| `model-grounded-detection` | complete | 16/16; built the arbiter this all rests on |
-| `authorization-obligations` | tasks approved | 24 open — superseded in practice by the dominance arbiter |
-| `constrained-detector` | tasks | 4 of 20, tasks unapproved |
-| `reachability-flow-model` | tasks generated | 23 open, nothing approved — largely delivered by adopting Joern |
-| `learning-harness` | implementation | 30 done, 3 open |
-| six others | complete | `pair-corpus-honesty`, `corpus-seeded-mechanisms`, `propose-adjudicate-prove`, `three-stage-scan`, `real-world-vfc-slice`, `harnessx-self-improving-rulesets`, `tree-sitter-overlay-extra` |
+| `model-grounded-detection` | complete | 16 of 16; built the arbiter this all rests on |
+| `authorization-obligations` | dormant | tasks approved, 0 of 24 started; superseded in practice by the dominance arbiter |
+| `reachability-flow-model` | dormant | 23 tasks generated, nothing approved; largely delivered by adopting Joern |
+| `flow-aware-ranking`, `zero-with-a-reason`, `ir-consolidation` | dormant | brief only, unapproved |
+| four others | complete | `pair-corpus-honesty`, `corpus-seeded-mechanisms`, `propose-adjudicate-prove`, `tree-sitter-overlay-extra` |
+| six others | retired or superseded | `openrouter-sast-harness`, `three-stage-scan`, `harnessx-self-improving-rulesets`, `learning-harness` (retired with HarnessX), `constrained-detector`, `real-world-vfc-slice` (superseded) |
 
 > **Retired 2026-09-30:** HarnessX was removed by `harnessx-removal`; the agentic plane is ax (`ai-service-plane`),
 > and evolutionary proposals come from the plane memory. The HarnessX specs in the table above are history.
 
-97 source modules, 90 load-bearing and 7 standalone capabilities; 814 tests.
+150 source modules, 145 load-bearing and 5 standalone capabilities, 0 orphaned
+(`benchmarks/measurements/2026-09-08-module-audit.json`, regenerated 2026-10-02); 1,964 tests collected.

@@ -1,5 +1,7 @@
 # Requirements Document: model-grounded-detection
 
+> **Status 2026-10-02:** complete, 16 of 16 tasks (spec.json phase corrected to `implementation-complete`). On 2026-10-02 three of its modules were deleted because nothing imported them: `model/judge.py` (Req 8; `model/pipeline.py` does the judging), `model/calibrate.py` (Req 9; the decision engine's `learn/calibrate.py` is the live calibration) and `model/execution.py`. Deleting `execution.py` closes the Req 10 execution-tier option: a future execution tier is a new design, not this seam.
+
 ## Introduction
 
 This feature supersedes `learning-harness` and `constrained-detector`. It replaces the assumption that the LLM

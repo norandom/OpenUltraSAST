@@ -1,0 +1,7 @@
+{
+  "feature_name": "openrouter-sast-harness",
+  "language": "en",
+  "status": "retired",
+  "updated_at": "2026-10-02T00:00:00Z",
+  "retired_note": "2026-09-30: HarnessX was removed by harnessx-removal; this spec had no spec.json before 2026-10-02 and is kept as decision history."
+}

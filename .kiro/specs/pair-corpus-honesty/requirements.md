@@ -1,5 +1,7 @@
 # Requirements Document
 
+> **Status 2026-10-02:** complete, 32 of 32 tasks (spec.json phase corrected to `implementation-complete`).
+
 ## Introduction
 
 Engineers evolving OpenUltraSAST's overlay cannot trust the pair scoreboard: coverage detections are dropped, vfc labels mostly say `sink = "unknown"`, a quarter of the vfc corpus fails to parse because excerpts start mid-comment, two sast pairs are unlabelable as vendored, and there is no Node/TypeScript/Python web corpus and no agent-authored corpus. This spec makes the scoreboard honest per slice, per mechanism, and per provenance, adds three web and agent-authored slices, and lets the improve loop accept a change only when no provenance profile regresses. It supersedes `real-world-vfc-slice` for the corpus and scorer plane.
