@@ -475,7 +475,7 @@ Preserve all completed task evidence below.
   - _Depends: 13.1_
   - _Requirements: 6.2, 6.3, 8.1, 8.2_
 
-- [ ] 14. Ask every declared family whether it establishes anything (precondition for M4)
+- [x] 14. Ask every declared family whether it establishes anything (precondition for M4)
   - Seven families are declared and two were proven end to end. A declared family that has never been asked whether it finds anything is advertised coverage, and M4 cannot qualify a capability that establishes nothing.
 - [x] 14.1 Census the seven declared families on NodeGoat and VAmPI
   - Run production discovery and scan over each whole checkout and report, per family, the regions that offered it, the questions asked, the questions completed, and what was found with the witness and rung. No comparison, no novelty, no admission: detection only.
@@ -575,7 +575,7 @@ Preserve all completed task evidence below.
   - _Boundary: Evaluation harness, full-run integration_
   - _Depends: 13.2, contributor-scan 7.3, contributor-scan 7.8_
   - _Requirements: 6.2, 6.3, 8.1, 8.2_
-- [ ] 13.4 Let a question inside one partition complete, whatever else the repository holds
+- [x] 13.4 Let a question inside one partition complete, whatever else the repository holds
   - **Diagnosed 2026-09-21, and PHP was never the variable.** A repository holding TWO languages can never complete a question, so it can never admit a finding. `partitions.py` raises `cross_partition_semantics_unresolved` whenever more than one language partition exists; that reason is a member of `GRAPH_INTEGRITY_GAPS`; and a graph-integrity gap demotes every completed outcome in the scan.
   - The evidence is one column wide: NodeGoat is JavaScript alone and completes 299 of 299, VAmPI is Python alone and completes 35 of 35, PMPro is PHP with 36 regions of bundled JavaScript and completes 0 of 127 and 0 of 520 while establishing 19 and 43 findings. NodeGoat's own `vendor_semantics_unresolved` is a DECLARED exclusion rather than an integrity gap, which is why it does not demote.
   - **This is larger than the PHP runtime limit and it lands on the declared v0.1 target.** A WordPress plugin is PHP plus its admin JavaScript, so every one of them is multi-language, so on the target this tool was built for it can detect defects and never admit one. Neither subject that currently passes could reveal it.
@@ -587,6 +587,7 @@ Preserve all completed task evidence below.
   - _Three causes, not one, and the third was hidden by the record rather than by the code._ The same census gap is raised in TWO passes, arbitration and evidence, and carrying the partition in one but not the other left an unscoped copy that kept demoting everything, so the fix looked applied and was not. It was found by making the census print each outcome's reason instead of only its status, after which three separate causes stopped looking identical.
   - _Admission is scoped too._ `_blocking_degradations` already exempted declared exclusions; it now also ignores a gap another language partition raised, so a JavaScript build artefact cannot block a PHP finding. A gap naming no partition still reaches everything, and so does every gap when the claim's own language is unknown, because unknown scope is not evidence of independence. Evidence: `benchmarks/measurements/2026-09-21-partition-gap-blast-radius.json`.
   - _Boundary: contributor-scan query/context evidence, Ranker Scope Contract_
+  - _Checked 2026-10-02 per the operational-readiness audit:_ implemented and verified on PMPro (120 of 127, above). 13.3 stays open on its own blocker; this box was left unchecked only because it waits on it.
   - _Depends: 13.3_
   - _Requirements: 2.1, 2.2, 6.3, 8.1_
 
@@ -617,6 +618,46 @@ Preserve all completed task evidence below.
   - Done when each harness record carries its provenance and per-cause counts, and a deliberately contradictory result is reported as a contradiction rather than as a number.
   - _Boundary: Evaluation harness_
   - _Requirements: 8.1, 8.2_
+
+
+- [ ] 17. Operational readiness (2026-10-02)
+  - **Named by the 2026-10-02 operational-readiness audit**, maintainer-approved as the first increment. The maintainer's definition: a user installs the hook on ANY repository and gets honest, advisory-only results; nothing ever blocks a push. The audit found the plumbing sound (snapshots, resolution, deadline accounting, advisory exit 0, the JSON artifact) and five things in the way: the hook can block a push, quick rules are not part of pre-push, the engine cannot finish a 26-file repository inside 30 s, the terminal hides every skip reason, and there is no supported install path without the source checkout. Before numbers for every item are the audit's live runs on records (Python), serve-static (JavaScript) and unrolled/secure (Go), each with one planted commit.
+  - This group is plumbing and honesty. It enables no capability, edits no rule for a planted sample, and leaves graph reuse (the engine speed work decided in 11.6) as a later task.
+  - _Requirements: 9.1–9.6_
+- [ ] 17.1 Never block a push the user did not choose to block
+  - The installed hook exits 0 with one line when `ousast` is missing (the check did not run, and how to install). In hook (stdin) mode, an argument or usage error (an invalid `OUSAST_PUSH_DEADLINE`, a cache directory inside the repository) is advisory: one line and exit 0. `--mode blocking` stays the explicit opt-in that can reject a push, and keeps its usage errors. The prior-hook input-retention failure keeps exit 1, because it is the chained hook's verdict that cannot be obtained, not ours.
+  - Files: `ops/pre-push`, `src/openultrasast/cli.py`. Tests: `tests/test_push_hook.py` (a push with `ousast` absent from PATH succeeds and prints the line; a bad deadline in hook mode exits 0; blocking mode keeps exit 2).
+  - Evidence: the audit's `hook.sh` push 1 (rejected before) and `fail.sh` (rc=2 before) rerun with exit 0.
+  - _Requirements: 9.1, 5.3, 5.4_
+- [ ] 17.2 Name every skipped check in plain words
+  - One terminal line per distinct coverage reason: hex-encoded paths decoded, sha256-suffixed reasons grouped with a count, JSON unchanged. "language not covered: <lang> (<n> files)" for a language with no engine frontend and no quick rules, in both `pre-push` and `scan`. A first push of a new branch says there is no base and what was checked instead. `reports.py` gains lines for the eight scan degradations `cli.py` records and the report did not render (`learning_endpoint_unavailable`, `cpg_unavailable`, `facts_unavailable`, `policy_invalid`, `model_withheld_execution_budget`, `max_findings_exceeded`, `hunter_model_unavailable`, `sandbox_unavailable`).
+  - Files: `src/openultrasast/push/report.py`, `src/openultrasast/push/explain.py` (new), `src/openultrasast/reports.py`, `src/openultrasast/cli.py`. Tests: `tests/test_push_report.py`, `tests/test_reports.py`.
+  - Evidence: the three repositories' terminal output names engine-missing, Go not covered and the new branch.
+  - _Requirements: 9.2, 5.2, 8.2_
+- [ ] 17.3 Run the quick rules as the fast first tier
+  - Inside the deadline and before the engine, the shipped quick rules run over the head side of the changed files and keep the findings on changed lines or in changed functions. They print as advisory pattern matches, labeled apart from admitted alerts, recorded in the artifact's `quick_tier`, and never block.
+  - Files: `src/openultrasast/push/quick.py` (new), `src/openultrasast/push/runner.py`, `src/openultrasast/push/report.py`. Tests: `tests/test_push_quick.py` (new).
+  - Evidence: serve-static's planted `eval` in the new `debug.js` is shown; whether records' planted `%`-formatted SQL is shown is recorded as is, with no rule edits for it.
+  - _Requirements: 9.3_
+- [ ] 17.4 Classify a file new in head as new, not unknown
+  - `ChangeContext` records the paths Git reports as added. An operation in an added file, when no add/delete pairing is unresolved and its head evidence is complete, is `new` with reason `file_added_in_head`, and admission accepts that reason as change evidence. An engine finding with established novelty whose only vetoes are capability vetoes renders as an advisory engine finding, not an alert. Every other unknown comparison keeps its veto.
+  - Files: `src/openultrasast/model/contracts.py`, `src/openultrasast/push/snapshot.py`, `src/openultrasast/push/policy.py`, `src/openultrasast/push/report.py`. Tests: `tests/test_push_policy.py`, `tests/test_push_snapshot.py`, `tests/test_push_report.py`.
+  - Evidence: unit tests on the comparison and admission; a live engine run if the host allows one (free memory >= 3 GB).
+  - _Requirements: 9.4, 3.4_
+- [ ] 17.5 Say when the engine cannot finish, and offer it in the background
+  - One line when the engine did not finish (deadline, engine not installed). `--engine background` starts the engine detached after the quick tier, writes its result under the artifact directory and, on the next run, prints "engine result for <head> from the previous push". One background engine at a time; `--engine off` skips it with a stated line. No speed work.
+  - Files: `src/openultrasast/push/background.py` (new), `src/openultrasast/push/runner.py`, `src/openultrasast/cli.py`, `ops/pre-push`. Tests: `tests/test_push_background.py` (new).
+  - Evidence: a hook push with `OUSAST_PUSH_ENGINE=background` followed by a second push showing the previous result.
+  - _Requirements: 9.5, 4.1, 4.2_
+- [ ] 17.6 Install, Docker and documentation for a first-time user
+  - `ousast pre-push install|uninstall [--force] [--docker] [REPO]` ships the hook as package data, honours `core.hooksPath`, refuses an existing hook unless `--force` (which chains it as `pre-push.before-ousast`), and works from a pip install. `ops/ousast-docker` is a hook-callable script (not a shell function) that passes stdin and the artifact path through. The `openultrasast:dev` image is rebuilt only if `df -h /` shows at least 4 GB free; otherwise the rebuild command is documented and the record says it was not rebuilt. `docs/scanning.md` gains a first-run guide, a glossary of skip reasons, a GitHub Actions recipe and full `--help` text; README tiers 1 and 2 updated, pulling `ghcr.io/norandom/openultrasast:2.0.1` where the wrapper allows.
+  - Files: `src/openultrasast/push/hook/pre-push`, `src/openultrasast/push/install.py` (new), `src/openultrasast/cli.py`, `ops/ousast-docker`, `docs/scanning.md`, `README.md`, `ops/README.md`. Tests: `tests/test_push_install.py` (new), `mkdocs build --strict`.
+  - Evidence: install from the package into a scratch clone, push through it, uninstall restores the prior hook.
+  - _Requirements: 9.6, 7.4_
+- [ ] 17.7 Prove it on the audit's three repositories
+  - Rerun records, serve-static and unrolled/secure (same planted commits) with the new build in quick mode and with the hook installed, plus one Docker engine run on serve-static if free memory >= 3 GB and free disk >= 1 GB. Prove each run read its input (files, bytes).
+  - Files: `benchmarks/measurements/2026-10-02-pre-push-operational-1/record.json`. Evidence: before (the audit) and after: exit codes, wall time against the deadline, findings shown, every skip line printed. A planted sample still missed is a coverage gap, recorded, never a rule edit.
+  - _Requirements: 9.1–9.6, 6.3_
 
 
 ## Implementation Notes
