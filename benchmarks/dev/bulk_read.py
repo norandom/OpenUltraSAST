@@ -36,9 +36,9 @@ def main() -> int:
     parser.add_argument("files", nargs="+", type=Path)
     parser.add_argument("--max-usd", type=float, default=0.05)
     args = parser.parse_args()
+    from openultrasast import tool_hunter
     from openultrasast.config import load_config
     from openultrasast.model.endpoint import DEFAULT_DETECTOR_MODEL
-    from openultrasast import tool_hunter
 
     load_config()
     client = tool_hunter.resolve_hunter_client()
@@ -51,7 +51,12 @@ def main() -> int:
         if float(client.cost_usd()) >= args.max_usd:
             answers.append(f"[stopped at the ${args.max_usd} ceiling before: {chunk.splitlines()[0]}]")
             break
-        response = client.complete(model=DEFAULT_DETECTOR_MODEL, messages=[{"role": "user", "content": PROMPT.format(question=args.question, files=chunk)}], tools=[], timeout_seconds=90)
+        response = client.complete(
+            model=DEFAULT_DETECTOR_MODEL,
+            messages=[{"role": "user", "content": PROMPT.format(question=args.question, files=chunk)}],
+            tools=[],
+            timeout_seconds=90,
+        )
         answers.append((response.content or "").strip())
     print("\n\n".join(a for a in answers if a))
     print(f"\n[bulk_read: {len(chunks)} chunk(s), ${float(client.cost_usd()):.4f}]", file=sys.stderr)

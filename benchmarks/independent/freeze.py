@@ -44,7 +44,7 @@ EXTENSIONS = {
 # scopes to API tokens" -- access control and input validation, which is exactly what a benign control must not be.
 SECURITY_WORDS = re.compile(
     r"secur|cve|ghsa|vuln|inject|xss|csrf|ssrf|sanitiz|escap|exploit|attack|auth|permission|cors|access|restrict|harden"
-    r"|token|scope|valid|filter|privileg|role|owner|password|secret|redirect|sql|query|login|log in|ldap|session|ssl|tls|verif|cert|crypt|hash|cookie",
+    r"|token|scope|valid|filter|privileg|role|owner|password|secret|redirect|sql|query|login|log in|ldap|session|ssl|tls|verif|cert|crypt|hash|cookie",  # noqa: E501
     re.I,
 )
 MAX_BENIGN_LINES = 200

@@ -40,8 +40,34 @@ from openultrasast.preprocess import build_file_target, enumerate_source_files  
 # The model names a family in its own words; the protocol scores three. Fixed before any v2 pin is hunted.
 FAMILY_WORDS = {
     "untrusted_destination": ("ssrf", "server-side request", "open redirect", "redirect", "url fetch", "request forgery"),
-    "config_secrets": ("cors", "debug", "secret", "hardcoded", "hard-coded", "credential", "misconfig", "configuration", "tls", "certificate"),
-    "injection": ("inject", "sql", "sqli", "nosql", "command", "rce", "code execution", "eval", "template", "ssti", "xss", "deserializ", "ldap", "xpath"),
+    "config_secrets": (
+        "cors",
+        "debug",
+        "secret",
+        "hardcoded",
+        "hard-coded",
+        "credential",
+        "misconfig",
+        "configuration",
+        "tls",
+        "certificate",
+    ),
+    "injection": (
+        "inject",
+        "sql",
+        "sqli",
+        "nosql",
+        "command",
+        "rce",
+        "code execution",
+        "eval",
+        "template",
+        "ssti",
+        "xss",
+        "deserializ",
+        "ldap",
+        "xpath",
+    ),
 }
 
 
@@ -182,7 +208,16 @@ def main() -> int:
             result["root"] = "/case"
             out.write_text(json.dumps(result, indent=2) + "\n")
             print(
-                json.dumps({"case": case["id"], "pin": label, "findings": len(result["findings"]), "hunts": f"{result['completed']}/{result['questions']}", "usd": result["cost_usd"], "total_usd": round(sum(spent), 4)}),
+                json.dumps(
+                    {
+                        "case": case["id"],
+                        "pin": label,
+                        "findings": len(result["findings"]),
+                        "hunts": f"{result['completed']}/{result['questions']}",
+                        "usd": result["cost_usd"],
+                        "total_usd": round(sum(spent), 4),
+                    }
+                ),
                 flush=True,
             )
     return 0

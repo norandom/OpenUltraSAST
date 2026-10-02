@@ -37,7 +37,9 @@ from openultrasast.config import load_config  # noqa: E402
 from openultrasast.model.endpoint import DEFAULT_DETECTOR_MODEL  # noqa: E402
 from openultrasast.preprocess import detect_language, enumerate_source_files  # noqa: E402
 
-NOT_PRODUCT = re.compile(r"(^|/)(tests?|__tests__|spec|specs|docs?|examples?|fixtures?|e2e|cypress|storybook)/|\.(test|spec|stories)\.[jt]sx?$|_test\.py$|(^|/)test_[^/]*\.py$|\.min\.js$|(^|/)dist/|(^|/)build/")
+NOT_PRODUCT = re.compile(
+    r"(^|/)(tests?|__tests__|spec|specs|docs?|examples?|fixtures?|e2e|cypress|storybook)/|\.(test|spec|stories)\.[jt]sx?$|_test\.py$|(^|/)test_[^/]*\.py$|\.min\.js$|(^|/)dist/|(^|/)build/"
+)
 OPERATIONS = {
     "injection": (
         "executes a database query (SQL, NoSQL, JCR/graph query), an operating-system command or shell, code or "
@@ -69,7 +71,9 @@ def product_files(root: Path, languages: set[str]) -> list[Path]:
 
 def chunks(text: str, size: int) -> list[str]:
     lines = text.splitlines()
-    return ["\n".join(f"{n + 1:5d}| {line}" for n, line in enumerate(lines[i : i + size], start=i)) for i in range(0, max(len(lines), 1), size)]
+    return [
+        "\n".join(f"{n + 1:5d}| {line}" for n, line in enumerate(lines[i : i + size], start=i)) for i in range(0, max(len(lines), 1), size)
+    ]
 
 
 class Meter:
@@ -85,7 +89,9 @@ class Meter:
             return sum(float(c.cost_usd()) for c in self.clients)
 
 
-def classify(root: Path, path: Path, family: str, args: argparse.Namespace, meter: Meter, local: threading.local) -> tuple[list[tuple[str, str, int]], int, int]:
+def classify(
+    root: Path, path: Path, family: str, args: argparse.Namespace, meter: Meter, local: threading.local
+) -> tuple[list[tuple[str, str, int]], int, int]:
     from openultrasast import tool_hunter
 
     if not hasattr(local, "client"):
@@ -99,7 +105,9 @@ def classify(root: Path, path: Path, family: str, args: argparse.Namespace, mete
         asked += 1
         prompt = PROMPT.format(operation=OPERATIONS[family], path=relative, code=code)
         try:
-            response = local.client.complete(model=args.model, messages=[{"role": "user", "content": prompt}], tools=[], timeout_seconds=90, json_object=True)
+            response = local.client.complete(
+                model=args.model, messages=[{"role": "user", "content": prompt}], tools=[], timeout_seconds=90, json_object=True
+            )
             items = json.loads(response.content or "{}").get("functions", [])
         except Exception:  # noqa: BLE001 -- counted as unclassified, never as "no sinks"
             failed += 1
@@ -138,7 +146,7 @@ def main() -> int:
             files = product_files(checkout, {case["language"], *case.get("also", [])})
             found, failed, asked = [], 0, 0
             with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
-                for f, fail, ask in pool.map(lambda p: classify(checkout, p, case["family"], args, meter, local), files):
+                for f, fail, ask in pool.map(lambda p, c=checkout, fam=case["family"]: classify(c, p, fam, args, meter, local), files):
                     found += f
                     failed += fail
                     asked += ask

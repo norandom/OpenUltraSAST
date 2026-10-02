@@ -258,7 +258,7 @@ def score_v2() -> int:
     per_case, pool, unstable_pool = [], [], 0
     changing, total_questions, total_completed = [0, 0], 0, 0
     for case in cases():
-        path = lambda label: RESULTS / "scans" / f"{case['id']}--{label}.json"  # noqa: E731
+        path = lambda label: RESULTS / "scans" / f"{case['id']}--{label}.json"  # noqa: E731, B023 -- called only inside this iteration
         scans = {label: json.loads(path(label).read_text()) for label in pins(case) if path(label).is_file()}
         if len(scans) < 6:
             per_case.append({"id": case["id"], "status": "incomplete", "scans": sorted(scans)})
@@ -279,7 +279,9 @@ def score_v2() -> int:
         ]
         site_files = {site.partition("::")[0] for site in case.get("sites", [])}
         covered = set(old) | site_files
-        answered = any(r.split(":")[0] in covered for label in ("vulnerable_a", "vulnerable_b") for r in scans[label].get("completed_regions", []))
+        answered = any(
+            r.split(":")[0] in covered for label in ("vulnerable_a", "vulnerable_b") for r in scans[label].get("completed_regions", [])
+        )
         diff_v, union_v = stability(va, vb)
         diff_f, union_f = stability(fa, fb)
         changing[0] += diff_v + diff_f

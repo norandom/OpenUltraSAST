@@ -37,7 +37,11 @@ def main() -> int:
         f"{path} has {lines} lines (limit {LIMIT} for a whole-file read). Read a range with offset/limit, or ask "
         f"the bulk reader for what you need: .venv/bin/python benchmarks/dev/bulk_read.py '<question>' {path}"
     )
-    print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason}}))
+    print(
+        json.dumps(
+            {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason}}
+        )
+    )
     return 0
 
 

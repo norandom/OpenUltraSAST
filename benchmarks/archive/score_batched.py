@@ -66,7 +66,8 @@ def main() -> int:
                 "agreed_findings": len(vulnerable["findings"]), "disputed_findings": len(vulnerable.get("disputed", [])),
                 "triaged_out": vulnerable.get("triaged_out"), "candidates": vulnerable.get("questions"),
                 "fixed_side_alerts": fixed_alerts, "fixed_agreed_total": len(fixed["findings"]) if fixed else None,
-                "removed_by_fix": fixed.get("removed_by_fix") if fixed else None, "usd": vulnerable.get("usd"), "usage": vulnerable.get("usage"),
+                "removed_by_fix": fixed.get("removed_by_fix") if fixed else None,
+                "usd": vulnerable.get("usd"), "usage": vulnerable.get("usage"),
             }
         )  # fmt: skip
         pool += [{"case": case["id"], **f} for f in vulnerable["findings"]]

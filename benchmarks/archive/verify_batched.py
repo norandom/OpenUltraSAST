@@ -101,13 +101,22 @@ def triage(root: Path, path: str, candidates: list[list], family: str, model: st
     except OSError:
         return {}
     names = sorted({fn for _, fn, _ in candidates})
-    prompt = TRIAGE.format(operation=OPERATIONS[family], functions=json.dumps(names), path=path, code=_relevant_code(text, [ln for _, _, ln in candidates], chunk_lines))
+    prompt = TRIAGE.format(
+        operation=OPERATIONS[family],
+        functions=json.dumps(names),
+        path=path,
+        code=_relevant_code(text, [ln for _, _, ln in candidates], chunk_lines),
+    )
     response = client.complete(model=model, messages=[{"role": "user", "content": prompt}], tools=[], timeout_seconds=90, json_object=True)
     try:
         items = json.loads(response.content or "{}").get("functions", [])
     except (json.JSONDecodeError, AttributeError):
         return {}
-    return {str(i.get("function")): str(i.get("data_origin", "")).strip().lower() for i in items if isinstance(i, dict) and i.get("function") in names}
+    return {
+        str(i.get("function")): str(i.get("data_origin", "")).strip().lower()
+        for i in items
+        if isinstance(i, dict) and i.get("function") in names
+    }
 
 
 def hunt(root: Path, path: str, group: list[list], family: str, model: str, steps: int) -> tuple[list[dict], dict]:
@@ -120,8 +129,30 @@ def hunt(root: Path, path: str, group: list[list], family: str, model: str, step
         f"Operations to judge, all in `{path}`, each of which {OPERATIONS[family]}:\n{listing}\n"
         "The file is above. For each, trace where the operation's data comes from and whether it is guarded."
     )
-    spots = [Hotspot(path=path, function_name=fn, score=1.0, band="candidate", signals={}, rationale="model-classified sink", test_hint=None, inventory_finding_ids=()) for _, fn, _ in group]
-    found = tool_hunter.run_tool_hunter(root, spots, client=recording, model=model, max_steps=steps, system_prompt=SYSTEM, user_prompt=prompt, context_files=[path], tags=("sink-verifier",))
+    spots = [
+        Hotspot(
+            path=path,
+            function_name=fn,
+            score=1.0,
+            band="candidate",
+            signals={},
+            rationale="model-classified sink",
+            test_hint=None,
+            inventory_finding_ids=(),
+        )
+        for _, fn, _ in group
+    ]
+    found = tool_hunter.run_tool_hunter(
+        root,
+        spots,
+        client=recording,
+        model=model,
+        max_steps=steps,
+        system_prompt=SYSTEM,
+        user_prompt=prompt,
+        context_files=[path],
+        tags=("sink-verifier",),
+    )
     names = {fn for _, fn, _ in group}
     rows = []
     for f in found:
@@ -131,7 +162,16 @@ def hunt(root: Path, path: str, group: list[list], family: str, model: str, step
         # The verdict is about the candidate operation, so the site is the candidate's file and function; the
         # model's own location is kept beside it (it often names the file where the input enters instead).
         line = f.line if f.path == path else next(c[2] for c in group if c[1] == fn)
-        rows.append({"candidate": f"{path}::{fn}", "site": f"{path}:{line or 0}:{fn}", "reported_at": f"{f.path}:{f.line or 0}", "family": family, "title": f.title, "witness": f.rationale[:600]})
+        rows.append(
+            {
+                "candidate": f"{path}::{fn}",
+                "site": f"{path}:{line or 0}:{fn}",
+                "reported_at": f"{f.path}:{f.line or 0}",
+                "family": family,
+                "title": f.title,
+                "witness": f.rationale[:600],
+            }
+        )
     return rows, recording.usage()
 
 
@@ -143,7 +183,12 @@ def verify_file(root: str, path: str, candidates: list[list], family: str, args_
     try:
         if not args_["no_triage"]:
             record["triage"] = triage(Path(root), path, candidates, family, args_["model"], args_["chunk_lines"])
-        kept = [c for c in candidates if record["triage"].get(c[1], "unclassified") in VERIFY | {"unclassified"} or record["triage"].get(c[1]) not in {"internal", "constant"}]
+        kept = [
+            c
+            for c in candidates
+            if record["triage"].get(c[1], "unclassified") in VERIFY | {"unclassified"}
+            or record["triage"].get(c[1]) not in {"internal", "constant"}
+        ]
         record["kept"] = [c[1] for c in kept]
         usage: dict[str, int] = {}
         for _pass in range(args_["passes"]):
@@ -169,14 +214,16 @@ def agreement(record: dict) -> tuple[list[dict], list[dict]]:
     some = set.union(*(set(b) for b in by_pass))
     first = by_pass[0]
     pick = lambda c: next(b[c] for b in by_pass if c in b)  # noqa: E731
-    return [dict(first[c], passes=len(by_pass)) for c in sorted(every)], [dict(pick(c), passes=sum(c in b for b in by_pass)) for c in sorted(some - every)]
+    return [dict(first[c], passes=len(by_pass)) for c in sorted(every)], [
+        dict(pick(c), passes=sum(c in b for b in by_pass)) for c in sorted(some - every)
+    ]
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--population", type=Path, default=HERE / "population-v2.toml")
     parser.add_argument("--only", default="")
-    parser.add_argument("--subset", type=Path, help='JSON {case_id: [[path, function], ...]}: verify only these candidates')
+    parser.add_argument("--subset", type=Path, help="JSON {case_id: [[path, function], ...]}: verify only these candidates")
     parser.add_argument("--model", default=DEFAULT_DETECTOR_MODEL)
     parser.add_argument("--max-steps", type=int, default=6)
     parser.add_argument("--per-hunt", type=int, default=6)
@@ -206,7 +253,11 @@ def main() -> int:
         if out.is_file():
             continue
         log = out_dir / f"{case['id']}--{label}.jsonl"
-        done = {r["path"]: r for r in (json.loads(row) for row in log.read_text().splitlines()) if "unverified" not in r} if log.is_file() else {}
+        done = (
+            {r["path"]: r for r in (json.loads(row) for row in log.read_text().splitlines()) if "unverified" not in r}
+            if log.is_file()
+            else {}
+        )
         spent += sum(float(r.get("usd", 0.0)) for r in done.values())
         record = json.loads((candidates_dir / f"{case['id']}.json").read_text())
         unique = list({(p, fn): [p, fn, ln] for p, fn, ln in sorted(record["candidates"])}.values())
@@ -265,19 +316,41 @@ def main() -> int:
             agreed += a
             disputed += d
         triaged_out = sum(len(r["candidates"]) - len(r.get("kept", [])) for r in done.values())
-        usage = {k: sum(int(r.get("usage", {}).get(k, 0)) for r in done.values()) for k in ("prompt_tokens", "prompt_cache_hit_tokens", "completion_tokens", "calls")}
+        usage = {
+            k: sum(int(r.get("usage", {}).get(k, 0)) for r in done.values())
+            for k in ("prompt_tokens", "prompt_cache_hit_tokens", "completion_tokens", "calls")
+        }
         complete = len(done) >= len(by_file) and not account_error
         result = {
-            "root": "/case", "families": [case["family"]], "questions": len(unique), "completed": sum(len(r["candidates"]) for r in done.values()),
+            "root": "/case", "families": [case["family"]],
+            "questions": len(unique), "completed": sum(len(r["candidates"]) for r in done.values()),
             "completed_regions": sorted(f"{c[0]}:{c[1]}" for r in done.values() for c in r["candidates"]),
-            "triaged_out": triaged_out, "passes": args.passes, "usage": usage, "usd": round(sum(float(r.get("usd", 0.0)) for r in done.values()), 4),
-            "seconds": round(time.monotonic() - started, 1), "findings": sorted(agreed, key=lambda f: f["site"]), "disputed": sorted(disputed, key=lambda f: f["site"]),
+            "triaged_out": triaged_out, "passes": args.passes, "usage": usage,
+            "usd": round(sum(float(r.get("usd", 0.0)) for r in done.values()), 4),
+            "seconds": round(time.monotonic() - started, 1),
+            "findings": sorted(agreed, key=lambda f: f["site"]),
+            "disputed": sorted(disputed, key=lambda f: f["site"]),
         }  # fmt: skip
         if args.fixed:
             result["removed_by_fix"] = removed
         if complete:
             out.write_text(json.dumps(result, indent=1) + "\n")
-        print(json.dumps({"case": case["id"], "files": f"{len(done)}/{len(by_file)}", "candidates": len(unique), "triaged_out": triaged_out, "agreed": len(agreed), "disputed": len(disputed), "usd": result["usd"], "total_usd": round(spent, 4), "complete": complete}), flush=True)
+        print(
+            json.dumps(
+                {
+                    "case": case["id"],
+                    "files": f"{len(done)}/{len(by_file)}",
+                    "candidates": len(unique),
+                    "triaged_out": triaged_out,
+                    "agreed": len(agreed),
+                    "disputed": len(disputed),
+                    "usd": result["usd"],
+                    "total_usd": round(spent, 4),
+                    "complete": complete,
+                }
+            ),
+            flush=True,
+        )
         if account_error:
             print(json.dumps({"stopped": "account", "error": account_error}), flush=True)
             return 2

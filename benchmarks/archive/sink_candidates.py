@@ -36,7 +36,9 @@ from openultrasast.preprocess import detect_language, enumerate_source_files  # 
 DECLARATION = {
     "python": re.compile(r"^\s*(?:async\s+)?def\s+(\w+)"),
     "php": re.compile(r"^\s*(?:(?:public|private|protected|static|final|abstract)\s+)*function\s+&?(\w+)"),
-    "javascript": re.compile(r"^\s*(?:export\s+)?(?:async\s+)?function\s*\*?\s*(\w+)|^\s*(?:(?:public|private|protected|static|async)\s+)*(\w+)\s*\([^;]*\)\s*(?::[^{=]+)?\{\s*$|^\s*(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?(?:function|\()"),
+    "javascript": re.compile(
+        r"^\s*(?:export\s+)?(?:async\s+)?function\s*\*?\s*(\w+)|^\s*(?:(?:public|private|protected|static|async)\s+)*(\w+)\s*\([^;]*\)\s*(?::[^{=]+)?\{\s*$|^\s*(?:export\s+)?(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?(?:function|\()"
+    ),
 }
 DECLARATION["typescript"] = DECLARATION["javascript"]
 KEYWORDS = {"if", "for", "while", "switch", "catch", "return", "function", "else"}

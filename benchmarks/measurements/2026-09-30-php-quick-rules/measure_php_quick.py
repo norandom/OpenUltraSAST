@@ -162,7 +162,7 @@ def per_rule(result: dict) -> dict:
                 rows[fid.split(":", 1)[0]][label] += 1
             for fid in pin["at_known_site"]:
                 rows[fid.split(":", 1)[0]][label + "_at_site"] += 1
-    for name, fixture in result["fixtures"].items():
+    for _name, fixture in result["fixtures"].items():
         for fid in fixture["true_positives"]:
             rows[fid.split(":", 1)[0]]["fixture_tp"] += 1
         for fid in fixture["false_positives"]:
