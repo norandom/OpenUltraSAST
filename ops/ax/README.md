@@ -7,7 +7,7 @@ single-node kind cluster. ax is the only executor; `ousast plane run` submits, r
 
     ops/ax/up.sh          # idempotent: kind + registry, Substrate, ax, gVisor worker pool, egress gateway,
                           # receiver Service, runner image (digest pinned), ax CLI, smoke Task
-    ousast plane doctor   # kind, Substrate, ax controller, runner image
+    ousast plane doctor   # the profile's cluster (ops/k8s/profiles/kind.toml), Substrate, ax, runner image, memory store
     ops/ax/smoke-run.sh   # end to end: repo-facts on ax, artifacts back on the host, attribution table
     ops/ax/down.sh        # deletes the cluster and its registry
 
@@ -192,16 +192,16 @@ assume this laptop and must change first (checked 2026-10-02):
 
 | Assumption | Where | Needed in a real cluster |
 |---|---|---|
-| Artifact receiver runs on the developer host, reached through the `ousast-receiver` Service with an EndpointSlice to the kind gateway `172.19.0.1:18090` | `egress.py`, `receiver-service.yaml.tmpl` | the receiver as an in-cluster Deployment (or object storage, e.g. Substrate's S3-compatible store), with the reconciler reading from it |
-| Registry `localhost:5001`, rewritten by Substrate for kind | `up.sh` (`KO_DOCKER_REPO`), `doctor.py:45` (hard-coded check), the runner digest pin, the `image` of every template under `plane/tasks/` | a registry the workers can pull from; keep digest pins (Substrate rejects tags); `--runner-image FILE` re-pins generated Tasks |
-| kubectl context `kind-$KIND_CLUSTER_NAME` | `doctor.py:39`, `egress.py:115` and `:148`, `router.py:145`, `up.sh:24` | one configurable context (for example `OUSAST_KUBE_CONTEXT`); not yet configurable |
+| Artifact receiver runs on the developer host, reached through the `ousast-receiver` Service with an EndpointSlice to the kind network's gateway address on `OUSAST_ARTIFACT_PORT` | `egress.py`, `receiver-service.yaml.tmpl` | the receiver as an in-cluster Deployment (or object storage, e.g. Substrate's S3-compatible store), with the reconciler reading from it |
+| The kind-local registry (`registry` in `ops/k8s/profiles/kind.toml`), rewritten by Substrate for kind | `up.sh` (`KO_DOCKER_REPO`), the profile's images file, the `image` of every template under `plane/tasks/` | the `k3s` profile's registry; keep digest pins (Substrate rejects tags); `--runner-image FILE` re-pins generated Tasks |
+| kubectl context | `kube_context` in the profile, read by `doctor.py`, `egress.py`, `router.py` (plane-on-kubernetes 1.2); `up.sh` reads the same profile | the `k3s` profile's context; nothing else changes |
 | ax's snapshot bucket: `AX_SNAPSHOTS_BUCKET` in ax's `deploy/ax-server.yaml` points at the ax authors' GCS bucket | ax deploy manifest | your own bucket, set before deploying ax |
 | Egress gateway applied by hand (agentgateway variant, no Rust build) | this README | the Substrate-installed gateway; per-task EgressPolicies work unchanged |
 | Worker pool of 2 x 1 CPU / 1.5 GiB for the 7 GB host | `workerpool.yaml.tmpl` | sized to the cluster; `--workers` to match |
 | Plane memory store and results under `~/ousast-results/` on the host | `reconciler.py` (`OUSAST_RESULTS`), `memory.py` (`OUSAST_MEMORY`) | a persistent volume or bucket shared by the reconciler; the `s3://` store already works against any reachable S3-compatible server |
 
 The provider key already travels only in the start request through `atenet-router`, which works the same through
-a port-forward to any cluster.
+the kube-context tunnel to any cluster.
 
 ## What a larger ax deployment needs
 

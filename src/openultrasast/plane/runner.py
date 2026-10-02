@@ -925,7 +925,7 @@ def main(argv: Sequence[str] | None = None, environ: MutableMapping[str, str] | 
         metadata = {"task": env.get("AX_TASK_YAML", ""), "workspaces": env.get("AX_WORKSPACES_YAML", "")}
         server = start_health_server(int(env.get("AX_RUNNER_PORT", str(DEFAULT_PORT))), ready, metadata, gate)
         env["AX_RUNNER_BOUND_PORT"] = str(server.port)
-        env["AX_METADATA_URL"] = f"http://127.0.0.1:{server.port}"
+        env["AX_METADATA_URL"] = f"http://127.0.0.1:{server.port}"  # loopback: this runner's own health server
         log.info("health and metadata server on port %d", server.port)
     try:
         if server is None and env.get("AX_RUNNER_AUTOSTART") != "1":

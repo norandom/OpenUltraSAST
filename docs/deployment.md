@@ -27,11 +27,11 @@ flowchart LR
         sub["Agent Substrate (ate-system): atenet-router, atenet-egress"]
         act["Task actors in gVisor workers (WorkerPool ousast-pool)"]
         svc["Service ousast-receiver + EndpointSlice to the host"]
-        reg["Registry localhost:5001: runner image by digest"]
+        reg["Registry named by the profile: runner image by digest"]
     end
     mem[("Memory store: file store on the host, or an S3 bucket (RustFS tested)")]
     rec -- "ax apply, resume, get, delete" --> ax
-    rec -- "EgressPolicy per actor; start request via port-forward" --> sub
+    rec -- "EgressPolicy per actor; start request through the kube-context tunnel" --> sub
     sub --> act
     act -- "HTTP by Service name through the gateway" --> svc
     svc --> rcv
@@ -46,8 +46,8 @@ flowchart LR
 | How actors reach the receiver | the Service `ousast-receiver.ax-system` (port 80) with a selector-less EndpointSlice whose endpoint is the kind network's gateway address on the host; the runner dials the ClusterIP with the Service name as `Host`, which the egress gateway allows by hostname | `ops/ax/receiver-service.yaml.tmpl`, rendered by `up.sh` |
 | ax control plane, Agent Substrate, egress gateway, router | the kind cluster (`ax-system`, `ate-system`) | installed by `ops/ax/up.sh` from the upstream checkouts under `~/.cache/ousast/ax-src/` |
 | Tasks | one actor per Task in a gVisor worker; two warm workers of 1 CPU / 1.5 GiB | `ops/ax/workerpool.yaml.tmpl` |
-| Runner image | the kind-local registry `localhost:5001`, pinned by digest (`~/.cache/ousast/ax-src/runner-image`) | `plane/Dockerfile.runner`; the `image` of every template under `plane/tasks/` |
-| Provider keys | read from the operator's environment or `.env` (which never overrides an exported variable), sent only in the start request through a `kubectl port-forward` to `svc/atenet-router` | `src/openultrasast/plane/router.py` |
+| Runner image | the registry the profile names (`registry` in `ops/k8s/profiles/kind.toml`: the kind-local one), pinned by digest in the profile's images file (`ops/k8s/profiles/kind-images.json`) | `plane/Dockerfile.runner`; the `image` of every template under `plane/tasks/` |
+| Provider keys | read from the operator's environment or `.env` (which never overrides an exported variable), sent only in the start request through the tunnel `router.py` opens to `svc/atenet-router` in the profile's kube context | `src/openultrasast/plane/router.py` |
 | Memory store | `OUSAST_MEMORY`: a file store under `~/ousast-results/plane/memory` by default, or `s3://<bucket>[/<prefix>]` on any reachable S3-compatible server (RustFS is the tested one) | `src/openultrasast/plane/memory.py`, [Memory](memory.md), [RustFS setup](rustfs.md) |
 | Run state and artifacts | `$OUSAST_RESULTS/plane/<run>/` on the host (default `~/ousast-results/plane/`) | `reconciler.py` (`run_dir`) |
 
@@ -67,8 +67,8 @@ rendered files in `~/.cache/ousast/ax-src/` (`OUSAST_AX_SRC`).
     ```
 
     Idempotent: each step is skipped when already done. It creates the kind cluster
-    (`KIND_CLUSTER_NAME`, default `ousast`) with its registry (`KO_DOCKER_REPO`, default
-    `localhost:5001`), installs Agent Substrate, applies the egress gateway (the agentgateway
+    (`KIND_CLUSTER_NAME`, default `ousast`) with its registry (`KO_DOCKER_REPO`, default: the
+    `registry` of `ops/k8s/profiles/kind.toml`), installs Agent Substrate, applies the egress gateway (the agentgateway
     variant, one prebuilt image) when the install left it out, deploys the ax control plane, applies
     the receiver Service with the host's kind-gateway address as its endpoint, applies the gVisor
     worker pool, builds and pushes the runner image and writes its digest pin to
@@ -79,12 +79,15 @@ rendered files in `~/.cache/ousast/ax-src/` (`OUSAST_AX_SRC`).
 2. **Check it.**
 
     ```bash
-    uv run ousast plane doctor
+    uv run ousast plane doctor --profile kind
     ```
 
-    Four checks: the kind context is reachable, every pod in `ate-system` and in `ax-system` is ready,
-    and the registry at `localhost:5001` holds `ousast-runner`. Each failing line names
-    `ops/ax/up.sh` as the fix. `doctor` is informational: `ousast plane run` does not call it.
+    The checks of the profile (`--profile`, default `kind`; `ops/k8s/profiles/`): its configured addresses
+    on the first line, the kube context reachable, every pod in `ate-system` and in `ax-system` ready, the
+    runner image of the profile's images file present in its registry (a local registry over its v2 API, a
+    remote one through `docker manifest inspect`), and the memory store opening (an S3 bucket is verified).
+    Each failing line names the fix (`ops/ax/up.sh` for the kind profile). `doctor` is informational:
+    `ousast plane run` does not call it.
 
 3. **Run the end-to-end smoke Run.**
 
@@ -130,7 +133,7 @@ produced, and what each one taught, are listed in
 The target: a cluster that runs Agent Substrate with its egress gateway and the ax control plane,
 pulls the runner image from a registry of yours, receives task artifacts without a developer
 laptop in the path, and keeps its memory in your S3 bucket. The provider key already travels only
-in the start request through `atenet-router`, which works the same through a port-forward to any
+in the start request through `atenet-router`, which works the same through the kube-context tunnel to any
 cluster. Everything else below is either a step you take or a code change that is not made yet.
 
 ### B.1 Cluster with Agent Substrate, its egress gateway and ax
@@ -172,26 +175,22 @@ owns.
   reference. Write it into a file (on this host, `~/.cache/ousast/ax-src/runner-image`) and pass
   `--runner-image FILE` to `ousast plane workspaces` and `ousast plane harvest`, which re-pin the
   Tasks they generate. The committed templates under `plane/tasks/` and the generated
-  `plane/tasks/validation-46.yaml` carry `localhost:5001/ousast-runner@sha256:...` and need the same
+  `plane/tasks/validation-46.yaml` carry the kind profile's registry and digest and need the same
   re-pin (regenerate, or replace the reference) before they run elsewhere.
 - Workers must be able to pull from the registry (credentials, if any, are the cluster's concern;
   ax's default runner image on `gcr.io` needs credentials and is not used here).
-- **Not yet configurable:** `ousast plane doctor` checks the registry at `localhost:5001` by name
-  (`src/openultrasast/plane/doctor.py:45`), so its fourth check fails on another cluster even when
-  the image is in place. `doctor` is informational, `plane run` does not depend on it.
+- `ousast plane doctor --profile <name>` resolves the runner reference of the profile's images file in the
+  profile's `registry` (implemented 2026-10-02, plane-on-kubernetes task 1.2). `doctor` is informational,
+  `plane run` does not depend on it.
 
-### B.4 One configurable kube context
+### B.4 One configurable kube context (implemented 2026-10-02)
 
-The reconciler, the egress client and the router port-forward all use the context
-`kind-$KIND_CLUSTER_NAME` (`kind-ousast` by default). **Not yet configurable**: the prefix `kind-`
-is hard-coded in `src/openultrasast/plane/doctor.py:39`, `src/openultrasast/plane/egress.py:115`
-and `:148`, and `src/openultrasast/plane/router.py:145`; `ops/ax/up.sh:24` builds the same name.
-The planned change is one variable (for example `OUSAST_KUBE_CONTEXT`) read in those three
-modules. Until then the only way to drive another cluster from the unchanged code is to give its
-kubeconfig context a name of that form (`kubectl config rename-context <ctx> kind-<name>` and
-`KIND_CLUSTER_NAME=<name>`), which is a workaround, not a supported configuration. The egress
-client also needs `kubectl-ate` (or the executable `OUSAST_KUBECTL_ATE` names) able to use that
-context.
+The reconciler, the egress client and the router tunnel take the kube context from the profile
+(`kube_context` in `ops/k8s/profiles/<name>.toml`, `OUSAST_KUBE_CONTEXT` overrides it; plane-on-kubernetes
+task 1.2): `doctor.py`, `egress.py` and `router.py` are handed it and build none, and
+`tests/test_plane_literals.py` fails on any module, manifest or page that names this host's cluster,
+registry or addresses. The egress client also needs `kubectl-ate` (or the executable
+`OUSAST_KUBECTL_ATE` names) able to use that context.
 
 ### B.5 The receiver: in-cluster instead of on the host
 
@@ -255,10 +254,10 @@ in-cluster is itself planned: today it is a host process, and its state director
 | Per-task EgressPolicy, credentials only in the start request, per-task budgets and attribution | implemented |
 | S3 memory store against any reachable S3-compatible server, verified at startup | implemented (RustFS tested) |
 | Local bring-up, doctor, smoke Run (`ops/ax/`) | implemented |
-| Re-pinning generated Tasks to another registry (`--runner-image`) | implemented; the committed templates still name `localhost:5001` |
+| Re-pinning generated Tasks to another registry (`--runner-image`) | implemented; the committed templates name the kind profile's registry (`tests/test_plane_literals.py` checks it) |
 | Deployment to a cluster other than this host's kind cluster | **not done** |
-| One configurable kube context | **planned**; `kind-` hard-coded in `doctor.py`, `egress.py`, `router.py` |
-| `doctor` registry check against a configurable registry | **planned**; `localhost:5001` hard-coded in `doctor.py:45` |
+| One configurable kube context | implemented (2026-10-02): `kube_context` in the profile, `OUSAST_KUBE_CONTEXT` overrides |
+| `doctor` registry check against a configurable registry | implemented (2026-10-02): the profile's `registry` and images file |
 | Receiver as an in-cluster Deployment | **planned** (code change) |
 | Presigned-URL delivery to the S3 store | **follow-on**, not started |
 | Reconciler running in-cluster with Secrets injected into its environment | **planned** |
@@ -318,7 +317,7 @@ device and does not appear in production.
 **ax is a Kubernetes application**: a Deployment `ax-server` with a Redis beside it in the
 namespace `ax-system` (`ax/deploy/ax-server.yaml` in the ax checkout; its controller runs with
 `--template=default-template --template-atespace=ax-system`), and the `ax` CLI reaches it through a
-`kubectl port-forward` to `svc/ax-server` (`ax/internal/tunnel/tunnel.go`), so `ousast plane run`
+a tunnel to `svc/ax-server` through the kube context (`ax/internal/tunnel/tunnel.go`), so `ousast plane run`
 needs a kube context or an ingress, not a public endpoint. **ax does not run containers itself**:
 it turns every Task into an ActorTemplate on Agent Substrate (`ax/internal/substrate/client.go`,
 `CreateActorTemplate`), built from the Task's image and environment, and the image must be pinned
@@ -341,7 +340,7 @@ instead of a kubeconfig) and local-path storage. Images are built by GitHub Acti
 commits, published to GitHub Container Registry and digest-pinned in the manifests; a private
 package needs an `imagePullSecret` on the worker ServiceAccount. Substrate's and ax's own images
 are built with `ko` from their checkouts and pushed to the same registry. The kind profile keeps
-`localhost:5001` and `ops/ax/up.sh`.
+its local registry (`ops/k8s/profiles/kind.toml`) and `ops/ax/up.sh`.
 
 ### One image, and what concurrency equals
 
@@ -369,7 +368,7 @@ applied by `ops/ax/up.sh`; the production profile's pool manifests and autoscali
 
 | Component | Today (the kind profile) | Production (the k3s profile, planned) |
 | --- | --- | --- |
-| Reconciler (`ousast plane run`, `src/openultrasast/plane/reconciler.py`) | a process on the operator's host; calls `ax` and `kubectl` against `kind-ousast`, holds the Run's state under `OUSAST_RESULTS` | **the reconciler stays the CLI.** An execution mode `local` or `remote`: in `remote`, the same `ousast plane run` from a laptop or a CI job submits the Run to ax-server in k3s (over the cluster's ingress or a kubeconfig), sends the start requests, then polls the store and prints the same `status` and attribution table. Credentials come from the caller's environment as today (CI secrets in a job; B.8's rule, no value in a manifest). An unattended in-cluster reconciler (a Deployment with a submit API, or a Job per Run) is a **later option**, not the first step |
+| Reconciler (`ousast plane run`, `src/openultrasast/plane/reconciler.py`) | a process on the operator's host; calls `ax` and `kubectl` against the profile's `kube_context`, holds the Run's state under `OUSAST_RESULTS` | **the reconciler stays the CLI.** An execution mode `local` or `remote`: in `remote`, the same `ousast plane run` from a laptop or a CI job submits the Run to ax-server in k3s (over the cluster's ingress or a kubeconfig), sends the start requests, then polls the store and prints the same `status` and attribution table. Credentials come from the caller's environment as today (CI secrets in a job; B.8's rule, no value in a manifest). An unattended in-cluster reconciler (a Deployment with a submit API, or a Job per Run) is a **later option**, not the first step |
 | Artifact receiver (`plane/egress.py`, the `Receiver` thread inside the reconciler) | reached through the Service `ousast-receiver.ax-system` whose EndpointSlice points at the kind gateway address on the host (`ops/ax/receiver-service.yaml.tmpl`) | **no receiver in remote mode.** Tasks deliver their artifacts and fetch their inputs through presigned URLs on the S3 memory store (B.5, path 3; the store's hostname enters each Task's EgressPolicy, B.7), and the CLI reads completion from the store. The kind profile keeps the receiver thread; an in-cluster receiver Deployment (B.5, path 2) is not the chosen direction |
 | Joern engine (`plane/engine_alerts.py`, the host's `openultrasast:dev` container, run with `--memory 3g`) | `ousast plane alerts-engine` runs it on the host, one container at a time, and marks the Run's `alerts` tasks done | **an `engine` task on a second, larger `WorkerPool`** (the engine does not fit a 1.5 GiB worker, and k3s has no Docker socket), from an engine image digest-pinned in GHCR, emitting the same `alerts.jsonl` rows and coverage; `alerts-engine` on the host stays as the development path |
 

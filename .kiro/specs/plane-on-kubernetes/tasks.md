@@ -29,7 +29,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
     profile's context, never a built one.
   - Evidence: `grep -rn "kind-" src/openultrasast/plane` matches only comments citing the kind profile.
   - _Requirements: 1.1, 1.2_
-- [ ] 1.3 Host-literal scan test
+- [x] 1.3 Host-literal scan test
   - `tests/test_plane_literals.py`: pattern built at runtime (as `tests/test_removed_plane_references.py` does)
     over `src/`, `plane/`, `ops/` minus `ops/ax/up.sh` and `ops/k8s/profiles/`, and `docs/`, for `kind-ousast`,
     `localhost:5001`, `172.19.`, `127.0.0.1:` and `port-forward` outside `router.py` and lines tagged
