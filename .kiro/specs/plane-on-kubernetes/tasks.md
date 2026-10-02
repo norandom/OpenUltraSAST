@@ -42,7 +42,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
     `runner-image`; `generate.repin_templates` accepts that file (runner key only until task 4.3).
   - Evidence: `ops/ax/up.sh` reruns idempotently on kind; `ops/ax/smoke-run.sh` passes.
   - _Requirements: 1.1, 2.4_
-- [ ] 1.5 Placement probe (open question 2, decided before the engine work)
+- [x] 1.5 Placement probe (open question 2, decided before the engine work) -- result: `placement: any`
   - `ops/ax/probe-placement.sh`: applies a second WorkerPool `probe-pool` (1 replica, 3 Gi) from the design's
     engine template, then one model-free `repo-facts` Task with `resources.requests.memory: 2560Mi`, and records
     with `kubectl ate get workers` which worker took the actor; then the same Task with 256Mi. Removed after.

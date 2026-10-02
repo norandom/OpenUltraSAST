@@ -1,0 +1,26 @@
+# Warm gVisor workers for ax tasks (Agent Substrate WorkerPool), rendered by ops/ax/up.sh (and by
+# ops/ax/probe-placement.sh for the placement probe) from the profile's pool: POOL_NAME, POOL_REPLICAS, POOL_CPU,
+# POOL_MEMORY (ops/k8s/profiles/<profile>.toml, [pools.default]) and WORKER_IMAGE (ko:// for a build, or a
+# digest-pinned reference of a built worker image). ax's per-task ActorTemplates set no workerSelector, so every
+# pool of the matching sandbox class is eligible. An actor occupies a whole worker. Replaced by the renderer of
+# plane-on-kubernetes task 6.1 (ops/k8s/base/workerpool-*.yaml.tmpl).
+apiVersion: ate.dev/v1alpha1
+kind: WorkerPool
+metadata:
+  name: probe-pool
+  namespace: ax-system
+  labels:
+    workload: ousast
+spec:
+  replicas: 1
+  workerImage: localhost:5001/ateom-gvisor-715889664656de67e44382a8d6ab981d@sha256:220f1cf13ea485b73a2e4270fa544901a18ae826d8f22bd54d42761944a41c5c
+  template:
+    nodeSelector:
+      ate.dev/substrate-version: "4f9c293"
+    resources:
+      limits:
+        cpu: "2"
+        memory: 3Gi
+      requests:
+        cpu: 250m
+        memory: 3Gi

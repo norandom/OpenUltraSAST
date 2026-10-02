@@ -254,6 +254,13 @@ containerd; `Dockerfile:1-7` already argues against it).
   a 3 Gi actor lands only on `engine-pool`. If Substrate does not place by resource fit, the fallback is a
   separate atespace with its own pool if Substrate scopes pools that way; failing that, the engine stays
   `alerts-engine` on a Docker host and the k3s engine becomes a plain Kubernetes Job outside ax, recorded as such.
+  **Probe outcome (task 1.5, 2026-10-02, `benchmarks/measurements/2026-10-02-k8s-01-profile/`): `placement: any`.**
+  With `ousast-pool` at one 1536Mi worker and a `probe-pool` of one 3Gi worker both ACTIVE, a `repo-facts` actor
+  requesting 2560Mi (limit 3Gi) was placed on the 1536Mi `ousast-pool` worker (`kubectl ate get workers`: ACTORS
+  1/1000 there, 0/1000 on `probe-pool`), and so was the 256Mi actor. Substrate does not place by resource fit, so
+  group 5 takes the fallback: the engine pool must be the only pool its actors can land on. Before 5.2, check whether
+  Substrate scopes pools by atespace (an `engine` atespace with `engine-pool` as its only pool); if it does not, the
+  k3s engine runs as a plain Kubernetes Job outside ax and `alerts-engine` stays the kind path.
 - **`alerts-engine` stays** for development on a host with Docker (kind profile), its help text and
   `docs/plane.md` row marked "development only; the plane task is `engine`" (Req 4.3). Generated Runs choose
   `engine` when the profile's `images` file has an engine image, else leave `alerts` for `alerts-engine`.

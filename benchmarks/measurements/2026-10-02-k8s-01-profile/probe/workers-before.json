@@ -1,0 +1,78 @@
+{
+  "workers": [
+    {
+      "ip": "10.244.0.22",
+      "labels": {
+        "workload": "ousast"
+      },
+      "metadata": {
+        "createTime": "2026-09-29T16:32:08.594663703Z",
+        "name": "769f7d8b-142a-4ed5-b896-08d6a04bedb6",
+        "uid": "152cf7c0-3f4d-4634-88c5-9fe501bb403e",
+        "updateTime": "2026-10-02T05:24:59.069304031Z",
+        "version": "1758"
+      },
+      "nodeName": "ousast-control-plane",
+      "sandboxClass": "gvisor",
+      "status": {
+        "capacity": {
+          "actors": 1000,
+          "resources": {
+            "limits": [
+              {
+                "name": "cpu",
+                "quantity": "1"
+              },
+              {
+                "name": "memory",
+                "quantity": "1536Mi"
+              }
+            ]
+          }
+        },
+        "state": "WORKER_STATE_ACTIVE"
+      },
+      "workerNamespace": "ax-system",
+      "workerPod": "ousast-pool-6656b55f5b-9wbrw",
+      "workerPodUid": "769f7d8b-142a-4ed5-b896-08d6a04bedb6",
+      "workerPool": "ousast-pool"
+    },
+    {
+      "ip": "10.244.0.28",
+      "labels": {
+        "workload": "ousast"
+      },
+      "metadata": {
+        "createTime": "2026-10-02T18:29:30.486026311Z",
+        "name": "1407a421-7dcf-4ad7-b999-70a4624bf890",
+        "uid": "2d496d7a-4f32-459d-9b92-256a2c5b4800",
+        "updateTime": "2026-10-02T18:29:30.551668391Z",
+        "version": "2"
+      },
+      "nodeName": "ousast-control-plane",
+      "sandboxClass": "gvisor",
+      "status": {
+        "capacity": {
+          "actors": 1000,
+          "resources": {
+            "limits": [
+              {
+                "name": "cpu",
+                "quantity": "2"
+              },
+              {
+                "name": "memory",
+                "quantity": "3Gi"
+              }
+            ]
+          }
+        },
+        "state": "WORKER_STATE_ACTIVE"
+      },
+      "workerNamespace": "ax-system",
+      "workerPod": "probe-pool-5dffd74bdc-dqlww",
+      "workerPodUid": "1407a421-7dcf-4ad7-b999-70a4624bf890",
+      "workerPool": "probe-pool"
+    }
+  ]
+}

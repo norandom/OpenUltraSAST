@@ -1,0 +1,16 @@
+apiVersion: ax.io/v1alpha1
+kind: Workspace
+metadata: {name: ousast-probe-small-ws, atespace: default}
+spec:
+  files:
+    - {path: "hello.py", content: "def hello():\n    return greet()\n"}
+---
+apiVersion: ax.io/v1alpha1
+kind: Task
+metadata: {name: ousast-probe-small, atespace: default}
+spec:
+  image: "localhost:5001/ousast-runner@sha256:412db0a1504af8f1b23a395af8d1dcbd152c1bb6d16594f2b733067163a31884"
+  command: ["repo-facts"]
+  env: [{name: OUSAST_OUTPUT_DIR, value: "/workspace/.ousast-out/probe"}]
+  resources: {requests: {cpu: "250m", memory: "256Mi"}, limits: {cpu: "1", memory: "512Mi"}}
+  workspaces: [{name: ousast-probe-small-ws, path: "/workspace"}]
