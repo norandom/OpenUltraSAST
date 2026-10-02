@@ -38,6 +38,10 @@ a model or embedding call.
   - Done 2026-10-01 (`benchmarks/measurements/2026-10-01-decision-engine-harvest/record.json`): verify $2.54 and roles
     $1.40 by attribution. The engine job finished the same day (682 of 686 pair sides; the 2 family-unknown pairs
     not run) and the feature records were rebuilt; dev-php pins have no engine run (`missing`).
+  - Advisory-fix pairs harvested 2026-10-02 (`benchmarks/measurements/2026-10-02-decision-engine-harvest-advisory/record.json`):
+    194 sides, verify a/b on the 34 untrusted_destination sides and model roles on all ($0.38 metered, ceiling $5),
+    engine on the host (54 ran, 58 asked no question, 82 no language model); static memory 724 -> 904 examples. The
+    leak audit flags nothing new in the static profile; the plane profile newly flags `verify.flag_b` and `ms.operation`.
   - _Requirements: 1.1_
 
 - [ ] 6. Program, local memory and compilation (design sections 4-5)

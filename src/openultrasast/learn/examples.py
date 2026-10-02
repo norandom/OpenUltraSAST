@@ -265,8 +265,10 @@ class SideReader:
         if self._pairs is None:
             from ..pairs import load_pair_catalog
 
-            source = next(s for s in self.sources.sources if s.kind == "pairs")
-            self._pairs = {case.name: case for case in load_pair_catalog(self.root / source.files[0])}
+            # every pair-kind source (the corpus catalog and e.g. advisory-fixes): labels name both as source "pairs"
+            self._pairs = {}
+            for source in (s for s in self.sources.sources if s.kind == "pairs"):
+                self._pairs.update({case.name: case for case in load_pair_catalog(self.root / source.files[0])})
         return self._pairs
 
     def license(self, label: Mapping[str, Any]) -> str:

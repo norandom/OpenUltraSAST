@@ -171,3 +171,34 @@ def test_pair_sides_join_the_record_stored_under_their_harvest_unit_pin() -> Non
     assert build_examples([lab], records_by_key([stored]), lines_of, sources=SOURCES).summary()["examples"] == 0
     build = build_examples([lab], records_by_key([stored]), lines_of, sources=SOURCES, pins=pins)
     assert build.summary()["examples"] == 1 and build.rows[0]["pin"] == unit_pin
+
+
+def test_side_reader_reads_every_pair_kind_source(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Labels from the corpus catalog and from a second pair-kind source (advisory-fixes) are both source ``pairs``;
+    the reader must find either side, not only the first catalog's (the 2026-10-02 advisory rebuild read 0 of 194)."""
+    from types import SimpleNamespace
+
+    import openultrasast.pairs as pairs
+    from openultrasast.learn.examples import SideReader
+
+    files = {}
+    for name in ("corpus-case", "advisory-case"):
+        files[name] = tmp_path / f"{name}.py"
+        files[name].write_text("def handler(request):\n    return 1\n")
+    catalogs = {"corpus.toml": "corpus-case", "advisory.toml": "advisory-case"}
+
+    def fake(path: Path) -> tuple[Any, ...]:
+        name = catalogs[Path(path).name]
+        return (SimpleNamespace(name=name, vuln_file=files[name], fixed_file=files[name], license="MIT"),)
+
+    monkeypatch.setattr(pairs, "load_pair_catalog", fake)
+    sources = Sources(
+        (Source("pairs", "pairs", ("corpus.toml",), (), "2026-09-30", "development"),
+         Source("advisory-fixes", "pairs", ("advisory.toml",), (), "2026-10-01", "development")),
+        frozenset(), {}, Path("sources.toml"),
+    )  # fmt: skip
+    reader = SideReader(tmp_path, tmp_path, sources, [])
+    for name in catalogs.values():
+        lab = label(source="pairs", source_ref=name, pin="")
+        assert reader(lab, "vulnerable") == ["def handler(request):", "    return 1"]
+        assert reader.license(lab) == "MIT"
