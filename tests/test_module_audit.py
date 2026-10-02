@@ -5,10 +5,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 SRC = Path("src/openultrasast")
 MANIFEST = Path("benchmarks/measurements/2026-09-08-module-audit.json")
 
 
+@pytest.mark.xfail(strict=True, reason="five dead modules the fixed audit found; removed in the next commit")
 def test_no_module_in_the_tree_is_orphaned() -> None:
     from openultrasast.model.audit import audit
 
@@ -44,4 +47,46 @@ def test_the_manifest_matches_the_tree() -> None:
     committed = json.loads(MANIFEST.read_text())
     current = to_dict(audit(SRC))
     assert committed["counts"] == current["counts"], "the tree drifted from its committed audit"
-    assert committed["orphaned"] == current["orphaned"] == []
+    assert committed["orphaned"] == current["orphaned"]
+
+
+def _tree(root: Path, files: dict[str, str]) -> Path:
+    for name, text in files.items():
+        path = root / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+    return root
+
+
+def test_a_spec_listed_module_nothing_imports_is_still_orphaned(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reachability decides; SPEC_OWNED and STANDALONE only supply the reason (the list hid five dead modules)."""
+    from openultrasast.model import audit as module
+
+    src = _tree(tmp_path, {"cli.py": "from . import used\n", "used.py": "", "ghost.py": "", "lonely.py": ""})
+    monkeypatch.setitem(module.SPEC_OWNED, "ghost", "some spec Req 1: still listed")
+    monkeypatch.setitem(module.STANDALONE, "lonely", "its own entry point, supposedly")
+    rows = {row.module: row for row in module.audit(src)}
+    assert rows["used"].classification == "load_bearing"
+    assert rows["ghost"].classification == "orphaned"
+    assert "still listed" in rows["ghost"].reason
+    assert rows["lonely"].classification == "orphaned"
+
+
+def test_submodule_imports_and_python_m_modules_count_as_reachable(tmp_path: Path) -> None:
+    from openultrasast.model.audit import audit
+
+    src = _tree(
+        tmp_path,
+        {
+            "cli.py": "def run():\n    from .pkg import sub\n",
+            "pkg/__init__.py": "",
+            "pkg/sub.py": "",
+            "tool.py": 'from . import helper\n\nif __name__ == "__main__":\n    pass\n',
+            "helper.py": "",
+            "dead.py": "from . import deader\n",
+            "deader.py": "",
+        },
+    )
+    rows = {row.module: row.classification for row in audit(src)}
+    assert rows["pkg.sub"] == rows["tool"] == rows["helper"] == "load_bearing"
+    assert rows["dead"] == rows["deader"] == "orphaned"

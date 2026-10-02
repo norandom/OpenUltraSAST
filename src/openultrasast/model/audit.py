@@ -6,9 +6,12 @@ checkable rather than a thing someone notices two specs later.
 
 A module is:
 
-    load_bearing          reachable from a gate, the scan CLI, or a surviving requirement
-    standalone_capability its own entry point and users, not on the scan path
-    orphaned              no importer, no entry point, no requirement — it should not be in the tree
+    load_bearing          reachable by imports from a gate, the CLI, or a module run with ``python -m``
+    standalone_capability reachable the same way, but its own entry point and users, not on the scan path
+    orphaned              not reachable from any of those -- it should not be in the tree
+
+Reachability decides the class. ``SPEC_OWNED`` and ``STANDALONE`` only supply the reason text: being named
+by a spec does not keep a module nobody imports alive.
 
 Pure stdlib, no imports of the package it audits: it reads the import graph with ``ast`` so a broken module
 is still classifiable.
@@ -26,7 +29,7 @@ PACKAGE = "openultrasast"
 # Entry points a module can be reachable from. The three gates are the contract; the CLI is the product.
 ROOTS = ("gate", "map_gate", "pair_gate", "cli", "__main__")
 
-# Modules that stand alone: their own CLI subcommand or external protocol, deliberately off the scan path.
+# Reason text for reachable modules, by the requirement that owns them. Not a classification: see audit().
 SPEC_OWNED = {
     "push.cache": "pre-push-safety-net task 6.2: bounded artifact publication and leased eviction; runner integration in 6.4",
     "push.report": "pre-push-safety-net Req 5.1/5.2/5.5/7.3: compact output and complete artifacts; runner integration pending",
@@ -81,6 +84,7 @@ SPEC_OWNED = {
     "plane.runner": "ai-service-plane Req 4.1-4.4: the ax-task-runner entrypoint (PID 1 of the task image); delivers the output directory",
 }
 
+# Reachable modules that stand alone: their own CLI subcommand or external protocol, off the scan path.
 STANDALONE = {
     "push_scoring": "pre-push-safety-net task 1.3: frozen-profile diagnostic outcome scorer; python -m openultrasast.push_scoring",
     "push_inputs": "pre-push-safety-net task 1.2: offline input provenance validator; python -m openultrasast.push_inputs",
@@ -140,12 +144,38 @@ def import_graph(root: Path) -> dict[str, set[str]]:
                         continue
                 if target:
                     imported.add(target)
+                # `from .plane import engine_alerts` imports the submodule `plane.engine_alerts`, not only the
+                # package; names that are not modules are dropped later because they are not in the graph.
+                prefix = f"{target}." if target else ""
+                imported.update(f"{prefix}{alias.name}" for alias in node.names if alias.name != "*")
             elif isinstance(node, ast.Import):
                 for alias in node.names:
                     if alias.name.startswith(f"{PACKAGE}."):
                         imported.add(alias.name[len(PACKAGE) + 1 :])
         graph[name] = imported
     return graph
+
+
+def main_modules(root: Path) -> set[str]:
+    """Modules with a ``__main__`` block: run by name (``python -m``, the plane runner), so they are entry points."""
+    found: set[str] = set()
+    for path in sorted(root.rglob("*.py")):
+        if "__pycache__" in path.parts:
+            continue
+        try:
+            tree = ast.parse(path.read_text())
+        except (OSError, SyntaxError):
+            continue
+        for node in tree.body:
+            if (
+                isinstance(node, ast.If)
+                and isinstance(node.test, ast.Compare)
+                and isinstance(node.test.left, ast.Name)
+                and node.test.left.id == "__name__"
+                and any(isinstance(c, ast.Constant) and c.value == "__main__" for c in node.test.comparators)
+            ):
+                found.add(module_name(path, root))
+    return found
 
 
 def _reachable(graph: Mapping[str, set[str]], roots: Iterable[str]) -> set[str]:
@@ -173,24 +203,33 @@ def audit(root: Path) -> tuple[ModuleAudit, ...]:
             for candidate in (target, target.rsplit(".", 1)[0]):
                 if candidate in importers and candidate != name:
                     importers[candidate].add(name)
-    live = _reachable(graph, ROOTS)
+    run_by_name = main_modules(root)
+    live = _reachable(graph, (*ROOTS, *sorted(run_by_name)))
     results: list[ModuleAudit] = []
     for name in sorted(graph):
         if not name:  # the package __init__ itself
             continue
         who = tuple(sorted(importers[name]))
-        if name in SPEC_OWNED:
+        listed = SPEC_OWNED.get(name) or STANDALONE.get(name)
+        # Reachability decides; the lists only supply reason text. A listed module nothing reaches is still
+        # orphaned -- the list is what hid five dead modules behind "load_bearing" until 2026-10-02.
+        if name not in live:
+            reason = "no import path from an entry point or a python -m module"
+            if who:
+                reason += f" (imported only by unreachable {', '.join(who)})"
+            if listed:
+                reason += f"; listed as: {listed}"
+            results.append(ModuleAudit(name, "orphaned", reason, who))
+        elif name in STANDALONE:
+            results.append(ModuleAudit(name, "standalone_capability", STANDALONE[name], who))
+        elif name in SPEC_OWNED:
             results.append(ModuleAudit(name, "load_bearing", SPEC_OWNED[name], who))
         elif name in ROOTS:
             results.append(ModuleAudit(name, "load_bearing", "entry point", who))
-        elif name in STANDALONE:
-            results.append(ModuleAudit(name, "standalone_capability", STANDALONE[name], who))
-        elif name in live:
-            results.append(ModuleAudit(name, "load_bearing", f"reachable from {', '.join(ROOTS[:3])} or the CLI", who))
-        elif who:
-            results.append(ModuleAudit(name, "load_bearing", f"imported by {', '.join(who)}", who))
+        elif name in run_by_name:
+            results.append(ModuleAudit(name, "load_bearing", f"python -m openultrasast.{name}", who))
         else:
-            results.append(ModuleAudit(name, "orphaned", "no importer, no entry point, no surviving requirement", who))
+            results.append(ModuleAudit(name, "load_bearing", f"reachable from {', '.join(ROOTS[:4])}", who))
     return tuple(results)
 
 
@@ -211,4 +250,12 @@ def to_dict(results: Iterable[ModuleAudit]) -> dict[str, object]:
     }
 
 
-__all__ = ["ModuleAudit", "SPEC_OWNED", "STANDALONE", "audit", "import_graph", "module_name", "to_dict"]
+__all__ = ["ModuleAudit", "SPEC_OWNED", "STANDALONE", "audit", "import_graph", "main_modules", "module_name", "to_dict"]
+
+
+if __name__ == "__main__":  # python -m openultrasast.model.audit [SRC] -- the manifest's regeneration command
+    import json
+    import sys
+
+    source = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parents[1]
+    print(json.dumps(to_dict(audit(source)), indent=2))
