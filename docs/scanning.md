@@ -1,13 +1,21 @@
 # Scanning
 
-`ousast scan PATH --mode quick|standard|deep` scans a checkout; `ousast pre-push` checks only
-what a push (or an explicit `--base`/`--head` pair) changes. The stage-by-stage pipeline,
-evidence ladder and score are in [Architecture](architecture.md); this page shows the flows.
+This page shows the scan flows.
+
+- `ousast scan PATH --mode quick|standard|deep` scans a checkout.
+- `ousast pre-push` checks only what a push changes, or what an explicit `--base`/`--head` pair
+  changes.
+
+The stage-by-stage pipeline, the evidence ladder and the score are in
+[Architecture](architecture.md).
 
 ## The three scan modes
 
-The stages a mode requests are `MODE_STAGES` in `src/openultrasast/stages.py`: `quick` runs
-STATIC, `standard` adds MAP, `deep` adds REGRESS.
+The stages each mode requests are listed in `MODE_STAGES` in `src/openultrasast/stages.py`:
+
+- `quick` runs STATIC.
+- `standard` adds MAP.
+- `deep` adds REGRESS.
 
 ```mermaid
 flowchart TD
@@ -38,7 +46,7 @@ Sources: `README.md` (scan modes), `src/openultrasast/cli.py` (`run_stage` calls
 
 ## Quick rules per language
 
-Rules run only against files of their language. The bundled ruleset lives in
+Each rule runs only against files of its language. The bundled ruleset lives in
 `src/openultrasast/ruleset/<language>/rules.toml`.
 
 | Language | Classes (CWE) |
@@ -49,21 +57,31 @@ Rules run only against files of their language. The bundled ruleset lives in
 | Java + Groovy templates | command injection (78), SQLi (89), weak hash (327), deserialization (502), unescaped template XSS (79) |
 | PHP | SQLi (89), command injection (78), file inclusion (98), path (22), open redirect (601), SSRF (918); code eval (95), unserialize (502) and echo XSS (79) ship as `shadow` rules |
 
-The detection gate (`python -m openultrasast.gate`) enforces at least 90% recall and under 10%
-false positives per language on the bundled corpora in `benchmarks/manifests/`. Those corpora are
-cheat-sheet fixtures: they catch regressions, they do not estimate recall on real code. **PHP is
-not in the gate**; its numbers are in-sample development numbers
-(`benchmarks/measurements/2026-09-30-php-quick-rules/measurement.json`). See `README.md` for the
-gate's per-language output.
+The detection gate (`python -m openultrasast.gate`) enforces two limits per language on the
+bundled corpora in `benchmarks/manifests/`: at least 90% recall and under 10% false positives.
+
+- Those corpora are cheat-sheet fixtures. They catch regressions. They do not estimate recall on
+  real code.
+- **PHP is not in the gate**. Its numbers are in-sample development numbers
+  (`benchmarks/measurements/2026-09-30-php-quick-rules/measurement.json`).
+
+See `README.md` for the gate's per-language output.
 
 ## The Joern engine
 
 The model layer (`src/openultrasast/model/`, `src/openultrasast/cpg/`) is the core of `standard`.
-It builds one code property graph per scan with Joern (`joern-parse`, then batched
-`joern --script` queries from `cpg/queries/*.sc`) and sends each question to the arbiter of its
-type: **taint** (source to sink with no discharging sanitizer), **dominance** (does a guard govern
-the obligated operation) and **configuration** (constant abstraction over a value). Taint facts
-ship for C, Java, JavaScript, PHP and Python (`src/openultrasast/ruleset/semantic/*.toml`).
+It builds one code property graph per scan with Joern. A code property graph is a graph of the
+program's syntax, control flow and data flow. The build runs `joern-parse`, then batched
+`joern --script` queries from `cpg/queries/*.sc`.
+
+The layer sends each question to the arbiter (the decider) of its type:
+
+- **taint**: a flow from source to sink with no discharging sanitizer;
+- **dominance**: does a guard govern the obligated operation;
+- **configuration**: constant abstraction over a value.
+
+Taint facts ship for C, Java, JavaScript, PHP and Python
+(`src/openultrasast/ruleset/semantic/*.toml`).
 
 ```mermaid
 flowchart LR
@@ -79,25 +97,33 @@ flowchart LR
     rung -- "residual question only" --> judge["LLM judge: confirm or contradict, never create a flow"]
 ```
 
-The Docker image ships Joern and `php-cli` (which the PHP frontend needs); without Joern the
-layer records `cpg_unavailable` and the scan is otherwise unchanged. Engine installation and the
-Joern features used are in [Engine and pre-push](ops/README.md).
-How the graph is built, queried and refined, with the records behind each refinement, is in
-[Detection techniques](detection-techniques.md).
+The Docker image ships Joern and `php-cli`. The PHP frontend needs `php-cli`. Without Joern, the
+layer records `cpg_unavailable`; the rest of the scan is unchanged.
+
+- Engine installation and the Joern features used: [Engine and pre-push](ops/README.md).
+- How the graph is built, queried and refined, with the records behind each refinement:
+  [Detection techniques](detection-techniques.md).
 
 ## Framework priors
 
-Rule and taint-fact entries that know a framework or library carry a `framework` or `library` tag
-naming a row of `src/openultrasast/ruleset/frameworks.toml` (for example `wordpress`, `flask`,
-`django`, `express`, `spring`). The loaders take `priors=`: `"all"` (the default and today's
-behaviour), `"off"` (language-level knowledge only) or a set of ids, so the contribution of
-framework knowledge can be measured and switched off. The decision engine's first slice ran with
-priors off ([Decision engine](decision-engine.md#first-measured-slice-2026-10-01)).
+Some rule and taint-fact entries know a framework or library. They carry a `framework` or
+`library` tag. The tag names a row of `src/openultrasast/ruleset/frameworks.toml` (for example
+`wordpress`, `flask`, `django`, `express`, `spring`).
+
+The loaders take `priors=` with one of three values:
+
+- `"all"`: the default and today's behaviour;
+- `"off"`: language-level knowledge only;
+- a set of ids.
+
+So the contribution of framework knowledge can be measured and switched off. The decision
+engine's first slice ran with priors off
+([Decision engine](decision-engine.md#first-measured-slice-2026-10-01)).
 
 ## Pre-push: the delta check (experimental)
 
 `ousast pre-push` analyses the commits a `git push` would publish, or an explicit
-`--base`/`--head` pair, and compares head with base so that only new or worsened defects are
+`--base`/`--head` pair. It compares head with base. Only new or worsened defects become
 candidates. Sources: `ousast pre-push --help`, `src/openultrasast/push/`,
 [Engine and pre-push](ops/README.md#explicit-local-replay).
 
@@ -118,10 +144,10 @@ flowchart TD
     exit -- "blocking, explicit opt-in" --> block["May block the push"]
 ```
 
-- `--deadline` (30 s by default) bounds preparation, both revisions and reporting together;
-  `--incomplete-coverage block` opts into failing when coverage is incomplete.
-- The default capability registry is empty pending independent qualification, so no normal alert
-  is emitted today; every candidate stays diagnostic.
+- `--deadline` (30 s by default) bounds preparation, both revisions and reporting together.
+- `--incomplete-coverage block` opts into failing when coverage is incomplete.
+- The default capability registry is empty until independent qualification passes. So no normal
+  alert is emitted today. Every candidate stays diagnostic.
 - A model is called only with an explicit `--model-config`.
 - Hook installation (`ops/install-pre-push`) and the private cache (`--cache-dir`) are documented
   in [Engine and pre-push](ops/README.md#experimental-pre-push-integration).
