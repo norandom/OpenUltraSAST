@@ -10,7 +10,7 @@ Scope: the candidates `model_sinks.py` recorded for each case's vulnerable pin
 detected sites (`--fixed`). Findings are written in the scan-result shape `evaluate.py` reads. Hard spend
 ceiling. EXPLORATORY: v2 is spent for tuning; this qualifies nothing.
 
-Usage: python benchmarks/independent/verify_sinks.py [--only ID,...] [--budget-usd 40] [--fixed]
+Usage: python benchmarks/archive/verify_sinks.py [--only ID,...] [--budget-usd 40] [--fixed]
 """
 
 from __future__ import annotations
@@ -23,8 +23,10 @@ import sys
 import time
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+# Archived 2026-10-02 from benchmarks/independent/: HERE stays that directory (population, evaluate.py, results).
+HERE = Path(__file__).resolve().parents[1] / "independent"
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # archived siblings: model_sinks, verify_sinks
 
 import evaluate  # noqa: E402
 from model_sinks import OPERATIONS  # noqa: E402

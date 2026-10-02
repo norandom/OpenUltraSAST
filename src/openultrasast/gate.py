@@ -1,4 +1,4 @@
-"""Detection-quality gate — the hard feasibility constraint (Phase 4 task 8).
+"""Detection-quality gate — the hard feasibility constraint (Phase 4 task 8 of the retired openrouter-sast-harness plan).
 
 Aggregate recall and false-positive rate over the benchmark corpus must clear the
 project goal: recall >= 90% AND false-positive rate < 10%. This gate is computed

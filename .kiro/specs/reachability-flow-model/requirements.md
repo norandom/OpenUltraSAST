@@ -1,5 +1,7 @@
 # Requirements Document
 
+> **Status 2026-10-02:** dormant. 23 tasks generated, nothing approved; adopting Joern (`cpg/`, `model/taint.py`) delivered most of what it asked for. Reopen it only for a reachability gap Joern's taint does not cover.
+
 ## Introduction
 
 OpenUltraSAST cannot yet steer effort where risk is reduced because it has no model of how an entry point reaches a sink. Reachability today means "inside a handler," taint is one hop inside one file, the LLM hunter cannot create a sandbox candidate, and the improve loop cannot add the facts that would raise recall. This spec adds a call graph and composed taint summaries over the existing `FunctionIR` records, attaches path-based reachability to findings and ranking, puts the hunter on paths with one checkable question per gap, turns model answers into gated facts, and ranks fix points by reachable risk removed. Concolic execution is out of scope; the sandbox remains the only place target code runs.

@@ -1,4 +1,4 @@
-"""Secret redaction for traces and reports (Phase 15 hardening).
+"""Secret redaction for traces and reports (Phase 15 hardening of the retired openrouter-sast-harness plan).
 
 Scan artifacts (trace events, reports) can quote source code that contains live
 credentials. This module masks well-known secret shapes before they are persisted, so

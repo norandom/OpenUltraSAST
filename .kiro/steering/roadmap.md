@@ -90,7 +90,7 @@ supersede this accepted sequence. Blocking deployment follows a later explicit d
 The sections below preserve prior plans and measurements. Statements about the current bottleneck,
 PHP coverage, rollout order or feature readiness are superseded by the current section above.
 
-**Rewritten 2026-09-09.** The previous version (kept as `roadmap-2026-09-04.md`) described a pre-Joern world —
+**Rewritten 2026-09-09.** The previous version (kept as `.kiro/archive/steering/roadmap-2026-09-04.md`, outside steering) described a pre-Joern world —
 "adjudication is still Python-`ast` plus a tree-sitter CLI stub", "Joern-as-required deferred". Joern was
 adopted, the model layer was built, wired and measured, and two repositories have been scanned. See
 `overview.md` for what is true today; this is what happens next and in what order.

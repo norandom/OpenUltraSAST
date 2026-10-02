@@ -1,5 +1,7 @@
 # Brief: zero-with-a-reason — a finding count is meaningless without a denominator
 
+> **Status 2026-10-02:** dormant. Brief only and unapproved; not touched since 2026-09-10.
+
 **Status:** brief only, unapproved.
 
 ## Why now

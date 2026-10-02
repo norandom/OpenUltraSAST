@@ -1,5 +1,7 @@
 # Requirements Document
 
+> **Status 2026-10-02:** retired, superseded by `model-grounded-detection` (spec.json `superseded_by`). 30 of 33 tasks were done; the open three will not be. Kept as decision history; nothing in src, tests or CI points here.
+
 > **Retired 2026-09-30:** HarnessX was removed by `harnessx-removal`; the agentic plane is ax
 > (`ai-service-plane`), and evolutionary proposals come from the plane memory. History below is unchanged.
 

@@ -10,7 +10,7 @@ detected when an AGREED finding matches; unstable when only a DISPUTED one does;
 finding at the fixed pin matches the fix's new side. The precision sample is every third agreed vulnerable-pin
 finding (all if 15 or fewer), to be adjudicated by hand. v2 is spent for tuning: this qualifies nothing.
 
-Usage: python benchmarks/independent/score_batched.py [--results-suffix batched] [--population population-v2.toml]
+Usage: python benchmarks/archive/score_batched.py [--results-suffix batched] [--population population-v2.toml]
 """
 
 from __future__ import annotations
@@ -20,7 +20,8 @@ import json
 import sys
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+# Archived 2026-10-02 from benchmarks/independent/: HERE stays that directory (population, evaluate.py, results).
+HERE = Path(__file__).resolve().parents[1] / "independent"
 sys.path.insert(0, str(HERE))
 
 import evaluate  # noqa: E402

@@ -9,7 +9,6 @@ def test_project_opencode_skills_have_required_frontmatter() -> None:
 
     assert {path.parent.name for path in skill_files} == {
         "openultrasast-fix-audit",
-        "openultrasast-kiro-impl",
         "openultrasast-scan",
         "openultrasast-triage",
     }

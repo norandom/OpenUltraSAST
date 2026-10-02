@@ -181,7 +181,7 @@ def write_harness_config(
             "ranker": config.models.ranker,
             "hunter": config.models.hunter,
             "verifier": None,  # schema kept byte for byte; LLM verification runs on the plane
-            "patcher": config.models.patcher,
+            "patcher": None,  # schema kept; `[models] patcher` was retired 2026-10-02 (never read)
         },
         processor_versions={processor.spec.name: processor.spec.version for processor in processors},
         prompt_hashes={name: _hash_text(prompt) for name, prompt in sorted(prompts.items())},

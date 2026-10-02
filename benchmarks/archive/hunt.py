@@ -10,9 +10,9 @@ Model calls go to the resolved hunter client (DeepSeek when its key is set); the
 the recorded spend reaches `--budget-usd`.
 
 Usage:
-    python benchmarks/independent/hunt.py --population population-v2.toml [--only ID,...] [--pins a,b]
-    python benchmarks/independent/hunt.py --population population-v2.toml --score
-    python benchmarks/independent/hunt.py --pilot-root <checkout> --family injection   # a development case
+    python benchmarks/archive/hunt.py --population population-v2.toml [--only ID,...] [--pins a,b]
+    python benchmarks/archive/hunt.py --population population-v2.toml --score
+    python benchmarks/archive/hunt.py --pilot-root <checkout> --family injection   # a development case
 """
 
 from __future__ import annotations
@@ -25,7 +25,8 @@ import sys
 import time
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+# Archived 2026-10-02 from benchmarks/independent/: HERE stays that directory (population, evaluate.py, results).
+HERE = Path(__file__).resolve().parents[1] / "independent"
 sys.path.insert(0, str(HERE))
 
 import evaluate  # noqa: E402

@@ -22,7 +22,7 @@ Source only; the stage-1 candidates come from `model_sinks.py`. Results in `~/ou
 EXPLORATORY: v2 is spent for tuning; this qualifies nothing.
 
 Usage:
-    python benchmarks/independent/verify_batched.py [--only ID,...] [--subset sets.json] [--passes 2] [--budget-usd 40]
+    python benchmarks/archive/verify_batched.py [--only ID,...] [--subset sets.json] [--passes 2] [--budget-usd 40]
 """
 
 from __future__ import annotations
@@ -35,8 +35,10 @@ import sys
 import time
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+# Archived 2026-10-02 from benchmarks/independent/: HERE stays that directory (population, evaluate.py, results).
+HERE = Path(__file__).resolve().parents[1] / "independent"
 sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # archived siblings: model_sinks, verify_sinks
 
 import evaluate  # noqa: E402
 from model_sinks import OPERATIONS, chunks  # noqa: E402

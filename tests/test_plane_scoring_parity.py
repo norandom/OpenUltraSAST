@@ -1,6 +1,6 @@
 """`agree` scores exactly as the reference measurement did (ai-service-plane Requirement 6).
 
-The reference is `benchmarks/independent/score_batched.py` over the batched-check scans: sites anchored by
+The reference is `benchmarks/archive/score_batched.py` over the batched-check scans: sites anchored by
 `score_batched.anchored`, matched by `evaluate.matches_v2` against `evaluate.hunks(case, "old")`. The plane cannot
 ship the benchmark tree, so the generator resolves the ranges into `case.json` and `agree.matches_declared`
 reproduces the rule. These tests run both on the recorded reference outputs of the 15 validation cases and
@@ -23,6 +23,7 @@ from openultrasast.plane.manifests import load_manifests
 from openultrasast.plane.tasks import agree
 
 BENCH = Path("benchmarks/independent")
+ARCHIVE = Path("benchmarks/archive")  # score_batched.py, archived 2026-10-02
 POPULATION = BENCH / "population-v2.toml"
 SCANS = Path.home() / "ousast-results" / "independent-v2-batched-check" / "scans"
 REPOS = Path.home() / ".cache" / "openultrasast" / "independent"
@@ -33,10 +34,10 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def _load(name: str) -> ModuleType:
+def _load(name: str, where: Path = BENCH) -> ModuleType:
     sys.path.insert(0, str(BENCH.resolve()))  # score_batched imports evaluate by name
     try:
-        spec = importlib.util.spec_from_file_location(f"parity_{name}", BENCH / f"{name}.py")
+        spec = importlib.util.spec_from_file_location(f"parity_{name}", where / f"{name}.py")
         assert spec is not None and spec.loader is not None
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -47,7 +48,7 @@ def _load(name: str) -> ModuleType:
 
 @pytest.fixture(scope="module")
 def reference() -> tuple[ModuleType, ModuleType]:
-    evaluate, score_batched = _load("evaluate"), _load("score_batched")
+    evaluate, score_batched = _load("evaluate"), _load("score_batched", ARCHIVE)
     evaluate.use(POPULATION.resolve())
     return evaluate, score_batched
 

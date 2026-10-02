@@ -1,5 +1,7 @@
 # Requirements: OpenRouter SAST Harness
 
+> **Status 2026-10-02:** retired (see the note below). Its OpenCode skill `openultrasast-kiro-impl`, which still sent agents to this tasks.md, was deleted. Kept as decision history; nothing in src, tests or CI points here.
+
 > **Retired 2026-09-30:** HarnessX was removed by `harnessx-removal`; the agentic plane is ax
 > (`ai-service-plane`), and evolutionary proposals come from the plane memory. History below is unchanged.
 

@@ -33,6 +33,18 @@ The README is reduced to user-facing material; scan internals moved to
 [docs/evaluation.md](docs/evaluation.md). Removed references to commands that no longer exist
 (`ousast mechanisms export`, `ousast pairs --loo`) and corrected the description of `deep`
 mode, which runs sandboxed regression snippets when Docker is available.
+## Unread config keys retired (2026-10-02)
+These keys loaded but nothing ever read them. They now fail with `RetiredConfigError` (the
+CLI prints it and exits 2), naming why. Remove them from your config:
+- `[models] patcher`: no patching stage calls a model.
+- `[dynamic] enabled`, `[dynamic] network_scope`: no dynamic or deep tier exists yet.
+- `[evidence] minimum_report_verified`, `minimum_exploit`, `minimum_patch`: evidence tiers
+  come from the program model's ladder, not from configuration.
+- `[variants] enabled`, `[variants] max_mechanisms`: the variant search they configured was
+  deleted earlier.
+**Output shape.** `resolved_config.json` no longer has the `dynamic`, `evidence` and
+`variants` sections or `models.patcher`. `harness.json` keeps its shape:
+`model_roles.patcher` is always `null`, like `model_roles.verifier`.
 
 ## HarnessX removed; the ax plane is the agentic path (2026-09-30)
 

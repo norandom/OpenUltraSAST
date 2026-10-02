@@ -20,10 +20,24 @@ _PLANE_RUN = "`ousast plane run`, see ops/ax/README.md"
 _RETIRED_PANELS = (
     f"LLM fusion panels were retired; fusion is deterministic; independent LLM agreement is the plane's `agree` task ({_PLANE_RUN})"
 )
+# Keys that loaded but were never read (retired 2026-10-02, legacy cleanup): accepting them silently would let
+# a user believe they configure something.
+_UNREAD_ON = "retired 2026-10-02 because nothing ever read it"
+_UNREAD_DYNAMIC = "no dynamic or deep tier exists; deep mode will define its own keys when it is built"
+_UNREAD_EVIDENCE = "evidence tiers come from the program model's ladder (model/ladder.py), not from configuration"
+_UNREAD_VARIANTS = "the structural variant search it configured was deleted with semantic/variants.py"
 RETIRED_KEYS: dict[tuple[str, str], str] = {
-    ("models", "verifier"): f"LLM verification runs on the plane (`verify` + `agree`, {_PLANE_RUN})",
-    ("fusion", "panel_model"): _RETIRED_PANELS,
-    ("fusion", "decider_model"): _RETIRED_PANELS,
+    ("models", "verifier"): f"{_RETIRED_ON}: LLM verification runs on the plane (`verify` + `agree`, {_PLANE_RUN})",
+    ("fusion", "panel_model"): f"{_RETIRED_ON}: {_RETIRED_PANELS}",
+    ("fusion", "decider_model"): f"{_RETIRED_ON}: {_RETIRED_PANELS}",
+    ("models", "patcher"): f"{_UNREAD_ON}: no patching stage calls a model",
+    ("dynamic", "enabled"): f"{_UNREAD_ON}: {_UNREAD_DYNAMIC}",
+    ("dynamic", "network_scope"): f"{_UNREAD_ON}: {_UNREAD_DYNAMIC}",
+    ("evidence", "minimum_report_verified"): f"{_UNREAD_ON}: {_UNREAD_EVIDENCE}",
+    ("evidence", "minimum_exploit"): f"{_UNREAD_ON}: {_UNREAD_EVIDENCE}",
+    ("evidence", "minimum_patch"): f"{_UNREAD_ON}: {_UNREAD_EVIDENCE}",
+    ("variants", "enabled"): f"{_UNREAD_ON}: {_UNREAD_VARIANTS}",
+    ("variants", "max_mechanisms"): f"{_UNREAD_ON}: {_UNREAD_VARIANTS}",
 }
 RETIRED_SECTION = "harnessx"  # retired 2026-09-30: loads with one warning and is otherwise ignored (Req 3.3)
 RETIRED_SECTION_WARNING = (
@@ -38,10 +52,10 @@ class RetiredConfigError(ValueError):
 
 def _check_retired(data: dict[str, object]) -> None:
     problems = []
-    for (section, key), replacement in RETIRED_KEYS.items():
+    for (section, key), reason in RETIRED_KEYS.items():
         table = data.get(section)
         if isinstance(table, dict) and key in table:
-            problems.append(f"`[{section}] {key}` was {_RETIRED_ON}: {replacement}. Remove the key.")
+            problems.append(f"`[{section}] {key}` was {reason}. Remove the key.")
     if problems:
         raise RetiredConfigError("\n".join(problems))
     if RETIRED_SECTION in data:
@@ -70,7 +84,6 @@ def load_dotenv(path: Path | None = None, *, force: bool = False) -> None:
 class ModelConfig:
     ranker: str | None = None
     hunter: str | None = None
-    patcher: str | None = None
     judge: str | None = None  # second, independent judgement before anything is published as proven
     chat_base_url: str | None = None  # chat endpoint; independent of the embedding endpoint
     chat_api_key_env: str | None = None  # environment variable holding that endpoint's key
@@ -94,19 +107,6 @@ class SandboxConfig:
     memory_mb: int = 2048
     timeout_seconds: int = 300
     pids_limit: int = 512
-
-
-@dataclass(frozen=True)
-class DynamicConfig:
-    enabled: bool = False
-    network_scope: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
-class EvidenceConfig:
-    minimum_report_verified: str = "static_corroboration"
-    minimum_exploit: str = "crash_reproduced"
-    minimum_patch: str = "root_cause_explained"
 
 
 @dataclass(frozen=True)
@@ -161,13 +161,6 @@ class RegressConfig:
 
 
 @dataclass(frozen=True)
-class VariantsConfig:
-    # corpus-seeded-mechanisms: structural variant search in MAP (standard/deep only).
-    enabled: bool = True
-    max_mechanisms: int = 500
-
-
-@dataclass(frozen=True)
 class ModelLayerConfig:
     # contributor-scan: the model layer in MAP. Named for the LAYER, not the model: `ModelConfig` is already
     # the `[models]` block (hunter, judge, endpoint) and two meanings of one name is how you get a scan that
@@ -214,8 +207,6 @@ class ResolvedConfig:
     models: ModelConfig = ModelConfig()
     embeddings: EmbeddingConfig = EmbeddingConfig()
     sandbox: SandboxConfig = SandboxConfig()
-    dynamic: DynamicConfig = DynamicConfig()
-    evidence: EvidenceConfig = EvidenceConfig()
     static_analysis: StaticAnalysisConfig = StaticAnalysisConfig()
     score: ScoreConfig = ScoreConfig()
     ruleset: RulesetConfig = RulesetConfig()
@@ -223,7 +214,6 @@ class ResolvedConfig:
     hardening: HardeningConfig = HardeningConfig()
     complexity: ComplexityConfig = ComplexityConfig()
     regress: RegressConfig = RegressConfig()
-    variants: VariantsConfig = VariantsConfig()
     obligations: ObligationsConfig = ObligationsConfig()
     model: ModelLayerConfig = ModelLayerConfig()
     push: PushConfig = PushConfig()
@@ -243,8 +233,6 @@ def load_config(config_path: Path | None = None, *, dotenv: bool = True) -> Reso
         models=_load_models(data.get("models", {})),
         embeddings=_load_embeddings(data.get("embeddings", {})),
         sandbox=_load_sandbox(data.get("sandbox", {})),
-        dynamic=_load_dynamic(data.get("dynamic", {})),
-        evidence=_load_evidence(data.get("evidence", {})),
         static_analysis=_load_static_analysis(data.get("static_analysis", {})),
         score=_load_score(data.get("score", {})),
         ruleset=_load_ruleset_config(data.get("ruleset", {})),
@@ -252,7 +240,6 @@ def load_config(config_path: Path | None = None, *, dotenv: bool = True) -> Reso
         hardening=_load_hardening(data.get("hardening", {})),
         complexity=_load_complexity(data.get("complexity", {})),
         regress=_load_regress(data.get("regress", {})),
-        variants=_load_variants(data.get("variants", {})),
         obligations=_load_obligations(data.get("obligations", {})),
         model=_load_model(data.get("model", {})),
         push=PushConfig.from_payload(data.get("push", {})),
@@ -283,7 +270,6 @@ def _load_models(value: object) -> ModelConfig:
     return ModelConfig(
         ranker=_string(data.get("ranker")),
         hunter=_string(data.get("hunter")),
-        patcher=_string(data.get("patcher")),
         judge=_string(data.get("judge")),
         chat_base_url=_string(data.get("chat_base_url")),
         chat_api_key_env=_string(data.get("chat_api_key_env")),
@@ -307,23 +293,6 @@ def _load_sandbox(value: object) -> SandboxConfig:
         memory_mb=_int_value(data.get("memory_mb"), 2048),
         timeout_seconds=_int_value(data.get("timeout_seconds"), 300),
         pids_limit=_int_value(data.get("pids_limit"), 512),
-    )
-
-
-def _load_dynamic(value: object) -> DynamicConfig:
-    data = _section(value)
-    scope = data.get("network_scope", [])
-    if not isinstance(scope, list):
-        scope = []
-    return DynamicConfig(enabled=bool(data.get("enabled", False)), network_scope=tuple(str(item) for item in scope))
-
-
-def _load_evidence(value: object) -> EvidenceConfig:
-    data = _section(value)
-    return EvidenceConfig(
-        minimum_report_verified=str(data.get("minimum_report_verified", "static_corroboration")),
-        minimum_exploit=str(data.get("minimum_exploit", "crash_reproduced")),
-        minimum_patch=str(data.get("minimum_patch", "root_cause_explained")),
     )
 
 
@@ -414,14 +383,6 @@ def _float_value(value: object, default: float) -> float:
         except ValueError:
             return default
     return default
-
-
-def _load_variants(value: object) -> VariantsConfig:
-    data = _section(value)
-    return VariantsConfig(
-        enabled=bool(data.get("enabled", True)),
-        max_mechanisms=_int_value(data.get("max_mechanisms"), 500),
-    )
 
 
 def _load_model(value: object) -> ModelLayerConfig:

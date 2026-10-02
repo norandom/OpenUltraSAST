@@ -1,0 +1,27 @@
+# Build context for the root Dockerfile. The image copies pyproject.toml, README.md, src/, benchmarks/ and
+# ops/frontend-retention/install.py; everything below is either never copied or is evidence the image does not
+# need. plane/Dockerfile.runner has its own plane/Dockerfile.runner.dockerignore.
+
+# Local state, never part of an image (agent worktrees alone run to hundreds of MB; .env holds keys).
+.git
+.claude
+.venv
+.env
+.env.*
+!.env.example
+**/__pycache__
+**/*.pyc
+.mypy_cache
+.ruff_cache
+.pytest_cache
+.openultrasast
+reports
+*.sarif
+
+# The measurement archive (about 20 MB) is evidence, not runtime input. These records stay:
+# ops/smoke_report.py reads the two 2026-09-13 ones from /app inside the image (ops/README.md).
+benchmarks/measurements/*
+!benchmarks/measurements/2026-09-13-delta-comparison-smoke.json
+!benchmarks/measurements/2026-09-13-admission-policy-smoke.json
+# A label source of `ousast learn` (src/openultrasast/learn/sources.toml).
+!benchmarks/measurements/2026-09-30-harnessx-removal-baseline/pairs.json

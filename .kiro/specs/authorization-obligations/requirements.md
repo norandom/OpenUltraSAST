@@ -1,5 +1,7 @@
 # Requirements Document
 
+> **Status 2026-10-02:** dormant. Tasks were approved but none of the 24 was started; the absence-bug case it targets is handled in practice by the dominance arbiter (`model/dominance.py`) and `semantic/obligations/`. Reopen it only with a measured gap the arbiter misses.
+
 ## Introduction
 
 AppSec engineers and maintainers of OpenUltraSAST scan web code, increasingly vibe-coded or agent-written, in which the dominant bugs are absences rather than flows: a handler queries a user-owned record without constraining it to the caller, a privileged route has no guard on its path, an identity is read from the request body instead of the authenticated context, a security control stays at its permissive default. Today the detector, the overlay, and the variant search model only source-to-sink flows, so these pairs score zero and cannot teach a mechanism (6 of 19 non-teaching vibe-py pairs; 15 of 29 agent-vfc rows carry absence labels). This spec adds obligations: an operation that must be discharged by a guard, an identity constraint, or a safe value before it is reached. The application's own policy, recovered from the consistency of its sibling handlers and optionally declared in a versioned file, says which operations carry which obligations. Violations are reported with the missing discharger and its evidence, measured leave-one-out on the absence pairs, and admitted into the detector through the existing improve-loop gate.

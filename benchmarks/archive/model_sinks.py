@@ -12,7 +12,7 @@ counted as UNCLASSIFIED, never as "no sinks". Hard spend ceiling `--budget-usd`;
 
 v2 is spent for tuning; this informs the selection design and qualifies nothing.
 
-Usage: python benchmarks/independent/model_sinks.py [--population population-v2.toml] [--only ID,...]
+Usage: python benchmarks/archive/model_sinks.py [--population population-v2.toml] [--only ID,...]
 """
 
 from __future__ import annotations
@@ -27,7 +27,8 @@ import threading
 import time
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+# Archived 2026-10-02 from benchmarks/independent/: HERE stays that directory (population, evaluate.py, results).
+HERE = Path(__file__).resolve().parents[1] / "independent"
 sys.path.insert(0, str(HERE))
 
 import evaluate  # noqa: E402

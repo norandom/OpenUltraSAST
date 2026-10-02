@@ -1,5 +1,7 @@
 # Requirements Document
 
+> **Status 2026-10-02:** complete, 17 of 17 tasks (spec.json phase corrected to `implementation-complete`). Its `[variants]` config keys were retired on 2026-10-02: the variant search they configured (`semantic/variants.py`) had already been deleted.
+
 ## Introduction
 
 OpenUltraSAST's labeled pair corpus measures the detector but does not improve it, and its mechanism memory is empty because only sandbox-proven findings may write to it. This spec turns every trusted pair into a mechanism record, adds a structural variant search that proposes matches on any scanned tree, measures the corpus's own detection rate leave-one-out, and gives the improve loop a lever that can raise recall under the existing false-positive ceiling and per-profile holdout gate.

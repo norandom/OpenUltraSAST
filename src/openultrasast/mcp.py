@@ -1,8 +1,8 @@
-"""Narrow MCP server for OpenCode integration (Phase 12).
+"""Narrow MCP server for OpenCode integration (Phase 12 of the retired openrouter-sast-harness plan).
 
 Exposes only stable, project-level operations over MCP stdio (newline-delimited
 JSON-RPC 2.0), implemented with the standard library only. No tool exposes arbitrary
-shell, Docker, or internal hunter tools — those stay inside controlled harness stages.
+shell, Docker, or internal hunter tools — those stay inside the scan's own stages.
 The pure :meth:`McpServer.handle` dispatch is separated from the :func:`serve` stdio
 loop so the surface is unit-testable without a live client.
 """
