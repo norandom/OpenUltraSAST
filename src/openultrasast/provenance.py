@@ -30,6 +30,7 @@ _AGENT_PATHS = (
     ".jules",
     ".kiro",
     ".opencode",
+    ".agent",
 )
 _MARKERS = (
     ("Generated with Claude Code", "marker:claude-code"),

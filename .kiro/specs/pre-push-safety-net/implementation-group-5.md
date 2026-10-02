@@ -7,7 +7,7 @@ Real capability eligibility and rollout readiness remain unproven.
 ## Execution and review mode
 
 Fresh implementer dispatch for 5.1 returned `agent thread limit reached`.
-The [Kiro implementation skill](../../../.opencode/skills/kiro-impl/SKILL.md) explicitly
+The [Kiro implementation skill](../../../.agent/skills/kiro-impl/SKILL.md) explicitly
 states: “If multi-agent is not available, fall back to manual mode execution for all tasks.”
 Its manual review rule permits review in the main context when a fresh reviewer is unavailable.
 This run therefore uses manual implementation and adversarial review, not independent review.

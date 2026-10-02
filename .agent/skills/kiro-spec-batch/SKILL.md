@@ -65,10 +65,10 @@ Create a complete specification for feature "{feature-name}".
 1. Read the brief at .kiro/specs/{feature-name}/brief.md for feature context
 2. Read the roadmap at .kiro/steering/roadmap.md for project context
 3. Execute the full spec pipeline. For each phase, read the corresponding skill's SKILL.md for complete instructions (templates, rules, review gates):
-   a. Initialize: Read .opencode/skills/kiro-spec-init/SKILL.md, then create spec.json and requirements.md
-   b. Generate requirements: Read .opencode/skills/kiro-spec-requirements/SKILL.md, then follow its steps
-   c. Generate design: Read .opencode/skills/kiro-spec-design/SKILL.md, then follow its steps
-   d. Generate tasks: Read .opencode/skills/kiro-spec-tasks/SKILL.md, then follow its steps
+   a. Initialize: Read .agent/skills/kiro-spec-init/SKILL.md, then create spec.json and requirements.md
+   b. Generate requirements: Read .agent/skills/kiro-spec-requirements/SKILL.md, then follow its steps
+   c. Generate design: Read .agent/skills/kiro-spec-design/SKILL.md, then follow its steps
+   d. Generate tasks: Read .agent/skills/kiro-spec-tasks/SKILL.md, then follow its steps
 4. Set all approvals to true in spec.json (auto-approve mode, equivalent of -y flag)
 5. Report completion with file list and task count
 ```
