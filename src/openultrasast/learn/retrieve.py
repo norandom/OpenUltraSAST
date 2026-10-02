@@ -28,7 +28,7 @@ repeats the check on the ids it actually rendered (:func:`assert_boundary`).
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -192,9 +192,11 @@ def retrieve(
     seed: int = 0,
     priors: str = "off",
     inputs: str = DEFAULT_INPUTS,
+    exclude: Collection[str] = frozenset(),
 ) -> Retrieval:
-    """The ``k`` balanced examples for ``target`` from the eligible part of ``pool`` (module docstring)."""
-    candidates = [e for e in pool if e.profile == target.profile and eligible(e, target, fold)]
+    """The ``k`` balanced examples for ``target`` from the eligible part of ``pool`` (module docstring). ``exclude``
+    holds example ids a caller has already used: the retrieval-ensemble sampling draws ``k`` disjoint sets with it."""
+    candidates = [e for e in pool if e.id not in exclude and e.profile == target.profile and eligible(e, target, fold)]
     ranked_all = sorted(
         ((gower(target.x, target.instruments, e.x, e.instruments, target.profile, priors=priors, inputs=inputs), e) for e in candidates),
         key=lambda pair: (pair[0], _tie(pair[1].id, seed)),

@@ -1,0 +1,41 @@
+# Experiment exp-002 (learned-decision-engine design section 6, engine-level experiments): variance reduction.
+# Registered before it runs; `ousast learn experiment register` records this file's sha256, and a changed file is a new
+# experiment. The incumbents are the slice-2 compiled programs (benchmarks/measurements/2026-10-02-decision-engine-slice-2),
+# whose canary agreement on a re-run was 0.83 (injection, 30 candidates) and 0.83 (access_control).
+id: exp-002-retrieval-ensemble
+hypothesis: >
+  Drawing the k = 5 samples from five disjoint retrieved example sets at temperature 0 (a retrieval ensemble) makes the
+  decision more repeatable than five temperature samples over one example set, without hurting the ranking within a
+  candidate pair, at no higher cost per candidate.
+kind: program
+programs:                   # the incumbents: one compiled program per family (slice 2, record.json `program.id`)
+  injection: b207a0710e0abf053b3b9397b25f9ee1cab4679144865e3a82c1b9be2c7b4982
+  access_control: 745cb1d76bbb09dc1574d333d2118489be62e39886517894d3699fa565b0e8c2
+arms:
+  A:
+    label: today's sampling -- k = 5, sample 1 at temperature 0 and samples 2..5 at 0.7, one retrieved example set
+    spec: {}                 # the compiled program as it is
+    replay_only: false       # replicate 0 replays the evaluation's cached responses at $0; replicate 1 (the canary) is paid
+    repeats: 2
+    budget_usd: 1.0
+  B:
+    label: retrieval ensemble -- k = 5 at temperature 0, each sample over a disjoint retrieved example set
+    spec: {sampling: retrieval_ensemble}   # the one declared difference (ProgramSpec.sampling)
+    repeats: 2
+    budget_usd: 3.0
+unit: candidate
+pairing: paired             # every candidate in both arms, same memory, same outer folds
+cluster: repository
+order: {randomise: per_case, seed: 2}
+metric:
+  primary:
+    - {name: canary_agreement, target: 0.90}   # replicate 0 and 1 give the same verdict; B must reach 0.90
+    - within_pair_auc                           # the vulnerable side of a candidate pair scores above the fixed side
+  secondary: [usd_per_candidate, auc, advisory_recall, advisory_precision]
+test: {primary: cluster_bootstrap_paired_diff, secondary: exact_mcnemar, alpha: 0.05, sides: 2, resamples: 10000}
+mde: 0.10                   # agreement 0.83 -> 0.93 on ~147 paired candidates
+stopping: {looks: [0.5, 1.0], boundary: obrien_fleming}
+budget_usd: {total: 4, per_arm: {A: 1.0, B: 3.0}}   # ~$0.5-0.7 per arm-pass of 147 candidates at k = 5; 3 paid passes
+families: [injection, access_control]
+folds: {kind: outer, k: 5, seed: 0, compile_fraction: 0.25}   # the incumbent evaluation's folds (learn/compile.toml seed)
+units_file: plane/experiments/exp-002-retrieval-ensemble.units.jsonl   # frozen by `ousast learn experiment units`

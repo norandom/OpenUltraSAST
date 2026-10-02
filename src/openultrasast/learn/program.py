@@ -28,7 +28,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
@@ -42,6 +42,11 @@ from .schema import DEFAULT_INPUTS, features_for, instruments_for, validate_x, w
 VERDICTS = ("vulnerable", "not_vulnerable", "unsure")
 UNSURE = "unsure"
 TEMPERATURES = (0.0, 0.7)
+# How the k samples differ: by temperature (the default: sample 1 at 0, samples 2..k at 0.7 over one retrieved
+# example set), or by the retrieved examples (every sample at temperature 0, each over a disjoint example set --
+# the variance-reduction arm of experiment exp-002; design section 6, engine-level experiments).
+SAMPLING = ("temperature", "retrieval_ensemble")
+RETRIEVAL_ENSEMBLE = "retrieval_ensemble"
 MAX_OUTPUT_TOKENS = 300
 CHARS_PER_TOKEN = 4.0
 STATE_WORDS = {"none": "no coverage", "failed": "failed", "not_applicable": "not applicable"}
@@ -199,6 +204,7 @@ class ProgramSpec:
     priors: str = "off"
     inputs: str = DEFAULT_INPUTS  # the input profile: which instruments the classifier never sees (v1: the engine)
     max_output_tokens: int = MAX_OUTPUT_TOKENS
+    sampling: str = SAMPLING[0]  # temperature | retrieval_ensemble (an experiment arm's setting; never compiled)
 
 
 @dataclass(frozen=True)
@@ -363,6 +369,7 @@ class Caller:
     replayed: int = 0
     keys: list[str] = field(default_factory=list)
     usage: dict[str, int] = field(default_factory=lambda: {"prompt_tokens": 0, "prompt_cache_hit_tokens": 0, "completion_tokens": 0})
+    salt: str = ""  # prefixed to every sample label: a replicate of a run that must not replay the first run's responses
     _memory: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @property
@@ -379,7 +386,7 @@ class Caller:
         return None
 
     def ask(self, messages: list[dict[str, object]], *, temperature: float, sample: str, json_object: bool = True) -> str:
-        key = request_key(self.model, self.params_digest, messages, temperature, sample, json_object)
+        key = request_key(self.model, self.params_digest, messages, temperature, f"{self.salt}{sample}", json_object)
         self.keys.append(key)
         entry = self._cached(key)
         if entry is not None:
@@ -445,16 +452,21 @@ def aggregate(answers: Sequence[Answer]) -> Decision:
     )  # fmt: skip
 
 
+def sample_answer(prompt: Prompt, caller: Caller, *, temperature: float, sample: str, families: Sequence[str] = ()) -> Answer:
+    """One sample; one retry at temperature 0 when the answer does not parse, then ``PARSE_FAILED``."""
+    answer = parse_answer(caller.ask(prompt.messages, temperature=temperature, sample=sample), prompt.valid_lines, families)
+    if answer is None:
+        retry = caller.ask(prompt.messages, temperature=TEMPERATURES[0], sample=f"{sample}:retry")
+        answer = parse_answer(retry, prompt.valid_lines, families) or PARSE_FAILED
+    return answer
+
+
 def classify(prompt: Prompt, caller: Caller, k: int = 1, *, families: Sequence[str] = ()) -> Decision:
     """``k`` samples (the first at temperature 0, the rest at 0.7); one retry at temperature 0 per unparsable answer."""
-    answers: list[Answer] = []
-    for j in range(k):
-        temperature = TEMPERATURES[0] if j == 0 else TEMPERATURES[1]
-        answer = parse_answer(caller.ask(prompt.messages, temperature=temperature, sample=str(j)), prompt.valid_lines, families)
-        if answer is None:
-            retry = caller.ask(prompt.messages, temperature=TEMPERATURES[0], sample=f"{j}:retry")
-            answer = parse_answer(retry, prompt.valid_lines, families) or PARSE_FAILED
-        answers.append(answer)
+    answers = [
+        sample_answer(prompt, caller, temperature=TEMPERATURES[0] if j == 0 else TEMPERATURES[1], sample=str(j), families=families)
+        for j in range(k)
+    ]
     return aggregate(answers)
 
 
@@ -471,25 +483,48 @@ class Program:
     def __post_init__(self) -> None:
         self.index = {e.id: e for e in self.memory}
 
-    def prepare(self, candidate: Candidate, fold: Fold, *, seed: int = 0) -> tuple[Prompt, Retrieval]:
+    def prepare(
+        self, candidate: Candidate, fold: Fold, *, seed: int = 0, exclude: Collection[str] = frozenset()
+    ) -> tuple[Prompt, Retrieval]:
         target = candidate.target
         got = retrieve(target, self.memory, fold, vectors=self.vectors, n1=self.spec.n1, k=self.spec.k_ret, lam=self.spec.lam, seed=seed,
-                       priors=self.spec.priors, inputs=self.spec.inputs)  # fmt: skip
+                       priors=self.spec.priors, inputs=self.spec.inputs, exclude=exclude)  # fmt: skip
         demos = demonstrations_for([d.as_dict() for d in self.spec.demos], self.index, target, fold, vectors=self.vectors)
         usable = [Demo.from_dict(d) for d in demos]
         prompt = render(self.spec, candidate, got.examples, usable, self.index, self.excerpt_text)
         assert_boundary([*prompt.example_ids, *prompt.demo_ids], self.index, target, fold, vectors=self.vectors)
         return prompt, got
 
+    def prepare_ensemble(self, candidate: Candidate, fold: Fold, *, seed: int = 0) -> list[tuple[Prompt, Retrieval]]:
+        """``k`` prompts over disjoint retrieved example sets (the same demonstrations and prefix); a later set is
+        ``short`` when the eligible pool runs out, never padded with an example an earlier set used."""
+        out: list[tuple[Prompt, Retrieval]] = []
+        used: set[str] = set()
+        for _ in range(self.spec.k):
+            prompt, got = self.prepare(candidate, fold, seed=seed, exclude=frozenset(used))
+            used.update(prompt.example_ids)
+            out.append((prompt, got))
+        return out
+
     def decide(self, candidate: Candidate, fold: Fold, caller: Caller, *, seed: int = 0) -> Decision:
+        if self.spec.sampling == RETRIEVAL_ENSEMBLE:
+            prepared = self.prepare_ensemble(candidate, fold, seed=seed)
+            answers = [
+                sample_answer(prompt, caller, temperature=TEMPERATURES[0], sample=str(j), families=self.families)
+                for j, (prompt, _) in enumerate(prepared)
+            ]
+            got = prepared[0][1]
+            return replace(aggregate(answers), retrieval=got.mode, neighbours=got.neighbours)
+        if self.spec.sampling != SAMPLING[0]:
+            raise ValueError(f"unknown sampling {self.spec.sampling!r} (one of {', '.join(SAMPLING)})")
         prompt, got = self.prepare(candidate, fold, seed=seed)
         decision = classify(prompt, caller, self.spec.k, families=self.families)
         return replace(decision, retrieval=got.mode, neighbours=got.neighbours)
 
 
 __all__ = [
-    "ANSWER_FORMAT", "BASELINE_INSTRUCTION", "PARSE_FAILED", "SIGNATURE", "UNSURE", "VERDICTS", "Answer", "Caller", "Candidate",
-    "Decision", "Demo",
+    "ANSWER_FORMAT", "BASELINE_INSTRUCTION", "PARSE_FAILED", "RETRIEVAL_ENSEMBLE", "SAMPLING", "SIGNATURE", "UNSURE", "VERDICTS",
+    "Answer", "Caller", "Candidate", "Decision", "Demo",
     "Program", "ProgramSpec", "Prompt", "ReplayMiss", "aggregate", "classify", "label_word", "line_numbers",
-    "params_digest", "parse_answer", "render", "render_prefix", "render_roles", "render_signals", "request_key",
+    "params_digest", "parse_answer", "render", "render_prefix", "render_roles", "render_signals", "request_key", "sample_answer",
 ]  # fmt: skip

@@ -159,9 +159,10 @@ def callers_line(rows: Sequence[Mapping[str, Any]], cap: int = CALLERS_CAP) -> s
 
 def hunt_prompt(path: str, group: Sequence[Candidate], family: str, facts: Mapping[str, Any] | None) -> str:
     lines = []
+    callers_on = os.environ.get("OUSAST_VERIFY_CALLERS", "on") != "off"  # arm B of exp-001 (design section 6) turns the line off
     for _, function, line in group:
         lines.append(f"- function `{function}` around line {line}")
-        known = callers_line(callers_of(facts, path, function))
+        known = callers_line(callers_of(facts, path, function)) if callers_on else ""
         if known:
             lines.append(f"  {known}")
     listing = "\n".join(lines)

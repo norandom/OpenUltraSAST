@@ -215,5 +215,5 @@ Counted 2026-10-02 from each spec's `tasks.md` checkboxes and `spec.json`.
 > and evolutionary proposals come from the plane memory. The HarnessX specs in the table above are history.
 
 As of 2026-09-09: 97 source modules, 90 load-bearing and 7 standalone capabilities; 814 tests.
-150 source modules, 145 load-bearing and 5 standalone capabilities, 0 orphaned
-(`benchmarks/measurements/2026-09-08-module-audit.json`, regenerated 2026-10-02); 1,964 tests collected.
+151 source modules, 146 load-bearing and 5 standalone capabilities, 0 orphaned
+(`benchmarks/measurements/2026-09-08-module-audit.json`, regenerated 2026-10-02); 2,009 tests collected.
