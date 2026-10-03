@@ -1,7 +1,7 @@
 """Fill rule-experiment responses without writing scores or changing the frozen population.
 
-Estimates use Prompt.estimated_tokens and the family's mean cached completion usage,
-or 300 output tokens when no usage is available. Unknown answers may require one retry;
+Estimates use the family's mean billed cached response cost when usage is available.
+Otherwise they use Prompt.estimated_tokens and 300 output tokens. Unknown answers may require one retry;
 dry-run counts those separately as conditional requests, never fabricating an answer.
 """
 
@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..model.endpoint import DeepSeekChatClient
-from ..plane.budget import BudgetExhausted, MeteredClient, prices_from
+from ..plane.budget import BudgetExhausted, MeteredClient, cost_of, prices_from
 from ..plane.memory import MemoryStore
 from ..tool_hunter import ChatClient, ChatResponse
 from . import experiments as ex
@@ -143,11 +143,12 @@ def fill_rule(
     initially_cached = {key for cells in initial.values() for key in cells if caller._cached(key) is not None}
     families: dict[str, Any] = {}
     for family, cells in initial.items():
-        outputs = [
-            float((entry.get("usage") or {})["completion_tokens"])
+        usages = [
+            usage
             for key in cells
-            if (entry := caller._cached(key)) is not None and "completion_tokens" in (entry.get("usage") or {})
+            if (entry := caller._cached(key)) is not None and isinstance(usage := entry.get("usage"), Mapping) and usage
         ]
+        outputs = [float(usage["completion_tokens"]) for usage in usages if "completion_tokens" in usage]
         mean_output = sum(outputs) / len(outputs) if outputs else DEFAULT_OUTPUT_TOKENS
         missing = [req for key, req in cells.items() if key not in initially_cached]
         families[family] = {
@@ -157,9 +158,10 @@ def fill_rule(
             "missing": len(missing),
             "filled": 0,
             "still_missing": len(missing),
-            "estimated_usd": sum(
-                (r.prompt.estimated_tokens * prices.input_per_m + mean_output * prices.output_per_m) / 1_000_000 for r in missing
-            ),
+            "estimate_method": "measured" if usages else "estimated",
+            "estimated_usd": len(missing) * sum(cost_of(usage, prices) for usage in usages) / len(usages)
+            if usages
+            else sum((r.prompt.estimated_tokens * prices.input_per_m + mean_output * prices.output_per_m) / 1_000_000 for r in missing),
             "estimated_output_tokens": mean_output,
             "conditional_retries": sum(not r.sample.endswith(":retry") for r in missing),
         }

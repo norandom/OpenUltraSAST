@@ -14,7 +14,7 @@ from test_learn_rules import prepared, write_rule_manifest
 from openultrasast.cli import main
 from openultrasast.learn import experiments as ex
 from openultrasast.learn.fill import fill_rule
-from openultrasast.learn.program import Candidate, Program
+from openultrasast.learn.program import Candidate, Program, Prompt
 from openultrasast.learn.retrieve import Target
 from openultrasast.plane.memory import FileStore
 
@@ -68,6 +68,49 @@ def test_fill_only_missing_requests_then_replay_is_complete(tmp_path: Path) -> N
     replay = ex.run_rule(store, manifest, EXAMPLES, caller, meter, excerpt_text)
     assert replay.decided == {"score": len(units)} and replay.skipped["replay_miss"] == 0
     assert meter.calls == 0 and meter.usd == 0
+
+
+@pytest.mark.parametrize("explicit_miss", [False, True])
+def test_dry_run_uses_mean_billed_cached_usage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, explicit_miss: bool) -> None:
+    store, manifest, units = prepared(tmp_path)
+    assert seed_one(store, manifest, units[0]) == 2
+    paths = sorted((tmp_path / "memory" / "responses").rglob("*"))
+    responses = [p for p in paths if p.is_file()]
+    assert len(responses) == 2
+    for i, path in enumerate(responses, 1):
+        entry = json.loads(path.read_bytes())
+        entry["usage"] = {"prompt_cache_hit_tokens": 9000 * i, "completion_tokens": 100 * i}
+        entry["usage"]["prompt_cache_miss_tokens" if explicit_miss else "prompt_tokens"] = (1000 if explicit_miss else 10000) * i
+        path.write_text(json.dumps(entry))
+    monkeypatch.setattr(Prompt, "estimated_tokens", property(lambda self: 1_000_000))
+    before = snapshot(tmp_path)
+    report = fill_rule(store, manifest, EXAMPLES, PRICES, excerpt_text, dry_run=True)
+    family = report["families"][units[0].family]
+    mean_cost = 1.5 * (9000 * 0.014 + 1000 * 0.44 + 100 * 1.32) / 1_000_000
+    assert family["missing"] > 0 and family["estimate_method"] == "measured"
+    assert family["estimated_usd"] == pytest.approx(family["missing"] * mean_cost)
+    other = next(f for name, f in report["families"].items() if name != units[0].family)
+    assert other["estimate_method"] == "estimated"
+    assert report["client_calls"] == 0 and snapshot(tmp_path) == before
+
+
+@pytest.mark.parametrize("usage", [None, {}])
+def test_dry_run_falls_back_without_cached_usage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, usage: dict[str, int] | None) -> None:
+    store, manifest, units = prepared(tmp_path)
+    assert seed_one(store, manifest, units[0]) == 2
+    for path in (tmp_path / "memory" / "responses").rglob("*"):
+        if path.is_file():
+            entry = json.loads(path.read_bytes())
+            entry.pop("usage")
+            if usage is not None:
+                entry["usage"] = usage
+            path.write_text(json.dumps(entry))
+    monkeypatch.setattr(Prompt, "estimated_tokens", property(lambda self: 1000))
+    report = fill_rule(store, manifest, EXAMPLES, PRICES, excerpt_text, dry_run=True)
+    for family in report["families"].values():
+        assert family["estimate_method"] == "estimated"
+        assert family["estimated_output_tokens"] == 300
+        assert family["estimated_usd"] == pytest.approx(family["missing"] * (1000 * 0.44 + 300 * 1.32) / 1_000_000)
 
 
 class FixedCostChat(ScriptedChat):
@@ -181,6 +224,7 @@ def test_cli_dry_run_needs_no_endpoint_and_does_not_write_out(
     assert code == 0 and not out.exists() and snapshot(tmp_path) == before
     report = json.loads(capsys.readouterr().out)
     assert report["client_calls"] == 0 and report["status"] == "dry_run"
+    assert all(f["estimate_method"] == "estimated" for f in report["families"].values())
 
 
 def test_growing_call_costs_stay_inside_the_initial_reserve(tmp_path: Path) -> None:
@@ -200,20 +244,19 @@ def test_growing_call_costs_stay_inside_the_initial_reserve(tmp_path: Path) -> N
     assert total(report, "filled") == len(chat.calls) and total(report, "still_missing") > 0
 
 
-def test_dry_run_prices_prompt_tokens_and_family_cached_output_mean(tmp_path: Path) -> None:
+def test_dry_run_prices_prompt_tokens_with_empty_cache(tmp_path: Path) -> None:
     from openultrasast.learn.fill import DEFAULT_OUTPUT_TOKENS
 
     store, manifest, units = prepared(tmp_path)
-    seed_one(store, manifest, units[0])
     report = fill_rule(store, manifest, EXAMPLES, PRICES, excerpt_text, dry_run=True)
     folds = {f.name: f for f in ex.program_folds(EXAMPLES, manifest)[0]}
     index = {e.id: e for e in EXAMPLES}
     expected = dict.fromkeys(manifest.families, 0.0)
-    for unit in units[1:]:
+    for unit in units:
         example = index[unit.unit]
         program = Program(ex.arm_spec(manifest, manifest.arms["A"], unit.family, store), EXAMPLES, excerpt_text)
         prompt, _ = program.prepare(Candidate(Target.of(example), CODE[example.excerpt_sha], "python"), folds[unit.fold], seed=0)
-        output_tokens = 60 if unit.family == units[0].family else DEFAULT_OUTPUT_TOKENS
+        output_tokens = DEFAULT_OUTPUT_TOKENS
         expected[unit.family] += (
             program.spec.k * (prompt.estimated_tokens * PRICES["input_per_m"] + output_tokens * PRICES["output_per_m"]) / 1_000_000
         )
