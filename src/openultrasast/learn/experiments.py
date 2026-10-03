@@ -44,7 +44,20 @@ import yaml
 from ..plane.budget import BudgetExhausted, MeteredClient
 from ..plane.memory import MemoryStore, row_id
 from .compile import load_program, spec_of
-from .evaluate import BOUNDS, TARGET_PRECISION, Prediction, calibrated_block, candidate_from_example, nested_precision_block, wilson_lower
+from .evaluate import (
+    BOUNDS,
+    FAMILY_FLOOR,
+    TARGET_PRECISION,
+    TARGET_RECALL,
+    Prediction,
+    apply_floor,
+    calibrated_block,
+    candidate_from_example,
+    family_floor,
+    nested_precision_block,
+    pooled_block_gate,
+    wilson_lower,
+)
 from .examples import EXAMPLE_KIND, Example
 from .folds import Fold, compile_split, folds_digest, outer_folds
 from .program import Caller, Decision, Program, ProgramSpec
@@ -60,12 +73,17 @@ RUN_TASK = "run"
 ARM_KINDS = ("program", "plane", "rule")
 # decision-rule experiments (kind: rule): one replay-only scoring pass of the incumbent programs, arms differ only in
 # the BLOCK rule applied to the same scores
-RULES = ("calibrated_block", "precision_bound_block")
+RULES = ("calibrated_block", "precision_bound_block", "pooled_block_gate")
+NORMALISATIONS = ("platt",)  # pooled_block_gate: how the scores of different families are put on one scale (Req 6.4)
+RULE_PARAMETERS: Mapping[str, set[str]] = {
+    "precision_bound_block": {"precision", "bound", "min_flagged", "select_on"},
+    "pooled_block_gate": {"precision", "recall", "floor", "normalise", "select_on"},
+}
 POPULATIONS = ("paired", "pooled")  # paired: units whose candidate has both sides present; pooled: every unit
 SCORE_ARM = "score"  # the arm name of a rule experiment's outcome rows (the shared scores)
 MISS_VERDICT = "replay_miss"  # an outcome row of a unit excluded because a response was not cached
 # rule metrics, per family and population of held-out (outer-fold) units: direction only (no paired test)
-RULE_METRICS: Mapping[str, int] = {"flagged_precision_lb": 1, "flagged_precision": 1, "coverage": 1, "flagged": 1}
+RULE_METRICS: Mapping[str, int] = {"flagged_precision_lb": 1, "flagged_precision": 1, "coverage": 1, "flagged": 1, "quiet_recall": 1}
 UNITS = ("candidate", "file", "repository")
 PAIRINGS = ("paired", "assigned")
 # O'Brien-Fleming boundaries for two equally spaced looks at alpha 0.05, two-sided (design section 6).
@@ -277,17 +295,24 @@ def _check_rule_manifest(path: Path, raw: Mapping[str, Any], arms: Mapping[str, 
         name = arm.rule.get("name")
         if name not in RULES:
             raise ExperimentError(f"{path}: arm {arm.name} rule.name {name!r} (one of {', '.join(RULES)})")
-        allowed = {"name"} | ({"precision", "bound", "min_flagged", "select_on"} if name == "precision_bound_block" else set())
+        allowed = {"name"} | RULE_PARAMETERS.get(str(name), set())
         if set(arm.rule) - allowed:
             raise ExperimentError(f"{path}: arm {arm.name} rule parameters {sorted(set(arm.rule) - allowed)} are not understood")
         if arm.rule.get("bound", "wilson") not in BOUNDS or arm.rule.get("select_on", "paired") not in POPULATIONS:
             raise ExperimentError(f"{path}: arm {arm.name} bound in {BOUNDS} and select_on in {POPULATIONS}")
+        if name == "pooled_block_gate":
+            if arm.rule.get("normalise") not in NORMALISATIONS:
+                raise ExperimentError(f"{path}: arm {arm.name} normalise in {NORMALISATIONS} (declared before the run)")
+            if int(arm.rule.get("floor", FAMILY_FLOOR)) < 1 or not 0 < float(arm.rule.get("recall", TARGET_RECALL)) <= 1:
+                raise ExperimentError(f"{path}: arm {arm.name} floor >= 1 and recall in (0, 1]")
     populations = dict(raw.get("populations") or {})
     if populations.get("primary") not in POPULATIONS or any(p not in POPULATIONS for p in populations.get("secondary", [])):
         raise ExperimentError(f"{path}: populations.primary (and secondary) in {POPULATIONS}")
     decision = dict(raw.get("decision") or {})
     if not 0 < float(decision.get("target_precision", 0)) <= 1 or decision.get("arm") not in arms:
         raise ExperimentError(f"{path}: decision.target_precision in (0, 1] and decision.arm naming an arm")
+    if decision.get("pooled") and arms[str(decision["arm"])].rule.get("name") != "pooled_block_gate":
+        raise ExperimentError(f"{path}: decision.pooled judges a pooled_block_gate arm only")
 
 
 # --- register ------------------------------------------------------------------------------------------------------------
@@ -1087,6 +1112,17 @@ def _apply_rule(arm: Arm, preds: Sequence[Prediction], seed: int) -> tuple[list[
     if arm.rule["name"] == "calibrated_block":
         return calibrated_block(preds, seed=seed)
     select_on = str(arm.rule.get("select_on", "paired"))
+    if arm.rule["name"] == "pooled_block_gate":  # the family floor is applied by analyse_rule, on held-out flags
+        rows, gates = pooled_block_gate(
+            preds, eligible=(lambda r: bool(r.pair)) if select_on == "paired" else None,
+            precision=float(arm.rule.get("precision", TARGET_PRECISION)), recall=float(arm.rule.get("recall", TARGET_RECALL)),
+        )  # fmt: skip
+        info = {
+            f: {"t_block_by_fold": {j: g["t_block"] for j, g in gates.items()},
+                "t_quiet_by_fold": {j: g["t_quiet"].get(f) for j, g in gates.items()}}
+            for f in sorted({r.family for r in preds})
+        }  # fmt: skip
+        return rows, info
     decided, thresholds = nested_precision_block(
         preds, eligible=(lambda r: bool(r.pair)) if select_on == "paired" else None,
         precision=float(arm.rule.get("precision", TARGET_PRECISION)), bound=str(arm.rule.get("bound", "wilson")),
@@ -1095,11 +1131,38 @@ def _apply_rule(arm: Arm, preds: Sequence[Prediction], seed: int) -> tuple[list[
     return decided, {f: {"thresholds_by_fold": t} for f, t in thresholds.items()}
 
 
-def decide_rule(manifest: Manifest, families: Mapping[str, Mapping[str, Any]]) -> tuple[str, str]:
+def decide_pooled(manifest: Manifest, families: Mapping[str, Mapping[str, Any]], overall: Mapping[str, Any]) -> tuple[str, str]:
+    """The pre-registered rule of a pooled gate (Req 6.4, exp-004), on the primary population's held-out flags of
+    every family together, before the family floor: **reject** when they flag at a point precision below the target;
+    **adopt** when their Wilson 95% lower bound reaches the target and at least one family passes the floor (no
+    held-out error, at least ``floor`` flags) -- those families block, the others stay advisory; otherwise
+    **inconclusive** (the incumbent rule stays)."""
+    decision = dict(manifest.raw["decision"])
+    arm, target = str(decision["arm"]), float(decision["target_precision"])
+    primary = str(manifest.raw["populations"]["primary"])
+    cell = overall[arm][primary]
+    if cell["flagged"] and not cell["meets_target_point"]:
+        return "reject", f"{arm} flags held-out {primary} units of all families together below precision {target}"
+    passing = sorted(f for f, v in families.items() if v[arm]["floor"]["may_block"])
+    if cell["meets_target_lb"] and passing:
+        return "adopt", f"{arm}'s pooled held-out Wilson lower bound reaches {target}; {', '.join(passing)} pass the family floor and block"
+    if not cell["flagged"]:
+        return "inconclusive", f"{arm} offers no BLOCK on held-out {primary} units; the incumbent stays"
+    if not cell["meets_target_lb"]:
+        return "inconclusive", f"{arm}'s pooled held-out Wilson lower bound is below {target}; the incumbent stays"
+    return "inconclusive", f"{arm} reaches {target} pooled but no family passes the floor; every family stays advisory"
+
+
+def decide_rule(manifest: Manifest, families: Mapping[str, Mapping[str, Any]], overall: Mapping[str, Any] | None = None) -> tuple[str, str]:
     """The pre-registered rule: **reject** the decision arm when it flags held-out units of the primary population in
     some family at a point precision below the target; **adopt** it when it does not and some family's held-out
-    Wilson lower bound reaches the target; otherwise **inconclusive** (the incumbent rule stays)."""
+    Wilson lower bound reaches the target; otherwise **inconclusive** (the incumbent rule stays). A manifest whose
+    ``decision.pooled`` is set is judged by :func:`decide_pooled` instead."""
     decision = dict(manifest.raw["decision"])
+    if decision.get("pooled"):
+        if overall is None:
+            raise ExperimentError(f"{manifest.id}: a pooled decision needs the pooled-over-families totals")
+        return decide_pooled(manifest, families, overall)
     arm, target = str(decision["arm"]), float(decision["target_precision"])
     primary = str(manifest.raw["populations"]["primary"])
     cells = {f: v[arm][primary] for f, v in families.items()}
@@ -1142,6 +1205,19 @@ def analyse_rule(
         return [r for r in rows if r.pair] if population == "paired" else list(rows)
 
     decided = {name: _apply_rule(arm, preds, manifest.seed) for name, arm in manifest.arms.items()}
+    gated = {name for name, arm in manifest.arms.items() if arm.rule.get("name") == "pooled_block_gate"}
+    floors = {  # held-out flags of the primary population decide which families may block; no threshold moves
+        name: {f: family_floor([r for r in select(decided[name][0], populations[0]) if r.family == f],
+                               floor=int(manifest.arms[name].rule.get("floor", FAMILY_FLOOR))).get(f)
+               or {"flagged": 0, "errors": 0, "floor": int(manifest.arms[name].rule.get("floor", FAMILY_FLOOR)), "may_block": False}
+               for f in manifest.families}
+        for name in gated
+    }  # fmt: skip
+
+    def quiet_recall(rows: Sequence[Prediction]) -> float | None:
+        positives = [r for r in rows if r.label == 1]
+        return round(sum(1 for r in positives if r.point in ("BLOCK", "ADVISORY")) / len(positives), 4) if positives else None
+
     families: dict[str, dict[str, Any]] = {}
     for family in manifest.families:
         cell: dict[str, Any] = {}
@@ -1149,6 +1225,9 @@ def analyse_rule(
             mine = [r for r in rows if r.family == family]
             cell[name] = {**info.get(family, {}), **{p: flag_summary(select(mine, p), target, resamples=n, seed=manifest.seed)
                                                       for p in populations}}  # fmt: skip
+            if name in gated:
+                cell[name]["floor"] = floors[name][family]
+                cell[name]["quiet_recall"] = {p: quiet_recall(select(mine, p)) for p in populations}
         mine = [r for r in preds if r.family == family]
         folds = sorted({r.fold for r in mine})
         cell["capacity"] = {
@@ -1160,7 +1239,12 @@ def analyse_rule(
         name: {p: flag_summary(select(rows, p), target, resamples=n, seed=manifest.seed) for p in populations}
         for name, (rows, _) in decided.items()
     }
-    verdict, reason = decide_rule(manifest, families)
+    after_floor = {  # what users would get: BLOCK only in the families that pass the floor (secondary, not deciding)
+        name: {p: flag_summary(select(apply_floor(decided[name][0], floors[name]), p), target, resamples=n, seed=manifest.seed)
+               for p in populations}
+        for name in sorted(gated)
+    }  # fmt: skip
+    verdict, reason = decide_rule(manifest, families, overall)
     spend = {SCORE_ARM: round(sum(o.usd or 0.0 for o in outcomes if o.arm == SCORE_ARM), 6)}
     return {
         "experiment": manifest.id, "manifest_digest": manifest.digest, "hypothesis": manifest.hypothesis,
@@ -1172,7 +1256,8 @@ def analyse_rule(
         "populations": {"primary": populations[0], "secondary": populations[1:]}, "target_precision": target,
         "min_flagged_for_bound": min_flagged_for_bound(target), "primary": [m.as_dict() for m in manifest.primary],
         "secondary": [m.as_dict() for m in manifest.secondary], "families": families, "overall": overall, "resamples": n,
-        "decision": verdict, "reason": reason, "spend_usd": spend, **dict(provenance or {}),
+        **({"overall_after_floor": after_floor} if after_floor else {}), "decision": verdict, "reason": reason, "spend_usd": spend,
+        **dict(provenance or {}),
     }  # fmt: skip
 
 

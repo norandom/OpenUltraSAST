@@ -119,6 +119,19 @@ rule hits.
 2. Without a trained model available the tools fall back to today's behaviour and say so in the report.
 3. Hand-written rules remain as signal producers; changing their enabled/shadow status no longer changes what is
    reported unless the engine's decision changes.
+4. *(Amended 2026-10-03, maintainer decision; refines the BLOCK rule of 7.3 and 7.4. Tested by exp-004.)* BLOCK
+   precision is demonstrated pooled across families, not per family:
+   - **Normalisation**, declared before any run: each family's raw score is put on one scale by a per-family Platt
+     map (`learn.calibrate.fit_map` with its floors) fitted on training folds only. A family the training folds
+     cannot map does not block on that fold.
+   - **t_block**: one threshold on the normalised score for all families, chosen on training folds as the lowest
+     one whose Wilson 95% lower bound on precision, over the training flags of all families together, is >= 0.95.
+     It is reported by the Wilson 95% lower bound over all held-out flags of all families, before the floor.
+   - **Family floor**: a family may block only if its own held-out flags have zero errors and number at least F
+     (F = 10, reasoned in the exp-004 registration); otherwise that family stays ADVISORY.
+   - **t_quiet**: per family, the highest threshold keeping >= 90% of the paired positives at or above it (chosen
+     on training folds, its held-out recall reported); findings below it are silent.
+   - No held-out label moves a threshold or a normalisation map; candidates whose verdict is `unsure` never block.
 
 ### Requirement 7: Built for unseen repositories -- a repo safety net
 
@@ -136,7 +149,8 @@ rule hits.
    ADVISORY, trading precision for recall; both reported with out-of-repository intervals. The decision unit is a
    candidate in changed code (`pre-push` delta), with whole-repository scans as a secondary mode.
 4. Calibration is checked on held-out repositories; where it does not hold, only ADVISORY is offered for that
-   family.
+   family. *(Amended 2026-10-03: once exp-004 adopts the pooled gate of 6.4, BLOCK precision is shown by its held-out
+   bound and family floor, and calibration is reported, not required.)*
 5. Any adaptation to a user's own repository (facts reuse, their dismissals) is opt-in, separate from the
    generalisation model, and never contributes to its reported numbers.
 
