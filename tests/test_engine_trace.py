@@ -189,6 +189,94 @@ def test_worker_one_batch_and_preserves_witnesses(tmp_path, monkeypatch):
     assert result["instrument"]["files"][0]["bytes"] > 0
 
 
+@pytest.mark.parametrize("json_roundtrip", [False, True])
+def test_worker_writes_string_requests_for_php_and_python(tmp_path, monkeypatch, json_roundtrip):
+    written = {}
+    submitted = {}
+
+    class RequestBackend(worker.MeasuredBackend):
+        def build(self, root, language):
+            graph = root / f"{language}.bin"
+            graph.write_bytes(b"x" * 2048)
+            self.stages.append({"command": "joern-parse", "seconds": 20, "exit": 0, "cpg_bytes": 2048})
+
+            def batch(query, requests):
+                submitted.update(requests)
+                return self._batch_once(graph, query, requests)
+
+            return CpgResult(graph, lambda q, p: None, run_batch_once=batch)
+
+        def _run(self, command, **kwargs):
+            request_file = Path(next(arg.split("=", 1)[1] for arg in command if arg.startswith("requestsFile=")))
+            data = request_file.read_bytes()
+            print(f"read {request_file.name}: {len(data)} bytes")
+            requests = json.loads(data)
+            written.update(requests)
+            self.asked.extend(requests)
+            self.stages.append({"command": "joern", "seconds": 20, "exit": 0})
+            answers = {**dict.fromkeys(requests, []), "__census__": [{"files": "1", "file_names": ["app.php", "app.py"]}]}
+            return subprocess.CompletedProcess(command, 0, BEGIN + "\n" + json.dumps(answers) + "\n" + END, "")
+
+    monkeypatch.setattr(worker, "MeasuredBackend", RequestBackend)
+    (tmp_path / "app.php").write_text("<?php function run() {}\n")
+    (tmp_path / "app.py").write_text("def run(): pass\n")
+    pin = {"units": [unit("php", language="php", file="app.php"), unit("python")]}
+    pin["questions"] = trace.prepare_questions(pin, tmp_path, 120)
+    assert all(isinstance(params["sources"], tuple) and params["sources"] for params in pin["questions"].values())
+    expected = {rid: ",".join(sorted(params["sources"])) for rid, params in pin["questions"].items()}
+    # Cover both direct tuple callers and arrays decoded from the host's pin.json.
+    if json_roundtrip:
+        pin = json.loads(json.dumps(pin))
+    out = tmp_path / "result.json"
+    worker.worker(pin, tmp_path, out, 900, 120)
+    result = json.loads(out.read_text())
+    assert all(row["status"] == "asked-nothing" for row in result["units"])
+    assert set(written) == set(submitted) == {"php", "python"}
+    for requests in (written, submitted, {rid: p for row in result["units"] for rid, p in row["questions"].items()}):
+        assert all(isinstance(value, str) for params in requests.values() for value in params.values())
+        assert {rid: params["sources"] for rid, params in requests.items()} == expected
+
+
+def test_failed_query_records_non_stack_stderr_tail_in_unit_reason(tmp_path, monkeypatch):
+    error = 'ujson.Value$InvalidData: Expected ujson.Str (data: ["$_COOKIE","$_GET"])'
+    joern = tmp_path / "joern"
+    joern.write_text(
+        f"#!{sys.executable}\nimport sys\n"
+        "print('read bytes:', len(open(sys.argv[-1], 'rb').read()), flush=True)\n"
+        "for i in range(25): print(f'diagnostic {i}', file=sys.stderr)\n"
+        f"print({error!r}, file=sys.stderr)\n"
+        "for i in range(30): print(f'\\tat example.Frame.method(Frame.java:{i})', file=sys.stderr)\n"
+        "print('\\t... 30 more', file=sys.stderr)\n"
+        "sys.exit(1)\n"
+    )
+    joern.chmod(0o755)
+
+    class FailedQueryBackend(worker.MeasuredBackend):
+        def build(self, root, language):
+            graph = root / "graph.bin"
+            graph.write_bytes(b"x" * 2048)
+            self.stages.append({"command": "joern-parse", "seconds": 20, "exit": 0, "cpg_bytes": 2048})
+
+            def batch(query, requests):
+                done = self._run([str(joern), "--script", str(root / "app.py")], timeout=10, cwd=root)
+                assert done.returncode == 1
+                assert "read bytes: 20" in done.stdout
+                return None
+
+            return CpgResult(graph, lambda q, p: None, run_batch_once=batch)
+
+    result = run_fake(tmp_path, monkeypatch, FailedQueryBackend)
+    stage = result["instrument"]["jvm"][-1]
+    assert stage["exit"] == 1
+    assert stage["output_tail"].splitlines() == [*[f"diagnostic {i}" for i in range(6, 25)], error]
+    for row in result["units"]:
+        assert row["status"] == "failed"
+        assert "joern query exited 1" in row["reason"]
+        assert error in row["reason"]
+        assert "Frame.java" not in row["reason"]
+        assert "implausibly fast" not in row["reason"]
+
+
 @pytest.mark.parametrize("failure", ["fast", "zero-input", "zero-census"])
 def test_invalid_instrument_is_persisted_failed(tmp_path, monkeypatch, failure):
     class BadBackend(FakeBackend):

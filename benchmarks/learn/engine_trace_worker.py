@@ -18,7 +18,7 @@ import time
 from collections import Counter
 from pathlib import Path
 
-from openultrasast.cpg.backend import JoernBackend
+from openultrasast.cpg.backend import JoernBackend, _render
 from openultrasast.model.trace import parse_trace
 
 
@@ -141,6 +141,17 @@ class MeasuredBackend(JoernBackend):
                 "oom": b"OutOfMemoryError" in output,
             }
             self.stages.append(stage)
+            if query and process.returncode != 0:
+                # stderr is merged into stdout above; drop JVM frames before taking
+                # the tail so they cannot crowd out the exception's message.
+                lines = [
+                    line.strip()
+                    for line in output.decode(errors="replace").splitlines()
+                    if line.strip() and not line.strip().startswith(("at ", "... "))
+                ]
+                stage["output_tail"] = "\n".join(lines[-20:])
+                if not self.timed_out:
+                    self.fatal = f"joern query exited {process.returncode}"
             if frontend:
                 # Capture the exact frontend output before build failure cleanup or overlays.
                 output_arg = next((i + 1 for i, arg in enumerate(command[:-1]) if arg in {"-o", "--output"}), None)
@@ -149,7 +160,7 @@ class MeasuredBackend(JoernBackend):
                 stage["cpg_bytes"] = cpg_path.stat().st_size if cpg_path is not None and cpg_path.is_file() else 0
                 if stage["cpg_bytes"] <= MIN_CPG_BYTES:
                     self.fatal = "frontend wrote no CPG"
-            elif elapsed < 5:
+            elif elapsed < 5 and not self.fatal:
                 self.fatal = f"implausibly fast JVM step: {command[0]} in {elapsed:.3f}s (<5s)"
         if b"OutOfMemoryError" in output:
             self.fatal = "JVM out of memory"
@@ -222,7 +233,7 @@ def worker_language(pin, root, out, deadline, question_deadline, persist=write_j
         if len(languages) != 1:
             raise ValueError(f"one pin has multiple frontend languages: {sorted(languages)}")
         language = next(iter(languages))
-        requests = pin["questions"]
+        requests = {rid: {key: _render(value) for key, value in params.items()} for rid, params in pin["questions"].items()}
         if set(requests) != {u["unit"] for u in active}:
             raise ValueError("prepared questions do not match supported units")
         record["questions"] = requests
@@ -304,6 +315,12 @@ def worker_language(pin, root, out, deadline, question_deadline, persist=write_j
     finally:
         if cpg and cpg.cleanup:
             cpg.cleanup()
+        for stage in backend.stages:
+            if stage["command"] == "joern" and stage.get("exit") and "output_tail" in stage:
+                detail = f"joern query exited {stage['exit']}: {stage['output_tail'] or 'no output'}"
+                for row in record["units"]:
+                    if row["supported"]:
+                        row["reason"] = f"{row['reason']}\n{detail}".strip()
         record["questions_asked"] = list(dict.fromkeys(backend.asked))
         record["questions_completed"] = [rid for u in record["units"] for rid in u["questions_completed"]]
         record["done"] = True
