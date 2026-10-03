@@ -1,0 +1,65 @@
+# Experiment exp-003 (learned-decision-engine Req 6, Req 7.3/7.4): the BLOCK rule. Registered before it runs;
+# `ousast learn experiment register` records this file's sha256, and a changed file is a new experiment.
+# kind: rule -- both arms decide from the SAME scores: one scoring pass of the six slice-2 incumbent programs, replayed
+# from the response cache only (zero cost by construction: a zero-ceiling meter around a refusing client; a unit with any
+# uncached response is excluded and counted, never asked; the meter's calls and usd must read 0 or the run is void).
+#
+# Threshold selection (arm B), fixed here: per family and per outer fold j, the candidate thresholds are the raw scores
+# s of the training rows, i.e. the family's paired units in the OTHER four outer folds (each of those predictions is
+# itself out of repository: retrieval and demonstrations never cross its own fold's boundary). The chosen threshold is
+# the lowest t such that, among those training rows with s >= t whose majority verdict is not `unsure`, the Wilson 95%
+# lower bound of precision is >= 0.95. No such t -> fold j gets no BLOCK. Fold j's units are then flagged when not
+# `unsure` and s >= t. Fold j's labels never enter its own threshold (tests/test_learn_rules.py).
+#
+# Pre-registered expectation (power): a Wilson lower bound of 0.95 needs at least 73 flagged units with no false flag.
+# The frozen units (353 in 146 repository groups, 244 paired) hold 38 paired positives for injection and 16-19 for each
+# other family, all five folds together; the training rows of any one fold hold fewer. So arm B cannot offer a BLOCK in
+# any family by construction, and the expected verdict is inconclusive with arm B flagging nothing. That is the finding
+# this run would confirm: on this data the bound, not the calibration gate, is what makes BLOCK unreachable. Arm C (point precision >= 0.95 over >= 10 training flags) is a secondary,
+# non-deciding arm that measures how far the held-out precision is from the bar when the bound is relaxed.
+id: exp-003-precision-bound-blocking
+hypothesis: >
+  The calibrated-probability BLOCK rule (Platt map + calibration gate, ECE <= 0.05) is the wrong instrument for M4,
+  which asks for precision on what is flagged. Selective blocking -- a per-family raw-score threshold chosen on training
+  folds only as the lowest one whose Wilson 95% lower bound on flagged precision is >= 0.95 -- reaches the M4 precision
+  bar on held-out repositories where the calibrated rule offers no BLOCK.
+kind: rule
+programs:                   # the slice-2 incumbents (benchmarks/measurements/2026-10-02-decision-engine-slice-2, program.id)
+  access_control: 745cb1d76bbb09dc1574d333d2118489be62e39886517894d3699fa565b0e8c2
+  deserialization: 3c0c2831be7d78198a62351661c37867363c501cb40e3ed7b0119c155af09654
+  injection: b207a0710e0abf053b3b9397b25f9ee1cab4679144865e3a82c1b9be2c7b4982
+  output_encoding: 5d768f16724562c381c09949ff3df9cbb11d58cbb7a9c0515d0dc3f858d3818e
+  path: aea396680a4874dcb6de70e240ca0480c83424debdd3710bc3f1ea6a612661f3
+  untrusted_destination: 1242b3973fc89056aa08e00843043d68235df217d8e3ef8a0ea0e0b81c142753
+arms:
+  A:
+    label: today's rule -- Platt map cross-fitted per family, BLOCK only when the calibration check holds, BLOCK point nested on the other folds' calibrated p
+    rule: {name: calibrated_block}
+  B:
+    label: selective blocking -- per-family raw-score threshold from the other folds' paired units, lowest t with Wilson 95% LB of flagged precision >= 0.95
+    rule: {name: precision_bound_block, bound: wilson, precision: 0.95, select_on: paired}
+  C:
+    label: secondary, non-deciding -- as B with point precision >= 0.95 over at least 10 training flags
+    rule: {name: precision_bound_block, bound: point, precision: 0.95, min_flagged: 10, select_on: paired}
+unit: candidate
+pairing: paired             # every unit scored once; every arm decides every unit
+cluster: repository
+order: {randomise: none, seed: 3}
+# primary population: paired units (both sides of the candidate present). It excludes every positives-only group and any
+# unpaired unit, whose positives never had to be told apart from their own fix. Pooled (every unit) is reported beside it.
+populations: {primary: paired, secondary: [pooled]}
+metric:
+  primary:
+    - {name: flagged_precision_lb, target: 0.95}   # held-out (outer-fold) Wilson 95% LB of flagged precision, per family, arm B, paired
+  secondary: [flagged_precision, coverage, flagged]  # coverage = flagged true positives / positives
+# Decision rule (decide_rule): REJECT B if in any family B flags held-out paired units at a point precision < 0.95;
+# else ADOPT B if in some family B's held-out paired Wilson LB >= 0.95; else INCONCLUSIVE (the incumbent rule stays).
+# A family "reaches the M4 precision bar on held-out repositories" when its held-out paired Wilson LB >= 0.95 (the
+# point precision is reported beside it).
+decision: {arm: B, target_precision: 0.95}
+test: {resamples: 2000}     # repository-cluster bootstrap of the held-out flagged precision, beside the Wilson bound
+mde: 0.0                    # not a paired difference test; see the power note above
+budget_usd: {total: 0}      # zero cost is a hard rule
+families: [access_control, deserialization, injection, output_encoding, path, untrusted_destination]
+folds: {kind: outer, k: 5, seed: 0, compile_fraction: 0.25}   # the incumbent evaluation's folds (learn/compile.toml seed)
+units_file: plane/experiments/exp-003-precision-bound-blocking.units.jsonl   # frozen by `ousast learn experiment units`

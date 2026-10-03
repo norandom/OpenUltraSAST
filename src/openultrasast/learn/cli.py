@@ -122,11 +122,17 @@ def _experiment(args: argparse.Namespace) -> int:
             print(json.dumps({k: row[k] for k in shown}, indent=2))
             return 0
         if args.experiment_command == "analyse":
-            row = ex.check_registered(store, manifest, need_units=False)
+            row = ex.check_registered(store, manifest, need_units=manifest.kind == "rule")
             provenance = {"code_commit": ex.committed_at_head(manifest.path)}
-            report = ex.analyse(manifest, ex.load_outcomes(store, manifest.id), resamples=args.resamples, provenance=provenance)
+            outcomes = ex.load_outcomes(store, manifest.id)
+            if manifest.kind == "rule":
+                units = ex.read_units(manifest.units_file)
+                report = ex.analyse_rule(manifest, outcomes, units, resamples=args.resamples, provenance=provenance)
+            else:
+                report = ex.analyse(manifest, outcomes, resamples=args.resamples, provenance=provenance)
             if args.record:
-                store.put_row(ex.result_row(manifest, str(row["pin"]), report))
+                result = ex.rule_result_row if manifest.kind == "rule" else ex.result_row
+                store.put_row(result(manifest, str(row["pin"]), report))
             _write(report, args.out or (ex.RESULT_DIR / manifest.id / "result.json" if args.record else None))
             return 0
         from .embeddings import EmbeddingCache
@@ -143,6 +149,16 @@ def _experiment(args: argparse.Namespace) -> int:
         cache = EmbeddingCache(store)
         vectors = {sha: v for sha in cache.names() if (v := cache.get(sha)) is not None} or None
         parameters = _model_parameters(args.manifest_model)
+
+        def excerpt_text(sha: str) -> str | None:
+            data = store.get_blob("excerpts", sha)
+            return data.decode("utf-8") if data is not None else None
+
+        if manifest.kind == "rule":  # zero cost: cache only, behind a zero-ceiling meter; no endpoint is resolved
+            caller, meter = ex.zero_cost_caller(_arm_model(manifest, manifest.arms["A"], store), parameters, store)
+            summary = ex.run_rule(store, manifest, memory, caller, meter, excerpt_text, vectors)
+            _write(summary.as_dict(), args.out)
+            return 0
         callers: dict[str, Caller] = {}
         for name, arm in manifest.arms.items():
             if arm.replay_only:
@@ -156,10 +172,6 @@ def _experiment(args: argparse.Namespace) -> int:
                 raise SystemExit("learn experiment run: no chat endpoint configured (DEEPSEEK_API_KEY); nothing was spent")
             client = MeteredClient(resolved[0], prices=parameters, budget_usd=arm.budget_usd)
             callers[name] = Caller(client, _arm_model(manifest, arm, store), parameters, store=store)
-
-        def excerpt_text(sha: str) -> str | None:
-            data = store.get_blob("excerpts", sha)
-            return data.decode("utf-8") if data is not None else None
 
         early = not args.no_early_stop
         summary = ex.run(store, manifest, memory, callers, excerpt_text, vectors, stop_early=early, resamples=args.resamples)

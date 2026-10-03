@@ -1,0 +1,981 @@
+{
+  "arms": {
+    "A": {
+      "label": "today's rule -- Platt map cross-fitted per family, BLOCK only when the calibration check holds, BLOCK point nested on the other folds' calibrated p",
+      "rule": {
+        "name": "calibrated_block"
+      }
+    },
+    "B": {
+      "label": "selective blocking -- per-family raw-score threshold from the other folds' paired units, lowest t with Wilson 95% LB of flagged precision >= 0.95",
+      "rule": {
+        "bound": "wilson",
+        "name": "precision_bound_block",
+        "precision": 0.95,
+        "select_on": "paired"
+      }
+    },
+    "C": {
+      "label": "secondary, non-deciding -- as B with point precision >= 0.95 over at least 10 training flags",
+      "rule": {
+        "bound": "point",
+        "min_flagged": 10,
+        "name": "precision_bound_block",
+        "precision": 0.95,
+        "select_on": "paired"
+      }
+    }
+  },
+  "code_commit": "7bb97ad0bca62b5f986c5768297d8b8fca50fae4",
+  "decision": "inconclusive",
+  "experiment": "exp-003-precision-bound-blocking",
+  "families": {
+    "access_control": {
+      "A": {
+        "calibration_holds": false,
+        "ece": 0.077,
+        "paired": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 16,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 16,
+          "true_flagged": 0,
+          "units": 32
+        },
+        "pooled": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 24,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 25,
+          "true_flagged": 0,
+          "units": 41
+        },
+        "reason_by_fold": {
+          "outer-0": "calibration",
+          "outer-1": "calibration",
+          "outer-2": "calibration",
+          "outer-3": "calibration",
+          "outer-4": "calibration"
+        },
+        "thresholds_by_fold": {
+          "outer-0": null,
+          "outer-1": null,
+          "outer-2": null,
+          "outer-3": null,
+          "outer-4": null
+        }
+      },
+      "B": {
+        "paired": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 16,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 16,
+          "true_flagged": 0,
+          "units": 32
+        },
+        "pooled": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 24,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 25,
+          "true_flagged": 0,
+          "units": 41
+        },
+        "thresholds_by_fold": {
+          "outer-0": null,
+          "outer-1": null,
+          "outer-2": null,
+          "outer-3": null,
+          "outer-4": null
+        }
+      },
+      "C": {
+        "paired": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 16,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 16,
+          "true_flagged": 0,
+          "units": 32
+        },
+        "pooled": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 24,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 25,
+          "true_flagged": 0,
+          "units": 41
+        },
+        "thresholds_by_fold": {
+          "outer-0": null,
+          "outer-1": null,
+          "outer-2": null,
+          "outer-3": null,
+          "outer-4": null
+        }
+      },
+      "capacity": {
+        "evaluated": 41,
+        "excluded_replay_miss": 0,
+        "not_run": 0,
+        "paired_positives_by_training_folds": {
+          "outer-0": 12,
+          "outer-1": 13,
+          "outer-2": 13,
+          "outer-3": 13,
+          "outer-4": 13
+        }
+      }
+    },
+    "deserialization": {
+      "A": {
+        "calibration_holds": false,
+        "ece": null,
+        "paired": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 3,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 2,
+          "true_flagged": 0,
+          "units": 5
+        },
+        "pooled": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 12,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 11,
+          "true_flagged": 0,
+          "units": 14
+        },
+        "reason_by_fold": {
+          "outer-0": "calibration",
+          "outer-2": "calibration",
+          "outer-3": "calibration",
+          "outer-4": "calibration"
+        },
+        "thresholds_by_fold": {
+          "outer-0": null,
+          "outer-2": null,
+          "outer-3": null,
+          "outer-4": null
+        }
+      },
+      "B": {
+        "paired": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 3,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 2,
+          "true_flagged": 0,
+          "units": 5
+        },
+        "pooled": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 12,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 11,
+          "true_flagged": 0,
+          "units": 14
+        },
+        "thresholds_by_fold": {
+          "outer-0": null,
+          "outer-2": null,
+          "outer-3": null,
+          "outer-4": null
+        }
+      },
+      "C": {
+        "paired": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 3,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 2,
+          "true_flagged": 0,
+          "units": 5
+        },
+        "pooled": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 12,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 11,
+          "true_flagged": 0,
+          "units": 14
+        },
+        "thresholds_by_fold": {
+          "outer-0": null,
+          "outer-2": null,
+          "outer-3": null,
+          "outer-4": null
+        }
+      },
+      "capacity": {
+        "evaluated": 14,
+        "excluded_replay_miss": 34,
+        "not_run": 0,
+        "paired_positives_by_training_folds": {
+          "outer-0": 0,
+          "outer-2": 2,
+          "outer-3": 2,
+          "outer-4": 2
+        }
+      }
+    },
+    "injection": {
+      "A": {
+        "calibration_holds": false,
+        "ece": 0.1067,
+        "paired": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 26,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 38,
+          "true_flagged": 0,
+          "units": 76
+        },
+        "pooled": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 34,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 63,
+          "true_flagged": 0,
+          "units": 119
+        },
+        "reason_by_fold": {
+          "outer-0": "calibration",
+          "outer-1": "calibration",
+          "outer-2": "calibration",
+          "outer-3": "calibration",
+          "outer-4": "calibration"
+        },
+        "thresholds_by_fold": {
+          "outer-0": null,
+          "outer-1": null,
+          "outer-2": null,
+          "outer-3": null,
+          "outer-4": null
+        }
+      },
+      "B": {
+        "paired": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 26,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 38,
+          "true_flagged": 0,
+          "units": 76
+        },
+        "pooled": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 34,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 63,
+          "true_flagged": 0,
+          "units": 119
+        },
+        "thresholds_by_fold": {
+          "outer-0": null,
+          "outer-1": null,
+          "outer-2": null,
+          "outer-3": null,
+          "outer-4": null
+        }
+      },
+      "C": {
+        "paired": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 26,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 38,
+          "true_flagged": 0,
+          "units": 76
+        },
+        "pooled": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 34,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 63,
+          "true_flagged": 0,
+          "units": 119
+        },
+        "thresholds_by_fold": {
+          "outer-0": null,
+          "outer-1": null,
+          "outer-2": null,
+          "outer-3": null,
+          "outer-4": null
+        }
+      },
+      "capacity": {
+        "evaluated": 119,
+        "excluded_replay_miss": 0,
+        "not_run": 0,
+        "paired_positives_by_training_folds": {
+          "outer-0": 29,
+          "outer-1": 33,
+          "outer-2": 33,
+          "outer-3": 26,
+          "outer-4": 31
+        }
+      }
+    },
+    "output_encoding": {
+      "A": {
+        "calibration_holds": false,
+        "ece": null,
+        "paired": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 8,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 8,
+          "true_flagged": 0,
+          "units": 16
+        },
+        "pooled": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 15,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 16,
+          "true_flagged": 0,
+          "units": 24
+        },
+        "reason_by_fold": {
+          "outer-0": "calibration",
+          "outer-1": "calibration",
+          "outer-2": "calibration",
+          "outer-3": "calibration",
+          "outer-4": "calibration"
+        },
+        "thresholds_by_fold": {
+          "outer-0": null,
+          "outer-1": null,
+          "outer-2": null,
+          "outer-3": null,
+          "outer-4": null
+        }
+      },
+      "B": {
+        "paired": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 8,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 8,
+          "true_flagged": 0,
+          "units": 16
+        },
+        "pooled": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 15,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 16,
+          "true_flagged": 0,
+          "units": 24
+        },
+        "thresholds_by_fold": {
+          "outer-0": null,
+          "outer-1": null,
+          "outer-2": null,
+          "outer-3": null,
+          "outer-4": null
+        }
+      },
+      "C": {
+        "paired": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 8,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 8,
+          "true_flagged": 0,
+          "units": 16
+        },
+        "pooled": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 15,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 16,
+          "true_flagged": 0,
+          "units": 24
+        },
+        "thresholds_by_fold": {
+          "outer-0": null,
+          "outer-1": null,
+          "outer-2": null,
+          "outer-3": null,
+          "outer-4": null
+        }
+      },
+      "capacity": {
+        "evaluated": 24,
+        "excluded_replay_miss": 21,
+        "not_run": 0,
+        "paired_positives_by_training_folds": {
+          "outer-0": 7,
+          "outer-1": 6,
+          "outer-2": 6,
+          "outer-3": 7,
+          "outer-4": 6
+        }
+      }
+    },
+    "path": {
+      "A": {
+        "paired": {
+          "coverage": null,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 0,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 0,
+          "true_flagged": 0,
+          "units": 0
+        },
+        "pooled": {
+          "coverage": null,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 0,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 0,
+          "true_flagged": 0,
+          "units": 0
+        }
+      },
+      "B": {
+        "paired": {
+          "coverage": null,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 0,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 0,
+          "true_flagged": 0,
+          "units": 0
+        },
+        "pooled": {
+          "coverage": null,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 0,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 0,
+          "true_flagged": 0,
+          "units": 0
+        }
+      },
+      "C": {
+        "paired": {
+          "coverage": null,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 0,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 0,
+          "true_flagged": 0,
+          "units": 0
+        },
+        "pooled": {
+          "coverage": null,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 0,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 0,
+          "true_flagged": 0,
+          "units": 0
+        }
+      },
+      "capacity": {
+        "evaluated": 0,
+        "excluded_replay_miss": 39,
+        "not_run": 0,
+        "paired_positives_by_training_folds": {}
+      }
+    },
+    "untrusted_destination": {
+      "A": {
+        "calibration_holds": false,
+        "ece": null,
+        "paired": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 6,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 4,
+          "true_flagged": 0,
+          "units": 9
+        },
+        "pooled": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 9,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 7,
+          "true_flagged": 0,
+          "units": 13
+        },
+        "reason_by_fold": {
+          "outer-0": "calibration",
+          "outer-1": "calibration",
+          "outer-2": "calibration",
+          "outer-3": "calibration"
+        },
+        "thresholds_by_fold": {
+          "outer-0": null,
+          "outer-1": null,
+          "outer-2": null,
+          "outer-3": null
+        }
+      },
+      "B": {
+        "paired": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 6,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 4,
+          "true_flagged": 0,
+          "units": 9
+        },
+        "pooled": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 9,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 7,
+          "true_flagged": 0,
+          "units": 13
+        },
+        "thresholds_by_fold": {
+          "outer-0": null,
+          "outer-1": null,
+          "outer-2": null,
+          "outer-3": null
+        }
+      },
+      "C": {
+        "paired": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 6,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 4,
+          "true_flagged": 0,
+          "units": 9
+        },
+        "pooled": {
+          "coverage": 0.0,
+          "flagged": 0,
+          "flagged_precision": null,
+          "flagged_precision_ci": null,
+          "flagged_precision_lb": null,
+          "groups": 9,
+          "meets_target_lb": false,
+          "meets_target_point": false,
+          "positives": 7,
+          "true_flagged": 0,
+          "units": 13
+        },
+        "thresholds_by_fold": {
+          "outer-0": null,
+          "outer-1": null,
+          "outer-2": null,
+          "outer-3": null
+        }
+      },
+      "capacity": {
+        "evaluated": 13,
+        "excluded_replay_miss": 48,
+        "not_run": 0,
+        "paired_positives_by_training_folds": {
+          "outer-0": 4,
+          "outer-1": 3,
+          "outer-2": 3,
+          "outer-3": 2
+        }
+      }
+    }
+  },
+  "hypothesis": "The calibrated-probability BLOCK rule (Platt map + calibration gate, ECE <= 0.05) is the wrong instrument for M4, which asks for precision on what is flagged. Selective blocking -- a per-family raw-score threshold chosen on training folds only as the lowest one whose Wilson 95% lower bound on flagged precision is >= 0.95 -- reaches the M4 precision bar on held-out repositories where the calibrated rule offers no BLOCK.\n",
+  "instrument_check": {
+    "families": {
+      "access_control": {
+        "distinct_s": 30,
+        "paired": {
+          "blockable": 28,
+          "positives_before_first_negative": 10
+        },
+        "pooled": {
+          "blockable": 37,
+          "positives_before_first_negative": 19
+        },
+        "verdicts": {
+          "not_vulnerable": 19,
+          "unsure": 4,
+          "vulnerable": 18
+        }
+      },
+      "deserialization": {
+        "distinct_s": 5,
+        "paired": {
+          "blockable": 4,
+          "positives_before_first_negative": 1
+        },
+        "pooled": {
+          "blockable": 13,
+          "positives_before_first_negative": 10
+        },
+        "verdicts": {
+          "not_vulnerable": 2,
+          "unsure": 1,
+          "vulnerable": 11
+        }
+      },
+      "injection": {
+        "distinct_s": 48,
+        "paired": {
+          "blockable": 50,
+          "positives_before_first_negative": 3
+        },
+        "pooled": {
+          "blockable": 77,
+          "positives_before_first_negative": 11
+        },
+        "verdicts": {
+          "not_vulnerable": 46,
+          "unsure": 42,
+          "vulnerable": 31
+        }
+      },
+      "output_encoding": {
+        "distinct_s": 14,
+        "paired": {
+          "blockable": 11,
+          "positives_before_first_negative": 0
+        },
+        "pooled": {
+          "blockable": 19,
+          "positives_before_first_negative": 8
+        },
+        "verdicts": {
+          "not_vulnerable": 9,
+          "unsure": 5,
+          "vulnerable": 10
+        }
+      },
+      "untrusted_destination": {
+        "distinct_s": 9,
+        "paired": {
+          "blockable": 4,
+          "positives_before_first_negative": 1
+        },
+        "pooled": {
+          "blockable": 8,
+          "positives_before_first_negative": 4
+        },
+        "verdicts": {
+          "not_vulnerable": 3,
+          "unsure": 5,
+          "vulnerable": 5
+        }
+      }
+    },
+    "note": "descriptive, all folds together, ranking by raw score s among non-unsure verdicts; not nested, chooses nothing. It shows the scores are real and the zero is the rule's, not an unread input."
+  },
+  "manifest_digest": "5917f9a12035f09eae76978f3b5827b9fe59c8a9a5275f9ab54c3c1b55e8db3b",
+  "meter": {
+    "client_calls": 0,
+    "decided": 211,
+    "excluded_replay_miss": 142,
+    "folds_digest": "a1f78e141a572a4adcc9cd57eb8a784c440c177f0b60d5ef5bed9e94c8753c5f",
+    "metered_usd": 0.0,
+    "replay_priced_usd_not_spent": 0.582876,
+    "replayed_responses": 1056
+  },
+  "min_flagged_for_bound": 73,
+  "overall": {
+    "A": {
+      "paired": {
+        "coverage": 0.0,
+        "flagged": 0,
+        "flagged_precision": null,
+        "flagged_precision_ci": null,
+        "flagged_precision_lb": null,
+        "groups": 59,
+        "meets_target_lb": false,
+        "meets_target_point": false,
+        "positives": 68,
+        "true_flagged": 0,
+        "units": 138
+      },
+      "pooled": {
+        "coverage": 0.0,
+        "flagged": 0,
+        "flagged_precision": null,
+        "flagged_precision_ci": null,
+        "flagged_precision_lb": null,
+        "groups": 89,
+        "meets_target_lb": false,
+        "meets_target_point": false,
+        "positives": 122,
+        "true_flagged": 0,
+        "units": 211
+      }
+    },
+    "B": {
+      "paired": {
+        "coverage": 0.0,
+        "flagged": 0,
+        "flagged_precision": null,
+        "flagged_precision_ci": null,
+        "flagged_precision_lb": null,
+        "groups": 59,
+        "meets_target_lb": false,
+        "meets_target_point": false,
+        "positives": 68,
+        "true_flagged": 0,
+        "units": 138
+      },
+      "pooled": {
+        "coverage": 0.0,
+        "flagged": 0,
+        "flagged_precision": null,
+        "flagged_precision_ci": null,
+        "flagged_precision_lb": null,
+        "groups": 89,
+        "meets_target_lb": false,
+        "meets_target_point": false,
+        "positives": 122,
+        "true_flagged": 0,
+        "units": 211
+      }
+    },
+    "C": {
+      "paired": {
+        "coverage": 0.0,
+        "flagged": 0,
+        "flagged_precision": null,
+        "flagged_precision_ci": null,
+        "flagged_precision_lb": null,
+        "groups": 59,
+        "meets_target_lb": false,
+        "meets_target_point": false,
+        "positives": 68,
+        "true_flagged": 0,
+        "units": 138
+      },
+      "pooled": {
+        "coverage": 0.0,
+        "flagged": 0,
+        "flagged_precision": null,
+        "flagged_precision_ci": null,
+        "flagged_precision_lb": null,
+        "groups": 89,
+        "meets_target_lb": false,
+        "meets_target_point": false,
+        "positives": 122,
+        "true_flagged": 0,
+        "units": 211
+      }
+    }
+  },
+  "populations": {
+    "primary": "paired",
+    "secondary": [
+      "pooled"
+    ]
+  },
+  "primary": [
+    {
+      "name": "flagged_precision_lb",
+      "target": 0.95
+    }
+  ],
+  "reason": "B offers no BLOCK on held-out paired units in any family; the incumbent stays",
+  "resamples": 2000,
+  "secondary": [
+    {
+      "name": "flagged_precision"
+    },
+    {
+      "name": "coverage"
+    },
+    {
+      "name": "flagged"
+    }
+  ],
+  "spend_usd": {
+    "score": 0.0
+  },
+  "target_precision": 0.95,
+  "units": {
+    "by_label": {
+      "0": 89,
+      "1": 122
+    },
+    "evaluated": 211,
+    "excluded_replay_miss": 142,
+    "frozen": 353,
+    "groups": 89,
+    "not_run": 0,
+    "paired_evaluated": 138,
+    "unsure": 57
+  }
+}

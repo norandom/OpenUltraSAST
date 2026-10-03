@@ -1,0 +1,39 @@
+{
+  "experiment": "exp-003-precision-bound-blocking",
+  "registered": "2026-10-03",
+  "store": "s3://sast-memory",
+  "manifest": "plane/experiments/exp-003-precision-bound-blocking.yaml",
+  "manifest_digest": "5917f9a12035f09eae76978f3b5827b9fe59c8a9a5275f9ab54c3c1b55e8db3b",
+  "pin": "dd7ebc119b5ad8e77c05d418eed9cbd46e193587",
+  "units_status": "frozen",
+  "units_file": "plane/experiments/exp-003-precision-bound-blocking.units.jsonl",
+  "units_digest": "338de998b1cfa36857cd793dbc4cf7fd0a13ab517a91f6790335881e941b3006",
+  "units": {
+    "total": 353,
+    "paired": 244,
+    "groups": 146,
+    "by_family": {
+      "access_control": {"units": 41, "positives": 25, "paired": 32, "paired_positives": 16, "groups": 24},
+      "deserialization": {"units": 48, "positives": 31, "paired": 34, "paired_positives": 17, "groups": 31},
+      "injection": {"units": 119, "positives": 63, "paired": 76, "paired_positives": 38, "groups": 34},
+      "output_encoding": {"units": 45, "positives": 29, "paired": 32, "paired_positives": 16, "groups": 27},
+      "path": {"units": 39, "positives": 23, "paired": 32, "paired_positives": 16, "groups": 23},
+      "untrusted_destination": {"units": 61, "positives": 37, "paired": 38, "paired_positives": 19, "groups": 36}
+    },
+    "note": "frozen model-free on the 937-example static memory; the outer folds (k 5, seed 0, compile fraction 0.25) are the incumbent evaluation's; injection and access_control equal exp-002's 160 units"
+  },
+  "kind": "rule: one zero-cost scoring pass of the six slice-2 incumbent programs; arms differ only in the BLOCK rule",
+  "zero_cost": "responses replayed from the response cache only, behind a meter with zero USD and call ceilings around a refusing client; a unit with any uncached response is excluded and counted; the run is void unless the meter reads 0 calls and $0",
+  "arms": {
+    "A": "today's rule: Platt map cross-fitted per family; BLOCK only when the calibration check holds (slope CI contains 1, intercept CI contains 0, ECE <= 0.05); BLOCK point nested on the other folds' calibrated p (Wilson LB >= 0.95)",
+    "B": "selective blocking: per family and outer fold, threshold chosen on the family's paired units in the other four folds as the lowest raw score t with Wilson 95% LB of flagged precision >= 0.95 (unsure verdicts never flag); none -> no BLOCK on that fold",
+    "C": "secondary, non-deciding: as B with point precision >= 0.95 over at least 10 training flags"
+  },
+  "primary_metric": "held-out (outer-fold) Wilson 95% lower bound of flagged precision, per family, arm B, paired population",
+  "populations": {"primary": "paired (both sides of the candidate present; excludes every positives-only group and any unpaired unit)", "secondary": ["pooled (every unit)"]},
+  "secondary_metrics": ["flagged_precision", "coverage (flagged true positives / positives)", "flagged", "repository-cluster bootstrap 95% CI of flagged precision"],
+  "decision_rule": "REJECT B if in any family B flags held-out paired units at a point precision < 0.95; else ADOPT B if in some family B's held-out paired Wilson LB >= 0.95; else INCONCLUSIVE (the incumbent rule stays)",
+  "m4_reading": "a family reaches the M4 precision bar on held-out repositories when its held-out paired Wilson LB >= 0.95; point precision reported beside it",
+  "power": "a Wilson LB of 0.95 needs >= 73 flagged units with no false flag; the largest family holds 38 paired positives over all five folds, so arm B cannot offer a BLOCK in any family by construction; expected verdict inconclusive",
+  "status": "run and analysed 2026-10-03: inconclusive -- no arm flags any held-out unit (result.json); meter 0 client calls, $0.0; 142 of 353 units excluded for an uncached response"
+}
