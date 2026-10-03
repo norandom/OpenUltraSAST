@@ -1,0 +1,496 @@
+{
+  "pairs": [
+    {
+      "name": "prefect-token-validation-e216171",
+      "ok": true,
+      "bytes_read": 3697
+    },
+    {
+      "name": "arcadedb-getdatabasegroupsconfiguration-04110c0",
+      "ok": true,
+      "bytes_read": 3896
+    },
+    {
+      "name": "langflow-get-flow-by-id-or-endpoint-name-2c9f498",
+      "ok": true,
+      "bytes_read": 3948
+    },
+    {
+      "name": "grav-plugin-api-update-26f529c",
+      "ok": true,
+      "bytes_read": 5598
+    },
+    {
+      "name": "google-maps-mcp-main-00d8725",
+      "ok": true,
+      "bytes_read": 3371
+    },
+    {
+      "name": "camofox-mcp-createmcphttpapp-599f56e",
+      "ok": true,
+      "bytes_read": 5587
+    },
+    {
+      "name": "spring-graphql-isoverridefor-63a89ed",
+      "ok": true,
+      "bytes_read": 2045
+    },
+    {
+      "name": "jenkins-dofilltimezonenameitems-0586de4",
+      "ok": true,
+      "bytes_read": 2093
+    },
+    {
+      "name": "netlicensing-mcp-dispatch-fbbb1d5",
+      "ok": true,
+      "bytes_read": 2610
+    },
+    {
+      "name": "starlette-admin-validate-where-af05b45",
+      "ok": true,
+      "bytes_read": 2061
+    },
+    {
+      "name": "next-auth-initauth-d008b9b",
+      "ok": true,
+      "bytes_read": 8193
+    },
+    {
+      "name": "deepseek-mcp-server-starthttptransport-dab07ed",
+      "ok": true,
+      "bytes_read": 2394
+    },
+    {
+      "name": "network-ai-routerequest-a59c13a",
+      "ok": true,
+      "bytes_read": 5945
+    },
+    {
+      "name": "device-builder-parse-args-9e294f7",
+      "ok": true,
+      "bytes_read": 15243
+    },
+    {
+      "name": "typespec-start-30d6f65",
+      "ok": true,
+      "bytes_read": 2109
+    },
+    {
+      "name": "tomcat-findsecurityconstraints-8bafd79",
+      "ok": true,
+      "bytes_read": 18199
+    },
+    {
+      "name": "vm2-makebuiltinsfromlegacyoptions-b0f5066",
+      "ok": true,
+      "bytes_read": 3539
+    },
+    {
+      "name": "inlong-filtersensitive-ebcd6d3",
+      "ok": true,
+      "bytes_read": 6474
+    },
+    {
+      "name": "h2o-3-validatejdbcurl-0298ee3",
+      "ok": true,
+      "bytes_read": 4919
+    },
+    {
+      "name": "skops-load-model-29d61ea",
+      "ok": true,
+      "bytes_read": 1847
+    },
+    {
+      "name": "picklescan-list-globals-58983e1",
+      "ok": true,
+      "bytes_read": 6975
+    },
+    {
+      "name": "sglang-deserialize-49afb3d",
+      "ok": true,
+      "bytes_read": 4334
+    },
+    {
+      "name": "pdfminer-six-load-data-b808ee0",
+      "ok": true,
+      "bytes_read": 2399
+    },
+    {
+      "name": "reverb-handle-9ec26f8",
+      "ok": true,
+      "bytes_read": 3342
+    },
+    {
+      "name": "transformers-is-kernel-a7f8e7f",
+      "ok": true,
+      "bytes_read": 1921
+    },
+    {
+      "name": "opentelemetry-java-instrumentation-read-9cf4fba",
+      "ok": true,
+      "bytes_read": 2075
+    },
+    {
+      "name": "keras-from-config-55888d3",
+      "ok": true,
+      "bytes_read": 3154
+    },
+    {
+      "name": "airflow-handle-event-submit-a1ab065",
+      "ok": true,
+      "bytes_read": 4828
+    },
+    {
+      "name": "sequelize-partialescape-5deadd2",
+      "ok": true,
+      "bytes_read": 6826
+    },
+    {
+      "name": "electerm-mv-aa77881",
+      "ok": true,
+      "bytes_read": 1258
+    },
+    {
+      "name": "systeminformation-checklinuxdchpinterfaces-bbfddde",
+      "ok": true,
+      "bytes_read": 2208
+    },
+    {
+      "name": "prompty-buildagent-c27402d",
+      "ok": true,
+      "bytes_read": 3198
+    },
+    {
+      "name": "datamodel-code-generator-get-field-extras-17fc235",
+      "ok": true,
+      "bytes_read": 2471
+    },
+    {
+      "name": "spring-data-mongodb-bindablevaluefor-24d5afc",
+      "ok": true,
+      "bytes_read": 9895
+    },
+    {
+      "name": "spring-ai-emitlucenestring-2b20cfc",
+      "ok": true,
+      "bytes_read": 4037
+    },
+    {
+      "name": "aws-cdk-write-baa9e1d",
+      "ok": true,
+      "bytes_read": 1461
+    },
+    {
+      "name": "danger-js-localgetfileatsha-087a729",
+      "ok": true,
+      "bytes_read": 1724
+    },
+    {
+      "name": "argos-javascript-gitfetch-8355f3a",
+      "ok": true,
+      "bytes_read": 1319
+    },
+    {
+      "name": "cakephp-transformfunctionexpression-138f2f6",
+      "ok": true,
+      "bytes_read": 6754
+    },
+    {
+      "name": "orval-getroutepath-8ef1bfd",
+      "ok": true,
+      "bytes_read": 2607
+    },
+    {
+      "name": "typeorm-handler-41d1c62",
+      "ok": true,
+      "bytes_read": 11977
+    },
+    {
+      "name": "velocity-js-isblockedpathkey-f8e47a6",
+      "ok": true,
+      "bytes_read": 1539
+    },
+    {
+      "name": "jsonata-evaluategroupexpression-4b217d5",
+      "ok": true,
+      "bytes_read": 7399
+    },
+    {
+      "name": "nuxt-getislandcontext-5b60017",
+      "ok": true,
+      "bytes_read": 6805
+    },
+    {
+      "name": "gitpython-option-candidates-96a888f",
+      "ok": true,
+      "bytes_read": 3421
+    },
+    {
+      "name": "mermaid-addnamespace-12d472c",
+      "ok": true,
+      "bytes_read": 9722
+    },
+    {
+      "name": "php-codesniffer-getblamecontent-7a3a6bb",
+      "ok": true,
+      "bytes_read": 2040
+    },
+    {
+      "name": "xmldom-serializetostring-1cde3e3",
+      "ok": true,
+      "bytes_read": 23297
+    },
+    {
+      "name": "trix-fromjson-9c0a993",
+      "ok": true,
+      "bytes_read": 1295
+    },
+    {
+      "name": "oauthlib-prepare-token-revocation-request-c888359",
+      "ok": true,
+      "bytes_read": 4800
+    },
+    {
+      "name": "suneditor-submitsrc-9d43a5e",
+      "ok": true,
+      "bytes_read": 2319
+    },
+    {
+      "name": "mathlive-atomtomathml-5fe1c46",
+      "ok": true,
+      "bytes_read": 32529
+    },
+    {
+      "name": "genql-comment-2dbc80f",
+      "ok": true,
+      "bytes_read": 1633
+    },
+    {
+      "name": "angular-visitelementlike-417a407",
+      "ok": true,
+      "bytes_read": 8480
+    },
+    {
+      "name": "cyberchef-objtotable-85db3be",
+      "ok": true,
+      "bytes_read": 2556
+    },
+    {
+      "name": "mdc-isanchorlinkallowed-61d636c",
+      "ok": true,
+      "bytes_read": 1795
+    },
+    {
+      "name": "node-xhtml-purifier-node-21d461a",
+      "ok": true,
+      "bytes_read": 7486
+    },
+    {
+      "name": "orpc-init-daabded",
+      "ok": true,
+      "bytes_read": 6240
+    },
+    {
+      "name": "mkdocs-material-mountsearchsuggest-52fb6be",
+      "ok": true,
+      "bytes_read": 4493
+    },
+    {
+      "name": "jodit-isremovablenode-49a31f4",
+      "ok": true,
+      "bytes_read": 3921
+    },
+    {
+      "name": "prowler-transform-6db407e",
+      "ok": true,
+      "bytes_read": 5481
+    },
+    {
+      "name": "commonmark-parseattributes-dfcdf45",
+      "ok": true,
+      "bytes_read": 6437
+    },
+    {
+      "name": "svgo-fn-3db3ef3",
+      "ok": true,
+      "bytes_read": 6895
+    },
+    {
+      "name": "tiptap-mergeattributes-01d7af8",
+      "ok": true,
+      "bytes_read": 3690
+    },
+    {
+      "name": "nogginlessdom-matchfilesnapshot-785e6ac",
+      "ok": true,
+      "bytes_read": 3023
+    },
+    {
+      "name": "gradio-preprocess-97d541f",
+      "ok": true,
+      "bytes_read": 2581
+    },
+    {
+      "name": "gemini-bridge-resolve-path-8f3b85a",
+      "ok": true,
+      "bytes_read": 2006
+    },
+    {
+      "name": "libreoffice-convert-convertwithoptions-b78f17d",
+      "ok": true,
+      "bytes_read": 8912
+    },
+    {
+      "name": "atomic-agents-stack-do-get-ec474f4",
+      "ok": true,
+      "bytes_read": 3493
+    },
+    {
+      "name": "browse-mcp-downloadurl-5352a4a",
+      "ok": true,
+      "bytes_read": 5302
+    },
+    {
+      "name": "notebooklm-mcp-makeslug-13828d9",
+      "ok": true,
+      "bytes_read": 2103
+    },
+    {
+      "name": "langchain-nvidia-url-to-b64-string-b483c7c",
+      "ok": true,
+      "bytes_read": 2318
+    },
+    {
+      "name": "redocly-cli-iteratepathitems-5041204",
+      "ok": true,
+      "bytes_read": 4412
+    },
+    {
+      "name": "pip-filename-10dfb6b",
+      "ok": true,
+      "bytes_read": 1419
+    },
+    {
+      "name": "lib-get-db-path-d665042",
+      "ok": true,
+      "bytes_read": 3879
+    },
+    {
+      "name": "blender-mcp-download-polyhaven-asset-30a3308",
+      "ok": true,
+      "bytes_read": 35668
+    },
+    {
+      "name": "datasets-set-feature-f989ef9",
+      "ok": true,
+      "bytes_read": 4882
+    },
+    {
+      "name": "postcss-loadfile-7beca13",
+      "ok": true,
+      "bytes_read": 1712
+    },
+    {
+      "name": "vitest-configureserver-51edf2b",
+      "ok": true,
+      "bytes_read": 3287
+    },
+    {
+      "name": "next-js-getfilepath-968b9fc",
+      "ok": true,
+      "bytes_read": 2462
+    },
+    {
+      "name": "composer-install-53b8bb4",
+      "ok": true,
+      "bytes_read": 4127
+    },
+    {
+      "name": "vue-cli-mayproxy-72ba750",
+      "ok": true,
+      "bytes_read": 1203
+    },
+    {
+      "name": "h3-redirectback-459a1c6",
+      "ok": true,
+      "bytes_read": 2750
+    },
+    {
+      "name": "axios-setproxy-fb3befb",
+      "ok": true,
+      "bytes_read": 4403
+    },
+    {
+      "name": "rembg-s-command-07ad0d4",
+      "ok": true,
+      "bytes_read": 21204
+    },
+    {
+      "name": "http-server-getpreviousurl-2008fb6",
+      "ok": true,
+      "bytes_read": 4395
+    },
+    {
+      "name": "authlib-get-authorization-grant-3be0846",
+      "ok": true,
+      "bytes_read": 2631
+    },
+    {
+      "name": "java-client-overrideserverurl-2b9cd44",
+      "ok": true,
+      "bytes_read": 1382
+    },
+    {
+      "name": "n8n-mcp-validatewebhookurl-9639f75",
+      "ok": true,
+      "bytes_read": 13458
+    },
+    {
+      "name": "ufo-withoutbase-5cd9e67",
+      "ok": true,
+      "bytes_read": 2154
+    },
+    {
+      "name": "symfony-dogenerate-4b63c3a",
+      "ok": true,
+      "bytes_read": 16981
+    },
+    {
+      "name": "php-weasyprint-isoptionurl-9582dcf",
+      "ok": true,
+      "bytes_read": 1090
+    },
+    {
+      "name": "compliance-trestle-check-metadata-endpoints-d107cd1",
+      "ok": true,
+      "bytes_read": 2412
+    },
+    {
+      "name": "vllm-preprocess-audio-54503ec",
+      "ok": true,
+      "bytes_read": 4629
+    },
+    {
+      "name": "phpspreadsheet-webservice-7ef7b25",
+      "ok": true,
+      "bytes_read": 4441
+    },
+    {
+      "name": "frontmcp-dofetch-077201e",
+      "ok": true,
+      "bytes_read": 3737
+    },
+    {
+      "name": "ip-address-islinklocal-d03e960",
+      "ok": true,
+      "bytes_read": 1489
+    },
+    {
+      "name": "pyjwt-fetch-data-0a795b8",
+      "ok": true,
+      "bytes_read": 3385
+    }
+  ],
+  "verified": 98,
+  "bytes_read": 526134
+}
