@@ -1,0 +1,35 @@
+{
+  "experiment": "exp-004-pooled-block-gate",
+  "registered": "2026-10-03",
+  "store": "s3://sast-memory",
+  "manifest": "plane/experiments/exp-004-pooled-block-gate.yaml",
+  "manifest_digest": "87fceb6580c6de629d6a6089eb5888cdfc4df0f791576184f987c14c192d85f5",
+  "pin": "2ad9c1db7ae673c2a2e48a0afadcaa795dfb1ced",
+  "units_status": "pending",
+  "units_file": "plane/experiments/exp-004-pooled-block-gate.units.jsonl",
+  "units_digest": "",
+  "units": "frozen at run time by `ousast learn experiment units` from the memory after the negatives harvest (merged in 5b2bd9b, 1133 static examples), committed, and registered again before the run; until then the run refuses (check_registered: the units file does not exist)",
+  "requirement": "learned-decision-engine Req 6.4, amended 2026-10-03 by maintainer decision (refines the BLOCK rule of Req 7.3 and 7.4)",
+  "kind": "rule: one zero-cost scoring pass of the six slice-2 incumbent programs; arms differ only in the BLOCK rule",
+  "zero_cost": "the run replays the response cache behind a zero-ceiling meter; a unit with any uncached response is excluded and counted. The harvest changed the memory the programs retrieve from, so a paid cache fill, approved separately with its own ceiling, must precede the run",
+  "normalisation": {
+    "choice": "per-family Platt scaling: learn.calibrate.fit_map with its existing floors (own slope and intercept per family at >= 20 positive and negative repository groups, a pooled slope with a per-family intercept at >= 10, no map below that and so no BLOCK for that family on that fold), fitted on the training folds' paired units only",
+    "why": "a rank-to-quantile map gives every family the same flag rate whatever its precision, so one pooled threshold would flag the top slice of a weak family as readily as of a strong one; Platt puts each family on the scale of its own training precision, which a pooled precision bound needs. The map is a normaliser only: precision is shown by the held-out bound, not by calibration (exp-003: ECE <= 0.05 does not hold per family)"
+  },
+  "arms": {
+    "A": "today's rule: Platt map cross-fitted per family; BLOCK only when the calibration check holds; BLOCK point nested on the other folds' calibrated p (Wilson LB >= 0.95)",
+    "B": "pooled gate: per outer fold j, training units normalised by an inner cross-fit; t_block = the lowest normalised score whose Wilson 95% LB of precision over the training paired flags of all families together is >= 0.95 (unsure never flags); t_quiet per family = the highest normalised score keeping >= 90% of that family's training paired positives; fold j's units BLOCK at p >= t_block, ADVISORY at p >= t_quiet (or without a map or t_quiet), silent below"
+  },
+  "family_floor": {
+    "F": 10,
+    "rule": "a family may block only if its own held-out paired flags (all five folds) number >= 10 with zero errors; otherwise its flags are reported as ADVISORY. The floor uses held-out labels to decide which families block and moves no threshold",
+    "why": "zero errors in 10 flags is unlikely for a family much worse than the bar (probability 0.056 at precision 0.75, 0.107 at 0.80); a larger F is out of reach of the smaller families (16-19 paired positives in exp-003's units over all folds); 10 is exp-003 arm C's training minimum"
+  },
+  "primary_metric": "held-out (outer-fold) Wilson 95% lower bound of flagged precision over arm B's paired flags of all families together, before the family floor (so dropping a failing family cannot raise it)",
+  "populations": {"primary": "paired (both sides of the candidate present)", "secondary": ["pooled (every unit)"]},
+  "secondary_metrics": ["per-family flagged precision and Wilson LB", "the family-floor table", "quiet_recall per family (held-out positives at or above t_quiet / positives) against 0.90", "after-floor totals (what users would get)", "repository-cluster bootstrap 95% CI of flagged precision", "coverage", "flagged"],
+  "decision_rule": "on arm B's held-out paired flags of all families together, before the floor: REJECT B if their point precision < 0.95; else ADOPT B if their Wilson 95% LB >= 0.95 and at least one family passes the floor (>= 10 held-out paired flags, zero errors) -- those families block, every other family stays advisory; else INCONCLUSIVE (the incumbent rule stays)",
+  "power": "the pooled bound needs >= 73 flags with no error (110 with one, 142 with two). On exp-003's units (all 353 scored, result-complete-cache.json) few paired positives rank above the first negative per family on the raw score (access control 10, deserialization 7, injection 2, output encoding 0, path 8, untrusted destination 5); normalisation keeps each family's order, so the pooled top set reaches 73 only if the harvest's pairs separate better. An inconclusive verdict is a plausible outcome",
+  "tests": "tests/test_learn_rules.py: test_one_pooled_threshold_blocks_where_no_family_alone_reaches_the_bound, test_no_held_out_label_moves_a_threshold_or_the_map, test_a_family_with_one_held_out_error_cannot_block, test_quiet_threshold_keeps_ninety_percent_of_positives_and_nothing_is_silenced_blind, test_the_pooled_verdict_follows_the_registered_rule, test_the_exp004_manifest_registers_the_procedure_before_its_units",
+  "status": "registered 2026-10-03, units pending, not run"
+}

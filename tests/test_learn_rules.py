@@ -4,13 +4,24 @@ today's calibrated BLOCK rule, scored once from the response cache at zero cost 
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 from test_learn_experiments import CODE, EXAMPLES, PRICES, _json_shape, artifact, committed, example_rows, excerpt_text, paid, put_program
 
 from openultrasast.learn import experiments as ex
-from openultrasast.learn.evaluate import Prediction, calibrated_block, nested_precision_block, precision_threshold, wilson_lower
+from openultrasast.learn.evaluate import (
+    Prediction,
+    apply_floor,
+    calibrated_block,
+    family_floor,
+    nested_precision_block,
+    pooled_block_gate,
+    precision_threshold,
+    quiet_threshold,
+    wilson_lower,
+)  # fmt: skip
 from openultrasast.learn.program import Candidate, Program
 from openultrasast.learn.retrieve import Target
 from openultrasast.plane.memory import FileStore
@@ -245,3 +256,123 @@ def test_the_registered_exp003_manifest_loads() -> None:
     assert manifest.kind == "rule" and manifest.budget_total_usd == 0 and manifest.raw["populations"]["primary"] == "paired"
     assert manifest.arms["A"].rule == {"name": "calibrated_block"} and manifest.arms["B"].rule["bound"] == "wilson"
     assert len(manifest.families) == 6 and set(manifest.programs) == set(manifest.families)
+
+
+# --- the pooled BLOCK gate with a family floor (Req 6.4 amended 2026-10-03; exp-004) -------------------------------------------
+
+LOW_FLOORS = {"per_family_floor": 2, "pooled_floor": 1}  # small synthetic families still get a Platt map
+
+
+def two_scales(per_fold: int = 12, *, error: tuple[int, str] | None = None) -> list[Prediction]:
+    """Two families on different raw scales: injection positives at 0.9, negatives at 0.1; path at 0.7 and 0.3. With
+    ``error = (fold, family)`` one negative of that fold and family scores like a positive and says vulnerable."""
+    rows = []
+    for f in range(5):
+        for family, hi, lo in (("injection", 0.9, 0.1), ("path", 0.7, 0.3)):
+            for i in range(per_fold):
+                key = f"{family}{f}-{i}"
+                bad = error == (f, family) and i == 0
+                rows.append(pred(f, 1, hi, family=family, group=f"org/{key}", verdict="vulnerable", pair=key))
+                verdict = "vulnerable" if bad else "not_vulnerable"
+                rows.append(pred(f, 0, hi if bad else lo, family=family, group=f"org/{key}", verdict=verdict, pair=key))
+    return rows
+
+
+def test_one_pooled_threshold_blocks_where_no_family_alone_reaches_the_bound() -> None:
+    rows = two_scales()  # 48 training positives per family: fewer than the 73 the bound needs, 96 together
+    _, alone = nested_precision_block(rows)
+    assert all(t is None for fam in alone.values() for t in fam.values())
+    decided, gates = pooled_block_gate(rows, **LOW_FLOORS)
+    assert all(g["t_block"] is not None for g in gates.values())
+    blocked = [r for r in decided if r.point == "BLOCK"]
+    assert {r.family for r in blocked} == {"injection", "path"} and all(r.label == 1 for r in blocked)
+    assert sum(r.label for r in blocked) == sum(r.label for r in rows)  # every positive, on both raw scales
+
+
+def test_no_held_out_label_moves_a_threshold_or_the_map() -> None:
+    """Fold outer-0's labels are flipped (and its scores kept): its t_block, t_quiet and normalised scores must not move,
+    while the other folds, which train on outer-0, do see the change."""
+    rows = two_scales()
+    flipped = [replace(r, label=1 - r.label) if r.fold == "outer-0" else r for r in rows]
+    decided, gates = pooled_block_gate(rows, **LOW_FLOORS)
+    again, regates = pooled_block_gate(flipped, **LOW_FLOORS)
+    assert regates["outer-0"] == gates["outer-0"]
+    assert [r.p for r in decided if r.fold == "outer-0"] == [r.p for r in again if r.fold == "outer-0"]
+    assert [r.point for r in decided if r.fold == "outer-0"] == [r.point for r in again if r.fold == "outer-0"]
+    assert any(regates[f"outer-{f}"] != gates[f"outer-{f}"] for f in range(1, 5))  # the test has teeth
+
+
+def test_a_family_with_one_held_out_error_cannot_block() -> None:
+    rows = two_scales(16, error=(2, "path"))
+    decided, _ = pooled_block_gate(rows, **LOW_FLOORS)
+    floors = family_floor(decided, floor=10)
+    assert floors["path"]["errors"] == 1 and floors["path"]["flagged"] >= 10 and floors["path"]["may_block"] is False
+    assert floors["injection"] == {"flagged": 80, "errors": 0, "floor": 10, "may_block": True}
+    shipped = apply_floor(decided, floors)
+    assert not any(r.point == "BLOCK" for r in shipped if r.family == "path")
+    assert all(r.point == "ADVISORY" for r, d in zip(shipped, decided, strict=True) if d.point == "BLOCK" and r.family == "path")
+    few = [r for r in decided if r.family == "injection"][:18]  # 9 clean flags: below the floor
+    assert family_floor(few, floor=10)["injection"] == {"flagged": 9, "errors": 0, "floor": 10, "may_block": False}
+
+
+def test_quiet_threshold_keeps_ninety_percent_of_positives_and_nothing_is_silenced_blind() -> None:
+    rows = [replace(pred(0, 1, 0.5), p=v / 10) for v in range(1, 11)]
+    assert quiet_threshold(rows) == 0.2  # 9 of 10 positives at or above 0.2; 0.3 keeps 8
+    assert quiet_threshold([replace(pred(0, 0, 0.5), p=0.9)]) is None
+    lone = [pred(0, 1, 0.9, family="deserialization", group="org/lone")]  # a family with no training rows: no map, no t_quiet
+    decided, _ = pooled_block_gate([*two_scales(), *lone], **LOW_FLOORS)
+    assert decided[-1].p is None and decided[-1].point == "ADVISORY"
+    assert any(r.point == "DROP" for r in decided)  # low scores below t_quiet are silent
+
+
+POOLED_MANIFEST = RULE_MANIFEST.replace(
+    "  B: {{label: bound, rule: {{name: precision_bound_block, bound: wilson, precision: 0.95, select_on: paired}}}}\n"
+    "  C: {{label: point, rule: {{name: precision_bound_block, bound: point, precision: 0.95, min_flagged: 2, select_on: paired}}}}",
+    "  B: {{label: gate, rule: {{name: pooled_block_gate, precision: 0.95, recall: 0.9, floor: 10, normalise: platt, select_on: paired}}}}",
+).replace("decision: {{arm: B, target_precision: 0.95}}", "decision: {{arm: B, target_precision: 0.95, pooled: true}}")
+
+
+def pooled_outcomes(error: tuple[int, str] | None) -> tuple[list[ex.Outcome], list[ex.Unit]]:
+    units, outcomes = [], []
+    for r in two_scales(16, error=error):
+        u = ex.Unit(f"{r.pair}-{r.label}", r.group, r.family, r.label, r.fold, r.pair)
+        units.append(u)
+        outcomes.append(ex.Outcome(u.unit, u.group, u.family, u.label, u.pair, ex.SCORE_ARM, 0, r.s, r.verdict, 0.0))
+    return outcomes, units
+
+
+def test_the_pooled_verdict_follows_the_registered_rule(tmp_path: Path) -> None:
+    path = tmp_path / "exp-904-pooled.yaml"
+    path.write_text(POOLED_MANIFEST.format(id="exp-904-pooled", pid="0" * 64, units=tmp_path / "u.jsonl"))
+    manifest = ex.load_manifest(path)
+    assert manifest.arms["B"].rule["normalise"] == "platt"
+    outcomes, units = pooled_outcomes(None)
+    report = ex.analyse_rule(manifest, outcomes, units, resamples=20)
+    assert report["decision"] == "adopt" and report["overall"]["B"]["paired"]["meets_target_lb"]
+    assert all(report["families"][f]["B"]["floor"]["may_block"] for f in ("injection", "path"))
+    assert report["families"]["path"]["B"]["quiet_recall"]["paired"] == 1.0
+    outcomes, units = pooled_outcomes((2, "path"))
+    report = ex.analyse_rule(manifest, outcomes, units, resamples=20)
+    assert report["families"]["path"]["B"]["floor"]["may_block"] is False and report["decision"] == "adopt"
+    assert "injection" in report["reason"] and "path" not in report["reason"]
+    assert report["overall_after_floor"]["B"]["paired"]["flagged"] == report["families"]["injection"]["B"]["paired"]["flagged"]
+    text = path.read_text()
+    for bad, why in (
+        (text.replace("normalise: platt", "normalise: rank"), "normalise"),
+        (text.replace("floor: 10", "floor: 0"), "floor"),
+        (text.replace("name: pooled_block_gate", "name: precision_bound_block"), "not understood"),
+    ):
+        path.write_text(bad)
+        with pytest.raises(ex.ExperimentError, match=why):
+            ex.load_manifest(path)
+
+
+def test_the_exp004_manifest_registers_the_procedure_before_its_units() -> None:
+    path = ROOT / "plane/experiments/exp-004-pooled-block-gate.yaml"
+    if not path.exists():
+        pytest.skip("exp-004 is not written yet")
+    manifest = ex.load_manifest(path)
+    gate = manifest.arms["B"].rule
+    assert manifest.kind == "rule" and manifest.budget_total_usd == 0 and manifest.raw["decision"]["pooled"] is True
+    assert gate["name"] == "pooled_block_gate" and gate["normalise"] == "platt" and gate["floor"] == 10 and gate["precision"] == 0.95
+    assert manifest.raw["populations"]["primary"] == "paired" and set(manifest.programs) == set(manifest.families)

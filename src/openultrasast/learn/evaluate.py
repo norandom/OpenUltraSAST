@@ -25,7 +25,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import Any
 
-from .calibrate import Row, check, cross_fit, offered
+from .calibrate import Row, check, cross_fit, fit_map, offered
 from .examples import Example
 from .folds import Fold
 from .labels import PER_FAMILY_FLOOR, POOLED_FLOOR
@@ -208,6 +208,98 @@ def calibrated_block(preds: Sequence[Prediction], *, seed: int = 0, **floors: in
             "reason_by_fold": {f: ("calibration" if not holds else p.block_reason) for f, p in points.items()},
         }  # fmt: skip
     return out, info
+
+
+# --- the pooled BLOCK gate (Req 6.4, amended 2026-10-03; exp-004) ---------------------------------------------------------
+
+FAMILY_FLOOR = 10  # a family blocks only with at least this many held-out flags and none of them wrong
+
+
+def normalised(train: Sequence[Prediction], rows: Sequence[Prediction], **floors: int) -> list[float | None]:
+    """``rows``' raw scores on one scale across families: the per-family Platt map of :func:`.calibrate.fit_map`
+    (pooled slope with a per-family intercept between the floors) fitted on ``train`` only. ``None`` for a family the
+    training rows cannot map (below the pooled floor): it cannot block on that fold."""
+    cmap = fit_map([Row(r.fold, r.family, r.group, r.label, r.s) for r in train], **floors)
+    return [cmap.apply(r.family, r.s) for r in rows]
+
+
+def pooled_threshold(rows: Sequence[Prediction], *, precision: float = TARGET_PRECISION) -> float | None:
+    """The lowest normalised score ``t`` at which the blockable rows of every family together with ``p >= t`` have a
+    Wilson 95% lower bound of precision >= ``precision``; candidate thresholds are the rows' own ``p``."""
+    blockable = [r for r in rows if r.blockable and r.p is not None]
+    for t in sorted({float(r.p) for r in blockable if r.p is not None}):
+        chosen = [r for r in blockable if (r.p or 0.0) >= t]
+        if wilson_lower(sum(r.label for r in chosen), len(chosen)) >= precision:
+            return t
+    return None
+
+
+def quiet_threshold(rows: Sequence[Prediction], *, recall: float = TARGET_RECALL) -> float | None:
+    """The highest normalised score ``t`` that keeps at least ``recall`` of the rows' positives at or above it."""
+    positives = sorted((float(r.p) for r in rows if r.label == 1 and r.p is not None), reverse=True)
+    if not positives:
+        return None
+    return positives[math.ceil(recall * len(positives) - 1e-9) - 1]
+
+
+def pooled_block_gate(
+    preds: Sequence[Prediction],
+    *,
+    eligible: Callable[[Prediction], bool] | None = None,
+    precision: float = TARGET_PRECISION,
+    recall: float = TARGET_RECALL,
+    **floors: int,
+) -> tuple[list[Prediction], dict[str, dict[str, Any]]]:
+    """One BLOCK threshold for every family, on a normalised score, chosen per outer fold j on the other folds only.
+
+    The training rows (``eligible`` rows of the other folds) are normalised by an inner cross-fit: each training fold
+    k by a map fitted on the training folds other than k, so ``t_block`` is chosen on out-of-sample scores. ``t_block``
+    is the lowest normalised score whose pooled Wilson 95% lower bound of precision is >= ``precision``; ``t_quiet``
+    per family is the highest one keeping >= ``recall`` of that family's training positives. Fold j's rows are then
+    normalised by the map fitted on all its training rows and decided: ``BLOCK`` when blockable and ``p >= t_block``;
+    ``ADVISORY`` when ``p >= t_quiet`` (or the family has no map, or no ``t_quiet``: nothing is silenced blind);
+    ``DROP`` (silent) below ``t_quiet``. Fold j's labels never enter its thresholds or its map."""
+    chosen = [r for r in preds if eligible is None or eligible(r)]
+    families = sorted({r.family for r in preds})
+    decided: dict[int, Prediction] = {}
+    gates: dict[str, dict[str, Any]] = {}
+    for fold in sorted({r.fold for r in preds}):
+        train = [r for r in chosen if r.fold != fold]
+        inner: list[Prediction] = []
+        for k in sorted({r.fold for r in train}):
+            mine = [r for r in train if r.fold == k]
+            inner += [replace(r, p=p) for r, p in zip(mine, normalised([r for r in train if r.fold != k], mine, **floors), strict=True)
+                      if p is not None]  # fmt: skip
+        t_block = pooled_threshold(inner, precision=precision)
+        t_quiet = {f: quiet_threshold([r for r in inner if r.family == f], recall=recall) for f in families}
+        held = [(i, r) for i, r in enumerate(preds) if r.fold == fold]
+        for (i, r), p in zip(held, normalised(train, [r for _, r in held], **floors), strict=True):
+            quiet = t_quiet[r.family]
+            if p is not None and t_block is not None and r.blockable and p >= t_block:
+                point = "BLOCK"
+            elif p is None or quiet is None or p >= quiet:
+                point = "ADVISORY"
+            else:
+                point = "DROP"
+            decided[i] = replace(r, p=p, point=point)
+        gates[fold] = {"t_block": t_block, "t_quiet": t_quiet, "training_rows": len(train), "normalised_training_rows": len(inner)}
+    return [decided[i] for i in range(len(preds))], gates
+
+
+def family_floor(rows: Sequence[Prediction], *, floor: int = FAMILY_FLOOR) -> dict[str, dict[str, Any]]:
+    """Per family, its held-out ``BLOCK`` flags among ``rows`` (the primary population, every fold): it may block only
+    when none is wrong and there are at least ``floor``; otherwise its flags are reported as ADVISORY."""
+    out: dict[str, dict[str, Any]] = {}
+    for family in sorted({r.family for r in rows}):
+        flagged = [r for r in rows if r.family == family and r.point == "BLOCK"]
+        errors = sum(1 for r in flagged if r.label == 0)
+        out[family] = {"flagged": len(flagged), "errors": errors, "floor": floor, "may_block": errors == 0 and len(flagged) >= floor}
+    return out
+
+
+def apply_floor(rows: Sequence[Prediction], floors: Mapping[str, Mapping[str, Any]]) -> list[Prediction]:
+    """``BLOCK`` becomes ``ADVISORY`` in every family that does not pass :func:`family_floor`."""
+    return [replace(r, point="ADVISORY") if r.point == "BLOCK" and not floors.get(r.family, {}).get("may_block") else r for r in rows]
 
 
 def _at(rows: Sequence[Prediction], level: str) -> dict[str, float | None]:
@@ -408,7 +500,8 @@ def candidate_from_example(
 
 
 __all__ = [
-    "BOUNDS", "PARSE_FAILURE_LIMIT", "TARGET_PRECISION", "TARGET_RECALL", "Points", "Prediction", "calibrated_block",
+    "BOUNDS", "FAMILY_FLOOR", "PARSE_FAILURE_LIMIT", "TARGET_PRECISION", "TARGET_RECALL", "Points", "Prediction", "apply_floor",
+    "calibrated_block", "family_floor", "normalised", "pooled_block_gate", "pooled_threshold", "quiet_threshold",
     "candidate_from_example", "choose_points", "cluster_bootstrap", "evaluate", "explain", "floor_status", "incompatible",
     "learning_curve", "nested_points", "nested_precision_block", "precision_threshold", "predict", "strata", "summary", "targets",
     "unevaluable_families",
