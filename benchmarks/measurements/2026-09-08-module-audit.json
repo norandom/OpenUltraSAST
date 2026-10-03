@@ -1,7 +1,7 @@
 {
-  "modules": 158,
+  "modules": 159,
   "counts": {
-    "load_bearing": 153,
+    "load_bearing": 154,
     "standalone_capability": 5
   },
   "orphaned": [],
@@ -365,6 +365,7 @@
         "learn.program",
         "learn.retrieve",
         "learn.roles",
+        "learn.slice",
         "plane.harvest",
         "plane.tasks.features",
         "plane.tasks.remember",
@@ -440,6 +441,7 @@
         "learn.embeddings",
         "learn.examples",
         "learn.labels",
+        "learn.slice",
         "plane.harvest"
       ]
     },
@@ -555,6 +557,14 @@
       ]
     },
     {
+      "module": "learn.slice",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate, cli",
+      "importers": [
+        "learn.program"
+      ]
+    },
+    {
       "module": "map_gate",
       "classification": "load_bearing",
       "reason": "entry point",
@@ -600,6 +610,7 @@
         "learn.features",
         "learn.fill",
         "learn.labels",
+        "learn.slice",
         "model.candidates",
         "model.config_value",
         "model.dominance",
@@ -798,6 +809,7 @@
       "classification": "load_bearing",
       "reason": "model-grounded-detection Req 7.2-7.4: the security vocabularies the CPG queries are parameterised by",
       "importers": [
+        "learn.slice",
         "model.config_value",
         "model.dominance",
         "model.pipeline",
@@ -1590,6 +1602,7 @@
         "hunter_tools",
         "learn.features",
         "learn.roles",
+        "learn.slice",
         "mapping",
         "model.candidates",
         "model.layout",
@@ -1646,6 +1659,7 @@
         "hunter_tools",
         "learn.features",
         "learn.roles",
+        "learn.slice",
         "mapping",
         "model.candidates",
         "model.layout",
@@ -1679,6 +1693,7 @@
       "importers": [
         "cli",
         "hunter_tools",
+        "learn.slice",
         "model.candidates",
         "pairs",
         "semantic.cst",
@@ -1812,6 +1827,7 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate, cli",
       "importers": [
+        "learn.slice",
         "semantic.overlay"
       ]
     },
