@@ -1,8 +1,10 @@
 """ai-service-plane task 0: the per-task egress policy, its kubectl-ate calls, and the runner's dialled delivery.
 
-Agent Substrate's egress gateway denies by default; :func:`egress.policy_for` must grant exactly the receiver (HTTP
-by name), the bound Workspaces' Git hosts and the bound Model's API host (TLS passthrough), and nothing a gateway
-would reject or that would intercept TLS: no IP address, no wildcard, no ``https`` rule.
+Agent Substrate's egress gateway denies by default; :func:`egress.policy_for` must grant exactly the memory store's
+host (where the runner PUTs its tar and GETs its inputs), the bound Workspaces' Git hosts and the bound Model's API
+host, all as one TLS passthrough rule on 443 (plane-on-kubernetes 2.3), and nothing a gateway would reject or that
+would intercept TLS: no IP address, no wildcard, no ``https`` rule, no ``http`` rule (the receiver path, kept for
+group 2 only, is the one exception).
 """
 
 from __future__ import annotations
@@ -70,24 +72,59 @@ def assert_tight(policy: dict) -> None:
             ipaddress.ip_address(host)
 
 
-def test_model_free_task_gets_only_the_receiver(manifests) -> None:
-    policy = egress.policy_for(manifests.tasks["facts"], [], None, egress.RECEIVER_HOST)
-    assert policy == {"rules": [{"http": {"hostnames": [egress.RECEIVER_HOST], "ports": {"numbers": [80]}}}]}
+STORE = "files.store.example"
+
+
+def test_model_free_task_gets_only_the_store(manifests) -> None:
+    policy = egress.policy_for(manifests.tasks["facts"], [], None, STORE)
+    assert policy == {"rules": [{"tlsPassthrough": {"hostnames": [STORE], "ports": {"numbers": [443]}}}]}
     assert_tight(policy)
+    assert egress.policy_for(manifests.tasks["facts"], [], None, None) == {"rules": []}, "no store, no Git, no Model: nothing"
+
+
+def test_the_receiver_path_adds_the_one_http_rule_until_it_is_removed(manifests) -> None:
+    policy = egress.policy_for(manifests.tasks["facts"], [], None, None, receiver_host=egress.RECEIVER_HOST)
+    assert policy == {"rules": [{"http": {"hostnames": [egress.RECEIVER_HOST], "ports": {"numbers": [80]}}}]}
+    assert egress.policy_for(manifests.tasks["facts"], [], None, None, receiver_host="127.0.0.1") == {"rules": []}
 
 
 def test_model_bound_task_with_git_workspaces(manifests) -> None:
     task = manifests.tasks["verify"]
-    policy = egress.policy_for(task, [manifests.workspaces["cases"]], manifests.models["deepseek-flash"], egress.RECEIVER_HOST)
+    policy = egress.policy_for(task, [manifests.workspaces["cases"]], manifests.models["deepseek-flash"], STORE)
     assert policy["rules"] == [
-        {"http": {"hostnames": [egress.RECEIVER_HOST], "ports": {"numbers": [80]}}},
-        {"tlsPassthrough": {"hostnames": ["api.deepseek.com", "github.com"], "ports": {"numbers": [443]}}},
-    ], "one github.com for two repos; the ssh and IP-address repos add nothing"
+        {"tlsPassthrough": {"hostnames": ["api.deepseek.com", STORE, "github.com"], "ports": {"numbers": [443]}}},
+    ], "one rule: the store, one github.com for two repos, the Model host; the ssh and IP-address repos add nothing"
     assert_tight(policy)
 
 
-def test_an_ip_receiver_is_not_granted(manifests) -> None:
-    assert egress.policy_for(manifests.tasks["facts"], [], None, "127.0.0.1") == {"rules": []}
+def test_an_ip_store_endpoint_is_refused_naming_the_variable(manifests) -> None:
+    with pytest.raises(ValueError, match="S3_ENDPOINT must be a hostname"):
+        egress.policy_for(manifests.tasks["facts"], [], None, "127.0.0.1")
+
+
+def test_an_http_git_repo_is_refused(tmp_path: Path) -> None:
+    path = tmp_path / "m.yaml"
+    path.write_text(MANIFESTS.replace("https://github.com/example-org/alpha", "http://mirror.example/alpha"), encoding="utf-8")
+    loaded = load_manifests([path])
+    with pytest.raises(ValueError, match="http Git repos .*mirror.example.* cannot be reached"):
+        egress.policy_for(loaded.tasks["verify"], [loaded.workspaces["cases"]], None, STORE)
+
+
+def test_every_committed_template_renders_the_expected_policy() -> None:
+    """For each template under plane/tasks/: the store, the Model's hosts when bound, nothing else; one TLS rule."""
+    from openultrasast.plane.generate import TEMPLATES
+
+    plane = Path("plane")
+    loaded = load_manifests([plane / "tasks" / f"{name}.yaml" for name in TEMPLATES] + sorted((plane / "models").glob("*.yaml")))
+    assert set(loaded.tasks) == set(TEMPLATES)
+    for name, task in loaded.tasks.items():
+        model = loaded.models.get(task.metadata.annotations.get("openultrasast.io/model") or "")
+        policy = egress.policy_for(task, [], model, STORE)
+        expected = sorted({STORE, *(model.egress_hosts if model else ())})
+        assert policy == {"rules": [{"tlsPassthrough": {"hostnames": expected, "ports": {"numbers": [443]}}}]}, name
+        assert_tight(policy)
+    bound = {n for n, t in loaded.tasks.items() if "openultrasast.io/model" in t.metadata.annotations}
+    assert bound == {"verify", "roles"}, "the model-bound templates, and only they, get the provider host"
 
 
 def test_deepseek_model_manifest_names_the_endpoint_host() -> None:
@@ -121,7 +158,7 @@ def calls(tmp_path: Path) -> list[str]:
     return [" ".join(line.split()[2:4]) for line in (tmp_path / "ax.log").read_text().splitlines()]
 
 
-POLICY = {"rules": [{"http": {"hostnames": [egress.RECEIVER_HOST], "ports": {"numbers": [80]}}}]}
+POLICY = {"rules": [{"tlsPassthrough": {"hostnames": ["files.store.example"], "ports": {"numbers": [443]}}}]}
 
 
 def test_apply_creates_reads_back_and_delete_confirms_the_cascade(tmp_path: Path, kubectl_ate: Path) -> None:
@@ -134,10 +171,11 @@ def test_apply_creates_reads_back_and_delete_confirms_the_cascade(tmp_path: Path
     actor(tmp_path, "t1", gone=True)  # ax delete task: the actor, and with it the policy, is gone
     assert cli.delete("t1", "default") is None
     assert calls(tmp_path) == ["get t1", "create t1", "get t1", "get t1", "get t1", "get t1"]
+    assert {line.split()[-1] for line in (tmp_path / "ax.log").read_text().splitlines()} == {"kind-test"}, "the given context"
 
 
 def test_apply_replaces_an_existing_policy(tmp_path: Path, kubectl_ate: Path) -> None:
-    cli = egress.Egress(str(kubectl_ate))
+    cli = egress.Egress(str(kubectl_ate), context="kind-test")
     actor(tmp_path, "t2")
     cli.apply("t2", "default", {"rules": []})
     cli.apply("t2", "default", POLICY)
@@ -146,7 +184,7 @@ def test_apply_replaces_an_existing_policy(tmp_path: Path, kubectl_ate: Path) ->
 
 
 def test_apply_waits_for_the_actor_then_gives_up(tmp_path: Path, kubectl_ate: Path) -> None:
-    cli = egress.Egress(str(kubectl_ate))
+    cli = egress.Egress(str(kubectl_ate), context="kind-test")
     with pytest.raises(RuntimeError, match="not found"):
         cli.apply("missing", "default", POLICY, timeout=0.2)
     timer = threading.Timer(0.3, actor, args=(tmp_path, "late"))
@@ -157,10 +195,13 @@ def test_apply_waits_for_the_actor_then_gives_up(tmp_path: Path, kubectl_ate: Pa
 
 def test_receiver_address_modes(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OUSAST_ARTIFACT_HOST", "127.0.0.1")
-    assert egress.receiver_address(4242) == ("http://127.0.0.1:4242/", None)
+    assert egress.receiver_address(4242, None) == ("http://127.0.0.1:4242/", None)
     monkeypatch.delenv("OUSAST_ARTIFACT_HOST")
     monkeypatch.setenv("OUSAST_ARTIFACT_DIAL", "172.19.0.1:80")
-    assert egress.receiver_address(18090) == (f"http://{egress.RECEIVER_HOST}/", "172.19.0.1:80")
+    assert egress.receiver_address(18090, "kind-test") == (f"http://{egress.RECEIVER_HOST}/", "172.19.0.1:80")
+    monkeypatch.delenv("OUSAST_ARTIFACT_DIAL")
+    with pytest.raises(RuntimeError, match="kube context"):
+        egress.receiver_address(18090, None)  # no context to look the Service up in: never a built one
 
 
 # --- the runner dials the gateway address with the receiver's name as Host ----------------------------------------

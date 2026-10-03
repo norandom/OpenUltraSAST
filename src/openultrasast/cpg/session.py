@@ -162,7 +162,9 @@ class EngineSession:
             return None
         payload = json.dumps({"query": code}).encode()
         call = urllib.request.Request(
-            f"http://127.0.0.1:{self._port}/query-sync", data=payload, headers={"Content-Type": "application/json"}
+            f"http://127.0.0.1:{self._port}/query-sync",  # loopback: the Joern server this process started
+            data=payload,
+            headers={"Content-Type": "application/json"},
         )
         try:
             with urllib.request.urlopen(call, timeout=timeout) as response:  # noqa: S310 -- fixed loopback URL

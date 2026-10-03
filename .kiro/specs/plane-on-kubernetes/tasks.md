@@ -10,7 +10,7 @@ its kind proof and the record it writes under `benchmarks/measurements/<date>-k8
 go-ahead** with a ceiling; steps that need a hand on a cluster that does not exist yet are marked **manual**.
 
 - [ ] 1. Profile and literals (design section 1; open-question checks 2, 3, 7)
-- [ ] 1.1 `PlaneProfile`
+- [x] 1.1 `PlaneProfile`
   - `src/openultrasast/plane/profile.py`: frozen dataclass with the fields of design section 1; `load_profile()`
     reads `ops/k8s/profiles/<OUSAST_PLANE_PROFILE>.toml` (a name or a path; default `kind`), then applies
     `OUSAST_<FIELD>` overrides; rejects an unknown key, a secret-looking key (`*_KEY`, `*_SECRET`), an `exec`
@@ -19,7 +19,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
   - `tests/test_plane_profile.py`: defaults; file then env precedence; each rejection names the field; both
     committed profiles load; no field holds a value matching a credential pattern.
   - _Requirements: 1.1_
-- [ ] 1.2 Literals out of `doctor.py`, `egress.py`, `router.py`, `generate.py`
+- [x] 1.2 Literals out of `doctor.py`, `egress.py`, `router.py`, `generate.py`
   - `doctor(profile)`: context from `profile.kube_context`; the registry check resolves the `images` file's runner
     reference (`docker manifest inspect` for a remote registry, `/v2/_catalog` for a local one); `open_store`
     verifies `profile.memory`; prints every configured address (Req 1.2). `Egress(context=...)`,
@@ -29,46 +29,46 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
     profile's context, never a built one.
   - Evidence: `grep -rn "kind-" src/openultrasast/plane` matches only comments citing the kind profile.
   - _Requirements: 1.1, 1.2_
-- [ ] 1.3 Host-literal scan test
+- [x] 1.3 Host-literal scan test
   - `tests/test_plane_literals.py`: pattern built at runtime (as `tests/test_removed_plane_references.py` does)
     over `src/`, `plane/`, `ops/` minus `ops/ax/up.sh` and `ops/k8s/profiles/`, and `docs/`, for `kind-ousast`,
     `localhost:5001`, `172.19.`, `127.0.0.1:` and `port-forward` outside `router.py` and lines tagged
     `ax-tunnel`; fails listing `path:line`.
   - Evidence: the test passes on this commit and fails when a literal is reinserted (shown once in the record).
   - _Requirements: 1.3_
-- [ ] 1.4 `up.sh` by profile
+- [x] 1.4 `up.sh` by profile
   - `ops/ax/up.sh`: `KO_DOCKER_REPO` and the context from `kind.toml` (read with `python -m
     openultrasast.plane.profile --print registry|kube_context`); writes `kind-images.json` instead of
     `runner-image`; `generate.repin_templates` accepts that file (runner key only until task 4.3).
   - Evidence: `ops/ax/up.sh` reruns idempotently on kind; `ops/ax/smoke-run.sh` passes.
   - _Requirements: 1.1, 2.4_
-- [ ] 1.5 Placement probe (open question 2, decided before the engine work)
+- [x] 1.5 Placement probe (open question 2, decided before the engine work) -- result: `placement: any`
   - `ops/ax/probe-placement.sh`: applies a second WorkerPool `probe-pool` (1 replica, 3 Gi) from the design's
     engine template, then one model-free `repo-facts` Task with `resources.requests.memory: 2560Mi`, and records
     with `kubectl ate get workers` which worker took the actor; then the same Task with 256Mi. Removed after.
   - Evidence: `record.json` says whether Substrate places by resource fit (`placement: fit|any`). `any` selects
     the design's fallback for group 5 and is written into `design.md` section 4 before group 5 starts.
   - _Requirements: 4.1_
-- [ ] 1.6 Reconciler bound (open question 7)
+- [x] 1.6 Reconciler bound (open question 7) -- 489 lines after 1.2; projected 514 during group 2: the bound moves to 550 in 2.4
   - Record `wc -l src/openultrasast/plane/reconciler.py` (477 at 17ac7ad) and the lines task 2.4 may add
     (receiver wiring removed: `-12`, `Delivery` calls: `+8` estimated). If the estimate crosses 500, the bound
     in `tests/test_plane_reconciler.py:803` moves to 550 in task 2.4 with the reason in the assertion message.
   - Evidence: the numbers in `record.json`.
   - _Requirements: 2.1_
-- [ ] 1.7 gvisor tarball reachability (open question 3) **manual**
+- [x] 1.7 gvisor tarball reachability (open question 3) **manual** -- documented as planned in `docs/deployment.md` B.1; the live check waits for k3s
   - `docs/deployment.md` (B.1, planned): the k3s node must fetch
     `gs://gvisor/releases/nightly/2026-09-02/<arch>/gvisor.tar.zstd` (`substrate/manifests/ate-install/sandboxconfig-gvisor.yaml`)
     or a mirrored copy named in a copied SandboxConfig; the check is `kubectl -n ate-system logs` of the worker
     pod's atelet fetch line, run by hand on the day k3s exists. Labelled planned until then.
   - _Requirements: 7.2_
-- [ ] 1.8 Kind proof and record 01
+- [x] 1.8 Kind proof and record 01
   - `ousast plane doctor --profile kind` passes every line; `ousast plane doctor --profile k3s` fails only on the
     unreachable context (the expected line); `test_plane_literals` 0 offenders; the probe of 1.5; the bound of 1.6.
   - `benchmarks/measurements/<date>-k8s-01-profile/record.json`.
   - _Requirements: 1.1, 1.2, 1.3, 7.1_
 
 - [ ] 2. Store delivery, receiver-less egress (design section 3)
-- [ ] 2.1 Presigned URLs and the store run directory
+- [x] 2.1 Presigned URLs and the store run directory
   - `src/openultrasast/plane/delivery.py`: `Delivery(store, run)` mints presigned PUT for
     `runs/<run>/<task>/output.tar` and GET for `runs/<run>/<producer>/<artifact>` (boto3 `generate_presigned_url`
     on `S3Client.sdk`, expiry `OUSAST_TASK_TIMEOUT + 600`); `delivered(task)` HEADs the tar; `collect(task)`
@@ -78,7 +78,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
   - `tests/test_plane_delivery.py`: against a local S3-shaped fake (PUT/GET/HEAD by key); URLs never appear in
     logs; expiry; member rejection; declared-only re-put; state seeding.
   - _Requirements: 3.1, 2.1_
-- [ ] 2.2 Runner: `delivery` in the start body
+- [x] 2.2 Runner: `delivery` in the start body
   - `src/openultrasast/plane/runner.py`: `StartGate.offer` validates an optional `delivery {put, inputs}` (https,
     hostname, no echo); `_deliver_output` PUTs the tar to `delivery.put` (same retry and `DeliveryError`
     semantics); `fetch_inputs` GETs from `delivery.inputs[name]`; `OUSAST_ARTIFACT_URL` and `OUSAST_ARTIFACT_DIAL`
@@ -86,14 +86,14 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
   - `tests/test_plane_runner.py`: accepted body with `delivery`; 400 on an `http` or IP URL; PUT to a local
     server; inputs fetched from presigned-shaped URLs; the marker and retry-only boot unchanged.
   - _Requirements: 3.1_
-- [ ] 2.3 Egress without the receiver
+- [x] 2.3 Egress without the receiver
   - `src/openultrasast/plane/egress.py`: `policy_for(task, workspaces, model, store_host)` emits one
     `tlsPassthrough` rule on 443 over the sorted union of store host, Git hosts, Model hosts; no `http` rule; an
     IP store host raises naming `S3_ENDPOINT`.
   - `tests/test_plane_egress.py`: for every committed template under `plane/tasks/` the rendered policy is the
     expected set; the IP refusal.
   - _Requirements: 3.2_
-- [ ] 2.4 Reconciler on `Delivery`
+- [x] 2.4 Reconciler on `Delivery`
   - `src/openultrasast/plane/reconciler.py`: `run()` opens the store first (no fallback), builds `Delivery`,
     passes `delivery` to `router.starter`/`start_task` (body extended in `router.py`), `_await` on
     `Delivery.delivered`, outcome from the collected `summary.json`; the receiver thread is kept behind
@@ -101,7 +101,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
   - `tests/test_plane_reconciler.py`: the ax fake run completes through the delivery fake; a rerun from an empty
     results root resumes from the store's `state.json`.
   - _Requirements: 2.1, 3.1_
-- [ ] 2.5 Kind proof and record 02
+- [x] 2.5 Kind proof and record 02
   - `ops/ax/smoke-run.sh` with `OUSAST_DELIVERY=store`: `facts.json` and `summary.json` arrive through the store;
     the actor's policy read back has one TLS rule naming the store host; `ousast plane status ax-e2e-smoke`
     prints the table. Instrument: the tar's byte size from the store equals the extracted files' total.

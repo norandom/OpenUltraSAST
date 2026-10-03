@@ -1,0 +1,58 @@
+
+== kind cluster 'ousast' (context kind-ousast) + registry localhost:5001 (21:36:18)
+cluster exists; kept
+
+== agent substrate (ate-system) (21:36:18)
+substrate ready; kept
+NAME                              READY   STATUS      RESTARTS       AGE
+ate-api-server-647bb6f8b6-c9k5k   1/1     Running     2 (13h ago)    3d1h
+ate-api-server-647bb6f8b6-dznjn   1/1     Running     1 (13h ago)    3d1h
+ate-controller-c95586684-g7nvn    1/1     Running     0              3d3h
+atelet-4f9c293-9zpfg              1/1     Running     0              3d3h
+atenet-egress-d74b8f6bf-8zmxj     1/1     Running     0              3d1h
+atenet-router-54887bc8f9-rqs6g    2/2     Running     2 (13h ago)    3d3h
+postgres-0                        2/2     Running     3 (3d3h ago)   3d3h
+rustfs-6c4c677cb6-cqvhc           1/1     Running     3 (3d3h ago)   3d3h
+rustfs-bucket-init-nvfr6          0/1     Completed   0              3d3h
+
+== egress gateway (atenet-egress, agentgateway variant: one prebuilt image, nothing built) (21:36:18)
+gateway present; kept
+
+== ax control plane (ax-system) (21:36:19)
+ax ready; kept
+NAME                           READY   STATUS    RESTARTS   AGE
+ax-redis-86df786c87-pz5tp      1/1     Running   0          3d3h
+ax-server-b479bdc76-hwkqb      1/1     Running   0          3d3h
+ousast-pool-6656b55f5b-5brkn   1/1     Running   0          66m
+ousast-pool-6656b55f5b-9wbrw   1/1     Running   0          3d3h
+
+== artifact receiver Service (ousast-receiver.ax-system -> this host) (21:36:19)
+service/ousast-receiver unchanged
+endpointslice.discovery.k8s.io/ousast-receiver-host configured
+
+== worker pool (gVisor): pools.default of the profile (21:36:20)
+pool ousast-pool exists (2/2 ready); kept
+pod/ousast-pool-6656b55f5b-5brkn condition met
+pod/ousast-pool-6656b55f5b-9wbrw condition met
+
+== runner image localhost:5001/ousast-runner (21:36:21)
+sha256:0501baf180b29f7aa7bbb8888bebabfc5d62429b7bdaa7f5a62b5b188f8ad5f6
+localhost:5001/ousast-runner:dev
+runner image localhost:5001/ousast-runner@sha256:d2a55293999cc34581ef1f02a1ffb0c2dd8fc0cbe001ac952df81600e868f019 -> /home/mc/Source/OpenUltraSAST/.claude/worktrees/agent-a7d4724e0c0c407a8/ops/k8s/profiles/kind-images.json
+re-pin the templates with: ousast plane workspaces ... --runner-image /home/mc/Source/OpenUltraSAST/.claude/worktrees/agent-a7d4724e0c0c407a8/ops/k8s/profiles/kind-images.json (or ousast plane repin, task 4.3)
+
+== ax CLI from the deployed checkout (a release CLI skews from the server) (21:36:32)
+ax CLI newer than the checkout; kept
+
+== smoke task (21:36:32)
+task.ax.io/ousast-smoke created
+workspace.ax.io/ousast-smoke-ws unchanged
+task.ax.io/ousast-smoke resumed
+NAME           ATESPACE   PHASE     ACTOR          WORKER-IP     AGE
+ousast-smoke   default    Running   ousast-smoke   10.244.0.29   4s
+
+== footprint (21:36:38)
+               total        used        free      shared  buff/cache   available
+Mem:            7877        5202         382          63        2903        2674
+kind-registry 32.45MiB / 7.693GiB 0.00%
+up.sh exit 0

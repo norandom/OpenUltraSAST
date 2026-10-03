@@ -1,0 +1,36 @@
+{
+ "store": "s3://sast-memory",
+ "objects_under_run": {
+  "runs/ax-e2e-smoke/facts/done.json": 149,
+  "runs/ax-e2e-smoke/facts/facts.json": 451,
+  "runs/ax-e2e-smoke/facts/output.tar": 10240,
+  "runs/ax-e2e-smoke/facts/summary.json": 238,
+  "runs/ax-e2e-smoke/state.json": 350
+ },
+ "tar_bytes": 10240,
+ "tar_members": {
+  "facts.json": 451,
+  "summary.json": 238,
+  "units.jsonl": 291
+ },
+ "extracted_files": {
+  "facts.json": 451,
+  "units.jsonl": 291,
+  "summary.json": 238
+ },
+ "members_equal_extracted": true,
+ "member_bytes_total": 980,
+ "extracted_bytes_total": 980,
+ "done_json": {
+  "bytes": 10240,
+  "files": 3,
+  "finished": "2026-10-02T19:39:40+00:00",
+  "published": [
+   "facts.json",
+   "summary.json"
+  ],
+  "status": "done",
+  "task": "facts"
+ },
+ "tar_put_at_last_modified": "2026-10-02T19:39:38+00:00"
+}

@@ -1,23 +1,26 @@
 """ax-backed reconciler of a ``Run``: submission, resume, start, completion by delivery (ai-service-plane Req 3, 4, 7).
 
-ax executes every task on this host's kind cluster; nothing here runs a task locally or knows a prompt, a score or
-a model call. Per ready task: one rendered YAML file (the Task with its env extended, its Workspaces, the bound
-Model), ``ax apply -f``, ``ax resume task`` (retried on DeadlineExceeded/Unavailable -- a new image's first resume
-waits for Agent Substrate's golden snapshot -- for up to ``OUSAST_RESUME_TIMEOUT`` s, 900), and once ax says
+ax executes every task on the profile's cluster (``profile.py``: kube context, registry, store); nothing here runs a
+task locally or knows a prompt, a score or a model call. Per ready task: one rendered YAML file (the Task with its
+env extended, its Workspaces, the bound Model), ``ax apply -f``, ``ax resume task`` (retried on
+DeadlineExceeded/Unavailable -- a new image's first resume waits for Agent Substrate's golden snapshot -- for up to
+``OUSAST_RESUME_TIMEOUT`` s, 900), and once ax says
 ``Running`` one start request through Substrate's router (``router.py``, Req 4.5) carrying the bound Model's
-credential from this process's environment, never from a file (Req 4.6). Completion is the runner's artifact
-delivery (ax has no Completed phase); ``Failed``, the task vanishing, a refused start or ``OUSAST_TASK_TIMEOUT`` s
-(7200) without delivery fail it; ``ax delete task`` follows.
+credential from this process's environment, never from a file (Req 4.6), and the presigned store URLs of
+``delivery.py`` (plane-on-kubernetes design section 3). Completion is the runner's output tar appearing in the
+memory store (ax has no Completed phase), which the reconciler polls, downloads, extracts and re-publishes per
+declared output; ``Failed``, the task vanishing, a refused start or ``OUSAST_TASK_TIMEOUT`` s (7200) without
+delivery fail it; ``ax delete task`` follows. ``OUSAST_DELIVERY=receiver`` keeps the host receiver of the kind
+profile for group 2 only (task 2.6 removes it).
 
 ax rejects unknown fields, so rendered documents carry only ax's fields; ``openultrasast.io/model`` reaches the
 task as ``OUSAST_MODEL`` plus ``OUSAST_MODEL_PARAMS`` (Req 7.1), each Workspace's pin annotation as
 ``OUSAST_GIT_PINS``. Inputs other tasks produced are never rendered: ``OUSAST_INPUTS`` maps each input's name to
-``<producer>/<artifact>``, which the runner fetches after the start from the receiver's ``GET /inputs/...`` to
-``OUSAST_INPUT_<NAME>`` under ``/workspace/.ousast-in/<task>`` (the receiver serves a running task its declared
-inputs only). The receiver takes the runner's tar (``X-Ousast-Run``, ``X-Ousast-Task``) on
-``OUSAST_ARTIFACT_PORT`` (18090), reached by its Service name through the egress gateway; between ``ax apply`` and
-resume the task's egress policy is written (``egress.py``).
-State: ``~/ousast-results/plane/<run>/`` (``OUSAST_RESULTS``), polled every ``OUSAST_POLL_SECONDS`` (3).
+``<producer>/<artifact>``, fetched after the start by the presigned GET of the start body to ``OUSAST_INPUT_<NAME>``
+under ``/workspace/.ousast-in/<task>``. Between ``ax apply`` and resume the task's egress policy is written
+(``egress.py``). State: ``~/ousast-results/plane/<run>/`` (``OUSAST_RESULTS``), polled every ``OUSAST_POLL_SECONDS``
+(3), mirrored to ``runs/<run>/state.json`` on the store after every change and seeded from there by a rerun with no
+local state (design section 2); the store is opened first and required, there is no fallback.
 """
 
 from __future__ import annotations
@@ -41,9 +44,12 @@ from urllib.parse import urlsplit
 
 import yaml
 
+from .delivery import Delivery, DeliveryError, declared
 from .doctor import doctor
 from .egress import RECEIVER_PORT, Egress, Receiver, policy_for
 from .manifests import AX_API_VERSION, Manifests, Model, Run, RunTask, Task, Workspace, load_manifests
+from .memory import open_store
+from .profile import PlaneProfile, load_profile
 from .router import Router, credentials, open_router
 
 MODEL_ANNOTATION = "openultrasast.io/model"
@@ -136,15 +142,16 @@ def _model_doc(model: Model) -> dict[str, Any]:
     return _doc("Model", model.metadata.name, spec, model.metadata.atespace)
 
 
-def render_task(run: Run, entry: RunTask, manifests: Manifests, artifact_url: str, dial: str | None = None) -> list[dict[str, Any]]:
+def render_task(run: Run, entry: RunTask, manifests: Manifests, artifact_url: str = "", dial: str | None = None) -> list[dict[str, Any]]:
     """The documents ``ax apply`` receives for one Run task: its Model, its Workspaces, the Task last. Task-produced
-    inputs are never rendered: ax puts every bound Workspace into one env value, which Substrate caps at 32768
-    characters, so the runner fetches them from the receiver (``OUSAST_INPUTS``) after the start."""
+    inputs are never rendered (Substrate caps one env value at 32768 characters): the runner fetches them
+    (``OUSAST_INPUTS``) after the start by presigned URL, or from the receiver when ``artifact_url`` is given."""
     task: Task = manifests.tasks[entry.task]
     ax_name = _ax_name(run.metadata.name, entry.name, limit=TASK_NAME_LIMIT)
     env = {e.name: e.value for e in task.env}
     env.update(OUSAST_RUN=run.metadata.name, OUSAST_TASK=entry.name, OUSAST_OUTPUT_DIR=f"{OUTPUT_ROOT}/{entry.name}")
-    env.update(OUSAST_ARTIFACT_URL=artifact_url, **({"OUSAST_ARTIFACT_DIAL": dial} if dial else {}))
+    if artifact_url:  # receiver mode only (task 2.6 removes it): the store path carries no URL in the env
+        env.update(OUSAST_ARTIFACT_URL=artifact_url, **({"OUSAST_ARTIFACT_DIAL": dial} if dial else {}))
     budget = _fields(entry.budget) if entry.budget else {}
     env.update({f"OUSAST_BUDGET_{k.upper()}": str(v) for k, v in budget.items()})
     inputs = {re.sub(r"[^A-Z0-9]+", "_", name.upper()): ref for name, ref in entry.inputs.items()}
@@ -224,12 +231,25 @@ class _State:
     path: Path
     data: dict[str, Any]
     lock: threading.Lock = field(default_factory=threading.Lock)
+    mirror: Callable[[Mapping[str, Any]], None] | None = None  # the store copy; a failure is reported, never fatal
 
     def set(self, task: str, **fields: object) -> None:
         with self.lock:
             self.data["tasks"].setdefault(task, {"status": "pending", "started": None, "finished": None, "usd": None, "model": None})
             self.data["tasks"][task].update(fields)
-            _write_json(self.path, self.data)
+            self._flush()
+
+    def flush(self) -> None:
+        with self.lock:
+            self._flush()
+
+    def _flush(self) -> None:
+        _write_json(self.path, self.data)
+        if self.mirror is not None:
+            try:
+                self.mirror(self.data)
+            except Exception as exc:  # noqa: BLE001 - the local file is written; the mirror is reported, the run goes on
+                print(f"state mirror to the store failed: {exc}", file=sys.stderr)
 
     def status(self, task: str) -> str:
         return str(self.data["tasks"].get(task, {}).get("status", "pending"))
@@ -313,25 +333,46 @@ def _await(ax: Ax, name: str, delivered: Callable[[], bool], start: Callable[[],
 
 
 def _execute(
-    ax: Ax, egress: Egress, run: Run, entry: RunTask, manifests: Manifests, base: Path, receiver: Receiver, router: Router
+    ax: Ax,
+    egress: Egress,
+    run: Run,
+    entry: RunTask,
+    manifests: Manifests,
+    base: Path,
+    delivery: Delivery,
+    router: Router,
+    receiver: Receiver | None = None,
 ) -> tuple[str, str]:
     ax_name, task = _ax_name(run.metadata.name, entry.name, limit=TASK_NAME_LIMIT), manifests.tasks[entry.task]
     atespace, manifest = task.metadata.atespace or "default", base / entry.name / "task.yaml"
     manifest.parent.mkdir(parents=True, exist_ok=True)
-    docs = render_task(run, entry, manifests, receiver.url, receiver.dial)
+    docs = render_task(run, entry, manifests, receiver.url if receiver else "", receiver.dial if receiver else None)
     manifest.write_text(yaml.safe_dump_all(docs, sort_keys=False), encoding="utf-8")
     model = manifests.models.get(task.metadata.annotations.get(MODEL_ANNOTATION) or "")
-    policy = policy_for(task, [manifests.workspaces[b.name] for b in task.workspaces], model, urlsplit(receiver.url).hostname)
+    workspaces = [manifests.workspaces[b.name] for b in task.workspaces]
+    body = None if receiver else delivery.body(entry.name, entry.inputs)  # presigned URLs ride in the start body
+    store_host, receiver_host = (None, urlsplit(receiver.url).hostname) if receiver else (delivery.host, None)
+    if receiver is None:
+        delivery.reset(entry.name)  # a previous attempt's tar must not complete this one
+
+    def delivered() -> bool:
+        return entry.name in receiver.delivered if receiver is not None else delivery.delivered(entry.name)
+
     try:  # Req 4.6: the bound Model's credential is read here and only ever sent in the start request
-        start = router.starter(atespace, ax_name, run.metadata.name, credentials(model))
+        policy = policy_for(task, workspaces, model, store_host, receiver_host)
+        start = router.starter(atespace, ax_name, run.metadata.name, credentials(model), body)
         ax.apply(manifest)  # creates the Substrate actor; its egress is denied until the policy exists
         egress.apply(ax_name, atespace, policy)
         egress.settle()
-    except RuntimeError as exc:  # StartError included: a Model-bound task whose secret is unset
+    except (RuntimeError, ValueError) as exc:  # StartError (a Model's secret unset) and a policy that cannot be granted
         ax.delete(ax_name)
         return "failed", str(exc)
     try:
-        failure = _await(ax, ax_name, lambda: entry.name in receiver.delivered, start)
+        failure = _await(ax, ax_name, delivered, start)
+        if failure is None and receiver is None:
+            delivery.collect(entry.name, declared(run)[entry.name])  # download, extract, re-publish what is declared
+    except DeliveryError as exc:
+        failure = str(exc)
     finally:
         ax.delete(ax_name)
         leftover = egress.delete(ax_name, atespace)  # the policy goes with its actor; a survivor is reported
@@ -340,20 +381,44 @@ def _execute(
     return ("failed", failure) if failure else outcome_of(_read_json(base / entry.name / "summary.json"))
 
 
-def run(run_manifest: Path, *, workers: int = 1, ax: str = "ax", results_root: Path | None = None, kubectl_ate: str | None = None) -> str:
-    """Execute a Run on ax and return its status: ``done``, ``unfinished`` or ``failed`` (Req 3.1-3.3, 2.2)."""
+def run(
+    run_manifest: Path,
+    *,
+    workers: int = 1,
+    ax: str = "ax",
+    results_root: Path | None = None,
+    kubectl_ate: str | None = None,
+    profile: PlaneProfile | None = None,
+) -> str:
+    """Execute a Run on ax and return its status: ``done``, ``unfinished`` or ``failed`` (Req 3.1-3.3, 2.2). Every
+    address comes from ``profile`` (default: the one ``OUSAST_PLANE_PROFILE`` names)."""
+    profile = profile or load_profile()
     run_spec, manifests = load_run(Path(run_manifest))
     base = run_dir(run_spec.metadata.name, results_root)
     base.mkdir(parents=True, exist_ok=True)
+    store = open_store(profile.memory)  # first, before the lock and before ax sees anything: no fallback
+    delivery = Delivery(store, run_spec.metadata.name, base)
+    if not (base / "state.json").exists():
+        seeded = delivery.load_state()  # a rerun from another machine or an empty results root
+        if seeded is not None:
+            _write_json(base / "state.json", seeded)
     lock = _acquire_lock(base)
-    state = _State(base / "state.json", _read_json(base / "state.json") or {"run": run_spec.metadata.name, "started": _now(), "tasks": {}})
-    port = os.environ.get("OUSAST_ARTIFACT_PORT") or (0 if os.environ.get("OUSAST_ARTIFACT_HOST") else RECEIVER_PORT)
-    receiver = Receiver(run_spec.metadata.name, base, int(port))  # the receiver Service targets RECEIVER_PORT
-    threading.Thread(target=receiver.serve_forever, daemon=True).start()
-    cli, egress, finished = Ax(ax), Egress(kubectl_ate), queue.Queue[tuple[str, str, str]]()
+    state = _State(
+        base / "state.json",
+        _read_json(base / "state.json") or {"run": run_spec.metadata.name, "started": _now(), "tasks": {}},
+        mirror=delivery.save_state,
+    )
+    receiver: Receiver | None = None
+    if os.environ.get("OUSAST_DELIVERY") == "receiver":  # the kind profile's host receiver, group 2 only (2.6 removes it)
+        port = os.environ.get("OUSAST_ARTIFACT_PORT") or (0 if os.environ.get("OUSAST_ARTIFACT_HOST") else RECEIVER_PORT)
+        receiver = Receiver(run_spec.metadata.name, base, int(port), profile.kube_context)  # the Service targets RECEIVER_PORT
+        threading.Thread(target=receiver.serve_forever, daemon=True).start()
+    cli, egress, finished = Ax(ax), Egress(kubectl_ate, profile.kube_context), queue.Queue[tuple[str, str, str]]()
     pending = [t for t in run_spec.tasks if state.status(t.name) != "done"]
     for entry in run_spec.tasks:
         state.set(entry.name, **({"status": "pending"} if entry in pending else {}))
+        if entry not in pending:
+            delivery.publish(entry.name, declared(run_spec)[entry.name])  # a seeded or earlier task's artifacts reach its consumers
     running: dict[str, RunTask] = {}
     halted = False
 
@@ -361,10 +426,14 @@ def run(run_manifest: Path, *, workers: int = 1, ax: str = "ax", results_root: P
         if state.status(entry.name) in ("running", "suspended"):
             cli.delete(_ax_name(run_spec.metadata.name, entry.name, limit=TASK_NAME_LIMIT))  # an interrupted attempt; ax must not keep it
         state.set(entry.name, status="running", started=_now(), finished=None)
-        finished.put((entry.name, *_execute(cli, egress, run_spec, entry, manifests, base, receiver, router)))
+        try:
+            outcome = _execute(cli, egress, run_spec, entry, manifests, base, delivery, router, receiver)
+        except Exception as exc:  # noqa: BLE001 - a worker that dies silently would hang the run on the queue
+            outcome = ("failed", f"{type(exc).__name__}: {exc}")
+        finished.put((entry.name, *outcome))
 
     try:
-        with open_router() as router:  # one port-forward to Substrate's router for the whole run
+        with open_router(profile.kube_context, url=profile.router_url or None) as router:  # one tunnel per run (ax-tunnel)
             while pending or running:
                 blocked = {t.serialize for t in running.values() if t.serialize}
                 for entry in list(pending):
@@ -375,29 +444,32 @@ def run(run_manifest: Path, *, workers: int = 1, ax: str = "ax", results_root: P
                     pending.remove(entry)
                     running[entry.name] = entry
                     blocked.add(entry.serialize or "")
-                    with receiver.lock:  # the receiver serves a running task its declared inputs, nothing else
-                        receiver.running.add(entry.name)
-                        receiver.inputs[entry.name] = frozenset(entry.inputs.values())
+                    if receiver is not None:
+                        with receiver.lock:  # the receiver serves a running task its declared inputs, nothing else
+                            receiver.running.add(entry.name)
+                            receiver.inputs[entry.name] = frozenset(entry.inputs.values())
                     threading.Thread(target=worker, args=(entry,), daemon=True).start()
                 if not running:
                     break  # nothing can start: a producer stopped short
                 name, status, reason = finished.get()
                 del running[name]
-                with receiver.lock:
-                    receiver.running.discard(name)
-                    receiver.inputs.pop(name, None)
+                if receiver is not None:
+                    with receiver.lock:
+                        receiver.running.discard(name)
+                        receiver.inputs.pop(name, None)
                 summary = _read_json(base / name / "summary.json") or {}
                 state.set(name, status=status, finished=_now(), usd=summary.get("usd"), model=summary.get("model"), reason=reason or None)
                 halted = halted or status == "failed"
                 if status == "unfinished":
                     pending = [t for t in pending if name not in t.producers]
     finally:
-        receiver.shutdown()
+        if receiver is not None:
+            receiver.shutdown()
         lock.unlink(missing_ok=True)
     statuses = [state.status(t.name) for t in run_spec.tasks]
     result = "failed" if "failed" in statuses else "done" if all(s == "done" for s in statuses) else "unfinished"
     state.data.update(status=result, finished=_now())
-    _write_json(state.path, state.data)
+    state.flush()
     return result
 
 

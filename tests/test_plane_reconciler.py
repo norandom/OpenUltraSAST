@@ -4,9 +4,10 @@ The fake is a Python script the tests write into ``tmp_path`` that follows ax's 
 internal/controller/reconciler.go, internal/server/server.go): ``apply`` creates the task ``Suspended``; ``resume``
 fails with DeadlineExceeded the first time (ax then reports ``Failed``, as while Agent Substrate builds a new
 image's golden snapshot) and succeeds after; ``get task`` answers ``Running`` forever -- ax has no Completed phase
--- and on the scripted poll it POSTs a scripted tar to the ``OUSAST_ARTIFACT_URL`` in the applied Task's env, or
-turns ``Failed`` with a condition message, or vanishes. Every outcome comes from a scripted delivery, and a
-delivery happens only after the reconciler's start request reached the fake router (Req 4.5).
+-- and on the scripted poll it PUTs a scripted tar to the presigned ``delivery.put`` URL the start request carried
+(plane-on-kubernetes 2.4; or POSTs it to ``OUSAST_ARTIFACT_URL`` in receiver mode), or turns ``Failed`` with a
+condition message, or vanishes. Every outcome comes from a scripted delivery, and a delivery happens only after
+the reconciler's start request reached the fake router (Req 4.5). The store is ``plane_fake_store.HttpObjectStore``.
 """
 
 from __future__ import annotations
@@ -28,11 +29,13 @@ from pathlib import Path
 
 import pytest
 import yaml
+from plane_fake_store import HttpObjectStore
 
 from openultrasast.plane import reconciler
 from openultrasast.plane.workspaces import workspaces
 
 RECONCILER = Path("src/openultrasast/plane/reconciler.py")
+PROFILE_CONTEXT = "kind-test"  # conftest's plane_profile fixture: the context every fake must be handed
 PIN = "0123456789abcdef0123456789abcdef01234567"
 SECRET = "sk-reconciler-test-7a2b-only-in-the-start-request"
 
@@ -145,11 +148,15 @@ elif argv[:2] == ["get", "task"]:
     started = (HERE / "started" / argv[2]).exists()  # the runner runs its command only after the start request
     if rec["phase"] == "Running" and rec["polls"] >= script.get("polls", 1) and started and not rec.get("sent"):
         rec["sent"] = True
+        body = json.loads((HERE / "started" / argv[2]).read_text() or "{{}}")  # the start body the router saw
+        delivery = body.get("delivery") or {{}}
         if script.get("deliver", True) and "phase" not in script and not script.get("vanish"):
             files = script.get("files", {{}})
-            base = env["OUSAST_ARTIFACT_URL"].rstrip("/") + "/inputs/"
+            base = env.get("OUSAST_ARTIFACT_URL", "").rstrip("/") + "/inputs/"
             for name, ref in json.loads(env.get("OUSAST_INPUTS", "{{}}")).items():
-                fetch = urllib.request.Request(base + ref, headers={{"X-Ousast-Run": env["OUSAST_RUN"], "X-Ousast-Task": task}})
+                presigned = (delivery.get("inputs") or {{}}).get(name)
+                fetch = urllib.request.Request(presigned) if presigned else urllib.request.Request(
+                    base + ref, headers={{"X-Ousast-Run": env["OUSAST_RUN"], "X-Ousast-Task": task}})
                 try:
                     with urllib.request.urlopen(fetch) as resp:
                         dest = HERE / "fetched" / task / ref
@@ -170,7 +177,11 @@ elif argv[:2] == ["get", "task"]:
                     tar.addfile(info, io.BytesIO(data))
             headers = {{"Content-Type": "application/x-tar", "X-Ousast-Run": env["OUSAST_RUN"]}}
             headers["X-Ousast-Task"] = script.get("as_task", task)
-            req = urllib.request.Request(env["OUSAST_ARTIFACT_URL"], data=buf.getvalue(), method="POST", headers=headers)
+            if delivery.get("put"):  # the store path: PUT to the presigned URL, no receiver headers
+                tar_headers = {{"Content-Type": "application/x-tar"}}
+                req = urllib.request.Request(delivery["put"], data=buf.getvalue(), method="PUT", headers=tar_headers)
+            else:
+                req = urllib.request.Request(env["OUSAST_ARTIFACT_URL"], data=buf.getvalue(), method="POST", headers=headers)
             try:
                 with urllib.request.urlopen(req) as resp:
                     (HERE / "ax.log").open("a").write(f"{{time.monotonic():.4f}} delivered {{task}} {{resp.status}}\\n")
@@ -282,6 +293,7 @@ SCRIPT = {
 
 class Fake:
     router: FakeRouter
+    store: HttpObjectStore
 
     def __init__(self, root: Path) -> None:
         self.root = root
@@ -342,7 +354,8 @@ class _RouterHandler(BaseHTTPRequestHandler):
         self.server.starts.append({"at": time.monotonic(), "path": self.path, "target": target, "body": body, "code": code})
         if code == 202:
             (self.server.root / "started").mkdir(exist_ok=True)
-            (self.server.root / "started" / name).touch()
+            without_secrets = {k: v for k, v in body.items() if k != "credentials"}  # the fake ax reads delivery from it
+            (self.server.root / "started" / name).write_text(json.dumps(without_secrets))
         with (self.server.root / "ax.log").open("a") as log:
             log.write(f"{time.monotonic():.4f} started {name} {code}\n")
         self.send_response(code)
@@ -355,7 +368,7 @@ class _RouterHandler(BaseHTTPRequestHandler):
 
 
 @pytest.fixture
-def fake(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kubectl_ate: Path) -> Iterator[Fake]:
+def fake(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kubectl_ate: Path, plane_profile: Path) -> Iterator[Fake]:
     monkeypatch.setenv("OUSAST_RESULTS", str(tmp_path / "results"))
     monkeypatch.setenv("OUSAST_ARTIFACT_HOST", "127.0.0.1")
     monkeypatch.setenv("OUSAST_POLL_SECONDS", "0.02")
@@ -365,12 +378,15 @@ def fake(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kubectl_ate: Path) -> 
     fake = Fake(tmp_path)
     fake.script(SCRIPT)
     fake.router = FakeRouter(tmp_path)
+    fake.store = HttpObjectStore()  # the memory store the reconciler opens first: S3-shaped, presigned URLs served locally
+    monkeypatch.setattr(reconciler, "open_store", lambda spec=None, environ=None: fake.store)
     monkeypatch.setenv("OUSAST_ROUTER_URL", f"http://127.0.0.1:{fake.router.server_address[1]}")
     try:
         yield fake
     finally:
         fake.router.shutdown()
         fake.router.server_close()
+        fake.store.close()
 
 
 def write_run(tmp_path: Path, name: str, tasks: str = CHAIN) -> Path:
@@ -404,13 +420,17 @@ def test_chain_runs_in_order_with_inputs_env_and_model(fake: Fake, tmp_path: Pat
     assert env["OUSAST_BUDGET_USD"] == "2.5" and env["OUSAST_BUDGET_CALLS"] == "40"
     assert env["OUSAST_INPUT_FACTS"] == "/workspace/.ousast-in/verify/repo-facts/facts.json"
     assert json.loads(env["OUSAST_INPUTS"]) == {"FACTS": "repo-facts/facts.json"}
-    assert env["OUSAST_ARTIFACT_URL"].startswith("http://127.0.0.1:")
+    assert "OUSAST_ARTIFACT_URL" not in env, "the store path renders no receiver address into the Task"
     assert env["OUSAST_MODEL"] == "deepseek-flash"
     assert json.loads(env["OUSAST_MODEL_PARAMS"]) == {"cache_hit_per_m": 0.07, "input_per_m": 0.27, "output_per_m": 1.1}
     kinds = [(d["kind"], d["metadata"]["name"]) for d in verify["docs"]]
     assert kinds == [("Model", "deepseek-flash"), ("Workspace", "case-pin"), ("Task", "chain-verify")], "no inputs Workspace"
     assert verify["docs"][-1]["spec"]["workspaces"] == [{"name": "case-pin", "path": "/workspace"}]
-    assert [n for _, n in fake.events("fetched")] == ["verify FACTS 200", "agree PASS 200"], "inputs come over the receiver's GET"
+    assert [n for _, n in fake.events("fetched")] == ["verify FACTS 200", "agree PASS 200"], "inputs come by their presigned GET"
+    assert ("GET", "runs/chain/repo-facts/facts.json") in fake.store.requests and (
+        "PUT",
+        "runs/chain/verify/output.tar",
+    ) in fake.store.requests
     assert json.loads((tmp_path / "fetched" / "verify" / "repo-facts" / "facts.json").read_text()) == {"a.py": {"functions": ["f"]}}
     assert json.loads((tmp_path / "fetched" / "agree" / "verify" / "agreed.json").read_text()) == {"agreed": ["a.py:f"]}
     assert "annotations" not in verify["docs"][-1]["metadata"], "ax's ObjectMeta has no annotations"
@@ -569,7 +589,15 @@ def test_start_is_sent_once_after_resume_with_the_models_credential(fake: Fake, 
     assert [s["target"] for s in starts] == ["default/sig-repo-facts", "default/sig-verify", "default/sig-agree"], "once each"
     assert all(s["path"] == "/ousast/v1/start" and s["code"] == 202 for s in starts)
     by_task = {s["body"]["task"]: s for s in starts}
-    assert by_task["sig-verify"]["body"] == {"run": "sig", "task": "sig-verify", "credentials": {"DEEPSEEK_API_KEY": SECRET}}
+    body = by_task["sig-verify"]["body"]
+    assert {k: body[k] for k in ("run", "task", "credentials")} == {
+        "run": "sig",
+        "task": "sig-verify",
+        "credentials": {"DEEPSEEK_API_KEY": SECRET},
+    }
+    assert set(body["delivery"]) == {"put", "inputs"} and "/runs/sig/verify/output.tar?" in body["delivery"]["put"]
+    assert set(body["delivery"]["inputs"]) == {"FACTS"} and "/runs/sig/repo-facts/facts.json?" in body["delivery"]["inputs"]["FACTS"]
+    assert all("X-Amz" not in line for line in (tmp_path / "ax.log").read_text().splitlines()), "no presigned URL in the fake's log"
     assert by_task["sig-repo-facts"]["body"]["credentials"] == {} and by_task["sig-agree"]["body"]["credentials"] == {}, "no Model"
     accepted = {}
     for stamp, words in fake.log():  # the last resume of each task is the one ax accepted
@@ -583,8 +611,10 @@ def test_start_is_sent_once_after_resume_with_the_models_credential(fake: Fake, 
     assert verify_model["spec"]["secretKey"] == {"name": "deepseek", "key": "DEEPSEEK_API_KEY"}, "the manifest names the key"
     assert "DEEPSEEK_API_KEY" not in fake.applied("sig", "verify")["env"], "the rendered Task carries no credential"
     rendered = str(reconciler.run_dir("sig") / "verify" / "task.yaml")
-    assert rendered in files_containing(tmp_path, "OUSAST_ARTIFACT_URL"), "the scan reads the rendered files it vouches for"
+    assert rendered in files_containing(tmp_path, "OUSAST_INPUTS"), "the scan reads the rendered files it vouches for"
     assert files_containing(tmp_path, SECRET) == [], "no rendered task.yaml, state, log or applied record holds the value"
+    leaked = [p for p in files_containing(tmp_path, "X-Amz-Signature") if "/started/" not in p]  # the fake router's own records
+    assert leaked == [], "nor a presigned URL in any product file (the fake store signs with that name)"
 
 
 def test_a_model_bound_task_without_its_secret_fails_before_ax_sees_it(fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -631,7 +661,8 @@ def tar_of(files: dict[str, bytes]) -> bytes:
     return buf.getvalue()
 
 
-def test_receiver_rejects_traversal_unknown_tasks_and_wrong_types(tmp_path: Path) -> None:
+def test_receiver_rejects_traversal_unknown_tasks_and_wrong_types(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OUSAST_ARTIFACT_HOST", "127.0.0.1")  # the direct test address: no Service lookup, no context needed
     receiver = reconciler.Receiver("r", tmp_path / "r", 0)
     receiver.running.add("t")
     headers = {"X-Ousast-Run": "r", "X-Ousast-Task": "t", "Content-Type": "application/x-tar"}
@@ -647,6 +678,7 @@ def test_receiver_rejects_traversal_unknown_tasks_and_wrong_types(tmp_path: Path
 
 
 def test_delivery_for_a_task_that_is_not_running_is_rejected(fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OUSAST_DELIVERY", "receiver")  # the receiver path, kept for group 2 (task 2.6 removes this test)
     monkeypatch.setenv("OUSAST_TASK_TIMEOUT", "1")  # the rejected delivery is no delivery: the task times out
     script = json.loads(json.dumps(SCRIPT))
     script["repo-facts"]["as_task"] = "agree"  # the runner claims to be a task that has not started
@@ -719,16 +751,31 @@ def test_status_of_an_unknown_run_says_so(fake: Fake) -> None:
 # --- doctor, workspaces, size ---------------------------------------------------------------------------------------
 
 
-def test_doctor_names_the_bring_up_script_when_nothing_is_reachable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("PATH", str(tmp_path))  # no kubectl, no curl
+def test_doctor_checks_the_profiles_cluster_and_reports_every_address(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, plane_profile: Path
+) -> None:
+    """Req 1.2: the configured context (never kind by name), the registry's runner reference, the memory store; the
+    namespaces are not checked behind an unreachable context, so only that line fails for it."""
+    monkeypatch.setenv("PATH", str(tmp_path))  # no kubectl, no docker
+    from openultrasast.plane import doctor as doctor_module
+
+    monkeypatch.setattr(doctor_module, "_registry_has", lambda image: (False, f"registry.test:5000 unreachable for {image}"))
     checks = reconciler.doctor()
-    assert [name for name, _, _ in checks] == [
-        "kind cluster",
-        "agent substrate (ate-system)",
-        "ax controller (ax-system)",
-        "runner image in kind registry",
+    names = [name for name, _, _ in checks]
+    assert names == [
+        "profile test",
+        "cluster kind-test",
+        "runner image in registry.test:5000",
+        f"memory store file://{tmp_path / 'memory'}",
     ]
-    assert all(not ok and "ops/ax/up.sh" in text for _, ok, text in checks)
+    by_name = {name: (ok, text) for name, ok, text in checks}
+    assert by_name["profile test"][0] and "kube_context=kind-test" in by_name["profile test"][1]
+    for address in ("registry=registry.test:5000", "exec=local", "atespace=default", "router_url=(tunnel"):
+        assert address in by_name["profile test"][1], address
+    assert not by_name["cluster kind-test"][0] and "kind-test unreachable" in by_name["cluster kind-test"][1]
+    assert not by_name["runner image in registry.test:5000"][0]
+    assert by_name[f"memory store file://{tmp_path / 'memory'}"][0], "a file store opens; an S3 store is verified"
+    assert not any("kind-" + "ousast" in text for _, _, text in checks), "nothing names the kind cluster"
 
 
 def test_workspaces_one_manifest_per_case_pin(tmp_path: Path) -> None:
@@ -753,6 +800,23 @@ def test_workspaces_one_manifest_per_case_pin(tmp_path: Path) -> None:
     loaded = load_manifests(written).workspaces
     assert set(loaded) == {p.stem for p in written}
     assert loaded["demo-sqli-benign-tip"].pins == {"repo": "d" * 40}
+
+
+def test_cli_doctor_takes_a_profile_and_fails_on_its_unreachable_context(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, plane_profile: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """plane-on-kubernetes 1.2: ``ousast plane doctor --profile`` drives the checks from that file, nothing built."""
+    from openultrasast.cli import main
+    from openultrasast.plane import doctor as doctor_module
+
+    monkeypatch.setenv("PATH", str(tmp_path))
+    monkeypatch.setattr(doctor_module, "_registry_has", lambda image: (True, "present"))
+    monkeypatch.delenv("OUSAST_PLANE_PROFILE")
+    assert main(["plane", "doctor", "--profile", str(plane_profile)]) == 1
+    out = capsys.readouterr().out
+    assert "[FAIL] cluster kind-test:" in out and "[ok] profile test:" in out and "[ok] runner image in registry.test:5000" in out
+    assert main(["plane", "doctor", "--profile", str(tmp_path / "missing.toml")]) == 2
+    assert "missing.toml" in capsys.readouterr().err
 
 
 def test_rendered_documents_carry_only_ax_fields(tmp_path: Path) -> None:
@@ -798,9 +862,13 @@ def test_mark_done_sets_the_state_under_the_run_lock(tmp_path: Path) -> None:
     assert not (base / "lock").exists(), "the lock is released"
 
 
-def test_reconciler_is_under_500_lines_and_holds_no_pipeline_logic() -> None:
+def test_reconciler_is_under_550_lines_and_holds_no_pipeline_logic() -> None:
     text = RECONCILER.read_text(encoding="utf-8")
-    assert len(text.splitlines()) < 500, "Req 3.4: the reconciler stays under 500 lines"
+    assert len(text.splitlines()) < 550, (
+        "Req 3.4: the reconciler stays under 500 lines; plane-on-kubernetes 1.6/2.1 moved the bound to 550 while the "
+        "store-delivery wiring (Delivery, state mirror and seed, the start-body delivery) sits beside the receiver path "
+        "that task 2.6 removes -- 2.6 records the count and returns the bound to 500 if it allows"
+    )
     for word in ("prompt(", "openai", "ChatClient", "score(", "system_prompt"):
         assert word not in text, f"Req 3.4: no pipeline logic in the reconciler ({word})"
     assert "Popen" not in text and "openultrasast.plane.tasks" not in text, "ax is the only executor"
@@ -829,7 +897,7 @@ def test_doctor_treats_an_empty_namespace_as_not_ready(monkeypatch: pytest.Monke
     from openultrasast.plane import doctor
 
     monkeypatch.setattr(doctor, "_sh", lambda *a: (True, "No resources found in ax-system namespace."))
-    ok, text = doctor._pods_ready("ax-system", "kind-ousast")
+    ok, text = doctor._pods_ready("ax-system", "kind-test")
     assert not ok and "no pods" in text
     monkeypatch.setattr(doctor, "_sh", lambda *a: (True, "a-1 1/1 Running 0 1m\nb-2 0/1 Completed 0 1m"))
     assert doctor._pods_ready("ns", "ctx") == (True, "2 pods ready")
@@ -854,11 +922,13 @@ def test_egress_policy_between_apply_and_resume_and_checked_after_delete(fake: F
         order.append(first(prefix, order[-1] + 1))
     assert order == sorted(order)
     assert not (tmp_path / "policies" / "default_eg-verify.json").exists(), "the policy went with its actor"
+    contexts = {line.split()[-1] for line in lines if line.startswith("egress ")}
+    assert contexts == {PROFILE_CONTEXT}, "kubectl-ate received the profile's context, never a built one (1.2)"
     written = json.loads((tmp_path / "policies" / "default_eg-verify.written.json").read_text())
-    tls = {"hostnames": ["api.deepseek.com", "example.invalid"], "ports": {"numbers": [443]}}
-    assert written["rules"] == [{"tlsPassthrough": tls}], "the Model host and the Git host, nothing else"
+    tls = {"hostnames": ["api.deepseek.com", "example.invalid", "localhost"], "ports": {"numbers": [443]}}
+    assert written["rules"] == [{"tlsPassthrough": tls}], "the Model host, the Git host and the store host, nothing else"
     facts = json.loads((tmp_path / "policies" / "default_eg-repo-facts.written.json").read_text())
-    assert facts["rules"] == [{"tlsPassthrough": {"hostnames": ["example.invalid"], "ports": {"numbers": [443]}}}]
+    assert facts["rules"] == [{"tlsPassthrough": {"hostnames": ["example.invalid", "localhost"], "ports": {"numbers": [443]}}}]
 
 
 def test_a_refused_egress_policy_fails_the_task_before_resume(fake: Fake, tmp_path: Path, kubectl_ate: Path) -> None:
@@ -943,3 +1013,82 @@ def test_ax_task_names_leave_room_for_the_template_suffix() -> None:
     assert other != long, "no collision between tasks sharing a long prefix"
     assert reconciler._ax_name("run", "facts", limit=reconciler.TASK_NAME_LIMIT) == "run-facts"
     assert re.fullmatch(r"[a-z0-9]([a-z0-9-]*[a-z0-9])?", long)
+
+
+# --- the store is the state of record (plane-on-kubernetes 2.1, design section 2) -----------------------------------
+
+
+def test_state_is_mirrored_to_the_store_and_seeds_a_rerun_from_an_empty_results_root(
+    fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert reconciler.run(write_run(tmp_path, "mir"), ax=str(fake.ax)) == "done"
+    mirrored = json.loads(fake.store.objects["runs/mir/state.json"].decode())
+    assert mirrored == state_of("mir") and mirrored["status"] == "done", "mirrored after the last change"
+    applies = len(fake.events("apply"))
+    monkeypatch.setenv("OUSAST_RESULTS", str(tmp_path / "elsewhere"))  # another machine: no local state at all
+    assert reconciler.run(write_run(tmp_path, "mir"), ax=str(fake.ax)) == "done"
+    assert statuses("mir") == {"repo-facts": "done", "verify": "done", "agree": "done"}, "seeded from the store"
+    assert len(fake.events("apply")) == applies, "nothing was submitted again"
+
+
+def test_a_store_that_cannot_open_stops_the_run_before_ax_and_leaves_no_lock(
+    fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from openultrasast.plane import memory
+    from openultrasast.plane.memory import MemoryStoreError
+
+    monkeypatch.setattr(reconciler, "open_store", memory.open_store)  # the real one, not the fixture's fake
+    monkeypatch.setenv("OUSAST_MEMORY", "s3://nowhere")  # the profile's override; no S3_* in the test environment
+    for key in ("S3_ENDPOINT", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"):
+        monkeypatch.delenv(key, raising=False)
+    with pytest.raises(MemoryStoreError, match="S3_ENDPOINT"):
+        reconciler.run(write_run(tmp_path, "nostore"), ax=str(fake.ax))
+    assert fake.events("apply") == [] and not (reconciler.run_dir("nostore") / "lock").exists()
+
+
+# --- the store path end to end, and the receiver path kept for group 2 (plane-on-kubernetes 2.4) --------------------
+
+
+def test_the_store_holds_the_tar_the_declared_outputs_and_done_json(fake: Fake, tmp_path: Path) -> None:
+    """Completion is the tar in the store: downloaded, extracted under the run dir, declared outputs re-put as single
+    objects (the consumer's GET names one artifact), done.json with the summary's status and the tar's size."""
+    assert reconciler.run(write_run(tmp_path, "st"), ax=str(fake.ax)) == "done"
+    keys = sorted(k for k in fake.store.objects if k.startswith("runs/st/"))
+    assert keys == [
+        "runs/st/agree/done.json",
+        "runs/st/agree/output.tar",
+        "runs/st/repo-facts/done.json",
+        "runs/st/repo-facts/facts.json",
+        "runs/st/repo-facts/output.tar",
+        "runs/st/state.json",
+        "runs/st/verify/agreed.json",
+        "runs/st/verify/done.json",
+        "runs/st/verify/output.tar",
+    ], "declared outputs only (summary.json is extracted locally, not declared by this Run)"
+    done = json.loads(fake.store.objects["runs/st/repo-facts/done.json"])
+    assert done["status"] == "done" and done["bytes"] == len(fake.store.objects["runs/st/repo-facts/output.tar"]) and done["files"] == 2
+    assert json.loads((reconciler.run_dir("st") / "repo-facts" / "facts.json").read_text()) == {"a.py": {"functions": ["f"]}}
+    assert fake.store.objects["runs/st/repo-facts/facts.json"] == (reconciler.run_dir("st") / "repo-facts" / "facts.json").read_bytes()
+
+
+def test_a_tar_the_store_path_cannot_accept_fails_the_task(fake: Fake, tmp_path: Path) -> None:
+    script = json.loads(json.dumps(SCRIPT))
+    script["repo-facts"]["files"] = {"../escape.json": "{}", "summary.json": FACTS_SUMMARY}
+    fake.script(script)
+    assert reconciler.run(write_run(tmp_path, "esc"), ax=str(fake.ax)) == "failed"
+    assert "rejected member ../escape.json" in state_of("esc")["tasks"]["repo-facts"]["reason"]
+    assert not (reconciler.run_dir("esc").parent / "escape.json").exists()
+
+
+def test_receiver_mode_still_runs_through_the_host_receiver(fake: Fake, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """OUSAST_DELIVERY=receiver (group 2 only): the old path, with its http rule and OUSAST_ARTIFACT_URL, until 2.6."""
+    monkeypatch.setenv("OUSAST_DELIVERY", "receiver")
+    assert reconciler.run(write_run(tmp_path, "rcv"), ax=str(fake.ax)) == "done"
+    assert fake.applied("rcv", "verify")["env"]["OUSAST_ARTIFACT_URL"].startswith("http://127.0.0.1:")
+    assert [s["body"].get("delivery") for s in fake.router.starts] == [None, None, None], "no presigned URLs in receiver mode"
+    assert not any(k.startswith("runs/rcv/") and k.endswith("output.tar") for k in fake.store.objects), "nothing PUT to the store"
+    assert "runs/rcv/state.json" in fake.store.objects, "the state is still mirrored"
+    written = json.loads((tmp_path / "policies" / "default_rcv-repo-facts.written.json").read_text())
+    assert written["rules"] == [{"tlsPassthrough": {"hostnames": ["example.invalid"], "ports": {"numbers": [443]}}}], (
+        "an IP receiver: no http rule"
+    )

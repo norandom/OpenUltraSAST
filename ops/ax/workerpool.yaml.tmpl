@@ -1,23 +1,26 @@
-# Warm gVisor workers for ax tasks on this host (Agent Substrate WorkerPool). ax's per-task ActorTemplates
-# set no workerSelector, so every pool of the matching sandbox class is eligible. Two workers of 1 CPU /
-# 1.5 GiB fit the 7 GB host beside the control planes; an actor occupies a whole worker.
+# Warm gVisor workers for ax tasks (Agent Substrate WorkerPool), rendered by ops/ax/up.sh (and by
+# ops/ax/probe-placement.sh for the placement probe) from the profile's pool: POOL_NAME, POOL_REPLICAS, POOL_CPU,
+# POOL_MEMORY (ops/k8s/profiles/<profile>.toml, [pools.default]) and WORKER_IMAGE (ko:// for a build, or a
+# digest-pinned reference of a built worker image). ax's per-task ActorTemplates set no workerSelector, so every
+# pool of the matching sandbox class is eligible. An actor occupies a whole worker. Replaced by the renderer of
+# plane-on-kubernetes task 6.1 (ops/k8s/base/workerpool-*.yaml.tmpl).
 apiVersion: ate.dev/v1alpha1
 kind: WorkerPool
 metadata:
-  name: ousast-pool
+  name: ${POOL_NAME}
   namespace: ax-system
   labels:
     workload: ousast
 spec:
-  replicas: 2
-  workerImage: ko://github.com/agent-substrate/substrate/cmd/ateom-gvisor
+  replicas: ${POOL_REPLICAS}
+  workerImage: ${WORKER_IMAGE}
   template:
     nodeSelector:
       ate.dev/substrate-version: "${SUBSTRATE_VERSION}"
     resources:
       limits:
-        cpu: "1"
-        memory: 1536Mi
+        cpu: "${POOL_CPU}"
+        memory: ${POOL_MEMORY}
       requests:
         cpu: 250m
-        memory: 1536Mi
+        memory: ${POOL_MEMORY}

@@ -1,0 +1,25 @@
+# The kind profile: the plane on this laptop's single-node kind cluster, which ops/ax/up.sh creates and which is
+# the development default (plane-on-kubernetes design section 1). Values only; a credential never goes here
+# (keys stay in the environment or .env). Every field is overridable by OUSAST_<FIELD> in the environment, a pool
+# by OUSAST_POOL_<NAME>_<FIELD>. This file may name the kind cluster; the code must not (tests/test_plane_literals.py).
+
+exec = "local"                   # the reconciler runs on this host against the cluster below
+kube_context = "kind-ousast"     # kind's context for KIND_CLUSTER_NAME=ousast
+registry = "localhost:5001"      # the kind-local registry up.sh creates (Substrate rewrites it for the node)
+images = "kind-images.json"      # digest-pinned image references, written by up.sh after each build
+router_url = ""                  # empty: port-forward to atenet-router through the kube context (ax-tunnel)
+ax_server = ""                   # empty: the ax CLI's own tunnel through the kube context (ax-tunnel)
+memory = "s3://sast-memory"      # the memory store; S3_ENDPOINT and the keys come from .env
+atespace = "default"
+snapshots_bucket = "s3://ax-snapshots"   # ax's AX_SNAPSHOTS_BUCKET, ours (rendered into the ax-server patch)
+image_pull_secret = ""           # the kind registry needs none
+
+[pools.default]                  # ousast-pool: two gVisor workers fit the 7 GB host beside the control planes
+replicas = 2
+cpu = "1"
+memory = "1536Mi"
+
+[pools.engine]                   # engine-pool (design section 4): one worker for the Joern engine task
+replicas = 1
+cpu = "2"
+memory = "4Gi"

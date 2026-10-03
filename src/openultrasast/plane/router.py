@@ -28,6 +28,7 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Iterable, Iterator, Mapping
+from typing import Any
 
 from .manifests import Model
 
@@ -77,7 +78,9 @@ class Router:
     def __init__(self, url: str) -> None:
         self.url = url.rstrip("/")
 
-    def starter(self, atespace: str, task: str, run: str, credentials: Mapping[str, str]) -> Callable[[], str | None]:
+    def starter(
+        self, atespace: str, task: str, run: str, credentials: Mapping[str, str], delivery: Mapping[str, Any] | None = None
+    ) -> Callable[[], str | None]:
         """:meth:`start_task` bound to one task, returning the refusal text instead of raising (None once accepted).
 
         The reconciler calls it again after a re-resume, since a resumed actor may have rebooted and wait for a
@@ -90,20 +93,30 @@ class Router:
             nonlocal calls
             calls += 1
             try:
-                self.start_task(atespace, task, run, credentials)
+                self.start_task(atespace, task, run, credentials, delivery)
             except StartError as exc:
                 return None if calls > 1 and ALREADY_STARTED in str(exc) else str(exc)
             return None
 
         return start
 
-    def start_task(self, atespace: str, task: str, run: str, credentials: Mapping[str, str]) -> None:
-        """Start ``<atespace>/<task>``'s command once; :class:`StartError` on 409, another 4xx, or the timeout."""
-        body = json.dumps({"run": run, "task": task, "credentials": dict(credentials)}).encode("utf-8")
+    def start_task(
+        self, atespace: str, task: str, run: str, credentials: Mapping[str, str], delivery: Mapping[str, Any] | None = None
+    ) -> None:
+        """Start ``<atespace>/<task>``'s command once; :class:`StartError` on 409, another 4xx, or the timeout.
+        ``delivery`` (``{put, inputs}`` presigned URLs, ``delivery.py``) rides in the body like the credentials and is
+        redacted like them."""
+        payload: dict[str, Any] = {"run": run, "task": task, "credentials": dict(credentials)}
+        if delivery:
+            payload["delivery"] = dict(delivery)
+        body = json.dumps(payload).encode("utf-8")
         headers = {"Content-Type": "application/json", TARGET_HEADER: f"{atespace}/{task}"}
         limit = float(os.environ.get("OUSAST_START_TIMEOUT") or 300)
         deadline, backoff, last = time.monotonic() + limit, 0.5, "no attempt made"
         secrets = list(credentials.values())
+        if delivery:
+            secrets.append(str(delivery.get("put") or ""))
+            secrets.extend(str(u) for u in (delivery.get("inputs") or {}).values())
         while True:
             request = urllib.request.Request(self.url + START_PATH, data=body, method="POST", headers=headers)
             try:
@@ -131,18 +144,20 @@ def _drain(stream: Iterable[str], lines: queue.Queue[str | None]) -> None:
 
 
 @contextlib.contextmanager
-def open_router(context: str | None = None, *, kubectl: str = "kubectl", ready_timeout: float = 30.0) -> Iterator[Router]:
+def open_router(context: str, *, url: str | None = None, kubectl: str = "kubectl", ready_timeout: float = 30.0) -> Iterator[Router]:
     """A :class:`Router` for the duration of the block.
 
-    ``OUSAST_ROUTER_URL`` set: that URL, nothing started. Otherwise ``kubectl port-forward svc/atenet-router :80``
-    in ``ate-system`` of ``context`` (default ``kind-$KIND_CLUSTER_NAME``, ``kind-ousast``), the local port read
-    from kubectl's ``Forwarding from 127.0.0.1:NNNN`` line; on exit that child process is terminated.
+    ``url`` (the profile's ``router_url``) or ``OUSAST_ROUTER_URL`` set: that URL, nothing started. Otherwise
+    ``kubectl port-forward svc/atenet-router :80`` in ``ate-system`` of the profile's ``context`` (ax-tunnel: the
+    Kubernetes API is the one authenticated door), the local port read from kubectl's ``Forwarding from
+    127.0.0.1:NNNN`` line; on exit that child process is terminated. No context is ever built here.
     """
-    override = os.environ.get("OUSAST_ROUTER_URL")
+    override = url or os.environ.get("OUSAST_ROUTER_URL")
     if override:
         yield Router(override)
         return
-    context = context or "kind-" + (os.environ.get("KIND_CLUSTER_NAME") or "ousast")
+    if not context:
+        raise StartError("open_router needs the profile's kube context (or router_url)")
     argv = [kubectl, "--context", context, "-n", NAMESPACE, "port-forward", SERVICE, ":80"]
     proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     try:

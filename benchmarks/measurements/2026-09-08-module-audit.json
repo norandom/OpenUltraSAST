@@ -1,7 +1,7 @@
 {
-  "modules": 155,
+  "modules": 157,
   "counts": {
-    "load_bearing": 150,
+    "load_bearing": 152,
     "standalone_capability": 5
   },
   "orphaned": [],
@@ -855,6 +855,8 @@
         "learn.examples",
         "learn.experiments",
         "learn.program",
+        "plane.delivery",
+        "plane.doctor",
         "plane.egress",
         "plane.engine_alerts",
         "plane.generate",
@@ -883,6 +885,14 @@
         "plane.generate",
         "plane.tasks.roles",
         "plane.tasks.verify"
+      ]
+    },
+    {
+      "module": "plane.delivery",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate, cli",
+      "importers": [
+        "plane.reconciler"
       ]
     },
     {
@@ -932,6 +942,7 @@
       "reason": "ai-service-plane Req 1.1-1.4: ax-shaped Task/Workspace/Model and the Run kind, validated before anything runs",
       "importers": [
         "learn.cli",
+        "plane.delivery",
         "plane.egress",
         "plane.generate",
         "plane.harvest",
@@ -954,9 +965,23 @@
         "learn.examples",
         "learn.experiments",
         "learn.program",
+        "plane.delivery",
+        "plane.doctor",
         "plane.generate",
+        "plane.reconciler",
         "plane.tasks.loop",
         "plane.tasks.remember"
+      ]
+    },
+    {
+      "module": "plane.profile",
+      "classification": "load_bearing",
+      "reason": "python -m openultrasast.plane.profile",
+      "importers": [
+        "cli",
+        "plane.doctor",
+        "plane.generate",
+        "plane.reconciler"
       ]
     },
     {

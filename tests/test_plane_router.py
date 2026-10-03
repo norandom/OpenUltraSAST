@@ -93,17 +93,17 @@ def alive(pid: int) -> bool:
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    for key in ("OUSAST_ROUTER_URL", "OUSAST_START_TIMEOUT", "KIND_CLUSTER_NAME", "FAKE_KUBECTL_MODE"):
+    for key in ("OUSAST_ROUTER_URL", "OUSAST_START_TIMEOUT", "FAKE_KUBECTL_MODE"):
         monkeypatch.delenv(key, raising=False)
 
 
 def test_port_forward_port_is_parsed_and_the_child_is_terminated_on_exit(tmp_path: Path, fake_router: FakeRouter) -> None:
     port = int(fake_router.server_address[1])
     kubectl = write_kubectl(tmp_path, port)
-    with open_router(kubectl=str(kubectl)) as router:
+    with open_router("kind-test", kubectl=str(kubectl)) as router:  # the profile's context, as the reconciler passes it
         assert router.url == f"http://127.0.0.1:{port}"
         seen = json.loads((tmp_path / "kubectl.json").read_text())
-        assert seen["argv"] == ["--context", "kind-ousast", "-n", "ate-system", "port-forward", "svc/atenet-router", ":80"]
+        assert seen["argv"] == ["--context", "kind-test", "-n", "ate-system", "port-forward", "svc/atenet-router", ":80"]
         assert alive(seen["pid"])
         router.start_task("default", "run-t", "run", {})
     deadline = time.monotonic() + 5
@@ -123,15 +123,23 @@ def test_a_failing_port_forward_raises_with_kubectls_output(tmp_path: Path, monk
 
 def test_router_url_override_starts_no_port_forward(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fake_router: FakeRouter) -> None:
     monkeypatch.setenv("OUSAST_ROUTER_URL", fake_router.url)
-    with open_router(kubectl=str(tmp_path / "no-such-kubectl")) as router:
+    with open_router("kind-test", kubectl=str(tmp_path / "no-such-kubectl")) as router:
         assert router.url == fake_router.url
     assert not (tmp_path / "kubectl.json").exists()
+    monkeypatch.delenv("OUSAST_ROUTER_URL")
+    with open_router("kind-test", url=fake_router.url, kubectl=str(tmp_path / "no-such-kubectl")) as router:
+        assert router.url == fake_router.url, "the profile's router_url is the same override"
+
+
+def test_open_router_refuses_to_build_a_context(tmp_path: Path) -> None:
+    with pytest.raises(StartError, match="kube context"), open_router("", kubectl=str(tmp_path / "no-such-kubectl")):
+        pass
 
 
 @pytest.mark.parametrize("fake_router", [[(503, "no actor yet"), (502, "bad gateway"), (202, "started")]], indirect=True)
 def test_start_retries_503_and_502_then_succeeds(monkeypatch: pytest.MonkeyPatch, fake_router: FakeRouter) -> None:
     monkeypatch.setenv("OUSAST_ROUTER_URL", fake_router.url)
-    with open_router() as router:
+    with open_router("kind-test") as router:
         router.start_task("default", "chain-verify", "chain", {"DEEPSEEK_API_KEY": SECRET})
     assert len(fake_router.requests) == 3
     path, headers, body = fake_router.requests[-1]
@@ -142,7 +150,7 @@ def test_start_retries_503_and_502_then_succeeds(monkeypatch: pytest.MonkeyPatch
 @pytest.mark.parametrize("fake_router", [[(409, f"this actor runs task 'x' (echo {SECRET})")]], indirect=True)
 def test_a_409_is_raised_at_once_with_the_response_text_redacted(monkeypatch: pytest.MonkeyPatch, fake_router: FakeRouter) -> None:
     monkeypatch.setenv("OUSAST_ROUTER_URL", fake_router.url)
-    with open_router() as router, pytest.raises(StartError, match="HTTP 409.*runs task 'x'") as caught:
+    with open_router("kind-test") as router, pytest.raises(StartError, match="HTTP 409.*runs task 'x'") as caught:
         router.start_task("default", "t", "r", {"DEEPSEEK_API_KEY": SECRET})
     assert len(fake_router.requests) == 1 and SECRET not in str(caught.value)
     assert router.starter("default", "t", "r", {})() is not None, "the starter returns the refusal instead of raising"
@@ -153,7 +161,7 @@ def test_a_restart_after_re_resume_accepts_a_running_command(monkeypatch: pytest
     """First start: 'already started' is a refusal. After a re-resume the actor may not have rebooted; then the
     runner's 'already started on this boot' means the command still runs, not a failure."""
     monkeypatch.setenv("OUSAST_ROUTER_URL", fake_router.url)
-    with open_router() as router:
+    with open_router("kind-test") as router:
         start = router.starter("default", "t", "r", {})
         assert start() is not None, "a first start that finds the command running is a refusal"
         assert start() is None, "a re-sent start after a re-resume is not"
@@ -165,7 +173,7 @@ def test_a_restart_after_re_resume_accepts_a_running_command(monkeypatch: pytest
 def test_start_gives_up_after_the_start_timeout(monkeypatch: pytest.MonkeyPatch, fake_router: FakeRouter) -> None:
     monkeypatch.setenv("OUSAST_ROUTER_URL", fake_router.url)
     monkeypatch.setenv("OUSAST_START_TIMEOUT", "1")
-    with open_router() as router, pytest.raises(StartError, match="OUSAST_START_TIMEOUT.*workspaces not materialised"):
+    with open_router("kind-test") as router, pytest.raises(StartError, match="OUSAST_START_TIMEOUT.*workspaces not materialised"):
         router.start_task("default", "t", "r", {})
     assert len(fake_router.requests) >= 2
 
@@ -173,7 +181,7 @@ def test_start_gives_up_after_the_start_timeout(monkeypatch: pytest.MonkeyPatch,
 def test_connection_errors_are_retried_until_the_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OUSAST_ROUTER_URL", "http://127.0.0.1:9")
     monkeypatch.setenv("OUSAST_START_TIMEOUT", "1")
-    with open_router() as router, pytest.raises(StartError, match="within 1s"):
+    with open_router("kind-test") as router, pytest.raises(StartError, match="within 1s"):
         router.start_task("default", "t", "r", {})
 
 

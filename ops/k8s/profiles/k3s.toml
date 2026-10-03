@@ -1,0 +1,26 @@
+# The k3s profile: the plane on the maintainer's production cluster (plane-on-kubernetes design section 1;
+# requirements "Target Environment"). Documented values, not secrets: the kubeconfig for the context, the GHCR
+# pull secret's content and the store's keys live outside this file. Every field is overridable by OUSAST_<FIELD>,
+# a pool by OUSAST_POOL_<NAME>_<FIELD>. Nothing has been applied to a k3s cluster yet; docs/deployment.md says
+# which items are planned.
+
+exec = "remote"                  # the same CLI from a laptop or a CI job, through the cluster's kube context
+kube_context = "ousast-k3s"      # the maintainer's context name for the k3s cluster
+registry = "ghcr.io/norandom"    # images built by GitHub Actions from tagged commits (design section 8)
+images = "images.json"           # the release asset {"runner": "ghcr.io/norandom/ousast-runner@sha256:...", "engine": ...}
+router_url = ""                  # empty: port-forward to atenet-router through the kube context (ax-tunnel)
+ax_server = ""                   # empty: the ax CLI's own tunnel through the kube context (ax-tunnel)
+memory = "s3://sast-memory"      # the memory store; S3_ENDPOINT and the keys come from the CI secrets or .env
+atespace = "default"
+snapshots_bucket = "s3://ax-snapshots"   # ax's AX_SNAPSHOTS_BUCKET, ours (rendered into the ax-server patch)
+image_pull_secret = "ghcr-pull"  # only needed while the GHCR packages are private
+
+[pools.default]                  # production sizing: four verify-class workers; the HPA (design section 5) scales it
+replicas = 4
+cpu = "1"
+memory = "1536Mi"
+
+[pools.engine]                   # two engine workers sized from the measured 2.1 GiB peak under a 3 GiB limit
+replicas = 2
+cpu = "2"
+memory = "4Gi"

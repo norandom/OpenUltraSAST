@@ -1,0 +1,5 @@
+[ok] profile k3s: exec=remote kube_context=ousast-k3s registry=ghcr.io/norandom images=/home/mc/Source/OpenUltraSAST/.claude/worktrees/agent-a7d4724e0c0c407a8/ops/k8s/profiles/images.json router_url=(tunnel through the kube context) ax_server=(tunnel through the kube context) memory=s3://sast-memory atespace=default snapshots_bucket=s3://ax-snapshots image_pull_secret=ghcr-pull
+[FAIL] cluster ousast-k3s: context ousast-k3s unreachable (error: context "ousast-k3s" does not exist); docs/deployment.md lists the prerequisites
+[FAIL] runner image in ghcr.io/norandom: images file /home/mc/Source/OpenUltraSAST/.claude/worktrees/agent-a7d4724e0c0c407a8/ops/k8s/profiles/images.json: No such file or directory; docs/deployment.md lists the prerequisites
+[ok] memory store s3://sast-memory: s3://sast-memory opens (an S3 bucket is verified)
+exit=1 seconds=1.1
