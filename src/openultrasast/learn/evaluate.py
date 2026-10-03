@@ -54,6 +54,7 @@ class Prediction:
     parse_failed: int = 0
     p: float | None = None
     point: str | None = None  # BLOCK | ADVISORY | DROP, from points chosen on the other folds
+    pair: str = ""  # the two sides of one candidate share it; "" when only one side is present
 
     @property
     def blockable(self) -> bool:
@@ -126,6 +127,87 @@ def nested_points(preds: Sequence[Prediction]) -> tuple[list[Prediction], dict[s
             point = "DROP"
         out.append(replace(r, point=point))
     return out, points
+
+
+BOUNDS = ("wilson", "point")
+
+
+def precision_threshold(
+    rows: Sequence[Prediction], *, precision: float = TARGET_PRECISION, bound: str = "wilson", min_flagged: int = 1
+) -> float | None:
+    """The lowest raw-score threshold ``t`` at which the blockable rows with ``s >= t`` reach ``precision``: their
+    Wilson 95% lower bound (``bound="wilson"``) or their point precision over at least ``min_flagged`` rows
+    (``bound="point"``). Candidate thresholds are the rows' own scores; ``None`` when no threshold qualifies."""
+    if bound not in BOUNDS:
+        raise ValueError(f"bound {bound!r} (one of {', '.join(BOUNDS)})")
+    blockable = [r for r in rows if r.blockable]
+    for t in sorted({r.s for r in blockable}):
+        chosen = [r for r in blockable if r.s >= t]
+        hits = sum(r.label for r in chosen)
+        if len(chosen) < max(1, min_flagged):
+            continue
+        level = wilson_lower(hits, len(chosen)) if bound == "wilson" else hits / len(chosen)
+        if level >= precision:
+            return t
+    return None
+
+
+def nested_precision_block(
+    preds: Sequence[Prediction],
+    *,
+    eligible: Callable[[Prediction], bool] | None = None,
+    precision: float = TARGET_PRECISION,
+    bound: str = "wilson",
+    min_flagged: int = 1,
+) -> tuple[list[Prediction], dict[str, dict[str, float | None]]]:
+    """Selective blocking on the raw score, per family: the threshold for outer fold j is chosen on the *other* folds'
+    rows of the family only (and, with ``eligible``, only those rows); the held-out fold's labels never enter it.
+    Every row of fold j is then decided with that threshold: ``BLOCK`` when blockable and ``s >= t``, else ``DROP``.
+    A family whose training folds reach no threshold offers no BLOCK on that fold. Returns the decided rows and the
+    thresholds by family and fold."""
+    thresholds: dict[str, dict[str, float | None]] = {}
+    for family in sorted({r.family for r in preds}):
+        rows = [r for r in preds if r.family == family]
+        thresholds[family] = {
+            fold: precision_threshold(
+                [r for r in rows if r.fold != fold and (eligible is None or eligible(r))],
+                precision=precision, bound=bound, min_flagged=min_flagged,
+            )
+            for fold in sorted({r.fold for r in rows})
+        }  # fmt: skip
+    out = []
+    for r in preds:
+        t = thresholds[r.family][r.fold]
+        out.append(replace(r, point="BLOCK" if t is not None and r.blockable and r.s >= t else "DROP"))
+    return out, thresholds
+
+
+def calibrated_block(preds: Sequence[Prediction], *, seed: int = 0, **floors: int) -> tuple[list[Prediction], dict[str, Any]]:
+    """Today's BLOCK rule, per family as the slice-2 evaluation applied it: the Platt map cross-fitted on the other
+    folds, the calibration check on the family's held-out calibrated predictions, the BLOCK point chosen on the other
+    folds' calibrated predictions (nested); a row is ``BLOCK`` only when the family's calibration holds. Returns the
+    decided rows and, per family, the check and the calibrated thresholds by fold."""
+    out: list[Prediction] = []
+    info: dict[str, Any] = {}
+    for family in sorted({r.family for r in preds}):
+        rows = [r for r in preds if r.family == family]
+        ps, _ = cross_fit([Row(r.fold, r.family, r.group, r.label, r.s) for r in rows], **floors)
+        calibrated = [replace(r, p=p) for r, p in zip(rows, ps, strict=True)]
+        decided = [r for r in calibrated if r.p is not None]
+        checked = (
+            check([float(r.p) for r in decided if r.p is not None], [r.label for r in decided], [r.group for r in decided], seed=seed)
+            if len({r.label for r in decided}) == 2
+            else None
+        )
+        holds = bool(checked and checked.holds)
+        nested, points = nested_points(calibrated)
+        out += [replace(r, point="BLOCK" if holds and r.point == "BLOCK" else "DROP") for r in nested]
+        info[family] = {
+            "calibration_holds": holds, "ece": None if checked is None else round(checked.ece, 4),
+            "thresholds_by_fold": {f: p.block for f, p in points.items()},
+            "reason_by_fold": {f: ("calibration" if not holds else p.block_reason) for f, p in points.items()},
+        }  # fmt: skip
+    return out, info
 
 
 def _at(rows: Sequence[Prediction], level: str) -> dict[str, float | None]:
@@ -326,8 +408,9 @@ def candidate_from_example(
 
 
 __all__ = [
-    "PARSE_FAILURE_LIMIT", "TARGET_PRECISION", "TARGET_RECALL", "Points", "Prediction", "candidate_from_example", "choose_points",
-    "cluster_bootstrap", "evaluate", "explain", "floor_status", "incompatible", "learning_curve", "nested_points", "predict", "strata",
-    "summary", "targets", "unevaluable_families",
+    "BOUNDS", "PARSE_FAILURE_LIMIT", "TARGET_PRECISION", "TARGET_RECALL", "Points", "Prediction", "calibrated_block",
+    "candidate_from_example", "choose_points", "cluster_bootstrap", "evaluate", "explain", "floor_status", "incompatible",
+    "learning_curve", "nested_points", "nested_precision_block", "precision_threshold", "predict", "strata", "summary", "targets",
+    "unevaluable_families",
     "wilson_lower",
 ]  # fmt: skip

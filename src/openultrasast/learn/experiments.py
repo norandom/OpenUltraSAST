@@ -41,10 +41,10 @@ from typing import Any
 
 import yaml
 
-from ..plane.budget import BudgetExhausted
+from ..plane.budget import BudgetExhausted, MeteredClient
 from ..plane.memory import MemoryStore, row_id
 from .compile import load_program, spec_of
-from .evaluate import candidate_from_example
+from .evaluate import BOUNDS, TARGET_PRECISION, Prediction, calibrated_block, candidate_from_example, nested_precision_block, wilson_lower
 from .examples import EXAMPLE_KIND, Example
 from .folds import Fold, compile_split, folds_digest, outer_folds
 from .program import Caller, Decision, Program, ProgramSpec
@@ -57,7 +57,15 @@ RESULT_KIND = "experiment_result"
 REGISTER_TASK = "register"
 POPULATION = "experiments"  # the envelope of every experiment row; `split` is the experiment id
 RUN_TASK = "run"
-ARM_KINDS = ("program", "plane")
+ARM_KINDS = ("program", "plane", "rule")
+# decision-rule experiments (kind: rule): one replay-only scoring pass of the incumbent programs, arms differ only in
+# the BLOCK rule applied to the same scores
+RULES = ("calibrated_block", "precision_bound_block")
+POPULATIONS = ("paired", "pooled")  # paired: units whose candidate has both sides present; pooled: every unit
+SCORE_ARM = "score"  # the arm name of a rule experiment's outcome rows (the shared scores)
+MISS_VERDICT = "replay_miss"  # an outcome row of a unit excluded because a response was not cached
+# rule metrics, per family and population of held-out (outer-fold) units: direction only (no paired test)
+RULE_METRICS: Mapping[str, int] = {"flagged_precision_lb": 1, "flagged_precision": 1, "coverage": 1, "flagged": 1}
 UNITS = ("candidate", "file", "repository")
 PAIRINGS = ("paired", "assigned")
 # O'Brien-Fleming boundaries for two equally spaced looks at alpha 0.05, two-sided (design section 6).
@@ -96,6 +104,7 @@ class Arm:
     replay_only: bool = False
     repeats: int = 1
     budget_usd: float = 0.0
+    rule: Mapping[str, Any] = field(default_factory=dict)  # rule arms: {name: calibrated_block | precision_bound_block, ...}
 
 
 @dataclass(frozen=True)
@@ -119,11 +128,11 @@ class Metric:
 
     @property
     def direction(self) -> int:
-        return METRICS[self.name][0]
+        return RULE_METRICS[self.name] if self.name in RULE_METRICS else METRICS[self.name][0]
 
     @property
     def binary(self) -> bool:
-        return METRICS[self.name][1]
+        return self.name in METRICS and METRICS[self.name][1]
 
     def as_dict(self) -> dict[str, Any]:
         return {k: v for k, v in asdict(self).items() if v is not None}
@@ -198,6 +207,7 @@ def load_manifest(path: Path) -> Manifest:
                 bool(spec.get("replay_only", False)),
                 int(spec.get("repeats", 1)),
                 float(spec.get("budget_usd", 0.0)),
+                dict(spec.get("rule") or {}),
             )  # fmt: skip
             for name, spec in dict(raw["arms"]).items()
         }
@@ -210,9 +220,12 @@ def load_manifest(path: Path) -> Manifest:
         primary_raw = metric["primary"]
         primary = tuple(Metric.parse(m) for m in (primary_raw if isinstance(primary_raw, list) else [primary_raw]))
         secondary = tuple(Metric.parse(m) for m in metric.get("secondary", []))
+        known = RULE_METRICS if kind == "rule" else METRICS
         for m in (*primary, *secondary):
-            if m.name not in METRICS:
-                raise ExperimentError(f"{path}: metric {m.name!r} (one of {', '.join(METRICS)})")
+            if m.name not in known:
+                raise ExperimentError(f"{path}: metric {m.name!r} (one of {', '.join(known)})")
+        if kind == "rule":
+            _check_rule_manifest(path, raw, arms)
         test = dict(raw.get("test") or {})
         stopping = dict(raw.get("stopping") or {"looks": [1.0], "boundaries": [1.959964]})
         looks = tuple(float(x) for x in stopping.get("looks", [0.5, 1.0]))
@@ -244,9 +257,37 @@ def load_manifest(path: Path) -> Manifest:
         raise ExperimentError(f"{path}: missing {exc}") from exc
     if manifest.id != path.stem:
         raise ExperimentError(f"{path}: id {manifest.id!r} must equal the file stem")
-    if kind == "program" and not manifest.families:
-        raise ExperimentError(f"{path}: a program experiment names its families")
+    if kind in ("program", "rule") and not manifest.families:
+        raise ExperimentError(f"{path}: a {kind} experiment names its families")
+    if kind == "rule" and set(manifest.families) - set(manifest.programs):
+        raise ExperimentError(f"{path}: a rule experiment names a program for every family (programs:)")
     return manifest
+
+
+def _check_rule_manifest(path: Path, raw: Mapping[str, Any], arms: Mapping[str, Arm]) -> None:
+    """A decision-rule experiment costs nothing by construction: no arm overrides the program, no budget, and every
+    arm names a known rule with known parameters; the populations are declared before the run."""
+    budget = raw["budget_usd"]
+    total = float(budget["total"] if isinstance(budget, Mapping) else budget)
+    if total != 0 or any(a.budget_usd for a in arms.values()):
+        raise ExperimentError(f"{path}: a rule experiment replays cached responses only: budget_usd must be 0")
+    for arm in arms.values():
+        if arm.spec or arm.task_env or arm.programs:
+            raise ExperimentError(f"{path}: arm {arm.name} of a rule experiment may change the BLOCK rule only (rule:)")
+        name = arm.rule.get("name")
+        if name not in RULES:
+            raise ExperimentError(f"{path}: arm {arm.name} rule.name {name!r} (one of {', '.join(RULES)})")
+        allowed = {"name"} | ({"precision", "bound", "min_flagged", "select_on"} if name == "precision_bound_block" else set())
+        if set(arm.rule) - allowed:
+            raise ExperimentError(f"{path}: arm {arm.name} rule parameters {sorted(set(arm.rule) - allowed)} are not understood")
+        if arm.rule.get("bound", "wilson") not in BOUNDS or arm.rule.get("select_on", "paired") not in POPULATIONS:
+            raise ExperimentError(f"{path}: arm {arm.name} bound in {BOUNDS} and select_on in {POPULATIONS}")
+    populations = dict(raw.get("populations") or {})
+    if populations.get("primary") not in POPULATIONS or any(p not in POPULATIONS for p in populations.get("secondary", [])):
+        raise ExperimentError(f"{path}: populations.primary (and secondary) in {POPULATIONS}")
+    decision = dict(raw.get("decision") or {})
+    if not 0 < float(decision.get("target_precision", 0)) <= 1 or decision.get("arm") not in arms:
+        raise ExperimentError(f"{path}: decision.target_precision in (0, 1] and decision.arm naming an arm")
 
 
 # --- register ------------------------------------------------------------------------------------------------------------
@@ -383,7 +424,7 @@ def program_folds(memory: Sequence[Example], manifest: Manifest) -> tuple[list[F
 def freeze_units(store: MemoryStore, manifest: Manifest, memory: Sequence[Example]) -> list[Unit]:
     """The evaluation candidates of the manifest's families under the incumbent's outer folds, paired by candidate
     across the two pins where both sides are in memory (no model; the list is then committed and registered)."""
-    if manifest.kind != "program":
+    if manifest.kind not in ("program", "rule"):
         raise ExperimentError(f"{manifest.id}: units of a plane experiment come from candidate generation, not the memory")
     folds, _ = program_folds(memory, manifest)
     sides: dict[str, tuple[str, str, str]] = {}
@@ -812,6 +853,8 @@ def run(
     """Every unit in every arm, paired, repositories in the pre-shuffled look order, a seeded coin per unit for which
     arm goes first; outcomes already in the store are not decided again. After the first look's repositories the
     primary is tested against its boundary and, when crossed, the run stops. A ceiling ends the run ``unfinished``."""
+    if manifest.kind == "rule":
+        raise ExperimentError(f"{manifest.id}: a rule experiment scores once at zero cost (run_rule), its arms differ only in the rule")
     if manifest.kind != "program":
         raise ExperimentError(f"{manifest.id}: plane arms run as plane Runs; their outcomes arrive as arm_outcome rows")
     row = check_registered(store, manifest)
@@ -892,7 +935,267 @@ def run(
     return summary
 
 
+# --- decision-rule experiments (kind: rule) -----------------------------------------------------------------------------
+
+
+class ZeroCostViolation(ExperimentError):
+    """A model call reached the client of a zero-cost run, or the meter recorded spend: the run is void."""
+
+
+class _RefusingChat:
+    """The inner client behind a zero-cost run's meter. The meter's zero ceilings stop every call before it gets here;
+    reaching it means a guard was bypassed."""
+
+    usage: list[Any] = []
+
+    def complete(self, **_: Any) -> Any:
+        raise ZeroCostViolation("a model call reached the client of a zero-cost run")
+
+
+def zero_cost_caller(model: str, prices: Mapping[str, Any], store: MemoryStore | None) -> tuple[Caller, MeteredClient]:
+    """A caller that answers only from the response cache: its client is a meter with zero ceilings (USD and calls)
+    around a client that refuses. A response that is not cached raises ``BudgetExhausted`` before any call; the run
+    excludes that unit and counts it. The meter is the proof: its ``calls`` and ``usd`` must stay 0."""
+    meter = MeteredClient(_RefusingChat(), prices=prices, budget_usd=0.0, budget_calls=0)  # type: ignore[arg-type]
+    return Caller(meter, model, prices, store=store), meter
+
+
+def _checked_units(manifest: Manifest, memory: Sequence[Example]) -> tuple[list[Unit], dict[str, Fold], str]:
+    units = read_units(manifest.units_file)
+    folds, fdigest = program_folds(memory, manifest)
+    by_name = {f.name: f for f in folds}
+    index = {e.id for e in memory}
+    for unit in units:
+        fold = by_name.get(unit.fold)
+        if fold is None or unit.group not in fold.eval_groups or unit.unit not in index:
+            raise ExperimentError(
+                f"{manifest.id}: unit {unit.unit[:12]} is not under fold {unit.fold!r} of this memory; the memory changed"
+            )
+    return units, by_name, fdigest
+
+
+def run_rule(
+    store: MemoryStore,
+    manifest: Manifest,
+    memory: Sequence[Example],
+    caller: Caller,
+    meter: MeteredClient,
+    excerpt_text: Callable[[str], str | None],
+    vectors: Mapping[str, Sequence[float]] | None = None,
+    *,
+    on_decision: Callable[[Outcome, Decision], None] | None = None,
+) -> RunSummary:
+    """The one scoring pass of a rule experiment: every unit decided once by its family's incumbent program, answered
+    only from the response cache. A unit whose responses are not all cached is excluded and counted (an outcome row
+    with ``verdict = replay_miss`` and no score), never asked. Raises :class:`ZeroCostViolation` when the meter shows
+    a call or any spend afterwards."""
+    if manifest.kind != "rule":
+        raise ExperimentError(f"{manifest.id}: run_rule runs decision-rule experiments only")
+    if caller.client is not meter or meter.budget_usd != 0.0 or meter.budget_calls != 0:
+        raise ZeroCostViolation(f"{manifest.id}: a rule experiment runs only behind a zero-ceiling meter (zero_cost_caller)")
+    row = check_registered(store, manifest)
+    units, by_name, fdigest = _checked_units(manifest, memory)
+    index = {e.id: e for e in memory}
+    programs = {f: Program(arm_spec(manifest, manifest.arms["A"], f, store), memory, excerpt_text, vectors) for f in manifest.families}
+    models = {spec_of(load_program(store, manifest.programs[f])).model for f in manifest.families}
+    if models != {caller.model}:
+        raise ExperimentError(f"{manifest.id}: the programs' models {sorted(models)} differ from the caller's {caller.model!r}")
+    candidate_of = candidate_from_example(excerpt_text, vectors)
+    have = {outcome_id(manifest.id, o.arm, o.unit, o.replicate) for o in load_outcomes(store, manifest.id)}
+    decided, skipped = {SCORE_ARM: 0}, {"already": 0, MISS_VERDICT: 0}
+    fold_seed = int(manifest.folds.get("seed", 0))
+    for unit in sorted(units, key=lambda u: (u.group, u.family, u.unit)):
+        if outcome_id(manifest.id, SCORE_ARM, unit.unit, 0) in have:
+            skipped["already"] += 1
+            continue
+        candidate = candidate_of(index[unit.unit])
+        if candidate is None:
+            raise ExperimentError(f"{manifest.id}: unit {unit.unit[:12]} has no excerpt in the store")
+        try:
+            decision = programs[unit.family].decide(candidate, by_name[unit.fold], caller, seed=fold_seed)
+        except BudgetExhausted:  # a response is not cached: the zero ceiling stopped the call before it started
+            outcome = Outcome(unit.unit, unit.group, unit.family, unit.label, unit.pair, SCORE_ARM, 0, None, MISS_VERDICT, 0.0)
+            skipped[MISS_VERDICT] += 1
+            store.put_row(outcome_row(manifest.id, str(row["pin"]), outcome))
+            continue
+        outcome = Outcome(unit.unit, unit.group, unit.family, unit.label, unit.pair, SCORE_ARM, 0, decision.s, decision.verdict, 0.0,
+                          decision.parse_failed)  # fmt: skip
+        store.put_row(outcome_row(manifest.id, str(row["pin"]), outcome))
+        decided[SCORE_ARM] += 1
+        if on_decision is not None:
+            on_decision(outcome, decision)
+    if meter.calls or (meter.usd or 0.0) > 0 or caller.calls:
+        raise ZeroCostViolation(f"{manifest.id}: the meter recorded {meter.calls} calls and ${meter.usd}; the run is void")
+    spend = {SCORE_ARM: {"usd": meter.usd, "client_calls": meter.calls, "replayed": caller.replayed, "cache_digest": caller.cache_digest(),
+                         "replay_priced_usd": caller.usd()}}  # fmt: skip
+    summary = RunSummary(manifest.id, "done", len(units), decided, skipped, spend, fdigest)
+    store.put_row({
+        "id": row_id(EXPERIMENT_KIND, f"experiment-{manifest.id}", RUN_TASK, manifest.id), "kind": EXPERIMENT_KIND,
+        "repo": experiment_repo(manifest.id), "pin": str(row["pin"]), "run": f"experiment-{manifest.id}", "task": RUN_TASK,
+        "population": POPULATION, "split": manifest.id, "image": "host", "experiment": manifest.id,
+        "manifest_digest": manifest.digest, **summary.as_dict(),
+    })  # fmt: skip
+    return summary
+
+
+def min_flagged_for_bound(target: float, z: float = 1.959964) -> int:
+    """The fewest flagged units, all correct, whose Wilson lower bound reaches ``target`` (73 at 0.95)."""
+    n = 1
+    while wilson_lower(n, n, z) < target:
+        n += 1
+    return n
+
+
+def _group_bootstrap_precision(rows: Sequence[Prediction], *, resamples: int, seed: int) -> list[float] | None:
+    by_group: dict[str, list[Prediction]] = {}
+    for r in rows:
+        by_group.setdefault(r.group, []).append(r)
+    names = sorted(by_group)
+    rng = random.Random(seed)
+    values = []
+    for _ in range(resamples if names else 0):
+        sample = [r for g in (rng.choice(names) for _ in names) for r in by_group[g]]
+        flagged = [r for r in sample if r.point == "BLOCK"]
+        if flagged:
+            values.append(sum(r.label for r in flagged) / len(flagged))
+    if len(values) < 2:
+        return None
+    values.sort()
+    return [values[int(0.025 * (len(values) - 1))], values[int(0.975 * (len(values) - 1))]]
+
+
+def flag_summary(rows: Sequence[Prediction], target: float, *, resamples: int = 2000, seed: int = 0) -> dict[str, Any]:
+    """Held-out BLOCK decisions of one population: flagged count, flagged precision with its Wilson 95% lower bound
+    and a repository-cluster bootstrap interval, coverage (the share of positives flagged), and the M4 reading."""
+    flagged = [r for r in rows if r.point == "BLOCK"]
+    hits = sum(r.label for r in flagged)
+    positives = sum(r.label for r in rows)
+    precision = hits / len(flagged) if flagged else None
+    lower = wilson_lower(hits, len(flagged)) if flagged else None
+    return {
+        "units": len(rows), "groups": len({r.group for r in rows}), "positives": positives, "flagged": len(flagged),
+        "true_flagged": hits, "flagged_precision": None if precision is None else round(precision, 4),
+        "flagged_precision_lb": None if lower is None else round(lower, 4),
+        "flagged_precision_ci": _group_bootstrap_precision(rows, resamples=resamples, seed=seed) if flagged else None,
+        "coverage": round(hits / positives, 4) if positives else None,
+        "meets_target_point": precision is not None and precision >= target,
+        "meets_target_lb": lower is not None and lower >= target,
+    }  # fmt: skip
+
+
+def _apply_rule(arm: Arm, preds: Sequence[Prediction], seed: int) -> tuple[list[Prediction], dict[str, Any]]:
+    if arm.rule["name"] == "calibrated_block":
+        return calibrated_block(preds, seed=seed)
+    select_on = str(arm.rule.get("select_on", "paired"))
+    decided, thresholds = nested_precision_block(
+        preds, eligible=(lambda r: bool(r.pair)) if select_on == "paired" else None,
+        precision=float(arm.rule.get("precision", TARGET_PRECISION)), bound=str(arm.rule.get("bound", "wilson")),
+        min_flagged=int(arm.rule.get("min_flagged", 1)),
+    )  # fmt: skip
+    return decided, {f: {"thresholds_by_fold": t} for f, t in thresholds.items()}
+
+
+def decide_rule(manifest: Manifest, families: Mapping[str, Mapping[str, Any]]) -> tuple[str, str]:
+    """The pre-registered rule: **reject** the decision arm when it flags held-out units of the primary population in
+    some family at a point precision below the target; **adopt** it when it does not and some family's held-out
+    Wilson lower bound reaches the target; otherwise **inconclusive** (the incumbent rule stays)."""
+    decision = dict(manifest.raw["decision"])
+    arm, target = str(decision["arm"]), float(decision["target_precision"])
+    primary = str(manifest.raw["populations"]["primary"])
+    cells = {f: v[arm][primary] for f, v in families.items()}
+    low = sorted(f for f, c in cells.items() if c["flagged"] and not c["meets_target_point"])
+    if low:
+        return "reject", f"{arm} flags held-out {primary} units below precision {target} in {', '.join(low)}"
+    reached = sorted(f for f, c in cells.items() if c["meets_target_lb"])
+    if reached:
+        return "adopt", f"{arm}'s held-out Wilson lower bound reaches {target} in {', '.join(reached)} and nowhere flags below it"
+    if not any(c["flagged"] for c in cells.values()):
+        return "inconclusive", f"{arm} offers no BLOCK on held-out {primary} units in any family; the incumbent stays"
+    return "inconclusive", f"{arm} flags only at a Wilson lower bound below {target}; the incumbent stays"
+
+
+def analyse_rule(
+    manifest: Manifest,
+    outcomes: Sequence[Outcome],
+    units: Sequence[Unit],
+    *,
+    resamples: int | None = None,
+    provenance: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Counts and intervals only: every arm's rule applied to the same held-out scores, per family and population,
+    the pooled-over-families totals, the exclusions, the training capacity of each family against the Wilson bound,
+    and the pre-registered verdict."""
+    n = resamples if resamples is not None else min(manifest.resamples, 2000)
+    target = float(manifest.raw["decision"]["target_precision"])
+    populations = [str(manifest.raw["populations"]["primary"]), *[str(p) for p in manifest.raw["populations"].get("secondary", [])]]
+    by_unit = {u.unit: u for u in units}
+    scores = {o.unit: o for o in outcomes if o.arm == SCORE_ARM and o.replicate == 0 and o.unit in by_unit}
+    preds = [
+        Prediction(by_unit[u].fold, o.family, o.group, o.label, float(o.s), o.verdict, parse_failed=o.parse_failed, pair=o.pair)
+        for u, o in sorted(scores.items())
+        if o.s is not None
+    ]  # fmt: skip
+    excluded = {f: sum(1 for o in scores.values() if o.s is None and o.family == f) for f in manifest.families}
+    not_run = {f: sum(1 for u in units if u.family == f and u.unit not in scores) for f in manifest.families}
+
+    def select(rows: Sequence[Prediction], population: str) -> list[Prediction]:
+        return [r for r in rows if r.pair] if population == "paired" else list(rows)
+
+    decided = {name: _apply_rule(arm, preds, manifest.seed) for name, arm in manifest.arms.items()}
+    families: dict[str, dict[str, Any]] = {}
+    for family in manifest.families:
+        cell: dict[str, Any] = {}
+        for name, (rows, info) in decided.items():
+            mine = [r for r in rows if r.family == family]
+            cell[name] = {**info.get(family, {}), **{p: flag_summary(select(mine, p), target, resamples=n, seed=manifest.seed)
+                                                      for p in populations}}  # fmt: skip
+        mine = [r for r in preds if r.family == family]
+        folds = sorted({r.fold for r in mine})
+        cell["capacity"] = {
+            "evaluated": len(mine), "excluded_replay_miss": excluded[family], "not_run": not_run[family],
+            "paired_positives_by_training_folds": {f: sum(r.label for r in mine if r.pair and r.fold != f) for f in folds},
+        }  # fmt: skip
+        families[family] = cell
+    overall = {
+        name: {p: flag_summary(select(rows, p), target, resamples=n, seed=manifest.seed) for p in populations}
+        for name, (rows, _) in decided.items()
+    }
+    verdict, reason = decide_rule(manifest, families)
+    spend = {SCORE_ARM: round(sum(o.usd or 0.0 for o in outcomes if o.arm == SCORE_ARM), 6)}
+    return {
+        "experiment": manifest.id, "manifest_digest": manifest.digest, "hypothesis": manifest.hypothesis,
+        "arms": {a: {"label": arm.label, "rule": dict(arm.rule)} for a, arm in manifest.arms.items()},
+        "units": {"frozen": len(units), "evaluated": len(preds), "excluded_replay_miss": sum(excluded.values()),
+                  "not_run": sum(not_run.values()), "paired_evaluated": sum(1 for r in preds if r.pair),
+                  "groups": len({r.group for r in preds}), "by_label": {str(lab): sum(r.label == lab for r in preds) for lab in (0, 1)},
+                  "unsure": sum(1 for r in preds if not r.blockable)},
+        "populations": {"primary": populations[0], "secondary": populations[1:]}, "target_precision": target,
+        "min_flagged_for_bound": min_flagged_for_bound(target), "primary": [m.as_dict() for m in manifest.primary],
+        "secondary": [m.as_dict() for m in manifest.secondary], "families": families, "overall": overall, "resamples": n,
+        "decision": verdict, "reason": reason, "spend_usd": spend, **dict(provenance or {}),
+    }  # fmt: skip
+
+
+def rule_result_row(manifest: Manifest, pin: str, result: Mapping[str, Any]) -> dict[str, Any]:
+    """The ``experiment_result`` row of a rule experiment, with the column types of :func:`result_row`."""
+    primary = result["populations"]["primary"]
+    tests = {
+        f: {a: {k: cell[a][primary][k] for k in ("flagged", "flagged_precision", "flagged_precision_lb", "coverage")}
+            for a in manifest.arms}
+        for f, cell in result["families"].items()
+    }  # fmt: skip
+    return {
+        "id": row_id(RESULT_KIND, f"experiment-{manifest.id}", "analyse", manifest.id), "kind": RESULT_KIND,
+        "repo": experiment_repo(manifest.id), "pin": pin, "run": f"experiment-{manifest.id}", "task": "analyse", "population": POPULATION,
+        "split": manifest.id, "image": "host", "experiment": manifest.id, "manifest_digest": manifest.digest,
+        "decision": result["decision"], "reason": result["reason"], "unit_counts": result["units"], "spend_usd": result["spend_usd"],
+        "tests": tests, "looks_taken": [],
+    }  # fmt: skip
+
+
 __all__ = [
+    "MISS_VERDICT", "POPULATIONS", "RULES", "RULE_METRICS", "SCORE_ARM", "ZeroCostViolation", "analyse_rule", "decide_rule",
+    "flag_summary", "min_flagged_for_bound", "rule_result_row", "run_rule", "zero_cost_caller",
     "ALPHA", "ARM_KINDS", "EXPERIMENT_KIND", "MANIFEST_DIR", "METRICS", "OBF_TWO_LOOKS", "OUTCOME_KIND", "RESAMPLES", "RESULT_DIR",
     "RESULT_KIND", "TOST_MARGIN", "VERDICTS", "Arm", "ArmUnit", "Estimate", "ExperimentError", "Look", "Manifest", "McNemar", "Metric",
     "Outcome", "RunSummary", "Unit", "analyse", "arm_spec", "arm_units", "auc", "check_registered", "committed_at_head", "decide",
