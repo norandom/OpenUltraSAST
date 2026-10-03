@@ -96,6 +96,21 @@ class DeepSeekChatClient:
         self._disable_thinking = disable_thinking
         self.endpoint = endpoint
         self.usage: list[dict[str, object]] = []  # one entry per call, for the round's cost meter
+        self._output_limit: int | None = None
+
+    def bounded(self, max_output_tokens: int) -> DeepSeekChatClient:
+        """A single-attempt, output-capped copy for callers reserving a hard per-call budget.
+
+        Empty JSON retries belong to the caller's meter, and transport failures must
+        stop that caller before another potentially billable attempt.
+        """
+        from dataclasses import replace
+
+        if max_output_tokens <= 0:
+            raise ValueError("max_output_tokens must be positive")
+        client = DeepSeekChatClient(replace(self._client, max_attempts=1), disable_thinking=self._disable_thinking, endpoint=self.endpoint)
+        client._output_limit = max_output_tokens
+        return client
 
     def complete(
         self,
@@ -117,7 +132,7 @@ class DeepSeekChatClient:
             logprobs=logprobs,
             temperature=temperature,
         )
-        if json_object and not (response.content or "").strip():
+        if self._output_limit is None and json_object and not (response.content or "").strip():
             response = self._call(
                 model=model,
                 messages=messages,
@@ -147,6 +162,8 @@ class DeepSeekChatClient:
         temperature: float | None = None,
     ) -> ChatResponse:
         extra: dict[str, object] = {}
+        if self._output_limit is not None:
+            extra["max_tokens"] = self._output_limit
         if self._disable_thinking:
             extra["thinking"] = {"type": "disabled"}  # otherwise temperature is silently ignored
         if temperature is not None:

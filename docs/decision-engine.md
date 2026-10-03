@@ -150,7 +150,7 @@ Four experiments are registered:
   0.875 against 0.906 and an interval spanning zero
   (`benchmarks/experiments/exp-002-retrieval-ensemble/result.json`).
 - exp-003 compared two BLOCK rules on the same scores. It was **inconclusive**. Neither rule flags anything.
-- exp-004 tests one pooled BLOCK threshold with a per-family floor. It is registered and has not run.
+- exp-004 tested one pooled BLOCK threshold with a per-family floor. It was **inconclusive**.
 
 ### exp-003: precision-bound blocking (2026-10-03)
 
@@ -216,7 +216,43 @@ Calibration holds only for untrusted destination.
 There arm A still finds no BLOCK point that reaches the bound.
 Record: `benchmarks/experiments/exp-003-precision-bound-blocking/result-complete-cache.json`.
 
+### exp-004: pooled block gate (2026-10-03)
+
+The experiment tested one pooled BLOCK threshold across families.
+Each family needed at least 10 clean flags to block.
+Each family also had its own quiet threshold.
+The run evaluated 501 units across 220 repository groups.
+Of these, 390 units were paired.
+The cache fill cost $1.238223 for 2,073 calls.
+The replay cost $0.0 and made 0 client calls.
+
+The verdict was **inconclusive**.
+No fold found a `t_block` threshold.
+The instrument check confirmed real scores.
+The pooled top 30 contained 27 positives.
+The first negative appeared at rank 12.
+The bound needs 73 clean flags without an error.
+
+A within-pair win means the vulnerable side scored above its fixed counterpart.
+
+| Family | Within-pair wins | Pairs |
+| --- | --- | --- |
+| access control | 22 | 28 |
+| deserialization | 18 | 25 |
+| injection | 30 | 53 |
+| output encoding | 18 | 28 |
+| path | 25 | 29 |
+| untrusted destination | 18 | 32 |
+
+Precision at the top of the ranking now limits blocking.
+Data volume alone cannot resolve this.
+The next levers are graph evidence in the prompt and the combiner.
+
+Records: `benchmarks/experiments/exp-004-pooled-block-gate/record.json` and `benchmarks/experiments/exp-004-pooled-block-gate/result.json`.
+
 ### exp-004: pooled block gate with a family floor (registered, not run)
+
+This registration describes the setup before the run reported above.
 
 The maintainer amended the BLOCK rule on 2026-10-03 (requirements, Req 6.4).
 Precision is now shown across all families together, not per family.
@@ -230,8 +266,8 @@ No held-out label moves a threshold.
 
 - **Primary metric:** the pooled held-out Wilson lower bound of flagged precision, paired units, before the floor.
 - **Decision:** reject below point precision 0.95; adopt if the bound reaches 0.95 and a family passes the floor.
-- **Units:** frozen at run time, from the memory after the negatives harvest.
-- **Cost:** the run replays the cache. The new memory needs a paid cache fill first.
+- **Units:** frozen from the memory after the negatives harvest.
+- **Cost:** the run replayed the cache after a paid cache fill.
 
 Manifest: `plane/experiments/exp-004-pooled-block-gate.yaml`.
 
@@ -252,6 +288,34 @@ The reading is on [Where we stand](where-we-stand.md#2-our-approach-to-detection
 | `ousast learn curve --program ID` | the metric over memory size on a fixed candidate subset |
 | `ousast learn audit-leaks` | how well each signal alone separates the sides of a pair (no model) |
 | `ousast learn experiment register\|units\|run\|analyse MANIFEST` | A/B experiments from a pre-registered manifest (`plane/experiments/<id>.yaml`): record its digest, freeze the units (no model), run the arms paired (arm A may replay from the cache at $0), analyse (repository bootstrap, exact McNemar, two looks, the adoption verdict) |
+| `ousast learn experiment fill MANIFEST --budget-usd X` | Fill missing responses for a registered `kind: rule` experiment's frozen units before its zero-cost run; `--dry-run` inspects and estimates without calls or writes |
+
+`experiment fill` accepts `--memory URL`, `--profile static|plane` (default `static`),
+`--manifest-model PATH` (default `plane/models/deepseek-flash.yaml`) and `--out PATH`.
+Freeze, commit and register the units first. Fill uses the incumbent programs and the
+same retrieval, sampling and cache keys as replay. The first missing request is the
+smoke call; a successful smoke response is kept. Any provider failure stops the fill.
+
+The JSON report on stdout gives each family's units, distinct requests, initially
+cached and missing responses, newly filled responses and still-missing responses,
+plus total client calls and metered USD. `--out` also saves it, except during dry-run,
+which writes nothing. Exit codes are 0 for completion or dry-run, 1 for a provider/cache
+failure, 2 for invalid setup and 3 for budget exhaustion. Resume a partial fill with a
+new invocation and budget; that budget covers only the new invocation, including smoke.
+
+Dry-run uses each family's mean billed cached response cost when recorded usage exists.
+Model prices account for cache-hit input, cache-miss input, and output tokens.
+Without cached usage, it uses the program's input-token estimate and **300 output tokens**.
+Each family's `estimate_method` reports `measured` or `estimated`.
+It reports potential retries separately as `conditional_retries`: an unseen answer
+may need one parse retry, whose necessity cannot be known without calling the model.
+Known invalid cached answers include their retry requests in the inventory.
+
+Fill reserves at least **$0.01** and the largest observed call cost before each call.
+For the production client it also reserves a conservative input-byte token bound plus
+the program's enforced output-token limit; hidden provider retries are disabled.
+Consequently a small budget may stop before making any call, and a fill may finish
+with unused budget. Calls without token usage stop as failures, never as free calls.
 
 The memory store is the plane's (`OUSAST_MEMORY`; see [ops/ax/README.md](ops/ax/README.md)).
 The harvests that produced the plane signals ran as plane Runs generated by

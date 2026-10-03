@@ -60,18 +60,24 @@ def add_commands(learn_sub: Any) -> None:
         ("register", "record the manifest's and the units file's sha256 as the experiment row (both committed at HEAD)"),
         ("units", "freeze the units of a program experiment from the memory (no model): the families' evaluation candidates"),
         ("run", "run every arm on every unit, paired; arm A replays from the response cache when the manifest says so"),
+        ("fill", "fill a rule experiment's response cache under a separate budget, or estimate with --dry-run"),
         ("analyse", "paired cluster bootstrap, exact McNemar, the two looks and the adoption verdict (counts and intervals only)"),
     ):
         sub = experiment_sub.add_parser(name, help=text)
         sub.add_argument("manifest", type=Path, help="plane/experiments/<id>.yaml")
         sub.add_argument("--memory", help="the store (default OUSAST_MEMORY, then results_root()/memory)")
-        if name in ("units", "run"):
+        if name in ("units", "run", "fill"):
             sub.add_argument("--profile", choices=("static", "plane"), default="static")
-        if name == "run":
+        if name in ("run", "fill"):
             sub.add_argument(
                 "--manifest-model", type=Path, default=Path("plane/models/deepseek-flash.yaml"), help="the chat Model (prices)"
             )
+        if name == "run":
             sub.add_argument("--no-early-stop", action="store_true", help="take no first look during the run")
+        if name == "fill":
+            sub.add_argument("--budget-usd", type=float, help="required for paid fill; includes the smoke call")
+            sub.add_argument("--dry-run", action="store_true", help="inspect and estimate only; no calls or writes, including --out")
+            sub.add_argument("--out", type=Path, help="also write the fill report as JSON (ignored for --dry-run)")
         if name in ("run", "analyse"):
             sub.add_argument("--resamples", type=int, help="bootstrap resamples (default: the manifest's)")
             sub.add_argument("--out", type=Path, help="write the counts-only report here (analyse --record: benchmarks/experiments/<id>/)")
@@ -153,6 +159,33 @@ def _experiment(args: argparse.Namespace) -> int:
         def excerpt_text(sha: str) -> str | None:
             data = store.get_blob("excerpts", sha)
             return data.decode("utf-8") if data is not None else None
+
+        if args.experiment_command == "fill":
+            from ..tool_hunter import ChatClient
+            from .fill import fill_rule
+
+            def resolve_fill_client() -> ChatClient:
+                from ..config import load_config
+                from ..model.endpoint import resolve_chat_endpoint
+
+                resolved = resolve_chat_endpoint(load_config(None))
+                if resolved is None:
+                    raise ex.ExperimentError("no chat endpoint configured; nothing was spent")
+                return resolved[0]
+
+            report = fill_rule(
+                store,
+                manifest,
+                memory,
+                parameters,
+                excerpt_text,
+                vectors,
+                client_factory=resolve_fill_client,
+                budget_usd=args.budget_usd,
+                dry_run=args.dry_run,
+            )
+            _write(report, None if args.dry_run else args.out)
+            return {"done": 0, "dry_run": 0, "unfinished": 3, "failed": 1}[report["status"]]
 
         if manifest.kind == "rule":  # zero cost: cache only, behind a zero-ceiling meter; no endpoint is resolved
             caller, meter = ex.zero_cost_caller(_arm_model(manifest, manifest.arms["A"], store), parameters, store)
