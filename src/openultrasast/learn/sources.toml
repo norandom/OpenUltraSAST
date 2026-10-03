@@ -70,6 +70,18 @@ recorded = "2026-10-01"
 status = "development"
 exclude_tiers = ["title"]
 
+# Batch 2: advisory fixes whose changed function survives on the fixed side, for the six compiled families (most
+# published after 2026-06-01). Same slice, cache layout and checks as batch 1; screening record
+# benchmarks/measurements/2026-10-03-decision-engine-negatives-harvest/record.json.
+[[source]]
+id = "advisory-fixes-2"
+kind = "pairs"
+file = "benchmarks/pairs/advisory-fixes-2/catalog.toml"
+evaluation = ["benchmarks/pairs/advisory-fixes-2/verification.json"]
+recorded = "2026-10-03"
+status = "development"
+exclude_tiers = ["title"]
+
 [[source]]
 id = "adjudications"
 kind = "adjudications"

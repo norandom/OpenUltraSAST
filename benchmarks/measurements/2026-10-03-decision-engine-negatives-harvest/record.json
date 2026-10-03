@@ -1,0 +1,351 @@
+{
+ "created": "2026-10-03",
+ "note": "COUNTS ONLY. Real (vulnerable function, fixed function) pairs where the function survives the fix, mined at zero model cost from reviewed GitHub advisories for the six compiled families, added as pointer-pair corpus benchmarks/pairs/advisory-fixes-2 (98 pairs, source `advisory-fixes-2` in learn/sources.toml), labelled, given static feature records and built into the memory store; their excerpts embedded. No chat-model call. Candidate, path, function and repository names stay in the catalog; the two pairs the reserved-population test flagged are withheld (never printed: found by bisection with the test's output discarded).",
+ "method": {
+  "enumeration": "gh api /advisories?type=reviewed&ecosystem=<eco>&cwes=<family CWEs>&published=>2025-06-01, per ecosystem (pip, npm, maven, composer, go, rubygems) x family; newest first",
+  "advisories_enumerated": 6594,
+  "advisories_published_after_2026_06_01": 2400,
+  "automated_screen": "single family by CWE; a linked fix commit (at most 3, one repository); repository not named anywhere under benchmarks/ (populations v1/v2, every pair corpus; excluded v3 file names never opened), no WordPress plugin, one pair per repository; SPDX licence permissive; one-parent commit with <= 4 non-test source files and <= 120 changed source lines; the function holding most changed CODE lines (comments and blanks excluded) inside its own matcher span, declared exactly once on both sides, body changed, >= 25% of the file's changed code lines (second pass; the first pass counted lines by nearest declaration above)",
+  "file_reads": "the two versions of each changed source file through the contents API (metadata + two raw files per file; no clone, no scanner, engine, plane task or model on any of these repositories)",
+  "manual_review": "every automated candidate's function diff was read (agent, no model call) and kept only when the named function itself holds the fix",
+  "reserved_population_guard": "tests/test_independent_population.py::test_no_reserved_repository_is_referenced_by_the_development_tree, run with its output discarded; bisection over catalog subsets, 23 runs",
+  "quotas": "20 per family on the second pass (14 on the first); advisories past a met quota were not examined",
+  "mechanism": "family default (injection/output_encoding/deserialization source_reaches_sink, path path_join_user_input, access_control missing_auth_guard, untrusted_destination validation_strength for CWE-601 else source_reaches_sink); provenance = agent"
+ },
+ "screened": {
+  "advisories_examined_second_pass": 2983,
+  "outcomes_second_pass": {
+   "no fix commit linked": 1247,
+   "repository already in benchmarks/ (populations v1/v2 or a pair corpus)": 520,
+   "language outside the feature vocabulary (go/ruby)": 332,
+   "CWEs span several families": 253,
+   "repository already kept (one pair per repository)": 140,
+   "licence not permissive or unrecorded": 135,
+   "large commit (refactor or release, not the fix)": 125,
+   "kept": 110,
+   "no function declared on both sides with a changed body": 51,
+   "fix spread over several commits or repositories": 25,
+   "manual review: the chosen function does not hold the fix (comment-only, misattributed, partial or family mismatch)": 13,
+   "no source file changed": 11,
+   "merge or root commit": 11,
+   "language outside the feature vocabulary (go/ruby/c#/...)": 9,
+   "WordPress plugin (population v3 safety)": 1
+  },
+  "candidates_manually_reviewed": 145,
+  "kept_after_review": 100,
+  "review_drops": {
+   "total": 45,
+   "function misattributed (matcher span overrun or an undetected enclosing declaration)": 13,
+   "change in the function unrelated to the advisory (refactor, rename, formatting, another advisory)": 11,
+   "partial: the function only calls or configures the real fix": 7,
+   "comment or documentation change only": 6,
+   "one pair per repository (a reviewed pair of the same repository kept)": 4,
+   "second pass chose another function of an advisory already reviewed": 2,
+   "family mismatch": 1,
+   "unsure": 1
+  },
+  "reserved_population_drops": 2,
+  "kept": 98
+ },
+ "kept": {
+  "total": 98,
+  "by_family": {
+   "access_control": 17,
+   "deserialization": 11,
+   "injection": 20,
+   "output_encoding": 16,
+   "path": 17,
+   "untrusted_destination": 17
+  },
+  "post_cutoff_by_family": {
+   "access_control": 13,
+   "deserialization": 2,
+   "injection": 20,
+   "output_encoding": 16,
+   "path": 17,
+   "untrusted_destination": 11
+  },
+  "post_cutoff_total": 79,
+  "by_language": {
+   "typescript": 34,
+   "python": 30,
+   "javascript": 15,
+   "java": 10,
+   "php": 9
+  },
+  "by_ecosystem": {
+   "npm": 48,
+   "pip": 32,
+   "maven": 9,
+   "composer": 9
+  },
+  "licences": {
+   "MIT": 67,
+   "Apache-2.0": 24,
+   "BSD-3-Clause": 5,
+   "ISC": 1,
+   "Unlicense": 1
+  },
+  "split": {
+   "train": 51,
+   "holdout": 47
+  },
+  "published_range": [
+   "2025-06-06",
+   "2026-10-02"
+  ],
+  "verification": {
+   "verified": 98,
+   "excerpt_bytes_read": 526134
+  },
+  "known_limit": "excerpts inherit the label builder's matcher: some spans run past the function's end into the next declaration; the label is path::function and the changed lines were checked inside the span"
+ },
+ "labels": {
+  "command": "ousast learn labels --root . --out <scratch> --snapshot <scratch>",
+  "rows": [
+   6589,
+   6981
+  ],
+  "new_pair_rows": 392,
+  "new_pin_rows_by_label": {
+   "positive": 98,
+   "negative": 98
+  },
+  "fixed_side_negative": "98 of 98 pairs (absent_fixed_side 0)"
+ },
+ "features": {
+  "command": "benchmarks/learn/build_features.py --labels <the 392 new rows> --units <units.json of `ousast plane harvest --catalog benchmarks/pairs/advisory-fixes-2/catalog.toml` (manifests written, no Run started)> --kinds pairs",
+  "records": 392,
+  "instrument_states_plane_all_families": {
+   "agree:missing": 74,
+   "agree:none": 122,
+   "delta:not_applicable": 196,
+   "engine:missing": 128,
+   "engine:none": 68,
+   "entry_points:not_applicable": 196,
+   "facts:not_applicable": 196,
+   "language:ran": 196,
+   "model_sinks:missing": 196,
+   "quick:ran": 196,
+   "roles:ran": 196,
+   "source:ran": 196,
+   "verify:missing": 74,
+   "verify:none": 122
+  },
+  "note": "quick rules and deterministic roles ran on each side; engine, verify, agree and model sinks never ran for these pairs (missing/none: null features, never zeros)"
+ },
+ "memory_build": {
+  "command": "ousast learn memory build --labels <labels> --units <merged units.json> --profile static --root . (exit 2: adjudications 9 of 43 anonymous functions, unchanged since 2026-10-01; rows kept)",
+  "examples": [
+   937,
+   1133
+  ],
+  "pairs_examples": [
+   772,
+   968
+  ],
+  "pairs_counts_after": {
+   "absent_fixed_side": 0,
+   "examples": 968,
+   "labels": 1936,
+   "no_excerpt": 0,
+   "no_record": 968,
+   "recorded": 968,
+   "unread": 0
+  }
+ },
+ "positives_only_groups": {
+  "how": "the 2026-10-02 gap record's count: static example rows of the store, per family, repository groups with a positive and no negative",
+  "before": 99,
+  "after": 99,
+  "before_note": "the store before this harvest held 937 examples (the 10-02 gap record counted 904 and 98; the 10-02 rebuild added one population-v2 positive without a negative)",
+  "why_unchanged": "the 99 are data gaps of other corpora (94 vibe-py pairs whose fixed side lost the function, 3 dev-php, 2 population-v2); a new repository group arrives with both labels, so it adds paired groups and leaves those counts as they were",
+  "paired_groups_total": [
+   151,
+   249
+  ],
+  "positives_only_share_of_positive_groups_six_families": [
+   0.4034,
+   0.2857
+  ],
+  "by_family_before_after": {
+   "access_control": {
+    "groups_pos_only": [
+     12,
+     12
+    ],
+    "groups_pos": [
+     32,
+     49
+    ],
+    "groups_both": [
+     20,
+     37
+    ],
+    "examples_neg": [
+     20,
+     37
+    ]
+   },
+   "config_secrets": {
+    "groups_pos_only": [
+     3,
+     3
+    ],
+    "groups_pos": [
+     5,
+     5
+    ],
+    "groups_both": [
+     2,
+     2
+    ],
+    "examples_neg": [
+     13,
+     13
+    ]
+   },
+   "deserialization": {
+    "groups_pos_only": [
+     20,
+     20
+    ],
+    "groups_pos": [
+     41,
+     52
+    ],
+    "groups_both": [
+     21,
+     32
+    ],
+    "examples_neg": [
+     21,
+     32
+    ]
+   },
+   "injection": {
+    "groups_pos_only": [
+     11,
+     11
+    ],
+    "groups_pos": [
+     44,
+     64
+    ],
+    "groups_both": [
+     33,
+     53
+    ],
+    "examples_neg": [
+     70,
+     90
+    ]
+   },
+   "memory": {
+    "groups_pos_only": [
+     0,
+     0
+    ],
+    "groups_pos": [
+     5,
+     5
+    ],
+    "groups_both": [
+     5,
+     5
+    ],
+    "examples_neg": [
+     173,
+     173
+    ]
+   },
+   "output_encoding": {
+    "groups_pos_only": [
+     14,
+     14
+    ],
+    "groups_pos": [
+     36,
+     52
+    ],
+    "groups_both": [
+     22,
+     38
+    ],
+    "examples_neg": [
+     61,
+     77
+    ]
+   },
+   "path": {
+    "groups_pos_only": [
+     12,
+     12
+    ],
+    "groups_pos": [
+     33,
+     50
+    ],
+    "groups_both": [
+     21,
+     38
+    ],
+    "examples_neg": [
+     21,
+     38
+    ]
+   },
+   "unknown": {
+    "groups_pos_only": [
+     0,
+     0
+    ],
+    "groups_pos": [
+     2,
+     2
+    ],
+    "groups_both": [
+     2,
+     2
+    ],
+    "examples_neg": [
+     2,
+     2
+    ]
+   },
+   "untrusted_destination": {
+    "groups_pos_only": [
+     27,
+     27
+    ],
+    "groups_pos": [
+     52,
+     69
+    ],
+    "groups_both": [
+     25,
+     42
+    ],
+    "examples_neg": [
+     36,
+     53
+    ]
+   }
+  }
+ },
+ "embeddings": {
+  "command": "ousast learn memory embed --budget-usd 0.20 (dry run first: 66,005 estimated tokens, $0.0013)",
+  "requested": 1004,
+  "cached": 781,
+  "embedded": 223,
+  "calls": 7,
+  "tokens": 71163,
+  "usd": 0.001423,
+  "note": "embedded = the new pairs' excerpts plus the excerpts the 10-02 rebuild left without a vector; OpenRouter, the embedding model .env names"
+ },
+ "spend": {
+  "chat_model_calls": 0,
+  "embedding_usd": 0.001423,
+  "github_api": "metadata and raw contents only"
+ }
+}
