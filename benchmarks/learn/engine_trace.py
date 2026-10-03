@@ -1,9 +1,7 @@
-"""Resumable, serial, labelled-function Joern traces. No network or live-source mounts.
+"""Resumable, serial labelled-function traces; host fetches pinned sources, Docker stays offline.
 
-Pair pins are excerpt blob identities, NOT commits: materialize their catalog side
-and registration documents. Repository pins are exported from existing local clones.
-The analyzer is git archive HEAD src plus a hashed snapshot of this uncommitted tool's
-implementation files; this allows review/worktree use without making a commit.
+Pair blob identities resolve through catalogs to real source commits. The analyzer
+is git archive HEAD src plus a hashed snapshot of this uncommitted tool.
 """
 
 from __future__ import annotations
@@ -13,6 +11,7 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -21,7 +20,7 @@ import tomllib
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from engine_trace_worker import safe_path, unit_record, write_json
+from engine_trace_worker import EXCLUDED_DIRS, safe_path, unit_record, write_json
 
 from openultrasast.learn.examples import read_jsonl
 from openultrasast.learn.labels import load_sources, repo_name
@@ -42,6 +41,9 @@ SNAPSHOT_FILES = (
     "src/openultrasast/model/taint.py",
     "src/openultrasast/cpg/queries/taint.sc",
 )
+MATERIALIZATION_VERSION = 2
+EXPORT_CAP = 20 * 1024 * 1024
+
 STATUSES = ("path", "asked-nothing", "failed", "timeout", "unsupported")
 
 
@@ -81,7 +83,7 @@ def join_units(units, examples, include_typescript=False):
                 "function": function,
                 "language": language,
                 "source": example["source"],
-                "excerpt": example["source"] == "pairs",
+                "excerpt": example.get("excerpt", example["source"] == "pairs" or example["source"].startswith("advisory-fixes")),
                 "pin_role": example.get("pin_role", ""),
                 "supported": spec is not None,
                 "reason": "" if spec else f"no admitted taint model: {language}/{unit['family']}",
@@ -90,23 +92,48 @@ def join_units(units, examples, include_typescript=False):
     return result
 
 
-def make_plan(units, out, only_family=None, limit=0, *, include_typescript=False):
+def make_plan(
+    units,
+    out,
+    only_family=None,
+    limit=0,
+    *,
+    include_typescript=False,
+    only_source=(),
+    rerun_status=("failed",),
+    allow_excerpt_fallback=False,
+):
     grouped = defaultdict(list)
     for unit in units:
-        if not only_family or unit["family"] == only_family:
+        if (not only_family or unit["family"] == only_family) and (not only_source or unit["source"] in only_source):
             # Include admission options even when a unit's support happens to stay
             # unchanged. Old results cannot mark a different selection as complete.
-            identity = {"unit": unit, "include_typescript": include_typescript}
+            identity = {
+                "unit": unit,
+                "include_typescript": include_typescript,
+                "materialization_version": MATERIALIZATION_VERSION,
+                "allow_excerpt_fallback": allow_excerpt_fallback,
+            }
             grouped[unit["repo"], unit["pin"]].append({**unit, "input_digest": digest(identity)})
     plan = []
     for (repo, pin), rows in sorted(grouped.items()):
-        item = {"repo": repo, "pin": pin, "units": sorted(rows, key=lambda r: r["unit"])}
+        item = {
+            "repo": repo,
+            "pin": pin,
+            "materialization_version": MATERIALIZATION_VERSION,
+            "units": sorted(rows, key=lambda r: r["unit"]),
+        }
         item["selection"] = digest(item["units"])
         done = out / pin_name(item)
         if done.exists():
             old = json.loads(done.read_text())
             recorded = {r["unit"]: r.get("input_digest") for r in old.get("units", [])}
-            if old.get("done") and all(recorded.get(r["unit"]) == r["input_digest"] for r in rows):
+            if (
+                old.get("done")
+                and old.get("materialization_version") == MATERIALIZATION_VERSION
+                and not any(r.get("status") in rerun_status for r in old.get("units", []) if r["unit"] in {u["unit"] for u in rows})
+                and all(recorded.get(r["unit"]) == r["input_digest"] for r in rows)
+            ):
                 continue
         sources = {r["source"] for r in rows}
         # Inventory medians: harvest sides 31s, advisory sides 47s; v1 pins 182s, v2 pins 498s.
@@ -133,10 +160,15 @@ def make_plan(units, out, only_family=None, limit=0, *, include_typescript=False
 
 
 class Inputs:
-    """Resolve only the explicitly listed, spent corpora. Never fetch a missing clone."""
+    """Resolve spent corpora; fetch pair source commits into the host cache."""
 
-    def __init__(self, root, cache):
+    def __init__(self, root, cache, allow_excerpt_fallback=False):
         self.cache = cache
+        self.allow_excerpt_fallback = allow_excerpt_fallback
+        self.catalog_rows = defaultdict(list)
+        for catalog in (root / "benchmarks/pairs").rglob("catalog.toml"):
+            for item in tomllib.loads(catalog.read_text()).get("pair", []):
+                self.catalog_rows[item["name"]].append((catalog.parent.name, item))
         self.pairs = []
         self.repos = defaultdict(list)
         sources = load_sources()
@@ -159,6 +191,8 @@ class Inputs:
         self.hashes = {}
 
     def pair_for(self, row):
+        if row["pin_role"] not in {"fixed", "vulnerable", "vuln"}:
+            raise ValueError(f"ambiguous pair side: {row['pin_role']}")
         side = "fixed" if row["pin_role"] == "fixed" else "vuln"
         candidates = [
             c for c in self.pairs if c.relpath == row["file"] and repo_name(c.repo or f"{c.slice}:{c.name}") == repo_name(row["repo"])
@@ -188,40 +222,144 @@ class Inputs:
                 return case, side
         raise ValueError(f"cannot uniquely resolve excerpt {row['repo']}@{row['pin']}:{row['file']}")
 
+    def catalog_for(self, case):
+        matches = [
+            (source, item)
+            for source, item in self.catalog_rows[case.name]
+            if item.get("relpath") == case.relpath and repo_name(item.get("repo", "")) == repo_name(case.repo)
+        ]
+        if len(matches) != 1:
+            raise ValueError(f"ambiguous catalog source for {case.name}")
+        return matches[0]
+
+    def source_identity(self, case, side):
+        _, item = self.catalog_for(case)
+        parent, commit = item.get("parent", ""), item.get("commit", "")
+        if side not in {"vuln", "fixed"} or not all(re.fullmatch(r"[0-9a-fA-F]{40}", sha) for sha in (parent, commit)) or parent == commit:
+            raise ValueError(f"ambiguous catalog commits for {case.name}: need distinct parent and commit SHAs")
+        repo = item.get("repo", "")
+        if not repo:
+            raise ValueError(f"missing catalog repository for {case.name}")
+        return repo, parent if side == "vuln" else commit
+
+    def fetch_source(self, repo, commit, roots):
+        clone = self.cache / "trace-sources" / digest([repo, commit, roots])
+        clone.mkdir(parents=True, exist_ok=True)
+        url = repo if repo.startswith("https://") else f"https://github.com/{repo.removesuffix('.git')}.git"
+        env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+        env.pop("GIT_NO_LAZY_FETCH", None)  # sparse checkout may fetch the selected blobs
+
+        def git(*args):
+            return subprocess.run(["git", "-C", str(clone), *args], env=env, capture_output=True, text=True, check=True, timeout=300)
+
+        git("init")
+        git("config", "remote.origin.url", url)
+        git("config", "remote.origin.promisor", "true")
+        git("config", "remote.origin.partialclonefilter", "blob:none")
+        git("fetch", "--depth", "1", "--filter=blob:none", url, commit)
+        git("sparse-checkout", "init", "--cone")
+        git("sparse-checkout", "set", "--", *roots)
+        git("checkout", "--detach", "--force", commit)
+        actual = git("rev-parse", "HEAD").stdout.strip()
+        if actual != commit:
+            raise ValueError(f"fetched commit mismatch: {actual} != {commit}")
+        return clone
+
+    def export_local(self, clone, pin, target):
+        with tempfile.TemporaryDirectory(prefix="trace-export-", dir=target.parent) as scratch:
+            export_pin(clone, pin["pin"], Path(scratch))
+            proof = export_sources(Path(scratch), target, pin["units"])
+        return {**proof, "mode": "source", "commit": pin["pin"]}
+
     def materialize(self, pin, target):
         rows = pin["units"]
         for row in rows:
             safe_path(target, row["file"])
             if row.get("mapping_error"):
                 raise ValueError(row["mapping_error"])
-        if all(r.get("excerpt") for r in rows):
-            seen = set()
-            for row in rows:
-                case, side = self.pair_for(row)
-                if (case.name, side) not in seen:
-                    files = [(case.relpath, case.fixed_file if side == "fixed" else case.vuln_file)]
-                    files.extend((rel, fixed if side == "fixed" else vuln) for rel, vuln, fixed in case.context_files)
-                    for rel, source in files:
-                        dest = safe_path(target, rel)
-                        if dest.exists() and dest.read_bytes() != source.read_bytes():
-                            raise ValueError(f"conflicting excerpt/context at one pin: {rel}")
+        if any(r.get("excerpt") or r["source"].startswith("advisory-fixes") for r in rows):
+            resolved = [self.pair_for(row) for row in rows]
+            identities = {self.source_identity(case, side) for case, side in resolved}
+            if len(identities) != 1:
+                raise ValueError("ambiguous source commits at one pair pin")
+            repo, commit = identities.pop()
+            roots = sorted({source_root(row["file"], row["language"]) for row in rows})
+            try:
+                clone = self.fetch_source(repo, commit, roots)
+                proof = export_sources(clone, target, rows, roots)
+            except (OSError, ValueError, subprocess.SubprocessError) as exc:
+                if not self.allow_excerpt_fallback:
+                    raise
+                shutil.rmtree(target, ignore_errors=True)
+                for case, side in resolved:
                     _materialize_side(target, case, side=side)
-                    seen.add((case.name, side))
-            return
+                return {"mode": "excerpt-fallback", "reason": str(exc), "repo": repo, "commit": commit}
+            verify_functions(target, rows)
+            return {**proof, "mode": "source", "repo": repo, "commit": commit, "roots": roots}
         if all(r["source"] == "dev-php" for r in rows):
             # Export the exact requested commit from the local recipe checkout.
             for recipe in (ROOT / "benchmarks/repos").glob("*.toml"):
                 data = tomllib.loads(recipe.read_text())
                 if repo_name(str(data.get("url", ""))) == repo_name(pin["repo"]):
                     checkout = self.cache / "repos" / data["name"] / pin["pin"][:12]
-                    export_pin(checkout, pin["pin"], target)
-                    return
+                    return self.export_local(checkout, pin, target)
         for clone, _ in self.repos[repo_name(pin["repo"])]:
             check = subprocess.run(["git", "-C", str(clone), "cat-file", "-e", pin["pin"] + "^{commit}"], capture_output=True)
             if check.returncode == 0:
-                export_pin(clone, pin["pin"], target)
-                return
+                return self.export_local(clone, pin, target)
         raise ValueError(f"no local clone contains {pin['repo']}@{pin['pin']}")
+
+
+def source_root(file, language):
+    parts = Path(file).parts
+    if language == "java":
+        for i in range(len(parts) - 2):
+            if parts[i : i + 3] == ("src", "main", "java"):
+                return "/".join(parts[: i + 3])
+    return parts[0] if len(parts) > 1 else "."
+
+
+def export_sources(source, target, rows, roots=(".",), cap=EXPORT_CAP):
+    """Preserve labelled paths first; cap context and exclude non-source trees."""
+    labelled = {r["file"] for r in rows}
+    languages = {r["language"] for r in rows}
+    files = set()
+    for directory, dirs, names in os.walk(source):
+        dirs[:] = sorted(d for d in dirs if d not in EXCLUDED_DIRS and d != ".git" and not (Path(directory) / d).is_symlink())
+        for name in names:
+            file = Path(directory) / name
+            rel = file.relative_to(source).as_posix()
+            if (
+                not file.is_symlink()
+                and detect_language(file) in languages
+                and any(root == "." or rel.startswith(root + "/") for root in roots)
+            ):
+                files.add(rel)
+    missing = labelled - files
+    if missing:
+        raise ValueError(f"labelled files missing or excluded from export: {sorted(missing)}")
+    proof = {"bytes": 0, "files": 0, "cap_bytes": cap, "cap_hit": False, "excludes": sorted(EXCLUDED_DIRS)}
+    for rel in sorted(files, key=lambda rel: (rel not in labelled, rel)):
+        file = safe_path(source, rel)
+        size = file.stat().st_size
+        if proof["bytes"] + size > cap:
+            proof["cap_hit"] = True
+            if rel in labelled:
+                raise ValueError("labelled source exceeds 20 MB export cap")
+            continue
+        dest = safe_path(target, rel)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(file.read_bytes())
+        proof["bytes"] += size
+        proof["files"] += 1
+    return proof
+
+
+def verify_functions(root, rows):
+    for row in rows:
+        data = safe_path(root, row["file"]).read_text(errors="replace")
+        if not re.search(r"(?<![\w$])" + re.escape(row["function"]) + r"(?![\w$])", data):
+            raise ValueError(f"labelled function not found in fetched source: {row['file']}::{row['function']}")
 
 
 def freeze_source(target):
@@ -280,10 +418,6 @@ def docker_command(source, checkout, out, name, image, deadline, question_deadli
 def prepare_questions(pin, root, question_deadline):
     """Prepare metadata on the host, before entering the dependency-minimal image."""
     active = [u for u in pin["units"] if u["supported"]]
-    languages = {"javascript" if u["language"] == "typescript" else u["language"] for u in active}
-    if len(languages) != 1:
-        raise ValueError(f"one pin has multiple frontend languages: {sorted(languages)}")
-    language = next(iter(languages))
     from openultrasast.learn.features import entry_names
     from openultrasast.mapping import php_hook_callbacks
     from openultrasast.plane.harvest import declares
@@ -293,11 +427,11 @@ def prepare_questions(pin, root, question_deadline):
     entries, _ = entry_names(root, {u["file"] for u in active})
     hooks = ";".join(f"{h}:{f}" for h, functions in php_hook_callbacks(root, targets).items() for f in functions)
     requests = {}
-    specs = taint_specs(language=language)
     for u in active:
+        specs = taint_specs(language="javascript" if u["language"] == "typescript" else u["language"])
         if not declares(safe_path(root, u["file"]).read_text(errors="replace").splitlines(), u["file"], u["function"]):
             raise ValueError(f"labelled function not declared: {u['file']}::{u['function']}")
-        excerpt = u.get("excerpt", False)
+        excerpt = pin.get("materialization", {}).get("mode") == "excerpt-fallback"
         params = request_params(
             specs[u["family"]],
             file=u["file"],
@@ -318,7 +452,7 @@ def run_pin(pin, source, provenance, inputs, out, args):
         checkout, output = scratch / "case", scratch / "output"
         output.mkdir()
         try:
-            inputs.materialize(pin, checkout)
+            pin = {**pin, "materialization": inputs.materialize(pin, checkout)}
             write_json(output / "pin.json", {**pin, "questions": prepare_questions(pin, checkout, args.question_deadline)})
             name = "ousast-trace-" + pin_name(pin)[:16]
             command = docker_command(source, checkout, output, name, args.image, args.deadline, args.question_deadline)
@@ -438,12 +572,20 @@ def main():
     parser.add_argument("--question-deadline", type=int, default=120)
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--only-family")
+    parser.add_argument("--only-source", default="", help="comma-separated source catalog IDs")
+    parser.add_argument("--rerun-status", default="failed", help="re-run completed pins with any selected unit in these statuses")
+    parser.add_argument(
+        "--allow-excerpt-fallback", action="store_true", help="allow fragments only if fetching/exporting resolved source fails"
+    )
     parser.add_argument("--include-typescript", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--summary", action="store_true")
     args = parser.parse_args()
     if min(args.deadline, args.question_deadline) <= 0 or args.limit < 0:
         parser.error("deadlines must be positive; limit must be nonnegative")
+    rerun_status = set(filter(None, args.rerun_status.split(",")))
+    if rerun_status - set(STATUSES):
+        parser.error("unknown --rerun-status value")
     if args.summary:
         print(json.dumps(summary(args.out), indent=2))
         return 0
@@ -456,17 +598,27 @@ def main():
         units = join_units(read_jsonl(args.units), examples, args.include_typescript)
     except ValueError as exc:
         parser.error(str(exc))
-    inputs = Inputs(ROOT, args.cache)
+    inputs = Inputs(ROOT, args.cache, args.allow_excerpt_fallback)
     # Resolve pair source names for leak-audit coverage before calculating the resume key.
     for unit in units:
-        if unit["source"] == "pairs":
+        if unit.get("excerpt") or unit["source"].startswith("advisory-fixes"):
             try:
                 case, _ = inputs.pair_for(unit)
-                unit["source"] = case.slice
+                catalog_source, _ = inputs.catalog_for(case)
+                unit["source"] = catalog_source if catalog_source.startswith("advisory-fixes") else case.slice
                 unit["excerpt"] = True
             except ValueError as exc:
                 unit["mapping_error"] = str(exc)
-    plan = make_plan(units, args.out, args.only_family, args.limit, include_typescript=args.include_typescript)
+    plan = make_plan(
+        units,
+        args.out,
+        args.only_family,
+        args.limit,
+        include_typescript=args.include_typescript,
+        only_source=set(filter(None, args.only_source.split(","))),
+        rerun_status=rerun_status,
+        allow_excerpt_fallback=args.allow_excerpt_fallback,
+    )
     # Planning is read-only, including unsupported pins. All persistence stays below this return.
     if args.dry_run:
         print(

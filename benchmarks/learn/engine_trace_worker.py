@@ -38,9 +38,13 @@ def safe_path(root, name):
 
 FRONTENDS = {"php2cpg", "pysrc2cpg", "jssrc2cpg", "javasrc2cpg", "c2cpg", "joern-parse"}
 MIN_CPG_BYTES = 1024
+HEAP_MB = 2560
+EXCLUDED_DIRS = frozenset({"tests", "test", "docs", "node_modules", "vendor", "dist", "build", "templates", "migrations"})
 
 
 def instrument_failure(proof):
+    if any(stage.get("oom") for stage in proof.get("jvm", [])):
+        return "JVM out of memory"
     if not proof.get("files") or not proof.get("bytes"):
         return "instrument read zero files or zero bytes"
     if proof.get("cpg_bytes", 0) <= MIN_CPG_BYTES:
@@ -60,7 +64,7 @@ class MeasuredBackend(JoernBackend):
     """Use the shipped backend with a process watchdog, no concurrent query threads."""
 
     def __init__(self, deadline, question_deadline, checkpoint):
-        super().__init__(build_timeout=deadline, query_timeout=deadline, session_transport=False)
+        super().__init__(build_timeout=deadline, query_timeout=deadline, session_transport=False, heap_mb=HEAP_MB)
         self.deadline = time.monotonic() + deadline
         self.question_deadline = question_deadline
         self.checkpoint = checkpoint
@@ -127,7 +131,15 @@ class MeasuredBackend(JoernBackend):
             process.stdout.close()
         elapsed = time.monotonic() - started
         if frontend or query:
-            stage = {"command": binary, "seconds": elapsed, "exit": process.returncode}
+            stage = {
+                "command": binary,
+                "argv": command,
+                "heap_mb": self._heap_mb(),
+                "java_tool_options": self._jvm_env()["JAVA_TOOL_OPTIONS"],
+                "seconds": elapsed,
+                "exit": process.returncode,
+                "oom": b"OutOfMemoryError" in output,
+            }
             self.stages.append(stage)
             if frontend:
                 # Capture the exact frontend output before build failure cleanup or overlays.
@@ -139,6 +151,8 @@ class MeasuredBackend(JoernBackend):
                     self.fatal = "frontend wrote no CPG"
             elif elapsed < 5:
                 self.fatal = f"implausibly fast JVM step: {command[0]} in {elapsed:.3f}s (<5s)"
+        if b"OutOfMemoryError" in output:
+            self.fatal = "JVM out of memory"
         self.checkpoint()
         return subprocess.CompletedProcess(command, process.returncode if not self.fatal else 1, output.decode(errors="replace"), "")
 
@@ -158,8 +172,17 @@ def unit_record(unit, status, reason="", **extra):
     }
 
 
-def worker(pin, root, out, deadline, question_deadline):
-    proof = {"files": [], "bytes": 0, "cpg_path": None, "cpg_bytes": 0, "jvm": []}
+def worker_language(pin, root, out, deadline, question_deadline, persist=write_json):
+    proof = {
+        "files": [],
+        "bytes": 0,
+        "cpg_path": None,
+        "cpg_bytes": 0,
+        "jvm": [],
+        "heap_mb": HEAP_MB,
+        "excludes": sorted(EXCLUDED_DIRS),
+        "materialization": pin.get("materialization", {}),
+    }
     record = {
         **pin,
         "done": False,
@@ -181,7 +204,7 @@ def worker(pin, root, out, deadline, question_deadline):
             if rid in backend.answers:
                 row["questions_completed"] = [rid]
                 row["witness_rows"] = [r for r in backend.answers[rid] if isinstance(r, dict) and "kind" not in r and "sink" in r]
-        write_json(out, record)
+        persist(out, record)
 
     backend = MeasuredBackend(deadline, question_deadline, checkpoint)
     proof["jvm"] = backend.stages
@@ -205,7 +228,7 @@ def worker(pin, root, out, deadline, question_deadline):
         record["questions"] = requests
         for unit_row in record["units"]:
             unit_row["questions"] = {unit_row["unit"]: requests[unit_row["unit"]]} if unit_row["unit"] in requests else {}
-        write_json(out, record)
+        persist(out, record)
         cpg = backend.build(root, language=language)
         if cpg is None:
             raise ValueError(backend.fatal or backend.last_failure or ("pin deadline" if backend.timed_out else "CPG build failed"))
@@ -284,7 +307,46 @@ def worker(pin, root, out, deadline, question_deadline):
         record["questions_asked"] = list(dict.fromkeys(backend.asked))
         record["questions_completed"] = [rid for u in record["units"] for rid in u["questions_completed"]]
         record["done"] = True
+        persist(out, record)
+    return record
+
+
+def worker(pin, root, out, deadline, question_deadline):
+    """Run language partitions sequentially under one shared container deadline."""
+    languages = sorted({"javascript" if u["language"] == "typescript" else u["language"] for u in pin["units"] if u["supported"]})
+    if len(languages) <= 1:
+        return worker_language(pin, root, out, deadline, question_deadline)
+    end = time.monotonic() + deadline
+    record = {
+        **pin,
+        "done": False,
+        "units": [
+            unit_record(u, "timeout" if u["supported"] else "unsupported", "pin deadline" if u["supported"] else u["reason"])
+            for u in pin["units"]
+        ],
+        "instruments": {},
+    }
+
+    def persist(_, partial):
+        updates = {u["unit"]: u for u in partial["units"]}
+        record["units"] = [updates.get(u["unit"], u) for u in record["units"]]
+        record["instruments"][language] = partial["instrument"]
+        record["questions_asked"] = [rid for u in record["units"] for rid in u["questions_asked"]]
+        record["questions_completed"] = [rid for u in record["units"] for rid in u["questions_completed"]]
         write_json(out, record)
+
+    write_json(out, record)
+    for language in languages:
+        remaining = end - time.monotonic()
+        if remaining <= 0:
+            break
+        units = [
+            u for u in pin["units"] if u["supported"] and ("javascript" if u["language"] == "typescript" else u["language"]) == language
+        ]
+        questions = {u["unit"]: pin["questions"][u["unit"]] for u in units}
+        worker_language({**pin, "units": units, "questions": questions}, root, out, remaining, question_deadline, persist)
+    record["done"] = True
+    write_json(out, record)
     return record
 
 

@@ -313,7 +313,7 @@ def test_dry_run_makes_no_subprocess_calls(tmp_path, monkeypatch, capsys):
     import sys
 
     u = unit()
-    examples = [{**u, "id": "a", "candidate": "app.py::run", "source": "population-v1"}]
+    examples = [{**u, "id": "a", "candidate": "app.py::run", "source": "population-v1", "excerpt": False}]
     units = tmp_path / "units.jsonl"
     units.write_text(json.dumps(u) + "\n")
     example_file = tmp_path / "examples.jsonl"
@@ -337,13 +337,14 @@ def test_family_filtered_results_merge_without_losing_prior_units(tmp_path):
     assert trace.make_plan([unit(), unit("b", family="path")], tmp_path) == []
 
 
-def test_failed_launch_persists_failed_pin_and_resume_skips_it(tmp_path, monkeypatch):
+def test_failed_launch_persists_failed_pin_and_resume_replans_it(tmp_path, monkeypatch):
     from types import SimpleNamespace
 
     class Inputs:
         def materialize(self, pin, target):
             target.mkdir()
             (target / "app.py").write_text("def run():\n    pass\n")
+            return {"mode": "source"}
 
     commands = []
 
@@ -359,7 +360,8 @@ def test_failed_launch_persists_failed_pin_and_resume_skips_it(tmp_path, monkeyp
     assert result["units"][0]["status"] == "failed"
     assert "produced no result" in result["units"][0]["reason"]
     assert [c[1] for c in commands if c[0] == "docker"] == ["run", "rm"]
-    assert trace.make_plan([unit()], tmp_path) == []
+    assert len(trace.make_plan([unit()], tmp_path)) == 1
+    assert trace.make_plan([unit()], tmp_path, rerun_status=()) == []
 
 
 def import_container_worker():
@@ -410,7 +412,7 @@ def test_trace_dry_run_unsupported_units_write_nothing(tmp_path, monkeypatch, ca
         (out / "previous.json").write_text('{"done": true, "units": []}')
     before = {p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in out.glob("*")}
     units = [unit("ts", file="app.ts"), unit("py", pin="python")]
-    examples = [{**u, "id": u["unit"], "candidate": u["file"] + "::run", "source": "population-v1"} for u in units]
+    examples = [{**u, "id": u["unit"], "candidate": u["file"] + "::run", "source": "population-v1", "excerpt": False} for u in units]
     units_file, examples_file = tmp_path / "units.jsonl", tmp_path / "examples.jsonl"
     units_file.write_text("\n".join(map(json.dumps, units)))
     examples_file.write_text("\n".join(map(json.dumps, examples)))
@@ -428,7 +430,7 @@ def test_trace_dry_run_unsupported_units_write_nothing(tmp_path, monkeypatch, ca
 
 def test_trace_real_unsupported_run_then_typescript_opt_in_replans(tmp_path, monkeypatch, capsys):
     u = unit(file="app.ts")
-    example = {**u, "id": "a", "candidate": "app.ts::run", "source": "population-v1"}
+    example = {**u, "id": "a", "candidate": "app.ts::run", "source": "population-v1", "excerpt": False}
     units_file, examples_file, out = tmp_path / "units.jsonl", tmp_path / "examples.jsonl", tmp_path / "results"
     units_file.write_text(json.dumps(u) + "\n")
     examples_file.write_text(json.dumps(example) + "\n")
@@ -469,6 +471,7 @@ def test_trace_resume_identity_includes_selection_even_if_support_unchanged(tmp_
     first = trace.make_plan([unit()], tmp_path)[0]
     trace.save_pin(tmp_path / trace.pin_name(first), {**first, "done": True})
     assert trace.make_plan([unit()], tmp_path) == []
+    assert trace.make_plan([unit()], tmp_path, rerun_status=()) == []
     assert len(trace.make_plan([unit()], tmp_path, include_typescript=True)) == 1
 
 
@@ -567,3 +570,242 @@ def test_frontend_measurement_survives_failed_build_cleanup(tmp_path, monkeypatc
     assert result["instrument"]["cpg_path"] == str(tmp_path / "actual.graph")
     assert result["instrument"]["cpg_bytes"] == 34000
     assert not (tmp_path / "actual.graph").exists()
+
+
+def pair_inputs(tmp_path):
+    from types import SimpleNamespace
+
+    inputs = trace.Inputs(trace.ROOT, tmp_path / "cache")
+    excerpt = tmp_path / "excerpt.py"
+    excerpt.write_text("# commit: " + "f" * 40 + "\n# parent: " + "f" * 40 + "\ndef run(): pass\n")
+    case = SimpleNamespace(name="fixture", repo="owner/repo", relpath="pkg/app.py", vuln_file=excerpt, fixed_file=excerpt, context_files=())
+    inputs.catalog_rows[case.name] = [
+        ("advisory-fixes-2", {"repo": case.repo, "relpath": case.relpath, "parent": "a" * 40, "commit": "b" * 40})
+    ]
+    return inputs, case
+
+
+@pytest.mark.parametrize("side,sha", [("vuln", "a" * 40), ("fixed", "b" * 40)])
+def test_pair_materializes_catalog_side_not_header(tmp_path, monkeypatch, side, sha):
+    inputs, case = pair_inputs(tmp_path)
+    fetched = tmp_path / "fetched"
+    (fetched / "pkg").mkdir(parents=True)
+    (fetched / case.relpath).write_text("class Handler:\n    def run(self): pass\n")
+    calls = []
+
+    def fetch(repo, commit, roots):
+        calls.append((repo, commit, roots))
+        return fetched
+
+    monkeypatch.setattr(inputs, "fetch_source", fetch)
+    monkeypatch.setattr(inputs, "pair_for", lambda row: (case, side))
+    target = tmp_path / "export"
+    proof = inputs.materialize({"units": [unit(file=case.relpath)]}, target)
+    assert calls == [("owner/repo", sha, ["pkg"])]
+    assert proof["commit"] == sha and proof["mode"] == "source"
+    assert (target / case.relpath).read_text().startswith("class Handler:")
+
+
+@pytest.mark.parametrize("change", [{"parent": ""}, {"parent": "b" * 40}, {"commit": "HEAD"}])
+def test_catalog_ambiguous_commits_refused(tmp_path, change):
+    inputs, case = pair_inputs(tmp_path)
+    inputs.catalog_rows[case.name][0][1].update(change)
+    with pytest.raises(ValueError, match="ambiguous catalog commits"):
+        inputs.source_identity(case, "vuln")
+
+
+def test_ambiguous_catalog_and_side_refused(tmp_path):
+    inputs, case = pair_inputs(tmp_path)
+    inputs.catalog_rows[case.name] *= 2
+    with pytest.raises(ValueError, match="ambiguous catalog source"):
+        inputs.source_identity(case, "fixed")
+    with pytest.raises(ValueError, match="ambiguous pair side"):
+        inputs.pair_for(unit(pin_role="unknown"))
+
+
+def test_sparse_export_filters_languages_dirs_and_caps_context(tmp_path):
+    source, target = tmp_path / "source", tmp_path / "export"
+    contents = {
+        "pkg/app.py": "def run(): pass\n",
+        "pkg/context.py": "x" * 200,
+        "pkg/other.js": "function run() {}",
+        "other/app.py": "other",
+    }
+    contents.update({f"pkg/{directory}/a.py": "excluded" for directory in worker.EXCLUDED_DIRS})
+    for rel, data in contents.items():
+        path = source / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(data)
+    proof = trace.export_sources(source, target, [unit(file="pkg/app.py")], ["pkg"], cap=50)
+    assert [p.relative_to(target).as_posix() for p in target.rglob("*") if p.is_file()] == ["pkg/app.py"]
+    assert proof["cap_hit"] and proof["bytes"] == len(contents["pkg/app.py"])
+    assert proof["excludes"] == sorted(worker.EXCLUDED_DIRS)
+    assert trace.source_root("module/src/main/java/org/Handler.java", "java") == "module/src/main/java"
+    assert trace.source_root("pkg/sub/app.ts", "typescript") == "pkg"
+    assert trace.source_root("app.js", "javascript") == "."
+
+
+def test_wrong_fetched_function_fails_without_fallback(tmp_path, monkeypatch):
+    inputs, case = pair_inputs(tmp_path)
+    source = tmp_path / "source"
+    (source / "pkg").mkdir(parents=True)
+    (source / case.relpath).write_text("def runner(): pass\n")
+    inputs.allow_excerpt_fallback = True
+    monkeypatch.setattr(inputs, "pair_for", lambda row: (case, "vuln"))
+    monkeypatch.setattr(inputs, "fetch_source", lambda *args: source)
+    with pytest.raises(ValueError, match="labelled function not found in fetched source"):
+        inputs.materialize({"units": [unit(file=case.relpath)]}, tmp_path / "export")
+
+
+def test_excerpt_fallback_requires_explicit_flag(tmp_path, monkeypatch):
+    inputs, case = pair_inputs(tmp_path)
+    monkeypatch.setattr(inputs, "pair_for", lambda row: (case, "vuln"))
+
+    def unavailable(*args):
+        raise ValueError("fetch failed")
+
+    monkeypatch.setattr(inputs, "fetch_source", unavailable)
+    pin = {"units": [unit(file=case.relpath)]}
+    with pytest.raises(ValueError, match="fetch failed"):
+        inputs.materialize(pin, tmp_path / "export")
+    inputs.allow_excerpt_fallback = True
+    proof = inputs.materialize(pin, tmp_path / "fallback")
+    assert proof["mode"] == "excerpt-fallback" and proof["reason"] == "fetch failed"
+
+
+def test_fetch_renders_sparse_pinned_host_commands(tmp_path, monkeypatch):
+    inputs, _ = pair_inputs(tmp_path)
+    commands = []
+
+    def git(cmd, **kwargs):
+        commands.append(cmd[3:])
+        assert kwargs["env"]["GIT_TERMINAL_PROMPT"] == "0"
+        assert "GIT_NO_LAZY_FETCH" not in kwargs["env"]
+        return subprocess.CompletedProcess(cmd, 0, "a" * 40 + "\n", "")
+
+    monkeypatch.setattr(trace.subprocess, "run", git)
+    clone = inputs.fetch_source("owner/repo", "a" * 40, ["module/src/main/java"])
+    assert clone.is_relative_to(inputs.cache)
+    assert ["fetch", "--depth", "1", "--filter=blob:none", "https://github.com/owner/repo.git", "a" * 40] in commands
+    assert ["sparse-checkout", "set", "--", "module/src/main/java"] in commands
+    assert ["checkout", "--detach", "--force", "a" * 40] in commands
+
+
+def test_explicit_heap_in_frontend_and_query_commands(tmp_path, monkeypatch):
+    backend = worker.MeasuredBackend(900, 120, lambda: None)
+    commands = []
+
+    def run(command, **kwargs):
+        commands.append(command)
+        return subprocess.CompletedProcess(command, 0, BEGIN + '\n{"r": []}\n' + END, "")
+
+    monkeypatch.setattr(backend, "_run", run)
+    monkeypatch.setattr("openultrasast.cpg.backend.shutil.which", lambda name: "/opt/joern-cli/" + name)
+    graph = tmp_path / "cpg.bin"
+    graph.write_bytes(b"x" * 2048)
+    backend._build_with_frontend(tmp_path, graph, tmp_path, "python")
+    backend._batch_once(graph, "taint", {"r": {}})
+    assert {Path(cmd[0]).name for cmd in commands} == {"pysrc2cpg", "joern"}
+    assert all("-J-Xmx2560m" in cmd for cmd in commands)
+    assert "-Xmx2560m" in backend._jvm_env()["JAVA_TOOL_OPTIONS"]
+
+
+@pytest.mark.parametrize("binary", ["pysrc2cpg", "joern"])
+def test_oom_output_overrides_missing_graph_or_markers(tmp_path, binary):
+    launcher = tmp_path / binary
+    launcher.write_text(f"#!{sys.executable}\nprint('java.lang.OutOfMemoryError: Java heap space')\n")
+    launcher.chmod(0o755)
+    backend = worker.MeasuredBackend(30, 10, lambda: None)
+    done = backend._run([str(launcher), "--script", "query.sc"], timeout=10)
+    assert done.returncode == 1
+    assert backend.fatal == "JVM out of memory"
+    assert worker.instrument_failure({"jvm": backend.stages}) == "JVM out of memory"
+
+
+def test_two_language_pin_builds_sequential_frontends_and_routes_questions(tmp_path, monkeypatch):
+    events = []
+
+    class LanguagesBackend(FakeBackend):
+        def build(self, root, language):
+            events.append(("build", language))
+            graph = root / (language + ".bin")
+            graph.write_bytes(b"x" * 2048)
+            self.stages = [
+                {"command": {"python": "pysrc2cpg", "javascript": "jssrc2cpg"}[language], "seconds": 20, "exit": 0, "cpg_bytes": 2048}
+            ]
+
+            def batch(query, requests):
+                events.append(("query", language, sorted(requests)))
+                self.asked.extend(requests)
+                return {
+                    **dict.fromkeys(requests, []),
+                    "__census__": [{"files": "1", "file_names": ["app.py" if language == "python" else "app.js"]}],
+                }
+
+            return CpgResult(graph, lambda q, p: None, run_batch_once=batch, cleanup=lambda: events.append(("cleanup", language)))
+
+    monkeypatch.setattr(worker, "MeasuredBackend", LanguagesBackend)
+    (tmp_path / "app.py").write_text("def run(): pass\n")
+    (tmp_path / "app.js").write_text("function run() {}\n")
+    pin = {"units": [unit(), unit("js", language="javascript", file="app.js")]}
+    pin["questions"] = trace.prepare_questions(pin, tmp_path, 120)
+    assert all(params["callDepth"] == "3" for params in pin["questions"].values())
+    result = worker.worker(pin, tmp_path, tmp_path / "result.json", 900, 120)
+    assert events == [
+        ("build", "javascript"),
+        ("query", "javascript", ["js"]),
+        ("cleanup", "javascript"),
+        ("build", "python"),
+        ("query", "python", ["a"]),
+        ("cleanup", "python"),
+    ]
+    assert all(u["status"] == "asked-nothing" for u in result["units"])
+    assert set(result["instruments"]) == {"python", "javascript"}
+    assert all(u["instrument"]["heap_mb"] == 2560 for u in result["units"])
+
+
+def test_resume_materialization_version_and_status_selection(tmp_path):
+    units = [unit(source="advisory-fixes-2"), unit("other", pin="other", source="population-v1")]
+    pin = trace.make_plan(units, tmp_path, only_source={"advisory-fixes-2"})[0]
+    record = {**pin, "done": True, "units": [trace.unit_record(pin["units"][0], "asked-nothing")]}
+    path = tmp_path / trace.pin_name(pin)
+    trace.write_json(path, record)
+    assert trace.make_plan(units, tmp_path, only_source={"advisory-fixes-2"}) == []
+    assert len(trace.make_plan(units, tmp_path, only_source={"advisory-fixes-2"}, rerun_status={"failed", "asked-nothing"})) == 1
+    trace.write_json(path, {**record, "materialization_version": trace.MATERIALIZATION_VERSION - 1})
+    assert len(trace.make_plan(units, tmp_path, only_source={"advisory-fixes-2"})) == 1
+
+
+def test_sparse_fetch_from_local_git_without_network(tmp_path, monkeypatch):
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    real_run = subprocess.run
+
+    def git(*args):
+        return real_run(["git", "-C", str(origin), *args], capture_output=True, text=True, check=True).stdout.strip()
+
+    git("init")
+    git("config", "user.name", "Offline Test")
+    git("config", "user.email", "offline@example.invalid")
+    for rel in ("module/src/main/java/Handler.java", "module/src/main/java/docs/Other.java", "elsewhere/Other.java"):
+        path = origin / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("class Handler { void run() {} }\n")
+    git("add", ".")
+    git("commit", "-m", "local fixture")
+    sha = git("rev-parse", "HEAD")
+    inputs, _ = pair_inputs(tmp_path)
+
+    def local_only(cmd, **kwargs):
+        # Substitute a local repository for the one URL; no network-capable command runs.
+        cmd = [str(origin) if arg == "https://github.com/owner/repo.git" else arg for arg in cmd]
+        return real_run(cmd, **kwargs)
+
+    monkeypatch.setattr(trace.subprocess, "run", local_only)
+    clone = inputs.fetch_source("owner/repo", sha, ["module/src/main/java"])
+    assert not (clone / "elsewhere/Other.java").exists()
+    target = tmp_path / "export"
+    labelled = unit(file="module/src/main/java/Handler.java", language="java")
+    proof = trace.export_sources(clone, target, [labelled], ["module/src/main/java"])
+    trace.verify_functions(target, [labelled])
+    assert proof["files"] == 1 and proof["bytes"] > 0
