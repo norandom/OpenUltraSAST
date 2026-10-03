@@ -1,0 +1,9 @@
+run finished: done
+memory s3://sast-memory: ax-e2e-smoke: 0 tasks ingested, 0 already in the index; rows none
+run ax-e2e-smoke: done (/tmp/claude-1000/-home-mc-Source-OpenUltraSAST/c09e30b2-39a4-4564-bc31-6ea71ffaa198/scratchpad/k8s-impl/results/plane/ax-e2e-smoke)
+
+TASK                         MODEL                  CALLS     PROMPT  CACHE-HIT    OUTPUT        USD
+facts                        -                        n/a        n/a        n/a       n/a        n/a  [done]
+----------------------------------------------------------------------------------------------------
+total                        -                        n/a        n/a        n/a       n/a        n/a
+smoke exit=0 seconds=2

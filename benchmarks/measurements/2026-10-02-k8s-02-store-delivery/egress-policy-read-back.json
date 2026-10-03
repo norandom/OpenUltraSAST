@@ -1,0 +1,24 @@
+{
+  "metadata": {
+    "atespace": "default",
+    "createTime": "2026-10-02T19:39:19.428045847Z",
+    "name": "default",
+    "uid": "741e52b7-aaf1-4a91-b4bf-fc3b20ba4a36",
+    "updateTime": "2026-10-02T19:39:19.428045847Z",
+    "version": "1"
+  },
+  "rules": [
+    {
+      "tlsPassthrough": {
+        "hostnames": [
+          "files.because-security.com"
+        ],
+        "ports": {
+          "numbers": [
+            443
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,3 +1,3 @@
 {
-  "runner": "localhost:5001/ousast-runner@sha256:95edc7ed562189180a472df8115e6a90c8b4fcea47c06593395634bd56041bcb"
+  "runner": "localhost:5001/ousast-runner@sha256:d2a55293999cc34581ef1f02a1ffb0c2dd8fc0cbe001ac952df81600e868f019"
 }

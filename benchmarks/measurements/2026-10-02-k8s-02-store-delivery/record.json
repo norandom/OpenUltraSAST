@@ -1,0 +1,83 @@
+{
+  "record": "k8s-02-store-delivery",
+  "spec": "plane-on-kubernetes",
+  "tasks": ["2.1", "2.2", "2.3", "2.4", "2.5", "2.6"],
+  "date": "2026-10-02",
+  "commits": {
+    "2.1": "35d8032",
+    "2.2": "9506a18",
+    "2.3": "c49eae4",
+    "2.4": "605b7af",
+    "2.5": "the commit that adds this file (git log: plane(2.5))",
+    "receiver_removed": "pending: task 2.6 (paused 2026-10-03 by the maintainer's reprioritisation; the receiver path still exists behind OUSAST_DELIVERY=receiver)"
+  },
+  "images": {
+    "runner": "localhost:5001/ousast-runner@sha256:d2a55293999cc34581ef1f02a1ffb0c2dd8fc0cbe001ac952df81600e868f019",
+    "built_by": "ops/ax/up.sh rerun (file up-sh-rebuild.txt): every step kept but the runner build; the image carries the 2.2 runner",
+    "disk_gb_free_after_build": 1.3
+  },
+  "instrument_checks": {
+    "code_under_test": "the worktree's src first on PYTHONPATH; `ousast` run as `python -m openultrasast.cli` from the worktree (ops/ax/smoke-run.sh with OUSAST_PYTHON)",
+    "store_read_back": {
+      "how": "scratch store_tar_check.py opens the store through the worktree code (verify_bucket runs), lists runs/ax-e2e-smoke/, downloads output.tar, compares its members with the files the reconciler extracted (file store-check.json)",
+      "tar_bytes": 10240,
+      "tar_members_bytes": {"facts.json": 451, "summary.json": 238, "units.jsonl": 291},
+      "extracted_files_bytes": {"facts.json": 451, "summary.json": 238, "units.jsonl": 291},
+      "members_equal_extracted": true,
+      "member_bytes_total": 980,
+      "note": "a tar is 512-byte blocks: 10240 B of tar carry 980 B of files; done.json records the tar's byte size"
+    },
+    "no_receiver_in_the_task": "the rendered task.yaml is 996 B against 1148 B on the receiver path: no OUSAST_ARTIFACT_URL/DIAL in the Task's env; the start body carries the URLs"
+  },
+  "smoke_runs": {
+    "store_1": {
+      "command": "ops/ax/smoke-run.sh (store delivery, the default after 2.4; OUSAST_DELIVERY unset)",
+      "exit": 0,
+      "seconds_submit_to_done": 26,
+      "tar_put_at": "2026-10-02T19:37:24+00:00 (the object's LastModified)",
+      "collected_at": "2026-10-02T19:37:26+00:00 (done.json finished)",
+      "put_to_collect_seconds": 2,
+      "poll_interval_seconds": 3,
+      "file": "smoke-run-store-1.txt"
+    },
+    "seeded_rerun": {
+      "command": "the same, with the local results root deleted and the store's runs/ax-e2e-smoke/ intact",
+      "exit": 0,
+      "seconds": 2,
+      "what_happened": "state.json seeded from the store: every task done, nothing submitted to ax (plane-on-kubernetes 2.1, design section 2: a rerun from another machine resumes from the store)",
+      "file": "smoke-run-seeded-rerun.txt"
+    },
+    "store_2": {
+      "command": "the same, after deleting runs/ax-e2e-smoke/ from the store (5 objects) so the task executes again, with the egress policy polled",
+      "exit": 0,
+      "seconds_submit_to_done": 24,
+      "tar_put_at": "2026-10-02T19:39:38+00:00",
+      "collected_at": "2026-10-02T19:39:40+00:00",
+      "put_to_collect_seconds": 2,
+      "file": "smoke-run-store-2.txt"
+    }
+  },
+  "objects_delivered_to_the_store": {
+    "runs/ax-e2e-smoke/facts/output.tar": 10240,
+    "runs/ax-e2e-smoke/facts/facts.json": 451,
+    "runs/ax-e2e-smoke/facts/summary.json": 238,
+    "runs/ax-e2e-smoke/facts/done.json": 149,
+    "runs/ax-e2e-smoke/state.json": 350,
+    "note": "units.jsonl is extracted locally but not a declared output of the smoke Run, so it is not re-put"
+  },
+  "egress_policy_read_back": {
+    "how": "kubectl ate get egress-policy ax-e2e-smoke-facts -a default -o json, polled while the actor lived (file egress-policy-read-back.json)",
+    "rules": [{"tlsPassthrough": {"hostnames": ["files.because-security.com"], "ports": {"numbers": [443]}}}],
+    "reading": "one TLS rule naming the store host, no http rule; the model-free smoke task names no Git host and no Model host",
+    "also": "Egress.apply reads every policy back and raises on a mismatch, so each completed Run is itself the equality check"
+  },
+  "status_table": "ousast plane status ax-e2e-smoke printed the attribution table (facts: done, calls 0) in every run; the table is in the smoke-run-*.txt files",
+  "reconciler_lines": {"after_2_4": 549, "bound": 550, "note": "both paths coexist until 2.6; the receiver wiring goes then"},
+  "gates": {
+    "2.1": "pytest 2020 passed, 42 skipped, exit 0; ruff 0; format 0; mypy 0",
+    "2.2": "pytest 2024 passed, 42 skipped, exit 0; ruff 0; format 0; mypy 0",
+    "2.3": "pytest 2027 passed, 42 skipped, exit 0; ruff 0; format 0; mypy 0",
+    "2.4": "pytest 2031 passed, 42 skipped, exit 0; ruff 0; format 0; mypy 0",
+    "2.5": "pytest 2031 passed, 42 skipped, exit 0; ruff 0; format 0; mypy 0 (first attempt 2026-10-02: 11 failed + 5 errors, all the FileStore 1 GiB free-space refusal at 0.97 GiB free; rerun after the disk was freed)"
+  }
+}

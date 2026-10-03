@@ -101,7 +101,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
   - `tests/test_plane_reconciler.py`: the ax fake run completes through the delivery fake; a rerun from an empty
     results root resumes from the store's `state.json`.
   - _Requirements: 2.1, 3.1_
-- [ ] 2.5 Kind proof and record 02
+- [x] 2.5 Kind proof and record 02
   - `ops/ax/smoke-run.sh` with `OUSAST_DELIVERY=store`: `facts.json` and `summary.json` arrive through the store;
     the actor's policy read back has one TLS rule naming the store host; `ousast plane status ax-e2e-smoke`
     prints the table. Instrument: the tar's byte size from the store equals the extracted files' total.
