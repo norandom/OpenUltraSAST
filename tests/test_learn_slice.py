@@ -118,8 +118,6 @@ def test_learn_slice_default_prompt_frozen_before_change() -> None:
         "f6b5cfb5a8b7cb1591d7b4534e254ad2a349452a03e825bdcf250e5f60b4e80b"
     )
     assert baseline.ProgramSpec().slice is False
-    reserved, _ = baseline.program(slice=True).prepare(baseline.candidate(), baseline.FOLD)
-    assert reserved.messages == prompt.messages  # no prompt wiring before audit review
 
 
 @pytest.fixture
@@ -192,3 +190,38 @@ def test_learn_slice_python_fallback_order(monkeypatch: pytest.MonkeyPatch) -> N
 
 def test_learn_slice_bare_arrow_parameter() -> None:
     assert sliced("const f = x => eval(x);", "javascript").steps
+
+
+def test_learn_slice_prompt_flow_examples_citations_and_request_identity() -> None:
+    import test_learn_program as baseline
+
+    from openultrasast.learn.program import parse_answer, render, request_key
+
+    example = replace(baseline.EXAMPLES[0], language="python", family="injection")
+    code = "   40  def f(x):\n   41      execute(x)\n"
+    demo = baseline.Demo(example.id, example.excerpt_sha, 1, "injection", "vulnerable", 0.9, "L41 executes x.", (41,))
+    spec = baseline.ProgramSpec(demos=(demo,), slice=True)
+    candidate = baseline.candidate(code)
+    prompt = render(spec, candidate, [example], [demo], {example.id: example}, lambda _: code)
+    block = render_slice(function_slice(code, "python", "injection"), "python")
+    assert "L40 source:" in block and "L41 sink:" in block
+    assert str(prompt.messages[1]["content"]).count(code.rstrip() + "\n" + block + "\nSignals:") == 2
+    assert code.rstrip() + "\n" + block + "\nSignals:" in prompt.prefix
+    assert prompt.valid_lines == frozenset({40, 41})
+    answer = json.dumps(
+        {"verdict": "vulnerable", "confidence": 0.9, "family": "injection", "rationale": "L41 executes x.", "cited_lines": [40, 41]}
+    )
+    assert parse_answer(answer, prompt.valid_lines).cited_lines == (40, 41)
+    default = render(replace(spec, slice=False), candidate, [example], [demo], {example.id: example}, lambda _: code)
+    assert request_key(spec.model, "params", prompt.messages, 0.0, "0", True) != request_key(
+        spec.model, "params", default.messages, 0.0, "0", True
+    )
+
+
+def test_learn_slice_prompt_not_analysable() -> None:
+    import test_learn_program as baseline
+
+    candidate = replace(baseline.candidate(), language="php")
+    prompt, _ = baseline.program(slice=True).prepare(candidate, baseline.FOLD)
+    tail = str(prompt.messages[1]["content"]).split("Candidate:\n")[1]
+    assert candidate.code.rstrip() + "\nData flow inside the function: not analysed (php is not supported).\nSignals:" in tail

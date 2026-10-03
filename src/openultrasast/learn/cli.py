@@ -60,7 +60,7 @@ def add_commands(learn_sub: Any) -> None:
         ("register", "record the manifest's and the units file's sha256 as the experiment row (both committed at HEAD)"),
         ("units", "freeze the units of a program experiment from the memory (no model): the families' evaluation candidates"),
         ("run", "run every arm on every unit, paired; arm A replays from the response cache when the manifest says so"),
-        ("fill", "fill a rule experiment's response cache under a separate budget, or estimate with --dry-run"),
+        ("fill", "fill an experiment's response cache under a separate budget, or estimate with --dry-run"),
         ("analyse", "paired cluster bootstrap, exact McNemar, the two looks and the adoption verdict (counts and intervals only)"),
     ):
         sub = experiment_sub.add_parser(name, help=text)
@@ -73,8 +73,10 @@ def add_commands(learn_sub: Any) -> None:
                 "--manifest-model", type=Path, default=Path("plane/models/deepseek-flash.yaml"), help="the chat Model (prices)"
             )
         if name == "run":
+            sub.add_argument("--replay-only", action="store_true", help="replay every arm without resolving a model endpoint")
             sub.add_argument("--no-early-stop", action="store_true", help="take no first look during the run")
         if name == "fill":
+            sub.add_argument("--arm", action="append", help="arm to fill (repeatable; default: non-replay program arms)")
             sub.add_argument("--budget-usd", type=float, help="required for paid fill; includes the smoke call")
             sub.add_argument("--dry-run", action="store_true", help="inspect and estimate only; no calls or writes, including --out")
             sub.add_argument("--out", type=Path, help="also write the fill report as JSON (ignored for --dry-run)")
@@ -117,7 +119,7 @@ def _experiment(args: argparse.Namespace) -> int:
     from ..plane.budget import MeteredClient
     from ..plane.memory import open_store
     from . import experiments as ex
-    from .program import Caller
+    from .program import Caller, ReplayMiss
 
     store = open_store(args.memory)
     try:
@@ -162,7 +164,7 @@ def _experiment(args: argparse.Namespace) -> int:
 
         if args.experiment_command == "fill":
             from ..tool_hunter import ChatClient
-            from .fill import fill_rule
+            from .fill import fill_experiment
 
             def resolve_fill_client() -> ChatClient:
                 from ..config import load_config
@@ -173,7 +175,7 @@ def _experiment(args: argparse.Namespace) -> int:
                     raise ex.ExperimentError("no chat endpoint configured; nothing was spent")
                 return resolved[0]
 
-            report = fill_rule(
+            report = fill_experiment(
                 store,
                 manifest,
                 memory,
@@ -183,6 +185,7 @@ def _experiment(args: argparse.Namespace) -> int:
                 client_factory=resolve_fill_client,
                 budget_usd=args.budget_usd,
                 dry_run=args.dry_run,
+                arms=args.arm,
             )
             _write(report, None if args.dry_run else args.out)
             return {"done": 0, "dry_run": 0, "unfinished": 3, "failed": 1}[report["status"]]
@@ -194,7 +197,7 @@ def _experiment(args: argparse.Namespace) -> int:
             return 0
         callers: dict[str, Caller] = {}
         for name, arm in manifest.arms.items():
-            if arm.replay_only:
+            if arm.replay_only or args.replay_only:
                 callers[name] = Caller(None, _arm_model(manifest, arm, store), parameters, store=store)
                 continue
             from ..config import load_config
@@ -208,7 +211,7 @@ def _experiment(args: argparse.Namespace) -> int:
 
         early = not args.no_early_stop
         summary = ex.run(store, manifest, memory, callers, excerpt_text, vectors, stop_early=early, resamples=args.resamples)
-    except ex.ExperimentError as exc:
+    except (ex.ExperimentError, ReplayMiss) as exc:
         print(f"learn experiment {args.experiment_command}: {exc}", file=sys.stderr)
         return 2
     _write(summary.as_dict(), args.out)

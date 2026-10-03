@@ -38,6 +38,7 @@ from .examples import Example
 from .folds import Fold
 from .retrieve import Retrieval, Target, assert_boundary, demonstrations_for, retrieve
 from .schema import DEFAULT_INPUTS, features_for, instruments_for, validate_x, withheld
+from .slice import function_slice, render_slice
 
 VERDICTS = ("vulnerable", "not_vulnerable", "unsure")
 UNSURE = "unsure"
@@ -150,9 +151,11 @@ def _case(
     profile: str,
     language: str,
     inputs: str = DEFAULT_INPUTS,
+    slice: bool = False,
 ) -> str:
     signals = render_signals(x, instruments, profile, inputs)
-    return f"Family: {family}\nLanguage: {language}\nCode:\n{code.rstrip()}\nSignals:\n{signals}\nRoles:\n{render_roles(roles)}"
+    flow = "\n" + render_slice(function_slice(code, language, family), language) if slice else ""
+    return f"Family: {family}\nLanguage: {language}\nCode:\n{code.rstrip()}{flow}\nSignals:\n{signals}\nRoles:\n{render_roles(roles)}"
 
 
 def label_word(label: int) -> str:
@@ -204,7 +207,7 @@ class ProgramSpec:
     priors: str = "off"
     inputs: str = DEFAULT_INPUTS  # the input profile: which instruments the classifier never sees (v1: the engine)
     max_output_tokens: int = MAX_OUTPUT_TOKENS
-    slice: bool = False  # reserved experiment switch; rendering stays disabled until the leak audit is reviewed
+    slice: bool = False  # opt-in in-function def-use evidence, computed from the same excerpt
     sampling: str = SAMPLING[0]  # temperature | retrieval_ensemble (an experiment arm's setting; never compiled)
 
 
@@ -253,7 +256,9 @@ def render_prefix(spec: ProgramSpec, demos: Sequence[Demo], examples: Mapping[st
                   "cited_lines": list(demo.cited_lines)}  # fmt: skip
         parts.append(
             f"Demonstration {number}:\n"
-            + _case(code, example.x, example.instruments, example.roles, example.family, spec.profile, example.language, spec.inputs)
+            + _case(
+                code, example.x, example.instruments, example.roles, example.family, spec.profile, example.language, spec.inputs, spec.slice
+            )
             + f"\nAnswer: {json.dumps(answer, sort_keys=True)}"
         )
     return "\n\n".join(parts)
@@ -274,11 +279,14 @@ def render(
         code = excerpt_text(example.excerpt_sha) or ""
         blocks.append(
             f"Example {number} (label: {label_word(example.label)}):\n"
-            + _case(code, example.x, example.instruments, example.roles, example.family, spec.profile, example.language, spec.inputs)
+            + _case(
+                code, example.x, example.instruments, example.roles, example.family, spec.profile, example.language, spec.inputs, spec.slice
+            )
         )
     t = candidate.target
     blocks.append(
-        "Candidate:\n" + _case(candidate.code, t.x, t.instruments, candidate.roles, t.family, spec.profile, candidate.language, spec.inputs)
+        "Candidate:\n"
+        + _case(candidate.code, t.x, t.instruments, candidate.roles, t.family, spec.profile, candidate.language, spec.inputs, spec.slice)
     )
     messages: list[dict[str, object]] = [
         {"role": "system", "content": render_prefix(spec, demos, examples, excerpt_text)},

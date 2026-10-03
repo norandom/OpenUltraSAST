@@ -97,6 +97,8 @@ ADVISORY_VERDICT = "vulnerable"
 METRICS: Mapping[str, tuple[int, bool]] = {
     "auc": (1, False),
     "within_pair_auc": (1, False),
+    "top_30_precision": (1, False),
+    "unsure_rate": (-1, True),
     "advisory_recall": (1, True),
     "advisory_precision": (1, False),
     "canary_agreement": (1, True),
@@ -598,10 +600,10 @@ def auc(rows: Sequence[ArmUnit]) -> float | None:
 def within_pair_auc(rows: Sequence[ArmUnit]) -> float | None:
     """Of the candidate pairs (vulnerable and fixed side both present), the share where the vulnerable side scores
     higher (ties one half)."""
-    pairs: dict[str, dict[int, float]] = {}
+    pairs: dict[tuple[str, str, str], dict[int, float]] = {}
     for r in rows:
         if r.pair and r.s is not None:
-            pairs.setdefault(r.pair, {})[r.label] = r.s
+            pairs.setdefault((r.group, r.family, r.pair), {})[r.label] = r.s
     done = [(p[1], p[0]) for p in pairs.values() if 0 in p and 1 in p]
     if not done:
         return None
@@ -616,6 +618,11 @@ def metric_value(metric: Metric, rows: Sequence[ArmUnit]) -> float | None:
         return auc(rows)
     if name == "within_pair_auc":
         return within_pair_auc(rows)
+    if name == "top_30_precision":
+        ranked = sorted((r for r in rows if r.s is not None), key=lambda r: (-r.s if r.s is not None else 0.0, r.unit))
+        return _mean([float(r.label) for r in ranked[:30]]) if len(ranked) >= 30 else None
+    if name == "unsure_rate":
+        return _mean([float(r.verdict == "unsure") for r in rows])
     if name == "advisory_recall":
         return _mean([float(r.flag) for r in rows if r.label == 1])
     if name == "advisory_precision":
@@ -639,6 +646,8 @@ def binary_value(metric: Metric, row: ArmUnit) -> bool | None:
         return row.agree
     if metric.name == "flag_rate":
         return row.flag
+    if metric.name == "unsure_rate":
+        return row.verdict == "unsure"
     return None
 
 
@@ -676,7 +685,13 @@ def paired_bootstrap(
     rng = random.Random(seed)
     values: list[float] = []
     for _ in range(resamples if names else 0):
-        sample = [p for g in (rng.choice(names) for _ in names) for p in by_group[g]]
+        # Give each drawn cluster its own identity: repeated draws must retain
+        # repeated candidate pairs when within_pair_auc groups the two sides.
+        sample = [
+            (replace(a, group=f"{draw}:{g}"), replace(b, group=f"{draw}:{g}"))
+            for draw, g in enumerate(rng.choice(names) for _ in names)
+            for a, b in by_group[g]
+        ]
         a = metric_value(metric, [p[0] for p in sample])
         b = metric_value(metric, [p[1] for p in sample])
         if a is not None and b is not None:
@@ -785,6 +800,9 @@ def decide(manifest: Manifest, finals: Mapping[str, Estimate], cost: Estimate | 
         return "reject", f"the CI of {', '.join(bad)} excludes 0 against B"
     first = manifest.primary[0].name
     if sides[first] == "favour":
+        max_ratio = (manifest.raw.get("decision") or {}).get("max_cost_ratio")
+        if max_ratio is not None and (cost is None or cost.a is None or cost.b is None or cost.b > float(max_ratio) * cost.a):
+            return "inconclusive", f"B's cost per candidate is unavailable or exceeds {max_ratio}x A; the incumbent stays"
         return "adopt", f"the CI of {first} excludes 0 in B's favour and no primary CI excludes 0 against B"
     if manifest.cost_only and cost is not None and tost is not None and tost.ci is not None and cost.ci is not None:
         within = -manifest.tost_margin <= tost.ci[0] and tost.ci[1] <= manifest.tost_margin
