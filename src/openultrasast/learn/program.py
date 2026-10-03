@@ -204,6 +204,7 @@ class ProgramSpec:
     priors: str = "off"
     inputs: str = DEFAULT_INPUTS  # the input profile: which instruments the classifier never sees (v1: the engine)
     max_output_tokens: int = MAX_OUTPUT_TOKENS
+    slice: bool = False  # reserved experiment switch; rendering stays disabled until the leak audit is reviewed
     sampling: str = SAMPLING[0]  # temperature | retrieval_ensemble (an experiment arm's setting; never compiled)
 
 
