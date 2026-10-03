@@ -599,3 +599,61 @@ def test_experiment_rows_share_one_json_type_per_column(tmp_path: Path) -> None:
             if value is not None:
                 shapes.setdefault(name, set()).add(_json_shape(value))
     assert {name: sorted(s) for name, s in shapes.items() if len(s) > 1} == {}
+
+
+def test_graph_slice_manifest_freezes_incumbents_units_and_single_prompt_override() -> None:
+    manifest = ex.load_manifest(ROOT / "plane/experiments/exp-005-graph-slice.yaml")
+    incumbent = ex.load_manifest(ROOT / "plane/experiments/exp-004-pooled-block-gate.yaml")
+    assert manifest.kind == "program" and manifest.programs == incumbent.programs
+    assert manifest.families == incumbent.families and manifest.folds == incumbent.folds
+    assert manifest.arms["A"].spec == {} and manifest.arms["A"].replay_only
+    assert manifest.arms["B"].spec == {"slice": True} and manifest.paid_arms == ["B"]
+    assert manifest.budget_total_usd == manifest.arms["B"].budget_usd == 6.0
+    assert manifest.units_file.read_bytes() == incumbent.units_file.read_bytes()
+    assert len(ex.read_units(manifest.units_file)) == 501
+    assert [m.name for m in manifest.primary] == ["within_pair_auc"]
+    assert [m.name for m in manifest.secondary] == ["top_30_precision", "unsure_rate", "usd_per_candidate"]
+
+
+@pytest.mark.parametrize(
+    "ci,cost_a,cost_b,expected",
+    [
+        ((0.01, 0.2), 1.0, 1.5, "adopt"),
+        ((0.01, 0.2), 1.0, 1.5001, "inconclusive"),
+        ((0.01, 0.2), None, None, "inconclusive"),
+        ((-0.2, -0.01), 1.0, 2.0, "reject"),
+        ((0.0, 0.2), 1.0, 1.0, "inconclusive"),
+        ((-0.2, 0.1), 1.0, 1.0, "inconclusive"),
+    ],
+)
+def test_graph_slice_adoption_cost_guard(ci: tuple[float, float], cost_a: float | None, cost_b: float | None, expected: str) -> None:
+    manifest = ex.load_manifest(ROOT / "plane/experiments/exp-005-graph-slice.yaml")
+    est = ex.Estimate("within_pair_auc", 0.5, 0.6, 0.1, ci, 0.1, 100, 10, 100)
+    cost = ex.Estimate("usd_per_candidate", cost_a, cost_b, None, None, None, 100, 10, 100)
+    assert ex.decide(manifest, {"within_pair_auc": est}, cost, None)[0] == expected
+
+
+def test_graph_slice_secondary_metrics_use_pooled_scores_and_unsure() -> None:
+    rows = [
+        ex.ArmUnit(f"u{i:02}", "g", "injection", int(i < 15), "", float(40 - i), "unsure" if i < 4 else "not_vulnerable", 0.01, None)
+        for i in range(40)
+    ]
+    assert ex.metric_value(ex.Metric("top_30_precision"), rows) == 0.5
+    assert ex.metric_value(ex.Metric("top_30_precision"), rows[:29]) is None
+    assert ex.metric_value(ex.Metric("unsure_rate"), rows) == 0.1
+    assert ex.binary_value(ex.Metric("unsure_rate"), rows[0]) is True
+
+
+def test_pair_bootstrap_counts_repeated_repository_draws(monkeypatch: pytest.MonkeyPatch) -> None:
+    rows = crafted(groups=2, b_better=True)
+    pairs = ex.paired_units(rows)
+    original = ex.metric_value
+    seen: list[int] = []
+
+    def measured(metric: ex.Metric, units: list[ex.ArmUnit]) -> float | None:
+        seen.append(len({(u.group, u.family, u.pair) for u in units}))
+        return original(metric, units)
+
+    monkeypatch.setattr(ex, "metric_value", measured)
+    ex.paired_bootstrap(pairs, ex.Metric("within_pair_auc"), resamples=20)
+    assert len(seen) == 42 and set(seen) == {4}

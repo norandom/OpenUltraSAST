@@ -1,0 +1,61 @@
+# Experiment exp-005 (learned-decision-engine design section 6): in-function graph slice.
+# Register before any paid fill or scoring; register pins the manifest and frozen units by sha256.
+# A changed question is a new experiment. The six slice-2 incumbents are unchanged in A;
+# exp-004's cache fill covered their prompts on this exact frozen population and memory.
+# B changes only ProgramSpec.slice: same inputs profile, retrieval, k, temperatures, and examples.
+# Slices are computed from the same numbered excerpt for candidates and all examples/demonstrations.
+#
+# Leak audit: benchmarks/measurements/2026-10-03-graph-slice-leak-audit/record.json.
+# Of 501 units, 220 have a slice (59 flow, 161 no-flow); 281 receive the fixed not-analysed sentence.
+# The audit found no leak. This is coverage, not evidence that the prompt improves ranking.
+# The units file is a byte-for-byte copy of exp-004-pooled-block-gate.units.jsonl; do not regenerate it.
+#
+# Primary: within-pair AUC, vulnerable vs fixed side (ties 0.5), complete pairs only;
+# paired B-A percentile 95% CI, resampling repository groups with replacement, both arms together.
+# Secondary: pooled top-30 precision across all families/units (raw score descending, unit ID breaks ties;
+# undefined below 30 scored units), unsure rate, and recorded response USD per candidate (including A's replay).
+# One final look. ADOPT B iff the primary CI is wholly positive AND mean cost/candidate <= 1.5x A;
+# REJECT iff the primary CI is wholly negative; otherwise INCONCLUSIVE, including unavailable cost.
+# Fill B under a $6.00 hard ceiling, then run --replay-only: scoring spends nothing further.
+# An incomplete fill must not be treated as a complete experiment; any resumption uses only the remaining budget.
+id: exp-005-graph-slice
+hypothesis: >
+  Adding the in-function def-use slice to the prompt improves within-pair ranking of the six slice-2
+  incumbent programs on held-out repositories, at no more than 1.5 times the cost per candidate.
+kind: program
+programs:                   # the slice-2 incumbents, as exp-003
+  access_control: 745cb1d76bbb09dc1574d333d2118489be62e39886517894d3699fa565b0e8c2
+  deserialization: 3c0c2831be7d78198a62351661c37867363c501cb40e3ed7b0119c155af09654
+  injection: b207a0710e0abf053b3b9397b25f9ee1cab4679144865e3a82c1b9be2c7b4982
+  output_encoding: 5d768f16724562c381c09949ff3df9cbb11d58cbb7a9c0515d0dc3f858d3818e
+  path: aea396680a4874dcb6de70e240ca0480c83424debdd3710bc3f1ea6a612661f3
+  untrusted_destination: 1242b3973fc89056aa08e00843043d68235df217d8e3ef8a0ea0e0b81c142753
+arms:
+  A:
+    label: six slice-2 incumbents unchanged, replaying exp-004's response cache
+    spec: {}
+    replay_only: true
+    repeats: 1
+    budget_usd: 0.0
+  B:
+    label: the same six programs with the in-function slice added to their prompts
+    spec: {slice: true}
+    replay_only: false
+    repeats: 1
+    budget_usd: 6.0
+unit: candidate
+pairing: paired
+cluster: repository
+order: {randomise: per_case, seed: 5}
+populations: {primary: paired, secondary: [pooled]}
+metric:
+  primary: [within_pair_auc]
+  secondary: [top_30_precision, unsure_rate, usd_per_candidate]
+decision: {arm: B, max_cost_ratio: 1.5}
+test: {primary: cluster_bootstrap_paired_diff, alpha: 0.05, sides: 2, resamples: 10000}
+mde: 0.0
+stopping: {looks: [1.0], boundaries: [1.959964]}
+budget_usd: {total: 6.0, per_arm: {A: 0.0, B: 6.0}}
+families: [access_control, deserialization, injection, output_encoding, path, untrusted_destination]
+folds: {kind: outer, k: 5, seed: 0, compile_fraction: 0.25}
+units_file: plane/experiments/exp-005-graph-slice.units.jsonl

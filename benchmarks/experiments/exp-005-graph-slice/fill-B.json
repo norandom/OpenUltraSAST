@@ -1,0 +1,84 @@
+{
+  "arms": [
+    "B"
+  ],
+  "client_calls": 2394,
+  "experiment": "exp-005-graph-slice",
+  "families": {
+    "access_control": {
+      "cached": 0,
+      "conditional_retries": 330,
+      "estimate_method": "estimated",
+      "estimated_output_tokens": 300,
+      "estimated_usd": 0.9956892000000007,
+      "filled": 330,
+      "missing": 330,
+      "requests": 330,
+      "still_missing": 0,
+      "units": 66
+    },
+    "deserialization": {
+      "cached": 0,
+      "conditional_retries": 310,
+      "estimate_method": "estimated",
+      "estimated_output_tokens": 300,
+      "estimated_usd": 0.8843295999999988,
+      "filled": 310,
+      "missing": 310,
+      "requests": 310,
+      "still_missing": 0,
+      "units": 64
+    },
+    "injection": {
+      "cached": 0,
+      "conditional_retries": 675,
+      "estimate_method": "estimated",
+      "estimated_output_tokens": 300,
+      "estimated_usd": 2.270278999999999,
+      "filled": 675,
+      "missing": 675,
+      "requests": 675,
+      "still_missing": 0,
+      "units": 149
+    },
+    "output_encoding": {
+      "cached": 0,
+      "conditional_retries": 325,
+      "estimate_method": "estimated",
+      "estimated_output_tokens": 300,
+      "estimated_usd": 1.0014180000000004,
+      "filled": 328,
+      "missing": 325,
+      "requests": 328,
+      "still_missing": 0,
+      "units": 69
+    },
+    "path": {
+      "cached": 0,
+      "conditional_retries": 320,
+      "estimate_method": "estimated",
+      "estimated_output_tokens": 300,
+      "estimated_usd": 0.9399192000000005,
+      "filled": 325,
+      "missing": 320,
+      "requests": 325,
+      "still_missing": 0,
+      "units": 66
+    },
+    "untrusted_destination": {
+      "cached": 0,
+      "conditional_retries": 425,
+      "estimate_method": "estimated",
+      "estimated_output_tokens": 300,
+      "estimated_usd": 1.174316,
+      "filled": 426,
+      "missing": 425,
+      "requests": 426,
+      "still_missing": 0,
+      "units": 87
+    }
+  },
+  "reason": "",
+  "status": "done",
+  "usd": 1.5890382240000016
+}

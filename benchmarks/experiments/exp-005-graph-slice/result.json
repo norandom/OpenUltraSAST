@@ -1,0 +1,165 @@
+{
+  "alpha": 0.05,
+  "arms": {
+    "A": {
+      "budget_usd": 0.0,
+      "label": "six slice-2 incumbents unchanged, replaying exp-004's response cache",
+      "repeats": 1,
+      "replay_only": true
+    },
+    "B": {
+      "budget_usd": 6.0,
+      "label": "the same six programs with the in-function slice added to their prompts",
+      "repeats": 1,
+      "replay_only": false
+    }
+  },
+  "code_commit": "0acbc7ec41dcaeca805c4720bc3f6d02cb940ee7",
+  "decision": "inconclusive",
+  "experiment": "exp-005-graph-slice",
+  "hypothesis": "Adding the in-function def-use slice to the prompt improves within-pair ranking of the six slice-2 incumbent programs on held-out repositories, at no more than 1.5 times the cost per candidate.\n",
+  "looks": [
+    {
+      "boundary": 1.959964,
+      "crossed": false,
+      "estimate": {
+        "a": 0.7615384615384615,
+        "b": 0.7461538461538462,
+        "ci": [
+          -0.0628019323671497,
+          0.03155339805825241
+        ],
+        "diff": -0.01538461538461533,
+        "groups": 220,
+        "metric": "within_pair_auc",
+        "resamples": 10000,
+        "se": 0.024030780235707972,
+        "units": 501
+      },
+      "fraction": 1.0,
+      "groups": 220,
+      "z": -0.6402045723740141
+    }
+  ],
+  "manifest_digest": "1b1ec814cde12801491376d2086c8c2d6db70f4a86fc308c0adc5a530398e554",
+  "mde": 0.0,
+  "primary": [
+    {
+      "name": "within_pair_auc"
+    }
+  ],
+  "reason": "the CI of within_pair_auc spans 0; the incumbent stays",
+  "resamples": 10000,
+  "secondary": [
+    {
+      "name": "top_30_precision"
+    },
+    {
+      "name": "unsure_rate"
+    },
+    {
+      "name": "usd_per_candidate"
+    }
+  ],
+  "spend_usd": {
+    "A": 1.444503,
+    "B": 1.589038
+  },
+  "tests": {
+    "top_30_precision": {
+      "ci_vs_zero": "spans",
+      "direction": 1,
+      "estimate": {
+        "a": 1.0,
+        "b": 1.0,
+        "ci": [
+          0.0,
+          0.0
+        ],
+        "diff": 0.0,
+        "groups": 220,
+        "metric": "top_30_precision",
+        "resamples": 10000,
+        "se": 0.0006666666666666664,
+        "units": 501
+      },
+      "mcnemar": null,
+      "target": null
+    },
+    "unsure_rate": {
+      "ci_vs_zero": "favour",
+      "direction": -1,
+      "estimate": {
+        "a": 0.29141716566866266,
+        "b": 0.23952095808383234,
+        "ci": [
+          -0.08583690987124465,
+          -0.01996007984031939
+        ],
+        "diff": -0.05189620758483032,
+        "groups": 220,
+        "metric": "unsure_rate",
+        "resamples": 10000,
+        "se": 0.01685991406098136,
+        "units": 501
+      },
+      "mcnemar": {
+        "b": 47,
+        "c": 21,
+        "concordant": 433,
+        "p_value": 0.0021862431776861705
+      },
+      "target": null
+    },
+    "usd_per_candidate": {
+      "ci_vs_zero": "against",
+      "direction": -1,
+      "estimate": {
+        "a": 0.002883239520958083,
+        "b": 0.0031717325349301397,
+        "ci": [
+          0.0002458205128205199,
+          0.0003319800399201574
+        ],
+        "diff": 0.0002884930139720565,
+        "groups": 220,
+        "metric": "usd_per_candidate",
+        "resamples": 10000,
+        "se": 2.1746161270931252e-05,
+        "units": 501
+      },
+      "mcnemar": null,
+      "target": null
+    },
+    "within_pair_auc": {
+      "ci_vs_zero": "spans",
+      "direction": 1,
+      "estimate": {
+        "a": 0.7615384615384615,
+        "b": 0.7461538461538462,
+        "ci": [
+          -0.0628019323671497,
+          0.03155339805825241
+        ],
+        "diff": -0.01538461538461533,
+        "groups": 220,
+        "metric": "within_pair_auc",
+        "resamples": 10000,
+        "se": 0.024030780235707972,
+        "units": 501
+      },
+      "mcnemar": null,
+      "target": null
+    }
+  },
+  "tost": null,
+  "units": {
+    "by_label": {
+      "0": 218,
+      "1": 283
+    },
+    "groups": 220,
+    "outcomes": 1002,
+    "paired": 501
+  }
+}

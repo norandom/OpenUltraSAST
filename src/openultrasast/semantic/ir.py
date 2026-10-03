@@ -15,6 +15,7 @@ class Bind:
     is_constant: bool
     names: tuple[str, ...]
     call_name: str | None
+    order: int = 0  # evaluation end position; calls precede their containing assignment
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,7 @@ class CallSite:
     arg_is_constant: tuple[bool, ...]
     arg_names: tuple[tuple[str, ...], ...]
     extra_arg_is_sequence: bool
+    order: int = 0
 
 
 @dataclass(frozen=True)
@@ -119,6 +121,7 @@ def _collect_stmt(stmt: ast.stmt, binds: list[Bind], calls: list[CallSite]) -> N
                         is_constant=value_bind[1],
                         names=value_bind[2],
                         call_name=value_bind[3],
+                        order=_end_position(stmt.value),
                     )
                 )
         _collect_expr_calls(stmt.value, calls)
@@ -133,6 +136,7 @@ def _collect_stmt(stmt: ast.stmt, binds: list[Bind], calls: list[CallSite]) -> N
                 is_constant=value_bind[1],
                 names=value_bind[2],
                 call_name=value_bind[3],
+                order=_end_position(stmt.value),
             )
         )
         _collect_expr_calls(stmt.value, calls)
@@ -147,6 +151,7 @@ def _collect_stmt(stmt: ast.stmt, binds: list[Bind], calls: list[CallSite]) -> N
                 is_constant=False,
                 names=tuple(sorted(set(value_bind[2]) | {stmt.target.id})),
                 call_name=value_bind[3],
+                order=_end_position(stmt.value),
             )
         )
         _collect_expr_calls(stmt.value, calls)
@@ -190,6 +195,7 @@ def _call_site(node: ast.Call) -> CallSite:
     if len(node.args) >= 2:
         extra_sequence = isinstance(node.args[1], ast.Tuple | ast.List | ast.Set)
     return CallSite(
+        order=_end_position(node),
         name=_call_name(node),
         line=node.lineno,
         arg_texts=tuple(arg_texts),
@@ -197,6 +203,10 @@ def _call_site(node: ast.Call) -> CallSite:
         arg_names=tuple(arg_names),
         extra_arg_is_sequence=extra_sequence,
     )
+
+
+def _end_position(node: ast.AST) -> int:
+    return int(getattr(node, "end_lineno", 0) or 0) * 1_000_000 + int(getattr(node, "end_col_offset", 0) or 0)
 
 
 def _call_name(node: ast.AST) -> str:

@@ -289,3 +289,86 @@ def test_bounded_provider_caps_output_and_disables_unmetered_retries(monkeypatch
     assert "thinking" not in raw_calls[-1]["extra_body"]
     assert bounded.usage == [{"prompt_tokens": 20, "completion_tokens": 3}]
     assert original.usage == [] and transport.max_attempts == 3
+
+
+@pytest.mark.parametrize("sampling", ["temperature", "retrieval_ensemble"])
+def test_program_fill_selected_arm_replicates_retries_and_replay(tmp_path: Path, sampling: str) -> None:
+    from test_learn_experiments import artifact, committed, example_rows, put_program, write_manifest
+
+    from openultrasast.learn.fill import fill_experiment
+    from openultrasast.learn.program import Caller
+
+    store = FileStore(tmp_path / "memory")
+    store.put_rows(example_rows())
+    path = write_manifest(tmp_path, put_program(store, artifact()), repeats=2)
+    path.write_text(path.read_text().replace("sampling: retrieval_ensemble", f"sampling: {sampling}, slice: true"))
+    manifest = ex.load_manifest(path)
+    units = ex.freeze_units(store, manifest, EXAMPLES)[:4]
+    ex.write_units(manifest.units_file, units)
+    ex.register(store, manifest, commit_of=committed)
+    before = snapshot(tmp_path)
+    dry = fill_experiment(store, manifest, EXAMPLES, PRICES, excerpt_text, dry_run=True)
+    assert dry["arms"] == ["B"] and total(dry, "missing") == 4 * len(units)
+    assert snapshot(tmp_path) == before
+    zero = fill_experiment(store, manifest, EXAMPLES, PRICES, excerpt_text, budget_usd=0, client=ScriptedChat())
+    assert zero["status"] == "unfinished" and zero["client_calls"] == 0 and snapshot(tmp_path) == before
+    with pytest.raises(ex.ExperimentError, match="manifest ceiling"):
+        fill_experiment(store, manifest, EXAMPLES, PRICES, excerpt_text, budget_usd=2.01, client=ScriptedChat())
+    calls = 0
+
+    def retry_once(messages: Any, temperature: Any) -> str:
+        nonlocal calls
+        calls += 1
+        return "invalid json" if calls == 1 else default_answer(messages, temperature)
+
+    chat = ScriptedChat(retry_once)
+    filled = fill_experiment(store, manifest, EXAMPLES, PRICES, excerpt_text, budget_usd=1, client=chat)
+    assert filled["status"] == "done" and total(filled, "still_missing") == 0
+    assert filled["client_calls"] == 4 * len(units) + 1
+    assert all("Data flow inside the function:" in str(c["messages"]) for c in chat.calls)
+    assert not ex.load_outcomes(store, manifest.id)
+    arm_a = fill_experiment(store, manifest, EXAMPLES, PRICES, excerpt_text, arms=["A"], dry_run=True)
+    assert arm_a["arms"] == ["A"] and total(arm_a, "cached") == 0
+    fill_experiment(store, manifest, EXAMPLES, PRICES, excerpt_text, arms=["A"], budget_usd=1, client=ScriptedChat())
+    callers = {name: Caller(None, "deepseek-flash", PRICES, store=store) for name in manifest.arms}
+    summary = ex.run(store, manifest, EXAMPLES, callers, excerpt_text, stop_early=False)
+    assert summary.status == "done" and summary.decided == {"A": 2 * len(units), "B": 2 * len(units)}
+    assert all(c.calls == 0 for c in callers.values())
+    before = snapshot(tmp_path)
+    with pytest.raises(ex.ExperimentError, match="known arm"):
+        fill_experiment(store, manifest, EXAMPLES, PRICES, excerpt_text, arms=["unknown"], dry_run=True)
+    assert snapshot(tmp_path) == before
+
+
+def test_program_cli_selects_fill_arm_and_runs_replay_without_endpoint(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from test_learn_experiments import prepared as prepared_program
+
+    import openultrasast.learn.examples as examples
+    import openultrasast.model.endpoint as endpoint
+    from openultrasast.learn.fill import fill_experiment
+
+    store, manifest, units = prepared_program(tmp_path)
+    real_get_blob = FileStore.get_blob
+
+    def get_blob(self: FileStore, kind: str, sha: str, **kwargs: Any) -> bytes | None:
+        if kind == "excerpts":
+            code = CODE.get(sha)
+            return code.encode() if code is not None else None
+        return real_get_blob(self, kind, sha, **kwargs)
+
+    monkeypatch.setattr(FileStore, "get_blob", get_blob)
+    monkeypatch.setattr(examples, "load_examples", lambda *_: EXAMPLES)
+    monkeypatch.setattr(endpoint, "resolve_chat_endpoint", lambda *_: pytest.fail("resolved an endpoint"))
+    args = [str(manifest.path), "--memory", f"file://{tmp_path / 'memory'}"]
+    before = snapshot(tmp_path)
+    assert main(["learn", "experiment", "fill", *args, "--arm", "B", "--dry-run"]) == 0
+    assert json.loads(capsys.readouterr().out)["arms"] == ["B"] and snapshot(tmp_path) == before
+    assert main(["learn", "experiment", "run", *args, "--replay-only"]) == 2  # missing cache, no endpoint
+    capsys.readouterr()
+    fill_experiment(store, manifest, EXAMPLES, PRICES, excerpt_text, arms=["A", "B"], client=ScriptedChat(), budget_usd=1)
+    assert main(["learn", "experiment", "run", *args, "--replay-only", "--no-early-stop"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["decided"] == {"A": len(units), "B": len(units)}
+    assert all(arm["client_calls"] == 0 for arm in report["spend"].values())

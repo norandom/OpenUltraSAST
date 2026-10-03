@@ -1,4 +1,4 @@
-"""Fill rule-experiment responses without writing scores or changing the frozen population.
+"""Fill experiment responses without writing scores or changing the frozen population.
 
 Estimates use the family's mean billed cached response cost when usage is available.
 Otherwise they use Prompt.estimated_tokens and 300 output tokens. Unknown answers may require one retry;
@@ -81,7 +81,7 @@ class FillMeter(MeteredClient):
         return response
 
 
-def fill_rule(
+def fill_experiment(
     store: MemoryStore,
     manifest: ex.Manifest,
     memory: Sequence[Example],
@@ -93,6 +93,7 @@ def fill_rule(
     client_factory: Callable[[], ChatClient] | None = None,
     budget_usd: float | None = None,
     dry_run: bool = False,
+    arms: Sequence[str] | None = None,
 ) -> dict[str, Any]:
     """Inspect or fill every frozen unit. The first cache miss is the smoke call.
 
@@ -102,19 +103,32 @@ def fill_rule(
     """
     from .evaluate import candidate_from_example
 
-    if manifest.kind != "rule":
-        raise ex.ExperimentError("experiment fill supports kind: rule only")
+    if manifest.kind not in ("rule", "program"):
+        raise ex.ExperimentError("experiment fill supports kind: rule or program only")
+    selected = list(dict.fromkeys(arms if arms is not None else (["A"] if manifest.kind == "rule" else manifest.paid_arms)))
+    if not selected or any(name not in manifest.arms for name in selected):
+        raise ex.ExperimentError("fill requires at least one known arm")
+    # Rule arms share exactly one scoring pass, regardless of the selected rule.
+    scoring = selected[:1] if manifest.kind == "rule" else selected
     if not dry_run and (budget_usd is None or not math.isfinite(budget_usd) or budget_usd < 0):
         raise ex.ExperimentError("--budget-usd must be a finite non-negative number (or use --dry-run)")
+    if manifest.kind == "program" and not dry_run:
+        ceiling = min(manifest.budget_total_usd, sum(manifest.arms[name].budget_usd for name in selected))
+        if budget_usd is not None and budget_usd > ceiling:
+            raise ex.ExperimentError(f"--budget-usd exceeds the selected program arms' manifest ceiling ({ceiling})")
     prices = prices_from(parameters)
     if prices is None or any(not math.isfinite(p) or p < 0 for p in (prices.input_per_m, prices.output_per_m, prices.cache_hit_per_m)):
         raise ex.ExperimentError("fill requires finite, non-negative Model prices")
     ex.check_registered(store, manifest)
     units, folds, _ = ex._checked_units(manifest, memory)
-    programs = {f: Program(ex.arm_spec(manifest, manifest.arms["A"], f, store), memory, excerpt_text, vectors) for f in manifest.families}
+    programs = {
+        (name, f): Program(ex.arm_spec(manifest, manifest.arms[name], f, store), memory, excerpt_text, vectors)
+        for name in scoring
+        for f in manifest.families
+    }
     models = {p.spec.model for p in programs.values()}
     if len(models) != 1:
-        raise ex.ExperimentError("the rule programs must use the same model")
+        raise ex.ExperimentError("the selected programs must use the same model")
     caller = Caller(None, next(iter(models)), parameters, store=store)
     index = {e.id: e for e in memory}
     candidate_of = candidate_from_example(excerpt_text, vectors)
@@ -123,10 +137,13 @@ def fill_rule(
         candidate = candidate_of(index[unit.unit])
         if candidate is None:
             raise ex.ExperimentError(f"{manifest.id}: unit {unit.unit[:12]} has no excerpt in the store")
-        for prompt, _, temperature, sample in programs[unit.family].prepare_samples(
-            candidate, folds[unit.fold], seed=int(manifest.folds.get("seed", 0))
-        ):
-            requests.append(Request(unit.family, prompt, temperature, sample))
+        for name in scoring:
+            prepared = programs[name, unit.family].prepare_samples(candidate, folds[unit.fold], seed=int(manifest.folds.get("seed", 0)))
+            repeats = manifest.arms[name].repeats if manifest.kind == "program" else 1
+            for replicate in range(repeats):
+                salt = f"r{replicate}:" if replicate else ""
+                for prompt, _, temperature, sample in prepared:
+                    requests.append(Request(unit.family, prompt, temperature, f"{salt}{sample}"))
 
     # Request counts are distinct cache keys per family, even when multiple units share one.
     def inventory() -> dict[str, dict[str, Request]]:
@@ -167,6 +184,7 @@ def fill_rule(
         }
     report: dict[str, Any] = {
         "experiment": manifest.id,
+        "arms": selected,
         "status": "dry_run" if dry_run else "done",
         "families": families,
         "client_calls": 0,
@@ -205,3 +223,7 @@ def fill_rule(
     if meter is not None:
         report.update(client_calls=meter.calls, usd=meter.usd)
     return report
+
+
+# Backwards-compatible name for callers of the original rule-only API.
+fill_rule = fill_experiment

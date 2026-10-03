@@ -17,7 +17,7 @@ _KIND = {
     },
     "javascript": {
         "function": frozenset({"function_declaration", "method_definition", "arrow_function", "function_expression"}),
-        "assign": frozenset({"assignment_expression", "augmented_assignment_expression"}),
+        "assign": frozenset({"assignment_expression", "augmented_assignment_expression", "variable_declarator"}),
         "call": frozenset({"call_expression"}),
         "args": frozenset({"arguments"}),
         "string": frozenset({"string"}),
@@ -25,7 +25,7 @@ _KIND = {
     },
     "c": {
         "function": frozenset({"function_definition"}),
-        "assign": frozenset({"assignment_expression"}),
+        "assign": frozenset({"assignment_expression", "init_declarator"}),
         "call": frozenset({"call_expression"}),
         "args": frozenset({"argument_list"}),
         "string": frozenset({"string_literal"}),
@@ -152,12 +152,17 @@ def _bind(node: Any, kinds: dict[str, frozenset[str]]) -> Bind | None:
     if not name:
         return None
     value_text = _text(value_node) if value_node is not None else ""
+    augmented = node.type in {"augmented_assignment", "augmented_assignment_expression"}
+    names = _identifiers(value_node) if value_node is not None else ()
+    if augmented:
+        names = (name, *names)
     return Bind(
         name=name,
+        order=int(node.end_byte),
         line=_line(node),
         value_text=value_text,
-        is_constant=_is_constant(value_node, kinds) if value_node is not None else False,
-        names=_identifiers(value_node) if value_node is not None else (),
+        is_constant=not augmented and _is_constant(value_node, kinds) if value_node is not None else False,
+        names=names,
         call_name=_call_name(value_node, kinds) if value_node is not None and value_node.type in kinds["call"] else None,
     )
 
@@ -167,6 +172,7 @@ def _call(node: Any, kinds: dict[str, frozenset[str]]) -> CallSite:
     arg_nodes = list(getattr(args_node, "named_children", ()) or ()) if args_node is not None else []
     extra = len(arg_nodes) >= 2 and arg_nodes[1].type in _SEQUENCE
     return CallSite(
+        order=int(node.end_byte),
         name=_callee_name(node, args_node),
         line=_line(node),
         arg_texts=tuple(_text(arg) for arg in arg_nodes),
@@ -211,6 +217,9 @@ def _function_name(node: Any) -> str:
 
 
 def _params(node: Any, kinds: dict[str, frozenset[str]]) -> tuple[str, ...]:
+    parameter = node.child_by_field_name("parameter")
+    if parameter is not None:
+        return _identifiers(parameter)
     for child in _walk(node, skip=frozenset()):
         if child.type in kinds["params"]:
             return _identifiers(child)
