@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -18,7 +19,10 @@ SCRIPT = Path(__file__).resolve().parents[1] / "benchmarks/learn/engine_trace.py
 _spec = importlib.util.spec_from_file_location("engine_trace", SCRIPT)
 assert _spec and _spec.loader
 trace = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(trace)
+with pytest.MonkeyPatch.context() as patch:
+    patch.syspath_prepend(str(SCRIPT.parent))
+    _spec.loader.exec_module(trace)
+worker = sys.modules["engine_trace_worker"]
 
 
 def row(**extra):
@@ -163,11 +167,12 @@ class FakeBackend:
 
 
 def run_fake(tmp_path, monkeypatch, backend=FakeBackend, content="def run():\n    pass\n"):
-    monkeypatch.setattr(trace, "MeasuredBackend", backend)
+    monkeypatch.setattr(worker, "MeasuredBackend", backend)
     (tmp_path / "app.py").write_text(content)
     pin = {"repo": "owner/repo", "pin": "pin", "units": [unit(), unit("b")]}
     out = tmp_path / "result.json"
-    trace.worker(pin, tmp_path, out, 900, 120)
+    pin["questions"] = trace.prepare_questions(pin, tmp_path, 120) if content else {}
+    worker.worker(pin, tmp_path, out, 900, 120)
     return json.loads(out.read_text())
 
 
@@ -197,9 +202,8 @@ def test_invalid_instrument_is_persisted_failed(tmp_path, monkeypatch, failure):
 
 
 def test_missing_labelled_function_is_failure(tmp_path, monkeypatch):
-    result = run_fake(tmp_path, monkeypatch, content="def other():\n    pass\n")
-    assert result["units"][0]["status"] == "failed"
-    assert "not declared" in result["units"][0]["reason"]
+    with pytest.raises(ValueError, match="not declared"):
+        run_fake(tmp_path, monkeypatch, content="def other():\n    pass\n")
 
 
 def test_docker_command_is_serial_offline_frozen():
@@ -209,6 +213,8 @@ def test_docker_command_is_serial_offline_frozen():
     assert cmd[cmd.index("--pull") + 1] == "never"
     assert "/export:/frozen:ro" in cmd and "/pin:/case:ro" in cmd
     assert cmd[-1] == "60"
+    assert "/frozen/benchmarks/learn/engine_trace_worker.py" in cmd
+    assert "benchmarks/learn/engine_trace_worker.py" in trace.SNAPSHOT_FILES
 
 
 def test_summary_separates_unanswered_pairs(tmp_path):
@@ -258,7 +264,7 @@ def test_question_watchdog_retains_completed_rows_without_joern(tmp_path):
         'print(json.dumps({"__question__":"b"}),flush=True)\n'
         "time.sleep(60)\n"
     )
-    backend = trace.MeasuredBackend(10, 0.05, lambda: None)
+    backend = worker.MeasuredBackend(10, 0.05, lambda: None)
     done = backend._run([sys.executable, "-c", code], timeout=10, cwd=tmp_path)
     assert backend.timed_out
     assert backend.asked == ["a", "b"]
@@ -351,5 +357,115 @@ def test_failed_launch_persists_failed_pin_and_resume_skips_it(tmp_path, monkeyp
     result = json.loads((tmp_path / trace.pin_name(pin)).read_text())
     assert result["units"][0]["status"] == "failed"
     assert "produced no result" in result["units"][0]["reason"]
-    assert [c[1] for c in commands] == ["run", "rm"]
+    assert [c[1] for c in commands if c[0] == "docker"] == ["run", "rm"]
     assert trace.make_plan([unit()], tmp_path) == []
+
+
+def import_container_worker():
+    """Import in a fresh interpreter so host imports cannot mask the boundary."""
+    script = SCRIPT.with_name("engine_trace_worker.py")
+    code = """
+import json, pathlib, runpy, sys
+sys.modules['yaml'] = None
+sys.modules['boto3'] = None
+script = pathlib.Path(sys.argv[1])
+size = len(script.read_bytes())
+runpy.run_path(str(script), run_name='trace_import_check')
+print(json.dumps({'bytes': size, 'modules': sorted(
+    name for name in sys.modules if name == 'openultrasast' or name.startswith('openultrasast.')
+)}))
+"""
+    result = subprocess.run([sys.executable, "-c", code, str(script)], capture_output=True, text=True, timeout=30)
+    assert result.returncode == 0, result.stderr
+    return json.loads(result.stdout)
+
+
+def test_trace_container_import_without_yaml_or_boto3():
+    assert import_container_worker()["bytes"] > 0
+
+
+def test_trace_container_transitive_import_boundary():
+    # Explicit inventory: additions need review, particularly learn.examples/plane.*.
+    assert import_container_worker()["modules"] == [
+        "openultrasast",
+        "openultrasast.contracts",
+        "openultrasast.cpg",
+        "openultrasast.cpg.artifact",
+        "openultrasast.cpg.backend",
+        "openultrasast.cpg.session",
+        "openultrasast.model",
+        "openultrasast.model.contracts",
+        "openultrasast.model.trace",
+    ]
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_trace_dry_run_unsupported_units_write_nothing(tmp_path, monkeypatch, capsys, existing):
+    out = tmp_path / "results"
+    if existing:
+        out.mkdir()
+        (out / ".lock").write_bytes(b"existing lock")
+        (out / "checkpoint.json").write_text('{"done": false}')
+        (out / "previous.json").write_text('{"done": true, "units": []}')
+    before = {p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in out.glob("*")}
+    units = [unit("ts", file="app.ts"), unit("py", pin="python")]
+    examples = [{**u, "id": u["unit"], "candidate": u["file"] + "::run", "source": "population-v1"} for u in units]
+    units_file, examples_file = tmp_path / "units.jsonl", tmp_path / "examples.jsonl"
+    units_file.write_text("\n".join(map(json.dumps, units)))
+    examples_file.write_text("\n".join(map(json.dumps, examples)))
+    monkeypatch.setattr(
+        sys, "argv", [str(SCRIPT), "--dry-run", "--units", str(units_file), "--examples", str(examples_file), "--out", str(out)]
+    )
+    monkeypatch.setattr(trace.subprocess, "run", lambda *a, **kw: pytest.fail("dry run spawned subprocess"))
+    monkeypatch.setattr(trace, "write_json", lambda *a: pytest.fail("dry run wrote JSON"))
+    assert trace.main() == 0
+    plan = json.loads(capsys.readouterr().out)
+    assert plan["pins"] == 2 and plan["runnable_pins"] == 1
+    assert out.exists() == existing
+    assert {p.name: (p.read_bytes(), p.stat().st_mtime_ns) for p in out.glob("*")} == before
+
+
+def test_trace_real_unsupported_run_then_typescript_opt_in_replans(tmp_path, monkeypatch, capsys):
+    u = unit(file="app.ts")
+    example = {**u, "id": "a", "candidate": "app.ts::run", "source": "population-v1"}
+    units_file, examples_file, out = tmp_path / "units.jsonl", tmp_path / "examples.jsonl", tmp_path / "results"
+    units_file.write_text(json.dumps(u) + "\n")
+    examples_file.write_text(json.dumps(example) + "\n")
+    argv = [str(SCRIPT), "--units", str(units_file), "--examples", str(examples_file), "--out", str(out)]
+    monkeypatch.setattr(sys, "argv", argv)
+    monkeypatch.setattr(trace, "freeze_source", lambda target: {})
+    monkeypatch.setattr(trace.subprocess, "run", lambda *a, **kw: pytest.fail("unsupported run invoked Docker"))
+    assert trace.main() == 0
+    result_file = out / trace.pin_name(u)
+    first = json.loads(result_file.read_text())
+    assert first["done"] and first["units"][0]["status"] == "unsupported"
+    assert trace.make_plan(trace.join_units([u], [example]), out) == []
+
+    called = []
+
+    def run_pin(pin, source, provenance, inputs, results, args):
+        called.append(pin)
+        trace.save_pin(
+            results / trace.pin_name(pin), {**pin, "done": True, "units": [trace.unit_record(r, "asked-nothing") for r in pin["units"]]}
+        )
+        return False
+
+    def inspect_image(command, **kwargs):
+        assert command[:3] == ["docker", "image", "inspect"]
+        return subprocess.CompletedProcess(command, 0, "sha256:fake\n", "")
+
+    monkeypatch.setattr(trace, "run_pin", run_pin)
+    monkeypatch.setattr(trace.subprocess, "run", inspect_image)
+    monkeypatch.setattr(sys, "argv", [*argv, "--include-typescript"])
+    assert trace.main() == 0
+    assert len(called) == 1 and called[0]["units"][0]["supported"]
+    assert called[0]["selection"] != first["selection"]
+    assert json.loads(result_file.read_text())["units"][0]["status"] == "asked-nothing"
+    assert trace.make_plan(trace.join_units([u], [example], include_typescript=True), out, include_typescript=True) == []
+
+
+def test_trace_resume_identity_includes_selection_even_if_support_unchanged(tmp_path):
+    first = trace.make_plan([unit()], tmp_path)[0]
+    trace.save_pin(tmp_path / trace.pin_name(first), {**first, "done": True})
+    assert trace.make_plan([unit()], tmp_path) == []
+    assert len(trace.make_plan([unit()], tmp_path, include_typescript=True)) == 1

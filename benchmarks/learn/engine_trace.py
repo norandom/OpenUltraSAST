@@ -3,20 +3,17 @@
 Pair pins are excerpt blob identities, NOT commits: materialize their catalog side
 and registration documents. Repository pins are exported from existing local clones.
 The analyzer is git archive HEAD src plus a hashed snapshot of this uncommitted tool's
-four implementation files; this allows review/worktree use without making a commit.
+implementation files; this allows review/worktree use without making a commit.
 """
 
 from __future__ import annotations
 
 import argparse
-import contextlib
 import fcntl
 import hashlib
 import json
 import os
-import selectors
 import shutil
-import signal
 import subprocess
 import tempfile
 import time
@@ -24,12 +21,12 @@ import tomllib
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from openultrasast.cpg.backend import JoernBackend
+from engine_trace_worker import safe_path, unit_record, write_json
+
 from openultrasast.learn.examples import read_jsonl
 from openultrasast.learn.labels import load_sources, repo_name
 from openultrasast.model.specs import taint_specs
 from openultrasast.model.taint import request_params
-from openultrasast.model.trace import parse_trace
 from openultrasast.pairs import _materialize_side, load_pair_catalog
 from openultrasast.plane.engine_alerts import export_pin
 from openultrasast.plane.memory import FileStore
@@ -40,6 +37,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUT = Path.home() / "ousast-results/plane/engine-trace"
 SNAPSHOT_FILES = (
     "benchmarks/learn/engine_trace.py",
+    "benchmarks/learn/engine_trace_worker.py",
     "src/openultrasast/model/trace.py",
     "src/openultrasast/model/taint.py",
     "src/openultrasast/cpg/queries/taint.sc",
@@ -53,20 +51,6 @@ def digest(value):
 
 def pin_name(pin):
     return digest([pin["repo"], pin["pin"]]) + ".json"
-
-
-def write_json(path, value):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
-    tmp.replace(path)
-
-
-def safe_path(root, name):
-    path = (root / name).resolve()
-    if not path.is_relative_to(root.resolve()):
-        raise ValueError(f"path escapes input root: {name}")
-    return path
 
 
 def join_units(units, examples, include_typescript=False):
@@ -106,11 +90,14 @@ def join_units(units, examples, include_typescript=False):
     return result
 
 
-def make_plan(units, out, only_family=None, limit=0):
+def make_plan(units, out, only_family=None, limit=0, *, include_typescript=False):
     grouped = defaultdict(list)
     for unit in units:
         if not only_family or unit["family"] == only_family:
-            grouped[unit["repo"], unit["pin"]].append({**unit, "input_digest": digest(unit)})
+            # Include admission options even when a unit's support happens to stay
+            # unchanged. Old results cannot mark a different selection as complete.
+            identity = {"unit": unit, "include_typescript": include_typescript}
+            grouped[unit["repo"], unit["pin"]].append({**unit, "input_digest": digest(identity)})
     plan = []
     for (repo, pin), rows in sorted(grouped.items()):
         item = {"repo": repo, "pin": pin, "units": sorted(rows, key=lambda r: r["unit"])}
@@ -237,252 +224,6 @@ class Inputs:
         raise ValueError(f"no local clone contains {pin['repo']}@{pin['pin']}")
 
 
-def instrument_failure(proof):
-    if not proof.get("files") or not proof.get("bytes"):
-        return "instrument read zero files or zero bytes"
-    if not proof.get("cpg_bytes"):
-        return "instrument produced no CPG bytes"
-    for stage in proof.get("jvm", []):
-        if stage["seconds"] < 5:
-            return f"implausibly fast JVM step: {stage['command']} in {stage['seconds']:.3f}s (<5s)"
-    if not proof.get("jvm"):
-        return "no JVM step recorded"
-    return ""
-
-
-class MeasuredBackend(JoernBackend):
-    """Use the shipped backend with a process watchdog, no concurrent query threads."""
-
-    def __init__(self, deadline, question_deadline, checkpoint):
-        super().__init__(build_timeout=deadline, query_timeout=deadline, session_transport=False)
-        self.deadline = time.monotonic() + deadline
-        self.question_deadline = question_deadline
-        self.checkpoint = checkpoint
-        self.stages = []
-        self.asked = []
-        self.answers = {}
-        self.completion_counts = Counter()
-        self.timed_out = False
-        self.fatal = ""
-
-    def _run(self, command, *, timeout, cwd=None):
-        if self.fatal or self.timed_out:
-            return None
-        if time.monotonic() >= self.deadline:
-            self.timed_out = True
-            return None
-        started = time.monotonic()
-        end = min(self.deadline, started + timeout)
-        question_end = end
-        jvm = Path(command[0]).name != "php"
-        output = bytearray()
-        pending = b""
-        process = subprocess.Popen(
-            command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=cwd, env=self._jvm_env(), start_new_session=True
-        )
-        try:
-            with selectors.DefaultSelector() as selector:
-                selector.register(process.stdout, selectors.EVENT_READ)
-                while selector.get_map():
-                    if time.monotonic() >= min(end, question_end):
-                        self.timed_out = True
-                        break
-                    for key, _ in selector.select(min(0.2, max(0, min(end, question_end) - time.monotonic()))):
-                        chunk = os.read(key.fileobj.fileno(), 65536)
-                        if not chunk:
-                            selector.unregister(key.fileobj)
-                            continue
-                        output.extend(chunk)
-                        pending += chunk
-                        while b"\n" in pending:
-                            line, pending = pending.split(b"\n", 1)
-                            try:
-                                event = json.loads(line)
-                            except ValueError:
-                                continue
-                            if not isinstance(event, dict):
-                                continue
-                            if "__question__" in event:
-                                self.asked.append(event["__question__"])
-                                question_end = min(end, time.monotonic() + self.question_deadline)
-                            if "id" in event and "rows" in event:
-                                self.answers[event["id"]] = event["rows"]
-                                self.completion_counts[event["id"]] += 1
-                                question_end = end
-                            self.checkpoint()
-            if not self.timed_out:
-                process.wait(timeout=max(0.01, end - time.monotonic()))
-        finally:
-            with contextlib.suppress(ProcessLookupError):
-                os.killpg(process.pid, signal.SIGKILL)
-            process.wait(timeout=5)
-            process.stdout.close()
-        elapsed = time.monotonic() - started
-        if jvm:
-            self.stages.append({"command": Path(command[0]).name, "seconds": elapsed, "exit": process.returncode})
-            if elapsed < 5:
-                self.fatal = f"implausibly fast JVM step: {command[0]} in {elapsed:.3f}s (<5s)"
-        self.checkpoint()
-        return subprocess.CompletedProcess(command, process.returncode if not self.fatal else 1, output.decode(errors="replace"), "")
-
-
-def unit_record(unit, status, reason="", **extra):
-    return {
-        **unit,
-        "status": status,
-        "reason": reason,
-        "witness_rows": [],
-        "traces": [],
-        "instrument": {"files": [], "bytes": 0, "cpg_bytes": 0, "jvm": []},
-        "questions": {},
-        "questions_asked": [],
-        "questions_completed": [],
-        **extra,
-    }
-
-
-def worker(pin, root, out, deadline, question_deadline):
-    proof = {"files": [], "bytes": 0, "cpg_bytes": 0, "jvm": []}
-    record = {
-        **pin,
-        "done": False,
-        "instrument": proof,
-        "units": [unit_record(u, "unsupported" if not u["supported"] else "timeout", u["reason"]) for u in pin["units"]],
-    }
-
-    def checkpoint():
-        # Checkpoints retain raw completed rows even if the outer container deadline fires.
-        # They remain timeout until the finished JVM's instrument proof is validated.
-        for row in record["units"]:
-            rid = row["unit"]
-            row["instrument"] = proof
-            row["questions_asked"] = [rid] if rid in backend.asked else []
-            if rid in backend.answers:
-                row["questions_completed"] = [rid]
-                row["witness_rows"] = [r for r in backend.answers[rid] if isinstance(r, dict) and "kind" not in r and "sink" in r]
-        write_json(out, record)
-
-    backend = MeasuredBackend(deadline, question_deadline, checkpoint)
-    proof["jvm"] = backend.stages
-    cpg = None
-    try:
-        active = [u for u in pin["units"] if u["supported"]]
-        for file in sorted({u["file"] for u in active}):
-            data = safe_path(root, file).read_bytes()
-            proof["files"].append({"file": file, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()})
-            proof["bytes"] += len(data)
-            print(f"read {file}: {len(data)} bytes", flush=True)
-        if not proof["bytes"]:
-            raise ValueError("instrument read zero files or zero bytes")
-        languages = {"javascript" if u["language"] == "typescript" else u["language"] for u in active}
-        if len(languages) != 1:
-            raise ValueError(f"one pin has multiple frontend languages: {sorted(languages)}")
-        language = next(iter(languages))
-        from openultrasast.learn.features import entry_names
-        from openultrasast.mapping import php_hook_callbacks
-        from openultrasast.plane.harvest import declares
-        from openultrasast.preprocess import preprocess_repository
-
-        _, targets = preprocess_repository(root)
-        entries, _ = entry_names(root, {u["file"] for u in active})
-        hooks = ";".join(f"{h}:{f}" for h, functions in php_hook_callbacks(root, targets).items() for f in functions)
-        requests = {}
-        specs = taint_specs(language="javascript" if language == "typescript" else language)
-        for u in active:
-            if not declares(safe_path(root, u["file"]).read_text(errors="replace").splitlines(), u["file"], u["function"]):
-                raise ValueError(f"labelled function not declared: {u['file']}::{u['function']}")
-            excerpt = u.get("excerpt", False)
-            params = request_params(
-                specs[u["family"]],
-                file=u["file"],
-                function=u["function"],
-                trace=True,
-                parameter_sources=excerpt or u["function"] in entries,
-                call_depth=0 if excerpt else 3,
-                hook_callbacks=hooks,
-            )
-            params["questionDeadline"] = str(question_deadline)
-            requests[u["unit"]] = params
-        record["questions"] = requests
-        for unit_row in record["units"]:
-            unit_row["questions"] = {unit_row["unit"]: requests[unit_row["unit"]]} if unit_row["unit"] in requests else {}
-        write_json(out, record)
-        cpg = backend.build(root, language=language)
-        if cpg is None:
-            raise ValueError(backend.fatal or backend.last_failure or ("pin deadline" if backend.timed_out else "CPG build failed"))
-        proof["cpg_bytes"] = sum(p.stat().st_size for p in cpg.cpg_path.parent.rglob("*.bin"))
-        failure = instrument_failure(proof)
-        if failure:
-            raise ValueError(failure)
-        if cpg.run_batch_once is None:
-            raise ValueError("backend offers no batch operation")
-        answers = cpg.run_batch_once("taint", requests) or {}
-        record["census"] = answers.get("__census__", [])
-        failure = backend.fatal or instrument_failure(proof)
-        census = record["census"]
-        if census and int(census[0].get("files", 0)) <= 0:
-            failure = failure or "query census read zero files"
-        elif not census and not backend.timed_out:
-            failure = failure or "query census is missing"
-        for index, unit in enumerate(pin["units"]):
-            if not unit["supported"]:
-                continue
-            rid = unit["unit"]
-            extra = {
-                "questions": {rid: requests[rid]},
-                "questions_asked": [rid] if rid in backend.asked else [],
-                "questions_completed": [rid] if rid in answers else [],
-                "instrument": proof,
-            }
-            rows = answers.get(rid)
-            # A batch across backend shards is complete only when every shard answered.
-            # The legacy merger can return a union even when one shard was killed.
-            shards = int(census[0].get("shards", 1)) if census else 1
-            shard_incomplete = shards > 1 and getattr(backend, "completion_counts", {}).get(rid, 0) < shards
-            if rows is not None:
-                raw_flows = [r for r in rows if isinstance(r, dict) and "kind" not in r and "sink" in r]
-                extra.update(witness_rows=raw_flows, traces=[parse_trace(r) for r in raw_flows])
-            if shard_incomplete:
-                extra["questions_completed"] = []
-            dropped = any(p.endswith(unit["file"]) for p in cpg.unparsed)
-            names = census[0].get("file_names", []) if census else []
-            file_missing = not any(str(p).removeprefix("./") == unit["file"] or str(p).endswith("/" + unit["file"]) for p in names)
-            if file_missing and rows is not None:
-                dropped = True
-            if failure or dropped:
-                status, reason = "failed", failure or "labelled file was dropped or absent from query census"
-            elif rows is None or shard_incomplete:
-                status, reason = ("timeout" if backend.timed_out else "failed"), "question did not complete"
-            else:
-                flows = [r for r in rows if isinstance(r, dict) and "kind" not in r and "sink" in r]
-                if any(not row.get("trace") for row in flows):
-                    raise ValueError("taint witness returned without requested trace")
-                extra.update(witness_rows=flows, traces=[parse_trace(r) for r in flows])
-                status, reason = ("path" if flows else "asked-nothing"), ""
-            record["units"][index] = unit_record(unit, status, reason, **extra)
-    except (OSError, ValueError, RuntimeError) as exc:
-        for index, unit in enumerate(pin["units"]):
-            if unit["supported"]:
-                record["units"][index] = unit_record(
-                    unit,
-                    "timeout" if backend.timed_out and not backend.fatal else "failed",
-                    str(exc),
-                    instrument=proof,
-                    questions={unit["unit"]: record["questions"][unit["unit"]]} if unit["unit"] in record.get("questions", {}) else {},
-                    witness_rows=[r for r in backend.answers.get(unit["unit"], []) if isinstance(r, dict) and "sink" in r],
-                    questions_completed=[unit["unit"]] if unit["unit"] in backend.answers else [],
-                    questions_asked=[unit["unit"]] if unit["unit"] in backend.asked else [],
-                )
-    finally:
-        if cpg and cpg.cleanup:
-            cpg.cleanup()
-        record["questions_asked"] = list(dict.fromkeys(backend.asked))
-        record["questions_completed"] = [rid for u in record["units"] for rid in u["questions_completed"]]
-        record["done"] = True
-        write_json(out, record)
-    return record
-
-
 def freeze_source(target):
     target.mkdir(parents=True)
     archive = target.parent / "source.tar"
@@ -526,7 +267,7 @@ def docker_command(source, checkout, out, name, image, deadline, question_deadli
         "-v",
         f"{out}:/out",
         image,
-        "/frozen/benchmarks/learn/engine_trace.py",
+        "/frozen/benchmarks/learn/engine_trace_worker.py",
         "--worker",
         "/out/pin.json",
         "--deadline",
@@ -536,6 +277,41 @@ def docker_command(source, checkout, out, name, image, deadline, question_deadli
     ]
 
 
+def prepare_questions(pin, root, question_deadline):
+    """Prepare metadata on the host, before entering the dependency-minimal image."""
+    active = [u for u in pin["units"] if u["supported"]]
+    languages = {"javascript" if u["language"] == "typescript" else u["language"] for u in active}
+    if len(languages) != 1:
+        raise ValueError(f"one pin has multiple frontend languages: {sorted(languages)}")
+    language = next(iter(languages))
+    from openultrasast.learn.features import entry_names
+    from openultrasast.mapping import php_hook_callbacks
+    from openultrasast.plane.harvest import declares
+    from openultrasast.preprocess import preprocess_repository
+
+    _, targets = preprocess_repository(root)
+    entries, _ = entry_names(root, {u["file"] for u in active})
+    hooks = ";".join(f"{h}:{f}" for h, functions in php_hook_callbacks(root, targets).items() for f in functions)
+    requests = {}
+    specs = taint_specs(language=language)
+    for u in active:
+        if not declares(safe_path(root, u["file"]).read_text(errors="replace").splitlines(), u["file"], u["function"]):
+            raise ValueError(f"labelled function not declared: {u['file']}::{u['function']}")
+        excerpt = u.get("excerpt", False)
+        params = request_params(
+            specs[u["family"]],
+            file=u["file"],
+            function=u["function"],
+            trace=True,
+            parameter_sources=excerpt or u["function"] in entries,
+            call_depth=0 if excerpt else 3,
+            hook_callbacks=hooks,
+        )
+        params["questionDeadline"] = str(question_deadline)
+        requests[u["unit"]] = params
+    return requests
+
+
 def run_pin(pin, source, provenance, inputs, out, args):
     with tempfile.TemporaryDirectory(prefix="trace-pin-", dir=out) as scratch:
         scratch = Path(scratch)
@@ -543,7 +319,7 @@ def run_pin(pin, source, provenance, inputs, out, args):
         output.mkdir()
         try:
             inputs.materialize(pin, checkout)
-            write_json(output / "pin.json", pin)
+            write_json(output / "pin.json", {**pin, "questions": prepare_questions(pin, checkout, args.question_deadline)})
             name = "ousast-trace-" + pin_name(pin)[:16]
             command = docker_command(source, checkout, output, name, args.image, args.deadline, args.question_deadline)
             started = time.monotonic()
@@ -665,13 +441,9 @@ def main():
     parser.add_argument("--include-typescript", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--summary", action="store_true")
-    parser.add_argument("--worker", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if min(args.deadline, args.question_deadline) <= 0 or args.limit < 0:
         parser.error("deadlines must be positive; limit must be nonnegative")
-    if args.worker:
-        worker(json.loads(args.worker.read_text()), Path("/case"), Path("/out/result.json"), args.deadline, args.question_deadline)
-        return 0
     if args.summary:
         print(json.dumps(summary(args.out), indent=2))
         return 0
@@ -694,7 +466,8 @@ def main():
                 unit["excerpt"] = True
             except ValueError as exc:
                 unit["mapping_error"] = str(exc)
-    plan = make_plan(units, args.out, args.only_family, args.limit)
+    plan = make_plan(units, args.out, args.only_family, args.limit, include_typescript=args.include_typescript)
+    # Planning is read-only, including unsupported pins. All persistence stays below this return.
     if args.dry_run:
         print(
             json.dumps(
