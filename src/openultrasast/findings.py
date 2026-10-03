@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -72,6 +73,30 @@ def quick_scan_findings(
                 if finding.ranking_priority >= min_emit_priority:
                     findings.append(finding)
     return sorted(findings, key=lambda item: (_severity_sort(item.severity), -item.ranking_priority, item.path))
+
+
+def uncovered_languages(
+    targets: Sequence[FileTarget], ruleset: Sequence[PatternRule] | None = None, *, engine: bool = False
+) -> list[tuple[str, int]]:
+    """Languages present in `targets` that no enabled quick rule (and, with `engine`, no engine frontend) covers.
+
+    A repository in such a language produces zero findings whatever it contains; callers name it so that
+    zero is never read as a clean result.
+    """
+    from .model.partitions import FRONTENDS
+
+    rules = PATTERN_RULES if ruleset is None else ruleset
+    enabled = [rule for rule in rules if rule.status != "disabled"]
+    if any(not rule.languages for rule in enabled):  # a rule without a language list applies to every file
+        return []
+    covered = {language for rule in enabled for language in rule.languages}
+    if engine:
+        covered |= set(FRONTENDS)
+    counts: dict[str, int] = {}
+    for target in targets:
+        if target.language not in covered and target.language != "unknown":
+            counts[target.language] = counts.get(target.language, 0) + 1
+    return sorted(counts.items())
 
 
 def build_quick_hunter_prompt(target: FileTarget, source_excerpt: str) -> str:

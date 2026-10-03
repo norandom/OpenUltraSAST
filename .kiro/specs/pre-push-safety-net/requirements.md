@@ -147,6 +147,43 @@ with Express-style routes and middleware, including vulnerable, fixed and benign
 frontend/framework adaptations and new abstract capabilities, and shall report C/C++ envelope or
 unsupported-property results separately from demonstrated vulnerability detection.
 
+## Requirement 9: Operate as an advisory safety net on any repository
+
+Added 2026-10-02, maintainer-approved, from the operational-readiness audit. The maintainer's
+definition: a user installs the hook on ANY repository and gets honest, advisory-only results;
+nothing ever blocks a push unless blocking was explicitly chosen.
+
+9.1 (added 2026-10-02, maintainer-approved) When the installed hook cannot run the check, because the
+`ousast` executable is missing or an argument or setting is invalid, the hook shall allow the push and
+print one line saying the check did not run and how to fix it; only an explicit `--mode blocking`
+opt-in may turn an analysis result into a rejected push.
+
+9.2 (added 2026-10-02, maintainer-approved) When a check is skipped or incomplete, the terminal output
+shall name each distinct reason in plain words, one line per reason, with repository paths decoded and
+no opaque hash tokens; a language with no engine frontend and no quick rules shall be named with its
+file count; a first push of a new branch shall say there was no base to compare against and what was
+checked instead. The JSON artifact keeps the raw reason values.
+
+9.3 (added 2026-10-02, maintainer-approved) Before the engine, within the same deadline, the Safety Net
+shall run the shipped quick pattern rules over the head side of the changed lines and show their
+findings as advisory pattern matches, labeled separately from admitted alerts. This amends 3.2 for this
+tier only: quick-rule findings are shown, never admitted, and never block.
+
+9.4 (added 2026-10-02, maintainer-approved) When a finding's operation lies in a file that is new in the
+head revision, the comparison shall classify it as new rather than unknown; an engine finding whose
+novelty is established but whose capability is not yet qualified shall be shown as an advisory engine
+finding, not an admitted alert. Genuinely unknown comparisons keep their vetoes.
+
+9.5 (added 2026-10-02, maintainer-approved) When the engine cannot finish within the deadline, one line
+shall say so; on explicit request (`--engine background`) the Safety Net shall start the engine
+detached after the push, record its result in the artifact directory, and show it on the next run as
+the engine result for that head from the previous push.
+
+9.6 (added 2026-10-02, maintainer-approved) The hook installer and remover shall ship in the wheel
+(`ousast pre-push install|uninstall`), refuse to overwrite an existing hook unless forced, and a
+hook-callable container wrapper shall pass the push input and artifact path through; the documentation
+shall give a first-run guide, a glossary of skip reasons, a CI recipe and help text for every flag.
+
 ## Accepted experimental acceptance profile
 
 These values are the initial implementation/evaluation profile accepted for task generation, not

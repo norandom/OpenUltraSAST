@@ -247,8 +247,28 @@ def test_cli_refuses_the_flag_outside_explicit_replay(tmp_path, capsys):
     from openultrasast.cli import main
 
     root, base, head, _ = history(tmp_path)
+    # Hook mode refuses the flag without running anything; since 17.1 (Req 9.1) the refusal is advisory
+    # (exit 0 with a line), because a usage error in a hook must never reject the push.
+    hook = ["pre-push", str(root), "--remote", "origin", "/x", "--artifact", str(tmp_path / "x.json")]
+    refused = main([*hook, "--experimental-record-vetoes"])
+    captured = capsys.readouterr()
+    assert refused == 0 and "requires explicit --base/--head replay" in captured.err
+    assert "pre-push check did not run" in captured.out and not (tmp_path / "x.json").exists()
     with pytest.raises(SystemExit):
-        main(["pre-push", str(root), "--remote", "origin", "/x", "--artifact", str(tmp_path / "x.json"), "--experimental-record-vetoes"])
+        main(
+            [
+                "pre-push",
+                str(root),
+                "--remote",
+                "origin",
+                "/x",
+                "--artifact",
+                str(tmp_path / "x.json"),
+                "--mode",
+                "blocking",
+                "--experimental-record-vetoes",
+            ]
+        )
     assert "requires explicit --base/--head replay" in capsys.readouterr().err
     code = main(
         [

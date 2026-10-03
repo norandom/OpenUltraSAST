@@ -37,7 +37,7 @@ from .calibration import (
 from .complexity import map as complexity_map
 from .complexity.ledger import persist_verdicts
 from .config import ModelLayerConfig, ObligationsConfig, ResolvedConfig, RetiredConfigError, load_config, load_dotenv
-from .findings import StaticFinding, quick_scan_findings, write_findings
+from .findings import StaticFinding, quick_scan_findings, uncovered_languages, write_findings
 from .fusion import FusionDecision, fuse_findings
 from .gate import FALSE_POSITIVE_CEILING, RECALL_FLOOR
 from .harness import HarnessRuntime, HarnessTraceWriter, write_harness_config
@@ -103,6 +103,7 @@ class ScanOutcome:
     finding_count: int
     calibrations_applied: int
     exit_code: int
+    notices: tuple[str, ...] = ()
 
 
 if TYPE_CHECKING:
@@ -131,28 +132,84 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _main(argv: list[str] | None) -> int:
-    if (argv if argv is not None else sys.argv[1:])[:1] != ["pre-push"]:
+    given = list(argv if argv is not None else sys.argv[1:])
+    if given[:1] == ["pre-push"] and given[1:2] in (["install"], ["uninstall"]):
+        return _hook_install(given[1], given[2:])
+    if given[:1] != ["pre-push"]:
         load_dotenv()
     parser = argparse.ArgumentParser(prog="ousast")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    replay_parser = subparsers.add_parser("pre-push", help="check Git push input or replay local revisions (experimental)")
-    replay_parser.add_argument("path", type=Path)
-    replay_parser.add_argument("--base")
-    replay_parser.add_argument("--head")
-    replay_parser.add_argument("--remote", nargs=2, metavar=("NAME", "URL"))
-    replay_parser.add_argument("--comparison-base")
+    replay_parser = subparsers.add_parser(
+        "pre-push",
+        help="check Git push input or replay local revisions (experimental, advisory)",
+        description="Check what a push changes: quick rules on the changed lines, then the Joern engine on head and base "
+        "within one deadline. Advisory: exit 0 unless --mode blocking. Install the Git hook with "
+        "'ousast pre-push install [REPO] [--force] [--docker]'; remove it with 'ousast pre-push uninstall [REPO]'.",
+    )
+    replay_parser.add_argument("path", type=Path, help="the repository to check (the hook passes '.')")
+    replay_parser.add_argument("--base", help="explicit replay: the base revision (with --head; instead of --remote)")
+    replay_parser.add_argument("--head", help="explicit replay: the head revision to check against --base")
+    replay_parser.add_argument(
+        "--remote",
+        nargs=2,
+        metavar=("NAME", "URL"),
+        help="Git hook mode: the remote name and URL Git passes to pre-push; the push input is read from stdin",
+    )
+    replay_parser.add_argument(
+        "--comparison-base",
+        help="hook mode: a local ref to compare a NEW branch against (the remote has no base for it); "
+        "the hook reads OUSAST_COMPARISON_BASE",
+    )
     replay_parser.add_argument("--model-config", type=Path, help="explicit optional witness selection endpoint configuration")
     replay_parser.add_argument("--prior-hook", type=Path, help="explicitly chain an existing hook with the same input and arguments")
-    replay_parser.add_argument("--artifact", type=Path, required=True)
+    replay_parser.add_argument(
+        "--artifact", type=Path, required=True, help="where to write the complete JSON result; must be outside the repository"
+    )
     replay_parser.add_argument(
         "--cache-dir", type=Path, help="reuse compatible local artifacts in a private directory outside the repository"
     )
-    replay_parser.add_argument("--deadline", type=float, default=30.0)
-    replay_parser.add_argument("--cancellation-allowance", type=float, default=2.0)
-    replay_parser.add_argument("--max-regions", type=int, default=500)
-    replay_parser.add_argument("--mode", choices=("advisory", "blocking"), default="advisory")
-    replay_parser.add_argument("--incomplete-coverage", choices=("allow", "block"), default="allow")
+    replay_parser.add_argument(
+        "--deadline",
+        type=float,
+        default=30.0,
+        help="seconds for the whole check: resolution, quick rules, engine and reporting (default 30; hook: OUSAST_PUSH_DEADLINE)",
+    )
+    replay_parser.add_argument(
+        "--cancellation-allowance",
+        type=float,
+        default=2.0,
+        help="seconds after the deadline to stop work and save the result (default 2)",
+    )
+    replay_parser.add_argument(
+        "--max-regions", type=int, default=500, help="most code regions the engine examines, highest-ranked first (default 500)"
+    )
+    replay_parser.add_argument(
+        "--mode",
+        choices=("advisory", "blocking"),
+        default="advisory",
+        help="advisory (default) never blocks; blocking is the explicit opt-in that rejects a push for an admitted "
+        "alert (hook: OUSAST_PUSH_MODE)",
+    )
+    replay_parser.add_argument(
+        "--incomplete-coverage",
+        choices=("allow", "block"),
+        default="allow",
+        help="with --mode blocking only: also block when coverage is incomplete (hook: OUSAST_INCOMPLETE_COVERAGE)",
+    )
+    replay_parser.add_argument(
+        "--engine",
+        choices=("inline", "background", "off"),
+        default="inline",
+        help="inline (default): run the Joern engine inside the deadline; background: return after the quick rules and "
+        "run the engine detached, showing its result on the next run; off: quick rules only",
+    )
+    replay_parser.add_argument(
+        "--background-deadline",
+        type=float,
+        default=900.0,
+        help="seconds the detached engine run of --engine background may take (default 900)",
+    )
     replay_parser.add_argument(
         "--experimental-declarations",
         type=Path,
@@ -339,6 +396,20 @@ def _main(argv: list[str] | None) -> int:
         "--qualify-population", action="append", default=[], metavar="NAME", help="with --loop: a population whose rows never propose"
     )
 
+    raw = list(argv if argv is not None else sys.argv[1:])
+    if _advisory_hook(raw):
+        # Git hook mode (stdin) without an explicit blocking opt-in: a check that cannot run must
+        # never reject the push. Say so in one line and allow it (Requirement 9.1).
+        try:
+            return _hook_main(parser, argv)
+        except SystemExit as stop:
+            if stop.code in (0, None):
+                raise
+            print("ousast: pre-push check did not run: invalid arguments or settings (message above). Push continues.")
+            return 0
+        except Exception as error:  # noqa: BLE001 -- an advisory hook reports a crash, it never blocks on one
+            print(f"ousast: pre-push check did not run: unexpected {type(error).__name__}. Push continues.")
+            return 0
     args = parser.parse_args(argv)
     # Diagnosis needs the stage costs, and nothing configures logging, so the default root level of
     # WARNING silently dropped every informational line. A run that reports nothing is
@@ -347,77 +418,7 @@ def _main(argv: list[str] | None) -> int:
     _configure_logging()
     start_profiling()  # only when OUSAST_SAMPLE_PROFILE names a file
     if args.command == "pre-push":
-        from .config import PushConfig
-        from .push.runner import push, replay
-
-        try:
-            if bool(args.base) != bool(args.head) or bool(args.base) == bool(args.remote):
-                parser.error("provide --base and --head together, or --remote NAME URL for Git stdin")
-            settings = PushConfig(
-                comparison_base=args.comparison_base,
-                deadline_seconds=args.deadline,
-                cancellation_allowance_seconds=args.cancellation_allowance,
-                mode=args.mode,
-                incomplete_coverage_policy=args.incomplete_coverage,
-            )
-            options: dict[str, Any] = dict(
-                artifact=args.artifact,
-                config=settings,
-                max_regions=args.max_regions,
-                cache_dir=args.cache_dir,
-                model_config=args.model_config,
-            )
-            if args.base and args.prior_hook:
-                parser.error("--prior-hook requires Git stdin mode")
-            if args.experimental_record_vetoes and not args.base:
-                parser.error("--experimental-record-vetoes requires explicit --base/--head replay; it is never a hook capability")
-            if args.experimental_declarations and not args.experimental_record_vetoes:
-                parser.error("--experimental-declarations requires --experimental-record-vetoes")
-            prior_data = None
-            if args.base:
-                delivery = replay(
-                    args.path,
-                    base=args.base,
-                    head=args.head,
-                    record_vetoes=args.experimental_record_vetoes,
-                    declarations=args.experimental_declarations,
-                    **options,
-                )
-            else:
-                # multiprocessing closes sys.stdin in its child; duplicate the Git pipe first.
-                with os.fdopen(os.dup(0), "rb") as stream:
-                    if args.prior_hook:
-                        from .model.contracts import ExecutionBudget
-                        from .push.runner import _prepare
-
-                        shared = ExecutionBudget(time.monotonic() + settings.deadline_seconds, settings.cancellation_allowance_seconds)
-                        try:
-                            prior_data = _prepare(lambda: stream.read(1024 * 1024 + 1), shared)
-                            if len(prior_data) > 1024 * 1024:
-                                raise ValueError("input exceeds hook integration limit")
-                        except (ValueError, RuntimeError, TimeoutError):
-                            print("Hook input could not be retained for all consumers. Retry with complete input and sufficient time.")
-                            return 1
-                        options["execution_budget"] = shared
-
-                    def updates() -> str:
-                        return (prior_data if prior_data is not None else stream.read(1024 * 1024 + 1)).decode("utf-8")
-
-                    delivery = push(args.path, updates=updates, remote_name=args.remote[0], remote_url=args.remote[1], **options)
-        except ValueError as error:
-            parser.error(str(error))
-        print(delivery.text, end="", flush=True)
-        if args.prior_hook and prior_data is not None:
-            # This is the explicitly chained hook's own behavior, outside analysis.
-            # Never replace its rejection with our advisory success or impose our timeout on it.
-            try:
-                prior = subprocess.run([str(args.prior_hook.resolve()), *args.remote], input=prior_data, cwd=args.path)
-            except OSError:
-                print("Existing hook could not be started. Restore its executable path before retrying.")
-                return 1
-            if prior.returncode:
-                return prior.returncode if prior.returncode > 0 else 128 - prior.returncode
-        return delivery.exit_code
+        return _pre_push(args, parser)
     if args.command == "scan":
         return _scan(args.path, args.config, args.mode, args.fail_on)
     if args.command == "benchmark":
@@ -463,6 +464,145 @@ def _main(argv: list[str] | None) -> int:
     return 2
 
 
+def _hook_install(action: str, argv: list[str]) -> int:
+    """`ousast pre-push install|uninstall [REPO]` from the hook shipped in the package (task 17.6)."""
+    from .push.install import install, uninstall
+
+    parser = argparse.ArgumentParser(
+        prog=f"ousast pre-push {action}",
+        description="Install the advisory OpenUltraSAST pre-push hook into a repository's effective hook directory "
+        "(core.hooksPath is honoured, never edited)."
+        if action == "install"
+        else "Remove the OpenUltraSAST pre-push hook and restore a chained previous hook.",
+    )
+    parser.add_argument("repository", nargs="?", type=Path, default=Path("."), help="the repository (default: current directory)")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="install: replace our hook, or move a foreign hook to pre-push.before-ousast and chain it; "
+        "uninstall: remove a hook this tool did not write",
+    )
+    if action == "install":
+        parser.add_argument(
+            "--docker",
+            action="store_true",
+            help="also install the ousast-docker wrapper beside the hook, so the check runs in the container image",
+        )
+    args = parser.parse_args(argv)
+    try:
+        code, lines = (
+            install(args.repository, force=args.force, docker=args.docker)
+            if action == "install"
+            else uninstall(args.repository, force=args.force)
+        )
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        print(f"ousast pre-push {action}: {error}", file=sys.stderr)
+        return 1
+    for line in lines:
+        print(line, file=sys.stderr if code else sys.stdout)
+    return code
+
+
+def _advisory_hook(argv: list[str]) -> bool:
+    """A Git hook invocation (`--remote NAME URL`, stdin input) that did not opt into blocking."""
+    if argv[:1] != ["pre-push"] or "--remote" not in argv:
+        return False
+    blocking = any(a == "--mode=blocking" for a in argv) or any(
+        a == "--mode" and i + 1 < len(argv) and argv[i + 1] == "blocking" for i, a in enumerate(argv)
+    )
+    return not blocking
+
+
+def _hook_main(parser: argparse.ArgumentParser, argv: list[str] | None) -> int:
+    args = parser.parse_args(argv)
+    _configure_logging()
+    return _pre_push(args, parser)
+
+
+def _pre_push(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    from .config import PushConfig
+    from .push.runner import push, replay
+
+    try:
+        if bool(args.base) != bool(args.head) or bool(args.base) == bool(args.remote):
+            parser.error("provide --base and --head together, or --remote NAME URL for Git stdin")
+        settings = PushConfig(
+            comparison_base=args.comparison_base,
+            deadline_seconds=args.deadline,
+            cancellation_allowance_seconds=args.cancellation_allowance,
+            mode=args.mode,
+            incomplete_coverage_policy=args.incomplete_coverage,
+        )
+        options: dict[str, Any] = dict(
+            artifact=args.artifact,
+            config=settings,
+            max_regions=args.max_regions,
+            cache_dir=args.cache_dir,
+            model_config=args.model_config,
+        )
+        if args.base and args.prior_hook:
+            parser.error("--prior-hook requires Git stdin mode")
+        if args.experimental_record_vetoes and not args.base:
+            parser.error("--experimental-record-vetoes requires explicit --base/--head replay; it is never a hook capability")
+        if args.experimental_declarations and not args.experimental_record_vetoes:
+            parser.error("--experimental-declarations requires --experimental-record-vetoes")
+        prior_data = None
+        if args.base:
+            delivery = replay(
+                args.path,
+                base=args.base,
+                head=args.head,
+                record_vetoes=args.experimental_record_vetoes,
+                declarations=args.experimental_declarations,
+                engine=args.engine,
+                background_deadline=args.background_deadline,
+                **options,
+            )
+        else:
+            # multiprocessing closes sys.stdin in its child; duplicate the Git pipe first.
+            with os.fdopen(os.dup(0), "rb") as stream:
+                if args.prior_hook:
+                    from .model.contracts import ExecutionBudget
+                    from .push.runner import _prepare
+
+                    shared = ExecutionBudget(time.monotonic() + settings.deadline_seconds, settings.cancellation_allowance_seconds)
+                    try:
+                        prior_data = _prepare(lambda: stream.read(1024 * 1024 + 1), shared)
+                        if len(prior_data) > 1024 * 1024:
+                            raise ValueError("input exceeds hook integration limit")
+                    except (ValueError, RuntimeError, TimeoutError):
+                        print("Hook input could not be retained for all consumers. Retry with complete input and sufficient time.")
+                        return 1
+                    options["execution_budget"] = shared
+
+                def updates() -> str:
+                    return (prior_data if prior_data is not None else stream.read(1024 * 1024 + 1)).decode("utf-8")
+
+                delivery = push(
+                    args.path,
+                    updates=updates,
+                    remote_name=args.remote[0],
+                    remote_url=args.remote[1],
+                    engine=args.engine,
+                    background_deadline=args.background_deadline,
+                    **options,
+                )
+    except ValueError as error:
+        parser.error(str(error))
+    print(delivery.text, end="", flush=True)
+    if args.prior_hook and prior_data is not None:
+        # This is the explicitly chained hook's own behavior, outside analysis.
+        # Never replace its rejection with our advisory success or impose our timeout on it.
+        try:
+            prior = subprocess.run([str(args.prior_hook.resolve()), *args.remote], input=prior_data, cwd=args.path)
+        except OSError:
+            print("Existing hook could not be started. Restore its executable path before retrying.")
+            return 1
+        if prior.returncode:
+            return prior.returncode if prior.returncode > 0 else 128 - prior.returncode
+    return delivery.exit_code
+
+
 def _scan(path: Path, config_path: Path, mode: str, fail_on: str) -> int:
     outcome = _run_scan(path, config_path, mode, fail_on)
     _print_scan_outcome(outcome)
@@ -495,6 +635,17 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         "preprocess",
         lambda: preprocess_repository(run.target, run.root / "preprocess" / "file_targets.json", static_hints),
     )
+    # A language nothing here covers is named, never a silent zero (pre-push 17.2, Requirement 9.2).
+    for language, count in uncovered_languages(targets, ruleset, engine=mode != "quick"):
+        runtime.state["degradations"].append(
+            {
+                "stage": "quick_findings",
+                "reason": "language_not_covered",
+                "language": language,
+                "count": count,
+                "engine": "" if mode == "quick" else " and no engine frontend",
+            }
+        )
     entry_points = runtime.run_stage("entry_point_mapping", lambda: analyze_entry_points(run.target, targets))
     write_entry_points(entry_points, run.root / "mapping" / "entry_points.json")
     targets = attach_reachability_hints(targets, entry_points)
@@ -793,6 +944,11 @@ def _run_scan(path: Path, config_path: Path, mode: str, fail_on: str) -> ScanOut
         finding_count=len(findings),
         calibrations_applied=len(applied_calibrations),
         exit_code=scan_exit_code(findings, verifications, fail_on, worth_fixing_verdicts=verdict_records),
+        notices=tuple(
+            f"language not covered: {item['language']} ({item['count']} files)"
+            for item in runtime.state["degradations"]
+            if item.get("reason") == "language_not_covered"
+        ),
     )
 
 
@@ -867,6 +1023,8 @@ def _print_scan_outcome(outcome: ScanOutcome) -> None:
     print(f"ranked_targets={outcome.ranked_target_count}")
     print(f"findings={outcome.finding_count}")
     print(f"calibrations_applied={outcome.calibrations_applied}")
+    for notice in outcome.notices:
+        print(f"notice: {notice}")
 
 
 def _load_static_hints(sarif_paths: tuple[str, ...]) -> list[object]:

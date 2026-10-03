@@ -49,7 +49,10 @@ def write_markdown_report(
 
     lines = ["# OpenUltraSAST Report", "", f"Findings: {len(findings)}", "", "## Inventory", ""]
     if not findings:
+        uncovered = [item for item in degradations or () if item.get("reason") == "language_not_covered"]
         lines.append("No quick-mode findings were emitted.")
+        for item in uncovered:
+            lines.append(f"Not a clean result for {item.get('language')} ({item.get('count')} files): no rules cover that language.")
         lines.append("")
     for finding in reasoned:
         verification = verification_by_id.get(finding.finding_id)
@@ -446,6 +449,25 @@ _COVERAGE_DEGRADATIONS: dict[str, str] = {
         "about the rest of the repository."
     ),
     "region_failed": "The region `{path}` could not be arbitrated.",
+    # Recorded by cli.py and, until 2026-10-02, never rendered (pre-push 17.2, Requirement 9.2).
+    "cpg_unavailable": (
+        "The Joern engine is not installed here, so the model layer did not run and **no flow was followed**. "
+        "Install Joern (`joern-parse` on PATH) or run through the Docker image."
+    ),
+    "learning_endpoint_unavailable": (
+        "No model endpoint is configured, so the graph's entailed findings are reported and the residual "
+        "`suspicion` questions went unasked."
+    ),
+    "model_withheld_execution_budget": "The model was not asked, because the run's time budget leaves no room for it.",
+    "facts_unavailable": "The fact tables for the `{stage}` stage could not be loaded, so that stage decided nothing. {detail}",
+    "policy_invalid": "The `{stage}` policy could not be loaded, so that stage decided nothing. {detail}",
+    "max_findings_exceeded": "Only the first {requested} of {actual} findings are reported (`max_findings`).",
+    "hunter_model_unavailable": "The `{stage}` stage needs a model and none is available, so it was skipped.",
+    "sandbox_unavailable": "Docker is not available, so no finding was reproduced in the sandbox (REGRESS skipped).",
+    "language_not_covered": (
+        "language not covered: {language} ({count} files). No quick rules{engine} exist for it, so **silence about "
+        "these files is not a clean result**."
+    ),
 }
 
 
@@ -460,8 +482,12 @@ def _append_not_analysed(lines: list[str], degradations: Sequence[Mapping[str, o
     for item in degradations:
         template = _COVERAGE_DEGRADATIONS.get(str(item.get("reason") or ""))
         if template is None:
+            # Never hide a recorded degradation because nobody wrote a sentence for it yet.
+            rendered.append(f"`{item.get('reason')}` (stage `{item.get('stage', 'unknown')}`)")
             continue
         fields = dict(item)
+        fields.setdefault("detail", "")
+        fields.setdefault("engine", "")
         files = fields.get("files")
         if isinstance(files, (list, tuple)):
             fields["files"] = ", ".join(f"`{name}`" for name in files)

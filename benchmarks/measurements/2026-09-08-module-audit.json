@@ -1,7 +1,7 @@
 {
-  "modules": 151,
+  "modules": 155,
   "counts": {
-    "load_bearing": 146,
+    "load_bearing": 150,
     "standalone_capability": 5
   },
   "orphaned": [],
@@ -229,6 +229,8 @@
         "model.report",
         "pairs",
         "plane.tasks.alerts",
+        "push.quick",
+        "push.runner",
         "rank",
         "regress.candidate",
         "reports",
@@ -560,6 +562,7 @@
         "pairs",
         "plane.tasks.alerts",
         "preprocess",
+        "push.quick",
         "push.runner"
       ]
     },
@@ -579,6 +582,7 @@
         "cli",
         "cpg.backend",
         "cpg.session",
+        "findings",
         "learn.cli",
         "learn.features",
         "learn.labels",
@@ -602,6 +606,7 @@
         "push.cache",
         "push.contracts",
         "push.policy",
+        "push.quick",
         "push.report",
         "push.reuse",
         "push.runner",
@@ -649,6 +654,7 @@
         "push.cache",
         "push.contracts",
         "push.policy",
+        "push.quick",
         "push.report",
         "push.reuse",
         "push.runner",
@@ -716,7 +722,9 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate, cli",
       "importers": [
-        "model.scan"
+        "findings",
+        "model.scan",
+        "push.runner"
       ]
     },
     {
@@ -1093,6 +1101,7 @@
         "improve.evolve",
         "improve.validator",
         "plane.tasks.loop",
+        "push.quick",
         "scoring.project_score",
         "semantic.overlay"
       ]
@@ -1132,6 +1141,7 @@
         "plane.tasks.alerts",
         "plane.tasks.features",
         "plane.tasks.repo_facts",
+        "push.quick",
         "push.runner",
         "rank",
         "regress.candidate",
@@ -1186,6 +1196,7 @@
       "importers": [
         "cli",
         "push.assistance",
+        "push.background",
         "push.eligibility",
         "push.policy",
         "push.report",
@@ -1197,6 +1208,14 @@
     },
     {
       "module": "push.assistance",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate, cli",
+      "importers": [
+        "push.runner"
+      ]
+    },
+    {
+      "module": "push.background",
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate, cli",
       "importers": [
@@ -1235,6 +1254,23 @@
       ]
     },
     {
+      "module": "push.explain",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate, cli",
+      "importers": [
+        "push.report",
+        "push.runner"
+      ]
+    },
+    {
+      "module": "push.install",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate, cli",
+      "importers": [
+        "cli"
+      ]
+    },
+    {
       "module": "push.policy",
       "classification": "load_bearing",
       "reason": "pre-push-safety-net Req 2.4/3.1/3.4/4.1: targeted same-semantics base comparison; replay integration pending",
@@ -1246,11 +1282,20 @@
       ]
     },
     {
+      "module": "push.quick",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate, cli",
+      "importers": [
+        "push.runner"
+      ]
+    },
+    {
       "module": "push.report",
       "classification": "load_bearing",
       "reason": "pre-push-safety-net Req 5.1/5.2/5.5/7.3: compact output and complete artifacts; runner integration pending",
       "importers": [
         "push.assistance",
+        "push.background",
         "push.runner"
       ]
     },
@@ -1315,7 +1360,8 @@
         "improve.evolve",
         "map_gate",
         "pairs",
-        "plane.tasks.alerts"
+        "plane.tasks.alerts",
+        "push.quick"
       ]
     },
     {

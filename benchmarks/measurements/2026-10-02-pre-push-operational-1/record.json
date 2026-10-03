@@ -1,0 +1,792 @@
+{
+  "id": "2026-10-02-pre-push-operational-1",
+  "task": "pre-push-safety-net 17.7",
+  "requirements": [
+    "9.1",
+    "9.2",
+    "9.3",
+    "9.4",
+    "9.5",
+    "9.6",
+    "6.3"
+  ],
+  "question": "Does the hook installed on any repository give honest, advisory-only results, and never block a push?",
+  "subjects": "The audit's three shallow clones (kennethreitz/records, expressjs/serve-static, unrolled/secure), each with the same planted commit c2 on c1, copied fresh from the audit's scratch clones.",
+  "instrument_proof": "Every replay and hook push records snapshots[].bytes_read and quick_tier files/bytes_read. The head snapshot's bytes equal `git ls-files | xargs cat | wc -c` at head (records 43,577; serve-static 61,525; secure 103,023), and the quick tier reads exactly the changed source files.",
+  "host": "Joern is not on the host, so host runs cannot run the engine; that is the case a first-time pip user hits, and the output must say so. The Docker engine run uses the 2026-09-14 openultrasast:dev image with the worktree src mounted read-only, as the audit did; the image was not rebuilt (1.1 GB disk free, below the 4 GB threshold).",
+  "before": {
+    "source": "/tmp/claude-1000/-home-mc-Source-OpenUltraSAST/c09e30b2-39a4-4564-bc31-6ea71ffaa198/scratchpad/ready/gap-report.md (audit at main 49e11e0)",
+    "replay_host": {
+      "records": {
+        "exit": 0,
+        "wall_seconds": 1.06,
+        "files_bytes_read": [
+          21,
+          43577
+        ],
+        "findings_shown": 0,
+        "terminal": "generic: Some checks could not be completed. Review the comparison details...",
+        "skip_reasons_named_in_terminal": 0
+      },
+      "serve-static": {
+        "exit": 0,
+        "wall_seconds": 1.1,
+        "files_bytes_read": [
+          26,
+          61525
+        ],
+        "findings_shown": 0,
+        "terminal": "same generic line",
+        "skip_reasons_named_in_terminal": 0
+      },
+      "secure": {
+        "exit": 0,
+        "wall_seconds": 1.04,
+        "files_bytes_read": [
+          19,
+          103023
+        ],
+        "findings_shown": 0,
+        "terminal": "same generic line; Go not named",
+        "skip_reasons_named_in_terminal": 0
+      }
+    },
+    "docker_engine_serve_static": {
+      "deadline_30": {
+        "exit": 0,
+        "wall_seconds": 31.3,
+        "terminal": "Analysis did not finish. Rerun with a longer analysis deadline."
+      },
+      "deadline_300": {
+        "exit": 0,
+        "wall_seconds": 261.7,
+        "raw_engine_findings": 2,
+        "admitted": 0,
+        "dispositions": "injection and output_encoding at debug.js:2: comparison_unknown/base_incomplete + capability_unavailable",
+        "terminal": "No actionable defects reported; Details: /out/... (container path)"
+      }
+    },
+    "quick_scan": {
+      "serve-static": {
+        "exit": 0,
+        "wall_seconds": 0.46,
+        "findings": "js-eval, js-xss-response at debug.js:2"
+      },
+      "records": {
+        "exit": 0,
+        "wall_seconds": 0.49,
+        "findings": "2 pre-existing (setup.py os-command); planted %-formatted SQL missed"
+      },
+      "secure": {
+        "exit": 0,
+        "wall_seconds": 0.48,
+        "findings": 0,
+        "terminal": "No quick-mode findings were emitted (silent zero for Go)"
+      }
+    },
+    "hook": {
+      "ousast_not_on_path": {
+        "push_exit": "rejected",
+        "terminal": ".git/hooks/pre-push: 13: exec: ousast: not found"
+      },
+      "first_push_new_branch": {
+        "push_exit": 0,
+        "wall_seconds": 0.58,
+        "terminal": "No analysis result is available. (does not say new branch)"
+      },
+      "update": {
+        "push_exit": 0,
+        "wall_seconds": 1.36,
+        "terminal": "No actionable defects reported; analysis is incomplete."
+      },
+      "bad_OUSAST_PUSH_DEADLINE_or_cache_inside_repo": {
+        "exit": 2,
+        "effect": "would block the push"
+      },
+      "install": "ops/install-pre-push only (checkout); not in the wheel"
+    }
+  },
+  "verdict": {
+    "never_blocks": "PASS in this sample: 10 hook pushes across the three repositories all exited 0, including `ousast` absent from PATH (rejected before) and OUSAST_PUSH_DEADLINE=abc (exit 2 before). Blocking stays an explicit opt-in (unit-tested, not exercised here).",
+    "never_hides": "PASS in this sample: every incomplete run printed one plain `Skipped:` line per reason (2-5 per run), with no hex path or sha256 token. Go is named as not covered (`language not covered: go (1 changed file(s), 10 in the repository)`, and `notice: language not covered: go (10 files)` in `scan --mode quick`). The first push of a new branch says there is no base and what it checked instead.",
+    "quick_tier_within_deadline": "On the host, every replay and hook push finished in 0.69-1.21 s against the 30 s deadline. The quick tier read exactly the changed source file (records 1 file / 17,449 B; serve-static 1 / 87 B; secure 1 / 193 B).",
+    "planted_js_eval": "SURFACES. Quick tier: js-eval (CWE-95) and js-xss-response (CWE-79) at debug.js:2 on the host, 0.9 s, in replay and in the hook push. Engine (Docker, deadline 300): injection and output_encoding at debug.js:2, now novelty `new` / `file_added_in_head` (before: `unknown` / `base_incomplete`). The only veto is `capability_unavailable`, so it is shown as an advisory engine finding, not an alert.",
+    "planted_python_sql": "STILL MISSED. No quick rule matches the %-formatted db.query string in records.py, and the host has no Joern, so nothing in the pre-push path reports it. Recorded as a coverage gap, with no rule edit.",
+    "planted_go_command": "NOT DETECTED, NOW NAMED: Go has no engine frontend and no quick rules.",
+    "engine_deadline": "Not solved. The Docker engine took 190.9 s wall time (head 107.6 s, base 80.7 s) against a 300 s deadline. The audit measured 261.7 s on a different image/src combination. A 30 s hook deadline still cannot hold it. --engine background starts it after the push, and the next push showed the earlier result. On the host that result says 'the engine did not run (Joern unavailable)', which is honest."
+  },
+  "coverage_gaps": [
+    "records: the planted Python SQL injection (`db.query(\"... '%s'\" % name)`) is matched by no quick rule, before or after. Recorded as a quick-rule coverage gap; no rule was edited for a planted sample (that would be hand-tuning). On the host the engine cannot run, so nothing in the pre-push path reports it.",
+    "secure: Go has no engine frontend and no quick rules. It is now named in the terminal (language not covered: go), not detected.",
+    "The engine still cannot finish inside the 30 s hook deadline (the audit measured 260 s on 26 files); --engine background moves it after the push, graph reuse remains the later speed task."
+  ],
+  "after": {
+    "replay_host": {
+      "records": {
+        "pre-push --engine inline": {
+          "exit": 0,
+          "wall_seconds": 1.206878771,
+          "deadline_seconds": 30,
+          "quick_findings_shown": [],
+          "engine_findings_shown": [],
+          "skip_lines": [
+            "changed lines could not be matched one-to-one to base lines in records.py",
+            "the changed code has no counterpart in the base revision to compare against",
+            "engine did not run: the code graph could not be built (is Joern installed? 'joern-parse' must be on PATH, or run the hook through ops/ousast-docker)",
+            "no base revision was analysed, so no engine finding can be called new or worsened"
+          ],
+          "other_lines": [
+            "Quick rules: no pattern match on changed code (1 file(s), 17449 bytes read).",
+            "No actionable defects reported; analysis is incomplete.",
+            "Notice: Engine checks did not run. Install Joern, or run the hook through ops/ousast-docker. Review the details."
+          ],
+          "snapshots_files_bytes": [
+            [
+              21,
+              43577
+            ],
+            [
+              21,
+              43482
+            ]
+          ],
+          "quick_tier_files_bytes": [
+            [
+              1,
+              17449
+            ]
+          ],
+          "quick_tier_seconds": [
+            0.041
+          ],
+          "coverage_reasons_raw": [
+            "7265636f7264732e7079:ambiguous_line_correspondence",
+            "base_counterpart_unresolved",
+            "cpg_build_failed",
+            "analysis_incomplete",
+            "base_comparison_unavailable"
+          ],
+          "admitted_alerts": 0,
+          "push_disposition": "allow",
+          "total_seconds_internal": 0.483
+        },
+        "pre-push --engine off": {
+          "exit": 0,
+          "wall_seconds": 0.954010589,
+          "deadline_seconds": 30,
+          "quick_findings_shown": [],
+          "engine_findings_shown": [],
+          "skip_lines": [
+            "changed lines could not be matched one-to-one to base lines in records.py",
+            "engine checks were switched off for this run (--engine off)",
+            "no base revision was analysed, so no engine finding can be called new or worsened"
+          ],
+          "other_lines": [
+            "Quick rules: no pattern match on changed code (1 file(s), 17449 bytes read).",
+            "No analysis result is available.",
+            "Notice: Some checks could not be completed. Review the comparison details and resolve the recorded gaps before retrying."
+          ],
+          "snapshots_files_bytes": [
+            [
+              21,
+              43577
+            ],
+            [
+              21,
+              43482
+            ]
+          ],
+          "quick_tier_files_bytes": [
+            [
+              1,
+              17449
+            ]
+          ],
+          "quick_tier_seconds": [
+            0.042
+          ],
+          "coverage_reasons_raw": [
+            "7265636f7264732e7079:ambiguous_line_correspondence",
+            "engine_off",
+            "analysis_incomplete",
+            "base_comparison_unavailable"
+          ],
+          "admitted_alerts": 0,
+          "push_disposition": "allow",
+          "total_seconds_internal": 0.498
+        },
+        "scan --mode quick": {
+          "exit": 0,
+          "wall_seconds": 0.407089313,
+          "terminal": [
+            "file_targets=9",
+            "findings=2"
+          ]
+        }
+      },
+      "serve-static": {
+        "pre-push --engine inline": {
+          "exit": 0,
+          "wall_seconds": 0.892543629,
+          "deadline_seconds": 30,
+          "quick_findings_shown": [
+            "js-eval (CWE-95, critical) at debug.js:2: Dynamic JavaScript evaluation needs review",
+            "js-xss-response (CWE-79, medium) at debug.js:2: Unsanitized HTTP response reflection needs review"
+          ],
+          "engine_findings_shown": [],
+          "skip_lines": [
+            "the changed code has no counterpart in the base revision to compare against",
+            "engine did not run: the code graph could not be built (is Joern installed? 'joern-parse' must be on PATH, or run the hook through ops/ousast-docker)",
+            "no base revision was analysed, so no engine finding can be called new or worsened"
+          ],
+          "other_lines": [
+            "Quick rules: 2 pattern match(es) on changed code (1 file(s), 87 bytes read). Advisory: not verified by the engine.",
+            "No actionable defects reported; analysis is incomplete.",
+            "Notice: Engine checks did not run. Install Joern, or run the hook through ops/ousast-docker. Review the details."
+          ],
+          "snapshots_files_bytes": [
+            [
+              26,
+              61525
+            ],
+            [
+              25,
+              61438
+            ]
+          ],
+          "quick_tier_files_bytes": [
+            [
+              1,
+              87
+            ]
+          ],
+          "quick_tier_seconds": [
+            0.017
+          ],
+          "coverage_reasons_raw": [
+            "base_counterpart_unresolved",
+            "cpg_build_failed",
+            "analysis_incomplete",
+            "base_comparison_unavailable"
+          ],
+          "admitted_alerts": 0,
+          "push_disposition": "allow",
+          "total_seconds_internal": 0.496
+        },
+        "pre-push --engine off": {
+          "exit": 0,
+          "wall_seconds": 0.878791036,
+          "deadline_seconds": 30,
+          "quick_findings_shown": [
+            "js-eval (CWE-95, critical) at debug.js:2: Dynamic JavaScript evaluation needs review",
+            "js-xss-response (CWE-79, medium) at debug.js:2: Unsanitized HTTP response reflection needs review"
+          ],
+          "engine_findings_shown": [],
+          "skip_lines": [
+            "engine checks were switched off for this run (--engine off)",
+            "no base revision was analysed, so no engine finding can be called new or worsened"
+          ],
+          "other_lines": [
+            "Quick rules: 2 pattern match(es) on changed code (1 file(s), 87 bytes read). Advisory: not verified by the engine.",
+            "No analysis result is available.",
+            "Notice: Some checks could not be completed. Review the comparison details and resolve the recorded gaps before retrying."
+          ],
+          "snapshots_files_bytes": [
+            [
+              26,
+              61525
+            ],
+            [
+              25,
+              61438
+            ]
+          ],
+          "quick_tier_files_bytes": [
+            [
+              1,
+              87
+            ]
+          ],
+          "quick_tier_seconds": [
+            0.016
+          ],
+          "coverage_reasons_raw": [
+            "engine_off",
+            "analysis_incomplete",
+            "base_comparison_unavailable"
+          ],
+          "admitted_alerts": 0,
+          "push_disposition": "allow",
+          "total_seconds_internal": 0.471
+        },
+        "scan --mode quick": {
+          "exit": 0,
+          "wall_seconds": 0.394269229,
+          "terminal": [
+            "file_targets=4",
+            "findings=2"
+          ]
+        }
+      },
+      "secure": {
+        "pre-push --engine inline": {
+          "exit": 0,
+          "wall_seconds": 0.762186729,
+          "deadline_seconds": 30,
+          "quick_findings_shown": [],
+          "engine_findings_shown": [],
+          "skip_lines": [
+            "language not covered: go (1 changed file(s), 10 in the repository): no engine frontend and no quick rules, so silence here is not a clean result",
+            "the changed code has no counterpart in the base revision to compare against",
+            "engine did not run: the code graph could not be built (is Joern installed? 'joern-parse' must be on PATH, or run the hook through ops/ousast-docker)",
+            "engine has no frontend for at least one language in this push",
+            "no base revision was analysed, so no engine finding can be called new or worsened"
+          ],
+          "other_lines": [
+            "Quick rules: no pattern match on changed code (1 file(s), 193 bytes read).",
+            "No actionable defects reported; analysis is incomplete.",
+            "Notice: Engine checks did not run. Install Joern, or run the hook through ops/ousast-docker. Review the details."
+          ],
+          "snapshots_files_bytes": [
+            [
+              19,
+              103023
+            ],
+            [
+              18,
+              102830
+            ]
+          ],
+          "quick_tier_files_bytes": [
+            [
+              1,
+              193
+            ]
+          ],
+          "quick_tier_seconds": [
+            0.015
+          ],
+          "coverage_reasons_raw": [
+            "language_not_covered:go:1:10",
+            "base_counterpart_unresolved",
+            "cpg_build_failed",
+            "frontend_unsupported",
+            "analysis_incomplete",
+            "base_comparison_unavailable"
+          ],
+          "admitted_alerts": 0,
+          "push_disposition": "allow",
+          "total_seconds_internal": 0.352
+        },
+        "pre-push --engine off": {
+          "exit": 0,
+          "wall_seconds": 0.694374205,
+          "deadline_seconds": 30,
+          "quick_findings_shown": [],
+          "engine_findings_shown": [],
+          "skip_lines": [
+            "language not covered: go (1 changed file(s), 10 in the repository): no engine frontend and no quick rules, so silence here is not a clean result",
+            "engine checks were switched off for this run (--engine off)",
+            "no base revision was analysed, so no engine finding can be called new or worsened"
+          ],
+          "other_lines": [
+            "Quick rules: no pattern match on changed code (1 file(s), 193 bytes read).",
+            "No analysis result is available.",
+            "Notice: Some checks could not be completed. Review the comparison details and resolve the recorded gaps before retrying."
+          ],
+          "snapshots_files_bytes": [
+            [
+              19,
+              103023
+            ],
+            [
+              18,
+              102830
+            ]
+          ],
+          "quick_tier_files_bytes": [
+            [
+              1,
+              193
+            ]
+          ],
+          "quick_tier_seconds": [
+            0.016
+          ],
+          "coverage_reasons_raw": [
+            "language_not_covered:go:1:10",
+            "engine_off",
+            "analysis_incomplete",
+            "base_comparison_unavailable"
+          ],
+          "admitted_alerts": 0,
+          "push_disposition": "allow",
+          "total_seconds_internal": 0.311
+        },
+        "scan --mode quick": {
+          "exit": 0,
+          "wall_seconds": 0.372512766,
+          "terminal": [
+            "file_targets=10",
+            "findings=0",
+            "notice: language not covered: go (10 files)"
+          ]
+        }
+      }
+    },
+    "hook_host": {
+      "records": {
+        "new-branch": {
+          "push_exit": 0,
+          "wall_seconds": 0.873912782,
+          "quick_findings_shown": [],
+          "engine_findings_shown": [],
+          "skip_lines": [
+            "new branch: the remote has no base to compare against, so the engine comparison did not run (OUSAST_COMPARISON_BASE=<local branch> compares against a local branch instead)",
+            "no base revision was analysed, so no engine finding can be called new or worsened"
+          ],
+          "other_lines": [
+            "New branch: instead, quick rules checked the files its last commit changed (compared with c925575).",
+            "Quick rules: no pattern match on changed code (2 file(s), 18416 bytes read).",
+            "No analysis result is available.",
+            "Notice: Some checks could not be completed. Review the comparison details and resolve the recorded gaps before retrying.",
+            "To /tmp/claude-1000/-home-mc-Source-OpenUltraSAST/c09e30b2-39a4-4564-bc31-6ea71ffaa198/scratchpad/ready-impl/bare-records.git",
+            " * [new branch]      HEAD~1 -> main"
+          ]
+        },
+        "update": {
+          "push_exit": 0,
+          "wall_seconds": 0.890046656,
+          "quick_findings_shown": [],
+          "engine_findings_shown": [],
+          "skip_lines": [
+            "changed lines could not be matched one-to-one to base lines in records.py",
+            "the changed code has no counterpart in the base revision to compare against",
+            "engine did not run: the code graph could not be built (is Joern installed? 'joern-parse' must be on PATH, or run the hook through ops/ousast-docker)",
+            "no base revision was analysed, so no engine finding can be called new or worsened"
+          ],
+          "other_lines": [
+            "Quick rules: no pattern match on changed code (1 file(s), 17449 bytes read).",
+            "No actionable defects reported; analysis is incomplete.",
+            "Notice: Engine checks did not run. Install Joern, or run the hook through ops/ousast-docker. Review the details.",
+            "To /tmp/claude-1000/-home-mc-Source-OpenUltraSAST/c09e30b2-39a4-4564-bc31-6ea71ffaa198/scratchpad/ready-impl/bare-records.git",
+            "   ea42736..ad3d7db  HEAD -> main"
+          ]
+        },
+        "install_uninstall": [
+          "install rc=0",
+          "uninstall rc=0"
+        ]
+      },
+      "serve-static": {
+        "new-branch": {
+          "push_exit": 0,
+          "wall_seconds": 0.904302643,
+          "quick_findings_shown": [],
+          "engine_findings_shown": [],
+          "skip_lines": [
+            "new branch: the remote has no base to compare against, so the engine comparison did not run (OUSAST_COMPARISON_BASE=<local branch> compares against a local branch instead)",
+            "no base revision was analysed, so no engine finding can be called new or worsened"
+          ],
+          "other_lines": [
+            "New branch: instead, quick rules checked the files its last commit changed (compared with 76312e1).",
+            "Quick rules: no pattern match on changed code (0 file(s), 0 bytes read).",
+            "No analysis result is available.",
+            "Notice: Some checks could not be completed. Review the comparison details and resolve the recorded gaps before retrying.",
+            "To /tmp/claude-1000/-home-mc-Source-OpenUltraSAST/c09e30b2-39a4-4564-bc31-6ea71ffaa198/scratchpad/ready-impl/bare-serve-static.git",
+            " * [new branch]      HEAD~1 -> main"
+          ]
+        },
+        "update": {
+          "push_exit": 0,
+          "wall_seconds": 0.92386555,
+          "quick_findings_shown": [
+            "js-eval (CWE-95, critical) at debug.js:2: Dynamic JavaScript evaluation needs review",
+            "js-xss-response (CWE-79, medium) at debug.js:2: Unsanitized HTTP response reflection needs review"
+          ],
+          "engine_findings_shown": [],
+          "skip_lines": [
+            "the changed code has no counterpart in the base revision to compare against",
+            "engine did not run: the code graph could not be built (is Joern installed? 'joern-parse' must be on PATH, or run the hook through ops/ousast-docker)",
+            "no base revision was analysed, so no engine finding can be called new or worsened"
+          ],
+          "other_lines": [
+            "Quick rules: 2 pattern match(es) on changed code (1 file(s), 87 bytes read). Advisory: not verified by the engine.",
+            "No actionable defects reported; analysis is incomplete.",
+            "Notice: Engine checks did not run. Install Joern, or run the hook through ops/ousast-docker. Review the details.",
+            "To /tmp/claude-1000/-home-mc-Source-OpenUltraSAST/c09e30b2-39a4-4564-bc31-6ea71ffaa198/scratchpad/ready-impl/bare-serve-static.git",
+            "   74be78a..468213d  HEAD -> main"
+          ]
+        },
+        "no-ousast": {
+          "push_exit": 0,
+          "wall_seconds": 0.017937758,
+          "quick_findings_shown": [],
+          "engine_findings_shown": [],
+          "skip_lines": [],
+          "other_lines": [
+            "ousast: pre-push check did not run: 'ousast' is not on PATH. Install it (pip install git+https://github.com/norandom/OpenUltraSAST) or set OUSAST_COMMAND. Push continues.",
+            "To /tmp/claude-1000/-home-mc-Source-OpenUltraSAST/c09e30b2-39a4-4564-bc31-6ea71ffaa198/scratchpad/ready-impl/bare-serve-static.git",
+            "   468213d..aad3dfe  HEAD -> main"
+          ]
+        },
+        "bad-deadline": {
+          "push_exit": 0,
+          "wall_seconds": 0.300776,
+          "quick_findings_shown": [],
+          "engine_findings_shown": [],
+          "skip_lines": [],
+          "other_lines": [
+            "usage: ousast pre-push [-h] [--base BASE] [--head HEAD] [--remote NAME URL]",
+            "                       [--comparison-base COMPARISON_BASE]",
+            "                       [--model-config MODEL_CONFIG] [--prior-hook PRIOR_HOOK]",
+            "                       --artifact ARTIFACT [--cache-dir CACHE_DIR]",
+            "                       [--deadline DEADLINE]",
+            "                       [--cancellation-allowance CANCELLATION_ALLOWANCE]",
+            "                       [--max-regions MAX_REGIONS]",
+            "                       [--mode {advisory,blocking}]",
+            "                       [--incomplete-coverage {allow,block}]",
+            "                       [--engine {inline,background,off}]",
+            "                       [--background-deadline BACKGROUND_DEADLINE]",
+            "                       [--experimental-declarations EXPERIMENTAL_DECLARATIONS]",
+            "                       [--experimental-record-vetoes]",
+            "                       path",
+            "ousast pre-push: error: argument --deadline: invalid float value: 'abc'",
+            "ousast: pre-push check did not run: invalid arguments or settings (message above). Push continues.",
+            "To /tmp/claude-1000/-home-mc-Source-OpenUltraSAST/c09e30b2-39a4-4564-bc31-6ea71ffaa198/scratchpad/ready-impl/bare-serve-static.git",
+            "   aad3dfe..6fcfec7  HEAD -> main"
+          ]
+        },
+        "background-1": {
+          "push_exit": 0,
+          "wall_seconds": 0.915950565,
+          "quick_findings_shown": [],
+          "engine_findings_shown": [
+            "Engine: running in the background for c5b6c4d7060f (deadline 900.0 s); the next push shows its result."
+          ],
+          "skip_lines": [
+            "engine checks run in the background after this push; the next push shows their result",
+            "no base revision was analysed, so no engine finding can be called new or worsened"
+          ],
+          "other_lines": [
+            "Quick rules: no pattern match on changed code (1 file(s), 93 bytes read).",
+            "No analysis result is available.",
+            "Engine: running in the background for c5b6c4d7060f (deadline 900.0 s); the next push shows its result.",
+            "Notice: Some checks could not be completed. Review the comparison details and resolve the recorded gaps before retrying.",
+            "To /tmp/claude-1000/-home-mc-Source-OpenUltraSAST/c09e30b2-39a4-4564-bc31-6ea71ffaa198/scratchpad/ready-impl/bare-serve-static.git",
+            "   6fcfec7..c5b6c4d  HEAD -> main"
+          ]
+        },
+        "background-2": {
+          "push_exit": 0,
+          "wall_seconds": 0.879868436,
+          "quick_findings_shown": [],
+          "engine_findings_shown": [
+            "Engine result for c5b6c4d7060f from the previous push: the engine did not run (Joern unavailable)."
+          ],
+          "skip_lines": [
+            "engine checks were switched off for this run (--engine off)",
+            "no base revision was analysed, so no engine finding can be called new or worsened"
+          ],
+          "other_lines": [
+            "Engine result for c5b6c4d7060f from the previous push: the engine did not run (Joern unavailable).",
+            "Quick rules: no pattern match on changed code (1 file(s), 99 bytes read).",
+            "No analysis result is available.",
+            "Notice: Some checks could not be completed. Review the comparison details and resolve the recorded gaps before retrying.",
+            "To /tmp/claude-1000/-home-mc-Source-OpenUltraSAST/c09e30b2-39a4-4564-bc31-6ea71ffaa198/scratchpad/ready-impl/bare-serve-static.git",
+            "   c5b6c4d..3eee5ef  HEAD -> main"
+          ]
+        },
+        "install_uninstall": [
+          "install rc=0",
+          "uninstall rc=0"
+        ]
+      },
+      "secure": {
+        "new-branch": {
+          "push_exit": 0,
+          "wall_seconds": 0.96295861,
+          "quick_findings_shown": [],
+          "engine_findings_shown": [],
+          "skip_lines": [
+            "new branch: the remote has no base to compare against, so the engine comparison did not run (OUSAST_COMPARISON_BASE=<local branch> compares against a local branch instead)",
+            "no base revision was analysed, so no engine finding can be called new or worsened"
+          ],
+          "other_lines": [
+            "New branch: instead, quick rules checked the files its last commit changed (compared with ba42bc3).",
+            "Quick rules: no pattern match on changed code (1 file(s), 41228 bytes read).",
+            "No analysis result is available.",
+            "Notice: Some checks could not be completed. Review the comparison details and resolve the recorded gaps before retrying.",
+            "To /tmp/claude-1000/-home-mc-Source-OpenUltraSAST/c09e30b2-39a4-4564-bc31-6ea71ffaa198/scratchpad/ready-impl/bare-secure.git",
+            " * [new branch]      HEAD~1 -> main"
+          ]
+        },
+        "update": {
+          "push_exit": 0,
+          "wall_seconds": 0.747049238,
+          "quick_findings_shown": [],
+          "engine_findings_shown": [],
+          "skip_lines": [
+            "language not covered: go (1 changed file(s), 10 in the repository): no engine frontend and no quick rules, so silence here is not a clean result",
+            "the changed code has no counterpart in the base revision to compare against",
+            "engine did not run: the code graph could not be built (is Joern installed? 'joern-parse' must be on PATH, or run the hook through ops/ousast-docker)",
+            "engine has no frontend for at least one language in this push",
+            "no base revision was analysed, so no engine finding can be called new or worsened"
+          ],
+          "other_lines": [
+            "Quick rules: no pattern match on changed code (1 file(s), 193 bytes read).",
+            "No actionable defects reported; analysis is incomplete.",
+            "Notice: Engine checks did not run. Install Joern, or run the hook through ops/ousast-docker. Review the details.",
+            "To /tmp/claude-1000/-home-mc-Source-OpenUltraSAST/c09e30b2-39a4-4564-bc31-6ea71ffaa198/scratchpad/ready-impl/bare-secure.git",
+            "   740abc8..64739c4  HEAD -> main"
+          ]
+        },
+        "install_uninstall": [
+          "install rc=0",
+          "uninstall rc=0"
+        ]
+      }
+    },
+    "docker_engine_serve_static": {
+      "log": [
+        "MemAvailable=3283MB disk_free=1159MiB",
+        "base=74be78a8ffad679edfe135c457ce141114d96fcc head=468213d8a737ad03a1f712c792c1db8476e154df",
+        "exit=0 elapsed=190.895648822s"
+      ],
+      "exit": 0,
+      "wall_seconds": 190.895648822,
+      "deadline_seconds": 300,
+      "quick_findings_shown": [
+        "js-eval (CWE-95, critical) at debug.js:2: Dynamic JavaScript evaluation needs review",
+        "js-xss-response (CWE-79, medium) at debug.js:2: Unsanitized HTTP response reflection needs review"
+      ],
+      "engine_findings_shown": [
+        "Engine: 2 finding(s) this push introduced. Advisory: the capability is not yet qualified, so not an alert."
+      ],
+      "skip_lines": [
+        "engine findings are not qualified as alerts yet: no capability has passed independent evaluation",
+        "the capability registry does not match this build (eligibility provenance mismatch), so no capability can be used",
+        "20 engine check(s) depend on dynamic or external code the engine cannot follow"
+      ],
+      "other_lines": [
+        "Engine: 2 finding(s) this push introduced. Advisory: the capability is not yet qualified, so not an alert.",
+        "Quick rules: 2 pattern match(es) on changed code (1 file(s), 87 bytes read). Advisory: not verified by the engine.",
+        "No actionable defects reported; analysis is incomplete.",
+        "Notice: Some checks are not enabled for normal alerts. Review capability coverage in the details."
+      ],
+      "snapshots_files_bytes": [
+        [
+          26,
+          61525
+        ],
+        [
+          25,
+          61438
+        ]
+      ],
+      "quick_tier_files_bytes": [
+        [
+          1,
+          87
+        ]
+      ],
+      "quick_tier_seconds": [
+        0.038
+      ],
+      "coverage_reasons_raw": [
+        "capability_unavailable",
+        "eligibility:eligibility_provenance_mismatch",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:7ba72698b15c888c0835cad443fc1f177f1d2e13ed2658b17e816cc0b81415de",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:392beff95d0e245cbaef2676813d7f69d35599fb32977c8f197e6df46738fc75",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:ec16a67e984a2f82c3ce9a04dbc44eae1e950393b1c1c4fae88485446f1e2f95",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:0a3bd3f145260792e9a5d4af2546020689cfd08d0b1e82264d7fe31dda7210e7",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:1551c000ba35ba4e5488013f51171b27ab10df8b80f29509610670192cff8a30",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:5b687fa7647cefd89d064b3e1b5e5a62842f8fd23104900e8af8d5b14fc800fd",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:f122da538137e0a3a3e598c24e6af57c5e0b90ff48dacb4fd1b9d82ac20c35ef",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:8ab9ddcb1f4431fa3a3c1cce4cc3d289bcb5d363d47aac1bcf35bc7db86ce866",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:19f1031c2c010d91fb41e23955cd5f18eaa5ede355e68fab9e18c8249c21c2ee",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:d31a861124274a09e3cb8f3398831ca299cc0cfad72ea385083c1fd88b7a2c45",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:c8a1c8042befd3ff6f296921666949850a1c54d63c77dd44296e7be96e621127",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:3bb50c50f77027f1e0347f490e35fdd0a75ae586fdf92775c753877833a9d099",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:c32cb93cad379fee7b814900e6673aa5ae470c27acd55d33f855987bccb1ab8e",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:300fba1acc39cb0ab32ebbd66a8674daecf496b3d8c675d27f7f71cf9f788c9e",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:40c99dfe6d923602dc3aa6353f3b5bc017c0d1a67595c19ddf8206ef431db23d",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:0e99666c9be7c4704f6c6f858844d721ed8f0b4e3978d53073bc2c1b64d3f075",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:da903214d018e0b1bd7a3a3b635b3e0fb2a23fd44527f41a9483c0bf3913f2df",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:79d89b41b86aadcc0423baa786e0518ccff2a5b7853ff05986682ecbd636af52",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:7d3331ca3c06d1013c758d3648bfebb1223385955e77df977266fc621f62e733",
+        "dynamic_external_or_depth_context_unresolved:contributor-scan:54fd93450c8db7e6daef06fe795babb26726402211ca8f6d0a8679a375786041",
+        "analysis_incomplete"
+      ],
+      "admitted_alerts": 0,
+      "push_disposition": "allow",
+      "total_seconds_internal": 189.327,
+      "dispositions": [
+        {
+          "family": "injection",
+          "site": "debug.js:2:debug",
+          "novelty": "new",
+          "reason": "file_added_in_head",
+          "vetoes": [
+            "capability_unavailable"
+          ]
+        },
+        {
+          "family": "output_encoding",
+          "site": "debug.js:2:debug",
+          "novelty": "new",
+          "reason": "file_added_in_head",
+          "vetoes": [
+            "capability_unavailable"
+          ]
+        }
+      ],
+      "timings": {
+        "deadline_seconds": 300.0,
+        "cancellation_allowance_seconds": 2.0,
+        "resolution_seconds": 0.0,
+        "provenance_seconds": 0.3,
+        "snapshot_seconds": 0.3,
+        "discovery_seconds": 0.3,
+        "preparation_seconds": 0.6,
+        "quick_seconds": 0.0,
+        "head_seconds": 107.6,
+        "base_seconds": 80.7,
+        "admission_seconds": 0.0,
+        "cleanup_seconds": 0.0,
+        "total_seconds": 189.3
+      }
+    }
+  },
+  "build": {
+    "worktree_head": "591818d + hook install-hint fix (this commit)",
+    "wheel_sha256": "5b725adb052239c2afaec237fecf582f69fc5ea61799dc67f0c07e09e10908c9",
+    "installed_with": "uv pip install <wheel> into a scratch venv"
+  },
+  "inputs": {
+    "records": {
+      "language": "python",
+      "tracked_files": 21,
+      "tracked_bytes": 43577,
+      "planted": "records.py: db.query(\"... '%s'\" % name)"
+    },
+    "serve-static": {
+      "language": "javascript",
+      "tracked_files": 26,
+      "tracked_bytes": 61525,
+      "planted": "new debug.js: res.end(String(eval(req.query.code)))"
+    },
+    "secure": {
+      "language": "go",
+      "tracked_files": 19,
+      "tracked_bytes": 103023,
+      "planted": "new run.go: exec.Command(\"sh\", \"-c\", r.URL.Query().Get(\"cmd\"))"
+    }
+  },
+  "notes": [
+    "The Docker engine run used the worktree src at 591818d mounted over the stale 2026-09-14 openultrasast:dev image (not rebuilt: 1.1 GB disk free, below the 4 GB threshold). `eligibility_provenance_mismatch` still appears; the audit already suspected src/image skew, and it is not investigated here.",
+    "The run shows host paths after `Details:` because ops/ousast-docker mounts the artifact directory at its own path. Before, it showed the container path /out/...",
+    "The hook's 'not on PATH' hint first said 'pip install openultrasast', which is not on PyPI. The first proof run caught it. It was corrected to the git URL, and the replay and hook proofs were rerun on the rebuilt wheel recorded under build. The Docker engine run predates the hint fix and does not involve the hook script.",
+    "Host runs read their input. Each head snapshot's bytes equal `git ls-files | xargs cat | wc -c` at head, and the quick tier lists the files it read."
+  ]
+}

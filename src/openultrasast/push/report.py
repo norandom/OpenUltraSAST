@@ -18,6 +18,7 @@ from typing import Literal
 from openultrasast.model.contracts import ChangeContext, ExecutionBudget
 from openultrasast.model.scan import ModelScanResult
 from openultrasast.push.contracts import PushComparison, PushResolution, PushResult, SnapshotManifest
+from openultrasast.push.explain import explain
 from openultrasast.push.policy import AdmissionResult, _context_boundaries
 from openultrasast.redaction import redact_secrets
 
@@ -44,6 +45,10 @@ class PushReport:
     # Labeled M1a recorded-veto evaluation. Present only under the explicit replay flag;
     # it is retained beside the decision and never feeds admission or enforcement.
     experimental: Mapping[str, object] = field(default_factory=dict)
+    # The quick-rule tier (task 17.3): one payload per comparison it ran for; advisory only.
+    quick: tuple[Mapping[str, object], ...] = ()
+    # The background engine (task 17.5): what this run started, and earlier results shown now.
+    background: Mapping[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "model_assistance", MappingProxyType(dict(self.model_assistance)))
@@ -133,6 +138,8 @@ def _write_artifact(report: PushReport, target: Path, temporary: Path, connectio
                     "timing_scope": "Caller stage measurements; publication and rendering duration is returned in ReportDelivery.",
                     "resolution": report.resolution.to_payload() if report.resolution else None,
                     "experimental": dict(report.experimental),
+                    "quick_tier": [dict(item) for item in report.quick],
+                    "engine_background": dict(report.background),
                 }
                 json.dump(payload, stream, ensure_ascii=True, allow_nan=False, indent=2)
                 stream.write("\n")
@@ -187,6 +194,10 @@ def _save(report: PushReport, target: Path, budget: ExecutionBudget) -> str | No
                 process.close()
 
 
+# Distinct skip kinds shown in the terminal; the artifact keeps every reason.
+_SKIP_LINES = 12
+
+
 def _short(value: str, limit: int = 180) -> str:
     # Bound before escaping: repository-controlled names/witnesses cannot add lines
     # or terminal escapes. Full spelling and every witness remain in the artifact.
@@ -209,6 +220,121 @@ def _experimental_line(experimental: Mapping[str, object]) -> str:
         f"{quiet} base-only finding(s) and {explained} change-attributed evaluation finding(s) in the detailed "
         f"result; recorded, not applied; not an alert."
     )
+
+
+# Vetoes that say only "this capability is not qualified yet". A candidate whose novelty is established
+# and whose only vetoes are these is shown as an advisory engine finding (task 17.4, Requirement 9.4);
+# any comparison, evidence or location veto keeps it out of the terminal.
+CAPABILITY_VETOES = frozenset(
+    {
+        "capability_unavailable",
+        "capability_disabled",
+        "capability_unevaluated",
+        "capability_ambiguous",
+        "operation_semantics_mismatch",
+        "consequence_unsupported",
+        "repair_unsupported",
+    }
+)
+
+
+def _advisory_engine_lines(report: PushReport) -> list[str]:
+    shown: dict[str, list[str]] = {}
+    for disposition in report.admission.dispositions:
+        delta = disposition.candidate.delta
+        op = delta.head_operation
+        if (
+            disposition.admitted
+            or delta.novelty not in ("new", "worsened")
+            or not set(disposition.reasons) <= CAPABILITY_VETOES
+            or op is None
+            or delta.witness is None
+            or delta.defect_id in shown
+        ):
+            continue
+        how = "new" if delta.novelty == "new" else "worsened"
+        shown[delta.defect_id] = [
+            f"- {_short(delta.family)} at {_short(op.path, 4096)}:{op.line} ({how}): {_short(redact_secrets(delta.witness))}"
+        ]
+    if not shown:
+        return []
+    lines = [f"Engine: {len(shown)} finding(s) this push introduced. Advisory: the capability is not yet qualified, so not an alert."]
+    for entry in list(shown.values())[:3]:
+        lines.extend(entry)
+    if len(shown) > 3:
+        lines.append(f"{len(shown) - 3} more advisory engine findings retained in the detailed result.")
+    return lines
+
+
+def _previous_engine_lines(background: Mapping[str, object]) -> list[str]:
+    """Background engine results from an earlier push, shown once (task 17.5)."""
+    lines: list[str] = []
+    earlier = background.get("previous")
+    for item in earlier if isinstance(earlier, list) else []:
+        if not isinstance(item, Mapping):
+            continue
+        advisory = item.get("advisory")
+        found = [a for a in advisory if isinstance(a, Mapping)] if isinstance(advisory, list) else []
+        state = (
+            "the engine did not run (Joern unavailable)"
+            if not item.get("engine_ran")
+            else f"{item.get('alerts', 0)} alert(s), {len(found)} advisory engine finding(s), coverage {item.get('coverage')}"
+            + ("" if item.get("finished") else ", did not finish within its deadline")
+        )
+        head = str(item.get("head", ""))[:12]
+        lines.append(f"Engine result for {_short(head)} from the previous push: {_short(state, 300)}.")
+        for entry in found[:3]:
+            lines.append(f"- {_short(str(entry.get('family')))} at {_short(str(entry.get('path')), 4096)}:{entry.get('line')}")
+        lines.append("  Details: " + _short(str(item.get("artifact", "")), 4096))
+    return lines
+
+
+def _background_lines(background: Mapping[str, object]) -> list[str]:
+    status = background.get("status")
+    head = _short(str(background.get("head", ""))[:12])
+    if status == "started":
+        return [
+            f"Engine: running in the background for {head} (deadline {background.get('deadline_seconds')} s); "
+            "the next push shows its result."
+        ]
+    if status == "busy":
+        return [f"Engine: a background engine run for {head} is still busy, so none was started for this push."]
+    if status == "failed":
+        return [f"Engine: the background run could not be started ({_short(str(background.get('reason')))})."]
+    if status == "not_started":
+        return [f"Engine: no background run was started ({_short(str(background.get('reason')))})."]
+    return []
+
+
+# Quick-rule matches shown per comparison; the artifact keeps every one.
+_QUICK_LINES = 5
+
+
+def _quick_lines(payload: Mapping[str, object]) -> list[str]:
+    """The quick tier in the terminal: advisory pattern matches, never presented as alerts."""
+    files = payload.get("files")
+    count = len(files) if isinstance(files, list) else 0
+    read = f"{count} file(s), {payload.get('bytes_read', 0)} bytes read"
+    lines: list[str] = []
+    if payload.get("basis") == "last_commit":
+        commit = str(payload.get("basis_commit") or "")[:7]
+        lines.append(f"New branch: instead, quick rules checked the files its last commit changed (compared with {commit}).")
+    if payload.get("status") != "completed":
+        return [*lines, f"Quick rules did not run ({_short(str(payload.get('reason') or 'unknown'))})."]
+    findings = payload.get("findings")
+    found = [item for item in findings if isinstance(item, Mapping)] if isinstance(findings, list) else []
+    if not found:
+        return [*lines, f"Quick rules: no pattern match on changed code ({read})."]
+    lines.append(f"Quick rules: {len(found)} pattern match(es) on changed code ({read}). Advisory: not verified by the engine.")
+    for item in found[:_QUICK_LINES]:
+        cwe = f"{item.get('cwe')}, " if item.get("cwe") else ""
+        lines.append(
+            f"- {_short(str(item.get('rule')))} ({cwe}{_short(str(item.get('severity')))}) at "
+            f"{_short(str(item.get('path')), 4096)}:{item.get('line')}: {_short(str(item.get('title')))}"
+        )
+    if len(found) > _QUICK_LINES:
+        lines.append(f"{len(found) - _QUICK_LINES} more quick-rule matches retained in the detailed result.")
+    return lines
 
 
 def render_report(report: PushReport, *, artifact: Path | None, error: str | None = None) -> str:
@@ -246,6 +372,10 @@ def render_report(report: PushReport, *, artifact: Path | None, error: str | Non
         )
     if len(defects) > 3:
         lines.append(f"{len(defects) - 3} more actionable defects retained in the detailed result.")
+    lines.extend(_previous_engine_lines(report.background))
+    lines.extend(_advisory_engine_lines(report))
+    for payload in report.quick:
+        lines.extend(_quick_lines(payload))
     if not defects:
         coverage = report.result.coverage_status
         if coverage == "complete_within_scope":
@@ -260,8 +390,14 @@ def render_report(report: PushReport, *, artifact: Path | None, error: str | Non
     notices = []
     if report.result.coverage_status in ("incomplete", "unavailable"):
         reasons = report.admission.coverage_reasons
+        # One plain line per distinct skipped check (Requirement 9.2); the artifact keeps the raw values.
+        deadline = report.timings.get("deadline_seconds")
+        for skipped in explain(reasons, deadline=float(deadline) if deadline is not None else None)[:_SKIP_LINES]:
+            lines.append("Skipped: " + _short(skipped, 400))
         if any("deadline" in reason for reason in reasons):
             notices.append("Analysis did not finish. Rerun with a longer analysis deadline.")
+        elif any(reason in ("cpg_build_failed", "cpg_unavailable") for reason in reasons):
+            notices.append("Engine checks did not run. Install Joern, or run the hook through ops/ousast-docker. Review the details.")
         elif any("capability" in reason for reason in reasons):
             notices.append("Some checks are not enabled for normal alerts. Review capability coverage in the details.")
         else:
@@ -272,6 +408,7 @@ def render_report(report: PushReport, *, artifact: Path | None, error: str | Non
         notices.append("Details could not be saved. Choose an artifact path outside the analyzed repository.")
     elif error:
         notices.append("Details could not be saved. Retry with a writable artifact path and available reporting time.")
+    lines.extend(_background_lines(report.background))
     if notices:
         lines.append("Notice: " + " ".join(notices))
     if report.experimental:

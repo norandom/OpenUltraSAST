@@ -654,3 +654,46 @@ def test_a_clean_scan_states_no_coverage_gaps(tmp_path) -> None:  # type: ignore
         degradations=[],
     )
     assert "### What could not be analysed" not in path.read_text()
+
+
+def test_every_recorded_scan_degradation_is_rendered(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """pre-push 17.2 / Req 9.2: the eight degradations cli.py records and the report used to drop."""
+    from openultrasast.reports import write_markdown_report
+
+    reasons = [
+        {"stage": "model", "reason": "learning_endpoint_unavailable"},
+        {"stage": "model", "reason": "cpg_unavailable"},
+        {"stage": "overlay", "reason": "facts_unavailable", "detail": "missing table"},
+        {"stage": "obligations", "reason": "facts_unavailable"},
+        {"stage": "obligations", "reason": "policy_invalid", "detail": "bad toml"},
+        {"stage": "model", "reason": "model_withheld_execution_budget"},
+        {"stage": "budget", "reason": "max_findings_exceeded", "requested": 5, "actual": 9},
+        {"stage": "map", "reason": "hunter_model_unavailable"},
+        {"stage": "regress", "reason": "sandbox_unavailable"},
+        {"stage": "x", "reason": "not_yet_described"},
+    ]
+    path = tmp_path / "report.md"
+    write_markdown_report([], path, [], degradations=reasons)
+    text = path.read_text()
+    for needle in (
+        "No model endpoint is configured",
+        "Joern engine is not installed",
+        "fact tables for the `overlay` stage",
+        "fact tables for the `obligations` stage",
+        "`obligations` policy could not be loaded",
+        "time budget leaves no room",
+        "first 5 of 9 findings",
+        "needs a model and none is available",
+        "Docker is not available",
+        "`not_yet_described`",
+    ):
+        assert needle in text, needle
+
+
+def test_quick_scan_names_a_language_nothing_covers(tmp_path, capsys) -> None:  # type: ignore[no-untyped-def]
+    """pre-push 17.2 / Req 9.2: a Go-only tree is not a silent zero."""
+    (tmp_path / "run.go").write_text('package main\n\nimport "os/exec"\n\nfunc run(c string) { exec.Command("sh", "-c", c).Run() }\n')
+    assert main(["scan", str(tmp_path), "--mode", "quick"]) == 0
+    assert "notice: language not covered: go (1 files)" in capsys.readouterr().out
+    report = next((tmp_path / ".openultrasast" / "runs").iterdir()) / "report.md"
+    assert "Not a clean result for go (1 files)" in report.read_text()

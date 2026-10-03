@@ -658,6 +658,16 @@ def _compare_evidence(
                 reason = "head_context_incomplete"
             elif execution_budget is not None and time.monotonic() >= execution_budget.deadline_monotonic:
                 reason = "deadline_exhausted"
+            elif op.path in {context.decode_path(p) for p in context.added_paths}:
+                # The file did not exist in the base, so no base line or counterpart question can hold
+                # this operation (task 17.4, Requirement 9.4). Code moved here from elsewhere is still
+                # movement: an identical operation in any base answer keeps it out of `new`, and an
+                # unpaired add/delete in the same push already blocked above as context.
+                reason = "operation_moved_within_change"
+                if not any(b.operation == op.operation and b.mechanism == op.mechanism for b in base_ops):
+                    reason = "file_added_unsupported_claim"
+                    if change and finding.rung == Rung.ENTAILED and not op.discharged:
+                        novelty, reason = "new", "file_added_in_head"
             elif enumerated:
                 same = tuple(b for b in old if b.source == op.source)
                 reason = "operation_correspondence_unresolved"
@@ -926,6 +936,7 @@ def admit_candidates(candidates: Sequence[AdmissionCandidate], *, capabilities: 
         elif not delta.change_evidence or (delta.novelty, delta.reason) not in (
             ("new", "source_connection_absent_from_comparable_base"),
             ("new", "operation_absent_from_comparable_base"),
+            ("new", "file_added_in_head"),
             ("worsened", "discharge_removed"),
         ):
             reasons.append("change_unsupported")

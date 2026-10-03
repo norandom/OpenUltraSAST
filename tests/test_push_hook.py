@@ -105,3 +105,42 @@ def test_install_refuses_dangling_symlink(tmp_path):
     result = subprocess.run([str(installer), str(root)], capture_output=True)
     assert result.returncode != 0
     assert not target.exists()
+
+
+def test_missing_ousast_never_blocks_the_push(tmp_path):
+    """17.1 / Req 9.1: a hook whose executable is absent allows the push and says the check did not run."""
+    root, _, head, git = history(tmp_path)
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "--bare", str(remote)], check=True, capture_output=True)
+    git("remote", "add", "origin", str(remote))
+    hooks = root / ".hooks"
+    hooks.mkdir()
+    git("config", "core.hooksPath", ".hooks")
+    shutil.copyfile(Path(__file__).resolve().parents[1] / "ops/pre-push", hooks / "pre-push")
+    (hooks / "pre-push").chmod(0o755)
+    env = {**os.environ, "OUSAST_COMMAND": "ousast-not-installed-anywhere", "OUSAST_ARTIFACT_DIR": str(tmp_path / "a")}
+    result = subprocess.run(["git", "-C", str(root), "push", "origin", "HEAD:refs/heads/main"], env=env, capture_output=True)
+    assert result.returncode == 0, result.stderr
+    assert b"pre-push check did not run" in result.stdout + result.stderr
+    assert git("ls-remote", str(remote)).startswith(head)
+
+
+@pytest.mark.parametrize(
+    ("extra", "expected"),
+    [
+        (["--deadline", "abc"], 0),
+        (["--cache-dir", "INSIDE"], 0),
+        (["--deadline", "abc", "--mode", "blocking"], 2),
+    ],
+)
+def test_hook_mode_usage_errors_are_advisory_unless_blocking(tmp_path, extra, expected):
+    """17.1 / Req 9.1: invalid settings in hook mode allow the push; explicit blocking keeps exit 2."""
+    import sys
+
+    root, _, _, _ = history(tmp_path)
+    extra = [str(root / "cache") if item == "INSIDE" else item for item in extra]
+    command = [sys.executable, "-m", "openultrasast.cli", "pre-push", str(root), "--artifact", str(tmp_path / "r.json")]
+    result = subprocess.run([*command, *extra, "--remote", "origin", "/tmp/remote"], input=b"", capture_output=True, timeout=60)
+    assert result.returncode == expected, result.stderr
+    if expected == 0:
+        assert b"pre-push check did not run" in result.stdout
