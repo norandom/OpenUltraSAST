@@ -7,7 +7,7 @@ from:
 - quick rules and deterministic roles, run here on the unit's tree: a pair side materialised from its excerpt, a
   population or recipe pin exported from its clone or checkout (one at a time, deleted after, disk-guarded);
 - the engine: ``benchmarks/learn/engine_pairs.py`` records for pairs, the recorded protocol scans
-  (``~/ousast-results/independent-v{1,2}/scans/<case>--<pin role>.json``) for populations;
+  (``~/ousast-results/independent-v{1,2}/scans/<case>--<pin role>[_a|_b].json``) for populations;
 - verify passes a/b and ``agree`` from the harvest Run (``harvest-verify``) and, for population v2, the recorded
   ``validation-46`` Run; model roles from ``harvest-roles``;
 - callers and entry-point distance on a repository (``not_applicable`` on a pair excerpt: no repository exists).
@@ -21,6 +21,11 @@ An instrument that has not run for a unit yet (the engine job still running, a R
 memory store (``OUSAST_MEMORY``, default ``~/ousast-results/plane/memory``) as kind ``features``; a rerun replaces
 them by id. ``--counts`` writes the counts-only coverage record (no candidate, path or repository name).
 
+``--dry-run`` instead compares existing local store examples with the corrected engine features, printing
+per-source transitions from not-run/none to ran (and recorded failures separately). It reads only the spent
+v1/v2 manifests, saved scans and local Git objects; it writes neither the store nor ``--counts`` and does not
+rebuild other instruments. No label snapshot, harvest units or scratch directory is needed in this mode.
+
 Usage::
 
     python benchmarks/learn/build_features.py --labels labels-<sha>.jsonl --units <harvest plane>/units.json --counts counts.json
@@ -30,9 +35,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import tempfile
+import tomllib
 from collections import Counter, defaultdict
 from collections.abc import Mapping
 from pathlib import Path
@@ -61,6 +68,7 @@ from openultrasast.learn.features import (
     source_part,
     verify_part,
 )
+from openultrasast.learn.labels import Clone
 from openultrasast.learn.roles import RoleSet, from_model_roles, infer_for_checkout
 from openultrasast.pairs import DEFAULT_CATALOG, _materialize_side, _targets, load_pair_catalog
 from openultrasast.plane import memory
@@ -87,6 +95,110 @@ def jsonl(path: Path) -> list[dict[str, Any]]:
 
 def read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+
+
+def resolve_scan(scans: Path, case: str, side: str) -> dict[str, Any] | None:
+    """Read the v1 single scan, otherwise combine the v2 repeats for this side."""
+    single = read_json(scans / f"{case}--{side}.json")
+    if single is not None:
+        return dict(single)
+    repeats = [read_json(scans / f"{case}--{side}_{repeat}.json") for repeat in ("a", "b")]
+    available = [r for r in repeats if r is not None]
+    if not available:
+        return None
+    # Identical rule for vulnerable and fixed: a finding in either repeat counts;
+    # exact duplicates count once. engine_part takes the highest rung and minimum
+    # witness steps across the union. Completion is sum(completed)/sum(questions).
+    # A successful repeat survives a failed/missing peer, which marks degradation.
+    ran = [r for r in available if engine_for(r) is None]
+    findings = {json.dumps(f, sort_keys=True): f for r in ran for f in r.get("findings", [])}
+    degradations = sorted({d for r in available for d in r.get("degradations", [])})
+    if len(ran) != len(repeats):
+        degradations.append("repeat_missing_or_failed")
+    return {
+        "state": "ran" if ran else "none" if all(engine_for(r) == NONE for r in available) else "failed",
+        "questions": sum(int(r.get("questions") or 0) for r in available),
+        "completed": sum(int(r.get("completed") or 0) for r in available),
+        "findings": list(findings.values()),
+        "degradations": degradations,
+        "image": "+".join(sorted({str(r.get("image") or "recorded") for r in available})),
+    }
+
+
+def recorded_engine(language: str, findings: list, result: Mapping | None, repository: bool) -> Part:
+    # The language list describes standalone scans. Repository scans also analyze
+    # TypeScript; recorded function findings take precedence over that list.
+    if language not in ENGINE_LANGUAGES and not findings and not (repository and language == "typescript" and result is not None):
+        return NONE
+    state = engine_for(result)
+    if state is not None:
+        return state
+    result = result or {}
+    questions, completed = int(result.get("questions") or 0), int(result.get("completed") or 0)
+    return engine_part(
+        findings, completion=completed / questions if questions else None, degraded=bool(result.get("degradations")),
+        vocabulary=Vocabulary.load(language), version=str(result.get("image") or "recorded"),
+    )  # fmt: skip
+
+
+class PinSourceIndex(SourceIndex):
+    """Resolve findings with the same matcher as a checkout, without exporting it."""
+
+    def __init__(self, clone: Path, pin: str) -> None:
+        super().__init__(clone)
+        self.clone, self.pin = Clone(clone), pin
+
+    def lines(self, path: str) -> list[str]:
+        if path not in self._lines:
+            self._lines[path] = self.clone.git("show", f"{self.pin}:{path}").splitlines()
+        return self._lines[path] or []
+
+
+def dry_run(store: memory.FileStore, results: Path, cache: Path) -> dict[str, Any]:
+    """Count existing examples whose engine becomes available; never write rows or blobs.
+
+    Only spent v1/v2 populations are read. Counts are examples, not the two
+    static/plane feature records. Other sources are reported with zero changes.
+    """
+    root = Path(__file__).resolve().parents[2]
+    cases = {}
+    for population in ("population-v1", "population-v2"):
+        manifest = root / "benchmarks" / "independent" / f"{population}.toml"
+        for case in tomllib.loads(manifest.read_text(encoding="utf-8"))["case"]:
+            for side in ("vulnerable", "fixed"):
+                cases[(population, memory.repo_key(case["repo"]), case[side], side)] = case["id"]
+    rows = [r.row for r in store.rows(kind="example")]
+    if not rows:
+        raise ValueError("dry run read no examples from the store")
+    counts: dict[str, Counter[str]] = defaultdict(Counter)
+    for row in rows:
+        count = counts[row["source"]]
+        count["examples"] += 1
+        old = row["instruments"]["engine"]
+        reason = "not_run" if old.get("version") == "missing:not-run" else "none" if old["state"] == "none" else None
+        if reason is None:
+            continue
+        key = (row["split"], row["repo"], row["pin"], row["pin_role"])
+        case_id = cases.get(key)
+        if case_id is None:
+            continue
+        scans = results / row["split"].replace("population", "independent") / "scans"
+        result = resolve_scan(scans, case_id, row["pin_role"])
+        path, _, function = row["candidate"].partition("::")
+        engine = {}
+        if engine_for(result) is None:
+            index = PinSourceIndex(cache / "independent" / case_id, row["pin"])
+            lines = index.lines(path)  # fail loudly if the candidate's input cannot be read
+            count["source_bytes_read"] += len("\n".join(lines).encode("utf-8"))
+            selected = dict(result or {})
+            selected["findings"] = [f for f in selected.get("findings", []) if f["site"].partition(":")[0] == path]
+            _, engine = _signals(index, [], selected, {})
+        part = recorded_engine(row["language"], engine.get((path, function, row["family"]), []), result, True)
+        if part.state == "ran":
+            count[f"{reason}_to_ran"] += 1
+        elif result is not None and part.state == "failed":
+            count[f"{reason}_to_recorded_failed"] += 1
+    return {source: {**{"not_run_to_ran": 0, "none_to_ran": 0}, **dict(count)} for source, count in sorted(counts.items())}
 
 
 def done(run: Path, entry: str) -> bool:
@@ -188,17 +300,7 @@ def static_parts(root: Path, index: SourceIndex, quick: Mapping, engine: Mapping
     key = (path, function, family)
     parts: dict[str, Part] = {}
     parts["quick"] = quick_part(quick.get(key, []), rules, quick_version) if covers(QUICK_LANGUAGES, language) else NONE
-    if language not in ENGINE_LANGUAGES:
-        parts["engine"] = NONE
-    elif engine_state is not None:
-        parts["engine"] = engine_state
-    else:
-        result = engine_result or {}
-        questions, completed = int(result.get("questions") or 0), int(result.get("completed") or 0)
-        parts["engine"] = engine_part(
-            engine.get(key, []), completion=completed / questions if questions else None, degraded=bool(result.get("degradations")),
-            vocabulary=Vocabulary.load(language), version=str(result.get("image") or "recorded"),
-        )  # fmt: skip
+    parts["engine"] = recorded_engine(language, engine.get(key, []), engine_result, repository)
     lines = index.lines(path)
     parts["source"] = source_part(lines, language, function)
     parts["roles"] = roles_part(function_of(lines, path, language, function), inferred, language)
@@ -237,21 +339,34 @@ def export(clone: Path, pin: str, target: Path) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--labels", type=Path, required=True)
-    parser.add_argument("--units", type=Path, required=True, help="units.json of the harvest plane")
+    parser.add_argument("--labels", type=Path)
+    parser.add_argument("--units", type=Path, help="units.json of the harvest plane")
     parser.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
     parser.add_argument("--cache", type=Path, default=Path.home() / ".cache" / "openultrasast")
     parser.add_argument("--engine", type=Path, default=RESULTS / "plane" / "harvest-engine")
     parser.add_argument("--verify-run", type=Path, default=RESULTS / "plane" / "harvest-verify")
     parser.add_argument("--roles-run", type=Path, default=RESULTS / "plane" / "harvest-roles")
     parser.add_argument("--v46", type=Path, default=RESULTS / "plane" / "validation-46")
-    parser.add_argument("--scratch", type=Path, required=True)
+    parser.add_argument("--scratch", type=Path)
     parser.add_argument("--min-free-gb", type=float, default=1.2)
-    parser.add_argument("--counts", type=Path, required=True)
+    parser.add_argument("--counts", type=Path)
     parser.add_argument("--store", help="OUSAST_MEMORY spec (default: the environment's)")
     parser.add_argument("--limit", type=int, default=0, help="stop after this many targets (a test)")
     parser.add_argument("--kinds", default="pairs,pin", help="which targets: pairs, pin (population and recipe pins)")
+    parser.add_argument("--results-root", type=Path, default=RESULTS)
+    parser.add_argument("--dry-run", action="store_true", help="read local stored examples and print engine changes by source; no writes")
     args = parser.parse_args()
+    if args.dry_run:
+        spec = args.store or os.environ.get("OUSAST_MEMORY") or ""
+        if spec and not spec.startswith("file://"):
+            parser.error("--dry-run requires a local file:// store (no network)")
+        store = memory.open_store(spec)
+        if not isinstance(store, memory.FileStore):
+            parser.error("--dry-run requires a local file:// store (no network)")
+        print(json.dumps({"dry_run": True, "by_source": dry_run(store, args.results_root, args.cache)}, sort_keys=True))
+        return 0
+    if any(getattr(args, name) is None for name in ("labels", "units", "scratch", "counts")):
+        parser.error("--labels, --units, --scratch and --counts are required unless --dry-run is used")
 
     labels = [r for r in jsonl(args.labels) if r["unit"] == "pin" and r["source"] not in CONDITIONAL_SOURCES and not r.get("conditional")]
     units = json.loads(args.units.read_text(encoding="utf-8"))
@@ -314,7 +429,7 @@ def main() -> int:
                         continue
                     split = {r["split"] for r in rows} | {unit["source"]}
                     population = "independent-v1" if "population-v1" in split else "independent-v2"
-                    engine_result = read_json(RESULTS / population / "scans" / f"{case_id}--{rows[0]['pin_role']}.json")
+                    engine_result = resolve_scan(args.results_root / population / "scans", case_id, rows[0]["pin_role"])
                 stems = [(args.verify_run, n) for n in names] + [(args.v46, unit["ref"])]
                 owner = next(
                     (n for n in names if f"{n}-roles" in {e for e in (read_json(args.roles_run / "state.json") or {}).get("tasks", {})}),
