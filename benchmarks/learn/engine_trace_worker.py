@@ -36,13 +36,20 @@ def safe_path(root, name):
     return path
 
 
+FRONTENDS = {"php2cpg", "pysrc2cpg", "jssrc2cpg", "javasrc2cpg", "c2cpg", "joern-parse"}
+MIN_CPG_BYTES = 1024
+
+
 def instrument_failure(proof):
     if not proof.get("files") or not proof.get("bytes"):
         return "instrument read zero files or zero bytes"
-    if not proof.get("cpg_bytes"):
-        return "instrument produced no CPG bytes"
+    if proof.get("cpg_bytes", 0) <= MIN_CPG_BYTES:
+        return "frontend wrote no CPG"
     for stage in proof.get("jvm", []):
-        if stage["seconds"] < 5:
+        if stage["command"] in FRONTENDS:
+            if stage.get("cpg_bytes", 0) <= MIN_CPG_BYTES:
+                return "frontend wrote no CPG"
+        elif stage["command"] == "joern" and stage["seconds"] < 5:
             return f"implausibly fast JVM step: {stage['command']} in {stage['seconds']:.3f}s (<5s)"
     if not proof.get("jvm"):
         return "no JVM step recorded"
@@ -73,7 +80,9 @@ class MeasuredBackend(JoernBackend):
         started = time.monotonic()
         end = min(self.deadline, started + timeout)
         question_end = end
-        jvm = Path(command[0]).name != "php"
+        binary = Path(command[0]).name
+        frontend = binary in FRONTENDS
+        query = binary == "joern" and "--script" in command
         output = bytearray()
         pending = b""
         process = subprocess.Popen(
@@ -117,9 +126,18 @@ class MeasuredBackend(JoernBackend):
             process.wait(timeout=5)
             process.stdout.close()
         elapsed = time.monotonic() - started
-        if jvm:
-            self.stages.append({"command": Path(command[0]).name, "seconds": elapsed, "exit": process.returncode})
-            if elapsed < 5:
+        if frontend or query:
+            stage = {"command": binary, "seconds": elapsed, "exit": process.returncode}
+            self.stages.append(stage)
+            if frontend:
+                # Capture the exact frontend output before build failure cleanup or overlays.
+                output_arg = next((i + 1 for i, arg in enumerate(command[:-1]) if arg in {"-o", "--output"}), None)
+                cpg_path = (Path(cwd or Path.cwd()) / command[output_arg]).resolve() if output_arg is not None else None
+                stage["cpg_path"] = str(cpg_path) if cpg_path is not None else None
+                stage["cpg_bytes"] = cpg_path.stat().st_size if cpg_path is not None and cpg_path.is_file() else 0
+                if stage["cpg_bytes"] <= MIN_CPG_BYTES:
+                    self.fatal = "frontend wrote no CPG"
+            elif elapsed < 5:
                 self.fatal = f"implausibly fast JVM step: {command[0]} in {elapsed:.3f}s (<5s)"
         self.checkpoint()
         return subprocess.CompletedProcess(command, process.returncode if not self.fatal else 1, output.decode(errors="replace"), "")
@@ -132,7 +150,7 @@ def unit_record(unit, status, reason="", **extra):
         "reason": reason,
         "witness_rows": [],
         "traces": [],
-        "instrument": {"files": [], "bytes": 0, "cpg_bytes": 0, "jvm": []},
+        "instrument": {"files": [], "bytes": 0, "cpg_path": None, "cpg_bytes": 0, "jvm": []},
         "questions": {},
         "questions_asked": [],
         "questions_completed": [],
@@ -141,7 +159,7 @@ def unit_record(unit, status, reason="", **extra):
 
 
 def worker(pin, root, out, deadline, question_deadline):
-    proof = {"files": [], "bytes": 0, "cpg_bytes": 0, "jvm": []}
+    proof = {"files": [], "bytes": 0, "cpg_path": None, "cpg_bytes": 0, "jvm": []}
     record = {
         **pin,
         "done": False,
@@ -152,6 +170,10 @@ def worker(pin, root, out, deadline, question_deadline):
     def checkpoint():
         # Checkpoints retain raw completed rows even if the outer container deadline fires.
         # They remain timeout until the finished JVM's instrument proof is validated.
+        for stage in backend.stages:
+            if "cpg_path" in stage:
+                proof["cpg_path"] = stage["cpg_path"]
+                proof["cpg_bytes"] = stage["cpg_bytes"]
         for row in record["units"]:
             rid = row["unit"]
             row["instrument"] = proof
@@ -187,7 +209,9 @@ def worker(pin, root, out, deadline, question_deadline):
         cpg = backend.build(root, language=language)
         if cpg is None:
             raise ValueError(backend.fatal or backend.last_failure or ("pin deadline" if backend.timed_out else "CPG build failed"))
-        proof["cpg_bytes"] = sum(p.stat().st_size for p in cpg.cpg_path.parent.rglob("*.bin"))
+        if proof["cpg_path"] is None:
+            proof["cpg_path"] = str(cpg.cpg_path)
+            proof["cpg_bytes"] = cpg.cpg_path.stat().st_size if cpg.cpg_path.is_file() else 0
         failure = instrument_failure(proof)
         if failure:
             raise ValueError(failure)
@@ -196,6 +220,8 @@ def worker(pin, root, out, deadline, question_deadline):
         answers = cpg.run_batch_once("taint", requests) or {}
         record["census"] = answers.get("__census__", [])
         failure = backend.fatal or instrument_failure(proof)
+        if not backend.asked and not backend.timed_out:
+            failure = failure or "query produced no markers"
         census = record["census"]
         if census and int(census[0].get("files", 0)) <= 0:
             failure = failure or "query census read zero files"
@@ -230,6 +256,8 @@ def worker(pin, root, out, deadline, question_deadline):
                 status, reason = "failed", failure or "labelled file was dropped or absent from query census"
             elif rows is None or shard_incomplete:
                 status, reason = ("timeout" if backend.timed_out else "failed"), "question did not complete"
+            elif not rows and rid not in backend.asked:
+                status, reason = "failed", "query produced no markers"
             else:
                 flows = [r for r in rows if isinstance(r, dict) and "kind" not in r and "sink" in r]
                 if any(not row.get("trace") for row in flows):

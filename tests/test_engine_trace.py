@@ -6,6 +6,7 @@ import importlib.util
 import json
 import subprocess
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -146,13 +147,13 @@ class FakeBackend:
     seen = []
 
     def __init__(self, deadline, question_deadline, checkpoint):
-        self.stages = [{"command": "joern-parse", "seconds": self.seconds, "exit": 0}]
+        self.stages = [{"command": "joern-parse", "seconds": self.seconds, "exit": 0, "cpg_bytes": 2048}]
         self.asked = []
         self.answers = {}
 
     def build(self, root, language):
         graph = root / "graph.bin"
-        graph.write_bytes(b"CPG bytes")
+        graph.write_bytes(b"x" * 2048)
 
         def batch(query, requests):
             self.seen.append(requests)
@@ -270,8 +271,8 @@ def test_question_watchdog_retains_completed_rows_without_joern(tmp_path):
     assert backend.asked == ["a", "b"]
     assert backend.answers == {"a": []}
     assert done.returncode != 0
-    assert backend.stages[0]["seconds"] < 5
-    assert "implausibly fast" in backend.fatal
+    assert backend.stages == []
+    assert not backend.fatal
 
 
 def test_pair_mapping_handles_harvest_normalized_crlf(tmp_path):
@@ -293,7 +294,7 @@ def test_missing_batch_answers_are_timeout_not_empty(tmp_path, monkeypatch):
     class TimeoutBackend(FakeBackend):
         def build(self, root, language):
             graph = root / "graph.bin"
-            graph.write_bytes(b"CPG bytes")
+            graph.write_bytes(b"x" * 2048)
 
             def batch(query, requests):
                 self.timed_out = True
@@ -469,3 +470,100 @@ def test_trace_resume_identity_includes_selection_even_if_support_unchanged(tmp_
     trace.save_pin(tmp_path / trace.pin_name(first), {**first, "done": True})
     assert trace.make_plan([unit()], tmp_path) == []
     assert len(trace.make_plan([unit()], tmp_path, include_typescript=True)) == 1
+
+
+@pytest.mark.parametrize("binary", sorted(worker.FRONTENDS))
+def test_fast_frontend_validates_exact_output(tmp_path, binary):
+    frontend = tmp_path / binary
+    frontend.write_text(
+        f"#!{sys.executable}\n"
+        "import pathlib, sys, time\n"
+        "source = pathlib.Path(sys.argv[1])\n"
+        "print('read bytes:', len(source.read_bytes()), flush=True)\n"
+        "time.sleep(2 if pathlib.Path(sys.argv[0]).name == 'php2cpg' else 0)\n"
+        "pathlib.Path(sys.argv[3]).write_bytes(b'x' * 34000)\n"
+    )
+    frontend.chmod(0o755)
+    (tmp_path / "source.php").write_text("<?php echo 'hello';")
+    backend = worker.MeasuredBackend(30, 10, lambda: None)
+    flag = "--output" if binary == "joern-parse" else "-o"
+    done = backend._run([str(frontend), "source.php", flag, "out.graph"], timeout=10, cwd=tmp_path)
+    assert done.returncode == 0
+    assert "read bytes: 19" in done.stdout
+    assert not backend.fatal
+    stage = backend.stages[0]
+    assert stage["seconds"] < 5
+    if binary == "php2cpg":
+        assert stage["seconds"] >= 2
+    assert stage["cpg_path"] == str(tmp_path / "out.graph")
+    assert stage["cpg_bytes"] == 34000
+    proof = {"files": ["source.php"], "bytes": 19, **stage, "jvm": backend.stages}
+    assert worker.instrument_failure(proof) == ""
+
+
+@pytest.mark.parametrize("size", [None, 0, 1024])
+def test_frontend_without_sufficient_output_fails(tmp_path, size):
+    frontend = tmp_path / "php2cpg"
+    frontend.write_text(
+        f"#!{sys.executable}\nimport pathlib, sys\n"
+        + (f"pathlib.Path(sys.argv[2]).write_bytes(b'x' * {size})\n" if size is not None else "")
+    )
+    frontend.chmod(0o755)
+    # A different non-empty CPG must not mask the missing requested output.
+    (tmp_path / "unrelated.bin").write_bytes(b"x" * 34000)
+    backend = worker.MeasuredBackend(30, 10, lambda: None)
+    done = backend._run([str(frontend), "-o", "out.bin"], timeout=10, cwd=tmp_path)
+    assert done.returncode == 1
+    assert backend.stages[0]["exit"] == 0
+    assert backend.stages[0]["cpg_bytes"] == (size or 0)
+    assert backend.fatal == "frontend wrote no CPG"
+
+
+def test_fast_joern_script_is_failed_launch(tmp_path):
+    joern = tmp_path / "joern"
+    joern.write_text(f"#!{sys.executable}\n")
+    joern.chmod(0o755)
+    backend = worker.MeasuredBackend(30, 10, lambda: None)
+    done = backend._run([str(joern), "--script", "query.sc"], timeout=10, cwd=tmp_path)
+    assert done.returncode == 1
+    assert backend.stages[0]["exit"] == 0
+    assert "implausibly fast JVM step" in backend.fatal
+
+
+@pytest.mark.parametrize("markers", [[], ["a"], ["a", "b"]])
+def test_empty_answers_require_each_question_marker(tmp_path, monkeypatch, markers):
+    class EmptyBackend(FakeBackend):
+        def build(self, root, language):
+            cpg = super().build(root, language)
+            batch = cpg.run_batch_once
+
+            def empty_batch(query, requests):
+                answers = batch(query, requests)
+                self.asked = markers
+                return {**answers, **dict.fromkeys(requests, [])}
+
+            return replace(cpg, run_batch_once=empty_batch)
+
+    result = run_fake(tmp_path, monkeypatch, EmptyBackend)
+    for row in result["units"]:
+        assert row["status"] == ("asked-nothing" if row["unit"] in markers else "failed")
+        assert row["reason"] == ("" if row["unit"] in markers else "query produced no markers")
+
+
+def test_frontend_measurement_survives_failed_build_cleanup(tmp_path, monkeypatch):
+    class CleanupBackend(worker.MeasuredBackend):
+        def build(self, root, language):
+            frontend = root / "php2cpg"
+            frontend.write_text(
+                f"#!{sys.executable}\nimport pathlib, sys\npathlib.Path(sys.argv[2]).write_bytes(b'x' * 34000)\nsys.exit(1)\n"
+            )
+            frontend.chmod(0o755)
+            self._run([str(frontend), "-o", "actual.graph"], timeout=10, cwd=root)
+            (root / "actual.graph").unlink()
+            return None
+
+    result = run_fake(tmp_path, monkeypatch, CleanupBackend)
+    assert all(row["status"] == "failed" for row in result["units"])
+    assert result["instrument"]["cpg_path"] == str(tmp_path / "actual.graph")
+    assert result["instrument"]["cpg_bytes"] == 34000
+    assert not (tmp_path / "actual.graph").exists()
