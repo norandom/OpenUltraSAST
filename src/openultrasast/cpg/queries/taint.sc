@@ -56,7 +56,8 @@
     contextFilter: String = "",
     contextPaths: String = "",
     requests: String = "",
-    requestsFile: String = ""
+    requestsFile: String = "",
+    trace: String = ""
 ) = {
   importCpg(cpgFile)
 
@@ -1489,6 +1490,12 @@
       // collapsed the sizer to three sink visits per JVM start on the plugin.
       val started = System.nanoTime()
       def field(name: String): String = req.obj.get(name).map(_.str).getOrElse("")
+      // Opt-in heartbeat for the trace runner's per-question process watchdog.
+      // Killing the JVM preserves completed streamed rows without unsafe query threads.
+      if (field("questionDeadline").nonEmpty) {
+        println(ujson.write(ujson.Obj("__question__" -> id)))
+        System.out.flush()
+      }
       val paramSrc = req.obj.get("parameterSources").map(_.str).getOrElse("false")
       val fieldParamSrc = req.obj.get("fieldParameterSources").map(_.str).getOrElse(paramSrc)
       val fieldSrc = req.obj.get("fieldSources").map(_.str).getOrElse("true")
@@ -1532,7 +1539,7 @@
   } else {
     println("---OUSAST-CPG-BEGIN---")
     println(
-      ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, hookCallbacks, dispatchApply, dispatchValue, function, parameterSources, parameterSources, fieldSources, evidenceOnly, file, callDepth, boundedSinks): _*))
+      ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, hookCallbacks, dispatchApply, dispatchValue, function, parameterSources, parameterSources, fieldSources, evidenceOnly, file, callDepth, boundedSinks, traceS = trace): _*))
     )
   }
   println("---OUSAST-CPG-END---")

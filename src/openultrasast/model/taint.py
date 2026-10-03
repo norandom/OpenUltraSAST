@@ -28,6 +28,7 @@ def request_params(
     call_depth: int = 0,
     hook_callbacks: str = "",
     field_parameter_sources: bool | None = None,
+    trace: bool = False,
 ) -> dict[str, object]:
     """The query parameters this arbiter sends. Shared with the batcher so there is one definition, not two.
 
@@ -40,6 +41,7 @@ def request_params(
     means unscoped, which is what the single-region pair path still uses.
     """
     return {
+        **({"trace": "true"} if trace else {}),
         "sources": spec.sources,
         "sinks": spec.sinks,
         "sanitizers": spec.sanitizers,
