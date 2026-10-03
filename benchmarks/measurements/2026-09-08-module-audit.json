@@ -1,7 +1,7 @@
 {
-  "modules": 157,
+  "modules": 158,
   "counts": {
-    "load_bearing": 152,
+    "load_bearing": 153,
     "standalone_capability": 5
   },
   "orphaned": [],
@@ -358,6 +358,7 @@
         "learn.excerpt",
         "learn.experiments",
         "learn.features",
+        "learn.fill",
         "learn.folds",
         "learn.labels",
         "learn.leaks",
@@ -412,7 +413,8 @@
       "importers": [
         "learn.cli",
         "learn.compile",
-        "learn.experiments"
+        "learn.experiments",
+        "learn.fill"
       ]
     },
     {
@@ -424,6 +426,7 @@
         "learn.compile",
         "learn.evaluate",
         "learn.experiments",
+        "learn.fill",
         "learn.folds",
         "learn.program",
         "learn.retrieve"
@@ -445,7 +448,8 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate, cli",
       "importers": [
-        "learn.cli"
+        "learn.cli",
+        "learn.fill"
       ]
     },
     {
@@ -455,6 +459,14 @@
       "importers": [
         "learn.excerpt",
         "plane.tasks.features"
+      ]
+    },
+    {
+      "module": "learn.fill",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate, cli",
+      "importers": [
+        "learn.cli"
       ]
     },
     {
@@ -502,7 +514,8 @@
         "learn.cli",
         "learn.compile",
         "learn.evaluate",
-        "learn.experiments"
+        "learn.experiments",
+        "learn.fill"
       ]
     },
     {
@@ -585,6 +598,7 @@
         "findings",
         "learn.cli",
         "learn.features",
+        "learn.fill",
         "learn.labels",
         "model.candidates",
         "model.config_value",
@@ -678,6 +692,7 @@
       "importers": [
         "cli",
         "learn.cli",
+        "learn.fill",
         "plane.budget",
         "plane.generate",
         "push.assistance",
@@ -854,6 +869,7 @@
         "learn.embeddings",
         "learn.examples",
         "learn.experiments",
+        "learn.fill",
         "learn.program",
         "plane.delivery",
         "plane.doctor",
@@ -881,6 +897,7 @@
         "learn.compile",
         "learn.embeddings",
         "learn.experiments",
+        "learn.fill",
         "learn.program",
         "plane.generate",
         "plane.tasks.roles",
@@ -964,6 +981,7 @@
         "learn.embeddings",
         "learn.examples",
         "learn.experiments",
+        "learn.fill",
         "learn.program",
         "plane.delivery",
         "plane.doctor",
@@ -1819,6 +1837,8 @@
       "reason": "reachable from gate, map_gate, pair_gate, cli",
       "importers": [
         "cli",
+        "learn.cli",
+        "learn.fill",
         "model.endpoint",
         "plane.budget",
         "plane.tasks.roles",
