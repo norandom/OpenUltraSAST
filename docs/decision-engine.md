@@ -141,7 +141,7 @@ Changes to prompts, models, pass counts, features or sampling are compared by co
 experiments. Each experiment comes from a pre-registered manifest
 (`plane/experiments/<id>.yaml`). This way nothing is adopted on one run's number.
 
-Three experiments are registered:
+Four experiments are registered:
 
 - exp-001 (known callers) has not run.
 - exp-002 compared a retrieval ensemble against today's temperature sampling. It ran on 160
@@ -150,6 +150,7 @@ Three experiments are registered:
   0.875 against 0.906 and an interval spanning zero
   (`benchmarks/experiments/exp-002-retrieval-ensemble/result.json`).
 - exp-003 compared two BLOCK rules on the same scores. It was **inconclusive**. Neither rule flags anything.
+- exp-004 tests one pooled BLOCK threshold with a per-family floor. It is registered and has not run.
 
 ### exp-003: precision-bound blocking (2026-10-03)
 
@@ -195,6 +196,44 @@ Pooled rankings look cleaner because positives-only units fill the top.
 Injection answered `unsure` for 42 of 119 units, and `unsure` never blocks.
 
 Record: `benchmarks/experiments/exp-003-precision-bound-blocking/result.json`.
+
+**Supplementary: all 353 units (2026-10-03).** This is not a new decision; exp-003's verdict stands.
+The 142 excluded units had their responses filled with the same programs and request keys.
+The fill cost 697 client calls and $0.331759 under a $1.00 ceiling.
+The replay then decided all 353 units at zero cost: 244 paired, 146 repository groups.
+
+| Family | Paired units (positives) | Flagged A / B / C | ECE (arm A) |
+| --- | --- | --- | --- |
+| access control | 32 (16) | 0 / 0 / 0 | 0.077 |
+| deserialization | 34 (17) | 0 / 0 / 0 | 0.0596 |
+| injection | 76 (38) | 0 / 0 / 0 | 0.1067 |
+| output encoding | 32 (16) | 0 / 0 / 0 | 0.0761 |
+| path | 32 (16) | 0 / 0 / 0 | 0.062 |
+| untrusted destination | 38 (19) | 0 / 0 / 0 | 0.0454 |
+
+Still no arm flags any unit, so the registered rule reads inconclusive.
+Calibration holds only for untrusted destination.
+There arm A still finds no BLOCK point that reaches the bound.
+Record: `benchmarks/experiments/exp-003-precision-bound-blocking/result-complete-cache.json`.
+
+### exp-004: pooled block gate with a family floor (registered, not run)
+
+The maintainer amended the BLOCK rule on 2026-10-03 (requirements, Req 6.4).
+Precision is now shown across all families together, not per family.
+Each family's score is first mapped by its own Platt fit, on training folds.
+One threshold, t_block, then serves every family.
+It is the lowest one whose pooled Wilson lower bound reaches 0.95 on training folds.
+A family blocks only with at least 10 held-out flags and no error.
+Otherwise its flags stay advisory.
+Below a per-family t_quiet, which keeps 90% of positives, findings are silent.
+No held-out label moves a threshold.
+
+- **Primary metric:** the pooled held-out Wilson lower bound of flagged precision, paired units, before the floor.
+- **Decision:** reject below point precision 0.95; adopt if the bound reaches 0.95 and a family passes the floor.
+- **Units:** frozen at run time, from the memory after the negatives harvest.
+- **Cost:** the run replays the cache. The new memory needs a paid cache fill first.
+
+Manifest: `plane/experiments/exp-004-pooled-block-gate.yaml`.
 
 The reading is on [Where we stand](where-we-stand.md#2-our-approach-to-detection-step-by-step).
 
