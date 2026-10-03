@@ -1,13 +1,14 @@
 """A/B experiments (learned-decision-engine design section 6, task 7): manifest digest refusal, frozen units and
 pairing, the paired repository bootstrap, exact McNemar on a known table, the two-look boundary, the adoption rule,
 arm A replaying at zero client calls, and the retrieval-ensemble sampling variant. Every client is scripted; stores
-are ``FileStore`` under ``tmp_path``."""
+are in-memory fakes or ``FileStore`` under ``tmp_path``."""
 
 from __future__ import annotations
 
 import json
 import math
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 from learn_fixtures import ScriptedChat, corpus, x_record
@@ -18,7 +19,7 @@ from openultrasast.learn.compile import canonical, program_id
 from openultrasast.learn.program import TEMPERATURES, Caller, Candidate, Program, ProgramSpec
 from openultrasast.learn.retrieve import Target
 from openultrasast.plane.budget import MeteredClient
-from openultrasast.plane.memory import FileStore
+from openultrasast.plane.memory import FileStore, MemoryStore, Record
 
 ROOT = Path(__file__).resolve().parents[1]
 PRICES = {"cache_hit_per_m": 0.014, "input_per_m": 0.44, "output_per_m": 1.32}
@@ -168,6 +169,91 @@ def test_register_refuses_uncommitted_and_modified_manifests(tmp_path: Path) -> 
     with pytest.raises(ex.ExperimentError, match="differs from the registered"):
         ex.check_registered(store, changed, need_units=False)
     assert len(store.rows(kind="experiment")) == 1
+
+
+@pytest.fixture
+def registration_store() -> Mock:
+    records: list[Record] = []
+    store = Mock(spec=MemoryStore)
+    store.put_row.side_effect = lambda row: records.append(Record(dict(row), "memory", None))
+    store.rows.side_effect = lambda *, repo, kind: [r for r in records if r.row["repo"] == repo and r.row["kind"] == kind]
+    return store
+
+
+def test_registered_prefers_frozen_over_pending(tmp_path: Path, registration_store: Mock) -> None:
+    manifest = ex.load_manifest(write_manifest(tmp_path, "0" * 64))
+    pending = ex.register(registration_store, manifest, commit_of=committed, created="2026-10-03")
+    ex.write_units(manifest.units_file, [unit("u", "g", 1)])
+    frozen = ex.register(registration_store, manifest, commit_of=lambda _: PIN, created="2026-10-02")
+    assert pending["units_status"] == "pending"
+    assert len(registration_store.rows(repo=ex.experiment_repo(manifest.id), kind=ex.EXPERIMENT_KIND)) == 2
+    assert ex.registered(registration_store, manifest.id) == frozen
+    assert ex.check_registered(registration_store, manifest, need_units=True) == frozen
+
+
+def test_registered_frozen_only(tmp_path: Path, registration_store: Mock) -> None:
+    manifest = ex.load_manifest(write_manifest(tmp_path, "0" * 64))
+    ex.write_units(manifest.units_file, [unit("u", "g", 1)])
+    frozen = ex.register(registration_store, manifest, commit_of=committed)
+    assert ex.registered(registration_store, manifest.id) == frozen
+    assert ex.check_registered(registration_store, manifest, need_units=True) == frozen
+
+
+def test_registered_pending_only_refuses_units(tmp_path: Path, registration_store: Mock) -> None:
+    manifest = ex.load_manifest(write_manifest(tmp_path, "0" * 64))
+    pending = ex.register(registration_store, manifest, commit_of=committed)
+    ex.write_units(manifest.units_file, [unit("u", "g", 1)])
+    assert ex.registered(registration_store, manifest.id) == pending
+    with pytest.raises(ex.ExperimentError, match=r"the units file was not registered \(pending\)"):
+        ex.check_registered(registration_store, manifest, need_units=True)
+
+
+@pytest.mark.parametrize("freeze", [False, True])
+def test_register_still_refuses_different_manifest_digest(tmp_path: Path, registration_store: Mock, freeze: bool) -> None:
+    path = write_manifest(tmp_path, "0" * 64)
+    manifest = ex.load_manifest(path)
+    ex.register(registration_store, manifest, commit_of=committed)
+    if freeze:
+        ex.write_units(manifest.units_file, [unit("u", "g", 1)])
+        ex.register(registration_store, manifest, commit_of=lambda _: PIN)
+    path.write_text(path.read_text().replace("mde: 0.1", "mde: 0.2"))
+    with pytest.raises(ex.ExperimentError, match="A changed manifest is a new experiment"):
+        ex.register(registration_store, ex.load_manifest(path), commit_of=committed)
+    assert registration_store.put_row.call_count == 1 + freeze
+
+
+@pytest.mark.parametrize(
+    ("first_created", "second_created", "first_pin", "second_pin", "expected"),
+    [
+        ("2026-10-03", "2026-10-02", PIN, COMMIT, 0),
+        ("2026-10-02", "2026-10-03", COMMIT, PIN, 1),
+        ("2026-10-02", "2026-10-02", PIN, COMMIT, 1),
+        ("", "2026-10-02", COMMIT, PIN, 0),
+        (None, None, PIN, COMMIT, 1),
+        ("2026-10-03", 123, PIN, COMMIT, 1),
+        ("", "", PIN, PIN, 1),
+    ],
+)
+def test_registered_orders_frozen_rows(
+    tmp_path: Path,
+    registration_store: Mock,
+    first_created: object,
+    second_created: object,
+    first_pin: str,
+    second_pin: str,
+    expected: int,
+) -> None:
+    manifest = ex.load_manifest(write_manifest(tmp_path, "0" * 64))
+    ex.write_units(manifest.units_file, [unit("u", "g", 1)])
+    frozen = ex.register(registration_store, manifest, commit_of=committed)
+    rows = [dict(frozen, pin=pin, created=created) for pin, created in ((first_pin, first_created), (second_pin, second_created))]
+    for row in rows:
+        if row["created"] is None:
+            del row["created"]
+    # A run row and another experiment must not participate in registration selection.
+    ignored = [dict(frozen, task=ex.RUN_TASK), dict(frozen, repo="experiments/other")]
+    registration_store.rows.side_effect = lambda *, repo, kind: [Record(r, "memory", None) for r in rows + ignored if r["repo"] == repo]
+    assert ex.registered(registration_store, manifest.id) is rows[expected]
 
 
 def test_frozen_units_cover_the_evaluated_groups_and_pair_the_sides(tmp_path: Path) -> None:

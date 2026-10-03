@@ -35,6 +35,7 @@ import math
 import random
 import subprocess
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from contextlib import suppress
 from dataclasses import asdict, dataclass, field, fields, replace
 from pathlib import Path
 from typing import Any
@@ -340,8 +341,22 @@ def registration_id(experiment_id: str) -> str:
 
 
 def registered(store: MemoryStore, experiment_id: str) -> dict[str, Any] | None:
+    """Return the authoritative registration, preferring a set units digest over pending rows.
+
+    Within that group, use the greatest ``created`` value when all values are nonempty and mutually
+    comparable (strings compare lexically). Otherwise, or on a tie, use the lexically greatest ``pin``,
+    then the last row in store order (key/id order for MemoryStore, insertion order for an append-only store).
+    """
     rows = [r.row for r in store.rows(repo=experiment_repo(experiment_id), kind=EXPERIMENT_KIND) if r.row.get("task") == REGISTER_TASK]
-    return rows[0] if rows else None
+    if not rows:
+        return None
+    rows = [r for r in rows if r.get("units_digest")] or rows
+    rows = sorted(rows, key=lambda r: str(r.get("pin", "")))
+    if all(r.get("created") for r in rows):
+        # Incomparable timestamps retain the deterministic pin/store ordering.
+        with suppress(TypeError):
+            rows = sorted(rows, key=lambda r: r["created"])
+    return rows[-1]
 
 
 def register(
