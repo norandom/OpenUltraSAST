@@ -506,20 +506,24 @@ class Program:
             out.append((prompt, got))
         return out
 
-    def decide(self, candidate: Candidate, fold: Fold, caller: Caller, *, seed: int = 0) -> Decision:
+    def prepare_samples(self, candidate: Candidate, fold: Fold, *, seed: int = 0) -> list[tuple[Prompt, Retrieval, float, str]]:
+        """The exact prompts, temperatures and sample labels shared by execution and cache planning."""
         if self.spec.sampling == RETRIEVAL_ENSEMBLE:
             prepared = self.prepare_ensemble(candidate, fold, seed=seed)
-            answers = [
-                sample_answer(prompt, caller, temperature=TEMPERATURES[0], sample=str(j), families=self.families)
-                for j, (prompt, _) in enumerate(prepared)
-            ]
-            got = prepared[0][1]
-            return replace(aggregate(answers), retrieval=got.mode, neighbours=got.neighbours)
+            return [(prompt, got, TEMPERATURES[0], str(j)) for j, (prompt, got) in enumerate(prepared)]
         if self.spec.sampling != SAMPLING[0]:
             raise ValueError(f"unknown sampling {self.spec.sampling!r} (one of {', '.join(SAMPLING)})")
         prompt, got = self.prepare(candidate, fold, seed=seed)
-        decision = classify(prompt, caller, self.spec.k, families=self.families)
-        return replace(decision, retrieval=got.mode, neighbours=got.neighbours)
+        return [(prompt, got, TEMPERATURES[0] if j == 0 else TEMPERATURES[1], str(j)) for j in range(self.spec.k)]
+
+    def decide(self, candidate: Candidate, fold: Fold, caller: Caller, *, seed: int = 0) -> Decision:
+        prepared = self.prepare_samples(candidate, fold, seed=seed)
+        answers = [
+            sample_answer(prompt, caller, temperature=temperature, sample=sample, families=self.families)
+            for prompt, _, temperature, sample in prepared
+        ]
+        got = prepared[0][1]
+        return replace(aggregate(answers), retrieval=got.mode, neighbours=got.neighbours)
 
 
 __all__ = [
