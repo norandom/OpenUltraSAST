@@ -141,7 +141,7 @@ Changes to prompts, models, pass counts, features or sampling are compared by co
 experiments. Each experiment comes from a pre-registered manifest
 (`plane/experiments/<id>.yaml`). This way nothing is adopted on one run's number.
 
-Two experiments are registered:
+Three experiments are registered:
 
 - exp-001 (known callers) has not run.
 - exp-002 compared a retrieval ensemble against today's temperature sampling. It ran on 160
@@ -149,6 +149,52 @@ Two experiments are registered:
   against 0.741 and the cost was $0.0021 against $0.0051 per candidate. The record shows re-run agreement
   0.875 against 0.906 and an interval spanning zero
   (`benchmarks/experiments/exp-002-retrieval-ensemble/result.json`).
+- exp-003 compared two BLOCK rules on the same scores. It was **inconclusive**. Neither rule flags anything.
+
+### exp-003: precision-bound blocking (2026-10-03)
+
+The question: is the calibration gate what keeps BLOCK out of reach?
+Arm A is today's rule: a calibrated probability, offered only when calibration holds.
+Arm B picks a raw-score threshold per family, on training folds only.
+It takes the lowest threshold whose Wilson 95% lower bound on precision reaches 0.95.
+The held-out repository group is then scored with that threshold.
+Arm C relaxes the bound to point precision 0.95 over at least 10 flags.
+Arm C was registered as secondary and does not decide.
+
+- **Registered first.** The manifest and units were committed and registered before the run.
+- **Primary metric:** arm B's held-out Wilson lower bound on flagged precision, per family.
+- **Primary population:** paired units only. Positives-only groups are excluded; pooled figures are secondary.
+- **Zero cost.** Scores came only from the response cache, behind a zero-ceiling meter.
+  The meter recorded 0 client calls and $0.0.
+- **Exclusions.** 142 of 353 units had an uncached response and were excluded, not asked.
+  Path lost all 39 units. Injection and access control lost none.
+- **Evaluated:** 211 units in 89 repository groups, 138 of them paired.
+
+| Family | Evaluated (excluded) | Paired positives | Flagged A / B / C | Coverage A / B / C |
+| --- | --- | --- | --- | --- |
+| access control | 41 (0) | 16 | 0 / 0 / 0 | 0.0 / 0.0 / 0.0 |
+| deserialization | 14 (34) | 2 | 0 / 0 / 0 | 0.0 / 0.0 / 0.0 |
+| injection | 119 (0) | 38 | 0 / 0 / 0 | 0.0 / 0.0 / 0.0 |
+| output encoding | 24 (21) | 8 | 0 / 0 / 0 | 0.0 / 0.0 / 0.0 |
+| path | 0 (39) | 0 | 0 / 0 / 0 | none |
+| untrusted destination | 13 (48) | 4 | 0 / 0 / 0 | 0.0 / 0.0 / 0.0 |
+
+No arm chose a threshold on any fold, so flagged precision is undefined everywhere.
+Arm A failed calibration where it was checked: ECE 0.077 (access control), 0.1067 (injection).
+The other families had too few units for a calibration check.
+
+**Why B flags nothing.** A Wilson lower bound of 0.95 needs 73 flags without one error.
+Injection, the largest family, holds 38 paired positives across all five folds.
+The registration predicted this zero before the run.
+On this data the bound, not the calibration gate, makes BLOCK unreachable.
+
+**The zero is the rule's, not the instrument's.** The scores are real: 48 distinct values for injection.
+In access control, the 10 highest-scored paired units are all positive.
+In injection, a negative appears at rank 4 of the paired ranking.
+Pooled rankings look cleaner because positives-only units fill the top.
+Injection answered `unsure` for 42 of 119 units, and `unsure` never blocks.
+
+Record: `benchmarks/experiments/exp-003-precision-bound-blocking/result.json`.
 
 The reading is on [Where we stand](where-we-stand.md#2-our-approach-to-detection-step-by-step).
 

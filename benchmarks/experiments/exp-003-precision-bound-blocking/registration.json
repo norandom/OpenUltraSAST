@@ -35,5 +35,5 @@
   "decision_rule": "REJECT B if in any family B flags held-out paired units at a point precision < 0.95; else ADOPT B if in some family B's held-out paired Wilson LB >= 0.95; else INCONCLUSIVE (the incumbent rule stays)",
   "m4_reading": "a family reaches the M4 precision bar on held-out repositories when its held-out paired Wilson LB >= 0.95; point precision reported beside it",
   "power": "a Wilson LB of 0.95 needs >= 73 flagged units with no false flag; the largest family holds 38 paired positives over all five folds, so arm B cannot offer a BLOCK in any family by construction; expected verdict inconclusive",
-  "status": "registered; not run"
+  "status": "run and analysed 2026-10-03: inconclusive -- no arm flags any held-out unit (result.json); meter 0 client calls, $0.0; 142 of 353 units excluded for an uncached response"
 }
