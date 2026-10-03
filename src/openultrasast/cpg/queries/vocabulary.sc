@@ -51,11 +51,13 @@
   val sourceMemo = scala.collection.mutable.Map.empty[String, Boolean]
   def nearSource(c: io.shiftleft.codepropertygraph.generated.nodes.Call): Boolean =
     if (sourcePatterns.isEmpty) false
-    else
+    // CPS-IT/mailqueue Extension::KEY has a null .method; it cannot be near a method source.
+    else Option(c.method).exists { m =>
       sourceMemo.getOrElseUpdate(
-        c.method.fullName,
-        c.method.ast.isCall.exists(x => sourcePatterns.exists(p => boundedPattern(p).matcher(x.code).find()))
+        m.fullName,
+        m.ast.isCall.exists(x => sourcePatterns.exists(p => boundedPattern(p).matcher(x.code).find()))
       )
+    }
 
   def isModelled(c: io.shiftleft.codepropertygraph.generated.nodes.Call): Boolean = {
     val callee = calleeText(c.code)

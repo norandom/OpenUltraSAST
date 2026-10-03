@@ -20,12 +20,25 @@ host's pytest mounted in, which needs no network and installs nothing:
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
 import pytest
 
 QUERIES = Path("src/openultrasast/cpg/queries")
+
+
+@pytest.mark.parametrize("name", ["taint", "dominance", "config", "census", "overlay", "vocabulary"])
+def test_query_scope_checks_guard_nullable_methods(name: str) -> None:
+    """PHP class constants can have no method; one unsafe scope check aborts the batch."""
+    script = QUERIES / f"{name}.sc"
+    source = script.read_text()
+    assert source, f"{script} is empty"
+    # Require Option(node.method).exists(predicate), keeping the null guard at the call site.
+    unsafe = re.compile(r"\b(?:inScope|nestedInLabeled)\s*\(\s*[\w.]+\s*\.\s*method\s*\)")
+    sites = [source.count("\n", 0, match.start()) + 1 for match in unsafe.finditer(source)]
+    assert not sites, f"{script}: unguarded method scope checks at lines {sites}"
 
 
 def _joern() -> str | None:

@@ -53,7 +53,8 @@
     }
 
   val calls = {
-    val all = cpg.call.filter(c => matches(c.name, c.code)).l
+    // CPS-IT/mailqueue Extension::KEY has a null .method; exclude methodless calls before attribution.
+    val all = cpg.call.filter(c => Option(c.method).nonEmpty && matches(c.name, c.code)).l
     val inFile = if (fileS.isEmpty) all else all.filter(_.method.filename.endsWith(fileS))
     if (function.isEmpty) inFile else inFile.filter(_.method.name == function)
   }
