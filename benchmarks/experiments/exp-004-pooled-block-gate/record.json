@@ -1,0 +1,81 @@
+{
+  "experiment": "exp-004-pooled-block-gate",
+  "date": "2026-10-03",
+  "fill": {
+    "client_calls": 2073,
+    "usd": 1.238223,
+    "ceiling_usd": 2.0,
+    "still_missing": 0,
+    "dry_run_estimate_usd": 5.582,
+    "note": "the dry-run estimator over-priced 4.5x (no prompt-cache pricing); measured spend is the meter's"
+  },
+  "run": {
+    "units": 501,
+    "client_calls": 0,
+    "usd": 0.0,
+    "replayed": 2509,
+    "replay_miss": 0
+  },
+  "verdict": "inconclusive",
+  "reason": "no t_block on any outer fold, pooled or per family; B offers no BLOCK",
+  "instrument_check": {
+    "per_family": {
+      "access_control": {
+        "n": 66,
+        "distinct_scores": 41,
+        "unsure": 5,
+        "pairs": 28,
+        "within_pair_wins": 22,
+        "ties": 1,
+        "positives_above_first_negative": 12
+      },
+      "deserialization": {
+        "n": 64,
+        "distinct_scores": 38,
+        "unsure": 7,
+        "pairs": 25,
+        "within_pair_wins": 18,
+        "ties": 4,
+        "positives_above_first_negative": 5
+      },
+      "injection": {
+        "n": 149,
+        "distinct_scores": 52,
+        "unsure": 54,
+        "pairs": 53,
+        "within_pair_wins": 30,
+        "ties": 17,
+        "positives_above_first_negative": 6
+      },
+      "output_encoding": {
+        "n": 69,
+        "distinct_scores": 31,
+        "unsure": 32,
+        "pairs": 28,
+        "within_pair_wins": 18,
+        "ties": 6,
+        "positives_above_first_negative": 2
+      },
+      "path": {
+        "n": 66,
+        "distinct_scores": 43,
+        "unsure": 15,
+        "pairs": 29,
+        "within_pair_wins": 25,
+        "ties": 3,
+        "positives_above_first_negative": 13
+      },
+      "untrusted_destination": {
+        "n": 87,
+        "distinct_scores": 36,
+        "unsure": 33,
+        "pairs": 32,
+        "within_pair_wins": 18,
+        "ties": 4,
+        "positives_above_first_negative": 3
+      }
+    },
+    "pooled_raw_top30_labels": "111111111110111110111111110111",
+    "reading": "scores are real (31-52 distinct values per family); pooled raw top 30 holds 27 positives (0.90), first negative at rank 12; the Wilson bound needs >= 73 flags with no error, so precision at the top, not data volume alone, now binds"
+  }
+}
