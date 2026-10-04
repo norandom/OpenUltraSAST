@@ -1,6 +1,7 @@
 # Plan: learn fix mechanisms into the engine (draft for review, 2026-10-04)
 
-Status: proposed. Not approved. Amends the learned-decision-engine spec once the maintainer approves it.
+Status: approved 2026-10-04 by the maintainer. Increment 1 = discharge facts only; coverage additions (Req 7) come later.
+Decisions: minimum 2 proposing repositories before a candidate is tried; admission per language (not pooled by callee name).
 
 ## Why
 
