@@ -21,7 +21,7 @@ import textwrap
 import threading
 import time
 import tomllib
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, deque
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from pathlib import Path
 
@@ -46,6 +46,8 @@ SNAPSHOT_FILES = (
     "benchmarks/learn/engine_trace_worker.py",
     "benchmarks/learn/engine_trace_k8s.py",
     "benchmarks/learn/engine_trace_queue.py",
+    "benchmarks/learn/engine_trace_ax.py",
+    "benchmarks/learn/engine_task_entry.py",
     "benchmarks/learn/engine_worker_service.py",
     "benchmarks/learn/engine_trace_parse.py",
     "src/openultrasast/model/taint.py",
@@ -140,6 +142,7 @@ def make_plan(
             recorded = {r["unit"]: r.get("input_digest") for r in old.get("units", [])}
             if (
                 old.get("done")
+                and not old.get("fallback_pending")
                 and old.get("materialization_version") == MATERIALIZATION_VERSION
                 and not any(r.get("status") in rerun_status for r in old.get("units", []) if r["unit"] in {u["unit"] for u in rows})
                 and all(recorded.get(r["unit"]) == r["input_digest"] for r in rows)
@@ -582,6 +585,8 @@ def docker_command(source, checkout, out, name, image, deadline, question_deadli
         "/out/pin.json",
         "--deadline",
         str(deadline),
+        "--heap-profile",
+        "vm",
         "--question-deadline",
         str(question_deadline),
     ]
@@ -636,6 +641,10 @@ def run_pin(pin, source, provenance, inputs, out, args):
                 status, reason = "failed", done.stderr
                 if done.returncode:
                     (output / "container.log").write_text(reason)
+            elif executor == "ax":
+                done, node = args.ax_dispatcher.execute(checkout, output, json.loads((output / "pin.json").read_text()), pin_name(pin)[:-5])
+                status = "timeout" if done is None else "failed"
+                reason = f"AX deadline {args.deadline}s" if done is None else done.stderr
             elif executor == "queue":
                 done, node = args.dispatcher.execute(checkout, output, json.loads((output / "pin.json").read_text()), pin_name(pin)[:-5])
                 status, reason = "timeout", f"queue wait deadline {args.queue_timeout}s"
@@ -683,7 +692,7 @@ def run_pin(pin, source, provenance, inputs, out, args):
             record.update(
                 done=True,
                 seconds=time.monotonic() - started,
-                analyzer=provenance,
+                analyzer={"image": args.image, "code": "baked-in-image"} if executor == "ax" else provenance,
                 image=record.get("image", args.image) if executor == "queue" else args.image,
             )
             if (output / "container.log").exists():
@@ -695,6 +704,11 @@ def run_pin(pin, source, provenance, inputs, out, args):
                 "analyzer": provenance,
                 "units": [unit_record(u, "failed" if u["supported"] else "unsupported", str(exc)) for u in pin["units"]],
             }
+        if executor == "ax":
+            record.update(executor="ax", worker=node, worker_ip=node, image=args.image)
+            record["analyzer"] = {"image": args.image, "code": "baked-in-image"}
+        if getattr(args, "fallback", None):
+            record.update(executor="docker", fallback=args.fallback, ax_attempt=args.ax_attempt, fallback_pending=False)
         if executor in {"k8s", "k8s-jobs"}:
             record.update(executor="k8s", node=node, image=args.image)
         if executor == "queue":
@@ -760,6 +774,8 @@ def summary(out):
 def run_plan(plan, source, provenance, inputs, args):
     """One task per fixed executor lane; progress is written only by the scheduler."""
     lanes = ["k8s"] * (args.parallel - 1) + ["docker"] if args.executor == "mixed" else [args.executor] * args.parallel
+    if args.executor in {"ax", "mixed-ax"}:
+        lanes = ["ax"] * args.parallel + ["docker"]
     args.input_lock = threading.Lock()
     progress = {
         "pins_done": 0,
@@ -771,7 +787,18 @@ def run_plan(plan, source, provenance, inputs, args):
         "active_lanes": {},
     }
     counts = Counter()
-    pending = iter(plan)
+    pending = deque(plan)
+    fallbacks = deque()
+    if args.executor in {"ax", "mixed-ax"}:
+        pending.clear()
+        for pin in plan:
+            path = args.out / pin_name(pin)
+            old = json.loads(path.read_text()) if path.exists() else {}
+            recorded = {u["unit"]: u.get("input_digest") for u in old.get("units", [])}
+            if old.get("fallback_pending") and all(recorded.get(u["unit"]) == u.get("input_digest") for u in pin["units"]):
+                fallbacks.append((pin, old))
+            else:
+                pending.append(pin)
     active = {}
     failures = False
 
@@ -779,7 +806,7 @@ def run_plan(plan, source, provenance, inputs, args):
         progress.update(pins_in_flight=len(active), active_lanes=dict(Counter(lane for _, lane in active.values())))
         write_json(args.out / "progress.json", progress)
 
-    def execute(pin, lane):
+    def execute(pin, lane, attempt=None):
         if not any(u["supported"] for u in pin["units"]):
             save_pin(
                 args.out / pin_name(pin), {**pin, "done": True, "units": [unit_record(u, "unsupported", u["reason"]) for u in pin["units"]]}
@@ -787,6 +814,9 @@ def run_plan(plan, source, provenance, inputs, args):
             return False
         options = copy.copy(args)
         options.executor = lane
+        if attempt is not None:
+            options.fallback = "vm-oom"
+            options.ax_attempt = attempt
         if lane == "docker":
             options.image = getattr(args, "docker_image", args.image)
         return run_pin(pin, source, provenance, inputs, args.out, options)
@@ -794,10 +824,16 @@ def run_plan(plan, source, provenance, inputs, args):
     with ThreadPoolExecutor(max_workers=len(lanes)) as pool:
 
         def launch(lane):
-            if not (args.out / "STOP").exists():
-                pin = next(pending, None)
-                if pin is not None:
-                    active[pool.submit(execute, pin, lane)] = (pin, lane)
+            if (args.out / "STOP").exists():
+                return
+            attempt = None
+            if lane == "docker" and fallbacks:
+                pin, attempt = fallbacks.popleft()
+            elif pending and not (args.executor == "ax" and lane == "docker"):
+                pin = pending.popleft()
+            else:
+                return
+            active[pool.submit(execute, pin, lane, attempt)] = (pin, lane)
 
         for lane in lanes:
             launch(lane)
@@ -806,14 +842,27 @@ def run_plan(plan, source, provenance, inputs, args):
             completed, _ = wait(active, return_when=FIRST_COMPLETED)
             for future in completed:
                 pin, lane = active.pop(future)
-                failures |= future.result()
+                failed = future.result()
                 result = json.loads((args.out / pin_name(pin)).read_text())
+                selected = {u["unit"] for u in pin["units"]}
+                if lane == "ax" and any("JVM out of memory" in u.get("reason", "") for u in result["units"] if u["unit"] in selected):
+                    result.update(fallback="vm-oom", fallback_pending=True)
+                    write_json(args.out / pin_name(pin), result)
+                    fallbacks.append((pin, result))
+                    continue
+                failures |= failed
                 selected = {u["unit"] for u in pin["units"]}
                 counts.update(u["status"] for u in result["units"] if u["unit"] in selected)
                 progress.update(
                     pins_done=progress["pins_done"] + 1, last_pin={"repo": pin["repo"], "pin": pin["pin"]}, statuses=dict(counts)
                 )
-                launch(lane)
+            idle = Counter(lanes) - Counter(lane for _, lane in active.values())
+            # Give a waiting fallback priority over overflow on the single VM lane.
+            for lane, count in idle.items():
+                for _ in range(count):
+                    launch(lane)
+            if args.executor in {"ax", "mixed-ax"}:
+                progress["fallbacks_pending"] = len(fallbacks)
             persist()
     return failures
 
@@ -826,10 +875,14 @@ def main():
     parser.add_argument("--cache", type=Path, default=Path.home() / ".cache/openultrasast")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--image", help="default: openultrasast:dev for Docker; public 2.0.1 image for k8s/mixed")
-    parser.add_argument("--executor", choices=("docker", "k8s", "k8s-jobs", "mixed", "queue"), default="docker")
+    parser.add_argument("--executor", choices=("docker", "k8s", "k8s-jobs", "mixed", "queue", "ax", "mixed-ax"), default="docker")
     parser.add_argument("--queue-status", action="store_true")
     parser.add_argument("--queue-timeout", type=int, default=3600, help="total queue wait including execution, seconds")
-    parser.add_argument("--parallel", type=int, default=1, help="total pins in flight; mixed reserves one lane for Docker")
+    parser.add_argument("--parallel", type=int, help="AX lanes (default 2, maximum 2); otherwise total lanes (default 1)")
+    parser.add_argument("--ax-bin", default="ax")
+    parser.add_argument("--kubeconfig", type=Path, help="AX kubeconfig; otherwise inherited KUBECONFIG/default CLI config")
+    parser.add_argument("--atespace", default="default")
+    parser.add_argument("--docker-image", default="openultrasast:dev", help="local VM image for AX OOM fallback/mixed overflow")
     parser.add_argument("--kube-context")
     parser.add_argument("--kube-namespace", default="ousast-engine")
     parser.add_argument("--keep-jobs", action="store_true", help="retain Jobs, Secrets and staging objects for debugging")
@@ -847,6 +900,13 @@ def main():
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--summary", action="store_true")
     args = parser.parse_args()
+    if args.parallel is None:
+        args.parallel = 2 if args.executor in {"ax", "mixed-ax"} else 1
+    if args.executor in {"ax", "mixed-ax"}:
+        if args.parallel > 2:
+            parser.error("AX allows at most 2 engine tasks in flight")
+        if not args.image or not re.fullmatch(r"[^\s@]+@sha256:[0-9a-f]{64}", args.image):
+            parser.error("AX requires --image by sha256 digest")
     if args.queue_status:
         print(json.dumps(Dispatcher(args).status(), indent=2))
         return 0
@@ -924,7 +984,8 @@ def main():
     except BlockingIOError:
         parser.error("another trace runner holds this results root")
     failures = False
-    args.docker_image = args.image
+    if args.executor not in {"ax", "mixed-ax"}:
+        args.docker_image = args.image
     if args.executor in {"docker", "mixed"} and any(u["supported"] for pin in plan for u in pin["units"]):
         image = subprocess.run(
             ["docker", "image", "inspect", "--format", "{{.Id}}", args.image], capture_output=True, text=True, check=True
@@ -937,6 +998,10 @@ def main():
         args.kubernetes.namespace()
     if args.executor == "queue":
         args.dispatcher = Dispatcher(args)
+    if args.executor in {"ax", "mixed-ax"}:
+        from engine_trace_ax import AX
+
+        args.ax_dispatcher = AX(args)
     with tempfile.TemporaryDirectory(prefix="trace-source-", dir=args.out) as scratch:
         source = Path(scratch) / "frozen"
         provenance = {"image": args.image, "executor": "queue"} if args.executor == "queue" else freeze_source(source)

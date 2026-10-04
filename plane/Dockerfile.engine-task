@@ -1,0 +1,52 @@
+# Build from the repository root. AX v0.3.1 starts spec.command immediately;
+# preserve its runner as PID 1 and put the engine command in the Task manifest.
+FROM eclipse-temurin:21-jre-jammy AS jre
+
+FROM ghcr.io/norandom/ax-task-runner:v0.3.1
+LABEL org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.source="https://github.com/norandom/OpenUltraSAST"
+
+USER root
+ARG JOERN_VERSION=v4.0.625
+ARG ARCHIVE=joern-cli-linux-x86_64.zip
+
+# The AX runner is Python 3.12 / Debian slim. Copy the Java 21 runtime from
+# Jammy (older glibc than Debian bookworm) instead of relying on distro JRE versions.
+COPY --from=jre /opt/java/openjdk /opt/java/openjdk
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH="/venv/bin:/opt/java/openjdk/bin:/opt/joern-cli:${PATH}"
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      php-cli unzip curl ca-certificates libstdc++6 zlib1g \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN set -eux; \
+    cd /tmp; \
+    curl -fsSL -O "https://github.com/joernio/joern/releases/download/${JOERN_VERSION}/${ARCHIVE}"; \
+    curl -fsSL -O "https://github.com/joernio/joern/releases/download/${JOERN_VERSION}/${ARCHIVE}.sha512"; \
+    sed 's@  target/@  @' "${ARCHIVE}.sha512" > checksum.sha512; \
+    sha512sum -c checksum.sha512; \
+    unzip -q "${ARCHIVE}" -d /opt; \
+    rm -f "${ARCHIVE}" "${ARCHIVE}.sha512" checksum.sha512; \
+    /opt/joern-cli/joern-parse --help > /dev/null
+
+RUN if [ ! -e /opt/joern-cli/jssrc2cpg ] && [ -x /opt/joern-cli/jssrc2cpg.sh ]; then \
+      ln -s jssrc2cpg.sh /opt/joern-cli/jssrc2cpg; \
+    fi
+COPY ops/frontend-retention/install.py /tmp/frontend-retention-install.py
+RUN python3 /tmp/frontend-retention-install.py /opt/joern-cli \
+ && rm /tmp/frontend-retention-install.py
+
+WORKDIR /app
+COPY pyproject.toml README.md LICENSE ./
+COPY src ./src
+COPY benchmarks/learn/engine_task_entry.py \
+     benchmarks/learn/engine_trace_worker.py \
+     benchmarks/learn/engine_trace_parse.py ./benchmarks/learn/
+# Worker imports are standard-library plus engine modules. Isolate them from
+# the AX runner's Python environment and omit PyYAML, boto3 and all extras.
+RUN python3 -m venv /venv \
+ && /venv/bin/pip install --no-cache-dir --no-deps . \
+ && /venv/bin/python -I -c 'import pathlib, runpy, sys; sys.modules.update(yaml=None, boto3=None); sys.path.insert(0, "/app/benchmarks/learn"); p = pathlib.Path("/app/benchmarks/learn/engine_trace_worker.py"); print("Worker import smoke bytes:", len(p.read_bytes())); runpy.run_path(str(p), run_name="engine_worker_import_smoke")'
+
+# Do not set ENTRYPOINT or CMD: both belong to the upstream AX runner.

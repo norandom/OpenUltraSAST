@@ -6,6 +6,7 @@ import importlib.util
 import json
 import subprocess
 import sys
+from collections import Counter
 from dataclasses import replace
 from pathlib import Path
 
@@ -1452,3 +1453,146 @@ def test_engine_queue_pin_persistence_resume_and_progress(tmp_path, monkeypatch,
         assert trace.make_plan([unit()], tmp_path, rerun_status=("failed", "timeout"))
     progress = json.loads((tmp_path / "progress.json").read_text())
     assert progress["pins_done"] == 1 and progress["pins_in_flight"] == 0
+
+
+@pytest.mark.parametrize("executor", ["ax", "mixed-ax"])
+def test_ax_scheduler_requeues_oom_to_single_vm_lane(tmp_path, monkeypatch, executor):
+    import threading
+    import time
+    from types import SimpleNamespace
+
+    plan = trace.make_plan([unit(str(i), str(i)) for i in range(7)], tmp_path)
+    args = SimpleNamespace(executor=executor, parallel=2, out=tmp_path, image="cluster", docker_image="vm")
+    lock = threading.Lock()
+    active = Counter()
+    peak = Counter()
+    attempts = []
+
+    def run(pin, source, provenance, inputs, out, options):
+        with lock:
+            active[options.executor] += 1
+            peak[options.executor] = max(peak[options.executor], active[options.executor])
+            attempts.append((pin["pin"], options.executor, options.image))
+        time.sleep(0.01)
+        oom = options.executor == "ax"
+        record = {
+            **pin,
+            "done": True,
+            "units": [worker.unit_record(u, "failed" if oom else "path", "JVM out of memory" if oom else "") for u in pin["units"]],
+        }
+        if getattr(options, "fallback", None):
+            record["fallback"] = options.fallback
+        trace.write_json(out / trace.pin_name(pin), record)
+        with lock:
+            active[options.executor] -= 1
+        return oom
+
+    monkeypatch.setattr(trace, "run_pin", run)
+    assert not trace.run_plan(plan, None, {}, None, args)
+    assert peak["ax"] <= 2 and peak["docker"] == 1
+    for pin in plan:
+        record = json.loads((tmp_path / trace.pin_name(pin)).read_text())
+        if (pin["pin"], "ax", "cluster") in attempts:
+            assert record["fallback"] == "vm-oom"
+            assert (pin["pin"], "docker", "vm") in attempts
+    progress = json.loads((tmp_path / "progress.json").read_text())
+    assert progress["pins_done"] == 7
+    assert progress["statuses"] == {"path": 7}
+    assert progress["pins_in_flight"] == 0
+
+
+@pytest.mark.parametrize("timeout", [False, True])
+def test_ax_run_pin_persists_worker_ip_timeout_and_resume(tmp_path, monkeypatch, timeout):
+    pin = trace.make_plan([unit()], tmp_path)[0]
+    calls = []
+
+    class Inputs:
+        def materialize(self, prepared, target):
+            target.mkdir()
+            (target / "app.py").write_text("def run(): pass")
+            return {"files": 1, "bytes": 15}
+
+    class Dispatcher:
+        def execute(self, checkout, output, prepared, name):
+            assert (checkout / "app.py").read_bytes() == b"def run(): pass"
+            assert prepared["questions"] == {"a": {}}
+            assert prepared["materialization"]["bytes"] == 15
+            calls.append(name)
+            if timeout:
+                return None, "10.0.0.12"
+            trace.write_json(
+                output / "result.json",
+                {**prepared, "done": True, "units": [worker.unit_record(u, "asked-nothing") for u in prepared["units"]]},
+            )
+            return subprocess.CompletedProcess([], 0, "", ""), "10.0.0.12"
+
+    args = k8s_args(tmp_path, executor="ax", ax_dispatcher=Dispatcher(), image="registry/engine@sha256:" + "a" * 64)
+    monkeypatch.setattr(trace, "prepare_questions", lambda *_: {"a": {}})
+    monkeypatch.setattr(subprocess, "run", lambda *_a, **_k: pytest.fail("AX run_pin must use dispatcher only"))
+    assert trace.run_pin(pin, None, {"host": "unused"}, Inputs(), tmp_path, args) is timeout
+    result = json.loads((tmp_path / trace.pin_name(pin)).read_text())
+    assert calls == [trace.pin_name(pin)[:-5]]
+    assert result["done"] and result["executor"] == "ax"
+    assert result["worker_ip"] == result["worker"] == "10.0.0.12"
+    assert result["analyzer"] == {"image": args.image, "code": "baked-in-image"}
+    assert result["units"][0]["status"] == ("timeout" if timeout else "asked-nothing")
+    assert result["container_exit"] == (None if timeout else 0)
+    assert trace.make_plan([unit()], tmp_path, rerun_status=()) == []
+    assert bool(trace.make_plan([unit()], tmp_path, rerun_status=("timeout",))) is timeout
+
+
+@pytest.mark.parametrize("executor", ["ax", "mixed-ax"])
+def test_ax_pending_fallback_resumes_in_docker_and_retains_attempt(tmp_path, monkeypatch, executor):
+    pin = trace.make_plan([unit()], tmp_path)[0]
+    attempt = {
+        **pin,
+        "done": True,
+        "executor": "ax",
+        "worker_ip": "10.0.0.12",
+        "fallback": "vm-oom",
+        "fallback_pending": True,
+        "units": [worker.unit_record(u, "failed", "JVM out of memory") for u in pin["units"]],
+    }
+    trace.write_json(tmp_path / trace.pin_name(pin), attempt)
+    resumed = trace.make_plan([unit()], tmp_path, rerun_status=())
+    assert len(resumed) == 1
+    calls = []
+
+    class Inputs:
+        def materialize(self, prepared, target):
+            target.mkdir()
+            (target / "app.py").write_text("def run(): pass")
+            return {"files": 1, "bytes": 15}
+
+    class Dispatcher:
+        def execute(self, *_):
+            pytest.fail("pending OOM fallback must not dispatch AX again")
+
+    def docker(command, **kwargs):
+        calls.append(command)
+        assert command[:2] in (["docker", "run"], ["docker", "rm"])
+        if command[1] == "run":
+            assert command[command.index("--heap-profile") + 1] == "vm"
+            assert "vm-image" in command
+            output = Path(next(arg.removesuffix(":/out") for arg in command if arg.endswith(":/out")))
+            prepared = json.loads((output / "pin.json").read_text())
+            trace.write_json(
+                output / "result.json",
+                {**prepared, "done": True, "units": [worker.unit_record(u, "asked-nothing") for u in prepared["units"]]},
+            )
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    args = k8s_args(tmp_path, executor=executor, ax_dispatcher=Dispatcher(), docker_image="vm-image")
+    monkeypatch.setattr(trace, "prepare_questions", lambda *_: {"a": {}})
+    monkeypatch.setattr(subprocess, "run", docker)
+    assert not trace.run_plan(resumed, tmp_path / "frozen", {"code": "frozen"}, Inputs(), args)
+    result = json.loads((tmp_path / trace.pin_name(pin)).read_text())
+    assert [command[1] for command in calls] == ["run", "rm"]
+    assert result["executor"] == "docker" and result["image"] == "vm-image"
+    assert result["fallback"] == "vm-oom" and not result["fallback_pending"]
+    assert result["ax_attempt"] == attempt
+    assert result["units"][0]["status"] == "asked-nothing"
+    assert trace.make_plan([unit()], tmp_path, rerun_status=()) == []
+    progress = json.loads((tmp_path / "progress.json").read_text())
+    assert progress["pins_done"] == 1 and progress["pins_in_flight"] == 0
+    assert progress["fallbacks_pending"] == 0 and progress["statuses"] == {"asked-nothing": 1}
