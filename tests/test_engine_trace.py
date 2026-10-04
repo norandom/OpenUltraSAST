@@ -14,7 +14,6 @@ import pytest
 from openultrasast.cpg.backend import BEGIN, END, CpgResult, JoernBackend
 from openultrasast.model.specs import taint_specs
 from openultrasast.model.taint import request_params
-from openultrasast.model.trace import parse_trace
 
 SCRIPT = Path(__file__).resolve().parents[1] / "benchmarks/learn/engine_trace.py"
 _spec = importlib.util.spec_from_file_location("engine_trace", SCRIPT)
@@ -22,6 +21,8 @@ assert _spec and _spec.loader
 trace = importlib.util.module_from_spec(_spec)
 with pytest.MonkeyPatch.context() as patch:
     patch.syspath_prepend(str(SCRIPT.parent))
+    from engine_trace_parse import parse_trace
+
     _spec.loader.exec_module(trace)
 worker = sys.modules["engine_trace_worker"]
 
@@ -304,6 +305,7 @@ def test_docker_command_is_serial_offline_frozen():
     assert cmd[-1] == "60"
     assert "/frozen/benchmarks/learn/engine_trace_worker.py" in cmd
     assert "benchmarks/learn/engine_trace_worker.py" in trace.SNAPSHOT_FILES
+    assert "benchmarks/learn/engine_trace_parse.py" in trace.SNAPSHOT_FILES
 
 
 def test_summary_separates_unanswered_pairs(tmp_path):
@@ -461,6 +463,8 @@ sys.modules['yaml'] = None
 sys.modules['boto3'] = None
 script = pathlib.Path(sys.argv[1])
 size = len(script.read_bytes())
+# Direct script execution in the image puts the sibling modules on sys.path.
+sys.path.insert(0, str(script.parent))
 runpy.run_path(str(script), run_name='trace_import_check')
 print(json.dumps({'bytes': size, 'modules': sorted(
     name for name in sys.modules if name == 'openultrasast' or name.startswith('openultrasast.')
@@ -486,7 +490,6 @@ def test_trace_container_transitive_import_boundary():
         "openultrasast.cpg.session",
         "openultrasast.model",
         "openultrasast.model.contracts",
-        "openultrasast.model.trace",
     ]
 
 
@@ -1397,3 +1400,55 @@ def test_k8s_check_roundtrip_and_retention(tmp_path, monkeypatch, capsys, keep):
     assert {"name": "CHECK", "value": "1"} in job["spec"]["template"]["spec"]["containers"][0]["env"]
     assert bool(data) is keep
     assert any("delete" in c for c in commands) is not keep
+
+
+@pytest.mark.parametrize("outcome", ["success", "timeout", "failure"])
+def test_engine_queue_pin_persistence_resume_and_progress(tmp_path, monkeypatch, outcome):
+    from engine_trace_queue import Dispatcher
+    from engine_worker_service import Queue
+    from test_engine_queue import FakeS3
+
+    store = FakeS3()
+    args = k8s_args(tmp_path, executor="queue", queue_timeout=2, image="image@sha256:abc")
+    plan = trace.make_plan([unit()], tmp_path)
+
+    class Inputs:
+        def materialize(self, pin, target):
+            target.mkdir()
+            (target / "app.py").write_text("def run(): pass")
+            return {"files": 1, "bytes": 15}
+
+    def execute(client, task):
+        return {
+            **task["pin"],
+            "done": True,
+            "container_exit": 0,
+            "units": [worker.unit_record(u, "asked-nothing") for u in task["pin"]["units"]],
+        }
+
+    queue = Queue(store, "pod-worker")
+    if outcome == "timeout":
+        ticks = iter([0, 3])
+        args.dispatcher = Dispatcher(args, store, clock=lambda: next(ticks))
+    else:
+        args.dispatcher = Dispatcher(args, store, pause=lambda _: queue.process_one(execute))
+    if outcome == "failure":
+
+        def fail(*_):
+            raise RuntimeError("credential-must-not-appear")
+
+        monkeypatch.setattr(store, "put", fail)
+    monkeypatch.setattr(trace, "prepare_questions", lambda *_: {"a": {}})
+    monkeypatch.setattr(subprocess, "run", lambda *_a, **_k: pytest.fail("queue must not launch Docker/kubectl"))
+    assert trace.run_plan(plan, None, {"image": args.image}, Inputs(), args) is (outcome != "success")
+    result = json.loads((tmp_path / trace.pin_name(plan[0])).read_text())
+    assert result["executor"] == "queue"
+    assert result["units"][0]["status"] == {"success": "asked-nothing", "timeout": "timeout", "failure": "failed"}[outcome]
+    assert "credential-must-not-appear" not in json.dumps(result)
+    if outcome == "success":
+        assert result["worker"] == "pod-worker"
+        assert trace.make_plan([unit()], tmp_path) == []
+    else:
+        assert trace.make_plan([unit()], tmp_path, rerun_status=("failed", "timeout"))
+    progress = json.loads((tmp_path / "progress.json").read_text())
+    assert progress["pins_done"] == 1 and progress["pins_in_flight"] == 0

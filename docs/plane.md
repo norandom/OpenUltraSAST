@@ -159,7 +159,7 @@ flowchart LR
 ax is a Kubernetes application over Agent Substrate. Every Task runs the one runner image as an actor. Each actor
 occupies a whole worker. This code base targets two profiles:
 
-- `kind` on a laptop (today).
+- `kind` on a server VM (today).
 - `k3s` in production (planned). There the same CLI submits Runs remotely, and the tasks deliver to the S3 store.
 
 [Production topology: ax on a Kubernetes cluster](deployment.md#production-topology-ax-on-a-kubernetes-cluster)

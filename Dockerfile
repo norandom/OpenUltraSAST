@@ -52,7 +52,7 @@ COPY benchmarks ./benchmarks
 # The core install is zero-dependency by design; `semantic` adds the tree-sitter grammars the candidate
 # enumerator uses. The LLM endpoint stays optional and is configured by environment, never baked in.
 RUN python3 -m venv /venv \
- && /venv/bin/pip install --no-cache-dir -e ".[semantic]"
+ && /venv/bin/pip install --no-cache-dir -e ".[semantic,s3]"
 ENV PATH="/venv/bin:${PATH}"
 
 # Analysis never needs root.

@@ -26,6 +26,7 @@ from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from pathlib import Path
 
 from engine_trace_k8s import IMAGE, Kubernetes
+from engine_trace_queue import Dispatcher
 from engine_trace_worker import EXCLUDED_DIRS, safe_path, unit_record, write_json
 
 from openultrasast.learn.examples import read_jsonl
@@ -44,7 +45,9 @@ SNAPSHOT_FILES = (
     "benchmarks/learn/engine_trace.py",
     "benchmarks/learn/engine_trace_worker.py",
     "benchmarks/learn/engine_trace_k8s.py",
-    "src/openultrasast/model/trace.py",
+    "benchmarks/learn/engine_trace_queue.py",
+    "benchmarks/learn/engine_worker_service.py",
+    "benchmarks/learn/engine_trace_parse.py",
     "src/openultrasast/model/taint.py",
     "src/openultrasast/cpg/queries/taint.sc",
 )
@@ -628,11 +631,14 @@ def run_pin(pin, source, provenance, inputs, out, args):
             write_json(output / "pin.json", {**pin, "questions": prepare_questions(pin, checkout, args.question_deadline)})
             name = "ousast-trace-" + pin_name(pin)[:16]
             started = time.monotonic()
-            if executor == "k8s":
+            if executor in {"k8s", "k8s-jobs"}:
                 done, node = args.kubernetes.execute(source, checkout, output, json.loads((output / "pin.json").read_text()))
                 status, reason = "failed", done.stderr
                 if done.returncode:
                     (output / "container.log").write_text(reason)
+            elif executor == "queue":
+                done, node = args.dispatcher.execute(checkout, output, json.loads((output / "pin.json").read_text()), pin_name(pin)[:-5])
+                status, reason = "timeout", f"queue wait deadline {args.queue_timeout}s"
             else:
                 command = docker_command(source, checkout, output, name, args.image, args.deadline, args.question_deadline)
                 started = time.monotonic()
@@ -666,12 +672,20 @@ def run_pin(pin, source, provenance, inputs, out, args):
                             status=status if unit["supported"] else "unsupported", reason=reason if unit["supported"] else unit["reason"]
                         )
                     record["units"].append(row)
-            record["container_exit"] = done.returncode if done else None
+            if executor != "queue":
+                record["container_exit"] = done.returncode if done else None
+            else:
+                record.setdefault("container_exit", None)
             if done is not None and done.returncode != 0:
                 for row in record["units"]:
                     if row["supported"]:
                         row.update(status="failed", reason=reason)
-            record.update(done=True, seconds=time.monotonic() - started, analyzer=provenance, image=args.image)
+            record.update(
+                done=True,
+                seconds=time.monotonic() - started,
+                analyzer=provenance,
+                image=record.get("image", args.image) if executor == "queue" else args.image,
+            )
             if (output / "container.log").exists():
                 shutil.copyfile(output / "container.log", out / pin_name(pin).replace(".json", ".log"))
         except (OSError, ValueError, subprocess.SubprocessError) as exc:
@@ -681,8 +695,10 @@ def run_pin(pin, source, provenance, inputs, out, args):
                 "analyzer": provenance,
                 "units": [unit_record(u, "failed" if u["supported"] else "unsupported", str(exc)) for u in pin["units"]],
             }
-        if executor == "k8s":
+        if executor in {"k8s", "k8s-jobs"}:
             record.update(executor="k8s", node=node, image=args.image)
+        if executor == "queue":
+            record.update(executor="queue", worker=record.get("worker", node), pod=record.get("pod"))
         save_pin(out / pin_name(pin), record)
         print(
             json.dumps({"repo": pin["repo"], "pin": pin["pin"], "statuses": dict(Counter(u["status"] for u in record["units"]))}),
@@ -810,7 +826,9 @@ def main():
     parser.add_argument("--cache", type=Path, default=Path.home() / ".cache/openultrasast")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--image", help="default: openultrasast:dev for Docker; public 2.0.1 image for k8s/mixed")
-    parser.add_argument("--executor", choices=("docker", "k8s", "mixed"), default="docker")
+    parser.add_argument("--executor", choices=("docker", "k8s", "k8s-jobs", "mixed", "queue"), default="docker")
+    parser.add_argument("--queue-status", action="store_true")
+    parser.add_argument("--queue-timeout", type=int, default=3600, help="total queue wait including execution, seconds")
     parser.add_argument("--parallel", type=int, default=1, help="total pins in flight; mixed reserves one lane for Docker")
     parser.add_argument("--kube-context")
     parser.add_argument("--kube-namespace", default="ousast-engine")
@@ -829,11 +847,20 @@ def main():
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--summary", action="store_true")
     args = parser.parse_args()
+    if args.queue_status:
+        print(json.dumps(Dispatcher(args).status(), indent=2))
+        return 0
+    if args.queue_timeout <= 0:
+        parser.error("--queue-timeout must be positive")
+    if args.executor == "queue" and (not args.image or "@sha256:" not in args.image):
+        parser.error("queue requires --image with the deployed image digest")
+    if args.executor == "queue" and args.deadline > 900:
+        parser.error("queue deadline must be <= Deployment termination grace (900s)")
     if min(args.deadline, args.question_deadline) <= 0 or args.limit < 0:
         parser.error("deadlines must be positive; limit must be nonnegative")
     if args.parallel < 1 or (args.executor == "mixed" and args.parallel < 2):
         parser.error("--parallel must be positive; mixed needs at least 2 total lanes")
-    if (args.executor != "docker" or args.k8s_check) and not args.kube_context:
+    if (args.executor in {"k8s", "k8s-jobs", "mixed"} or args.k8s_check) and not args.kube_context:
         parser.error("--kube-context is required for Kubernetes")
     args.image = args.image or (IMAGE if args.executor != "docker" or args.k8s_check else "openultrasast:dev")
     if args.k8s_check:
@@ -905,12 +932,14 @@ def main():
         args.docker_image = image.stdout.strip()
         if not args.docker_image:
             raise ValueError("Docker returned no local image identity")
-    if args.executor != "docker" and any(u["supported"] for pin in plan for u in pin["units"]):
+    if args.executor in {"k8s", "k8s-jobs", "mixed"} and any(u["supported"] for pin in plan for u in pin["units"]):
         args.kubernetes = Kubernetes(args)
         args.kubernetes.namespace()
+    if args.executor == "queue":
+        args.dispatcher = Dispatcher(args)
     with tempfile.TemporaryDirectory(prefix="trace-source-", dir=args.out) as scratch:
         source = Path(scratch) / "frozen"
-        provenance = freeze_source(source)
+        provenance = {"image": args.image, "executor": "queue"} if args.executor == "queue" else freeze_source(source)
         failures = run_plan(plan, source, provenance, inputs, args)
     return 2 if failures else 0
 

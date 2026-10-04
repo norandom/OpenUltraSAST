@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ousast-engine-worker
+spec:
+  replicas: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ousast-engine-worker
+  template:
+    metadata:
+      labels:
+        app: ousast-engine-worker
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 900
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: ousast-engine-worker
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: worker
+          image: engine-image
+          command: [python, /app/benchmarks/learn/engine_worker_service.py]
+          envFrom:
+            - secretRef:
+                name: ousast-engine-s3
+          env:
+            - name: ENGINE_IMAGE
+              value: engine-image
+          resources:
+            requests:
+              memory: 3Gi
+              cpu: '1'
+            limits:
+              memory: 3Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: health
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 15
+            periodSeconds: 10

@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: ousast-engine
+resources:
+  - namespace.yaml
+  - deployment.yaml
+# Deliberately non-pullable until the coordinator supplies the workflow's digest.
+images:
+  - name: engine-image
+    newName: ghcr.io/OWNER/openultrasast
+    digest: sha256:REPLACE_WITH_ENGINE_IMAGE_DIGEST
+replacements:
+  - source:
+      kind: Deployment
+      name: ousast-engine-worker
+      fieldPath: spec.template.spec.containers.0.image
+    targets:
+      - select:
+          kind: Deployment
+          name: ousast-engine-worker
+        fieldPaths:
+          - spec.template.spec.containers.0.env.0.value

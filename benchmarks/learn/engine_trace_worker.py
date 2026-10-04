@@ -19,8 +19,9 @@ import time
 from collections import Counter
 from pathlib import Path
 
+from engine_trace_parse import parse_trace
+
 from openultrasast.cpg.backend import DATAFLOW_OVERLAY, JoernBackend, _render
-from openultrasast.model.trace import parse_trace
 
 
 def write_json(path, value):

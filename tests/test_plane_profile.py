@@ -156,3 +156,27 @@ def test_profile_is_frozen_and_typed() -> None:
     assert isinstance(loaded, PlaneProfile)
     with pytest.raises(AttributeError):
         loaded.exec = "remote"  # type: ignore[misc]
+
+
+def test_kind_observability_defaults_off() -> None:
+    assert load_profile("kind", environ={}).kind_observability is False
+
+
+@pytest.mark.parametrize(("raw", "expected"), [("1", True), ("true", True), ("0", False), ("FALSE", False)])
+def test_kind_observability_environment_override(tmp_path: Path, raw: str, expected: bool) -> None:
+    path = write_profile(tmp_path, MINIMAL + f"kind_observability = {str(not expected).lower()}\n")
+    assert load_profile(str(path), environ={"OUSAST_KIND_OBSERVABILITY": raw}).kind_observability is expected
+
+
+def test_kind_observability_validation_and_print(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = write_profile(tmp_path, MINIMAL + 'kind_observability = "false"\n')
+    with pytest.raises(ProfileError, match="kind_observability must be a boolean"):
+        load_profile(str(path), environ={})
+    path = write_profile(tmp_path)
+    with pytest.raises(ProfileError, match="OUSAST_KIND_OBSERVABILITY must be"):
+        load_profile(str(path), environ={"OUSAST_KIND_OBSERVABILITY": "maybe"})
+    monkeypatch.setenv("OUSAST_KIND_OBSERVABILITY", "1")
+    assert profile_module.main(["--profile", str(path), "--print", "kind_observability"]) == 0
+    assert capsys.readouterr().out == "true\n"

@@ -15,6 +15,7 @@ profile() { PYTHONPATH="$REPO_ROOT/src" "$PY" -m openultrasast.plane.profile --p
 CTX="$(profile kube_context)"                       # kind names its context kind-<cluster>
 export KIND_CLUSTER_NAME="${CTX#kind-}"
 export KO_DOCKER_REPO="${KO_DOCKER_REPO:-$(profile registry)}"
+OBSERVABILITY="$(profile kind_observability)"
 IMAGES_FILE="$(profile images)"                     # the digest pins the reconciler and the templates read
 SRC="${OUSAST_AX_SRC:-$HOME/.cache/ousast/ax-src}"
 
@@ -37,9 +38,68 @@ else
 fi
 
 step "agent substrate (ate-system)"
+# The upstream installer has fixed manifest paths and also creates secrets/CRDs.
+# Give it a temporary checkout view so it never installs the observability resources.
+install_substrate() (
+  if [ "$OBSERVABILITY" = true ]; then
+    cd "$SRC/substrate"
+  else
+    # Symlinked build inputs must not make the staged view a different binary version.
+    export VERSION="${VERSION:-$(git -C "$SRC/substrate" describe --tags --always --dirty)}"
+    staged="$(mktemp -d)"
+    trap 'rm -rf "$staged"' EXIT
+    "$PY" "$REPO_ROOT/ops/ax/prepare-substrate.py" "$SRC/substrate" "$staged"
+    cd "$staged"
+  fi
+  KUBECTL_CONTEXT="$CTX" hack/install-ate-kind.sh --deploy-ate-system
+)
 if ready ate-system; then echo "substrate ready; kept"; else
-  (cd "$SRC/substrate" && hack/install-ate-kind.sh --deploy-ate-system)
+  install_substrate
 fi
+# Reconcile the choice even when the existing control plane is already ready.
+if [ "$OBSERVABILITY" = true ]; then
+  for manifest in otel-collector prometheus; do
+    kubectl --context "$CTX" apply -f "$SRC/substrate/manifests/ate-install/kind/$manifest.yaml"
+  done
+  otel_config="$SRC/substrate/manifests/ate-install/kind/ate-otel-config.yaml"
+else
+  otel_config="$REPO_ROOT/ops/ax/substrate-kind-lean/ate-otel-config.yaml"
+  for deployment in opentelemetry-collector prometheus jaeger; do
+    existing="$(kubectl --context "$CTX" -n otel-system get deployment "$deployment" --ignore-not-found -o name)"
+    if [ -n "$existing" ]; then
+      kubectl --context "$CTX" -n otel-system scale "$existing" --replicas=0
+    fi
+  done
+  echo "kind observability off: existing otel-system deployments scaled to 0; opt in with OUSAST_KIND_OBSERVABILITY=1 ops/ax/up.sh"
+fi
+# Replace data to remove stale exporter/endpoint keys in either direction. ConfigMap
+# envFrom is read at pod start; a content annotation triggers only changed rollouts.
+otel_data="$("$PY" - "$otel_config" <<'PYCONFIG'
+import json
+import sys
+import yaml
+config = yaml.safe_load(open(sys.argv[1]))
+config["data"].pop("$patch", None)
+print(json.dumps(config["data"], sort_keys=True))
+PYCONFIG
+)"
+kubectl --context "$CTX" -n ate-system patch configmap ate-otel-config --type=json \
+  -p "[{\"op\":\"replace\",\"path\":\"/data\",\"value\":$otel_data}]"
+otel_hash="$(printf '%s' "$otel_data" | sha256sum | cut -d ' ' -f1)"
+otel_workloads="$(kubectl --context "$CTX" -n ate-system get deployments,daemonsets -o json | "$PY" -c '
+import json, sys
+for item in json.load(sys.stdin)["items"]:
+    spec = item["spec"]["template"]["spec"]
+    containers = spec.get("containers", []) + spec.get("initContainers", [])
+    if any(env.get("configMapRef", {}).get("name") == "ate-otel-config"
+           for container in containers for env in container.get("envFrom", [])):
+        print(item["kind"].lower() + "/" + item["metadata"]["name"])
+')"
+for workload in $otel_workloads; do
+  kubectl --context "$CTX" -n ate-system patch "$workload" --type=merge \
+    -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"ousast.io/otel-config\":\"$otel_hash\"}}}}}"
+  kubectl --context "$CTX" -n ate-system rollout status "$workload" --timeout=300s
+done
 kubectl --context "$CTX" -n ate-system get pods
 
 step "egress gateway (atenet-egress, agentgateway variant: one prebuilt image, nothing built)"
