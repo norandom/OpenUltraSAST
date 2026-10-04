@@ -56,7 +56,8 @@
     contextFilter: String = "",
     contextPaths: String = "",
     requests: String = "",
-    requestsFile: String = ""
+    requestsFile: String = "",
+    trace: String = ""
 ) = {
   importCpg(cpgFile)
 
@@ -225,6 +226,7 @@
   // module region exists to cover the code that is in NO function, so its membership is direct.
   val moduleScope = function == "<module>"
 
+  // CPS-IT/mailqueue Extension::KEY is a class-level PHP call with a null .method; exclude it from scope.
   def nestedInLabeled(m: io.shiftleft.codepropertygraph.generated.nodes.Method): Boolean =
     if (moduleScope) m.name == function
     else
@@ -495,7 +497,7 @@
       case c: io.shiftleft.codepropertygraph.generated.nodes.Call if originAnchors.contains(c.name) => true
       case c: io.shiftleft.codepropertygraph.generated.nodes.Call if concatenations.contains(c.name) =>
         c.argument.l.sortBy(_.argumentIndex).headOption.exists(a => fixesOrigin(a, depth + 1))
-      case i: io.shiftleft.codepropertygraph.generated.nodes.Identifier =>
+      case i: io.shiftleft.codepropertygraph.generated.nodes.Identifier if i.method != null =>
         // A variable fixes the origin when EVERY assignment to it in the method does.
         val writes = i.method.ast.isCall.nameExact(ASSIGNMENT).l.filter(_.argument.l.sortBy(_.argumentIndex).headOption.exists {
           case t: io.shiftleft.codepropertygraph.generated.nodes.Identifier => t.name == i.name
@@ -789,7 +791,7 @@
         case _ => false
       }
       ternary || (end :: elements.filter(stored)).distinctBy(_.id).exists {
-        case cfg: io.shiftleft.codepropertygraph.generated.nodes.CfgNode =>
+        case cfg: io.shiftleft.codepropertygraph.generated.nodes.CfgNode if cfg.method != null =>
           val method = cfg.method
           method.ast.isControlStructure.controlStructureType("IF").l.exists { cs =>
             cs.condition.l.headOption.exists { cond =>
@@ -897,7 +899,7 @@
   def fieldSourceNodes =
     if (fieldSrc != "true") Iterator.empty
     else {
-      val reads = cpg.call.nameExact(FIELD_ACCESS).filter(c => inScope(c.method)).l.filterNot(writeTarget)
+      val reads = cpg.call.nameExact(FIELD_ACCESS).filter(c => Option(c.method).exists(inScope)).l.filterNot(writeTarget)
       if (reads.isEmpty) Iterator.empty
       else reads.filter(r => taintedPrefixes(r.code.trim, fileS, r.method) && !overwrittenBefore(r)).iterator
     }
@@ -957,7 +959,7 @@
     val framework: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
       callback.ast.isCall.filter(isSourceCall).l
     val fields: List[io.shiftleft.codepropertygraph.generated.nodes.CfgNode] =
-      callback.ast.isCall.nameExact(FIELD_ACCESS).l.filter(r => taintedPrefixes(r.code.trim, callback.filename, r.method))
+      callback.ast.isCall.nameExact(FIELD_ACCESS).l.filter(r => Option(r.method).exists(m => taintedPrefixes(r.code.trim, callback.filename, m)))
     framework ++ fields
   }
 
@@ -1012,7 +1014,7 @@
   def hookSourceNodes =
     if (hookTable.isEmpty || hookApply.isEmpty) Iterator.empty
     else {
-      val applies = cpg.call.filter(c => hookApply.contains(c.name)).filter(c => inScope(c.method)).l
+      val applies = cpg.call.filter(c => hookApply.contains(c.name)).filter(c => Option(c.method).exists(inScope)).l
       if (applies.isEmpty) Iterator.empty
       else {
         val keys = applies.flatMap { call =>
@@ -1023,7 +1025,7 @@
         else
           cpg.call
             .nameExact(INDEX_ACCESS)
-            .filter(c => inScope(c.method))
+            .filter(c => Option(c.method).exists(inScope))
             .l
             .filter(access => keys.contains(keyOf(access)))
             // ...and actually derived from the filtered value, not merely sharing a key name with it.
@@ -1107,7 +1109,7 @@
   def sinkCalls =
     sinkCandidatesMemo
       .getOrElseUpdate(sinksS, cpg.call.filter(c => sinkNames.exists(n => sinkMatches(c, n))).l)
-      .filter(c => inScope(c.method))
+      .filter(c => Option(c.method).exists(inScope))
 
   // ---- stage one of the two-stage join WITHOUT dataflow, for evidence mode (flow-aware-ranking, phase 2) --
   //
@@ -1169,7 +1171,7 @@
     )
 
   def fieldCarriedKind: String =
-    strongest(cpg.call.nameExact(FIELD_ACCESS).filter(c => inScope(c.method)).l.map(r => prefixKind(r.code.trim, fedFields(r.method.filename))))
+    strongest(cpg.call.nameExact(FIELD_ACCESS).filter(c => Option(c.method).exists(inScope)).l.map(r => prefixKind(r.code.trim, fedFields(r.method.filename))))
 
   def callbackFedKind(callback: String): String =
     callbackFedMemo.getOrElseUpdate(
@@ -1186,7 +1188,7 @@
   def hookCarriedKind: String =
     if (hookTable.isEmpty || hookApply.isEmpty) ""
     else
-      strongest(cpg.call.filter(c => hookApply.contains(c.name)).filter(c => inScope(c.method)).l.flatMap { call =>
+      strongest(cpg.call.filter(c => hookApply.contains(c.name)).filter(c => Option(c.method).exists(inScope)).l.flatMap { call =>
         val hook = call.argument.l.headOption.map(a => unquote(a.code)).getOrElse("")
         hookTable.getOrElse(hook, Nil).map(callbackFedKind)
       })
@@ -1232,7 +1234,7 @@
       else {
         val confirmed = cpg.call
           .nameExact(FIELD_ACCESS)
-          .filter(c => inScope(c.method))
+          .filter(c => Option(c.method).exists(inScope))
           .l
           .exists(r => prefixKind(r.code.trim, fedFields(r.method.filename)) == "parameter" && taintedPrefixes(r.code.trim, r.method.filename, r.method))
         if (confirmed) "source" else "parameter"
@@ -1276,9 +1278,9 @@
       // Field carrying is deliberately same-file in the existing abstraction. Retain
       // its file context conservatively, never claim every method carries the value.
       val fieldFiles = if (fieldCarriedKind.isEmpty) Set.empty[String] else
-        cpg.call.nameExact(FIELD_ACCESS).filter(c => inScope(c.method)).l.map(_.method.filename).toSet
+        cpg.call.nameExact(FIELD_ACCESS).filter(c => Option(c.method).exists(inScope)).l.map(_.method.filename).toSet
       val callbacks = if (hookApply.isEmpty) Nil else cpg.call.filter(c => hookApply.contains(c.name))
-        .filter(c => inScope(c.method)).l.flatMap { call =>
+        .filter(c => Option(c.method).exists(inScope)).l.flatMap { call =>
           val hook = call.argument.l.headOption.map(a => unquote(a.code)).getOrElse("")
           hookTable.getOrElse(hook, Nil).flatMap(name => cpg.method.nameExact(name).filterNot(_.isExternal).l)
         }.distinct
@@ -1400,7 +1402,7 @@
     def traced(flow: io.joern.dataflowengineoss.language.Path): ujson.Arr =
       ujson.Arr.from(spliced(flow.elements.l).map { node =>
         val where = node match {
-          case c: io.shiftleft.codepropertygraph.generated.nodes.CfgNode => c.method.filename.split("/").last + ":" + c.method.name
+          case c: io.shiftleft.codepropertygraph.generated.nodes.CfgNode => Option(c.method).map(m => m.filename.split("/").last + ":" + m.name).getOrElse("?")
           case _                                                          => "?"
         }
         s"$where:${node.lineNumber.getOrElse(-1)} [${node.label}] ${node.code.take(120)}"
@@ -1435,7 +1437,7 @@
           "sinkArg0Literal" -> arg0Literal,
           "bounded"         -> bounds.nonEmpty,
           "bound"            -> bounds.headOption.getOrElse("").take(120),
-          "inLabeledScope"  -> (function.isEmpty || nestedInLabeled(sink.method) || reachableMethods.contains(sink.method.fullName))
+          "inLabeledScope"  -> (function.isEmpty || Option(sink.method).exists(nestedInLabeled) || reachableMethods.contains(sink.method.fullName))
         )
         if (traceS == "true") row("trace") = traced(shortest)
         row
@@ -1489,6 +1491,12 @@
       // collapsed the sizer to three sink visits per JVM start on the plugin.
       val started = System.nanoTime()
       def field(name: String): String = req.obj.get(name).map(_.str).getOrElse("")
+      // Opt-in heartbeat for the trace runner's per-question process watchdog.
+      // Killing the JVM preserves completed streamed rows without unsafe query threads.
+      if (field("questionDeadline").nonEmpty) {
+        println(ujson.write(ujson.Obj("__question__" -> id)))
+        System.out.flush()
+      }
       val paramSrc = req.obj.get("parameterSources").map(_.str).getOrElse("false")
       val fieldParamSrc = req.obj.get("fieldParameterSources").map(_.str).getOrElse(paramSrc)
       val fieldSrc = req.obj.get("fieldSources").map(_.str).getOrElse("true")
@@ -1532,7 +1540,7 @@
   } else {
     println("---OUSAST-CPG-BEGIN---")
     println(
-      ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, hookCallbacks, dispatchApply, dispatchValue, function, parameterSources, parameterSources, fieldSources, evidenceOnly, file, callDepth, boundedSinks): _*))
+      ujson.write(ujson.Arr(rowsFor(sources, sinks, sanitizers, hookCallbacks, dispatchApply, dispatchValue, function, parameterSources, parameterSources, fieldSources, evidenceOnly, file, callDepth, boundedSinks, traceS = trace): _*))
     )
   }
   println("---OUSAST-CPG-END---")

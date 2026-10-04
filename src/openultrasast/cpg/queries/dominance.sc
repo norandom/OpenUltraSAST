@@ -172,7 +172,8 @@
   // repository this was measured on, and unscoped rows attributed the model's unguarded query to the
   // handler. The sibling comparison is a statement about a FILE contradicting itself, which is what the
   // rung's justification says, so the file is also the right scope for it.
-  val allOperations = cpg.call.filter(isOperation).l
+  // CPS-IT/mailqueue Extension::KEY has a null .method; exclude methodless calls before attribution.
+  val allOperations = cpg.call.filter(c => Option(c.method).nonEmpty).filter(isOperation).l
   val opCalls = if (fileS.isEmpty) allOperations else allOperations.filter(_.method.filename.endsWith(fileS))
 
   // ---- The module boundary an application puts between its route and its query --------------------------
@@ -236,7 +237,7 @@
     if (fileS.isEmpty) Nil
     else
       fileMethods(fileS).flatMap { m =>
-        m.call.l.flatMap { via =>
+        m.call.l.filter(c => Option(c.method).nonEmpty).flatMap { via =>
           via.callee.l
             .filter(_.isExternal)
             .flatMap(stub => stubTarget(stub.fullName))
