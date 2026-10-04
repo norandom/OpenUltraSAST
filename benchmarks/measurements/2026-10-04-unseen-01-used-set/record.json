@@ -1,0 +1,86 @@
+{
+  "count": 1029,
+  "guard": "green",
+  "sha256": "5a644a1e93c68a0a35c794e653286d0532b7eb8d757123ccce5f08b11bf9a4a2",
+  "sources": {
+    "harvest": {
+      "bytes": 501031,
+      "count": 467,
+      "files": 3,
+      "known_empty": false,
+      "rows": 446,
+      "skipped_values": 446
+    },
+    "measurements": {
+      "bytes": 21169903,
+      "count": 278,
+      "files": 221,
+      "known_empty": false,
+      "rows": 376,
+      "skipped_values": 681
+    },
+    "memory_local": {
+      "bytes": 8084523,
+      "count": 192,
+      "files": 776,
+      "known_empty": false,
+      "rows": 759,
+      "skipped_values": 2
+    },
+    "memory_s3": {
+      "bytes": 15928676,
+      "count": 572,
+      "files": 1499,
+      "known_empty": false,
+      "rows": 1490,
+      "skipped_values": 2
+    },
+    "pairs": {
+      "bytes": 1680480,
+      "count": 728,
+      "files": 28,
+      "known_empty": false,
+      "rows": 900,
+      "skipped_values": 1260
+    },
+    "pointers": {
+      "bytes": 892448,
+      "count": 537,
+      "files": 7,
+      "known_empty": false,
+      "rows": 586,
+      "skipped_values": 666
+    },
+    "populations": {
+      "bytes": 32431,
+      "count": 28,
+      "files": 2,
+      "known_empty": false,
+      "rows": 28,
+      "skipped_values": 0
+    },
+    "sweep": {
+      "bytes": 34006439,
+      "count": 1029,
+      "files": 1619,
+      "known_empty": false,
+      "rows": 2155,
+      "skipped_values": 0
+    },
+    "units": {
+      "bytes": 319641,
+      "count": 229,
+      "files": 9,
+      "known_empty": false,
+      "rows": 642,
+      "skipped_values": 0
+    }
+  },
+  "test_exit_code": 0,
+  "tests": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 1,
+    "tests": 41
+  }
+}

@@ -2,7 +2,7 @@
 # preserve its runner as PID 1 and put the engine command in the Task manifest.
 FROM eclipse-temurin:21-jre-jammy AS jre
 
-FROM ghcr.io/norandom/ax-task-runner:v0.3.1
+FROM ghcr.io/norandom/ax-task-runner:v0.3.1 AS engine
 LABEL org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.source="https://github.com/norandom/OpenUltraSAST"
 
@@ -50,3 +50,11 @@ RUN python3 -m venv /venv \
  && /venv/bin/python -I -c 'import pathlib, runpy, sys; sys.modules.update(yaml=None, boto3=None); sys.path.insert(0, "/app/benchmarks/learn"); p = pathlib.Path("/app/benchmarks/learn/engine_trace_worker.py"); print("Worker import smoke bytes:", len(p.read_bytes())); runpy.run_path(str(p), run_name="engine_worker_import_smoke")'
 
 # Do not set ENTRYPOINT or CMD: both belong to the upstream AX runner.
+
+FROM engine AS replay
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git \
+ && rm -rf /var/lib/apt/lists/*
+COPY benchmarks/unseen/replay_entry.py ./benchmarks/unseen/replay_entry.py
+RUN /venv/bin/pip install --no-cache-dir . \
+ && /venv/bin/ousast pre-push --help > /dev/null

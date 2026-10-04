@@ -1,0 +1,860 @@
+[
+  {
+    "id": "0",
+    "repo": "0",
+    "kind": "ordinary",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": [
+            {
+              "cwe": "CWE-89",
+              "path": "app.py",
+              "line": 10
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "1",
+    "repo": "0",
+    "kind": "ordinary",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "2",
+    "repo": "1",
+    "kind": "ordinary",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "3",
+    "repo": "1",
+    "kind": "ordinary",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "4",
+    "repo": "2",
+    "kind": "ordinary",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "5",
+    "repo": "2",
+    "kind": "ordinary",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "6",
+    "repo": "3",
+    "kind": "ordinary",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "7",
+    "repo": "3",
+    "kind": "ordinary",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "8",
+    "repo": "4",
+    "kind": "ordinary",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "9",
+    "repo": "4",
+    "kind": "ordinary",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "10",
+    "repo": "5",
+    "kind": "ordinary",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "11",
+    "repo": "5",
+    "kind": "ordinary",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "12",
+    "repo": "6",
+    "kind": "ordinary",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "13",
+    "repo": "6",
+    "kind": "ordinary",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "14",
+    "repo": "7",
+    "kind": "ordinary",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "15",
+    "repo": "7",
+    "kind": "ordinary",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "16",
+    "repo": "8",
+    "kind": "vulnerability",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": [
+            {
+              "cwe": "CWE-89",
+              "path": "app.py",
+              "line": 10
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "17",
+    "repo": "8",
+    "kind": "vulnerability",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": [
+            {
+              "cwe": "CWE-89",
+              "path": "app.py",
+              "line": 10
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "18",
+    "repo": "9",
+    "kind": "vulnerability",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": []
+        }
+      ]
+    }
+  },
+  {
+    "id": "19",
+    "repo": "9",
+    "kind": "vulnerability",
+    "family": "injection",
+    "method": "introducing",
+    "post_cutoff": true,
+    "label_check": "confirmed",
+    "path": "app.py",
+    "function": "handler",
+    "files": [
+      {
+        "path": "app.py",
+        "head_lines": [
+          [
+            10,
+            12
+          ]
+        ]
+      }
+    ],
+    "instrument": {
+      "head_verified": true,
+      "base_verified": true,
+      "changed_bytes": {
+        "app.py": 20
+      },
+      "hook_bytes_read": 20,
+      "hook_exit": 0
+    },
+    "push": {
+      "quick_tier": [
+        {
+          "files": [
+            "app.py"
+          ],
+          "bytes_read": 20,
+          "findings": []
+        }
+      ]
+    }
+  }
+]

@@ -7,6 +7,7 @@ on:
       - 'src/**'
       - 'benchmarks/learn/engine_trace*.py'
       - 'benchmarks/learn/engine_task_entry.py'
+      - 'benchmarks/unseen/replay_entry.py'
       - 'benchmarks/learn/engine_worker_service.py'
       - 'Dockerfile'
       - 'plane/Dockerfile.engine-task'
@@ -30,6 +31,10 @@ jobs:
             dockerfile: Dockerfile
           - package: ousast-engine-task
             dockerfile: plane/Dockerfile.engine-task
+            target: engine
+          - package: ousast-replay-task
+            dockerfile: plane/Dockerfile.engine-task
+            target: replay
     steps:
       - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v3
@@ -50,6 +55,7 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
           platforms: linux/amd64
           push: true
           tags: |

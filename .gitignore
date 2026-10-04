@@ -36,3 +36,6 @@ workspace/
 
 # MkDocs build output (mkdocs build)
 site/
+
+# Unseen evaluation pointers for non-permissive repositories.
+benchmarks/unseen/private/

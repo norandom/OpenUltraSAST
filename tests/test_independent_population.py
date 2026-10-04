@@ -8,6 +8,8 @@ anywhere else, which is how an evaluation set quietly becomes a development one.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 import tomllib
 from pathlib import Path
@@ -64,17 +66,131 @@ def test_a_multi_language_repository_is_reserved(path: Path) -> None:
     assert members and all(by_id[m]["language"] == "php" and "javascript" in by_id[m].get("also", []) for m in members)
 
 
-def test_no_reserved_repository_is_referenced_by_the_development_tree() -> None:
+def _pool_manifests() -> list[Path]:
+    directory = ROOT / "benchmarks/unseen"
+    return sorted([*directory.glob("*.toml"), *directory.glob("private/*.toml")])
+
+
+def _pool_names() -> set[str]:
+    names = set()
+    for path in _pool_manifests():
+        text = path.read_text().lower()
+        names.update(m.rstrip("/").removesuffix(".git") for m in re.findall(r"github\.com/([\w.-]+/[\w.-]+)", text))
+    return names
+
+
+def _population_names() -> set[str]:
     reserved = {case["repo"].rstrip("/").lower() for path in POPULATIONS for case in _population(path)["case"]}
-    names = {url.rsplit("/", 2)[-2] + "/" + url.rsplit("/", 1)[-1] for url in reserved}
-    offenders = []
-    for top in ("benchmarks", "src", "tests"):
+    return {url.rsplit("/", 2)[-2] + "/" + url.rsplit("/", 1)[-1] for url in reserved}
+
+
+def test_no_reserved_repository_is_referenced_by_the_development_tree() -> None:
+    reservations = [(ROOT / "benchmarks/independent", _population_names()), (ROOT / "benchmarks/unseen", _pool_names())]
+    offenders = 0
+    counts = {}
+    for top in ("benchmarks", "src", "tests", "plane"):
         for path in (ROOT / top).rglob("*"):
-            if not path.is_file() or POPULATION.parent in path.parents or path == Path(__file__) or path.suffix in {".pyc", ".bin", ".gz"}:
+            if not path.is_file() or path == Path(__file__) or path.suffix in {".pyc", ".bin", ".gz"}:
+                continue
+            # Preserve the population guard's existing scope; plane is newly reserved for pools.
+            active = [
+                (directory, names)
+                for directory, names in reservations
+                if directory not in path.parents and names and not (top == "plane" and directory == ROOT / "benchmarks/independent")
+            ]
+            if not active:
                 continue
             try:
                 text = path.read_text(errors="ignore").lower()
             except OSError:
                 continue
-            offenders += [f"{path.relative_to(ROOT)}: {name}" for name in names if f"github.com/{name}" in text]
-    assert not offenders, "a reserved repository is referenced outside the reservation: " + "; ".join(offenders[:10])
+            count = sum(1 for _, names in active for name in names if f"github.com/{name}" in text)
+            offenders += count
+            counts[top] = counts.get(top, 0) + count
+    assert not offenders, f"reserved repository referenced outside its reservation: count={offenders}, sources={counts}"
+
+
+def test_pool_and_population_names_are_disjoint() -> None:
+    count = len(_population_names() & _pool_names())
+    assert not count, f"overlapping reservations: count={count}"
+
+
+def manifest_digest(path: Path) -> str:
+    """Canonical parsed TOML, UTF-8 JSON with sorted keys and compact separators.
+
+    Private entries are covered by their opaque pointers' digests in the public manifest.
+    The freeze writer must use the same encoding (task 3.2).
+    """
+    raw = json.dumps(tomllib.loads(path.read_text()), sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    return hashlib.sha256(raw).hexdigest()
+
+
+def check_pool_digest(path: Path) -> None:
+    record = path.with_name("freeze-" + path.stem.removeprefix("pool-") + ".json")
+    expected = json.loads(record.read_text())["freeze_digest"]
+    assert manifest_digest(path) == expected, "frozen pool digest mismatch"
+
+
+def test_frozen_pool_manifest_digest() -> None:
+    pools = sorted((ROOT / "benchmarks/unseen").glob("pool-p*.toml"))
+    if not pools:
+        pytest.skip("no pool frozen")
+    for path in pools:
+        check_pool_digest(path)
+
+
+def test_pool_guard_controls(tmp_path, monkeypatch) -> None:
+    """A synthetic reservation proves green, then red outside its own directory."""
+    population = tmp_path / "benchmarks/independent/population-v1.toml"
+    pool = tmp_path / "benchmarks/unseen/pool-p1.toml"
+    population.parent.mkdir(parents=True)
+    pool.parent.mkdir(parents=True)
+    prefix = "https://" + "github.com/"
+    population.write_text('[[case]]\nrepo = "' + prefix + 'synthetic/population"\n')
+    pool.write_text('[[repository]]\nrepo = "' + prefix + 'synthetic/pool"\n')
+    monkeypatch.setattr(__import__(__name__), "ROOT", tmp_path)
+    monkeypatch.setattr(__import__(__name__), "POPULATIONS", [population])
+    test_no_reserved_repository_is_referenced_by_the_development_tree()
+    leak = tmp_path / "benchmarks/measurements/fixture.txt"
+    leak.parent.mkdir(parents=True)
+    leak.write_text(prefix + "synthetic/pool")
+    with pytest.raises(AssertionError, match="count=1"):
+        test_no_reserved_repository_is_referenced_by_the_development_tree()
+    leak.unlink()
+    plane = tmp_path / "plane/fixture.txt"
+    plane.parent.mkdir()
+    plane.write_text(prefix + "synthetic/pool")
+    with pytest.raises(AssertionError, match="count=1"):
+        test_no_reserved_repository_is_referenced_by_the_development_tree()
+    plane.write_text(prefix + "synthetic/population")
+    test_no_reserved_repository_is_referenced_by_the_development_tree()
+    plane.unlink()
+    private = pool.parent / "private/draft-p1.toml"
+    private.parent.mkdir()
+    private.write_text('[[repository]]\nrepo = "' + prefix + 'synthetic/population"\n')
+    with pytest.raises(AssertionError, match="count=2"):
+        test_no_reserved_repository_is_referenced_by_the_development_tree()
+
+
+def test_pool_digest_control(tmp_path) -> None:
+    pool = tmp_path / "pool-p1.toml"
+    pool.write_text('status = "frozen"\n[[repository]]\nid = "opaque"\n')
+    record = tmp_path / "freeze-p1.json"
+    record.write_text(json.dumps({"freeze_digest": manifest_digest(pool)}))
+    check_pool_digest(pool)
+    pool.write_text(pool.read_text() + "slice = 2\n")
+    with pytest.raises(AssertionError, match="digest"):
+        check_pool_digest(pool)
+
+
+def test_frozen_pool_discovery_cannot_be_disabled(tmp_path, monkeypatch) -> None:
+    pool = tmp_path / "benchmarks/unseen/pool-p1.toml"
+    pool.parent.mkdir(parents=True)
+    pool.write_text('status = "frozen"\n')
+    record = pool.with_name("freeze-p1.json")
+    record.write_text(json.dumps({"freeze_digest": manifest_digest(pool)}))
+    monkeypatch.setattr(__import__(__name__), "ROOT", tmp_path)
+    test_frozen_pool_manifest_digest()
+    pool.write_text('status = "draft"\n')
+    with pytest.raises(AssertionError, match="digest"):
+        test_frozen_pool_manifest_digest()

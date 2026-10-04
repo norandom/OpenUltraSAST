@@ -615,9 +615,12 @@ class S3Store(MemoryStore):
     presigned URLs. An admin configures the bucket once; opening a store verifies it (:meth:`verify_bucket`) and
     refuses a bucket without versioning, the ``runs/`` expiry rule or S3 Select. There is no local fallback."""
 
-    def __init__(self, client: ObjectClient, bucket: str, prefix: str = "") -> None:
+    read_only: bool = False
+
+    def __init__(self, client: ObjectClient, bucket: str, prefix: str = "", *, read_only: bool = False) -> None:
         self.client, self.bucket, self.prefix = client, bucket, prefix.strip("/")
-        if self.describe() not in _VERIFIED:
+        self.read_only = read_only
+        if not read_only and self.describe() not in _VERIFIED:
             self.verify_bucket()
             _VERIFIED.add(self.describe())
 
@@ -631,9 +634,11 @@ class S3Store(MemoryStore):
         return self.client.get(self._k(key))
 
     def _put(self, key: str, data: bytes, labels: Mapping[str, str] | None = None) -> None:
+        self._writable()
         self.client.put(self._k(key), data, dict(labels or {}))
 
     def _delete(self, key: str) -> None:
+        self._writable()
         self.client.delete(self._k(key))
 
     def _keys(self, prefix: str) -> list[str]:
@@ -647,11 +652,16 @@ class S3Store(MemoryStore):
         tagged = self.client.tags(self._k(key)).get("kind")
         return tagged is None or tagged == "*" or kind in tagged.split()
 
+    def _writable(self) -> None:
+        if self.read_only:
+            raise MemoryStoreError("read-only store")
+
     def verify_bucket(self) -> None:
-        """Read-only check that the admin's one-time setup is in place: versioning ``Enabled``, an enabled
+        """Check the admin's one-time setup, writing only the capability probe: versioning ``Enabled``, an enabled
         lifecycle rule expiring ``<prefix>/runs/`` and none expiring the whole store, S3 Select answering a probe
         over JSON Lines, and the probe's object tags readable. Every missing piece is named with its admin action
         in one :class:`MemoryStoreError`."""
+        self._writable()
         runs = self._k(RUNS_PREFIX)
         endpoint = '--endpoint-url "$S3_ENDPOINT"'
         missing: list[str] = []
@@ -739,6 +749,7 @@ class S3Store(MemoryStore):
             ) from exc
 
     def presign_put(self, key: str, expires: timedelta = timedelta(hours=1)) -> str:
+        self._writable()
         return self.client.presign("PUT", self._k(key), expires)
 
     def presign_get(self, key: str, expires: timedelta = timedelta(hours=1)) -> str:
@@ -915,9 +926,10 @@ def s3_settings(environ: Mapping[str, str] | None = None) -> dict[str, Any]:
     return settings
 
 
-def open_store(spec: str | None = None, environ: Mapping[str, str] | None = None) -> MemoryStore:
+def open_store(spec: str | None = None, environ: Mapping[str, str] | None = None, *, read_only: bool = False) -> MemoryStore:
     """The store ``spec`` (else ``OUSAST_MEMORY``, else ``file://<results_root()>/memory``) names. ``s3://`` with no
-    bucket uses ``S3_BUCKET``."""
+    bucket uses ``S3_BUCKET``. ``read_only`` skips the S3 write/Select capability probe and refuses S3 mutations;
+    it is intended for GET/list inventory readers, which do not need Select. Default opening is unchanged."""
     from .reconciler import results_root
 
     env = environ if environ is not None else os.environ
@@ -932,7 +944,7 @@ def open_store(spec: str | None = None, environ: Mapping[str, str] | None = None
         if not bucket:
             raise MemoryStoreError("OUSAST_MEMORY=s3:// names no bucket and S3_BUCKET is unset: set one of them")
         settings = s3_settings(environ)
-        return S3Store(S3Client(bucket=bucket, **settings), bucket, parts.path)
+        return S3Store(S3Client(bucket=bucket, **settings), bucket, parts.path, read_only=read_only)
     raise MemoryStoreError(f"OUSAST_MEMORY must be file:///<path> or s3://<bucket>[/<prefix>], got {text!r}")
 
 

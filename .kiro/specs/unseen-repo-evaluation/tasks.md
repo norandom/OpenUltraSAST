@@ -29,8 +29,8 @@ Execution rules:
 - **Instrument first** (AGENTS.md). A zero, an empty draft or a fast run is treated as an instrument failure until
   bytes read and wall time prove otherwise.
 
-- [ ] 1. Used set and guard (design 1.2, 6; increment 1)
-- [ ] 1.1 Used-set builder
+- [x] 1. Used set and guard (design 1.2, 6; increment 1)
+- [x] 1.1 Used-set builder
   - `benchmarks/unseen/eligibility.py`: normalises names (lower case, no `.git`, no trailing slash) and builds the
     used set from every source of design table 1.2: pair catalogs, recipes and datasets under `benchmarks/pairs/`
     plus the local pointer-pair manifests as `benchmarks/pairs/catalog_gen.py` reads them; `population-v1.toml`
@@ -43,14 +43,14 @@ Execution rules:
     and trailing-slash variants collapse; stdout and the output JSON contain no name; a v3-shaped file planted in
     the synthetic tree is not opened (open is patched to fail on it).
   - _Requirements: 1.1_
-- [ ] 1.2 Canonical resolution, renames and forks
+- [x] 1.2 Canonical resolution, renames and forks
   - `eligibility.py`: `resolve(candidate, api)` with an injected GitHub client returns the canonical `full_name`,
     former names (redirects) and the fork network (`parent`, `source`). A candidate is ineligible when any of them
     is in the used set; one candidate per fork network is kept.
   - Tests with a fake client: a planted used repository, a renamed one and a fork of a used one are each
     rejected; two forks of one network keep one; the rejection reason is a source label, not a name.
   - _Requirements: 1.1_
-- [ ] 1.3 Guard extended to pools
+- [x] 1.3 Guard extended to pools
   - `tests/test_independent_population.py`: the sweep becomes a list of (reservation directory, names):
     `benchmarks/independent/` for populations, `benchmarks/unseen/` for pools (public manifests, plus
     `benchmarks/unseen/private/*.toml` when present). The sweep also covers `plane/`. New tests: pool and
@@ -62,13 +62,13 @@ Execution rules:
   - Evidence: the guard is green with an empty `benchmarks/unseen/`, and red when a test fixture names a pool
     repository in `benchmarks/measurements/` (shown once in the record).
   - _Requirements: 1.2, 1.3, 1.4_
-- [ ] 1.4 Usage ledger
+- [x] 1.4 Usage ledger
   - `benchmarks/unseen/ledger.py`: append-only `usage-pN.jsonl`, one row per use (slice, decision or experiment
     id, purpose `baseline | exploratory | informed | qualifies`, date, result digest, freeze digest). It refuses a
     `qualifies` row for a change whose slice already has an `informed` row for it, and refuses to rewrite rows.
   - `tests/test_unseen_ledger.py`: append, the refusal, a rewritten row detected by a digest chain.
   - _Requirements: 5.2_
-- [ ] 1.5 Used-set measurement and record 01 **(coordinator, network)**
+- [x] 1.5 Used-set measurement and record 01 **(coordinator, network)**
   - Run `eligibility.py` against the real sources, the S3 memory store included (read only).
   - Instrument: each source reports files read and bytes; a source with zero rows fails the run unless it is
     known empty.
@@ -77,7 +77,7 @@ Execution rules:
   - _Requirements: 1.1, 1.3_
 
 - [ ] 2. Sourcing and extraction (design 1.1, 1.3, 1.4, 2, 3; increment 2)
-- [ ] 2.1 Advisory candidates and repository filters
+- [x] 2.1 Advisory candidates and repository filters
   - `benchmarks/unseen/source.py`: from GHSA advisory JSON (pip, npm, maven, composer; published 2019 or later)
     keep those whose CWE maps to a family through `src/openultrasast/model/taxonomy.py` and that link one fix
     commit with one parent in one repository; attach the OSV first affected version; flag `post_cutoff` when
@@ -87,7 +87,7 @@ Execution rules:
     multi-repository fixes dropped, cutoff flag, licence classing (GPL, AGPL, LGPL, none and source-available go
     private).
   - _Requirements: 1.4, 2.1_
-- [ ] 2.2 Vulnerability-introducing range
+- [x] 2.2 Vulnerability-introducing range
   - `benchmarks/unseen/extract.py`: the `introducing` method of design 2.1 (blame of the sink line, or the
     declaration for an absence bug; absence at V's first parent; no merge or root; at most 50 files and 2,000
     lines; OSV version bracket when present; walk-back of at most five steps) and the `last_touch` fallback. Each
@@ -96,7 +96,7 @@ Execution rules:
   - `tests/test_unseen_extract.py` on a synthetic repository built in a temp dir: accepted V; a reformat walked
     back; a merge rejected; size cap; bracket rejection; fallback chosen when no V passes.
   - _Requirements: 2.1_
-- [ ] 2.3 Ordinary-commit draw
+- [x] 2.3 Ordinary-commit draw
   - `extract.py`: first-parent, non-merge commits touching an analysed language; the exclusions of design 2.2
     (security words of the narrow pattern, reverts, bot and bump commits, manifest- or lock-only, generated or
     vendored, advisory fix commits, commits touching a known vulnerable function, more than 1,000 source lines,
@@ -105,7 +105,7 @@ Execution rules:
   - Tests: each exclusion; the narrow pattern keeps "query", "token", "session"; allocation and the seed
     reproduce the same draw; the 40-commit floor.
   - _Requirements: 2.2, 2.3_
-- [ ] 2.4 Draft manifest and slices
+- [x] 2.4 Draft manifest and slices
   - `benchmarks/unseen/draft.py`: writes `benchmarks/unseen/draft-p1.toml` (permissive entries by name) and
     `benchmarks/unseen/private/draft-p1.toml` (the rest); the public file holds an opaque id and
     sha256(URL, commits) per private entry. Seeded shuffle into three slices of 100 repositories, stratified by
@@ -158,7 +158,7 @@ Execution rules:
   - _Requirements: 1.1, 1.2, 1.3_
 
 - [ ] 4. Dispatcher (design 5.3; increment 4)
-- [ ] 4.1 Items, workloads and the AX lane
+- [x] 4.1 Items, workloads and the AX lane
   - `benchmarks/ax/batch.py`: `Item` (id, input objects, result object name, command, extra env, input digest),
     `Workload` (image digest, allowed URL env names, deadline, result validator) and the `ax` lane, moved from
     `benchmarks/learn/engine_trace_ax.py`: manifest render, egress readiness, presigned GET and PUT as `.dat`,
@@ -167,7 +167,7 @@ Execution rules:
   - `tests/test_ax_batch.py` with a fake `ax` CLI and a fake store: manifest holds only the allowed URL env
     names and no credential; names carry the `ousast-engine-` prefix; cleanup on success and failure.
   - _Requirements: 4.1, 4.2, 4.5_
-- [ ] 4.2 Scheduler, fallback and resume
+- [x] 4.2 Scheduler, fallback and resume
   - `batch.py`: two AX lanes and one VM `docker` lane by default (one container at a time); sandbox death retried
     once under a new name, a second death or a JVM OOM goes to the VM fallback queue ahead of overflow;
     `progress.json` written by the scheduler only; a `STOP` file halts launches; resume skips items whose stored
@@ -175,7 +175,7 @@ Execution rules:
   - Tests with fake lanes: retry then fallback; OOM straight to fallback; resume skips; `STOP`; cleanup failure
     halts; never more than two AX tasks in flight.
   - _Requirements: 4.3_
-- [ ] 4.3 Engine pass on the dispatcher
+- [x] 4.3 Engine pass on the dispatcher
   - `benchmarks/learn/engine_trace_ax.py` and `engine_trace.run_plan` become an engine `Workload` over `batch.py`;
     no behaviour change.
   - Observable: `tests/test_ax_executor.py` and `tests/test_engine_trace.py` pass with their assertions unchanged
@@ -188,14 +188,14 @@ Execution rules:
   - _Requirements: 4.3_
 
 - [ ] 5. Replay task (design 5.1, 5.2; increment 5)
-- [ ] 5.1 Image stage
+- [x] 5.1 Image stage
   - `plane/Dockerfile.engine-task`: second stage `FROM engine AS replay` adding `git`, the package with its
     runtime dependencies and `benchmarks/unseen/replay_entry.py`; smoke `ousast pre-push --help`. The root image
     stays `ghcr.io/norandom/ax-task-runner:v0.3.1`; the engine stage is unchanged.
   - `tests/test_unseen_image.py`: parses the Dockerfile; the `replay` stage builds from `engine`; the root image
     pin; the engine stage's text is byte-identical to before.
   - _Requirements: 4.1_
-- [ ] 5.2 Task entry
+- [x] 5.2 Task entry
   - `benchmarks/unseen/replay_entry.py`, standard library only, reusing `engine_task_entry.transfer`: GET the spec;
     `git init` and depth-1 fetches of head and base over HTTPS (180 s bound), verified with `git cat-file -e`; run
     `ousast pre-push` with the spec's hook flags (defaults, or `--deadline 300` for the long-deadline arm), heap
@@ -206,7 +206,7 @@ Execution rules:
     fields; a missing commit, a failed fetch and a hook crash each give a failure record; zero bytes read and a
     replay faster than JVM start are flagged `suspect_fast`.
   - _Requirements: 3.1, 4.1, 4.2_
-- [ ] 5.3 Replay workload
+- [x] 5.3 Replay workload
   - `benchmarks/unseen/replay.py`: builds `Item`s from a frozen slice and an arm (`default` or `long_deadline`);
     the spec object carries the repository URL so names stay out of AX status and telemetry; task names
     `ousast-engine-replay-<slug>-<digest>` with an opaque slug; the validator rejects a record without
@@ -223,28 +223,28 @@ Execution rules:
     exit codes, the quick-tier comparison.
   - _Requirements: 4.1, 4.2, 4.5_
 
-- [ ] 6. Scorer (design 3, 4, 7.1, 7.3; increment 6)
-- [ ] 6.1 Coverage states
+- [x] 6. Scorer (design 3, 4, 7.1, 7.3; increment 6)
+- [x] 6.1 Coverage states
   - `benchmarks/unseen/score.py`: each record gets one state (`instrument_failure`, `unanalysable`, `quick_only`,
     `engine_covered`) from `instrument.json` and the artifact; `suspect_fast` goes to failure; a slice above 5%
     `instrument_failure` after re-runs is refused.
   - `tests/test_unseen_score.py` on synthetic records: every state; the refusal; a failure never counts as quiet
     or missed.
   - _Requirements: 3.3_
-- [ ] 6.2 Catch and false-alarm rules
+- [x] 6.2 Catch and false-alarm rules
   - `score.py`: family match (engine family, quick-rule CWE through `taxonomy.py`), the location table of design
     4.1, all three streams with the stream named per catch; false alarm on any finding of any stream; the
     alerts-only rate.
   - Tests: right family wrong place misses; `access_control` on the handler; `config_secrets` file scope; a
     quick-rule-only catch; one advisory finding on an ordinary change is a false alarm.
   - _Requirements: 3.2_
-- [ ] 6.3 Rates, intervals and breakdowns
+- [x] 6.3 Rates, intervals and breakdowns
   - `score.py`: Wilson 95% intervals; repository-cluster bootstrap for false alarms; ICC; breakdowns per family,
     method, `post_cutoff`, stream, coverage state and the confirmed subset.
   - Tests: the n values of design section 3 (315, 483, 756, 62, 88, 97) reproduced; bootstrap seeded; ICC on a
     synthetic clustered set.
   - _Requirements: 2.3, 3.3_
-- [ ] 6.4 Budgets, paired tests, the gate and record 06
+- [x] 6.4 Budgets, paired tests, the gate and record 06
   - `score.py`: per-budget thresholds (1%, 5%, 10%), labelled `exploratory` in-slice and `fixed` when supplied;
     a binary arm's single operating point with the budgets it meets; exact two-sided McNemar for catch and for
     false alarm; `gate(A, B)` returning `pass | regression | not_run` per design 7.3.
@@ -319,3 +319,66 @@ Execution rules:
     false-alarm rates, coverage per state, spend; `exploratory` rows in `usage-p1.jsonl`.
   - Observable: one committed table of arms on slice 1; G1's table exists.
   - _Requirements: 3.4, 5.2, 5.3_
+
+## Implementation Notes
+
+- 2026-10-04: Tasks 1.1–1.4 implemented offline and independently reviewed. Task 1.5 remains for the
+  coordinator; no networked measurement or commit was performed. Command and API contracts:
+  `benchmarks/unseen/README.md`. Offline evidence:
+  `benchmarks/measurements/2026-10-04-unseen-01-offline/record.json`.
+- Population guard scope is preserved under the maintainer's hard rule: benchmarks/src/tests for
+  populations, plus plane for pools. Each directory exemption is reservation-specific, including private
+  pool manifests. Extending population scope to plane exposed 30 existing references; no historical
+  records were changed or exempted inside the existing population scope.
+- S3 inventory opens through `open_store(read_only=True)` because ordinary store construction writes a
+  Select capability probe. Default store behavior is unchanged; inventory uses LIST/GET only.
+- The freeze writer must match the canonical TOML digest encoding documented in the pool README and
+  exercised by `test_independent_population.py`; final pool discovery does not trust mutable status.
+
+### Group 2 implementation evidence (2026-10-04)
+
+Tasks 2.1–2.4 are implemented offline and independently reviewed. Task 2.5 is
+`python -m benchmarks.unseen.draft --root "$PWD" --s3-store s3:// --seed 20260601`
+with the documented PATH/PYTHONPATH and GH_TOKEN environment. No networked draw,
+label check, group-2 measurement record, guard bisection, or commit was performed.
+The group header remains pending its coordinator exits 2.5/2.6.
+
+The command rebuilds the group-1 used set, resolves renamed/fork repositories,
+uses disposable external blobless clones, re-reads licences at extracted heads,
+and emits counts/digests only. The README documents injected clients, method bias,
+the hard 300-repository floor, and an explicitly unmeasured resource estimate.
+Independent review caught and fixed ambiguous parent-function absence and stale
+candidate-404 handling; regression tests cover both.
+
+Validation: requested pytest selection 103 passed, 1 skipped, exit 0 (population-test
+output discarded); `ruff check .` exit 0; `ruff format --check .` exit 0 (411 files);
+`mypy src/openultrasast` exit 0 (160 source files). The CLI `--help` smoke exited 0.
+Source-read instrumentation printed 20,101 bytes for the extraction implementation.
+
+### Groups 4–6 offline implementation (2026-10-04)
+
+Tasks 4.1–4.3, 5.1–5.3 and 6.1–6.4 are implemented and independently reviewed.
+Tasks 4.4 and 5.4 remain coordinator-owned network proofs; group headers 4 and 5 stay
+pending those exits. No commit, network request, Docker, AX or kubectl command was run.
+The sourcing job's draft.py, source.py, extract.py and journal.py are unchanged.
+
+The shared dispatcher retains the engine adapter's historical questions.json object
+name to preserve its unchanged assertions; replay uses spec.dat and result.dat.
+The engine Dockerfile body is unchanged except its required AS engine alias; CI builds
+engine and replay separately. S3Store's read_only class default preserves existing
+constructor-bypassing transport fixtures; initialized read-only stores still refuse writes.
+
+Exact coordinator commands and input contracts are in benchmarks/unseen/README.md,
+including frozen TOML/private pointer verification, scoring joins, own-history proof
+preparation and anonymous measurement-record generation. JVM wall time is the hook's
+aggregate scan build/query timing and is labelled as such. Unsupported-only partitions
+with explicit language_not_covered evidence do not pretend to have launched a JVM.
+
+Record 06 contains the committed synthetic fixture and scorer-output digests. The
+reserved-repository guard was run as a black box with both output streams discarded.
+Independent review: APPROVED; all reported integration and coverage defects resolved.
+
+Final verification: requested pytest command 279 passed, 8 skipped, exit 0; separate
+`tests/test_ax_batch.py` 5 passed, exit 0; `ruff check .`, `ruff format --check .`,
+`mypy src/openultrasast`, and the output-discarded reserved-repository guard all exit 0.
+The own-history proof preparer and replay dry run read five items and exit 0.
