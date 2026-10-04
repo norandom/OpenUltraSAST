@@ -530,6 +530,8 @@ def test_trace_real_unsupported_run_then_typescript_opt_in_replans(tmp_path, mon
     result_file = out / trace.pin_name(u)
     first = json.loads(result_file.read_text())
     assert first["done"] and first["units"][0]["status"] == "unsupported"
+    progress = json.loads((out / "progress.json").read_text())
+    assert progress == {"pins_done": 1, "pins_total": 1, "last_pin": {"repo": u["repo"], "pin": u["pin"]}, "statuses": {"unsupported": 1}}
     assert trace.make_plan(trace.join_units([u], [example]), out) == []
 
     called = []
@@ -676,6 +678,7 @@ def pair_inputs(tmp_path):
 @pytest.mark.parametrize("side,sha", [("vuln", "a" * 40), ("fixed", "b" * 40)])
 def test_pair_materializes_catalog_side_not_header(tmp_path, monkeypatch, side, sha):
     inputs, case = pair_inputs(tmp_path)
+    case.vuln_file.write_text("# Provenance: example\n    def run(self): pass\n")
     fetched = tmp_path / "fetched"
     (fetched / "pkg").mkdir(parents=True)
     (fetched / case.relpath).write_text("class Handler:\n    def run(self): pass\n")
@@ -897,3 +900,261 @@ def test_sparse_fetch_from_local_git_without_network(tmp_path, monkeypatch):
     proof = trace.export_sources(clone, target, [labelled], ["module/src/main/java"])
     trace.verify_functions(target, [labelled])
     assert proof["files"] == 1 and proof["bytes"] > 0
+
+
+@pytest.mark.parametrize("side", ["vuln", "fixed"])
+def test_complete_catalog_twins_and_context_need_no_commits(tmp_path, monkeypatch, side):
+    inputs, case = pair_inputs(tmp_path)
+    inputs.catalog_rows[case.name][0][1].update(parent="", commit="")
+    fixed = tmp_path / "fixed.py"
+    fixed.write_text("def run(): return 'fixed'\n")
+    case.fixed_file = fixed
+    context = tmp_path / "context.py"
+    context.write_text("registered = True\n")
+    case.context_files = (("pkg/context.py", context, context),)
+    monkeypatch.setattr(inputs, "pair_for", lambda row: (case, side))
+    monkeypatch.setattr(inputs, "fetch_source", lambda *args: pytest.fail("catalog files must not fetch"))
+    target = tmp_path / "export"
+    proof = inputs.materialize({"units": [unit(file=case.relpath)]}, target)
+    assert proof["mode"] == "catalog-file"
+    assert (target / case.relpath).read_bytes() == (fixed if side == "fixed" else case.vuln_file).read_bytes()
+    assert (target / "pkg/context.py").read_bytes() == context.read_bytes()
+
+
+@pytest.mark.parametrize(
+    "body,reason",
+    [
+        ("# Provenance: example upstream_start: 25\n    def run():\n        return (\n", "excerpt does not parse:.*never closed"),
+        ("def run(:\n", "not complete Python"),
+    ],
+)
+def test_incomplete_catalog_without_commits_fails_specifically(tmp_path, monkeypatch, body, reason):
+    inputs, case = pair_inputs(tmp_path)
+    inputs.catalog_rows[case.name][0][1].update(parent="", commit="")
+    case.vuln_file.write_text(body)
+    monkeypatch.setattr(inputs, "pair_for", lambda row: (case, "vuln"))
+    with pytest.raises(ValueError, match=reason):
+        inputs.materialize({"units": [unit(file=case.relpath)]}, tmp_path / "export")
+
+
+@pytest.mark.parametrize("comment,newline", [("#", "\n"), ("//", "\n"), ("#", "\r\n")])
+@pytest.mark.parametrize("upstream", [True, False])
+def test_parseable_python_method_excerpt_is_in_function_only(tmp_path, monkeypatch, comment, newline, upstream):
+    inputs, case = pair_inputs(tmp_path)
+    inputs.catalog_rows[case.name][0][1].update(parent="", commit="")
+    header = f"{comment} Provenance: example\n" + (f"{comment} upstream_start: 25\n" if upstream else "")
+    body = header + "\n    def run(self, cmd):\n        os.system(cmd)\n"
+    case.vuln_file.write_bytes(body.replace("\n", newline).encode())
+    monkeypatch.setattr(inputs, "pair_for", lambda row: (case, "vuln"))
+    monkeypatch.setattr(inputs, "fetch_source", lambda *args: pytest.fail("excerpt attempted fetch"))
+    pin = {"units": [unit(file=case.relpath)]}
+    target = tmp_path / "export"
+    pin["materialization"] = inputs.materialize(pin, target)
+    assert pin["materialization"]["mode"] == "excerpt-parseable"
+    assert (target / case.relpath).read_text() == header.replace("//", "#") + "\ndef run(self, cmd):\n    os.system(cmd)\n"
+    assert trace.unit_record(pin["units"][0], "path")["evidence_scope"] == "in-function-only"
+    params = trace.prepare_questions(pin, target, 60)["a"]
+    assert params["callDepth"] == "0" and params["parameterSources"] == "true"
+
+
+def test_java_fragment_is_not_parseable_excerpt(tmp_path, monkeypatch):
+    inputs, case = pair_inputs(tmp_path)
+    inputs.catalog_rows[case.name][0][1].update(parent="", commit="")
+    case.relpath = "pkg/App.java"
+    case.vuln_file = case.fixed_file = tmp_path / "excerpt.java"
+    case.vuln_file.write_text("// Provenance: example\n// upstream_start: 25\n    public void run() {\n        execute(cmd);\n")
+    inputs.catalog_rows[case.name][0][1]["relpath"] = case.relpath
+    monkeypatch.setattr(inputs, "pair_for", lambda row: (case, "vuln"))
+    with pytest.raises(ValueError, match="excerpt does not parse:"):
+        inputs.materialize({"units": [unit(file=case.relpath, language="java")]}, tmp_path / "export")
+
+
+def test_excerpt_without_cheap_parser_is_rejected(tmp_path, monkeypatch):
+    monkeypatch.setattr("openultrasast.semantic.extra.grammar_for", lambda language: None)
+    with pytest.raises(ValueError, match="excerpt does not parse: no cheap parser for javascript"):
+        trace.parseable_excerpt(tmp_path / "app.js", "// Provenance: example upstream_start: 25\nfunction run() {}\n")
+
+
+def test_parseable_javascript_excerpt_uses_repository_parser(tmp_path):
+    from openultrasast.semantic.extra import grammar_for
+
+    if grammar_for("javascript") is None:
+        pytest.skip("optional JavaScript grammar unavailable")
+    assert (
+        trace.parseable_excerpt(tmp_path / "app.js", "// Provenance: example\n    function run(cmd) { execute(cmd); }\n")
+        == "// Provenance: example\nfunction run(cmd) { execute(cmd); }\n"
+    )
+
+
+def test_export_keeps_labels_over_cap_and_excluded_ancestors(tmp_path):
+    source, target = tmp_path / "source", tmp_path / "export"
+    for rel in ("templates/preferences.php", "templates/other.php", "other.php"):
+        path = source / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("<?php function run() {}\n")
+    proof = trace.export_sources(source, target, [unit(file="templates/preferences.php", language="php")], cap=1)
+    assert (target / "templates/preferences.php").read_bytes() == (source / "templates/preferences.php").read_bytes()
+    assert not (target / "templates/other.php").exists()
+    assert proof["cap_hit"] and proof["bytes"] > proof["cap_bytes"]
+
+
+def test_oversized_package_narrows_before_truncation_and_keeps_import(tmp_path):
+    source, target = tmp_path / "source", tmp_path / "export"
+    for rel, body in {
+        "pkg/sub/app.py": "from helper import value\ndef run(): pass\n",
+        "pkg/sub/context.py": "x = 1\n",
+        "pkg/huge.py": "#" * 500,
+        "helper.py": "value = 1\n",
+    }.items():
+        path = source / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body)
+    proof = trace.export_sources(source, target, [unit(file="pkg/sub/app.py")], ["pkg"], cap=100)
+    assert proof["roots"] == ["pkg/sub"] and proof["requested_roots"] == ["pkg"]
+    assert proof["scope_narrowed"] and not proof["cap_hit"]
+    assert (target / "helper.py").exists() and (target / "pkg/sub/context.py").exists()
+    assert not (target / "pkg/huge.py").exists()
+
+
+def test_local_repository_export_scopes_packages(tmp_path, monkeypatch):
+    inputs, _ = pair_inputs(tmp_path)
+
+    def export(clone, pin, dest):
+        for rel in ("packages/server/run.js", "packages/other/skip.js"):
+            path = dest / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("function run() {}\n")
+
+    monkeypatch.setattr(trace, "export_pin", export)
+    proof = inputs.export_local(
+        tmp_path, {"pin": "sha", "units": [unit(file="packages/server/run.js", language="javascript")]}, tmp_path / "out"
+    )
+    assert proof["roots"] == ["packages/server"]
+    assert not (tmp_path / "out/packages/other/skip.js").exists()
+
+
+def test_census_membership_is_uncapped_and_warning_is_not_absence(tmp_path, monkeypatch):
+    class LargeBackend(FakeBackend):
+        def build(self, root, language):
+            cpg = super().build(root, language)
+            original = cpg.run_batch_once
+
+            def batch(query, requests):
+                result = original(query, requests)
+                result["__census__"] = [{"files": "3001", "file_names": [f"f{i}.py" for i in range(3000)] + ["/case/app.py"]}]
+                return result
+
+            return replace(cpg, run_batch_once=batch, unparsed=("app.py",))
+
+    result = run_fake(tmp_path, monkeypatch, LargeBackend)
+    assert [u["status"] for u in result["units"]] == ["path", "asked-nothing"]
+    for name in ("census.sc", "taint.sc"):
+        assert '"file_names" -> ujson.Arr.from(cpg.file.name.l)' in (trace.ROOT / "src/openultrasast/cpg/queries" / name).read_text()
+
+
+def test_absent_label_includes_frontend_parse_log(tmp_path, monkeypatch):
+    class MissingBackend(FakeBackend):
+        def build(self, root, language):
+            cpg = super().build(root, language)
+            self.stages[0]["labelled_file_logs"] = {"app.py": ["Failed to parse app.py: invalid syntax"]}
+
+            def batch(query, requests):
+                self.asked.extend(requests)
+                return {**dict.fromkeys(requests, []), "__census__": [{"files": "1", "file_names": ["<unknown>"]}]}
+
+            return replace(cpg, run_batch_once=batch)
+
+    result = run_fake(tmp_path, monkeypatch, MissingBackend)
+    assert all(u["status"] == "failed" and "Failed to parse app.py: invalid syntax" in u["reason"] for u in result["units"])
+
+
+def test_frontend_retains_matching_log_lines(tmp_path):
+    launcher = tmp_path / "pysrc2cpg"
+    launcher.write_text(f"#!{sys.executable}\nprint('Failed to parse /case/pkg/app.py: syntax')\n")
+    launcher.chmod(0o755)
+    backend = worker.MeasuredBackend(30, 10, lambda: None)
+    backend.labelled_files = ["pkg/app.py"]
+    backend._run([str(launcher)], timeout=10)
+    assert backend.stages[0]["labelled_file_logs"]["pkg/app.py"] == ["Failed to parse /case/pkg/app.py: syntax"]
+
+
+@pytest.mark.parametrize("success", [True, False])
+def test_engine_bug_retries_taint_only_once(tmp_path, monkeypatch, success):
+    backend = worker.MeasuredBackend(900, 120, lambda: None)
+    calls = []
+
+    def batch(self, graph, query, requests):
+        calls.append((self.queries_dir / "taint.sc").read_text())
+        if len(calls) == 1:
+            self.fatal = worker.ENGINE_BUG
+            self.asked.append("stale")
+            self.answers["stale"] = []
+            return None
+        assert not self.asked and not self.answers
+        assert "enhance = false" in calls[-1]
+        assert "requires saved dataflowOss overlay" in calls[-1]
+        if success:
+            return {"a": [], "__census__": [{"files": "1", "file_names": ["app.py"]}]}
+        self.fatal = "joern query exited 1"
+        return None
+
+    monkeypatch.setattr(JoernBackend, "_batch_once", batch)
+    result = backend._batch_once(tmp_path / "cpg.bin", "taint", {"a": {}})
+    assert len(calls) == 2 and backend.retries[0]["completed"] == success
+    assert (result is not None) == success
+    assert backend.fatal == ("" if success else worker.ENGINE_BUG)
+    if not success:
+        backend._batch_once(tmp_path / "cpg.bin", "taint", {"a": {}})
+        assert len(backend.retries) == 1
+
+
+def test_named_engine_bug_from_process_output(tmp_path):
+    launcher = tmp_path / "joern"
+    launcher.write_text(
+        f"#!{sys.executable}\nprint('Pass io.joern.x2cpg.frontendspecific.jssrc2cpg.ObjectPropertyCallLinker failed')\n"
+        "print('java.lang.RuntimeException: Assignment statement with 3 arguments')\nraise SystemExit(1)\n"
+    )
+    launcher.chmod(0o755)
+    backend = worker.MeasuredBackend(30, 10, lambda: None)
+    backend._run([str(launcher), "--script", "query.sc"], timeout=10)
+    assert backend.fatal == worker.ENGINE_BUG
+
+
+def test_rerun_failed_and_timeout_only_preserves_completed_v2(tmp_path):
+    units = [unit(status, pin=status) for status in trace.STATUSES]
+    for pin in trace.make_plan(units, tmp_path):
+        trace.save_pin(tmp_path / trace.pin_name(pin), {**pin, "done": True, "units": [trace.unit_record(pin["units"][0], pin["pin"])]})
+    assert {p["pin"] for p in trace.make_plan(units, tmp_path, rerun_status={"failed", "timeout"})} == {"failed", "timeout"}
+
+
+def test_successful_retry_keeps_result_and_records_attempt(tmp_path, monkeypatch):
+    class RetriedBackend(FakeBackend):
+        def __init__(self, *args):
+            super().__init__(*args)
+            self.retries = [{"reason": worker.ENGINE_BUG, "mode": "taint-only", "completed": True}]
+            self.stages.append({"command": "joern", "seconds": 20, "exit": 1, "output_tail": worker.ENGINE_BUG})
+
+    result = run_fake(tmp_path, monkeypatch, RetriedBackend)
+    assert [u["status"] for u in result["units"]] == ["path", "asked-nothing"]
+    assert all(u["reason"] == "" for u in result["units"])
+    assert result["instrument"]["retries"][0]["completed"]
+
+
+def test_overlay_engine_bug_allows_one_taint_only_attempt(tmp_path, monkeypatch):
+    backend = worker.MeasuredBackend(900, 120, lambda: None)
+
+    def overlay(self, graph, scratch):
+        self.fatal = worker.ENGINE_BUG
+        return False
+
+    monkeypatch.setattr(JoernBackend, "_apply_overlays", overlay)
+    assert not backend._apply_overlays(tmp_path / "cpg.bin", tmp_path)
+    assert backend.retry_pending and not backend.fatal
+
+    def batch(self, graph, query, requests):
+        assert "enhance = false" in (self.queries_dir / "taint.sc").read_text()
+        return {"a": []}
+
+    monkeypatch.setattr(JoernBackend, "_batch_once", batch)
+    assert backend._batch_once(tmp_path / "cpg.bin", "taint", {"a": {}}) == {"a": []}
+    assert len(backend.retries) == 1

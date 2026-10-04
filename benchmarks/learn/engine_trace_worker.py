@@ -14,11 +14,12 @@ import os
 import selectors
 import signal
 import subprocess
+import tempfile
 import time
 from collections import Counter
 from pathlib import Path
 
-from openultrasast.cpg.backend import JoernBackend, _render
+from openultrasast.cpg.backend import DATAFLOW_OVERLAY, JoernBackend, _render
 from openultrasast.model.trace import parse_trace
 
 
@@ -39,6 +40,7 @@ def safe_path(root, name):
 FRONTENDS = {"php2cpg", "pysrc2cpg", "jssrc2cpg", "javasrc2cpg", "c2cpg", "joern-parse"}
 MIN_CPG_BYTES = 1024
 HEAP_MB = 2560
+ENGINE_BUG = "engine bug: jssrc2cpg ObjectPropertyCallLinker"
 EXCLUDED_DIRS = frozenset({"tests", "test", "docs", "node_modules", "vendor", "dist", "build", "templates", "migrations"})
 
 
@@ -74,6 +76,61 @@ class MeasuredBackend(JoernBackend):
         self.completion_counts = Counter()
         self.timed_out = False
         self.fatal = ""
+        self.labelled_files = []
+        self.retry_pending = False
+        self.retries = []
+
+    def _apply_overlays(self, cpg_path, scratch):
+        result = super()._apply_overlays(cpg_path, scratch)
+        # An optional overlay failure must not prevent the taint-only attempt.
+        if self.fatal == ENGINE_BUG and not self.timed_out:
+            self.retry_pending = True
+            self.fatal = ""
+        return result
+
+    def _batch_once(self, cpg_path, query, requests):
+        if self.fatal or self.timed_out:
+            return None
+        if not self.retry_pending:
+            answers = super()._batch_once(cpg_path, query, requests)
+            if self.fatal != ENGINE_BUG:
+                return answers
+        if query != "taint" or self.timed_out or self.retries:
+            self.fatal = ENGINE_BUG
+            return None
+        self.retry_pending = False
+        self.fatal = ""
+        retry = {"reason": ENGINE_BUG, "mode": "taint-only", "completed": False}
+        self.retries.append(retry)
+        # Do not reuse rows/markers from the failed attempt as completion evidence.
+        self.asked.clear()
+        self.answers.clear()
+        self.completion_counts.clear()
+        original = self.queries_dir
+        with tempfile.TemporaryDirectory(prefix="trace-taint-", dir=cpg_path.parent) as scratch:
+            script = (original / "taint.sc").read_text()
+            marker = "importCpg(cpgFile)"
+            if script.count(marker) != 1:
+                self.fatal = ENGINE_BUG
+                return None
+            # Loading without enhancement skips the failing JS postprocessing passes.
+            # A raw graph without dataflow cannot establish a negative answer.
+            script = script.replace(
+                marker,
+                "importCpg(cpgFile, enhance = false)\n"
+                f'  require(cpg.metaData.overlays.l.contains("{DATAFLOW_OVERLAY}"), '
+                '"taint-only retry requires saved dataflowOss overlay")',
+            )
+            self.queries_dir = Path(scratch)
+            (self.queries_dir / "taint.sc").write_text(script)
+            try:
+                answers = super()._batch_once(cpg_path, query, requests)
+            finally:
+                self.queries_dir = original
+        retry["completed"] = answers is not None and not self.fatal and not self.timed_out
+        if not retry["completed"]:
+            self.fatal = ENGINE_BUG
+        return answers
 
     def _run(self, command, *, timeout, cwd=None):
         if self.fatal or self.timed_out:
@@ -140,6 +197,12 @@ class MeasuredBackend(JoernBackend):
                 "exit": process.returncode,
                 "oom": b"OutOfMemoryError" in output,
             }
+            lines = output.decode(errors="replace").splitlines()
+            stage["labelled_file_logs"] = {
+                file: [line for line in lines if file in line or Path(file).name in line]
+                for file in self.labelled_files
+                if any(file in line or Path(file).name in line for line in lines)
+            }
             self.stages.append(stage)
             if query and process.returncode != 0:
                 # stderr is merged into stdout above; drop JVM frames before taking
@@ -162,6 +225,9 @@ class MeasuredBackend(JoernBackend):
                     self.fatal = "frontend wrote no CPG"
             elif elapsed < 5 and not self.fatal:
                 self.fatal = f"implausibly fast JVM step: {command[0]} in {elapsed:.3f}s (<5s)"
+        if b"ObjectPropertyCallLinker failed" in output and b"Assignment statement with 3 arguments" in output:
+            self.fatal = ENGINE_BUG
+            stage["engine_bug"] = ENGINE_BUG
         if b"OutOfMemoryError" in output:
             self.fatal = "JVM out of memory"
         self.checkpoint()
@@ -219,6 +285,8 @@ def worker_language(pin, root, out, deadline, question_deadline, persist=write_j
 
     backend = MeasuredBackend(deadline, question_deadline, checkpoint)
     proof["jvm"] = backend.stages
+    proof["retries"] = getattr(backend, "retries", [])
+    backend.labelled_files = sorted({u["file"] for u in pin["units"] if u["supported"]})
     cpg = None
     try:
         active = [u for u in pin["units"] if u["supported"]]
@@ -281,13 +349,14 @@ def worker_language(pin, root, out, deadline, question_deadline, persist=write_j
                 extra.update(witness_rows=raw_flows, traces=[parse_trace(r) for r in raw_flows])
             if shard_incomplete:
                 extra["questions_completed"] = []
-            dropped = any(p.endswith(unit["file"]) for p in cpg.unparsed)
             names = census[0].get("file_names", []) if census else []
             file_missing = not any(str(p).removeprefix("./") == unit["file"] or str(p).endswith("/" + unit["file"]) for p in names)
-            if file_missing and rows is not None:
-                dropped = True
+            dropped = file_missing and rows is not None
             if failure or dropped:
                 status, reason = "failed", failure or "labelled file was dropped or absent from query census"
+                if dropped:
+                    logs = [line for stage in backend.stages for line in stage.get("labelled_file_logs", {}).get(unit["file"], [])]
+                    reason += "\n" + ("\n".join(dict.fromkeys(logs)) if logs else "frontend emitted no log lines mentioning labelled file")
             elif rows is None or shard_incomplete:
                 status, reason = ("timeout" if backend.timed_out else "failed"), "question did not complete"
             elif not rows and rid not in backend.asked:
@@ -319,7 +388,7 @@ def worker_language(pin, root, out, deadline, question_deadline, persist=write_j
             if stage["command"] == "joern" and stage.get("exit") and "output_tail" in stage:
                 detail = f"joern query exited {stage['exit']}: {stage['output_tail'] or 'no output'}"
                 for row in record["units"]:
-                    if row["supported"]:
+                    if row["supported"] and row["status"] in {"failed", "timeout"}:
                         row["reason"] = f"{row['reason']}\n{detail}".strip()
         record["questions_asked"] = list(dict.fromkeys(backend.asked))
         record["questions_completed"] = [rid for u in record["units"] for rid in u["questions_completed"]]

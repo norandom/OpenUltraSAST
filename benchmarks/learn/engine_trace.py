@@ -7,6 +7,7 @@ is git archive HEAD src plus a hashed snapshot of this uncommitted tool.
 from __future__ import annotations
 
 import argparse
+import ast
 import fcntl
 import hashlib
 import json
@@ -15,6 +16,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import textwrap
 import time
 import tomllib
 from collections import Counter, defaultdict
@@ -41,7 +43,7 @@ SNAPSHOT_FILES = (
     "src/openultrasast/model/taint.py",
     "src/openultrasast/cpg/queries/taint.sc",
 )
-MATERIALIZATION_VERSION = 2
+MATERIALIZATION_VERSION = 3
 EXPORT_CAP = 20 * 1024 * 1024
 
 STATUSES = ("path", "asked-nothing", "failed", "timeout", "unsupported")
@@ -268,7 +270,8 @@ class Inputs:
     def export_local(self, clone, pin, target):
         with tempfile.TemporaryDirectory(prefix="trace-export-", dir=target.parent) as scratch:
             export_pin(clone, pin["pin"], Path(scratch))
-            proof = export_sources(Path(scratch), target, pin["units"])
+            roots = sorted({source_root(r["file"], r["language"]) for r in pin["units"]})
+            proof = export_sources(Path(scratch), target, pin["units"], roots)
         return {**proof, "mode": "source", "commit": pin["pin"]}
 
     def materialize(self, pin, target):
@@ -279,7 +282,43 @@ class Inputs:
                 raise ValueError(row["mapping_error"])
         if any(r.get("excerpt") or r["source"].startswith("advisory-fixes") for r in rows):
             resolved = [self.pair_for(row) for row in rows]
-            identities = {self.source_identity(case, side) for case, side in resolved}
+            identities = set()
+            catalog_files = []
+            for case, side in resolved:
+                _, item = self.catalog_for(case)
+                parent, commit = item.get("parent", ""), item.get("commit", "")
+                if parent != commit and all(re.fullmatch(r"[0-9a-fA-F]{40}", sha) for sha in (parent, commit)):
+                    identities.add(self.source_identity(case, side))
+                else:
+                    file = case.fixed_file if side == "fixed" else case.vuln_file
+                    data = file.read_text()
+                    if is_catalog_excerpt(data):
+                        data = parseable_excerpt(file, data)
+                        mode = "excerpt-parseable"
+                    else:
+                        # Validate BOTH twins before treating this as a complete-file pair.
+                        for twin in (case.vuln_file, case.fixed_file):
+                            verify_catalog_file(twin)
+                        mode = "catalog-file"
+                    catalog_files.append((case, side, mode, data))
+            if catalog_files:
+                if identities:
+                    raise ValueError("mixed source and catalog-file materialization at one pair pin")
+                for case, side, mode, data in catalog_files:
+                    _materialize_side(target, case, side=side)
+                    if mode == "excerpt-parseable":
+                        safe_path(target, case.relpath).write_text(data)
+                verify_functions(target, rows)
+                modes = {case.relpath: mode for case, _, mode, _ in catalog_files}
+                for row in rows:
+                    if modes[row["file"]] == "excerpt-parseable":
+                        row["evidence_scope"] = "in-function-only"
+                return {
+                    "mode": "excerpt-parseable" if "excerpt-parseable" in modes.values() else "catalog-file",
+                    "files": sum(p.is_file() for p in target.rglob("*")),
+                    "bytes": sum(p.stat().st_size for p in target.rglob("*") if p.is_file()),
+                    "roots": sorted({source_root(r["file"], r["language"]) for r in rows}),
+                }
             if len(identities) != 1:
                 raise ValueError("ambiguous source commits at one pair pin")
             repo, commit = identities.pop()
@@ -295,7 +334,7 @@ class Inputs:
                     _materialize_side(target, case, side=side)
                 return {"mode": "excerpt-fallback", "reason": str(exc), "repo": repo, "commit": commit}
             verify_functions(target, rows)
-            return {**proof, "mode": "source", "repo": repo, "commit": commit, "roots": roots}
+            return {**proof, "mode": "source", "repo": repo, "commit": commit}
         if all(r["source"] == "dev-php" for r in rows):
             # Export the exact requested commit from the local recipe checkout.
             for recipe in (ROOT / "benchmarks/repos").glob("*.toml"):
@@ -310,43 +349,168 @@ class Inputs:
         raise ValueError(f"no local clone contains {pin['repo']}@{pin['pin']}")
 
 
+def is_catalog_excerpt(data):
+    # Older Python exports have this header but no upstream_start field.
+    return re.match(r"\s*(?://|#)\s*Provenance:", data) is not None
+
+
+def parseable_excerpt(path, data):
+    """Dedent the code independently of its unindented provenance comments."""
+    language = detect_language(path)
+    lines = data.splitlines(keepends=True)
+    start = 0
+    while start < len(lines) and (not lines[start].strip() or lines[start].lstrip().startswith(("#", "//"))):
+        start += 1
+    header = "".join(lines[:start])
+    if language == "python":
+        header = re.sub(r"(?m)^(\s*)//", r"\1#", header)
+    data = header + textwrap.dedent("".join(lines[start:]))
+    if not "".join(lines[start:]).strip():
+        raise ValueError(f"excerpt does not parse: empty code ({path.name})")
+    if language == "python":
+        try:
+            ast.parse(data, filename=str(path))
+        except SyntaxError as exc:
+            raise ValueError(f"excerpt does not parse: {exc}") from exc
+    else:
+        from openultrasast.semantic.cst import parse_with_cst
+
+        parsed = parse_with_cst(str(path), data, language)
+        if parsed is None:
+            raise ValueError(f"excerpt does not parse: no cheap parser for {language} ({path.name})")
+        if not parsed.parse_ok:
+            raise ValueError(f"excerpt does not parse: {language} {parsed.reason} ({path.name})")
+    return data
+
+
+def verify_catalog_file(path):
+    """Admit complete source only; syntactically valid provenance excerpts still fail."""
+    data = path.read_text()
+    if is_catalog_excerpt(data):
+        raise ValueError(f"catalog side is an upstream excerpt without distinct commits: {path.name}")
+    language = detect_language(path)
+    if not data.strip():
+        raise ValueError(f"catalog side is empty: {path.name}")
+    if language == "python":
+        try:
+            ast.parse(data, filename=str(path))
+        except SyntaxError as exc:
+            raise ValueError(f"catalog side is not complete Python source: {path.name}: {exc.msg}") from exc
+    else:
+        from openultrasast.semantic.extra import grammar_for
+
+        grammar = grammar_for(language)
+        if grammar is None:
+            raise ValueError(f"cannot verify complete catalog source for {language}: {path.name}")
+        from tree_sitter import Parser
+
+        if Parser(grammar).parse(data.encode()).root_node.has_error:
+            raise ValueError(f"catalog side is not complete {language} source: {path.name}")
+
+
 def source_root(file, language):
     parts = Path(file).parts
     if language == "java":
         for i in range(len(parts) - 2):
             if parts[i : i + 3] == ("src", "main", "java"):
                 return "/".join(parts[: i + 3])
+    # Monorepo and source-layout containers are not themselves a package.
+    if len(parts) > 2 and parts[0] in {"packages", "apps", "src", "web"}:
+        return "/".join(parts[:2])
     return parts[0] if len(parts) > 1 else "."
 
 
+def local_imports(source, rows):
+    """Cheap one-level Python imports from labelled files, without importing code."""
+    found = set()
+    for row in rows:
+        if row["language"] != "python":
+            continue
+        file = safe_path(source, row["file"])
+        try:
+            tree = ast.parse(file.read_bytes())
+        except (SyntaxError, ValueError):
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                modules, bases = [alias.name for alias in node.names], [source, source / "src"]
+            elif isinstance(node, ast.ImportFrom):
+                modules = [node.module or ""]
+                modules += [".".join(filter(None, (node.module, alias.name))) for alias in node.names if alias.name != "*"]
+                bases = [file.parents[node.level - 1]] if node.level and node.level <= len(file.parents) else [source, source / "src"]
+            else:
+                continue
+            for base in bases:
+                for module in modules:
+                    path = base.joinpath(*module.split("."))
+                    for candidate in (path.with_suffix(".py"), path / "__init__.py"):
+                        if candidate.is_relative_to(source) and candidate.is_file() and not candidate.is_symlink():
+                            rel = candidate.relative_to(source).as_posix()
+                            if not any(part in EXCLUDED_DIRS for part in Path(rel).parts):
+                                found.add(rel)
+    return found
+
+
 def export_sources(source, target, rows, roots=(".",), cap=EXPORT_CAP):
-    """Preserve labelled paths first; cap context and exclude non-source trees."""
+    """Copy labels intact, narrowing oversized roots before bounding context bytes."""
     labelled = {r["file"] for r in rows}
     languages = {r["language"] for r in rows}
     files = set()
+    protected = {parent.as_posix() for rel in labelled for parent in Path(rel).parents}
     for directory, dirs, names in os.walk(source):
-        dirs[:] = sorted(d for d in dirs if d not in EXCLUDED_DIRS and d != ".git" and not (Path(directory) / d).is_symlink())
+        dirs[:] = sorted(
+            d
+            for d in dirs
+            if d != ".git"
+            and not (Path(directory) / d).is_symlink()
+            and (d not in EXCLUDED_DIRS or (Path(directory) / d).relative_to(source).as_posix() in protected)
+        )
         for name in names:
             file = Path(directory) / name
             rel = file.relative_to(source).as_posix()
-            if (
-                not file.is_symlink()
-                and detect_language(file) in languages
-                and any(root == "." or rel.startswith(root + "/") for root in roots)
+            excluded = any(part in EXCLUDED_DIRS for part in Path(rel).parts[:-1])
+            if not file.is_symlink() and (
+                rel in labelled
+                or (
+                    not excluded
+                    and detect_language(file) in languages
+                    and any(root == "." or rel == root or rel.startswith(root + "/") for root in roots)
+                )
             ):
                 files.add(rel)
     missing = labelled - files
     if missing:
         raise ValueError(f"labelled files missing or excluded from export: {sorted(missing)}")
-    proof = {"bytes": 0, "files": 0, "cap_bytes": cap, "cap_hit": False, "excludes": sorted(EXCLUDED_DIRS)}
+    imports = local_imports(source, rows)
+    files.update(imports)
+    sizes = {rel: safe_path(source, rel).stat().st_size for rel in files}
+    original_roots = sorted(roots)
+    roots = original_roots
+    # Avoid lexicographically truncating a whole large package such as vllm.
+    if sum(sizes.values()) > cap:
+        roots = sorted({str(Path(rel).parent) for rel in labelled})
+        files = {
+            rel for rel in files if rel in labelled or rel in imports or any(root == "." or rel.startswith(root + "/") for root in roots)
+        }
+    proof = {
+        "bytes": 0,
+        "files": 0,
+        "cap_bytes": cap,
+        "cap_hit": False,
+        "excludes": sorted(EXCLUDED_DIRS),
+        "roots": roots,
+        "requested_roots": original_roots,
+        "scope_narrowed": roots != original_roots,
+        "import_files": sorted(imports),
+    }
     for rel in sorted(files, key=lambda rel: (rel not in labelled, rel)):
         file = safe_path(source, rel)
-        size = file.stat().st_size
+        size = sizes[rel]
+        # The cap bounds context only. No labelled source is ever cut or omitted.
         if proof["bytes"] + size > cap:
             proof["cap_hit"] = True
-            if rel in labelled:
-                raise ValueError("labelled source exceeds 20 MB export cap")
-            continue
+            if rel not in labelled:
+                continue
         dest = safe_path(target, rel)
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(file.read_bytes())
@@ -431,7 +595,7 @@ def prepare_questions(pin, root, question_deadline):
         specs = taint_specs(language="javascript" if u["language"] == "typescript" else u["language"])
         if not declares(safe_path(root, u["file"]).read_text(errors="replace").splitlines(), u["file"], u["function"]):
             raise ValueError(f"labelled function not declared: {u['file']}::{u['function']}")
-        excerpt = pin.get("materialization", {}).get("mode") == "excerpt-fallback"
+        excerpt = u.get("evidence_scope") == "in-function-only" or pin.get("materialization", {}).get("mode") == "excerpt-fallback"
         params = request_params(
             specs[u["family"]],
             file=u["file"],
@@ -573,7 +737,7 @@ def main():
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--only-family")
     parser.add_argument("--only-source", default="", help="comma-separated source catalog IDs")
-    parser.add_argument("--rerun-status", default="failed", help="re-run completed pins with any selected unit in these statuses")
+    parser.add_argument("--rerun-status", default="failed,timeout", help="comma-separated statuses to re-run (including timeout)")
     parser.add_argument(
         "--allow-excerpt-fallback", action="store_true", help="allow fragments only if fetching/exporting resolved source fails"
     )
@@ -652,6 +816,9 @@ def main():
     with tempfile.TemporaryDirectory(prefix="trace-source-", dir=args.out) as scratch:
         source = Path(scratch) / "frozen"
         provenance = freeze_source(source)
+        progress = {"pins_done": 0, "pins_total": len(plan), "last_pin": None, "statuses": {}}
+        counts = Counter()
+        write_json(args.out / "progress.json", progress)
         for pin in plan:
             if (args.out / "STOP").exists():
                 break
@@ -660,8 +827,13 @@ def main():
                     args.out / pin_name(pin),
                     {**pin, "done": True, "units": [unit_record(u, "unsupported", u["reason"]) for u in pin["units"]]},
                 )
-                continue
-            failures |= run_pin(pin, source, provenance, inputs, args.out, args)
+            else:
+                failures |= run_pin(pin, source, provenance, inputs, args.out, args)
+            result = json.loads((args.out / pin_name(pin)).read_text())
+            selected = {u["unit"] for u in pin["units"]}
+            counts.update(u["status"] for u in result["units"] if u["unit"] in selected)
+            progress.update(pins_done=progress["pins_done"] + 1, last_pin={"repo": pin["repo"], "pin": pin["pin"]}, statuses=dict(counts))
+            write_json(args.out / "progress.json", progress)
     return 2 if failures else 0
 
 
