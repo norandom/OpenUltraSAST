@@ -12,7 +12,7 @@ import time
 import uuid
 from datetime import timedelta
 
-from openultrasast.plane.memory import S3Store, open_store
+from openultrasast.plane.memory import PRESIGNED_ARCHIVE_SUFFIX, S3Store, open_store
 
 IMAGE = "ghcr.io/norandom/openultrasast:2.0.1"
 BOOTSTRAP = r"""
@@ -164,7 +164,7 @@ class Kubernetes:
         name = "engine-" + uuid.uuid4().hex[:24]
         pin_key = hashlib.sha256(json.dumps([pin.get("repo"), pin.get("pin")]).encode()).hexdigest()
         prefix = f"engine-jobs/{self.run}/{pin_key}/"
-        keys = [prefix + file for file in ("source.tar", "analyzer.tar", "result.tar")]
+        keys = [prefix + name + PRESIGNED_ARCHIVE_SUFFIX for name in ("source", "analyzer", "result")]
         expiry = timedelta(seconds=self.args.deadline + 900)
         node = None
         try:

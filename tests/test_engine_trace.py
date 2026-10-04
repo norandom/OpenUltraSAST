@@ -1265,6 +1265,8 @@ def test_kubernetes_host_pin_success_failure_and_cleanup(tmp_path, monkeypatch, 
             manifest = json.loads(kwargs["input"])
             if manifest["kind"] == "Secret":
                 assert manifest["metadata"]["ownerReferences"][0]["uid"] == "job-uid"
+                for variable, filename in [("SOURCE_URL", "source.dat"), ("ANALYZER_URL", "analyzer.dat"), ("RESULT_URL", "result.dat")]:
+                    assert manifest["stringData"][variable].split("?")[0].endswith("/" + filename)
             if manifest["kind"] == "Job":
                 stdout = json.dumps({"metadata": {"uid": "job-uid"}})
                 env = manifest["spec"]["template"]["spec"]["containers"][0]["env"]
@@ -1276,10 +1278,10 @@ def test_kubernetes_host_pin_success_failure_and_cleanup(tmp_path, monkeypatch, 
                     entry = tarfile.TarInfo("result.json")
                     entry.size = len(result_bytes)
                     archive.addfile(entry, io.BytesIO(result_bytes))
-                source_key = next(key for key in objects if key.endswith("source.tar"))
+                source_key = next(key for key in objects if key.endswith("source.dat"))
                 with tarfile.open(fileobj=io.BytesIO(objects[source_key])) as archive:
                     assert archive.extractfile("app.py").read() == b"def run(): pass"
-                objects[source_key.replace("source.tar", "result.tar")] = stream.getvalue()
+                objects[source_key.replace("source.dat", "result.dat")] = stream.getvalue()
         if action[:2] == ["get", "job"]:
             stdout = json.dumps(
                 {"status": {"conditions": [{"type": "Failed", "status": "True", "reason": "DeadlineExceeded"}]}}

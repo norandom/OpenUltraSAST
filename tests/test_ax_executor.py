@@ -113,6 +113,10 @@ def test_ax_executor_success_while_running_and_cleanup(setup):
     assert set(env) == {"SOURCE_URL", "QUESTIONS_URL", "RESULT_URL", "DEADLINE", "QUESTION_DEADLINE"}
     assert len(json.dumps(manifest["spec"]["env"]).encode()) < 32768
     assert "AWS" not in calls[0]["input"]
+    assert env["SOURCE_URL"].split("?")[0].endswith("/source.dat")
+    assert env["RESULT_URL"].split("?")[0].endswith("/result.dat")
+    assert env["QUESTIONS_URL"].split("?")[0].endswith("/questions.json")
+    assert {key.rsplit("/", 1)[-1] for key in store.deleted} == {"source.dat", "questions.json", "result.dat"}
     assert store.expiries == [604] * 3
     assert len(store.deleted) == 3 and not store.objects
 

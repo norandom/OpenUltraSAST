@@ -53,7 +53,7 @@ def task():
         run="run",
         id="pin",
         task_id="run-pin",
-        input="engine-queue/inputs/run/pin/source.tar",
+        input="engine-queue/inputs/run/pin/source.dat",
         deadline=10,
         question_deadline=2,
         pin={"repo": "owner/repo", "pin": "commit", "units": []},
@@ -120,6 +120,7 @@ def test_engine_queue_dispatch_roundtrip_and_timeout(tmp_path):
     pin = {"repo": "owner/repo", "pin": "sha", "units": [unit], "questions": []}
 
     def execute(client, item):
+        assert item["input"].endswith("/source.dat")
         unpacked = tmp_path / "unpacked"
         unpacked.mkdir()
         service.unpack(client.get(item["input"])[0], unpacked)

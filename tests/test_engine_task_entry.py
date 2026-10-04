@@ -37,7 +37,7 @@ def test_engine_cluster_heap_flags(monkeypatch):
     assert worker.MeasuredBackend(30, 10, lambda: None)._heap_flag() == "-J-Xmx2560m"
 
 
-@pytest.mark.parametrize("readiness", ["ready", "delayed", "closed"])
+@pytest.mark.parametrize("readiness", ["ready", "delayed", "closed", "source_denied"])
 @pytest.mark.parametrize("failure", [False, True])
 @pytest.mark.parametrize("transport", ["memory", "loopback"])
 def test_task_entry_http_roundtrip(tmp_path, monkeypatch, failure, transport, readiness):
@@ -57,6 +57,10 @@ def test_task_entry_http_roundtrip(tmp_path, monkeypatch, failure, transport, re
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             gets.append((self.path, time.monotonic() - started))
+            if readiness == "source_denied" and self.path == "/source":
+                self.send_response(403)
+                self.end_headers()
+                return
             if readiness == "closed" or (readiness == "delayed" and gets[-1][1] < 3):
                 self.send_response(403 if len(gets) % 2 else 503)
                 self.end_headers()
@@ -148,7 +152,13 @@ def test_task_entry_http_roundtrip(tmp_path, monkeypatch, failure, transport, re
     assert result["done"]
     if readiness == "closed":
         assert result["status"] == "failed"
-        assert result["reason"] == "egress not open after 60 s"
+        assert result["reason"] == "GET questions: egress not open after 60 s"
+        assert json.loads((tmp_path / "work/out/result.json").read_text()) == result
+    elif readiness == "source_denied":
+        assert result["status"] == "failed"
+        assert result["reason"] == "GET source: HTTP 403"
+        assert result["units"][0]["reason"] == "GET source: HTTP 403"
+        assert base not in json.dumps(result)
         assert json.loads((tmp_path / "work/out/result.json").read_text()) == result
     elif failure:
         assert result["units"][0]["status"] == "failed"

@@ -24,7 +24,7 @@ import yaml
 from engine_trace_k8s import pack
 
 from openultrasast.config import load_dotenv
-from openultrasast.plane.memory import S3Store, open_store
+from openultrasast.plane.memory import PRESIGNED_ARCHIVE_SUFFIX, S3Store, open_store
 
 
 class EgressError(ValueError):
@@ -220,7 +220,7 @@ class AX:
         name = f"ousast-engine-{slug or 'pin'}-{digest}"
         key_id = hashlib.sha256(str(pin_id).encode()).hexdigest()
         prefix = f"engine-queue/{self.run}/{key_id}/"
-        keys = [prefix + suffix for suffix in ("source.tar", "questions.json", "result.tar")]
+        keys = [prefix + suffix for suffix in (f"source{PRESIGNED_ARCHIVE_SUFFIX}", "questions.json", f"result{PRESIGNED_ARCHIVE_SUFFIX}")]
         expires = timedelta(seconds=self.args.deadline + 600)
         worker_ip = None
         submitted = False

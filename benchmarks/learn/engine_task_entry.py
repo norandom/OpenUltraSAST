@@ -15,6 +15,10 @@ import urllib.request
 from pathlib import Path
 
 
+class TaskEntryError(RuntimeError):
+    """A task-entry diagnostic containing only locally controlled text."""
+
+
 def transfer(request, destination=None, *, readiness_budget=None):
     """Wait for actor egress on startup; bound later transfers to three attempts."""
     deadline = time.monotonic() + readiness_budget if readiness_budget is not None else None
@@ -23,7 +27,7 @@ def transfer(request, destination=None, *, readiness_budget=None):
     while True:
         remaining = deadline - time.monotonic() if deadline is not None else 60
         if remaining <= 0:
-            raise RuntimeError("egress not open after 60 s")
+            raise TaskEntryError("egress not open after 60 s")
         attempt += 1
         try:
             with urllib.request.urlopen(request, timeout=min(60, remaining)) as response:
@@ -43,7 +47,7 @@ def transfer(request, destination=None, *, readiness_budget=None):
         if deadline is not None:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                raise RuntimeError("egress not open after 60 s") from None
+                raise TaskEntryError("egress not open after 60 s") from None
             time.sleep(min(delay, remaining))
             delay = min(delay * 2, 8)
         else:
@@ -92,20 +96,26 @@ def main(*, work_root=Path("/tmp"), worker_script=None, readiness_budget=60):
     failed = False
     output = work_root / "out"
     result = output / "result.json"
+    step = "prepare output"
     try:
         output.mkdir(parents=True, exist_ok=True)
         result.unlink(missing_ok=True)
         questions = work_root / "questions.json"
+        step = "GET questions"
         download(os.environ["QUESTIONS_URL"], questions, readiness_budget=readiness_budget)
+        step = "parse questions"
         pin = json.loads(questions.read_text())
         if not isinstance(pin, dict):
             pin = {}
             raise ValueError("questions object must contain a prepared pin")
         source = work_root / "source.tar"
+        step = "GET source"
         download(os.environ["SOURCE_URL"], source)
+        step = "unpack source"
         case = work_root / "case"
         case.mkdir(parents=True, exist_ok=True)
         unpack(source, case)
+        step = "configure worker"
         deadline = int(os.environ.get("DEADLINE", "900"))
         command = [
             sys.executable,
@@ -123,30 +133,39 @@ def main(*, work_root=Path("/tmp"), worker_script=None, readiness_budget=60):
             "--question-deadline",
             os.environ.get("QUESTION_DEADLINE", "120"),
         ]
+        step = "run worker"
         completed = subprocess.run(command, timeout=deadline + 5, check=False)
         if completed.returncode:
-            raise RuntimeError(f"worker exited {completed.returncode}")
+            raise TaskEntryError(f"worker exited {completed.returncode}")
+        step = "read worker result"
         if not result.is_file() or not json.loads(result.read_text()).get("done"):
-            raise RuntimeError("worker did not write a completed result")
+            raise TaskEntryError("worker did not write a completed result")
     except Exception as exc:
         failed = True
         # Avoid including exception text containing a presigned URL in durable output.
-        reason = str(exc) if isinstance(exc, (RuntimeError, ValueError)) else f"task entry failed: {type(exc).__name__}"
+        if isinstance(exc, urllib.error.HTTPError):
+            detail = f"HTTP {exc.code}"
+        else:
+            detail = str(exc) if isinstance(exc, TaskEntryError) else type(exc).__name__
+        reason = f"{step}: {detail}"
         try:
             output.mkdir(parents=True, exist_ok=True)
             result.write_text(json.dumps(failure_record(pin, reason)) + "\n")
         except Exception:
             print("task entry could not write failure result", file=sys.stderr)
+    step = "pack result"
     try:
         archive = work_root / "result.tar"
         with tarfile.open(archive, "w") as tar:
             for path in sorted(output.iterdir()):
                 tar.add(path, arcname=path.name)
         data = archive.read_bytes()
+        step = "PUT result"
         request = urllib.request.Request(os.environ["RESULT_URL"], data=data, method="PUT", headers={"Content-Type": "application/x-tar"})
         transfer(request, readiness_budget=readiness_budget if failed else None)
-    except Exception:
-        print("task entry could not upload result; dispatcher deadline remains authoritative", file=sys.stderr)
+    except Exception as exc:
+        detail = f"HTTP {exc.code}" if isinstance(exc, urllib.error.HTTPError) else type(exc).__name__
+        print(f"{step}: {detail}; dispatcher deadline remains authoritative", file=sys.stderr)
     return 0
 
 

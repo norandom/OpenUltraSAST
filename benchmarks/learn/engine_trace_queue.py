@@ -9,6 +9,8 @@ import uuid
 
 from engine_worker_service import PENDING, client_from_env, pack, put, read, result_key, status
 
+from openultrasast.plane.memory import PRESIGNED_ARCHIVE_SUFFIX
+
 
 class Dispatcher:
     def __init__(self, args, client=None, *, pause=time.sleep, clock=time.monotonic):
@@ -23,7 +25,7 @@ class Dispatcher:
             id=pin_id,
             task_id=task_id,
             pin=pin,
-            input=f"engine-queue/inputs/{self.run}/{pin_id}/source.tar",
+            input=f"engine-queue/inputs/{self.run}/{pin_id}/source{PRESIGNED_ARCHIVE_SUFFIX}",
             image=self.args.image,
             deadline=self.args.deadline,
             question_deadline=self.args.question_deadline,

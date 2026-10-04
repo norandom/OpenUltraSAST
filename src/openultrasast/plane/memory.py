@@ -586,6 +586,10 @@ class ObjectClient(Protocol):
 
 _VERIFIED: set[str] = set()
 PROBE_KEY = "_probe/select.jsonl"
+# Live finding: files.because-security.com denies presigned GETs ending in .tar, .gz,
+# .zip or .bin (HTTP 403 AccessDenied). Use .dat for archive objects; bytes stay tar.
+PRESIGNED_ARCHIVE_SUFFIX = ".dat"  # engine executors only; the plane keeps output.tar
+
 RUNS_PREFIX = "runs/"
 RUNS_RULE_ID = "ousast-runs-expiry"
 RUNS_EXPIRE_DAYS = 30
