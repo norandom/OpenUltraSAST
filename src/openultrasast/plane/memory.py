@@ -615,6 +615,8 @@ class S3Store(MemoryStore):
     presigned URLs. An admin configures the bucket once; opening a store verifies it (:meth:`verify_bucket`) and
     refuses a bucket without versioning, the ``runs/`` expiry rule or S3 Select. There is no local fallback."""
 
+    read_only: bool = False
+
     def __init__(self, client: ObjectClient, bucket: str, prefix: str = "", *, read_only: bool = False) -> None:
         self.client, self.bucket, self.prefix = client, bucket, prefix.strip("/")
         self.read_only = read_only

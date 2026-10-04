@@ -16,13 +16,13 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import textwrap
 import threading
 import time
 import tomllib
-from collections import Counter, defaultdict, deque
-from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from collections import Counter, defaultdict
 from pathlib import Path
 
 from engine_trace_k8s import IMAGE, Kubernetes
@@ -39,6 +39,9 @@ from openultrasast.plane.memory import FileStore
 from openultrasast.plane.tasks.alerts import engine_languages
 from openultrasast.preprocess import detect_language
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from benchmarks.ax.batch import schedule
+
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUT = Path.home() / "ousast-results/plane/engine-trace"
 SNAPSHOT_FILES = (
@@ -47,6 +50,7 @@ SNAPSHOT_FILES = (
     "benchmarks/learn/engine_trace_k8s.py",
     "benchmarks/learn/engine_trace_queue.py",
     "benchmarks/learn/engine_trace_ax.py",
+    "benchmarks/ax/batch.py",
     "benchmarks/learn/engine_task_entry.py",
     "benchmarks/learn/engine_worker_service.py",
     "benchmarks/learn/engine_trace_parse.py",
@@ -791,8 +795,8 @@ def run_plan(plan, source, provenance, inputs, args):
         "active_lanes": {},
     }
     counts = Counter()
-    pending = deque(plan)
-    fallbacks = deque()
+    pending = list(plan)
+    fallbacks = []
     if args.executor in {"ax", "mixed-ax"}:
         pending.clear()
         for pin in plan:
@@ -803,12 +807,6 @@ def run_plan(plan, source, provenance, inputs, args):
                 fallbacks.append((pin, old))
             else:
                 pending.append(pin)
-    active = {}
-    failures = False
-
-    def persist():
-        progress.update(pins_in_flight=len(active), active_lanes=dict(Counter(lane for _, lane in active.values())))
-        write_json(args.out / "progress.json", progress)
 
     def execute(pin, lane, attempt=None):
         if not any(u["supported"] for u in pin["units"]):
@@ -825,52 +823,20 @@ def run_plan(plan, source, provenance, inputs, args):
             options.image = getattr(args, "docker_image", args.image)
         return run_pin(pin, source, provenance, inputs, args.out, options)
 
-    with ThreadPoolExecutor(max_workers=len(lanes)) as pool:
+    def complete(pin, lane, failed, progress):
+        result = json.loads((args.out / pin_name(pin)).read_text())
+        selected = {u["unit"] for u in pin["units"]}
+        reasons = [u.get("reason", "") for u in result["units"] if u["unit"] in selected]
+        sandbox_failed = args.executor == "mixed-ax" and result.get("container_exit") == 1 and "AX sandbox failed twice" in reasons
+        if lane == "ax" and (sandbox_failed or any("JVM out of memory" in reason for reason in reasons)):
+            result.update(fallback="vm-sandbox" if sandbox_failed else "vm-oom", fallback_pending=True)
+            write_json(args.out / pin_name(pin), result)
+            return False, result
+        counts.update(u["status"] for u in result["units"] if u["unit"] in selected)
+        progress.update(last_pin={"repo": pin["repo"], "pin": pin["pin"]}, statuses=dict(counts))
+        return failed, None
 
-        def launch(lane):
-            if (args.out / "STOP").exists():
-                return
-            attempt = None
-            if lane == "docker" and fallbacks:
-                pin, attempt = fallbacks.popleft()
-            elif pending and not (args.executor == "ax" and lane == "docker"):
-                pin = pending.popleft()
-            else:
-                return
-            active[pool.submit(execute, pin, lane, attempt)] = (pin, lane)
-
-        for lane in lanes:
-            launch(lane)
-        persist()
-        while active:
-            completed, _ = wait(active, return_when=FIRST_COMPLETED)
-            for future in completed:
-                pin, lane = active.pop(future)
-                failed = future.result()
-                result = json.loads((args.out / pin_name(pin)).read_text())
-                selected = {u["unit"] for u in pin["units"]}
-                reasons = [u.get("reason", "") for u in result["units"] if u["unit"] in selected]
-                sandbox_failed = args.executor == "mixed-ax" and result.get("container_exit") == 1 and "AX sandbox failed twice" in reasons
-                if lane == "ax" and (sandbox_failed or any("JVM out of memory" in reason for reason in reasons)):
-                    result.update(fallback="vm-sandbox" if sandbox_failed else "vm-oom", fallback_pending=True)
-                    write_json(args.out / pin_name(pin), result)
-                    fallbacks.append((pin, result))
-                    continue
-                failures |= failed
-                selected = {u["unit"] for u in pin["units"]}
-                counts.update(u["status"] for u in result["units"] if u["unit"] in selected)
-                progress.update(
-                    pins_done=progress["pins_done"] + 1, last_pin={"repo": pin["repo"], "pin": pin["pin"]}, statuses=dict(counts)
-                )
-            idle = Counter(lanes) - Counter(lane for _, lane in active.values())
-            # Give a waiting fallback priority over overflow on the single VM lane.
-            for lane, count in idle.items():
-                for _ in range(count):
-                    launch(lane)
-            if args.executor in {"ax", "mixed-ax"}:
-                progress["fallbacks_pending"] = len(fallbacks)
-            persist()
-    return failures
+    return schedule(pending, lanes, args.out, execute, complete, fallbacks=fallbacks, overflow=args.executor != "ax", progress=progress)
 
 
 def main():

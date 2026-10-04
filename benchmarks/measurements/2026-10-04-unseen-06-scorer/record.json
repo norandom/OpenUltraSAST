@@ -1,0 +1,41 @@
+{
+  "commit": "48ae918dec25119142ae781607ba99306ae5ec17",
+  "fixture_bytes": 15374,
+  "fixture_sha256": "dd3c774a47d553105ed85b9cea8810736c233f870e5a015559a1524d5db5a14d",
+  "implementation_sha256": {
+    "benchmarks/ax/batch.py": "37aecac93beb25c02826e81eacaf064fbebb447a998fe139f6d94a07035b8685",
+    "benchmarks/unseen/replay.py": "32efb3e0b9e9d247f2780b5f3ceeb01b4c2cbda3656c75a741f9925621cfdfbc",
+    "benchmarks/unseen/replay_entry.py": "994d8e239eb505dc2c5bad4cdb8b5d45967a8a2aa9ef48fb4c2f20ba45736280",
+    "benchmarks/unseen/score.py": "56e0a7b34482b5d84df39824b8ee447c283e35bd932f38cfe692cf84cb52cef7"
+  },
+  "network_proofs": {
+    "4.4": "coordinator_pending",
+    "5.4": "coordinator_pending"
+  },
+  "scope": "offline synthetic scorer only",
+  "score_command_exit": 0,
+  "scorer_output_sha256": "77f154eedb6a4acd098ab63a0b17434291f0d226dabe8ac66f2e0b362154d002",
+  "scorer_test_exit": 0,
+  "scorer_tests": 14,
+  "synthetic_records": 20,
+  "uncommitted": true,
+  "validation": {
+    "generic_dispatcher_tests": {
+      "exit_code": 0,
+      "passed": 5
+    },
+    "mypy": 0,
+    "proof_and_scorer_tests": {
+      "exit_code": 0,
+      "passed": 16
+    },
+    "requested_pytest": {
+      "exit_code": 0,
+      "passed": 279,
+      "skipped": 8
+    },
+    "reserved_repository_guard": 0,
+    "ruff_check": 0,
+    "ruff_format_check": 0
+  }
+}

@@ -197,3 +197,95 @@ are only a proxy. A working planning range is **8–48 hours**, potentially long
 large histories: every first-parent commit is inspected and lazy blobs can dominate.
 These are assumptions, not evidence from a network run. The command reports actual
 counts and wall time; task 2.5 establishes the measured estimate.
+
+## Dispatcher, replay and scoring (groups 4–6)
+
+`benchmarks.ax.batch` owns Task transport and the shared scheduler. New workloads supply
+`Item` input bytes/commands and a `Workload` image, URL allowlist, deadline and result
+validator. Two AX slots and one VM slot are the default; sandbox death gets one fresh
+Task before VM fallback, OOM goes straight to VM, and instrument failures get one rerun.
+Cleanup failure prevents further launches. Create `STOP` in the output directory to stop
+launching; remove it and repeat the command to resume matching input digests. The legacy
+engine adapter retains its `questions.json` object name for compatibility; replay inputs
+and outputs use `.dat`. Both use the same object polling and cleanup implementation.
+
+Replay reads `pool-pN.toml`, verifies its adjacent `freeze-pN.json` canonical digest,
+selects `--slice`, and resolves private pointers through `private/pool-pN.toml` (or
+`--private-manifest`). It never reads a draft. `--dry-run` prints only counts and digests.
+The five-change proof uses a separate frozen JSON manifest from this project's own
+source-changing history. Raw output must be outside the repository.
+
+Each output root contains `inputs.json` and digest-keyed records and artifact directories.
+The scorer accepts that root directly, joins change labels, and includes missing or stale
+results as instrument failures. It refuses a slice above 5% failure after reruns. Example:
+
+```sh
+python -m benchmarks.unseen.score "$HOME/ousast-results/unseen/p1/1/default" \
+  --out "$HOME/ousast-results/unseen/p1/1/default-score.json"
+```
+
+For paired binary arms add `--against BASELINE_ROOT --slice-id p1/2`; `--informed` forces
+`unseen.gate=not_run`. The later experiment integration owns ledger verification; callers
+of `gate` must pass that ledger decision. Score-bearing arms use `budgets` with fixed
+thresholds and `gate(..., binary=False, threshold=..., threshold_fixed=True)`. In-slice
+thresholds are exploratory and cannot qualify adoption. JVM wall time is explicitly the
+sum of the hook artifact's scan build/query times, not a separately observed process timer.
+
+### Coordinator task 4.4
+
+Run from the merged repository root. Set `ENGINE_IMAGE` to the **engine** digest printed
+by Engine image CI, `ENGINE_UNITS` and `ENGINE_EXAMPLES` to the frozen input files for the
+two stored pins, `ENGINE_BASELINE` to their stored record directory, and `AX_KUBECONFIG`
+to the operator's kube-ax kubeconfig. Host store credentials stay on the VM; use the public
+HTTPS `S3_ENDPOINT=https://files.because-security.com` and the operator's `OUSAST_MEMORY`.
+Use a fresh output directory, so the smoke executes instead of resuming prior records.
+
+```sh
+export PATH=/home/mc/Source/OpenUltraSAST/.venv/bin:$PATH
+export PYTHONPATH=$PWD/src
+export S3_ENDPOINT=https://files.because-security.com
+python benchmarks/learn/engine_trace.py \
+  --units "$ENGINE_UNITS" --examples "$ENGINE_EXAMPLES" \
+  --executor ax --parallel 2 --limit 2 --image "$ENGINE_IMAGE" \
+  --kubeconfig "$AX_KUBECONFIG" --out "$HOME/ousast-results/unseen/proof-04"
+python -m benchmarks.unseen.proof engine --image "$ENGINE_IMAGE" \
+  --records "$HOME/ousast-results/unseen/proof-04" --baseline "$ENGINE_BASELINE" \
+  --out "benchmarks/measurements/$(date +%F)-unseen-04-dispatcher/record.json"
+```
+
+### Coordinator task 5.4
+
+Merge before running this proof. `.github/workflows/engine-image.yml` builds the `engine`
+and `replay` targets on push to main; it publishes `ousast-engine-task` and
+`ousast-replay-task` separately and prints their digests. Set `REPLAY_IMAGE` to the latter
+full `ghcr.io/...@sha256:...` reference. No manual image build is needed. Set
+`KIND_KUBECONFIG` and `AX_KUBECONFIG` to the corresponding AX kubeconfigs; the kind lane
+uses the identical Task API/manifest, never a Kubernetes Job.
+
+```sh
+export PATH=/home/mc/Source/OpenUltraSAST/.venv/bin:$PATH
+export PYTHONPATH=$PWD/src
+export S3_ENDPOINT=https://files.because-security.com
+python -m benchmarks.unseen.replay --proof-history \
+  --manifest "$HOME/ousast-results/unseen/proof-05-inputs.json"
+python -m benchmarks.unseen.replay --manifest "$HOME/ousast-results/unseen/proof-05-inputs.json" \
+  --image "$REPLAY_IMAGE" --lane kind --kubeconfig "$KIND_KUBECONFIG" \
+  --out "$HOME/ousast-results/unseen/proof-05-kind"
+python -m benchmarks.unseen.replay --manifest "$HOME/ousast-results/unseen/proof-05-inputs.json" \
+  --image "$REPLAY_IMAGE" --lane ax --kubeconfig "$AX_KUBECONFIG" \
+  --out "$HOME/ousast-results/unseen/proof-05-ax"
+python -m benchmarks.unseen.replay --manifest "$HOME/ousast-results/unseen/proof-05-inputs.json" \
+  --image "$REPLAY_IMAGE" --lane docker \
+  --out "$HOME/ousast-results/unseen/proof-05-vm"
+python -m benchmarks.unseen.proof replay --image "$REPLAY_IMAGE" \
+  --kind-records "$HOME/ousast-results/unseen/proof-05-kind" \
+  --ax-records "$HOME/ousast-results/unseen/proof-05-ax" \
+  --vm-records "$HOME/ousast-results/unseen/proof-05-vm" \
+  --out "benchmarks/measurements/$(date +%F)-unseen-05-replay-task/record.json"
+```
+
+The record command fails if fewer than five results exist, identities differ, bytes/JVM
+proof is missing, or quick-tier findings differ. It does not convert a quick-only run
+without a JVM into an engine proof. Pool replays use `--lane mixed` (default) for the two
+AX slots and single VM overflow/fallback lane; `--arm long_deadline` changes only the
+hook deadline to 300 seconds and is a separate input digest.

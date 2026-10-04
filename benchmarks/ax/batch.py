@@ -1,0 +1,434 @@
+"""Host-only AX Task transport; credentials never enter task manifests."""
+
+from __future__ import annotations
+
+import hashlib
+import ipaddress
+import json
+import os
+import queue
+import re
+import shutil
+import subprocess
+import threading
+import time
+import uuid
+from collections import Counter, deque
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from dataclasses import dataclass, field
+from datetime import timedelta
+from pathlib import Path
+from urllib.parse import urlsplit
+
+import yaml
+
+from openultrasast.config import load_dotenv
+from openultrasast.plane.memory import PRESIGNED_ARCHIVE_SUFFIX, S3Store, open_store
+
+
+class EgressError(ValueError):
+    """Safe diagnostic without presigned URL contents."""
+
+
+class SandboxFailure(Exception):
+    """A terminal AX task without an authoritative result object."""
+
+
+def public_endpoint(url):
+    """Reject endpoints the actor's hostname-based HTTPS egress policy cannot reach."""
+    parts = urlsplit(url)
+    host = parts.hostname or ""
+    try:
+        ipaddress.ip_address(host)
+        is_ip = True
+    except ValueError:
+        is_ip = False
+    if (
+        parts.scheme != "https"
+        or not host
+        or is_ip
+        or "." not in host
+        or host.endswith((".localhost", ".local", ".internal"))
+        or parts.port not in (None, 443)
+        or parts.username
+        or parts.password
+    ):
+        raise EgressError(
+            "AX requires a public HTTPS DNS hostname in S3_ENDPOINT and presigned URLs: "
+            "the egress policy allows the store hostname on port 443 only (no IP or plain HTTP)"
+        )
+    return host.lower()
+
+
+def task_state(text, name):
+    """Accept AX YAML/JSON output and its human-readable tasks table."""
+    try:
+        doc = yaml.safe_load(text)
+    except yaml.YAMLError:
+        doc = None
+    rows = doc.get("items", doc.get("tasks", [doc])) if isinstance(doc, dict) else doc if isinstance(doc, list) else []
+    for row in rows:
+        if not isinstance(row, dict) or row.get("metadata", {}).get("name", row.get("name")) != name:
+            continue
+        status = row.get("status", {})
+        ip = next(
+            (status.get(key) or row.get(key) for key in ("workerIP", "workerIp", "worker_ip", "ip") if status.get(key) or row.get(key)),
+            None,
+        )
+        worker = status.get("worker")
+        if not ip and isinstance(worker, dict):
+            ip = worker.get("ip") or worker.get("address")
+        return str(status.get("phase", row.get("phase", ""))), ip
+    lines = [line.split() for line in text.splitlines() if line.strip()]
+    if lines:
+        headers = [re.sub(r"[^a-z]", "", cell.lower()) for cell in lines[0]]
+        for cells in lines[1:]:
+            if name not in cells:
+                continue
+            row = dict(zip(headers, cells, strict=False))
+            phase = row.get("phase", row.get("status", ""))
+            ip = row.get("workerip") or row.get("ip")
+            if not ip:
+                for cell in cells:
+                    try:
+                        ipaddress.ip_address(cell)
+                        ip = cell
+                        break
+                    except ValueError:
+                        pass
+            return phase, None if ip in {"<none>", "-", ""} else ip
+    listed = isinstance(doc, (dict, list)) or bool(lines and "name" in headers and {"phase", "status"}.intersection(headers))
+    return "Missing" if listed else "", None
+
+
+def bounded_read(read, timeout):
+    """Do not let SDK retries postpone task teardown beyond the pin deadline.
+
+    Only the read runs in a daemon thread; it cannot publish a late result to disk.
+    No executor shutdown waits for an SDK call whose socket has stopped responding.
+    """
+    if timeout <= 0:
+        raise TimeoutError("AX result deadline")
+    replies = queue.Queue(maxsize=1)
+
+    def fetch():
+        try:
+            replies.put((True, read()))
+        except Exception as exc:
+            replies.put((False, exc))
+
+    threading.Thread(target=fetch, daemon=True, name="engine-ax-result-read").start()
+    try:
+        ok, result = replies.get(timeout=timeout)
+    except queue.Empty:
+        raise TimeoutError("AX result deadline") from None
+    if not ok:
+        raise result
+    return result
+
+
+class AXLane:
+    def __init__(self, args, workload, store=None, pause=time.sleep, clock=time.monotonic):
+        self.workload = workload
+        self.args = args
+        self.pause, self.clock = pause, clock
+        self.run = uuid.uuid4().hex
+        load_dotenv()
+        self.host = public_endpoint(os.environ.get("S3_ENDPOINT", ""))
+        # Validate the image before opening a store, whose constructor probes the bucket.
+        validate_image(workload.image)
+        self.store = store if store is not None else open_store()
+        if store is None and not isinstance(self.store, S3Store):
+            raise ValueError("AX requires OUSAST_MEMORY=s3://bucket[/prefix]")
+
+    def __call__(self, item, output, attempt):
+        attempts = []
+        try:
+            done, worker = self._execute_attempt(item, output, attempt, attempts)
+        except SandboxFailure:
+            return {"status": "sandbox_failure", "ax_attempts": attempts}
+        if done is None or done.returncode:
+            return {"status": "instrument_failure", "ax_attempts": attempts}
+        record = json.loads((output / "result.json").read_text())
+        return {**record, "worker_ip": worker, "ax_attempts": attempts}
+
+    def ax(self, *args, manifest=None, timeout=30):
+        env = dict(os.environ)
+        if self.args.kubeconfig:
+            env["KUBECONFIG"] = str(Path(self.args.kubeconfig).expanduser())
+        done = subprocess.run(
+            [str(Path(self.args.ax_bin).expanduser()), *args, *(["--atespace", self.args.atespace] if args[0] != "apply" else [])],
+            input=json.dumps(manifest) if manifest is not None else None,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=max(0.01, timeout),
+        )
+        if done.returncode:
+            # AX errors may echo manifest URLs; report only verb and exit code.
+            raise ValueError(f"ax {args[0]} failed (exit {done.returncode})")
+        return done
+
+    def _execute_attempt(self, item, output, attempt, attempts):
+        pin_id = item.id
+        digest = hashlib.sha256(f"{self.run}/{pin_id}/attempt-{attempt}".encode()).hexdigest()[:12]
+        slug = re.sub(r"[^a-z0-9]+", "-", str(pin_id).lower()).strip("-")[:22]
+        name = f"ousast-engine-{slug or 'pin'}-{digest}"
+        key_id = hashlib.sha256(str(pin_id).encode()).hexdigest()
+        prefix = f"engine-queue/{self.run}/{key_id}/attempt-{attempt}/"
+        keys = [prefix + item.object_names.get(key, key.lower() + PRESIGNED_ARCHIVE_SUFFIX) for key in item.inputs]
+        keys.append(prefix + item.result_object)
+        expires = timedelta(seconds=self.workload.deadline + 600)
+        worker_ip = None
+        submitted = False
+        started = self.clock()
+        phase = ""
+        try:
+            for key, data in zip(keys, item.inputs.values(), strict=False):
+                self.store._put(key, data)
+            urls = {env: self.store.presign_get(key, expires) for env, key in zip(item.inputs, keys, strict=False)}
+            urls["RESULT_URL"] = self.store.presign_put(keys[-1], expires)
+            if any(public_endpoint(url) != self.host for url in urls.values()):
+                raise EgressError("AX presign hostname must match S3_ENDPOINT for the store egress policy")
+            document = manifest(name, self.workload, item, urls, self.args.atespace)
+            end = self.clock() + self.workload.deadline
+            # An apply timeout can still have created the task; cleanup must cover it.
+            submitted = True
+            self.ax("apply", "-f", "-", manifest=document, timeout=min(30, self.workload.deadline))
+            while self.clock() < end:
+                result = bounded_read(lambda: self.store._get(keys[-1]), end - self.clock())
+                if self.clock() >= end:
+                    return None, worker_ip
+                phase = ""
+                try:
+                    state = self.ax("get", "tasks", timeout=min(30, end - self.clock())).stdout
+                    phase, ip = task_state(state, name)
+                    worker_ip = ip or worker_ip
+                except (ValueError, OSError, subprocess.SubprocessError):
+                    # The object is authoritative even when AX status is temporarily unavailable.
+                    pass
+                if self.clock() >= end:
+                    return None, worker_ip
+                if result is not None:
+                    self.workload.validate(result[0], output)
+                    return subprocess.CompletedProcess([], 0, "", ""), worker_ip
+                if phase.lower() in {"failed", "missing"}:
+                    # The worker may have uploaded while we were reading AX status.
+                    result = bounded_read(lambda: self.store._get(keys[-1]), end - self.clock())
+                    if self.clock() >= end:
+                        return None, worker_ip
+                    if result is not None:
+                        self.workload.validate(result[0], output)
+                        return subprocess.CompletedProcess([], 0, "", ""), worker_ip
+                    raise SandboxFailure
+                self.pause(min(2, max(0, end - self.clock())))
+            return None, worker_ip
+        except (subprocess.TimeoutExpired, TimeoutError):
+            return None, worker_ip
+        except SandboxFailure:
+            raise
+        except Exception as exc:
+            # Never expose exception strings which may contain object-scoped bearer URLs.
+            detail = str(exc) if isinstance(exc, EgressError) else type(exc).__name__
+            return subprocess.CompletedProcess([], 1, "", "AX transport failed: " + detail), worker_ip
+        finally:
+            attempts.append({"name": name, "phase": phase, "seconds": self.clock() - started})
+            errors = []
+            if submitted:
+                try:
+                    self.ax("delete", "task", name)
+                except Exception as exc:
+                    # A successful list already confirmed a disappeared task is gone.
+                    if phase != "Missing":
+                        errors.append("task: " + type(exc).__name__)
+            for key in keys:
+                try:
+                    self.store._delete(key)
+                except Exception as exc:
+                    errors.append("object: " + type(exc).__name__)
+            if errors:
+                raise RuntimeError("AX cleanup failed; stop dispatching: " + ", ".join(errors))
+
+
+@dataclass
+class Item:
+    id: str
+    inputs: dict[str, bytes]
+    result_object: str
+    command: tuple[str, ...]
+    extra_env: dict[str, str]
+    input_digest: str
+    object_names: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class Workload:
+    image: str
+    url_env: frozenset[str]
+    deadline: float
+    validate: object
+
+
+def validate_image(image):
+    if not re.fullmatch(r"[^\s@]+@sha256:[0-9a-f]{64}", image):
+        raise ValueError("AX --image must be pinned by sha256 digest")
+
+
+def manifest(name, workload, item, urls, atespace="default", *, validate_name=True):
+    validate_image(workload.image)
+    if validate_name and (not re.fullmatch(r"ousast-engine-[a-z0-9-]+", name) or len(name.encode()) > 49):
+        raise ValueError("invalid AX task name")
+    if set(urls) != workload.url_env:
+        raise ValueError("unexpected URL environment names")
+    # Extra env is deliberately a small numeric execution contract, never inherited credentials.
+    if set(item.extra_env) - {"DEADLINE", "QUESTION_DEADLINE"} or any(
+        not re.fullmatch(r"[0-9]+(?:\.[0-9]+)?", str(v)) for v in item.extra_env.values()
+    ):
+        raise ValueError("unexpected task environment")
+    for url in urls.values():
+        public_endpoint(url)
+    env = [{"name": key, "value": str(value)} for key, value in {**urls, **item.extra_env}.items()]
+    if len(json.dumps(env).encode()) >= 32768:
+        raise ValueError("AX Task env exceeds the 32 KB limit")
+    return {
+        "apiVersion": "ax.io/v1alpha1",
+        "kind": "Task",
+        "metadata": {"name": name, "atespace": atespace},
+        "spec": {"image": workload.image, "env": env, "command": list(item.command)},
+    }
+
+
+def write_json(path, record):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(record, sort_keys=True) + "\n")
+    temporary.replace(path)
+
+
+def schedule(pending, lanes, out, execute, complete, *, fallbacks=(), overflow=True, progress=None):
+    """The sole progress writer; callbacks carry workload-specific records, never transport."""
+    if sum(lane in {"ax", "kind"} for lane in lanes) > 2 or lanes.count("docker") > 1:
+        raise ValueError("at most two AX lanes and one VM lane")
+    pending, fallbacks = deque(pending), deque(fallbacks)
+    progress = progress if progress is not None else {"pins_done": 0, "pins_total": len(pending) + len(fallbacks)}
+    progress["lanes"] = dict(Counter(lanes))
+    active = {}
+    failures = False
+
+    def persist():
+        progress.update(pins_in_flight=len(active), active_lanes=dict(Counter(lane for _, lane in active.values())))
+        if any(lane in {"ax", "kind"} for lane in lanes):
+            progress["fallbacks_pending"] = len(fallbacks)
+        write_json(out / "progress.json", progress)
+
+    with ThreadPoolExecutor(max_workers=len(lanes)) as pool:
+
+        def launch(lane):
+            if (out / "STOP").exists():
+                return
+            if lane == "docker" and fallbacks:
+                item, previous = fallbacks.popleft()
+            elif pending and (lane != "docker" or overflow):
+                item, previous = pending.popleft(), None
+            else:
+                return
+            active[pool.submit(execute, item, lane, previous)] = item, lane
+
+        for lane in lanes:
+            launch(lane)
+        persist()
+        try:
+            while active:
+                finished, _ = wait(active, return_when=FIRST_COMPLETED)
+                # Resolve ALL completed futures before launching; cleanup exceptions stop launches.
+                results = [(active.pop(future), future.result()) for future in finished]
+                for (item, lane), result in results:
+                    failed, fallback = complete(item, lane, result, progress)
+                    if fallback is not None:
+                        fallbacks.append((item, fallback))
+                    else:
+                        failures |= failed
+                        progress["pins_done"] += 1
+                for lane, count in (Counter(lanes) - Counter(lane for _, lane in active.values())).items():
+                    for _ in range(count):
+                        launch(lane)
+                persist()
+        finally:
+            persist()
+    return failures
+
+
+def dispatch(items, workload, out, executors, *, lanes=("ax", "ax", "docker"), overflow=True):
+    """Digest checkpoints, one instrument rerun, sandbox retry, priority VM fallback."""
+    out.mkdir(parents=True, exist_ok=True)
+    pending, fallbacks = [], []
+
+    def path(item):
+        return out / (hashlib.sha256(item.id.encode()).hexdigest() + ".json")
+
+    for item in items:
+        previous = json.loads(path(item).read_text()) if path(item).exists() else {}
+        if previous.get("input_digest") == item.input_digest:
+            if previous.get("fallback_pending"):
+                fallbacks.append((item, previous))
+                continue
+            if previous.get("done"):
+                continue
+        pending.append(item)
+
+    def execute(item, lane, previous):
+        output = out / hashlib.sha256(item.id.encode()).hexdigest()
+        output.mkdir(exist_ok=True)
+        attempts = []
+        for attempt in range(2):
+            attempt_output = output / ("attempt-" + uuid.uuid4().hex)
+            attempt_output.mkdir()
+            record = executors[lane](item, attempt_output, attempt)
+            for artifact in attempt_output.iterdir():
+                if artifact.is_file():
+                    shutil.copyfile(artifact, output / artifact.name)
+            attempts.append({"lane": lane, "status": record.get("status"), "attempt": attempt, "transport": record.get("ax_attempts", [])})
+            if record.get("status") not in {"sandbox_failure", "instrument_failure"}:
+                break
+        return {**record, "attempts": (previous or {}).get("attempts", []) + attempts, "input_digest": item.input_digest, "done": True}
+
+    def complete(item, lane, record, progress):
+        fallback = lane in {"ax", "kind"} and record.get("status") in {"sandbox_failure", "oom"} and "docker" in lanes
+        record["fallback_pending"] = fallback
+        write_json(path(item), record)
+        progress["last_item"] = hashlib.sha256(item.id.encode()).hexdigest()
+        return record.get("status") not in {"ok", "unanalysable", "quick_only", "engine_covered"}, record if fallback else None
+
+    return schedule(pending, lanes, out, execute, complete, fallbacks=fallbacks, overflow=overflow)
+
+
+class DockerLane(AXLane):
+    """VM lane uses the same presigned-object protocol and pinned replay image."""
+
+    def _execute_attempt(self, item, output, attempt, attempts):
+        # Reuse all object/validation/cleanup logic, replacing only the task runner.
+        import copy
+
+        lane = copy.copy(self)
+        lane.ax = lane._docker_command
+        lane._docker_name = None
+        return AXLane._execute_attempt(lane, item, output, attempt, attempts)
+
+    def _docker_command(self, *args, manifest=None, timeout=30):
+        if args[0] == "apply":
+            self._docker_name = manifest["metadata"]["name"]
+            command = ["docker", "run", "-d", "--name", self._docker_name, "--entrypoint", manifest["spec"]["command"][0]]
+            for env in manifest["spec"]["env"]:
+                command += ["-e", env["name"] + "=" + env["value"]]
+            command += [manifest["spec"]["image"], *manifest["spec"]["command"][1:], "--heap-profile", "vm"]
+        elif args[0] == "get":
+            command = ["docker", "inspect", "--format", "{{.State.Running}} {{.State.ExitCode}}", self._docker_name]
+        else:
+            command = ["docker", "rm", "-f", self._docker_name or args[2]]
+        done = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
+        if done.returncode:
+            raise ValueError("docker command failed")
+        if args[0] == "get":
+            phase = "Running" if done.stdout.startswith("true") else "Failed"
+            done.stdout = json.dumps({"metadata": {"name": self._docker_name}, "status": {"phase": phase}})
+        return done
