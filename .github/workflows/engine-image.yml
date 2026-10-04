@@ -1,0 +1,47 @@
+name: Engine image
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'benchmarks/learn/engine_trace*.py'
+      - 'benchmarks/learn/engine_worker_service.py'
+      - 'Dockerfile'
+      - '.github/workflows/engine-image.yml'
+permissions:
+  contents: read
+  packages: write
+concurrency:
+  group: engine-image-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: names
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          echo "image=ghcr.io/${OWNER,,}/openultrasast" >> "$GITHUB_OUTPUT"
+          echo "sha=sha-${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ steps.names.outputs.image }}:${{ steps.names.outputs.sha }}
+            ${{ steps.names.outputs.image }}:main
+      - env:
+          IMAGE: ${{ steps.names.outputs.image }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: echo "$IMAGE@$DIGEST" >> "$GITHUB_STEP_SUMMARY"

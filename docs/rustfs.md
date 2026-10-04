@@ -214,3 +214,42 @@ bucket `OUSAST_MEMORY_TEST_BUCKET`, else `S3_BUCKET`. The tests:
 - never configure the bucket.
 
 More on the host setup: [ax on this host](ops/ax/README.md).
+
+## Scoped account for engine workers
+
+Create a **new account** for the k3s engine Deployment. Attach only this policy.
+Do not give it the existing memory-store account's policies.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListEnginePrefixes",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::sast-memory",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": ["engine-queue/", "engine-queue/*", "engine-results/", "engine-results/*"]
+        }
+      }
+    },
+    {
+      "Sid": "EngineObjectsOnly",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": [
+        "arn:aws:s3:::sast-memory/engine-queue/*",
+        "arn:aws:s3:::sast-memory/engine-results/*"
+      ]
+    }
+  ]
+}
+```
+
+The cluster can read and write only queued engine inputs, claims, and results.
+It cannot list or read the rest of the memory store. It cannot change bucket
+settings. The host queue dispatcher can use the same scoped account. Store its
+keys in the `ousast-engine-s3` Secret; no key values belong in manifests.
+Deployment and coordinator commands are in `ops/k8s/engine/README.md`.

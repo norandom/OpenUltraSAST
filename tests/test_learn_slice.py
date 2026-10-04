@@ -150,7 +150,9 @@ def test_learn_slice_audit_reads_and_never_writes(audit_module: ModuleType, monk
 
     raw = b"   10  def f(x):\n   11      execute(x)\n"
     digest = hashlib.sha256(raw).hexdigest()
-    example = replace(corpus(groups=1)[0], excerpt_sha=digest, source="pairs", language="python", family="injection")
+    example = replace(
+        corpus(groups=1)[0], excerpt_sha=digest, source="pairs", language="python", family="injection", group="github.com/owner/name"
+    )
     monkeypatch.setattr(audit_module, "load_examples", lambda store: [example])
 
     class ReadOnly:
@@ -161,6 +163,8 @@ def test_learn_slice_audit_reads_and_never_writes(audit_module: ModuleType, monk
     units = [{"family": example.family, "label": example.label, "group": example.group, "unit": example.id, "pair": None, "fold": "f"}]
     report = audit_module.audit(ReadOnly(), units, expected_rows=1, expected_pairs=0)
     assert report["example_rows_read"] == report["matched_rows"] == report["excerpts_read"] == 1
+    assert "owner/name" not in json.dumps(report)
+    assert report["units"][0]["unit"] == example.id
     assert report["excerpt_bytes"] == len(raw)
     assert report["coverage"]["injection"]["flow"] == 1
 

@@ -1,5 +1,6 @@
 """Synthetic, offline result snapshots; no analyzer, model or corpus access."""
 
+import hashlib
 import importlib
 import json
 from pathlib import Path
@@ -159,3 +160,31 @@ def test_bad_inputs_fail_loudly(audit_module, tmp_path):
     write_result(tmp_path, audit_module, [{**result(population[0], "path"), "label": 0}])
     with pytest.raises(ValueError, match="metadata mismatch"):
         run(audit_module, tmp_path, population)
+
+
+@pytest.mark.parametrize("done", [False, True])
+def test_record_uses_hashes_without_repository_identity(audit_module, tmp_path, done):
+    repo = "https://github.com/owner/name"
+    population = [{**u, "group": "owner/name", "repo": repo, "source": "population-v1"} for u in units(1)]
+    root = tmp_path / "github.com" / "owner" / "name"
+    root.mkdir(parents=True)
+    paths = []
+    for i, u in enumerate(population):
+        row = {**result(u, "path"), "source": "population-v1"}
+        path = write_result(root, audit_module, [row], f"name-{1 - i}", done=done)
+        record = json.loads(path.read_text())
+        record.update(repo=repo, pin="owner/name")
+        path.write_text(json.dumps(record))
+        paths.append(path)
+    report = run(audit_module, root, population)
+    serialized = json.dumps(report)
+    assert repo not in serialized and "owner/name" not in serialized
+    assert "files" not in report["inputs"]
+    inventory = sorted((p.name, p.stat().st_size) for p in paths)
+    assert report["inputs"]["files_sha256"] == hashlib.sha256(json.dumps(inventory, separators=(",", ":")).encode()).hexdigest()
+    assert report["inputs"]["files_read"] == 2
+    assert report["inputs"]["bytes_read"] == sum(size for _, size in inventory)
+    assert report["inputs"]["result_rows_read"] == (2 if done else 0)
+    assert report["by_source"]["population-v1"]["rows"] == 2
+    assert [r["unit"] for r in report["units"]] == [u["unit"] for u in population]
+    assert [r["pair"] for r in report["units"]] == [u["pair"] for u in population]

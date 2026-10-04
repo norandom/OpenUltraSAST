@@ -534,7 +534,15 @@ def test_trace_real_unsupported_run_then_typescript_opt_in_replans(tmp_path, mon
     first = json.loads(result_file.read_text())
     assert first["done"] and first["units"][0]["status"] == "unsupported"
     progress = json.loads((out / "progress.json").read_text())
-    assert progress == {"pins_done": 1, "pins_total": 1, "last_pin": {"repo": u["repo"], "pin": u["pin"]}, "statuses": {"unsupported": 1}}
+    assert progress == {
+        "pins_done": 1,
+        "pins_total": 1,
+        "last_pin": {"repo": u["repo"], "pin": u["pin"]},
+        "statuses": {"unsupported": 1},
+        "lanes": {"docker": 1},
+        "pins_in_flight": 0,
+        "active_lanes": {},
+    }
     assert trace.make_plan(trace.join_units([u], [example]), out) == []
 
     called = []
@@ -1161,3 +1169,286 @@ def test_overlay_engine_bug_allows_one_taint_only_attempt(tmp_path, monkeypatch)
     monkeypatch.setattr(JoernBackend, "_batch_once", batch)
     assert backend._batch_once(tmp_path / "cpg.bin", "taint", {"a": {}}) == {"a": []}
     assert len(backend.retries) == 1
+
+
+def k8s_args(tmp_path, **overrides):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(
+        **{
+            "executor": "k8s",
+            "parallel": 2,
+            "kube_context": "test-context",
+            "kube_namespace": "ousast-engine",
+            "image": "ghcr.io/norandom/openultrasast:2.0.1",
+            "deadline": 900,
+            "question_deadline": 120,
+            "keep_jobs": False,
+            "out": tmp_path,
+            **overrides,
+        }
+    )
+
+
+def test_kubernetes_manifests_keep_urls_in_secret(tmp_path):
+    from engine_trace_k8s import BOOTSTRAP, manifests
+
+    args = k8s_args(tmp_path)
+    urls = {name: "https://store/" + name + "?signature=secret" for name in ("SOURCE_URL", "ANALYZER_URL", "RESULT_URL")}
+    job, secret = manifests("job", "run", args, urls, {})
+    spec = job["spec"]
+    pod = spec["template"]["spec"]
+    container = pod["containers"][0]
+    assert spec["activeDeadlineSeconds"] == 900
+    assert spec["backoffLimit"] == 0 and spec["ttlSecondsAfterFinished"] > 0
+    assert pod["restartPolicy"] == "Never" and not pod["automountServiceAccountToken"]
+    assert pod["affinity"]["podAntiAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"]
+    assert container["image"] == args.image
+    assert pod["securityContext"] == {"runAsUser": 1000, "runAsGroup": 1000, "fsGroup": 1000}
+    assert {m["mountPath"] for m in container["volumeMounts"]} == {"/case", "/frozen", "/out"}
+    assert all(v["emptyDir"] == {} for v in pod["volumes"])
+    assert container["resources"] == {"requests": {"memory": "3Gi", "cpu": "1"}, "limits": {"memory": "3Gi"}}
+    assert secret["stringData"] == urls
+    assert all(url not in json.dumps(job) for url in urls.values())
+    assert "boto3" not in BOOTSTRAP and "yaml" not in BOOTSTRAP
+    compile(BOOTSTRAP, "<bootstrap>", "exec")
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_kubernetes_host_pin_success_failure_and_cleanup(tmp_path, monkeypatch, failure):
+    import io
+    import tarfile
+
+    from engine_trace_k8s import Kubernetes
+
+    from openultrasast.plane.memory import S3Store
+
+    objects, calls, expiries = {}, [], []
+
+    class Client:
+        def put(self, key, data, labels):
+            objects[key] = data
+
+        def get(self, key):
+            return (objects[key], None) if key in objects else None
+
+        def delete(self, key):
+            objects.pop(key, None)
+
+        def presign(self, method, key, expires):
+            expiries.append(expires.total_seconds())
+            return "https://store/" + key + "?secret"
+
+    store = object.__new__(S3Store)
+    store.client, store.prefix = Client(), "prefix"
+    args = k8s_args(tmp_path)
+    transport = Kubernetes(args, store)
+    args.kubernetes = transport
+    pin = trace.make_plan([unit()], tmp_path)[0]
+    source = tmp_path / "frozen"
+    source.mkdir()
+    (source / "worker.py").write_text("print(42)")
+
+    class Inputs:
+        def materialize(self, pin, target):
+            target.mkdir()
+            (target / "app.py").write_text("def run(): pass")
+            return {"bytes": 15, "files": 1}
+
+    def kubectl(command, **kwargs):
+        assert command[:5] == ["kubectl", "--context", "test-context", "--namespace", "ousast-engine"]
+        calls.append(command[5:])
+        action = command[5:]
+        stdout = "{}"
+        if action[0] == "create":
+            manifest = json.loads(kwargs["input"])
+            if manifest["kind"] == "Secret":
+                assert manifest["metadata"]["ownerReferences"][0]["uid"] == "job-uid"
+            if manifest["kind"] == "Job":
+                stdout = json.dumps({"metadata": {"uid": "job-uid"}})
+                env = manifest["spec"]["template"]["spec"]["containers"][0]["env"]
+                prepared = json.loads(next(e["value"] for e in env if e["name"] == "PIN"))
+                result = {**prepared, "done": True, "units": [worker.unit_record(u, "asked-nothing", "") for u in prepared["units"]]}
+                result_bytes = json.dumps(result).encode()
+                stream = io.BytesIO()
+                with tarfile.open(fileobj=stream, mode="w") as archive:
+                    entry = tarfile.TarInfo("result.json")
+                    entry.size = len(result_bytes)
+                    archive.addfile(entry, io.BytesIO(result_bytes))
+                source_key = next(key for key in objects if key.endswith("source.tar"))
+                with tarfile.open(fileobj=io.BytesIO(objects[source_key])) as archive:
+                    assert archive.extractfile("app.py").read() == b"def run(): pass"
+                objects[source_key.replace("source.tar", "result.tar")] = stream.getvalue()
+        if action[:2] == ["get", "job"]:
+            stdout = json.dumps(
+                {"status": {"conditions": [{"type": "Failed", "status": "True", "reason": "DeadlineExceeded"}]}}
+                if failure
+                else {"status": {"succeeded": 1}}
+            )
+        if action[:2] == ["get", "pods"]:
+            stdout = json.dumps({"items": [{"spec": {"nodeName": "worker-1"}}]})
+        if action[0] == "logs":
+            assert "--tail=40" in action
+            stdout = "last worker line https://store/private?secret"
+        return subprocess.CompletedProcess(command, 0, stdout, "")
+
+    monkeypatch.setattr(subprocess, "run", kubectl)
+    monkeypatch.setattr(trace, "prepare_questions", lambda *a: {"a": {}})
+    assert trace.run_pin(pin, source, {"head": "frozen"}, Inputs(), tmp_path, args) is failure
+    result = json.loads((tmp_path / trace.pin_name(pin)).read_text())
+    assert result["done"] and result["executor"] == "k8s" and result["node"] == "worker-1"
+    assert result["analyzer"] == {"head": "frozen"}
+    assert result["container_exit"] == int(failure)
+    assert result["units"][0]["status"] == ("failed" if failure else "asked-nothing")
+    if failure:
+        assert "DeadlineExceeded" in result["units"][0]["reason"]
+        assert "last worker line" in result["units"][0]["reason"]
+        assert "?secret" not in json.dumps(result)
+    else:
+        assert trace.make_plan([unit()], tmp_path) == []
+    assert not objects
+    assert any(c[:2] == ["delete", "secret"] for c in calls)
+    assert any(c[:2] == ["delete", "job"] for c in calls)
+    assert min(expiries) >= args.deadline + 900
+
+
+@pytest.mark.parametrize("executor,parallel", [("docker", 1), ("k8s", 2), ("mixed", 3)])
+def test_scheduler_bounds_lanes_and_progress(tmp_path, monkeypatch, executor, parallel):
+    import threading
+    import time
+    from collections import Counter
+
+    active, peak = Counter(), Counter()
+    lock = threading.Lock()
+    args = k8s_args(tmp_path, executor=executor, parallel=parallel)
+    plan = trace.make_plan([unit(str(i), str(i)) for i in range(9)], tmp_path)
+
+    def run(pin, source, provenance, inputs, out, options):
+        with lock:
+            active[options.executor] += 1
+            active["total"] += 1
+            for key, value in active.items():
+                peak[key] = max(peak[key], value)
+        time.sleep(0.02)
+        trace.save_pin(
+            out / trace.pin_name(pin), {**pin, "done": True, "units": [worker.unit_record(u, "asked-nothing", "") for u in pin["units"]]}
+        )
+        with lock:
+            active[options.executor] -= 1
+            active["total"] -= 1
+        return False
+
+    monkeypatch.setattr(trace, "run_pin", run)
+    assert not trace.run_plan(plan, None, {}, None, args)
+    assert peak["total"] == parallel
+    if executor == "mixed":
+        assert peak["docker"] == 1 and peak["k8s"] == parallel - 1
+    progress = json.loads((tmp_path / "progress.json").read_text())
+    assert progress["pins_done"] == 9 and progress["pins_in_flight"] == 0
+    assert sum(progress["lanes"].values()) == parallel
+    assert trace.make_plan([unit(str(i), str(i)) for i in range(9)], tmp_path) == []
+
+
+@pytest.mark.parametrize("keep", [False, True])
+def test_k8s_check_roundtrip_and_retention(tmp_path, monkeypatch, capsys, keep):
+    from engine_trace_k8s import Kubernetes
+
+    from openultrasast.plane.memory import S3Store
+
+    data, manifests_seen, commands = {}, [], []
+
+    class Client:
+        def put(self, key, body, labels):
+            data[key] = body
+
+        def get(self, key):
+            return (b"x" * 1024, None)
+
+        def delete(self, key):
+            data.pop(key, None)
+
+        def presign(self, method, key, expires):
+            return "https://private/" + key
+
+    store = object.__new__(S3Store)
+    store.client, store.prefix = Client(), ""
+    runner = Kubernetes(k8s_args(tmp_path, keep_jobs=keep), store)
+
+    def fake(command, **kwargs):
+        commands.append(command)
+        action = command[5:]
+        result = {}
+        if kwargs.get("input"):
+            manifest = json.loads(kwargs["input"])
+            manifests_seen.append(manifest)
+            result = {"metadata": {"uid": "check-uid"}}
+        if action[:2] == ["get", "nodes"]:
+            result = {"items": [{"metadata": {"name": "node"}, "status": {"allocatable": {"memory": "6000000Ki"}}}]}
+        if action[:2] == ["get", "pods"]:
+            result = {"items": [{"spec": {"nodeName": "node"}}]}
+        if action[:2] == ["get", "job"]:
+            result = {"status": {"succeeded": 1}}
+        return subprocess.CompletedProcess(command, 0, json.dumps(result), "")
+
+    monkeypatch.setattr(subprocess, "run", fake)
+    assert runner.check() == 0
+    text = capsys.readouterr().out
+    assert "6000000Ki" in text and "1024" in text and "passed" in text
+    assert "https://" not in text
+    assert any(m["kind"] == "Namespace" for m in manifests_seen)
+    job = next(m for m in manifests_seen if m["kind"] == "Job")
+    assert {"name": "CHECK", "value": "1"} in job["spec"]["template"]["spec"]["containers"][0]["env"]
+    assert bool(data) is keep
+    assert any("delete" in c for c in commands) is not keep
+
+
+@pytest.mark.parametrize("outcome", ["success", "timeout", "failure"])
+def test_engine_queue_pin_persistence_resume_and_progress(tmp_path, monkeypatch, outcome):
+    from engine_trace_queue import Dispatcher
+    from engine_worker_service import Queue
+    from test_engine_queue import FakeS3
+
+    store = FakeS3()
+    args = k8s_args(tmp_path, executor="queue", queue_timeout=2, image="image@sha256:abc")
+    plan = trace.make_plan([unit()], tmp_path)
+
+    class Inputs:
+        def materialize(self, pin, target):
+            target.mkdir()
+            (target / "app.py").write_text("def run(): pass")
+            return {"files": 1, "bytes": 15}
+
+    def execute(client, task):
+        return {
+            **task["pin"],
+            "done": True,
+            "container_exit": 0,
+            "units": [worker.unit_record(u, "asked-nothing") for u in task["pin"]["units"]],
+        }
+
+    queue = Queue(store, "pod-worker")
+    if outcome == "timeout":
+        ticks = iter([0, 3])
+        args.dispatcher = Dispatcher(args, store, clock=lambda: next(ticks))
+    else:
+        args.dispatcher = Dispatcher(args, store, pause=lambda _: queue.process_one(execute))
+    if outcome == "failure":
+
+        def fail(*_):
+            raise RuntimeError("credential-must-not-appear")
+
+        monkeypatch.setattr(store, "put", fail)
+    monkeypatch.setattr(trace, "prepare_questions", lambda *_: {"a": {}})
+    monkeypatch.setattr(subprocess, "run", lambda *_a, **_k: pytest.fail("queue must not launch Docker/kubectl"))
+    assert trace.run_plan(plan, None, {"image": args.image}, Inputs(), args) is (outcome != "success")
+    result = json.loads((tmp_path / trace.pin_name(plan[0])).read_text())
+    assert result["executor"] == "queue"
+    assert result["units"][0]["status"] == {"success": "asked-nothing", "timeout": "timeout", "failure": "failed"}[outcome]
+    assert "credential-must-not-appear" not in json.dumps(result)
+    if outcome == "success":
+        assert result["worker"] == "pod-worker"
+        assert trace.make_plan([unit()], tmp_path) == []
+    else:
+        assert trace.make_plan([unit()], tmp_path, rerun_status=("failed", "timeout"))
+    progress = json.loads((tmp_path / "progress.json").read_text())
+    assert progress["pins_done"] == 1 and progress["pins_in_flight"] == 0

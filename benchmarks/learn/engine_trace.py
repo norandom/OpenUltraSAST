@@ -1,4 +1,4 @@
-"""Resumable, serial labelled-function traces; host fetches pinned sources, Docker stays offline.
+"""Resumable labelled-function traces with Docker and Kubernetes execution lanes.
 
 Pair blob identities resolve through catalogs to real source commits. The analyzer
 is git archive HEAD src plus a hashed snapshot of this uncommitted tool.
@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import copy
 import fcntl
 import hashlib
 import json
@@ -17,11 +18,15 @@ import shutil
 import subprocess
 import tempfile
 import textwrap
+import threading
 import time
 import tomllib
 from collections import Counter, defaultdict
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from pathlib import Path
 
+from engine_trace_k8s import IMAGE, Kubernetes
+from engine_trace_queue import Dispatcher
 from engine_trace_worker import EXCLUDED_DIRS, safe_path, unit_record, write_json
 
 from openultrasast.learn.examples import read_jsonl
@@ -39,6 +44,9 @@ DEFAULT_OUT = Path.home() / "ousast-results/plane/engine-trace"
 SNAPSHOT_FILES = (
     "benchmarks/learn/engine_trace.py",
     "benchmarks/learn/engine_trace_worker.py",
+    "benchmarks/learn/engine_trace_k8s.py",
+    "benchmarks/learn/engine_trace_queue.py",
+    "benchmarks/learn/engine_worker_service.py",
     "benchmarks/learn/engine_trace_parse.py",
     "src/openultrasast/model/taint.py",
     "src/openultrasast/cpg/queries/taint.sc",
@@ -611,32 +619,45 @@ def prepare_questions(pin, root, question_deadline):
 
 
 def run_pin(pin, source, provenance, inputs, out, args):
+    executor = getattr(args, "executor", "docker")
+    node = None
     with tempfile.TemporaryDirectory(prefix="trace-pin-", dir=out) as scratch:
         scratch = Path(scratch)
         checkout, output = scratch / "case", scratch / "output"
         output.mkdir()
         try:
-            pin = {**pin, "materialization": inputs.materialize(pin, checkout)}
+            with getattr(args, "input_lock", threading.Lock()):
+                pin = {**pin, "materialization": inputs.materialize(pin, checkout)}
             write_json(output / "pin.json", {**pin, "questions": prepare_questions(pin, checkout, args.question_deadline)})
             name = "ousast-trace-" + pin_name(pin)[:16]
-            command = docker_command(source, checkout, output, name, args.image, args.deadline, args.question_deadline)
             started = time.monotonic()
-            done = None
-            try:
-                done = subprocess.run(command, capture_output=True, text=True, timeout=args.deadline)
-                status, reason = "failed", f"container exit {done.returncode}: {done.stderr[-1000:]}"
-                (output / "container.log").write_text(done.stdout + "\n" + done.stderr)
-            except subprocess.TimeoutExpired:
+            if executor in {"k8s", "k8s-jobs"}:
+                done, node = args.kubernetes.execute(source, checkout, output, json.loads((output / "pin.json").read_text()))
+                status, reason = "failed", done.stderr
+                if done.returncode:
+                    (output / "container.log").write_text(reason)
+            elif executor == "queue":
+                done, node = args.dispatcher.execute(checkout, output, json.loads((output / "pin.json").read_text()), pin_name(pin)[:-5])
+                status, reason = "timeout", f"queue wait deadline {args.queue_timeout}s"
+            else:
+                command = docker_command(source, checkout, output, name, args.image, args.deadline, args.question_deadline)
+                started = time.monotonic()
                 done = None
-                status, reason = "timeout", f"container deadline {args.deadline}s"
-            finally:
-                # Never start the next pin unless this container is known to be gone.
                 try:
-                    removed = subprocess.run(["docker", "rm", "-f", name], capture_output=True, timeout=20)
-                except subprocess.SubprocessError as exc:
-                    raise RuntimeError(f"cannot confirm container {name} stopped; refusing another launch") from exc
-                if done is None and removed.returncode != 0:
-                    raise RuntimeError(f"cannot remove timed-out container {name}; refusing another launch")
+                    done = subprocess.run(command, capture_output=True, text=True, timeout=args.deadline)
+                    status, reason = "failed", f"container exit {done.returncode}: {done.stderr[-1000:]}"
+                    (output / "container.log").write_text(done.stdout + "\n" + done.stderr)
+                except subprocess.TimeoutExpired:
+                    done = None
+                    status, reason = "timeout", f"container deadline {args.deadline}s"
+                finally:
+                    # Never start the next pin unless this container is known to be gone.
+                    try:
+                        removed = subprocess.run(["docker", "rm", "-f", name], capture_output=True, timeout=20)
+                    except subprocess.SubprocessError as exc:
+                        raise RuntimeError(f"cannot confirm container {name} stopped; refusing another launch") from exc
+                    if done is None and removed.returncode != 0:
+                        raise RuntimeError(f"cannot remove timed-out container {name}; refusing another launch")
             result_path = output / "result.json"
             if not result_path.exists():
                 reason = f"container produced no result: {reason}"
@@ -651,12 +672,20 @@ def run_pin(pin, source, provenance, inputs, out, args):
                             status=status if unit["supported"] else "unsupported", reason=reason if unit["supported"] else unit["reason"]
                         )
                     record["units"].append(row)
-            record["container_exit"] = done.returncode if done else None
+            if executor != "queue":
+                record["container_exit"] = done.returncode if done else None
+            else:
+                record.setdefault("container_exit", None)
             if done is not None and done.returncode != 0:
                 for row in record["units"]:
                     if row["supported"]:
                         row.update(status="failed", reason=reason)
-            record.update(done=True, seconds=time.monotonic() - started, analyzer=provenance, image=args.image)
+            record.update(
+                done=True,
+                seconds=time.monotonic() - started,
+                analyzer=provenance,
+                image=record.get("image", args.image) if executor == "queue" else args.image,
+            )
             if (output / "container.log").exists():
                 shutil.copyfile(output / "container.log", out / pin_name(pin).replace(".json", ".log"))
         except (OSError, ValueError, subprocess.SubprocessError) as exc:
@@ -666,6 +695,10 @@ def run_pin(pin, source, provenance, inputs, out, args):
                 "analyzer": provenance,
                 "units": [unit_record(u, "failed" if u["supported"] else "unsupported", str(exc)) for u in pin["units"]],
             }
+        if executor in {"k8s", "k8s-jobs"}:
+            record.update(executor="k8s", node=node, image=args.image)
+        if executor == "queue":
+            record.update(executor="queue", worker=record.get("worker", node), pod=record.get("pod"))
         save_pin(out / pin_name(pin), record)
         print(
             json.dumps({"repo": pin["repo"], "pin": pin["pin"], "statuses": dict(Counter(u["status"] for u in record["units"]))}),
@@ -724,6 +757,67 @@ def summary(out):
     }
 
 
+def run_plan(plan, source, provenance, inputs, args):
+    """One task per fixed executor lane; progress is written only by the scheduler."""
+    lanes = ["k8s"] * (args.parallel - 1) + ["docker"] if args.executor == "mixed" else [args.executor] * args.parallel
+    args.input_lock = threading.Lock()
+    progress = {
+        "pins_done": 0,
+        "pins_total": len(plan),
+        "last_pin": None,
+        "statuses": {},
+        "lanes": dict(Counter(lanes)),
+        "pins_in_flight": 0,
+        "active_lanes": {},
+    }
+    counts = Counter()
+    pending = iter(plan)
+    active = {}
+    failures = False
+
+    def persist():
+        progress.update(pins_in_flight=len(active), active_lanes=dict(Counter(lane for _, lane in active.values())))
+        write_json(args.out / "progress.json", progress)
+
+    def execute(pin, lane):
+        if not any(u["supported"] for u in pin["units"]):
+            save_pin(
+                args.out / pin_name(pin), {**pin, "done": True, "units": [unit_record(u, "unsupported", u["reason"]) for u in pin["units"]]}
+            )
+            return False
+        options = copy.copy(args)
+        options.executor = lane
+        if lane == "docker":
+            options.image = getattr(args, "docker_image", args.image)
+        return run_pin(pin, source, provenance, inputs, args.out, options)
+
+    with ThreadPoolExecutor(max_workers=len(lanes)) as pool:
+
+        def launch(lane):
+            if not (args.out / "STOP").exists():
+                pin = next(pending, None)
+                if pin is not None:
+                    active[pool.submit(execute, pin, lane)] = (pin, lane)
+
+        for lane in lanes:
+            launch(lane)
+        persist()
+        while active:
+            completed, _ = wait(active, return_when=FIRST_COMPLETED)
+            for future in completed:
+                pin, lane = active.pop(future)
+                failures |= future.result()
+                result = json.loads((args.out / pin_name(pin)).read_text())
+                selected = {u["unit"] for u in pin["units"]}
+                counts.update(u["status"] for u in result["units"] if u["unit"] in selected)
+                progress.update(
+                    pins_done=progress["pins_done"] + 1, last_pin={"repo": pin["repo"], "pin": pin["pin"]}, statuses=dict(counts)
+                )
+                launch(lane)
+            persist()
+    return failures
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--units", type=Path, default=ROOT / "plane/experiments/exp-005-graph-slice.units.jsonl")
@@ -731,7 +825,15 @@ def main():
     parser.add_argument("--memory", type=Path, default=Path.home() / "ousast-results/plane/memory")
     parser.add_argument("--cache", type=Path, default=Path.home() / ".cache/openultrasast")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
-    parser.add_argument("--image", default="openultrasast:dev")
+    parser.add_argument("--image", help="default: openultrasast:dev for Docker; public 2.0.1 image for k8s/mixed")
+    parser.add_argument("--executor", choices=("docker", "k8s", "k8s-jobs", "mixed", "queue"), default="docker")
+    parser.add_argument("--queue-status", action="store_true")
+    parser.add_argument("--queue-timeout", type=int, default=3600, help="total queue wait including execution, seconds")
+    parser.add_argument("--parallel", type=int, default=1, help="total pins in flight; mixed reserves one lane for Docker")
+    parser.add_argument("--kube-context")
+    parser.add_argument("--kube-namespace", default="ousast-engine")
+    parser.add_argument("--keep-jobs", action="store_true", help="retain Jobs, Secrets and staging objects for debugging")
+    parser.add_argument("--k8s-check", action="store_true")
     parser.add_argument("--deadline", type=int, default=900)
     parser.add_argument("--question-deadline", type=int, default=120)
     parser.add_argument("--limit", type=int, default=0)
@@ -745,8 +847,24 @@ def main():
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--summary", action="store_true")
     args = parser.parse_args()
+    if args.queue_status:
+        print(json.dumps(Dispatcher(args).status(), indent=2))
+        return 0
+    if args.queue_timeout <= 0:
+        parser.error("--queue-timeout must be positive")
+    if args.executor == "queue" and (not args.image or "@sha256:" not in args.image):
+        parser.error("queue requires --image with the deployed image digest")
+    if args.executor == "queue" and args.deadline > 900:
+        parser.error("queue deadline must be <= Deployment termination grace (900s)")
     if min(args.deadline, args.question_deadline) <= 0 or args.limit < 0:
         parser.error("deadlines must be positive; limit must be nonnegative")
+    if args.parallel < 1 or (args.executor == "mixed" and args.parallel < 2):
+        parser.error("--parallel must be positive; mixed needs at least 2 total lanes")
+    if (args.executor in {"k8s", "k8s-jobs", "mixed"} or args.k8s_check) and not args.kube_context:
+        parser.error("--kube-context is required for Kubernetes")
+    args.image = args.image or (IMAGE if args.executor != "docker" or args.k8s_check else "openultrasast:dev")
+    if args.k8s_check:
+        return Kubernetes(args).check()
     rerun_status = set(filter(None, args.rerun_status.split(",")))
     if rerun_status - set(STATUSES):
         parser.error("unknown --rerun-status value")
@@ -806,34 +924,23 @@ def main():
     except BlockingIOError:
         parser.error("another trace runner holds this results root")
     failures = False
-    if any(u["supported"] for pin in plan for u in pin["units"]):
+    args.docker_image = args.image
+    if args.executor in {"docker", "mixed"} and any(u["supported"] for pin in plan for u in pin["units"]):
         image = subprocess.run(
             ["docker", "image", "inspect", "--format", "{{.Id}}", args.image], capture_output=True, text=True, check=True
         )
-        args.image = image.stdout.strip()
-        if not args.image:
+        args.docker_image = image.stdout.strip()
+        if not args.docker_image:
             raise ValueError("Docker returned no local image identity")
+    if args.executor in {"k8s", "k8s-jobs", "mixed"} and any(u["supported"] for pin in plan for u in pin["units"]):
+        args.kubernetes = Kubernetes(args)
+        args.kubernetes.namespace()
+    if args.executor == "queue":
+        args.dispatcher = Dispatcher(args)
     with tempfile.TemporaryDirectory(prefix="trace-source-", dir=args.out) as scratch:
         source = Path(scratch) / "frozen"
-        provenance = freeze_source(source)
-        progress = {"pins_done": 0, "pins_total": len(plan), "last_pin": None, "statuses": {}}
-        counts = Counter()
-        write_json(args.out / "progress.json", progress)
-        for pin in plan:
-            if (args.out / "STOP").exists():
-                break
-            if not any(u["supported"] for u in pin["units"]):
-                save_pin(
-                    args.out / pin_name(pin),
-                    {**pin, "done": True, "units": [unit_record(u, "unsupported", u["reason"]) for u in pin["units"]]},
-                )
-            else:
-                failures |= run_pin(pin, source, provenance, inputs, args.out, args)
-            result = json.loads((args.out / pin_name(pin)).read_text())
-            selected = {u["unit"] for u in pin["units"]}
-            counts.update(u["status"] for u in result["units"] if u["unit"] in selected)
-            progress.update(pins_done=progress["pins_done"] + 1, last_pin={"repo": pin["repo"], "pin": pin["pin"]}, statuses=dict(counts))
-            write_json(args.out / "progress.json", progress)
+        provenance = {"image": args.image, "executor": "queue"} if args.executor == "queue" else freeze_source(source)
+        failures = run_plan(plan, source, provenance, inputs, args)
     return 2 if failures else 0
 
 

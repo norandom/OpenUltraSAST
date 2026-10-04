@@ -135,9 +135,7 @@ def audit(units, results, *, expected_rows=501, expected_pairs=195):
         counts["stale"] += stale
         counts["unfinished"] += unfinished
         counts["skipped"] += stale or unfinished
-        files.append(
-            {"path": str(path), "bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest(), "stale": stale, "unfinished": unfinished}
-        )
+        files.append((path.name, len(raw)))
         if stale or unfinished:
             continue
         counts["accepted_files"] += 1
@@ -156,8 +154,6 @@ def audit(units, results, *, expected_rows=501, expected_pairs=195):
                 **unit,
                 "source": row["source"],
                 "status": row["status"],
-                "repo": record["repo"],
-                "pin": record["pin"],
                 "pin_role": row.get("pin_role"),
                 **features(row),
             }
@@ -181,8 +177,9 @@ def audit(units, results, *, expected_rows=501, expected_pairs=195):
         "inputs": {
             **{k: counts[k] for k in ("accepted_files", "result_rows_read", "stale", "unfinished", "skipped")},
             "files_read": len(files),
-            "bytes_read": sum(f["bytes"] for f in files),
-            "files": files,
+            "bytes_read": sum(size for _, size in files),
+            # Hash a canonical inventory; filenames and paths may identify repositories.
+            "files_sha256": hashlib.sha256(json.dumps(sorted(files), separators=(",", ":")).encode()).hexdigest(),
         },
         "semantics": {
             "signals": "Shortest nonempty trace (first on ties); its sanitizer, guard and corresponding witness sink call target.",
@@ -195,7 +192,7 @@ def audit(units, results, *, expected_rows=501, expected_pairs=195):
             "limits": "Exploratory associations, not proof of leakage; running input snapshot, no multiple-testing correction.",
         },
         **scopes,
-        "units": rows,
+        "units": [{k: r[k] for k in ("unit", "pair", "family", "label", "fold", "source", "status", *SIGNALS, "sink_kind")} for r in rows],
     }
 
 
@@ -208,7 +205,7 @@ def main():
     raw = args.units.read_bytes()
     units = [json.loads(line) for line in raw.splitlines() if line.strip()]
     report = audit(units, args.results)
-    report["units_input"] = {"path": str(args.units), "bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest()}
+    report["units_input"] = {"bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest()}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
     overall, inputs = report["overall"], report["inputs"]
@@ -230,7 +227,7 @@ def main():
             return brief_metric(value)
 
         lines.append(f"{signal}: all={brief(overall['signals'][signal])}; both asked={brief(overall['both_asked_signals'][signal])}")
-    lines.append(f"Family/source metrics and per-file read evidence: {args.output}")
+    lines.append(f"Family/source metrics and input inventory digest: {args.output}")
     print("\n".join(lines))
 
 

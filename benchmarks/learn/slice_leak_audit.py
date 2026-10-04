@@ -141,7 +141,9 @@ def audit(store: MemoryStore, units: Sequence[Mapping[str, Any]], *, expected_ro
         "limitations": (
             "Flat IR: no dominance/guards, textual branch order, potential parameter inputs, conservative call returns; no alias analysis."
         ),
-        "units": rows,
+        "units": [
+            {k: r[k] for k in ("unit", "pair", "family", "label", "fold", "source", "status", "has_flow", "slice_length")} for r in rows
+        ],
     }
 
 
