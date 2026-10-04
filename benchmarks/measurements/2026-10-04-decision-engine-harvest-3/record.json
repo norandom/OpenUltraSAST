@@ -1,0 +1,326 @@
+{
+ "created": "2026-10-04",
+ "note": "COUNTS ONLY. Batch 3 of real (vulnerable function, fixed function) pairs whose function survives the fix, mined at zero model cost from reviewed GitHub advisories (pip, npm, maven, composer) and added as pointer-pair corpus benchmarks/pairs/advisory-fixes-3 (source `advisory-fixes-3` in learn/sources.toml); labelled, given static feature records, built into the memory store and embedded. No chat-model call, no Docker, no Joern. Candidate, path, function and repository names stay in the catalog; the pairs the reserved-population guard flagged are withheld (found by bisection with the test output discarded; names never printed).",
+ "method": {
+  "enumeration": "gh api /advisories?type=reviewed&ecosystem=<eco>&cwes=<family CWEs>&published=>2023-01-01 per ecosystem (pip, npm, maven, composer) x six compiled families; Go, Ruby and C# not enumerated; newest first",
+  "advisories_enumerated": 8531,
+  "advisories_published_after_2026_06_01": 1855,
+  "automated_screen": "as batch 2 (single family by CWE; linked fix commit, at most 3, one repository; repository not named anywhere under benchmarks/ incl. batches 1-2; excluded v3 file names never opened; no WordPress plugin; one pair per repository; SPDX licence permissive; one-parent commit; the function holding most changed code lines inside its own matcher span, declared once on both sides, body changed, >= 25% of the file's changed code lines) plus three widenings: (a) an advisory linking only a merged pull request uses its single commit or its squash/rebase merge commit; (b) commits of up to 6 non-test source files / 240 changed lines (batch 2: 4 / 120); (c) a second pass over advisories whose CWEs span two families, the family then chosen from the function's diff on review",
+  "file_reads": "commit metadata and the two versions of each changed source file through the contents API into scratch (no clone, no scanner, engine, plane Run or model on these repositories); scratch deleted after",
+  "manual_review": "every automated candidate's in-function diff read (agent, no model call); kept only when the named function itself holds the fix; a weak inline check replaced by a stronger helper call counts as the fix, a function that only forwards a flag or calls a fix made elsewhere does not",
+  "reserved_population_guard": "pytest -q tests/ -k 'reserved or v3' with output discarded, bisected over catalog subsets (18 runs; baseline with an empty batch green); final catalog green",
+  "rename_check": "canonical full_name of every kept repository from the API: no two kept pairs share a repository, none renamed into a name the benchmarks use",
+  "mechanism": "family default as batch 2 (injection/output_encoding/deserialization source_reaches_sink, path path_join_user_input, access_control missing_auth_guard, untrusted_destination validation_strength for CWE-601 else source_reaches_sink); provenance = agent"
+ },
+ "screened": {
+  "advisories_examined": 8805,
+  "outcomes": {
+   "no fix commit linked": 3480,
+   "repository already in benchmarks/ (populations v1/v2 or a pair corpus)": 1993,
+   "licence not permissive or unrecorded": 1249,
+   "repository already kept (one pair per repository)": 657,
+   "kept": 398,
+   "CWEs span several families": 274,
+   "no function declared on both sides with a changed body": 191,
+   "large commit (refactor or release, not the fix)": 173,
+   "fix spread over several commits or repositories": 167,
+   "merge or root commit": 115,
+   "no source file changed": 42,
+   "language outside the feature vocabulary (go/ruby/c#/...)": 32,
+   "manual review: the chosen function does not hold the fix (comment-only, misattributed, partial or family mismatch)": 19,
+   "repository unavailable": 9,
+   "WordPress plugin (population v3 safety)": 4,
+   "fix commit unavailable": 2
+  },
+  "outcomes_note": "single-family pass (screen 2, every advisory examined, no quota met) plus the two-family pass; `kept` = automated candidates; `manual review: the chosen function does not hold the fix (comment-only, misattributed, partial or family mismatch)` = the screen re-meeting a function the 2026-10-03 review had dropped",
+  "candidates_manually_reviewed": 412,
+  "kept_after_review": 255,
+  "review_drops": {
+   "total": 157,
+   "change in the function unrelated to the advisory (refactor, rename, formatting, another advisory)": 33,
+   "function misattributed (matcher span overrun or an undetected enclosing declaration)": 33,
+   "partial: the function only calls or configures the real fix": 29,
+   "function diff not small (rewrite or refactor around the fix)": 28,
+   "unsure": 17,
+   "family mismatch": 11,
+   "same fix as a kept pair in a fork or sibling repository (would leak across repository folds)": 3,
+   "WordPress plugin (population v3 safety; missed by the automated screen)": 2,
+   "reserved-population guard (flagged by the 2026-10-03 guard run; name not printed)": 1
+  },
+  "one_pair_per_repository_drops": 3,
+  "reserved_population_drops": 2,
+  "kept": 251
+ },
+ "kept": {
+  "total": 251,
+  "by_family": {
+   "access_control": 20,
+   "deserialization": 9,
+   "injection": 56,
+   "output_encoding": 69,
+   "path": 71,
+   "untrusted_destination": 26
+  },
+  "post_cutoff_by_family": {
+   "injection": 5,
+   "output_encoding": 5,
+   "path": 2
+  },
+  "post_cutoff_total": 12,
+  "by_language": {
+   "java": 37,
+   "javascript": 37,
+   "php": 46,
+   "python": 83,
+   "typescript": 48
+  },
+  "post_cutoff_by_language": {
+   "python": 6,
+   "typescript": 6
+  },
+  "by_family_language": {
+   "access_control:java": 5,
+   "access_control:javascript": 3,
+   "access_control:php": 7,
+   "access_control:python": 2,
+   "access_control:typescript": 3,
+   "deserialization:java": 2,
+   "deserialization:php": 1,
+   "deserialization:python": 6,
+   "injection:java": 5,
+   "injection:javascript": 7,
+   "injection:php": 9,
+   "injection:python": 24,
+   "injection:typescript": 11,
+   "output_encoding:java": 7,
+   "output_encoding:javascript": 20,
+   "output_encoding:php": 12,
+   "output_encoding:python": 14,
+   "output_encoding:typescript": 16,
+   "path:java": 10,
+   "path:javascript": 4,
+   "path:php": 10,
+   "path:python": 34,
+   "path:typescript": 13,
+   "untrusted_destination:java": 8,
+   "untrusted_destination:javascript": 3,
+   "untrusted_destination:php": 7,
+   "untrusted_destination:python": 3,
+   "untrusted_destination:typescript": 5
+  },
+  "by_ecosystem": {
+   "composer": 46,
+   "maven": 37,
+   "npm": 81,
+   "pip": 87
+  },
+  "licences": {
+   "Apache-2.0": 80,
+   "BSD-2-Clause": 3,
+   "BSD-3-Clause": 18,
+   "ISC": 1,
+   "MIT": 147,
+   "MPL-2.0": 1,
+   "Unlicense": 1
+  },
+  "split": {
+   "holdout": 124,
+   "train": 127
+  },
+  "published_by_year": {
+   "2023": 50,
+   "2024": 52,
+   "2025": 66,
+   "2026": 83
+  },
+  "published_range": [
+   "2023-01-04",
+   "2026-10-01"
+  ],
+  "via_pull_request": 13,
+  "commit_over_120_source_lines": 10,
+  "two_family_advisory_family_chosen_on_review": 3,
+  "verification": {
+   "verified": 251,
+   "excerpt_bytes_read": 1297516
+  },
+  "targets": {
+   "asked": "injection and untrusted_destination >= 60 each; path, access_control, output_encoding, deserialization >= 30 where advisories allow; >= 250 total",
+   "met": {
+    "access_control": false,
+    "deserialization": false,
+    "injection": false,
+    "output_encoding": true,
+    "path": true,
+    "untrusted_destination": false
+   },
+   "limit": "the reviewed-advisory pool, not the review: every advisory since 2023-01-01 in the four ecosystems was examined; the post-cutoff pool was largely spent by batch 2 (its repositories are now excluded), and untrusted_destination/access_control/deserialization advisories mostly lack a linked single fix commit or sit in repositories the benchmarks already use"
+  }
+ },
+ "labels": {
+  "command": "ousast learn labels --root . --out <scratch> --snapshot <scratch>",
+  "rows": [
+   6981,
+   7985
+  ],
+  "pairs_rows": [
+   1936,
+   2940
+  ],
+  "new_pair_rows": 1004
+ },
+ "features": {
+  "command": "benchmarks/learn/build_features.py --labels <the 1004 new rows> --units <merged units.json of `ousast plane harvest --catalog benchmarks/pairs/advisory-fixes-3/catalog.toml` (manifests written, no Run started)> --catalog benchmarks/pairs/advisory-fixes-3/catalog.toml --kinds pairs",
+  "records": {
+   "plane:access_control": 40,
+   "plane:deserialization": 18,
+   "plane:injection": 112,
+   "plane:output_encoding": 138,
+   "plane:path": 142,
+   "plane:untrusted_destination": 52,
+   "static:access_control": 40,
+   "static:deserialization": 18,
+   "static:injection": 112,
+   "static:output_encoding": 138,
+   "static:path": 142,
+   "static:untrusted_destination": 52
+  },
+  "instrument_states_plane_all_families": {
+   "agree:missing": 164,
+   "agree:none": 338,
+   "delta:not_applicable": 502,
+   "engine:missing": 406,
+   "engine:none": 96,
+   "entry_points:not_applicable": 502,
+   "facts:not_applicable": 502,
+   "language:ran": 502,
+   "model_sinks:missing": 502,
+   "quick:ran": 502,
+   "roles:ran": 502,
+   "source:ran": 502,
+   "verify:missing": 164,
+   "verify:none": 338
+  },
+  "note": "quick rules and deterministic roles ran on each side; engine, verify, agree and model sinks never ran for these pairs (missing/none: null features, never zeros)"
+ },
+ "memory_build": {
+  "command": "ousast learn memory build --labels <labels> --units <merged units.json> --profile static --root . (exit 2: adjudications 9 of 43 anonymous functions, unchanged since 2026-10-01; rows kept)",
+  "examples": [
+   1133,
+   1635
+  ],
+  "pairs_examples": [
+   968,
+   1470
+  ],
+  "pairs_counts_after": {
+   "absent_fixed_side": 0,
+   "examples": 1470,
+   "labels": 2940,
+   "no_excerpt": 0,
+   "no_record": 1470,
+   "recorded": 1470,
+   "unread": 0
+  }
+ },
+ "complete_pairs": {
+  "how": "store example rows (profile static) keyed as learn.experiments.freeze_units pairs them: (repo, candidate, family) holding both labels; whole memory, every family",
+  "before": 459,
+  "after": 710,
+  "by_family": {
+   "access_control": [
+    37,
+    57
+   ],
+   "config_secrets": [
+    12,
+    12
+   ],
+   "deserialization": [
+    32,
+    41
+   ],
+   "injection": [
+    68,
+    124
+   ],
+   "memory": [
+    149,
+    149
+   ],
+   "output_encoding": [
+    77,
+    146
+   ],
+   "path": [
+    38,
+    109
+   ],
+   "unknown": [
+    2,
+    2
+   ],
+   "untrusted_destination": [
+    44,
+    70
+   ]
+  },
+  "exp_004_005_units": "195 complete pairs inside exp-004/005's frozen 501 units (six families, evaluation folds); those units are frozen and were not regenerated here"
+ },
+ "positives_only_groups": {
+  "before": 99,
+  "after": 99,
+  "groups_both_by_family": {
+   "access_control": [
+    37,
+    57
+   ],
+   "config_secrets": [
+    2,
+    2
+   ],
+   "deserialization": [
+    32,
+    41
+   ],
+   "injection": [
+    53,
+    109
+   ],
+   "memory": [
+    5,
+    5
+   ],
+   "output_encoding": [
+    38,
+    107
+   ],
+   "path": [
+    38,
+    109
+   ],
+   "unknown": [
+    2,
+    2
+   ],
+   "untrusted_destination": [
+    42,
+    68
+   ]
+  }
+ },
+ "embeddings": {
+  "command": "ousast learn memory embed --budget-usd 0.20 (dry run first: 144,806 estimated tokens, $0.0029)",
+  "requested": 1479,
+  "cached": 1004,
+  "embedded": 475,
+  "calls": 15,
+  "tokens": 150339,
+  "usd": 0.003007
+ },
+ "spend": {
+  "chat_model_calls": 0,
+  "embedding_usd": 0.003007,
+  "github_api": "metadata and raw contents only"
+ }
+}

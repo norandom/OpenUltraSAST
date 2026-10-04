@@ -82,6 +82,18 @@ recorded = "2026-10-03"
 status = "development"
 exclude_tiers = ["title"]
 
+# Batch 3: more advisory fixes whose function survives the fix, weighted toward injection and untrusted_destination.
+# Same slice, cache layout and checks; screening record
+# benchmarks/measurements/2026-10-04-decision-engine-harvest-3/record.json.
+[[source]]
+id = "advisory-fixes-3"
+kind = "pairs"
+file = "benchmarks/pairs/advisory-fixes-3/catalog.toml"
+evaluation = ["benchmarks/pairs/advisory-fixes-3/verification.json"]
+recorded = "2026-10-04"
+status = "development"
+exclude_tiers = ["title"]
+
 [[source]]
 id = "adjudications"
 kind = "adjudications"
