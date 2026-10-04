@@ -623,6 +623,7 @@ Preserve all completed task evidence below.
 - [x] 17. Operational readiness (2026-10-02)
   - **Named by the 2026-10-02 operational-readiness audit**, maintainer-approved as the first increment. The maintainer's definition: a user installs the hook on ANY repository and gets honest, advisory-only results; nothing ever blocks a push. The audit found the plumbing sound (snapshots, resolution, deadline accounting, advisory exit 0, the JSON artifact) and five things in the way: the hook can block a push, quick rules are not part of pre-push, the engine cannot finish a 26-file repository inside 30 s, the terminal hides every skip reason, and there is no supported install path without the source checkout. Before numbers for every item are the audit's live runs on records (Python), serve-static (JavaScript) and unrolled/secure (Go), each with one planted commit.
   - This group is plumbing and honesty. It enables no capability, edits no rule for a planted sample, and leaves graph reuse (the engine speed work decided in 11.6) as a later task.
+  - Record: `benchmarks/measurements/2026-10-02-pre-push-operational-1/record.json` (see 17.7).
   - _Done 2026-10-02:_ all seven subtasks done. The engine still does not fit the 30 s hook deadline (graph reuse, the 11.6 direction, stays a later task), and plane verdicts after the push were not in this increment.
   - _Requirements: 9.1–9.6_
 - [x] 17.1 Never block a push the user did not choose to block

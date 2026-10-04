@@ -8,6 +8,10 @@ memory, compiled DSPy-style in-house); tasks 1-5 are unaffected, tasks 6-10 are 
 against the provider balance read just before it, and none starts with a ceiling above that balance. No test makes
 a model or embedding call.
 
+Direction 2026-10-04: `.kiro/steering/roadmap.md` (section of 2026-10-04, phases G0-G5) is the authority. Every
+change is judged on the unseen-repository pool (G0, spec `unseen-repo-evaluation`) by catch rate and false-alarm
+rate per push. Within-pair AUC stays a development signal. Tasks 11-14 below follow that roadmap.
+
 - [x] 1. Schema and features
   - `learn/schema.py` (closed, typed allow-list; no identities; missing != zero), `learn/features.py` (host
     builder), new memory `KINDS`, `plane/tasks/features.py` and the `remember` input; tests enforcing the
@@ -45,6 +49,11 @@ a model or embedding call.
   - _Requirements: 1.1_
 
 - [ ] 6. Program, local memory and compilation (design sections 4-5)
+  - Status 2026-10-04: 6.1-6.6 are done. 6.7 is partial: leave-one-source-out, the 0/25/50% memory-size points and
+    the source-count curve are not run. Around this task the experiment machinery grew: rule arms
+    (`precision_bound_block`, `pooled_block_gate` with a family floor) in `learn/experiments.py`, the response-cache
+    fill with a hard ceiling and a dry-run estimate in `learn/fill.py`, and the in-function slice in `learn/slice.py`.
+    These ran exp-003, exp-004 and exp-005 (7.5-7.7). Memory now holds 710 complete fix pairs (7.9).
   - [x] 6.1 Excerpts and the example store (no model)
     - `learn/excerpt.py` (function span at the label's pin, bounds 80/4,000 for candidates and 40/2,000 for
       examples, numbered lines, no path/repository/commit, advisory ids and security wording in comments
@@ -151,6 +160,28 @@ a model or embedding call.
     rows' null plane-only features (1f525ff), the 788 embedding vectors absent from RustFS (copied from the file
     store), the result row's column-type collision under S3 Select (780caaa). Further program variants (`k = 5` vs
     `k = 1`, the confidence source) as new manifests.
+  - [x] 7.5 exp-003 run and recorded 2026-10-03 ($0, replay only): **inconclusive**. Selective blocking (a per-family
+    raw-score threshold chosen on training folds by its Wilson lower bound) offers no BLOCK on held-out paired units
+    in any family; the incumbent stays. 211 of 353 frozen units evaluated (142 replay misses). Proving 0.95 needs at
+    least 73 clean flags. Result: `benchmarks/experiments/exp-003-precision-bound-blocking/result.json`.
+  - [x] 7.6 exp-004 run and recorded 2026-10-03: **inconclusive**. One pooled BLOCK threshold over all families with a
+    family floor (Req 6.4). No outer fold found a threshold, pooled or per family; B offers no BLOCK. 501 units,
+    replay at $0 after a cache fill of $1.24 (ceiling $2; the dry-run estimate over-priced 4.5x). Result and record:
+    `benchmarks/experiments/exp-004-pooled-block-gate/result.json`, `record.json`.
+  - [x] 7.7 exp-005 run and recorded 2026-10-03: **inconclusive**. The in-function def-use slice in the prompt of the
+    six slice-2 programs. Within-pair AUC 0.762 -> 0.746 (CI [-0.063, 0.032], spans 0); unsure rate 0.29 -> 0.24
+    (favours B); usd per candidate slightly higher. A $0 leak audit came first
+    (`benchmarks/measurements/2026-10-03-graph-slice-leak-audit/record.json`). Result:
+    `benchmarks/experiments/exp-005-graph-slice/result.json`.
+  - [x] 7.8 Negatives harvest 2026-10-03 ($0.0014 embeddings, no chat-model call): 98 real fix pairs whose function
+    survives the fix, from reviewed advisories, as pointer-pair corpus `advisory-fixes-2`; memory 937 -> 1133
+    examples. Record: `benchmarks/measurements/2026-10-03-decision-engine-negatives-harvest/record.json`.
+  - [x] 7.9 Harvest 3, 2026-10-04 ($0.003 embeddings, no chat-model call): 251 pairs as `advisory-fixes-3`; complete
+    pairs in memory 459 -> 710. Record: `benchmarks/measurements/2026-10-04-decision-engine-harvest-3/record.json`.
+  - [x] 7.10 Joern trace run over exp-005's 501 units and its leak audit, 2026-10-04 ($0): no leak flagged. In the 105
+    pairs where both sides were asked, a path appears on both sides in 12, on the vulnerable side only in 2, on the
+    fixed side only in 0, and on neither in 91. The engine cannot see what a fix changed. Record:
+    `benchmarks/measurements/2026-10-04-joern-slice-leak-audit/record.json`.
   - _Requirements: 3.6, 4.1-4.4_
 
 - [ ] 8. Integration
@@ -176,3 +207,33 @@ a model or embedding call.
     `result-v3-engine.json` is committed. Nothing between the two commits may touch the program, memory snapshot,
     features, priors or thresholds. This spec's code never opens v3 files.
   - _Requirements: 5.3_
+
+- [ ] 11. Fix mechanisms (plan approved 2026-10-04; see `fix-mechanisms-plan.md`)
+  - Roadmap G2 arm (`.kiro/steering/roadmap.md`, section of 2026-10-04): one candidate improvement, not the spine.
+    It is judged on the unseen-repository pool (G0, spec `unseen-repo-evaluation`) by catch rate and false-alarm
+    rate per push. **Paused after 11.1 until the G0 pool exists.**
+  - [ ] 11.1 Mine candidate discharge facts from the 710 fix diffs (sanitizer calls, guarding conditions, safe sink
+    arguments, safe replacements); deterministic, $0. In progress.
+  - [ ] 11.2 Admission by held-out separation per outer fold: a candidate turns "path on both sides" into "path on the
+    vulnerable side only" on folds it was not mined from, removes no held-out vulnerable path, has at least 2
+    proposing repositories, and is admitted per language.
+  - [ ] 11.3 Engine re-run on the affected pins (kube-ax lanes plus the VM lane).
+  - [ ] 11.4 Registered experiment, with the detection gates green, before `ruleset/semantic/*.toml` changes.
+  - [ ] 11.5 Coverage increment: source and sink additions for pairs where neither side has a path (later).
+  - [ ] 11.6 TypeScript admission in the engine (branch `engine-typescript`).
+  - _Requirements: 4.1-4.4, 7.1, 8.1_
+
+- [ ] 12. exp-006: Joern witness slice in the prompt **(budget go-ahead, about $2-4)**
+  - Planned, roadmap G1/G2. Against the current prompt, after a $0 leak audit, on re-frozen units. Judged on the
+    unseen-repository pool, not on within-pair AUC alone.
+  - _Requirements: 4.1-4.4, 7.1_
+
+- [ ] 13. exp-007: the combiner ($0 replay)
+  - Planned, roadmap G1/G2. Three or four weights (score, engine entailment, neighbour agreement) over cached
+    responses. Judged on the unseen-repository pool.
+  - _Requirements: 4.1-4.4, 7.1_
+
+- [ ] 14. Re-run the pooled block gate on re-frozen units
+  - Planned, roadmap G3. The exp-004 design with the family floor (Req 6.4), together with the pool's false-alarm
+    rate per family.
+  - _Requirements: 6.4, 7.3_

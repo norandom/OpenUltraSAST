@@ -1,5 +1,20 @@
 # Design Document
 
+> **Status 2026-10-04.** Groups 1-2 are done on kind (records `benchmarks/measurements/2026-10-02-k8s-01-profile/`
+> and `2026-10-02-k8s-02-store-delivery/`). Task 2.6 is paused. The production target changed. The operator runs a
+> kube-ax cluster (k3s, Agent Substrate v0.3.0, AX v0.3.1, 2 nodes). There we may only submit AX Tasks: no k8s
+> object creation, no secrets, no access to `ate-system`. The engine now runs there as AX Tasks through
+> `benchmarks/learn/engine_trace_ax.py`. The engine-task image (`plane/Dockerfile.engine-task`) is built FROM
+> `ghcr.io/norandom/ax-task-runner:v0.3.1`. Tasks read and write through presigned HTTPS links, are named
+> `ousast-engine-*`, and run a 1.7 GB heap with `ActiveProcessorCount=2` and one resident Joern session per pin. A
+> pin whose sandbox dies is retried once under a new name, then handed to the VM lane (2.5 GB heap). Egress is
+> operator-managed: HTTPS 443 to public hosts is open; LAN and cluster-internal addresses are blocked. Archive
+> names (`.tar`, `.gz`, `.zip`, `.bin`) failed through the store host's Cloudflare cache until the operator added a
+> cache-bypass rule; presigned objects are staged as `.dat` as a safeguard. Groups 3-8 are **to re-plan** against
+> that cluster under roadmap G4 (`.kiro/steering/roadmap.md`, section of 2026-10-04). Their text below is kept
+> as written. G4 (detection on push for any repository: `ousast plane scan --base --head`, engine pins on kube-ax,
+> model calls on the VM or CI) is the new target for group 7, sized by what G1-G3 keep.
+
 ## Overview
 
 The plane keeps its shape: `ousast plane run` is the reconciler, ax is the only executor, every task is one

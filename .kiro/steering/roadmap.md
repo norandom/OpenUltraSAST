@@ -1,5 +1,100 @@
 # Roadmap
 
+## Roadmap to detection with the decision engine on kube-ax (2026-10-04)
+
+This section supersedes the ordering below it. The older sections stay as history.
+
+### Destination
+
+On every push, from a hook or CI, OpenUltraSAST answers for the changed code. The answer is advisory for every
+family, and BLOCK only for families whose precision has been proven on repositories the system never saw. The work
+is split by what each place is good at:
+
+- **kube-ax cluster** (operator k3s, Agent Substrate v0.3.0, AX v0.3.1, 2 nodes): the Joern engine, as AX Tasks.
+  No API keys and no store credentials in the cluster; tasks read and write through short-lived presigned links.
+- **The VM or CI runner**: candidate selection, the decision engine's model calls (DeepSeek), the memory store,
+  and the fallback engine lane (2.5 GB heap) for pins that do not fit the cluster's 1.7 GB heap.
+- **kind** stays the local development profile, with the same code and manifests.
+
+### The question everything answers
+
+Does the safety net work on repositories it has never seen? That is the purpose of the A/B experiments, and every
+phase below is judged by it. On an unseen repository almost every push is an ordinary change, so two numbers decide
+whether the safety net is useful, measured on the hook's advisory output exactly as a user would see it:
+
+1. **Catch rate:** on real vulnerability-introducing changes in unseen repositories, how often it flags the change.
+2. **False-alarm rate:** on ordinary changes in the same unseen repositories, how often it flags anything.
+
+Within-pair AUC on known fix pairs answers neither. It stays a development signal, not the goal.
+
+### Where we are (2026-10-04)
+
+| Area | State | Evidence |
+| --- | --- | --- |
+| Generalisation measured so far | The classifier ranks above chance on repository-held-out folds (within-pair AUC about 0.76) but cannot reach the block bar; the engine-based scan failed fresh populations (v1 1/11, v2 0/17); push-level catch and false-alarm rates on unseen repositories have never been measured | exp-003/004/005, `results-v1.json`, `results-v2.json` |
+| Pre-push hook | Operational and advisory on any repository | `2026-10-02-pre-push-operational-1/record.json` |
+| Labelled data | 710 complete real fix pairs | `2026-10-04-decision-engine-harvest-3/record.json` |
+| Engine | Almost blind to fixes (paths differ between sides in 2 of 105 both-asked pairs) | `2026-10-04-joern-slice-leak-audit/record.json` |
+| Infrastructure | Engine runs on kube-ax as AX Tasks with a VM fallback; kind for development | memory `kube-ax-cluster` |
+
+Correction recorded 2026-10-04: the previous two days went mostly into infrastructure and engine internals that did
+not move a generalisation number. From here, infrastructure and engine work is done only when it removes a
+bottleneck for the measurements below.
+
+### Phases
+
+**G0. The unseen-repository pool and the push-level metric** (new spec `unseen-repo-evaluation`)
+
+1. A frozen pool of repositories never used for training, tuning, mining or harvesting, and not in any population.
+   Two kinds of change per repository: real vulnerability-introducing commits (the parent of a fix, post-cutoff where
+   possible) and ordinary commits from the same history.
+2. The metric: replay each change through `ousast pre-push` (and the decision engine where an arm uses it) and
+   record catch rate and false-alarm rate, with confidence intervals, per family and overall.
+3. Rotation: the pool is spent per decision, like the populations; a new slice is drawn for the next one.
+
+Exit: the pool is frozen and the current production hook has a measured baseline on it.
+
+**G1. Re-score the arms we have on the pool**
+
+Current hook (quick rules + engine), decision-engine advisory (current programs), combiner, engine evidence. Each is
+an arm with a registered decision rule, scored by catch rate at a fixed false-alarm budget.
+
+Exit: one measured table of arms on unseen code; keep only what generalises.
+
+**G2. Improve what moves the unseen-repo numbers**
+
+Candidates, each admitted only if it improves the pool metric on a fresh slice: fix mechanisms in the engine
+(approved plan, now one arm, not the spine), engine coverage and TypeScript, decision-engine prompt and retrieval
+changes, more labelled pairs from more distinct repositories.
+
+**G3. Decide BLOCK per family** on the pool's false-alarm rate and the pooled precision bound (Req 6.4).
+
+**G4. Detection on push for any repository** (`plane-on-kubernetes` P4 work: `ousast plane scan --base --head`,
+engine pins on kube-ax, model calls on the VM or CI), sized by what G1-G3 kept.
+
+**G5. Qualification and rollout:** adopt, commit `prediction-v3.json`, spend population v3 once, advisory rollout,
+BLOCK only for families that passed.
+
+### Cross-cutting rules
+
+- No hand-tuning per miss. Every detection change is a registered experiment or an admission by held-out
+  separation.
+- Records carry counts, digests and pattern names, never repository names: the reserved-repository guard covers
+  every population.
+- Instrument first: a zero from an unread input is a failed run (AGENTS.md).
+- Cluster stability: sandbox deaths are retried once, then sent to the VM lane; the operator owns workers, egress
+  and Substrate.
+
+### Spec map
+
+| Spec | Role in this roadmap | State |
+| --- | --- | --- |
+| `unseen-repo-evaluation` (new) | G0, G1: the pool and the push-level metric | To specify |
+| `learned-decision-engine` | G1-G3, G5; fix-mechanisms plan is one G2 arm | Implementation; experiments 3-5 recorded |
+| `plane-on-kubernetes` | G4; the engine executors for kube-ax | Groups 1-2 done (kind); production path re-scoped to the operator's kube-ax (AX Tasks), groups 3-8 to re-plan |
+| `pre-push-safety-net` | the hook replayed in G0-G1; M4-M5 in G5 | Operational increment 1 done; M4-M5 open |
+| `ai-service-plane` | The plane the above runs on | Complete |
+
 ## Status, 2026-10-02
 
 The milestone table below dates from 2026-09-14. Since then (`.kiro/specs/pre-push-safety-net/release-milestones.md`):

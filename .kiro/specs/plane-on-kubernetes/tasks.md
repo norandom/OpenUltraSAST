@@ -1,5 +1,20 @@
 # Implementation Plan
 
+> **Status 2026-10-04.** Groups 1-2 are done on kind (records `benchmarks/measurements/2026-10-02-k8s-01-profile/`
+> and `2026-10-02-k8s-02-store-delivery/`). Task 2.6 is paused. The production target changed. The operator runs a
+> kube-ax cluster (k3s, Agent Substrate v0.3.0, AX v0.3.1, 2 nodes). There we may only submit AX Tasks: no k8s
+> object creation, no secrets, no access to `ate-system`. The engine now runs there as AX Tasks through
+> `benchmarks/learn/engine_trace_ax.py`. The engine-task image (`plane/Dockerfile.engine-task`) is built FROM
+> `ghcr.io/norandom/ax-task-runner:v0.3.1`. Tasks read and write through presigned HTTPS links, are named
+> `ousast-engine-*`, and run a 1.7 GB heap with `ActiveProcessorCount=2` and one resident Joern session per pin. A
+> pin whose sandbox dies is retried once under a new name, then handed to the VM lane (2.5 GB heap). Egress is
+> operator-managed: HTTPS 443 to public hosts is open; LAN and cluster-internal addresses are blocked. Archive
+> names (`.tar`, `.gz`, `.zip`, `.bin`) failed through the store host's Cloudflare cache until the operator added a
+> cache-bypass rule; presigned objects are staged as `.dat` as a safeguard. Groups 3-8 are **to re-plan** against
+> that cluster under roadmap G4 (`.kiro/steering/roadmap.md`, section of 2026-10-04). Their text below is kept
+> as written. G4 (detection on push for any repository: `ousast plane scan --base --head`, engine pins on kube-ax,
+> model calls on the VM or CI) is the new target for group 7, sized by what G1-G3 keep.
+
 One task group per increment of `design.md` section 7, in that order; a later group never starts before the
 earlier group's kind proof is recorded. Every task ships with its tests; a task is done when its tests pass in
 the host suite, ruff and mypy are clean, and nothing in `src/`, `plane/`, `ops/` (minus `ops/ax/up.sh` and
@@ -9,7 +24,7 @@ its kind proof and the record it writes under `benchmarks/measurements/<date>-k8
 (commit, images, the instrument checks, the numbers). Steps that call a model are marked **paid: needs a budget
 go-ahead** with a ceiling; steps that need a hand on a cluster that does not exist yet are marked **manual**.
 
-- [ ] 1. Profile and literals (design section 1; open-question checks 2, 3, 7)
+- [x] 1. Profile and literals (design section 1; open-question checks 2, 3, 7)
 - [x] 1.1 `PlaneProfile`
   - `src/openultrasast/plane/profile.py`: frozen dataclass with the fields of design section 1; `load_profile()`
     reads `ops/k8s/profiles/<OUSAST_PLANE_PROFILE>.toml` (a name or a path; default `kind`), then applies
@@ -107,7 +122,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
     prints the table. Instrument: the tar's byte size from the store equals the extracted files' total.
   - `benchmarks/measurements/<date>-k8s-02-store-delivery/record.json`: bytes, PUT-to-poll seconds, rules.
   - _Requirements: 3.1, 3.2, 7.1_
-- [ ] 2.6 Remove the receiver (last; after 2.5 is recorded)
+- [ ] 2.6 Remove the receiver (last; after 2.5 is recorded) -- paused 2026-10-04
   - Delete `Receiver`, `_Handler`, `receiver_address`, `receiver_cluster_ip`, `RECEIVER_HOST`, `RECEIVER_PORT`
     from `egress.py`; `OUSAST_ARTIFACT_URL/DIAL/HOST/PORT` from `runner.py` and `reconciler.py`; the
     `OUSAST_DELIVERY` switch; `ops/ax/receiver-service.yaml.tmpl` and the `up.sh` receiver step; the EndpointSlice
@@ -117,7 +132,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
     `receiver_removed: <commit>`.
   - _Requirements: 3.1, 1.3_
 
-- [ ] 3. `--exec remote` from a CI-shaped principal (design section 2; open-question check 1)
+- [ ] 3. `--exec remote` from a CI-shaped principal (design section 2; open-question check 1) -- to re-plan (kube-ax, roadmap G4)
 - [ ] 3.1 Execution mode and RBAC manifests
   - `cli.py`: `ousast plane run --exec local|remote` (default `profile.exec`); `reconciler.Ax` passes the
     profile's context to `ax` (its context flag, read from `ax --help` and pinned in a test); `remote` refuses a
@@ -150,7 +165,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
     status, usd spent.
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 7.1_
 
-- [ ] 4. Images on GHCR (design section 8)
+- [ ] 4. Images on GHCR (design section 8) -- to re-plan (kube-ax, roadmap G4)
 - [ ] 4.1 `images.yml`
   - `.github/workflows/images.yml` on tags `v*`: `docker/build-push-action` for `plane/Dockerfile.runner` ->
     `ghcr.io/norandom/ousast-runner:<tag>` and the root `Dockerfile` -> `ghcr.io/norandom/ousast-engine:<tag>`;
@@ -178,7 +193,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
   - `benchmarks/measurements/<date>-k8s-04-ghcr-images/record.json`: image sizes, pull seconds, visibility.
   - _Requirements: 1.1, 4.2, 7.1_
 
-- [ ] 5. The engine as a plane task (design section 4)
+- [ ] 5. The engine as a plane task (design section 4) -- to re-plan (kube-ax, roadmap G4)
 - [ ] 5.1 `cpg/dump.py` and `tasks/engine.py`
   - Lift `benchmarks/push/finding_dump.py`'s scan into `src/openultrasast/cpg/dump.py` (the script becomes a
     thin caller; `ops/README.md:78` command unchanged). `src/openultrasast/plane/tasks/engine.py`: env
@@ -208,7 +223,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
     placement, image size and pull seconds.
   - _Requirements: 4.1, 4.2, 7.1_
 
-- [ ] 6. Pools, autoscaling, node checklist (design section 5)
+- [ ] 6. Pools, autoscaling, node checklist (design section 5) -- to re-plan (kube-ax, roadmap G4)
 - [ ] 6.1 `plane/k8s.py` and the manifests
   - `src/openultrasast/plane/k8s.py`: `render(profile, out)` writes `workerpool-default.yaml`,
     `workerpool-engine.yaml`, `ax-server-snapshots.yaml` (patch with `profile.snapshots_bucket`), `rbac-ci.yaml`;
@@ -232,7 +247,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
   - `benchmarks/measurements/<date>-k8s-06-pools/record.json`: footprint table, securityContext, dry-run result.
   - _Requirements: 5.1, 5.2, 7.1_
 
-- [ ] 7. `ousast plane scan` (design section 6)
+- [ ] 7. `ousast plane scan` (design section 6) -- to re-plan (kube-ax, roadmap G4)
 - [ ] 7.1 Workspaces and candidates from URL + commits
   - `generate.scan_cases(url, base, head, cache, *, all=False)`: shallow clone into the case cache, two pinned
     Workspaces, head-side hunks via `fix_ranges(side="new")`, functions via `repo_facts.enclosing` over
@@ -265,7 +280,7 @@ go-ahead** with a ceiling; steps that need a hand on a cluster that does not exi
     seconds from submit to verdict, whether the known CVE site is among the agreed.
   - _Requirements: 6.1, 6.2, 6.3, 7.1_
 
-- [ ] 8. Runbook (design section 7, Req 7)
+- [ ] 8. Runbook (design section 7, Req 7) -- to re-plan (kube-ax, roadmap G4)
 - [ ] 8.1 `docs/deployment.md` as the runbook
   - Sections: prerequisites for k3s (Substrate, ax with the snapshots patch, GHCR and the pull secret, buckets,
     the CI SA and its grant from 3.2, the node checklist of 6.2), the profile switch, `--exec remote` from a laptop

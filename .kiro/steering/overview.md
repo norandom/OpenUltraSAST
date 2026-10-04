@@ -1,8 +1,23 @@
 # Overview — what this is, and what is actually true of it
 
-## Current state, 2026-10-02
+## Current state, 2026-10-04
 
-Everything below this section is dated history; where it disagrees with this section, this section wins.
+Everything below this section is dated history; where it disagrees with this section, this section wins. The
+direction lives in `roadmap.md`, section of 2026-10-04 (phases G0-G5).
+
+- **Goal.** A pre-push safety net that works on repositories it has never seen. Two numbers per push decide it:
+  catch rate on real vulnerability-introducing changes, and false-alarm rate on ordinary changes. Neither has been
+  measured yet; the unseen-repository pool (G0, spec `unseen-repo-evaluation`) comes first.
+- **Correction, 2026-10-04.** Infrastructure and engine work had drifted from that goal. It is now done only when
+  it removes a bottleneck for those measurements.
+- **Engine.** Joern runs on the operator's kube-ax cluster as AX Tasks, with a VM fallback lane; kind stays the
+  development profile. It is almost blind to fixes: paths differ between sides in 2 of 105 both-asked pairs.
+- **Decision engine.** Ranks but cannot block (exp-003 to exp-005 inconclusive; 710 fix pairs in memory). Fix
+  mechanisms is one G2 arm, paused after mining until the pool exists.
+- **Hook.** `ousast pre-push` is operational and advisory on any repository; rollout stays NO-GO.
+
+## State, 2026-10-02 (superseded by the section above)
+
 User-facing documentation: `README.md`, `docs/architecture.md`, `docs/evaluation.md`, `docs/decision-engine.md`,
 `ops/ax/README.md`.
 
