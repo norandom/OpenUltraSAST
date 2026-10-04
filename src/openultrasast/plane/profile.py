@@ -1,6 +1,6 @@
 """The plane's configuration surface: one ``PlaneProfile`` per cluster (plane-on-kubernetes design section 1).
 
-A profile is a TOML file under ``ops/k8s/profiles/`` (``kind.toml`` for the laptop's kind cluster, ``k3s.toml`` for
+A profile is a TOML file under ``ops/k8s/profiles/`` (``kind.toml`` for the server VM's kind cluster, ``k3s.toml`` for
 the production cluster) holding every value that differs between clusters: the execution mode, the kube context,
 the registry and the digest-pinned images file, the router and ax-server addresses (empty: tunnel through the
 Kubernetes API), the memory store, the atespace, ax's snapshot bucket, the worker pools and the image pull secret.
@@ -59,6 +59,7 @@ class PlaneProfile:
     name: str
     path: Path
     exec: str = "local"
+    kind_observability: bool = False
     kube_context: str = ""
     registry: str = ""
     images: Path = Path("images.json")
@@ -135,6 +136,10 @@ def _reject_secret(where: str, key: str, value: object, declared: bool = False) 
 
 
 def _coerce(where: str, key: str, value: object, kind: str) -> Any:
+    if kind == "bool":
+        if not isinstance(value, bool):
+            raise ProfileError(f"{where}: {key} must be a boolean, got {value!r}")
+        return value
     if kind == "int":
         if isinstance(value, bool) or not isinstance(value, int):
             raise ProfileError(f"{where}: {key} must be an integer, got {value!r}")
@@ -172,6 +177,10 @@ def _env_overrides(environ: Mapping[str, str], where: str, values: dict[str, Any
         raw = environ.get(_ENV_PREFIX + name.upper())
         if raw is not None and raw != "":
             value: Any = raw
+            if kind == "bool":
+                if raw.lower() not in ("true", "false", "1", "0"):
+                    raise ProfileError(f"{where}: {_ENV_PREFIX}{name.upper()} must be true/false or 1/0, got {raw!r}")
+                value = raw.lower() in ("true", "1")
             if kind == "int":
                 try:
                     value = int(raw)
@@ -241,7 +250,8 @@ def _lookup(profile: PlaneProfile, dotted: str) -> str:
         return str(getattr(profile.pools[pool_name], key))
     if head not in _SCALARS or rest:
         raise ProfileError(f"{profile.path}: no such field {dotted!r}")
-    return str(getattr(profile, head))
+    value = getattr(profile, head)
+    return str(value).lower() if isinstance(value, bool) else str(value)
 
 
 def main(argv: list[str] | None = None) -> int:
