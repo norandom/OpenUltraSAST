@@ -29,8 +29,8 @@ Execution rules:
 - **Instrument first** (AGENTS.md). A zero, an empty draft or a fast run is treated as an instrument failure until
   bytes read and wall time prove otherwise.
 
-- [ ] 1. Used set and guard (design 1.2, 6; increment 1)
-- [ ] 1.1 Used-set builder
+- [x] 1. Used set and guard (design 1.2, 6; increment 1)
+- [x] 1.1 Used-set builder
   - `benchmarks/unseen/eligibility.py`: normalises names (lower case, no `.git`, no trailing slash) and builds the
     used set from every source of design table 1.2: pair catalogs, recipes and datasets under `benchmarks/pairs/`
     plus the local pointer-pair manifests as `benchmarks/pairs/catalog_gen.py` reads them; `population-v1.toml`
@@ -43,14 +43,14 @@ Execution rules:
     and trailing-slash variants collapse; stdout and the output JSON contain no name; a v3-shaped file planted in
     the synthetic tree is not opened (open is patched to fail on it).
   - _Requirements: 1.1_
-- [ ] 1.2 Canonical resolution, renames and forks
+- [x] 1.2 Canonical resolution, renames and forks
   - `eligibility.py`: `resolve(candidate, api)` with an injected GitHub client returns the canonical `full_name`,
     former names (redirects) and the fork network (`parent`, `source`). A candidate is ineligible when any of them
     is in the used set; one candidate per fork network is kept.
   - Tests with a fake client: a planted used repository, a renamed one and a fork of a used one are each
     rejected; two forks of one network keep one; the rejection reason is a source label, not a name.
   - _Requirements: 1.1_
-- [ ] 1.3 Guard extended to pools
+- [x] 1.3 Guard extended to pools
   - `tests/test_independent_population.py`: the sweep becomes a list of (reservation directory, names):
     `benchmarks/independent/` for populations, `benchmarks/unseen/` for pools (public manifests, plus
     `benchmarks/unseen/private/*.toml` when present). The sweep also covers `plane/`. New tests: pool and
@@ -62,13 +62,13 @@ Execution rules:
   - Evidence: the guard is green with an empty `benchmarks/unseen/`, and red when a test fixture names a pool
     repository in `benchmarks/measurements/` (shown once in the record).
   - _Requirements: 1.2, 1.3, 1.4_
-- [ ] 1.4 Usage ledger
+- [x] 1.4 Usage ledger
   - `benchmarks/unseen/ledger.py`: append-only `usage-pN.jsonl`, one row per use (slice, decision or experiment
     id, purpose `baseline | exploratory | informed | qualifies`, date, result digest, freeze digest). It refuses a
     `qualifies` row for a change whose slice already has an `informed` row for it, and refuses to rewrite rows.
   - `tests/test_unseen_ledger.py`: append, the refusal, a rewritten row detected by a digest chain.
   - _Requirements: 5.2_
-- [ ] 1.5 Used-set measurement and record 01 **(coordinator, network)**
+- [x] 1.5 Used-set measurement and record 01 **(coordinator, network)**
   - Run `eligibility.py` against the real sources, the S3 memory store included (read only).
   - Instrument: each source reports files read and bytes; a source with zero rows fails the run unless it is
     known empty.
@@ -319,3 +319,18 @@ Execution rules:
     false-alarm rates, coverage per state, spend; `exploratory` rows in `usage-p1.jsonl`.
   - Observable: one committed table of arms on slice 1; G1's table exists.
   - _Requirements: 3.4, 5.2, 5.3_
+
+## Implementation Notes
+
+- 2026-10-04: Tasks 1.1–1.4 implemented offline and independently reviewed. Task 1.5 remains for the
+  coordinator; no networked measurement or commit was performed. Command and API contracts:
+  `benchmarks/unseen/README.md`. Offline evidence:
+  `benchmarks/measurements/2026-10-04-unseen-01-offline/record.json`.
+- Population guard scope is preserved under the maintainer's hard rule: benchmarks/src/tests for
+  populations, plus plane for pools. Each directory exemption is reservation-specific, including private
+  pool manifests. Extending population scope to plane exposed 30 existing references; no historical
+  records were changed or exempted inside the existing population scope.
+- S3 inventory opens through `open_store(read_only=True)` because ordinary store construction writes a
+  Select capability probe. Default store behavior is unchanged; inventory uses LIST/GET only.
+- The freeze writer must match the canonical TOML digest encoding documented in the pool README and
+  exercised by `test_independent_population.py`; final pool discovery does not trust mutable status.
