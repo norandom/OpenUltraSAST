@@ -1368,3 +1368,33 @@ def test_requests_held_for_arbitration_are_reported_as_unasked() -> None:
     merged = scan._batched(once, "taint", {rid: {} for rid in weights}, weights=weights, within=lambda: next(budget, False), unasked=held)
     assert merged is not None and len(calls) == 1
     assert sorted(held + calls[0]) == sorted(weights), (held, calls)
+
+
+@pytest.mark.parametrize("extension", [".ts", ".tsx", ".mts", ".cts"])
+def test_typescript_uses_javascript_frontend(tmp_path, monkeypatch, extension):
+    from openultrasast.cpg.backend import JoernBackend
+
+    (tmp_path / "tests").mkdir()
+    (tmp_path / f"tests/probe{extension}").write_bytes(b"function first_party_test(x) { return x; }")
+    from openultrasast.preprocess import detect_language
+
+    assert detect_language(Path(f"probe{extension}")) == "typescript"
+    commands = []
+
+    def runner(command, **kwargs):
+        if _is_overlay(command):
+            return _overlaid(command, kwargs.get("cwd"))
+        commands.append(command)
+        assert Path(command[0]).name == "jssrc2cpg"
+        Path(command[command.index("-o") + 1]).write_bytes(b"graph")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr("shutil.which", lambda name: f"/opt/joern/{name}")
+    monkeypatch.setenv("OPENULTRASAST_JOERN_PROBE", "on")
+    result = JoernBackend(runner=runner).build(tmp_path, language="typescript")
+    try:
+        assert result is not None
+        assert len(commands) == 1
+    finally:
+        if result is not None:
+            result.cleanup()

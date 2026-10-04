@@ -19,7 +19,7 @@ from .layout import is_test_path, is_vendored, layout_facts
 FRONTENDS = {
     "php": "php",
     "javascript": "javascript",
-    "typescript": "typescript",
+    "typescript": "javascript",
     "python": "python",
     "java": "java",
     "c": "c",
@@ -109,14 +109,19 @@ class PartitionGraph:
 
     def _dispatch(self, kind: str, requests: Mapping[str, Mapping[str, object]], method: str) -> dict[str, list[object]]:
         answers: dict[str, list[object]] = {}
-        languages = dict.fromkeys(self.path_languages.get(str(params.get("file", "")), "") for params in requests.values())
+
+        def graph_language(path: str) -> str:
+            language = self.path_languages.get(path, "")
+            return "javascript" if language == "typescript" else language
+
+        languages = dict.fromkeys(graph_language(str(params.get("file", ""))) for params in requests.values())
         for language in languages:
             graph = self.graphs.get(language)
             if graph is None:
                 continue
             if self.budget is not None and time.monotonic() >= self.budget.deadline_monotonic:
                 break
-            selected = {rid: params for rid, params in requests.items() if self.path_languages.get(str(params.get("file", ""))) == language}
+            selected = {rid: params for rid, params in requests.items() if graph_language(str(params.get("file", ""))) == language}
             if not selected:
                 continue
             batch = getattr(graph, method, None) or getattr(graph, "run_batch", None)
@@ -133,7 +138,12 @@ class PartitionGraph:
                     # Carried, not normalized: it names request ids and costs, never a path.
                     answers.setdefault(TIMING, []).extend(rows)
                 elif rid == "__census__" and isinstance(rows, list):
-                    expected = set(next(p.paths for p in self.partitions if p.language == language))
+                    expected = {
+                        path
+                        for p in self.partitions
+                        if p.language == language or (language == "javascript" and p.language == "typescript")
+                        for path in p.paths
+                    }
                     normalized = self._normalize(rows)
                     names = [r.get("file_names") for r in normalized if isinstance(r, Mapping)]
                     named = bool(names) and all(isinstance(n, list) and all(isinstance(p, str) for p in n) for n in names)
@@ -234,10 +244,17 @@ def build_partitions(
                     graph.path_languages[relative] = languages[0]
                 elif languages:
                     boundaries.add("ambiguous_frontend_path")
-        if len(paths) > 1:
+        # JavaScript and TypeScript share one frontend input tree and graph. Keep
+        # original per-file languages for scoped coverage and property limitations.
+        groups: dict[str, list[str]] = {}
+        for language in paths:
+            key = "javascript" if language == "typescript" else language
+            groups.setdefault(key, []).append(language)
+        if len(groups) > 1:
             boundaries.add("cross_partition_semantics_unresolved")
         records: list[PartitionCoverage] = []
-        for language, sources in sorted(paths.items()):
+        for language, members in sorted(groups.items()):
+            sources = [source for member in members for source in paths[member]]
             relative_paths = tuple(sorted(p.relative_to(root).as_posix() for p in sources))
             frontend = FRONTENDS.get(language)
             if frontend is None:
@@ -247,7 +264,7 @@ def build_partitions(
                 continue
             scratch = Path(tempfile.mkdtemp(prefix="ousast-input-"))
             graph.roots[language] = scratch
-            size = 0
+            sizes: dict[str, int] = {}
             complete = True
             for source in sources:
                 if budget is not None and time.monotonic() >= budget.deadline_monotonic:
@@ -268,25 +285,31 @@ def build_partitions(
                             complete = False
                             break
                         output.write(chunk)
-                        size += len(chunk)
+                        relative = source.relative_to(root).as_posix()
+                        sizes[relative] = sizes.get(relative, 0) + len(chunk)
                 if not complete:
                     break
             built = build(scratch, frontend) if complete else None
             if built is not None:
                 graph.graphs[language] = built
                 graph.unparsed += tuple(graph._normalize(list(getattr(built, "unparsed", ()))))
-            record_limits: tuple[str, ...] = ("runtime_unspecified",) if language in {"javascript", "typescript"} else ()
-            if language == "typescript":
-                record_limits += ("typescript_property_support_unvalidated",)
-                boundaries.add("typescript_property_support_unvalidated")
-                # About TypeScript answers. YesWiki is a PHP application that ships a few `.ts` files, and this
-                # boundary made all 1,128 of its PHP questions unresolved.
-                owned_languages.setdefault("typescript_property_support_unvalidated", set()).add("typescript")
-            if language in {"c", "cpp"}:
-                record_limits += ("c_bounds_arithmetic_unmodeled",)
-            records.append(
-                PartitionCoverage(language, frontend, relative_paths, size, "built" if built is not None else "build_failed", record_limits)
-            )
+            for language in sorted(members):
+                relative_paths = tuple(sorted(p.relative_to(root).as_posix() for p in paths[language]))
+                source_size = sum(sizes.get(p, 0) for p in relative_paths)
+                record_limits: tuple[str, ...] = ("runtime_unspecified",) if language in {"javascript", "typescript"} else ()
+                if language == "typescript":
+                    record_limits += ("typescript_property_support_unvalidated",)
+                    boundaries.add("typescript_property_support_unvalidated")
+                    # About TypeScript answers. YesWiki is a PHP application that ships a few `.ts` files, and this
+                    # boundary made all 1,128 of its PHP questions unresolved.
+                    owned_languages.setdefault("typescript_property_support_unvalidated", set()).add("typescript")
+                if language in {"c", "cpp"}:
+                    record_limits += ("c_bounds_arithmetic_unmodeled",)
+                records.append(
+                    PartitionCoverage(
+                        language, frontend, relative_paths, source_size, "built" if built is not None else "build_failed", record_limits
+                    )
+                )
         from dataclasses import replace
 
         graph.partitions = tuple(

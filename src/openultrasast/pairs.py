@@ -39,7 +39,7 @@ from .preprocess import FileTarget, preprocess_repository
 from .rank import rank_targets
 from .ruleset import PatternRule
 from .semantic import OverlayRecord, adjudicate
-from .semantic.facts import FactLoadError, load_facts
+from .semantic.facts import TAINT_LANGUAGE_ALIAS, FactLoadError, load_facts
 from .semantic.functions import RESERVED_FUNCTION_LABELS, function_at, named_function_ranges, spans_named
 from .semantic.obligations.facts import OPERATION_KINDS
 
@@ -1071,7 +1071,7 @@ def _sink_ids_by_rule() -> dict[tuple[str, str], frozenset[str]]:
 
 
 def _fact_language(language: str) -> str:
-    return {"c_cpp": "c", "cpp": "c", "typescript": "javascript"}.get(language, language)
+    return {"c_cpp": "c", "cpp": "c", **TAINT_LANGUAGE_ALIAS}.get(language, language)
 
 
 def _in_named_function(record: OverlayRecord, function: str, ranges: FunctionRanges | None) -> bool:

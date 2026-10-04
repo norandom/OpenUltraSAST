@@ -322,3 +322,26 @@ def test_a_sanitizer_that_does_not_stop_sql_injection_is_not_listed() -> None:
     assert "esc_html" not in sanitizers
     assert "$wpdb->prepare" in sanitizers, "the parameterized form does stop it"
     assert "esc_sql" in sanitizers
+
+
+def test_typescript_taint_specs_share_javascript_facts():
+    from openultrasast.model.specs import taint_specs
+
+    javascript = taint_specs(language="javascript")
+    assert javascript
+    assert taint_specs(language="typescript") == javascript
+
+
+def test_typescript_native_facts_take_precedence_over_alias():
+    from dataclasses import replace
+
+    from openultrasast.model.specs import taint_specs
+    from openultrasast.semantic.facts import load_facts
+
+    facts = load_facts()
+    native = replace(next(sink for sink in facts.sinks if sink.language == "javascript"), language="typescript", calls=("tsOnly",))
+    facts = replace(facts, sinks=(*facts.sinks, native))
+    specs = taint_specs(language="typescript", facts=facts)
+    assert specs
+    assert {spec.language for spec in specs.values()} == {"typescript"}
+    assert {sink for spec in specs.values() for sink in spec.sinks} == {"tsOnly"}

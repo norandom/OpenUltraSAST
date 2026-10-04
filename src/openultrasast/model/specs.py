@@ -21,7 +21,7 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from ..semantic.facts import SemanticFacts, load_facts
+from ..semantic.facts import TAINT_LANGUAGE_ALIAS, SemanticFacts, load_facts
 from ..semantic.obligations.facts import ObligationFacts, load_obligation_facts
 from .taxonomy import FamilyTaxonomy, load_families
 
@@ -245,7 +245,10 @@ def taint_specs(
     Sources and sanitizers are language-wide: a family does not get its own notion of what untrusted input is,
     and a sanitizer that breaks one flow breaks it whatever the sink's family.
     """
-    scoped = (facts if facts is not None else load_facts()).for_language(language)
+    facts = facts if facts is not None else load_facts()
+    if language in TAINT_LANGUAGE_ALIAS:
+        language = facts.taint_language(language)
+    scoped = facts.for_language(language)
     families = taxonomy if taxonomy is not None else load_families()
     sources = tuple(sorted({pattern for fact in scoped.sources for pattern in fact.patterns}))
 

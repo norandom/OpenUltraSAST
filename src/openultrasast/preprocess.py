@@ -22,6 +22,8 @@ LANGUAGE_BY_EXTENSION = {
     ".cjs": "javascript",
     ".ts": "typescript",
     ".tsx": "typescript",
+    ".mts": "typescript",
+    ".cts": "typescript",
     ".go": "go",
     ".rs": "rust",
     ".java": "java",

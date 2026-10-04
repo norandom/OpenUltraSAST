@@ -15,12 +15,14 @@ from ..ruleset.frameworks import Priors, kept, normalize_priors, read_tag, tag_o
 
 DEFAULT_FACTS_DIR = Path(__file__).resolve().parents[1] / "ruleset" / "semantic"
 
+TAINT_LANGUAGE_ALIAS = {"typescript": "javascript"}
+
 _LANGUAGE_ALIASES = {
     "c": "c",
     "cpp": "c",
     "python": "python",
     "javascript": "javascript",
-    "typescript": "javascript",
+    **TAINT_LANGUAGE_ALIAS,
     "java": "java",
 }
 
@@ -145,8 +147,18 @@ class SemanticFacts:
     dispatches: tuple[DispatchFact, ...] = ()
     layouts: tuple[LayoutFact, ...] = ()
 
+    def taint_language(self, language: str) -> str:
+        """Prefer native facts when supplied; otherwise use the shared language aliases."""
+        if language in TAINT_LANGUAGE_ALIAS and any(
+            item.language == language
+            for items in (self.sources, self.sinks, self.sanitizers, self.dispatches, self.layouts)
+            for item in items
+        ):
+            return language
+        return _LANGUAGE_ALIASES.get(language, language)
+
     def for_language(self, language: str) -> SemanticFacts:
-        key = _LANGUAGE_ALIASES.get(language, language)
+        key = self.taint_language(language)
         return SemanticFacts(
             version=self.version,
             sources=tuple(item for item in self.sources if item.language == key),

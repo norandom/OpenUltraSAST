@@ -44,6 +44,7 @@ from ...mapping import analyze_entry_points, attach_reachability_hints
 from ...preprocess import detect_language, preprocess_repository
 from ...rank import rank_targets
 from ...ruleset import DEFAULT_RULESET_DIR, load_ruleset
+from ...semantic.facts import TAINT_LANGUAGE_ALIAS
 from .repo_facts import DECLARATION, GLOBAL, enclosing
 
 ROLES = ("vulnerable", "fixed")
@@ -64,8 +65,9 @@ def quick_languages(directory: Path = DEFAULT_RULESET_DIR) -> frozenset[str]:
 
 
 def engine_languages(directory: Path = DEFAULT_RULESET_DIR) -> frozenset[str]:
-    """The languages the deterministic engine has a semantic model for: one ``semantic/<language>.toml`` each."""
-    return frozenset(path.stem for path in (directory / "semantic").glob("*.toml"))
+    """Languages with a semantic fact table, including aliases of available tables."""
+    languages = {path.stem for path in (directory / "semantic").glob("*.toml")}
+    return frozenset(languages | {alias for alias, target in TAINT_LANGUAGE_ALIAS.items() if target in languages})
 
 
 def covers(covered: Iterable[str], language: str) -> bool:

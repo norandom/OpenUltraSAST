@@ -311,3 +311,15 @@ def test_the_loop_runs_as_one_plane_run_and_the_gate_rejects_a_demotion_that_cos
     assert set(features) == {"lmdeploy/vl/media/connection.py::_load_http_url"}, "no fixed-pin alert became a candidate"
     assert all(r["pin"] == VULNERABLE and "in_fix_range" not in json.dumps(r["x"]) for r in features.values())
     assert fixed_alert.row["in_fix_range"] is True and fixed_alert.row["function"] == "load"
+
+
+def test_engine_languages_include_aliases_only_for_available_tables(tmp_path):
+    from openultrasast.plane.tasks.alerts import engine_languages
+
+    assert "typescript" in engine_languages()
+    semantic = tmp_path / "semantic"
+    semantic.mkdir()
+    (semantic / "python.toml").write_text("")
+    assert engine_languages(tmp_path) == {"python"}
+    (semantic / "javascript.toml").write_text("")
+    assert engine_languages(tmp_path) == {"python", "javascript", "typescript"}

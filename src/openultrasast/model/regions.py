@@ -24,6 +24,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from ..semantic.facts import TAINT_LANGUAGE_ALIAS
 from .contracts import AffectedRelationship, ChangeContext, ExecutionBudget, QuestionIdentity
 from .specs import config_specs, dominance_specs, taint_specs
 
@@ -41,7 +42,7 @@ _ACCESS_RANK: dict[str, float] = {
 # Languages whose facts the model layer carries. Anything else yields no region rather than an empty scan
 # that looks like a clean bill of health.
 _LANGUAGES = {"python", "javascript", "typescript", "java", "c", "c_cpp", "php"}
-_NORMALISE = {"typescript": "javascript", "c_cpp": "c"}
+_NORMALISE = {**TAINT_LANGUAGE_ALIAS, "c_cpp": "c"}
 
 # What a CPG calls a file's top-level code. A module body is a method like any other to the engine, and
 # naming it here is what lets a region ask about the code that is not inside any function.

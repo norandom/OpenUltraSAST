@@ -126,9 +126,8 @@ def resolve_scan(scans: Path, case: str, side: str) -> dict[str, Any] | None:
 
 
 def recorded_engine(language: str, findings: list, result: Mapping | None, repository: bool) -> Part:
-    # The language list describes standalone scans. Repository scans also analyze
-    # TypeScript; recorded function findings take precedence over that list.
-    if language not in ENGINE_LANGUAGES and not findings and not (repository and language == "typescript" and result is not None):
+    # Recorded findings take precedence over the shared engine language coverage.
+    if language not in ENGINE_LANGUAGES and not findings:
         return NONE
     state = engine_for(result)
     if state is not None:

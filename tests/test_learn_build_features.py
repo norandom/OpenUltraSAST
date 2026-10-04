@@ -87,8 +87,8 @@ def test_feature_typescript_repository_witness_reaches_static_record(tmp_path: P
     assert parts["engine"].state == "ran"
     assert parts["engine"].values["eng.witness_steps_min"] == 5
     assert parts["engine"].values["eng.findings"] == 1
-    assert builder.recorded_engine("typescript", [], None, True).state == "none"
-    assert builder.recorded_engine("typescript", [], result, False).state == "none"
+    assert builder.recorded_engine("typescript", [], None, True).state == "failed"
+    assert builder.recorded_engine("typescript", [], result, False).state == "ran"
     assert builder.recorded_engine("typescript", [], result, True).values["eng.findings"] == 0
 
 

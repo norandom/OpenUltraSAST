@@ -344,3 +344,37 @@ def test_unnamed_sharded_census_remains_explicitly_incomplete(tmp_path):
         assert "partition_file_census_unavailable" in graph.execution_diagnostics()
     finally:
         graph.cleanup()
+
+
+def test_mixed_javascript_typescript_pin_builds_and_queries_one_graph(tmp_path):
+    from openultrasast.model.partitions import build_partitions
+
+    sources = {"app.js": "function run(x) { return x; }", "handler.ts": "const x: number = 1;"}
+    for path, body in sources.items():
+        (tmp_path / path).write_text(body)
+    builds, queries = [], []
+
+    class Graph:
+        def run_batch(self, kind, requests):
+            queries.append(requests)
+            return {**{key: [] for key in requests}, "__census__": [{"file_names": list(sources)}]}
+
+    def build(root, language):
+        assert {p.name: p.read_text() for p in root.iterdir()} == sources
+        builds.append(language)
+        return Graph()
+
+    graph = build_partitions(tmp_path, build, None)
+    try:
+        assert builds == ["javascript"]
+        assert {p.language for p in graph.partitions} == {"javascript", "typescript"}
+        assert sum(p.source_bytes for p in graph.partitions) == sum(len(body.encode()) for body in sources.values())
+        assert "cross_partition_semantics_unresolved" not in graph.boundaries
+        assert graph.boundary_languages["typescript_property_support_unvalidated"] == ("typescript",)
+        requests = {path: {"file": path} for path in sources}
+        answers = graph.run_batch("taint", requests)
+        assert all(answers[path] == [] for path in sources)
+        assert queries == [requests]
+        assert not graph.execution_diagnostics()
+    finally:
+        graph.cleanup()
