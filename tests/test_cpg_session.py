@@ -343,3 +343,42 @@ def test_a_startup_wait_is_bounded_by_its_allowance_not_the_deadline(tmp_path, f
     # Bounded by the allowance, nowhere near the 600-second deadline.
     assert time.monotonic() - started < 10.0
     live.close()
+
+
+@pytest.mark.parametrize("cancel", [False, True])
+def test_live_receipt_observation_without_socket_or_jvm(tmp_path, monkeypatch, cancel):
+    import threading
+    from types import SimpleNamespace
+
+    live = EngineSession(tmp_path, ExecutionBudget(time.monotonic() + 10, 1), {})
+    live._process = SimpleNamespace(poll=lambda: None)
+    stopped = threading.Event()
+    observed = []
+
+    def close():
+        live._process = None
+        stopped.set()
+
+    def post(code, **kwargs):
+        target = code.split('java.nio.file.Path.of("', 1)[1].split('"', 1)[0]
+        nonce = code.split('__ousastPath, "', 1)[1].split("\\n", 1)[0]
+        Path(target).write_text(nonce + '\n{"__question__":"a"}\n')
+        if cancel:
+            assert stopped.wait(2)
+        return {"success": True}
+
+    def observe(output):
+        observed.append(output)
+        return not cancel
+
+    monkeypatch.setattr(live, "_post", post)
+    monkeypatch.setattr(live, "close", close)
+    live.output_observer = observe
+    answer = live.evaluate("work()", timeout=5)
+    assert any("__question__" in output for output in observed)
+    if cancel:
+        assert answer is None and live.failure == "session_observer_cancelled"
+        assert stopped.is_set()
+    else:
+        assert answer.stdout == '{"__question__":"a"}\n'
+    assert not list(tmp_path.glob("answer-*.txt"))

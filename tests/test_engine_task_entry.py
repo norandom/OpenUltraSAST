@@ -30,7 +30,7 @@ def test_engine_cluster_heap_flags(monkeypatch):
     backend = worker.MeasuredBackend(30, 10, lambda: None, heap_profile="cluster")
     flags = (
         "-Xms1700m -Xmx1700m -XX:MaxMetaspaceSize=256m -XX:ReservedCodeCacheSize=128m "
-        "-XX:MaxDirectMemorySize=256m -Xss512k -XX:ActiveProcessorCount=1 -XX:+UseG1GC"
+        "-XX:MaxDirectMemorySize=256m -Xss512k -XX:ActiveProcessorCount=2 -XX:+UseG1GC"
     )
     assert backend._jvm_env()["JAVA_TOOL_OPTIONS"] == flags
     assert backend._heap_flag() == "-J-Xmx1700m"

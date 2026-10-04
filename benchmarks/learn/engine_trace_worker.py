@@ -21,7 +21,9 @@ from pathlib import Path
 
 from engine_trace_parse import parse_trace
 
-from openultrasast.cpg.backend import DATAFLOW_OVERLAY, JoernBackend, _render
+from openultrasast.cpg.backend import DATAFLOW_OVERLAY, JoernBackend, _render, extract_payload
+from openultrasast.cpg.session import EngineSession
+from openultrasast.model.contracts import ExecutionBudget
 
 
 def write_json(path, value):
@@ -43,7 +45,7 @@ MIN_CPG_BYTES = 1024
 HEAP_MB = 2560
 CLUSTER_JVM_FLAGS = (
     "-Xms1700m -Xmx1700m -XX:MaxMetaspaceSize=256m -XX:ReservedCodeCacheSize=128m "
-    "-XX:MaxDirectMemorySize=256m -Xss512k -XX:ActiveProcessorCount=1 -XX:+UseG1GC"
+    "-XX:MaxDirectMemorySize=256m -Xss512k -XX:ActiveProcessorCount=2 -XX:+UseG1GC"
 )
 ENGINE_BUG = "engine bug: jssrc2cpg ObjectPropertyCallLinker"
 EXCLUDED_DIRS = frozenset({"tests", "test", "docs", "node_modules", "vendor", "dist", "build", "templates", "migrations"})
@@ -60,7 +62,9 @@ def instrument_failure(proof):
         if stage["command"] in FRONTENDS:
             if stage.get("cpg_bytes", 0) <= MIN_CPG_BYTES:
                 return "frontend wrote no CPG"
-        elif stage["command"] == "joern" and stage["seconds"] < 5:
+        elif (
+            stage["command"] == "joern" or (stage["command"] == "joern-session" and stage.get("step") == "start" and stage.get("success"))
+        ) and stage["seconds"] < 5:
             return f"implausibly fast JVM step: {stage['command']} in {stage['seconds']:.3f}s (<5s)"
     if not proof.get("jvm"):
         return "no JVM step recorded"
@@ -68,7 +72,7 @@ def instrument_failure(proof):
 
 
 class MeasuredBackend(JoernBackend):
-    """Use the shipped backend with a process watchdog, no concurrent query threads."""
+    """Use the shipped backend with process and resident-session watchdogs."""
 
     def __init__(self, deadline, question_deadline, checkpoint, heap_profile="vm"):
         if heap_profile not in {"vm", "cluster"}:
@@ -92,6 +96,7 @@ class MeasuredBackend(JoernBackend):
         self.labelled_files = []
         self.retry_pending = False
         self.retries = []
+        self.session_fallback = ""
 
     def _jvm_env(self):
         env = super()._jvm_env()
@@ -102,8 +107,160 @@ class MeasuredBackend(JoernBackend):
             env.pop("JDK_JAVA_OPTIONS", None)
         return env
 
+    def _session_stage(self, name, action):
+        started = time.monotonic()
+        result = None
+        try:
+            result = action()
+            return result
+        finally:
+            self.stages.append(
+                {
+                    "command": "joern-session",
+                    "step": name,
+                    "success": result is not None and result is not False,
+                    "seconds": time.monotonic() - started,
+                    "heap_mb": self._heap_mb(),
+                    "java_tool_options": self._jvm_env()["JAVA_TOOL_OPTIONS"],
+                }
+            )
+            self.checkpoint()
+
+    def _fallback_session(self, reason):
+        self.session_fallback = reason
+        if self._session is not None:
+            detail = self._session.log_tail()
+            if "OutOfMemoryError" in detail:
+                self.fatal = "JVM out of memory"
+                self.stages[-1]["oom"] = True
+            self.stages[-1]["output_tail"] = detail
+        self.close_session()
+        self.checkpoint()
+
+    def _session_for(self, cpg_path):
+        if self.session_fallback or self.fatal or self.timed_out:
+            return None
+        try:
+            if self._session is None:
+                self._session = EngineSession(
+                    cpg_path.parent / "engine-session",
+                    ExecutionBudget(self.deadline, 5),
+                    self._jvm_env(),
+                    startup_allowance_seconds=min(180, max(20, (self.deadline - time.monotonic()) / 3)),
+                )
+                if not self._session_stage("start", self._session.start):
+                    self._fallback_session(self._session.failure or "session_start_failed")
+                    return None
+            if self._session.loaded_graph != str(cpg_path):
+                if not self._session_stage("load", lambda: self._session.load(cpg_path, timeout=self.query_timeout)):
+                    self._fallback_session(self._session.failure or "session_load_failed")
+                    return None
+                self._defined.clear()
+            return self._session
+        except (OSError, RuntimeError) as exc:
+            self._fallback_session(f"session_start_or_load:{exc}")
+            return None
+
+    def _session_payload(self, cpg_path, query, params):
+        session = self._session_for(cpg_path)
+        if session is None:
+            return None
+        end = min(self.deadline, time.monotonic() + self.query_timeout)
+        question_end = end
+        prior_asked = list(self.asked)
+        prior_answers = dict(self.answers)
+        prior_counts = self.completion_counts.copy()
+        consumed = 0
+        streamed = ""
+
+        def observe(output):
+            nonlocal consumed, question_end, streamed
+            streamed = output
+            lines = output[consumed:].splitlines(keepends=True)
+            for line in lines:
+                if not line.endswith("\n"):
+                    break
+                consumed += len(line)
+                try:
+                    event = json.loads(line)
+                except ValueError:
+                    continue
+                if not isinstance(event, dict):
+                    continue
+                if "__question__" in event:
+                    self.asked.append(event["__question__"])
+                    question_end = min(end, time.monotonic() + self.question_deadline)
+                if "id" in event and "rows" in event:
+                    self.answers[event["id"]] = event["rows"]
+                    self.completion_counts[event["id"]] += 1
+                    question_end = end
+                self.checkpoint()
+            if time.monotonic() >= min(end, question_end):
+                self.timed_out = True
+                return False
+            return True
+
+        def run():
+            source = (self.queries_dir / f"{query}.sc").read_text()
+            # Same shipped script/parameters as JoernBackend, using the graph loaded above.
+            if source.count("importCpg(cpgFile)") != 1:
+                return None
+            symbol = f"ousast_{query}"
+            if query not in self._defined:
+                source = source.replace("importCpg(cpgFile)", "()", 1)
+                source = source.replace("@main def exec(", f"def {symbol}(", 1)
+                if session.define(source, timeout=max(0, end - time.monotonic())) is None:
+                    return None
+                self._defined.add(query)
+            arguments = ", ".join(f"{name} = {json.dumps(_render(value))}" for name, value in sorted(params.items()))
+            session.output_observer = observe
+            try:
+                answer = session.evaluate(f"{symbol}({arguments})", timeout=max(0, end - time.monotonic()))
+            finally:
+                session.output_observer = None
+            if answer is not None:
+                observe(answer.stdout)
+                return answer.stdout
+            return None
+
+        failure = ""
+        try:
+            body = self._session_stage(query, run)
+        except (OSError, RuntimeError) as exc:
+            body = None
+            failure = f"session_{query}:{exc}"
+        if self.timed_out:
+            self.close_session()
+            return streamed
+        parsed = extract_payload(body) if body is not None else None
+        if not isinstance(parsed, dict):
+            # Discard markers from an unverified attempt before replaying the script.
+            self.asked[:] = prior_asked
+            self.answers = prior_answers
+            self.completion_counts = prior_counts
+            self._fallback_session(failure or session.failure or f"session_{query}_payload_missing")
+            return None
+        if query == "census":
+            self.stages[-1]["files"] = int(parsed.get("files", 0))
+            if self.stages[-1]["files"] <= 0:
+                self.fatal = "query census read zero files"
+        return body
+
     def _apply_overlays(self, cpg_path, scratch):
-        result = super()._apply_overlays(cpg_path, scratch)
+        session = self._session_for(cpg_path)
+        result = False
+        if session is not None:
+            body = self._session_payload(cpg_path, "overlay", {"cpgFile": str(cpg_path)})
+            saved = session.scratch / "workspace" / cpg_path.name / "cpg.bin"
+            if body is not None and saved.is_file():
+                import shutil
+
+                shutil.copyfile(saved, cpg_path)
+                result = True
+            elif body is not None:
+                self._fallback_session("session_overlay_saved_graph_missing")
+        if not result:
+            result = super()._apply_overlays(cpg_path, scratch)
         # An optional overlay failure must not prevent the taint-only attempt.
         if self.fatal == ENGINE_BUG and not self.timed_out:
             self.retry_pending = True
@@ -300,6 +457,8 @@ def worker_language(pin, root, out, deadline, question_deadline, persist=write_j
             if "cpg_path" in stage:
                 proof["cpg_path"] = stage["cpg_path"]
                 proof["cpg_bytes"] = stage["cpg_bytes"]
+        if getattr(backend, "session_fallback", ""):
+            proof["session_fallback"] = backend.session_fallback
         for row in record["units"]:
             rid = row["unit"]
             row["instrument"] = proof
@@ -408,6 +567,8 @@ def worker_language(pin, root, out, deadline, question_deadline, persist=write_j
                     questions_asked=[unit["unit"]] if unit["unit"] in backend.asked else [],
                 )
     finally:
+        if hasattr(backend, "close_session"):
+            backend.close_session()
         if cpg and cpg.cleanup:
             cpg.cleanup()
         for stage in backend.stages:

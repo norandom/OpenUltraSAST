@@ -31,10 +31,12 @@ import os
 import signal
 import socket
 import subprocess
+import threading
 import time
 import urllib.error
 import urllib.request
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -78,6 +80,7 @@ class EngineSession:
     # with nothing: measured as a 25.3 s "build" of which only 4.5 s was the frontend.
     startup_allowance_seconds: float = 20.0
     work_reserve_seconds: float = 10.0
+    output_observer: Callable[[str], bool] | None = None
     failure: str = ""
     startup_seconds: float = 0.0
     loaded_graph: str = ""
@@ -199,7 +202,34 @@ class EngineSession:
         target = self.scratch / f"answer-{nonce}.txt"
         wrapped = _redirected(code, target, nonce)
         started = time.monotonic()
-        body = self._post(wrapped, timeout=remaining)
+        if self.output_observer is None:
+            body = self._post(wrapped, timeout=remaining)
+        else:
+            # Only HTTP runs in the helper; observation and cancellation stay on the caller.
+            done = threading.Event()
+            response: list[dict[str, object] | None] = []
+
+            def post() -> None:
+                try:
+                    response.append(self._post(wrapped, timeout=remaining))
+                finally:
+                    done.set()
+
+            threading.Thread(target=post, daemon=True).start()
+            while True:
+                finished = done.wait(0.05)
+                try:
+                    first, _, output = target.read_text(errors="replace").partition("\n")
+                except OSError:
+                    first, output = "", ""
+                if not self.output_observer(output if first.strip() == nonce else ""):
+                    self._poison("session_observer_cancelled")
+                    self.close()
+                    target.unlink(missing_ok=True)
+                    return None
+                if finished:
+                    break
+            body = response[0] if response else None
         seconds = time.monotonic() - started
         self.requests += 1
         if body is None:
