@@ -41,6 +41,10 @@ def safe_path(root, name):
 FRONTENDS = {"php2cpg", "pysrc2cpg", "jssrc2cpg", "javasrc2cpg", "c2cpg", "joern-parse"}
 MIN_CPG_BYTES = 1024
 HEAP_MB = 2560
+CLUSTER_JVM_FLAGS = (
+    "-Xms1700m -Xmx1700m -XX:MaxMetaspaceSize=256m -XX:ReservedCodeCacheSize=128m "
+    "-XX:MaxDirectMemorySize=256m -Xss512k -XX:ActiveProcessorCount=1 -XX:+UseG1GC"
+)
 ENGINE_BUG = "engine bug: jssrc2cpg ObjectPropertyCallLinker"
 EXCLUDED_DIRS = frozenset({"tests", "test", "docs", "node_modules", "vendor", "dist", "build", "templates", "migrations"})
 
@@ -66,8 +70,16 @@ def instrument_failure(proof):
 class MeasuredBackend(JoernBackend):
     """Use the shipped backend with a process watchdog, no concurrent query threads."""
 
-    def __init__(self, deadline, question_deadline, checkpoint):
-        super().__init__(build_timeout=deadline, query_timeout=deadline, session_transport=False, heap_mb=HEAP_MB)
+    def __init__(self, deadline, question_deadline, checkpoint, heap_profile="vm"):
+        if heap_profile not in {"vm", "cluster"}:
+            raise ValueError(f"unknown heap profile: {heap_profile}")
+        self.heap_profile = heap_profile
+        super().__init__(
+            build_timeout=deadline,
+            query_timeout=deadline,
+            session_transport=False,
+            heap_mb=1700 if heap_profile == "cluster" else HEAP_MB,
+        )
         self.deadline = time.monotonic() + deadline
         self.question_deadline = question_deadline
         self.checkpoint = checkpoint
@@ -80,6 +92,15 @@ class MeasuredBackend(JoernBackend):
         self.labelled_files = []
         self.retry_pending = False
         self.retries = []
+
+    def _jvm_env(self):
+        env = super()._jvm_env()
+        if self.heap_profile == "cluster":
+            # Bound every JVM, including the child spawned by the Joern launcher.
+            env["JAVA_TOOL_OPTIONS"] = CLUSTER_JVM_FLAGS
+            env.pop("_JAVA_OPTIONS", None)
+            env.pop("JDK_JAVA_OPTIONS", None)
+        return env
 
     def _apply_overlays(self, cpg_path, scratch):
         result = super()._apply_overlays(cpg_path, scratch)
@@ -250,14 +271,18 @@ def unit_record(unit, status, reason="", **extra):
     }
 
 
-def worker_language(pin, root, out, deadline, question_deadline, persist=write_json):
+def worker_language(pin, root, out, deadline, question_deadline, persist=write_json, heap_profile="vm"):
     proof = {
         "files": [],
         "bytes": 0,
         "cpg_path": None,
         "cpg_bytes": 0,
         "jvm": [],
-        "heap_mb": HEAP_MB,
+        "heap_mb": 1700 if heap_profile == "cluster" else HEAP_MB,
+        "heap_profile": heap_profile,
+        "java_tool_options": CLUSTER_JVM_FLAGS
+        if heap_profile == "cluster"
+        else f"{os.environ.get('JAVA_TOOL_OPTIONS', '').strip()} -Xmx{HEAP_MB}m".strip(),
         "excludes": sorted(EXCLUDED_DIRS),
         "materialization": pin.get("materialization", {}),
     }
@@ -284,7 +309,7 @@ def worker_language(pin, root, out, deadline, question_deadline, persist=write_j
                 row["witness_rows"] = [r for r in backend.answers[rid] if isinstance(r, dict) and "kind" not in r and "sink" in r]
         persist(out, record)
 
-    backend = MeasuredBackend(deadline, question_deadline, checkpoint)
+    backend = MeasuredBackend(deadline, question_deadline, checkpoint, **({"heap_profile": heap_profile} if heap_profile != "vm" else {}))
     proof["jvm"] = backend.stages
     proof["retries"] = getattr(backend, "retries", [])
     backend.labelled_files = sorted({u["file"] for u in pin["units"] if u["supported"]})
@@ -398,11 +423,11 @@ def worker_language(pin, root, out, deadline, question_deadline, persist=write_j
     return record
 
 
-def worker(pin, root, out, deadline, question_deadline):
+def worker(pin, root, out, deadline, question_deadline, heap_profile="vm"):
     """Run language partitions sequentially under one shared container deadline."""
     languages = sorted({"javascript" if u["language"] == "typescript" else u["language"] for u in pin["units"] if u["supported"]})
     if len(languages) <= 1:
-        return worker_language(pin, root, out, deadline, question_deadline)
+        return worker_language(pin, root, out, deadline, question_deadline, heap_profile=heap_profile)
     end = time.monotonic() + deadline
     record = {
         **pin,
@@ -431,7 +456,9 @@ def worker(pin, root, out, deadline, question_deadline):
             u for u in pin["units"] if u["supported"] and ("javascript" if u["language"] == "typescript" else u["language"]) == language
         ]
         questions = {u["unit"]: pin["questions"][u["unit"]] for u in units}
-        worker_language({**pin, "units": units, "questions": questions}, root, out, remaining, question_deadline, persist)
+        worker_language(
+            {**pin, "units": units, "questions": questions}, root, out, remaining, question_deadline, persist, heap_profile=heap_profile
+        )
     record["done"] = True
     write_json(out, record)
     return record
@@ -442,10 +469,13 @@ def main():
     parser.add_argument("--worker", type=Path, required=True)
     parser.add_argument("--deadline", type=int, default=900)
     parser.add_argument("--question-deadline", type=int, default=120)
+    parser.add_argument("--heap-profile", choices=("cluster", "vm"), default="vm")
+    parser.add_argument("--root", type=Path, default=Path("/case"))
+    parser.add_argument("--output", type=Path, default=Path("/out/result.json"))
     args = parser.parse_args()
     if min(args.deadline, args.question_deadline) <= 0:
         parser.error("deadlines must be positive")
-    worker(json.loads(args.worker.read_text()), Path("/case"), Path("/out/result.json"), args.deadline, args.question_deadline)
+    worker(json.loads(args.worker.read_text()), args.root, args.output, args.deadline, args.question_deadline, args.heap_profile)
     return 0
 
 

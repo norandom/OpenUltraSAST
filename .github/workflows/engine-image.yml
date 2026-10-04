@@ -6,8 +6,12 @@ on:
     paths:
       - 'src/**'
       - 'benchmarks/learn/engine_trace*.py'
+      - 'benchmarks/learn/engine_task_entry.py'
       - 'benchmarks/learn/engine_worker_service.py'
       - 'Dockerfile'
+      - 'plane/Dockerfile.engine-task'
+      - 'ops/frontend-retention/install.py'
+      - 'pyproject.toml'
       - '.github/workflows/engine-image.yml'
 permissions:
   contents: read
@@ -18,6 +22,14 @@ concurrency:
 jobs:
   image:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: openultrasast
+            dockerfile: Dockerfile
+          - package: ousast-engine-task
+            dockerfile: plane/Dockerfile.engine-task
     steps:
       - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v3
@@ -29,14 +41,16 @@ jobs:
       - id: names
         env:
           OWNER: ${{ github.repository_owner }}
+          PACKAGE: ${{ matrix.package }}
         run: |
-          echo "image=ghcr.io/${OWNER,,}/openultrasast" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${OWNER,,}/$PACKAGE" >> "$GITHUB_OUTPUT"
           echo "sha=sha-${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
       - id: build
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
           push: true
           tags: |
             ${{ steps.names.outputs.image }}:${{ steps.names.outputs.sha }}
@@ -44,4 +58,6 @@ jobs:
       - env:
           IMAGE: ${{ steps.names.outputs.image }}
           DIGEST: ${{ steps.build.outputs.digest }}
-        run: echo "$IMAGE@$DIGEST" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo "$IMAGE@$DIGEST"
+          echo "$IMAGE@$DIGEST" >> "$GITHUB_STEP_SUMMARY"

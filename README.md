@@ -363,3 +363,81 @@ own terms:
 - Joern (Apache-2.0) is downloaded at image build time.
 - The tree-sitter wheels of the `semantic` extra are MIT.
 - The published benchmark cases were licence-checked one by one. v1's OpenCVE case is BUSL-1.1, see [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
+## Engine traces on kube-ax
+
+`benchmarks/learn/engine_trace.py --executor ax` submits AX v0.3.1 Tasks with
+`ax apply -f -` and removes them with `ax delete task NAME`. The operator supplies
+kubeconfig and AX access; the dispatcher creates no Kubernetes resources or secrets.
+The `ousast-engine-task` GHCR package **must be made Public once** in its package
+settings so the actors can pull it without registry credentials.
+
+The task image contains the current engine and worker code. Rebuild it after code
+changes and pass its digest with `--image`; no analyzer download is needed. The host
+materializes each pin as usual and uploads source and prepared questions under
+`engine-queue/<run>/<pin>/`. Only object-scoped presigned URLs and deadline parameters
+enter Task env. Credentials stay on the coordinator. Configure `OUSAST_MEMORY=s3://…`
+and the store credentials in the coordinator's `.env` or environment, with
+`S3_ENDPOINT=https://files.because-security.com`. Presigned links expire after the
+pin deadline plus ten minutes. IP and HTTP endpoints are rejected: the operator's
+actor EgressPolicy must allow **files.because-security.com:443**.
+
+Completion is the result object, even while AX reports Running. Failed phases and
+host deadlines produce explicit failure/timeout rows. Task and staging-object cleanup
+runs on success and failure; cleanup failure stops further dispatch. Per-pin files,
+`--rerun-status`, resume and `progress.json` retain the existing trace-runner behavior.
+AX results include `executor: "ax"`, `worker_ip`, and the image digest. Placement is
+random; `--parallel` defaults to two AX tasks and cannot exceed two.
+
+AX workers use `--heap-profile cluster` with
+`-Xms1700m -Xmx1700m -XX:MaxMetaspaceSize=256m -XX:ReservedCodeCacheSize=128m -XX:MaxDirectMemorySize=256m -Xss512k -XX:ActiveProcessorCount=1 -XX:+UseG1GC`
+on every frontend/query JVM; instruments record the flags. A `JVM out of memory`
+result is automatically re-queued to one local Docker lane with `--heap-profile vm`
+(2560m), recording `fallback: "vm-oom"` and the AX attempt. `mixed-ax` also uses this
+one Docker lane for overflow, prioritizing pending OOM fallbacks. Thus a mixed run has
+up to two AX tasks plus one Docker container. Use `--docker-image` for the locally
+available VM image; Docker never pulls it implicitly. A STOP file prevents new
+launches; interrupted fallback queues are recovered on resume.
+
+Coordinator commands, from this worktree (the AX binary and kubeconfig remain
+configurable). Build/push the actual uncommitted tree and read its digest:
+
+```bash
+cd /home/mc/Source/OpenUltraSAST/.claude/worktrees/engine-ax
+export PATH=/home/mc/Source/OpenUltraSAST/.venv/bin:$PATH
+export PYTHONPATH="$PWD/src"
+TASK_TAG="ghcr.io/norandom/ousast-engine-task:sha-$(git rev-parse --short=7 HEAD)"
+docker buildx build --platform linux/amd64 -f plane/Dockerfile.engine-task \
+  -t "$TASK_TAG" -t ghcr.io/norandom/ousast-engine-task:main \
+  --push --metadata-file /tmp/ousast-engine-task-build.json .
+export TASK_IMAGE="ghcr.io/norandom/ousast-engine-task@$(python -c 'import json; print(json.load(open("/tmp/ousast-engine-task-build.json"))["containerimage.digest"])')"
+printf '%s\n' "$TASK_IMAGE"
+docker build -f Dockerfile -t openultrasast:engine-ax .
+```
+
+The Engine image workflow also builds/pushes both images and prints each digest;
+CI needs the changes published before dispatch. The local build above includes
+uncommitted changes without publishing a git commit.
+
+With `KUBECONFIG` pointing to the operator's kube-ax config and store settings in
+`.env`, run a one-pin smoke using the default experiment units and local example
+memory (or add `--examples /path/to/frozen-examples.jsonl`):
+
+```bash
+: "${KUBECONFIG:?Set KUBECONFIG to the operator kube-ax configuration}"
+python benchmarks/learn/engine_trace.py --executor ax \
+  --ax-bin "$HOME/.local/ax-v0.3.1/ax" --kubeconfig "$KUBECONFIG" \
+  --atespace default --image "$TASK_IMAGE" --docker-image openultrasast:engine-ax \
+  --parallel 1 --limit 1 --deadline 900 \
+  --out "$HOME/ousast-results/plane/engine-ax-smoke"
+```
+
+Then run the mixed lanes (repeat to resume; defaults re-run failed/timeout pins):
+
+```bash
+python benchmarks/learn/engine_trace.py --executor mixed-ax \
+  --ax-bin "$HOME/.local/ax-v0.3.1/ax" --kubeconfig "$KUBECONFIG" \
+  --atespace default --image "$TASK_IMAGE" --docker-image openultrasast:engine-ax \
+  --parallel 2 --deadline 900 --rerun-status failed,timeout \
+  --out "$HOME/ousast-results/plane/engine-ax-mixed"
+```
