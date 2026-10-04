@@ -17,6 +17,21 @@ in `~/.cache/ousast/ax-src/`. The cluster's context, registry and pool sizes com
 (`ops/k8s/profiles/kind-images.json`), which the templates are re-pinned from and which is committed with them.
 `up.sh` and `smoke-run.sh` run the checkout's code with `OUSAST_PYTHON` (default `.venv/bin/python`).
 
+The kind profile runs on a 7.7 GB server VM. Observability is off by default
+(`kind_observability = false` in `ops/k8s/profiles/kind.toml`). This saves the measured
+930 MiB used by `otel-system`, about 40% of the cluster's 2.3 GB. The smoke Run still
+completes with those deployments stopped. To enable the stack, run
+`OUSAST_KIND_OBSERVABILITY=1 ops/ax/up.sh` or set `kind_observability = true` in the profile.
+
+`up.sh` stages copied Substrate manifests in a temporary checkout view and installs through
+`hack/install-ate-kind.sh`. The local `ops/ax/substrate-kind-lean/` overlay removes the collector,
+Prometheus, Jaeger and their supporting resources before installation. This preserves the
+installer's secret, CRD and image setup. The upstream checkout is unchanged. The shared
+`ate-otel-config` disables trace, metric and log export and the OTEL SDK; it removes the old
+collector endpoint and metric timing keys. On an existing cluster, `up.sh` scales the three
+observability deployments to zero, replaces the ConfigMap data and rolls its consumers when
+the configuration changes. Opting in restores the upstream ConfigMap and observability manifests.
+
 ## How a Run executes
 
 A Run (`plane/runs/*.yaml`, kind `openultrasast.io/v1alpha1 Run`) is a DAG of steps; each step names an ax Task
@@ -191,7 +206,7 @@ configure the bucket.
 No deployment outside this host's kind cluster has been made. The step-by-step guidance, with what is implemented
 and what is planned, is `docs/deployment.md` (the site page "Deployment"). The Model and Workspace manifests under
 `plane/` move as they are and the Task templates need their image reference re-pinned to your registry; these parts
-assume this laptop and must change first (checked 2026-10-02):
+assume this server VM and must change first (checked 2026-10-02):
 
 | Assumption | Where | Needed in a real cluster |
 |---|---|---|

@@ -1,8 +1,9 @@
-# The kind profile: the plane on this laptop's single-node kind cluster, which ops/ax/up.sh creates and which is
+# The kind profile: the plane on this server VM's single-node kind cluster, which ops/ax/up.sh creates and which is
 # the development default (plane-on-kubernetes design section 1). Values only; a credential never goes here
 # (keys stay in the environment or .env). Every field is overridable by OUSAST_<FIELD> in the environment, a pool
 # by OUSAST_POOL_<NAME>_<FIELD>. This file may name the kind cluster; the code must not (tests/test_plane_literals.py).
 
+kind_observability = false      # opt in with OUSAST_KIND_OBSERVABILITY=1
 exec = "local"                   # the reconciler runs on this host against the cluster below
 kube_context = "kind-ousast"     # kind's context for KIND_CLUSTER_NAME=ousast
 registry = "localhost:5001"      # the kind-local registry up.sh creates (Substrate rewrites it for the node)

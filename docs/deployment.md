@@ -17,6 +17,21 @@ This page uses two words strictly:
 been made.** Section B is guidance, not a record. (kind runs a Kubernetes cluster inside Docker
 containers on one machine.)
 
+The kind profile runs on a 7.7 GB server VM. Observability is off by default
+(`kind_observability = false` in `ops/k8s/profiles/kind.toml`). This saves the measured
+930 MiB used by `otel-system`, about 40% of the cluster's 2.3 GB. The smoke Run still
+completes with those deployments stopped. To enable the stack, run
+`OUSAST_KIND_OBSERVABILITY=1 ops/ax/up.sh` or set `kind_observability = true` in the profile.
+
+`up.sh` stages copied Substrate manifests in a temporary checkout view and installs through
+`hack/install-ate-kind.sh`. The local `ops/ax/substrate-kind-lean/` overlay removes the collector,
+Prometheus, Jaeger and their supporting resources before installation. This preserves the
+installer's secret, CRD and image setup. The upstream checkout is unchanged. The shared
+`ate-otel-config` disables trace, metric and log export and the OTEL SDK; it removes the old
+collector endpoint and metric timing keys. On an existing cluster, `up.sh` scales the three
+observability deployments to zero, replaces the ConfigMap data and rolls its consumers when
+the configuration changes. Opting in restores the upstream ConfigMap and observability manifests.
+
 ## What runs where today (implemented)
 
 ```mermaid
@@ -357,7 +372,7 @@ This section answers the maintainer's questions from the code and the upstream c
 
 The decisions of 2026-10-02 set the target: **two profiles of one code base**.
 
-- `kind` is this laptop. It stays a first-class local execution mode. Every change is proven here first.
+- `kind` is this server VM. It stays a first-class local execution mode. Every change is proven here first.
 - `k3s` is production. (k3s is a small Kubernetes distribution.)
 
 Everything marked **planned** is not built. The rest is what runs on this host today.
@@ -368,7 +383,7 @@ flowchart LR
         hook["ousast pre-push: local, 30 s deadline"]
         cli["ousast plane run, remote mode (planned)"]
     end
-    subgraph k3s ["k3s cluster (the kind profile is the same picture on one laptop)"]
+    subgraph k3s ["k3s cluster (the kind profile is the same picture on one server VM)"]
         subgraph axns ["Namespace ax-system"]
             axs["ax-server Deployment + Redis"]
         end
@@ -403,7 +418,7 @@ This picture has no inbound path:
 - the tasks push their artifacts to the store through the egress gateway;
 - the CLI reads the store.
 
-Today's EndpointSlice back to a laptop (`ops/ax/receiver-service.yaml.tmpl`) belongs to the kind
+Today's EndpointSlice back to the server VM (`ops/ax/receiver-service.yaml.tmpl`) belongs to the kind
 profile only. It does not appear in production.
 
 ### ax, Kubernetes and Agent Substrate in three sentences
