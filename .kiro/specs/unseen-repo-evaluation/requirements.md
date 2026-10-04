@@ -101,3 +101,7 @@ worn out by tuning.
    slice, recorded with its freeze digest.
 3. Every learned-decision-engine experiment from now on reports its unseen-repo score from this pool next to its
    held-out-fold score.
+4. An arm is adopted only if, on the untouched slice that qualifies it, it shows no significant regression against
+   the current production arm: catch at the 5% false-alarm budget not significantly lower, and for an arm with one
+   operating point the false-alarm rate not significantly higher (exact paired tests, two-sided, alpha 0.05).
+   Reporting the unseen score alone is not enough to adopt. *(amended 2026-10-04, maintainer decision)*

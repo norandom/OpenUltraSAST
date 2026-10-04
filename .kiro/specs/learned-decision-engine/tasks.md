@@ -237,3 +237,20 @@ rate per push. Within-pair AUC stays a development signal. Tasks 11-14 below fol
   - Planned, roadmap G3. The exp-004 design with the family floor (Req 6.4), together with the pool's false-alarm
     rate per family.
   - _Requirements: 6.4, 7.3_
+
+- [ ] 15. Trained classifier arm (maintainer decision 2026-10-04: train a model, not hand-set profiles; judged on the
+  unseen-repo pool, roadmap G1)
+  - [ ] 15.1 Features: code embedding of the excerpt (stored vectors) + every allow-listed signal; no hand-picked
+    profile. Automated screening: a signal that separates pair sides by itself on training folds above the leak
+    threshold is dropped for that fold (the leak audit as a filter, fitted per fold).
+  - [ ] 15.2 Models: regularised logistic regression and gradient-boosted trees, fitted per repository-held-out outer
+    fold with inner-fold hyper-parameter search; per-family and pooled variants.
+  - [ ] 15.3 Scores on held-out folds: within-pair AUC, pooled AUC, top-k precision, Wilson bound at the pooled
+    threshold; compared with the current LLM programs on the same units.
+  - [ ] 15.4 Scored on the unseen-repo pool when G0 exists: catch rate at fixed false-alarm budgets.
+  - _Requirements: 3 (revised 2026-10-04 by maintainer decision), 6, 7_
+
+- [ ] 16. Jointly optimised LLM program arm (judged on the unseen-repo pool)
+  - Search input fields, retrieval parameters, k, instruction and demonstrations together (DSPy MIPRO-style) on
+    training folds; no hand-set input profile. Budget go-ahead before paid search.
+  - _Requirements: 3, 6, 7_
