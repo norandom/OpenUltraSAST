@@ -2,6 +2,7 @@
 
 import io
 import json
+import subprocess
 import sys
 import tarfile
 from pathlib import Path
@@ -67,9 +68,13 @@ with Path(os.environ["AX_LOG"]).open("a") as log:
 if args[0] == "get" and os.environ.get("AX_GET_FAIL"):
     sys.exit(1)
 if args[0] == "get":
-    manifest = json.loads(json.loads(Path(os.environ["AX_LOG"]).read_text().splitlines()[0])["input"])
+    applies = [json.loads(line) for line in Path(os.environ["AX_LOG"]).read_text().splitlines()
+        if json.loads(line)["args"][0] == "apply"]
+    manifest = json.loads(applies[-1]["input"])
+    phases = os.environ.get("AX_PHASE", "Running").split(",")
+    phase = phases[min(len(applies) - 1, len(phases) - 1)]
     print(json.dumps({"items": [{"metadata": manifest["metadata"], "status": {
-        "phase": os.environ.get("AX_PHASE", "Running"), "workerIP": "10.0.0.2"}}]}))
+        "phase": phase, "workerIP": "10.0.0.2"}}] if phase != "Missing" else []}))
 if args[0] == "delete" and os.environ.get("AX_DELETE_FAIL"):
     sys.exit(1)
 """)
@@ -134,8 +139,113 @@ def test_ax_executor_failed_phase_deletes_task(setup, monkeypatch):
     args, source, output, log, pause, clock = setup
     monkeypatch.setenv("AX_PHASE", "Failed")
     done, _ = ax.AX(args, Store(), pause=pause, clock=clock).execute(source, output, PIN, "pin")
-    assert done.returncode == 1 and "Failed" in done.stderr
+    assert done.returncode == 1 and done.stderr == "AX sandbox failed twice"
+    attempts = json.loads((output / "ax_attempts.json").read_text())
+    assert [a["phase"] for a in attempts] == ["Failed", "Failed"]
     assert json.loads(log.read_text().splitlines()[-1])["args"][:2] == ["delete", "task"]
+
+
+@pytest.mark.parametrize("phase", ["Failed", "Missing"])
+def test_ax_executor_retries_with_new_name_links_and_backoff(setup, monkeypatch, phase):
+    args, source, output, log, pause, clock = setup
+    monkeypatch.setenv("AX_PHASE", phase + ",Succeeded")
+    store = Store()
+    store._get = lambda key: (archive({**PIN, "done": True}), None) if "/attempt-1/" in key else None
+    pauses = []
+
+    def backoff(seconds):
+        calls = [json.loads(line) for line in log.read_text().splitlines()]
+        assert calls[-1]["args"][:2] == ["delete", "task"]
+        pauses.append(seconds)
+        pause(seconds)
+
+    done, _ = ax.AX(args, store, pause=backoff, clock=clock).execute(source, output, PIN, "x" * 100)
+    assert done.returncode == 0
+    record = json.loads((output / "result.json").read_text())
+    attempts = record["ax_attempts"]
+    assert record["done"] and [a["phase"] for a in attempts] == [phase, "Succeeded"]
+    assert len({a["name"] for a in attempts}) == 2
+    assert all(a["name"].startswith("ousast-engine-") and len(a["name"]) <= 49 and a["seconds"] >= 0 for a in attempts)
+    assert pauses == [10]
+    calls = [json.loads(line) for line in log.read_text().splitlines()]
+    manifests = [json.loads(c["input"]) for c in calls if c["args"][0] == "apply"]
+    links = [{e["name"]: e["value"] for e in m["spec"]["env"]} for m in manifests]
+    assert all(links[0][key] != links[1][key] for key in ("SOURCE_URL", "QUESTIONS_URL", "RESULT_URL"))
+    assert len(store.expiries) == 6 and len(store.deleted) == 6
+
+
+@pytest.mark.parametrize("late", [False, True])
+def test_ax_executor_failed_result_is_never_retried(setup, monkeypatch, late):
+    args, source, output, log, pause, clock = setup
+    monkeypatch.setenv("AX_PHASE", "Failed")
+    store = Store(archive({**PIN, "done": True, "status": "failed"}))
+    original_get = store._get
+    reads = []
+
+    def get(key):
+        reads.append(key)
+        return None if late and len(reads) == 1 else original_get(key)
+
+    store._get = get
+    done, _ = ax.AX(args, store, pause=pause, clock=clock).execute(source, output, PIN, "pin")
+    record = json.loads((output / "result.json").read_text())
+    assert done.returncode == 0 and record["status"] == "failed"
+    assert len(record["ax_attempts"]) == 1
+    assert sum(json.loads(line)["args"][0] == "apply" for line in log.read_text().splitlines()) == 1
+
+
+@pytest.mark.parametrize("mode", ["ax", "mixed-ax"])
+def test_ax_sandbox_failed_twice_scheduler(setup, monkeypatch, mode):
+    with monkeypatch.context() as patch:
+        patch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "benchmarks/learn"))
+        import engine_trace as trace
+
+    args, source, output, log, pause, clock = setup
+    monkeypatch.setenv("AX_PHASE", "Failed")
+    args.executor, args.parallel, args.out, args.docker_image = mode, 1, output, "vm-image"
+    args.ax_dispatcher = ax.AX(args, Store(), pause=pause, clock=clock)
+    monkeypatch.setattr(trace, "prepare_questions", lambda *_: PIN["questions"])
+
+    class Inputs:
+        def materialize(self, pin, target):
+            target.mkdir()
+            data = (source / "app.py").read_bytes()
+            (target / "app.py").write_bytes(data)
+            return {"files": 1, "bytes": len(data)}
+
+    original_run = subprocess.run
+    docker_calls = []
+
+    def run(command, **kwargs):
+        if command[0] == args.ax_bin:
+            return original_run(command, **kwargs)
+        assert command[:2] in (["docker", "run"], ["docker", "rm"])
+        docker_calls.append(command)
+        if command[1] == "run":
+            assert command[command.index("--heap-profile") + 1] == "vm"
+            assert "vm-image" in command
+            target = Path(next(arg.removesuffix(":/out") for arg in command if arg.endswith(":/out")))
+            prepared = json.loads((target / "pin.json").read_text())
+            trace.write_json(
+                target / "result.json",
+                {**prepared, "done": True, "units": [trace.unit_record(u, "asked-nothing") for u in prepared["units"]]},
+            )
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    assert trace.run_plan([PIN], source, {}, Inputs(), args) is (mode == "ax")
+    record = json.loads((output / trace.pin_name(PIN)).read_text())
+    assert [a["phase"] for a in record["ax_attempts"]] == ["Failed", "Failed"]
+    assert sum(json.loads(line)["args"][0] == "apply" for line in log.read_text().splitlines()) == 2
+    if mode == "mixed-ax":
+        assert [command[1] for command in docker_calls] == ["run", "rm"]
+        assert record["executor"] == "docker" and record["fallback"] == "vm-sandbox"
+        assert record["units"][0]["status"] == "asked-nothing"
+        assert record["ax_attempt"]["ax_attempts"] == record["ax_attempts"]
+    else:
+        assert not docker_calls
+        assert record["units"][0]["status"] == "failed"
+        assert record["units"][0]["reason"] == "AX sandbox failed twice"
 
 
 def test_ax_executor_delete_failure_is_fatal_and_still_cleans_objects(setup, monkeypatch):
@@ -178,6 +288,21 @@ def test_ax_executor_rejects_mismatched_result(setup):
 
 def test_ax_executor_table_worker_ip():
     assert ax.task_state("NAME ATESPACE PHASE WORKER-IP\nours default Running 10.2.3.4\n", "ours") == ("Running", "10.2.3.4")
+
+
+def test_ax_executor_missing_requires_readable_task_list():
+    assert ax.task_state('{"items": []}', "ours") == ("Missing", None)
+    assert ax.task_state("NAME ATESPACE PHASE WORKER-IP\n", "ours") == ("Missing", None)
+    assert ax.task_state("", "ours") == ("", None)
+    assert ax.task_state("temporarily unavailable", "ours") == ("", None)
+
+
+def test_ax_executor_status_query_failure_is_not_disappearance(setup, monkeypatch):
+    args, source, output, log, pause, clock = setup
+    monkeypatch.setenv("AX_GET_FAIL", "1")
+    done, _ = ax.AX(args, Store(), pause=pause, clock=clock).execute(source, output, PIN, "pin")
+    assert done is None
+    assert sum(json.loads(line)["args"][0] == "apply" for line in log.read_text().splitlines()) == 1
 
 
 def test_ax_executor_entry_download_failure_restores_host_units(setup):

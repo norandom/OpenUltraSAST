@@ -668,7 +668,7 @@ def run_pin(pin, source, provenance, inputs, out, args):
                     if done is None and removed.returncode != 0:
                         raise RuntimeError(f"cannot remove timed-out container {name}; refusing another launch")
             result_path = output / "result.json"
-            if not result_path.exists():
+            if not result_path.exists() and reason != "AX sandbox failed twice":
                 reason = f"container produced no result: {reason}"
             record = json.loads(result_path.read_text()) if result_path.exists() else {**pin, "units": []}
             if not record.get("done"):
@@ -707,8 +707,12 @@ def run_pin(pin, source, provenance, inputs, out, args):
         if executor == "ax":
             record.update(executor="ax", worker=node, worker_ip=node, image=args.image)
             record["analyzer"] = {"image": args.image, "code": "baked-in-image"}
+            if (output / "ax_attempts.json").exists():
+                record["ax_attempts"] = json.loads((output / "ax_attempts.json").read_text())
         if getattr(args, "fallback", None):
             record.update(executor="docker", fallback=args.fallback, ax_attempt=args.ax_attempt, fallback_pending=False)
+            if "ax_attempts" in args.ax_attempt:
+                record["ax_attempts"] = args.ax_attempt["ax_attempts"]
         if executor in {"k8s", "k8s-jobs"}:
             record.update(executor="k8s", node=node, image=args.image)
         if executor == "queue":
@@ -815,7 +819,7 @@ def run_plan(plan, source, provenance, inputs, args):
         options = copy.copy(args)
         options.executor = lane
         if attempt is not None:
-            options.fallback = "vm-oom"
+            options.fallback = attempt.get("fallback", "vm-oom")
             options.ax_attempt = attempt
         if lane == "docker":
             options.image = getattr(args, "docker_image", args.image)
@@ -845,8 +849,10 @@ def run_plan(plan, source, provenance, inputs, args):
                 failed = future.result()
                 result = json.loads((args.out / pin_name(pin)).read_text())
                 selected = {u["unit"] for u in pin["units"]}
-                if lane == "ax" and any("JVM out of memory" in u.get("reason", "") for u in result["units"] if u["unit"] in selected):
-                    result.update(fallback="vm-oom", fallback_pending=True)
+                reasons = [u.get("reason", "") for u in result["units"] if u["unit"] in selected]
+                sandbox_failed = args.executor == "mixed-ax" and result.get("container_exit") == 1 and "AX sandbox failed twice" in reasons
+                if lane == "ax" and (sandbox_failed or any("JVM out of memory" in reason for reason in reasons)):
+                    result.update(fallback="vm-sandbox" if sandbox_failed else "vm-oom", fallback_pending=True)
                     write_json(args.out / pin_name(pin), result)
                     fallbacks.append((pin, result))
                     continue

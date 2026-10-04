@@ -31,6 +31,10 @@ class EgressError(ValueError):
     """Safe diagnostic without presigned URL contents."""
 
 
+class SandboxFailure(Exception):
+    """A terminal AX task without an authoritative result object."""
+
+
 def public_endpoint(url):
     """Reject endpoints the actor's hostname-based HTTPS egress policy cannot reach."""
     parts = urlsplit(url)
@@ -116,7 +120,8 @@ def task_state(text, name):
                     except ValueError:
                         pass
             return phase, None if ip in {"<none>", "-", ""} else ip
-    return "", None
+    listed = isinstance(doc, (dict, list)) or bool(lines and "name" in headers and {"phase", "status"}.intersection(headers))
+    return "Missing" if listed else "", None
 
 
 def bounded_read(read, timeout):
@@ -215,15 +220,35 @@ class AX:
             shutil.copytree(root, output, dirs_exist_ok=True)
 
     def execute(self, checkout, output, pin, pin_id):
-        digest = hashlib.sha256(f"{self.run}/{pin_id}".encode()).hexdigest()[:12]
+        attempts = []
+        try:
+            for attempt in range(2):
+                try:
+                    return self._execute_attempt(checkout, output, pin, pin_id, attempt, attempts)
+                except SandboxFailure:
+                    if attempt == 0:
+                        self.pause(10)
+            return subprocess.CompletedProcess([], 1, "", "AX sandbox failed twice"), None
+        finally:
+            (output / "ax_attempts.json").write_text(json.dumps(attempts))
+            result_path = output / "result.json"
+            if result_path.exists():
+                record = json.loads(result_path.read_text())
+                record["ax_attempts"] = attempts
+                result_path.write_text(json.dumps(record))
+
+    def _execute_attempt(self, checkout, output, pin, pin_id, attempt, attempts):
+        digest = hashlib.sha256(f"{self.run}/{pin_id}/attempt-{attempt}".encode()).hexdigest()[:12]
         slug = re.sub(r"[^a-z0-9]+", "-", str(pin_id).lower()).strip("-")[:22]
         name = f"ousast-engine-{slug or 'pin'}-{digest}"
         key_id = hashlib.sha256(str(pin_id).encode()).hexdigest()
-        prefix = f"engine-queue/{self.run}/{key_id}/"
+        prefix = f"engine-queue/{self.run}/{key_id}/attempt-{attempt}/"
         keys = [prefix + suffix for suffix in (f"source{PRESIGNED_ARCHIVE_SUFFIX}", "questions.json", f"result{PRESIGNED_ARCHIVE_SUFFIX}")]
         expires = timedelta(seconds=self.args.deadline + 600)
         worker_ip = None
         submitted = False
+        started = self.clock()
+        phase = ""
         try:
             self.store._put(keys[0], pack(checkout))
             self.store._put(keys[1], json.dumps(pin).encode())
@@ -256,23 +281,35 @@ class AX:
                 if result is not None:
                     self.receive(result[0], output, pin)
                     return subprocess.CompletedProcess([], 0, "", ""), worker_ip
-                if phase.lower() == "failed":
-                    return subprocess.CompletedProcess([], 1, "", "AX Task phase Failed"), worker_ip
+                if phase.lower() in {"failed", "missing"}:
+                    # The worker may have uploaded while we were reading AX status.
+                    result = bounded_read(lambda: self.store._get(keys[2]), end - self.clock())
+                    if self.clock() >= end:
+                        return None, worker_ip
+                    if result is not None:
+                        self.receive(result[0], output, pin)
+                        return subprocess.CompletedProcess([], 0, "", ""), worker_ip
+                    raise SandboxFailure
                 self.pause(min(2, max(0, end - self.clock())))
             return None, worker_ip
         except (subprocess.TimeoutExpired, TimeoutError):
             return None, worker_ip
+        except SandboxFailure:
+            raise
         except Exception as exc:
             # Never expose exception strings which may contain object-scoped bearer URLs.
             detail = str(exc) if isinstance(exc, EgressError) else type(exc).__name__
             return subprocess.CompletedProcess([], 1, "", "AX transport failed: " + detail), worker_ip
         finally:
+            attempts.append({"name": name, "phase": phase, "seconds": self.clock() - started})
             errors = []
             if submitted:
                 try:
                     self.ax("delete", "task", name)
                 except Exception as exc:
-                    errors.append("task: " + type(exc).__name__)
+                    # A successful list already confirmed a disappeared task is gone.
+                    if phase != "Missing":
+                        errors.append("task: " + type(exc).__name__)
             for key in keys:
                 try:
                     self.store._delete(key)
