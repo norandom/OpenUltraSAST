@@ -21,8 +21,9 @@ from openultrasast.pairs import load_pair_catalog
 
 ROOT = Path(__file__).resolve().parents[1]
 PAIRS = ROOT / "benchmarks" / "pairs"
-# batch 1 (2026-10-01) and batch 2 (2026-10-03, functions that survive the fix): one source each, same rules
-BATCHES = {"advisory-fixes": PAIRS / "advisory-fixes", "advisory-fixes-2": PAIRS / "advisory-fixes-2"}
+# batch 1 (2026-10-01), batches 2 (2026-10-03) and 3 (2026-10-04, functions that survive the fix): one source each,
+# same rules
+BATCHES = {name: PAIRS / name for name in ("advisory-fixes", "advisory-fixes-2", "advisory-fixes-3")}
 SHA = re.compile(r"[0-9a-f]{40}")
 PERMISSIVE_OR_COPYLEFT = re.compile(
     r"^(MIT|BSD-[23]-Clause|Apache-2\.0|ISC|Zlib|0BSD|Unlicense|MPL-[12]\.[01]"
@@ -106,10 +107,18 @@ def test_no_pair_repeats_a_repository_the_benchmarks_already_name(source_id: str
 PERMISSIVE = {"MIT", "BSD-2-Clause", "BSD-3-Clause", "Apache-2.0", "ISC", "MPL-2.0", "Unlicense"}
 
 
-def test_batch_two_is_permissive_and_dated_against_the_cutoff() -> None:
-    """Batch 2 publishes permissive licences only and records each advisory's publication against the 2026-06-01
+@pytest.mark.parametrize(("source_id", "batch"), [("advisory-fixes-2", "2026-10-03"), ("advisory-fixes-3", "2026-10-04")])
+def test_later_batches_are_permissive_and_dated_against_the_cutoff(source_id: str, batch: str) -> None:
+    """Batches 2 and 3 publish permissive licences only and record each advisory's publication against the 2026-06-01
     cutoff, so memorisation can be measured on the post-cutoff pairs."""
-    for item in _raw(BATCHES["advisory-fixes-2"]):
+    for item in _raw(BATCHES[source_id]):
         assert item["license"] in PERMISSIVE, item["name"]
-        assert item["batch"] == "2026-10-03", item["name"]
+        assert item["batch"] == batch, item["name"]
         assert item["post_cutoff"] is (item["published_at"][:10] >= "2026-06-01"), item["name"]
+
+
+def test_no_repository_repeats_across_batches() -> None:
+    seen: Counter[str] = Counter()
+    for folder in BATCHES.values():
+        seen.update({repo_name(item["repo"]) for item in _raw(folder)})
+    assert [repo for repo, n in seen.items() if n > 1] == []
