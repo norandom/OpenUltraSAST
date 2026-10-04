@@ -1,0 +1,9 @@
+{
+  "ghsa_id": "GHSA-test-test-test",
+  "published_at": "2026-06-02T00:00:00Z",
+  "type": "reviewed",
+  "withdrawn_at": null,
+  "cwes": [{"cwe_id": "CWE-89"}],
+  "vulnerabilities": [{"package": {"ecosystem": "pip", "name": "fixture"}}],
+  "references": ["https://github.com/fixture/project/commit/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
+}

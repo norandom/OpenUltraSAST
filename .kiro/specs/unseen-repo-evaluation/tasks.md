@@ -77,7 +77,7 @@ Execution rules:
   - _Requirements: 1.1, 1.3_
 
 - [ ] 2. Sourcing and extraction (design 1.1, 1.3, 1.4, 2, 3; increment 2)
-- [ ] 2.1 Advisory candidates and repository filters
+- [x] 2.1 Advisory candidates and repository filters
   - `benchmarks/unseen/source.py`: from GHSA advisory JSON (pip, npm, maven, composer; published 2019 or later)
     keep those whose CWE maps to a family through `src/openultrasast/model/taxonomy.py` and that link one fix
     commit with one parent in one repository; attach the OSV first affected version; flag `post_cutoff` when
@@ -87,7 +87,7 @@ Execution rules:
     multi-repository fixes dropped, cutoff flag, licence classing (GPL, AGPL, LGPL, none and source-available go
     private).
   - _Requirements: 1.4, 2.1_
-- [ ] 2.2 Vulnerability-introducing range
+- [x] 2.2 Vulnerability-introducing range
   - `benchmarks/unseen/extract.py`: the `introducing` method of design 2.1 (blame of the sink line, or the
     declaration for an absence bug; absence at V's first parent; no merge or root; at most 50 files and 2,000
     lines; OSV version bracket when present; walk-back of at most five steps) and the `last_touch` fallback. Each
@@ -96,7 +96,7 @@ Execution rules:
   - `tests/test_unseen_extract.py` on a synthetic repository built in a temp dir: accepted V; a reformat walked
     back; a merge rejected; size cap; bracket rejection; fallback chosen when no V passes.
   - _Requirements: 2.1_
-- [ ] 2.3 Ordinary-commit draw
+- [x] 2.3 Ordinary-commit draw
   - `extract.py`: first-parent, non-merge commits touching an analysed language; the exclusions of design 2.2
     (security words of the narrow pattern, reverts, bot and bump commits, manifest- or lock-only, generated or
     vendored, advisory fix commits, commits touching a known vulnerable function, more than 1,000 source lines,
@@ -105,7 +105,7 @@ Execution rules:
   - Tests: each exclusion; the narrow pattern keeps "query", "token", "session"; allocation and the seed
     reproduce the same draw; the 40-commit floor.
   - _Requirements: 2.2, 2.3_
-- [ ] 2.4 Draft manifest and slices
+- [x] 2.4 Draft manifest and slices
   - `benchmarks/unseen/draft.py`: writes `benchmarks/unseen/draft-p1.toml` (permissive entries by name) and
     `benchmarks/unseen/private/draft-p1.toml` (the rest); the public file holds an opaque id and
     sha256(URL, commits) per private entry. Seeded shuffle into three slices of 100 repositories, stratified by
@@ -334,3 +334,23 @@ Execution rules:
   Select capability probe. Default store behavior is unchanged; inventory uses LIST/GET only.
 - The freeze writer must match the canonical TOML digest encoding documented in the pool README and
   exercised by `test_independent_population.py`; final pool discovery does not trust mutable status.
+
+### Group 2 implementation evidence (2026-10-04)
+
+Tasks 2.1–2.4 are implemented offline and independently reviewed. Task 2.5 is
+`python -m benchmarks.unseen.draft --root "$PWD" --s3-store s3:// --seed 20260601`
+with the documented PATH/PYTHONPATH and GH_TOKEN environment. No networked draw,
+label check, group-2 measurement record, guard bisection, or commit was performed.
+The group header remains pending its coordinator exits 2.5/2.6.
+
+The command rebuilds the group-1 used set, resolves renamed/fork repositories,
+uses disposable external blobless clones, re-reads licences at extracted heads,
+and emits counts/digests only. The README documents injected clients, method bias,
+the hard 300-repository floor, and an explicitly unmeasured resource estimate.
+Independent review caught and fixed ambiguous parent-function absence and stale
+candidate-404 handling; regression tests cover both.
+
+Validation: requested pytest selection 103 passed, 1 skipped, exit 0 (population-test
+output discarded); `ruff check .` exit 0; `ruff format --check .` exit 0 (411 files);
+`mypy src/openultrasast` exit 0 (160 source files). The CLI `--help` smoke exited 0.
+Source-read instrumentation printed 20,101 bytes for the extraction implementation.
