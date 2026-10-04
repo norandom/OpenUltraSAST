@@ -1598,3 +1598,124 @@ def test_ax_pending_fallback_resumes_in_docker_and_retains_attempt(tmp_path, mon
     progress = json.loads((tmp_path / "progress.json").read_text())
     assert progress["pins_done"] == 1 and progress["pins_in_flight"] == 0
     assert progress["fallbacks_pending"] == 0 and progress["statuses"] == {"asked-nothing": 1}
+
+
+@pytest.mark.parametrize("failure", ["", "start", "taint"])
+def test_worker_resident_session_and_fallback(tmp_path, monkeypatch, failure):
+    from types import SimpleNamespace
+
+    calls = []
+    graph = tmp_path / "cpg.bin"
+    graph.write_bytes(b"g" * 2048)
+    payloads = {
+        "overlay": {"files": "1", "methods": "1"},
+        "census": {"files": "1", "file_names": ["app.py"]},
+        "taint": {"__census__": [{"files": 1, "file_names": ["app.py"]}], "a": []},
+    }
+
+    def output(query):
+        return BEGIN + "\n" + json.dumps(payloads[query]) + "\n" + END
+
+    class Session:
+        loaded_graph = ""
+        failure = "fake failure"
+        output_observer = None
+
+        def __init__(self, scratch, budget, env, **kwargs):
+            self.scratch = scratch
+            assert "ActiveProcessorCount=2" in env["JAVA_TOOL_OPTIONS"]
+
+        def start(self):
+            calls.append("start")
+            return failure != "start"
+
+        def load(self, path, **kwargs):
+            calls.append("load")
+            assert path.read_bytes() == b"g" * 2048
+            self.loaded_graph = str(path)
+            return True
+
+        def define(self, source, **kwargs):
+            assert "  importCpg(cpgFile)" not in source
+            return ""
+
+        def evaluate(self, code, **kwargs):
+            query = code.split("(")[0].removeprefix("ousast_")
+            calls.append(query)
+            if query == "overlay":
+                saved = self.scratch / "workspace" / graph.name / "cpg.bin"
+                saved.parent.mkdir(parents=True)
+                saved.write_bytes(b"s" * 2048)
+            if query == "taint":
+                if failure == "taint":
+                    return None
+                self.output_observer('{"__question__":"a"}\n')
+                self.output_observer('{"__question__":"a"}\n{"id":"a","rows":[]}\n')
+            return SimpleNamespace(stdout=output(query))
+
+        def close(self):
+            calls.append("close")
+
+        def log_tail(self):
+            return "fake log"
+
+    monkeypatch.setattr(worker, "EngineSession", Session)
+    backend = worker.MeasuredBackend(900, 120, lambda: None, heap_profile="cluster")
+    disposable = []
+
+    def run(command, **kwargs):
+        query = Path(command[command.index("--script") + 1]).stem
+        disposable.append(query)
+        if query == "overlay":
+            saved = tmp_path / "workspace" / graph.name / "cpg.bin"
+            saved.parent.mkdir(parents=True, exist_ok=True)
+            saved.write_bytes(b"s" * 2048)
+        return subprocess.CompletedProcess(command, 0, output(query), "")
+
+    monkeypatch.setattr(backend, "_run", run)
+    monkeypatch.setattr("openultrasast.cpg.backend.shutil.which", lambda name: name)
+    assert backend._apply_overlays(graph, tmp_path)
+    assert backend.query(graph, "census", {})["files"] == "1"
+    assert backend._batch_once(graph, "taint", {"a": {}})["a"] == []
+    backend.close_session()
+    assert calls.count("start") == 1
+    if failure == "start":
+        assert disposable == ["overlay", "census", "taint"]
+        assert backend.session_fallback == "fake failure"
+    else:
+        assert calls.count("load") == 1
+        assert [stage["step"] for stage in backend.stages] == ["start", "load", "overlay", "census", "taint"]
+        assert all(stage["seconds"] >= 0 for stage in backend.stages)
+        assert backend.stages[3]["files"] == 1
+        assert disposable == (["taint"] if failure else [])
+        if not failure:
+            assert backend.asked == ["a"]
+            assert backend.answers == {"a": []}
+            assert backend.completion_counts["a"] == 1
+    assert calls.count("close") == 1
+
+
+def test_worker_session_question_deadline_keeps_markers_and_does_not_replay(tmp_path):
+    from types import SimpleNamespace
+
+    graph = tmp_path / "cpg.bin"
+    graph.write_bytes(b"g" * 2048)
+    backend = worker.MeasuredBackend(900, 0, lambda: None)
+    closed = []
+
+    def evaluate(code, **kwargs):
+        assert not fake.output_observer('{"__question__":"a"}\n')
+        return None
+
+    fake = SimpleNamespace(
+        loaded_graph=str(graph),
+        define=lambda *a, **kw: "",
+        evaluate=evaluate,
+        close=lambda: closed.append(True),
+    )
+    backend._session = fake
+    body = backend._session_payload(graph, "taint", {"cpgFile": str(graph)})
+    assert body == '{"__question__":"a"}\n'
+    assert backend.timed_out and backend.asked == ["a"]
+    assert not backend.answers and not backend.session_fallback
+    assert closed == [True]
