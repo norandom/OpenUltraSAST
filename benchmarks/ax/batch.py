@@ -280,11 +280,18 @@ def manifest(name, workload, item, urls, atespace="default", *, validate_name=Tr
         raise ValueError("invalid AX task name")
     if set(urls) != workload.url_env:
         raise ValueError("unexpected URL environment names")
-    # Extra env is deliberately a small numeric execution contract, never inherited credentials.
-    if set(item.extra_env) - {"DEADLINE", "QUESTION_DEADLINE"} or any(
-        not re.fullmatch(r"[0-9]+(?:\.[0-9]+)?", str(v)) for v in item.extra_env.values()
-    ):
+    # Fixed names and semantic values, never inherited environment or credentials.
+    patterns = {
+        "DEADLINE": r"[0-9]+(?:\.[0-9]+)?",
+        "QUESTION_DEADLINE": r"[0-9]+(?:\.[0-9]+)?",
+        "SEARCH_STEP": r"reason|explore|verify",
+        "SEARCH_ID": r"[a-z0-9][a-z0-9-]{0,63}",
+        "SEARCH_TASK_ID": r"[a-z0-9][a-z0-9-]{0,63}",
+    }
+    if any(key not in patterns or not re.fullmatch(patterns[key], str(value)) for key, value in item.extra_env.items()):
         raise ValueError("unexpected task environment")
+    if set(item.extra_env) & set(urls):
+        raise ValueError("overlapping task environment")
     for url in urls.values():
         public_endpoint(url)
     env = [{"name": key, "value": str(value)} for key, value in {**urls, **item.extra_env}.items()]
@@ -358,8 +365,10 @@ def schedule(pending, lanes, out, execute, complete, *, fallbacks=(), overflow=T
     return failures
 
 
-def dispatch(items, workload, out, executors, *, lanes=("ax", "ax", "docker"), overflow=True):
+def dispatch(items, workload, out, executors, *, lanes=("ax", "ax", "docker"), overflow=True, max_attempts=2):
     """Digest checkpoints, one instrument rerun, sandbox retry, priority VM fallback."""
+    if not isinstance(max_attempts, int) or not 1 <= max_attempts <= 2:
+        raise ValueError("batch attempts must be one or two")
     out.mkdir(parents=True, exist_ok=True)
     pending, fallbacks = [], []
 
@@ -380,7 +389,7 @@ def dispatch(items, workload, out, executors, *, lanes=("ax", "ax", "docker"), o
         output = out / hashlib.sha256(item.id.encode()).hexdigest()
         output.mkdir(exist_ok=True)
         attempts = []
-        for attempt in range(2):
+        for attempt in range(max_attempts):
             attempt_output = output / ("attempt-" + uuid.uuid4().hex)
             attempt_output.mkdir()
             record = executors[lane](item, attempt_output, attempt)

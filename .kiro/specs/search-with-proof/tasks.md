@@ -29,13 +29,13 @@ gates, runs every networked or paid step.
     are unreachable. Record `benchmarks/measurements/2026-10-xx-search-probe/record.json`. _Requirements: 6.2_
   - [ ] 3.3 Gate: every oracle works under gVisor, or the family is marked `no_oracle` for the pilot.
 
-- [ ] 4. Board, coordinator, budgets
-  - [ ] 4.1 Board in the memory store as immutable versioned blobs (`plane/memory.py`); facts, intents, hints with
+- [x] 4. Board, coordinator, budgets
+  - [x] 4.1 Board in the memory store as immutable versioned blobs (`plane/memory.py`); facts, intents, hints with
     writer step and task; coordinator is the only writer; tasks read and write through presigned links.
     _Requirements: 1.1-1.3_
-  - [ ] 4.2 Spend reservation before each model call in `plane/budget.py`, settled after; per-task memory, disk,
+  - [x] 4.2 Spend reservation before each model call in `plane/budget.py`, settled after; per-task memory, disk,
     cleanup caps; total wall-time and retry caps; tests that in-flight calls cannot overrun. _Requirements: 4.1, 4.2_
-  - [ ] 4.3 Dispatch reason, explore and verify as AX Tasks through `benchmarks/ax/batch.py` (extend its environment
+  - [x] 4.3 Dispatch reason, explore and verify as AX Tasks through `benchmarks/ax/batch.py` (extend its environment
     contract beyond numeric deadlines), VM lane as fallback, resume from checkpoints. _Requirements: 2.3, 2.4_
 
 - [ ] 5. Agent worker
@@ -65,3 +65,18 @@ gates, runs every networked or paid step.
   without isolation. Artefacts receive a batch CLI `TARGET` bridge and private scratch; HTTP apps need a trusted
   CLI adapter. Only trusted `Side.build_command` outputs can enter the app runtime (read-only `/build`);
   artefact `build.sh` writes scratch only. XSS requires a trusted browser executor, otherwise `no_oracle`.
+
+- Tasks 3.1 (files only) and group 4 (2026-10-05): independent review approved; final offline validation:
+  107 passed, 2 skipped (Chromium namespace/socket restrictions and the existing SSRF localhost restriction).
+  Ruff and changed-source mypy pass; module audit: 160 load-bearing, 6 standalone, zero orphaned. No network
+  actions, model calls, image builds, pushes or commits were performed. Task 3.1 remains unchecked until the
+  image is built/published and a real digest is available; CI now includes `plane/Dockerfile.search-task`.
+- The coordinator accepts an injected executor. `BatchExecutor` uses the repository's `benchmarks.ax.batch`
+  transport with one attempt per admission; coordinator owns the global retry budget and VM fallback. It requires
+  a repository checkout import path and a trusted worker command; reason/explore workers remain group 5.
+  Per-task memory, disk and cleanup ceilings are passed in the worker contract; worker enforcement and gVisor
+  compatibility still require group 5 and the 3.2 probe. Only trusted verification results can meet the goal.
+- Board heads are immutable memory-store hashes; retain the returned head with the host run to resume. Unknown
+  interrupted model calls conservatively consume their full reservation; settled failures with zero spend release
+  it. Cleanup exceptions stop dispatch. Chromium uses a fresh profile in a private network namespace; injected
+  script must call `alert("ousast-xss")`, while escaped/reflected payloads cannot produce the verifier DOM marker.

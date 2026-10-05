@@ -11,12 +11,16 @@ import json
 import os
 import secrets
 import selectors
+import shutil
 import sqlite3
 import subprocess
+import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Protocol
+from urllib.parse import quote
 
 
 @dataclass(frozen=True)
@@ -136,18 +140,111 @@ class SSRFOracle(OutputOracle):
                 self.process.stdout.close()
 
 
-BrowserExecutor = Callable[[str, str], bool]
+class BrowserExecutor:
+    """Run captured HTML with a verifier-owned alert canary.
+
+    Payloads call alert("ousast-xss"). Reflection/escaped HTML cannot set the fresh
+    DOM marker. A restrictive CSP disables external resources and connections;
+    Chromium's sandbox stays enabled and each capture uses a fresh profile.
+    Launch failures are unavailable execution, never a negative observation.
+    """
+
+    def __init__(self, binary: str | None = None, *, timeout_seconds: float = 15) -> None:
+        selected = binary or shutil.which("chromium") or shutil.which("chromium-browser")
+        self.timeout_seconds = timeout_seconds
+        if not selected:
+            raise OSError("headless chromium unavailable")
+        self.binary: str = selected
+
+    def __call__(self, document: str, nonce: str) -> bool:
+        marker = secrets.token_hex(24)
+        # Neither the marker nor its attribute appears in app output. The bootstrap
+        # source does appear in dump-dom, so inspect an actual DOM attribute only.
+        attribute = "data-proof-" + secrets.token_hex(12)
+        prelude = (
+            '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; '
+            "script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'\">"
+            '<script>window.alert=function(value){if(value==="ousast-xss"||value==='
+            + json.dumps(nonce)
+            + "){document.documentElement.setAttribute("
+            + json.dumps(attribute)
+            + ","
+            + json.dumps(marker)
+            + ");}};</script>"
+        )
+        with tempfile.TemporaryDirectory(prefix="ousast-browser-") as profile:
+            # HTML can navigate even with CSP. A private network namespace, not
+            # browser flags, is the no-egress boundary. Expose runtime only.
+            sandbox = ["bwrap", "--unshare-all", "--die-with-parent", "--new-session"]
+            for path in ("/usr", "/bin", "/lib", "/lib64"):
+                if Path(path).exists():
+                    sandbox += ["--ro-bind", path, path]
+            sandbox += [
+                "--dev",
+                "/dev",
+                "--proc",
+                "/proc",
+                "--tmpfs",
+                "/tmp",
+                "--bind",
+                profile,
+                "/profile",
+                "--setenv",
+                "HOME",
+                "/profile",
+                "--",
+            ]
+            try:
+                done = subprocess.run(
+                    [
+                        *sandbox,
+                        self.binary,
+                        "--headless",
+                        "--dump-dom",
+                        "--disable-gpu",
+                        "--disable-background-networking",
+                        "--disable-extensions",
+                        "--no-first-run",
+                        "--no-default-browser-check",
+                        "--disable-sync",
+                        "--user-data-dir=/profile",
+                        "--virtual-time-budget=1000",
+                        "data:text/html;charset=utf-8," + quote(prelude + document),
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=self.timeout_seconds,
+                    env={"PATH": "/usr/bin:/bin", "HOME": profile},
+                )
+            except subprocess.SubprocessError as exc:
+                raise OSError("headless chromium failed") from exc
+        if done.returncode or "<html" not in done.stdout.lower():
+            raise OSError("headless chromium did not produce a document: " + done.stderr[-500:])
+
+        class Marker(HTMLParser):
+            seen = False
+
+            def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+                if tag == "html" and (attribute, marker) in attrs:
+                    self.seen = True
+
+        parser = Marker()
+        parser.feed(done.stdout)
+        return parser.seen
+
+
+Browser = Callable[[str, str], bool]
 
 
 class XSSOracle(OutputOracle):
-    def __init__(self, executor: BrowserExecutor) -> None:
+    def __init__(self, executor: Browser) -> None:
         self.executor = executor
 
     def capture(self, output: str) -> None:
         self.seen |= self.executor(output, self.canary.nonce)
 
 
-def oracle_for(family: str, browser: BrowserExecutor | None = None) -> Oracle | None:
+def oracle_for(family: str, browser: Browser | None = None) -> Oracle | None:
     factories = {"path": PathOracle, "sql": SQLOracle, "command": CommandOracle, "ssrf": SSRFOracle}
     if family == "xss":
         return XSSOracle(browser) if browser else None
