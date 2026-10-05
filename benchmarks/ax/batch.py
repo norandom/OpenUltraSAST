@@ -50,6 +50,7 @@ AX_SLOTS = threading.BoundedSemaphore(2)
 
 
 def apply_when_available(lane, document, end):
+    started = lane.clock()
     while lane.clock() < end:
         try:
             lane.ax("apply", "-f", "-", manifest=document, timeout=min(30, end - lane.clock()))
@@ -61,7 +62,10 @@ def apply_when_available(lane, document, end):
                 lane.ax("delete", "task", document["metadata"]["name"])
             except Exception as exc:
                 raise RuntimeError("capacity cleanup failed: " + exception_reason(exc)) from None
-            lane.pause(min(random.uniform(15, 30), max(0, end - lane.clock())))
+            # Substrate's golden-snapshot copy holds the other worker for about a second after each new task
+            # (operator, 2026-10-05): retry quickly for the first minute, then back off while real tasks run.
+            delay = random.uniform(2, 5) if lane.clock() - started < 60 else random.uniform(15, 30)
+            lane.pause(min(delay, max(0, end - lane.clock())))
     raise CapacityDeadline("no free workers available before deadline")
 
 
