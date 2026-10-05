@@ -101,10 +101,12 @@ known instead of restarting.
    operator). Store credentials stay out of the cluster (presigned links, as today). For this arm, model calls inside
    the cluster supersede `unseen-repo-evaluation` Req 4.4 (model calls on the VM); that boundary is unchanged for all
    other arms. *(maintainer decision 2026-10-05: scoped key in the cluster)*
-2. The key never appears in a manifest, a log, a board entry or a record. *(Amended 2026-10-05, maintainer decision.)*
-   In the cluster, repository code run by an explore step shares the task with the key and could read it; this risk is
-   accepted and bounded: the key is scoped to search, has a low spend cap, and is rotated after every run. On the host
-   and VM the inner sandbox keeps the key out of executed code.
+2. The key never appears in a manifest, a log, a board entry or a record, and never shares a sandbox with repository
+   code. *(Amended 2026-10-05, maintainer decision: trust domains are separated instead of isolated inside one task.)*
+   The agent loop (the "brain", holding the key) runs on the VM or in its own AX task and executes no repository code;
+   every tool call that touches the repository runs in a separate executor AX task without the key, exchanging
+   commands and results through presigned store objects. A Firecracker executor runtime is considered only if the
+   pilot's `could_not_build` rate shows gVisor cannot build the projects.
 
 ### Requirement 6: Feasibility pilot, false-proof qualification, then the unseen pool
 
