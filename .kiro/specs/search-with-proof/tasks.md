@@ -9,15 +9,15 @@ gates, runs every networked or paid step.
     injection), and whether a no-egress task class exists for verify runs. _Requirements: 5.1, 3.2_
   - [ ] 1.2 Record the answers in `kube-ax-cluster` memory and design.md; no key value anywhere. _Requirements: 5.2_
 
-- [ ] 2. Verifier and oracles (no model calls)
-  - [ ] 2.1 `src/openultrasast/search/verify.py`: fresh-sandbox runner per side; build, readiness check, read-only
+- [x] 2. Verifier and oracles (no model calls)
+  - [x] 2.1 `src/openultrasast/search/verify.py`: fresh-sandbox runner per side; build, readiness check, read-only
     checkout and dependencies, untracked-file and runtime-patch refusal, 3 runs per side, consistency check,
     outcomes `demonstrated|inconclusive|could_not_build|could_not_run|no_oracle`. Artefact exit code ignored.
     _Requirements: 3.1-3.4_
-  - [ ] 2.2 Oracles owned by the verifier: SQL (database fixture + query log), path (file-access watch on a planted
+  - [x] 2.2 Oracles owned by the verifier: SQL (database fixture + query log), path (file-access watch on a planted
     canary), XSS (headless browser execution check), SSRF (in-sandbox listener), command injection (process watch).
     Observers unreachable from the artefact. _Requirements: 3.1, 3.2, 3.5_
-  - [ ] 2.3 Unit tests with hand-written vulnerable/fixed toy apps per oracle, including gaming attempts (reading the
+  - [x] 2.3 Unit tests with hand-written vulnerable/fixed toy apps per oracle, including gaming attempts (reading the
     canary, revision sniffing, patching a dependency, contacting the listener directly): each must not yield
     `demonstrated`. _Requirements: 3.2, 3.3_
 
@@ -54,3 +54,14 @@ gates, runs every networked or paid step.
     _Requirements: 6.1, 6.4_
   - [ ] 6.4 Exit decision against 6.2 and report to the maintainer; on pass, spec tasks for qualification and the
     unseen-pool arm. _Requirements: 6.2_
+
+## Implementation Notes
+
+- Group 2 (2026-10-05): independently reviewed; `tests/test_search_verify.py` has 32 passing tests and one
+  skipped SSRF integration test because this host forbids even localhost sockets. The namespace handoff and
+  listener request parsing are tested separately; the full SSRF effect still needs the task 3.2 probe before
+  claiming that oracle operational. The module audit and neighbouring sandbox/regression tests pass.
+- The local lane requires Linux Bubblewrap and util-linux, reuses `SandboxJob`/`SandboxResult`, and fails closed
+  without isolation. Artefacts receive a batch CLI `TARGET` bridge and private scratch; HTTP apps need a trusted
+  CLI adapter. Only trusted `Side.build_command` outputs can enter the app runtime (read-only `/build`);
+  artefact `build.sh` writes scratch only. XSS requires a trusted browser executor, otherwise `no_oracle`.
