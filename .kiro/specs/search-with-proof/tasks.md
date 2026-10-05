@@ -39,8 +39,8 @@ gates, runs every networked or paid step.
     contract beyond numeric deadlines), VM lane as fallback, resume from checkpoints. _Requirements: 2.3, 2.4_
 
 - [ ] 5. Agent worker
-  - [ ] 5.1 Reason step (no tools): board snapshot in, `complete` / up to 3 intents / nothing out. _Requirements: 2.1_
-  - [ ] 5.2 Explore step: tool loop (`list_files`, `read_file`, `grep`, `run`, `write_demo`, `finish`) via the
+  - [x] 5.1 Reason step (no tools): board snapshot in, `complete` / up to 3 intents / nothing out. _Requirements: 2.1_
+  - [x] 5.2 Explore step: tool loop (`list_files`, `read_file`, `grep`, `run`, `write_demo`, `finish`) via the
     existing OpenAI-compatible client; model client in a separate process and user from executed code; one fact
     or a recorded failure. _Requirements: 2.2, 5.2_
   - [ ] 5.3 Smoke test with a stub model (no spend) end to end on one toy pair on kube-ax.
@@ -80,3 +80,20 @@ gates, runs every networked or paid step.
   interrupted model calls conservatively consume their full reservation; settled failures with zero spend release
   it. Cleanup exceptions stop dispatch. Chromium uses a fresh profile in a private network namespace; injected
   script must call `alert("ousast-xss")`, while escaped/reflected payloads cannot produce the verifier DOM marker.
+
+- Tasks 3.2 and 5.1–5.3 offline implementation (2026-10-05, explicitly authorized): packaged five-family
+  toy pairs and real/two-gaming demos in `search/probe_apps/`; `python -m openultrasast.search.probe` reports
+  per-side stage times, image versions, child/self peak RSS, retained scratch usage and sampled verification
+  scratch peak. Generic isolation and later oracle namespace failures are instrument failures, never misses.
+  Optional RESULT_URL uses an object-scoped urllib PUT. `benchmarks.ax.search_probe` reuses AX/Docker lanes
+  (kind via its kubeconfig), with `ousast-engine-search-probe-` task names.
+- Worker reason/explore uses the existing OpenAI-compatible client with retries disabled and SpendBudget
+  reservation before each call. Repository commands run only in the scrubbed sandbox with bounded tmpfs;
+  the key-absence, timeout, output limit and disk limit tests execute real isolated processes. The scripted
+  model/fake coordinator executor smoke reaches `demonstrated` through the real path oracle verifier.
+- Independent review APPROVED the requested offline scope. Fresh requested search/AX/plane tests plus module
+  audit: 87 passed, 2 skipped, exit 0; focused new tests: 15 passed; Ruff and changed-source mypy pass.
+  Audit: 162 load-bearing, 6 standalone, zero orphaned. Tasks 3.2 and 5.3 remain unchecked for their original
+  live-cluster criteria; their code/local smoke is implemented. No network, paid calls, image builds, pushes
+  or commits. Offline wheel build could not resolve the uncached uv-build backend, so installed-wheel and
+  real AX/gVisor/kind/Docker image validation remain gaps.

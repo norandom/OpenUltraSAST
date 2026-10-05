@@ -68,6 +68,7 @@ def run(
     mounts: dict[str, Path] | None = None,
     env: dict[str, str] | None = None,
     namespace_pid: int | None = None,
+    scratch_bytes: int | None = None,
 ) -> SandboxResult:
     """Run with bounded files, memory, processes, and time; no inherited env."""
 
@@ -92,7 +93,13 @@ def run(
     for path in ("/usr", "/lib", "/lib64", "/bin"):
         if Path(path).exists():
             argv += ["--ro-bind", path, path]
-    argv += ["--ro-bind", str(job.repo_root), "/workspace", "--bind", str(scratch), "/scratch"]
+    argv += ["--ro-bind", str(job.repo_root), "/workspace"]
+    if scratch_bytes is None:
+        argv += ["--bind", str(scratch), "/scratch"]
+    else:
+        if scratch_bytes < 1:
+            raise ValueError("positive scratch limit required")
+        argv += ["--size", str(scratch_bytes), "--tmpfs", "/scratch"]
     for target, source in (mounts or {}).items():
         argv += ["--ro-bind", str(source), target]
     argv += [
@@ -118,8 +125,13 @@ def run(
         # Set NPROC after entering the user namespace (per-namespace since Linux 5.14),
         # so the host uid's existing processes cannot prevent bwrap from starting.
         argv += [
-            "--seccomp", str(policy.fileno()), "--",
-            "/usr/bin/prlimit", f"--nproc={job.pids_limit}:{job.pids_limit}", "--", *job.command,
+            "--seccomp",
+            str(policy.fileno()),
+            "--",
+            "/usr/bin/prlimit",
+            f"--nproc={job.pids_limit}:{job.pids_limit}",
+            "--",
+            *job.command,
         ]
         proc = subprocess.Popen(
             argv,
