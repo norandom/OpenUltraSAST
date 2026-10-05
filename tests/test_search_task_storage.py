@@ -61,7 +61,7 @@ def test_executor_checks_caches_and_stops_at_scratch_limit(workspace, monkeypatc
         "p=Path(os.environ['PIP_CACHE_DIR']); p.mkdir(); (p/'large').write_bytes(b'x'*30000); " + ("time.sleep(10)" if wait else "")
     )
     result = app.submit("run", {"command": [sys.executable, "-c", code]}, timeout_seconds=3)
-    assert result["status"] == "could_not_build" and result["reason"] == "scratch limit"
+    assert result["status"] == "could_not_build" and result["reason"] == "ScratchLimit: scratch limit"
     assert result["stopped"] and app.stopped
 
 
@@ -126,7 +126,7 @@ def test_verifier_reports_scratch_limit(workspace, monkeypatch):
     (demo / "demo.json").write_text(json.dumps(spec()["demo"]))
     monkeypatch.setenv("OUSAST_SCRATCH_BYTES", "25000")
     result = verify_side_task(Side(repo), demo, "path")
-    assert result.outcome == "could_not_build" and result.reason == "scratch limit", result
+    assert result.outcome == "could_not_build" and result.reason == "ScratchLimit: scratch limit", result
 
 
 def test_preparation_builds_before_export_and_exports_products(workspace, monkeypatch):
@@ -165,9 +165,60 @@ def test_open_logs_count_toward_scratch_guard(workspace, monkeypatch):
     monkeypatch.setenv("OUSAST_SCRATCH_BYTES", "20000")
     app = executor.InProcessExecutor(repo, task_boundary=True)
     result = app.submit("run", {"command": [sys.executable, "-c", "print('x'*30000)"]})
-    assert result["status"] == "could_not_build" and result["reason"] == "scratch limit"
+    assert result["status"] == "could_not_build" and result["reason"] == "ScratchLimit: scratch limit"
 
 
 def test_unreadable_scratch_is_not_reported_as_empty(tmp_path):
     with pytest.raises(OSError, match="scratch root unavailable"):
         task_storage.check(tmp_path / "missing")
+
+
+def test_pip_removing_enumerated_directory_is_not_guard_failure(workspace, monkeypatch):
+    original = task_storage.os.walk
+
+    def disappearing(root, **kwargs):
+        kwargs["onerror"](FileNotFoundError(2, "removed pip build directory", str(root / "pip-build")))
+        yield from original(root, **kwargs)
+
+    monkeypatch.setattr(task_storage.os, "walk", disappearing)
+    (workspace / "input").write_bytes(b"input")
+    assert task_storage.check(workspace) >= 5
+
+
+def test_guard_still_refuses_permission_errors(workspace, monkeypatch):
+    def unreadable(root, **kwargs):
+        kwargs["onerror"](PermissionError("permission denied"))
+        return iter(())
+
+    monkeypatch.setattr(task_storage.os, "walk", unreadable)
+    with pytest.raises(PermissionError):
+        task_storage.check(workspace)
+
+
+def test_child_environment_has_disk_home_and_owned_runtime_path(workspace):
+    repo = workspace / "checkout"
+    repo.mkdir()
+    (repo / "input").write_bytes(b"proof")
+    code = (
+        "import os; from pathlib import Path; print(Path('input').stat().st_size); "
+        "print(os.environ['PATH']); p=Path.home()/'probe'; p.write_text('ok'); print(p)"
+    )
+    result = executor.InProcessExecutor(repo, task_boundary=True).submit("run", {"command": [sys.executable, "-c", code]})
+    assert result["exit_code"] == 0
+    assert result["stdout"].startswith("5\n/venv/bin:")
+    assert (workspace / "home/probe").read_text() == "ok"
+
+
+def test_scratch_failure_preserves_exit_and_stderr(workspace, monkeypatch):
+    repo = workspace / "checkout"
+    repo.mkdir()
+    monkeypatch.setenv("OUSAST_SCRATCH_BYTES", "20000")
+    code = (
+        "import sys,time; from pathlib import Path; print('pip build detail',file=sys.stderr,flush=True); "
+        "Path('big').write_bytes(b'x'*30000); time.sleep(10)"
+    )
+    result = executor.InProcessExecutor(repo, task_boundary=True).submit("run", {"command": [sys.executable, "-c", code]})
+    assert result["phase"] == "scratch guard"
+    assert result["exit_code"] is not None
+    assert result["stderr"] == "pip build detail"
+    assert result["reason"].startswith("ScratchLimit:")

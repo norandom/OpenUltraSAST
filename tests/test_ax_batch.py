@@ -274,13 +274,13 @@ def test_capacity_backpressure_retries_same_manifest_until_deadline(tmp_path, mo
     )
     assert lane(item(), tmp_path, 0)["status"] == "ok"
     assert len(applies) >= 3 and len(set(applies)) == 1
-    assert len(deletes) == 1
+    assert len(deletes) == len(applies)
     busy[0] = True
     lane.pause = lambda seconds: now.__setitem__(0, now[0] + seconds)
     deletes.clear()
     result = lane(item(), tmp_path, 1)
     assert result["status"] == "capacity_timeout"
-    assert not deletes
+    assert deletes
     calls = []
 
     def no_vm(*args):

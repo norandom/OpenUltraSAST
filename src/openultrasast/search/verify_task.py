@@ -212,8 +212,8 @@ def task_main() -> None:
             demo.mkdir()
             (demo / "demo.json").write_text(json.dumps(spec["demo"]))
             result = run_side(Side(bundle / "checkout", products=bundle / "products"), demo, spec["family"], spec["timeout_seconds"])
-        except task_storage.ScratchLimit:
-            result = SideRecord("could_not_build", (), 0, "scratch limit", isolation_mode="task-boundary")
+        except task_storage.ScratchLimit as exc:
+            result = SideRecord("could_not_build", (), 0, task_storage.exception_reason(exc), isolation_mode="task-boundary")
         upload(urls["RESULT_URL"], json.dumps(asdict(result)).encode())
 
 

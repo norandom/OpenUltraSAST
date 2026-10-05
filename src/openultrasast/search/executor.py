@@ -34,7 +34,7 @@ from . import _sandbox, task_storage
 
 MAX_COMMAND_BYTES = 65536
 MAX_RESULT_BYTES = 65536
-SAFE_ENV = {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"}
+SAFE_ENV = {"PATH": "/venv/bin:/opt/java/openjdk/bin:/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8", "JAVA_HOME": "/opt/java/openjdk"}
 
 
 def clean_environment(_source: Mapping[str, str] | None = None) -> dict[str, str]:
@@ -111,7 +111,7 @@ class InProcessExecutor:
     ) -> dict[str, Any]:
         result = self.execute(Command(self.seq + 1, name, args, timeout_seconds, limits or {}))
         if result.get("error") in {"ValueError", "KeyError", "TypeError", "FileNotFoundError", "OSError"}:
-            raise ValueError("repository command rejected")
+            raise ValueError(result.get("reason", "repository command rejected"))
         return result
 
     def execute(self, command: Command) -> dict[str, Any]:
@@ -126,13 +126,28 @@ class InProcessExecutor:
             raise ValueError("out of order sequence")
         started = time.monotonic()
         self.deadline = started + command.timeout_seconds
+        self.phase = "run"
         try:
             result = self._execute(command)
-        except task_storage.ScratchLimit:
+        except task_storage.ScratchLimit as exc:
             self.stopped = True
-            result = {"status": "could_not_build", "reason": "scratch limit", "stopped": True}
-        except (ValueError, OSError, KeyError, TypeError, TimeoutError) as exc:
-            result = {"error": type(exc).__name__, "timed_out": isinstance(exc, TimeoutError)}
+            result = {
+                "status": "could_not_build",
+                "reason": task_storage.exception_reason(exc, private=(str(self.repo), self.repo.name)),
+                "phase": "scratch guard",
+                "exit_code": None,
+                "stderr": "",
+                "stopped": True,
+            }
+        except (ValueError, OSError, KeyError, TypeError, TimeoutError, subprocess.SubprocessError) as exc:
+            result = {
+                "error": type(exc).__name__,
+                "reason": task_storage.exception_reason(exc, private=(str(self.repo), self.repo.name)),
+                "phase": self.phase,
+                "exit_code": None,
+                "stderr": "",
+                "timed_out": isinstance(exc, TimeoutError),
+            }
         result["wall_seconds"] = time.monotonic() - started
         result = _bounded({"seq": command.seq, **result}, min(MAX_RESULT_BYTES, command.limits.get("result_bytes", MAX_RESULT_BYTES)))
         self.seq, self.last_digest, self.last_result = command.seq, digest, copy.deepcopy(result)
@@ -179,7 +194,9 @@ class InProcessExecutor:
     def _execute(self, command: Command) -> dict[str, Any]:
         name, args = command.name, command.args
         if self.task_boundary:
+            self.phase = "scratch guard"
             task_storage.check(task_storage.WORKSPACE if task_storage.WORKSPACE.is_dir() else self.repo)
+            self.phase = "run"
         if name == "prepare_verification":
             return self._prepare_verification(args)
         if name == "stop":
@@ -240,10 +257,18 @@ class InProcessExecutor:
                 wall_timeout_seconds=self._remaining(),
             )
         return {
+            **(
+                {
+                    "phase": "timeout" if result.timed_out else "run",
+                    "reason": "TimeoutError: command deadline" if result.timed_out else f"CommandFailure: exit code {result.exit_code}",
+                }
+                if result.timed_out or result.exit_code
+                else {}
+            ),
             "isolation_mode": self.isolation_mode,
             "exit_code": result.exit_code,
             "stdout": result.stdout[:16384],
-            "stderr": result.stderr[-16384:],
+            "stderr": task_storage.diagnostic(result.stderr, maximum=4000),
             "timed_out": result.timed_out,
             "truncated": len(result.stdout) > 16384 or len(result.stderr) > 16384,
         }
@@ -259,12 +284,15 @@ class InProcessExecutor:
         initial_bytes = self._tree_bytes()
         guard_root = task_storage.WORKSPACE if task_storage.WORKSPACE.is_dir() else self.repo
         peak_bytes = task_storage.check(guard_root)
+        self.phase = "spawn"
         with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
             proc = subprocess.Popen(
                 argv, cwd=self.repo, env=clean_environment(), stdout=out, stderr=err, start_new_session=True, preexec_fn=constrain
             )
+            self.phase = "run"
             timed_out = False
             disk_exceeded = False
+            failure = None
             # Monitor the full disk-backed workspace, including package caches.
             # An unnamespaced child can still hardcode RAM-backed paths: this
             # guard is not a replacement for the operator's memory limit.
@@ -290,16 +318,36 @@ class InProcessExecutor:
                         break
                     except subprocess.TimeoutExpired:
                         self._remaining()
-            except TimeoutError:
+            except task_storage.ScratchLimit as exc:
+                disk_exceeded = True
+                failure = exc
+                self.stopped = True
+            except TimeoutError as exc:
                 timed_out = True
+                failure = exc
+            except OSError as exc:
+                self.phase = "scratch guard"
+                failure = exc
             finally:
                 with suppress(ProcessLookupError):
                     os.killpg(proc.pid, signal.SIGKILL)
                 proc.wait()
             out.seek(0)
             err.seek(max(0, os.fstat(err.fileno()).st_size - 16384))
+            stderr = task_storage.diagnostic(err.read().decode(errors="replace"), maximum=4000)
+            phase = "scratch guard" if disk_exceeded else "timeout" if timed_out else self.phase
+            if disk_exceeded:
+                self.stopped = True
+            failed = failure or (task_storage.ScratchLimit("scratch limit") if disk_exceeded else None)
+            reason = (
+                task_storage.exception_reason(failed)
+                if failed
+                else (f"CommandFailure: exit code {proc.returncode}" if proc.returncode else "")
+            )
             return {
-                **({"status": "could_not_build", "reason": "scratch limit"} if disk_exceeded else {}),
+                **({"status": "could_not_build", "stopped": self.stopped} if disk_exceeded else {}),
+                **({"reason": reason, "phase": phase} if reason else {}),
+                **({"error": type(failure).__name__} if failure and not (timed_out or disk_exceeded) else {}),
                 "isolation_mode": "task-boundary",
                 "exit_code": proc.returncode,
                 "timed_out": timed_out,
@@ -309,7 +357,7 @@ class InProcessExecutor:
                 "stdout_bytes": os.fstat(out.fileno()).st_size,
                 "stderr_bytes": os.fstat(err.fileno()).st_size,
                 "stdout": out.read(16384).decode(errors="replace"),
-                "stderr": err.read(16384).decode(errors="replace"),
+                "stderr": stderr,
                 "truncated": os.fstat(out.fileno()).st_size > 16384 or os.fstat(err.fileno()).st_size > 16384,
             }
 
@@ -345,10 +393,8 @@ class InProcessExecutor:
                 elif recipe["recipe"] == "gradle":
                     argv += ["assemble"]
                 built = self._task_run(argv, self._remaining(), {"disk_bytes": task_storage.DEFAULT_SCRATCH_BYTES})
-                if built.get("reason") == "scratch limit":
-                    raise task_storage.ScratchLimit("scratch limit")
-                if built["exit_code"] or built["timed_out"]:
-                    return {"status": "could_not_build", "reason": "build recipe failed: " + built["stderr"][-2000:]}
+                if built.get("disk_limit_exceeded") or built["exit_code"] or built["timed_out"]:
+                    return {**built, "status": "could_not_build"}
             # Validate internal generated links before materializing them as
             # regular archive members. No host/external files may be exported.
             _tree(self.repo, generated_links=True)
@@ -361,6 +407,7 @@ class InProcessExecutor:
             (bundle / "spec.json").write_text(json.dumps(spec))
             task_storage.check(task_storage.WORKSPACE if task_storage.WORKSPACE.is_dir() else bundle)
             blob = pack_checkout(bundle)
+            self.phase = "result upload"
             URLTransport().put(self.prepared_put_url, blob, self._remaining())
             return {"status": "ok", "archive_bytes": len(blob), "sha256": hashlib.sha256(blob).hexdigest()}
 
@@ -403,7 +450,7 @@ class URLTransport:
         except urllib.error.HTTPError as exc:
             if exc.code == 404:
                 return None
-            raise OSError("object read failed") from None
+            raise OSError(f"object read failed: HTTP {exc.code}") from None
 
     def put(self, url: str, data: bytes, timeout: float) -> None:
         with self.opener.open(
@@ -434,10 +481,14 @@ class ObjectStoreExecutor:
         payload = command.validate()
         end = time.monotonic() + timeout_seconds
         self.uncertain = True
+        last_error = ""
+        phase = "result upload"
         while time.monotonic() < end:
             try:
                 # A lost PUT acknowledgement is retried with the exact same sequence.
+                phase = "command upload"
                 self.transport.put(self.command_url, payload, max(0.001, end - time.monotonic()))
+                phase = "result read"
                 raw = self.transport.get(self.result_url, max(0.001, end - time.monotonic()))
                 if raw is not None:
                     if len(raw) > MAX_RESULT_BYTES:
@@ -451,10 +502,10 @@ class ObjectStoreExecutor:
                         self.seq, self.uncertain = command.seq, False
                         self.isolation_mode = result.get("isolation_mode", self.isolation_mode)
                         return result
-            except (OSError, TimeoutError):
-                pass
+            except (OSError, TimeoutError) as exc:
+                last_error = task_storage.exception_reason(exc)
             time.sleep(min(self.poll_seconds, max(0, end - time.monotonic())))
-        raise TimeoutError("executor result deadline")
+        raise TimeoutError(f"executor {phase} deadline; {last_error or 'no result received'}")
 
 
 def serve(
@@ -481,8 +532,11 @@ def serve(
                 transport.put(result_put_url, json.dumps(result).encode(), min(10, max(0.001, end - time.monotonic())))
                 if result.get("stopped"):
                     return
-        except (OSError, TimeoutError):
-            pass
+        except (OSError, TimeoutError) as exc:
+            if executor.last_result:
+                executor.last_result["result_upload_reason"] = task_storage.exception_reason(exc)
+                executor.last_result["result_upload_phase"] = "result upload"
+
         time.sleep(min(poll_seconds, max(0, end - time.monotonic())))
     raise TimeoutError("executor task deadline")
 

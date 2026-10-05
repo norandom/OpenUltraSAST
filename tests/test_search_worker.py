@@ -113,7 +113,7 @@ def test_reservation_precedes_each_call_and_refuses_over_budget(tmp_path):
     job = task()
     job.limits["max_call_usd"] = 0.000001
     result = worker(job)
-    assert result["failure"] == "BudgetExhausted"
+    assert result["failure"].startswith("BudgetExhausted: ")
     assert len(client.calls) == 1
 
 
