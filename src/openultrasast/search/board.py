@@ -67,7 +67,7 @@ class Board:
 
     @staticmethod
     def _validate(state: dict[str, Any]) -> None:
-        if state["end_reason"] not in (None, "goal_met", "budget_spent", "exhausted"):
+        if state["end_reason"] not in (None, "goal_met", "budget_spent", "exhausted", "reason_refused"):
             raise ValueError("invalid end reason")
         ids: dict[str, set[str]] = {}
         for kind in ("facts", "intents", "hints"):
@@ -96,12 +96,35 @@ class Board:
             if intent["status"] == "open" and intent.get("claimant") is not None:
                 raise ValueError("open intent cannot have claimant")
 
-    def snapshot(self, *, max_bytes: int = 32768) -> str:
+    def candidate(self) -> dict[str, str]:
+        """Manifest location is a hint, never confirmed evidence."""
+        for hint in self.state["hints"]:
+            if hint["id"] == "candidate":
+                try:
+                    value = json.loads(hint["text"])
+                except ValueError:
+                    continue
+                if isinstance(value, dict):
+                    return {k: v for k, v in value.items() if k in {"family", "file", "function", "oracle"} and isinstance(v, str)}
+        return {}
+
+    def snapshot(self, *, max_bytes: int = 32768, budget_left: dict[str, Any] | None = None) -> str:
         """Valid YAML even when truncated; explicit omission counts, never a cut string."""
         if max_bytes < 128:
             raise ValueError("snapshot cap must be at least 128 bytes")
         state = self.state
         view = {key: state[key] for key in ("version", "end_reason", "facts", "intents", "hints")}
+        view["candidate"] = self.candidate()
+        view["family"] = view["candidate"].get("oracle", view["candidate"].get("family", "unknown"))
+        view["budget_left"] = budget_left or {}
+        # Keep recent observations, with explicit truncation, without mutating the board.
+        remaining = 12000
+        for fact in reversed(view["facts"]):
+            original = fact["text"]
+            fact["text"] = original[: min(2000, remaining)]
+            remaining -= len(fact["text"])
+            if fact["text"] != original:
+                fact["text_truncated"] = True
         view["omitted"] = dict.fromkeys(("facts", "intents", "hints"), 0)
         while True:
             text = str(yaml.safe_dump(view, sort_keys=False, allow_unicode=True))

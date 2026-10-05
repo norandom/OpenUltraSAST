@@ -34,7 +34,7 @@ def test_probe_pilot_end_to_end(tmp_path, capsys, side, outcome):
     records = [json.loads(line) for line in output.read_text().splitlines()]
     search, summary = records
     assert search["outcome"] == outcome
-    assert search["model_calls"] == (4 if side == "vulnerable" else 5)
+    assert search["model_calls"] == (3 if side == "vulnerable" else 5)
     assert search["input_bytes"] > 0
     assert search["board_bytes"] > 0
     assert search["spend"]["settled"] == 0
@@ -122,10 +122,14 @@ def test_fixed_verification_never_acquires_vulnerable_revision(tmp_path, monkeyp
 
 def test_worker_failure_is_not_no_evidence(tmp_path):
     pilot = make_pilot(tmp_path, dry_run=True)
-    pilot.worker.client.responses = iter([{"content": "invalid json"}])
+    from openultrasast.search.probe import materialise
+
+    pilot.sides, _ = materialise(tmp_path / "probe", "path")
+    pilot.worker.client.responses = iter([{"content": "invalid json"}, {"content": "{}"}, {"content": "{}"}])
     record = pilot.run()
     assert record["outcome"] == "inconclusive"
-    assert record["failures"] == [{"phase": "reason", "reason": "worker_execution_failed"}]
+    assert record["failures"][0]["phase"] == "explore"
+    assert "ValueError: explore must use tools or finish" in record["failures"][0]["reason"]
 
 
 def test_shared_budget_reserved_and_settled_on_error(tmp_path):
@@ -215,7 +219,7 @@ def test_live_wiring_with_fake_mailbox_no_network(tmp_path, monkeypatch, verify_
     record = pilot.run()
     assert record["outcome"] == "demonstrated", record
     assert record["end_reason"] == "goal_met"
-    assert record["model_calls"] == 4
+    assert record["model_calls"] == 3
     assert record["executor_tasks"] == 3
     assert record["verify_tasks"] == (6 if verify_lane == "ax" else 0)
     assert record["tasks_submitted"] == (9 if verify_lane == "ax" else 3)
@@ -320,3 +324,41 @@ def test_refused_shared_reservation_releases_task_allowance(tmp_path):
         worker.reason("facts: []", task)
     assert not client.calls
     assert task.reserved == task.spent == run.reserved == run.spent == 0
+
+
+@pytest.mark.parametrize("through_worker", [False, True])
+def test_explore_exception_keeps_sanitized_message(tmp_path, monkeypatch, through_worker):
+    from contextlib import contextmanager
+
+    from openultrasast.search.worker import StubModel
+
+    pilot = make_pilot(tmp_path)
+    monkeypatch.setenv("MODEL_API_KEY", "private-token-1234")
+
+    def fail():
+        raise RuntimeError("mailbox failed: " + "app.py " * 100 + "https://host/private?token=secret private-token-1234: diagnostic tail")
+
+    class Broken(StubModel):
+        def complete_chat_raw(self, **kwargs):
+            fail()
+
+    @contextmanager
+    def executor(*args, **kwargs):
+        if not through_worker:
+            fail()
+        from types import SimpleNamespace
+
+        yield SimpleNamespace(client=None)
+
+    monkeypatch.setattr(pilot, "executor", executor)
+    if through_worker:
+        pilot.worker.client = Broken([])
+    record = pilot.run()
+    failure = record["failures"][0]
+    assert failure["phase"] == "explore"
+    assert failure["reason"].startswith("RuntimeError: ")
+    assert "diagnostic tail" in failure["reason"]
+    assert len(failure["reason"]) <= 300
+    assert "app.py" not in failure["reason"]
+    assert "https://" not in failure["reason"]
+    assert "private-token-1234" not in failure["reason"]

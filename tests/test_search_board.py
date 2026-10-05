@@ -37,3 +37,39 @@ def test_bad_references_and_oversize_are_atomic(tmp_path):
     with pytest.raises(ValueError):
         board.commit(writer="host", hints=[dict(id="h", text="x" * 2048, step="human", task_id="operator")])
     assert board.head == before
+
+
+def test_snapshot_caps_fact_text_and_preserves_context(tmp_path):
+    import yaml
+
+    board = Board(FileStore(tmp_path), "context", coordinator="host")
+    facts = [
+        dict(id=f"f{i}", text="observation " * 500, evidence_refs=["tool:1"], from_intents=[], step="explore", task_id=f"t{i}")
+        for i in range(10)
+    ]
+    intents = [
+        dict(id=f"i{i}", description="inspect", from_facts=[], status=status, claimant=None, step="reason", task_id="r")
+        for i, status in enumerate(("open", "concluded"))
+    ]
+    board.commit(
+        writer="host",
+        facts=facts,
+        intents=intents,
+        hints=[
+            dict(
+                id="candidate",
+                step="reason",
+                task_id="manifest",
+                text=json.dumps(dict(family="injection", oracle="sql", file="app.py", function="main")),
+            )
+        ],
+    )
+    view = yaml.safe_load(board.snapshot(budget_left={"tasks": 3}))
+    assert view["candidate"]["file"] == "app.py" and view["family"] == "sql"
+    assert view["budget_left"]["tasks"] == 3
+    assert {i["status"] for i in view["intents"]} == {"open", "concluded"}
+    assert all(len(f["text"]) <= 2000 for f in view["facts"])
+    assert sum(len(f["text"]) for f in view["facts"]) <= 12000
+    assert view["facts"][-1]["text"].startswith("observation")
+    assert view["facts"][-1]["text_truncated"]
+    assert board.state["facts"] == facts
