@@ -116,4 +116,12 @@ def diagnostic(value: object, *, maximum: int = 300, private: tuple[str, ...] = 
 
 def exception_reason(exc: BaseException, *, private: tuple[str, ...] = ()) -> str:
     prefix = type(exc).__name__ + ": "
-    return prefix + diagnostic(exc, maximum=max(0, 300 - len(prefix)), private=private)
+    maximum = max(0, 300 - len(prefix))
+    cleanup = getattr(exc, "executor_cleanup_reason", None)
+    if cleanup:
+        original = str(exc).removesuffix("; " + cleanup)
+        # Reserve space for both causes: a long teardown must not erase the
+        # original failure from the bounded public record.
+        half = max(0, (maximum - 2) // 2)
+        return prefix + diagnostic(original, maximum=half, private=private) + "; " + diagnostic(cleanup, maximum=half, private=private)
+    return prefix + diagnostic(exc, maximum=maximum, private=private)

@@ -362,3 +362,99 @@ def test_explore_exception_keeps_sanitized_message(tmp_path, monkeypatch, throug
     assert "app.py" not in failure["reason"]
     assert "https://" not in failure["reason"]
     assert "private-token-1234" not in failure["reason"]
+
+
+@pytest.mark.parametrize(
+    "kind,calls,aborts", [("cluster", 0, True), ("cluster", 1, True), ("infra", 0, True), ("infra", 1, False), ("repo", 0, False)]
+)
+def test_pilot_classifies_run_abort(tmp_path, monkeypatch, kind, calls, aborts):
+    from benchmarks.ax.batch import ClusterUnavailable
+    from benchmarks.search import pilot_run
+
+    pilot = make_pilot(tmp_path)
+    error = {
+        "cluster": ClusterUnavailable("worker pods: total=2, running=0, pending=2"),
+        "infra": RuntimeError("port-forward unavailable"),
+        "repo": pilot_run.RepositoryFailure("checkout failed"),
+    }[kind]
+
+    def dispatch(task):
+        pilot.worker.metrics["model_calls"] = calls
+        raise error
+
+    monkeypatch.setattr(pilot, "dispatch", dispatch)
+    record = pilot.run()
+    assert bool(record.get("aborted_reason")) is aborts
+    assert record["end_reason"] == "instrument_failure"
+    if aborts:
+        assert record["aborted_reason"] == record["failures"][-1]["reason"]
+
+
+@pytest.mark.parametrize("setup_failure", [False, True])
+def test_live_driver_stops_remaining_pairs_on_infrastructure_failure(tmp_path, monkeypatch, setup_failure):
+    from benchmarks.ax.batch import ClusterUnavailable
+    from benchmarks.search import pilot_run
+
+    monkeypatch.chdir(tmp_path)
+    root = Path("benchmarks/search/private")
+    root.mkdir(parents=True)
+    row = dict(
+        repo="https://github.com/private/project",
+        vulnerable="a" * 40,
+        fixed="b" * 40,
+        family="path",
+        language="python",
+        file="app.py",
+        function="main",
+    )
+    manifest = root / "pilot.json"
+    manifest.write_text(json.dumps({"pairs": [row] * 7}))
+    monkeypatch.setattr(pilot_run, "load_dotenv", lambda: None)
+    monkeypatch.setenv(pilot_run.DEEPSEEK_KEY_ENV, "fake-test-key")
+    monkeypatch.setattr(pilot_run, "OpenRouterChatClient", lambda **kw: __import__("types").SimpleNamespace(max_attempts=1))
+
+    def lane(*args):
+        if setup_failure:
+            raise RuntimeError("store unavailable")
+        return object()
+
+    monkeypatch.setattr(pilot_run, "AXLane", lane)
+    attempts = []
+
+    def enter(task):
+        attempts.append(task.name)
+        raise ClusterUnavailable("worker pods: total=2, running=0, pending=2")
+
+    monkeypatch.setattr(pilot_run.SearchExecutorTask, "__enter__", enter)
+    output = tmp_path / "records.jsonl"
+    status = main(
+        [
+            "--side",
+            "vulnerable",
+            "--pairs",
+            "2,5,6",
+            "--ceiling-usd",
+            "1",
+            "--verify-lane",
+            "ax",
+            "--image",
+            "image@sha256:" + "a" * 64,
+            "--out",
+            str(output),
+        ]
+    )
+    records = [json.loads(line) for line in output.read_text().splitlines()]
+    assert status == 1
+    if setup_failure:
+        assert not attempts and len(records) == 1
+        assert records[0]["aborted_reason"] == "RuntimeError: store unavailable"
+        assert records[0]["skipped_pairs"] == [2, 5, 6]
+        assert records[0]["searches"] == 0
+        return
+    assert len(attempts) == 1
+    search, summary = records
+    assert search["pair_index"] == 2 and search["model_calls"] == 0
+    assert summary["searches"] == 1 and summary["skipped_pairs"] == [5, 6]
+    assert summary["end_reason"] == "instrument_failure"
+    assert summary["aborted_reason"] == search["aborted_reason"]
+    assert "running=0" in summary["aborted_reason"]

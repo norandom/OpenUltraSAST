@@ -261,3 +261,28 @@ def test_dispatch_rejects_duplicate_items_before_launch(tmp_path):
 
     with pytest.raises(ValueError, match="duplicate dispatch item"):
         batch.dispatch([item, item], batch.Workload("image", frozenset(), 1, None), tmp_path, {"ax": unexpected}, lanes=("ax",))
+
+
+@pytest.mark.parametrize("stage", ["enter", "body", "normal"])
+def test_cleanup_preserves_original_and_logs(tmp_path, monkeypatch, caplog, stage):
+    _, lane, _ = setup(tmp_path, monkeypatch)
+    original = ValueError("original apply failure")
+
+    def ax(*args, **kwargs):
+        if args[0] == "apply" and stage == "enter":
+            raise original
+        if args[0] == "delete":
+            raise ValueError("delete failed https://private.example/?token=secret")
+
+    lane.ax = ax
+    # Retained reservations must not leak into other tests.
+    monkeypatch.setattr(batch, "AX_SLOTS", __import__("threading").BoundedSemaphore(2))
+    with pytest.raises(RuntimeError if stage == "normal" else ValueError) as caught, batch.SearchExecutorTask(lane, b"archive"):
+        if stage == "body":
+            raise original
+    if stage != "normal":
+        assert caught.value is original
+        assert str(caught.value).startswith("original apply failure; executor cleanup failed:")
+    assert "delete failed" in str(caught.value)
+    assert "executor cleanup failed" in caplog.text
+    assert "private.example" not in caplog.text + str(caught.value)
