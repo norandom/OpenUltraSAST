@@ -39,3 +39,6 @@ site/
 
 # Unseen evaluation pointers for non-permissive repositories.
 benchmarks/unseen/private/
+
+# Feasibility pilot identities remain local; only aggregate records are tracked.
+benchmarks/search/private/

@@ -1,0 +1,74 @@
+{
+  "biases": [
+    "known_vulnerable_location",
+    "labelled_family",
+    "runnable_project_preference"
+  ],
+  "catalogs": {
+    "bytes": 904050,
+    "files": 10,
+    "rows": 873
+  },
+  "eligible_pairs": 192,
+  "eligible_repositories": 192,
+  "exclusions": {
+    "bytes": 0,
+    "count": 0,
+    "files": 0,
+    "ledger_rows": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "gap_to_target": 0,
+  "guard": {
+    "guard": "green",
+    "test_exit_code": 0,
+    "tests": {
+      "errors": 0,
+      "failures": 0,
+      "skipped": 1,
+      "tests": 41
+    }
+  },
+  "language_floor_gaps": {
+    "java": 0,
+    "javascript": 0,
+    "php": 0,
+    "python": 0,
+    "typescript": 0
+  },
+  "local_metadata": {
+    "config_bytes": 0,
+    "manifest_bytes": 0,
+    "matched_checkouts": 0
+  },
+  "manifest_sha256": "b593d2760f525c38b205fb33866c383fead4666102a84a805150b32c55ceeb62",
+  "per_family": {
+    "injection": 5,
+    "output_encoding": 5,
+    "path": 5,
+    "untrusted_destination": 5
+  },
+  "per_language": {
+    "java": 4,
+    "javascript": 4,
+    "php": 4,
+    "python": 4,
+    "typescript": 4
+  },
+  "purpose": "feasibility_only",
+  "qualification": "not_an_unseen_evaluation_or_block_admission",
+  "rejected": {
+    "commits": 60,
+    "family": 62,
+    "language": 100,
+    "location": 1,
+    "not_development_fix": 453,
+    "repository": 5
+  },
+  "seed": 20261005,
+  "selected": 20,
+  "status": "selected",
+  "target": 20,
+  "unknown_manifest": 20,
+  "unknown_test_suite": 20
+}

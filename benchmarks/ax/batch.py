@@ -561,7 +561,9 @@ class DockerLane(AXLane):
             ]
             for env in manifest["spec"]["env"]:
                 command += ["-e", env["name"] + "=" + env["value"]]
-            command += [manifest["spec"]["image"], *manifest["spec"]["command"][1:], "--heap-profile", "vm"]
+            command += [manifest["spec"]["image"], *manifest["spec"]["command"][1:]]
+            if "openultrasast.search.executor" not in manifest["spec"]["command"]:
+                command += ["--heap-profile", "vm"]
         elif args[0] == "get":
             command = ["docker", "inspect", "--format", "{{.State.Running}} {{.State.ExitCode}}", self._docker_name]
         else:
@@ -599,6 +601,12 @@ class SearchExecutorTask:
     def __init__(self, lane, checkout_archive, *, deadline=900):
         if not 0 < deadline <= 3600 or len(checkout_archive) > 128 * 1024**2:
             raise ValueError("executor task input limit")
+        if isinstance(lane, DockerLane):
+            import copy
+
+            lane = copy.copy(lane)
+            lane._diagnostics = []
+            lane.ax = lane._docker_command
         self.lane, self.archive, self.deadline = lane, checkout_archive, deadline
         token = uuid.uuid4().hex[:20]
         self.name = "ousast-engine-search-exec-" + token
@@ -610,9 +618,10 @@ class SearchExecutorTask:
         from openultrasast.search.executor import ObjectStoreExecutor
 
         self.end = time.monotonic() + self.deadline
-        if not AX_SLOTS.acquire(timeout=self.deadline):
-            raise CapacityDeadline
-        self.slot = True
+        if not isinstance(self.lane, DockerLane):
+            if not AX_SLOTS.acquire(timeout=self.deadline):
+                raise CapacityDeadline
+            self.slot = True
         expires = timedelta(seconds=self.deadline + 600)
         store = self.lane.store
         try:

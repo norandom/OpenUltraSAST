@@ -228,3 +228,35 @@ pointing at your own bucket, a registry the workers can pull from, the runner im
 reachable as a Service, and the provider host allowed per task (which each task's EgressPolicy already does). The
 Model and Workspace manifests under `plane/` move unchanged; the Task templates get a new image reference; the kube
 context and `doctor`'s registry check are not configurable yet (the table above). Step by step: `docs/deployment.md`.
+
+## Search executor and verifier task contract (operator verified 2026-10-05)
+
+There are two workers and no queue. `no free workers available` is capacity
+back-pressure: the dispatcher retries the same apply with 15–30 seconds of jitter,
+up to the workload deadline. It does not retry a sandbox execution or route to the VM
+because of this response. A shared reservation limits all AX workloads in one host
+process to two tasks; separate host processes coordinate through AX's rejection.
+
+Search executors build on the disk-backed `/workspace`, export a single archive, and
+are deleted before verifier repetitions start. The archive contains `checkout/`,
+`products/`, and `spec.json` with a `none` build recipe. A verifier receives only
+`VERIFY_INPUT_URL` and `RESULT_URL`; it never installs dependencies or fetches source.
+The executor's host-scoped `PREPARED_PUT_URL` carries the built output. The host checks
+its SHA-256 before passing it to fresh verifier tasks. Each side has three fresh runs.
+
+Verifier egress to `files.because-security.com:443` is requested but **pending**.
+Until the operator enables it, live verifier input/output is blocked. The first input
+download tolerates up to 60 seconds of delayed policy activation.
+
+`/` and `/tmp` consume the worker's 3 GiB RAM; `/workspace` has about 2 GiB usable disk.
+Entrypoints set `TMPDIR=/workspace/tmp`, `npm_config_cache=/workspace/.npm`,
+`MAVEN_OPTS=-Dmaven.repo.local=/workspace/.m2`, `COMPOSER_HOME=/workspace/.composer`,
+`PIP_CACHE_DIR=/workspace/.pip`, and `GRADLE_USER_HOME=/workspace/.gradle`.
+`OUSAST_SCRATCH_BYTES` overrides the default 2147483648-byte workspace guard. The guard
+includes caches and open output logs, checks running children and completed writes,
+and reports `could_not_build` / `scratch limit`. It is a monitored guard, not a hard
+filesystem quota; programs that hardcode `/tmp` still consume the worker's RAM.
+
+Repository clones must use HTTPS `git clone https://github.com/...git` or codeload
+archives, never `api.github.com`: tasks share one public IP. Search task inputs are
+presigned checkout archives, so these entrypoints do not clone repositories themselves.

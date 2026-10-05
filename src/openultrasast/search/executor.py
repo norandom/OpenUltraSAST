@@ -124,7 +124,8 @@ class InProcessExecutor:
             raise ValueError("executor stopped")
         if command.seq != self.seq + 1:
             raise ValueError("out of order sequence")
-        self.deadline = time.monotonic() + command.timeout_seconds
+        started = time.monotonic()
+        self.deadline = started + command.timeout_seconds
         try:
             result = self._execute(command)
         except task_storage.ScratchLimit:
@@ -132,6 +133,7 @@ class InProcessExecutor:
             result = {"status": "could_not_build", "reason": "scratch limit", "stopped": True}
         except (ValueError, OSError, KeyError, TypeError, TimeoutError) as exc:
             result = {"error": type(exc).__name__, "timed_out": isinstance(exc, TimeoutError)}
+        result["wall_seconds"] = time.monotonic() - started
         result = _bounded({"seq": command.seq, **result}, min(MAX_RESULT_BYTES, command.limits.get("result_bytes", MAX_RESULT_BYTES)))
         self.seq, self.last_digest, self.last_result = command.seq, digest, copy.deepcopy(result)
         return result
@@ -256,7 +258,7 @@ class InProcessExecutor:
         timeout = min(timeout, self._remaining())
         initial_bytes = self._tree_bytes()
         guard_root = task_storage.WORKSPACE if task_storage.WORKSPACE.is_dir() else self.repo
-        task_storage.check(guard_root)
+        peak_bytes = task_storage.check(guard_root)
         with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
             proc = subprocess.Popen(
                 argv, cwd=self.repo, env=clean_environment(), stdout=out, stderr=err, start_new_session=True, preexec_fn=constrain
@@ -268,13 +270,21 @@ class InProcessExecutor:
             # guard is not a replacement for the operator's memory limit.
             try:
                 while True:
-                    task_storage.check(guard_root, additional_bytes=os.fstat(out.fileno()).st_size + os.fstat(err.fileno()).st_size)
+                    peak_bytes = max(
+                        peak_bytes,
+                        task_storage.check(guard_root, additional_bytes=os.fstat(out.fileno()).st_size + os.fstat(err.fileno()).st_size),
+                    )
                     if self._tree_bytes() - initial_bytes > limits.get("disk_bytes", task_storage.DEFAULT_SCRATCH_BYTES):
                         disk_exceeded = True
                         break
                     try:
                         proc.wait(timeout=min(0.05, self._remaining()))
-                        task_storage.check(guard_root, additional_bytes=os.fstat(out.fileno()).st_size + os.fstat(err.fileno()).st_size)
+                        peak_bytes = max(
+                            peak_bytes,
+                            task_storage.check(
+                                guard_root, additional_bytes=os.fstat(out.fileno()).st_size + os.fstat(err.fileno()).st_size
+                            ),
+                        )
                         if self._tree_bytes() - initial_bytes > limits.get("disk_bytes", task_storage.DEFAULT_SCRATCH_BYTES):
                             disk_exceeded = True
                         break
@@ -295,6 +305,9 @@ class InProcessExecutor:
                 "timed_out": timed_out,
                 "disk_limit_exceeded": disk_exceeded,
                 "aggregate_disk_isolation": "outer-task-quota-required",
+                "scratch_peak_bytes": peak_bytes,
+                "stdout_bytes": os.fstat(out.fileno()).st_size,
+                "stderr_bytes": os.fstat(err.fileno()).st_size,
                 "stdout": out.read(16384).decode(errors="replace"),
                 "stderr": err.read(16384).decode(errors="replace"),
                 "truncated": os.fstat(out.fileno()).st_size > 16384 or os.fstat(err.fileno()).st_size > 16384,
