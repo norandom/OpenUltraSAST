@@ -56,8 +56,11 @@ known instead of restarting.
 
 #### Acceptance Criteria
 
-1. A demonstration is an executable artefact (test, script or request sequence) that the system, not the agent,
-   re-runs in fresh sandboxes. The **verifier observes the effect itself** through a per-family oracle it owns (for
+1. *(Amended 2026-10-05, maintainer decision after the kube-ax probe: AX tasks have no capabilities, so gVisor and one
+   fresh task per side are the only isolation.)* A demonstration is **declarative data, never agent-written code**: a
+   build recipe chosen from the verifier's fixed per-ecosystem recipes, a start command of the form runtime + path +
+   arguments (no shell), and a request sequence (HTTP requests or CLI invocations, with values captured from earlier
+   responses) that the verifier itself sends. The system, not the agent, runs it in fresh sandboxes. The **verifier observes the effect itself** through a per-family oracle it owns (for
    example a request log, a planted resource it watches, a browser execution check for XSS); the artefact's own exit
    code or output is never the oracle.
 2. Each family's oracle states the attacker boundary (what the artefact may touch: only the documented external
@@ -98,8 +101,10 @@ known instead of restarting.
    operator). Store credentials stay out of the cluster (presigned links, as today). For this arm, model calls inside
    the cluster supersede `unseen-repo-evaluation` Req 4.4 (model calls on the VM); that boundary is unchanged for all
    other arms. *(maintainer decision 2026-10-05: scoped key in the cluster)*
-2. The key never appears in a manifest, a log, a board entry or a record, and is not readable by the repository code
-   the sandbox executes (the model client and the executed code are separated).
+2. The key never appears in a manifest, a log, a board entry or a record. *(Amended 2026-10-05, maintainer decision.)*
+   In the cluster, repository code run by an explore step shares the task with the key and could read it; this risk is
+   accepted and bounded: the key is scoped to search, has a low spend cap, and is rotated after every run. On the host
+   and VM the inner sandbox keeps the key out of executed code.
 
 ### Requirement 6: Feasibility pilot, false-proof qualification, then the unseen pool
 
