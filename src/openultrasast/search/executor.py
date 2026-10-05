@@ -285,9 +285,12 @@ class InProcessExecutor:
                     status = (entry / "status").read_text()
                 except FileNotFoundError:
                     continue
-                real_uid = int(next(line for line in status.splitlines() if line.startswith("Uid:")).split()[1])
-                current += real_uid == uid
-            process_limit = current + 128
+                fields = dict(line.split(":", 1) for line in status.splitlines() if ":" in line)
+                # The kernel's NPROC counter counts threads, not processes: a single IDE or agent
+                # process with 60 threads uses 60 of the allowance.
+                if int(fields["Uid"].split()[0]) == uid:
+                    current += int(fields.get("Threads", "1").strip() or 1)
+            process_limit = current + 256
         except (OSError, ValueError, IndexError, StopIteration):
             pass
 
