@@ -67,6 +67,7 @@ class Coordinator:
         self.board, self.executor = board, executor
         self.budget, self.clock, self.push_budget = budget or SearchBudget(), clock, push_budget
         self.state = board.state
+        self.state.setdefault("end_detail", None)
         self.progress = self.state["checkpoint"] or dict(
             started_at=clock(),
             spent_usd=0.0,
@@ -84,10 +85,25 @@ class Coordinator:
         self.progress["wall_seconds"] = max(0, self.clock() - self.progress["started_at"])
         self.state["checkpoint"] = self.progress
         self.board.commit(
-            writer=self.board.coordinator, **{k: self.state[k] for k in ("facts", "intents", "hints", "end_reason", "checkpoint")}
+            writer=self.board.coordinator,
+            **{k: self.state[k] for k in ("facts", "intents", "hints", "end_reason", "end_detail", "checkpoint")},
         )
 
-    def _end(self, reason: str) -> dict[str, Any]:
+    def _end(self, reason: str, end_detail: str | None = None) -> dict[str, Any]:
+        if reason == "budget_spent" and end_detail not in {
+            "spend",
+            "task_spend",
+            "reason_rounds",
+            "demonstrations",
+            "tasks",
+            "task_wall",
+            "search_wall",
+            "worker_steps",
+            "worker_wall",
+            "run_ceiling",
+        }:
+            raise ValueError("budget_spent requires an exhausted limit")
+        self.state["end_detail"] = end_detail
         self.state["end_reason"] = reason
         self._save()
         return self.board.state
@@ -110,16 +126,21 @@ class Coordinator:
         while True:
             remaining = self._remaining()
             if remaining <= self.budget.cleanup_seconds or self.progress["tasks"] >= self.budget.tasks:
-                raise BudgetExhausted("task or wall budget exhausted", usd=self.meter.spent, calls=self.progress["tasks"])
+                raise BudgetExhausted(
+                    "task or wall budget exhausted",
+                    usd=self.meter.spent,
+                    calls=self.progress["tasks"],
+                    end_detail="search_wall" if remaining <= self.budget.cleanup_seconds else "tasks",
+                )
             maximum = self.budget.max_call_usd if step != "verify" else 0
             reservation = self.meter.reserve(maximum)
             push_reservation = None
             try:
                 if self.push_budget is not None:
                     push_reservation = self.push_budget.reserve(maximum)
-            except BudgetExhausted:
+            except BudgetExhausted as exc:
                 reservation.release()
-                raise
+                raise BudgetExhausted("push ceiling", usd=exc.usd, calls=exc.calls, end_detail="run_ceiling") from exc
             task_id = "task-" + str(self.progress["tasks"] + 1)
             limits = asdict(self.budget)
             limits["task_wall_seconds"] = min(self.budget.task_wall_seconds, remaining - self.budget.cleanup_seconds)
@@ -164,7 +185,16 @@ class Coordinator:
                 or self._remaining() <= 0
                 or self.clock() - dispatched_at > limits["task_wall_seconds"]
             ):
-                raise BudgetExhausted("executor exceeded cost or wall contract", usd=self.meter.spent, calls=self.progress["tasks"])
+                raise BudgetExhausted(
+                    "executor exceeded cost or wall contract",
+                    usd=self.meter.spent,
+                    calls=self.progress["tasks"],
+                    end_detail="task_spend"
+                    if result.get("status") == "invalid_cost"
+                    else "search_wall"
+                    if self._remaining() <= 0
+                    else "task_wall",
+                )
             result = {**result, "task_id": task_id}
             # Persist results together with their effects in run(), not a "done"
             # checkpoint which could lose the result if the host then crashes.
@@ -209,13 +239,13 @@ class Coordinator:
             self._save()
         while True:
             if self._remaining() <= self.budget.cleanup_seconds:
-                return self._end("budget_spent")
+                return self._end("budget_spent", "search_wall")
             try:
                 intent = next((i for i in self.state["intents"] if i["status"] == "open"), None)
                 demo = next((f for f in self.state["facts"] if f.get("demo") and f["id"] not in self.progress["verified"]), None)
                 if demo is not None:
                     if self.progress["demonstrations"] >= self.budget.demonstrations:
-                        return self._end("budget_spent")
+                        return self._end("budget_spent", "demonstrations")
                     self.progress["demonstrations"] += 1
                     result = self._call("verify", {"fact_id": demo["id"], "demo": demo["demo"]})
                     self.progress["verified"].append(demo["id"])
@@ -259,7 +289,7 @@ class Coordinator:
                         intent["failure"] = "invalid_result" if result.get("status") == "ok" else result.get("status", "execution_failure")
                 else:
                     if self.progress["rounds"] >= self.budget.reason_rounds:
-                        return self._end("budget_spent")
+                        return self._end("budget_spent", "reason_rounds")
                     self.progress["rounds"] += 1
                     result = self._call("reason", {})
                     if result.get("status") == "ok" and not result.get("intents") and "complete" not in result:
@@ -275,6 +305,8 @@ class Coordinator:
                         if result.get("status") == "ok" and not result.get("intents") and "complete" not in result:
                             self.progress["failures"].append({"task_id": result["task_id"], "reason": "reason_refused"})
                             return self._end("reason_refused")
+                    if result.get("budget_exhaustion"):
+                        return self._end("budget_spent", result["budget_exhaustion"]["end_detail"])
                     proposals = result.get("intents", [])
                     if result.get("status") != "ok" or not isinstance(proposals, list) or len(proposals) > self.budget.intents_per_round:
                         return self._end("exhausted")
@@ -304,9 +336,11 @@ class Coordinator:
                         )
                     if not added:
                         return self._end("exhausted")
+                if result.get("budget_exhaustion"):
+                    return self._end("budget_spent", result["budget_exhaustion"]["end_detail"])
                 self._save()
-            except BudgetExhausted:
-                return self._end("budget_spent")
+            except BudgetExhausted as exc:
+                return self._end("budget_spent", exc.end_detail)
 
     @staticmethod
     def _refs(refs: Any) -> bool:

@@ -63,6 +63,8 @@ def test_ceiling_refuses_before_stub_call(tmp_path):
     record = json.loads(output.read_text().splitlines()[0])
     assert record["model_calls"] == 0
     assert record["end_reason"] == "budget_spent"
+    assert record["end_detail"] == "run_ceiling"
+    assert record["task_metrics"][0]["end"] == "run_ceiling"
 
 
 def make_pilot(tmp_path, *, side="fixed", dry_run=False):
@@ -221,6 +223,13 @@ def test_live_wiring_with_fake_mailbox_no_network(tmp_path, monkeypatch, verify_
     assert record["end_reason"] == "goal_met"
     assert record["model_calls"] == 3
     assert record["executor_tasks"] == 3
+    assert len(record["executor_task_metrics"]) == 3
+    assert sum(t["model_calls"] for t in record["executor_task_metrics"]) == 3
+    for row in record["executor_task_metrics"]:
+        assert row["reserved"] >= row["settled"]
+        assert row["wall_seconds"] > 0
+        assert row["end"] == "ok"
+        assert {"tokens_in", "tokens_out"} <= row.keys()
     assert record["verify_tasks"] == (6 if verify_lane == "ax" else 0)
     assert record["tasks_submitted"] == (9 if verify_lane == "ax" else 3)
     assert record["input_bytes"] > 0

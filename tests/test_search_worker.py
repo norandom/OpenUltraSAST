@@ -307,3 +307,82 @@ def test_prompt_contracts_and_demo_example(tmp_path, step):
         assert len(prompt) / 4 < 1000  # rough offline token estimate, not a tokenizer
     else:
         assert "file:line" in prompt and "final call for finish" in prompt
+
+
+@pytest.mark.parametrize("with_evidence", [False, True])
+def test_task_spend_finishes_with_confirmed_observations(tmp_path, with_evidence):
+    from openultrasast.model.endpoint import Prices
+
+    (tmp_path / "input.txt").write_text("confirmed input\n" * 400)
+
+    class UsageStub(StubModel):
+        def complete_chat_raw(self, **kwargs):
+            raw = super().complete_chat_raw(**kwargs)
+            raw["usage"] = {"prompt_tokens": 100, "completion_tokens": 100}
+            return raw
+
+    model = UsageStub([tool("read_file", path="input.txt")])
+    worker = Worker(model, repo=tmp_path, demo=tmp_path / "demo", prices=Prices(1, 1, 1), executor=InProcessExecutor(tmp_path))
+    job = task("explore")
+    # First reservation fits; the second includes the real file contents and cannot fit.
+    job.limits["max_call_usd"] = 0.01 if with_evidence else 0.000001
+    result = worker(job)
+    assert result["end_detail"] == result["budget_exhaustion"]["end_detail"] == "task_spend"
+    assert len(model.calls) == int(with_evidence)
+    assert worker.metrics["reserved"] >= worker.metrics["settled"]
+    if with_evidence:
+        assert result["status"] == "ok"
+        assert "confirmed input" in result["fact"]["text"]
+        assert result["fact"]["evidence_refs"] == ["tool:1"]
+        assert result["cost_usd"] == pytest.approx(0.0002)
+    else:
+        assert result["status"] == "execution_failure"
+        assert "task_spend" in result["failure"]
+        assert "fact" not in result
+
+
+def test_calibrated_reservation_covers_reported_usage(tmp_path):
+    import math
+
+    from openultrasast.model.endpoint import Prices
+    from openultrasast.plane.budget import SpendBudget
+
+    class UsageStub(StubModel):
+        def complete_chat_raw(self, **kwargs):
+            raw = super().complete_chat_raw(**kwargs)
+            raw["usage"] = {"prompt_tokens": 27000, "completion_tokens": 1024}
+            return raw
+
+    model = UsageStub([reply({})])
+    worker = Worker(model, repo=tmp_path, demo=tmp_path / "demo", prices=Prices(1, 1, 2))
+    worker.reason("facts: []\nnote: " + "x" * 85000, SpendBudget(1))
+    call = model.calls[0]
+    expected_input = math.ceil(len(json.dumps([call["messages"], call["tools"]], ensure_ascii=False).encode()) / 2) + 1024 * (
+        len(call["messages"]) + 1
+    )
+    assert worker.metrics["reserved"] == pytest.approx((expected_input + 1024 * 2) / 1_000_000)
+    assert worker.metrics["reserved"] >= worker.metrics["settled"] == pytest.approx(0.029048)
+
+
+@pytest.mark.parametrize("detail", ["worker_steps", "worker_wall", "run_ceiling"])
+def test_worker_exhaustion_is_structured(tmp_path, monkeypatch, detail):
+    from openultrasast.model.endpoint import Prices
+    from openultrasast.plane.budget import SpendBudget
+
+    worker = Worker(
+        StubModel([tool("list_files")]),
+        repo=tmp_path,
+        demo=tmp_path / "demo",
+        executor=InProcessExecutor(tmp_path),
+        max_steps=1,
+        prices=Prices(1, 1, 1),
+        run_budget=SpendBudget(0 if detail == "run_ceiling" else 1),
+    )
+    if detail == "worker_wall":
+        from openultrasast.search import worker as module
+
+        times = iter([0, 901])
+        monkeypatch.setattr(module.time, "monotonic", lambda: next(times))
+    result = worker(task("explore"))
+    assert result["budget_exhaustion"]["end_detail"] == detail
+    assert result["end_detail"] == detail

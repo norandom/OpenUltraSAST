@@ -27,7 +27,7 @@ class Board:
         self._lock = threading.RLock()
         self.head: str | None = None
         self._state: dict[str, Any] = dict(
-            search_id=search_id, version=0, previous=None, facts=[], intents=[], hints=[], end_reason=None, checkpoint={}
+            search_id=search_id, version=0, previous=None, facts=[], intents=[], hints=[], end_reason=None, end_detail=None, checkpoint={}
         )
 
     @property
@@ -54,7 +54,7 @@ class Board:
                 raise PermissionError("only the coordinator may write the board")
             if self._state["end_reason"] is not None:
                 raise ValueError("search already ended")
-            if changes.keys() - {"facts", "intents", "hints", "end_reason", "checkpoint"}:
+            if changes.keys() - {"facts", "intents", "hints", "end_reason", "end_detail", "checkpoint"}:
                 raise ValueError("unknown board fields")
             state = {**self.state, **copy.deepcopy(changes), "version": self._state["version"] + 1, "previous": self.head}
             self._validate(state)

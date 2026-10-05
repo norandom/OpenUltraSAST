@@ -164,3 +164,56 @@ def test_invalid_identifiers_refused_before_paths(tmp_path):
             Board(FileStore(tmp_path), bad, coordinator="host")
         with pytest.raises(ValueError):
             SearchTask(bad, "search-1", "reason", "", {}, asdict(SearchBudget()))
+
+
+@pytest.mark.parametrize("detail", ["task_spend", "worker_steps", "worker_wall", "run_ceiling"])
+def test_worker_limit_preserves_fact_and_survives_resume(tmp_path, detail):
+    def execute(task):
+        if task.step == "reason":
+            return {"status": "ok", "cost_usd": 0, "intents": [{"description": "inspect"}]}
+        return {
+            "status": "ok",
+            "cost_usd": 0.01,
+            "budget_exhaustion": {"end_detail": detail, "usd": 0.01, "calls": 1},
+            "fact": {"text": "Confirmed partial observation", "evidence_refs": ["tool:1"]},
+        }
+
+    b = board(tmp_path)
+    state = Coordinator(b, execute).run()
+    assert state["end_reason"] == "budget_spent" and state["end_detail"] == detail
+    assert state["facts"][0]["text"] == "Confirmed partial observation"
+    assert state["intents"][0]["status"] == "concluded"
+    assert state["checkpoint"]["spent_usd"] == 0.01
+    assert Board.resume(b.store, "search-1", b.head, coordinator="host").state == state
+
+
+@pytest.mark.parametrize("detail", ["spend", "tasks", "reason_rounds", "demonstrations", "task_wall", "search_wall", "run_ceiling"])
+def test_coordinator_identifies_each_own_limit(tmp_path, detail):
+    from openultrasast.plane.budget import SpendBudget
+
+    now = [0]
+
+    def execute(task):
+        if detail in {"task_wall", "search_wall"}:
+            now[0] = 1000 if detail == "task_wall" else 20000
+        if task.step == "reason":
+            return {"status": "ok", "cost_usd": 0, "intents": [{"description": str(task.id)}]}
+        if task.step == "explore":
+            return {"status": "ok", "cost_usd": 0, "fact": {"text": "candidate", "evidence_refs": ["tool:1"], "demo": "demo/"}}
+        return {"status": "ok", "cost_usd": 0, "outcome": "inconclusive"}
+
+    limits = {
+        "spend": {"spend_usd": 0},
+        "tasks": {"tasks": 1},
+        "reason_rounds": {"reason_rounds": 1},
+        "demonstrations": {"demonstrations": 1},
+    }
+    state = Coordinator(
+        board(tmp_path),
+        execute,
+        budget=SearchBudget(**limits.get(detail, {})),
+        clock=lambda: now[0],
+        push_budget=SpendBudget(0) if detail == "run_ceiling" else None,
+    ).run()
+    assert state["end_reason"] == "budget_spent"
+    assert state["end_detail"] == detail

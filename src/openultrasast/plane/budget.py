@@ -23,8 +23,9 @@ _USAGE_FIELDS = ("prompt_tokens", "prompt_cache_hit_tokens", "completion_tokens"
 class BudgetExhausted(RuntimeError):
     """Raised before a call would start once the usd or calls ceiling is reached."""
 
-    def __init__(self, message: str, *, usd: float | None, calls: int) -> None:
-        super().__init__(message)
+    def __init__(self, message: str, *, usd: float | None, calls: int, end_detail: str = "spend") -> None:
+        super().__init__(f"{end_detail}: {message}")
+        self.end_detail = end_detail
         self.usd = usd
         self.calls = calls
 

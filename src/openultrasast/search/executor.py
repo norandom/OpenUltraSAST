@@ -314,7 +314,7 @@ class InProcessExecutor:
             self.phase = "run"
             timed_out = False
             disk_exceeded = False
-            failure = None
+            failure: Exception | None = None
             # Monitor the full disk-backed workspace, including package caches.
             # An unnamespaced child can still hardcode RAM-backed paths: this
             # guard is not a replacement for the operator's memory limit.
