@@ -534,11 +534,14 @@ def main() -> None:
     prepared_url = os.environ.get("PREPARED_PUT_URL")
     # Clearing Python's environment cannot remove initial /proc/self/environ.
     # Refuse a misconfigured task before any repository input is opened.
-    if any(
-        value and any(word in key.upper() for word in ("KEY", "TOKEN", "SECRET", "PASSWORD", "CREDENTIAL"))
+    inherited = sorted(
+        key
         for key, value in os.environ.items()
-    ):
-        raise SystemExit("executor refuses inherited credentials")
+        if value and any(word in key.upper() for word in ("KEY", "TOKEN", "SECRET", "PASSWORD", "CREDENTIAL"))
+    )
+    if inherited:
+        # Names only, never values, so a misconfigured task can be diagnosed from the worker log.
+        raise SystemExit("executor refuses inherited credentials: " + ", ".join(inherited))
     scratch_limit = task_storage.configure()
     os.environ.clear()
     os.environ.update(clean_environment())
