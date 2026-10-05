@@ -1,0 +1,41 @@
+# syntax=docker/dockerfile:1
+# base-browser is built against the published base digest in CI; local builds
+# default to the base stage. Never independently rebuild its shared ancestry.
+ARG TASK_BASE_REF=base
+FROM eclipse-temurin:21-jdk-jammy AS jdk
+
+FROM ghcr.io/norandom/ax-task-runner:v0.3.1 AS base
+LABEL org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.source="https://github.com/norandom/OpenUltraSAST"
+USER root
+COPY --from=jdk /opt/java/openjdk /opt/java/openjdk
+ENV JAVA_HOME=/opt/java/openjdk
+ENV PATH="/venv/bin:/opt/java/openjdk/bin:${PATH}"
+# Use upstream /usr/local Python 3.12 (also required by frontend retention).
+# Its venv/pip and the toolchains below support every executor build recipe.
+# Gradle projects use their wrapper; no system Gradle is installed.
+RUN printf 'path-exclude=/usr/share/doc/*\npath-exclude=/usr/share/man/*\npath-exclude=/usr/share/info/*\n' \
+      > /etc/dpkg/dpkg.cfg.d/01-no-docs \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+      nodejs npm node-typescript php-cli composer maven sqlite3 bubblewrap util-linux git ca-certificates libstdc++6 zlib1g \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* /usr/share/doc/* /usr/share/man/* /usr/share/info/* \
+      /opt/java/openjdk/lib/src.zip /opt/java/openjdk/man /root/.cache
+# Metadata only: install runtime dependencies, including the VM lane's extras.
+# No project package or packaging backend enters this shared environment.
+COPY pyproject.toml /tmp/dependencies/pyproject.toml
+RUN python3 -c 'import pathlib,tomllib; p=tomllib.loads(pathlib.Path("/tmp/dependencies/pyproject.toml").read_text())["project"]; print("\n".join(p["dependencies"] + p["optional-dependencies"]["semantic"] + p["optional-dependencies"]["s3"]))' > /tmp/requirements.txt \
+ && python3 -m venv /venv \
+ && /venv/bin/pip install --no-cache-dir -r /tmp/requirements.txt \
+ && rm -rf /tmp/dependencies /tmp/requirements.txt /root/.cache \
+ && python3 --version && java -version && javac -version && node --version && npm --version && tsc --version \
+ && php --version && composer --version && mvn --version && sqlite3 --version && bwrap --version \
+ && setpriv --version && prlimit --version && nsenter --version
+
+FROM ${TASK_BASE_REF} AS base-browser
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends chromium \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* /usr/share/doc/* /usr/share/man/* /usr/share/info/* /root/.cache \
+ && chromium --version

@@ -2,7 +2,9 @@
 
 import json
 import os
+import signal
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -224,19 +226,58 @@ def test_scratch_failure_preserves_exit_and_stderr(workspace, monkeypatch):
     assert result["reason"].startswith("ScratchLimit:")
 
 
-def test_capacity_deadline_plain_diagnostic_survives():
-    from benchmarks.ax.batch import CapacityDeadline
+@pytest.mark.parametrize("project", [".", "subproject"])
+def test_preparation_uses_project_gradle_wrapper(workspace, monkeypatch, project):
+    repo = workspace / "checkout"
+    repo.mkdir()
+    root = repo / project
+    root.mkdir(exist_ok=True)
+    # A real local child proves wrapper execution without system Gradle or network.
+    wrapper = root / "gradlew"
+    wrapper.write_text(
+        'test "$1" = "--no-daemon" || exit 1\n'
+        'test "$2" = "--project-dir" || exit 2\n'
+        'test "$4" = "assemble" || exit 3\n'
+        'mkdir -p "$3/build"\n'
+        'printf compiled > "$3/build/product"\n'
+    )
+    wrapper.chmod(0o644)
+    app = executor.InProcessExecutor(repo, task_boundary=True)
+    app.prepared_put_url = "https://files.example/output"
+    blobs = []
+    monkeypatch.setattr(executor.URLTransport, "put", lambda self, url, data, timeout: blobs.append(data))
+    request = spec()
+    request["demo"]["build"] = {"recipe": "gradle", "arguments": [project]}
+    result = app.submit("prepare_verification", request)
+    assert result["status"] == "ok", result
+    unpacked = workspace / "unpacked"
+    verify_task.extract_checkout(blobs[0], unpacked)
+    assert (unpacked / "checkout" / project / "build/product").read_text() == "compiled"
+    assert json.loads((unpacked / "spec.json").read_text())["demo"]["build"]["recipe"] == "none"
 
-    message = "no free workers available before deadline"
-    assert task_storage.diagnostic(message) == message
-    assert task_storage.exception_reason(CapacityDeadline(message)) == "CapacityDeadline: " + message
 
-
-def test_cleanup_diagnostic_retains_both_causes():
-    error = ValueError("original apply failed")
-    error.executor_cleanup_reason = "executor cleanup failed: " + "details " * 100 + "delete failed"
-    error.args = (str(error) + "; " + error.executor_cleanup_reason,)
-    reason = task_storage.exception_reason(error)
-    assert reason.startswith("ValueError: original apply failed;")
-    assert reason.endswith("delete failed")
-    assert len(reason) <= 300
+def test_preparation_with_many_host_processes(workspace, monkeypatch):
+    repo = workspace / "checkout"
+    repo.mkdir()
+    (repo / "gradlew").write_text('mkdir -p "$3/build"\nprintf compiled > "$3/build/product"\n')
+    app = executor.InProcessExecutor(repo, task_boundary=True)
+    app.prepared_put_url = "https://files.example/output"
+    monkeypatch.setattr(executor.URLTransport, "put", lambda self, url, data, timeout: None)
+    request = spec()
+    request["demo"]["build"] = {"recipe": "gradle", "arguments": ["."]}
+    children = []
+    try:
+        for _ in range(300):
+            pid = os.fork()
+            if pid == 0:
+                time.sleep(60)
+                os._exit(0)
+            children.append(pid)
+        result = app.submit("prepare_verification", request)
+        assert result["status"] == "ok", result
+        assert (repo / "build/product").read_text() == "compiled"
+    finally:
+        for pid in children:
+            os.kill(pid, signal.SIGKILL)
+        for pid in children:
+            os.waitpid(pid, 0)

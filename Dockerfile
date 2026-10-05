@@ -1,26 +1,14 @@
-# OpenUltraSAST with its CPG engine, in one image.
-#
-# The model layer's arbiter is Joern, and `openultrasast.cpg.backend` reaches it by subprocess. Shipping both
-# in one image is what makes that simple: Joern is on PATH inside, so there is no container-to-container call,
-# no docker socket, no path translation between host and container, and no second code path in the backend to
-# get wrong. The alternative -- tool and engine as sibling services -- needs the tool to exec into the other
-# container, which means mounting the docker socket, and that is a large amount of privilege for a linter.
-#
-# The image is big (a JRE plus ~2 GB of Joern). That is the honest cost of bundling an engine, and it buys a
-# contributor a working tool from `docker compose run` with nothing installed on their machine.
-
-FROM eclipse-temurin:21-jre-noble
-LABEL org.opencontainers.image.licenses="Apache-2.0" \
-      org.opencontainers.image.source="https://github.com/norandom/OpenUltraSAST"
-
+# syntax=docker/dockerfile:1
+# Supply digests from plane/task-base.digest; deliberately no floating fallback.
+ARG TASK_BASE_TAG=base-unpublished
+ARG TASK_BASE_DIGEST
+FROM ghcr.io/norandom/ousast-task-base:${TASK_BASE_TAG}@${TASK_BASE_DIGEST} AS joern-build
+ENV PATH="/opt/joern-cli:${PATH}"
 ARG JOERN_VERSION=v4.0.625
 ARG ARCHIVE=joern-cli-linux-x86_64.zip
 
-# php-cli is required by php2cpg, which drives PHP-Parser and shells out to a real interpreter. Without it a
-# PHP tree fails with an opaque "Process exited with code 1" -- measured on this project, not assumed.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends \
-      python3 python3-venv python3-pip unzip curl ca-certificates git php-cli \
+ && apt-get install -y --no-install-recommends curl unzip \
  && rm -rf /var/lib/apt/lists/*
 
 RUN set -eux; \
@@ -32,39 +20,28 @@ RUN set -eux; \
     unzip -q "${ARCHIVE}" -d /opt; \
     rm -f "${ARCHIVE}" "${ARCHIVE}.sha512" checksum.sha512; \
     /opt/joern-cli/joern-parse --help > /dev/null
-ENV PATH="/opt/joern-cli:${PATH}"
 
-# This release ships the JS launcher with a .sh suffix; the backend's direct fallback uses
-# the same extensionless command convention as the other frontends.
 RUN if [ ! -e /opt/joern-cli/jssrc2cpg ] && [ -x /opt/joern-cli/jssrc2cpg.sh ]; then \
       ln -s jssrc2cpg.sh /opt/joern-cli/jssrc2cpg; \
     fi
-
 COPY ops/frontend-retention/install.py /tmp/frontend-retention-install.py
 RUN python3 /tmp/frontend-retention-install.py /opt/joern-cli \
  && rm /tmp/frontend-retention-install.py
 
-WORKDIR /app
-COPY pyproject.toml README.md ./
-COPY src ./src
-COPY benchmarks ./benchmarks
-
-# The core install is zero-dependency by design; `semantic` adds the tree-sitter grammars the candidate
-# enumerator uses. The LLM endpoint stays optional and is configured by environment, never baked in.
-RUN python3 -m venv /venv \
- && /venv/bin/pip install --no-cache-dir -e ".[semantic,s3]"
-ENV PATH="/venv/bin:${PATH}"
-
-# Analysis never needs root.
-# Noble may already provide the ubuntu account at UID 1000. Reuse that identity rather than
-# failing installation or creating a second account with the same UID.
+FROM ghcr.io/norandom/ousast-task-base:${TASK_BASE_TAG}@${TASK_BASE_DIGEST} AS engine
+ENV PATH="/opt/joern-cli:${PATH}"
+COPY --from=joern-build /opt/joern-cli /opt/joern-cli
+# Create runtime identity before the application layers.
 RUN if getent passwd 1000 > /dev/null; then \
       usermod --login ousast --home /home/ousast --move-home "$(getent passwd 1000 | cut -d: -f1)"; \
-    else \
-      useradd --create-home --uid 1000 ousast; \
-    fi \
- && chown -R ousast /app
+    else useradd --create-home --uid 1000 ousast; fi
+WORKDIR /app
+COPY pyproject.toml README.md LICENSE ./
+COPY src ./src
+RUN --mount=type=cache,target=/root/.cache/pip \
+    /venv/bin/pip install --no-deps --no-cache-dir .
+COPY --chown=1000 benchmarks ./benchmarks
+RUN chown -R ousast /app
 USER ousast
-
 ENTRYPOINT ["python", "-m", "openultrasast.cli"]
 CMD ["--help"]

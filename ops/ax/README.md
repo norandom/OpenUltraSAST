@@ -260,3 +260,102 @@ filesystem quota; programs that hardcode `/tmp` still consume the worker's RAM.
 Repository clones must use HTTPS `git clone https://github.com/...git` or codeload
 archives, never `api.github.com`: tasks share one public IP. Search task inputs are
 presigned checkout archives, so these entrypoints do not clone repositories themselves.
+
+## Image layers, publication and node cache budget
+
+The task family has one shared runtime base, `ousast-task-base`, built from the
+public AX runner v0.3.1. `base-browser` adds Chromium to that exact published base
+(by digest); engine and replay do not carry Chromium. The VM/kind `openultrasast`
+image uses the same base and Joern recipe. Replay inherits the published engine
+digest in CI, so even a cold build cannot accidentally duplicate its Joern layers.
+
+Java is **Temurin 21 JDK**, copied from `eclipse-temurin:21-jdk-jammy`.
+`ops/frontend-retention/install.py` explicitly requires Java 21 and invokes
+`java -cp ... dotty.tools.dotc.Main` using Joern's bundled Scala compiler.
+The shared JDK also provides `javac` for Maven/Gradle project builds.
+Curl/unzip and retention build scratch stay in a discarded Joern build stage.
+Joern stays above the base in the engine image (also used by replay and the VM
+lane); its compiler jars and retention provenance must not be blindly pruned.
+Runtime dependencies from `pyproject.toml` (core plus semantic/s3 for the VM lane)
+precede project code. Package installation uses `--no-deps --no-cache-dir`;
+its isolated packaging backend is temporary.
+
+The base retains upstream Python 3.12 with venv/pip. Its explicit apt package list
+is `nodejs npm node-typescript php-cli composer maven sqlite3 bubblewrap util-linux
+git ca-certificates libstdc++6 zlib1g`. Composer is the trixie apt package.
+Chromium is installed only in `base-browser`. Apt caches/lists and docs/man/info
+are cleaned; dpkg excludes new docs/man/info. Files already in inherited AX
+layers still occupy space even if deleted.
+
+Executor preparation supports pip, npm, Composer, Maven and Gradle builds.
+There is **no installed Gradle binary**: the executor invokes the selected project's
+`gradlew` through `/bin/sh`, including for wrappers without executable permissions.
+Gradle-wrapper distribution downloads and dependency downloads go through
+**public HTTPS from the executor**, subject to its egress policy and deadline.
+The verifier receives prepared products and performs no dependency downloads.
+
+Rebuild policy:
+
+- Dependency/toolchain changes: run **Task base image** (also triggered by changes
+  to `plane/Dockerfile.base`, `pyproject.toml`, or `uv.lock`). It publishes
+  `base-<short sha>` and `base-content-<input hash>` tags, plus their `-browser`
+  variants, and prints immutable digest references. Content tags identify build
+  inputs; they do not claim reproducible upstream apt/PyPI resolution. The lockfile
+  triggers refreshes but pip installs the declared runtime constraints, not a uv
+  frozen environment. Deliberate upstream refreshes use manual dispatch.
+- After both targets publish, ensure `ousast-task-base` is **public** in GHCR's
+  package settings. Copy the workflow summary's JSON into `plane/task-base.digest`
+  and submit that pin update for normal review. CI does not commit on your behalf.
+  The initial null pins mean **unpublished**, not a usable bootstrap image.
+- A pin update or `plane/Dockerfile.*`/root Dockerfile change on main runs **Engine
+  image**. For source, entrypoint or retention-installer changes, dispatch it once
+  for the desired revision, or push a `v*` release tag. Source-only merges no longer
+  publish images automatically. Never rebuild per task/run. All builds use scoped
+  GHA caches; pin checks precede builds and require anonymous access plus identical
+  base-layer ancestry for the browser variant.
+- Final package names must also be public in GHCR. Publication checks anonymous
+  access after logout and fails if the package is private. Set visibility on first
+  publication and rerun as needed. Deploy only the reported `image@sha256:...`
+  references in the cluster profile/Task manifests, never `main` or a release tag.
+  Publication does not automatically change deployed Task pins.
+
+For a local task build, pass `TASK_BASE_TAG` and `TASK_BASE_DIGEST` from the base
+pin; search instead takes `TASK_BROWSER_TAG` and `TASK_BROWSER_DIGEST`. Replay's
+`ENGINE_REF` defaults to its local engine stage; set it to the published engine
+reference to reuse exactly those layers. When building `base-browser` locally,
+pass `TASK_BASE_REF=<full base tag@digest>` for the same ancestry as CI.
+
+The operator's capacity rule is **all images in rotation, unpacked, together
+at most approximately 9 GiB**, including rollback revisions. Working builds take
+priority over minimizing an individual executor image; its previous 2.13 GB
+unpacked (~1.98 GiB) was acceptable. Retire unused Task templates and image
+revisions before rotating a large base/Joern generation. Shared layers occupy
+storage once where the runtime deduplicates them, but do not assume that turns
+a sum above 9 GiB into an acceptable rotation. Record both the sum of unpacked
+image sizes and actual unique-layer storage. Never prune images used by live tasks.
+
+Expected footprint (planning estimates only; no images built for this change):
+
+| Image | Expected unpacked size | Basis / uncertainty |
+| --- | --- | --- |
+| Shared base | about 1.3–1.9 GiB | ~454 MB inherited AX layers + ~281 MB JDK baseline + npm/Composer/Maven, language runtimes and venv/extras; apt dependency closure unmeasured |
+| Browser base | about 1.65–2.45 GiB | Shared base + roughly 350–550 MB Chromium/dependencies |
+| Search executor/verifier | about 1.7–2.5 GiB | Browser base + application; previous 2.13 GB unpacked is a baseline, not a ceiling |
+| Engine | roughly 3.5–6 GiB | Restored shared base + Joern; the supplied 2.16 GB compressed engine cannot establish its unpacked size |
+| Replay | engine + a few KiB | Same engine digest plus replay entrypoint |
+| VM/kind openultrasast | roughly 3.5–6 GiB plus benchmark assets | Same base/Joern, runtime extras shared, benchmark payload retained |
+
+An engine + search rotation therefore sums to about **5.2–8.5 GiB** before
+rollback images. Adding replay as another unpacked image brings the sum to about
+**8.7–14.5 GiB**; this rotation is not demonstrated to fit 9 GiB. Engine/replay
+share almost all layers, but the operator must confirm the accounting and measured
+footprint before selecting a rotation. Extra revisions and the VM image add to
+the budget if retained there.
+
+The previous search history included a 1.37 GB apt layer and 281 MB JDK; no
+per-package apt breakdown is available. Removing system Gradle and docs/caches
+may save space, while retained build tools and shared Python extras cost space.
+These ranges are not measured savings or a capacity guarantee. After publication,
+measure unpacked images and unique layers for the entire intended rotation, and
+verify build recipes, PHP/JavaScript retention, runner startup and Chromium before
+rollout. There is no separate <1.5 GiB executor gate.

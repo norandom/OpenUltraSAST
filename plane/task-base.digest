@@ -1,0 +1,5 @@
+{
+  "base": null,
+  "base-browser": null,
+  "note": "UNPUBLISHED: run task-base-image, then replace with the two full tag@sha256 references from its summary. Never invent digests."
+}

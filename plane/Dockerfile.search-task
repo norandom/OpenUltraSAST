@@ -1,35 +1,19 @@
-# Build from the repository root; retain the AX runner entrypoint and command.
-FROM eclipse-temurin:17-jdk-jammy AS jdk
-FROM ghcr.io/norandom/ax-task-runner:v0.3.1
-LABEL org.opencontainers.image.licenses="Apache-2.0" \
-      org.opencontainers.image.source="https://github.com/norandom/OpenUltraSAST"
+# syntax=docker/dockerfile:1
+# Supply digests from plane/task-base.digest; deliberately no floating fallback.
+ARG TASK_BROWSER_TAG=base-unpublished-browser
+ARG TASK_BROWSER_DIGEST
+FROM ghcr.io/norandom/ousast-task-base:${TASK_BROWSER_TAG}@${TASK_BROWSER_DIGEST}
 USER root
-COPY --from=jdk /opt/java/openjdk /opt/java/openjdk
-ENV JAVA_HOME=/opt/java/openjdk
-ENV PATH="/venv/bin:/opt/java/openjdk/bin:${PATH}"
-# dpkg exclusions prevent docs/manpages entering layers, including transitive deps.
-RUN printf 'path-exclude=/usr/share/doc/*\npath-exclude=/usr/share/man/*\npath-exclude=/usr/share/info/*\n' \
-      > /etc/dpkg/dpkg.cfg.d/01-no-docs \
- && apt-get update \
- && apt-get install -y --no-install-recommends \
-      python3 python3-venv python3-pip nodejs npm node-typescript php-cli composer maven gradle \
-      sqlite3 bubblewrap util-linux chromium git ca-certificates \
- && rm -rf /var/lib/apt/lists/* /opt/java/openjdk/lib/src.zip /opt/java/openjdk/man
-WORKDIR /app
-COPY pyproject.toml README.md LICENSE ./
-COPY src ./src
-# Includes the verifier-owned recipes, oracles, and key-free executor entrypoints.
-RUN python3 -m venv /venv \
- && /venv/bin/pip install --no-cache-dir . \
- && python3 --version && node --version && tsc --version && php --version \
- && javac -version && sqlite3 --version && bwrap --version \
- && setpriv --version && prlimit --version && nsenter --version && chromium --version
 # Dedicated identity for artefacts, apps and Chromium; the verifier keeps root.
 RUN groupadd --gid 10001 search \
  && useradd --create-home --uid 10001 --gid 10001 search
-# gVisor is the outer boundary; retain inner bwrap when its capability probe succeeds.
-# The Python base image sets GPG_KEY to the public CPython release-signing fingerprint (not a secret).
-# Clear it so the executor's guard against inherited credentials stays strict and still passes.
+# Upstream's public CPython signing fingerprint trips the credential guard.
 ENV GPG_KEY=
+WORKDIR /app
+COPY pyproject.toml README.md LICENSE ./
+COPY src ./src
+RUN --mount=type=cache,target=/root/.cache/pip \
+    /venv/bin/pip install --no-deps --no-cache-dir .
+# Entrypoints and verifier-owned recipes/oracles are included in src.
 USER root
-# Do not replace the AX runner's ENTRYPOINT or CMD.
+# Preserve the AX runner ENTRYPOINT and CMD.
