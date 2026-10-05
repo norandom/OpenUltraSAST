@@ -6,8 +6,10 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class SearchBudget:
-    spend_usd: float = 0.50
-    max_call_usd: float = 0.05
+    # Recalibrated 2026-10-05 on the first three measured searches: settled cost was ~$0.003 per model call,
+    # but worst-case reservations (~$0.027 per call) exhausted the old $0.05 task allowance after 2-4 calls.
+    spend_usd: float = 2.00
+    max_call_usd: float = 0.40
     reason_rounds: int = 4
     intents_per_round: int = 3
     demonstrations: int = 3

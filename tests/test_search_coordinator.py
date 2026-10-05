@@ -71,7 +71,7 @@ def test_claim_checkpoint_survives_interrupt_without_free_spend(tmp_path):
     checkpoint = b.head
     resumed = Board.resume(b.store, "search-1", checkpoint, coordinator="host")
     state = Coordinator(resumed, lambda task: {"status": "ok", "cost_usd": 0, "intents": []}).run()
-    assert state["checkpoint"]["spent_usd"] == 0.05
+    assert state["checkpoint"]["spent_usd"] == SearchBudget().max_call_usd
     assert state["checkpoint"]["tasks"] == 3
 
 
@@ -98,7 +98,7 @@ def test_cleanup_failure_halts_and_charges_unknown_spend(tmp_path):
     with pytest.raises(RuntimeError, match="cleanup"):
         Coordinator(b, broken).run()
     assert len(calls) == 1
-    assert b.state["checkpoint"]["spent_usd"] == 0.05
+    assert b.state["checkpoint"]["spent_usd"] == SearchBudget().max_call_usd
     assert b.state["checkpoint"]["pending"]["id"] == calls[0].id
 
 
