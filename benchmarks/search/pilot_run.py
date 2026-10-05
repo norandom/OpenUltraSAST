@@ -88,6 +88,9 @@ class Pilot:
             fixed_effect_observed=None,
             outcome="no_evidence",
             end_reason="exhausted",
+            end_detail=None,
+            task_metrics=[],
+            executor_task_metrics=[],
             tasks_submitted=0,
             executor_tasks=0,
             verify_tasks=0,
@@ -139,9 +142,35 @@ class Pilot:
 
     @contextmanager
     def executor(self, revision, deadline=900):
+        before = time.monotonic()
+        metrics = dict(self.worker.metrics)
+        self.executor_end = "ok"
+        submitted = self.record["executor_tasks"]
+        try:
+            with self._executor(revision, deadline) as task:
+                yield task
+        except BudgetExhausted as exc:
+            self.executor_end = exc.end_detail
+            raise
+        except Exception:
+            self.executor_end = "execution_failure"
+            raise
+        finally:
+            if self.record["executor_tasks"] > submitted:
+                self.record["executor_task_metrics"].append(
+                    {
+                        "executor_task": submitted + 1,
+                        **{key: value - metrics[key] for key, value in self.worker.metrics.items()},
+                        "wall_seconds": time.monotonic() - before,
+                        "end": self.executor_end,
+                    }
+                )
+
+    @contextmanager
+    def _executor(self, revision, deadline=900):
         deadline = min(deadline, self.deadline - time.monotonic())
         if deadline < 1:
-            raise BudgetExhausted("task deadline", usd=0, calls=0)
+            raise BudgetExhausted("task deadline", usd=0, calls=0, end_detail="task_wall")
         acquired_at = time.monotonic()
         empty = io.BytesIO()
         with tarfile.open(fileobj=empty, mode="w"):
@@ -151,7 +180,7 @@ class Pilot:
         with SearchExecutorTask(self.lane, empty.getvalue(), deadline=deadline) as task:
             remaining = deadline - (time.monotonic() - acquired_at)
             if remaining < 1:
-                raise BudgetExhausted("acquisition deadline", usd=0, calls=0)
+                raise BudgetExhausted("acquisition deadline", usd=0, calls=0, end_detail="task_wall")
             timeout = min(180, remaining)
             result = task.client.submit(
                 "run",
@@ -163,7 +192,7 @@ class Pilot:
                 raise RepositoryFailure("checkout failed")
             remaining = deadline - (time.monotonic() - acquired_at)
             if remaining < 1:
-                raise BudgetExhausted("acquisition deadline", usd=0, calls=0)
+                raise BudgetExhausted("acquisition deadline", usd=0, calls=0, end_detail="task_wall")
             result = task.client.submit("read_file", {"path": self.row["file"]}, timeout_seconds=min(30, remaining))
             if not isinstance(result.get("input_bytes"), int) or result["input_bytes"] <= 0:
                 self.failure("acquisition", "candidate_input_unreadable")
@@ -173,7 +202,7 @@ class Pilot:
 
     def admit_task(self):
         if self.record["tasks_submitted"] >= 32:
-            raise BudgetExhausted("executor task cap", usd=0, calls=0)
+            raise BudgetExhausted("executor task cap", usd=0, calls=0, end_detail="tasks")
         self.record["tasks_submitted"] += 1
 
     def prepare(self, revision, spec):
@@ -247,6 +276,9 @@ class Pilot:
         self.phase = task.step
         before = time.monotonic()
         self.deadline = before + task.limits.get("task_wall_seconds", 900)
+        metrics_before = dict(self.worker.metrics)
+        result = {}
+        end = "execution_failure"
         try:
             if task.step == "verify":
                 result = self.verification()
@@ -267,6 +299,7 @@ class Pilot:
                         self.failure("verify/" + side.outcome, "side_verification_failed")
                 if result.outcome != "demonstrated":
                     self.failure("verify", "no_consistent_differential" if result.outcome == "inconclusive" else result.outcome)
+                end = result.outcome
                 return dict(status="ok", outcome=result.outcome, evidence_refs=["verify:owned"], cost_usd=0)
             if task.step == "explore":
                 if self.args.dry_run:
@@ -277,20 +310,32 @@ class Pilot:
                         self.worker.executor = remote.client
                         remaining = task.limits["task_wall_seconds"] - (time.monotonic() - before)
                         if remaining < 1:
-                            raise BudgetExhausted("explore deadline", usd=0, calls=0)
+                            raise BudgetExhausted("explore deadline", usd=0, calls=0, end_detail="task_wall")
                         result = self.worker(replace(task, limits={**task.limits, "task_wall_seconds": remaining}))
+                        self.executor_end = result.get("end_detail") or result.get("status", "execution_failure")
             else:
                 result = self.worker(task)
-            if self.worker.budget_exhausted:
-                raise BudgetExhausted("run ceiling", usd=0, calls=0)
+            end = result.get("end_detail") or result.get("status", "execution_failure")
             if result.get("status") != "ok":
                 self.failure(task.step, result.get("failure", "worker_execution_failed"))
-                if self.worker.metrics["model_calls"] == 0:
+                if self.worker.metrics["model_calls"] == 0 and not result.get("budget_exhaustion"):
                     raise RuntimeError(self.record["failures"][-1]["reason"])
                 if not self.verifications:
                     self.record["outcome"] = "inconclusive"
             return result
+        except BudgetExhausted as exc:
+            end = exc.end_detail
+            raise
         finally:
+            self.record["task_metrics"].append(
+                {
+                    "task_id": task.id,
+                    "step": task.step,
+                    **{key: value - metrics_before[key] for key, value in self.worker.metrics.items()},
+                    "wall_seconds": time.monotonic() - before,
+                    "end": end,
+                }
+            )
             wall = self.record["wall_seconds_by_phase"]
             wall[task.step] = wall.get(task.step, 0) + time.monotonic() - before
 
@@ -300,6 +345,7 @@ class Pilot:
         try:
             state = coordinator.run()
             self.record["end_reason"] = state["end_reason"]
+            self.record["end_detail"] = state.get("end_detail")
             if not self.verifications and any(f.get("step") == "explore" for f in state["facts"]):
                 self.record["outcome"] = "plausible_unproven"
         except Exception as exc:

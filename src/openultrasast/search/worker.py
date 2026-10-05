@@ -173,6 +173,8 @@ class Worker:
         self.run_budget = run_budget
         self.metrics = dict(reserved=0.0, settled=0.0, model_calls=0, tokens_in=0, tokens_out=0)
         self.budget_exhausted = False
+        self.task_calls_start = 0
+        self.observations: list[tuple[str, str]] = []
         selected_prices = prices if prices is not None else getattr(client, "prices", None)
         if not isinstance(selected_prices, Prices) or any(not math.isfinite(v) or v < 0 for v in vars(selected_prices).values()):
             raise ValueError("nonnegative finite model prices required before admission")
@@ -192,26 +194,36 @@ class Worker:
     def _remaining(self) -> int:
         remaining = min(60, self.deadline - time.monotonic())
         if remaining < 1:
-            raise BudgetExhausted("worker wall budget spent", usd=0, calls=0)
+            raise BudgetExhausted("worker wall budget spent", usd=0, calls=0, end_detail="worker_wall")
         return int(remaining)
 
     def _call(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]], meter: SpendBudget) -> dict[str, Any]:
         timeout = self._remaining()
-        # UTF-8 bytes upper-bound content tokens; include conservative per-message
-        # chat framing. A provider with extra hidden billed tokens needs new pricing.
-        input_bound = len(json.dumps([messages, tools], ensure_ascii=False).encode()) + 4096 * (len(messages) + 1)
+        # Pilot measured ~27k input tokens against the old ~100k reservation (3-4x).
+        # Use bytes/2 plus 1024 framing tokens per message; retain max_tokens for output.
+        # This calibrated bound is checked at settlement, not a tokenizer guarantee.
+        input_bound = math.ceil(len(json.dumps([messages, tools], ensure_ascii=False).encode()) / 2) + 1024 * (len(messages) + 1)
         maximum = (
             input_bound * max(self.prices.input_per_m, self.prices.cache_hit_per_m) + self.max_output_tokens * self.prices.output_per_m
         ) / 1_000_000
-        reservation = meter.reserve(maximum)
+        try:
+            reservation = meter.reserve(maximum)
+        except BudgetExhausted as exc:
+            raise BudgetExhausted(
+                "next call reservation exceeds task allowance",
+                usd=exc.usd,
+                calls=int(self.metrics["model_calls"]) - self.task_calls_start,
+                end_detail="task_spend",
+            ) from exc
         run_reservation = None
         try:
             if self.run_budget is not None:
                 run_reservation = self.run_budget.reserve(maximum)
-        except BudgetExhausted:
+        except BudgetExhausted as exc:
             reservation.release()
-            self.budget_exhausted = True
-            raise
+            raise BudgetExhausted(
+                "run ceiling", usd=exc.usd, calls=int(self.metrics["model_calls"]) - self.task_calls_start, end_detail="run_ceiling"
+            ) from exc
         self.metrics["reserved"] += maximum
         self.metrics["model_calls"] += 1
         actual = maximum
@@ -326,6 +338,7 @@ class Worker:
             {"role": "user", "content": task.snapshot + "\nIntent: " + json.dumps(task.payload)},
         ]
         self.evidence = set()
+        self.observations = []
         for index in range(self.max_steps):
             messages[0]["content"] = (
                 EXPLORE_PROMPT
@@ -369,13 +382,20 @@ class Worker:
                     ref = "tool:" + str(len(self.evidence) + 1)
                     self.evidence.add(ref)
                     result["evidence_ref"] = ref
+                    if not result.get("error"):
+                        text = json.dumps(result, ensure_ascii=False)
+                        if len(text) > 2000:
+                            text = text[:2000] + " [truncated]"
+                        self.observations.append((ref, name + ": " + text))
                 except (ValueError, OSError, KeyError, TypeError) as exc:
                     result = {"error": type(exc).__name__, "reason": exception_reason(exc)}
                 messages.append({"role": "tool", "tool_call_id": call["id"], "content": json.dumps(result)})
-        return {"status": "execution_failure", "failure": "tool step limit exceeded"}
+        raise BudgetExhausted("tool step limit exceeded", usd=meter.spent, calls=self.max_steps, end_detail="worker_steps")
 
     def __call__(self, task: SearchTask) -> dict[str, Any]:
         self.budget_exhausted = False
+        self.task_calls_start = int(self.metrics["model_calls"])
+        self.observations = []
         self.limits = task.limits
         self.deadline = time.monotonic() + task.limits.get("task_wall_seconds", 900)
         meter = SpendBudget(task.limits["max_call_usd"])
@@ -390,6 +410,27 @@ class Worker:
                 "status": "ok",
                 **result,
                 "cost_usd": meter.spent,
+                "isolation_mode": getattr(self.executor, "isolation_mode", "brain-only"),
+            }
+        except BudgetExhausted as exc:
+            self.budget_exhausted = True
+            result = {"status": "execution_failure", "failure": exception_reason(exc)}
+            if task.step == "explore" and self.observations:
+                # Preserve literal executor observations, without inventing a security conclusion
+                # or making another paid call to summarize them. Bound board growth explicitly.
+                observations = self.observations[-6:]
+                result = {
+                    "status": "ok",
+                    "fact": {
+                        "text": "Partial tool observations (search incomplete):\n" + "\n".join(text for _, text in observations),
+                        "evidence_refs": [ref for ref, _ in observations],
+                    },
+                }
+            return {
+                **result,
+                "cost_usd": meter.spent,
+                "end_detail": exc.end_detail,
+                "budget_exhaustion": {"end_detail": exc.end_detail, "usd": exc.usd, "calls": exc.calls},
                 "isolation_mode": getattr(self.executor, "isolation_mode", "brain-only"),
             }
         except _sandbox.IsolationUnavailable as exc:
