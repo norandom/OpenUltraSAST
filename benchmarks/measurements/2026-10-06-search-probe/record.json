@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-06",
+  "image": "ghcr.io/norandom/ousast-search-task@sha256:32c7d23a41936c841b91edf27ded2d1fef5df9d656171e3ae199e7ed51ba0264",
+  "image_tools": {
+    "bwrap": "bubblewrap 0.12.0",
+    "chromium": "Chromium 154.0.8037.92 built on Debian G",
+    "java": "openjdk version \"21.0.12.1\" 2026-08-18\nO",
+    "node": "v20.19.2",
+    "php": "PHP 8.4.26 (cli) (built: Sep 24 2026 17:",
+    "python": "Python 3.13.5",
+    "sqlite": "3.46.1 2024-08-13 09:16:08 c9c2ab54ba1f5",
+    "tsc": "Version 4.9.5"
+  },
+  "isolation_check": {
+    "reason": "task-boundary",
+    "status": "skipped"
+  },
+  "isolation_mode": "task-boundary",
+  "lane": "kube-ax (AX task, gVisor, task-boundary)",
+  "namespaces": {
+    "cgroup": 1,
+    "ipc": 1,
+    "mount": 1,
+    "net": 1,
+    "pid": 1,
+    "setpriv": 127,
+    "user": 1,
+    "uts": 1
+  },
+  "oracles": {
+    "command": {
+      "observer_access": "inconclusive",
+      "real": "demonstrated",
+      "revision_patch": "inconclusive"
+    },
+    "path": {
+      "observer_access": "inconclusive",
+      "real": "demonstrated",
+      "revision_patch": "inconclusive"
+    },
+    "sql": {
+      "observer_access": "inconclusive",
+      "real": "demonstrated",
+      "revision_patch": "inconclusive"
+    },
+    "ssrf": {
+      "observer_access": "inconclusive",
+      "real": "demonstrated",
+      "revision_patch": "inconclusive"
+    },
+    "xss": {
+      "observer_access": "inconclusive",
+      "real": "demonstrated",
+      "revision_patch": "inconclusive"
+    }
+  },
+  "peak_rss_kib": {
+    "children": 460152,
+    "self": 42172,
+    "sum": 502324
+  },
+  "scratch_disk_bytes": 23040,
+  "status": "ok",
+  "task": "search-with-proof 3.2",
+  "wall_seconds": 38.368433234
+}
