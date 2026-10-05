@@ -27,7 +27,7 @@ def task_manifest(name, args, urls):
 
 
 def engine_workload(args, validate):
-    return Workload(args.image, frozenset({"SOURCE_URL", "QUESTIONS_URL", "RESULT_URL"}), args.deadline, validate)
+    return Workload(args.image, frozenset({"SOURCE_URL", "QUESTIONS_URL", "RESULT_URL"}), args.deadline, validate, kind="pass")
 
 
 def engine_item(pin, pin_id, source, args):

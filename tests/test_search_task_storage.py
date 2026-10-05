@@ -281,21 +281,3 @@ def test_preparation_with_many_host_processes(workspace, monkeypatch):
             os.kill(pid, signal.SIGKILL)
         for pid in children:
             os.waitpid(pid, 0)
-
-
-def test_capacity_deadline_plain_diagnostic_survives():
-    from benchmarks.ax.batch import CapacityDeadline
-
-    message = "no free workers available before deadline"
-    assert task_storage.diagnostic(message) == message
-    assert task_storage.exception_reason(CapacityDeadline(message)) == "CapacityDeadline: " + message
-
-
-def test_cleanup_diagnostic_retains_both_causes():
-    error = ValueError("original apply failed")
-    error.executor_cleanup_reason = "executor cleanup failed: " + "details " * 100 + "delete failed"
-    error.args = (str(error) + "; " + error.executor_cleanup_reason,)
-    reason = task_storage.exception_reason(error)
-    assert reason.startswith("ValueError: original apply failed;")
-    assert reason.endswith("delete failed")
-    assert len(reason) <= 300

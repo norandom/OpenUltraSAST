@@ -71,7 +71,8 @@ def apply_when_available(lane, document, end):
             if lane.clock() >= next_health_check:
                 lane.check_cluster_health(timeout=min(10, max(0.01, end - lane.clock())))
                 next_health_check = lane.clock() + 60
-            # Brief snapshot-copy contention clears quickly; busy workers need slower retries.
+            # Substrate's golden-snapshot copy holds the other worker for about a second after each new task
+            # (operator, 2026-10-05): retry quickly for the first minute, then back off while real tasks run.
             delay = random.uniform(2, 5) if lane.clock() - started < 60 else random.uniform(15, 30)
             lane.pause(min(delay, max(0, end - lane.clock())))
     raise CapacityDeadline("no free workers available before deadline")
@@ -261,8 +262,10 @@ class AXLane:
     def _execute_attempt(self, item, output, attempt, attempts):
         pin_id = item.id
         digest = hashlib.sha256(f"{self.run}/{pin_id}/attempt-{attempt}".encode()).hexdigest()[:12]
-        slug = re.sub(r"[^a-z0-9]+", "-", str(pin_id).lower()).strip("-")[:22]
-        name = f"ousast-engine-{slug or 'pin'}-{digest}"
+        kind = re.sub(r"[^a-z0-9]+", "-", self.workload.kind.lower()).strip("-") or "pin"
+        # Names are capped at 49 bytes: 14 (prefix) + kind + 1 + slug + 1 + 12 (digest).
+        slug = re.sub(r"[^a-z0-9]+", "-", str(pin_id).lower()).strip("-")[: max(4, 21 - len(kind))]
+        name = f"ousast-engine-{kind}-{slug or 'pin'}-{digest}"
         key_id = hashlib.sha256(str(pin_id).encode()).hexdigest()
         prefix = f"engine-queue/{self.run}/{key_id}/attempt-{attempt}/"
         keys = [prefix + item.object_names.get(key, key.lower() + PRESIGNED_ARCHIVE_SUFFIX) for key in item.inputs]
@@ -360,6 +363,8 @@ class Workload:
     url_env: frozenset[str]
     deadline: float
     validate: object
+    # Task-name prefix after "ousast-engine-"; the operator's per-host egress rules match on it.
+    kind: str = "pin"
 
 
 def validate_image(image):

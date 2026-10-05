@@ -1,0 +1,6 @@
+{
+  "base": "ghcr.io/norandom/ousast-task-base:base-b696c08@sha256:0f374138fcb49fef41609d323cc80b6c2324b1e798d3a2aee5c8038b8c7ac3aa",
+  "base-browser": "ghcr.io/norandom/ousast-task-base:base-b696c08-browser@sha256:09323d893d1b8a213dfa1aad6ba587566bba708713bc050d456466cf5a2421d8",
+  "content": "bb23a92d2de9ff7e6e75d4b16752ec95a7d3962ee4fa06639a18a0514f639d2a",
+  "note": "Built by task-base-image run 37358368253 from main b696c08; rebuild only when plane/Dockerfile.base, pyproject.toml or uv.lock change."
+}

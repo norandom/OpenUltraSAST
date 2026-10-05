@@ -3,18 +3,11 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    tags: ['v*']
     paths:
-      - 'src/**'
-      - 'benchmarks/learn/engine_trace*.py'
-      - 'benchmarks/learn/engine_task_entry.py'
-      - 'benchmarks/unseen/replay_entry.py'
-      - 'benchmarks/learn/engine_worker_service.py'
+      - 'plane/Dockerfile.*'
+      - 'plane/task-base.digest'
       - 'Dockerfile'
-      - 'plane/Dockerfile.engine-task'
-      - 'plane/Dockerfile.search-task'
-      - 'ops/frontend-retention/install.py'
-      - 'pyproject.toml'
-      - '.github/workflows/engine-image.yml'
 permissions:
   contents: read
   packages: write
@@ -22,7 +15,40 @@ concurrency:
   group: engine-image-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  pins:
+    runs-on: ubuntu-latest
+    outputs:
+      base_tag: ${{ steps.pins.outputs.base_tag }}
+      base_digest: ${{ steps.pins.outputs.base_digest }}
+      browser_tag: ${{ steps.pins.outputs.browser_tag }}
+      browser_digest: ${{ steps.pins.outputs.browser_digest }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      # No login: every pinned base must be anonymously pullable.
+      - id: pins
+        run: |
+          python3 - <<'PYTHON'
+          import json, os, re, subprocess
+          from pathlib import Path
+          pins = json.loads(Path("plane/task-base.digest").read_text())
+          manifests = {}
+          for key, output in (("base", "base"), ("base-browser", "browser")):
+              ref = pins.get(key)
+              pattern = r"ghcr.io/norandom/ousast-task-base:(base-[a-z0-9-]+)@(sha256:[0-9a-f]{64})"
+              match = re.fullmatch(pattern, ref or "")
+              if not match:
+                  raise SystemExit(f"{key}: unpublished/invalid pin; run task-base-image and update plane/task-base.digest")
+              raw = subprocess.check_output(["docker", "buildx", "imagetools", "inspect", "--raw", ref])
+              manifests[key] = json.loads(raw)["layers"]
+              with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+                  out.write(f"{output}_tag={match[1]}\n{output}_digest={match[2]}\n")
+          base = manifests["base"]
+          if not base or manifests["base-browser"][:len(base)] != base:
+              raise SystemExit("Browser pin does not share the pinned base's layers")
+          PYTHON
   image:
+    needs: pins
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -30,12 +56,6 @@ jobs:
         include:
           - package: openultrasast
             dockerfile: Dockerfile
-          - package: ousast-engine-task
-            dockerfile: plane/Dockerfile.engine-task
-            target: engine
-          - package: ousast-replay-task
-            dockerfile: plane/Dockerfile.engine-task
-            target: replay
           - package: ousast-search-task
             dockerfile: plane/Dockerfile.search-task
     steps:
@@ -58,9 +78,18 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
-          target: ${{ matrix.target }}
           platforms: linux/amd64
           push: true
+          provenance: false
+          build-args: |
+            TASK_BASE_TAG=${{ needs.pins.outputs.base_tag }}
+            TASK_BASE_DIGEST=${{ needs.pins.outputs.base_digest }}
+            TASK_BROWSER_TAG=${{ needs.pins.outputs.browser_tag }}
+            TASK_BROWSER_DIGEST=${{ needs.pins.outputs.browser_digest }}
+          cache-from: |
+            type=gha,scope=${{ matrix.package }}
+            type=gha,scope=ousast-engine-task
+          cache-to: type=gha,mode=max,scope=${{ matrix.package }}
           tags: |
             ${{ steps.names.outputs.image }}:${{ steps.names.outputs.sha }}
             ${{ steps.names.outputs.image }}:main
@@ -70,3 +99,101 @@ jobs:
         run: |
           echo "$IMAGE@$DIGEST"
           echo "$IMAGE@$DIGEST" >> "$GITHUB_STEP_SUMMARY"
+          docker logout ghcr.io
+          docker buildx imagetools inspect "$IMAGE@$DIGEST"
+  engine:
+    needs: pins
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.names.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: names
+        env:
+          OWNER: ${{ github.repository_owner }}
+          PACKAGE: ousast-engine-task
+        run: |
+          echo "image=ghcr.io/${OWNER,,}/$PACKAGE" >> "$GITHUB_OUTPUT"
+          echo "sha=sha-${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: plane/Dockerfile.engine-task
+          target: engine
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          build-args: |
+            TASK_BASE_TAG=${{ needs.pins.outputs.base_tag }}
+            TASK_BASE_DIGEST=${{ needs.pins.outputs.base_digest }}
+            TASK_BROWSER_TAG=${{ needs.pins.outputs.browser_tag }}
+            TASK_BROWSER_DIGEST=${{ needs.pins.outputs.browser_digest }}
+          cache-from: type=gha,scope=ousast-engine-task
+          cache-to: type=gha,mode=max,scope=ousast-engine-task
+          tags: |
+            ${{ steps.names.outputs.image }}:${{ steps.names.outputs.sha }}
+            ${{ steps.names.outputs.image }}:main
+      - env:
+          IMAGE: ${{ steps.names.outputs.image }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          echo "$IMAGE@$DIGEST"
+          echo "$IMAGE@$DIGEST" >> "$GITHUB_STEP_SUMMARY"
+          docker logout ghcr.io
+          docker buildx imagetools inspect "$IMAGE@$DIGEST"
+  replay:
+    needs: [pins, engine]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: names
+        env:
+          OWNER: ${{ github.repository_owner }}
+          PACKAGE: ousast-replay-task
+        run: |
+          echo "image=ghcr.io/${OWNER,,}/$PACKAGE" >> "$GITHUB_OUTPUT"
+          echo "sha=sha-${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: plane/Dockerfile.engine-task
+          target: replay
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          build-args: |
+            ENGINE_REF=${{ needs.engine.outputs.image }}@${{ needs.engine.outputs.digest }}
+            TASK_BASE_TAG=${{ needs.pins.outputs.base_tag }}
+            TASK_BASE_DIGEST=${{ needs.pins.outputs.base_digest }}
+            TASK_BROWSER_TAG=${{ needs.pins.outputs.browser_tag }}
+            TASK_BROWSER_DIGEST=${{ needs.pins.outputs.browser_digest }}
+          cache-from: |
+            type=gha,scope=ousast-replay-task
+            type=gha,scope=ousast-engine-task
+          cache-to: type=gha,mode=max,scope=ousast-replay-task
+          tags: |
+            ${{ steps.names.outputs.image }}:${{ steps.names.outputs.sha }}
+            ${{ steps.names.outputs.image }}:main
+      - env:
+          IMAGE: ${{ steps.names.outputs.image }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          echo "$IMAGE@$DIGEST"
+          echo "$IMAGE@$DIGEST" >> "$GITHUB_STEP_SUMMARY"
+          docker logout ghcr.io
+          docker buildx imagetools inspect "$IMAGE@$DIGEST"

@@ -220,7 +220,7 @@ def run_replays(changes, args, out, lane, *, deadline_scale=1.0, deadline=None):
     maximum = max(
         max(json.loads(i.inputs["SPEC_URL"])["deadline_seconds"], json.loads(i.inputs["SPEC_URL"])["base_deadline_seconds"]) for i in items
     )
-    workload = Workload(args.image, frozenset({"SPEC_URL", "RESULT_URL"}), maximum + 600, validate_result)
+    workload = Workload(args.image, frozenset({"SPEC_URL", "RESULT_URL"}), maximum + 600, validate_result, kind="replay")
     lanes = ("ax", "ax", "docker") if lane == "mixed" else (lane,) * (2 if lane in {"ax", "kind"} else 1)
     original = {item.id: change for item, change in zip(items, changes, strict=True)}
     executors = {}
