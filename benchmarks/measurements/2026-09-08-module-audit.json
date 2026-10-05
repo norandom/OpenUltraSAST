@@ -1,7 +1,7 @@
 {
-  "modules": 159,
+  "modules": 163,
   "counts": {
-    "load_bearing": 154,
+    "load_bearing": 158,
     "standalone_capability": 5
   },
   "orphaned": [],
@@ -1553,7 +1553,9 @@
         "regress.candidate",
         "regress.recipes",
         "regress.safety",
-        "regress.verdict"
+        "regress.verdict",
+        "search._sandbox",
+        "search.verify"
       ]
     },
     {
@@ -1591,6 +1593,36 @@
       "importers": [
         "scoring"
       ]
+    },
+    {
+      "module": "search",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate, cli",
+      "importers": [
+        "search.verify"
+      ]
+    },
+    {
+      "module": "search._sandbox",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate, cli",
+      "importers": [
+        "search.verify"
+      ]
+    },
+    {
+      "module": "search.oracles",
+      "classification": "load_bearing",
+      "reason": "python -m openultrasast.search.oracles",
+      "importers": [
+        "search.verify"
+      ]
+    },
+    {
+      "module": "search.verify",
+      "classification": "load_bearing",
+      "reason": "python -m openultrasast.search.verify",
+      "importers": []
     },
     {
       "module": "semantic",
