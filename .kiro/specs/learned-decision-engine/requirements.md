@@ -132,6 +132,13 @@ rule hits.
    - **t_quiet**: per family, the highest threshold keeping >= 90% of the paired positives at or above it (chosen
      on training folds, its held-out recall reported); findings below it are silent.
    - No held-out label moves a threshold or a normalisation map; candidates whose verdict is `unsure` never block.
+5. *(Amended 2026-10-05, maintainer decision, with `search-with-proof`.)* Where a family has an owned demonstration
+   oracle, the engine is **triage, not the gate**: BLOCK comes only from a verified demonstration (`search-with-proof`
+   Req 3, 6.3), and the engine's job is to put the true vulnerable function among the top K candidates of a push.
+   For those families the engine is judged by (a) top-K recall per push (K = 3 to start) on the unseen-repo pool and
+   (b) its advisory false-alarm rate there; the pooled block gate of 6.4 then governs only families without an
+   oracle (access control, deserialisation, configuration and secrets), where the engine remains the only signal.
+   Every arm reports top-K recall next to its catch and false-alarm rates.
 
 ### Requirement 7: Built for unseen repositories -- a repo safety net
 

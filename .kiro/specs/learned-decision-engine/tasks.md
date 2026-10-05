@@ -254,3 +254,13 @@ rate per push. Within-pair AUC stays a development signal. Tasks 11-14 below fol
   - Search input fields, retrieval parameters, k, instruction and demonstrations together (DSPy MIPRO-style) on
     training folds; no hand-set input profile. Budget go-ahead before paid search.
   - _Requirements: 3, 6, 7_
+
+- [ ] 17. Triage objective (Req 6.5, amended 2026-10-05 with `search-with-proof`)
+  - [ ] 17.1 Metric: top-K recall per push (K = 1, 3, 5) of the true vulnerable function among changed functions,
+    on held-out folds and on the unseen-repo pool; added to the pool scorer next to catch and false alarm.
+  - [ ] 17.2 Score the existing arms on it ($0 replay): trained logistic (cheapest per candidate, likely default),
+    LLM programs (exp-005 A), engine-evidence ordering, and an averaged ensemble.
+  - [ ] 17.3 Re-scope 14 (pooled block gate) to families without a demonstration oracle; 15.4 and 16 report top-K
+    recall as their primary unseen-pool number for families with an oracle.
+  - _Requirements: 6.5, 7_
+
