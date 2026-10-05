@@ -1,7 +1,7 @@
 """One no-model executor task; run as python -m benchmarks.search.executor_smoke.
 
 Runtime acquisition/install needs network inside the executor. Unit tests are offline.
-Records contain measurements, never command output or presigned bearer URLs.
+Records contain measurements and sanitized failure tails, never presigned bearer URLs.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from benchmarks.ax.batch import AXLane, DockerLane, SearchExecutorTask, Workload, validate_image
+from openultrasast.search.task_storage import diagnostic, exception_reason
 
 # URL and pin are positional shell arguments, never interpolated into shell code.
 # Retry the initial acquisition for delayed task egress activation (at most 60 s).
@@ -55,6 +56,8 @@ def run_smoke(lane, repo_url, commit, *, deadline=900):
         "scratch_measurement": "sampled workspace allocated bytes plus command logs",
         "model_calls": 0,
     }
+    parts = urlsplit(repo_url)
+    private = tuple(p for p in parts.path.split("/") if p) + (parts.path.rsplit("/", 1)[-1].removesuffix(".git"),)
     started = time.monotonic()
     try:
         parts = urlsplit(repo_url)
@@ -77,9 +80,18 @@ def run_smoke(lane, repo_url, commit, *, deadline=900):
                 if name == "run":
                     args = {**args, "timeout_seconds": timeout}
                 before = time.monotonic()
-                result = task.client.submit(
-                    name, args, timeout_seconds=timeout, limits={"memory_bytes": 2 * 1024**3, "disk_bytes": 2 * 1024**3}
-                )
+                try:
+                    result = task.client.submit(
+                        name, args, timeout_seconds=timeout, limits={"memory_bytes": 2 * 1024**3, "disk_bytes": 2 * 1024**3}
+                    )
+                except Exception as exc:
+                    result = {
+                        "error": type(exc).__name__,
+                        "reason": exception_reason(exc, private=private),
+                        "phase": "timeout" if isinstance(exc, TimeoutError) else "result upload",
+                        "exit_code": None,
+                        "stderr": "",
+                    }
                 output_bytes = sum(result.get(k + "_bytes", len(result.get(k, "").encode())) for k in ("stdout", "stderr"))
                 if name != "run":
                     output_bytes = len(json.dumps(result).encode())
@@ -95,12 +107,27 @@ def run_smoke(lane, repo_url, commit, *, deadline=900):
                 }
                 if "input_bytes" in result:
                     row["input_bytes"] = result["input_bytes"]
+                failed = (
+                    result.get("error")
+                    or result.get("timed_out")
+                    or result.get("status") == "could_not_build"
+                    or (name == "run" and result.get("exit_code") != 0)
+                )
+                if failed:
+                    row.update(
+                        phase=result.get("phase", "timeout" if result.get("timed_out") else "run"),
+                        reason=diagnostic(
+                            result.get("reason") or result.get("error") or f"CommandFailure: exit code {result.get('exit_code')}",
+                            private=private,
+                        ),
+                        stderr=diagnostic(result.get("stderr", ""), maximum=4000, private=private),
+                    )
                 record["commands"].append(row)
                 record["scratch_peak_bytes"] = max(record["scratch_peak_bytes"], result.get("scratch_peak_bytes", 0))
                 if result.get("error") or result.get("timed_out") or result.get("status") == "could_not_build":
-                    raise ValueError(step + " executor failure")
+                    raise ValueError(step + " executor failure: " + row["reason"])
                 if name == "run" and result.get("exit_code") != 0:
-                    raise ValueError(step + " nonzero or missing exit code")
+                    raise ValueError(step + " nonzero or missing exit code: " + row["reason"])
                 if step == "install" and output_bytes == 0 and row["wall_seconds"] < 1:
                     raise ValueError("empty fast install: exit 0 with empty output in under 1 s")
                 return result
@@ -130,28 +157,7 @@ def run_smoke(lane, repo_url, commit, *, deadline=900):
             record["status"] = "ok"
     except Exception as exc:
         record["status"] = "instrument_failure"
-        # Only our fixed diagnostic strings are safe; transport errors may contain URLs.
-        record["reason"] = (
-            str(exc)
-            if isinstance(exc, ValueError)
-            and str(exc)
-            in {
-                "credential-free HTTPS repository URL required",
-                "full lowercase commit SHA required",
-                "no recognised install manifest",
-                "clone yielded zero files",
-                "file read lacks input size",
-                "trivial command did not print 1",
-                "stop not acknowledged",
-                "empty fast install: exit 0 with empty output in under 1 s",
-                *(
-                    step + suffix
-                    for step in ("clone", "list_files", "read_file", "grep", "install", "trivial", "stop")
-                    for suffix in (" executor failure", " nonzero or missing exit code")
-                ),
-            }
-            else type(exc).__name__
-        )
+        record["reason"] = exception_reason(exc, private=private)
     record["wall_seconds"] = time.monotonic() - started
     return record
 
@@ -173,7 +179,7 @@ def main(argv=None):
         lane = (DockerLane if args.lane == "docker" else AXLane)(args, Workload(args.image, frozenset(), args.deadline, None))
         record = run_smoke(lane, args.repo_url, args.commit, deadline=args.deadline)
     except Exception as exc:
-        record = {"status": "instrument_failure", "reason": "lane setup: " + type(exc).__name__}
+        record = {"status": "instrument_failure", "reason": "lane setup: " + exception_reason(exc)}
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
     print(json.dumps(record))

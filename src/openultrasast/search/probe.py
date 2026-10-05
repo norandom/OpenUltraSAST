@@ -22,6 +22,7 @@ from typing import Any
 
 from . import _sandbox
 from .oracles import BrowserExecutor
+from .task_storage import exception_reason
 from .verify import Side, verify
 
 FAMILIES = ("sql", "path", "command", "ssrf", "xss")
@@ -128,13 +129,13 @@ def probe(root: Path) -> dict[str, Any]:
                     if side.reason.startswith("verification unavailable or refused:"):
                         raise _sandbox.IsolationUnavailable(f"{family}/{name}: {side.reason}")
     except Exception as exc:
-        record.update(status="instrument_failure", exception=f"{type(exc).__name__}: {exc}")
+        record.update(status="instrument_failure", exception=exception_reason(exc))
         namespaces = record["namespaces"]
         if namespaces and all(namespaces[name]["exit_code"] != 0 for name in ("user", "pid", "net", "ipc", "uts", "mount")):
             record["isolation_mode"] = "task-boundary"
             record["requires_fresh_side_tasks"] = True
         if record["isolation_check"] is None:
-            record["isolation_check"] = {"status": "instrument_failure", "exception": str(exc)}
+            record["isolation_check"] = {"status": "instrument_failure", "exception": exception_reason(exc)}
     finally:
         record["wall_seconds"] = time.monotonic() - start
         record["peak_rss_kib"] = {
@@ -165,8 +166,9 @@ def main(argv: list[str] | None = None) -> int:
             with urllib.request.urlopen(request, timeout=30) as response:
                 if not 200 <= response.status < 300:
                     return 1
-        except Exception:
-            # Presigned URL is a bearer secret; never print upload exceptions.
+        except Exception as exc:
+            record.update(status="instrument_failure", phase="result upload", reason=exception_reason(exc))
+            print(json.dumps(record), flush=True)
             return 1
     return 0 if record["status"] == "ok" else 1
 

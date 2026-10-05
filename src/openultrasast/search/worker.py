@@ -20,6 +20,7 @@ from . import _sandbox
 from .coordinator import SearchTask
 from .demo import DEMO_SCHEMA, load_demo, validate_demo
 from .executor import ObjectStoreExecutor
+from .task_storage import exception_reason
 
 
 def _schema(name: str, description: str, properties: dict[str, Any], required: list[str]) -> dict[str, Any]:
@@ -286,7 +287,7 @@ class Worker:
                     self.evidence.add(ref)
                     result["evidence_ref"] = ref
                 except (ValueError, OSError, KeyError, TypeError) as exc:
-                    result = {"error": type(exc).__name__}
+                    result = {"error": type(exc).__name__, "reason": exception_reason(exc)}
                 messages.append({"role": "tool", "tool_call_id": call["id"], "content": json.dumps(result)})
         return {"status": "execution_failure", "failure": "tool step limit exceeded"}
 
@@ -307,18 +308,18 @@ class Worker:
                 "cost_usd": meter.spent,
                 "isolation_mode": getattr(self.executor, "isolation_mode", "brain-only"),
             }
-        except _sandbox.IsolationUnavailable:
+        except _sandbox.IsolationUnavailable as exc:
             return {
                 "status": "instrument_failure",
-                "failure": "sandbox isolation unavailable",
+                "failure": exception_reason(exc),
                 "cost_usd": meter.spent,
                 "isolation_mode": getattr(self.executor, "isolation_mode", "brain-only"),
             }
         except Exception as exc:
-            # Provider exceptions can contain keys/URLs. Never persist their text.
+            # Preserve the diagnostic after removing credentials and URLs.
             return {
                 "status": "execution_failure",
-                "failure": type(exc).__name__,
+                "failure": exception_reason(exc),
                 "cost_usd": meter.spent,
                 "isolation_mode": getattr(self.executor, "isolation_mode", "brain-only"),
             }

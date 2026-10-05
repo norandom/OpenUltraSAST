@@ -28,5 +28,8 @@ RUN python3 -m venv /venv \
 RUN groupadd --gid 10001 search \
  && useradd --create-home --uid 10001 --gid 10001 search
 # gVisor is the outer boundary; retain inner bwrap when its capability probe succeeds.
+# The Python base image sets GPG_KEY to the public CPython release-signing fingerprint (not a secret).
+# Clear it so the executor's guard against inherited credentials stays strict and still passes.
+ENV GPG_KEY=
 USER root
 # Do not replace the AX runner's ENTRYPOINT or CMD.

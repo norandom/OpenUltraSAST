@@ -19,6 +19,7 @@ from urllib.parse import urlsplit
 
 from benchmarks.unseen import eligibility, ledger
 from openultrasast.model.taxonomy import load_families
+from openultrasast.search.task_storage import exception_reason
 
 LANGUAGES = ("python", "javascript", "typescript", "php", "java")
 FAMILIES = ("injection", "path", "output_encoding", "untrusted_destination")
@@ -352,7 +353,16 @@ def main(argv=None) -> int:
     except Exception as exc:
         if created:
             private.unlink(missing_ok=True)
-        print(json.dumps({"status": "instrument_failure", "reason": type(exc).__name__}))
+        print(
+            json.dumps(
+                {
+                    "status": "instrument_failure",
+                    "reason": exception_reason(
+                        exc, private=tuple(part for row in locals().get("rows", []) for part in str(row.get("repo", "")).split("/") if part)
+                    ),
+                }
+            )
+        )
         return 1
 
 

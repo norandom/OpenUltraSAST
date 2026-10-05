@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import stat
 import subprocess
 import tempfile
@@ -23,6 +24,7 @@ def environment() -> dict[str, str]:
         return {}
     root = str(WORKSPACE)
     return {
+        "HOME": root + "/home",
         "TMPDIR": root + "/tmp",
         "npm_config_cache": root + "/.npm",
         "MAVEN_OPTS": "-Dmaven.repo.local=" + root + "/.m2",
@@ -39,6 +41,7 @@ def configure() -> int:
     env = environment()
     if env:
         Path(env["TMPDIR"]).mkdir(parents=True, exist_ok=True)
+        Path(env["HOME"]).mkdir(parents=True, exist_ok=True)
         os.environ.update(env)
         # tempfile may have cached /tmp before this entry point ran.
         tempfile.tempdir = env["TMPDIR"]
@@ -53,7 +56,8 @@ def check(root: Path | None = None, limit: int | None = None, *, additional_byte
         raise OSError("scratch root unavailable")
 
     def unreadable(error: OSError) -> None:
-        raise error
+        if not isinstance(error, FileNotFoundError):
+            raise error
 
     total = additional_bytes
     if total > limit:
@@ -91,3 +95,25 @@ def communicate(proc: subprocess.Popen[Any], data: bytes, timeout: float, root: 
             first = False
             if time.monotonic() >= end:
                 raise
+
+
+def diagnostic(value: object, *, maximum: int = 300, private: tuple[str, ...] = ()) -> str:
+    """Sanitize before truncation so a clipped secret cannot escape redaction."""
+    text = str(value)
+    for key, secret in os.environ.items():
+        if len(secret) >= 4 and any(word in key.upper() for word in ("KEY", "TOKEN", "SECRET", "PASSWORD", "CREDENTIAL")):
+            text = text.replace(secret, "[redacted]")
+    text = re.sub(r"(?i)bearer\s+[^\s,;\"']+", "Bearer [redacted]", text)
+    text = re.sub(r"(?i)(?:https?|s3)://[^\s<>\"']+", "[redacted-url]", text)
+    text = re.sub(
+        r"(?i)([\w-]*(?:authorization|signature|credential|token|secret|password|key))\s*[:=]\s*[^\s,;&\"']+", r"\1=[redacted]", text
+    )
+    for name in sorted(set(private), key=len, reverse=True):
+        if name:
+            text = text.replace(name, "[repository]")
+    return "\n".join(text.splitlines()[-20:])[-maximum:]
+
+
+def exception_reason(exc: BaseException, *, private: tuple[str, ...] = ()) -> str:
+    prefix = type(exc).__name__ + ": "
+    return prefix + diagnostic(exc, maximum=max(0, 300 - len(prefix)), private=private)

@@ -39,7 +39,7 @@ def test_paths_and_oversize(tmp_path):
 def test_environment_allowlist():
     assert clean_environment(
         {"OPENROUTER_API_KEY": "secret", "GEMINI_API_KEY": "secret", "PATH": "/evil", "AWS_SECRET_ACCESS_KEY": "secret"}
-    ) == {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"}
+    ) == {"PATH": "/venv/bin:/opt/java/openjdk/bin:/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8", "JAVA_HOME": "/opt/java/openjdk"}
 
 
 class Mailbox:
@@ -240,3 +240,79 @@ def test_sandbox_receives_exact_remaining_wall_limit(tmp_path, monkeypatch):
     InProcessExecutor(tmp_path).submit("run", {"command": ["/bin/true"]}, timeout_seconds=0.2)
     assert 0 < seen["probe"] <= 0.2
     assert 0 < seen["wall"] <= 0.2
+
+
+def test_spawn_failure_has_diagnostic(tmp_path):
+    result = InProcessExecutor(tmp_path, task_boundary=True).execute(Command(1, "run", {"command": ["/missing-executor-program"]}))
+    assert result["phase"] == "spawn"
+    assert result["exit_code"] is None
+    assert "FileNotFoundError:" in result["reason"]
+    assert "No such file" in result["reason"]
+
+
+def test_timeout_preserves_child_diagnostics(tmp_path):
+    import sys
+
+    result = InProcessExecutor(tmp_path, task_boundary=True).execute(
+        Command(
+            1,
+            "run",
+            {"command": [sys.executable, "-c", "import sys,time; print('before timeout',file=sys.stderr,flush=True); time.sleep(10)"]},
+            0.3,
+        )
+    )
+    assert result["phase"] == "timeout"
+    assert result["exit_code"] is not None
+    assert result["stderr"] == "before timeout"
+    assert result["reason"].startswith("TimeoutError:")
+
+
+def test_upload_failure_reports_phase(tmp_path, monkeypatch):
+    app = InProcessExecutor(tmp_path, task_boundary=True)
+
+    def upload(command):
+        app.phase = "result upload"
+        raise OSError("upload HTTP 403 https://host/path?X-Amz-Signature=secret")
+
+    monkeypatch.setattr(app, "_execute", upload)
+    result = app.execute(Command(1, "prepare_verification", {}))
+    assert result["phase"] == "result upload"
+    assert "HTTP 403" in result["reason"]
+    assert "secret" not in result["reason"]
+
+
+def test_diagnostics_sanitize_before_tail_and_keep_twenty_lines(monkeypatch):
+    from openultrasast.search.task_storage import diagnostic, exception_reason
+
+    monkeypatch.setenv("SERVICE_TOKEN", "environment-secret")
+    detail = (
+        "https://host/repo?X-Amz-Signature=url-secret Authorization: Bearer bearer-secret X-Amz-Signature=bare-secret environment-secret"
+    )
+    result = exception_reason(ValueError(detail))
+    assert result.startswith("ValueError:") and len(result) <= 300
+    for secret in ("url-secret", "bearer-secret", "bare-secret", "environment-secret", "host/repo"):
+        assert secret not in result
+    assert len(diagnostic("\n".join(str(i) for i in range(40)), maximum=4000).splitlines()) == 20
+    assert len(exception_reason(ValueError("x" * 1000))) <= 300
+
+
+def test_guard_io_failure_after_child_exit_is_not_success(tmp_path, monkeypatch):
+    import sys
+
+    from openultrasast.search import task_storage
+
+    checks = []
+    original = task_storage.check
+
+    def check(*args, **kwargs):
+        checks.append(1)
+        if len(checks) >= 3:
+            raise PermissionError("cache cannot be read")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(task_storage, "check", check)
+    result = InProcessExecutor(tmp_path, task_boundary=True).execute(Command(1, "run", {"command": [sys.executable, "-c", "pass"]}))
+    assert result["error"] == "PermissionError"
+    assert result["phase"] == "scratch guard"
+    assert result["exit_code"] is not None
+    assert "cache cannot be read" in result["reason"]

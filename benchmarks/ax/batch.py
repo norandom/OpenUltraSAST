@@ -25,6 +25,7 @@ import yaml
 
 from openultrasast.config import load_dotenv
 from openultrasast.plane.memory import PRESIGNED_ARCHIVE_SUFFIX, S3Store, open_store
+from openultrasast.search.task_storage import diagnostic, exception_reason
 
 
 class EgressError(ValueError):
@@ -54,6 +55,12 @@ def apply_when_available(lane, document, end):
             lane.ax("apply", "-f", "-", manifest=document, timeout=min(30, end - lane.clock()))
             return
         except NoFreeWorkers:
+            # A failed apply is not proof that the server did not create a task.
+            # Never send another create while the preceding task can still run.
+            try:
+                lane.ax("delete", "task", document["metadata"]["name"])
+            except Exception as exc:
+                raise RuntimeError("capacity cleanup failed: " + exception_reason(exc)) from None
             lane.pause(min(random.uniform(15, 30), max(0, end - lane.clock())))
     raise CapacityDeadline("no free workers available before deadline")
 
@@ -185,7 +192,11 @@ class AXLane:
             if slot:
                 AX_SLOTS.release()
         if done is None or done.returncode:
-            return {"status": "instrument_failure", "ax_attempts": attempts}
+            return {
+                "status": "instrument_failure",
+                "reason": diagnostic(done.stderr) if done is not None else "TimeoutError: task result deadline",
+                "ax_attempts": attempts,
+            }
         record = json.loads((output / "result.json").read_text())
         return {**record, "worker_ip": worker, "ax_attempts": attempts}
 
@@ -203,9 +214,11 @@ class AXLane:
         )
         if done.returncode:
             if args[0] == "apply" and "no free workers available" in (done.stdout + done.stderr).lower():
-                raise NoFreeWorkers
-            # AX errors may echo manifest URLs; report only verb and exit code.
-            raise ValueError(f"ax {args[0]} failed (exit {done.returncode})")
+                raise NoFreeWorkers("no free workers available")
+            if args[0] == "delete" and "notfound" in (done.stdout + done.stderr).lower().replace(" ", ""):
+                return done
+            # AX errors may echo manifest URLs; sanitize before recording.
+            raise ValueError(f"ax {args[0]} failed (exit {done.returncode}): " + diagnostic(done.stderr))
         return done
 
     def _execute_attempt(self, item, output, attempt, attempts):
@@ -266,13 +279,13 @@ class AXLane:
                     raise SandboxFailure
                 self.pause(min(2, max(0, end - self.clock())))
             return None, worker_ip
-        except (subprocess.TimeoutExpired, TimeoutError):
-            return None, worker_ip
+        except (subprocess.TimeoutExpired, TimeoutError) as exc:
+            return subprocess.CompletedProcess([], 1, "", exception_reason(exc)), worker_ip
         except (SandboxFailure, CapacityDeadline):
             raise
         except Exception as exc:
             # Never expose exception strings which may contain object-scoped bearer URLs.
-            detail = str(exc) if isinstance(exc, EgressError) else type(exc).__name__
+            detail = exception_reason(exc)
             return subprocess.CompletedProcess([], 1, "", "AX transport failed: " + detail), worker_ip
         finally:
             attempts.append({"name": name, "phase": phase, "seconds": self.clock() - started})
@@ -283,12 +296,12 @@ class AXLane:
                 except Exception as exc:
                     # A successful list already confirmed a disappeared task is gone.
                     if phase != "Missing":
-                        errors.append("task: " + type(exc).__name__)
+                        errors.append("task: " + exception_reason(exc))
             for key in keys:
                 try:
                     self.store._delete(key)
                 except Exception as exc:
-                    errors.append("object: " + type(exc).__name__)
+                    errors.append("object: " + exception_reason(exc))
             if errors:
                 raise RuntimeError("AX cleanup failed; stop dispatching: " + ", ".join(errors))
 
@@ -414,6 +427,9 @@ def dispatch(items, workload, out, executors, *, lanes=("ax", "ax", "docker"), o
     if not isinstance(max_attempts, int) or not 1 <= max_attempts <= 2:
         raise ValueError("batch attempts must be one or two")
     out.mkdir(parents=True, exist_ok=True)
+    items = list(items)
+    if len({item.id for item in items}) != len(items):
+        raise ValueError("duplicate dispatch item id")
     pending, fallbacks = [], []
 
     def path(item):
@@ -465,15 +481,7 @@ def dispatch(items, workload, out, executors, *, lanes=("ax", "ax", "docker"), o
 
 def docker_diagnostic(text):
     """Bound diagnostics and remove bearer URLs, environment secrets and assignments."""
-    text = str(text or "")
-    for key, value in os.environ.items():
-        if len(value) >= 4 and any(word in key.upper() for word in ("TOKEN", "SECRET", "PASSWORD", "CREDENTIAL", "KEY")):
-            text = text.replace(value, "[redacted]")
-    text = re.sub(r"https?://[^\s\"']+", "[redacted-url]", text)
-    text = re.sub(
-        r"(?i)(authorization|bearer|password|token|secret|signature|credential|[\w-]*key)\s*[:= ]\s*[^\s,;]+", r"\1=[redacted]", text
-    )
-    return "\n".join(text.splitlines()[-10:])[-4000:]
+    return diagnostic(text or "", maximum=4000)
 
 
 class DockerLane(AXLane):
@@ -510,12 +518,12 @@ class DockerLane(AXLane):
             done = self.runner(command, capture_output=True, text=True, timeout=timeout)
         except (OSError, subprocess.SubprocessError) as exc:
             self._diagnostics.append(
-                {"step": command[1], "exit_code": None, "stderr": docker_diagnostic(getattr(exc, "stderr", "") or type(exc).__name__)}
+                {"step": command[1], "exit_code": None, "stderr": docker_diagnostic(getattr(exc, "stderr", "") or exception_reason(exc))}
             )
             raise
         if done.returncode:
             self._diagnostics.append({"step": command[1], "exit_code": done.returncode, "stderr": docker_diagnostic(done.stderr)})
-            raise ValueError(f"docker {command[1]} failed (exit {done.returncode})")
+            raise ValueError(f"docker {command[1]} failed (exit {done.returncode}): " + diagnostic(done.stderr))
         return done
 
     def _prepare_image(self):
@@ -625,6 +633,8 @@ class SearchExecutorTask:
         expires = timedelta(seconds=self.deadline + 600)
         store = self.lane.store
         try:
+            if isinstance(self.lane, DockerLane):
+                self.lane._run_docker(["docker", "image", "inspect", self.lane.workload.image], min(30, self.deadline))
             store._put(self.keys[0], self.archive)
             urls = {
                 "REPO_URL": store.presign_get(self.keys[0], expires),
@@ -684,12 +694,12 @@ class SearchExecutorTask:
             try:
                 self.lane.ax("delete", "task", self.name)
             except Exception as error:
-                errors.append(type(error).__name__)
+                errors.append(exception_reason(error))
         for key in self.keys:
             try:
                 self.lane.store._delete(key)
             except Exception as error:
-                errors.append(type(error).__name__)
+                errors.append(exception_reason(error))
         if self.slot and not errors:
             AX_SLOTS.release()
             self.slot = False

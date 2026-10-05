@@ -29,6 +29,7 @@ from ..sandbox import SandboxJob, SandboxResult
 from . import _sandbox, task_storage
 from .demo import BUILD_RECIPES, RUNTIMES, capture_output, load_demo, substitute
 from .oracles import BrowserExecutor, Canary, Oracle, oracle_for
+from .task_storage import exception_reason
 
 
 @dataclass(frozen=True)
@@ -414,10 +415,10 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                 finally:
                     oracle.close()
         return record("observed", "fresh task run completed" if task_boundary else "three fresh runs completed")
-    except task_storage.ScratchLimit:
-        return record("could_not_build", "scratch limit")
+    except task_storage.ScratchLimit as exc:
+        return record("could_not_build", exception_reason(exc))
     except (OSError, ValueError, AssertionError, KeyError, IndexError, TypeError) as exc:
-        return record("could_not_run", f"verification unavailable or refused: {exc}")
+        return record("could_not_run", "verification unavailable or refused: " + exception_reason(exc))
 
 
 def _run_task(
@@ -508,7 +509,7 @@ def verify(
     try:
         load_demo(artefact)
     except (OSError, ValueError) as exc:
-        return VerificationRecord("inconclusive", (), time.monotonic() - started, "invalid declarative demo: " + str(exc))
+        return VerificationRecord("inconclusive", (), time.monotonic() - started, "invalid declarative demo: " + exception_reason(exc))
     mode = "task-boundary" if task_dispatcher is not None else _sandbox.isolation_mode()
     if task_dispatcher is None:
         try:
