@@ -157,3 +157,21 @@ def test_bounded_lanes_oom_and_instrument_retry(tmp_path):
 
     assert dispatch([item("fail")], workload(), tmp_path, {"ax": failed}, lanes=("ax",))
     assert attempts == [0, 1]
+
+
+@pytest.mark.parametrize("step", ["reason", "explore", "verify"])
+def test_search_environment(step):
+    it = item()
+    it.extra_env = {"SEARCH_STEP": step, "SEARCH_ID": "search-1", "SEARCH_TASK_ID": "task-2"}
+    urls = {"SPEC_URL": "https://files.example/spec.dat", "RESULT_URL": "https://files.example/result.dat"}
+    doc = manifest("ousast-engine-search-1", workload(), it, urls)
+    assert {"name": "SEARCH_STEP", "value": step} in doc["spec"]["env"]
+    for key, value in [
+        ("SEARCH_STEP", "shell"),
+        ("SEARCH_ID", "https://secret"),
+        ("SEARCH_TASK_ID", "x\nTOKEN=y"),
+        ("MODEL_API_KEY", "secret"),
+    ]:
+        it.extra_env = {key: value}
+        with pytest.raises(ValueError):
+            manifest("ousast-engine-search-1", workload(), it, urls)

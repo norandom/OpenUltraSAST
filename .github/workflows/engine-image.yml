@@ -11,6 +11,7 @@ on:
       - 'benchmarks/learn/engine_worker_service.py'
       - 'Dockerfile'
       - 'plane/Dockerfile.engine-task'
+      - 'plane/Dockerfile.search-task'
       - 'ops/frontend-retention/install.py'
       - 'pyproject.toml'
       - '.github/workflows/engine-image.yml'
@@ -35,6 +36,8 @@ jobs:
           - package: ousast-replay-task
             dockerfile: plane/Dockerfile.engine-task
             target: replay
+          - package: ousast-search-task
+            dockerfile: plane/Dockerfile.search-task
     steps:
       - uses: actions/checkout@v5
       - uses: docker/setup-buildx-action@v3

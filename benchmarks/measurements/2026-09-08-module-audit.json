@@ -1,8 +1,8 @@
 {
-  "modules": 163,
+  "modules": 166,
   "counts": {
-    "load_bearing": 158,
-    "standalone_capability": 5
+    "load_bearing": 160,
+    "standalone_capability": 6
   },
   "orphaned": [],
   "standalone": {
@@ -10,6 +10,7 @@
     "mcp": "narrow MCP server over stdio; its own `ousast mcp` entry point and OpenCode integration",
     "push_inputs": "pre-push-safety-net task 1.2: offline input provenance validator; python -m openultrasast.push_inputs",
     "push_scoring": "pre-push-safety-net task 1.3: frozen-profile diagnostic outcome scorer; python -m openultrasast.push_scoring",
+    "search.coordinator": "search-with-proof Req 1/2/4: injected search executor and offline board checkpoint inspector; agent worker pending",
     "skills": "skill router; consumed by mcp and by the OpenCode integration, not by the scan path"
   },
   "rows": [
@@ -897,7 +898,9 @@
         "plane.tasks.remember",
         "plane.tasks.roles",
         "plane.tasks.verify",
-        "plane.workspaces"
+        "plane.workspaces",
+        "search.board",
+        "search.coordinator"
       ]
     },
     {
@@ -913,7 +916,8 @@
         "learn.program",
         "plane.generate",
         "plane.tasks.roles",
-        "plane.tasks.verify"
+        "plane.tasks.verify",
+        "search.coordinator"
       ]
     },
     {
@@ -1000,7 +1004,9 @@
         "plane.generate",
         "plane.reconciler",
         "plane.tasks.loop",
-        "plane.tasks.remember"
+        "plane.tasks.remember",
+        "search.board",
+        "search.coordinator"
       ]
     },
     {
@@ -1599,6 +1605,7 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate, cli",
       "importers": [
+        "search.coordinator",
         "search.verify"
       ]
     },
@@ -1609,6 +1616,28 @@
       "importers": [
         "search.verify"
       ]
+    },
+    {
+      "module": "search.board",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate, cli",
+      "importers": [
+        "search.coordinator"
+      ]
+    },
+    {
+      "module": "search.budget",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate, cli",
+      "importers": [
+        "search.coordinator"
+      ]
+    },
+    {
+      "module": "search.coordinator",
+      "classification": "standalone_capability",
+      "reason": "search-with-proof Req 1/2/4: injected search executor and offline board checkpoint inspector; agent worker pending",
+      "importers": []
     },
     {
       "module": "search.oracles",

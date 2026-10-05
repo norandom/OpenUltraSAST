@@ -10,6 +10,7 @@ failure is `AccountError` (the task is `failed` and the run starts nothing furth
 from __future__ import annotations
 
 from collections.abc import Mapping
+from decimal import Decimal
 from typing import Any, Protocol
 
 from ..model.endpoint import Prices
@@ -251,5 +252,70 @@ class MeteredEmbeddingClient:
 
 __all__ = [
     "AccountError", "BudgetExhausted", "EmbeddingClient", "MeteredClient", "MeteredEmbeddingClient", "UnmeteredUsage", "cost_of",
-    "is_account_error", "prices_from",
+    "is_account_error", "prices_from", "SpendBudget", "SpendReservation",
 ]  # fmt: skip
+
+
+class SpendBudget:
+    """Thread-safe pre-call admission. Share one instance across concurrent callers.
+
+    A caller must supply a genuine upper bound, including all tool-loop calls.
+    Reservations remain charged until settled or explicitly released on failure.
+    Existing MeteredClient callers retain their historical post-call metering.
+    """
+
+    def __init__(self, cap: float, *, spent: float = 0.0) -> None:
+        from threading import Lock
+
+        self._lock = Lock()
+        self._cap = self._amount(cap)
+        self._spent = self._amount(spent)
+        if self._spent > self._cap:
+            raise ValueError("spend exceeds cap")
+        self._reserved = Decimal(0)
+
+    @staticmethod
+    def _amount(value: float) -> Decimal:
+
+        amount = Decimal(str(value))
+        if not amount.is_finite() or amount < 0:
+            raise ValueError("cost must be finite and nonnegative")
+        return amount
+
+    @property
+    def spent(self) -> float:
+        with self._lock:
+            return float(self._spent)
+
+    @property
+    def reserved(self) -> float:
+        with self._lock:
+            return float(self._reserved)
+
+    def reserve(self, max_cost: float) -> SpendReservation:
+        amount = self._amount(max_cost)
+        with self._lock:
+            if self._spent + self._reserved + amount > self._cap:
+                raise BudgetExhausted("spend reservation exceeds cap", usd=float(self._spent), calls=0)
+            self._reserved += amount
+            return SpendReservation(self, amount)
+
+
+class SpendReservation:
+    def __init__(self, budget: SpendBudget, amount: Decimal) -> None:
+        self._budget, self._amount, self._active = budget, amount, True
+
+    def settle(self, actual: float) -> None:
+        amount = self._budget._amount(actual)
+        with self._budget._lock:
+            if not self._active:
+                raise ValueError("reservation already closed")
+            if amount > self._amount:
+                # Retain the reservation: a broken upper bound must fail closed.
+                raise ValueError("actual cost exceeds reservation")
+            self._budget._reserved -= self._amount
+            self._budget._spent += amount
+            self._active = False
+
+    def release(self) -> None:
+        self.settle(0)

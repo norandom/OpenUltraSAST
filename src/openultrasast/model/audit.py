@@ -83,6 +83,9 @@ SPEC_OWNED = {
 
 # Reachable modules that stand alone: their own CLI subcommand or external protocol, off the scan path.
 STANDALONE = {
+    "search.coordinator": (
+        "search-with-proof Req 1/2/4: injected search executor and offline board checkpoint inspector; agent worker pending"
+    ),
     "push_scoring": "pre-push-safety-net task 1.3: frozen-profile diagnostic outcome scorer; python -m openultrasast.push_scoring",
     "push_inputs": "pre-push-safety-net task 1.2: offline input provenance validator; python -m openultrasast.push_inputs",
     "mcp": "narrow MCP server over stdio; its own `ousast mcp` entry point and OpenCode integration",
