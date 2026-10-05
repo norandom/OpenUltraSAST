@@ -21,6 +21,43 @@ from pathlib import Path
 
 from ..sandbox import SandboxJob, SandboxResult
 
+ARTEFACT_UID = 10001
+ARTEFACT_GID = 10001
+
+
+def isolation_mode() -> str:
+    """Root containers need no user namespace; ordinary host callers retain it."""
+    return "root-no-userns" if os.geteuid() == 0 else "userns"
+
+
+def drop_privileges() -> list[str]:
+    return [
+        "/usr/bin/setpriv",
+        f"--reuid={ARTEFACT_UID}",
+        f"--regid={ARTEFACT_GID}",
+        "--clear-groups",
+        "--no-new-privs",
+        "--bounding-set=-all",
+        "--inh-caps=-all",
+        "--ambient-caps=-all",
+        "--",
+    ]
+
+
+def capability_args() -> list[str]:
+    # Retain only what the trusted setpriv trampoline needs, then erase the
+    # bounding/inheritable/ambient sets before executing any untrusted code.
+    args = ["--cap-drop", "ALL"]
+    if isolation_mode() == "root-no-userns":
+        for capability in ("CAP_SETUID", "CAP_SETGID", "CAP_SETPCAP"):
+            args += ["--cap-add", capability]
+    return args
+
+
+def writable_directory(path: Path) -> None:
+    if isolation_mode() == "root-no-userns":
+        os.chown(path, ARTEFACT_UID, ARTEFACT_GID, follow_symlinks=False)
+
 
 class IsolationUnavailable(RuntimeError):
     """The isolation instrument failed, so no product outcome can be recorded."""
@@ -31,6 +68,8 @@ def isolation_check(*, timeout_seconds: int = 5) -> None:
     try:
         with tempfile.TemporaryDirectory(prefix="isolation-check-") as directory:
             root = Path(directory)
+            if isolation_mode() == "root-no-userns":
+                root.chmod(0o755)
             (root / "probe").write_text("isolation-ready\n")
             scratch = root / "scratch"
             scratch.mkdir()
@@ -78,28 +117,33 @@ def run(
         resource.setrlimit(resource.RLIMIT_CPU, (job.timeout_seconds + 1,) * 2)
 
     argv = ["bwrap", "--die-with-parent", "--new-session", "--unshare-pid", "--unshare-ipc", "--unshare-uts"]
+    mode = isolation_mode()
     if namespace_pid is None:
-        argv += ["--unshare-user"]
+        if mode == "userns":
+            argv += ["--unshare-user"]
     else:
         argv = [
             "/usr/bin/nsenter",
-            "--preserve-credentials",
-            f"--user=/proc/{namespace_pid}/ns/user",
+            *(["--preserve-credentials", f"--user=/proc/{namespace_pid}/ns/user"] if mode == "userns" else []),
             f"--net=/proc/{namespace_pid}/ns/net",
             "--",
             *argv,
         ]
-    argv += ["--cap-drop", "ALL", "--clearenv"]
+    argv += [*capability_args(), "--clearenv"]
     for path in ("/usr", "/lib", "/lib64", "/bin"):
         if Path(path).exists():
             argv += ["--ro-bind", path, path]
     argv += ["--ro-bind", str(job.repo_root), "/workspace"]
     if scratch_bytes is None:
+        writable_directory(scratch)
         argv += ["--bind", str(scratch), "/scratch"]
     else:
         if scratch_bytes < 1:
             raise ValueError("positive scratch limit required")
-        argv += ["--size", str(scratch_bytes), "--tmpfs", "/scratch"]
+        argv += ["--size", str(scratch_bytes)]
+        if mode == "root-no-userns":
+            argv += ["--perms", "0777"]
+        argv += ["--tmpfs", "/scratch"]
     for target, source in (mounts or {}).items():
         argv += ["--ro-bind", str(source), target]
     argv += [
@@ -122,12 +166,13 @@ def run(
     with tempfile.TemporaryFile() as policy, tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
         policy.write(_filter(namespace_pid is not None))
         policy.seek(0)
-        # Set NPROC after entering the user namespace (per-namespace since Linux 5.14),
-        # so the host uid's existing processes cannot prevent bwrap from starting.
+        # Apply NPROC after namespace setup and any uid drop. In root mode the
+        # dedicated uid shares this process budget across concurrent sandboxes.
         argv += [
             "--seccomp",
             str(policy.fileno()),
             "--",
+            *(drop_privileges() if mode == "root-no-userns" else []),
             "/usr/bin/prlimit",
             f"--nproc={job.pids_limit}:{job.pids_limit}",
             "--",

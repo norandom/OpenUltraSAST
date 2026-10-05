@@ -23,8 +23,10 @@ RUN python3 -m venv /venv \
  && /venv/bin/pip install --no-cache-dir . \
  && python3 --version && node --version && tsc --version && php --version \
  && javac -version && sqlite3 --version && bwrap --version \
- && prlimit --version && nsenter --version && chromium --version
-# Browser sandbox requires a non-root caller; the AX runner needs no root privileges.
-RUN useradd --create-home --uid 10001 search
-USER search
+ && setpriv --version && prlimit --version && nsenter --version && chromium --version
+# Dedicated identity for artefacts, apps and Chromium; the verifier keeps root.
+RUN groupadd --gid 10001 search \
+ && useradd --create-home --uid 10001 --gid 10001 search
+# gVisor is the outer boundary; inner isolation needs root without user namespaces.
+USER root
 # Do not replace the AX runner's ENTRYPOINT or CMD.
