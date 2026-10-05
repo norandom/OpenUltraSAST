@@ -15,16 +15,16 @@ import subprocess
 import tempfile
 import time
 import urllib.request
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
 from . import _sandbox
-from .demo import FAMILY_ORACLES
+from .demo import FAMILY_ORACLES, load_demo
 from .oracles import BrowserExecutor
 from .task_storage import exception_reason
-from .verify import Side, verify
+from .verify import Side, VerificationRecord, verify, verify_side_task
 
 FAMILIES = ("sql", "path", "command", "ssrf", "xss")
 PAYLOADS = {
@@ -105,6 +105,55 @@ def namespace_facts() -> dict[str, Any]:
     return facts
 
 
+def _verify_task_pair(sides: tuple[Side, Side], demo: Path, family: str) -> VerificationRecord:
+    """Exercise the task executor on packaged toys only, not arbitrary checkouts.
+
+    Repetitions get fresh scratch, but share this probe task's outer boundary.
+    This is an instrument self-test, not a fresh-task dispatcher for evidence.
+    """
+    started = time.monotonic()
+    records = []
+    try:
+        load_demo(demo)
+    except (OSError, ValueError) as exc:
+        return VerificationRecord(
+            "inconclusive",
+            (),
+            time.monotonic() - started,
+            "invalid declarative demo: " + exception_reason(exc),
+            isolation_mode="task-boundary",
+        )
+    search_family = next(f for f, kinds in FAMILY_ORACLES.items() if family in kinds)
+    for side in sides:
+        runs = [verify_side_task(side, demo, search_family) for _ in range(3)]
+        first = next((run for run in runs if run.outcome != "observed"), runs[0])
+        records.append(
+            replace(
+                first,
+                runs=tuple(observation for run in runs for observation in run.runs),
+                elapsed_seconds=sum(run.elapsed_seconds for run in runs),
+                build_seconds=sum(run.build_seconds for run in runs),
+                ready_seconds=sum(run.ready_seconds for run in runs),
+                run_seconds=sum(run.run_seconds for run in runs),
+                scratch_peak_bytes=max(run.scratch_peak_bytes for run in runs),
+                reason=first.reason if first.outcome != "observed" else "three probe task executions completed",
+            )
+        )
+    demonstrated = (
+        all(side.outcome == "observed" and len(side.runs) == 3 for side in records)
+        and all(run.observed for run in records[0].runs)
+        and not any(run.observed for run in records[1].runs)
+    )
+    return VerificationRecord(
+        "demonstrated" if demonstrated else "inconclusive",
+        tuple(records),
+        time.monotonic() - started,
+        "owned effect in 3/3 affected runs and 0/3 safe runs" if demonstrated else "no consistent differential effect",
+        isolation_mode="task-boundary",
+        chromium_no_sandbox=any(side.chromium_no_sandbox for side in records),
+    )
+
+
 def probe(root: Path) -> dict[str, Any]:
     record: dict[str, Any] = {
         "status": "ok",
@@ -114,26 +163,54 @@ def probe(root: Path) -> dict[str, Any]:
         "isolation_check": None,
         "isolation_mode": _sandbox.isolation_mode(),
     }
+    namespaces = record["namespaces"]
+    if namespaces and all(namespaces[name]["exit_code"] != 0 for name in ("user", "pid", "net", "ipc", "uts", "mount")):
+        record["isolation_mode"] = "task-boundary"
+    task_boundary = record["isolation_mode"] == "task-boundary"
+    if task_boundary:
+        # Real verification still needs fresh side tasks; only these packaged
+        # self-test applications share the probe task's boundary.
+        record["requires_fresh_side_tasks"] = True
     start = time.monotonic()
     try:
-        _sandbox.isolation_check()
-        record["isolation_check"] = {"status": "ok", "input_bytes": len(b"isolation-ready\n")}
+        if task_boundary:
+            record["isolation_check"] = {"status": "skipped", "reason": "task-boundary"}
+        else:
+            _sandbox.isolation_check()
+            record["isolation_check"] = {"status": "ok", "input_bytes": len(b"isolation-ready\n")}
         for family in FAMILIES:
             sides, demos = materialise(root / family, family)
             results: dict[str, Any] = {}
             record["oracles"][family] = results
             for name, demo in demos.items():
-                result = verify(
-                    *sides,
-                    demo,
-                    next(f for f, kinds in FAMILY_ORACLES.items() if family in kinds),
-                    browser=BrowserExecutor() if family == "xss" else None,
-                )
+                search_family = next(f for f, kinds in FAMILY_ORACLES.items() if family in kinds)
+                if task_boundary:
+                    tick = time.monotonic()
+                    try:
+                        result = _verify_task_pair(sides, demo, family)
+                    except Exception as exc:
+                        result = VerificationRecord(
+                            "inconclusive", (), time.monotonic() - tick, exception_reason(exc), isolation_mode="task-boundary"
+                        )
+                else:
+                    result = verify(
+                        *sides,
+                        demo,
+                        search_family,
+                        oracle=family,
+                        browser=BrowserExecutor() if family == "xss" else None,
+                    )
                 results[name] = asdict(result)
+                if task_boundary and (result.outcome == "demonstrated") != (name == "real") and record["status"] == "ok":
+                    expected = "demonstrated" if name == "real" else "not demonstrated"
+                    record.update(
+                        status="instrument_failure",
+                        exception=f"{family}/{name}: expected {expected}, got {result.outcome}",
+                    )
                 # SSRF/browser need additional namespace capabilities beyond the
                 # generic preflight. These failures must not look like oracle misses.
                 for side in result.sides:
-                    if side.reason.startswith("verification unavailable or refused:"):
+                    if not task_boundary and side.reason.startswith("verification unavailable or refused:"):
                         raise _sandbox.IsolationUnavailable(f"{family}/{name}: {side.reason}")
     except Exception as exc:
         record.update(status="instrument_failure", exception=exception_reason(exc))

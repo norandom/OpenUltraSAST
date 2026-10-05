@@ -385,3 +385,27 @@ def test_executor_slot_deadline_has_reason(monkeypatch):
     monkeypatch.setattr(batch, "AX_SLOTS", SimpleNamespace(acquire=lambda **kw: False))
     with pytest.raises(batch.CapacityDeadline, match="no free workers available before deadline"):
         batch.SearchExecutorTask(object(), b"archive").__enter__()
+
+
+def test_search_preparation_failure_retains_command_record():
+    import time
+    from types import SimpleNamespace
+
+    from benchmarks.ax.batch import SearchExecutorTask
+    from openultrasast.search.task_storage import CommandFailure
+
+    task = object.__new__(SearchExecutorTask)
+    task.end = time.monotonic() + 60
+    task.client = SimpleNamespace(
+        submit=lambda *args, **kwargs: {
+            "status": "could_not_build",
+            "phase": "build",
+            "exit_code": 8,
+            "reason": "CommandFailure: exit code 8",
+            "stderr": "dependency missing token=hidden",
+        }
+    )
+    with pytest.raises(CommandFailure) as caught:
+        task.prepare({})
+    assert caught.value.phase == "build" and caught.value.exit_code == 8
+    assert "dependency missing" in caught.value.stderr and "hidden" not in caught.value.stderr

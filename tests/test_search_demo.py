@@ -71,11 +71,10 @@ def test_directory_build_recipe_accepts_checkout_root(recipe):
 
 
 @pytest.mark.parametrize("recipe", ["pip", "maven"])
-def test_manifest_recipe_requires_file_path(recipe):
+def test_manifest_recipe_accepts_project_directory(recipe):
     value = document()
     value["build"] = {"recipe": recipe, "arguments": ["."]}
-    with pytest.raises(ValueError):
-        validate_demo(value)
+    assert validate_demo(value) == value
 
 
 @pytest.mark.parametrize("oracle", [None, "injection", "unknown", [], 1])
@@ -111,3 +110,16 @@ def test_family_oracle_contract(family, allowed):
         else:
             with pytest.raises(ValueError, match="not allowed"):
                 validate_oracle(family, oracle)
+
+
+@pytest.mark.parametrize(
+    "recipe,manifest",
+    [("pip", "package.json"), ("npm", "requirements.txt"), ("composer", "pom.xml"), ("maven", "composer.json"), ("gradle", "setup.py")],
+)
+@pytest.mark.parametrize("directory", [False, True])
+def test_recipe_rejects_other_ecosystem(tmp_path, recipe, manifest, directory):
+    (tmp_path / manifest).write_text("{}")
+    value = document()
+    value["build"] = {"recipe": recipe, "arguments": ["." if directory else manifest]}
+    with pytest.raises(ValueError, match="ecosystem"):
+        validate_demo(value, checkout=tmp_path)

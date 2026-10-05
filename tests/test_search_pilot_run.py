@@ -480,3 +480,23 @@ def test_injection_pilot_uses_demo_choice_without_manifest_subtype(tmp_path, ora
     (tmp_path / "demo/demo.json").write_bytes((demos["real"] / "demo.json").read_bytes())
     result = pilot.verification()
     assert result.outcome == "demonstrated", result
+
+
+@pytest.mark.parametrize("phase", ["build_export", "verify/could_not_run"])
+def test_pilot_retains_command_diagnostics(tmp_path, phase):
+    from openultrasast.search.task_storage import CommandFailure
+    from openultrasast.search.verify import SideRecord
+
+    pilot = make_pilot(tmp_path)
+    stderr = "\n".join(f"line-{i}" for i in range(30)) + "\ntoken=hidden https://example.test/?key=hidden"
+    if phase == "build_export":
+        pilot.failure(phase, CommandFailure("build", 7, stderr))
+    else:
+        side = SideRecord("could_not_run", (), 0, "start failed", phase="start", exit_code=7, stderr=stderr)
+        pilot.failure(phase, side.reason, command=side)
+    failure = pilot.record["failures"][-1]
+    assert failure["exit_code"] == 7
+    assert failure["command_phase"] == ("build" if phase == "build_export" else "start")
+    assert "line-29" in failure["stderr"] and "line-0\n" not in failure["stderr"]
+    assert "hidden" not in failure["stderr"] and "https://" not in failure["stderr"]
+    assert len(failure["stderr"]) <= 1500
