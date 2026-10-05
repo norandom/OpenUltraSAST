@@ -81,7 +81,12 @@ DEMO_GUIDE = (
     'Demo schema: {"oracle":"path","build":{"recipe":"none","arguments":[]},'
     '"start":{"runtime":"python","path":"app.py","arguments":[],"mode":"cli"},'
     '"steps":[{"type":"cli","arguments":["hello"]}]}. This is a minimal example, not evidence. '
-    "Recipes: none,pip,npm,composer,maven,gradle; none takes [], others one checkout-relative manifest/project path. "
+    "Recipes: none takes [], otherwise arguments[0] is a checkout-relative ecosystem manifest or project directory (a file uses "
+    "its parent): pip requirements*.txt uses install -r (e.g. requirements.txt), pyproject.toml/setup.py/setup.cfg uses "
+    "non-editable install of the directory with requirements.txt fallback when no build backend exists (e.g. pyproject.toml); npm uses "
+    "ci with package-lock.json else install in the directory (e.g. package.json); composer uses install --no-interaction in the "
+    "directory (e.g. composer.json); maven uses mvn -q -DskipTests package -f <pom> (e.g. pom.xml); gradle uses the project "
+    "wrapper and directory (e.g. build.gradle). "
     "Runtimes: python,node,php,java; start.path must be a tracked checkout entrypoint. "
     "HTTP mode requires port (1024-65535) and steps {type:http,method,path,headers?,body?}; "
     "CLI mode forbids port and uses {type:cli,arguments,stdin?}. Supply 1-32 ordered steps. "

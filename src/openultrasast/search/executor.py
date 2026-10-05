@@ -269,12 +269,12 @@ class InProcessExecutor:
             "isolation_mode": self.isolation_mode,
             "exit_code": result.exit_code,
             "stdout": result.stdout[:16384],
-            "stderr": task_storage.diagnostic(result.stderr, maximum=4000),
+            "stderr": task_storage.diagnostic(result.stderr, maximum=1500),
             "timed_out": result.timed_out,
             "truncated": len(result.stdout) > 16384 or len(result.stderr) > 16384,
         }
 
-    def _task_run(self, argv: list[str], timeout: float, limits: dict[str, Any]) -> dict[str, Any]:
+    def _task_run(self, argv: list[str], timeout: float, limits: dict[str, Any], *, cwd: Path | None = None) -> dict[str, Any]:
         process_limit = None
         try:
             uid = os.getuid()
@@ -311,7 +311,7 @@ class InProcessExecutor:
         self.phase = "spawn"
         with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
             proc = subprocess.Popen(
-                argv, cwd=self.repo, env=clean_environment(), stdout=out, stderr=err, start_new_session=True, preexec_fn=constrain
+                argv, cwd=cwd or self.repo, env=clean_environment(), stdout=out, stderr=err, start_new_session=True, preexec_fn=constrain
             )
             self.phase = "run"
             timed_out = False
@@ -358,7 +358,7 @@ class InProcessExecutor:
                 proc.wait()
             out.seek(0)
             err.seek(max(0, os.fstat(err.fileno()).st_size - 16384))
-            stderr = task_storage.diagnostic(err.read().decode(errors="replace"), maximum=4000)
+            stderr = task_storage.diagnostic(err.read().decode(errors="replace"), maximum=1500)
             phase = "scratch guard" if disk_exceeded else "timeout" if timed_out else self.phase
             if disk_exceeded:
                 self.stopped = True
@@ -389,14 +389,14 @@ class InProcessExecutor:
         """Build and export through the host-scoped output URL, never a model URL."""
         import shutil
 
-        from .demo import BUILD_RECIPES, validate_demo
+        from .demo import preparation_command, validate_demo
         from .verify import _tree
         from .verify_task import pack_checkout, validate_spec
 
         if not self.task_boundary or not self.prepared_put_url:
             raise ValueError("preparation requires an executor task output")
         spec = copy.deepcopy(spec)
-        validate_demo(spec["demo"])
+        validate_demo(spec["demo"], checkout=self.repo)
         recipe = spec["demo"]["build"]
         spec["demo"]["build"] = {"recipe": "none", "arguments": []}
         validate_spec(spec)
@@ -406,22 +406,16 @@ class InProcessExecutor:
             products.mkdir()
             if recipe["recipe"] != "none":
                 path = self._path(recipe["arguments"][0])
-                argv = [
-                    arg.replace("/scratch", str(products))
-                    for arg in BUILD_RECIPES[recipe["recipe"]]
-                    if arg not in {"--offline", "--no-index"}
-                ]
-                argv.append(str(path))
-                if recipe["recipe"] == "maven":
-                    argv += ["package", "-DskipTests"]
-                elif recipe["recipe"] == "gradle":
-                    # The project pins its Gradle version through its wrapper.
-                    # Invoke with sh because checkout archives may lose execute bits.
-                    wrapper = self._path(str(path.relative_to(self.repo) / "gradlew"))
-                    argv = ["/bin/sh", str(wrapper), "--no-daemon", "--project-dir", str(path), "assemble"]
-                built = self._task_run(argv, self._remaining(), {"disk_bytes": task_storage.DEFAULT_SCRATCH_BYTES, **limits})
+                argv, project = preparation_command(recipe["recipe"], path, self.repo, products)
+                self.phase = "build"
+                built = self._task_run(argv, self._remaining(), {"disk_bytes": task_storage.DEFAULT_SCRATCH_BYTES, **limits}, cwd=project)
                 if built.get("disk_limit_exceeded") or built["exit_code"] or built["timed_out"]:
-                    return {**built, "status": "could_not_build"}
+                    return {
+                        **built,
+                        "status": "could_not_build",
+                        "phase": "build",
+                        "stderr": task_storage.diagnostic(built.get("stderr", ""), maximum=1500),
+                    }
             # Validate internal generated links before materializing them as
             # regular archive members. No host/external files may be exported.
             _tree(self.repo, generated_links=True)

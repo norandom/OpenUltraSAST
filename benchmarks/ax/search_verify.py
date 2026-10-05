@@ -110,4 +110,7 @@ class AXSideDispatcher:
             max(r.scratch_peak_bytes for r in records),
             isolation_mode="task-boundary",
             chromium_no_sandbox=any(r.chromium_no_sandbox for r in records),
+            phase=last.phase,
+            exit_code=last.exit_code,
+            stderr=last.stderr,
         )

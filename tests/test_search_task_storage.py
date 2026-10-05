@@ -142,7 +142,7 @@ def test_preparation_builds_before_export_and_exports_products(workspace, monkey
     blobs, commands = [], []
     monkeypatch.setattr(executor.URLTransport, "put", lambda self, url, data, timeout: blobs.append(data))
 
-    def build(argv, timeout, limits):
+    def build(argv, timeout, limits, **kwargs):
         commands.append(argv)
         products = Path(argv[argv.index("--target") + 1])
         assert products.is_relative_to(workspace)
@@ -286,14 +286,19 @@ def test_preparation_with_many_host_processes(workspace, monkeypatch):
 
 @pytest.mark.parametrize("memory_bytes", [None, 256 * 1024**2, 5 * 1024**3])
 def test_prepare_build_virtual_memory(workspace, monkeypatch, memory_bytes):
-    from openultrasast.search.demo import BUILD_RECIPES
 
     repo = workspace / "checkout"
     repo.mkdir()
     source = "import mmap; region=mmap.mmap(-1,512*1024**2); print(len(region))"
     (repo / "app.py").write_text(source)
     print("input_bytes=", len((repo / "app.py").read_bytes()))
-    monkeypatch.setitem(BUILD_RECIPES, "npm", (sys.executable, "-c", source))
+    (repo / "package.json").write_text("{}")
+    fake_bin = workspace / "bin"
+    fake_bin.mkdir()
+    tool = fake_bin / "npm"
+    tool.write_text("#!" + sys.executable + "\n" + source)
+    tool.chmod(0o755)
+    monkeypatch.setitem(executor.SAFE_ENV, "PATH", str(fake_bin) + ":/usr/bin:/bin")
     app = executor.InProcessExecutor(repo, task_boundary=True)
     app.prepared_put_url = "https://files.example/output"
     blobs = []
@@ -317,3 +322,101 @@ def test_verifier_app_virtual_memory(workspace):
     demo.write_text(json.dumps(spec()["demo"]))
     result = verify_side_task(Side(repo), demo, "path")
     assert result.outcome == "observed", result
+
+
+@pytest.mark.parametrize(
+    "recipe,manifest,extra,expected",
+    [
+        ("pip", "pyproject.toml", {}, ["-I", "-m", "pip", "install", "--no-deps", "--target", "PACKAGES", "PROJECT"]),
+        ("pip", "requirements.txt", {}, ["-I", "-m", "pip", "install", "--no-deps", "--target", "PACKAGES", "-r", "MANIFEST"]),
+        (
+            "pip",
+            "pyproject.toml",
+            {"requirements.txt": ""},
+            ["-I", "-m", "pip", "install", "--no-deps", "--target", "PACKAGES", "-r", "REQUIREMENTS"],
+        ),
+        ("npm", "package.json", {}, ["install", "--ignore-scripts"]),
+        ("npm", "package.json", {"package-lock.json": "{}"}, ["ci", "--ignore-scripts"]),
+        ("composer", "composer.json", {}, ["install", "--no-interaction", "--no-plugins", "--no-scripts"]),
+        ("maven", "pom.xml", {}, ["-q", "-DskipTests", "package", "-f", "MANIFEST"]),
+    ],
+)
+@pytest.mark.parametrize("directory", [False, True])
+def test_recipe_command_with_real_fake_tool(workspace, monkeypatch, recipe, manifest, extra, expected, directory):
+    repo = workspace / "checkout"
+    project = repo / "project"
+    project.mkdir(parents=True)
+    (repo / "app.py").write_text("print('ready')")
+    contents = '[build-system]\nbuild-backend="setuptools.build_meta"\n' if manifest == "pyproject.toml" and not extra else ""
+    (project / manifest).write_text(contents)
+    for name, content in extra.items():
+        (project / name).write_text(content)
+    tools = workspace / "bin"
+    tools.mkdir()
+    tool = tools / {"pip": "python3", "maven": "mvn"}.get(recipe, recipe)
+    tool.write_text(
+        "#!" + sys.executable + "\nimport json, os, sys\nfrom pathlib import Path\n"
+        "Path('invocation.json').write_text(json.dumps([sys.argv[1:], os.getcwd()]))\n"
+    )
+    tool.chmod(0o755)
+    monkeypatch.setitem(executor.SAFE_ENV, "PATH", str(tools) + ":/usr/bin:/bin")
+    monkeypatch.setattr(executor.URLTransport, "put", lambda *args: None)
+    app = executor.InProcessExecutor(repo, task_boundary=True)
+    app.prepared_put_url = "https://files.example/output"
+    request = spec()
+    request["demo"]["build"] = {"recipe": recipe, "arguments": ["project" if directory else "project/" + manifest]}
+    result = app.submit("prepare_verification", request)
+    assert result["status"] == "ok", result
+    argv, cwd = json.loads((project / "invocation.json").read_text())
+    assert cwd == str(project)
+    replacements = {"PROJECT": str(project), "MANIFEST": str(project / manifest), "REQUIREMENTS": str(project / "requirements.txt")}
+    if "--target" in argv:
+        packages = argv[argv.index("--target") + 1]
+        assert Path(packages).name == "packages" and Path(packages).is_relative_to(workspace)
+        replacements["PACKAGES"] = packages
+    assert argv == [replacements.get(arg, arg) for arg in expected]
+
+
+def test_failed_build_preserves_sanitized_tail(workspace, monkeypatch):
+    repo = workspace / "checkout"
+    repo.mkdir()
+    (repo / "gradlew").write_text(
+        "for i in $(seq 1 30); do echo line-$i >&2; done\necho 'https://example.test/?token=secret token=hidden' >&2\nexit 7\n"
+    )
+    app = executor.InProcessExecutor(repo, task_boundary=True)
+    app.prepared_put_url = "https://files.example/output"
+    request = spec()
+    request["demo"]["build"] = {"recipe": "gradle", "arguments": ["."]}
+    result = app.submit("prepare_verification", request)
+    assert result["status"] == "could_not_build" and result["exit_code"] == 7
+    assert result["phase"] == "build"
+    assert "line-30" in result["stderr"] and "line-1\n" not in result["stderr"]
+    assert "hidden" not in result["stderr"] and "https://" not in result["stderr"]
+    assert len(result["stderr"]) <= 1500 and len(result["stderr"].splitlines()) <= 20
+
+
+@pytest.mark.parametrize("mode", ["cli", "http"])
+def test_verifier_start_failure_has_diagnostics(workspace, mode):
+    repo = workspace / "checkout"
+    repo.mkdir()
+    (repo / "app.py").write_text(
+        "import sys\nprint('start failed token=hidden https://example.test/?secret=x', file=sys.stderr)\nsys.exit(9)"
+    )
+    demo = workspace / "demo.json"
+    value = spec()["demo"]
+    value["start"]["mode"] = mode
+    if mode == "http":
+        value["start"]["port"] = 19001
+        value["steps"] = [{"type": "http", "method": "GET", "path": "/"}]
+    demo.write_text(json.dumps(value))
+    result = verify_side_task(Side(repo), demo, "path")
+    assert result.outcome == "could_not_run", result
+    assert result.phase == "start" and result.exit_code == 9
+    assert "start failed" in result.stderr and "hidden" not in result.stderr and "https://" not in result.stderr
+
+
+@pytest.mark.parametrize("secret", ['token="hidden"', '"password": "hidden"', "Bearer hidden", "ghp_hidden", "npm_hidden"])
+def test_command_failure_sanitizes_tokens_and_caps_tail(secret):
+    failure = task_storage.CommandFailure("build", 1, "old\n" * 50 + "x" * 2000 + "\n" + secret)
+    assert "hidden" not in failure.stderr and "old" not in failure.stderr
+    assert len(failure.stderr) <= 1500

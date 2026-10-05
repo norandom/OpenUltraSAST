@@ -123,7 +123,7 @@ class Pilot:
         self.sides = None
         self.verifications = []
 
-    def failure(self, phase, reason):
+    def failure(self, phase, reason, command=None):
         private = tuple(str(v) for k, v in self.row.items() if k in {"repo", "file", "function", "vulnerable", "fixed"})
         private += (str(self.root), self.row["repo"].removeprefix("https://github.com/"))
         if isinstance(reason, BaseException):
@@ -135,7 +135,15 @@ class Pilot:
             safe = kind + ": " + diagnostic(message, maximum=max(0, 298 - len(kind)), private=private)
         else:
             safe = diagnostic(reason, private=private)
-        self.record["failures"].append(dict(phase=phase, reason=safe))
+        entry = dict(phase=phase, reason=safe)
+        command = command if command is not None else reason
+        if hasattr(command, "exit_code"):
+            entry.update(
+                command_phase=diagnostic(command.phase),
+                exit_code=command.exit_code,
+                stderr=diagnostic(command.stderr, maximum=1500, private=private),
+            )
+        self.record["failures"].append(entry)
 
     @contextmanager
     def executor(self, revision, deadline=900):
@@ -300,7 +308,7 @@ class Pilot:
 
                 for side in result.sides:
                     if side.outcome != "observed":
-                        self.failure("verify/" + side.outcome, "side_verification_failed")
+                        self.failure("verify/" + side.outcome, side.reason, command=side)
                 if result.outcome != "demonstrated":
                     self.failure("verify", "no_consistent_differential" if result.outcome == "inconclusive" else result.outcome)
                 end = result.outcome

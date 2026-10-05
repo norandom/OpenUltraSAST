@@ -30,7 +30,7 @@ from . import _sandbox, task_storage
 from .budget import SearchBudget
 from .demo import BUILD_RECIPES, FAMILY_ORACLES, RUNTIMES, capture_output, load_demo, substitute, validate_oracle
 from .oracles import BrowserExecutor, Canary, Oracle, oracle_for
-from .task_storage import exception_reason
+from .task_storage import CommandFailure, diagnostic, exception_reason
 
 
 @dataclass(frozen=True)
@@ -62,6 +62,9 @@ class SideRecord:
     scratch_peak_bytes: int = 0
     isolation_mode: str = field(default_factory=_sandbox.isolation_mode)
     chromium_no_sandbox: bool = False
+    phase: str = ""
+    exit_code: int | None = None
+    stderr: str = ""
 
 
 @dataclass(frozen=True)
@@ -133,18 +136,19 @@ def _tree(root: Path, *, generated_links: bool = False) -> str:
 # Executed as verifier-owned code inside the same network sandbox as the app.
 # Redirects are refused: only the configured loopback application is reachable.
 _HTTP_DRIVER = r"""
-import http.client, importlib.util, json, os, socket, subprocess, sys, time
+import http.client, importlib.util, json, os, socket, subprocess, sys, tempfile, time
 spec = importlib.util.spec_from_file_location('demo', '/verifier-demo.py')
 demo = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(demo)
 config = json.load(sys.stdin)
 schema = config['schema']
-app = subprocess.Popen(config['command'], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+app_errors = tempfile.TemporaryFile()
+app = subprocess.Popen(config['command'], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=app_errors)
 try:
     until = time.monotonic() + config['timeout'] / 2
     while True:
         if app.poll() is not None:
-            raise RuntimeError('HTTP application exited during readiness')
+            raise SystemExit(app.returncode or 1)
         try:
             connection = socket.create_connection(('127.0.0.1', schema['start']['port']), timeout=0.1)
             connection.close()
@@ -183,6 +187,9 @@ finally:
     except subprocess.TimeoutExpired:
         app.kill()
         app.wait()
+    app_errors.seek(max(0, app_errors.seek(0, 2) - 16384))
+    sys.stderr.write(app_errors.read().decode(errors="replace"))
+    app_errors.close()
 """
 
 
@@ -223,7 +230,12 @@ def _http_steps(
             acknowledged = True
         result = future.result()
     if not acknowledged or result.exit_code or result.timed_out:
-        raise ValueError("HTTP application/steps failed or readiness not acknowledged: " + result.stderr[-2000:])
+        raise CommandFailure(
+            "start" if not acknowledged else "run",
+            result.exit_code,
+            result.stderr,
+            "HTTP application/steps failed or readiness not acknowledged",
+        )
     outputs = json.loads(result.stdout)
     if not isinstance(outputs, list) or len(outputs) != len(schema["steps"]) or not all(isinstance(value, str) for value in outputs):
         raise ValueError("invalid HTTP driver output")
@@ -249,18 +261,21 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
             if root is not None:
                 disk_peak = max(disk_peak, sum(p.lstat().st_blocks * 512 for p in root.rglob("*")))
 
-    def record(outcome: str, reason: str) -> SideRecord:
+    def record(outcome: str, reason: str, phase: str = "", result: Any = None) -> SideRecord:
         return SideRecord(
             outcome,
             tuple(observations),
             time.monotonic() - started,
-            reason,
+            diagnostic(reason, maximum=1500),
             timings["build"],
             timings["ready"],
             timings["run"],
             disk_peak,
             isolation_mode="task-boundary" if task_boundary else _sandbox.isolation_mode(),
             chromium_no_sandbox=bool(getattr(browser, "no_sandbox", False)),
+            phase=phase,
+            exit_code=result.exit_code if result is not None else None,
+            stderr=diagnostic(result.stderr, maximum=1500) if result is not None else "",
         )
 
     try:
@@ -305,7 +320,7 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                         command += ("assemble",)
                     compiled = timed("build", runner, job(command), scratch=products, mounts=mounts, writable_checkout=True)
                     if compiled.exit_code or compiled.timed_out:
-                        return record("could_not_build", "build recipe failed: " + compiled.stderr[-2000:])
+                        return record("could_not_build", "build recipe failed", "build", compiled)
                 if tuple(_tree(p) for p in immutable) != before:
                     return record("inconclusive", "build changed immutable inputs")
                 product_hash = _tree(products, generated_links=True)
@@ -354,7 +369,7 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                             namespace_pid=oracle.namespace_pid,
                         )
                         if ready.exit_code or ready.timed_out:
-                            return record("could_not_run", "app readiness failed: " + ready.stderr[-2000:])
+                            return record("could_not_run", "app readiness failed", "start", ready)
                     if family == "ssrf" and oracle.observe()[0]:
                         return record("inconclusive", "readiness triggered the SSRF oracle")
                     # Readiness cannot supply the attack's evidence or leave a command marker.
@@ -401,7 +416,7 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                             if result.timed_out:
                                 return record("inconclusive", "app attack timed out")
                             if result.exit_code:
-                                return record("could_not_run", "app invocation failed")
+                                return record("could_not_run", "app invocation failed", "run", result)
                             timed("run", oracle.capture, result.stdout)
                             capture_output(step, result.stdout, captures, canary.nonce)
                     observed, evidence = timed("run", oracle.observe)
@@ -416,6 +431,8 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                 finally:
                     oracle.close()
         return record("observed", "fresh task run completed" if task_boundary else "three fresh runs completed")
+    except CommandFailure as exc:
+        return record("could_not_run", str(exc), exc.phase, exc)
     except task_storage.ScratchLimit as exc:
         return record("could_not_build", exception_reason(exc))
     except (OSError, ValueError, AssertionError, KeyError, IndexError, TypeError) as exc:
@@ -472,7 +489,7 @@ def _run_task(
                 os.killpg(proc.pid, signal.SIGKILL)
             proc.wait()
         out.seek(0)
-        err.seek(0)
+        err.seek(max(0, os.fstat(err.fileno()).st_size - 16384))
         return SandboxResult(
             proc.returncode, out.read(1048576).decode(errors="replace"), err.read(1048576).decode(errors="replace"), expired
         )

@@ -106,8 +106,12 @@ def diagnostic(value: object, *, maximum: int = 300, private: tuple[str, ...] = 
     text = re.sub(r"(?i)bearer\s+[^\s,;\"']+", "Bearer [redacted]", text)
     text = re.sub(r"(?i)(?:https?|s3)://[^\s<>\"']+", "[redacted-url]", text)
     text = re.sub(
-        r"(?i)([\w-]*(?:authorization|signature|credential|token|secret|password|key))\s*[:=]\s*[^\s,;&\"']+", r"\1=[redacted]", text
+        r"(?i)([\w-]*(?:authorization|signature|credential|token|secret|password|key))[\"']?\s*[:=]\s*[\"']?[^\s,;&\"']+",
+        r"\1=[redacted]",
+        text,
     )
+    text = re.sub(r"\b(?:gh[pousr]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+|sk-[A-Za-z0-9_-]+|npm_[A-Za-z0-9]+)\b", "[redacted]", text)
+    text = re.sub(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b", "[redacted]", text)
     for name in sorted(set(private), key=len, reverse=True):
         if name:
             text = text.replace(name, "[repository]")
@@ -125,3 +129,14 @@ def exception_reason(exc: BaseException, *, private: tuple[str, ...] = ()) -> st
         half = max(0, (maximum - 2) // 2)
         return prefix + diagnostic(original, maximum=half, private=private) + "; " + diagnostic(cleanup, maximum=half, private=private)
     return prefix + diagnostic(exc, maximum=maximum, private=private)
+
+
+class CommandFailure(ValueError):
+    """Transport a bounded command diagnostic without dropping stderr."""
+
+    def __init__(self, phase: str, exit_code: int | None, stderr: str, reason: str = "") -> None:
+        self.phase = phase
+        self.exit_code = exit_code
+        self.stderr = diagnostic(stderr, maximum=1500)
+        summary = diagnostic(reason) if reason else f"{phase}: exit code {exit_code}"
+        super().__init__(summary + (": " + self.stderr if self.stderr else ""))

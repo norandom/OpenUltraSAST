@@ -724,7 +724,11 @@ class SearchExecutorTask:
         remaining = min(300, self.end - time.monotonic())
         result = self.client.submit("prepare_verification", spec, timeout_seconds=remaining)
         if result.get("status") != "ok":
-            raise ValueError(result.get("reason", "could_not_build"))
+            from openultrasast.search.task_storage import CommandFailure
+
+            raise CommandFailure(
+                result.get("phase", "build"), result.get("exit_code"), result.get("stderr", ""), result.get("reason", "could_not_build")
+            )
         stored = bounded_read(lambda: self.lane.store._get(self.keys[3]), self.end - time.monotonic())
         if stored is None or hashlib.sha256(stored[0]).hexdigest() != result.get("sha256"):
             raise ValueError("executor archive missing or digest mismatch")

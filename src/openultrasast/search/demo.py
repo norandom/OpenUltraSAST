@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+import tomllib
 from pathlib import Path, PurePosixPath
 from typing import Any, cast
 
@@ -145,6 +146,75 @@ def checkout_path(value: Any) -> str:
     return value
 
 
+_MANIFESTS = {
+    "pip": ("pyproject.toml", "setup.py", "setup.cfg"),
+    "npm": ("package.json", "package-lock.json"),
+    "composer": ("composer.json", "composer.lock"),
+    "maven": ("pom.xml",),
+    "gradle": ("build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts", "gradlew"),
+}
+
+
+def build_project(recipe: str, path: Path, checkout: Path) -> Path:
+    """Validate the recipe ecosystem against actual checkout files."""
+
+    def manifest(candidate: Path) -> bool:
+        return candidate.name in _MANIFESTS[recipe] or (recipe == "pip" and candidate.match("requirements*.txt"))
+
+    def contained(candidate: Path) -> bool:
+        return candidate.resolve().is_relative_to(checkout.resolve())
+
+    if not contained(path):
+        raise ValueError("recipe input outside checkout")
+    if path.is_file():
+        if not manifest(path):
+            raise ValueError("recipe input is not an ecosystem manifest")
+        return path.parent
+    if path.is_dir() and any(p.is_file() and contained(p) and manifest(p) for p in path.iterdir()):
+        return path
+    raise ValueError("recipe input must be an ecosystem manifest or project directory")
+
+
+def preparation_command(recipe: str, path: Path, checkout: Path, products: Path) -> tuple[list[str], Path]:
+    project = build_project(recipe, path, checkout)
+    if recipe == "pip":
+        requirements = path if path.is_file() and path.match("requirements*.txt") else None
+        pyproject = project / "pyproject.toml"
+        backend = False
+        if requirements is None and pyproject.is_file():
+            if not pyproject.resolve().is_relative_to(checkout.resolve()):
+                raise ValueError("recipe input outside checkout")
+            backend = bool(tomllib.loads(pyproject.read_text()).get("build-system", {}).get("build-backend"))
+        if requirements is None and not backend and not (project / "setup.py").is_file():
+            fallback = project / "requirements.txt"
+            if fallback.is_file():
+                requirements = fallback
+        target = requirements or project
+        if not target.resolve().is_relative_to(checkout.resolve()):
+            raise ValueError("recipe input outside checkout")
+        return [
+            "python3",
+            "-I",
+            "-m",
+            "pip",
+            "install",
+            "--no-deps",
+            "--target",
+            str(products / "packages"),
+            *(["-r", str(target)] if requirements else [str(target)]),
+        ], project
+    if recipe == "npm":
+        return ["npm", "ci" if (project / "package-lock.json").is_file() else "install", "--ignore-scripts"], project
+    if recipe == "composer":
+        return ["composer", "install", "--no-interaction", "--no-plugins", "--no-scripts"], project
+    if recipe == "maven":
+        return ["mvn", "-q", "-DskipTests", "package", "-f", str(project / "pom.xml")], project
+    wrapper = project / "gradlew"
+    if not wrapper.is_file() or not wrapper.resolve().is_relative_to(checkout.resolve()):
+        raise ValueError("missing or external Gradle wrapper")
+    return ["/bin/sh", str(wrapper), "--no-daemon", "--project-dir", str(project), "assemble"], project
+
+
 def _text(value: Any, names: set[str]) -> str:
     if not isinstance(value, str) or "\0" in value or len(value.encode()) > MAX_VALUE_BYTES:
         raise ValueError("invalid or oversized value")
@@ -163,7 +233,7 @@ def _arguments(value: Any, names: set[str]) -> None:
         _text(arg, names)
 
 
-def validate_demo(value: Any) -> dict[str, Any]:
+def validate_demo(value: Any, *, checkout: Path | None = None) -> dict[str, Any]:
     try:
         encoded = json.dumps(value, allow_nan=False).encode()
     except (ValueError, TypeError, RecursionError) as exc:
@@ -186,8 +256,10 @@ def validate_demo(value: Any) -> dict[str, Any]:
     else:
         if len(args) != 1:
             raise ValueError("recipe requires one checkout path")
-        if not (recipe in ("npm", "composer", "gradle") and args[0] == "."):
+        if args[0] != ".":
             checkout_path(args[0])
+        if checkout is not None:
+            build_project(recipe, checkout / args[0], checkout)
     _keys(start, {"runtime", "path", "arguments", "mode"}, {"port"})
     if not isinstance(start["runtime"], str) or start["runtime"] not in RUNTIMES:
         raise ValueError("unknown runtime")
