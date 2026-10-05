@@ -246,6 +246,8 @@ def test_capacity_backpressure_retries_same_manifest_until_deadline(tmp_path, mo
     busy = [True]
 
     def run(argv, **kwargs):
+        if argv[0] == "kubectl":
+            return subprocess.CompletedProcess(argv, 0, json.dumps({"items": [{"status": {"phase": "Running"}}]}), "")
         if argv[1] == "apply":
             applies.append(kwargs["input"])
             return subprocess.CompletedProcess(argv, 1 if busy[0] else 0, "", "no free workers available secret-url")
@@ -326,3 +328,60 @@ def test_shared_capacity_across_workloads(tmp_path, monkeypatch):
         results = list(pool.map(lambda pair: pair[0](item(), pair[1], 0), zip(lanes, paths, strict=True)))
     assert all(r["status"] == "ok" for r in results)
     assert peak[0] == 2
+
+
+@pytest.mark.parametrize("phases", [[], ["Pending", "Pending"], ["Running", "Running"]])
+def test_capacity_health_uses_lane_runner_and_throttles(monkeypatch, phases):
+    import subprocess
+    from types import SimpleNamespace
+
+    from benchmarks.ax import batch
+
+    now, checks, applies = [0.0], [], []
+    monkeypatch.setenv("S3_ENDPOINT", "https://files.example")
+
+    def jitter(low, high):
+        assert (low, high) == ((2, 5) if now[0] < 60 else (15, 30))
+        return 5 if high == 5 else 20
+
+    monkeypatch.setattr(batch.random, "uniform", jitter)
+
+    def runner(argv, **kwargs):
+        if argv[0] == "kubectl":
+            checks.append(now[0])
+            assert argv == ["kubectl", "-n", "ax-workers", "get", "pods", "-o", "json"]
+            assert kwargs["env"]["KUBECONFIG"] == "/tmp/test-kubeconfig"
+            assert kwargs["timeout"] <= 10
+            return subprocess.CompletedProcess(
+                argv, 0, json.dumps({"items": [{"metadata": {"name": "private-name"}, "status": {"phase": phase}} for phase in phases]}), ""
+            )
+        if argv[1] == "apply":
+            applies.append(kwargs["input"])
+            return subprocess.CompletedProcess(argv, 1, "", "no free workers available")
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    lane = batch.AXLane(
+        SimpleNamespace(ax_bin="ax", kubeconfig="/tmp/test-kubeconfig", atespace="default"),
+        workload(),
+        store=object(),
+        runner=runner,
+        clock=lambda: now[0],
+        pause=lambda seconds: now.__setitem__(0, now[0] + seconds),
+    )
+    expected = batch.CapacityDeadline if "Running" in phases else batch.ClusterUnavailable
+    with pytest.raises(expected) as caught:
+        batch.apply_when_available(lane, {"metadata": {"name": "same-task"}}, 190)
+    assert checks == ([60, 120, 180] if "Running" in phases else [60])
+    assert len(set(applies)) == 1
+    assert "private-name" not in str(caught.value)
+    assert str(caught.value)
+
+
+def test_executor_slot_deadline_has_reason(monkeypatch):
+    from types import SimpleNamespace
+
+    from benchmarks.ax import batch
+
+    monkeypatch.setattr(batch, "AX_SLOTS", SimpleNamespace(acquire=lambda **kw: False))
+    with pytest.raises(batch.CapacityDeadline, match="no free workers available before deadline"):
+        batch.SearchExecutorTask(object(), b"archive").__enter__()

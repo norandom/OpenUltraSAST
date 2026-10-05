@@ -17,7 +17,7 @@ from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
 
-from benchmarks.ax.batch import AXLane, SearchExecutorTask, Workload, validate_image
+from benchmarks.ax.batch import AXLane, ClusterUnavailable, SearchExecutorTask, Workload, validate_image
 from benchmarks.ax.search_verify import AXSideDispatcher, validate_result
 from benchmarks.search.executor_smoke import CLONE
 from openultrasast.config import load_dotenv
@@ -63,6 +63,10 @@ def scripted(schema):
             *[{"content": "{}"} for _ in range(4)],
         ]
     )
+
+
+class RepositoryFailure(ValueError):
+    """The selected checkout or candidate cannot be read."""
 
 
 class Pilot:
@@ -156,14 +160,14 @@ class Pilot:
             )
             if result.get("exit_code") != 0 or result.get("error"):
                 self.failure("acquisition", "checkout_command_failed")
-                raise ValueError("checkout failed")
+                raise RepositoryFailure("checkout failed")
             remaining = deadline - (time.monotonic() - acquired_at)
             if remaining < 1:
                 raise BudgetExhausted("acquisition deadline", usd=0, calls=0)
             result = task.client.submit("read_file", {"path": self.row["file"]}, timeout_seconds=min(30, remaining))
             if not isinstance(result.get("input_bytes"), int) or result["input_bytes"] <= 0:
                 self.failure("acquisition", "candidate_input_unreadable")
-                raise ValueError("unreadable input")
+                raise RepositoryFailure("unreadable input")
             self.record["input_bytes"] += result["input_bytes"]
             yield task
 
@@ -281,6 +285,8 @@ class Pilot:
                 raise BudgetExhausted("run ceiling", usd=0, calls=0)
             if result.get("status") != "ok":
                 self.failure(task.step, result.get("failure", "worker_execution_failed"))
+                if self.worker.metrics["model_calls"] == 0:
+                    raise RuntimeError(self.record["failures"][-1]["reason"])
                 if not self.verifications:
                     self.record["outcome"] = "inconclusive"
             return result
@@ -304,6 +310,8 @@ class Pilot:
                 else "inconclusive"
             )
             self.record["end_reason"] = "instrument_failure"
+            if isinstance(exc, ClusterUnavailable) or (self.worker.metrics["model_calls"] == 0 and not isinstance(exc, RepositoryFailure)):
+                self.record["aborted_reason"] = self.record["failures"][-1]["reason"]
         metrics = self.worker.metrics
         self.record.update(
             spend={k: metrics[k] for k in ("reserved", "settled")},
@@ -425,15 +433,20 @@ def main(argv=None):
         client = OpenRouterChatClient(
             api_key=os.environ[DEEPSEEK_KEY_ENV], base_url=os.environ.get(DEEPSEEK_BASE_ENV, DEEPSEEK_BASE_URL), max_attempts=1
         )
-        lane = AXLane(args, Workload(args.image, frozenset({"VERIFY_INPUT_URL", "RESULT_URL"}), 900, validate_result))
     root = args.private_root / uuid.uuid4().hex
     root.mkdir(parents=True, mode=0o700)
-    store = open_store(args.board_memory) if args.board_memory else FileStore(root / "boards")
     records = []
     started = time.monotonic()
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("x") as output:
-        for index in indices:
+        aborted_reason = None
+        try:
+            store = open_store(args.board_memory) if args.board_memory else FileStore(root / "boards")
+            if not args.dry_run:
+                lane = AXLane(args, Workload(args.image, frozenset({"VERIFY_INPUT_URL", "RESULT_URL"}), 900, validate_result))
+        except Exception as exc:
+            aborted_reason = exception_reason(exc)
+        for index in indices if aborted_reason is None else []:
             local = root / str(index)
             local.mkdir()
             if args.dry_run:
@@ -447,8 +460,14 @@ def main(argv=None):
             records.append(record)
             output.write(json.dumps(record, allow_nan=False) + "\n")
             output.flush()
+            if record.get("aborted_reason"):
+                aborted_reason = record["aborted_reason"]
+                break
         summary = dict(
             type="summary",
+            end_reason="instrument_failure" if aborted_reason else "completed",
+            aborted_reason=aborted_reason,
+            skipped_pairs=indices[len(records) :],
             searches=len(records),
             dry_run=args.dry_run,
             side=args.side,
@@ -462,7 +481,7 @@ def main(argv=None):
             wall_seconds=time.monotonic() - started,
         )
         output.write(json.dumps(summary, allow_nan=False) + "\n")
-    return int(any(r["end_reason"] == "instrument_failure" for r in records))
+    return int(bool(aborted_reason) or any(r["end_reason"] == "instrument_failure" for r in records))
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import ipaddress
 import json
+import logging
 import os
 import queue
 import random
@@ -40,6 +41,10 @@ class NoFreeWorkers(Exception):
     """Capacity back-pressure, never a sandbox or instrument failure."""
 
 
+class ClusterUnavailable(Exception):
+    """No running workers were observed in the worker namespace."""
+
+
 class CapacityDeadline(Exception):
     """No worker became available before the task deadline."""
 
@@ -50,6 +55,8 @@ AX_SLOTS = threading.BoundedSemaphore(2)
 
 
 def apply_when_available(lane, document, end):
+    started = lane.clock()
+    next_health_check = started + 60
     while lane.clock() < end:
         try:
             lane.ax("apply", "-f", "-", manifest=document, timeout=min(30, end - lane.clock()))
@@ -61,7 +68,12 @@ def apply_when_available(lane, document, end):
                 lane.ax("delete", "task", document["metadata"]["name"])
             except Exception as exc:
                 raise RuntimeError("capacity cleanup failed: " + exception_reason(exc)) from None
-            lane.pause(min(random.uniform(15, 30), max(0, end - lane.clock())))
+            if lane.clock() >= next_health_check:
+                lane.check_cluster_health(timeout=min(10, max(0.01, end - lane.clock())))
+                next_health_check = lane.clock() + 60
+            # Brief snapshot-copy contention clears quickly; busy workers need slower retries.
+            delay = random.uniform(2, 5) if lane.clock() - started < 60 else random.uniform(15, 30)
+            lane.pause(min(delay, max(0, end - lane.clock())))
     raise CapacityDeadline("no free workers available before deadline")
 
 
@@ -159,7 +171,8 @@ def bounded_read(read, timeout):
 
 
 class AXLane:
-    def __init__(self, args, workload, store=None, pause=time.sleep, clock=time.monotonic):
+    def __init__(self, args, workload, store=None, pause=time.sleep, clock=time.monotonic, runner=None):
+        self.runner = runner or subprocess.run
         self.workload = workload
         self.args = args
         self.pause, self.clock = pause, clock
@@ -200,11 +213,35 @@ class AXLane:
         record = json.loads((output / "result.json").read_text())
         return {**record, "worker_ip": worker, "ax_attempts": attempts}
 
+    def check_cluster_health(self, *, timeout=10):
+        env = dict(os.environ)
+        if self.args.kubeconfig:
+            env["KUBECONFIG"] = str(Path(self.args.kubeconfig).expanduser())
+        done = self.runner(
+            ["kubectl", "-n", "ax-workers", "get", "pods", "-o", "json"],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        if done.returncode:
+            raise RuntimeError(f"worker pod health check failed (exit {done.returncode})")
+        try:
+            pods = json.loads(done.stdout)["items"]
+            if not isinstance(pods, list):
+                raise ValueError("invalid pod list")
+            phases = [pod["status"]["phase"] for pod in pods]
+        except (ValueError, KeyError, TypeError):
+            raise RuntimeError("worker pod health check returned invalid pod data") from None
+        running = phases.count("Running")
+        if not running:
+            raise ClusterUnavailable(f"worker pods: total={len(pods)}, running=0, pending={phases.count('Pending')}")
+
     def ax(self, *args, manifest=None, timeout=30):
         env = dict(os.environ)
         if self.args.kubeconfig:
             env["KUBECONFIG"] = str(Path(self.args.kubeconfig).expanduser())
-        done = subprocess.run(
+        done = self.runner(
             [str(Path(self.args.ax_bin).expanduser()), *args, *(["--atespace", self.args.atespace] if args[0] != "apply" else [])],
             input=json.dumps(manifest) if manifest is not None else None,
             env=env,
@@ -628,7 +665,7 @@ class SearchExecutorTask:
         self.end = time.monotonic() + self.deadline
         if not isinstance(self.lane, DockerLane):
             if not AX_SLOTS.acquire(timeout=self.deadline):
-                raise CapacityDeadline
+                raise CapacityDeadline("no free workers available before deadline")
             self.slot = True
         expires = timedelta(seconds=self.deadline + 600)
         store = self.lane.store
@@ -673,8 +710,8 @@ class SearchExecutorTask:
                 raise
             self.client = ObjectStoreExecutor(command_put, result_get)
             return self
-        except Exception:
-            self.__exit__(None, None, None)
+        except Exception as exc:
+            self.__exit__(type(exc), exc, exc.__traceback__)
             raise
 
     def prepare(self, spec):
@@ -688,7 +725,7 @@ class SearchExecutorTask:
             raise ValueError("executor archive missing or digest mismatch")
         return stored[0]
 
-    def __exit__(self, *exc):
+    def __exit__(self, exc_type, exc, traceback):
         errors = []
         if self.submitted:
             try:
@@ -704,4 +741,10 @@ class SearchExecutorTask:
             AX_SLOTS.release()
             self.slot = False
         if errors:
-            raise RuntimeError("executor cleanup failed: " + ", ".join(errors))
+            reason = "executor cleanup failed: " + ", ".join(errors)
+            logging.getLogger(__name__).error("%s", reason)
+            if exc is not None:
+                exc.executor_cleanup_reason = reason
+                exc.args = (str(exc) + "; " + reason,)
+                return False
+            raise RuntimeError(reason)
