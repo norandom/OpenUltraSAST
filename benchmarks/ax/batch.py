@@ -262,8 +262,10 @@ class AXLane:
     def _execute_attempt(self, item, output, attempt, attempts):
         pin_id = item.id
         digest = hashlib.sha256(f"{self.run}/{pin_id}/attempt-{attempt}".encode()).hexdigest()[:12]
-        slug = re.sub(r"[^a-z0-9]+", "-", str(pin_id).lower()).strip("-")[:22]
-        name = f"ousast-engine-{slug or 'pin'}-{digest}"
+        kind = re.sub(r"[^a-z0-9]+", "-", self.workload.kind.lower()).strip("-") or "pin"
+        # Names are capped at 49 bytes: 14 (prefix) + kind + 1 + slug + 1 + 12 (digest).
+        slug = re.sub(r"[^a-z0-9]+", "-", str(pin_id).lower()).strip("-")[: max(4, 21 - len(kind))]
+        name = f"ousast-engine-{kind}-{slug or 'pin'}-{digest}"
         key_id = hashlib.sha256(str(pin_id).encode()).hexdigest()
         prefix = f"engine-queue/{self.run}/{key_id}/attempt-{attempt}/"
         keys = [prefix + item.object_names.get(key, key.lower() + PRESIGNED_ARCHIVE_SUFFIX) for key in item.inputs]
@@ -361,6 +363,8 @@ class Workload:
     url_env: frozenset[str]
     deadline: float
     validate: object
+    # Task-name prefix after "ousast-engine-"; the operator's per-host egress rules match on it.
+    kind: str = "pin"
 
 
 def validate_image(image):
