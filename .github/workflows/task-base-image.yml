@@ -1,0 +1,78 @@
+name: Task base image
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'plane/Dockerfile.base'
+      - 'pyproject.toml'
+      - 'uv.lock'
+permissions:
+  contents: read
+  packages: write
+concurrency:
+  group: task-base-image
+  cancel-in-progress: false
+jobs:
+  base:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: names
+        run: |
+          echo "tag=base-${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+          content=$(cat plane/Dockerfile.base pyproject.toml uv.lock | sha256sum | cut -d' ' -f1)
+          echo "content=base-content-$content" >> "$GITHUB_OUTPUT"
+      - id: base
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: plane/Dockerfile.base
+          target: base
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          sbom: false
+          tags: |
+            ghcr.io/norandom/ousast-task-base:${{ steps.names.outputs.tag }}
+            ghcr.io/norandom/ousast-task-base:${{ steps.names.outputs.content }}
+          cache-from: type=gha,scope=task-base
+          cache-to: type=gha,mode=max,scope=task-base
+      - id: browser
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: plane/Dockerfile.base
+          target: base-browser
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          sbom: false
+          build-args: |
+            TASK_BASE_REF=ghcr.io/norandom/ousast-task-base:${{ steps.names.outputs.tag }}@${{ steps.base.outputs.digest }}
+          tags: |
+            ghcr.io/norandom/ousast-task-base:${{ steps.names.outputs.tag }}-browser
+            ghcr.io/norandom/ousast-task-base:${{ steps.names.outputs.content }}-browser
+          cache-from: type=gha,scope=task-base-browser
+          cache-to: type=gha,mode=max,scope=task-base-browser
+      - name: Print manual pin update and verify public access
+        env:
+          BASE: ghcr.io/norandom/ousast-task-base:${{ steps.names.outputs.tag }}@${{ steps.base.outputs.digest }}
+          BROWSER: ghcr.io/norandom/ousast-task-base:${{ steps.names.outputs.tag }}-browser@${{ steps.browser.outputs.digest }}
+        run: |
+          python3 - <<'PYTHON' >> "$GITHUB_STEP_SUMMARY"
+          import json, os
+          print("Replace plane/task-base.digest with this JSON after both public checks pass:")
+          print("```json")
+          print(json.dumps({"base": os.environ["BASE"], "base-browser": os.environ["BROWSER"]}, indent=2))
+          print("```")
+          PYTHON
+          docker logout ghcr.io
+          docker buildx imagetools inspect "$BASE"
+          docker buildx imagetools inspect "$BROWSER"

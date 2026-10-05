@@ -274,9 +274,28 @@ class InProcessExecutor:
         }
 
     def _task_run(self, argv: list[str], timeout: float, limits: dict[str, Any]) -> dict[str, Any]:
+        process_limit = None
+        try:
+            uid = os.getuid()
+            current = 0
+            for entry in Path("/proc").iterdir():
+                if not entry.name.isdecimal():
+                    continue
+                try:
+                    status = (entry / "status").read_text()
+                except FileNotFoundError:
+                    continue
+                real_uid = int(next(line for line in status.splitlines() if line.startswith("Uid:")).split()[1])
+                current += real_uid == uid
+            process_limit = current + 128
+        except (OSError, ValueError, IndexError, StopIteration):
+            pass
+
         def constrain() -> None:
             resource.setrlimit(resource.RLIMIT_FSIZE, (limits.get("disk_bytes", task_storage.DEFAULT_SCRATCH_BYTES),) * 2)
-            resource.setrlimit(resource.RLIMIT_NPROC, (128, 128))
+            # NPROC counts all processes of the real uid, so an absolute 128 blocks builds on busy hosts.
+            if process_limit is not None:
+                resource.setrlimit(resource.RLIMIT_NPROC, (process_limit,) * 2)
             resource.setrlimit(resource.RLIMIT_AS, (limits.get("memory_bytes", 256 * 1024**2),) * 2)
             resource.setrlimit(resource.RLIMIT_CPU, (math.ceil(timeout) + 1,) * 2)
 
@@ -391,7 +410,10 @@ class InProcessExecutor:
                 if recipe["recipe"] == "maven":
                     argv += ["package", "-DskipTests"]
                 elif recipe["recipe"] == "gradle":
-                    argv += ["assemble"]
+                    # The project pins its Gradle version through its wrapper.
+                    # Invoke with sh because checkout archives may lose execute bits.
+                    wrapper = self._path(str(path.relative_to(self.repo) / "gradlew"))
+                    argv = ["/bin/sh", str(wrapper), "--no-daemon", "--project-dir", str(path), "assemble"]
                 built = self._task_run(argv, self._remaining(), {"disk_bytes": task_storage.DEFAULT_SCRATCH_BYTES})
                 if built.get("disk_limit_exceeded") or built["exit_code"] or built["timed_out"]:
                     return {**built, "status": "could_not_build"}
