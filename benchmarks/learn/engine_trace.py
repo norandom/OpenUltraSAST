@@ -179,9 +179,11 @@ def make_plan(
 class Inputs:
     """Resolve spent corpora; fetch pair source commits into the host cache."""
 
-    def __init__(self, root, cache, allow_excerpt_fallback=False):
+    def __init__(self, root, cache, allow_excerpt_fallback=False, *, keep_sources=False, source_cache_mb=500):
         self.cache = cache
         self.allow_excerpt_fallback = allow_excerpt_fallback
+        self.keep_sources = keep_sources
+        self.source_cache_bytes = source_cache_mb * 1024 * 1024
         self.catalog_rows = defaultdict(list)
         for catalog in (root / "benchmarks/pairs").rglob("catalog.toml"):
             for item in tomllib.loads(catalog.read_text()).get("pair", []):
@@ -259,8 +261,30 @@ class Inputs:
             raise ValueError(f"missing catalog repository for {case.name}")
         return repo, parent if side == "vuln" else commit
 
+    def source_path(self, repo, commit, roots):
+        return self.cache / "trace-sources" / digest([repo, commit, roots])
+
+    def prepare_source_cache(self):
+        cache = self.cache / "trace-sources"
+        cache.mkdir(parents=True, exist_ok=True)
+        entries = []
+        for entry in cache.iterdir():
+            if entry.is_dir() and not entry.is_symlink():
+                size = sum(p.stat().st_size for p in entry.rglob("*") if not p.is_symlink() and p.is_file())
+                entries.append((entry.stat().st_mtime_ns, entry, size))
+        total = sum(size for _, _, size in entries)
+        for _, entry, size in sorted(entries):
+            if total <= self.source_cache_bytes:
+                break
+            shutil.rmtree(entry)
+            total -= size
+        free = shutil.disk_usage(cache).free
+        if free < 1.5 * 1024**3:
+            raise OSError(f"refusing source fetch: {free / 1024**3:.2f} GB free at {cache}; at least 1.5 GB required")
+
     def fetch_source(self, repo, commit, roots):
-        clone = self.cache / "trace-sources" / digest([repo, commit, roots])
+        self.prepare_source_cache()
+        clone = self.source_path(repo, commit, roots)
         clone.mkdir(parents=True, exist_ok=True)
         url = repo if repo.startswith("https://") else f"https://github.com/{repo.removesuffix('.git')}.git"
         env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
@@ -348,6 +372,13 @@ class Inputs:
                 for case, side in resolved:
                     _materialize_side(target, case, side=side)
                 return {"mode": "excerpt-fallback", "reason": str(exc), "repo": repo, "commit": commit}
+            finally:
+                # Only the exported copy is used by executors. Drop the clone even
+                # on a partial fetch, timeout, failed export or excerpt fallback.
+                if not self.keep_sources:
+                    clone = self.source_path(repo, commit, roots)
+                    if clone.exists():
+                        shutil.rmtree(clone)
             verify_functions(target, rows)
             return {**proof, "mode": "source", "repo": repo, "commit": commit}
         if all(r["source"] == "dev-php" for r in rows):
@@ -845,6 +876,8 @@ def main():
     parser.add_argument("--examples", type=Path, help="frozen example JSONL instead of the local memory store")
     parser.add_argument("--memory", type=Path, default=Path.home() / "ousast-results/plane/memory")
     parser.add_argument("--cache", type=Path, default=Path.home() / ".cache/openultrasast")
+    parser.add_argument("--keep-sources", action="store_true", help="retain fetched sources after export (still subject to cache eviction)")
+    parser.add_argument("--source-cache-mb", type=int, default=500, help="maximum retained source MB before each fetch (default: 500)")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--image", help="default: openultrasast:dev for Docker; public 2.0.1 image for k8s/mixed")
     parser.add_argument("--executor", choices=("docker", "k8s", "k8s-jobs", "mixed", "queue", "ax", "mixed-ax"), default="docker")
@@ -872,6 +905,8 @@ def main():
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--summary", action="store_true")
     args = parser.parse_args()
+    if args.source_cache_mb < 0:
+        parser.error("--source-cache-mb must be nonnegative")
     if args.parallel is None:
         args.parallel = 2 if args.executor in {"ax", "mixed-ax"} else 1
     if args.executor in {"ax", "mixed-ax"}:
@@ -912,7 +947,7 @@ def main():
         units = join_units(read_jsonl(args.units), examples, args.include_typescript)
     except ValueError as exc:
         parser.error(str(exc))
-    inputs = Inputs(ROOT, args.cache, args.allow_excerpt_fallback)
+    inputs = Inputs(ROOT, args.cache, args.allow_excerpt_fallback, keep_sources=args.keep_sources, source_cache_mb=args.source_cache_mb)
     # Resolve pair source names for leak-audit coverage before calculating the resume key.
     for unit in units:
         if unit.get("excerpt") or unit["source"].startswith("advisory-fixes"):

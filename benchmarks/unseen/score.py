@@ -199,9 +199,56 @@ def score(records, *, seed=0):
     return {
         **metrics(usable),
         "total": len(records),
+        "deadlines": [
+            {"lane": lane, "deadline_seconds": deadline, "deadline_scale": factor, "applied_deadline_scale": applied, "count": count}
+            for (lane, deadline, factor, applied), count in sorted(
+                Counter(
+                    (r.get("lane", "unknown"), r.get("deadline_seconds"), r.get("deadline_scale"), r.get("applied_deadline_scale"))
+                    for r in records
+                ).items(),
+                key=lambda pair: str(pair[0]),
+            )
+        ],
         "coverage": {state: counts[state] for state in STATES},
         "breakdowns": breakdown,
         "confirmed": metrics([r for r in usable if r.get("label_check", r.get("confirmed")) in ("confirmed", True)]),
+    }
+
+
+def agreement(cluster, native):
+    """Missing, failed or wrong-lane records are unknown, never matching quiet pushes."""
+    cc = {r["id"]: r for r in cluster}
+    if len(cc) != len(cluster) or len({r["id"] for r in native}) != len(native):
+        raise ValueError("duplicate agreement identities")
+    pairs, unknown, disagreements = [], [], []
+    for n in sorted(native, key=lambda r: r["id"]):
+        c = cc.get(n["id"])
+        if (
+            c is None
+            or c.get("lane") not in {"ax", "kind"}
+            or n.get("lane") != "docker"
+            or c.get("image") != n.get("image")
+            or c.get("base_deadline_seconds") != n.get("base_deadline_seconds")
+            or coverage(c) == "instrument_failure"
+            or coverage(n) == "instrument_failure"
+        ):
+            unknown.append(n["id"])
+            continue
+        cluster_flag, native_flag = false_alarm(c), false_alarm(n)
+        same = cluster_flag == native_flag
+        pairs.append({"change_id": n["id"], "cluster_flagged": cluster_flag, "native_flagged": native_flag, "same": same})
+        if not same:
+            disagreements.append(n["id"])
+    report = rate([p["same"] for p in pairs])
+    eligible = bool(pairs) and not unknown and report["wilson95"][0] >= 0.95
+    return {
+        **report,
+        "requested": len(native),
+        "pairs": pairs,
+        "unknown": unknown,
+        "disagreements": disagreements,
+        "baseline_eligible": eligible,
+        "flagged": not eligible,
     }
 
 
@@ -295,12 +342,20 @@ def main():
     parser.add_argument("records", type=Path, help="JSON array of joined change/instrument/push records")
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--against", type=Path, help="production-arm records for a paired adoption gate")
+    parser.add_argument("--native", type=Path, help="native sample root; auto-detected under replay root")
     parser.add_argument("--slice-id")
     parser.add_argument("--informed", action="store_true")
     args = parser.parse_args()
     current = load_records(args.records)
     result = score(current)
+    native = args.native or (args.records / "native" if args.records.is_dir() and (args.records / "native").exists() else None)
+    if native:
+        result["native_agreement"] = agreement(current, load_records(native))
+        result["baseline_eligible"] = result["native_agreement"]["baseline_eligible"]
+        result["flagged"] = result["native_agreement"]["flagged"]
     result["unseen"] = gate(load_records(args.against) if args.against else [], current, slice_id=args.slice_id, informed=args.informed)
+    if native and result["flagged"]:
+        result["unseen"] = {"gate": "not_run", "reason": "native_agreement"}
     args.out.write_text(json.dumps(result, sort_keys=True, indent=2) + "\n")
 
 

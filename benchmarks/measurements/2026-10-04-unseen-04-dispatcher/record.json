@@ -1,0 +1,110 @@
+{
+  "cleanup": "completed-before-checkpoint",
+  "commit": "5dc86c2f3f54b4dfb59060c88fb3ab5b307ef448",
+  "differences": 0,
+  "image": "ghcr.io/norandom/ousast-engine-task@sha256:b73c9bbd48fbf39c14ac013e5b0ff0a9d536b3d6388b50b1bd4cddfa22264b91",
+  "pins": [
+    {
+      "baseline_digest": "c12c675f816a24ab33a63336a21efdc93db10a37dcf83437d91bec6f728cef1f",
+      "equal": true,
+      "instrument": [
+        {
+          "bytes": 1761,
+          "cpg_bytes": 138723,
+          "jvm": [
+            {
+              "exit_code": null,
+              "heap_mb": 1700,
+              "seconds": 11.88592994,
+              "success": null
+            },
+            {
+              "exit_code": null,
+              "heap_mb": 1700,
+              "seconds": 35.821929360999995,
+              "success": true
+            },
+            {
+              "exit_code": null,
+              "heap_mb": 1700,
+              "seconds": 7.4493522819999995,
+              "success": true
+            },
+            {
+              "exit_code": null,
+              "heap_mb": 1700,
+              "seconds": 2.9803447330000026,
+              "success": true
+            },
+            {
+              "exit_code": null,
+              "heap_mb": 1700,
+              "seconds": 0.5151375319999971,
+              "success": true
+            },
+            {
+              "exit_code": null,
+              "heap_mb": 1700,
+              "seconds": 9.691500790999996,
+              "success": true
+            }
+          ]
+        }
+      ],
+      "pin_digest": "63c992b500590a9d4b643c9458df1d6cf71d770b06cc70594acbdba99b06c00b",
+      "record_digest": "c12c675f816a24ab33a63336a21efdc93db10a37dcf83437d91bec6f728cef1f",
+      "seconds": 158.85258329089265
+    },
+    {
+      "baseline_digest": "5a60ed069d99f9325a1d3f3a7612fcf0d853d4fabfd53add81151b051132a5ee",
+      "equal": true,
+      "instrument": [
+        {
+          "bytes": 1791,
+          "cpg_bytes": 138886,
+          "jvm": [
+            {
+              "exit_code": null,
+              "heap_mb": 1700,
+              "seconds": 7.656527941999999,
+              "success": null
+            },
+            {
+              "exit_code": null,
+              "heap_mb": 1700,
+              "seconds": 27.532885242,
+              "success": true
+            },
+            {
+              "exit_code": null,
+              "heap_mb": 1700,
+              "seconds": 9.524187851,
+              "success": true
+            },
+            {
+              "exit_code": null,
+              "heap_mb": 1700,
+              "seconds": 5.0155780199999995,
+              "success": true
+            },
+            {
+              "exit_code": null,
+              "heap_mb": 1700,
+              "seconds": 0.6809096819999993,
+              "success": true
+            },
+            {
+              "exit_code": null,
+              "heap_mb": 1700,
+              "seconds": 13.824248304000001,
+              "success": true
+            }
+          ]
+        }
+      ],
+      "pin_digest": "8bd2f48dfb2d00cfc5b60a5dee3a8c87e6970671121caa17221f2449c1254fb2",
+      "record_digest": "5a60ed069d99f9325a1d3f3a7612fcf0d853d4fabfd53add81151b051132a5ee",
+      "seconds": 142.5083134449087
+    }
+  ]
+}

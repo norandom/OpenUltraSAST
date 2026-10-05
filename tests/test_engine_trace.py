@@ -1719,3 +1719,104 @@ def test_worker_session_question_deadline_keeps_markers_and_does_not_replay(tmp_
     assert backend.timed_out and backend.asked == ["a"]
     assert not backend.answers and not backend.session_fallback
     assert closed == [True]
+
+
+@pytest.mark.parametrize("keep_sources", [False, True])
+@pytest.mark.parametrize("outcome", ["success", "failure", "timeout", "fetch-failure", "fetch-timeout", "export-failure"])
+def test_finished_pin_source_lifetime(tmp_path, monkeypatch, keep_sources, outcome):
+    inputs, case = pair_inputs(tmp_path)
+    inputs.keep_sources = keep_sources
+    pin = trace.make_plan([unit(file=case.relpath)], tmp_path)[0]
+    clone = inputs.source_path(case.repo, "a" * 40, ["pkg"])
+    monkeypatch.setattr(inputs, "pair_for", lambda row: (case, "vuln"))
+
+    def git(command, **kwargs):
+        (clone / "pkg").mkdir(exist_ok=True)
+        (clone / case.relpath).write_text("def run(): pass\n")
+        if outcome == "fetch-failure":
+            raise subprocess.CalledProcessError(1, command)
+        if outcome == "fetch-timeout":
+            raise subprocess.TimeoutExpired(command, 300)
+        if outcome == "export-failure":
+            (clone / case.relpath).unlink()
+        return subprocess.CompletedProcess(command, 0, "a" * 40 + "\n", "")
+
+    class Dispatcher:
+        def execute(self, checkout, output, prepared, name):
+            assert (checkout / case.relpath).read_text() == "def run(): pass\n"
+            if outcome == "timeout":
+                return None, "worker"
+            if outcome == "failure":
+                raise OSError("executor failed")
+            trace.write_json(
+                output / "result.json",
+                {**prepared, "done": True, "units": [worker.unit_record(u, "asked-nothing") for u in prepared["units"]]},
+            )
+            return subprocess.CompletedProcess([], 0, "", ""), "worker"
+
+    monkeypatch.setattr(trace.subprocess, "run", git)
+    monkeypatch.setattr(trace, "prepare_questions", lambda *_: {"a": {}})
+    args = k8s_args(tmp_path, executor="ax", ax_dispatcher=Dispatcher())
+    assert trace.run_pin(pin, None, {}, inputs, tmp_path, args) is (outcome != "success")
+    assert clone.exists() is keep_sources
+
+
+def test_source_cache_evicts_oldest_before_fetch(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    inputs, _ = pair_inputs(tmp_path)
+    inputs.source_cache_bytes = 8
+    cache = inputs.cache / "trace-sources"
+    for name, modified in (("oldest", 10), ("newest", 30), ("middle", 20)):
+        entry = cache / name
+        entry.mkdir(parents=True)
+        (entry / "data").write_bytes(b"123456")
+        trace.os.utime(entry, (modified, modified))
+    # Other caches and symlink targets must remain untouched.
+    other = inputs.cache / "repos"
+    other.mkdir()
+    (other / "data").write_bytes(b"keep")
+    (cache / "link").symlink_to(other, target_is_directory=True)
+    monkeypatch.setattr(trace.shutil, "disk_usage", lambda path: SimpleNamespace(free=2 * 1024**3))
+    commands = []
+
+    def git(command, **kwargs):
+        assert not (cache / "oldest").exists()
+        assert not (cache / "middle").exists()
+        assert (cache / "newest/data").read_bytes() == b"123456"
+        assert (other / "data").read_bytes() == b"keep"
+        commands.append(command)
+        return subprocess.CompletedProcess(command, 0, "a" * 40 + "\n", "")
+
+    monkeypatch.setattr(trace.subprocess, "run", git)
+    inputs.fetch_source("owner/repo", "a" * 40, ["pkg"])
+    assert any("fetch" in command for command in commands)
+
+
+def test_source_fetch_refuses_low_disk_before_git(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    inputs, _ = pair_inputs(tmp_path)
+    monkeypatch.setattr(trace.shutil, "disk_usage", lambda path: SimpleNamespace(free=int(1.5 * 1024**3) - 1))
+    monkeypatch.setattr(trace.subprocess, "run", lambda *a, **kw: pytest.fail("low disk must refuse before git"))
+    with pytest.raises(OSError, match="refusing source fetch: .*at least 1.5 GB required"):
+        inputs.fetch_source("owner/repo", "a" * 40, ["pkg"])
+    assert not inputs.source_path("owner/repo", "a" * 40, ["pkg"]).exists()
+
+
+@pytest.mark.parametrize("flags,keep,cap", [([], False, 500), (["--keep-sources", "--source-cache-mb", "7"], True, 7)])
+def test_source_cache_cli_options(tmp_path, monkeypatch, flags, keep, cap):
+    original = trace.Inputs
+    created = []
+
+    def inputs(*args, **kwargs):
+        result = original(*args, **kwargs)
+        created.append(result)
+        return result
+
+    monkeypatch.setattr(trace, "Inputs", inputs)
+    monkeypatch.setattr(trace, "read_jsonl", lambda path: [])
+    monkeypatch.setattr(sys, "argv", [str(SCRIPT), "--dry-run", "--examples", "unused", "--cache", str(tmp_path), *flags])
+    assert trace.main() == 0
+    assert created[0].keep_sources is keep
+    assert created[0].source_cache_bytes == cap * 1024 * 1024

@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import io
 import json
+import math
 import subprocess
 import tarfile
 import tomllib
@@ -15,11 +16,26 @@ from benchmarks.ax.batch import AXLane, DockerLane, Item, Workload, dispatch, wr
 from benchmarks.unseen.score import coverage
 
 
-def make_item(change, arm, image):
+def make_item(change, arm, image, *, deadline_scale=1.0, lane="ax", deadline=None):
     if arm not in {"default", "long_deadline"}:
         raise ValueError("unknown replay arm")
     identity = hashlib.sha256(str(change["id"]).encode()).hexdigest()[:14]
-    spec = {**change, "id": identity, "hook_flags": [] if arm == "default" else ["--deadline", "300"], "image": image}
+    if not math.isfinite(deadline_scale) or deadline_scale <= 0:
+        raise ValueError("deadline scale must be finite and positive")
+    base = deadline if deadline is not None else 30 if arm == "default" else 300
+    applied = round(base * (1 if lane == "docker" else deadline_scale))
+    if applied < 1:
+        raise ValueError("scaled deadline must be at least one second")
+    spec = {
+        **change,
+        "id": identity,
+        "hook_flags": ["--deadline", str(applied)],
+        "image": image,
+        "base_deadline_seconds": base,
+        "deadline_seconds": applied,
+        "deadline_scale": deadline_scale,
+        "applied_deadline_scale": 1.0 if lane == "docker" else deadline_scale,
+    }
     data = json.dumps(spec, sort_keys=True).encode()
     digest = hashlib.sha256(data).hexdigest()
     return Item(
@@ -146,6 +162,11 @@ def main():
     parser.add_argument("--slice", default="1")
     parser.add_argument("--out", type=Path)
     parser.add_argument("--lane", choices=("ax", "kind", "docker", "mixed"), default="mixed")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--deadline-scale", type=float, default=1.0)
+    group.add_argument("--calibration", type=Path)
+    parser.add_argument("--native-sample", type=int, default=0)
+    parser.add_argument("--docker-image-bytes", type=int, help="unpacked image size upper bound, required for VM pull")
     parser.add_argument("--ax-bin", default="ax")
     parser.add_argument("--kubeconfig", type=Path)
     parser.add_argument("--atespace", default="default")
@@ -157,7 +178,15 @@ def main():
     if not args.image:
         parser.error("--image digest is required")
     changes = load_slice(args.manifest, args.slice, args.private_manifest)
-    items = [make_item(change, args.arm, args.image) for change in changes]
+    factor = args.deadline_scale
+    if args.calibration:
+        calibration = json.loads(args.calibration.read_text())
+        if calibration.get("status") != "ok" or calibration.get("image") != args.image:
+            parser.error("calibration must be successful and match the replay image")
+        factor = calibration["quick_total"]["factor"]
+    if args.native_sample < 0 or (args.native_sample and args.lane not in {"ax", "kind"}):
+        parser.error("--native-sample requires an ax or kind cluster run and a positive K")
+    items = [make_item(change, args.arm, args.image, deadline_scale=factor, lane=args.lane) for change in changes]
     if len({i.id for i in items}) != len(items):
         parser.error("duplicate change identity")
     args.out = args.out or Path.home() / "ousast-results/unseen" / args.pool / args.slice / args.arm
@@ -166,27 +195,52 @@ def main():
         return 0
     if args.out.resolve().is_relative_to(Path(__file__).resolve().parents[2]):
         parser.error("raw replay output must be outside the repository")
+    failed = run_replays(changes, args, args.out, args.lane, deadline_scale=factor)
+    if args.native_sample:
+        failed |= run_replays(sample_changes(changes, args.native_sample), args, args.out / "native", "docker", deadline_scale=factor)
+    return 2 if failed else 0
+
+
+def sample_changes(changes, count):
+    if count < 1:
+        raise ValueError("sample size must be positive")
+    if len({str(c["id"]) for c in changes}) != len(changes):
+        raise ValueError("duplicate change identity")
+    return sorted(changes, key=lambda c: hashlib.sha256(str(c["id"]).encode()).digest())[:count]
+
+
+def run_replays(changes, args, out, lane, *, deadline_scale=1.0, deadline=None):
+    if out.resolve().is_relative_to(Path(__file__).resolve().parents[2]):
+        raise ValueError("raw replay output must be outside the repository")
+    items = [make_item(c, args.arm, args.image, deadline_scale=deadline_scale, lane=lane, deadline=deadline) for c in changes]
     write_json(
-        args.out / "inputs.json",
+        out / "inputs.json",
         [{"item_id": item.id, "change": change, "input_digest": item.input_digest} for item, change in zip(items, changes, strict=True)],
     )
-    workload = Workload(args.image, frozenset({"SPEC_URL", "RESULT_URL"}), 600 if args.arm == "default" else 900, validate_result)
-    lanes = ("ax", "ax", "docker") if args.lane == "mixed" else (args.lane,) * (2 if args.lane in {"ax", "kind"} else 1)
+    maximum = max(
+        max(json.loads(i.inputs["SPEC_URL"])["deadline_seconds"], json.loads(i.inputs["SPEC_URL"])["base_deadline_seconds"]) for i in items
+    )
+    workload = Workload(args.image, frozenset({"SPEC_URL", "RESULT_URL"}), maximum + 600, validate_result)
+    lanes = ("ax", "ax", "docker") if lane == "mixed" else (lane,) * (2 if lane in {"ax", "kind"} else 1)
+    original = {item.id: change for item, change in zip(items, changes, strict=True)}
     executors = {}
-    for lane in set(lanes):
-        transport = (DockerLane if lane == "docker" else AXLane)(args, workload)
+    for name in set(lanes):
+        transport = (DockerLane if name == "docker" else AXLane)(args, workload)
 
-        def execute(item, output, attempt, transport=transport):
-            record = {**json.loads(item.inputs["SPEC_URL"]), **transport(item, output, attempt)}
+        def execute(item, output, attempt, transport=transport, name=name):
+            spec = original[item.id]
+            # Re-render on placement, including VM fallback: native is always unscaled.
+            placed = make_item(spec, args.arm, args.image, deadline_scale=deadline_scale, lane=name, deadline=deadline)
+            placed.id = item.id
+            record = {**json.loads(placed.inputs["SPEC_URL"]), "lane": name, **transport(placed, output, attempt)}
             if (output / "result.dat").exists():
-                # Durable archive lives separately from attempt staging objects, which are deleted.
-                key = f"unseen/{item.input_digest}/result.dat"
+                key = f"unseen/{placed.input_digest}/{name}/result.dat"
                 transport.store._put(key, (output / "result.dat").read_bytes())
                 record["result_object"] = key
             return record
 
-        executors[lane] = execute
-    return 2 if dispatch(items, workload, args.out, executors, lanes=lanes) else 0
+        executors[name] = execute
+    return dispatch(items, workload, out, executors, lanes=lanes)
 
 
 if __name__ == "__main__":

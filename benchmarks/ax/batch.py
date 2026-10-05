@@ -387,7 +387,15 @@ def dispatch(items, workload, out, executors, *, lanes=("ax", "ax", "docker"), o
             for artifact in attempt_output.iterdir():
                 if artifact.is_file():
                     shutil.copyfile(artifact, output / artifact.name)
-            attempts.append({"lane": lane, "status": record.get("status"), "attempt": attempt, "transport": record.get("ax_attempts", [])})
+            attempts.append(
+                {
+                    "lane": lane,
+                    "status": record.get("status"),
+                    "attempt": attempt,
+                    "transport": record.get("ax_attempts", []),
+                    "docker_errors": record.get("docker_errors", []),
+                }
+            )
             if record.get("status") not in {"sandbox_failure", "instrument_failure"}:
                 break
         return {**record, "attempts": (previous or {}).get("attempts", []) + attempts, "input_digest": item.input_digest, "done": True}
@@ -402,8 +410,75 @@ def dispatch(items, workload, out, executors, *, lanes=("ax", "ax", "docker"), o
     return schedule(pending, lanes, out, execute, complete, fallbacks=fallbacks, overflow=overflow)
 
 
+def docker_diagnostic(text):
+    """Bound diagnostics and remove bearer URLs, environment secrets and assignments."""
+    text = str(text or "")
+    for key, value in os.environ.items():
+        if len(value) >= 4 and any(word in key.upper() for word in ("TOKEN", "SECRET", "PASSWORD", "CREDENTIAL", "KEY")):
+            text = text.replace(value, "[redacted]")
+    text = re.sub(r"https?://[^\s\"']+", "[redacted-url]", text)
+    text = re.sub(
+        r"(?i)(authorization|bearer|password|token|secret|signature|credential|[\w-]*key)\s*[:= ]\s*[^\s,;]+", r"\1=[redacted]", text
+    )
+    return "\n".join(text.splitlines()[-10:])[-4000:]
+
+
 class DockerLane(AXLane):
     """VM lane uses the same presigned-object protocol and pinned replay image."""
+
+    def __init__(self, *args, runner=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.runner = runner or subprocess.run
+        self._prepared = False
+
+    def __call__(self, item, output, attempt):
+        self._diagnostics = []
+        try:
+            if not self._prepared:
+                self._prepare_image()
+                self._prepared = True
+        except (ValueError, OSError, subprocess.SubprocessError) as exc:
+            if not self._diagnostics:
+                self._diagnostics.append({"step": "preflight", "exit_code": None, "stderr": docker_diagnostic(str(exc))})
+            record = {"status": "instrument_failure", "docker_errors": self._diagnostics}
+            write_json(output / "docker-error.json", record)
+            return record
+        try:
+            record = super().__call__(item, output, attempt)
+        finally:
+            if self._diagnostics:
+                write_json(output / "docker-error.json", {"docker_errors": self._diagnostics})
+        if self._diagnostics:
+            record["docker_errors"] = self._diagnostics
+        return record
+
+    def _run_docker(self, command, timeout):
+        try:
+            done = self.runner(command, capture_output=True, text=True, timeout=timeout)
+        except (OSError, subprocess.SubprocessError) as exc:
+            self._diagnostics.append(
+                {"step": command[1], "exit_code": None, "stderr": docker_diagnostic(getattr(exc, "stderr", "") or type(exc).__name__)}
+            )
+            raise
+        if done.returncode:
+            self._diagnostics.append({"step": command[1], "exit_code": done.returncode, "stderr": docker_diagnostic(done.stderr)})
+            raise ValueError(f"docker {command[1]} failed (exit {done.returncode})")
+        return done
+
+    def _prepare_image(self):
+        # Docker's data root, not the coordinator checkout, is where layers consume space.
+        root = self._run_docker(["docker", "info", "--format", "{{.DockerRootDir}}"], 30).stdout.strip()
+        size = getattr(self.args, "docker_image_bytes", None)
+        if not isinstance(size, int) or size <= 0:
+            raise ValueError("set --docker-image-bytes to the unpacked image size upper bound before pulling")
+        free = self.runner(["df", "-B1", "--output=avail", root], capture_output=True, text=True, timeout=30)
+        if free.returncode:
+            raise ValueError("cannot check free space on Docker data root")
+        available = int(free.stdout.splitlines()[-1].strip())
+        required = size + 1024**3
+        if available < required:
+            raise ValueError(f"refusing Docker pull: free bytes {available} below image + 1 GiB ({required})")
+        self._run_docker(["docker", "pull", self.workload.image], 900)
 
     def _execute_attempt(self, item, output, attempt, attempts):
         # Reuse all object/validation/cleanup logic, replacing only the task runner.
@@ -417,18 +492,44 @@ class DockerLane(AXLane):
     def _docker_command(self, *args, manifest=None, timeout=30):
         if args[0] == "apply":
             self._docker_name = manifest["metadata"]["name"]
-            command = ["docker", "run", "-d", "--name", self._docker_name, "--entrypoint", manifest["spec"]["command"][0]]
+            self._docker_created = True  # Even a failed run can leave a created container.
+            command = [
+                "docker",
+                "run",
+                "-d",
+                "--runtime",
+                "runc",
+                "--pull",
+                "never",
+                "--name",
+                self._docker_name,
+                "--entrypoint",
+                manifest["spec"]["command"][0],
+            ]
             for env in manifest["spec"]["env"]:
                 command += ["-e", env["name"] + "=" + env["value"]]
             command += [manifest["spec"]["image"], *manifest["spec"]["command"][1:], "--heap-profile", "vm"]
         elif args[0] == "get":
             command = ["docker", "inspect", "--format", "{{.State.Running}} {{.State.ExitCode}}", self._docker_name]
         else:
+            if not getattr(self, "_docker_created", False):
+                return subprocess.CompletedProcess([], 0, "", "")
             command = ["docker", "rm", "-f", self._docker_name or args[2]]
-        done = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
-        if done.returncode:
-            raise ValueError("docker command failed")
+        try:
+            done = self._run_docker(command, timeout)
+        except ValueError:
+            if args[0] == "delete" and "No such container" in self._diagnostics[-1]["stderr"]:
+                self._diagnostics.pop()
+                return subprocess.CompletedProcess(command, 0, "", "")
+            raise
+        if args[0] == "apply":
+            self._docker_created = True
         if args[0] == "get":
             phase = "Running" if done.stdout.startswith("true") else "Failed"
+            if phase == "Failed":
+                logs = self._run_docker(["docker", "logs", "--tail", "10", self._docker_name], timeout)
+                self._diagnostics.append(
+                    {"step": "container", "exit_code": int(done.stdout.split()[-1]), "stderr": docker_diagnostic(logs.stderr)}
+                )
             done.stdout = json.dumps({"metadata": {"name": self._docker_name}, "status": {"phase": phase}})
         return done

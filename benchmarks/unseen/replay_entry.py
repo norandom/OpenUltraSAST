@@ -52,7 +52,8 @@ def validate_spec(spec):
         raise ReplayFailure("repository must use public DNS")
     if any(not re.fullmatch("[0-9a-f]{40,64}", spec[key]) for key in ("base", "head")):
         raise ReplayFailure("invalid revision")
-    if spec.get("hook_flags", []) not in ([], ["--deadline", "300"]):
+    flags = spec.get("hook_flags", [])
+    if flags and (len(flags) != 2 or flags[0] != "--deadline" or not re.fullmatch(r"[1-9][0-9]*", str(flags[1]))):
         raise ReplayFailure("unsupported hook flags")
 
 
@@ -92,6 +93,8 @@ def main(*, work_root=Path("/tmp"), runner=subprocess.run, heap_profile="cluster
         spec = json.loads(spec_path.read_text())
         instrument["image"] = spec.get("image")
         validate_spec(spec)
+        instrument["deadline_seconds"] = int(spec["hook_flags"][1]) if spec.get("hook_flags") else 30
+        instrument["deadline_scale"] = spec.get("deadline_scale", 1.0)
         case = work_root / "case"
         case.mkdir()
         git = ["git", "-c", "core.hooksPath=/dev/null", "-c", "protocol.file.allow=never", "-C", str(case)]
@@ -148,7 +151,9 @@ def main(*, work_root=Path("/tmp"), runner=subprocess.run, heap_profile="cluster
             *spec.get("hook_flags", []),
         ]
         before = clock()
-        completed = runner(command, capture_output=True, text=True, timeout=330 if spec.get("hook_flags") else 60, env=env)
+        completed = runner(
+            command, capture_output=True, text=True, timeout=int(spec["hook_flags"][1]) + 30 if spec.get("hook_flags") else 60, env=env
+        )
         instrument["timings"][step] = clock() - before
         instrument["hook_exit"] = completed.returncode
         (output / "push.txt").write_text(completed.stdout)

@@ -219,6 +219,22 @@ what the user sees (30 s) and what the engine could catch given time (300 s), so
 told apart from a miss by the engine. It is a measurement arm, not a proposed default: adopting a longer hook
 deadline would be a separate decision under 7.2.
 
+**Decision 4.0a: calibrated cluster deadline and native check** (maintainer, 2026-10-05).
+The gVisor proof exhausted 30 seconds in snapshot preparation on a 1,725-file repository.
+Cluster replays therefore scale the 30/300-second arms by the median paired cluster/native
+time through the quick tier, rounded to integer seconds. Native runc replays retain 30/300 seconds.
+A deterministic sample (default 20, or all of a smaller proof manifest) runs both lanes at
+600 seconds for calibration. Report per-change stage times and median slowdown with bootstrap
+95% intervals for time through quick, engine build and engine queries separately. Incomplete
+timings or degraded scans invalidate calibration. Records contain counts, times and opaque digests.
+
+A deterministic native sample accompanies the cluster slice. Compare whether each push flags
+anything, with a Wilson 95% interval. If its lower bound is below 95%, or any sample pair is
+missing/failed, flag the run and exclude cluster results from the baseline. Disagreements name
+change IDs only. The scorer reports applied deadlines and factors. Docker pulls explicitly after
+checking its data-root free space against an unpacked image size upper bound plus 1 GiB; failures
+retain sanitized stderr tails and exit codes. See the unseen README for coordinator commands.
+
 **Decision 4.1: catch, per family.** A finding counts if its family is the change's family. Engine streams carry a
 family; a quick-rule match maps its CWE through the family CWE table. Its head location must also be in the
 vulnerable function or within 10 lines of the change's head-side hunks (protocol v1's window).

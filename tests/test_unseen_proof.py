@@ -54,3 +54,33 @@ def test_engine_proof_counts_differences_without_names(tmp_path):
         (baseline / f"{i}.json").write_text(json.dumps(record))
     proof = p.engine_proof(current, baseline)
     assert proof["differences"] == 0 and "synthetic" not in json.dumps(proof)
+
+
+@pytest.mark.parametrize("executed", [2, 3])
+def test_engine_proof_counts_only_executed_records(tmp_path, executed):
+    current, baseline = tmp_path / "current", tmp_path / "baseline"
+    current.mkdir()
+    baseline.mkdir()
+    (current / "progress.json").write_text(json.dumps({"completed": executed}))
+    for i in range(executed + 4):
+        record = {
+            "repo": "synthetic",
+            "pin": str(i),
+            "done": True,
+            "seconds": 20 if i < executed else 0,
+            "units": [{"unit": "unsupported", "status": "unsupported"}],
+        }
+        if i < executed:
+            record["units"].append(
+                {"unit": "executed", "status": "path", "instrument": {"bytes": 20, "jvm": [{"seconds": 8, "success": True}]}}
+            )
+            (baseline / f"{i}.json").write_text(json.dumps(record))
+        (current / f"{i}.json").write_text(json.dumps(record))
+
+    if executed == 3:
+        with pytest.raises(ValueError, match="engine proof requires exactly two pins"):
+            p.engine_proof(current, baseline)
+    else:
+        proof = p.engine_proof(current, baseline)
+        assert len(proof["pins"]) == 2
+        assert proof["differences"] == 0

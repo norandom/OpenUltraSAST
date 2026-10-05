@@ -57,7 +57,7 @@ def replay_proof(roots):
 def engine_proof(root, baseline):
     current = records(root)
     old = {digest([r["repo"], r["pin"]]): r for r in records(baseline) if "repo" in r and "pin" in r}
-    current = [r for r in current if "repo" in r and "pin" in r]
+    current = [r for r in current if "repo" in r and "pin" in r and not all(u.get("status") == "unsupported" for u in r["units"])]
     if len(current) != 2:
         raise ValueError("engine proof requires exactly two pins")
     evidence = []

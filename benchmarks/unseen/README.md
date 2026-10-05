@@ -289,3 +289,84 @@ proof is missing, or quick-tier findings differ. It does not convert a quick-onl
 without a JVM into an engine proof. Pool replays use `--lane mixed` (default) for the two
 AX slots and single VM overflow/fallback lane; `--arm long_deadline` changes only the
 hook deadline to 300 seconds and is a separate input digest.
+
+### Deadline calibration and native agreement
+
+The 2026-10-05 maintainer decision supersedes the unscaled cluster deadline above.
+gVisor snapshot preparation can consume 30 seconds before any analysis. Calibrate
+the pinned replay image against the VM's native Docker **runc** runtime first.
+The default deterministic sample is the first 20 changes ordered by SHA-256 of
+change ID; a smaller manifest (including the five-change proof) uses all changes.
+Sampling never depends on manifest order.
+
+`calibrate` runs both lanes with a 600-second hook deadline (override `--deadline`
+if stages still time out). It reads resolution, provenance, preparation, snapshot,
+and quick timings from the push artifact; snapshot is nested in preparation.
+`quick_total` sums resolution + provenance + preparation + quick, without counting
+snapshot twice. Engine build and query times sum across the hook's scans. Hook
+wall time comes from the instrument block. Missing/nonpositive timings, deadline
+exhaustion, degraded engine scans or failed instruments prevent a successful
+calibration; failed changes are never silently dropped. Each factor is the median
+of paired cluster/native ratios with a deterministic 2,000-resample percentile
+bootstrap 95% interval. The measurement record contains opaque change digests,
+counts and timings, with no repository names. Raw artifacts remain outside the repo.
+
+Set `REPLAY_IMAGE` to the newly built replay image's pinned digest and
+`REPLAY_IMAGE_BYTES` to an **unpacked image size upper bound in bytes** from the
+image build. Do not use compressed registry layer size. Docker refuses to pull
+without this bound or when `df` at its data root reports less than that bound plus
+1 GiB free. It then explicitly pulls the image before issuing presigned task URLs.
+Supply `--docker-image-bytes "$REPLAY_IMAGE_BYTES"` to VM and mixed replay commands,
+including the earlier VM proof command.
+Launch/pull failures retain exit codes and the last ten sanitized stderr lines in
+`docker-error.json`, the result record and attempt history. URLs, known environment
+secrets and credential assignments are redacted. The original VM failure's cause
+remains unconfirmed until this diagnostic is captured; the old transport discarded it.
+
+Coordinator commands (these run networked workloads; offline tests use fakes):
+
+```sh
+export PATH=/home/mc/Source/OpenUltraSAST/.venv/bin:$PATH
+export PYTHONPATH=$PWD/src
+export S3_ENDPOINT=https://files.because-security.com
+CALIBRATION_RECORD="benchmarks/measurements/$(date +%F)-unseen-calibration/record.json"
+python -m benchmarks.unseen.calibrate \
+  --manifest "$HOME/ousast-results/unseen/proof-05-inputs.json" \
+  --sample 20 --deadline 600 --image "$REPLAY_IMAGE" \
+  --docker-image-bytes "$REPLAY_IMAGE_BYTES" --kubeconfig "$AX_KUBECONFIG" \
+  --out "$HOME/ousast-results/unseen/calibration" --record "$CALIBRATION_RECORD"
+
+python -m benchmarks.unseen.replay --manifest benchmarks/unseen/pool-p1.toml \
+  --pool p1 --slice 1 --arm default --lane ax --image "$REPLAY_IMAGE" \
+  --calibration "$CALIBRATION_RECORD" --native-sample 100 \
+  --docker-image-bytes "$REPLAY_IMAGE_BYTES" --kubeconfig "$AX_KUBECONFIG" \
+  --out "$HOME/ousast-results/unseen/p1/1/calibrated-default"
+python -m benchmarks.unseen.score "$HOME/ousast-results/unseen/p1/1/calibrated-default" \
+  --out "$HOME/ousast-results/unseen/p1/1/calibrated-default-score.json"
+```
+
+For a 20-change slice calibration, replace the proof manifest with
+`benchmarks/unseen/pool-p1.toml --slice 1`; both commands accept `--private-manifest`.
+For the long arm use `--arm long_deadline` and a separate output root. Calibration
+requires the same image digest as replay. An explicit `--deadline-scale FACTOR`
+is an alternative to `--calibration`, not an additional multiplier.
+
+Cluster deadlines are `round(30 * factor)` or `round(300 * factor)` seconds;
+native deadlines remain 30 or 300, including VM fallback in mixed runs.
+Records carry configured and applied scale, base/applied deadline and actual lane;
+the scorer reports their counts. Task, subprocess and presigned-object budgets
+grow with the applied deadline.
+
+Use `--lane ax` (or `kind`) with `--native-sample K` for an agreement run, so every
+sampled change has a cluster counterpart. The native sample lives in `OUT/native`;
+the scorer detects it automatically, or accepts `--native PATH`. Missing, failed,
+wrong-lane or mismatched-image/arm pairs are unknown, never quiet agreements.
+The decision is whether any of the three finding streams flags the push, not
+whether the finding matches the vulnerability label.
+
+**Decision rule:** if the Wilson 95% agreement lower bound is below 95%, do not use
+the cluster results for the baseline. The score sets `flagged=true`,
+`baseline_eligible=false` and the adoption gate to `not_run`. Unknown pairs also
+flag the run. Disagreements are listed by change ID only, alongside per-change
+flagged/not-flagged decisions. Even perfect agreement needs at least 73 pairs to
+clear this bound; the five-change proof or a 20-change sample cannot qualify it.
