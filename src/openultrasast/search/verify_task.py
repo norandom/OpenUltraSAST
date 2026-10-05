@@ -20,7 +20,7 @@ from typing import Any, cast
 from urllib.parse import urlsplit
 
 from . import task_storage
-from .demo import validate_demo
+from .demo import validate_demo, validate_oracle
 from .executor import clean_environment
 from .verify import Side, SideRecord
 
@@ -132,8 +132,7 @@ def validate_spec(spec: Any) -> dict[str, Any]:
     validate_demo(spec["demo"])
     if spec["demo"]["build"]["recipe"] != "none":
         raise ValueError("verifier requires executor-built archive; builds are forbidden")
-    if spec["family"] not in {"sql", "path", "command", "ssrf", "xss"}:
-        raise ValueError("invalid verification family")
+    validate_oracle(spec["family"], spec["demo"]["oracle"])
     timeout = spec["timeout_seconds"]
     if type(timeout) is not int or not math.isfinite(timeout) or not 1 <= timeout <= 300:
         raise ValueError("invalid verification timeout")

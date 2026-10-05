@@ -7,6 +7,7 @@ from openultrasast.search.demo import load_demo, validate_demo
 
 def document():
     return {
+        "oracle": "path",
         "build": {"recipe": "none", "arguments": []},
         "start": {"runtime": "python", "path": "app.py", "arguments": [], "mode": "cli"},
         "steps": [{"type": "cli", "arguments": ["hello"]}],
@@ -75,3 +76,38 @@ def test_manifest_recipe_requires_file_path(recipe):
     value["build"] = {"recipe": recipe, "arguments": ["."]}
     with pytest.raises(ValueError):
         validate_demo(value)
+
+
+@pytest.mark.parametrize("oracle", [None, "injection", "unknown", [], 1])
+def test_oracle_required_and_known(oracle):
+    value = document()
+    if oracle is None:
+        value.pop("oracle")
+    else:
+        value["oracle"] = oracle
+    with pytest.raises(ValueError):
+        validate_demo(value)
+
+
+@pytest.mark.parametrize(
+    "family,allowed",
+    [
+        ("injection", ("sql", "command")),
+        ("path", ("path",)),
+        ("output_encoding", ("xss",)),
+        ("untrusted_destination", ("ssrf",)),
+        ("deserialization", ()),
+        ("access_control", ()),
+        ("config_secrets", ()),
+    ],
+)
+def test_family_oracle_contract(family, allowed):
+    from openultrasast.search.demo import FAMILY_ORACLES, validate_oracle
+
+    assert FAMILY_ORACLES[family] == allowed
+    for oracle in ("sql", "command", "path", "xss", "ssrf"):
+        if oracle in allowed:
+            validate_oracle(family, oracle)
+        else:
+            with pytest.raises(ValueError, match="not allowed"):
+                validate_oracle(family, oracle)

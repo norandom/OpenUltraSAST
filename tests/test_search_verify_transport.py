@@ -17,6 +17,7 @@ from openultrasast.search.verify import RunObservation, Side, SideRecord
 
 def demo():
     return {
+        "oracle": "sql",
         "build": {"recipe": "none", "arguments": []},
         "start": {"runtime": "python", "path": "app.py", "arguments": [], "mode": "cli"},
         "steps": [{"type": "cli", "arguments": []}],
@@ -43,7 +44,7 @@ def test_dispatch_uses_fresh_tasks_and_only_data(tmp_path):
     dispatch = transport.AXSideDispatcher(
         SimpleNamespace(), "image@sha256:" + "a" * 64, tmp_path / "out", lane=lane, prepare=lambda side, spec: b"executor-built-archive"
     )
-    result = dispatch(side=Side(root), demo=demo(), family="sql", timeout_seconds=2, fresh_task=True)
+    result = dispatch(side=Side(root), demo=demo(), family="injection", timeout_seconds=2, fresh_task=True)
     assert result.isolation_mode == "task-boundary"
     assert len(result.runs) == 3
     assert len(calls) == 3 and calls[0].id != calls[1].id
@@ -74,7 +75,7 @@ def test_entry_reads_input_and_scrubs_environment(tmp_path, monkeypatch, capsys)
 
     shutil.copytree(root, bundle / "checkout")
     (bundle / "products").mkdir()
-    (bundle / "spec.json").write_text(json.dumps({"demo": demo(), "family": "sql", "timeout_seconds": 2}))
+    (bundle / "spec.json").write_text(json.dumps({"demo": demo(), "family": "injection", "timeout_seconds": 2}))
     blob = entry.pack_checkout(bundle)
     monkeypatch.setattr(entry, "download", lambda url, limit: blob)
     outputs = []
@@ -151,7 +152,7 @@ def test_production_item_targets_packaged_module(tmp_path):
         dispatcher = transport.AXSideDispatcher(
             SimpleNamespace(), "image@sha256:" + "a" * 64, tmp_path / "out", prepare=lambda side, spec: b"built"
         )
-        dispatcher(side=Side(root), demo=demo(), family="sql", timeout_seconds=2, fresh_task=True)
+        dispatcher(side=Side(root), demo=demo(), family="injection", timeout_seconds=2, fresh_task=True)
     assert captured[0].url_env == frozenset({"VERIFY_INPUT_URL", "RESULT_URL"})
 
 
@@ -198,7 +199,7 @@ def test_default_dispatch_builds_in_executor_before_verifier(tmp_path, monkeypat
 
     monkeypatch.setattr(transport, "SearchExecutorTask", Executor)
     dispatch = transport.AXSideDispatcher(SimpleNamespace(), "image@sha256:" + "a" * 64, tmp_path / "out", lane=lane)
-    assert len(dispatch(side=Side(root), demo=demo(), family="sql", timeout_seconds=2, fresh_task=True).runs) == 3
+    assert len(dispatch(side=Side(root), demo=demo(), family="injection", timeout_seconds=2, fresh_task=True).runs) == 3
     assert events[3:] == ["verify"] * 3
 
 
@@ -214,3 +215,23 @@ def test_source_archive_omits_git_metadata(tmp_path):
     unpack_checkout(archive, target)
     assert (target / "app.py").read_text() == "print('source')"
     assert not (target / ".git").exists()
+
+
+@pytest.mark.parametrize(
+    "family,oracle",
+    [
+        ("injection", "sql"),
+        ("injection", "command"),
+        ("path", "path"),
+        ("output_encoding", "xss"),
+        ("untrusted_destination", "ssrf"),
+    ],
+)
+def test_transport_checks_family_and_demo_oracle(family, oracle):
+    schema = demo()
+    schema["oracle"] = oracle
+    spec = {"demo": schema, "family": family, "timeout_seconds": 2}
+    assert entry.validate_spec(spec) == spec
+    schema["oracle"] = "path" if oracle != "path" else "sql"
+    with pytest.raises(ValueError, match="not allowed"):
+        entry.validate_spec(spec)

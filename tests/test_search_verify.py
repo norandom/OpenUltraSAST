@@ -33,7 +33,9 @@ def test_real_differential(tmp_path, family):
             pytest.skip("host policy prohibits localhost sockets")
     sides, demos = materialise(tmp_path / family, family)
     assert (sides[0].checkout / "app.py").stat().st_size > 0
-    result = verify(*sides, demos["real"], family)
+    result = verify(
+        *sides, demos["real"], {"sql": "injection", "command": "injection", "ssrf": "untrusted_destination"}.get(family, family)
+    )
     assert result.outcome == "demonstrated", result
     assert [r.observed for r in result.sides[0].runs] == [True] * 3
     assert [r.observed for r in result.sides[1].runs] == [False] * 3
@@ -79,7 +81,7 @@ def test_readiness_failure(pair):
     assert result.sides[1].outcome == "could_not_run"
 
 
-@pytest.mark.parametrize("family", ["xss", "deserialisation", "access_control", "secrets"])
+@pytest.mark.parametrize("family", ["deserialization", "access_control", "config_secrets"])
 def test_no_oracle(pair, family):
     sides, demo = pair
     assert verify(*sides, demo, family).outcome == "no_oracle"
@@ -472,3 +474,43 @@ def test_http_failure_keeps_exception_tail(tmp_path):
             lambda *a, **kw: SandboxResult(1, "", traceback, False),
             lambda: None,
         )
+
+
+@pytest.mark.parametrize(
+    "family,oracle",
+    [
+        ("injection", "sql"),
+        ("injection", "command"),
+        ("path", "path"),
+        ("output_encoding", "xss"),
+        ("untrusted_destination", "ssrf"),
+    ],
+)
+def test_verifier_routes_demo_oracle(pair, monkeypatch, family, oracle):
+    from openultrasast.search import verify as module
+    from openultrasast.search.oracles import BrowserExecutor
+
+    sides, demo = pair
+    edit(demo, lambda value: value.update(oracle=oracle))
+    seen = []
+    monkeypatch.setattr(_sandbox, "isolation_check", lambda **kwargs: None)
+
+    def side(checkout, artefact, kind, *args):
+        seen.append(kind)
+        return SideRecord("could_not_run", (), 0, "stub")
+
+    monkeypatch.setattr(module, "_side", side)
+    result = verify(*sides, demo, family, oracle=oracle, browser=BrowserExecutor() if oracle == "xss" else None)
+    assert seen == [oracle, oracle] and result.outcome != "no_oracle"
+    edit(demo, lambda value: value.update(oracle="path" if oracle != "path" else "sql"))
+    seen.clear()
+    result = verify(*sides, demo, family)
+    assert result.outcome == "inconclusive" and not seen
+    assert "not allowed" in result.reason
+
+
+def test_xss_without_browser_is_unavailable_not_no_oracle(pair):
+    sides, demo = pair
+    edit(demo, lambda value: value.update(oracle="xss"))
+    result = verify(*sides, demo, "output_encoding")
+    assert result.outcome == "inconclusive" and "runtime unavailable" in result.reason

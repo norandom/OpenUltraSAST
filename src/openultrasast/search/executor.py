@@ -31,6 +31,7 @@ from urllib.parse import urlsplit
 
 from ..sandbox import SandboxJob
 from . import _sandbox, task_storage
+from .budget import SearchBudget
 
 MAX_COMMAND_BYTES = 65536
 MAX_RESULT_BYTES = 65536
@@ -198,7 +199,7 @@ class InProcessExecutor:
             task_storage.check(task_storage.WORKSPACE if task_storage.WORKSPACE.is_dir() else self.repo)
             self.phase = "run"
         if name == "prepare_verification":
-            return self._prepare_verification(args)
+            return self._prepare_verification(args, command.limits)
         if name == "stop":
             self.stopped = True
             return {"stopped": True}
@@ -248,7 +249,7 @@ class InProcessExecutor:
                     self.repo,
                     {},
                     max(1, math.ceil(min(timeout, self._remaining()))),
-                    max(1, command.limits.get("memory_bytes", 256 * 1024**2) // 1024**2),
+                    max(1, command.limits.get("memory_bytes", SearchBudget().memory_bytes) // 1024**2),
                     128,
                 ),
                 scratch=Path(directory),
@@ -299,7 +300,8 @@ class InProcessExecutor:
             # NPROC counts all processes of the real uid, so an absolute 128 blocks builds on busy hosts.
             if process_limit is not None:
                 resource.setrlimit(resource.RLIMIT_NPROC, (process_limit,) * 2)
-            resource.setrlimit(resource.RLIMIT_AS, (limits.get("memory_bytes", 256 * 1024**2),) * 2)
+            if "memory_bytes" in limits:
+                resource.setrlimit(resource.RLIMIT_AS, (limits["memory_bytes"],) * 2)
             resource.setrlimit(resource.RLIMIT_CPU, (math.ceil(timeout) + 1,) * 2)
 
         timeout = min(timeout, self._remaining())
@@ -383,7 +385,7 @@ class InProcessExecutor:
                 "truncated": os.fstat(out.fileno()).st_size > 16384 or os.fstat(err.fileno()).st_size > 16384,
             }
 
-    def _prepare_verification(self, spec: dict[str, Any]) -> dict[str, Any]:
+    def _prepare_verification(self, spec: dict[str, Any], limits: dict[str, Any]) -> dict[str, Any]:
         """Build and export through the host-scoped output URL, never a model URL."""
         import shutil
 
@@ -417,7 +419,7 @@ class InProcessExecutor:
                     # Invoke with sh because checkout archives may lose execute bits.
                     wrapper = self._path(str(path.relative_to(self.repo) / "gradlew"))
                     argv = ["/bin/sh", str(wrapper), "--no-daemon", "--project-dir", str(path), "assemble"]
-                built = self._task_run(argv, self._remaining(), {"disk_bytes": task_storage.DEFAULT_SCRATCH_BYTES})
+                built = self._task_run(argv, self._remaining(), {"disk_bytes": task_storage.DEFAULT_SCRATCH_BYTES, **limits})
                 if built.get("disk_limit_exceeded") or built["exit_code"] or built["timed_out"]:
                     return {**built, "status": "could_not_build"}
             # Validate internal generated links before materializing them as
