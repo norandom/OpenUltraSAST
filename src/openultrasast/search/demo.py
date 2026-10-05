@@ -8,6 +8,7 @@ may contain traversal or injection strings being tested at the public interface)
 from __future__ import annotations
 
 import json
+import os
 import re
 import tomllib
 from pathlib import Path, PurePosixPath
@@ -31,7 +32,27 @@ def validate_oracle(family: str, oracle: str) -> None:
         raise ValueError("demo oracle is not allowed for search family " + family)
 
 
-MAX_DEMO_BYTES = 65536
+# JSON escaping can expand UTF-8 data sixfold and non-BMP environment characters
+# into twelve-byte surrogate pairs. Keep the ordinary demo payload at 64 KiB.
+MAX_DEMO_BYTES = 5 * 1024 * 1024
+MAX_DATA_BYTES = 64 * 1024
+ENV_DENYLIST = {
+    "LD_PRELOAD",
+    "LD_LIBRARY_PATH",
+    "PYTHONPATH",
+    "PYTHONSTARTUP",
+    "NODE_OPTIONS",
+    "NODE_PATH",
+    "JAVA_TOOL_OPTIONS",
+    "_JAVA_OPTIONS",
+    "JDK_JAVA_OPTIONS",
+    "PHP_INI_SCAN_DIR",
+    "PHPRC",
+    "PATH",
+    "HOME",
+    "TMPDIR",
+}
+DATA_EXTENSIONS = {".pem", ".key", ".json", ".yaml", ".yml", ".txt", ".env", ".ini", ".toml", ".db", ".sqlite", ".crt"}
 MAX_STEPS = 32
 MAX_VALUE_BYTES = 16384
 # Every executable and option is verifier-owned. Arguments below are manifests or
@@ -89,6 +110,28 @@ DEMO_SCHEMA = {
                 "arguments": _ARG_SCHEMA,
                 "mode": {"enum": ["http", "cli"]},
                 "port": {"type": "integer", "minimum": 1024, "maximum": 65535},
+                "environment": {
+                    "type": "object",
+                    "maxProperties": 32,
+                    "propertyNames": {
+                        "pattern": "^[A-Z][A-Z0-9_]{0,63}$",
+                        "not": {
+                            "anyOf": [
+                                {"enum": sorted(ENV_DENYLIST)},
+                                {"pattern": "^OUSAST_|CANARY"},
+                            ]
+                        },
+                    },
+                    "additionalProperties": {"type": "string", "maxLength": 4096},
+                },
+                "files": {
+                    "type": "object",
+                    "maxProperties": 8,
+                    "additionalProperties": {"type": "string", "maxLength": MAX_DATA_BYTES},
+                    "description": "Relative data filenames under .demo/, no ..; allowed extensions: "
+                    + " ".join(sorted(DATA_EXTENSIONS))
+                    + "; contents at most 64 KiB UTF-8 each, written mode 0600. No scripts.",
+                },
             },
             "description": "Tracked checkout entrypoint only. HTTP mode requires a port; CLI mode forbids it.",
         },
@@ -215,8 +258,8 @@ def preparation_command(recipe: str, path: Path, checkout: Path, products: Path)
     return ["/bin/sh", str(wrapper), "--no-daemon", "--project-dir", str(project), "assemble"], project
 
 
-def _text(value: Any, names: set[str]) -> str:
-    if not isinstance(value, str) or "\0" in value or len(value.encode()) > MAX_VALUE_BYTES:
+def _text(value: Any, names: set[str], *, maximum: int = MAX_VALUE_BYTES) -> str:
+    if not isinstance(value, str) or "\0" in value or len(value.encode()) > maximum:
         raise ValueError("invalid or oversized value")
     if _PRIVATE.search(value):
         raise ValueError("private verifier references are forbidden")
@@ -231,6 +274,50 @@ def _arguments(value: Any, names: set[str]) -> None:
         raise ValueError("invalid argument list")
     for arg in value:
         _text(arg, names)
+
+
+def validate_start_config(start: dict[str, Any]) -> None:
+    environment = start.get("environment", {})
+    if not isinstance(environment, dict) or len(environment) > 32:
+        raise ValueError("invalid environment map")
+    for name, value in environment.items():
+        if (
+            not isinstance(name, str)
+            or not re.fullmatch(r"[A-Z][A-Z0-9_]{0,63}", name)
+            or name in ENV_DENYLIST
+            or name.startswith("OUSAST_")
+            or "CANARY" in name
+        ):
+            raise ValueError("forbidden environment variable")
+        if not isinstance(value, str) or len(value) > 4096:
+            raise ValueError("invalid environment value")
+        _text(value, set())
+    files = start.get("files", {})
+    if not isinstance(files, dict) or len(files) > 8:
+        raise ValueError("invalid data file map")
+    for name, content in files.items():
+        checkout_path(name)
+        if ".." in name or not any(name.endswith(ext) for ext in DATA_EXTENSIONS):
+            raise ValueError("invalid data file extension or name")
+        _text(content, set(), maximum=MAX_DATA_BYTES)
+
+
+def write_start_files(checkout: Path, start: dict[str, Any]) -> None:
+    """Create only new private data files, before any app process is launched."""
+    validate_start_config(start)
+    for name, content in start.get("files", {}).items():
+        path = checkout / ".demo" / name
+        directory = checkout
+        for part in path.parent.relative_to(checkout).parts:
+            directory /= part
+            if directory.is_symlink():
+                raise ValueError("data directory cannot be a symlink")
+            directory.mkdir(exist_ok=True)
+        # O_EXCL refuses existing files, links and hardlinks: never overwrite checkout data.
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "wb") as stream:
+            os.fchmod(stream.fileno(), 0o600)
+            stream.write(content.encode())
 
 
 def validate_demo(value: Any, *, checkout: Path | None = None) -> dict[str, Any]:
@@ -260,10 +347,16 @@ def validate_demo(value: Any, *, checkout: Path | None = None) -> dict[str, Any]
             checkout_path(args[0])
         if checkout is not None:
             build_project(recipe, checkout / args[0], checkout)
-    _keys(start, {"runtime", "path", "arguments", "mode"}, {"port"})
+    _keys(start, {"runtime", "path", "arguments", "mode"}, {"port", "environment", "files"})
+    validate_start_config(start)
+    ordinary = {**value, "start": {k: v for k, v in start.items() if k not in {"environment", "files"}}}
+    if len(json.dumps(ordinary, allow_nan=False).encode()) > 65536:
+        raise ValueError("demo excluding configuration exceeds size limit")
     if not isinstance(start["runtime"], str) or start["runtime"] not in RUNTIMES:
         raise ValueError("unknown runtime")
     checkout_path(start["path"])
+    if start["path"].split("/")[0] == ".demo":
+        raise ValueError("data files cannot be runtime entrypoints")
     _arguments(start["arguments"], set())
     if any(
         arg.startswith("/") or ".." in arg.split("/") or re.search(r"(?:^|[= :])/(?:etc|home|root|tmp|workspace|scratch)/", arg)

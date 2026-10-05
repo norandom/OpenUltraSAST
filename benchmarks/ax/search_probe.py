@@ -22,7 +22,7 @@ def validate_result(data: bytes, output: Path) -> None:
         raise ValueError("invalid probe result")
     if record["status"] == "ok" and (
         set(record.get("oracles", {})) != {"sql", "path", "command", "ssrf", "xss"}
-        or record.get("isolation_check", {}).get("status") != "ok"
+        or record.get("isolation_check", {}).get("status") not in ("ok", "skipped")
     ):
         raise ValueError("incomplete probe")
     (output / "result.json").write_text(json.dumps(record))

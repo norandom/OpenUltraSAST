@@ -12,6 +12,7 @@ import hashlib
 import json
 import re
 import time
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
 from importlib import import_module
@@ -202,6 +203,8 @@ class Coordinator:
                 self.progress["retries"] += 1
                 lane = "docker"
                 continue
+            if step == "reason":
+                self.progress["reason_completed"] = self.progress.get("reason_completed", 0) + 1
             return result
 
     def run(self) -> dict[str, Any]:
@@ -294,8 +297,15 @@ class Coordinator:
                             entry["demo"] = fact["demo"]
                             entry["oracle"] = fact.get("oracle")
                         self.state["facts"].append(entry)
+                        intent["conclusion"] = {"facts": [entry["id"]]}
                     else:
-                        intent["failure"] = "invalid_result" if result.get("status") == "ok" else result.get("status", "execution_failure")
+                        intent["failure"] = result.get("failure") or (
+                            "invalid_result" if result.get("status") == "ok" else result.get("status", "execution_failure")
+                        )
+                        intent["conclusion"] = {"failure": intent["failure"]}
+                    if result.get("budget_exhaustion", {}).get("end_detail") == "task_spend":
+                        intent["limit"] = "task_spend"
+                        self.progress["failures"].append({"task_id": result["task_id"], "reason": "task_spend"})
                 else:
                     if self.progress["rounds"] >= self.budget.reason_rounds:
                         return self._end("budget_spent", "reason_rounds")
@@ -314,42 +324,88 @@ class Coordinator:
                         if result.get("status") == "ok" and not result.get("intents") and "complete" not in result:
                             self.progress["failures"].append({"task_id": result["task_id"], "reason": "reason_refused"})
                             return self._end("reason_refused")
+                    if result.get("budget_exhaustion", {}).get("end_detail") == "task_spend":
+                        self.progress["failures"].append({"task_id": result["task_id"], "reason": "task_spend"})
+                        self._save()
+                        continue
                     if result.get("budget_exhaustion"):
                         return self._end("budget_spent", result["budget_exhaustion"]["end_detail"])
-                    proposals = result.get("intents", [])
-                    if result.get("status") != "ok" or not isinstance(proposals, list) or len(proposals) > self.budget.intents_per_round:
+                    for attempt in range(2):
+                        _, rejected = self._admit_intents(result)
+                        if not rejected or attempt:
+                            break
+                        self._save()
+                        result = self._call("reason", {"reminder": "duplicate_intent: choose a new direction; see snapshot rejections."})
+                        if result.get("budget_exhaustion"):
+                            if result["budget_exhaustion"]["end_detail"] == "task_spend":
+                                break
+                            return self._end("budget_spent", result["budget_exhaustion"]["end_detail"])
+                    if result.get("budget_exhaustion", {}).get("end_detail") == "task_spend":
+                        self.progress["failures"].append({"task_id": result["task_id"], "reason": "task_spend"})
+                        self._save()
+                        continue
+                    if not any(i["status"] == "open" for i in self.state["intents"]):
                         return self._end("exhausted")
-                    known = {f["id"] for f in self.state["facts"]}
-                    descriptions = {i["description"] for i in self.state["intents"]}
-                    added = 0
-                    for proposal in proposals:
-                        if not isinstance(proposal, dict):
-                            continue
-                        description, refs = proposal.get("description"), proposal.get("from_facts", [])
-                        if not isinstance(description, str) or not description.strip() or description in descriptions:
-                            continue
-                        if not isinstance(refs, list) or any(not isinstance(ref, str) or ref not in known for ref in refs):
-                            continue
-                        added += 1
-                        descriptions.add(description)
-                        self.state["intents"].append(
-                            dict(
-                                id=result["task_id"] + "-intent-" + str(added),
-                                description=description,
-                                from_facts=refs,
-                                status="open",
-                                claimant=None,
-                                step="reason",
-                                task_id=result["task_id"],
-                            )
-                        )
-                    if not added:
-                        return self._end("exhausted")
-                if result.get("budget_exhaustion"):
+                if result.get("budget_exhaustion") and result["budget_exhaustion"]["end_detail"] != "task_spend":
                     return self._end("budget_spent", result["budget_exhaustion"]["end_detail"])
                 self._save()
             except BudgetExhausted as exc:
                 return self._end("budget_spent", exc.end_detail)
+
+    def _admit_intents(self, result: dict[str, Any]) -> tuple[int, bool]:
+        proposals = result.get("intents", [])
+        if result.get("status") != "ok" or not isinstance(proposals, list) or len(proposals) > self.budget.intents_per_round:
+            return 0, False
+        known = {f["id"] for f in self.state["facts"]}
+        descriptions = {i["description"] for i in self.state["intents"]}
+        added = 0
+        rejections = []
+        for proposal in proposals:
+            if not isinstance(proposal, dict):
+                continue
+            description, refs = proposal.get("description"), proposal.get("from_facts", [])
+            if not isinstance(description, str) or not description.strip():
+                continue
+            if not isinstance(refs, list) or any(not isinstance(ref, str) or ref not in known for ref in refs):
+                continue
+            tokens = Counter(re.findall(r"\w+", description.casefold()))
+            duplicate = next(
+                (
+                    i
+                    for i in self.state["intents"]
+                    if i["status"] == "concluded"
+                    and tokens
+                    and sum((tokens & Counter(re.findall(r"\w+", i["description"].casefold()))).values()) / sum(tokens.values()) > 0.6
+                ),
+                None,
+            )
+            if duplicate is not None:
+                rejection = {
+                    "task_id": result["task_id"],
+                    "reason": "duplicate_intent",
+                    "description": description,
+                    "concluded_intent": duplicate["id"],
+                }
+                rejections.append(rejection)
+                self.progress["failures"].append(rejection)
+                continue
+            if description in descriptions:
+                continue
+            added += 1
+            descriptions.add(description)
+            self.state["intents"].append(
+                dict(
+                    id=result["task_id"] + "-intent-" + str(added),
+                    description=description,
+                    from_facts=refs,
+                    status="open",
+                    claimant=None,
+                    step="reason",
+                    task_id=result["task_id"],
+                )
+            )
+        self.progress["duplicate_rejections"] = rejections
+        return added, bool(rejections)
 
     @staticmethod
     def _refs(refs: Any) -> bool:

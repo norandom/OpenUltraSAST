@@ -166,7 +166,7 @@ def test_invalid_identifiers_refused_before_paths(tmp_path):
             SearchTask(bad, "search-1", "reason", "", {}, asdict(SearchBudget()))
 
 
-@pytest.mark.parametrize("detail", ["task_spend", "worker_steps", "worker_wall", "run_ceiling"])
+@pytest.mark.parametrize("detail", ["worker_steps", "worker_wall", "run_ceiling"])
 def test_worker_limit_preserves_fact_and_survives_resume(tmp_path, detail):
     def execute(task):
         if task.step == "reason":
@@ -217,3 +217,95 @@ def test_coordinator_identifies_each_own_limit(tmp_path, detail):
     ).run()
     assert state["end_reason"] == "budget_spent"
     assert state["end_detail"] == detail
+
+
+def test_duplicate_direction_retried_once_with_conclusions_and_priority(tmp_path):
+    import yaml
+
+    calls = []
+
+    def execute(task):
+        calls.append(task)
+        if len(calls) == 1:
+            return {"status": "ok", "cost_usd": 0, "intents": [{"description": "inspect blocked jwt startup configuration"}]}
+        if task.step == "explore":
+            return {"status": "execution_failure", "cost_usd": 0, "failure": "no startup keys available"}
+        view = yaml.safe_load(task.snapshot)
+        assert view["intents"][0]["conclusion"] == {"failure": "no startup keys available"}
+        if len(calls) == 4:
+            assert view["Priority"] == "construct the demo now with the facts available, or finish with the precise blocker."
+            assert view["rejections"][0]["reason"] == "duplicate_intent"
+        return {"status": "ok", "cost_usd": 0, "intents": [{"description": "inspect blocked jwt startup configuration again"}]}
+
+    state = Coordinator(board(tmp_path), execute).run()
+    assert [t.step for t in calls] == ["reason", "explore", "reason", "reason"]
+    assert len(state["intents"]) == 1
+    assert [f["reason"] for f in state["checkpoint"]["failures"]] == ["duplicate_intent"] * 2
+
+
+@pytest.mark.parametrize("with_fact", [False, True])
+def test_task_spend_concludes_and_continues_to_demo(tmp_path, with_fact):
+    import yaml
+
+    calls = []
+
+    def execute(task):
+        calls.append(task)
+        if len(calls) == 1:
+            return {"status": "ok", "cost_usd": 0, "intents": [{"description": "inspect application route"}]}
+        if len(calls) == 2:
+            result = {
+                "status": "execution_failure",
+                "failure": "allowance used",
+                "cost_usd": 0.01,
+                "budget_exhaustion": {"end_detail": "task_spend"},
+            }
+            if with_fact:
+                result.update(status="ok", fact={"text": "route confirmed", "evidence_refs": ["tool:1"]})
+            return result
+        if task.step == "reason":
+            view = yaml.safe_load(task.snapshot)
+            concluded = view["intents"][0]
+            assert concluded["status"] == "concluded" and concluded["limit"] == "task_spend"
+            assert concluded["conclusion"] == ({"facts": ["fact-task-2"]} if with_fact else {"failure": "allowance used"})
+            return {"status": "ok", "cost_usd": 0, "intents": [{"description": "construct runnable demo"}]}
+        if task.step == "explore":
+            return {"status": "ok", "cost_usd": 0, "fact": {"text": "demo", "evidence_refs": ["tool:2"], "demo": "demo/"}}
+        return {"status": "ok", "cost_usd": 0, "outcome": "demonstrated", "evidence_refs": ["verify:1"]}
+
+    state = Coordinator(board(tmp_path), execute).run()
+    assert state["end_reason"] == "goal_met"
+    assert [t.step for t in calls] == ["reason", "explore", "reason", "explore", "verify"]
+    assert len(state["facts"]) == (3 if with_fact else 2)
+
+
+@pytest.mark.parametrize(
+    "description,rejected",
+    [
+        ("READ blocked route plus fresh", False),  # exactly 60%, case-insensitive
+        ("READ blocked route plus", True),
+        ("read blocked route", True),
+    ],
+)
+def test_duplicate_word_overlap_threshold(tmp_path, description, rejected):
+    coordinator = Coordinator(board(tmp_path), lambda task: None)
+    coordinator.state["intents"] = [
+        {
+            "id": "old",
+            "description": "read blocked route",
+            "status": "concluded",
+            "failure": "unavailable",
+            "from_facts": [],
+            "step": "reason",
+            "task_id": "old-task",
+        }
+    ]
+    added, duplicate = coordinator._admit_intents(
+        {
+            "status": "ok",
+            "task_id": "new-task",
+            "intents": [{"description": description}],
+        }
+    )
+    assert duplicate is rejected
+    assert added == (0 if rejected else 1)
