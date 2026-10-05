@@ -11,9 +11,12 @@ import ast
 import json
 import re
 import subprocess
+import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 from .source import Candidate, Rejected
+from .storage import working_store
 
 LANGUAGES = {".py", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".php", ".java"}
 HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", re.M)
@@ -37,24 +40,54 @@ class Git:
         self.last_blob_bytes = 0
         self.limit_bytes = limit_bytes
 
+    @contextmanager
+    def output(self, *args: str, allowed=(0,)):
+        # Git can expand a tiny pack into enormous stdout. Spool before decoding, including
+        # stderr, so neither subprocess.communicate nor an error can consume the VM's RAM.
+        with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
+            try:
+                done = self.runner(
+                    ["git", "-c", "core.quotePath=false", "-C", str(self.path), *args],
+                    stdin=subprocess.DEVNULL,
+                    stdout=stdout,
+                    stderr=stderr,
+                    timeout=180,
+                    check=False,
+                )
+            except Exception:
+                raise InstrumentFailure("git_launch_failed") from None
+            if done.returncode not in allowed:
+                raise InstrumentFailure("git_exit_" + str(done.returncode))
+            if self.limit_bytes is not None and self.disk_bytes() > self.limit_bytes:
+                raise InstrumentFailure("clone_size_cap")
+            # Injected runners may return bytes instead of writing the supplied file.
+            if done.stdout is not None:
+                stdout.write(done.stdout)
+            stdout.seek(0)
+            yield stdout
+
     def run(self, *args: str, allowed=(0,)) -> str:
-        try:
-            done = self.runner(
-                ["git", "-c", "core.quotePath=false", "-C", str(self.path), *args],
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                timeout=180,
-                check=False,
-            )
-        except Exception:
-            raise InstrumentFailure("git_launch_failed") from None
-        if done.returncode not in allowed:
-            raise InstrumentFailure("git_exit_" + str(done.returncode))
-        if self.limit_bytes is not None and self.disk_bytes() > self.limit_bytes:
-            raise InstrumentFailure("clone_size_cap")
-        self.last_blob_bytes = len(done.stdout)
-        return done.stdout.decode("utf-8", errors="replace")
+        with self.output(*args, allowed=allowed) as stdout:
+            raw = stdout.read(8 * 1024 * 1024 + 1)
+            if len(raw) > 8 * 1024 * 1024:
+                raise InstrumentFailure("git_output_size_cap")
+            self.last_blob_bytes = len(raw)
+            return raw.decode("utf-8", errors="replace")
+
+    def history_entries(self, head):
+        with self.output("log", "--first-parent", "--format=%H%x00%P%x00%ct%x00%an%x00%B%x1e", head) as stdout:
+            pending = b""
+            while chunk := stdout.read(64 * 1024):
+                entries = (pending + chunk).split(b"\x1e")
+                pending = entries.pop()
+                for entry in entries:
+                    if len(entry) > 1024 * 1024:
+                        raise InstrumentFailure("git_history_record_size_cap")
+                    yield entry.decode("utf-8", errors="replace")
+                if len(pending) > 1024 * 1024:
+                    raise InstrumentFailure("git_history_record_size_cap")
+            if pending.strip():
+                raise InstrumentFailure("invalid_history")
 
     def disk_bytes(self) -> int:
         return sum(p.stat().st_size for p in self.path.rglob("*") if p.is_file() and not p.is_symlink())
@@ -66,6 +99,9 @@ class Git:
         # Missing is established by a successful tree read, never by swallowing a show error.
         if not self.run("ls-tree", sha, "--", path).strip():
             return None
+        size = int(self.run("cat-file", "-s", f"{sha}:{path}").strip())
+        if size > 512 * 1024:
+            raise InstrumentFailure("source_blob_size_cap")
         text = self.run("show", f"{sha}:{path}")
         if Path(path).suffix in LANGUAGES:
             self.files_read += 1
@@ -378,10 +414,9 @@ def generated(git, revision: str, path: str, text: str) -> bool:
     return result
 
 
-def ordinary_history(git, head: str) -> list[dict]:
-    raw = git.run("log", "--first-parent", "--format=%H%x00%P%x00%ct%x00%an%x00%B%x1e", head)
-    rows = []
-    for entry in raw.split("\x1e"):
+def ordinary_history(git, head: str):
+    """Yield one commit at a time; no repository-wide blob or diff retention."""
+    for entry in git.history_entries(head):
         if not entry.strip():
             continue
         fields = entry.strip().split("\x00")
@@ -389,8 +424,8 @@ def ordinary_history(git, head: str) -> list[dict]:
             raise InstrumentFailure("invalid_history")
         sha, parents, timestamp, author, message = fields
         row = {"head": sha, "parents": parents.split(), "timestamp": int(timestamp), "author": author, "message": message, "files": []}
-        rows.append(row)
         if len(row["parents"]) != 1:
+            yield row
             continue
         base = row["parents"][0]
         for path, added, removed in git.stats(base, sha):
@@ -417,58 +452,68 @@ def ordinary_history(git, head: str) -> list[dict]:
                                 info["functions"].append(name)
                     info["generated"] |= generated(git, revision, path, text)
             row["files"].append(info)
-    return rows
+        yield row
 
 
-def draw_ordinary(rows: list[dict], fixes: set[str], known_functions: set[tuple[str, str]], *, seed: int) -> tuple[list[dict], dict]:
+def draw_ordinary(rows, fixes: set[str], known_functions: set[tuple[str, str]], *, seed: int) -> tuple[list[dict], dict]:
+    """Spill eligible history to disk; keep the original seeded stratified draw exactly."""
+    with working_store() as db:
+        return _draw_ordinary(db, rows, fixes, known_functions, seed=seed)
+
+
+def _draw_ordinary(db, rows, fixes, known_functions, *, seed):
     import random
-    from collections import Counter, defaultdict
+    from collections import Counter
 
     counts = Counter()
-    eligible = []
+    earliest = latest = None
+    db.execute("CREATE TABLE eligible (head TEXT, timestamp INTEGER, bucket INTEGER, value TEXT, third INTEGER)")
     for row in rows:
+        timestamp = row["timestamp"]
+        earliest = timestamp if earliest is None else min(earliest, timestamp)
+        latest = timestamp if latest is None else max(latest, timestamp)
         reason = ordinary_rejection(row, fixes, known_functions)
         counts[reason or "eligible"] += 1
-        if reason is None:
-            eligible.append(row)
-    if len(eligible) < 40:
+        if reason is not None:
+            continue
+        size = sum(f["added"] + f["removed"] for f in row["files"] if Path(f["path"]).suffix in LANGUAGES and not manifest(f["path"]))
+        bucket = 0 if size <= 10 else 1 if size <= 50 else 2 if size <= 200 else 3
+        value = {
+            "kind": "ordinary",
+            "base": row["parents"][0],
+            "head": row["head"],
+            "method": "first_parent",
+            "size_bucket": bucket,
+            "files": [{"path": f["path"], "head_lines": f["head_lines"]} for f in row["files"]],
+        }
+        db.execute("INSERT INTO eligible VALUES (?, ?, ?, ?, NULL)", (row["head"], timestamp, bucket, json.dumps(value)))
+    if counts["eligible"] < 40:
         failure = Rejected("ordinary_floor")
         failure.counts = dict(counts)
         raise failure
-    earliest, latest = min(r["timestamp"] for r in rows), max(r["timestamp"] for r in rows)
-    cells = defaultdict(list)
-    for row in eligible:
-        third = min(2, 3 * (row["timestamp"] - earliest) // max(1, latest - earliest + 1))
-        size = sum(f["added"] + f["removed"] for f in row["files"] if Path(f["path"]).suffix in LANGUAGES and not manifest(f["path"]))
-        bucket = 0 if size <= 10 else 1 if size <= 50 else 2 if size <= 200 else 3
-        cells[third, bucket].append(row)
+    db.execute("UPDATE eligible SET third = min(2, 3 * (timestamp - ?) / ?)", (earliest, max(1, latest - earliest + 1)))
+    cells = {
+        (third, bucket): count for third, bucket, count in db.execute("SELECT third, bucket, count(*) FROM eligible GROUP BY third, bucket")
+    }
     if {t for t, _ in cells} != {0, 1, 2}:
         failure = Rejected("time_thirds")
         failure.counts = dict(counts)
         raise failure
-    # Largest-deficit rounding with the mandatory minimum of one per time third.
-    # No cell can receive more draws than it has eligible commits.
     allocation = Counter()
-    targets = {cell: 12 * len(items) / len(eligible) for cell, items in cells.items()}
+    targets = {cell: 12 * count / counts["eligible"] for cell, count in cells.items()}
     for third in range(3):
         cell = max(sorted(c for c in cells if c[0] == third), key=lambda c: targets[c])
         allocation[cell] = 1
     while sum(allocation.values()) < 12:
-        cell = max(sorted(c for c in cells if allocation[c] < len(cells[c])), key=lambda c: targets[c] - allocation[c])
+        cell = max(sorted(c for c in cells if allocation[c] < cells[c]), key=lambda c: targets[c] - allocation[c])
         allocation[cell] += 1
+    db.execute("CREATE INDEX eligible_order ON eligible(third, bucket, head)")
     rng = random.Random(seed)
     drawn = []
     for cell in sorted(cells):
-        for row in rng.sample(sorted(cells[cell], key=lambda r: r["head"]), allocation[cell]):
-            drawn.append(
-                {
-                    "kind": "ordinary",
-                    "base": row["parents"][0],
-                    "head": row["head"],
-                    "method": "first_parent",
-                    "time_third": cell[0],
-                    "size_bucket": cell[1],
-                    "files": [{"path": f["path"], "head_lines": f["head_lines"]} for f in row["files"]],
-                }
-            )
+        for position in rng.sample(range(cells[cell]), allocation[cell]):
+            (value,) = db.execute(
+                "SELECT value FROM eligible WHERE third=? AND bucket=? ORDER BY head LIMIT 1 OFFSET ?", (*cell, position)
+            ).fetchone()
+            drawn.append({**json.loads(value), "time_third": cell[0]})
     return drawn, dict(counts)

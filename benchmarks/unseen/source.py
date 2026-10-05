@@ -6,6 +6,7 @@ import base64
 import json
 import random
 import re
+from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import date
 from urllib.parse import urlencode, urlsplit
@@ -42,6 +43,23 @@ class Candidate:
     license_path: str
 
 
+def compact_advisory(row: dict) -> dict:
+    """Keep exactly the input fields used by selection and the all-advisory fix index."""
+    return {
+        **{key: row[key] for key in ("ghsa_id", "published_at", "type", "withdrawn_at") if key in row},
+        "cwes": [{"cwe_id": c["cwe_id"]} for c in row.get("cwes", [])],
+        "references": [f"https://github.com/{name}/commit/{sha}" for name, sha in sorted(fix_links(row))],
+        "vulnerabilities": [{"package": {key: v["package"][key] for key in ("ecosystem", "name")}} for v in row.get("vulnerabilities", [])],
+    }
+
+
+def compact_repository(row: dict) -> dict:
+    return {
+        **{key: row[key] for key in ("full_name", "private", "size", "clone_url", "former_names") if key in row},
+        **{key: {"full_name": row[key]["full_name"]} for key in ("parent", "source") if row.get(key)},
+    }
+
+
 def post_cutoff(row: dict) -> bool:
     return date.fromisoformat(row["published_at"][:10]) > date(2026, 6, 1)
 
@@ -63,6 +81,10 @@ def ecosystem(row: dict) -> str | None:
 
 def ordered_advisories(rows: list[dict], seed: int) -> list[dict]:
     """Stable seeded ordering, post-cutoff first in each ecosystem; round-robin strata."""
+    from .storage import AdvisoryRows
+
+    if isinstance(rows, AdvisoryRows):
+        return rows.ordered(seed)
     rng = random.Random(seed)
     groups = []
     for eco in ECOSYSTEMS:
@@ -218,7 +240,7 @@ class GitHub:
             raise ValueError("missing_gh_token")
         self.transport = transport or JSONTransport()
         self.headers = {"Authorization": "Bearer " + token, "Accept": "application/vnd.github+json"}
-        self.repos: dict[str, dict] = {}
+        self.repos: OrderedDict[str, dict] = OrderedDict()
         self.calls = 0
 
     def get(self, path: str):
@@ -228,7 +250,10 @@ class GitHub:
     def get_repo(self, name: str) -> dict:
         name = normalize(name)
         if name not in self.repos:
-            self.repos[name] = self.get("/repos/" + name)
+            self.repos[name] = compact_repository(self.get("/repos/" + name))
+            if len(self.repos) > 128:
+                self.repos.popitem(last=False)
+        self.repos.move_to_end(name)
         return self.repos[name]
 
     def get_commit(self, name: str, sha: str) -> dict:

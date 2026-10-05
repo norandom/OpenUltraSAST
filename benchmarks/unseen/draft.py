@@ -24,6 +24,7 @@ from pathlib import Path
 from . import eligibility, extract, source
 from .extract import Git, InstrumentFailure
 from .journal import Journal, ResolvedGitHub, ResumeMismatch, Stopped, atomic, digest, external
+from .storage import AdvisoryRows, DiskSet, FixIndex, working_store
 
 
 def canonical(value) -> bytes:
@@ -173,41 +174,45 @@ def prove_source(git, revision: str) -> dict:
     raise InstrumentFailure("zero_source_bytes")
 
 
-def advisory_index(rows: list[dict], github) -> dict[str, set[str]]:
+def advisory_index(rows, github, *, db):
     """Include ALL enumerated fixes, even old, unmapped, multi-fix and other ecosystems.
 
     Canonicalize link names as well, so an old advisory URL survives repository renames.
     A 404 is not treated as proof that an advisory is unrelated to a selected repository.
     """
-    index = defaultdict(set)
+    index = FixIndex(db)
     for row in rows:
         for name, sha in source.fix_links(row):
             try:
                 resolved = eligibility.resolve(name, github)
             except eligibility.RepositoryNotFound:
-                index[name].add(sha)
+                index.add(name, sha)
                 continue
-            index[resolved.full_name].add(sha)
-    return dict(index)
+            index.add(resolved.full_name, sha)
+    return index
 
 
 def repository_changes(git, candidate, fixes: set[str], *, seed: int):
     proof = prove_source(git, candidate.parent)
     change = extract.introducing(git, candidate)
-    known = set()
-    expanded = set()
-    for fix in sorted(fixes | {candidate.fix}):
-        # Explicitly fetch detached advisory commits unavailable on default-branch history.
-        # All git including this possible network call still goes through the injected client.
-        git.run("fetch", "--quiet", "--filter=blob:none", "origin", fix)
-        full = git.run("rev-parse", fix).strip()
-        expanded.add(full)
-        parents = git.parents(full)
-        for parent in parents:
-            sites = extract.fix_sites(git, full, parent, global_ok=True)
-            known.update((site["path"], site["function"]) for site in sites)
-    rows = extract.ordinary_history(git, "HEAD")
-    ordinary, exclusions = extract.draw_ordinary(rows, expanded, known, seed=seed)
+    with working_store() as db:
+        known = DiskSet(db, "known_functions")
+        expanded = DiskSet(db, "expanded_fixes")
+        pending = DiskSet(db, "pending_fixes")
+        pending.update(fixes)
+        pending.add(candidate.fix)
+        for fix in pending:
+            # Explicitly fetch detached advisory commits unavailable on default-branch history.
+            # All git including this possible network call still goes through the injected client.
+            git.run("fetch", "--quiet", "--filter=blob:none", "origin", fix)
+            full = git.run("rev-parse", fix).strip()
+            expanded.add(full)
+            parents = git.parents(full)
+            for parent in parents:
+                sites = extract.fix_sites(git, full, parent, global_ok=True)
+                known.update((site["path"], site["function"]) for site in sites)
+        rows = extract.ordinary_history(git, "HEAD")
+        ordinary, exclusions = extract.draw_ordinary(rows, expanded, known, seed=seed)
     return [change, *ordinary], exclusions, proof
 
 
@@ -222,14 +227,28 @@ def inputs(used, seed, known_empty, clones):
         "journal_version": 1,
     }
     # Hardcoded design thresholds and algorithms are covered as well as taxonomy data.
-    for name in ("draft", "source", "extract", "eligibility", "journal"):
+    for name in ("draft", "source", "extract", "eligibility", "journal", "storage"):
         parameters["design_" + name] = hashlib.sha256(Path(__file__).with_name(name + ".py").read_bytes()).hexdigest()
     parameters["design_taxonomy"] = hashlib.sha256(DEFAULT_FAMILIES_PATH.read_bytes()).hexdigest()
     return parameters
 
 
+# The pre-memory-fix implementation has identical ordering/selection semantics. Only
+# this exact fingerprint set may migrate; changed seeds, taxonomy or used sets still fail.
+LEGACY_DESIGNS = {
+    "design_draft": "906bf36de11761931b2c1b62a2ea8da3c8124f9d754455f1a0acf29a6db576a3",
+    "design_source": "01c896bd0418faf0d073dc2d5cb6dbc5d7903b95b5e8216c9022bc9985326a9c",
+    "design_extract": "593d954d9c22b835e1d349df6b575707a39098dca2eff4425f67a0de14c6525e",
+    "design_journal": "c97ad0761ea5bbfe65db816b13dfa79d93608ea03bcd5848f70686ed9157bdf7",
+}
+
+
+def legacy_inputs(parameters):
+    return {key: LEGACY_DESIGNS.get(key, value) for key, value in parameters.items() if key != "design_storage"}
+
+
 def enumerate_advisories(github, journal):
-    page, records = 1, {}
+    page, records = 1, AdvisoryRows(journal.db, "advisory_records")
     while True:
         key = str(page)
         if key not in journal.rows["advisories"]:
@@ -237,13 +256,14 @@ def enumerate_advisories(github, journal):
             result = github.advisory_page(page)
             journal.put("advisories", key, result)
         result = journal.rows["advisories"][key]
-        records.update((row["ghsa_id"], row) for row in result["rows"])
+        for row in result["rows"]:
+            records[row["ghsa_id"]] = row
         if result["done"]:
             break
         page += 1
     if not records:
         raise InstrumentFailure("empty_advisories")
-    return list(records.values())
+    return records
 
 
 def decide(row, github, osv, used, selected_networks):
@@ -335,7 +355,8 @@ def run(
         checkpoint = Journal(
             path, max_hours=max_hours, clock=clock, rate_limit=lambda: getattr(getattr(github, "transport", None), "rate_limit", {})
         )
-        with checkpoint.open(inputs(used, seed, known_empty, clones)):
+        parameters = inputs(used, seed, known_empty, clones)
+        with checkpoint.open(parameters, compatible_parameters=legacy_inputs(parameters)):
             checkpoint.boundary()
             api = ResolvedGitHub(github, checkpoint)
             used = copy.deepcopy(used)  # canonicalization must not mutate the resume input
@@ -343,7 +364,7 @@ def run(
             report["used_set"] = used.report(known_empty)
             rows = enumerate_advisories(api, checkpoint)
             report["advisories"] = len(rows)
-            fixes_by_repo = advisory_index(rows, api)
+            fixes_by_repo = advisory_index(rows, api, db=checkpoint.db)
             selected_networks, entries = set(), []
             for row in source.ordered_advisories(rows, seed):
                 checkpoint.boundary()

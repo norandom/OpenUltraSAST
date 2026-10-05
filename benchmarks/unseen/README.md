@@ -143,6 +143,27 @@ and sleepers. A stale candidate 404 is counted; other service failures fail the 
 
 ### Checkpoint and resume
 
+Replay reads bounded JSONL records into a disposable SQLite working store, with a 2 MiB
+page cache. Advisory descriptions, non-fix references and vulnerable-version payloads
+are discarded; package identities, CWEs, status, publication dates and every fix link
+are retained. Repository metadata keeps canonical/fork identities and eligibility fields.
+Advisory ordering, fix indexes and checkpoint lookups stay on disk, independent of the
+number of journal records. The original seeded ordering and ordinary draws are preserved.
+Per-repository history and exclusion sets also spill to private temporary storage, which
+is removed on success or failure. Budget disk space for the journal, working store and
+spooled Git output as well as the clone.
+
+To bound individual reads, journal records are limited to 16 MiB, decoded Git command
+output to 8 MiB, history messages to 1 MiB and source blobs to 512 KiB. Exceeding a limit
+fails the instrument explicitly; it never counts as an empty history or a clean result.
+The synthetic 20,000-advisory regression checks a 64 MiB traced-memory ceiling across
+replay, enumeration, ordering and fix indexing; this is not a live coordinator RSS measurement.
+
+The memory fix can migrate the exact preceding design fingerprints automatically,
+keeping `inputs-before-memory-fix.json` and leaving the JSONL journal untouched. All
+other input/design mismatches still refuse resume. This compatibility exception must
+be removed if a later change alters selection or sampling semantics.
+
 The command above uses journal directory
 `/home/mc/ousast-results/plane/unseen-draft/journal`. Run the same command to resume.
 `--max-hours` is a per-invocation budget; changing it does not invalidate checkpoints.
