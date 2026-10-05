@@ -109,10 +109,14 @@ class Worker:
         max_output_tokens: int = 1024,
         max_steps: int = 32,
         executor: RepositoryExecutor | None = None,
+        run_budget: SpendBudget | None = None,
     ) -> None:
         if getattr(client, "max_attempts", None) != 1:
             raise ValueError("model client must disable unreserved retries (max_attempts=1)")
         self.client, self.model = client, model
+        self.run_budget = run_budget
+        self.metrics = dict(reserved=0.0, settled=0.0, model_calls=0, tokens_in=0, tokens_out=0)
+        self.budget_exhausted = False
         selected_prices = prices if prices is not None else getattr(client, "prices", None)
         if not isinstance(selected_prices, Prices) or any(not math.isfinite(v) or v < 0 for v in vars(selected_prices).values()):
             raise ValueError("nonnegative finite model prices required before admission")
@@ -144,6 +148,17 @@ class Worker:
             input_bound * max(self.prices.input_per_m, self.prices.cache_hit_per_m) + self.max_output_tokens * self.prices.output_per_m
         ) / 1_000_000
         reservation = meter.reserve(maximum)
+        run_reservation = None
+        try:
+            if self.run_budget is not None:
+                run_reservation = self.run_budget.reserve(maximum)
+        except BudgetExhausted:
+            reservation.release()
+            self.budget_exhausted = True
+            raise
+        self.metrics["reserved"] += maximum
+        self.metrics["model_calls"] += 1
+        actual = maximum
         try:
             raw = self.client.complete_chat_raw(
                 model=self.model,
@@ -162,12 +177,21 @@ class Worker:
                 isinstance(usage.get(k), int) and usage[k] >= 0 for k in ("prompt_tokens", "completion_tokens")
             ):
                 actual = cost_of(usage, self.prices)
+                self.metrics["tokens_in"] += usage["prompt_tokens"]
+                self.metrics["tokens_out"] += usage["completion_tokens"]
             reservation.settle(actual)
+            if run_reservation is not None:
+                run_reservation.settle(actual)
             return cast(dict[str, Any], raw["choices"][0]["message"])
         except Exception:
             if reservation._active:
                 reservation.settle(maximum)
+                actual = maximum
+            if run_reservation is not None and run_reservation._active:
+                run_reservation.settle(maximum)
             raise
+        finally:
+            self.metrics["settled"] += actual
 
     def tool(self, name: str, args: dict[str, Any]) -> dict[str, Any]:
         timeout = self._remaining()
@@ -292,6 +316,7 @@ class Worker:
         return {"status": "execution_failure", "failure": "tool step limit exceeded"}
 
     def __call__(self, task: SearchTask) -> dict[str, Any]:
+        self.budget_exhausted = False
         self.limits = task.limits
         self.deadline = time.monotonic() + task.limits.get("task_wall_seconds", 900)
         meter = SpendBudget(task.limits["max_call_usd"])
@@ -316,6 +341,7 @@ class Worker:
                 "isolation_mode": getattr(self.executor, "isolation_mode", "brain-only"),
             }
         except Exception as exc:
+            self.budget_exhausted = isinstance(exc, BudgetExhausted)
             # Preserve the diagnostic after removing credentials and URLs.
             return {
                 "status": "execution_failure",
