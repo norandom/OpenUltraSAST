@@ -95,6 +95,16 @@ class Coordinator:
     def _remaining(self) -> float:
         return float(self.budget.wall_seconds - max(0, self.clock() - self.progress["started_at"]))
 
+    def _snapshot(self) -> str:
+        return self.board.snapshot(
+            budget_left={
+                "tasks": max(0, self.budget.tasks - self.progress["tasks"]),
+                "reason_rounds": max(0, self.budget.reason_rounds - self.progress["rounds"]),
+                "spend_usd": max(0, self.budget.spend_usd - self.meter.spent),
+                "wall_seconds": max(0, self._remaining()),
+            }
+        )
+
     def _call(self, step: str, payload: dict[str, Any]) -> dict[str, Any]:
         lane = "ax"
         while True:
@@ -113,7 +123,7 @@ class Coordinator:
             task_id = "task-" + str(self.progress["tasks"] + 1)
             limits = asdict(self.budget)
             limits["task_wall_seconds"] = min(self.budget.task_wall_seconds, remaining - self.budget.cleanup_seconds)
-            task = SearchTask(task_id, self.state["search_id"], step, self.board.snapshot(), payload, limits, lane)
+            task = SearchTask(task_id, self.state["search_id"], step, self._snapshot(), payload, limits, lane)
             self.progress["tasks"] += 1
             self.progress["pending"] = {"id": task_id, "step": step, "payload": payload}
             # A crash after this durable write may have spent the whole allowance.
@@ -122,7 +132,7 @@ class Coordinator:
                 intent = next(i for i in self.state["intents"] if i["id"] == payload["intent_id"])
                 intent.update(status="claimed", claimant=task_id)
             self._save()
-            task = replace(task, snapshot=self.board.snapshot())
+            task = replace(task, snapshot=self._snapshot())
             dispatched_at = self.clock()
             try:
                 result = self.executor(task)
@@ -167,6 +177,24 @@ class Coordinator:
     def run(self) -> dict[str, Any]:
         if self.state["end_reason"]:
             return self.board.state
+        candidate = self.board.candidate()
+        if not self.progress["tasks"] and not self.state["intents"] and candidate.get("file") and candidate.get("function"):
+            self.state["intents"].append(
+                dict(
+                    id="bootstrap",
+                    description=(
+                        f"Read the candidate function {candidate['function']} in {candidate['file']}, "
+                        "the code that calls it, and how the application is started and reached from outside; "
+                        "report the entry point, the route or CLI path to the candidate, and the inputs that reach it."
+                    ),
+                    from_facts=[],
+                    status="open",
+                    claimant=None,
+                    step="bootstrap",
+                    task_id="coordinator",
+                )
+            )
+            self._save()
         pending = self.progress.get("pending")
         if pending:
             # Do not duplicate a possibly paid operation. Recover the claim as a
@@ -234,6 +262,19 @@ class Coordinator:
                         return self._end("budget_spent")
                     self.progress["rounds"] += 1
                     result = self._call("reason", {})
+                    if result.get("status") == "ok" and not result.get("intents") and "complete" not in result:
+                        result = self._call(
+                            "reason",
+                            {
+                                "reminder": (
+                                    "No intents are open. You MUST propose 1-3 independent new intents, "
+                                    "or cite facts containing a complete demo. An empty reply is a refusal."
+                                )
+                            },
+                        )
+                        if result.get("status") == "ok" and not result.get("intents") and "complete" not in result:
+                            self.progress["failures"].append({"task_id": result["task_id"], "reason": "reason_refused"})
+                            return self._end("reason_refused")
                     proposals = result.get("intents", [])
                     if result.get("status") != "ok" or not isinstance(proposals, list) or len(proposals) > self.budget.intents_per_round:
                         return self._end("exhausted")

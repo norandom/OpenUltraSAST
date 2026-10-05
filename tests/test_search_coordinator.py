@@ -72,7 +72,7 @@ def test_claim_checkpoint_survives_interrupt_without_free_spend(tmp_path):
     resumed = Board.resume(b.store, "search-1", checkpoint, coordinator="host")
     state = Coordinator(resumed, lambda task: {"status": "ok", "cost_usd": 0, "intents": []}).run()
     assert state["checkpoint"]["spent_usd"] == 0.05
-    assert state["checkpoint"]["tasks"] == 2
+    assert state["checkpoint"]["tasks"] == 3
 
 
 def test_invalid_fact_fails_closed_and_records_failure(tmp_path):

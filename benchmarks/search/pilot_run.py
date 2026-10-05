@@ -40,6 +40,7 @@ from openultrasast.search.demo import load_demo
 from openultrasast.search.executor import InProcessExecutor
 from openultrasast.search.oracles import BrowserExecutor, oracle_for
 from openultrasast.search.probe import materialise
+from openultrasast.search.task_storage import diagnostic, exception_reason
 from openultrasast.search.verify import Side, VerificationRecord, verify
 from openultrasast.search.verify_task import extract_checkout, validate_spec
 from openultrasast.search.worker import StubModel, Worker
@@ -56,7 +57,6 @@ def tool(name, **args):
 def scripted(schema):
     return StubModel(
         [
-            {"content": json.dumps({"intents": [{"description": "Prove the candidate via the external interface", "from_facts": []}]})},
             tool("read_file", path="app.py"),
             tool("write_demo", schema=schema),
             tool("finish", fact={"text": "Candidate demo", "evidence_refs": ["tool:1"], "demo": "demo/"}),
@@ -96,7 +96,10 @@ class Pilot:
             writer="pilot",
             hints=[
                 dict(
-                    id="candidate", step="reason", task_id="manifest", text=json.dumps({k: row[k] for k in ("family", "file", "function")})
+                    id="candidate",
+                    step="reason",
+                    task_id="manifest",
+                    text=json.dumps({k: row[k] for k in ("family", "file", "function", "oracle") if k in row}),
                 )
             ],
         )
@@ -117,8 +120,18 @@ class Pilot:
         self.verifications = []
 
     def failure(self, phase, reason):
-        # No untrusted diagnostic text in public records: it can contain repository identities or secrets.
-        self.record["failures"].append(dict(phase=phase, reason=reason))
+        private = tuple(str(v) for k, v in self.row.items() if k in {"repo", "file", "function", "vulnerable", "fixed"})
+        private += (str(self.root), self.row["repo"].removeprefix("https://github.com/"))
+        if isinstance(reason, BaseException):
+            safe = exception_reason(reason, private=private)
+        elif isinstance(reason, str) and re.match(r"^[A-Za-z_]\w*: ", reason):
+            # Worker errors already carry a type. Preserve it when identity redaction
+            # expands the message beyond the public record's tail limit.
+            kind, message = reason.split(": ", 1)
+            safe = kind + ": " + diagnostic(message, maximum=max(0, 298 - len(kind)), private=private)
+        else:
+            safe = diagnostic(reason, private=private)
+        self.record["failures"].append(dict(phase=phase, reason=safe))
 
     @contextmanager
     def executor(self, revision, deadline=900):
@@ -166,8 +179,8 @@ class Pilot:
                 return task.prepare(spec)
         except BudgetExhausted:
             raise
-        except Exception:
-            self.failure("build_export", "executor_preparation_failed")
+        except Exception as exc:
+            self.failure("build_export", exc)
             raise
         finally:
             wall = self.record["wall_seconds_by_phase"]
@@ -267,7 +280,7 @@ class Pilot:
             if self.worker.budget_exhausted:
                 raise BudgetExhausted("run ceiling", usd=0, calls=0)
             if result.get("status") != "ok":
-                self.failure(task.step, "worker_execution_failed")
+                self.failure(task.step, result.get("failure", "worker_execution_failed"))
                 if not self.verifications:
                     self.record["outcome"] = "inconclusive"
             return result
@@ -284,7 +297,7 @@ class Pilot:
             if not self.verifications and any(f.get("step") == "explore" for f in state["facts"]):
                 self.record["outcome"] = "plausible_unproven"
         except Exception as exc:
-            self.failure(self.phase, type(exc).__name__)
+            self.failure(self.phase, exc)
             self.record["outcome"] = (
                 "could_not_build"
                 if self.record["failures"] and any(f["phase"] in ("build_export", "acquisition") for f in self.record["failures"])

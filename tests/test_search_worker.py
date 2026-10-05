@@ -229,3 +229,81 @@ def test_inprocess_executor_observes_all_brain_repository_commands(tmp_path):
     assert worker.tool("run", {"command": ["/bin/cat", "/workspace/sample.txt"]})["stdout"] == "needle"
     assert [c.name for c in executor.commands] == ["list_files", "read_file", "grep", "run"]
     assert [c.seq for c in executor.commands] == [1, 2, 3, 4]
+
+
+def test_empty_reason_retried_with_reminder_then_refused(tmp_path):
+    model = StubModel([reply({}), reply({})])
+    worker = Worker(model, repo=tmp_path, demo=tmp_path / "demo")
+    board = Board(FileStore(tmp_path / "memory"), "refused", coordinator="host")
+    result = Coordinator(board, worker).run()
+    assert result["end_reason"] == "reason_refused"
+    assert len(model.calls) == 2
+    assert "No intents are open" in model.calls[1]["messages"][0]["content"]
+    assert result["checkpoint"]["failures"][-1]["reason"] == "reason_refused"
+
+
+def test_reason_retry_can_recover(tmp_path):
+    model = StubModel(
+        [
+            reply({}),
+            reply({"intents": [{"description": "inspect entry", "from_facts": []}]}),
+            tool("finish", failure="entry unavailable"),
+        ]
+    )
+    worker = Worker(model, repo=tmp_path, demo=tmp_path / "demo")
+    board = Board(FileStore(tmp_path / "memory"), "retry", coordinator="host")
+    state = Coordinator(board, worker, budget=SearchBudget(reason_rounds=1)).run()
+    assert state["intents"][0]["status"] == "concluded"
+    assert state["end_reason"] == "budget_spent"
+    assert len(model.calls) == 3
+
+
+def test_bootstrap_durable_before_first_model_call(tmp_path):
+    import yaml
+
+    board = Board(FileStore(tmp_path / "memory"), "bootstrap", coordinator="host")
+    board.commit(
+        writer="host",
+        hints=[
+            dict(id="candidate", step="reason", task_id="manifest", text=json.dumps(dict(family="path", file="app.py", function="main")))
+        ],
+    )
+
+    class InspectingStub(StubModel):
+        def complete_chat_raw(self, **kwargs):
+            intent = board.state["intents"][0]
+            assert intent["id"] == "bootstrap" and intent["status"] == "claimed"
+            assert board.state["checkpoint"]["pending"]["step"] == "explore"
+            snapshot = yaml.safe_load(kwargs["messages"][1]["content"].split("\nIntent:")[0])
+            assert snapshot["family"] == "path"
+            assert snapshot["candidate"]["function"] == "main"
+            assert snapshot["budget_left"]["tasks"] == 0
+            return super().complete_chat_raw(**kwargs)
+
+    model = InspectingStub([tool("finish", failure="entry unavailable")])
+    worker = Worker(model, repo=tmp_path, demo=tmp_path / "demo")
+    state = Coordinator(board, worker, budget=SearchBudget(tasks=1)).run()
+    assert state["end_reason"] == "budget_spent"
+    assert len(model.calls) == 1
+    prompt = model.calls[0]["messages"][0]["content"]
+    assert "Read the candidate function main in app.py" in prompt
+
+
+@pytest.mark.parametrize("step", ["reason", "explore"])
+def test_prompt_contracts_and_demo_example(tmp_path, step):
+    from openultrasast.search.demo import validate_demo
+    from openultrasast.search.worker import DEMO_GUIDE, ORACLE_GUIDE
+
+    model = StubModel([reply({}) if step == "reason" else tool("finish", failure="no input")])
+    Worker(model, repo=tmp_path, demo=tmp_path / "demo")(task(step))
+    prompt = model.calls[0]["messages"][0]["content"]
+    assert DEMO_GUIDE in prompt and ORACLE_GUIDE in prompt
+    for text in ("private nonce file", "secret rows", "marker location", "loopback listener", "alert('ousast-xss')"):
+        assert text in prompt
+    example = DEMO_GUIDE.removeprefix("Demo schema: ").split(". This is a minimal example")[0]
+    assert validate_demo(json.loads(example))
+    if step == "reason":
+        assert "MUST propose 1-3" in prompt
+        assert len(prompt) / 4 < 1000  # rough offline token estimate, not a tokenizer
+    else:
+        assert "file:line" in prompt and "final call for finish" in prompt
