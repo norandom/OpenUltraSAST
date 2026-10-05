@@ -7,6 +7,7 @@ import ipaddress
 import json
 import os
 import queue
+import random
 import re
 import shutil
 import subprocess
@@ -32,6 +33,29 @@ class EgressError(ValueError):
 
 class SandboxFailure(Exception):
     """A terminal AX task without an authoritative result object."""
+
+
+class NoFreeWorkers(Exception):
+    """Capacity back-pressure, never a sandbox or instrument failure."""
+
+
+class CapacityDeadline(Exception):
+    """No worker became available before the task deadline."""
+
+
+# Shared by every workload/lane instance in this dispatcher process, including
+# long-lived search executors. The operator runs one task per worker, two workers.
+AX_SLOTS = threading.BoundedSemaphore(2)
+
+
+def apply_when_available(lane, document, end):
+    while lane.clock() < end:
+        try:
+            lane.ax("apply", "-f", "-", manifest=document, timeout=min(30, end - lane.clock()))
+            return
+        except NoFreeWorkers:
+            lane.pause(min(random.uniform(15, 30), max(0, end - lane.clock())))
+    raise CapacityDeadline("no free workers available before deadline")
 
 
 def public_endpoint(url):
@@ -143,10 +167,23 @@ class AXLane:
 
     def __call__(self, item, output, attempt):
         attempts = []
+        # Docker has its own capacity and must not hold an AX worker slot.
+        slot = not isinstance(self, DockerLane)
+        if slot and not AX_SLOTS.acquire(timeout=self.workload.deadline):
+            return {"status": "capacity_timeout", "ax_attempts": attempts}
         try:
             done, worker = self._execute_attempt(item, output, attempt, attempts)
+        except CapacityDeadline:
+            return {"status": "capacity_timeout", "ax_attempts": attempts}
         except SandboxFailure:
             return {"status": "sandbox_failure", "ax_attempts": attempts}
+        except RuntimeError:
+            # Teardown did not prove the worker free; retain its reservation.
+            slot = False
+            raise
+        finally:
+            if slot:
+                AX_SLOTS.release()
         if done is None or done.returncode:
             return {"status": "instrument_failure", "ax_attempts": attempts}
         record = json.loads((output / "result.json").read_text())
@@ -165,6 +202,8 @@ class AXLane:
             timeout=max(0.01, timeout),
         )
         if done.returncode:
+            if args[0] == "apply" and "no free workers available" in (done.stdout + done.stderr).lower():
+                raise NoFreeWorkers
             # AX errors may echo manifest URLs; report only verb and exit code.
             raise ValueError(f"ax {args[0]} failed (exit {done.returncode})")
         return done
@@ -194,7 +233,11 @@ class AXLane:
             end = self.clock() + self.workload.deadline
             # An apply timeout can still have created the task; cleanup must cover it.
             submitted = True
-            self.ax("apply", "-f", "-", manifest=document, timeout=min(30, self.workload.deadline))
+            try:
+                apply_when_available(self, document, end)
+            except CapacityDeadline:
+                submitted = False  # All applies were explicitly rejected.
+                raise
             while self.clock() < end:
                 result = bounded_read(lambda: self.store._get(keys[-1]), end - self.clock())
                 if self.clock() >= end:
@@ -225,7 +268,7 @@ class AXLane:
             return None, worker_ip
         except (subprocess.TimeoutExpired, TimeoutError):
             return None, worker_ip
-        except SandboxFailure:
+        except (SandboxFailure, CapacityDeadline):
             raise
         except Exception as exc:
             # Never expose exception strings which may contain object-scoped bearer URLs.
@@ -282,6 +325,7 @@ def manifest(name, workload, item, urls, atespace="default", *, validate_name=Tr
         raise ValueError("unexpected URL environment names")
     # Fixed names and semantic values, never inherited environment or credentials.
     patterns = {
+        "OUSAST_SCRATCH_BYTES": r"[1-9][0-9]*",
         "DEADLINE": r"[0-9]+(?:\.[0-9]+)?",
         "QUESTION_DEADLINE": r"[0-9]+(?:\.[0-9]+)?",
         "SEARCH_STEP": r"reason|explore|verify",
@@ -542,3 +586,103 @@ class DockerLane(AXLane):
                 )
             done.stdout = json.dumps({"metadata": {"name": self._docker_name}, "status": {"phase": phase}})
         return done
+
+
+class SearchExecutorTask:
+    """Host-owned executor lifecycle using the shared AX/presigning transport.
+
+    Supply a bounded tar archive of the checkout. The brain receives only the
+    command PUT/result GET pair; the task receives their opposite permissions.
+    Closing the context deletes the task even after an uncertain command.
+    """
+
+    def __init__(self, lane, checkout_archive, *, deadline=900):
+        if not 0 < deadline <= 3600 or len(checkout_archive) > 128 * 1024**2:
+            raise ValueError("executor task input limit")
+        self.lane, self.archive, self.deadline = lane, checkout_archive, deadline
+        token = uuid.uuid4().hex[:20]
+        self.name = "ousast-engine-search-exec-" + token
+        self.keys = [f"engine-queue/search-exec/{token}/{name}" for name in ("repo.tar", "command.json", "result.json", "prepared.tar.gz")]
+        self.submitted = False
+        self.slot = False
+
+    def __enter__(self):
+        from openultrasast.search.executor import ObjectStoreExecutor
+
+        self.end = time.monotonic() + self.deadline
+        if not AX_SLOTS.acquire(timeout=self.deadline):
+            raise CapacityDeadline
+        self.slot = True
+        expires = timedelta(seconds=self.deadline + 600)
+        store = self.lane.store
+        try:
+            store._put(self.keys[0], self.archive)
+            urls = {
+                "REPO_URL": store.presign_get(self.keys[0], expires),
+                "COMMAND_GET_URL": store.presign_get(self.keys[1], expires),
+                "EXECUTOR_RESULT_PUT_URL": store.presign_put(self.keys[2], expires),
+                "PREPARED_PUT_URL": store.presign_put(self.keys[3], expires),
+            }
+            command_put = store.presign_put(self.keys[1], expires)
+            result_get = store.presign_get(self.keys[2], expires)
+            if any(public_endpoint(url) != self.lane.host for url in [*urls.values(), command_put, result_get]):
+                raise EgressError("executor presign hostname must match store egress policy")
+            work = Workload(self.lane.workload.image, frozenset(urls), self.deadline, None)
+            item = Item(
+                self.name,
+                {},
+                "result.json",
+                (
+                    "python3",
+                    "-m",
+                    "openultrasast.search.executor",
+                    "--repo",
+                    "/workspace/checkout",
+                    "--task-boundary",
+                    "--deadline",
+                    str(self.deadline),
+                ),
+                {},
+                "",
+            )
+            document = manifest(self.name, work, item, urls, self.lane.args.atespace)
+            self.submitted = True
+            try:
+                apply_when_available(self.lane, document, self.end)
+            except CapacityDeadline:
+                self.submitted = False
+                raise
+            self.client = ObjectStoreExecutor(command_put, result_get)
+            return self
+        except Exception:
+            self.__exit__(None, None, None)
+            raise
+
+    def prepare(self, spec):
+        """Return the executor-built single verifier input, checking its digest."""
+        remaining = min(300, self.end - time.monotonic())
+        result = self.client.submit("prepare_verification", spec, timeout_seconds=remaining)
+        if result.get("status") != "ok":
+            raise ValueError(result.get("reason", "could_not_build"))
+        stored = bounded_read(lambda: self.lane.store._get(self.keys[3]), self.end - time.monotonic())
+        if stored is None or hashlib.sha256(stored[0]).hexdigest() != result.get("sha256"):
+            raise ValueError("executor archive missing or digest mismatch")
+        return stored[0]
+
+    def __exit__(self, *exc):
+        errors = []
+        if self.submitted:
+            try:
+                self.lane.ax("delete", "task", self.name)
+            except Exception as error:
+                errors.append(type(error).__name__)
+        for key in self.keys:
+            try:
+                self.lane.store._delete(key)
+            except Exception as error:
+                errors.append(type(error).__name__)
+        if self.slot and not errors:
+            AX_SLOTS.release()
+            self.slot = False
+        if errors:
+            raise RuntimeError("executor cleanup failed: " + ", ".join(errors))

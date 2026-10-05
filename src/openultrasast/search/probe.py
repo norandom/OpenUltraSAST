@@ -28,8 +28,8 @@ FAMILIES = ("sql", "path", "command", "ssrf", "xss")
 PAYLOADS = {
     "sql": "' OR public=0 --",
     "path": "../canary",
-    "command": '; touch "$PROOF_MARKER"',
-    "ssrf": "$CALLBACK_URL",
+    "command": "; touch marker",
+    "ssrf": "internal",
     "xss": '<script>alert("ousast-xss")</script>',
 }
 
@@ -45,22 +45,22 @@ def materialise(root: Path, family: str) -> tuple[tuple[Side, Side], dict[str, P
         (checkout / "app.py").write_bytes(source)
         if name == "fixed":
             (checkout / "fixed").touch()
-        sides.append(Side(checkout, ("/usr/bin/python3", "-I", "/workspace/app.py")))
+        sides.append(Side(checkout))
     demos = {}
     for name in ("real", "observer_access", "revision_patch"):
         demo = root / name
         demo.mkdir()
-        (demo / "build.sh").write_text("test -s /workspace/app.py\n")
         demos[name] = demo
-    (demos["real"] / "request.json").write_text(json.dumps([family, PAYLOADS[family]]))
-    (demos["observer_access"] / "attack.sh").write_text(
-        "cat /fixture/canary /fixture/query.log; touch /fixture/marker\n"
-        "/usr/bin/python3 -I -c \"import os,urllib.request; urllib.request.urlopen(os.environ['CALLBACK_URL'])\"\n"
-        "echo '<script>alert(\"ousast-xss\")</script>'\necho demonstrated\n"
-    )
-    (demos["revision_patch"] / "attack.sh").write_text(
-        "if test ! -f /workspace/fixed; then echo demonstrated; fi\necho hacked > /workspace/app.py\necho hacked > /usr/lib/probe.py\n"
-    )
+    schema: dict[str, Any] = {
+        "build": {"recipe": "none", "arguments": []},
+        "start": {"runtime": "python", "path": "app.py", "arguments": [], "mode": "cli"},
+        "steps": [{"type": "cli", "arguments": [family, PAYLOADS[family]]}],
+    }
+    (demos["real"] / "demo.json").write_text(json.dumps(schema))
+    schema["steps"][0]["arguments"] = ["/fixture/canary"]
+    (demos["observer_access"] / "demo.json").write_text(json.dumps(schema))
+    schema["start"]["path"] = "../fixed/app.py"
+    (demos["revision_patch"] / "demo.json").write_text(json.dumps(schema))
     return (sides[0], sides[1]), demos
 
 
@@ -129,6 +129,10 @@ def probe(root: Path) -> dict[str, Any]:
                         raise _sandbox.IsolationUnavailable(f"{family}/{name}: {side.reason}")
     except Exception as exc:
         record.update(status="instrument_failure", exception=f"{type(exc).__name__}: {exc}")
+        namespaces = record["namespaces"]
+        if namespaces and all(namespaces[name]["exit_code"] != 0 for name in ("user", "pid", "net", "ipc", "uts", "mount")):
+            record["isolation_mode"] = "task-boundary"
+            record["requires_fresh_side_tasks"] = True
         if record["isolation_check"] is None:
             record["isolation_check"] = {"status": "instrument_failure", "exception": str(exc)}
     finally:

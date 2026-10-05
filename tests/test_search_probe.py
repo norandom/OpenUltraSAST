@@ -28,7 +28,7 @@ def test_packaged_pairs_and_three_demos(tmp_path):
         assert len(demos) == 3
         assert all((s.checkout / "app.py").stat().st_size > 0 for s in sides)
         assert (sides[1].checkout / "fixed").exists()
-        assert json.loads((demos["real"] / "request.json").read_text())[0] == family
+        assert json.loads((demos["real"] / "demo.json").read_text())["steps"][0]["arguments"][0] == family
 
 
 def test_batch_workload_and_all_lanes(tmp_path, monkeypatch):

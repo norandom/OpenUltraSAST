@@ -9,6 +9,7 @@ loopback namespace. This is a Linux lane; other hosts fail closed.
 
 from __future__ import annotations
 
+import math
 import os
 import platform
 import resource
@@ -63,7 +64,7 @@ class IsolationUnavailable(RuntimeError):
     """The isolation instrument failed, so no product outcome can be recorded."""
 
 
-def isolation_check(*, timeout_seconds: int = 5) -> None:
+def isolation_check(*, timeout_seconds: float = 5) -> None:
     """Prove a trivial job can read its input through the real sandbox path."""
     try:
         with tempfile.TemporaryDirectory(prefix="isolation-check-") as directory:
@@ -73,8 +74,8 @@ def isolation_check(*, timeout_seconds: int = 5) -> None:
             (root / "probe").write_text("isolation-ready\n")
             scratch = root / "scratch"
             scratch.mkdir()
-            job = SandboxJob("", ("/bin/cat", "/workspace/probe"), root, {}, timeout_seconds, 256, 128)
-            result = run(job, scratch=scratch)
+            job = SandboxJob("", ("/bin/cat", "/workspace/probe"), root, {}, max(1, math.ceil(timeout_seconds)), 256, 128)
+            result = run(job, scratch=scratch, wall_timeout_seconds=timeout_seconds)
     except (OSError, subprocess.SubprocessError) as exc:
         raise IsolationUnavailable(f"sandbox isolation preflight could not start: {exc}") from exc
     if result.exit_code or result.timed_out or result.stdout != "isolation-ready\n":
@@ -108,6 +109,10 @@ def run(
     env: dict[str, str] | None = None,
     namespace_pid: int | None = None,
     scratch_bytes: int | None = None,
+    wall_timeout_seconds: float | None = None,
+    input_text: str = "",
+    network: bool = False,
+    writable_checkout: bool = False,
 ) -> SandboxResult:
     """Run with bounded files, memory, processes, and time; no inherited env."""
 
@@ -129,11 +134,13 @@ def run(
             "--",
             *argv,
         ]
-    argv += [*capability_args(), "--clearenv"]
+    if network and namespace_pid is None:
+        argv += ["--unshare-net"]
+    argv += [*capability_args(), "--clearenv", "--dev", "/dev"]
     for path in ("/usr", "/lib", "/lib64", "/bin"):
         if Path(path).exists():
             argv += ["--ro-bind", path, path]
-    argv += ["--ro-bind", str(job.repo_root), "/workspace"]
+    argv += ["--bind" if writable_checkout else "--ro-bind", str(job.repo_root), "/workspace"]
     if scratch_bytes is None:
         writable_directory(scratch)
         argv += ["--bind", str(scratch), "/scratch"]
@@ -164,7 +171,7 @@ def run(
     for key, value in (env or {}).items():
         argv += ["--setenv", key, value]
     with tempfile.TemporaryFile() as policy, tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
-        policy.write(_filter(namespace_pid is not None))
+        policy.write(_filter(namespace_pid is not None or network))
         policy.seek(0)
         # Apply NPROC after namespace setup and any uid drop. In root mode the
         # dedicated uid shares this process budget across concurrent sandboxes.
@@ -180,6 +187,7 @@ def run(
         ]
         proc = subprocess.Popen(
             argv,
+            stdin=subprocess.PIPE,
             stdout=out,
             stderr=err,
             pass_fds=(policy.fileno(),),
@@ -189,7 +197,10 @@ def run(
         )
         timed_out = False
         try:
-            proc.wait(timeout=job.timeout_seconds)
+            proc.communicate(
+                input=input_text.encode(),
+                timeout=min(job.timeout_seconds, wall_timeout_seconds) if wall_timeout_seconds is not None else job.timeout_seconds,
+            )
         except subprocess.TimeoutExpired:
             timed_out = True
             os.killpg(proc.pid, signal.SIGKILL)

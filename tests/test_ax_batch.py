@@ -175,3 +175,154 @@ def test_search_environment(step):
         it.extra_env = {key: value}
         with pytest.raises(ValueError):
             manifest("ousast-engine-search-1", workload(), it, urls)
+
+
+def test_search_executor_task_links_and_cleanup():
+    from types import SimpleNamespace
+
+    from benchmarks.ax.batch import SearchExecutorTask
+
+    class Store:
+        def __init__(self):
+            self.deleted = []
+            self.uploads = []
+
+        def _put(self, key, data):
+            self.uploads.append((key, data))
+
+        def presign_get(self, key, expires):
+            return "https://files.example/" + key + "?get"
+
+        def presign_put(self, key, expires):
+            return "https://files.example/" + key + "?put"
+
+        def _delete(self, key):
+            self.deleted.append(key)
+
+    calls = []
+    lane = SimpleNamespace(
+        store=Store(),
+        host="files.example",
+        args=SimpleNamespace(atespace="default"),
+        workload=workload(),
+        ax=lambda *a, **kw: calls.append((a, kw)),
+        clock=__import__("time").monotonic,
+        pause=lambda _: None,
+    )
+    with SearchExecutorTask(lane, b"archive", deadline=60) as session:
+        assert session.name.startswith("ousast-engine-search-exec-")
+        assert session.client.command_url.endswith("?put")
+        doc = calls[0][1]["manifest"]
+        assert doc["spec"]["command"][2] == "openultrasast.search.executor"
+        assert {r["name"] for r in doc["spec"]["env"]} == {"COMMAND_GET_URL", "EXECUTOR_RESULT_PUT_URL", "REPO_URL", "PREPARED_PUT_URL"}
+        assert "API_KEY" not in json.dumps(doc)
+    assert calls[-1][0][:2] == ("delete", "task")
+    assert len(lane.store.deleted) == 4
+
+
+def test_capacity_backpressure_retries_same_manifest_until_deadline(tmp_path, monkeypatch):
+    import subprocess
+    from types import SimpleNamespace
+
+    from benchmarks.ax.batch import AXLane
+
+    now, applies, deletes = [0.0], [], []
+
+    class Store:
+        def _put(self, *args):
+            pass
+
+        def _get(self, *args):
+            return (b"{}", None)
+
+        def _delete(self, *args):
+            pass
+
+        def presign_get(self, key, expiry):
+            return "https://files.example/" + key
+
+        presign_put = presign_get
+
+    busy = [True]
+
+    def run(argv, **kwargs):
+        if argv[1] == "apply":
+            applies.append(kwargs["input"])
+            return subprocess.CompletedProcess(argv, 1 if busy[0] else 0, "", "no free workers available secret-url")
+        if argv[1] == "delete":
+            deletes.append(argv)
+        return subprocess.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.setenv("S3_ENDPOINT", "https://files.example")
+    monkeypatch.setattr(subprocess, "run", run)
+
+    def pause(seconds):
+        assert 0 < seconds <= 30
+        now[0] += seconds
+        if now[0] > 30:
+            busy[0] = False
+
+    def validate(data, output):
+        (output / "result.json").write_text('{"status":"ok"}')
+
+    lane = AXLane(
+        SimpleNamespace(ax_bin="ax", kubeconfig=None, atespace="default"),
+        Workload(IMAGE, workload().url_env, 100, validate),
+        Store(),
+        pause=pause,
+        clock=lambda: now[0],
+    )
+    assert lane(item(), tmp_path, 0)["status"] == "ok"
+    assert len(applies) >= 3 and len(set(applies)) == 1
+    assert len(deletes) == 1
+    busy[0] = True
+    lane.pause = lambda seconds: now.__setitem__(0, now[0] + seconds)
+    deletes.clear()
+    result = lane(item(), tmp_path, 1)
+    assert result["status"] == "capacity_timeout"
+    assert not deletes
+    calls = []
+
+    def no_vm(*args):
+        pytest.fail("capacity must not fall back")
+
+    def capacity(*args):
+        calls.append(1)
+        return result
+
+    assert dispatch([item()], workload(), tmp_path / "dispatch", {"ax": capacity, "docker": no_vm}, lanes=("ax", "docker"), overflow=False)
+    assert len(calls) == 1
+
+
+def test_shared_capacity_across_workloads(tmp_path, monkeypatch):
+    import subprocess
+    import threading
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    from types import SimpleNamespace
+
+    from benchmarks.ax.batch import AXLane
+
+    monkeypatch.setenv("S3_ENDPOINT", "https://files.example")
+    active, peak = [0], [0]
+    lock = threading.Lock()
+
+    def execute(item, output, attempt, attempts):
+        with lock:
+            active[0] += 1
+            peak[0] = max(peak[0], active[0])
+        time.sleep(0.02)
+        with lock:
+            active[0] -= 1
+        (output / "result.json").write_text('{"status":"ok"}')
+        return subprocess.CompletedProcess([], 0), None
+
+    lanes = [AXLane(SimpleNamespace(), workload(), object()) for _ in range(6)]
+    paths = [tmp_path / str(i) for i in range(6)]
+    for lane, path in zip(lanes, paths, strict=True):
+        path.mkdir()
+        lane._execute_attempt = execute
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        results = list(pool.map(lambda pair: pair[0](item(), pair[1], 0), zip(lanes, paths, strict=True)))
+    assert all(r["status"] == "ok" for r in results)
+    assert peak[0] == 2

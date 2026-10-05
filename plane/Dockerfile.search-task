@@ -12,13 +12,13 @@ RUN printf 'path-exclude=/usr/share/doc/*\npath-exclude=/usr/share/man/*\npath-e
       > /etc/dpkg/dpkg.cfg.d/01-no-docs \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
-      python3 python3-venv nodejs node-typescript php-cli sqlite3 bubblewrap util-linux chromium git ca-certificates \
+      python3 python3-venv python3-pip nodejs npm node-typescript php-cli composer maven gradle \
+      sqlite3 bubblewrap util-linux chromium git ca-certificates \
  && rm -rf /var/lib/apt/lists/* /opt/java/openjdk/lib/src.zip /opt/java/openjdk/man
 WORKDIR /app
 COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
-# Includes the verifier-owned oracle fixtures and sandbox helpers. The worker
-# protocol is implemented separately (search-with-proof group 5).
+# Includes the verifier-owned recipes, oracles, and key-free executor entrypoints.
 RUN python3 -m venv /venv \
  && /venv/bin/pip install --no-cache-dir . \
  && python3 --version && node --version && tsc --version && php --version \
@@ -27,6 +27,6 @@ RUN python3 -m venv /venv \
 # Dedicated identity for artefacts, apps and Chromium; the verifier keeps root.
 RUN groupadd --gid 10001 search \
  && useradd --create-home --uid 10001 --gid 10001 search
-# gVisor is the outer boundary; inner isolation needs root without user namespaces.
+# gVisor is the outer boundary; retain inner bwrap when its capability probe succeeds.
 USER root
 # Do not replace the AX runner's ENTRYPOINT or CMD.

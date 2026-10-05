@@ -1,7 +1,7 @@
 {
-  "modules": 168,
+  "modules": 172,
   "counts": {
-    "load_bearing": 162,
+    "load_bearing": 166,
     "standalone_capability": 6
   },
   "orphaned": [],
@@ -1567,8 +1567,8 @@
         "regress.safety",
         "regress.verdict",
         "search._sandbox",
-        "search.verify",
-        "search.worker"
+        "search.executor",
+        "search.verify"
       ]
     },
     {
@@ -1613,8 +1613,11 @@
       "reason": "reachable from gate, map_gate, pair_gate, cli",
       "importers": [
         "search.coordinator",
+        "search.executor",
+        "search.oracles",
         "search.probe",
         "search.verify",
+        "search.verify_task",
         "search.worker"
       ]
     },
@@ -1623,6 +1626,8 @@
       "classification": "load_bearing",
       "reason": "reachable from gate, map_gate, pair_gate, cli",
       "importers": [
+        "search.executor",
+        "search.oracles",
         "search.probe",
         "search.verify",
         "search.worker"
@@ -1653,6 +1658,26 @@
       ]
     },
     {
+      "module": "search.demo",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate, cli",
+      "importers": [
+        "search.executor",
+        "search.verify",
+        "search.verify_task",
+        "search.worker"
+      ]
+    },
+    {
+      "module": "search.executor",
+      "classification": "load_bearing",
+      "reason": "python -m openultrasast.search.executor",
+      "importers": [
+        "search.verify_task",
+        "search.worker"
+      ]
+    },
+    {
       "module": "search.oracles",
       "classification": "load_bearing",
       "reason": "python -m openultrasast.search.oracles",
@@ -1668,11 +1693,31 @@
       "importers": []
     },
     {
+      "module": "search.task_storage",
+      "classification": "load_bearing",
+      "reason": "reachable from gate, map_gate, pair_gate, cli",
+      "importers": [
+        "search.executor",
+        "search.verify",
+        "search.verify_task"
+      ]
+    },
+    {
       "module": "search.verify",
       "classification": "load_bearing",
       "reason": "python -m openultrasast.search.verify",
       "importers": [
-        "search.probe"
+        "search.executor",
+        "search.probe",
+        "search.verify_task"
+      ]
+    },
+    {
+      "module": "search.verify_task",
+      "classification": "load_bearing",
+      "reason": "python -m openultrasast.search.verify_task",
+      "importers": [
+        "search.executor"
       ]
     },
     {
