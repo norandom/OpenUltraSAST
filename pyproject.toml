@@ -13,6 +13,7 @@ requires-python = ">=3.11"
 dependencies = ["pyyaml>=6.0"]
 
 [project.optional-dependencies]
+train = ["numpy>=1.26,<3", "scikit-learn>=1.4,<2"]
 # The documentation site (mkdocs.yml, docs/). Mermaid renders client-side through Material's superfences fence.
 docs = [
     "mkdocs>=1.6,<2",
@@ -68,7 +69,7 @@ warn_return_any = true
 warn_unused_configs = true
 
 [[tool.mypy.overrides]]
-module = "tree_sitter"
+module = ["tree_sitter", "sklearn.*", "numpy"]
 ignore_missing_imports = true
 
 # boto3 is an optional extra without inline types, absent in the type-check environment (plane/memory.py imports

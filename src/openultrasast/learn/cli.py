@@ -15,6 +15,17 @@ from typing import Any
 
 
 def add_commands(learn_sub: Any) -> None:
+    train = learn_sub.add_parser("train", help="offline fitted classifiers using cached embeddings")
+    train_sub = train.add_subparsers(dest="train_command", required=True)
+    for command in ("fit-eval", "score"):
+        parser = train_sub.add_parser(command)
+        parser.add_argument("--memory", help="local memory store (or OUSAST_MEMORY)")
+        parser.add_argument("--profile", choices=("static", "plane"), default="static")
+        parser.add_argument("--units", type=Path, default=Path("plane/experiments/exp-005-graph-slice.units.jsonl"))
+        parser.add_argument("--record", type=Path, default=Path("benchmarks/measurements/2026-10-04-trained-classifier/record.json"))
+        parser.add_argument("--resamples", type=int, default=2000)
+        if command == "score":
+            parser.add_argument("--out", type=Path, required=True, help="per-example out-of-fold JSONL")
     memory = learn_sub.add_parser("memory", help="the decision engine's local memory of labelled examples")
     memory_sub = memory.add_subparsers(dest="memory_command", required=True)
     build = memory_sub.add_parser("build", help="label + feature record + excerpt -> example rows (no model)")
@@ -97,6 +108,10 @@ def add_commands(learn_sub: Any) -> None:
 
 
 def run(args: argparse.Namespace) -> int:
+    if args.learn_command == "train":
+        from .trained import run as run_train
+
+        return run_train(args)
     if args.learn_command == "audit-leaks":
         return _audit_leaks(args)
     if args.learn_command == "memory" and args.memory_command == "build":

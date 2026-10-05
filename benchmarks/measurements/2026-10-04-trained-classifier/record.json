@@ -1,0 +1,6126 @@
+{
+  "counts": {
+    "memory": 1635,
+    "units": 501
+  },
+  "exclusions": {
+    "access_control": {
+      "excluded_missing_embedding": 0,
+      "excluded_missing_partner": 0,
+      "excluded_paired_units": 0
+    },
+    "config_secrets": {
+      "excluded_missing_embedding": 0,
+      "excluded_missing_partner": 0,
+      "excluded_paired_units": 0
+    },
+    "deserialization": {
+      "excluded_missing_embedding": 0,
+      "excluded_missing_partner": 0,
+      "excluded_paired_units": 0
+    },
+    "injection": {
+      "excluded_missing_embedding": 0,
+      "excluded_missing_partner": 0,
+      "excluded_paired_units": 0
+    },
+    "memory": {
+      "excluded_missing_embedding": 0,
+      "excluded_missing_partner": 0,
+      "excluded_paired_units": 0
+    },
+    "output_encoding": {
+      "excluded_missing_embedding": 0,
+      "excluded_missing_partner": 0,
+      "excluded_paired_units": 0
+    },
+    "path": {
+      "excluded_missing_embedding": 0,
+      "excluded_missing_partner": 0,
+      "excluded_paired_units": 0
+    },
+    "unknown": {
+      "excluded_missing_embedding": 0,
+      "excluded_missing_partner": 0,
+      "excluded_paired_units": 0
+    },
+    "untrusted_destination": {
+      "excluded_missing_embedding": 0,
+      "excluded_missing_partner": 0,
+      "excluded_paired_units": 0
+    }
+  },
+  "llm": {
+    "folds": {
+      "outer-0": {
+        "examples": 109,
+        "family_floor": {
+          "access_control": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "deserialization": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "injection": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "output_encoding": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "path": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "untrusted_destination": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.8040027605244997,
+        "repositories": 44,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.9666666666666667,
+          "73": 0.6986301369863014
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.7093023255813954
+      },
+      "outer-1": {
+        "examples": 101,
+        "family_floor": {
+          "access_control": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "deserialization": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "injection": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "output_encoding": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "path": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "untrusted_destination": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.8063008130081301,
+        "repositories": 45,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.9333333333333333,
+          "73": 0.726027397260274
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.7368421052631579
+      },
+      "outer-2": {
+        "examples": 93,
+        "family_floor": {
+          "access_control": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "deserialization": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "injection": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "output_encoding": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "path": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "untrusted_destination": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.8613977485928705,
+        "repositories": 43,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.9333333333333333,
+          "73": 0.6712328767123288
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.8289473684210527
+      },
+      "outer-3": {
+        "examples": 100,
+        "family_floor": {
+          "access_control": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "deserialization": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "injection": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "output_encoding": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "path": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "untrusted_destination": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.7377804487179487,
+        "repositories": 44,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.9,
+          "73": 0.6027397260273972
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.7236842105263158
+      },
+      "outer-4": {
+        "examples": 98,
+        "family_floor": {
+          "access_control": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "deserialization": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "injection": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "output_encoding": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "path": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "untrusted_destination": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.8658588435374149,
+        "repositories": 44,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.9666666666666667,
+          "73": 0.6986301369863014
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.8157894736842105
+      }
+    },
+    "overall": {
+      "examples": 501,
+      "family_floor": {
+        "access_control": {
+          "errors": 0,
+          "flagged": 0,
+          "floor": 10,
+          "may_block": false
+        },
+        "deserialization": {
+          "errors": 0,
+          "flagged": 0,
+          "floor": 10,
+          "may_block": false
+        },
+        "injection": {
+          "errors": 0,
+          "flagged": 0,
+          "floor": 10,
+          "may_block": false
+        },
+        "output_encoding": {
+          "errors": 0,
+          "flagged": 0,
+          "floor": 10,
+          "may_block": false
+        },
+        "path": {
+          "errors": 0,
+          "flagged": 0,
+          "floor": 10,
+          "may_block": false
+        },
+        "untrusted_destination": {
+          "errors": 0,
+          "flagged": 0,
+          "floor": 10,
+          "may_block": false
+        }
+      },
+      "held_out_block_flags": 0,
+      "held_out_block_wilson_lower": 0.0,
+      "pooled_auc": 0.8150792621648782,
+      "repositories": 220,
+      "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+      "top_k_precision": {
+        "10": 1.0,
+        "30": 1.0,
+        "73": 0.9863013698630136
+      },
+      "wilson_flagged": 0,
+      "wilson_lower": 0.0,
+      "wilson_threshold": null,
+      "within_pair_auc": 0.7615384615384615
+    },
+    "pooled_gates": {
+      "outer-0": {
+        "normalised_training_rows": 304,
+        "t_block": null,
+        "t_quiet": {
+          "access_control": 0.44900641988143924,
+          "deserialization": 0.17507194490500488,
+          "injection": 0.287983504097999,
+          "output_encoding": 0.37231665877269016,
+          "path": 0.4680507207548809,
+          "untrusted_destination": 0.13676746287025587
+        },
+        "training_rows": 304
+      },
+      "outer-1": {
+        "normalised_training_rows": 314,
+        "t_block": null,
+        "t_quiet": {
+          "access_control": 0.3723384028044276,
+          "deserialization": 0.22766488322270725,
+          "injection": 0.17524866355153348,
+          "output_encoding": 0.5329072757249385,
+          "path": 0.3955717127313657,
+          "untrusted_destination": 0.1125577570398056
+        },
+        "training_rows": 314
+      },
+      "outer-2": {
+        "normalised_training_rows": 314,
+        "t_block": null,
+        "t_quiet": {
+          "access_control": 0.4202772526614184,
+          "deserialization": 0.2163745870743959,
+          "injection": 0.12918182665453967,
+          "output_encoding": 0.3785066578507705,
+          "path": 0.43694703358760895,
+          "untrusted_destination": 0.13763698150768486
+        },
+        "training_rows": 314
+      },
+      "outer-3": {
+        "normalised_training_rows": 314,
+        "t_block": null,
+        "t_quiet": {
+          "access_control": 0.44818497097977483,
+          "deserialization": 0.31122018788935973,
+          "injection": 0.14521040470628938,
+          "output_encoding": 0.43890118448486015,
+          "path": 0.4450583743716199,
+          "untrusted_destination": 0.09787938647374635
+        },
+        "training_rows": 314
+      },
+      "outer-4": {
+        "normalised_training_rows": 314,
+        "t_block": null,
+        "t_quiet": {
+          "access_control": 0.36346174463707154,
+          "deserialization": 0.363243722721776,
+          "injection": 0.23005714687697673,
+          "output_encoding": 0.43855966643440264,
+          "path": 0.46396657833309796,
+          "untrusted_destination": 0.13763698150768486
+        },
+        "training_rows": 314
+      }
+    }
+  },
+  "models": {
+    "hist_gradient_boosting:access_control": {
+      "folds": {
+        "outer-0": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "03f819a61d6b10373fc4f7b90bc5d53f7cd6fdbc76788200cb5c85fbaafe0373",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6157495256166983,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.6127450980392157,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.6325110689437066,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 14,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6770833333333334,
+            "repositories": 8,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.5,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.5833333333333334
+          },
+          "parameter": 10.0,
+          "pooled_gate": {
+            "normalised_training_rows": 102,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.4384305019124534
+            },
+            "training_rows": 102
+          },
+          "status": "ok",
+          "training_examples": 113,
+          "training_repositories_by_label": [
+            51,
+            61
+          ]
+        },
+        "outer-1": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "88d1995d18fabfbf3a7c273f099b28c6b5b055fd2c5101bf1709666e3055438e",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6307716635041113,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.6200189753320683,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.6277672359266288,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 14,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6354166666666666,
+            "repositories": 8,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.5833333333333334
+          },
+          "parameter": 0.0,
+          "pooled_gate": {
+            "normalised_training_rows": 102,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.40995374940595886
+            },
+            "training_rows": 102
+          },
+          "status": "ok",
+          "training_examples": 113,
+          "training_repositories_by_label": [
+            51,
+            61
+          ]
+        },
+        "outer-2": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "1f5bd62e03e1855a27a833f41d9607264a1ddc4f813fa9bde16db422acbe15a1",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.609088079676315,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.6139122315592904,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.6237161531279178,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 13,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.8809523809523809,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.8333333333333334
+          },
+          "parameter": 10.0,
+          "pooled_gate": {
+            "normalised_training_rows": 102,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.4688519552405712
+            },
+            "training_rows": 102
+          },
+          "status": "ok",
+          "training_examples": 114,
+          "training_repositories_by_label": [
+            51,
+            62
+          ]
+        },
+        "outer-3": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "b49fab221f92cb469b89d00dc09d9ce30abaff51eda0c445ba6e9b5a82a49088",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5950682382133995,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.6008064516129032,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.6367866004962779,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 13,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.7125,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.7
+          },
+          "parameter": 10.0,
+          "pooled_gate": {
+            "normalised_training_rows": 104,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.40892425152706113
+            },
+            "training_rows": 104
+          },
+          "status": "ok",
+          "training_examples": 114,
+          "training_repositories_by_label": [
+            52,
+            62
+          ]
+        },
+        "outer-4": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "b6ce49268207af4c9934f4d270f4219a7539be30c4168758c4ae967b0c3ee1cc",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6036324786324786,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.6173687423687424,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.6303418803418803,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 12,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.8,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 1.0
+          },
+          "parameter": 10.0,
+          "pooled_gate": {
+            "normalised_training_rows": 104,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.4489813908709326
+            },
+            "training_rows": 104
+          },
+          "status": "ok",
+          "training_examples": 115,
+          "training_repositories_by_label": [
+            52,
+            62
+          ]
+        }
+      },
+      "llm_same_units": {
+        "examples": 66,
+        "family_floor": {
+          "access_control": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.875,
+        "repositories": 37,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.8666666666666667,
+          "73": null
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.8035714285714286
+      },
+      "overall": {
+        "examples": 66,
+        "family_floor": {
+          "access_control": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.6997180451127819,
+        "repositories": 37,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 0.9,
+          "30": 0.7666666666666667,
+          "73": null
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.7321428571428571
+      },
+      "trained_minus_llm": {
+        "a": 0.8035714285714286,
+        "b": 0.7321428571428571,
+        "ci": [
+          -0.2407407407407408,
+          0.10344827586206895
+        ],
+        "diff": -0.07142857142857151,
+        "groups": 37,
+        "metric": "within_pair_auc",
+        "resamples": 2000,
+        "se": 0.08673833484374362,
+        "units": 66
+      }
+    },
+    "hist_gradient_boosting:deserialization": {
+      "folds": {
+        "outer-0": {
+          "dropped_signals": [
+            "facts.function_lines",
+            "qr.max_precision_estimate",
+            "qr.mechanism.source_reaches_sink"
+          ],
+          "fit_digest": "01045d8b670d6496f1e0571f7937f66b625079ac658737bade45357a8231d3c4",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6672008547008547,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.6602564102564102,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.6423611111111112,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 14,
+            "family_floor": {
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.7666666666666667,
+            "repositories": 9,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.9
+          },
+          "parameter": 0.0,
+          "pooled_gate": {
+            "normalised_training_rows": 72,
+            "t_block": null,
+            "t_quiet": {
+              "deserialization": 0.3901329003752802
+            },
+            "training_rows": 72
+          },
+          "status": "ok",
+          "training_examples": 88,
+          "training_repositories_by_label": [
+            36,
+            52
+          ]
+        },
+        "outer-1": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "416c132101feefcf12104f24c61a2c1acda060e7529d2e8c81f27ba51cdef94e",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6786858974358975,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.6730769230769231,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.6482371794871795,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 14,
+            "family_floor": {
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.7333333333333333,
+            "repositories": 9,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.4
+          },
+          "parameter": 0.0,
+          "pooled_gate": {
+            "normalised_training_rows": 72,
+            "t_block": null,
+            "t_quiet": {
+              "deserialization": 0.4338219763897268
+            },
+            "training_rows": 72
+          },
+          "status": "ok",
+          "training_examples": 88,
+          "training_repositories_by_label": [
+            36,
+            52
+          ]
+        },
+        "outer-2": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "56a2d1fe9da0582fb866b8fe011c39519aa00f2d7a8124189ac0bdf00bb6a758",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.7065329218106996,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.7008744855967078,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.6628086419753086,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 12,
+            "family_floor": {
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.7,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.7
+          },
+          "parameter": 0.0,
+          "pooled_gate": {
+            "normalised_training_rows": 72,
+            "t_block": null,
+            "t_quiet": {
+              "deserialization": 0.42387674485634685
+            },
+            "training_rows": 72
+          },
+          "status": "ok",
+          "training_examples": 90,
+          "training_repositories_by_label": [
+            36,
+            54
+          ]
+        },
+        "outer-3": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "9aa7ed4fc3b8458050e25589b826b89f514f58ffe009aafb9f073026aed35538",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6610082304526749,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.6638374485596708,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.6352880658436214,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 12,
+            "family_floor": {
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6571428571428571,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.6
+          },
+          "parameter": 1.0,
+          "pooled_gate": {
+            "normalised_training_rows": 72,
+            "t_block": null,
+            "t_quiet": {
+              "deserialization": 0.483437298626043
+            },
+            "training_rows": 72
+          },
+          "status": "ok",
+          "training_examples": 90,
+          "training_repositories_by_label": [
+            36,
+            54
+          ]
+        },
+        "outer-4": {
+          "dropped_signals": [
+            "facts.function_lines",
+            "qr.max_precision_estimate",
+            "qr.mechanism.source_reaches_sink"
+          ],
+          "fit_digest": "b61977668709e33b9eab4b326a1e7c801d76f9fa4f8d5da6a0cc5f4144ebc954",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.665380658436214,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.6612654320987654,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.6597222222222222,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 12,
+            "family_floor": {
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.7,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.9
+          },
+          "parameter": 0.0,
+          "pooled_gate": {
+            "normalised_training_rows": 72,
+            "t_block": null,
+            "t_quiet": {
+              "deserialization": 0.4725639703974486
+            },
+            "training_rows": 72
+          },
+          "status": "ok",
+          "training_examples": 90,
+          "training_repositories_by_label": [
+            36,
+            54
+          ]
+        }
+      },
+      "llm_same_units": {
+        "examples": 64,
+        "family_floor": {
+          "deserialization": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.8533333333333334,
+        "repositories": 39,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.9333333333333333,
+          "73": null
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.8
+      },
+      "overall": {
+        "examples": 64,
+        "family_floor": {
+          "deserialization": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.7051282051282052,
+        "repositories": 39,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.7333333333333333,
+          "73": null
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.7
+      },
+      "trained_minus_llm": {
+        "a": 0.8,
+        "b": 0.7,
+        "ci": [
+          -0.2931034482758621,
+          0.09259259259259267
+        ],
+        "diff": -0.10000000000000009,
+        "groups": 39,
+        "metric": "within_pair_auc",
+        "resamples": 2000,
+        "se": 0.09815302102270565,
+        "units": 64
+      }
+    },
+    "hist_gradient_boosting:injection": {
+      "folds": {
+        "outer-0": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "d0fb4a5d04c4ee99928d243c998b051daa2803b22314ed73d517b742c633f150",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5239507299270073,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.5104356751824818,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.5234945255474452,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 38,
+            "family_floor": {
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6055555555555555,
+            "repositories": 9,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": 0.5333333333333333,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.6666666666666666
+          },
+          "parameter": 0.0,
+          "pooled_gate": {
+            "normalised_training_rows": 216,
+            "t_block": null,
+            "t_quiet": {
+              "injection": 0.4852017630159543
+            },
+            "training_rows": 216
+          },
+          "status": "ok",
+          "training_examples": 265,
+          "training_repositories_by_label": [
+            101,
+            111
+          ]
+        },
+        "outer-1": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "fefc78a3a2091ca7e10239863ec6170bba442aeba5703748d8e36bcc1da90023",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5409653858367736,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.5446702656928125,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.526198793267704,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 28,
+            "family_floor": {
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.5182291666666666,
+            "repositories": 9,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.6111111111111112
+          },
+          "parameter": 1.0,
+          "pooled_gate": {
+            "normalised_training_rows": 228,
+            "t_block": null,
+            "t_quiet": {
+              "injection": 0.4660979619769194
+            },
+            "training_rows": 228
+          },
+          "status": "ok",
+          "training_examples": 275,
+          "training_repositories_by_label": [
+            101,
+            111
+          ]
+        },
+        "outer-2": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "4af9df86447464dd19b37f7a4a33b39fd3062c634486bc0eb1b01c4dce212b6d",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5172413793103449,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.5422099169393405,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.5531839919456331,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 21,
+            "family_floor": {
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.49537037037037035,
+            "repositories": 9,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.5,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.3125
+          },
+          "parameter": 10.0,
+          "pooled_gate": {
+            "normalised_training_rows": 230,
+            "t_block": null,
+            "t_quiet": {
+              "injection": 0.4532475088074553
+            },
+            "training_rows": 230
+          },
+          "status": "ok",
+          "training_examples": 282,
+          "training_repositories_by_label": [
+            101,
+            111
+          ]
+        },
+        "outer-3": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "8a4d9ce0a748bc7fbbed6e028ca02653ce0c48e1723718124875fc23a5153261",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5095284237726099,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.5489610249784669,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.536498708010336,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 30,
+            "family_floor": {
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.41855203619909503,
+            "repositories": 11,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.3,
+              "30": 0.43333333333333335,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.45
+          },
+          "parameter": 1.0,
+          "pooled_gate": {
+            "normalised_training_rows": 226,
+            "t_block": null,
+            "t_quiet": {
+              "injection": 0.49361071676481955
+            },
+            "training_rows": 226
+          },
+          "status": "ok",
+          "training_examples": 273,
+          "training_repositories_by_label": [
+            101,
+            109
+          ]
+        },
+        "outer-4": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "de0ac255725991621d74655dc127bf99d115f55fa7a6cdc5ae70019e5a287897",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.549618320610687,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.5190294438386042,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.4747546346782988,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 32,
+            "family_floor": {
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.47843137254901963,
+            "repositories": 11,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": 0.5333333333333333,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.2727272727272727
+          },
+          "parameter": 0.0,
+          "pooled_gate": {
+            "normalised_training_rows": 224,
+            "t_block": null,
+            "t_quiet": {
+              "injection": 0.4691493251591564
+            },
+            "training_rows": 224
+          },
+          "status": "ok",
+          "training_examples": 271,
+          "training_repositories_by_label": [
+            100,
+            109
+          ]
+        }
+      },
+      "llm_same_units": {
+        "examples": 149,
+        "family_floor": {
+          "injection": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.7410617551462622,
+        "repositories": 49,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.9,
+          "73": 0.7397260273972602
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.7264150943396226
+      },
+      "overall": {
+        "examples": 149,
+        "family_floor": {
+          "injection": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.5094799566630552,
+        "repositories": 49,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 0.7,
+          "30": 0.5666666666666667,
+          "73": 0.5068493150684932
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.4811320754716981
+      },
+      "trained_minus_llm": {
+        "a": 0.7264150943396226,
+        "b": 0.4811320754716981,
+        "ci": [
+          -0.4565217391304348,
+          -0.0625
+        ],
+        "diff": -0.24528301886792447,
+        "groups": 49,
+        "metric": "within_pair_auc",
+        "resamples": 2000,
+        "se": 0.09946081421133704,
+        "units": 149
+      }
+    },
+    "hist_gradient_boosting:output_encoding": {
+      "folds": {
+        "outer-0": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "05ce046979b9daaa9f932607257a68c00807767bc6b736e2b4c4d7f77630d042",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5815602836879432,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.5696636925188744,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.5542438801189659,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 12,
+            "family_floor": {
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6571428571428571,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.6
+          },
+          "parameter": 0.0,
+          "pooled_gate": {
+            "normalised_training_rows": 282,
+            "t_block": null,
+            "t_quiet": {
+              "output_encoding": 0.4449818645617723
+            },
+            "training_rows": 282
+          },
+          "status": "ok",
+          "training_examples": 296,
+          "training_repositories_by_label": [
+            102,
+            114
+          ]
+        },
+        "outer-1": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "02095b433c78ba133ba631331a2e45523ec33f481e412ec199fcacd97b245ffd",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5836936090225564,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.6094454887218045,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.5982612781954887,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 16,
+            "family_floor": {
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.7166666666666667,
+            "repositories": 9,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.5
+          },
+          "parameter": 1.0,
+          "pooled_gate": {
+            "normalised_training_rows": 280,
+            "t_block": null,
+            "t_quiet": {
+              "output_encoding": 0.4448925441917174
+            },
+            "training_rows": 280
+          },
+          "status": "ok",
+          "training_examples": 292,
+          "training_repositories_by_label": [
+            101,
+            112
+          ]
+        },
+        "outer-2": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "958fbed220c027cfaf77b1c4e579812f9664de60146f08f374d3732f46439485",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6089285714285714,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.5956400742115028,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.6221243042671614,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 14,
+            "family_floor": {
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6770833333333334,
+            "repositories": 8,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.75
+          },
+          "parameter": 10.0,
+          "pooled_gate": {
+            "normalised_training_rows": 280,
+            "t_block": null,
+            "t_quiet": {
+              "output_encoding": 0.4017026835249264
+            },
+            "training_rows": 280
+          },
+          "status": "ok",
+          "training_examples": 294,
+          "training_repositories_by_label": [
+            101,
+            113
+          ]
+        },
+        "outer-3": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "fa508799fb4dcf5420cd427e93555280b6afa1c2da17cef72ef9b1dc629b51db",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6230414746543779,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.6014746543778802,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.57463133640553,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 13,
+            "family_floor": {
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.5595238095238095,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.5,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.4166666666666667
+          },
+          "parameter": 0.0,
+          "pooled_gate": {
+            "normalised_training_rows": 280,
+            "t_block": null,
+            "t_quiet": {
+              "output_encoding": 0.4303775489029996
+            },
+            "training_rows": 280
+          },
+          "status": "ok",
+          "training_examples": 295,
+          "training_repositories_by_label": [
+            101,
+            114
+          ]
+        },
+        "outer-4": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "433d0297013506514f09cf5a6e67c215644fb4ba5c07bfd99ffaa6f58bc5571c",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6056181337783341,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.5766930885829509,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.577967830158068,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 14,
+            "family_floor": {
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.8222222222222222,
+            "repositories": 8,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.8
+          },
+          "parameter": 0.0,
+          "pooled_gate": {
+            "normalised_training_rows": 282,
+            "t_block": null,
+            "t_quiet": {
+              "output_encoding": 0.45008536889550355
+            },
+            "training_rows": 282
+          },
+          "status": "ok",
+          "training_examples": 294,
+          "training_repositories_by_label": [
+            102,
+            113
+          ]
+        }
+      },
+      "llm_same_units": {
+        "examples": 69,
+        "family_floor": {
+          "output_encoding": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.8471254355400697,
+        "repositories": 39,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.8333333333333334,
+          "73": null
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.75
+      },
+      "overall": {
+        "examples": 69,
+        "family_floor": {
+          "output_encoding": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.6794425087108014,
+        "repositories": 39,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.7,
+          "73": null
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.6071428571428571
+      },
+      "trained_minus_llm": {
+        "a": 0.75,
+        "b": 0.6071428571428571,
+        "ci": [
+          -0.3461538461538461,
+          0.08333333333333337
+        ],
+        "diff": -0.1428571428571429,
+        "groups": 39,
+        "metric": "within_pair_auc",
+        "resamples": 2000,
+        "se": 0.10787383006709668,
+        "units": 69
+      }
+    },
+    "hist_gradient_boosting:path": {
+      "folds": {
+        "outer-0": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "032ea9e9719486eab1a559380c010365f3c412681d8949598b3caa53d0d5325f",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.570538706074405,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.5793453045794312,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.5469112466706761,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 14,
+            "family_floor": {
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.7083333333333334,
+            "repositories": 8,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.8333333333333334
+          },
+          "parameter": 1.0,
+          "pooled_gate": {
+            "normalised_training_rows": 206,
+            "t_block": null,
+            "t_quiet": {
+              "path": 0.4560025156316426
+            },
+            "training_rows": 206
+          },
+          "status": "ok",
+          "training_examples": 216,
+          "training_repositories_by_label": [
+            103,
+            113
+          ]
+        },
+        "outer-1": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "029a9951994dcadc2bac5a2971d4a3b5cd0085e20e3889b6d5aa86f3b7b896e4",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5800326488529942,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.5746198126986855,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.5780135750494029,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 14,
+            "family_floor": {
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.7395833333333334,
+            "repositories": 8,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.75
+          },
+          "parameter": 0.0,
+          "pooled_gate": {
+            "normalised_training_rows": 206,
+            "t_block": null,
+            "t_quiet": {
+              "path": 0.45723940507827854
+            },
+            "training_rows": 206
+          },
+          "status": "ok",
+          "training_examples": 216,
+          "training_repositories_by_label": [
+            103,
+            113
+          ]
+        },
+        "outer-2": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "93bcd0d44c835b204cb20531dcb7e0d54959ad40c6b3175ebf938b28e9040953",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5739288124156545,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.5721575573549258,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.5832068151147098,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 12,
+            "family_floor": {
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.5857142857142857,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.7
+          },
+          "parameter": 10.0,
+          "pooled_gate": {
+            "normalised_training_rows": 208,
+            "t_block": null,
+            "t_quiet": {
+              "path": 0.45351514289071604
+            },
+            "training_rows": 208
+          },
+          "status": "ok",
+          "training_examples": 218,
+          "training_repositories_by_label": [
+            104,
+            114
+          ]
+        },
+        "outer-3": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "007801df1534bbde91d58e5e2538383a870b0adc51cfa839c845a9731950f259",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5844404701073072,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.5829075114971896,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.5789047862374382,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 13,
+            "family_floor": {
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6428571428571429,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.6666666666666666
+          },
+          "parameter": 0.0,
+          "pooled_gate": {
+            "normalised_training_rows": 206,
+            "t_block": null,
+            "t_quiet": {
+              "path": 0.4584726626263104
+            },
+            "training_rows": 206
+          },
+          "status": "ok",
+          "training_examples": 217,
+          "training_repositories_by_label": [
+            103,
+            114
+          ]
+        },
+        "outer-4": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "e876d71fea23497126c48289a67522070efb0fa4976e65c33a2d1f7d0dbf4cc3",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5571878725941066,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.5537812979049566,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.5907852154658491,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 13,
+            "family_floor": {
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.7142857142857143,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.6666666666666666
+          },
+          "parameter": 10.0,
+          "pooled_gate": {
+            "normalised_training_rows": 206,
+            "t_block": null,
+            "t_quiet": {
+              "path": 0.4499984761921062
+            },
+            "training_rows": 206
+          },
+          "status": "ok",
+          "training_examples": 217,
+          "training_repositories_by_label": [
+            103,
+            114
+          ]
+        }
+      },
+      "llm_same_units": {
+        "examples": 66,
+        "family_floor": {
+          "path": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.8942218080149115,
+        "repositories": 37,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.9,
+          "73": null
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.9137931034482759
+      },
+      "overall": {
+        "examples": 66,
+        "family_floor": {
+          "path": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.6663560111835974,
+        "repositories": 37,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 0.9,
+          "30": 0.6666666666666666,
+          "73": null
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.7241379310344828
+      },
+      "trained_minus_llm": {
+        "a": 0.9137931034482759,
+        "b": 0.7241379310344828,
+        "ci": [
+          -0.35,
+          -0.044117647058823595
+        ],
+        "diff": -0.18965517241379315,
+        "groups": 37,
+        "metric": "within_pair_auc",
+        "resamples": 2000,
+        "se": 0.07838144504851194,
+        "units": 66
+      }
+    },
+    "hist_gradient_boosting:pooled": {
+      "folds": {
+        "outer-0": {
+          "dropped_signals": [
+            "facts.function_lines",
+            "qr.max_precision_estimate",
+            "qr.mechanism.source_reaches_sink"
+          ],
+          "fit_digest": "5901e28a0c768275c7486f33fdf52d544f98fdaa2fd3f2059b10b0702f914612",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5757607871519161,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.573949717397298,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.5754755996691481,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 109,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.661663216011042,
+            "repositories": 44,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 1.0,
+              "30": 0.8333333333333334,
+              "73": 0.6164383561643836
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.5232558139534884
+          },
+          "parameter": 0.0,
+          "pooled_gate": {
+            "normalised_training_rows": 1006,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.4353479011822478,
+              "config_secrets": null,
+              "deserialization": 0.4388950670790757,
+              "injection": 0.48903760804307633,
+              "memory": null,
+              "output_encoding": 0.49572645930909753,
+              "path": 0.4392558543382424,
+              "unknown": null,
+              "untrusted_destination": 0.4454489142303463
+            },
+            "training_rows": 1292
+          },
+          "status": "ok",
+          "training_examples": 1526,
+          "training_repositories_by_label": [
+            461,
+            507
+          ]
+        },
+        "outer-1": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "fe980825b2bd16003cdeddc8ad087c483598ff7a5b6c33255282f487a8316270",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5737922509696944,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.5654319935211628,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.5890780444141341,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 101,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6914634146341463,
+            "repositories": 45,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 1.0,
+              "30": 0.8333333333333334,
+              "73": 0.6575342465753424
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.7368421052631579
+          },
+          "parameter": 10.0,
+          "pooled_gate": {
+            "normalised_training_rows": 1016,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.4170306075922848,
+              "config_secrets": null,
+              "deserialization": 0.3897868312216529,
+              "injection": 0.47519958711627686,
+              "memory": null,
+              "output_encoding": 0.48691713439301193,
+              "path": 0.43129778881746683,
+              "unknown": null,
+              "untrusted_destination": 0.4457856220297393
+            },
+            "training_rows": 1302
+          },
+          "status": "ok",
+          "training_examples": 1534,
+          "training_repositories_by_label": [
+            460,
+            506
+          ]
+        },
+        "outer-2": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "60eed676e1fcd01d00f2b126fb176fe765fce8374e5574f7f87389e48c1838a1",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5651449795298189,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.5717553707846199,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.5814569704132022,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 93,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6648686679174484,
+            "repositories": 43,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 1.0,
+              "30": 0.7666666666666667,
+              "73": 0.6027397260273972
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.6973684210526315
+          },
+          "parameter": 10.0,
+          "pooled_gate": {
+            "normalised_training_rows": 1016,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.4738565609006854,
+              "config_secrets": null,
+              "deserialization": 0.45289716768008687,
+              "injection": 0.45736699638270156,
+              "memory": null,
+              "output_encoding": 0.4870004008269536,
+              "path": 0.4465974571166479,
+              "unknown": null,
+              "untrusted_destination": 0.45082919377558617
+            },
+            "training_rows": 1302
+          },
+          "status": "ok",
+          "training_examples": 1542,
+          "training_repositories_by_label": [
+            460,
+            508
+          ]
+        },
+        "outer-3": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "24f4888941b7fcc269fd104bb250c7ab881b7090d21a6dd3a24b92542d79fb68",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5707768682605054,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.577322829263291,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.5829904130423638,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 100,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6133814102564102,
+            "repositories": 44,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.9,
+              "30": 0.6333333333333333,
+              "73": 0.547945205479452
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.5
+          },
+          "parameter": 10.0,
+          "pooled_gate": {
+            "normalised_training_rows": 1016,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.46284798659080584,
+              "config_secrets": null,
+              "deserialization": 0.42758553124729903,
+              "injection": 0.4554173333545401,
+              "memory": null,
+              "output_encoding": 0.47603104061725154,
+              "path": 0.46241328899927775,
+              "unknown": null,
+              "untrusted_destination": 0.42335873100828286
+            },
+            "training_rows": 1302
+          },
+          "status": "ok",
+          "training_examples": 1533,
+          "training_repositories_by_label": [
+            461,
+            507
+          ]
+        },
+        "outer-4": {
+          "dropped_signals": [
+            "facts.function_lines",
+            "qr.max_precision_estimate",
+            "qr.mechanism.source_reaches_sink"
+          ],
+          "fit_digest": "b24c6f2b3a0ec99796bfc60eb626fcc7f8d469e7d8929221b7911b42c81a9bee",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5944995536157127,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.5923730284693979,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.6032499256026188,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 98,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6502976190476191,
+            "repositories": 44,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 1.0,
+              "30": 0.7333333333333333,
+              "73": 0.6027397260273972
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.5394736842105263
+          },
+          "parameter": 10.0,
+          "pooled_gate": {
+            "normalised_training_rows": 1016,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.43471615345687625,
+              "config_secrets": null,
+              "deserialization": 0.35914868862008764,
+              "injection": 0.45255983369446656,
+              "memory": null,
+              "output_encoding": 0.4588825088680414,
+              "path": 0.44481487013657506,
+              "unknown": null,
+              "untrusted_destination": 0.43637244605750886
+            },
+            "training_rows": 1104
+          },
+          "status": "ok",
+          "training_examples": 1273,
+          "training_repositories_by_label": [
+            461,
+            507
+          ]
+        }
+      },
+      "llm_same_units": {
+        "examples": 501,
+        "family_floor": {
+          "access_control": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "deserialization": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "injection": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "output_encoding": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "path": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "untrusted_destination": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.8150792621648782,
+        "repositories": 220,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 1.0,
+          "73": 0.9863013698630136
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.7615384615384615
+      },
+      "overall": {
+        "examples": 501,
+        "family_floor": {
+          "access_control": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "deserialization": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "injection": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "output_encoding": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "path": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "untrusted_destination": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.6551771647161798,
+        "repositories": 220,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 1.0,
+          "73": 0.9452054794520548
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.5974358974358974
+      },
+      "trained_minus_llm": {
+        "a": 0.7615384615384615,
+        "b": 0.5974358974358974,
+        "ci": [
+          -0.24175824175824173,
+          -0.09090909090909094
+        ],
+        "diff": -0.16410256410256407,
+        "groups": 220,
+        "metric": "within_pair_auc",
+        "resamples": 2000,
+        "se": 0.03891036659533667,
+        "units": 501
+      }
+    },
+    "hist_gradient_boosting:untrusted_destination": {
+      "folds": {
+        "outer-0": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "321224ad668cfddb41b236b11c6f3a0f4328a9fcd31d93267521a5fd66a8bea3",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6092975808802098,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.6162926260565433,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.6170212765957447,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 17,
+            "family_floor": {
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.7727272727272727,
+            "repositories": 11,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.8,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.3333333333333333
+          },
+          "parameter": 10.0,
+          "pooled_gate": {
+            "normalised_training_rows": 128,
+            "t_block": null,
+            "t_quiet": {
+              "untrusted_destination": 0.4658772647256761
+            },
+            "training_rows": 128
+          },
+          "status": "ok",
+          "training_examples": 167,
+          "training_repositories_by_label": [
+            62,
+            84
+          ]
+        },
+        "outer-1": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "b560a8166687c6a2588ea6b78561c6e7c98ef0af4f2ebc52cb9058862c45d876",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6679509132420092,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.6655251141552512,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.651541095890411,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 15,
+            "family_floor": {
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6388888888888888,
+            "repositories": 9,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.4166666666666667
+          },
+          "parameter": 0.0,
+          "pooled_gate": {
+            "normalised_training_rows": 128,
+            "t_block": null,
+            "t_quiet": {
+              "untrusted_destination": 0.47486351925011927
+            },
+            "training_rows": 128
+          },
+          "status": "ok",
+          "training_examples": 169,
+          "training_repositories_by_label": [
+            62,
+            86
+          ]
+        },
+        "outer-2": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "b30b1d21ff7baad8457582b4c7244beb935851844326751b671a72575f7c650b",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6282762873882208,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.6440795559666975,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.6563367252543941,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 21,
+            "family_floor": {
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.7045454545454546,
+            "repositories": 10,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.6875
+          },
+          "parameter": 10.0,
+          "pooled_gate": {
+            "normalised_training_rows": 124,
+            "t_block": null,
+            "t_quiet": {
+              "untrusted_destination": 0.4672702492286491
+            },
+            "training_rows": 124
+          },
+          "status": "ok",
+          "training_examples": 163,
+          "training_repositories_by_label": [
+            61,
+            85
+          ]
+        },
+        "outer-3": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "9cc161479e7104fcfb9548fd7951d3c8ab66e32766c16ddd4a512edf5ab611be",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6278195488721805,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.6124812030075188,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.6409774436090225,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 19,
+            "family_floor": {
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.5888888888888889,
+            "repositories": 10,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.5,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.3333333333333333
+          },
+          "parameter": 10.0,
+          "pooled_gate": {
+            "normalised_training_rows": 128,
+            "t_block": null,
+            "t_quiet": {
+              "untrusted_destination": 0.46307703014702706
+            },
+            "training_rows": 128
+          },
+          "status": "ok",
+          "training_examples": 165,
+          "training_repositories_by_label": [
+            62,
+            85
+          ]
+        },
+        "outer-4": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "6ef48df848243a6ab27e7692feabd65736a0838ab81edc16bd9d7b530a6ffb5a",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6132277397260274,
+              "parameter": 0.0
+            },
+            {
+              "inner_pooled_auc": 0.6252853881278538,
+              "parameter": 1.0
+            },
+            {
+              "inner_pooled_auc": 0.6319206621004566,
+              "parameter": 10.0
+            }
+          ],
+          "metrics": {
+            "examples": 15,
+            "family_floor": {
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6388888888888888,
+            "repositories": 9,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.4166666666666667
+          },
+          "parameter": 10.0,
+          "pooled_gate": {
+            "normalised_training_rows": 128,
+            "t_block": null,
+            "t_quiet": {
+              "untrusted_destination": 0.4718138925875842
+            },
+            "training_rows": 128
+          },
+          "status": "ok",
+          "training_examples": 169,
+          "training_repositories_by_label": [
+            62,
+            86
+          ]
+        }
+      },
+      "llm_same_units": {
+        "examples": 87,
+        "family_floor": {
+          "untrusted_destination": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.8067567567567567,
+        "repositories": 49,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.9333333333333333,
+          "73": 0.6164383561643836
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.625
+      },
+      "overall": {
+        "examples": 87,
+        "family_floor": {
+          "untrusted_destination": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.677027027027027,
+        "repositories": 49,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.8333333333333334,
+          "73": 0.6027397260273972
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.453125
+      },
+      "trained_minus_llm": {
+        "a": 0.625,
+        "b": 0.453125,
+        "ci": [
+          -0.375,
+          0.017241379310344807
+        ],
+        "diff": -0.171875,
+        "groups": 49,
+        "metric": "within_pair_auc",
+        "resamples": 2000,
+        "se": 0.10152428704844241,
+        "units": 87
+      }
+    },
+    "logistic:access_control": {
+      "folds": {
+        "outer-0": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "c5df8890bc4905995a1578cdf5f005e38943e3d2e157687f4d6db3326df44fe5",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.676944971537002,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.6604996837444655,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.6307716635041113,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 14,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.75,
+            "repositories": 8,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 1.0
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 102,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.4169556990710927
+            },
+            "training_rows": 102
+          },
+          "status": "ok",
+          "training_examples": 113,
+          "training_repositories_by_label": [
+            51,
+            61
+          ]
+        },
+        "outer-1": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "2e6706c49662463a4872d05361beacf9880a76d7d7f424b66aee06394358dc78",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.689595192915876,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.66808981657179,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.644370651486401,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 14,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.8125,
+            "repositories": 8,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.8333333333333334
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 102,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.42394789669040917
+            },
+            "training_rows": 102
+          },
+          "status": "ok",
+          "training_examples": 113,
+          "training_repositories_by_label": [
+            51,
+            61
+          ]
+        },
+        "outer-2": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "fe2ed999d152a8361347f1b833e65a18e13f3af8e574d50f0e251f4d8cca0cdb",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6658885776532836,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.6453470276999689,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.6117335823218176,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 13,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.8095238095238095,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 1.0
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 102,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.4380474500921758
+            },
+            "training_rows": 102
+          },
+          "status": "ok",
+          "training_examples": 114,
+          "training_repositories_by_label": [
+            51,
+            62
+          ]
+        },
+        "outer-3": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "5dd441dea6a39f1e19573fe86bd4c9b0ac2d58e63463caa5111f4ee33aa25527",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6642369727047146,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.6397332506203474,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.6000310173697271,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 13,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.775,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.8,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.8
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 104,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.4048279670062595
+            },
+            "training_rows": 104
+          },
+          "status": "ok",
+          "training_examples": 114,
+          "training_repositories_by_label": [
+            52,
+            62
+          ]
+        },
+        "outer-4": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "e98b8b26df0fe2d580062e8c729091e44197a8873963df610c28838e3975d14c",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6659035409035409,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.6463675213675214,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.6222527472527473,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 12,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.8285714285714286,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.8
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 104,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.4173437364011827
+            },
+            "training_rows": 104
+          },
+          "status": "ok",
+          "training_examples": 115,
+          "training_repositories_by_label": [
+            52,
+            62
+          ]
+        }
+      },
+      "llm_same_units": {
+        "examples": 66,
+        "family_floor": {
+          "access_control": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.875,
+        "repositories": 37,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.8666666666666667,
+          "73": null
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.8035714285714286
+      },
+      "overall": {
+        "examples": 66,
+        "family_floor": {
+          "access_control": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.7697368421052632,
+        "repositories": 37,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.8,
+          "73": null
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.8928571428571429
+      },
+      "trained_minus_llm": {
+        "a": 0.8035714285714286,
+        "b": 0.8928571428571429,
+        "ci": [
+          -0.08620689655172409,
+          0.26
+        ],
+        "diff": 0.0892857142857143,
+        "groups": 37,
+        "metric": "within_pair_auc",
+        "resamples": 2000,
+        "se": 0.08653142024772778,
+        "units": 66
+      }
+    },
+    "logistic:deserialization": {
+      "folds": {
+        "outer-0": {
+          "dropped_signals": [
+            "facts.function_lines",
+            "qr.max_precision_estimate",
+            "qr.mechanism.source_reaches_sink"
+          ],
+          "fit_digest": "dc3ba234dd41726f7d4a0b821f7dbd227ad9239f45477d17705e1470d9255985",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.7219551282051282,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.7005876068376068,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.6637286324786325,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 14,
+            "family_floor": {
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.7222222222222222,
+            "repositories": 9,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.7
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 72,
+            "t_block": null,
+            "t_quiet": {
+              "deserialization": 0.41405086879038017
+            },
+            "training_rows": 72
+          },
+          "status": "ok",
+          "training_examples": 88,
+          "training_repositories_by_label": [
+            36,
+            52
+          ]
+        },
+        "outer-1": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "30f7c2f6854e917edced7d99bdd70e19d1a9e5171a428d750105f5d638a00521",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.7142094017094017,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.7094017094017094,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.6891025641025641,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 14,
+            "family_floor": {
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.8222222222222222,
+            "repositories": 9,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.8
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 72,
+            "t_block": null,
+            "t_quiet": {
+              "deserialization": 0.37814964894899916
+            },
+            "training_rows": 72
+          },
+          "status": "ok",
+          "training_examples": 88,
+          "training_repositories_by_label": [
+            36,
+            52
+          ]
+        },
+        "outer-2": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "e6d5db6a2dd032f224d34157a3004f13f6c61d1dc517aba4b92cee7c200876b7",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.7327674897119342,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.7157921810699589,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.6977880658436214,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 12,
+            "family_floor": {
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.7857142857142857,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.9
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 72,
+            "t_block": null,
+            "t_quiet": {
+              "deserialization": 0.4163945086916304
+            },
+            "training_rows": 72
+          },
+          "status": "ok",
+          "training_examples": 90,
+          "training_repositories_by_label": [
+            36,
+            54
+          ]
+        },
+        "outer-3": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "068fcc03a81c1e9207b161f79c9971acfd8a6a25aeb518e2078281831fb63fa3",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.7227366255144033,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.691358024691358,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.6414609053497943,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 12,
+            "family_floor": {
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.8,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.8
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 72,
+            "t_block": null,
+            "t_quiet": {
+              "deserialization": 0.3992493592394386
+            },
+            "training_rows": 72
+          },
+          "status": "ok",
+          "training_examples": 90,
+          "training_repositories_by_label": [
+            36,
+            54
+          ]
+        },
+        "outer-4": {
+          "dropped_signals": [
+            "facts.function_lines",
+            "qr.max_precision_estimate",
+            "qr.mechanism.source_reaches_sink"
+          ],
+          "fit_digest": "5bea84e0c65aab0dc285cb3ea77e1f9f14b77258d1d248a9a1ff324f837cfaef",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.7319958847736625,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.7247942386831275,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.6846707818930041,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 12,
+            "family_floor": {
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6857142857142857,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.6
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 72,
+            "t_block": null,
+            "t_quiet": {
+              "deserialization": 0.37979892962084666
+            },
+            "training_rows": 72
+          },
+          "status": "ok",
+          "training_examples": 90,
+          "training_repositories_by_label": [
+            36,
+            54
+          ]
+        }
+      },
+      "llm_same_units": {
+        "examples": 64,
+        "family_floor": {
+          "deserialization": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.8533333333333334,
+        "repositories": 39,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.9333333333333333,
+          "73": null
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.8
+      },
+      "overall": {
+        "examples": 64,
+        "family_floor": {
+          "deserialization": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.7302564102564103,
+        "repositories": 39,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.7666666666666667,
+          "73": null
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.76
+      },
+      "trained_minus_llm": {
+        "a": 0.8,
+        "b": 0.76,
+        "ci": [
+          -0.24137931034482762,
+          0.16666666666666663
+        ],
+        "diff": -0.040000000000000036,
+        "groups": 39,
+        "metric": "within_pair_auc",
+        "resamples": 2000,
+        "se": 0.10282378920191929,
+        "units": 64
+      }
+    },
+    "logistic:injection": {
+      "folds": {
+        "outer-0": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "a34a3e16243ce509eeb0165b93f50a39339ecacec2beb7bcf8809d303c46f223",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5775832572992701,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.5730212135036497,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.5745038777372263,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 38,
+            "family_floor": {
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.5722222222222222,
+            "repositories": 9,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": 0.5333333333333333,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.5333333333333333
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 216,
+            "t_block": null,
+            "t_quiet": {
+              "injection": 0.4604926648940777
+            },
+            "training_rows": 216
+          },
+          "status": "ok",
+          "training_examples": 265,
+          "training_repositories_by_label": [
+            101,
+            111
+          ]
+        },
+        "outer-1": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "c1d77796ca8ca3c538f8a3e363d545859860aac4b539926c1b9e4ef220e3b923",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5728538160262517,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.5839684555943686,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.5915899227267916,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 28,
+            "family_floor": {
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.4505208333333333,
+            "repositories": 9,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.4,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.6111111111111112
+          },
+          "parameter": 1.0,
+          "pooled_gate": {
+            "normalised_training_rows": 228,
+            "t_block": null,
+            "t_quiet": {
+              "injection": 0.42887111534306743
+            },
+            "training_rows": 228
+          },
+          "status": "ok",
+          "training_examples": 275,
+          "training_repositories_by_label": [
+            101,
+            111
+          ]
+        },
+        "outer-2": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "6cb0c85e5bb4bfd753bc9779f68d7cdd20bc25247e269f385e820f4561e79c90",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5857538384092625,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.590485779008306,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.5916939340548704,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 21,
+            "family_floor": {
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.5879629629629629,
+            "repositories": 9,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.8125
+          },
+          "parameter": 1.0,
+          "pooled_gate": {
+            "normalised_training_rows": 230,
+            "t_block": null,
+            "t_quiet": {
+              "injection": 0.4054770755329594
+            },
+            "training_rows": 230
+          },
+          "status": "ok",
+          "training_examples": 282,
+          "training_repositories_by_label": [
+            101,
+            111
+          ]
+        },
+        "outer-3": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "4e44cb9351a8b241642de6d50a54d3f57784de0ccc9f4c2df19e77d5cefd0591",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5834948320413437,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.5559862187769165,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.549526270456503,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 30,
+            "family_floor": {
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.5950226244343891,
+            "repositories": 11,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": 0.43333333333333335,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.75
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 226,
+            "t_block": null,
+            "t_quiet": {
+              "injection": 0.4577871103041072
+            },
+            "training_rows": 226
+          },
+          "status": "ok",
+          "training_examples": 273,
+          "training_repositories_by_label": [
+            101,
+            109
+          ]
+        },
+        "outer-4": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "036cc328879cb2dfdf7a59f67c16c8c08e150bd5e99cf15cda120caec8479152",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5632224645583425,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.5639585605234461,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.5637404580152672,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 32,
+            "family_floor": {
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.5764705882352941,
+            "repositories": 11,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": 0.5333333333333333,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.6363636363636364
+          },
+          "parameter": 0.1,
+          "pooled_gate": {
+            "normalised_training_rows": 224,
+            "t_block": null,
+            "t_quiet": {
+              "injection": 0.43306229190964785
+            },
+            "training_rows": 224
+          },
+          "status": "ok",
+          "training_examples": 271,
+          "training_repositories_by_label": [
+            100,
+            109
+          ]
+        }
+      },
+      "llm_same_units": {
+        "examples": 149,
+        "family_floor": {
+          "injection": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.7410617551462622,
+        "repositories": 49,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.9,
+          "73": 0.7397260273972602
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.7264150943396226
+      },
+      "overall": {
+        "examples": 149,
+        "family_floor": {
+          "injection": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.5257313109425785,
+        "repositories": 49,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 0.6,
+          "30": 0.5333333333333333,
+          "73": 0.5616438356164384
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.6509433962264151
+      },
+      "trained_minus_llm": {
+        "a": 0.7264150943396226,
+        "b": 0.6509433962264151,
+        "ci": [
+          -0.19512195121951215,
+          0.031746031746031744
+        ],
+        "diff": -0.07547169811320753,
+        "groups": 49,
+        "metric": "within_pair_auc",
+        "resamples": 2000,
+        "se": 0.05758891926137436,
+        "units": 149
+      }
+    },
+    "logistic:output_encoding": {
+      "folds": {
+        "outer-0": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "b2e4bdafe643941ee3b76a8f82ad6cb32bec6ae1709feef8b1b37953dc8b369a",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6323724548158316,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.6029055136124457,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.5827728208647907,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 12,
+            "family_floor": {
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.7142857142857143,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.8
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 282,
+            "t_block": null,
+            "t_quiet": {
+              "output_encoding": 0.42458742550931433
+            },
+            "training_rows": 282
+          },
+          "status": "ok",
+          "training_examples": 296,
+          "training_repositories_by_label": [
+            102,
+            114
+          ]
+        },
+        "outer-1": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "6d10d0dddd14f5c9a1bdc6b2dbd7915d0e17363fab5f0b1d5357214411f103b0",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6357612781954888,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.6114191729323308,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.5966165413533835,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 16,
+            "family_floor": {
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.7666666666666667,
+            "repositories": 9,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.8333333333333334
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 280,
+            "t_block": null,
+            "t_quiet": {
+              "output_encoding": 0.4057683865032526
+            },
+            "training_rows": 280
+          },
+          "status": "ok",
+          "training_examples": 292,
+          "training_repositories_by_label": [
+            101,
+            112
+          ]
+        },
+        "outer-2": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "7ce96e3bf3188003a8ecc1ac87671efe76d54759ba417c37be2c3b200dad006e",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6331632653061224,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.6096011131725417,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.5857606679035251,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 14,
+            "family_floor": {
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.71875,
+            "repositories": 8,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.75
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 280,
+            "t_block": null,
+            "t_quiet": {
+              "output_encoding": 0.4020298485103713
+            },
+            "training_rows": 280
+          },
+          "status": "ok",
+          "training_examples": 294,
+          "training_repositories_by_label": [
+            101,
+            113
+          ]
+        },
+        "outer-3": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "76020fcc68ca515945b33df6be5ce539fa5a9c33781908cf422419c4735238cf",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6312672811059907,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.6134331797235023,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.6043087557603687,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 13,
+            "family_floor": {
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6071428571428571,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.75
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 280,
+            "t_block": null,
+            "t_quiet": {
+              "output_encoding": 0.4435079888883763
+            },
+            "training_rows": 280
+          },
+          "status": "ok",
+          "training_examples": 295,
+          "training_repositories_by_label": [
+            101,
+            114
+          ]
+        },
+        "outer-4": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "7265c041b12dd20a87ec936651e28eb8627c31a64e13780f0e26b163b60d5841",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6188059148009085,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.5943772307977565,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.570690214620127,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 14,
+            "family_floor": {
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.8222222222222222,
+            "repositories": 8,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.8
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 282,
+            "t_block": null,
+            "t_quiet": {
+              "output_encoding": 0.45264035673245867
+            },
+            "training_rows": 282
+          },
+          "status": "ok",
+          "training_examples": 294,
+          "training_repositories_by_label": [
+            102,
+            113
+          ]
+        }
+      },
+      "llm_same_units": {
+        "examples": 69,
+        "family_floor": {
+          "output_encoding": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.8471254355400697,
+        "repositories": 39,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.8333333333333334,
+          "73": null
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.75
+      },
+      "overall": {
+        "examples": 69,
+        "family_floor": {
+          "output_encoding": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.6994773519163763,
+        "repositories": 39,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.7333333333333333,
+          "73": null
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.7857142857142857
+      },
+      "trained_minus_llm": {
+        "a": 0.75,
+        "b": 0.7857142857142857,
+        "ci": [
+          -0.13461538461538458,
+          0.22916666666666663
+        ],
+        "diff": 0.0357142857142857,
+        "groups": 39,
+        "metric": "within_pair_auc",
+        "resamples": 2000,
+        "se": 0.09088253442784447,
+        "units": 69
+      }
+    },
+    "logistic:path": {
+      "folds": {
+        "outer-0": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "0742530735b8db960df02635546e6629726a2c1faadd1f06aad296ad803f3c0e",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6102757968897672,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.6058080591116075,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.5920611736403472,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 14,
+            "family_floor": {
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.7291666666666666,
+            "repositories": 8,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.8333333333333334
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 206,
+            "t_block": null,
+            "t_quiet": {
+              "path": 0.4248395070436222
+            },
+            "training_rows": 206
+          },
+          "status": "ok",
+          "training_examples": 216,
+          "training_repositories_by_label": [
+            103,
+            113
+          ]
+        },
+        "outer-1": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "f08e36411bda89bfb9e1d387e2078e07cc76038ae5a3485dfaae3ac59cda7d49",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6227768708651946,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.6128103788985308,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.6013832803505456,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 14,
+            "family_floor": {
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.78125,
+            "repositories": 8,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.9166666666666666
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 206,
+            "t_block": null,
+            "t_quiet": {
+              "path": 0.4192865573648309
+            },
+            "training_rows": 206
+          },
+          "status": "ok",
+          "training_examples": 216,
+          "training_repositories_by_label": [
+            103,
+            113
+          ]
+        },
+        "outer-2": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "dc2dadf9a6b15d2b0226817cc2ea8ef26ce5000801aa38aaf24d287f5b6870a3",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6202344804318488,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.618421052631579,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.6029014844804319,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 12,
+            "family_floor": {
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.7571428571428571,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.9
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 208,
+            "t_block": null,
+            "t_quiet": {
+              "path": 0.4186367956056442
+            },
+            "training_rows": 208
+          },
+          "status": "ok",
+          "training_examples": 218,
+          "training_repositories_by_label": [
+            104,
+            114
+          ]
+        },
+        "outer-3": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "f10d2936ce8e4c014093a9087c880734714bcab2ebe3881bda75380e90c492ed",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6321750979390223,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.6283427014137285,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.6077329245443707,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 13,
+            "family_floor": {
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6428571428571429,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.6,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.6666666666666666
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 206,
+            "t_block": null,
+            "t_quiet": {
+              "path": 0.40799850841924395
+            },
+            "training_rows": 206
+          },
+          "status": "ok",
+          "training_examples": 217,
+          "training_repositories_by_label": [
+            103,
+            114
+          ]
+        },
+        "outer-4": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "b3724bdd78b0222c8f6cd2221e7b86a793acdca6586ccdfaa27876b2652ee5dd",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6163345256344746,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.6058593084653381,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.5862715040027252,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 13,
+            "family_floor": {
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.7619047619047619,
+            "repositories": 7,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.8333333333333334
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 206,
+            "t_block": null,
+            "t_quiet": {
+              "path": 0.4348639910869384
+            },
+            "training_rows": 206
+          },
+          "status": "ok",
+          "training_examples": 217,
+          "training_repositories_by_label": [
+            103,
+            114
+          ]
+        }
+      },
+      "llm_same_units": {
+        "examples": 66,
+        "family_floor": {
+          "path": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.8942218080149115,
+        "repositories": 37,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.9,
+          "73": null
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.9137931034482759
+      },
+      "overall": {
+        "examples": 66,
+        "family_floor": {
+          "path": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.7194780987884436,
+        "repositories": 37,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.7333333333333333,
+          "73": null
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.8275862068965517
+      },
+      "trained_minus_llm": {
+        "a": 0.9137931034482759,
+        "b": 0.8275862068965517,
+        "ci": [
+          -0.25,
+          0.0535714285714286
+        ],
+        "diff": -0.0862068965517242,
+        "groups": 37,
+        "metric": "within_pair_auc",
+        "resamples": 2000,
+        "se": 0.07821273820254256,
+        "units": 66
+      }
+    },
+    "logistic:pooled": {
+      "folds": {
+        "outer-0": {
+          "dropped_signals": [
+            "facts.function_lines",
+            "qr.max_precision_estimate",
+            "qr.mechanism.source_reaches_sink"
+          ],
+          "fit_digest": "c2c72e2ddf4afd99d3924a984486260117caa23585cd9ae3951c07dcf0793b20",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.602356458505652,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.5971007375241246,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.5879471670802316,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 109,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.7051414768806074,
+            "repositories": 44,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 1.0,
+              "30": 0.8333333333333334,
+              "73": 0.6575342465753424
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.7790697674418605
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 1006,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.42952832943455727,
+              "config_secrets": null,
+              "deserialization": 0.30566401227581186,
+              "injection": 0.4547944935147936,
+              "memory": null,
+              "output_encoding": 0.3639086301678291,
+              "path": 0.40235658000047386,
+              "unknown": null,
+              "untrusted_destination": 0.42822442759640345
+            },
+            "training_rows": 1292
+          },
+          "status": "ok",
+          "training_examples": 1526,
+          "training_repositories_by_label": [
+            461,
+            507
+          ]
+        },
+        "outer-1": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "04b95a2496afb4766699f52a8b1aa9e9f7f1315189bcd328ff56a34618cb238c",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5955952431695154,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.5868513703593197,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.5737385448190614,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 101,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6979674796747968,
+            "repositories": 45,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 1.0,
+              "30": 0.8,
+              "73": 0.6575342465753424
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.8157894736842105
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 1016,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.43644940265988824,
+              "config_secrets": null,
+              "deserialization": 0.3689348857669152,
+              "injection": 0.4487152314958179,
+              "memory": null,
+              "output_encoding": 0.4058888487591295,
+              "path": 0.41323772786592833,
+              "unknown": null,
+              "untrusted_destination": 0.42499068115297417
+            },
+            "training_rows": 1302
+          },
+          "status": "ok",
+          "training_examples": 1534,
+          "training_repositories_by_label": [
+            460,
+            506
+          ]
+        },
+        "outer-2": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "bd9ab07f8c74cae26fa6528cfbca232ec6f8cbc7f41bcd1434c989584f282469",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.5973815050858904,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.5920423753851348,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.5820191617777403,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 93,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6695590994371482,
+            "repositories": 43,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 1.0,
+              "30": 0.7666666666666667,
+              "73": 0.589041095890411
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.6710526315789473
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 1016,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.41589902478069857,
+              "config_secrets": null,
+              "deserialization": 0.3891510919767563,
+              "injection": 0.4148320030684092,
+              "memory": null,
+              "output_encoding": 0.44926749108245595,
+              "path": 0.39916047248533143,
+              "unknown": null,
+              "untrusted_destination": 0.4236712274638217
+            },
+            "training_rows": 1302
+          },
+          "status": "ok",
+          "training_examples": 1542,
+          "training_repositories_by_label": [
+            460,
+            508
+          ]
+        },
+        "outer-3": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "965407b805dc055f4082f1c44e24d3bc777b7d01e87915f115b2fd02e67f9b30",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.602955551378232,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.5941615257104773,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.5824119486644906,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 100,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6402243589743589,
+            "repositories": 44,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 1.0,
+              "30": 0.7,
+              "73": 0.5753424657534246
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.6578947368421053
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 1016,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.4326000977787502,
+              "config_secrets": null,
+              "deserialization": 0.4010491535480932,
+              "injection": 0.45213602028700445,
+              "memory": null,
+              "output_encoding": 0.41902165356528553,
+              "path": 0.4088824325671346,
+              "unknown": null,
+              "untrusted_destination": 0.41176728061401013
+            },
+            "training_rows": 1302
+          },
+          "status": "ok",
+          "training_examples": 1533,
+          "training_repositories_by_label": [
+            461,
+            507
+          ]
+        },
+        "outer-4": {
+          "dropped_signals": [
+            "facts.function_lines",
+            "qr.max_precision_estimate",
+            "qr.mechanism.source_reaches_sink"
+          ],
+          "fit_digest": "6f6d7246fe0d0923dd405d44102eec05e954012f50c4be0614c574b34b9ecdcf",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.614428132129749,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.6055078861224085,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.5870226168038885,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 98,
+            "family_floor": {
+              "access_control": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "deserialization": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "injection": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "output_encoding": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "path": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              },
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6936649659863946,
+            "repositories": 44,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 1.0,
+              "30": 0.8,
+              "73": 0.6301369863013698
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.6710526315789473
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 1016,
+            "t_block": null,
+            "t_quiet": {
+              "access_control": 0.3972934072232132,
+              "config_secrets": null,
+              "deserialization": 0.33868490420461206,
+              "injection": 0.4309212150126537,
+              "memory": null,
+              "output_encoding": 0.4507171816082846,
+              "path": 0.43033166019849795,
+              "unknown": null,
+              "untrusted_destination": 0.4370876734960534
+            },
+            "training_rows": 1104
+          },
+          "status": "ok",
+          "training_examples": 1273,
+          "training_repositories_by_label": [
+            461,
+            507
+          ]
+        }
+      },
+      "llm_same_units": {
+        "examples": 501,
+        "family_floor": {
+          "access_control": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "deserialization": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "injection": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "output_encoding": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "path": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "untrusted_destination": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.8150792621648782,
+        "repositories": 220,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 1.0,
+          "73": 0.9863013698630136
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.7615384615384615
+      },
+      "overall": {
+        "examples": 501,
+        "family_floor": {
+          "access_control": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "deserialization": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "injection": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "output_encoding": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "path": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          },
+          "untrusted_destination": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.6812574966771485,
+        "repositories": 220,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 1.0,
+          "73": 0.9178082191780822
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.7205128205128205
+      },
+      "trained_minus_llm": {
+        "a": 0.7615384615384615,
+        "b": 0.7205128205128205,
+        "ci": [
+          -0.115979381443299,
+          0.03155339805825241
+        ],
+        "diff": -0.04102564102564099,
+        "groups": 220,
+        "metric": "within_pair_auc",
+        "resamples": 2000,
+        "se": 0.03704776901806469,
+        "units": 501
+      }
+    },
+    "logistic:untrusted_destination": {
+      "folds": {
+        "outer-0": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "3d7ebeb1674e97ccb6bfc73b99dfbcccc5dfa3160e1d4a5b35a94fa60d5ed2ca",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.670285631011367,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.6759691052171378,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.6506120664529291,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 17,
+            "family_floor": {
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.803030303030303,
+            "repositories": 11,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.8,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.8333333333333334
+          },
+          "parameter": 0.1,
+          "pooled_gate": {
+            "normalised_training_rows": 128,
+            "t_block": null,
+            "t_quiet": {
+              "untrusted_destination": 0.4199446209800435
+            },
+            "training_rows": 128
+          },
+          "status": "ok",
+          "training_examples": 167,
+          "training_repositories_by_label": [
+            62,
+            84
+          ]
+        },
+        "outer-1": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "9e04878d6707f7627793aea02749f275d2921f5189fd0fdbf1a6aec56d6d57fc",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.7081906392694064,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.6966324200913242,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.670519406392694,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 15,
+            "family_floor": {
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6851851851851852,
+            "repositories": 9,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.6666666666666666
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 128,
+            "t_block": null,
+            "t_quiet": {
+              "untrusted_destination": 0.4237033026797511
+            },
+            "training_rows": 128
+          },
+          "status": "ok",
+          "training_examples": 169,
+          "training_repositories_by_label": [
+            62,
+            86
+          ]
+        },
+        "outer-2": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "4cc320ec9b82bb14c349ef9e7a6cbf24d0cc0b99b0e60b1b3c23232497f63cec",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.7039777983348752,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.6945729263028061,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.6743755781683626,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 21,
+            "family_floor": {
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.75,
+            "repositories": 10,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.9375
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 124,
+            "t_block": null,
+            "t_quiet": {
+              "untrusted_destination": 0.43805205923588636
+            },
+            "training_rows": 124
+          },
+          "status": "ok",
+          "training_examples": 163,
+          "training_repositories_by_label": [
+            61,
+            85
+          ]
+        },
+        "outer-3": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "b0eedc98249a79735dafb133119a76177a907e98111844e48987927bb59d359b",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.6966165413533835,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.684436090225564,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.6489473684210526,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 19,
+            "family_floor": {
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6777777777777778,
+            "repositories": 10,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.3333333333333333
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 128,
+            "t_block": null,
+            "t_quiet": {
+              "untrusted_destination": 0.42076687878735813
+            },
+            "training_rows": 128
+          },
+          "status": "ok",
+          "training_examples": 165,
+          "training_repositories_by_label": [
+            62,
+            85
+          ]
+        },
+        "outer-4": {
+          "dropped_signals": [
+            "facts.function_lines"
+          ],
+          "fit_digest": "cd1cd5ca8d0caa10ac7126ad3887f24c9c1f41de5d0206aec9b092777a4121e7",
+          "inner_trials": [
+            {
+              "inner_pooled_auc": 0.680365296803653,
+              "parameter": 0.01
+            },
+            {
+              "inner_pooled_auc": 0.6787956621004566,
+              "parameter": 0.1
+            },
+            {
+              "inner_pooled_auc": 0.651398401826484,
+              "parameter": 1.0
+            }
+          ],
+          "metrics": {
+            "examples": 15,
+            "family_floor": {
+              "untrusted_destination": {
+                "errors": 0,
+                "flagged": 0,
+                "floor": 10,
+                "may_block": false
+              }
+            },
+            "held_out_block_flags": 0,
+            "held_out_block_wilson_lower": 0.0,
+            "pooled_auc": 0.6759259259259259,
+            "repositories": 9,
+            "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+            "top_k_precision": {
+              "10": 0.7,
+              "30": null,
+              "73": null
+            },
+            "wilson_flagged": 0,
+            "wilson_lower": 0.0,
+            "wilson_threshold": null,
+            "within_pair_auc": 0.5833333333333334
+          },
+          "parameter": 0.01,
+          "pooled_gate": {
+            "normalised_training_rows": 128,
+            "t_block": null,
+            "t_quiet": {
+              "untrusted_destination": 0.4198096953627348
+            },
+            "training_rows": 128
+          },
+          "status": "ok",
+          "training_examples": 169,
+          "training_repositories_by_label": [
+            62,
+            86
+          ]
+        }
+      },
+      "llm_same_units": {
+        "examples": 87,
+        "family_floor": {
+          "untrusted_destination": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.8067567567567567,
+        "repositories": 49,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 1.0,
+          "30": 0.9333333333333333,
+          "73": 0.6164383561643836
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.625
+      },
+      "overall": {
+        "examples": 87,
+        "family_floor": {
+          "untrusted_destination": {
+            "errors": 0,
+            "flagged": 0,
+            "floor": 10,
+            "may_block": false
+          }
+        },
+        "held_out_block_flags": 0,
+        "held_out_block_wilson_lower": 0.0,
+        "pooled_auc": 0.6994594594594594,
+        "repositories": 49,
+        "threshold_check": "descriptive held-out capacity only; not an adopted operating point",
+        "top_k_precision": {
+          "10": 0.9,
+          "30": 0.8,
+          "73": 0.6164383561643836
+        },
+        "wilson_flagged": 0,
+        "wilson_lower": 0.0,
+        "wilson_threshold": null,
+        "within_pair_auc": 0.6875
+      },
+      "trained_minus_llm": {
+        "a": 0.625,
+        "b": 0.6875,
+        "ci": [
+          -0.125,
+          0.25
+        ],
+        "diff": 0.0625,
+        "groups": 49,
+        "metric": "within_pair_auc",
+        "resamples": 2000,
+        "se": 0.09705425953274233,
+        "units": 87
+      }
+    }
+  },
+  "status": "evaluated",
+  "units_sha256": "240a44e1ca640cc1481a16abd598e645d310cc068d975b6c81821e2ea5951201"
+}
