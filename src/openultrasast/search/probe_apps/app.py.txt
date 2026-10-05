@@ -31,3 +31,6 @@ elif family == "command":
 elif family == "ssrf":
     if not fixed:
         print(urllib.request.urlopen(os.path.expandvars(payload), timeout=2).read())
+elif family == "xss":
+    import html
+    print(html.escape(payload) if fixed else payload)

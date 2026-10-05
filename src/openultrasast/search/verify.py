@@ -19,8 +19,10 @@ import shutil
 import stat
 import tempfile
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 from ..sandbox import SandboxJob
 from . import _sandbox
@@ -55,6 +57,10 @@ class SideRecord:
     runs: tuple[RunObservation, ...]
     elapsed_seconds: float
     reason: str
+    build_seconds: float = 0.0
+    ready_seconds: float = 0.0
+    run_seconds: float = 0.0
+    scratch_peak_bytes: int = 0
 
 
 @dataclass(frozen=True)
@@ -102,9 +108,25 @@ def _requests(scratch: Path, demo: Path) -> list[list[str]]:
 def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExecutor | None) -> SideRecord:
     started = time.monotonic()
     observations: list[RunObservation] = []
+    timings = dict(build=0.0, ready=0.0, run=0.0)
+
+    disk_peak = 0
+    root: Path | None = None
+
+    def timed(stage: str, operation: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+        nonlocal disk_peak
+        tick = time.monotonic()
+        try:
+            return operation(*args, **kwargs)
+        finally:
+            timings[stage] += time.monotonic() - tick
+            if root is not None:
+                disk_peak = max(disk_peak, sum(p.lstat().st_blocks * 512 for p in root.rglob("*")))
 
     def record(outcome: str, reason: str) -> SideRecord:
-        return SideRecord(outcome, tuple(observations), time.monotonic() - started, reason)
+        return SideRecord(
+            outcome, tuple(observations), time.monotonic() - started, reason, timings["build"], timings["ready"], timings["run"], disk_peak
+        )
 
     try:
         originals = (side.checkout, *side.dependencies, demo)
@@ -126,16 +148,18 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                 products = root / "products"
                 products.mkdir()
                 if side.build_command:
-                    compiled = _sandbox.run(job(side.build_command), scratch=products, mounts=mounts)
+                    compiled = timed("build", _sandbox.run, job(side.build_command), scratch=products, mounts=mounts)
                     if compiled.exit_code or compiled.timed_out:
                         return record("could_not_build", "trusted build failed: " + compiled.stderr[:300])
                 product_hash = _tree(products)
                 mounts["/build"] = products
                 build_scratch = root / "build"
                 build_scratch.mkdir()
-                built = _sandbox.run(job(("/bin/sh", "/demo/build.sh")), scratch=build_scratch, mounts={**mounts, "/demo": artefact})
+                built = timed(
+                    "build", _sandbox.run, job(("/bin/sh", "/demo/build.sh")), scratch=build_scratch, mounts={**mounts, "/demo": artefact}
+                )
                 if built.exit_code or built.timed_out:
-                        return record("could_not_build", "build failed: " + built.stderr[:300])
+                    return record("could_not_build", "build failed: " + built.stderr[:300])
                 if tuple(_tree(p) for p in immutable) != before or _tree(products) != product_hash:
                     return record("inconclusive", "build changed immutable inputs")
 
@@ -147,7 +171,9 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                     app_scratch = canary.root if family == "command" else root / "app"
                     app_scratch.mkdir(exist_ok=True)
                     app_mounts = {**mounts, "/fixture": canary.root}
-                    ready = _sandbox.run(
+                    ready = timed(
+                        "ready",
+                        _sandbox.run,
                         job((*side.command, *side.readiness_args)),
                         scratch=app_scratch,
                         mounts=app_mounts,
@@ -169,7 +195,9 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                         bridge.chmod(0o555)
                         attacker_input = root / "attacker-input"
                         attacker_input.mkdir()
-                        attack = _sandbox.run(
+                        attack = timed(
+                            "run",
+                            _sandbox.run,
                             job(("/bin/sh", "/demo/attack.sh"), checkout=attacker_input),
                             scratch=attack_scratch,
                             mounts={"/demo": artefact, "/target": bridge},
@@ -182,7 +210,9 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                         if "Read-only file system" in attack.stderr or "Permission denied" in attack.stderr:
                             return record("inconclusive", "attacker boundary refused")
                     for arguments in _requests(attack_scratch, artefact):
-                        result = _sandbox.run(
+                        result = timed(
+                            "run",
+                            _sandbox.run,
                             job((*side.command, *arguments)),
                             scratch=app_scratch,
                             mounts=app_mounts,
@@ -191,8 +221,8 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                         )
                         if result.timed_out:
                             return record("inconclusive", "app attack timed out")
-                        oracle.capture(result.stdout)
-                    observed, evidence = oracle.observe()
+                        timed("run", oracle.capture, result.stdout)
+                    observed, evidence = timed("run", oracle.observe)
                     if (
                         tuple(_tree(p) for p in immutable) != before
                         or tuple(_tree(p) for p in originals) != initial

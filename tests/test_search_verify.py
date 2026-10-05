@@ -10,7 +10,7 @@ import pytest
 
 from openultrasast.search.verify import Side, verify
 
-FIXTURE = Path(__file__).parent / "fixtures/search/app.py"
+FIXTURE = Path(__file__).parents[1] / "src/openultrasast/search/probe_apps/app.py.txt"
 PAYLOADS = {
     "path": "../canary",
     "sql": "' OR public=0 --",
