@@ -247,7 +247,15 @@ class Coordinator:
                     if self.progress["demonstrations"] >= self.budget.demonstrations:
                         return self._end("budget_spent", "demonstrations")
                     self.progress["demonstrations"] += 1
-                    result = self._call("verify", {"fact_id": demo["id"], "demo": demo["demo"]})
+                    result = self._call(
+                        "verify",
+                        {
+                            "fact_id": demo["id"],
+                            "demo": demo["demo"],
+                            "family": self.board.candidate().get("family"),
+                            "oracle": demo.get("oracle"),
+                        },
+                    )
                     self.progress["verified"].append(demo["id"])
                     refs = result.get("evidence_refs")
                     if result.get("status") == "ok" and result.get("outcome") == "demonstrated" and self._refs(refs):
@@ -284,6 +292,7 @@ class Coordinator:
                         )
                         if isinstance(fact.get("demo"), str) and fact["demo"]:
                             entry["demo"] = fact["demo"]
+                            entry["oracle"] = fact.get("oracle")
                         self.state["facts"].append(entry)
                     else:
                         intent["failure"] = "invalid_result" if result.get("status") == "ok" else result.get("status", "execution_failure")

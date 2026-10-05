@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from . import _sandbox
+from .demo import FAMILY_ORACLES
 from .oracles import BrowserExecutor
 from .task_storage import exception_reason
 from .verify import Side, verify
@@ -53,6 +54,7 @@ def materialise(root: Path, family: str) -> tuple[tuple[Side, Side], dict[str, P
         demo.mkdir()
         demos[name] = demo
     schema: dict[str, Any] = {
+        "oracle": family,
         "build": {"recipe": "none", "arguments": []},
         "start": {"runtime": "python", "path": "app.py", "arguments": [], "mode": "cli"},
         "steps": [{"type": "cli", "arguments": [family, PAYLOADS[family]]}],
@@ -121,7 +123,12 @@ def probe(root: Path) -> dict[str, Any]:
             results: dict[str, Any] = {}
             record["oracles"][family] = results
             for name, demo in demos.items():
-                result = verify(*sides, demo, family, browser=BrowserExecutor() if family == "xss" else None)
+                result = verify(
+                    *sides,
+                    demo,
+                    next(f for f, kinds in FAMILY_ORACLES.items() if family in kinds),
+                    browser=BrowserExecutor() if family == "xss" else None,
+                )
                 results[name] = asdict(result)
                 # SSRF/browser need additional namespace capabilities beyond the
                 # generic preflight. These failures must not look like oracle misses.

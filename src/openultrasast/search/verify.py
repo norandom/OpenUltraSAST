@@ -27,7 +27,8 @@ from typing import Any, cast
 
 from ..sandbox import SandboxJob, SandboxResult
 from . import _sandbox, task_storage
-from .demo import BUILD_RECIPES, RUNTIMES, capture_output, load_demo, substitute
+from .budget import SearchBudget
+from .demo import BUILD_RECIPES, FAMILY_ORACLES, RUNTIMES, capture_output, load_demo, substitute, validate_oracle
 from .oracles import BrowserExecutor, Canary, Oracle, oracle_for
 from .task_storage import exception_reason
 
@@ -277,7 +278,7 @@ def _side(side: Side, demo: Path, family: str, timeout: int, browser: BrowserExe
                 mounts = {f"/deps/{i}": p for i, p in enumerate(dependencies)}
 
                 def job(command: tuple[str, ...], checkout: Path = checkout) -> SandboxJob:
-                    return SandboxJob("", command, checkout, {}, timeout, 256, 128)
+                    return SandboxJob("", command, checkout, {}, timeout, SearchBudget().memory_bytes // 1024**2, 128)
 
                 products = root / "products"
                 if side.products is not None:
@@ -448,7 +449,7 @@ def _run_task(
 
     def limits() -> None:
         resource.setrlimit(resource.RLIMIT_FSIZE, (1024 * 1024,) * 2)
-        resource.setrlimit(resource.RLIMIT_AS, (job.memory_mb * 1024**2,) * 2)
+        # The external task memory limit bounds app starts; RLIMIT_AS breaks V8 reservations.
         resource.setrlimit(resource.RLIMIT_CPU, (job.timeout_seconds + 1,) * 2)
 
     # Driver JSON includes command paths, but arbitrary user input stays data.
@@ -481,13 +482,15 @@ def verify_side_task(side: Side, demo: Path, family: str, timeout_seconds: int =
 
     This explicit API is never selected as a fallback in the host verifier.
     """
-    load_demo(demo)
+    schema = load_demo(demo)
+    if family in FAMILY_ORACLES and not FAMILY_ORACLES[family]:
+        return SideRecord("no_oracle", (), 0, "no owned oracle", isolation_mode="task-boundary")
+    validate_oracle(family, schema["oracle"])
+    kind = schema["oracle"]
     if timeout_seconds < 1:
         raise ValueError("timeout must be positive")
-    browser = BrowserExecutor(task_boundary=True) if family == "xss" else None
-    if oracle_for(family, browser) is None:
-        return SideRecord("no_oracle", (), 0, "no owned oracle", isolation_mode="task-boundary")
-    return _side(side, demo, family, timeout_seconds, browser, task_boundary=True)
+    browser = BrowserExecutor(task_boundary=True) if kind == "xss" else None
+    return _side(side, demo, kind, timeout_seconds, browser, task_boundary=True)
 
 
 def verify(
@@ -497,17 +500,24 @@ def verify(
     family: str,
     *,
     timeout_seconds: int = 5,
+    oracle: str | None = None,
     browser: BrowserExecutor | None = None,
     task_dispatcher: Callable[..., SideRecord] | None = None,
 ) -> VerificationRecord:
     """Affected is vulnerable/head; safe is fixed/base. No negative verdict exists."""
     started = time.monotonic()
-    if oracle_for(family, browser) is None:
+    if family in FAMILY_ORACLES and not FAMILY_ORACLES[family]:
         return VerificationRecord("no_oracle", (), time.monotonic() - started, "no configured owned oracle for " + family)
     if timeout_seconds < 1:
         raise ValueError("timeout must be positive")
     try:
-        load_demo(artefact)
+        schema = load_demo(artefact)
+        validate_oracle(family, schema["oracle"])
+        if oracle is not None and oracle != schema["oracle"]:
+            raise ValueError("oracle differs from demo")
+        kind = schema["oracle"]
+        if oracle_for(kind, browser) is None:
+            raise ValueError("oracle runtime unavailable")
     except (OSError, ValueError) as exc:
         return VerificationRecord("inconclusive", (), time.monotonic() - started, "invalid declarative demo: " + exception_reason(exc))
     mode = "task-boundary" if task_dispatcher is not None else _sandbox.isolation_mode()
@@ -527,7 +537,7 @@ def verify(
         if any(s.isolation_mode != "task-boundary" for s in sides):
             raise _sandbox.IsolationUnavailable("dispatcher did not attest task-boundary isolation")
     else:
-        sides = tuple(_side(s, artefact, family, timeout_seconds, browser) for s in (affected, safe))
+        sides = tuple(_side(s, artefact, kind, timeout_seconds, browser) for s in (affected, safe))
     if any(s.outcome == "observed" and len(s.runs) != 3 for s in sides):
         outcome, reason = "inconclusive", "each side requires exactly three fresh observations"
     elif sides[1].outcome != "observed":

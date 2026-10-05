@@ -16,6 +16,7 @@ from openultrasast.search.verify import Side, verify_side_task
 def spec():
     return {
         "demo": {
+            "oracle": "path",
             "build": {"recipe": "none", "arguments": []},
             "start": {"runtime": "python", "path": "app.py", "arguments": [], "mode": "cli"},
             "steps": [{"type": "cli", "arguments": []}],
@@ -281,3 +282,38 @@ def test_preparation_with_many_host_processes(workspace, monkeypatch):
             os.kill(pid, signal.SIGKILL)
         for pid in children:
             os.waitpid(pid, 0)
+
+
+@pytest.mark.parametrize("memory_bytes", [None, 256 * 1024**2, 5 * 1024**3])
+def test_prepare_build_virtual_memory(workspace, monkeypatch, memory_bytes):
+    from openultrasast.search.demo import BUILD_RECIPES
+
+    repo = workspace / "checkout"
+    repo.mkdir()
+    source = "import mmap; region=mmap.mmap(-1,512*1024**2); print(len(region))"
+    (repo / "app.py").write_text(source)
+    print("input_bytes=", len((repo / "app.py").read_bytes()))
+    monkeypatch.setitem(BUILD_RECIPES, "npm", (sys.executable, "-c", source))
+    app = executor.InProcessExecutor(repo, task_boundary=True)
+    app.prepared_put_url = "https://files.example/output"
+    blobs = []
+    monkeypatch.setattr(executor.URLTransport, "put", lambda self, url, data, timeout: blobs.append(data))
+    request = spec()
+    request["demo"]["build"] = {"recipe": "npm", "arguments": ["."]}
+    limits = {} if memory_bytes is None else {"memory_bytes": memory_bytes}
+    result = app.submit("prepare_verification", request, limits=limits)
+    if memory_bytes == 256 * 1024**2:
+        assert result["status"] == "could_not_build" and not blobs
+    else:
+        assert result["status"] == "ok" and blobs, result
+
+
+def test_verifier_app_virtual_memory(workspace):
+    repo = workspace / "checkout"
+    repo.mkdir()
+    (repo / "app.py").write_text("import mmap; region=mmap.mmap(-1,512*1024**2); print(len(region))")
+    print("input_bytes=", len((repo / "app.py").read_bytes()))
+    demo = workspace / "demo.json"
+    demo.write_text(json.dumps(spec()["demo"]))
+    result = verify_side_task(Side(repo), demo, "path")
+    assert result.outcome == "observed", result

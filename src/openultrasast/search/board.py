@@ -115,7 +115,7 @@ class Board:
         state = self.state
         view = {key: state[key] for key in ("version", "end_reason", "facts", "intents", "hints")}
         view["candidate"] = self.candidate()
-        view["family"] = view["candidate"].get("oracle", view["candidate"].get("family", "unknown"))
+        view["family"] = view["candidate"].get("family", "unknown")
         view["budget_left"] = budget_left or {}
         # Keep recent observations, with explicit truncation, without mutating the board.
         remaining = 12000

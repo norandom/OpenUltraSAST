@@ -247,7 +247,7 @@ def test_no_oracle_does_not_acquire_or_build(tmp_path, monkeypatch):
     pilot = make_pilot(tmp_path)
     _, demos = materialise(tmp_path / "probe", "path")
     (tmp_path / "demo/demo.json").write_bytes((demos["real"] / "demo.json").read_bytes())
-    pilot.family = "injection"
+    pilot.family = "deserialization"
     monkeypatch.setattr(pilot, "prepare", lambda *args: pytest.fail("no-oracle must not build"))
     assert pilot.verification().outcome == "no_oracle"
     assert pilot.record["tasks_submitted"] == 0
@@ -467,3 +467,16 @@ def test_live_driver_stops_remaining_pairs_on_infrastructure_failure(tmp_path, m
     assert summary["end_reason"] == "instrument_failure"
     assert summary["aborted_reason"] == search["aborted_reason"]
     assert "running=0" in summary["aborted_reason"]
+
+
+@pytest.mark.parametrize("oracle", ["sql", "command"])
+def test_injection_pilot_uses_demo_choice_without_manifest_subtype(tmp_path, oracle):
+    from openultrasast.search.probe import materialise
+
+    pilot = make_pilot(tmp_path, side="vulnerable", dry_run=True)
+    pilot.family = "injection"
+    pilot.row.pop("oracle", None)
+    pilot.sides, demos = materialise(tmp_path / "probe", oracle)
+    (tmp_path / "demo/demo.json").write_bytes((demos["real"] / "demo.json").read_bytes())
+    result = pilot.verification()
+    assert result.outcome == "demonstrated", result

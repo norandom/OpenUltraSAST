@@ -85,7 +85,8 @@ def test_coordinator_stub_smoke_real_verify(tmp_path):
     def executor(job):
         if job.step != "verify":
             return worker(job)
-        result = verify(*sides, demo, "path")
+        assert job.payload["oracle"] == "path"
+        result = verify(*sides, demo, "path", oracle=job.payload["oracle"])
         outcomes.append(result.outcome)
         return {"status": "ok", "outcome": result.outcome, "evidence_refs": ["verify:local"], "cost_usd": 0}
 
@@ -198,6 +199,7 @@ def test_brain_refuses_repository_tools_without_executor(tmp_path):
 def test_write_demo_accepts_only_declarative_json(tmp_path):
     worker = Worker(StubModel([]), repo=tmp_path, demo=tmp_path / "demo")
     schema = {
+        "oracle": "path",
         "build": {"recipe": "none", "arguments": []},
         "start": {"runtime": "python", "path": "app.py", "arguments": [], "mode": "cli"},
         "steps": [{"type": "cli", "arguments": ["hello"]}],
@@ -386,3 +388,58 @@ def test_worker_exhaustion_is_structured(tmp_path, monkeypatch, detail):
     result = worker(task("explore"))
     assert result["budget_exhaustion"]["end_detail"] == detail
     assert result["end_detail"] == detail
+
+
+def malformed_tool(arguments="{"):
+    response = tool("read_file")
+    response["tool_calls"][0]["function"]["arguments"] = arguments
+    return response
+
+
+def test_malformed_arguments_recover_with_tool_result(tmp_path):
+    (tmp_path / "input").write_text("readable")
+    model = StubModel(
+        [
+            malformed_tool(),
+            tool("read_file", path="input"),
+            tool("finish", fact={"text": "read input", "evidence_refs": ["tool:1"]}),
+        ]
+    )
+    result = Worker(model, repo=tmp_path, demo=tmp_path / "demo", executor=InProcessExecutor(tmp_path))(task("explore"))
+    assert result["status"] == "ok" and result["fact"]["text"] == "read input"
+    feedback = model.calls[1]["messages"][-1]
+    assert feedback["role"] == "tool" and feedback["tool_call_id"] == "call-1"
+    assert json.loads(feedback["content"])["error"].startswith("invalid JSON arguments: ")
+    assert len(model.calls) == 3
+
+
+def test_two_malformed_arguments_record_failure(tmp_path):
+    model = StubModel([malformed_tool(), malformed_tool()])
+    result = Worker(model, repo=tmp_path, demo=tmp_path / "demo")(task("explore"))
+    assert result["status"] == "execution_failure"
+    assert "two consecutive malformed tool calls" in result["failure"]
+    assert len(model.calls) == 2
+
+
+def test_valid_call_resets_malformed_streak(tmp_path):
+    model = StubModel([malformed_tool(), tool("list_files"), malformed_tool(), tool("finish", failure="done")])
+    result = Worker(model, repo=tmp_path, demo=tmp_path / "demo", executor=InProcessExecutor(tmp_path))(task("explore"))
+    assert result["failure"] == "done" and len(model.calls) == 4
+
+
+def test_malformed_call_consumes_step(tmp_path):
+    model = StubModel([malformed_tool(), tool("finish", failure="unused")])
+    result = Worker(model, repo=tmp_path, demo=tmp_path / "demo", max_steps=1)(task("explore"))
+    assert result["end_detail"] == "worker_steps" and len(model.calls) == 1
+
+
+def test_worker_run_uses_search_memory_budget(tmp_path):
+    class Recorder:
+        def submit(self, name, args, **kwargs):
+            return kwargs["limits"]
+
+    worker = Worker(StubModel([]), repo=tmp_path, demo=tmp_path / "demo", executor=Recorder())
+    assert worker.tool("run", {"command": ["node", "app.js"]})["memory_bytes"] == SearchBudget().memory_bytes
+    assert worker.tool("grep", {"pattern": "needle"})["memory_bytes"] == 256 * 1024**2
+    worker.limits["memory_bytes"] = 128 * 1024**2
+    assert worker.tool("read_file", {"path": "app.py"})["memory_bytes"] == 128 * 1024**2
