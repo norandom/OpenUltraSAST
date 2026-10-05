@@ -17,8 +17,9 @@ from ..model.endpoint import Prices
 from ..plane.budget import BudgetExhausted, SpendBudget, cost_of
 from ..provider.openrouter import OpenRouterChatClient, parse_json_content
 from . import _sandbox
+from .budget import SearchBudget
 from .coordinator import SearchTask
-from .demo import DEMO_SCHEMA, load_demo, validate_demo
+from .demo import DEMO_SCHEMA, FAMILY_ORACLES, load_demo, validate_demo, validate_oracle
 from .executor import ObjectStoreExecutor
 from .task_storage import exception_reason
 
@@ -77,7 +78,7 @@ TOOLS = [
 
 
 DEMO_GUIDE = (
-    'Demo schema: {"build":{"recipe":"none","arguments":[]},'
+    'Demo schema: {"oracle":"path","build":{"recipe":"none","arguments":[]},'
     '"start":{"runtime":"python","path":"app.py","arguments":[],"mode":"cli"},'
     '"steps":[{"type":"cli","arguments":["hello"]}]}. This is a minimal example, not evidence. '
     "Recipes: none,pip,npm,composer,maven,gradle; none takes [], others one checkout-relative manifest/project path. "
@@ -94,8 +95,10 @@ ORACLE_GUIDE = (
     "SSRF provides a private loopback listener with a fresh nonce URL and observes a request to it. "
     "XSS installs a verifier-owned alert hook in a browser and observes actual execution of alert('ousast-xss'); "
     "reflection alone is insufficient. "
-    "output_encoding maps to XSS; untrusted_destination maps to SSRF. Injection needs an explicit SQL or command subtype. "
-    "Other families have no owned oracle; report that gap instead of inventing one."
+    "Set the required oracle field using the allowed choices below; for injection choose sql or command. "
+    "Other families have no owned oracle; report that gap instead of inventing one. "
+    + "Allowed family/oracle choices: "
+    + json.dumps(FAMILY_ORACLES)
 )
 REASON_PROMPT = (
     "Your goal is a declarative demo conforming to demo.py's schema that makes the verifier observe the effect "
@@ -188,7 +191,7 @@ class Worker:
             raise ValueError("demo symlinks refused")
         self.max_output_tokens, self.max_steps = max_output_tokens, max_steps
         self.deadline = float("inf")
-        self.limits: dict[str, Any] = {"memory_bytes": 256 * 1024**2, "disk_bytes": 128 * 1024**2}
+        self.limits: dict[str, Any] = {"memory_bytes": SearchBudget().memory_bytes, "disk_bytes": 128 * 1024**2}
         self.evidence: set[str] = set()
 
     def _remaining(self) -> int:
@@ -270,7 +273,10 @@ class Worker:
                 name,
                 args,
                 timeout_seconds=timeout,
-                limits={key: value for key, value in self.limits.items() if key in {"memory_bytes", "disk_bytes", "result_bytes"}},
+                limits={
+                    **{key: value for key, value in self.limits.items() if key in {"memory_bytes", "disk_bytes", "result_bytes"}},
+                    **({"memory_bytes": min(256 * 1024**2, self.limits.get("memory_bytes", 256 * 1024**2))} if name != "run" else {}),
+                },
             )
         if name == "write_demo":
             if set(args) != {"schema"}:
@@ -339,6 +345,7 @@ class Worker:
         ]
         self.evidence = set()
         self.observations = []
+        malformed = 0
         for index in range(self.max_steps):
             messages[0]["content"] = (
                 EXPLORE_PROMPT
@@ -354,9 +361,19 @@ class Worker:
                 raise ValueError("explore must use tools or finish")
             for call in calls:
                 function = call["function"]
-                name, args = function["name"], json.loads(function["arguments"])
-                if not isinstance(args, dict):
-                    raise ValueError("tool arguments must be an object")
+                name = function["name"]
+                try:
+                    args = json.loads(function["arguments"])
+                    if not isinstance(args, dict):
+                        raise ValueError("tool arguments must be an object")
+                except (ValueError, TypeError) as exc:
+                    malformed += 1
+                    error = "invalid JSON arguments: " + str(exc)[:500]
+                    messages.append({"role": "tool", "tool_call_id": call["id"], "content": json.dumps({"error": error})})
+                    if malformed >= 2:
+                        return {"status": "execution_failure", "failure": "two consecutive malformed tool calls: " + error}
+                    continue
+                malformed = 0
                 if name == "finish":
                     if len(calls) != 1 or len(args) != 1:
                         raise ValueError("finish must be the only call and return fact OR failure")
@@ -375,7 +392,11 @@ class Worker:
                     if "demo" in fact:
                         if fact["demo"] != "demo/":
                             raise ValueError("incomplete demonstration")
-                        load_demo(self.demo)
+                        schema = load_demo(self.demo)
+                        family = (yaml.safe_load(task.snapshot) or {}).get("family")
+                        if family not in (None, "unknown"):
+                            validate_oracle(family, schema["oracle"])
+                        fact["oracle"] = schema["oracle"]
                     return {"fact": fact}
                 try:
                     result = self.tool(name, args)

@@ -65,7 +65,7 @@ def test_snapshot_caps_fact_text_and_preserves_context(tmp_path):
         ],
     )
     view = yaml.safe_load(board.snapshot(budget_left={"tasks": 3}))
-    assert view["candidate"]["file"] == "app.py" and view["family"] == "sql"
+    assert view["candidate"]["file"] == "app.py" and view["family"] == "injection"
     assert view["budget_left"]["tasks"] == 3
     assert {i["status"] for i in view["intents"]} == {"open", "concluded"}
     assert all(len(f["text"]) <= 2000 for f in view["facts"])

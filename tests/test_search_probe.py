@@ -156,7 +156,7 @@ def test_task_boundary_probe_executes_packaged_pairs(tmp_path, monkeypatch, name
                 0.5,
                 4096,
                 "task-boundary",
-                family == "xss",
+                json.loads((demo / "demo.json").read_text())["oracle"] == "xss",
             )
 
         monkeypatch.setattr(probe, "verify_side_task", run)

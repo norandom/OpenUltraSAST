@@ -36,9 +36,9 @@ from openultrasast.search import _sandbox
 from openultrasast.search.board import Board
 from openultrasast.search.budget import SearchBudget
 from openultrasast.search.coordinator import Coordinator
-from openultrasast.search.demo import load_demo
+from openultrasast.search.demo import FAMILY_ORACLES, load_demo, validate_oracle
 from openultrasast.search.executor import InProcessExecutor
-from openultrasast.search.oracles import BrowserExecutor, oracle_for
+from openultrasast.search.oracles import BrowserExecutor
 from openultrasast.search.probe import materialise
 from openultrasast.search.task_storage import diagnostic, exception_reason
 from openultrasast.search.verify import Side, VerificationRecord, verify
@@ -119,10 +119,7 @@ class Pilot:
             run_budget=run_budget,
             max_output_tokens=args.max_tokens,
         )
-        self.family = {"output_encoding": "xss", "untrusted_destination": "ssrf"}.get(row["family"], row["family"])
-        # Injection is ambiguous without a manifest oracle subtype; never guess SQL vs command.
-        if self.family == "injection":
-            self.family = row.get("oracle", "injection")
+        self.family = row["family"]
         self.sides = None
         self.verifications = []
 
@@ -220,13 +217,13 @@ class Pilot:
             wall["build_export"] = wall.get("build_export", 0) + time.monotonic() - before
 
     def verification(self):
-        demo = load_demo(self.root / "demo")
-        browser = BrowserExecutor(task_boundary=self.args.verify_lane == "ax") if self.family == "xss" else None
-        if oracle_for(self.family, browser) is None:
+        if not FAMILY_ORACLES[self.family]:
             return VerificationRecord("no_oracle", (), 0, "no configured owned oracle")
+        demo = load_demo(self.root / "demo")
+        validate_oracle(self.family, demo["oracle"])
         if self.args.dry_run:
             sides = self.sides if self.args.side == "vulnerable" else (self.sides[1], self.sides[1])
-            return verify(*sides, self.root / "demo", self.family)
+            return verify(*sides, self.root / "demo", self.family, oracle=demo["oracle"])
         revisions = [self.row[self.args.side], self.row["fixed"]]
         if self.args.verify_lane == "ax":
             # Side paths are opaque lookup keys; no checkout or opposite revision reaches the brain.
@@ -251,8 +248,9 @@ class Pilot:
                 *sides,
                 self.root / "demo",
                 self.family,
+                oracle=demo["oracle"],
                 task_dispatcher=dispatcher,
-                browser=BrowserExecutor(task_boundary=True) if self.family == "xss" else None,
+                browser=BrowserExecutor(task_boundary=True) if demo["oracle"] == "xss" else None,
             )
         if _sandbox.isolation_mode() != "userns":
             raise _sandbox.IsolationUnavailable("VM verification requires userns")
@@ -270,7 +268,13 @@ class Pilot:
             if built_spec != {**spec, "demo": expected_demo}:
                 raise ValueError("executor altered verification contract")
             (self.root / "verify-demo/demo.json").write_text(json.dumps(built_spec["demo"]))
-        return verify(*sides, self.root / "verify-demo", self.family, browser=BrowserExecutor() if self.family == "xss" else None)
+        return verify(
+            *sides,
+            self.root / "verify-demo",
+            self.family,
+            oracle=demo["oracle"],
+            browser=BrowserExecutor() if demo["oracle"] == "xss" else None,
+        )
 
     def dispatch(self, task):
         self.phase = task.step
@@ -341,7 +345,7 @@ class Pilot:
 
     def run(self):
         started = time.monotonic()
-        coordinator = Coordinator(self.board, self.dispatch, budget=SearchBudget(retries=0, memory_bytes=2 * 1024**3))
+        coordinator = Coordinator(self.board, self.dispatch, budget=SearchBudget(retries=0))
         try:
             state = coordinator.run()
             self.record["end_reason"] = state["end_reason"]

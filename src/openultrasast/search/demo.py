@@ -12,6 +12,24 @@ import re
 from pathlib import Path, PurePosixPath
 from typing import Any, cast
 
+FAMILY_ORACLES = {
+    "injection": ("sql", "command"),
+    "path": ("path",),
+    "output_encoding": ("xss",),
+    "untrusted_destination": ("ssrf",),
+    "deserialization": (),
+    "access_control": (),
+    "config_secrets": (),
+}
+
+
+def validate_oracle(family: str, oracle: str) -> None:
+    if not isinstance(family, str) or family not in FAMILY_ORACLES:
+        raise ValueError("unknown search family")
+    if oracle not in FAMILY_ORACLES[family]:
+        raise ValueError("demo oracle is not allowed for search family " + family)
+
+
 MAX_DEMO_BYTES = 65536
 MAX_STEPS = 32
 MAX_VALUE_BYTES = 16384
@@ -47,8 +65,9 @@ _CAPTURE_SCHEMA = {
 DEMO_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["build", "start", "steps"],
+    "required": ["oracle", "build", "start", "steps"],
     "properties": {
+        "oracle": {"enum": sorted({o for allowed in FAMILY_ORACLES.values() for o in allowed})},
         "build": {
             "type": "object",
             "additionalProperties": False,
@@ -151,7 +170,9 @@ def validate_demo(value: Any) -> dict[str, Any]:
         raise ValueError("demo must be JSON data") from exc
     if len(encoded) > MAX_DEMO_BYTES:
         raise ValueError("demo exceeds size limit")
-    _keys(value, {"build", "start", "steps"})
+    _keys(value, {"oracle", "build", "start", "steps"})
+    if not isinstance(value["oracle"], str) or not any(value["oracle"] in allowed for allowed in FAMILY_ORACLES.values()):
+        raise ValueError("unknown demo oracle")
     build, start = value["build"], value["start"]
     _keys(build, {"recipe", "arguments"})
     recipe = build["recipe"]

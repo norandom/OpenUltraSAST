@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from . import _sandbox
-from .demo import load_demo
+from .demo import FAMILY_ORACLES, load_demo
 from .oracles import BrowserExecutor
 from .task_storage import exception_reason
 from .verify import Side, VerificationRecord, verify, verify_side_task
@@ -54,6 +54,7 @@ def materialise(root: Path, family: str) -> tuple[tuple[Side, Side], dict[str, P
         demo.mkdir()
         demos[name] = demo
     schema: dict[str, Any] = {
+        "oracle": family,
         "build": {"recipe": "none", "arguments": []},
         "start": {"runtime": "python", "path": "app.py", "arguments": [], "mode": "cli"},
         "steps": [{"type": "cli", "arguments": [family, PAYLOADS[family]]}],
@@ -122,8 +123,9 @@ def _verify_task_pair(sides: tuple[Side, Side], demo: Path, family: str) -> Veri
             "invalid declarative demo: " + exception_reason(exc),
             isolation_mode="task-boundary",
         )
+    search_family = next(f for f, kinds in FAMILY_ORACLES.items() if family in kinds)
     for side in sides:
-        runs = [verify_side_task(side, demo, family) for _ in range(3)]
+        runs = [verify_side_task(side, demo, search_family) for _ in range(3)]
         first = next((run for run in runs if run.outcome != "observed"), runs[0])
         records.append(
             replace(
@@ -181,6 +183,7 @@ def probe(root: Path) -> dict[str, Any]:
             results: dict[str, Any] = {}
             record["oracles"][family] = results
             for name, demo in demos.items():
+                search_family = next(f for f, kinds in FAMILY_ORACLES.items() if family in kinds)
                 if task_boundary:
                     tick = time.monotonic()
                     try:
@@ -190,7 +193,13 @@ def probe(root: Path) -> dict[str, Any]:
                             "inconclusive", (), time.monotonic() - tick, exception_reason(exc), isolation_mode="task-boundary"
                         )
                 else:
-                    result = verify(*sides, demo, family, browser=BrowserExecutor() if family == "xss" else None)
+                    result = verify(
+                        *sides,
+                        demo,
+                        search_family,
+                        oracle=family,
+                        browser=BrowserExecutor() if family == "xss" else None,
+                    )
                 results[name] = asdict(result)
                 if task_boundary and (result.outcome == "demonstrated") != (name == "real") and record["status"] == "ok":
                     expected = "demonstrated" if name == "real" else "not demonstrated"
